@@ -33,14 +33,14 @@ All contributors are expected to uphold the [Contributor Covenant Code of Conduc
 3. Write or update unit tests and property-based tests for all changed logic.
 4. Ensure all CI checks pass locally before pushing:
    ```
-   mvn verify -pl backend/<module> -am
+   ./gradlew :backend:<module>:build -x integrationTest
    ```
 5. Open a pull request against `main` with a clear description of the change, linked issues, and testing evidence.
 6. At least one maintainer approval is required before merge.
 
 ## Coding Standards
 
-- **Java 21 / Spring Boot 3.3.x** — use virtual threads (`spring.threads.virtual.enabled=true`) for I/O-bound work.
+- **Java 21 / Spring Boot 3.x / Gradle** — use virtual threads (`spring.threads.virtual.enabled=true`) for I/O-bound work.
 - Follow the [Google Java Style Guide](https://google.github.io/styleguide/javaguide.html).
 - All public APIs must carry Javadoc.
 - No commented-out code in merged PRs.

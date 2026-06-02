@@ -56,7 +56,7 @@ public final class ApiResponse<T> {
      * @return success envelope with default "OK" message
      */
     public static <T> ApiResponse<T> success(T data) {
-        return new ApiResponse<>("SUCCESS", "OK", data);
+        return new ApiResponse<>("SUCCESS", null, data);
     }
 
     /**

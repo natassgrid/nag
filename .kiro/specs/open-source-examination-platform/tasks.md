@@ -8,14 +8,14 @@ All services are stateless Spring Boot applications; persistent state lives in P
 
 ## Tasks
 
-- [ ] 1. Repository scaffold and shared infrastructure
-  - [ ] 1.1 Initialize monorepo structure with top-level directories `/frontend`, `/backend`, `/infrastructure`, `/docs` and root files `LICENSE` (Apache 2.0), `CONTRIBUTING.md`, `SECURITY.md`
+- [x] 1. Repository scaffold and shared infrastructure
+  - [x] 1.1 Initialize monorepo structure with top-level directories `/frontend`, `/backend`, `/infrastructure`, `/docs` and root files `LICENSE` (Apache 2.0), `CONTRIBUTING.md`, `SECURITY.md`
     - Create Maven/Gradle multi-module root `pom.xml` / `settings.gradle` declaring all backend service modules
     - Add `.github/workflows/ci.yml` skeleton with Build, Unit Test, Integration Test, SAST, DAST, Container Build, Deploy stages
     - _Requirements: 27.1, 27.2, 27.3, 24.1_
-  - [ ] 1.2 Create `backend/shared-lib` module with common classes: `ApiResponse<T>` envelope, `ProblemDetail` RFC 7807 error builder, `AuditEventType` enum, `LifecycleState` enums, `TenantContext` thread-local, and `BaseEntity` JPA mapped superclass
+  - [x] 1.2 Create `backend/shared-lib` module with common classes: `ApiResponse<T>` envelope, `ProblemDetail` RFC 7807 error builder, `AuditEventType` enum, `LifecycleState` enums, `TenantContext` thread-local, and `BaseEntity` JPA mapped superclass
     - _Requirements: 23.1, 15.1, 3.1_
-  - [ ] 1.3 Write Docker Compose configuration (`infrastructure/docker-compose/docker-compose.yml`) starting PostgreSQL 16, Kafka, Redis Cluster, Keycloak, HashiCorp Vault (dev mode), Prometheus, Grafana, Jaeger, and all backend services
+  - [x] 1.3 Write Docker Compose configuration (`infrastructure/docker-compose/docker-compose.yml`) starting PostgreSQL 16, Kafka, Redis Cluster, Keycloak, HashiCorp Vault (dev mode), Prometheus, Grafana, Jaeger, and all backend services
     - _Requirements: 24.4_
 
 

@@ -2,7 +2,7 @@
  * Open Source Government Examination Platform
  * Root Gradle settings — declares all backend service subprojects
  */
-rootProject.name = 'exam-platform'
+rootProject.name = 'examination-platform'
 
 // ── Backend modules ──────────────────────────────────────────────────────────
 include 'backend:shared-lib'

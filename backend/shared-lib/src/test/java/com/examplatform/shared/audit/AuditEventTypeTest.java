@@ -10,12 +10,33 @@ import static org.junit.jupiter.api.Assertions.*;
 
 class AuditEventTypeTest {
 
+    /**
+     * Complete set of all 22 audit event types defined in the platform spec (Task 1.2).
+     * Any removal or rename of an existing value is a breaking change and requires a
+     * database migration.
+     */
     private static final Set<String> EXPECTED_VALUES = Set.of(
+            // Identity / Access domain
             "LOGIN", "LOGOUT", "ROLE_CHANGE", "DENIED_ACCESS", "ACCOUNT_LOCK",
-            "KEY_REVOCATION", "CANDIDATE_PROFILE_CREATED", "QUESTION_CREATED",
-            "QUESTION_STATE_TRANSITION", "PAPER_GENERATED", "PAPER_APPROVED",
-            "SESSION_STARTED", "SESSION_SUBMITTED", "EVALUATION_CREATED",
-            "RESULT_PUBLISHED", "CONFIG_CHANGED", "TAMPER_ATTEMPT"
+            "KEY_REVOCATION",
+            // Candidate domain
+            "CANDIDATE_PROFILE_CREATED",
+            // Question Bank domain
+            "QUESTION_CREATED", "QUESTION_MODIFIED", "QUESTION_STATE_TRANSITION",
+            // Paper domain
+            "PAPER_GENERATED", "PAPER_APPROVED",
+            // Delivery / Session domain
+            "SESSION_STARTED", "SESSION_SUBMITTED", "RESPONSE_SAVED",
+            // Evaluation / Result domain
+            "EVALUATION_CREATED", "RESULT_PUBLISHED",
+            // Admin domain
+            "CONFIG_CHANGED",
+            // Security domain
+            "TAMPER_ATTEMPT",
+            // Translation domain
+            "TRANSLATION_CREATED", "TRANSLATION_APPROVED",
+            // Exam publication domain
+            "EXAM_PUBLISHED"
     );
 
     @Test
@@ -24,13 +45,28 @@ class AuditEventTypeTest {
                 .map(Enum::name)
                 .collect(Collectors.toSet());
 
+        assertTrue(actual.containsAll(EXPECTED_VALUES),
+                "AuditEventType enum is missing values. Expected: " + EXPECTED_VALUES
+                        + " Actual: " + actual);
+    }
+
+    @Test
+    void noUnexpectedEventTypesExist() {
+        Set<String> actual = Arrays.stream(AuditEventType.values())
+                .map(Enum::name)
+                .collect(Collectors.toSet());
+
         assertEquals(EXPECTED_VALUES, actual,
-                "AuditEventType enum must contain exactly the platform-defined event types");
+                "AuditEventType enum contains unexpected values. Extra: "
+                        + actual.stream()
+                                .filter(v -> !EXPECTED_VALUES.contains(v))
+                                .collect(Collectors.toSet()));
     }
 
     @Test
     void enumCountMatchesSpecification() {
-        assertEquals(17, AuditEventType.values().length);
+        assertEquals(22, AuditEventType.values().length,
+                "AuditEventType must define exactly 22 event types per the platform spec");
     }
 
     @Test

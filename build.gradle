@@ -6,19 +6,20 @@
 
 // ── Root-level plugins (applied only to root, not subprojects) ───────────────
 plugins {
+    id 'java'                            apply false
     id 'base'
-    id 'org.springframework.boot'        version '3.3.5' apply false
-    id 'io.spring.dependency-management' version '1.1.6' apply false
+    id 'org.springframework.boot'        version '3.2.5' apply false
+    id 'io.spring.dependency-management' version '1.1.4' apply false
     id 'com.github.spotbugs'             version '6.0.9' apply false
     id 'jacoco'
 }
 
 // ── Versions catalogue ────────────────────────────────────────────────────────
 ext {
-    set('springBootVersion',        '3.3.5')
-    set('springCloudVersion',       '2023.0.3')
+    set('springBootVersion',        '3.2.5')
+    set('springCloudVersion',       '2023.0.1')
     set('springVaultVersion',       '3.1.2')
-    set('jqwikVersion',             '1.9.0')
+    set('jqwikVersion',             '1.8.5')
     set('testcontainersVersion',    '1.19.8')
     set('mapstructVersion',         '1.6.2')
     set('lombokVersion',            '1.18.34')
@@ -28,6 +29,16 @@ ext {
     set('spotbugsVersion',          '4.8.6')
 }
 
+// ── Configuration applied to every project (root + subprojects) ───────────────
+allprojects {
+    group   = 'com.examplatform'
+    version = '1.0.0-SNAPSHOT'
+
+    repositories {
+        mavenCentral()
+    }
+}
+
 // ── Configuration applied to every subproject ─────────────────────────────────
 subprojects {
     apply plugin: 'java'
@@ -35,25 +46,19 @@ subprojects {
     apply plugin: 'com.github.spotbugs'
     apply plugin: 'jacoco'
 
-    group   = 'com.examplatform'
-    version = '1.0.0-SNAPSHOT'
-
-    java {
-        toolchain {
-            languageVersion = JavaLanguageVersion.of(21)
-        }
-    }
+    sourceCompatibility = JavaVersion.VERSION_21
+    targetCompatibility = JavaVersion.VERSION_21
 
     // Enable virtual threads globally for all Spring Boot services
     tasks.withType(JavaExec).configureEach {
-        jvmArgs '--enable-preview'
+        jvmArgs '-Dspring.threads.virtual.enabled=true', '--enable-preview'
     }
     tasks.withType(JavaCompile).configureEach {
         options.compilerArgs += ['--enable-preview', '-parameters']
         options.encoding = 'UTF-8'
     }
     tasks.withType(Test).configureEach {
-        jvmArgs '--enable-preview'
+        jvmArgs '-Dspring.threads.virtual.enabled=true', '--enable-preview'
     }
 
     // ── Dependency management BOM imports ─────────────────────────────────────
@@ -65,7 +70,7 @@ subprojects {
             mavenBom "org.testcontainers:testcontainers-bom:${testcontainersVersion}"
         }
         dependencies {
-            // jqwik — property-based testing
+            // jqwik — property-based testing (1.8.x)
             dependency "net.jqwik:jqwik:${jqwikVersion}"
             // MapStruct
             dependency "org.mapstruct:mapstruct:${mapstructVersion}"
