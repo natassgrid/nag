@@ -1,0 +1,31 @@
+# =============================================================================
+# Grafana — auto-provisioned Prometheus datasource
+# Requirement 21.4: Pre-built Grafana dashboards
+# =============================================================================
+
+apiVersion: 1
+
+datasources:
+  - name: Prometheus
+    type: prometheus
+    access: proxy
+    url: http://prometheus:9090
+    isDefault: true
+    jsonData:
+      httpMethod: POST
+      prometheusType: Prometheus
+      prometheusVersion: 2.x
+      exemplarTraceIdDestinations:
+        - name: traceID
+          datasourceUid: jaeger
+    editable: true
+
+  - name: Jaeger
+    type: jaeger
+    access: proxy
+    url: http://jaeger:16686
+    uid: jaeger
+    jsonData:
+      tracesToMetrics:
+        datasourceUid: prometheus
+    editable: true

@@ -1,0 +1,261 @@
+# =============================================================================
+# Prometheus scrape configuration
+# Open Source Government Examination Platform
+# Requirement 21.2: Prometheus-compatible metrics from every microservice
+# =============================================================================
+
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  scrape_timeout: 10s
+  external_labels:
+    platform: exam-platform
+    env: local
+
+# Alerting configuration (points to Alertmanager when deployed)
+# alerting:
+#   alertmanagers:
+#     - static_configs:
+#         - targets: ['alertmanager:9093']
+
+# Rule files (add alert rules here as the platform grows)
+rule_files: []
+# - "alert_rules.yml"
+
+scrape_configs:
+
+  # -------------------------------------------------------------------------
+  # Prometheus self-monitoring
+  # -------------------------------------------------------------------------
+  - job_name: prometheus
+    static_configs:
+      - targets:
+          - localhost:9090
+    metrics_path: /metrics
+
+  # -------------------------------------------------------------------------
+  # Identity Service
+  # -------------------------------------------------------------------------
+  - job_name: identity-service
+    metrics_path: /actuator/prometheus
+    static_configs:
+      - targets:
+          - identity-service:8081
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: service
+        replacement: identity-service
+
+  # -------------------------------------------------------------------------
+  # Candidate Service
+  # -------------------------------------------------------------------------
+  - job_name: candidate-service
+    metrics_path: /actuator/prometheus
+    static_configs:
+      - targets:
+          - candidate-service:8082
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: service
+        replacement: candidate-service
+
+  # -------------------------------------------------------------------------
+  # Question Bank Service
+  # -------------------------------------------------------------------------
+  - job_name: question-bank-service
+    metrics_path: /actuator/prometheus
+    static_configs:
+      - targets:
+          - question-bank-service:8083
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: service
+        replacement: question-bank-service
+
+  # -------------------------------------------------------------------------
+  # Translation Service
+  # -------------------------------------------------------------------------
+  - job_name: translation-service
+    metrics_path: /actuator/prometheus
+    static_configs:
+      - targets:
+          - translation-service:8084
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: service
+        replacement: translation-service
+
+  # -------------------------------------------------------------------------
+  # Examination Service
+  # -------------------------------------------------------------------------
+  - job_name: examination-service
+    metrics_path: /actuator/prometheus
+    static_configs:
+      - targets:
+          - examination-service:8085
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: service
+        replacement: examination-service
+
+  # -------------------------------------------------------------------------
+  # Paper Generator
+  # -------------------------------------------------------------------------
+  - job_name: paper-generator
+    metrics_path: /actuator/prometheus
+    static_configs:
+      - targets:
+          - paper-generator:8086
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: service
+        replacement: paper-generator
+
+  # -------------------------------------------------------------------------
+  # Delivery Service
+  # -------------------------------------------------------------------------
+  - job_name: delivery-service
+    metrics_path: /actuator/prometheus
+    static_configs:
+      - targets:
+          - delivery-service:8087
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: service
+        replacement: delivery-service
+
+  # -------------------------------------------------------------------------
+  # Response Service
+  # -------------------------------------------------------------------------
+  - job_name: response-service
+    metrics_path: /actuator/prometheus
+    static_configs:
+      - targets:
+          - response-service:8088
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: service
+        replacement: response-service
+
+  # -------------------------------------------------------------------------
+  # Evaluation Service
+  # -------------------------------------------------------------------------
+  - job_name: evaluation-service
+    metrics_path: /actuator/prometheus
+    static_configs:
+      - targets:
+          - evaluation-service:8089
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: service
+        replacement: evaluation-service
+
+  # -------------------------------------------------------------------------
+  # Result Service
+  # -------------------------------------------------------------------------
+  - job_name: result-service
+    metrics_path: /actuator/prometheus
+    static_configs:
+      - targets:
+          - result-service:8090
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: service
+        replacement: result-service
+
+  # -------------------------------------------------------------------------
+  # Audit Service
+  # -------------------------------------------------------------------------
+  - job_name: audit-service
+    metrics_path: /actuator/prometheus
+    static_configs:
+      - targets:
+          - audit-service:8091
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: service
+        replacement: audit-service
+
+  # -------------------------------------------------------------------------
+  # Notification Service
+  # -------------------------------------------------------------------------
+  - job_name: notification-service
+    metrics_path: /actuator/prometheus
+    static_configs:
+      - targets:
+          - notification-service:8092
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: service
+        replacement: notification-service
+
+  # -------------------------------------------------------------------------
+  # Admin Service
+  # -------------------------------------------------------------------------
+  - job_name: admin-service
+    metrics_path: /actuator/prometheus
+    static_configs:
+      - targets:
+          - admin-service:8093
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: service
+        replacement: admin-service
+
+  # -------------------------------------------------------------------------
+  # API Gateway (Spring Cloud Gateway)
+  # -------------------------------------------------------------------------
+  - job_name: api-gateway
+    metrics_path: /actuator/prometheus
+    static_configs:
+      - targets:
+          - api-gateway:8080
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: service
+        replacement: api-gateway
+
+  # -------------------------------------------------------------------------
+  # Infrastructure components
+  # -------------------------------------------------------------------------
+
+  # Kafka (JMX exporter — optional, enable when jmx-exporter sidecar is added)
+  # - job_name: kafka
+  #   static_configs:
+  #     - targets:
+  #         - kafka:9404
+  #   relabel_configs:
+  #     - source_labels: [__address__]
+  #       target_label: service
+  #       replacement: kafka
+
+  # Redis Exporter (add redis_exporter sidecar to enable)
+  # - job_name: redis
+  #   static_configs:
+  #     - targets:
+  #         - redis-exporter:9121
+  #   relabel_configs:
+  #     - source_labels: [__address__]
+  #       target_label: service
+  #       replacement: redis
+
+  # PostgreSQL Exporter (add postgres_exporter sidecar to enable)
+  # - job_name: postgres
+  #   static_configs:
+  #     - targets:
+  #         - postgres-exporter:9187
+  #   relabel_configs:
+  #     - source_labels: [__address__]
+  #       target_label: service
+  #       replacement: postgres
+
+  # Jaeger (internal metrics)
+  - job_name: jaeger
+    static_configs:
+      - targets:
+          - jaeger:14269
+    metrics_path: /metrics
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: service
+        replacement: jaeger

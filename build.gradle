@@ -1,0 +1,183 @@
+/*
+ * Open Source Government Examination Platform
+ * Root build.gradle — shared dependency management and common plugin configuration
+ * for all backend Spring Boot 3.x / Java 21 microservices.
+ */
+
+// ── Root-level plugins (applied only to root, not subprojects) ───────────────
+plugins {
+    id 'base'
+    id 'org.springframework.boot'        version '3.3.5' apply false
+    id 'io.spring.dependency-management' version '1.1.6' apply false
+    id 'com.github.spotbugs'             version '6.0.9' apply false
+    id 'jacoco'
+}
+
+// ── Versions catalogue ────────────────────────────────────────────────────────
+ext {
+    set('springBootVersion',        '3.3.5')
+    set('springCloudVersion',       '2023.0.3')
+    set('springVaultVersion',       '3.1.2')
+    set('jqwikVersion',             '1.9.0')
+    set('testcontainersVersion',    '1.19.8')
+    set('mapstructVersion',         '1.6.2')
+    set('lombokVersion',            '1.18.34')
+    set('opentelemetryVersion',     '2.6.0')
+    set('kafkaVersion',             '3.7.1')
+    set('pgvectorVersion',          '0.1.6')
+    set('spotbugsVersion',          '4.8.6')
+}
+
+// ── Configuration applied to every subproject ─────────────────────────────────
+subprojects {
+    apply plugin: 'java'
+    apply plugin: 'io.spring.dependency-management'
+    apply plugin: 'com.github.spotbugs'
+    apply plugin: 'jacoco'
+
+    group   = 'com.examplatform'
+    version = '1.0.0-SNAPSHOT'
+
+    java {
+        toolchain {
+            languageVersion = JavaLanguageVersion.of(21)
+        }
+    }
+
+    // Enable virtual threads globally for all Spring Boot services
+    tasks.withType(JavaExec).configureEach {
+        jvmArgs '--enable-preview'
+    }
+    tasks.withType(JavaCompile).configureEach {
+        options.compilerArgs += ['--enable-preview', '-parameters']
+        options.encoding = 'UTF-8'
+    }
+    tasks.withType(Test).configureEach {
+        jvmArgs '--enable-preview'
+    }
+
+    // ── Dependency management BOM imports ─────────────────────────────────────
+    dependencyManagement {
+        imports {
+            mavenBom "org.springframework.boot:spring-boot-dependencies:${springBootVersion}"
+            mavenBom "org.springframework.cloud:spring-cloud-dependencies:${springCloudVersion}"
+            mavenBom "org.springframework.vault:spring-vault-dependencies:${springVaultVersion}"
+            mavenBom "org.testcontainers:testcontainers-bom:${testcontainersVersion}"
+        }
+        dependencies {
+            // jqwik — property-based testing
+            dependency "net.jqwik:jqwik:${jqwikVersion}"
+            // MapStruct
+            dependency "org.mapstruct:mapstruct:${mapstructVersion}"
+            dependency "org.mapstruct:mapstruct-processor:${mapstructVersion}"
+            // Lombok
+            dependency "org.projectlombok:lombok:${lombokVersion}"
+            // PGVector
+            dependency "com.pgvector:pgvector:${pgvectorVersion}"
+        }
+    }
+
+    // ── Common dependencies shared by all subprojects ─────────────────────────
+    dependencies {
+        // Lombok
+        compileOnly         'org.projectlombok:lombok'
+        annotationProcessor 'org.projectlombok:lombok'
+        testCompileOnly     'org.projectlombok:lombok'
+        testAnnotationProcessor 'org.projectlombok:lombok'
+
+        // Standard test dependencies
+        testImplementation 'org.springframework.boot:spring-boot-starter-test'
+        testImplementation "net.jqwik:jqwik:${jqwikVersion}"
+
+        // Testcontainers (postgres + kafka used in integration tests)
+        testImplementation 'org.testcontainers:junit-jupiter'
+        testImplementation 'org.testcontainers:postgresql'
+        testImplementation 'org.testcontainers:kafka'
+    }
+
+    // ── Test configuration ────────────────────────────────────────────────────
+    test {
+        useJUnitPlatform {
+            includeEngines 'junit-jupiter', 'jqwik'
+        }
+        finalizedBy jacocoTestReport
+    }
+
+    // ── JaCoCo coverage ───────────────────────────────────────────────────────
+    jacocoTestReport {
+        dependsOn test
+        reports {
+            xml.required  = true
+            html.required = true
+        }
+    }
+
+    jacocoTestCoverageVerification {
+        violationRules {
+            rule {
+                limit {
+                    minimum = 0.70  // 70% line coverage minimum
+                }
+            }
+        }
+    }
+
+    // ── SpotBugs static analysis ──────────────────────────────────────────────
+    spotbugs {
+        toolVersion           = spotbugsVersion
+        effort                = com.github.spotbugs.snom.Effort.MAX
+        reportLevel           = com.github.spotbugs.snom.Confidence.LOW
+        ignoreFailures        = false
+        excludeFilter         = rootProject.file('config/spotbugs/exclude.xml')
+    }
+
+    spotbugsMain {
+        reports {
+            xml  { required = false }
+            html { required = true  }
+        }
+    }
+
+    spotbugsTest {
+        reports {
+            xml  { required = false }
+            html { required = true  }
+        }
+    }
+}
+
+// ── Aggregated JaCoCo report across all subprojects ───────────────────────────
+task jacocoAggregatedReport(type: JacocoReport) {
+    group       = 'verification'
+    description = 'Generates a combined coverage report across all subprojects.'
+
+    dependsOn subprojects.collect { it.tasks.withType(Test) }
+
+    additionalSourceDirs.setFrom(
+        subprojects.collect { it.sourceSets.main.allSource.srcDirs }.flatten()
+    )
+    sourceDirectories.setFrom(
+        subprojects.collect { it.sourceSets.main.allSource.srcDirs }.flatten()
+    )
+    classDirectories.setFrom(
+        subprojects.collect {
+            it.sourceSets.main.output.classesDirs
+        }.flatten()
+    )
+    executionData.setFrom(
+        subprojects.collect {
+            fileTree(dir: it.buildDir, includes: ['jacoco/*.exec'])
+        }
+    )
+
+    reports {
+        xml.required  = true
+        html.required = true
+    }
+}
+
+// ── Wrapper task pins the Gradle distribution ─────────────────────────────────
+wrapper {
+    gradleVersion      = '8.10.2'
+    distributionType   = Wrapper.DistributionType.BIN
+}

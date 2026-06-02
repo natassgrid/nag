@@ -1,0 +1,56 @@
+plugins {
+    id 'java-library'
+    id 'org.springframework.boot' version '3.3.5' apply false
+    id 'io.spring.dependency-management' version '1.1.6'
+}
+
+group = 'com.examplatform'
+version = '1.0.0-SNAPSHOT'
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(21)
+    }
+}
+
+dependencyManagement {
+    imports {
+        mavenBom "org.springframework.boot:spring-boot-dependencies:3.3.5"
+    }
+}
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    // Spring Context (for @Component, etc. — lightweight, no full Boot)
+    api 'org.springframework:spring-context'
+
+    // Spring Web (for ProblemDetail support — included in spring-webmvc)
+    api 'org.springframework:spring-web'
+
+    // Spring Data JPA (for @MappedSuperclass, @PrePersist, etc.)
+    api 'org.springframework.data:spring-data-jpa'
+
+    // Jakarta Persistence (JPA annotations)
+    api 'jakarta.persistence:jakarta.persistence-api'
+
+    // Jackson for JSON serialisation of ApiResponse
+    api 'com.fasterxml.jackson.core:jackson-databind'
+    api 'com.fasterxml.jackson.datatype:jackson-datatype-jsr310'
+
+    // Validation
+    api 'jakarta.validation:jakarta.validation-api'
+
+    // Hibernate (JPA provider — needed at compile time for @MappedSuperclass processing)
+    compileOnly 'org.hibernate.orm:hibernate-core'
+
+    // Test dependencies
+    testImplementation 'org.springframework.boot:spring-boot-starter-test'
+    testImplementation 'org.junit.jupiter:junit-jupiter'
+}
+
+test {
+    useJUnitPlatform()
+}
