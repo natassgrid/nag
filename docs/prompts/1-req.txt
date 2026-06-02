@@ -1,0 +1,29 @@
+Do no gen any code, just first work on requirements
+i want to develop one examination software which have following features.
+1- Question Bank
+	1- support subject
+	2- topics, sub topic
+	3- difficulty label
+	4- Question text with multi lingual support upto all Indian languages(22+)
+        5- Options answer's(5), min 1 correct, Option can be randomized at client, so each option should have unique id with ans
+	6- Support for multi true answer
+        7- Optional Answer description
+        8- Graphics support in question and answer,images, all latin, Greek and other mathematical, physics, chemistry, bio symbols etc
+	9- Question should be encrypted in db
+	10- any other functional and non functional requirement you can think of.
+
+2- Candidate application and complete profile(Using Indian Gov ID, Education, address, email, mobile no etc, no issue of PII)
+3- Rule based Examination paper Generator
+	1- Option to select subject(s), topics, sub topics, difficulty levels, how many question from which subject, topics, difficulty level ratios etc.
+	2- Examination paper should store only question ids
+ 	3- For one Examination multiple question papers can be generated as examination will be held in shifts for many days, as student quantity is huge
+        4- Question bank have huge question in each category, so generated examination papers should have very similar question distribution, one question is used in one exam can not be used upto 1-2 years based on configuration.
+
+4- Examination response recording, Options to show real time response score based on examination config, later score card/detailed score card generation and download or email pdf with some pwd, aadhaar and dob etc.
+	question should be renders 1 by or based on some configuration in batch of 1-2 -5 questions can be should be downloaded one.(Some rule and configuration to maintain secrecy in Indian env)
+
+Top Notch security, once Examination paper generated only students can see in examination client app, only after complete of all shifts each question sets should be visible. and pdfs should be generated.
+
+Enhance requirements for Indian God examinations, and Security should be top notch.
+
+5- Generate all Non function requirements for scale, realibility, durability and security
