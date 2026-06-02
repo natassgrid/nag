@@ -59,6 +59,9 @@ public enum AuditEventType {
     /** A new question was created and persisted in DRAFT state. */
     QUESTION_CREATED,
 
+    /** An existing question's content or metadata was modified. */
+    QUESTION_MODIFIED,
+
     /** A question transitioned between lifecycle states (e.g. DRAFT → REVIEW). */
     QUESTION_STATE_TRANSITION,
 
@@ -82,6 +85,9 @@ public enum AuditEventType {
     /** A candidate submitted (finalised) their examination session. */
     SESSION_SUBMITTED,
 
+    /** A candidate response was saved during an active examination session. */
+    RESPONSE_SAVED,
+
     // -----------------------------------------------------------------------
     // Evaluation / Result domain
     // -----------------------------------------------------------------------
@@ -98,6 +104,23 @@ public enum AuditEventType {
 
     /** A platform configuration parameter was changed via the Admin API. */
     CONFIG_CHANGED,
+
+    // -----------------------------------------------------------------------
+    // Translation domain
+    // -----------------------------------------------------------------------
+
+    /** A new translation was created for a question. */
+    TRANSLATION_CREATED,
+
+    /** A translation was approved and made available for paper generation. */
+    TRANSLATION_APPROVED,
+
+    // -----------------------------------------------------------------------
+    // Exam publication domain
+    // -----------------------------------------------------------------------
+
+    /** An examination was published and made available to candidates. */
+    EXAM_PUBLISHED,
 
     // -----------------------------------------------------------------------
     // Security domain

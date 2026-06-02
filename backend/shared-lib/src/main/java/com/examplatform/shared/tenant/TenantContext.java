@@ -60,7 +60,7 @@ public final class TenantContext {
      *                 {@code null} or blank
      * @throws IllegalArgumentException if {@code tenantId} is null or blank
      */
-    public static void set(String tenantId) {
+    public static void setTenantId(String tenantId) {
         if (tenantId == null || tenantId.isBlank()) {
             throw new IllegalArgumentException(
                     "tenantId must not be null or blank");
@@ -69,20 +69,38 @@ public final class TenantContext {
     }
 
     /**
+     * Alias for {@link #setTenantId(String)} — retained for compatibility.
+     *
+     * @param tenantId the examination authority identifier
+     */
+    public static void set(String tenantId) {
+        setTenantId(tenantId);
+    }
+
+    /**
      * Retrieve the tenant ID bound to the current thread.
      *
      * @return the tenant ID, or {@code null} if none has been set
      *         (e.g. during background jobs that are not tenant-scoped)
      */
-    public static String get() {
+    public static String getTenantId() {
         return HOLDER.get();
+    }
+
+    /**
+     * Alias for {@link #getTenantId()} — retained for compatibility.
+     *
+     * @return the tenant ID, or {@code null} if none has been set
+     */
+    public static String get() {
+        return getTenantId();
     }
 
     /**
      * Retrieve the tenant ID, throwing if none is bound.
      *
      * <p>Use this variant in service-layer code that always expects a tenant
-     * to be present (all API-request paths). Use {@link #get()} for
+     * to be present (all API-request paths). Use {@link #getTenantId()} for
      * background/scheduled tasks that may run without a tenant.
      *
      * @return the tenant ID bound to the current thread
@@ -93,7 +111,7 @@ public final class TenantContext {
         if (tenantId == null) {
             throw new IllegalStateException(
                     "No tenantId bound to the current thread. "
-                    + "Ensure TenantContext.set() is called in the request filter.");
+                    + "Ensure TenantContext.setTenantId() is called in the request filter.");
         }
         return tenantId;
     }

@@ -1,1 +1,123 @@
-/.idea/
+# ── Build outputs ────────────────────────────────────────────────────────────
+build/
+out/
+target/
+bin/
+*.class
+*.jar
+*.war
+*.ear
+*.nar
+
+# ── Gradle ───────────────────────────────────────────────────────────────────
+.gradle/
+gradle-app.setting
+!gradle-wrapper.jar
+!gradle-wrapper.properties
+.gradletasknamecache
+
+# ── Maven ────────────────────────────────────────────────────────────────────
+.mvn/
+pom.xml.tag
+pom.xml.releaseBackup
+pom.xml.bak
+pom.xml.next
+release.properties
+dependency-reduced-pom.xml
+
+# ── IDEs — IntelliJ IDEA ─────────────────────────────────────────────────────
+.idea/
+*.iml
+*.iws
+*.ipr
+out/
+.idea_modules/
+
+# ── IDEs — Eclipse / STS ─────────────────────────────────────────────────────
+.classpath
+.project
+.settings/
+.springBeans
+.sts4-cache
+
+# ── IDEs — VS Code ───────────────────────────────────────────────────────────
+.vscode/
+*.code-workspace
+
+# ── IDEs — NetBeans ──────────────────────────────────────────────────────────
+/nbproject/private/
+/nbbuild/
+/dist/
+/nbdist/
+nbactions.xml
+
+# ── OS-generated files ────────────────────────────────────────────────────────
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+desktop.ini
+
+# ── Environment & secrets ─────────────────────────────────────────────────────
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.jks
+*.keystore
+*.truststore
+vault-token
+vault-agent.log
+
+# ── Logs ─────────────────────────────────────────────────────────────────────
+*.log
+logs/
+log/
+
+# ── Test & coverage reports ──────────────────────────────────────────────────
+.jacoco/
+jacoco.exec
+reports/
+test-results/
+coverage/
+
+# ── Node / Frontend ──────────────────────────────────────────────────────────
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnp.*
+.yarn/
+dist/
+.angular/
+.nx/
+frontend/.cache/
+
+# ── Docker ───────────────────────────────────────────────────────────────────
+.docker/
+
+# ── Kubernetes / Helm ────────────────────────────────────────────────────────
+*.kubeconfig
+kubeconfig
+charts/*/charts/
+charts/*/Chart.lock
+
+# ── Temporary files ──────────────────────────────────────────────────────────
+*.tmp
+*.temp
+*.swp
+*.swo
+*~
+.cache/
+
+# ── SonarQube / analysis ──────────────────────────────────────────────────────
+.sonar/
+.scannerwork/
+
+# ── SpotBugs ─────────────────────────────────────────────────────────────────
+spotbugs/
