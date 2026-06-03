@@ -46,6 +46,9 @@ class SessionStartServiceTest {
     private VaultCryptoService vaultCryptoService;
 
     @Mock
+    private DisabilityExtensionService disabilityExtensionService;
+
+    @Mock
     private RedisTemplate<String, Object> redisTemplate;
 
     @Mock
@@ -67,6 +70,7 @@ class SessionStartServiceTest {
         sessionStartService = new SessionStartService(
                 examSessionRepository,
                 shiftAssignmentClient,
+                disabilityExtensionService,
                 vaultCryptoService,
                 redisTemplate,
                 new ObjectMapper()

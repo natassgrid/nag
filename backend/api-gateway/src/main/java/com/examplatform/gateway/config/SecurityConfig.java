@@ -10,6 +10,12 @@ import org.springframework.security.web.server.SecurityWebFilterChain;
  * Reactive security configuration for the API Gateway.
  * Uses OAuth2 Resource Server with JWT validation via Keycloak JWKS endpoint.
  * Permits actuator endpoints and requires authentication for all API routes.
+ *
+ * <p><strong>mTLS via Istio (production):</strong> In production Kubernetes deployments,
+ * Istio service mesh provides mutual TLS (mTLS) between all services via
+ * PeerAuthentication policies. This ensures transport-layer identity verification
+ * using SPIFFE identities, complementing the application-layer JWT validation
+ * performed here. See {@link ZeroTrustConfig} for the full Zero Trust architecture.</p>
  */
 @Configuration
 @EnableWebFluxSecurity

@@ -26,6 +26,17 @@ public interface ExamSessionRepository extends JpaRepository<ExamSession, UUID> 
     List<ExamSession> findByStatusAndTenantId(ExamSessionStatus status, String tenantId);
 
     /**
+     * Find all sessions with the given status across all tenants.
+     * Used by SessionTimerService for expiration checks.
+     */
+    List<ExamSession> findByStatus(ExamSessionStatus status);
+
+    /**
+     * Find a session by its unique session ID.
+     */
+    java.util.Optional<ExamSession> findBySessionId(UUID sessionId);
+
+    /**
      * Count sessions with a given status within a tenant.
      * Used for HPA metrics (active_exam_sessions gauge).
      */

@@ -1,6 +1,7 @@
 plugins {
     id 'java-library'
     id 'io.spring.dependency-management'
+    id 'io.freefair.lombok'
 }
 
 version = '1.0.0-SNAPSHOT'

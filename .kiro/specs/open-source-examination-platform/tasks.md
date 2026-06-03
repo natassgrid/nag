@@ -80,7 +80,7 @@ All services are stateless Spring Boot applications; persistent state lives in P
     - Use jqwik generator `lifecycleStatePairs()` producing all (currentState, targetState) combinations; assert `transition()` succeeds iff pair is in `VALID_TRANSITIONS`
   - [~] 4.6 Implement review/approval workflow: on transition to REVIEW, assign to available Reviewer by subject specialization and publish Kafka event to `exam.question.lifecycle`; on Reviewer approval → APPROVED + notify Author; on return → DRAFT with comments + notify Author; on Approver approval → PUBLISHED; notify via `exam.notifications.outbound`
     - _Requirements: 5.1, 5.2, 5.3, 5.4, 5.6_
-  - [~] 4.7 Implement similarity detection: on question save, compute embedding vector (1536-dim), store in `embedding_vector` (pgvector); before creating Draft, cosine-similarity search against all published questions; reject with HTTP 422 + `similarQuestionId` if any cosine similarity > 0.80 threshold
+  - [x] 4.7 Implement similarity detection: on question save, compute embedding vector (1536-dim), store in `embedding_vector` (pgvector); before creating Draft, cosine-similarity search against all published questions; reject with HTTP 422 + `similarQuestionId` if any cosine similarity > 0.80 threshold
     - _Requirements: 4.7_
   - [ ]* 4.8 Write property test for question similarity rejection
     - **Property 14: Question Similarity Rejection**
@@ -111,7 +111,7 @@ All services are stateless Spring Boot applications; persistent state lives in P
     - **Property 11: Examination Section Marks Validation**
     - **Validates: Requirements 7.6**
     - Use jqwik generator `examSectionConfigs()` producing arbitrary section lists; assert `isValid(exam) ⟺ Σ(marksPerQuestion × questionCount) == exam.totalMarks`
-  - [~] 6.4 Implement disability time extension: before session starts, apply `extraTimeMinutes` from candidate profile to session duration
+  - [x] 6.4 Implement disability time extension: before session starts, apply `extraTimeMinutes` from candidate profile to session duration
     - _Requirements: 22.6_
   - [~] 6.5 Publish audit event to Kafka `exam.audit.events` on exam publication
     - _Requirements: 7.7_
@@ -160,7 +160,7 @@ All services are stateless Spring Boot applications; persistent state lives in P
     - _Requirements: 9.1, 9.3_
   - [x] 9.3 Implement navigation policy enforcement: apply Sequential/Flexible/Restricted rules from exam configuration on every navigation request; reject policy-violating navigation with HTTP 422; support rendering modes One_Question, Section_Mode, Batch_Mode
     - _Requirements: 9.2, 9.5_
-  - [~] 9.4 Implement session timer: schedule session expiry event at `scheduledEndAt` + disability extension; serve question with language selection from approved translation variants; enforce full-screen lock mode signal via API (Angular enforces locally)
+  - [x] 9.4 Implement session timer: schedule session expiry event at `scheduledEndAt` + disability extension; serve question with language selection from approved translation variants; enforce full-screen lock mode signal via API (Angular enforces locally)
     - _Requirements: 9.3, 9.6, 9.8, 22.6_
   - [~] 9.5 Implement proctoring capture: record webcam snapshots at configurable interval (min 30s) and screen activity recordings; publish to Kafka `exam.proctoring.alerts`; track `fullScreenExitCount` and flag session after 3 exits; enforce configurable retention window; check consent before storing biometric data
     - _Requirements: 11.1, 11.2, 11.6, 11.7_
@@ -181,7 +181,7 @@ All services are stateless Spring Boot applications; persistent state lives in P
     - **Property 5: Response Persistence Round-Trip**
     - **Validates: Requirements 10.1**
     - Use jqwik generator `validResponses()` producing arbitrary Response objects across all responseTypes including Unicode content; assert `readResponse(saveResponse(r).id) == r` (all fields bitwise-identical)
-  - [~] 10.4 Implement auto-save pipeline: server-side heartbeat triggers auto-save every 30 seconds per active session; also trigger on every navigation event; consume from Kafka `exam.session.events` for navigation signals
+  - [x] 10.4 Implement auto-save pipeline: server-side heartbeat triggers auto-save every 30 seconds per active session; also trigger on every navigation event; consume from Kafka `exam.session.events` for navigation signals
     - _Requirements: 10.2, 10.3_
   - [~] 10.5 Implement offline buffer reconciliation `POST /api/v1/responses/{sessionId}/bulk-save`: accept ordered list of buffered responses; reconcile with server-side state using `revisionSequence`; guarantee zero response data loss
     - _Requirements: 10.4_
@@ -224,7 +224,7 @@ All services are stateless Spring Boot applications; persistent state lives in P
     - **Property 10: Result Score Decomposition Invariant**
     - **Validates: Requirements 13.1**
     - Use jqwik generator `candidateScoreScenarios()` producing arbitrary candidate sets with section scores; assert `totalScore == Σ sectionScores` and `rank(A) < rank(B) ⟺ totalScore(A) > totalScore(B)` (excluding ties)
-  - [~] 12.4 Implement PDF scorecard generation with password derived from candidate's registered date of birth + candidate identifier; include subject-wise and topic-wise performance breakdown; store PDF reference in object store
+  - [x] 12.4 Implement PDF scorecard generation with password derived from candidate's registered date of birth + candidate identifier; include subject-wise and topic-wise performance breakdown; store PDF reference in object store
     - _Requirements: 13.3, 13.4_
   - [~] 12.5 Implement result publication: expose `GET` scorecard endpoint via Angular portal; expose versioned REST API `GET /api/v1/results/{candidateId}` with OAuth2 access token for third-party integrators; push scorecard to DigiLocker when integration is enabled; publish `exam.notifications.outbound` event for result notification
     - _Requirements: 13.3, 13.5, 13.6, 13.8_
@@ -257,10 +257,10 @@ All services are stateless Spring Boot applications; persistent state lives in P
     - _Requirements: 14.3_
 
 
-- [ ] 15. Admin Service and Analytics Service
+- [x] 15. Admin Service and Analytics Service
   - [x] 15.1 Scaffold `backend/admin-service` Spring Boot project: implement Super_Admin console APIs — create/update/deactivate/list users for all roles; multi-tenancy isolation by `tenantId`; configuration API (`/api/v1/admin/config`) for session timeout, rate limits, auto-save interval, paper-gen concurrency — accessible to Super_Admin and Security_Admin only
     - _Requirements: 29.1, 29.2, 29.3, 29.4_
-  - [~] 15.2 Implement deactivation: immediately invalidate all active sessions via Redis; prevent new authentication via Keycloak; publish audit event on config-parameter change (paramName, oldValue, newValue, actorId, timestamp)
+  - [x] 15.2 Implement deactivation: immediately invalidate all active sessions via Redis; prevent new authentication via Keycloak; publish audit event on config-parameter change (paramName, oldValue, newValue, actorId, timestamp)
     - _Requirements: 29.3, 29.5_
   - [x] 15.3 Scaffold `backend/analytics-service` Spring Boot project: consume finalized result data; implement analytics dashboard API `GET /api/v1/analytics/exams/{id}` — total registered/appeared candidates, score distribution histogram, section-wise averages, top/bottom 10th percentile thresholds; implement CSV and PDF export
     - _Requirements: 26.2, 26.3, 26.4_
@@ -268,9 +268,9 @@ All services are stateless Spring Boot applications; persistent state lives in P
 - [ ] 16. API Gateway and cross-cutting concerns
   - [x] 16.1 Configure Spring Cloud Gateway: OAuth2 token validation via Keycloak introspection before routing; Redis token-bucket rate limiting (1,000 req/min standard, configurable for partners); WAF/ModSecurity integration; request sanitization (strip dangerous headers, validate Content-Type); TLS 1.3 termination at ingress; common response envelope middleware; `X-Request-Id` / `X-Tenant-Id` header propagation
     - _Requirements: 17.2, 17.5, 23.3, 23.5, 23.6_
-  - [~] 16.2 Configure Spring Cloud Gateway DDoS mitigation: alert and absorb when inbound request rate exceeds 10,000 req/s from single origin; publish security alert to Kafka `exam.audit.events` and `exam.notifications.outbound` within 60 seconds
+  - [x] 16.2 Configure Spring Cloud Gateway DDoS mitigation: alert and absorb when inbound request rate exceeds 10,000 req/s from single origin; publish security alert to Kafka `exam.audit.events` and `exam.notifications.outbound` within 60 seconds
     - _Requirements: 17.3, 17.7_
-  - [~] 16.3 Implement Zero Trust inter-service authentication: all service-to-service calls authenticated with short-lived service-account JWTs signed by Keycloak; verify via JWKS endpoint; no shared secrets between services; configure Istio mTLS or Spring Security mTLS as fallback
+  - [x] 16.3 Implement Zero Trust inter-service authentication: all service-to-service calls authenticated with short-lived service-account JWTs signed by Keycloak; verify via JWKS endpoint; no shared secrets between services; configure Istio mTLS or Spring Security mTLS as fallback
     - _Requirements: 17.6, 2.5_
   - [~] 16.4 Add Resilience4j circuit breakers to all synchronous inter-service calls: OPEN after 5 failures in 10s, HALF_OPEN probe, CLOSED on recovery; configure Delivery Service to serve pre-cached questions from Redis when Question Bank is unavailable
     - _Requirements: design error-handling_

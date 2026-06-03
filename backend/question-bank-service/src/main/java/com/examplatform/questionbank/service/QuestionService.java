@@ -28,6 +28,7 @@ import java.util.UUID;
 public class QuestionService {
 
     private final QuestionRepository questionRepository;
+    private final SimilarityDetectionService similarityDetectionService;
 
     /**
      * Creates a new question in DRAFT state with a unique per-question DEK.
@@ -43,6 +44,9 @@ public class QuestionService {
             throw new IllegalArgumentException("Question type must be one of the supported types: "
                     + "SINGLE_MCQ, MULTI_MCQ, NUMERICAL, DESCRIPTIVE, MATRIX_MATCH, ASSERTION_REASON, CODING, CASE_STUDY");
         }
+
+        // Check similarity against existing PUBLISHED questions before creating Draft
+        similarityDetectionService.checkSimilarity(request.getContent());
 
         // Generate per-question DEK key name (unique per question)
         String dekKeyName = "question-dek-" + UUID.randomUUID();

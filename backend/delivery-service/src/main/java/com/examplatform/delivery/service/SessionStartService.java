@@ -35,6 +35,7 @@ public class SessionStartService {
 
     private final ExamSessionRepository examSessionRepository;
     private final ShiftAssignmentClient shiftAssignmentClient;
+    private final DisabilityExtensionService disabilityExtensionService;
     private final VaultCryptoService vaultCryptoService;
     private final RedisTemplate<String, Object> redisTemplate;
     private final ObjectMapper objectMapper;
@@ -71,9 +72,12 @@ public class SessionStartService {
         String firstQuestionContent = extractFirstQuestion(decryptedPaper);
         int totalQuestions = countQuestions(decryptedPaper);
 
-        // 5. Create exam session entity
+        // 5. Apply disability extension time
+        int disabilityExtension = disabilityExtensionService.getExtraTimeMinutes(candidateId, tenantId);
+
+        // 6. Create exam session entity
         Instant now = Instant.now();
-        int totalDuration = assignment.getDurationMinutes() + assignment.getExtraTimeMinutes();
+        int totalDuration = assignment.getDurationMinutes() + assignment.getExtraTimeMinutes() + disabilityExtension;
         Instant scheduledEnd = now.plus(Duration.ofMinutes(totalDuration));
 
         ExamSession session = ExamSession.builder()
@@ -91,14 +95,14 @@ public class SessionStartService {
                 .build();
         session.setTenantId(tenantId);
 
-        // 6. Save session to database
+        // 7. Save session to database
         ExamSession savedSession = examSessionRepository.save(session);
 
-        // 7. Cache session in Redis for fast subsequent lookups
+        // 8. Cache session in Redis for fast subsequent lookups
         String cacheKey = SESSION_CACHE_PREFIX + savedSession.getSessionId();
         redisTemplate.opsForValue().set(cacheKey, savedSession, Duration.ofHours(6));
 
-        // 8. Return response with first question
+        // 9. Return response with first question
         return SessionStartResponse.builder()
                 .sessionId(savedSession.getSessionId())
                 .examId(request.getExamId())

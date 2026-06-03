@@ -27,6 +27,9 @@ dependencies {
     // Redis for rate limiting
     implementation 'org.springframework.boot:spring-boot-starter-data-redis-reactive'
 
+    // Kafka (security alerts)
+    implementation 'org.springframework.kafka:spring-kafka'
+
     // Actuator + Prometheus
     implementation 'org.springframework.boot:spring-boot-starter-actuator'
     implementation 'io.micrometer:micrometer-registry-prometheus'
