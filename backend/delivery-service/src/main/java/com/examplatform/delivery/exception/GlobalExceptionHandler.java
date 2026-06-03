@@ -26,6 +26,13 @@ public class GlobalExceptionHandler {
                 .body(errorBody("CONCURRENT_SESSION", ex.getMessage(), HttpStatus.CONFLICT));
     }
 
+    @ExceptionHandler(NavigationPolicyViolationException.class)
+    public ResponseEntity<Map<String, Object>> handleNavigationPolicyViolation(NavigationPolicyViolationException ex) {
+        log.warn("Navigation policy violation: {}", ex.getMessage());
+        return ResponseEntity.status(HttpStatus.UNPROCESSABLE_ENTITY)
+                .body(errorBody("NAVIGATION_POLICY_VIOLATION", ex.getMessage(), HttpStatus.UNPROCESSABLE_ENTITY));
+    }
+
     @ExceptionHandler(NoSuchElementException.class)
     public ResponseEntity<Map<String, Object>> handleNotFound(NoSuchElementException ex) {
         log.warn("Resource not found: {}", ex.getMessage());

@@ -3,8 +3,10 @@ package com.examplatform.papergenerator.service;
 import com.examplatform.papergenerator.client.QuestionBankClient;
 import com.examplatform.papergenerator.domain.Paper;
 import com.examplatform.papergenerator.dto.BlueprintRule;
+import com.examplatform.papergenerator.dto.GapDetail;
 import com.examplatform.papergenerator.dto.PaperGenerationRequest;
 import com.examplatform.papergenerator.dto.QuestionSummary;
+import com.examplatform.papergenerator.exception.InsufficientQuestionsException;
 import com.examplatform.papergenerator.repository.PaperRepository;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -72,6 +74,7 @@ public class PaperAssemblyService {
 
         List<UUID> selectedQuestionIds = new ArrayList<>();
         List<QuestionSummary> allSelectedQuestions = new ArrayList<>();
+        List<GapDetail> gapDetails = new ArrayList<>();
 
         for (BlueprintRule rule : request.getBlueprintRules()) {
             List<QuestionSummary> candidates = questionBankClient.findAvailableQuestions(
@@ -93,12 +96,26 @@ public class PaperAssemblyService {
                                 "needed={}, available={}",
                         rule.getSubject(), rule.getTopic(), rule.getDifficulty(),
                         rule.getQuestionCount(), selected.size());
+                gapDetails.add(GapDetail.builder()
+                        .subject(rule.getSubject())
+                        .topic(rule.getTopic())
+                        .difficulty(rule.getDifficulty())
+                        .needed(rule.getQuestionCount())
+                        .available(selected.size())
+                        .build());
             }
 
             selectedQuestionIds.addAll(selected.stream()
                     .map(QuestionSummary::getQuestionId)
                     .toList());
             allSelectedQuestions.addAll(selected);
+        }
+
+        // If any rules cannot be satisfied, throw exception with gap report
+        if (!gapDetails.isEmpty()) {
+            throw new InsufficientQuestionsException(
+                    "Blueprint cannot be satisfied: insufficient questions for " + gapDetails.size() + " rule(s)",
+                    gapDetails);
         }
 
         // Compute difficulty score

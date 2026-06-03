@@ -15,6 +15,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -64,8 +65,15 @@ public class AutoEvaluationService {
             if (resp == null || !resp.isAttempted()) {
                 // Unattempted → zero marks
                 score = BigDecimal.ZERO;
+            } else if ("MULTI_MCQ".equals(answerKey.getQuestionType())) {
+                // Partial marking for Multi MCQ
+                double partialScore = evaluateMultiMcqPartial(
+                        answerKey.getCorrectAnswer(),
+                        resp.getSelectedOptionIds(),
+                        answerKey.getMarksPerQuestion());
+                score = BigDecimal.valueOf(partialScore);
             } else {
-                // Evaluate based on question type
+                // Evaluate based on question type (Single MCQ, Numerical, etc.)
                 boolean correct = evaluateAnswer(answerKey, resp);
                 score = correct
                         ? BigDecimal.valueOf(answerKey.getMarksPerQuestion())
@@ -112,13 +120,41 @@ public class AutoEvaluationService {
 
     /**
      * Multi MCQ: selected set must exactly equal the correct set for full marks.
-     * (Partial marking is handled separately in task 11.3)
+     * (Partial marking is handled separately via evaluateMultiMcqPartial)
      */
     boolean evaluateMultiMcq(String correctAnswer, String selectedOptionIds) {
         if (correctAnswer == null || selectedOptionIds == null) return false;
         Set<String> correct = parseOptionIds(correctAnswer);
         Set<String> selected = parseOptionIds(selectedOptionIds);
         return correct.equals(selected);
+    }
+
+    /**
+     * Partial marking for Multi_MCQ:
+     * - If selection ⊆ answerKey (all selected are correct, possibly not all):
+     *   score = (|selection ∩ answerKey| / |answerKey|) × marksPerQuestion
+     * - If selection contains ANY incorrect option (not in answerKey):
+     *   score = 0.0 (zero marks, no negative)
+     * - If selection is empty/null:
+     *   score = 0.0 (unattempted)
+     */
+    double evaluateMultiMcqPartial(String correctAnswer, String selectedOptionIds, double marksPerQuestion) {
+        Set<String> correct = parseOptionIds(correctAnswer);
+        Set<String> selected = parseOptionIds(selectedOptionIds);
+
+        if (selected.isEmpty()) return 0.0;
+
+        // Check if selection contains any incorrect option
+        Set<String> incorrectSelections = new HashSet<>(selected);
+        incorrectSelections.removeAll(correct);
+        if (!incorrectSelections.isEmpty()) {
+            return 0.0; // Contains wrong option → zero marks
+        }
+
+        // selection ⊆ answerKey → partial marks
+        Set<String> intersection = new HashSet<>(selected);
+        intersection.retainAll(correct);
+        return ((double) intersection.size() / correct.size()) * marksPerQuestion;
     }
 
     /**

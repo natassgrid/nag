@@ -97,6 +97,28 @@ public class GlobalExceptionHandler {
     }
 
     /**
+     * Handles invalid lifecycle state transitions (422 Unprocessable Entity).
+     */
+    @ExceptionHandler(InvalidTransitionException.class)
+    public ResponseEntity<ApiResponse<Void>> handleInvalidTransition(InvalidTransitionException ex) {
+        log.warn("Invalid transition: from='{}' to='{}'", ex.getCurrentState(), ex.getTargetState());
+        return ResponseEntity
+                .status(HttpStatus.UNPROCESSABLE_ENTITY)
+                .body(ApiResponse.error(ex.getMessage()));
+    }
+
+    /**
+     * Handles four-eyes principle violations (403 Forbidden).
+     */
+    @ExceptionHandler(FourEyesPrincipleViolationException.class)
+    public ResponseEntity<ApiResponse<Void>> handleFourEyesViolation(FourEyesPrincipleViolationException ex) {
+        log.warn("Four-eyes principle violation: {}", ex.getMessage());
+        return ResponseEntity
+                .status(HttpStatus.FORBIDDEN)
+                .body(ApiResponse.error(ex.getMessage()));
+    }
+
+    /**
      * Handles all other unhandled exceptions (500 Internal Server Error).
      */
     @ExceptionHandler(Exception.class)

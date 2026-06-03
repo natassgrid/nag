@@ -3,6 +3,8 @@ package com.examplatform.questionbank.controller;
 import com.examplatform.questionbank.domain.QuestionVersion;
 import com.examplatform.questionbank.dto.CreateQuestionRequest;
 import com.examplatform.questionbank.dto.QuestionResponse;
+import com.examplatform.questionbank.dto.TransitionRequest;
+import com.examplatform.questionbank.service.QuestionLifecycleService;
 import com.examplatform.questionbank.service.QuestionService;
 import com.examplatform.questionbank.service.QuestionUpdateService;
 import com.examplatform.questionbank.service.QuestionVersioningService;
@@ -30,7 +32,7 @@ import java.util.UUID;
 /**
  * REST controller for question CRUD operations.
  *
- * Validates: Requirements 4.1, 4.2, 4.3, 4.4, 4.5
+ * Validates: Requirements 4.1, 4.2, 4.3, 4.4, 4.5, 4.6, 5.5
  */
 @Slf4j
 @RestController
@@ -41,6 +43,7 @@ public class QuestionController {
     private final QuestionService questionService;
     private final QuestionUpdateService questionUpdateService;
     private final QuestionVersioningService questionVersioningService;
+    private final QuestionLifecycleService questionLifecycleService;
 
     /**
      * Create a new question in DRAFT state.
@@ -123,5 +126,37 @@ public class QuestionController {
     public ResponseEntity<ApiResponse<List<QuestionVersion>>> getQuestionVersions(@PathVariable UUID id) {
         List<QuestionVersion> versions = questionVersioningService.getVersions(id);
         return ResponseEntity.ok(ApiResponse.success(versions, "Question versions retrieved successfully"));
+    }
+
+    /**
+     * Transition a question through the lifecycle FSM.
+     * Requires REVIEWER or APPROVER role.
+     * Rejects invalid transitions with HTTP 422.
+     * Enforces four-eyes principle (reviewer ≠ approver) with HTTP 403.
+     *
+     * Validates: Requirements 4.6, 5.5
+     *
+     * @param id       the question UUID
+     * @param request  the transition request containing target state
+     * @param jwt      the authenticated JWT principal
+     * @param tenantId tenant identifier from the X-Tenant-Id header
+     * @return 200 OK with the updated question response
+     */
+    @PostMapping("/{id}/transition")
+    @PreAuthorize("hasAnyRole('REVIEWER', 'APPROVER')")
+    public ResponseEntity<ApiResponse<QuestionResponse>> transitionQuestion(
+            @PathVariable UUID id,
+            @Valid @RequestBody TransitionRequest request,
+            @AuthenticationPrincipal Jwt jwt,
+            @RequestHeader("X-Tenant-Id") String tenantId) {
+
+        UUID actorId = UUID.fromString(jwt.getSubject());
+
+        log.info("Transitioning question: id={}, targetState={}, actor={}, tenant={}",
+                id, request.getTargetState(), actorId, tenantId);
+
+        QuestionResponse response = questionLifecycleService.transition(id, request, actorId, tenantId);
+
+        return ResponseEntity.ok(ApiResponse.success(response, "Question transitioned successfully"));
     }
 }

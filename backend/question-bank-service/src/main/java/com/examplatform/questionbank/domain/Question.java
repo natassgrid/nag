@@ -80,4 +80,7 @@ public class Question extends BaseEntity {
 
     @Column(name = "author_id", nullable = false)
     private UUID authorId;
+
+    @Column(name = "reviewer_id")
+    private UUID reviewerId;
 }

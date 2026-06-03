@@ -51,9 +51,9 @@ All services are stateless Spring Boot applications; persistent state lives in P
     - _Requirements: 1.6, 16.1, 25.1_
   - [x] 3.2 Implement candidate profile CRUD: store per-candidate DEK reference in `encryption_key_id`, store SHA-256 hash of mobile for uniqueness check, store SHA-256 + HMAC of identity document for duplicate detection; implement DPDP erasure endpoint that zeroes PII columns and deletes DEK reference
     - _Requirements: 1.6, 25.2_
-  - [~] 3.3 Implement DigiLocker verification: call DigiLocker API with OAuth2 token, validate returned document data, update `digiLockerVerified` status to `VERIFIED` or `FAILED`
+  - [x] 3.3 Implement DigiLocker verification: call DigiLocker API with OAuth2 token, validate returned document data, update `digiLockerVerified` status to `VERIFIED` or `FAILED`
     - _Requirements: 1.3_
-  - [~] 3.4 Implement face verification: compare submitted photograph embedding against identity document photograph; reject and set `faceVerificationStatus=FAILED` when similarity score is below configured threshold
+  - [x] 3.4 Implement face verification: compare submitted photograph embedding against identity document photograph; reject and set `faceVerificationStatus=FAILED` when similarity score is below configured threshold
     - _Requirements: 1.4_
   - [x] 3.5 Implement consent recording: Angular form presents plain-language consent notice before biometric data collection; persist `consentRecorded=true` and `consentTimestamp` on explicit acceptance
     - _Requirements: 25.3_
@@ -72,7 +72,7 @@ All services are stateless Spring Boot applications; persistent state lives in P
     - _Requirements: 4.1, 4.2, 4.3, 4.5_
   - [x] 4.3 Implement question versioning: on every update to question content/metadata, create a `QuestionVersion` record with `authorId`, `changedAt`, JSON diff of modified fields, and encrypted full snapshot; expose `GET /api/v1/questions/{id}/versions`
     - _Requirements: 4.4_
-  - [~] 4.4 Implement question lifecycle FSM: enforce valid transitions (DRAFT→REVIEW, REVIEW→APPROVED, REVIEW→DRAFT, APPROVED→PUBLISHED, PUBLISHED→ARCHIVED) via `POST /api/v1/questions/{id}/transition`; reject any transition not in `VALID_TRANSITIONS` with HTTP 422; enforce four-eyes principle (reviewer ≠ approver)
+  - [x] 4.4 Implement question lifecycle FSM: enforce valid transitions (DRAFT→REVIEW, REVIEW→APPROVED, REVIEW→DRAFT, APPROVED→PUBLISHED, PUBLISHED→ARCHIVED) via `POST /api/v1/questions/{id}/transition`; reject any transition not in `VALID_TRANSITIONS` with HTTP 422; enforce four-eyes principle (reviewer ≠ approver)
     - _Requirements: 4.6, 5.5_
   - [ ]* 4.5 Write property test for question lifecycle state machine
     - **Property 8: Question Lifecycle State Machine**
@@ -132,9 +132,9 @@ All services are stateless Spring Boot applications; persistent state lives in P
     - **Property 2: Shift Paper Statistical Comparability**
     - **Validates: Requirements 8.9**
     - Use jqwik generator producing pairs of shift paper difficulty scores and total marks; assert `|diff| / totalMarks ≤ 0.02` for all generated pairs within the same exam
-  - [~] 7.6 Implement gap report: when blueprint cannot be satisfied due to insufficient questions, return RFC 7807 error with gap details per subject-topic-difficulty combination; do NOT generate a partial paper
+  - [x] 7.6 Implement gap report: when blueprint cannot be satisfied due to insufficient questions, return RFC 7807 error with gap details per subject-topic-difficulty combination; do NOT generate a partial paper
     - _Requirements: 8.5_
-  - [~] 7.7 Implement paper JSON serialization/deserialization: `PaperSerializer.format(Paper) → String` and `PaperSerializer.parse(String) → Paper`; store only question identifiers (not content) in paper definition; implement Paper Schema versioning field; implement `POST /api/v1/papers/validate` schema validation endpoint
+  - [x] 7.7 Implement paper JSON serialization/deserialization: `PaperSerializer.format(Paper) → String` and `PaperSerializer.parse(String) → Paper`; store only question identifiers (not content) in paper definition; implement Paper Schema versioning field; implement `POST /api/v1/papers/validate` schema validation endpoint
     - _Requirements: 8.7, 28.1, 28.2, 28.3, 28.5_
   - [ ]* 7.8 Write property test for paper serialization round-trip
     - **Property 3: Paper Serialization Round-Trip**
@@ -158,7 +158,7 @@ All services are stateless Spring Boot applications; persistent state lives in P
     - _Requirements: 9.1, 19.2_
   - [x] 9.2 Implement session start: authenticate candidate JWT, look up shift assignment, decrypt shift paper package using HSM-managed shift key (in-memory only), serve first question within 500ms; enforce single concurrent session (Req 2.7)
     - _Requirements: 9.1, 9.3_
-  - [~] 9.3 Implement navigation policy enforcement: apply Sequential/Flexible/Restricted rules from exam configuration on every navigation request; reject policy-violating navigation with HTTP 422; support rendering modes One_Question, Section_Mode, Batch_Mode
+  - [x] 9.3 Implement navigation policy enforcement: apply Sequential/Flexible/Restricted rules from exam configuration on every navigation request; reject policy-violating navigation with HTTP 422; support rendering modes One_Question, Section_Mode, Batch_Mode
     - _Requirements: 9.2, 9.5_
   - [~] 9.4 Implement session timer: schedule session expiry event at `scheduledEndAt` + disability extension; serve question with language selection from approved translation variants; enforce full-screen lock mode signal via API (Angular enforces locally)
     - _Requirements: 9.3, 9.6, 9.8, 22.6_
@@ -202,7 +202,7 @@ All services are stateless Spring Boot applications; persistent state lives in P
     - _Requirements: 12.1_
   - [x] 11.2 Implement auto-evaluation: for finalized sessions, evaluate all Single_MCQ, Multi_MCQ, and Numerical responses against answer key; apply positive marks, configurable negative marks for wrong answers, zero for unattempted; store `Evaluation` records with `evaluationType=AUTO`
     - _Requirements: 12.1, 12.2_
-  - [~] 11.3 Implement partial marking for Multiple_Correct_MCQ: award `(|selection ∩ answerKey| / |answerKey|) × marksPerQuestion` when `selection ⊆ answerKey`; award zero marks when selection contains any incorrect option
+  - [x] 11.3 Implement partial marking for Multiple_Correct_MCQ: award `(|selection ∩ answerKey| / |answerKey|) × marksPerQuestion` when `selection ⊆ answerKey`; award zero marks when selection contains any incorrect option
     - _Requirements: 12.3_
   - [ ]* 11.4 Write property test for partial marking arithmetic correctness
     - **Property 9: Partial Marking Arithmetic Correctness**
@@ -243,17 +243,17 @@ All services are stateless Spring Boot applications; persistent state lives in P
     - **Property 7: Audit Event Tamper Detection**
     - **Validates: Requirements 15.2**
     - Use jqwik generator `randomAuditEvents()` + `byteModifications()` producing unmodified and byte-modified payloads; assert `verify(signingKeyId, SHA256(payload), hsmSignature) = true` for originals, `false` for modified variants
-  - [~] 13.4 Implement read-only query API `GET /api/v1/audit/events`: filter by userId, examId, actionType, time range; accessible to Auditor role only; return paginated results
+  - [x] 13.4 Implement read-only query API `GET /api/v1/audit/events`: filter by userId, examId, actionType, time range; accessible to Auditor role only; return paginated results
     - _Requirements: 15.3_
   - [~] 13.5 Implement local WAL buffer for audit events when Kafka is unavailable; replay on Kafka reconnection to ensure exam operations continue without blocking on audit writes
     - _Requirements: design error-handling table_
 
-- [ ] 14. Notification Service — email/push delivery, retry, in-app notifications
+- [x] 14. Notification Service — email/push delivery, retry, in-app notifications
   - [x] 14.1 Scaffold `backend/notification-service` Spring Boot project: configure Kafka consumer for `exam.notifications.outbound`; configure email client (SMTP/SendGrid); implement in-app notification entity in `notification_service` schema
     - _Requirements: 14.1_
   - [x] 14.2 Implement notification delivery: send email within 60 seconds of triggering event; retry up to 3 times on failure; mark as UNDELIVERED and log on third failure; ensure no PII or question content in message bodies — identifiers and action links only
     - _Requirements: 14.1, 14.2, 14.4_
-  - [~] 14.3 Implement in-app notifications API: persist in-app events in notification store; serve to authenticated users via `GET /api/v1/notifications` filtered by role and userId; publish to Angular via SSE or WebSocket
+  - [x] 14.3 Implement in-app notifications API: persist in-app events in notification store; serve to authenticated users via `GET /api/v1/notifications` filtered by role and userId; publish to Angular via SSE or WebSocket
     - _Requirements: 14.3_
 
 

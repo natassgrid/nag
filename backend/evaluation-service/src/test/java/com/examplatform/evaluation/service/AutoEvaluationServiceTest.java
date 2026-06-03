@@ -110,8 +110,8 @@ class AutoEvaluationServiceTest {
     class MultiMcqTests {
 
         @Test
-        @DisplayName("fully correct answer → positive marks")
-        void correctMultiMcq_awardsPositiveMarks() {
+        @DisplayName("fully correct answer → full marks")
+        void correctMultiMcq_awardsFullMarks() {
             UUID questionId = UUID.randomUUID();
             AnswerKey key = AnswerKey.builder()
                     .questionId(questionId)
@@ -135,8 +135,8 @@ class AutoEvaluationServiceTest {
         }
 
         @Test
-        @DisplayName("wrong answer (missing or extra options) → negative marks")
-        void wrongMultiMcq_awardsNegativeMarks() {
+        @DisplayName("wrong answer (contains incorrect option) → zero marks (partial marking)")
+        void wrongMultiMcq_awardsZeroMarks() {
             UUID questionId = UUID.randomUUID();
             AnswerKey key = AnswerKey.builder()
                     .questionId(questionId)
@@ -156,7 +156,8 @@ class AutoEvaluationServiceTest {
                     SESSION_ID, CANDIDATE_ID, List.of(key), List.of(response), TENANT_ID);
 
             assertThat(result).hasSize(1);
-            assertThat(result.get(0).getScore()).isEqualByComparingTo(BigDecimal.valueOf(-1.0));
+            // With partial marking: contains incorrect opt-2 → zero marks (not negative)
+            assertThat(result.get(0).getScore()).isEqualByComparingTo(BigDecimal.ZERO);
         }
     }
 

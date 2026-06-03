@@ -54,6 +54,13 @@ public class Notification extends BaseEntity {
     @Column(name = "sent_at")
     private Instant sentAt;
 
+    @Column(name = "is_read", nullable = false)
+    @Builder.Default
+    private boolean read = false;
+
+    @Column(name = "read_at")
+    private Instant readAt;
+
     /**
      * Notification delivery channel type.
      */
