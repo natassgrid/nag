@@ -1,0 +1,74 @@
+{
+  "dashboard": {
+    "id": null,
+    "uid": "paper-generation",
+    "title": "Paper Generation",
+    "tags": ["exam-platform", "paper"],
+    "timezone": "browser",
+    "refresh": "30s",
+    "schemaVersion": 39,
+    "panels": [
+      {
+        "id": 1,
+        "title": "Generation Queue Depth",
+        "type": "timeseries",
+        "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
+        "targets": [
+          {
+            "expr": "sum(exam_platform_paper_generation_queue_size)",
+            "legendFormat": "Queue Depth"
+          }
+        ]
+      },
+      {
+        "id": 2,
+        "title": "Generation Duration (p95)",
+        "type": "timeseries",
+        "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.95, sum(rate(exam_platform_paper_generation_duration_seconds_bucket[5m])) by (le))",
+            "legendFormat": "p95 Duration"
+          }
+        ]
+      },
+      {
+        "id": 3,
+        "title": "Comparability Violations",
+        "type": "stat",
+        "gridPos": { "h": 6, "w": 8, "x": 0, "y": 8 },
+        "targets": [
+          {
+            "expr": "sum(increase(exam_platform_comparability_violations_total[24h]))",
+            "legendFormat": "Violations (24h)"
+          }
+        ]
+      },
+      {
+        "id": 4,
+        "title": "Papers Generated (by status)",
+        "type": "piechart",
+        "gridPos": { "h": 8, "w": 8, "x": 8, "y": 8 },
+        "targets": [
+          {
+            "expr": "sum by (status) (exam_platform_papers_by_status)",
+            "legendFormat": "{{status}}"
+          }
+        ]
+      },
+      {
+        "id": 5,
+        "title": "Gap Reports Generated",
+        "type": "stat",
+        "gridPos": { "h": 6, "w": 8, "x": 16, "y": 8 },
+        "targets": [
+          {
+            "expr": "sum(increase(exam_platform_gap_reports_total[24h]))",
+            "legendFormat": "Gap Reports (24h)"
+          }
+        ]
+      }
+    ],
+    "time": { "from": "now-6h", "to": "now" }
+  }
+}

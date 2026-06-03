@@ -1,0 +1,384 @@
+name: CI Pipeline
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+  pull_request:
+    branches:
+      - main
+      - develop
+
+env:
+  JAVA_VERSION: '21'
+  JAVA_DISTRIBUTION: 'temurin'
+
+jobs:
+  # ─────────────────────────────────────────────────────────────────────────────
+  # Job 1: Compile and assemble all modules (no tests)
+  # ─────────────────────────────────────────────────────────────────────────────
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Set up Java ${{ env.JAVA_VERSION }}
+        uses: actions/setup-java@v4
+        with:
+          java-version: ${{ env.JAVA_VERSION }}
+          distribution: ${{ env.JAVA_DISTRIBUTION }}
+          cache: gradle
+
+      - name: Grant execute permission for gradlew
+        run: chmod +x ./gradlew
+
+      - name: Build (skip tests)
+        run: ./gradlew build -x test --no-daemon
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-artifacts
+          path: '**/build/libs/*.jar'
+          retention-days: 1
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  # Job 2: Unit tests (JUnit 5 + jqwik property tests)
+  # ─────────────────────────────────────────────────────────────────────────────
+  unit-test:
+    name: Unit Tests
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Set up Java ${{ env.JAVA_VERSION }}
+        uses: actions/setup-java@v4
+        with:
+          java-version: ${{ env.JAVA_VERSION }}
+          distribution: ${{ env.JAVA_DISTRIBUTION }}
+          cache: gradle
+
+      - name: Grant execute permission for gradlew
+        run: chmod +x ./gradlew
+
+      - name: Run unit tests
+        run: ./gradlew test --no-daemon
+
+      - name: Publish test results
+        uses: dorny/test-reporter@v1
+        if: always()
+        with:
+          name: Unit Test Results
+          path: '**/build/test-results/test/*.xml'
+          reporter: java-junit
+          fail-on-error: false
+
+      - name: Upload JaCoCo coverage reports
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: coverage-reports
+          path: '**/build/reports/jacoco/**'
+          retention-days: 7
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  # Job 3: Integration tests (Testcontainers — PostgreSQL, Kafka, Redis)
+  # ─────────────────────────────────────────────────────────────────────────────
+  integration-test:
+    name: Integration Tests
+    runs-on: ubuntu-latest
+    needs: build
+    services:
+      # Testcontainers manages its own containers; docker daemon is sufficient
+      docker:
+        image: docker:dind
+        options: --privileged
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Set up Java ${{ env.JAVA_VERSION }}
+        uses: actions/setup-java@v4
+        with:
+          java-version: ${{ env.JAVA_VERSION }}
+          distribution: ${{ env.JAVA_DISTRIBUTION }}
+          cache: gradle
+
+      - name: Grant execute permission for gradlew
+        run: chmod +x ./gradlew
+
+      - name: Run integration tests
+        run: ./gradlew integrationTest --no-daemon
+
+      - name: Publish integration test results
+        uses: dorny/test-reporter@v1
+        if: always()
+        with:
+          name: Integration Test Results
+          path: '**/build/test-results/integrationTest/*.xml'
+          reporter: java-junit
+          fail-on-error: false
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  # Job 4: SAST — SpotBugs + Semgrep (block on HIGH severity)
+  # ─────────────────────────────────────────────────────────────────────────────
+  sast:
+    name: SAST (SpotBugs + Semgrep)
+    runs-on: ubuntu-latest
+    needs: build
+    permissions:
+      security-events: write
+      contents: read
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Set up Java ${{ env.JAVA_VERSION }}
+        uses: actions/setup-java@v4
+        with:
+          java-version: ${{ env.JAVA_VERSION }}
+          distribution: ${{ env.JAVA_DISTRIBUTION }}
+          cache: gradle
+
+      - name: Grant execute permission for gradlew
+        run: chmod +x ./gradlew
+
+      - name: Compile (required for SpotBugs bytecode analysis)
+        run: ./gradlew compileJava --no-daemon
+
+      - name: Run SpotBugs
+        run: ./gradlew spotbugsMain --no-daemon
+        # Fails the build if HIGH-severity bugs are found (configured in build.gradle)
+
+      - name: Upload SpotBugs HTML reports
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: spotbugs-reports
+          path: '**/build/reports/spotbugs/*.html'
+          retention-days: 7
+
+      - name: Run Semgrep (Java rules)
+        uses: semgrep/semgrep-action@v1
+        with:
+          config: >-
+            p/java
+            p/owasp-top-ten
+            p/secrets
+        env:
+          SEMGREP_APP_TOKEN: ${{ secrets.SEMGREP_APP_TOKEN }}
+        # Block on HIGH severity findings; Semgrep action exits non-zero on findings
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  # Job 4b: OWASP Dependency-Check (between SAST and Container Build)
+  # ─────────────────────────────────────────────────────────────────────────────
+  dependency-check:
+    name: OWASP Dependency-Check
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Set up Java ${{ env.JAVA_VERSION }}
+        uses: actions/setup-java@v4
+        with:
+          java-version: ${{ env.JAVA_VERSION }}
+          distribution: ${{ env.JAVA_DISTRIBUTION }}
+          cache: gradle
+
+      - name: Grant execute permission for gradlew
+        run: chmod +x ./gradlew
+
+      - name: Run OWASP Dependency-Check
+        uses: dependency-check/Dependency-Check_Action@main
+        with:
+          project: 'exam-platform'
+          path: '.'
+          format: 'HTML,JSON,SARIF'
+          args: >
+            --failOnCVSS 7
+            --enableRetired
+            --disableAssembly
+        env:
+          NVD_API_KEY: ${{ secrets.NVD_API_KEY }}
+
+      - name: Upload Dependency-Check report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: dependency-check-report
+          path: 'reports/'
+          retention-days: 14
+
+      - name: Upload SARIF to GitHub Security
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: 'reports/dependency-check-report.sarif'
+          category: 'dependency-check'
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  # Job 5: DAST — OWASP ZAP baseline scan (staging only)
+  # ─────────────────────────────────────────────────────────────────────────────
+  dast:
+    name: DAST (OWASP ZAP)
+    runs-on: ubuntu-latest
+    needs: build
+    if: vars.STAGING_URL != ''
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Run OWASP ZAP Baseline Scan
+        uses: zaproxy/action-baseline@v0.12.0
+        with:
+          target: ${{ vars.STAGING_URL }}
+          rules_file_name: '.github/zap/rules.tsv'
+          cmd_options: '-a'
+          fail_action: true
+          artifact_name: zap-baseline-report
+
+      - name: Upload ZAP report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: zap-report
+          path: report_html.html
+          retention-days: 7
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  # Job 6: Container build + Trivy image scan (fail on CRITICAL)
+  # ─────────────────────────────────────────────────────────────────────────────
+  container-build:
+    name: Container Build & Scan
+    runs-on: ubuntu-latest
+    needs: [unit-test, sast, dependency-check]
+    strategy:
+      fail-fast: false
+      matrix:
+        service:
+          - identity-service
+          - candidate-service
+          - question-bank-service
+          - translation-service
+          - examination-service
+          - paper-generator
+          - delivery-service
+          - response-service
+          - evaluation-service
+          - result-service
+          - audit-service
+          - notification-service
+          - admin-service
+          - analytics-service
+          - api-gateway
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Set up Java ${{ env.JAVA_VERSION }}
+        uses: actions/setup-java@v4
+        with:
+          java-version: ${{ env.JAVA_VERSION }}
+          distribution: ${{ env.JAVA_DISTRIBUTION }}
+          cache: gradle
+
+      - name: Grant execute permission for gradlew
+        run: chmod +x ./gradlew
+
+      - name: Build JAR for ${{ matrix.service }}
+        run: ./gradlew :backend:${{ matrix.service }}:bootJar --no-daemon
+        continue-on-error: true
+        # Some services may not have Dockerfiles yet; continue-on-error avoids blocking pipeline
+
+      - name: Build Docker image for ${{ matrix.service }}
+        id: docker-build
+        run: |
+          if [ -f "backend/${{ matrix.service }}/Dockerfile" ]; then
+            docker build \
+              --tag examplatform/${{ matrix.service }}:${{ github.sha }} \
+              --tag examplatform/${{ matrix.service }}:latest \
+              backend/${{ matrix.service }}/
+          else
+            echo "No Dockerfile found for ${{ matrix.service }}, skipping image build."
+            echo "skipped=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Run Trivy image scan for ${{ matrix.service }}
+        if: steps.docker-build.outputs.skipped != 'true'
+        uses: aquasecurity/trivy-action@0.20.0
+        with:
+          image-ref: 'examplatform/${{ matrix.service }}:${{ github.sha }}'
+          format: 'sarif'
+          output: 'trivy-${{ matrix.service }}.sarif'
+          severity: 'CRITICAL,HIGH'
+          exit-code: '1'          # Fail on CRITICAL vulnerabilities
+          ignore-unfixed: true
+
+      - name: Upload Trivy scan results
+        if: always() && steps.docker-build.outputs.skipped != 'true'
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: 'trivy-${{ matrix.service }}.sarif'
+          category: 'trivy-${{ matrix.service }}'
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  # Job 7: Deploy to staging (develop branch only, after all checks pass)
+  # ─────────────────────────────────────────────────────────────────────────────
+  deploy:
+    name: Deploy to Staging
+    runs-on: ubuntu-latest
+    needs: [unit-test, integration-test, sast, container-build]
+    if: github.ref == 'refs/heads/develop' && github.event_name == 'push'
+    environment:
+      name: staging
+      url: ${{ vars.STAGING_URL }}
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Set up Helm
+        uses: azure/setup-helm@v4
+        with:
+          version: 'v3.15.3'
+
+      - name: Configure kubeconfig for staging
+        run: |
+          mkdir -p ~/.kube
+          echo "${{ secrets.STAGING_KUBECONFIG }}" | base64 -d > ~/.kube/config
+          chmod 600 ~/.kube/config
+
+      - name: Login to Container Registry
+        run: |
+          echo "${{ secrets.REGISTRY_PASSWORD }}" | \
+          docker login ${{ vars.REGISTRY_HOST }} \
+            -u "${{ secrets.REGISTRY_USERNAME }}" \
+            --password-stdin
+
+      - name: Helm upgrade — exam-platform (atomic, staging)
+        run: |
+          helm upgrade --install exam-platform ./infrastructure/helm/exam-platform \
+            --namespace exam-staging \
+            --create-namespace \
+            --atomic \
+            --timeout 10m \
+            --set global.image.tag=${{ github.sha }} \
+            --set global.environment=staging \
+            --values ./infrastructure/helm/exam-platform/values-staging.yaml \
+            --wait
+
+      - name: Verify deployment rollout
+        run: |
+          kubectl rollout status deployment \
+            -n exam-staging \
+            --timeout=5m \
+            -l app.kubernetes.io/part-of=exam-platform

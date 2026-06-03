@@ -1,0 +1,64 @@
+# =============================================================================
+# Shared SpringDoc/OpenAPI Configuration
+# Open Source Government Examination Platform
+# Requirements: 23.2, 23.3
+#
+# Include in each service's application.yml:
+#   spring.config.import: optional:classpath:openapi-config.yml
+#
+# Or add directly to each service's application.yml
+# =============================================================================
+
+springdoc:
+  api-docs:
+    enabled: true
+    path: /api/v1/docs
+  swagger-ui:
+    enabled: true
+    path: /api/v1/docs/ui
+    operationsSorter: method
+    tagsSorter: alpha
+    displayRequestDuration: true
+    filter: true
+  show-actuator: false
+  default-produces-media-type: application/json
+  default-consumes-media-type: application/json
+  writer-with-order-by-keys: true
+  packages-to-scan: com.examplatform
+  paths-to-match: /api/v1/**
+
+# OpenAPI spec metadata (override per service)
+openapi:
+  info:
+    title: "${spring.application.name} API"
+    description: "Open Source Government Examination Platform — ${spring.application.name}"
+    version: "1.0.0"
+    contact:
+      name: Exam Platform Team
+      url: https://github.com/exam-platform
+    license:
+      name: Apache 2.0
+      url: https://www.apache.org/licenses/LICENSE-2.0
+  servers:
+    - url: "${API_BASE_URL:http://localhost:${server.port}}"
+      description: "${ENVIRONMENT:Local} Server"
+  security:
+    - bearerAuth: []
+  components:
+    securitySchemes:
+      bearerAuth:
+        type: http
+        scheme: bearer
+        bearerFormat: JWT
+        description: "JWT access token from Identity Service (/api/v1/identity/auth/token)"
+    responses:
+      Unauthorized:
+        description: "Missing or invalid JWT token"
+      Forbidden:
+        description: "Insufficient role/permissions for this operation"
+      NotFound:
+        description: "Resource not found"
+      UnprocessableEntity:
+        description: "Validation failed — see problem details"
+      TooManyRequests:
+        description: "Rate limit exceeded — retry after cooldown"

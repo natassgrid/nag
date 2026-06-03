@@ -1,0 +1,104 @@
+spring:
+  application:
+    name: response-service
+
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/exam_platform}
+    username: ${SPRING_DATASOURCE_USERNAME:exam_admin}
+    password: ${SPRING_DATASOURCE_PASSWORD:exam_secret}
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: 30
+      minimum-idle: 10
+      connection-timeout: 30000
+      schema: response_service
+
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate:
+        default_schema: response_service
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        format_sql: false
+    show-sql: false
+
+  flyway:
+    enabled: true
+    schemas: response_service
+    locations: classpath:db/migration
+
+  data:
+    redis:
+      cluster:
+        nodes: ${REDIS_CLUSTER_NODES:127.0.0.1:6379,127.0.0.1:6380,127.0.0.1:6381}
+      password: ${REDIS_PASSWORD:redis_secret}
+      timeout: 2000ms
+
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: ${KEYCLOAK_ISSUER_URI:http://localhost:8080/realms/exam-realm}
+          jwk-set-uri: ${KEYCLOAK_ISSUER_URI:http://localhost:8080/realms/exam-realm}/protocol/openid-connect/certs
+
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+      acks: all
+      retries: 3
+      properties:
+        enable.idempotence: true
+        max.in.flight.requests.per.connection: 1
+    consumer:
+      group-id: response-service
+      auto-offset-reset: earliest
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+      properties:
+        spring.json.trusted.packages: "com.examplatform.*"
+
+  threads:
+    virtual:
+      enabled: true
+
+server:
+  port: ${RESPONSE_SERVICE_PORT:8088}
+  servlet:
+    context-path: /
+  shutdown: graceful
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus,metrics
+  endpoint:
+    health:
+      show-details: always
+  metrics:
+    tags:
+      service: response-service
+    distribution:
+      percentiles-histogram:
+        http.server.requests: true
+
+# HPA custom metric — target 50,000 saves/min/pod
+hpa:
+  metrics:
+    response-save-rate:
+      target-per-pod: 50000
+
+otel:
+  service:
+    name: response-service
+  exporter:
+    otlp:
+      endpoint: ${OTEL_EXPORTER_OTLP_ENDPOINT:http://localhost:4317}
+      protocol: grpc
+
+logging:
+  pattern:
+    console: '{"timestamp":"%d{ISO8601}","level":"%p","service":"response-service","traceId":"%X{traceId}","spanId":"%X{spanId}","message":"%m"}%n'

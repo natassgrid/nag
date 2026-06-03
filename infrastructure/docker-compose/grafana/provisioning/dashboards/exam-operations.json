@@ -1,0 +1,86 @@
+{
+  "dashboard": {
+    "id": null,
+    "uid": "exam-operations",
+    "title": "Exam Operations",
+    "tags": ["exam-platform", "operations"],
+    "timezone": "browser",
+    "refresh": "30s",
+    "schemaVersion": 39,
+    "panels": [
+      {
+        "id": 1,
+        "title": "Active Exam Sessions",
+        "type": "stat",
+        "gridPos": { "h": 6, "w": 8, "x": 0, "y": 0 },
+        "targets": [
+          {
+            "expr": "sum(exam_platform_active_sessions_total)",
+            "legendFormat": "Active Sessions"
+          }
+        ]
+      },
+      {
+        "id": 2,
+        "title": "Session Start Rate (per minute)",
+        "type": "timeseries",
+        "gridPos": { "h": 8, "w": 12, "x": 0, "y": 6 },
+        "targets": [
+          {
+            "expr": "sum(rate(exam_platform_session_starts_total[5m])) * 60",
+            "legendFormat": "Sessions Started/min"
+          }
+        ]
+      },
+      {
+        "id": 3,
+        "title": "Submission Rate (per minute)",
+        "type": "timeseries",
+        "gridPos": { "h": 8, "w": 12, "x": 12, "y": 6 },
+        "targets": [
+          {
+            "expr": "sum(rate(exam_platform_submissions_total[5m])) * 60",
+            "legendFormat": "Submissions/min"
+          }
+        ]
+      },
+      {
+        "id": 4,
+        "title": "Average Completion Time (minutes)",
+        "type": "gauge",
+        "gridPos": { "h": 6, "w": 8, "x": 8, "y": 0 },
+        "targets": [
+          {
+            "expr": "avg(exam_platform_session_duration_seconds) / 60",
+            "legendFormat": "Avg Completion Time"
+          }
+        ]
+      },
+      {
+        "id": 5,
+        "title": "Response Save Latency (p99)",
+        "type": "timeseries",
+        "gridPos": { "h": 8, "w": 12, "x": 0, "y": 14 },
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.99, sum(rate(exam_platform_response_save_duration_seconds_bucket[5m])) by (le))",
+            "legendFormat": "p99 Latency"
+          }
+        ]
+      },
+      {
+        "id": 6,
+        "title": "Sessions by Status",
+        "type": "piechart",
+        "gridPos": { "h": 6, "w": 8, "x": 16, "y": 0 },
+        "targets": [
+          {
+            "expr": "sum by (status) (exam_platform_sessions_by_status)",
+            "legendFormat": "{{status}}"
+          }
+        ]
+      }
+    ],
+    "time": { "from": "now-1h", "to": "now" }
+  }
+}

@@ -1,0 +1,6 @@
+package com.examplatform.identity.domain.enums;
+
+public enum UserRole {
+    SUPER_ADMIN, SECURITY_ADMIN, QUESTION_AUTHOR, REVIEWER, APPROVER,
+    EXAM_CONTROLLER, TRANSLATOR, EVALUATOR, AUDITOR, CANDIDATE
+}

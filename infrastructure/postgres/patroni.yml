@@ -1,0 +1,118 @@
+# =============================================================================
+# Patroni HA Configuration — PostgreSQL 16
+# Open Source Government Examination Platform
+# Requirements: 20.3, 20.5
+# 
+# Synchronous standby with WAL archival every 60 seconds.
+# Supports PITR (Point-in-Time Recovery) via WAL-G or pg_basebackup.
+# =============================================================================
+
+scope: exam-platform
+namespace: /exam/
+name: ${PATRONI_NAME:-pg-node-1}
+
+restapi:
+  listen: 0.0.0.0:8008
+  connect_address: ${PATRONI_HOST:-127.0.0.1}:8008
+
+etcd3:
+  hosts: ${ETCD_HOSTS:-etcd1:2379,etcd2:2379,etcd3:2379}
+
+bootstrap:
+  dcs:
+    ttl: 30
+    loop_wait: 10
+    retry_timeout: 10
+    maximum_lag_on_failover: 1048576  # 1MB max lag for failover
+    synchronous_mode: true
+    synchronous_mode_strict: false
+    postgresql:
+      use_pg_rewind: true
+      use_slots: true
+      parameters:
+        max_connections: 500
+        shared_buffers: 4GB
+        effective_cache_size: 12GB
+        work_mem: 64MB
+        maintenance_work_mem: 1GB
+        random_page_cost: 1.1
+        effective_io_concurrency: 200
+        min_wal_size: 2GB
+        max_wal_size: 8GB
+        max_worker_processes: 8
+        max_parallel_workers_per_gather: 4
+        max_parallel_workers: 8
+        wal_level: replica
+        hot_standby: "on"
+        wal_log_hints: "on"
+        max_wal_senders: 10
+        max_replication_slots: 10
+        wal_keep_size: 4GB
+        synchronous_commit: "on"
+        # WAL archival every 60 seconds
+        archive_mode: "on"
+        archive_command: "wal-g wal-push %p"
+        archive_timeout: 60
+        # Logging
+        log_min_duration_statement: 1000
+        log_checkpoints: "on"
+        log_connections: "on"
+        log_disconnections: "on"
+        log_lock_waits: "on"
+        log_statement: ddl
+        # Partitioning support
+        enable_partition_pruning: "on"
+
+  initdb:
+    - encoding: UTF8
+    - data-checksums
+    - locale: en_US.UTF-8
+
+  pg_hba:
+    - host replication replicator 0.0.0.0/0 scram-sha-256
+    - host all all 0.0.0.0/0 scram-sha-256
+
+  users:
+    admin:
+      password: ${POSTGRES_ADMIN_PASSWORD:-exam_secret}
+      options:
+        - createrole
+        - createdb
+    replicator:
+      password: ${POSTGRES_REPLICATOR_PASSWORD:-replicator_secret}
+      options:
+        - replication
+
+postgresql:
+  listen: 0.0.0.0:5432
+  connect_address: ${PATRONI_HOST:-127.0.0.1}:5432
+  data_dir: /var/lib/postgresql/data
+  bin_dir: /usr/lib/postgresql/16/bin
+  authentication:
+    superuser:
+      username: postgres
+      password: ${POSTGRES_SUPERUSER_PASSWORD:-postgres_secret}
+    replication:
+      username: replicator
+      password: ${POSTGRES_REPLICATOR_PASSWORD:-replicator_secret}
+  parameters:
+    unix_socket_directories: '/var/run/postgresql'
+
+  pg_hba:
+    - local all all trust
+    - host replication replicator 0.0.0.0/0 scram-sha-256
+    - host all all 0.0.0.0/0 scram-sha-256
+
+  recovery_conf:
+    restore_command: "wal-g wal-fetch %f %p"
+
+watchdog:
+  mode: automatic
+  device: /dev/watchdog
+  safety_margin: 5
+
+tags:
+  nofailover: false
+  noloadbalance: false
+  clonefrom: false
+  nosync: false

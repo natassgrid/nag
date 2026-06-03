@@ -1,0 +1,45 @@
+-- =============================================================================
+-- Database initialisation — create per-service schemas
+-- Open Source Government Examination Platform
+-- Design doc: "All services use separate schemas within a single PostgreSQL cluster"
+-- =============================================================================
+
+-- Create service schemas
+CREATE SCHEMA IF NOT EXISTS identity_service;
+CREATE SCHEMA IF NOT EXISTS candidate_service;
+CREATE SCHEMA IF NOT EXISTS question_service;
+CREATE SCHEMA IF NOT EXISTS translation_service;
+CREATE SCHEMA IF NOT EXISTS examination_service;
+CREATE SCHEMA IF NOT EXISTS paper_generator;
+CREATE SCHEMA IF NOT EXISTS delivery_service;
+CREATE SCHEMA IF NOT EXISTS response_service;
+CREATE SCHEMA IF NOT EXISTS evaluation_service;
+CREATE SCHEMA IF NOT EXISTS result_service;
+CREATE SCHEMA IF NOT EXISTS audit_service;
+CREATE SCHEMA IF NOT EXISTS notification_service;
+CREATE SCHEMA IF NOT EXISTS admin_service;
+CREATE SCHEMA IF NOT EXISTS analytics_service;
+
+-- Schema for Keycloak (used when KC_DB_SCHEMA=keycloak is set)
+CREATE SCHEMA IF NOT EXISTS keycloak;
+
+-- Enable pgvector extension (required by question_service for similarity search)
+CREATE EXTENSION IF NOT EXISTS vector;
+
+-- Enable uuid-ossp for UUID generation
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+
+-- Create service-specific roles with least-privilege access
+CREATE ROLE IF NOT EXISTS identity_writer  LOGIN PASSWORD 'identity_pw';
+CREATE ROLE IF NOT EXISTS candidate_writer LOGIN PASSWORD 'candidate_pw';
+CREATE ROLE IF NOT EXISTS question_writer  LOGIN PASSWORD 'question_pw';
+CREATE ROLE IF NOT EXISTS audit_writer_role NOLOGIN;
+
+-- Grant schema usage
+GRANT USAGE ON SCHEMA identity_service    TO identity_writer;
+GRANT USAGE ON SCHEMA candidate_service   TO candidate_writer;
+GRANT USAGE ON SCHEMA question_service    TO question_writer;
+GRANT USAGE ON SCHEMA audit_service       TO audit_writer_role;
+
+-- audit_writer_role: INSERT-only (no UPDATE/DELETE — Req 15.6)
+-- Applied per-table after schema init by the audit-service migration scripts.

@@ -1,0 +1,107 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- =============================================================================
+  Shared Logback Configuration — Structured JSON Output
+  Open Source Government Examination Platform
+  Requirements: 21.1, 21.6
+  
+  Usage: Include in each service's src/main/resources/logback-spring.xml via:
+    <include resource="logback-spring.xml"/>
+  Or copy as template to each service.
+============================================================================= -->
+<configuration scan="true" scanPeriod="30 seconds">
+
+    <!-- Service name injected via Spring property -->
+    <springProperty scope="context" name="SERVICE_NAME" source="spring.application.name" defaultValue="unknown-service"/>
+
+    <!-- =========================================================================
+      Structured JSON Console Appender
+      Fields: service, traceId, spanId, method, path, status, responseTimeMs, userId (masked)
+    ========================================================================= -->
+    <appender name="CONSOLE_JSON" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder class="net.logstash.logback.encoder.LogstashEncoder">
+            <includeMdcKeyName>traceId</includeMdcKeyName>
+            <includeMdcKeyName>spanId</includeMdcKeyName>
+            <includeMdcKeyName>method</includeMdcKeyName>
+            <includeMdcKeyName>path</includeMdcKeyName>
+            <includeMdcKeyName>status</includeMdcKeyName>
+            <includeMdcKeyName>responseTimeMs</includeMdcKeyName>
+            <includeMdcKeyName>userId</includeMdcKeyName>
+            <customFields>{"service":"${SERVICE_NAME}"}</customFields>
+            <timestampPattern>yyyy-MM-dd'T'HH:mm:ss.SSSZ</timestampPattern>
+            <!-- Mask userId: show only last 4 characters -->
+            <fieldNames>
+                <timestamp>@timestamp</timestamp>
+                <version>[ignore]</version>
+            </fieldNames>
+        </encoder>
+    </appender>
+
+    <!-- =========================================================================
+      Rolling File Appender — logs retained ≥365 days
+    ========================================================================= -->
+    <appender name="FILE_JSON" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>/var/log/exam-platform/${SERVICE_NAME}/${SERVICE_NAME}.log</file>
+        <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+            <fileNamePattern>/var/log/exam-platform/${SERVICE_NAME}/${SERVICE_NAME}.%d{yyyy-MM-dd}.log.gz</fileNamePattern>
+            <!-- Retain logs for at least 365 days -->
+            <maxHistory>365</maxHistory>
+            <totalSizeCap>50GB</totalSizeCap>
+        </rollingPolicy>
+        <encoder class="net.logstash.logback.encoder.LogstashEncoder">
+            <includeMdcKeyName>traceId</includeMdcKeyName>
+            <includeMdcKeyName>spanId</includeMdcKeyName>
+            <includeMdcKeyName>method</includeMdcKeyName>
+            <includeMdcKeyName>path</includeMdcKeyName>
+            <includeMdcKeyName>status</includeMdcKeyName>
+            <includeMdcKeyName>responseTimeMs</includeMdcKeyName>
+            <includeMdcKeyName>userId</includeMdcKeyName>
+            <customFields>{"service":"${SERVICE_NAME}"}</customFields>
+            <timestampPattern>yyyy-MM-dd'T'HH:mm:ss.SSSZ</timestampPattern>
+        </encoder>
+    </appender>
+
+    <!-- =========================================================================
+      Metrics File Appender — metrics retained ≥90 days
+    ========================================================================= -->
+    <appender name="METRICS_FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>/var/log/exam-platform/${SERVICE_NAME}/${SERVICE_NAME}-metrics.log</file>
+        <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+            <fileNamePattern>/var/log/exam-platform/${SERVICE_NAME}/${SERVICE_NAME}-metrics.%d{yyyy-MM-dd}.log.gz</fileNamePattern>
+            <!-- Retain metrics for at least 90 days -->
+            <maxHistory>90</maxHistory>
+            <totalSizeCap>10GB</totalSizeCap>
+        </rollingPolicy>
+        <encoder class="net.logstash.logback.encoder.LogstashEncoder">
+            <customFields>{"service":"${SERVICE_NAME}","logType":"metrics"}</customFields>
+            <timestampPattern>yyyy-MM-dd'T'HH:mm:ss.SSSZ</timestampPattern>
+        </encoder>
+    </appender>
+
+    <!-- Metrics logger — routed to metrics appender -->
+    <logger name="com.examplatform.metrics" level="INFO" additivity="false">
+        <appender-ref ref="METRICS_FILE"/>
+        <appender-ref ref="CONSOLE_JSON"/>
+    </logger>
+
+    <!-- Spring Boot / framework noise reduction -->
+    <logger name="org.springframework" level="WARN"/>
+    <logger name="org.hibernate" level="WARN"/>
+    <logger name="org.apache.kafka" level="WARN"/>
+    <logger name="io.lettuce" level="WARN"/>
+
+    <!-- Application root logger -->
+    <root level="INFO">
+        <appender-ref ref="CONSOLE_JSON"/>
+        <appender-ref ref="FILE_JSON"/>
+    </root>
+
+    <!-- Production profile: reduce verbosity -->
+    <springProfile name="production">
+        <root level="WARN">
+            <appender-ref ref="CONSOLE_JSON"/>
+            <appender-ref ref="FILE_JSON"/>
+        </root>
+        <logger name="com.examplatform" level="INFO"/>
+    </springProfile>
+
+</configuration>

@@ -1,0 +1,48 @@
+<aside class="palette-container" role="navigation" aria-label="Question navigation palette">
+  <h2 class="palette-header" id="palette-title">Question Palette</h2>
+
+  <!-- Section Switcher -->
+  <div class="section-tabs" role="tablist" aria-label="Exam sections" *ngIf="sections.length > 1">
+    <button *ngFor="let section of sections"
+            class="section-tab"
+            [class.active]="activeSection === section.sectionId"
+            (click)="selectSection(section.sectionId)"
+            role="tab"
+            [attr.aria-selected]="activeSection === section.sectionId"
+            [attr.aria-label]="'Section: ' + section.name">
+      {{ section.name }}
+    </button>
+  </div>
+
+  <!-- Question Grid -->
+  <div class="question-grid" role="grid" aria-labelledby="palette-title" aria-live="polite">
+    <button *ngFor="let seq of questionNumbers"
+            class="q-btn"
+            [class.answered]="answeredQuestions.has(seq)"
+            [class.flagged]="flaggedQuestions.has(seq)"
+            [class.current]="currentQuestion === seq"
+            (click)="selectQuestion(seq)"
+            (keydown.space)="toggleReview(seq); $event.preventDefault()"
+            role="gridcell"
+            [attr.aria-label]="'Question ' + seq + ', ' + getStatusLabel(seq)"
+            [matTooltip]="'Q' + seq + ': ' + getStatusLabel(seq)">
+      {{ seq }}
+    </button>
+  </div>
+
+  <!-- Legend -->
+  <div class="legend" aria-label="Legend">
+    <div class="legend-item">
+      <span class="legend-dot answered" aria-hidden="true"></span>
+      <span>Answered</span>
+    </div>
+    <div class="legend-item">
+      <span class="legend-dot unanswered" aria-hidden="true"></span>
+      <span>Not Answered</span>
+    </div>
+    <div class="legend-item">
+      <span class="legend-dot flagged" aria-hidden="true"></span>
+      <span>Flagged for Review</span>
+    </div>
+  </div>
+</aside>

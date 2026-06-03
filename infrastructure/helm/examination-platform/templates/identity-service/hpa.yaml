@@ -1,0 +1,32 @@
+{{- if and .Values.identityService.enabled .Values.identityService.hpa.enabled }}
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: {{ include "examination-platform.fullname" . }}-identity-service
+  labels:
+    app.kubernetes.io/name: identity-service
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/part-of: exam-platform
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: {{ include "examination-platform.fullname" . }}-identity-service
+  minReplicas: {{ .Values.identityService.hpa.minReplicas }}
+  maxReplicas: {{ .Values.identityService.hpa.maxReplicas }}
+  metrics:
+    {{- toYaml .Values.identityService.hpa.metrics | nindent 4 }}
+  behavior:
+    scaleUp:
+      stabilizationWindowSeconds: 60
+      policies:
+        - type: Pods
+          value: 2
+          periodSeconds: 60
+    scaleDown:
+      stabilizationWindowSeconds: 300
+      policies:
+        - type: Pods
+          value: 1
+          periodSeconds: 120
+{{- end }}

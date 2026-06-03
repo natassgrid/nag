@@ -8,56 +8,56 @@ All services are stateless Spring Boot applications; persistent state lives in P
 
 ## Tasks
 
-- [ ] 1. Repository scaffold and shared infrastructure
-  - [ ] 1.1 Initialize monorepo structure with top-level directories `/frontend`, `/backend`, `/infrastructure`, `/docs` and root files `LICENSE` (Apache 2.0), `CONTRIBUTING.md`, `SECURITY.md`
+- [x] 1. Repository scaffold and shared infrastructure
+  - [x] 1.1 Initialize monorepo structure with top-level directories `/frontend`, `/backend`, `/infrastructure`, `/docs` and root files `LICENSE` (Apache 2.0), `CONTRIBUTING.md`, `SECURITY.md`
     - Create Maven/Gradle multi-module root `pom.xml` / `settings.gradle` declaring all backend service modules
     - Add `.github/workflows/ci.yml` skeleton with Build, Unit Test, Integration Test, SAST, DAST, Container Build, Deploy stages
     - _Requirements: 27.1, 27.2, 27.3, 24.1_
-  - [ ] 1.2 Create `backend/shared-lib` module with common classes: `ApiResponse<T>` envelope, `ProblemDetail` RFC 7807 error builder, `AuditEventType` enum, `LifecycleState` enums, `TenantContext` thread-local, and `BaseEntity` JPA mapped superclass
+  - [x] 1.2 Create `backend/shared-lib` module with common classes: `ApiResponse<T>` envelope, `ProblemDetail` RFC 7807 error builder, `AuditEventType` enum, `LifecycleState` enums, `TenantContext` thread-local, and `BaseEntity` JPA mapped superclass
     - _Requirements: 23.1, 15.1, 3.1_
-  - [ ] 1.3 Write Docker Compose configuration (`infrastructure/docker-compose/docker-compose.yml`) starting PostgreSQL 16, Kafka, Redis Cluster, Keycloak, HashiCorp Vault (dev mode), Prometheus, Grafana, Jaeger, and all backend services
+  - [x] 1.3 Write Docker Compose configuration (`infrastructure/docker-compose/docker-compose.yml`) starting PostgreSQL 16, Kafka, Redis Cluster, Keycloak, HashiCorp Vault (dev mode), Prometheus, Grafana, Jaeger, and all backend services
     - _Requirements: 24.4_
 
 
-- [ ] 2. Identity Service — authentication, MFA, RBAC/ABAC, rate limiting
-  - [ ] 2.1 Scaffold `backend/identity-service` Spring Boot project: configure Spring Security OAuth2 Resource Server, Keycloak adapter, Spring Data JPA with `identity_service` schema, Redis for session state, Actuator, and OpenTelemetry Java agent
+- [x] 2. Identity Service — authentication, MFA, RBAC/ABAC, rate limiting
+  - [x] 2.1 Scaffold `backend/identity-service` Spring Boot project: configure Spring Security OAuth2 Resource Server, Keycloak adapter, Spring Data JPA with `identity_service` schema, Redis for session state, Actuator, and OpenTelemetry Java agent
     - _Requirements: 2.1, 3.1, 16.3, 23.4_
-  - [ ] 2.2 Implement candidate registration endpoint `POST /api/v1/identity/register`: validate identity document type (Aadhaar/PAN/Passport/VoterID/DL), persist pending account, enforce duplicate-identity check (SHA-256 hash comparison), return acknowledgement within 2 seconds
+  - [x] 2.2 Implement candidate registration endpoint `POST /api/v1/identity/register`: validate identity document type (Aadhaar/PAN/Passport/VoterID/DL), persist pending account, enforce duplicate-identity check (SHA-256 hash comparison), return acknowledgement within 2 seconds
     - _Requirements: 1.1, 1.5_
-  - [ ] 2.3 Implement OTP verification `POST /api/v1/identity/otp/verify`: activate pending account, issue JWT access + refresh tokens via Keycloak token endpoint
+  - [x] 2.3 Implement OTP verification `POST /api/v1/identity/otp/verify`: activate pending account, issue JWT access + refresh tokens via Keycloak token endpoint
     - _Requirements: 1.2_
-  - [ ] 2.4 Implement password+MFA authentication `POST /api/v1/identity/auth/token`: validate credentials, enforce MFA OTP/hardware-token step when MFA is enabled, enforce device binding (device fingerprint claim in JWT), enforce single concurrent active session per candidate during shift
+  - [x] 2.4 Implement password+MFA authentication `POST /api/v1/identity/auth/token`: validate credentials, enforce MFA OTP/hardware-token step when MFA is enabled, enforce device binding (device fingerprint claim in JWT), enforce single concurrent active session per candidate during shift
     - _Requirements: 2.1, 2.2, 2.5, 2.7_
-  - [ ] 2.5 Implement WebAuthn / FIDO2 authentication `POST /api/v1/identity/auth/webauthn` using Spring Security WebAuthn support; verify authenticator assertion and issue JWT
+  - [x] 2.5 Implement WebAuthn / FIDO2 authentication `POST /api/v1/identity/auth/webauthn` using Spring Security WebAuthn support; verify authenticator assertion and issue JWT
     - _Requirements: 2.3_
-  - [ ] 2.6 Implement account lockout: after 5 consecutive failed authentication attempts within 10 minutes, lock account and trigger notification event on Kafka `exam.notifications.outbound`; implement step-up authentication on risk signal (new device/geo/time)
+  - [x] 2.6 Implement account lockout: after 5 consecutive failed authentication attempts within 10 minutes, lock account and trigger notification event on Kafka `exam.notifications.outbound`; implement step-up authentication on risk signal (new device/geo/time)
     - _Requirements: 2.4, 2.6_
-  - [ ] 2.7 Implement role assignment/revocation `POST /api/v1/identity/roles/{userId}` (Super_Admin only); enforce all 10 named roles (Super_Admin, Security_Admin, Question_Author, Reviewer, Approver, Exam_Controller, Translator, Evaluator, Auditor, Candidate); enforce least-privilege RBAC on all API endpoints; return HTTP 403 on unauthorized access
+  - [x] 2.7 Implement role assignment/revocation `POST /api/v1/identity/roles/{userId}` (Super_Admin only); enforce all 10 named roles (Super_Admin, Security_Admin, Question_Author, Reviewer, Approver, Exam_Controller, Translator, Evaluator, Auditor, Candidate); enforce least-privilege RBAC on all API endpoints; return HTTP 403 on unauthorized access
     - _Requirements: 3.1, 3.2, 3.3, 3.4, 3.5, 3.6_
-  - [ ] 2.8 Implement rate limiting on `/api/v1/identity/auth/*`: Redis token-bucket limiting 10 auth attempts per IP per minute; return HTTP 429 on excess; implement idle-session timeout invalidation
+  - [x] 2.8 Implement rate limiting on `/api/v1/identity/auth/*`: Redis token-bucket limiting 10 auth attempts per IP per minute; return HTTP 429 on excess; implement idle-session timeout invalidation
     - _Requirements: 17.1, 2.8_
   - [ ]* 2.9 Write property test for authentication rate limiting
     - **Property 13: Authentication Rate Limiting**
     - **Validates: Requirements 17.1**
     - Use `@Property(tries = 1000)` with jqwik generator `authRequestBursts()` that produces IP addresses and request sequences; assert requests 1–10 receive non-429, requests 11–N receive HTTP 429 within any 60-second window
-  - [ ] 2.10 Implement HSM/Vault integration: configure Spring Vault `TransitTemplate`; expose `VaultCryptoService` with `encrypt`, `decrypt`, `sign`, `verify`, `rotateKey`, `revokeKey`; ensure private keys never leave Vault boundary; implement 60-second revocation on Security_Admin trigger
+  - [x] 2.10 Implement HSM/Vault integration: configure Spring Vault `TransitTemplate`; expose `VaultCryptoService` with `encrypt`, `decrypt`, `sign`, `verify`, `rotateKey`, `revokeKey`; ensure private keys never leave Vault boundary; implement 60-second revocation on Security_Admin trigger
     - _Requirements: 16.3, 16.4, 16.5_
-  - [ ] 2.11 Publish audit events to Kafka `exam.audit.events` for: login, logout, role-change, denied-access, account-lock, key-revocation; include actor, role, resource, IP, device fingerprint, timestamp
+  - [x] 2.11 Publish audit events to Kafka `exam.audit.events` for: login, logout, role-change, denied-access, account-lock, key-revocation; include actor, role, resource, IP, device fingerprint, timestamp
     - _Requirements: 2.9, 3.3, 3.5, 16.5_
 
 
-- [ ] 3. Candidate Service — PII management, DigiLocker, face verification
-  - [ ] 3.1 Scaffold `backend/candidate-service` Spring Boot project: configure JPA with `candidate_service` schema, `VaultCryptoService` dependency, AES-256 column encryption via JPA `AttributeConverter` for all PII fields (name, DOB, gender, nationality, category, mobile, email, address, reservationCategory, identityDocNumber)
+- [x] 3. Candidate Service — PII management, DigiLocker, face verification
+  - [x] 3.1 Scaffold `backend/candidate-service` Spring Boot project: configure JPA with `candidate_service` schema, `VaultCryptoService` dependency, AES-256 column encryption via JPA `AttributeConverter` for all PII fields (name, DOB, gender, nationality, category, mobile, email, address, reservationCategory, identityDocNumber)
     - _Requirements: 1.6, 16.1, 25.1_
-  - [ ] 3.2 Implement candidate profile CRUD: store per-candidate DEK reference in `encryption_key_id`, store SHA-256 hash of mobile for uniqueness check, store SHA-256 + HMAC of identity document for duplicate detection; implement DPDP erasure endpoint that zeroes PII columns and deletes DEK reference
+  - [x] 3.2 Implement candidate profile CRUD: store per-candidate DEK reference in `encryption_key_id`, store SHA-256 hash of mobile for uniqueness check, store SHA-256 + HMAC of identity document for duplicate detection; implement DPDP erasure endpoint that zeroes PII columns and deletes DEK reference
     - _Requirements: 1.6, 25.2_
-  - [ ] 3.3 Implement DigiLocker verification: call DigiLocker API with OAuth2 token, validate returned document data, update `digiLockerVerified` status to `VERIFIED` or `FAILED`
+  - [x] 3.3 Implement DigiLocker verification: call DigiLocker API with OAuth2 token, validate returned document data, update `digiLockerVerified` status to `VERIFIED` or `FAILED`
     - _Requirements: 1.3_
-  - [ ] 3.4 Implement face verification: compare submitted photograph embedding against identity document photograph; reject and set `faceVerificationStatus=FAILED` when similarity score is below configured threshold
+  - [x] 3.4 Implement face verification: compare submitted photograph embedding against identity document photograph; reject and set `faceVerificationStatus=FAILED` when similarity score is below configured threshold
     - _Requirements: 1.4_
-  - [ ] 3.5 Implement consent recording: Angular form presents plain-language consent notice before biometric data collection; persist `consentRecorded=true` and `consentTimestamp` on explicit acceptance
+  - [x] 3.5 Implement consent recording: Angular form presents plain-language consent notice before biometric data collection; persist `consentRecorded=true` and `consentTimestamp` on explicit acceptance
     - _Requirements: 25.3_
-  - [ ] 3.6 Publish audit event to Kafka `exam.audit.events` on candidate profile creation
+  - [x] 3.6 Publish audit event to Kafka `exam.audit.events` on candidate profile creation
     - _Requirements: 1.7_
   - [ ]* 3.7 Write property test for candidate PII encryption at rest
     - **Property 12: Candidate PII Encryption at Rest**
@@ -65,76 +65,76 @@ All services are stateless Spring Boot applications; persistent state lives in P
     - Use jqwik generator `candidatePIIRecords()` producing arbitrary PII strings; assert `storedBytes ≠ UTF8(piiValue)` and `decrypt(candidateDEK, storedBytes) == piiValue`
 
 
-- [ ] 4. Question Bank Service — CRUD, versioning, lifecycle FSM, similarity, exposure tracking
-  - [ ] 4.1 Scaffold `backend/question-bank-service` Spring Boot project: configure JPA with `question_service` schema including Hash-partitioned `question` table (16 partitions), pgvector extension, OpenSearch client, `VaultCryptoService` for per-question AES-256 encryption
+- [x] 4. Question Bank Service — CRUD, versioning, lifecycle FSM, similarity, exposure tracking
+  - [x] 4.1 Scaffold `backend/question-bank-service` Spring Boot project: configure JPA with `question_service` schema including Hash-partitioned `question` table (16 partitions), pgvector extension, OpenSearch client, `VaultCryptoService` for per-question AES-256 encryption
     - _Requirements: 4.1, 4.5, 19.6_
-  - [ ] 4.2 Implement question creation `POST /api/v1/questions`: validate required metadata (subject, topic, subtopic, chapter, difficulty, cognitiveLevel, questionType); enforce supported question types (Single_MCQ, Multi_MCQ, Numerical, Descriptive, Matrix_Match, Assertion_Reason, Coding, Case_Study); persist in Draft state; encrypt content fields with per-question DEK; accept rich content types (HTML5, SVG, PNG, JPEG, WEBP, Audio, Video, LaTeX, MathML)
+  - [x] 4.2 Implement question creation `POST /api/v1/questions`: validate required metadata (subject, topic, subtopic, chapter, difficulty, cognitiveLevel, questionType); enforce supported question types (Single_MCQ, Multi_MCQ, Numerical, Descriptive, Matrix_Match, Assertion_Reason, Coding, Case_Study); persist in Draft state; encrypt content fields with per-question DEK; accept rich content types (HTML5, SVG, PNG, JPEG, WEBP, Audio, Video, LaTeX, MathML)
     - _Requirements: 4.1, 4.2, 4.3, 4.5_
-  - [ ] 4.3 Implement question versioning: on every update to question content/metadata, create a `QuestionVersion` record with `authorId`, `changedAt`, JSON diff of modified fields, and encrypted full snapshot; expose `GET /api/v1/questions/{id}/versions`
+  - [x] 4.3 Implement question versioning: on every update to question content/metadata, create a `QuestionVersion` record with `authorId`, `changedAt`, JSON diff of modified fields, and encrypted full snapshot; expose `GET /api/v1/questions/{id}/versions`
     - _Requirements: 4.4_
-  - [ ] 4.4 Implement question lifecycle FSM: enforce valid transitions (DRAFT→REVIEW, REVIEW→APPROVED, REVIEW→DRAFT, APPROVED→PUBLISHED, PUBLISHED→ARCHIVED) via `POST /api/v1/questions/{id}/transition`; reject any transition not in `VALID_TRANSITIONS` with HTTP 422; enforce four-eyes principle (reviewer ≠ approver)
+  - [x] 4.4 Implement question lifecycle FSM: enforce valid transitions (DRAFT→REVIEW, REVIEW→APPROVED, REVIEW→DRAFT, APPROVED→PUBLISHED, PUBLISHED→ARCHIVED) via `POST /api/v1/questions/{id}/transition`; reject any transition not in `VALID_TRANSITIONS` with HTTP 422; enforce four-eyes principle (reviewer ≠ approver)
     - _Requirements: 4.6, 5.5_
   - [ ]* 4.5 Write property test for question lifecycle state machine
     - **Property 8: Question Lifecycle State Machine**
     - **Validates: Requirements 4.6**
     - Use jqwik generator `lifecycleStatePairs()` producing all (currentState, targetState) combinations; assert `transition()` succeeds iff pair is in `VALID_TRANSITIONS`
-  - [ ] 4.6 Implement review/approval workflow: on transition to REVIEW, assign to available Reviewer by subject specialization and publish Kafka event to `exam.question.lifecycle`; on Reviewer approval → APPROVED + notify Author; on return → DRAFT with comments + notify Author; on Approver approval → PUBLISHED; notify via `exam.notifications.outbound`
+  - [x] 4.6 Implement review/approval workflow: on transition to REVIEW, assign to available Reviewer by subject specialization and publish Kafka event to `exam.question.lifecycle`; on Reviewer approval → APPROVED + notify Author; on return → DRAFT with comments + notify Author; on Approver approval → PUBLISHED; notify via `exam.notifications.outbound`
     - _Requirements: 5.1, 5.2, 5.3, 5.4, 5.6_
-  - [ ] 4.7 Implement similarity detection: on question save, compute embedding vector (1536-dim), store in `embedding_vector` (pgvector); before creating Draft, cosine-similarity search against all published questions; reject with HTTP 422 + `similarQuestionId` if any cosine similarity > 0.80 threshold
+  - [x] 4.7 Implement similarity detection: on question save, compute embedding vector (1536-dim), store in `embedding_vector` (pgvector); before creating Draft, cosine-similarity search against all published questions; reject with HTTP 422 + `similarQuestionId` if any cosine similarity > 0.80 threshold
     - _Requirements: 4.7_
   - [ ]* 4.8 Write property test for question similarity rejection
     - **Property 14: Question Similarity Rejection**
     - **Validates: Requirements 4.7**
     - Use jqwik generator `questionEmbeddingPairs()` producing (submittedEmbedding, publishedEmbedding, cosineSim) tuples; assert `submit(q) = REJECTED(similarId)` when `cosineSim > 0.80`, `ACCEPTED` otherwise
-  - [ ] 4.9 Implement exposure tracking: increment `usageCount`, update `lastUsedAt`, append to `usedInExamIds`/`usedInShiftIds` when a question is selected into a paper; implement reuse policy enforcement (NEVER / 1_Year / 2_Years / Custom)
+  - [x] 4.9 Implement exposure tracking: increment `usageCount`, update `lastUsedAt`, append to `usedInExamIds`/`usedInShiftIds` when a question is selected into a paper; implement reuse policy enforcement (NEVER / 1_Year / 2_Years / Custom)
     - _Requirements: 4.8, 4.9_
-  - [ ] 4.10 Implement full-text search `GET /api/v1/questions/search` via OpenSearch index (100M question capacity); return results within 2 seconds at p95; expose `GET /api/v1/questions/{id}/analytics` with difficulty index, discrimination index, usage count
+  - [x] 4.10 Implement full-text search `GET /api/v1/questions/search` via OpenSearch index (100M question capacity); return results within 2 seconds at p95; expose `GET /api/v1/questions/{id}/analytics` with difficulty index, discrimination index, usage count
     - _Requirements: 19.3, 26.5_
-  - [ ] 4.11 Publish audit events to Kafka `exam.audit.events` on question creation, modification, and each state transition
+  - [x] 4.11 Publish audit events to Kafka `exam.audit.events` on question creation, modification, and each state transition
     - _Requirements: 4.10, 5.6, 15.1_
 
 
-- [ ] 5. Translation Service — multilingual content workflow
-  - [ ] 5.1 Scaffold `backend/translation-service` Spring Boot project: configure JPA with `translation_service` schema; configure per-translation AES-256 column encryption via `VaultCryptoService`; enforce UTF-8 storage
+- [x] 5. Translation Service — multilingual content workflow
+  - [x] 5.1 Scaffold `backend/translation-service` Spring Boot project: configure JPA with `translation_service` schema; configure per-translation AES-256 column encryption via `VaultCryptoService`; enforce UTF-8 storage
     - _Requirements: 6.3, 6.6_
-  - [ ] 5.2 Implement translation workflow: on request for a Published question, initiate Author→Translator→Reviewer→Approver pipeline; store translation in DRAFT status linked to source question and language code (ISO 639-1/BCP47); support all 22 Eighth Schedule languages
+  - [x] 5.2 Implement translation workflow: on request for a Published question, initiate Author→Translator→Reviewer→Approver pipeline; store translation in DRAFT status linked to source question and language code (ISO 639-1/BCP47); support all 22 Eighth Schedule languages
     - _Requirements: 6.1, 6.2, 6.3_
-  - [ ] 5.3 Implement translation review: on Reviewer approval → mark APPROVED, make available for paper generation; on rejection → attach reviewer comments, notify Translator; detect stale translations when source question is modified after approval (publish `STALE` status + Kafka event)
+  - [x] 5.3 Implement translation review: on Reviewer approval → mark APPROVED, make available for paper generation; on rejection → attach reviewer comments, notify Translator; detect stale translations when source question is modified after approval (publish `STALE` status + Kafka event)
     - _Requirements: 6.4, 6.5, 6.7_
 
-- [ ] 6. Examination Service — exam config, sections, marking schemes, navigation
-  - [ ] 6.1 Scaffold `backend/examination-service` Spring Boot project: configure JPA with `examination_service` schema; implement `Examination`, `Section`, and `SubjectTopicRule` JPA entities with JSONB sections column
+- [x] 6. Examination Service — exam config, sections, marking schemes, navigation
+  - [x] 6.1 Scaffold `backend/examination-service` Spring Boot project: configure JPA with `examination_service` schema; implement `Examination`, `Section`, and `SubjectTopicRule` JPA entities with JSONB sections column
     - _Requirements: 7.1, 7.2_
-  - [ ] 6.2 Implement exam creation/update API: persist exam with name, duration, total marks, negative marking flag/value, navigation policy (Sequential/Flexible/Restricted), calculator policy (None/Basic/Scientific), review-flag policy, and section list; validate that Σ(marksPerQuestion × questionCount) over all sections == totalMarks; reject with descriptive error on mismatch
+  - [x] 6.2 Implement exam creation/update API: persist exam with name, duration, total marks, negative marking flag/value, navigation policy (Sequential/Flexible/Restricted), calculator policy (None/Basic/Scientific), review-flag policy, and section list; validate that Σ(marksPerQuestion × questionCount) over all sections == totalMarks; reject with descriptive error on mismatch
     - _Requirements: 7.1, 7.2, 7.3, 7.4, 7.5, 7.6_
   - [ ]* 6.3 Write property test for examination section marks validation
     - **Property 11: Examination Section Marks Validation**
     - **Validates: Requirements 7.6**
     - Use jqwik generator `examSectionConfigs()` producing arbitrary section lists; assert `isValid(exam) ⟺ Σ(marksPerQuestion × questionCount) == exam.totalMarks`
-  - [ ] 6.4 Implement disability time extension: before session starts, apply `extraTimeMinutes` from candidate profile to session duration
+  - [x] 6.4 Implement disability time extension: before session starts, apply `extraTimeMinutes` from candidate profile to session duration
     - _Requirements: 22.6_
-  - [ ] 6.5 Publish audit event to Kafka `exam.audit.events` on exam publication
+  - [x] 6.5 Publish audit event to Kafka `exam.audit.events` on exam publication
     - _Requirements: 7.7_
 
 
-- [ ] 7. Paper Generator — blueprint-driven assembly, encryption, serialization
-  - [ ] 7.1 Scaffold `backend/paper-generator` Spring Boot project: configure JPA with `paper_generator` schema; configure `VaultCryptoService` for per-shift AES-256 paper encryption; configure async Kafka consumer for paper generation request jobs
+- [x] 7. Paper Generator — blueprint-driven assembly, encryption, serialization
+  - [x] 7.1 Scaffold `backend/paper-generator` Spring Boot project: configure JPA with `paper_generator` schema; configure `VaultCryptoService` for per-shift AES-256 paper encryption; configure async Kafka consumer for paper generation request jobs
     - _Requirements: 8.7_
-  - [ ] 7.2 Implement blueprint-driven paper assembly: `POST /api/v1/papers/generate` submits async job; worker selects questions from Question Bank satisfying subject/topic/difficulty/cognitive ratios; enforces all active reuse policies; attaches difficulty score, topic distribution report, and similarity report
+  - [x] 7.2 Implement blueprint-driven paper assembly: `POST /api/v1/papers/generate` submits async job; worker selects questions from Question Bank satisfying subject/topic/difficulty/cognitive ratios; enforces all active reuse policies; attaches difficulty score, topic distribution report, and similarity report
     - _Requirements: 8.1, 8.2, 8.3, 8.4_
   - [ ]* 7.3 Write property test for blueprint constraint satisfaction
     - **Property 1: Blueprint Constraint Satisfaction**
     - **Validates: Requirements 8.1, 8.2**
     - Use jqwik generator `validBlueprints()` + `questionBankMock()` producing arbitrary valid blueprints; assert every generated paper's actual ratio distribution matches blueprint within integer rounding tolerance
-  - [ ] 7.4 Implement shift comparability enforcement: for any pair of shift papers in the same exam, assert `|difficultyScore(pi) - difficultyScore(pj)| / totalMarks ≤ 0.02`; return error and block paper approval if violated
+  - [x] 7.4 Implement shift comparability enforcement: for any pair of shift papers in the same exam, assert `|difficultyScore(pi) - difficultyScore(pj)| / totalMarks ≤ 0.02`; return error and block paper approval if violated
     - _Requirements: 8.9_
   - [ ]* 7.5 Write property test for shift paper statistical comparability
     - **Property 2: Shift Paper Statistical Comparability**
     - **Validates: Requirements 8.9**
     - Use jqwik generator producing pairs of shift paper difficulty scores and total marks; assert `|diff| / totalMarks ≤ 0.02` for all generated pairs within the same exam
-  - [ ] 7.6 Implement gap report: when blueprint cannot be satisfied due to insufficient questions, return RFC 7807 error with gap details per subject-topic-difficulty combination; do NOT generate a partial paper
+  - [x] 7.6 Implement gap report: when blueprint cannot be satisfied due to insufficient questions, return RFC 7807 error with gap details per subject-topic-difficulty combination; do NOT generate a partial paper
     - _Requirements: 8.5_
-  - [ ] 7.7 Implement paper JSON serialization/deserialization: `PaperSerializer.format(Paper) → String` and `PaperSerializer.parse(String) → Paper`; store only question identifiers (not content) in paper definition; implement Paper Schema versioning field; implement `POST /api/v1/papers/validate` schema validation endpoint
+  - [x] 7.7 Implement paper JSON serialization/deserialization: `PaperSerializer.format(Paper) → String` and `PaperSerializer.parse(String) → Paper`; store only question identifiers (not content) in paper definition; implement Paper Schema versioning field; implement `POST /api/v1/papers/validate` schema validation endpoint
     - _Requirements: 8.7, 28.1, 28.2, 28.3, 28.5_
   - [ ]* 7.8 Write property test for paper serialization round-trip
     - **Property 3: Paper Serialization Round-Trip**
@@ -144,177 +144,177 @@ All services are stateless Spring Boot applications; persistent state lives in P
     - **Property 4: Paper Schema Validation Rejects Invalid Documents**
     - **Validates: Requirements 28.5**
     - Use jqwik generator `invalidPaperDocuments()` producing Papers with at least one invalid field (bad enum, negative marks, missing required field); assert `validate(doc).error.field ∈ fields(doc)` and error value matches violating value
-  - [ ] 7.10 Implement paper approval and HSM encryption: `POST /api/v1/papers/{paperId}/approve` transitions paper to APPROVED, then ENCRYPTED; encrypt paper package with shift-specific AES-256 key via `VaultCryptoService`; store only object-store reference (not content inline); complete within 5 minutes of request
+  - [x] 7.10 Implement paper approval and HSM encryption: `POST /api/v1/papers/{paperId}/approve` transitions paper to APPROVED, then ENCRYPTED; encrypt paper package with shift-specific AES-256 key via `VaultCryptoService`; store only object-store reference (not content inline); complete within 5 minutes of request
     - _Requirements: 8.6, 8.7_
-  - [ ] 7.11 Publish audit events to Kafka `exam.audit.events` on paper generation and paper approval
+  - [x] 7.11 Publish audit events to Kafka `exam.audit.events` on paper generation and paper approval
     - _Requirements: 8.8_
 
-- [ ] 8. Checkpoint — core domain services
+- [x] 8. Checkpoint — core domain services
   - Ensure all unit and property tests pass for services 2–7 before proceeding. Ask the user if questions arise.
 
 
-- [ ] 9. Delivery Service — session start, question serving, navigation, proctoring, offline
-  - [ ] 9.1 Scaffold `backend/delivery-service` Spring Boot project: configure JPA with `delivery_service` schema; configure Redis for hot exam session state; configure `VaultCryptoService` for shift-key decryption; configure HPA metrics `active_exam_sessions` (target 5,000/pod)
+- [x] 9. Delivery Service — session start, question serving, navigation, proctoring, offline
+  - [x] 9.1 Scaffold `backend/delivery-service` Spring Boot project: configure JPA with `delivery_service` schema; configure Redis for hot exam session state; configure `VaultCryptoService` for shift-key decryption; configure HPA metrics `active_exam_sessions` (target 5,000/pod)
     - _Requirements: 9.1, 19.2_
-  - [ ] 9.2 Implement session start: authenticate candidate JWT, look up shift assignment, decrypt shift paper package using HSM-managed shift key (in-memory only), serve first question within 500ms; enforce single concurrent session (Req 2.7)
+  - [x] 9.2 Implement session start: authenticate candidate JWT, look up shift assignment, decrypt shift paper package using HSM-managed shift key (in-memory only), serve first question within 500ms; enforce single concurrent session (Req 2.7)
     - _Requirements: 9.1, 9.3_
-  - [ ] 9.3 Implement navigation policy enforcement: apply Sequential/Flexible/Restricted rules from exam configuration on every navigation request; reject policy-violating navigation with HTTP 422; support rendering modes One_Question, Section_Mode, Batch_Mode
+  - [x] 9.3 Implement navigation policy enforcement: apply Sequential/Flexible/Restricted rules from exam configuration on every navigation request; reject policy-violating navigation with HTTP 422; support rendering modes One_Question, Section_Mode, Batch_Mode
     - _Requirements: 9.2, 9.5_
-  - [ ] 9.4 Implement session timer: schedule session expiry event at `scheduledEndAt` + disability extension; serve question with language selection from approved translation variants; enforce full-screen lock mode signal via API (Angular enforces locally)
+  - [x] 9.4 Implement session timer: schedule session expiry event at `scheduledEndAt` + disability extension; serve question with language selection from approved translation variants; enforce full-screen lock mode signal via API (Angular enforces locally)
     - _Requirements: 9.3, 9.6, 9.8, 22.6_
-  - [ ] 9.5 Implement proctoring capture: record webcam snapshots at configurable interval (min 30s) and screen activity recordings; publish to Kafka `exam.proctoring.alerts`; track `fullScreenExitCount` and flag session after 3 exits; enforce configurable retention window; check consent before storing biometric data
+  - [x] 9.5 Implement proctoring capture: record webcam snapshots at configurable interval (min 30s) and screen activity recordings; publish to Kafka `exam.proctoring.alerts`; track `fullScreenExitCount` and flag session after 3 exits; enforce configurable retention window; check consent before storing biometric data
     - _Requirements: 11.1, 11.2, 11.6, 11.7_
-  - [ ] 9.6 Implement AI proctoring analysis event handling: consume proctoring frames; publish `exam.audit.events` with event type `no-face-detected`, `multiple-faces-detected`, or `prohibited-object-detected`
+  - [x] 9.6 Implement AI proctoring analysis event handling: consume proctoring frames; publish `exam.audit.events` with event type `no-face-detected`, `multiple-faces-detected`, or `prohibited-object-detected`
     - _Requirements: 11.3, 11.4, 11.5_
-  - [ ] 9.7 Implement offline delivery: pre-load and locally decrypt exam package using center-specific time-limited key; serve questions offline; reconcile on reconnect
+  - [x] 9.7 Implement offline delivery: pre-load and locally decrypt exam package using center-specific time-limited key; serve questions offline; reconcile on reconnect
     - _Requirements: 9.7_
-  - [ ] 9.8 Publish session start and session submission events to Kafka `exam.session.events`; publish security/proctoring alerts to `exam.audit.events`
+  - [x] 9.8 Publish session start and session submission events to Kafka `exam.session.events`; publish security/proctoring alerts to `exam.audit.events`
     - _Requirements: 15.1_
 
 
-- [ ] 10. Response Service — persistence, auto-save, revision history, offline sync
-  - [ ] 10.1 Scaffold `backend/response-service` Spring Boot project: configure JPA with `response_service` schema including Range-partitioned `response` table (monthly partitions), composite index on `(session_id, question_id, revision_sequence DESC)`, and index on `candidate_id WHERE is_final=TRUE`; configure Redis for hot session state; configure HPA metric `response_save_rate` (target 50,000 saves/min/pod)
+- [x] 10. Response Service — persistence, auto-save, revision history, offline sync
+  - [x] 10.1 Scaffold `backend/response-service` Spring Boot project: configure JPA with `response_service` schema including Range-partitioned `response` table (monthly partitions), composite index on `(session_id, question_id, revision_sequence DESC)`, and index on `candidate_id WHERE is_final=TRUE`; configure Redis for hot session state; configure HPA metric `response_save_rate` (target 50,000 saves/min/pod)
     - _Requirements: 10.1, 19.4, 19.6_
-  - [ ] 10.2 Implement response save `POST /api/v1/responses/{sessionId}/save`: persist `Response` record with questionId, selectedOptionIds or enteredValue, timestamp, cumulativeTimeSpentMs, revisionSequence, saveSource within 200ms at p99; enforce Kafka `acks=all` before ACK
+  - [x] 10.2 Implement response save `POST /api/v1/responses/{sessionId}/save`: persist `Response` record with questionId, selectedOptionIds or enteredValue, timestamp, cumulativeTimeSpentMs, revisionSequence, saveSource within 200ms at p99; enforce Kafka `acks=all` before ACK
     - _Requirements: 10.1, 20.3_
   - [ ]* 10.3 Write property test for response persistence round-trip
     - **Property 5: Response Persistence Round-Trip**
     - **Validates: Requirements 10.1**
     - Use jqwik generator `validResponses()` producing arbitrary Response objects across all responseTypes including Unicode content; assert `readResponse(saveResponse(r).id) == r` (all fields bitwise-identical)
-  - [ ] 10.4 Implement auto-save pipeline: server-side heartbeat triggers auto-save every 30 seconds per active session; also trigger on every navigation event; consume from Kafka `exam.session.events` for navigation signals
+  - [x] 10.4 Implement auto-save pipeline: server-side heartbeat triggers auto-save every 30 seconds per active session; also trigger on every navigation event; consume from Kafka `exam.session.events` for navigation signals
     - _Requirements: 10.2, 10.3_
-  - [ ] 10.5 Implement offline buffer reconciliation `POST /api/v1/responses/{sessionId}/bulk-save`: accept ordered list of buffered responses; reconcile with server-side state using `revisionSequence`; guarantee zero response data loss
+  - [x] 10.5 Implement offline buffer reconciliation `POST /api/v1/responses/{sessionId}/bulk-save`: accept ordered list of buffered responses; reconcile with server-side state using `revisionSequence`; guarantee zero response data loss
     - _Requirements: 10.4_
-  - [ ] 10.6 Implement revision history: store every response update as new row with monotonically increasing `revisionSequence`; expose full history via `GET /api/v1/responses/{sessionId}/responses` (Evaluator/Auditor role)
+  - [x] 10.6 Implement revision history: store every response update as new row with monotonically increasing `revisionSequence`; expose full history via `GET /api/v1/responses/{sessionId}/responses` (Evaluator/Auditor role)
     - _Requirements: 10.5_
   - [ ]* 10.7 Write property test for response revision history preservation
     - **Property 6: Response Revision History Preservation**
     - **Validates: Requirements 10.5**
     - Use jqwik generator `responseUpdateSequences()` producing sequences of N≥2 updates to the same (sessionId, questionId); assert history returns exactly N records with `revisionSequence` 1..N and each record's value matches corresponding submitted update
-  - [ ] 10.8 Implement session finalization `POST /api/v1/responses/{sessionId}/submit`: set `isFinal=true` on all responses for session, lock response set against further modification; trigger Kafka event on `exam.session.events`
+  - [x] 10.8 Implement session finalization `POST /api/v1/responses/{sessionId}/submit`: set `isFinal=true` on all responses for session, lock response set against further modification; trigger Kafka event on `exam.session.events`
     - _Requirements: 10.6_
-  - [ ] 10.9 Publish sampled audit events to Kafka `exam.audit.events` on response save (max once per candidate per 60 seconds)
+  - [x] 10.9 Publish sampled audit events to Kafka `exam.audit.events` on response save (max once per candidate per 60 seconds)
     - _Requirements: 10.7_
 
 
-- [ ] 11. Evaluation Service — auto-evaluation, partial marking, dual-evaluator workflow
-  - [ ] 11.1 Scaffold `backend/evaluation-service` Spring Boot project: configure JPA with `evaluation_service` schema; consume `exam.session.events` (session-submitted) from Kafka to trigger auto-evaluation pipeline
+- [x] 11. Evaluation Service — auto-evaluation, partial marking, dual-evaluator workflow
+  - [x] 11.1 Scaffold `backend/evaluation-service` Spring Boot project: configure JPA with `evaluation_service` schema; consume `exam.session.events` (session-submitted) from Kafka to trigger auto-evaluation pipeline
     - _Requirements: 12.1_
-  - [ ] 11.2 Implement auto-evaluation: for finalized sessions, evaluate all Single_MCQ, Multi_MCQ, and Numerical responses against answer key; apply positive marks, configurable negative marks for wrong answers, zero for unattempted; store `Evaluation` records with `evaluationType=AUTO`
+  - [x] 11.2 Implement auto-evaluation: for finalized sessions, evaluate all Single_MCQ, Multi_MCQ, and Numerical responses against answer key; apply positive marks, configurable negative marks for wrong answers, zero for unattempted; store `Evaluation` records with `evaluationType=AUTO`
     - _Requirements: 12.1, 12.2_
-  - [ ] 11.3 Implement partial marking for Multiple_Correct_MCQ: award `(|selection ∩ answerKey| / |answerKey|) × marksPerQuestion` when `selection ⊆ answerKey`; award zero marks when selection contains any incorrect option
+  - [x] 11.3 Implement partial marking for Multiple_Correct_MCQ: award `(|selection ∩ answerKey| / |answerKey|) × marksPerQuestion` when `selection ⊆ answerKey`; award zero marks when selection contains any incorrect option
     - _Requirements: 12.3_
   - [ ]* 11.4 Write property test for partial marking arithmetic correctness
     - **Property 9: Partial Marking Arithmetic Correctness**
     - **Validates: Requirements 12.2, 12.3**
     - Use jqwik generator `multiCorrectMCQScenarios()` producing arbitrary (selection, answerKey, marksPerQuestion) tuples; assert score formula holds for all subset/non-subset cases
-  - [ ] 11.5 Implement manual evaluation workflow: notify Evaluators via Kafka `exam.notifications.outbound` after auto-eval completes; record Evaluator score with evaluator ID, timestamp, comments; implement dual-evaluator routing and flag responses where score divergence exceeds tolerance for arbitration
+  - [x] 11.5 Implement manual evaluation workflow: notify Evaluators via Kafka `exam.notifications.outbound` after auto-eval completes; record Evaluator score with evaluator ID, timestamp, comments; implement dual-evaluator routing and flag responses where score divergence exceeds tolerance for arbitration
     - _Requirements: 12.4, 12.5, 12.6_
-  - [ ] 11.6 Compute and store candidate total raw score and section-wise scores after all evaluations are complete; publish event to Kafka `exam.evaluation.events`
+  - [x] 11.6 Compute and store candidate total raw score and section-wise scores after all evaluations are complete; publish event to Kafka `exam.evaluation.events`
     - _Requirements: 12.7_
-  - [ ] 11.7 Publish audit events to Kafka `exam.audit.events` on each evaluation record creation
+  - [x] 11.7 Publish audit events to Kafka `exam.audit.events` on each evaluation record creation
     - _Requirements: 12.8_
 
-- [ ] 12. Result Service — score aggregation, normalization, PDF scorecard, DigiLocker
-  - [ ] 12.1 Scaffold `backend/result-service` Spring Boot project: configure JPA with `result_service` schema; integrate iText/PDFBox for PDF generation; configure DigiLocker OAuth2 client
+- [x] 12. Result Service — score aggregation, normalization, PDF scorecard, DigiLocker
+  - [x] 12.1 Scaffold `backend/result-service` Spring Boot project: configure JPA with `result_service` schema; integrate iText/PDFBox for PDF generation; configure DigiLocker OAuth2 client
     - _Requirements: 13.4, 13.8_
-  - [ ] 12.2 Implement result computation: for each candidate, compute totalScore, section-wise scores, overallRank, overallPercentile; apply shift normalization formula when configured; store `Result` record
+  - [x] 12.2 Implement result computation: for each candidate, compute totalScore, section-wise scores, overallRank, overallPercentile; apply shift normalization formula when configured; store `Result` record
     - _Requirements: 13.1, 13.2_
   - [ ]* 12.3 Write property test for result score decomposition invariant
     - **Property 10: Result Score Decomposition Invariant**
     - **Validates: Requirements 13.1**
     - Use jqwik generator `candidateScoreScenarios()` producing arbitrary candidate sets with section scores; assert `totalScore == Σ sectionScores` and `rank(A) < rank(B) ⟺ totalScore(A) > totalScore(B)` (excluding ties)
-  - [ ] 12.4 Implement PDF scorecard generation with password derived from candidate's registered date of birth + candidate identifier; include subject-wise and topic-wise performance breakdown; store PDF reference in object store
+  - [x] 12.4 Implement PDF scorecard generation with password derived from candidate's registered date of birth + candidate identifier; include subject-wise and topic-wise performance breakdown; store PDF reference in object store
     - _Requirements: 13.3, 13.4_
-  - [ ] 12.5 Implement result publication: expose `GET` scorecard endpoint via Angular portal; expose versioned REST API `GET /api/v1/results/{candidateId}` with OAuth2 access token for third-party integrators; push scorecard to DigiLocker when integration is enabled; publish `exam.notifications.outbound` event for result notification
+  - [x] 12.5 Implement result publication: expose `GET` scorecard endpoint via Angular portal; expose versioned REST API `GET /api/v1/results/{candidateId}` with OAuth2 access token for third-party integrators; push scorecard to DigiLocker when integration is enabled; publish `exam.notifications.outbound` event for result notification
     - _Requirements: 13.3, 13.5, 13.6, 13.8_
-  - [ ] 12.6 Compute per-question analytics on exam finalization: difficulty index, discrimination index, response distribution across options; expose via analytics dashboard API
+  - [x] 12.6 Compute per-question analytics on exam finalization: difficulty index, discrimination index, response distribution across options; expose via analytics dashboard API
     - _Requirements: 26.1, 26.5_
-  - [ ] 12.7 Publish audit event to Kafka `exam.audit.events` on result publication
+  - [x] 12.7 Publish audit event to Kafka `exam.audit.events` on result publication
     - _Requirements: 13.7_
 
 
-- [ ] 13. Audit Service — immutable append-only event log, tamper evidence, query API
-  - [ ] 13.1 Scaffold `backend/audit-service` Spring Boot project: configure JPA with `audit_service` schema; Range-partition `audit_event` table by `occurred_at` (quarterly, 28 partitions for 7-year retention); enforce `REVOKE UPDATE, DELETE ON audit_event FROM audit_writer_role` at DB level; configure Kafka consumer for `exam.audit.events`
+- [x] 13. Audit Service — immutable append-only event log, tamper evidence, query API
+  - [x] 13.1 Scaffold `backend/audit-service` Spring Boot project: configure JPA with `audit_service` schema; Range-partition `audit_event` table by `occurred_at` (quarterly, 28 partitions for 7-year retention); enforce `REVOKE UPDATE, DELETE ON audit_event FROM audit_writer_role` at DB level; configure Kafka consumer for `exam.audit.events`
     - _Requirements: 15.1, 15.5, 15.6, 19.6_
-  - [ ] 13.2 Implement audit event ingestion: on Kafka consumption, compute `payloadHash = SHA-256(eventPayload)`, sign with HSM ECDSA P-256 key via `VaultCryptoService`, persist `AuditEvent` with `hsmSignature` and `signingKeyId`; reject any UPDATE/DELETE request on existing records with HTTP 403 and write a new tamper-attempt audit event
+  - [x] 13.2 Implement audit event ingestion: on Kafka consumption, compute `payloadHash = SHA-256(eventPayload)`, sign with HSM ECDSA P-256 key via `VaultCryptoService`, persist `AuditEvent` with `hsmSignature` and `signingKeyId`; reject any UPDATE/DELETE request on existing records with HTTP 403 and write a new tamper-attempt audit event
     - _Requirements: 15.2, 15.4_
   - [ ]* 13.3 Write property test for audit event tamper detection
     - **Property 7: Audit Event Tamper Detection**
     - **Validates: Requirements 15.2**
     - Use jqwik generator `randomAuditEvents()` + `byteModifications()` producing unmodified and byte-modified payloads; assert `verify(signingKeyId, SHA256(payload), hsmSignature) = true` for originals, `false` for modified variants
-  - [ ] 13.4 Implement read-only query API `GET /api/v1/audit/events`: filter by userId, examId, actionType, time range; accessible to Auditor role only; return paginated results
+  - [x] 13.4 Implement read-only query API `GET /api/v1/audit/events`: filter by userId, examId, actionType, time range; accessible to Auditor role only; return paginated results
     - _Requirements: 15.3_
-  - [ ] 13.5 Implement local WAL buffer for audit events when Kafka is unavailable; replay on Kafka reconnection to ensure exam operations continue without blocking on audit writes
+  - [x] 13.5 Implement local WAL buffer for audit events when Kafka is unavailable; replay on Kafka reconnection to ensure exam operations continue without blocking on audit writes
     - _Requirements: design error-handling table_
 
-- [ ] 14. Notification Service — email/push delivery, retry, in-app notifications
-  - [ ] 14.1 Scaffold `backend/notification-service` Spring Boot project: configure Kafka consumer for `exam.notifications.outbound`; configure email client (SMTP/SendGrid); implement in-app notification entity in `notification_service` schema
+- [x] 14. Notification Service — email/push delivery, retry, in-app notifications
+  - [x] 14.1 Scaffold `backend/notification-service` Spring Boot project: configure Kafka consumer for `exam.notifications.outbound`; configure email client (SMTP/SendGrid); implement in-app notification entity in `notification_service` schema
     - _Requirements: 14.1_
-  - [ ] 14.2 Implement notification delivery: send email within 60 seconds of triggering event; retry up to 3 times on failure; mark as UNDELIVERED and log on third failure; ensure no PII or question content in message bodies — identifiers and action links only
+  - [x] 14.2 Implement notification delivery: send email within 60 seconds of triggering event; retry up to 3 times on failure; mark as UNDELIVERED and log on third failure; ensure no PII or question content in message bodies — identifiers and action links only
     - _Requirements: 14.1, 14.2, 14.4_
-  - [ ] 14.3 Implement in-app notifications API: persist in-app events in notification store; serve to authenticated users via `GET /api/v1/notifications` filtered by role and userId; publish to Angular via SSE or WebSocket
+  - [x] 14.3 Implement in-app notifications API: persist in-app events in notification store; serve to authenticated users via `GET /api/v1/notifications` filtered by role and userId; publish to Angular via SSE or WebSocket
     - _Requirements: 14.3_
 
 
-- [ ] 15. Admin Service and Analytics Service
-  - [ ] 15.1 Scaffold `backend/admin-service` Spring Boot project: implement Super_Admin console APIs — create/update/deactivate/list users for all roles; multi-tenancy isolation by `tenantId`; configuration API (`/api/v1/admin/config`) for session timeout, rate limits, auto-save interval, paper-gen concurrency — accessible to Super_Admin and Security_Admin only
+- [x] 15. Admin Service and Analytics Service
+  - [x] 15.1 Scaffold `backend/admin-service` Spring Boot project: implement Super_Admin console APIs — create/update/deactivate/list users for all roles; multi-tenancy isolation by `tenantId`; configuration API (`/api/v1/admin/config`) for session timeout, rate limits, auto-save interval, paper-gen concurrency — accessible to Super_Admin and Security_Admin only
     - _Requirements: 29.1, 29.2, 29.3, 29.4_
-  - [ ] 15.2 Implement deactivation: immediately invalidate all active sessions via Redis; prevent new authentication via Keycloak; publish audit event on config-parameter change (paramName, oldValue, newValue, actorId, timestamp)
+  - [x] 15.2 Implement deactivation: immediately invalidate all active sessions via Redis; prevent new authentication via Keycloak; publish audit event on config-parameter change (paramName, oldValue, newValue, actorId, timestamp)
     - _Requirements: 29.3, 29.5_
-  - [ ] 15.3 Scaffold `backend/analytics-service` Spring Boot project: consume finalized result data; implement analytics dashboard API `GET /api/v1/analytics/exams/{id}` — total registered/appeared candidates, score distribution histogram, section-wise averages, top/bottom 10th percentile thresholds; implement CSV and PDF export
+  - [x] 15.3 Scaffold `backend/analytics-service` Spring Boot project: consume finalized result data; implement analytics dashboard API `GET /api/v1/analytics/exams/{id}` — total registered/appeared candidates, score distribution histogram, section-wise averages, top/bottom 10th percentile thresholds; implement CSV and PDF export
     - _Requirements: 26.2, 26.3, 26.4_
 
-- [ ] 16. API Gateway and cross-cutting concerns
-  - [ ] 16.1 Configure Spring Cloud Gateway: OAuth2 token validation via Keycloak introspection before routing; Redis token-bucket rate limiting (1,000 req/min standard, configurable for partners); WAF/ModSecurity integration; request sanitization (strip dangerous headers, validate Content-Type); TLS 1.3 termination at ingress; common response envelope middleware; `X-Request-Id` / `X-Tenant-Id` header propagation
+- [x] 16. API Gateway and cross-cutting concerns
+  - [x] 16.1 Configure Spring Cloud Gateway: OAuth2 token validation via Keycloak introspection before routing; Redis token-bucket rate limiting (1,000 req/min standard, configurable for partners); WAF/ModSecurity integration; request sanitization (strip dangerous headers, validate Content-Type); TLS 1.3 termination at ingress; common response envelope middleware; `X-Request-Id` / `X-Tenant-Id` header propagation
     - _Requirements: 17.2, 17.5, 23.3, 23.5, 23.6_
-  - [ ] 16.2 Configure Spring Cloud Gateway DDoS mitigation: alert and absorb when inbound request rate exceeds 10,000 req/s from single origin; publish security alert to Kafka `exam.audit.events` and `exam.notifications.outbound` within 60 seconds
+  - [x] 16.2 Configure Spring Cloud Gateway DDoS mitigation: alert and absorb when inbound request rate exceeds 10,000 req/s from single origin; publish security alert to Kafka `exam.audit.events` and `exam.notifications.outbound` within 60 seconds
     - _Requirements: 17.3, 17.7_
-  - [ ] 16.3 Implement Zero Trust inter-service authentication: all service-to-service calls authenticated with short-lived service-account JWTs signed by Keycloak; verify via JWKS endpoint; no shared secrets between services; configure Istio mTLS or Spring Security mTLS as fallback
+  - [x] 16.3 Implement Zero Trust inter-service authentication: all service-to-service calls authenticated with short-lived service-account JWTs signed by Keycloak; verify via JWKS endpoint; no shared secrets between services; configure Istio mTLS or Spring Security mTLS as fallback
     - _Requirements: 17.6, 2.5_
-  - [ ] 16.4 Add Resilience4j circuit breakers to all synchronous inter-service calls: OPEN after 5 failures in 10s, HALF_OPEN probe, CLOSED on recovery; configure Delivery Service to serve pre-cached questions from Redis when Question Bank is unavailable
+  - [x] 16.4 Add Resilience4j circuit breakers to all synchronous inter-service calls: OPEN after 5 failures in 10s, HALF_OPEN probe, CLOSED on recovery; configure Delivery Service to serve pre-cached questions from Redis when Question Bank is unavailable
     - _Requirements: design error-handling_
 
 
-- [ ] 17. Angular SPA — candidate-facing UI, accessibility, in-app notifications
-  - [ ] 17.1 Scaffold `frontend/` Angular 17+ project: configure Angular Material, WCAG 2.2 AA baseline, Angular Router with role-based guards, HTTP interceptor for JWT + `X-Request-Id` + `Accept-Language` headers, axe-core integration for automated accessibility scanning
+- [x] 17. Angular SPA — candidate-facing UI, accessibility, in-app notifications
+  - [x] 17.1 Scaffold `frontend/` Angular 17+ project: configure Angular Material, WCAG 2.2 AA baseline, Angular Router with role-based guards, HTTP interceptor for JWT + `X-Request-Id` + `Accept-Language` headers, axe-core integration for automated accessibility scanning
     - _Requirements: 22.1, 22.2, 22.3_
-  - [ ] 17.2 Implement candidate registration, OTP verification, and login pages: form validation, WebAuthn option, MFA OTP input, error display; high-contrast mode toggle (WCAG AA 4.5:1 contrast); keyboard navigation (Tab/Shift+Tab/Enter/Space/Arrow); screen reader ARIA labels for all dynamic content
+  - [x] 17.2 Implement candidate registration, OTP verification, and login pages: form validation, WebAuthn option, MFA OTP input, error display; high-contrast mode toggle (WCAG AA 4.5:1 contrast); keyboard navigation (Tab/Shift+Tab/Enter/Space/Arrow); screen reader ARIA labels for all dynamic content
     - _Requirements: 22.1, 22.2, 22.3, 22.4, 22.5_
-  - [ ] 17.3 Implement exam delivery UI: question rendering for all types (HTML5, SVG, LaTeX/MathML via MathJax/KaTeX, PNG/JPEG/WEBP, Audio/Video) without plugins; full-screen locked mode (disable clipboard, devtools, print); 5-minute warning countdown + auto-submit on timer zero; offline response buffering in IndexedDB + reconciliation on reconnect
+  - [x] 17.3 Implement exam delivery UI: question rendering for all types (HTML5, SVG, LaTeX/MathML via MathJax/KaTeX, PNG/JPEG/WEBP, Audio/Video) without plugins; full-screen locked mode (disable clipboard, devtools, print); 5-minute warning countdown + auto-submit on timer zero; offline response buffering in IndexedDB + reconciliation on reconnect
     - _Requirements: 9.4, 9.6, 9.8, 10.4_
-  - [ ] 17.4 Implement navigation UI: enforce navigation policy (Sequential/Flexible/Restricted); question palette with status indicators (answered/unanswered/flagged); review-flag toggle; section switcher where policy allows; all interactions keyboard-accessible with ARIA live regions for state changes
+  - [x] 17.4 Implement navigation UI: enforce navigation policy (Sequential/Flexible/Restricted); question palette with status indicators (answered/unanswered/flagged); review-flag toggle; section switcher where policy allows; all interactions keyboard-accessible with ARIA live regions for state changes
     - _Requirements: 9.2, 9.5, 22.2, 22.3_
-  - [ ] 17.5 Implement candidate result page: scorecard display with subject/topic breakdown; PDF download link (password: DOB + candidateId); in-app notification panel (SSE/WebSocket); all pages responsive at minimum 320px width without horizontal scroll
+  - [x] 17.5 Implement candidate result page: scorecard display with subject/topic breakdown; PDF download link (password: DOB + candidateId); in-app notification panel (SSE/WebSocket); all pages responsive at minimum 320px width without horizontal scroll
     - _Requirements: 13.3, 14.3, 22.5_
-  - [ ] 17.6 Implement Super_Admin console pages: user management (create/update/deactivate/list); exam analytics dashboard (histogram, section averages, percentile thresholds); CSV/PDF report export
+  - [x] 17.6 Implement Super_Admin console pages: user management (create/update/deactivate/list); exam analytics dashboard (histogram, section averages, percentile thresholds); CSV/PDF report export
     - _Requirements: 29.1, 26.2, 26.3_
   - [ ]* 17.7 Write axe-core automated WCAG 2.2 AA scan tests for all exam-facing Angular routes (login, profile, exam instructions, question delivery, result)
     - _Requirements: 22.1_
 
-- [ ] 18. Checkpoint — full feature integration
+- [x] 18. Checkpoint — full feature integration
   - Ensure all unit, property, and integration tests pass. Verify Kafka RPO=0 for response capture. Ask the user if questions arise.
 
 
-- [ ] 19. Observability, DevSecOps pipeline, and infrastructure configuration
-  - [ ] 19.1 Instrument all services with OpenTelemetry Java agent: emit structured JSON logs (service, traceId, spanId, method, path, status, responseTimeMs, masked userId); expose `/actuator/prometheus` with standard + domain-specific metrics; propagate W3C TraceContext through Kafka headers and HTTP calls; retain metrics ≥90 days, logs ≥365 days
+- [x] 19. Observability, DevSecOps pipeline, and infrastructure configuration
+  - [x] 19.1 Instrument all services with OpenTelemetry Java agent: emit structured JSON logs (service, traceId, spanId, method, path, status, responseTimeMs, masked userId); expose `/actuator/prometheus` with standard + domain-specific metrics; propagate W3C TraceContext through Kafka headers and HTTP calls; retain metrics ≥90 days, logs ≥365 days
     - _Requirements: 21.1, 21.2, 21.3, 21.6_
-  - [ ] 19.2 Create pre-built Grafana dashboards (6 dashboards) for: Exam Operations, Authentication, Question Bank, Paper Generation, Proctoring, Infrastructure; configure alerting rule triggering within 2 minutes when error rate > 1% over 5-minute window
+  - [x] 19.2 Create pre-built Grafana dashboards (6 dashboards) for: Exam Operations, Authentication, Question Bank, Paper Generation, Proctoring, Infrastructure; configure alerting rule triggering within 2 minutes when error rate > 1% over 5-minute window
     - _Requirements: 21.4, 21.5_
-  - [ ] 19.3 Configure PostgreSQL 16 partitioning: create all partition tables and indexes for `response`, `audit_event`, and `question` tables as defined in the schema design; configure Patroni HA with synchronous standby and PITR with WAL archival every 60 seconds; configure PgBouncer transaction-mode pooling per service
+  - [x] 19.3 Configure PostgreSQL 16 partitioning: create all partition tables and indexes for `response`, `audit_event`, and `question` tables as defined in the schema design; configure Patroni HA with synchronous standby and PITR with WAL archival every 60 seconds; configure PgBouncer transaction-mode pooling per service
     - _Requirements: 19.6, 20.3, 20.5_
-  - [ ] 19.4 Configure Kafka cluster: 3+ brokers, replication factor 3, `min.insync.replicas=2`, `acks=all` on all producer configs; create all Kafka topics defined in the design; configure consumer groups per service
+  - [x] 19.4 Configure Kafka cluster: 3+ brokers, replication factor 3, `min.insync.replicas=2`, `acks=all` on all producer configs; create all Kafka topics defined in the design; configure consumer groups per service
     - _Requirements: 20.3_
-  - [ ] 19.5 Configure Redis Cluster: 3 masters + 3 replicas across 3 AZs; configure Delivery Service and Response Service clients for hot session state; configure API Gateway token-bucket rate limiting via Redis
+  - [x] 19.5 Configure Redis Cluster: 3 masters + 3 replicas across 3 AZs; configure Delivery Service and Response Service clients for hot session state; configure API Gateway token-bucket rate limiting via Redis
     - _Requirements: 19.2_
-  - [ ] 19.6 Write Helm chart under `infrastructure/helm/examination-platform/`: one directory per microservice with `deployment.yaml`, `service.yaml`, `hpa.yaml`, `configmap.yaml`; `values.yaml` with all defaults; `values-production.yaml`; HPA for Delivery/Response/Identity/Paper Generator with custom Prometheus metrics; inject all secrets via Sealed Secrets or External Secrets Operator — no plaintext secrets in values
+  - [x] 19.6 Write Helm chart under `infrastructure/helm/examination-platform/`: one directory per microservice with `deployment.yaml`, `service.yaml`, `hpa.yaml`, `configmap.yaml`; `values.yaml` with all defaults; `values-production.yaml`; HPA for Delivery/Response/Identity/Paper Generator with custom Prometheus metrics; inject all secrets via Sealed Secrets or External Secrets Operator — no plaintext secrets in values
     - _Requirements: 24.6_
-  - [ ] 19.7 Complete CI/CD pipeline `.github/workflows/ci.yml`: Build → Unit+Integration Tests → SpotBugs SAST → OWASP Dependency-Check → Semgrep → Docker build + Trivy image scan → OWASP ZAP DAST on staging → Helm upgrade --atomic; block PR merge on HIGH-severity SAST finding; create issue on DAST OWASP Top 10 finding; tag images with commit SHA + semver
+  - [x] 19.7 Complete CI/CD pipeline `.github/workflows/ci.yml`: Build → Unit+Integration Tests → SpotBugs SAST → OWASP Dependency-Check → Semgrep → Docker build + Trivy image scan → OWASP ZAP DAST on staging → Helm upgrade --atomic; block PR merge on HIGH-severity SAST finding; create issue on DAST OWASP Top 10 finding; tag images with commit SHA + semver
     - _Requirements: 24.1, 24.2, 24.3, 24.5_
-  - [ ] 19.8 Publish OpenAPI 3.0 spec documents for all services at `/api/v1/docs`; enforce API versioning via URL prefix; document ISO 27001 evidence package (asset inventory, risk register, access control records, audit log exports) accessible to Auditor role
+  - [x] 19.8 Publish OpenAPI 3.0 spec documents for all services at `/api/v1/docs`; enforce API versioning via URL prefix; document ISO 27001 evidence package (asset inventory, risk register, access control records, audit log exports) accessible to Auditor role
     - _Requirements: 23.2, 23.3, 25.5_
 
-- [ ] 20. Final checkpoint — all tests pass and all services wired
+- [x] 20. Final checkpoint — all tests pass and all services wired
   - Ensure all unit tests, property tests, integration tests, Playwright E2E tests, and accessibility scans pass. Verify Docker Compose single-command startup. Ask the user if questions arise.
 
 

@@ -1,0 +1,24 @@
+{{- if .Values.identityService.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "examination-platform.fullname" . }}-identity-service
+  labels:
+    app.kubernetes.io/name: identity-service
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/part-of: exam-platform
+spec:
+  type: ClusterIP
+  ports:
+    - port: {{ .Values.identityService.port }}
+      targetPort: http
+      protocol: TCP
+      name: http
+    - port: {{ .Values.identityService.managementPort }}
+      targetPort: management
+      protocol: TCP
+      name: management
+  selector:
+    app.kubernetes.io/name: identity-service
+    app.kubernetes.io/instance: {{ .Release.Name }}
+{{- end }}

@@ -1,0 +1,78 @@
+{
+  "dashboard": {
+    "id": null,
+    "uid": "proctoring",
+    "title": "Proctoring",
+    "tags": ["exam-platform", "proctoring", "security"],
+    "timezone": "browser",
+    "refresh": "15s",
+    "schemaVersion": 39,
+    "panels": [
+      {
+        "id": 1,
+        "title": "Snapshot Capture Rate (per minute)",
+        "type": "timeseries",
+        "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
+        "targets": [
+          {
+            "expr": "sum(rate(exam_platform_proctoring_snapshots_total[5m])) * 60",
+            "legendFormat": "Snapshots/min"
+          }
+        ]
+      },
+      {
+        "id": 2,
+        "title": "AI Alert Counts (by type)",
+        "type": "timeseries",
+        "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
+        "targets": [
+          {
+            "expr": "sum by (alert_type) (rate(exam_platform_proctoring_alerts_total[5m])) * 60",
+            "legendFormat": "{{alert_type}}"
+          }
+        ]
+      },
+      {
+        "id": 3,
+        "title": "Fullscreen Exit Flags",
+        "type": "stat",
+        "gridPos": { "h": 6, "w": 8, "x": 0, "y": 8 },
+        "targets": [
+          {
+            "expr": "sum(increase(exam_platform_fullscreen_exits_total[1h]))",
+            "legendFormat": "Exits (1h)"
+          }
+        ]
+      },
+      {
+        "id": 4,
+        "title": "Sessions Flagged for Review",
+        "type": "stat",
+        "gridPos": { "h": 6, "w": 8, "x": 8, "y": 8 },
+        "targets": [
+          {
+            "expr": "sum(exam_platform_sessions_flagged_for_review)",
+            "legendFormat": "Flagged Sessions"
+          }
+        ]
+      },
+      {
+        "id": 5,
+        "title": "No Face Detected Events",
+        "type": "timeseries",
+        "gridPos": { "h": 8, "w": 12, "x": 0, "y": 14 },
+        "targets": [
+          {
+            "expr": "sum(rate(exam_platform_proctoring_alerts_total{alert_type=\"no-face-detected\"}[5m])) * 60",
+            "legendFormat": "No Face/min"
+          },
+          {
+            "expr": "sum(rate(exam_platform_proctoring_alerts_total{alert_type=\"multiple-faces-detected\"}[5m])) * 60",
+            "legendFormat": "Multiple Faces/min"
+          }
+        ]
+      }
+    ],
+    "time": { "from": "now-1h", "to": "now" }
+  }
+}

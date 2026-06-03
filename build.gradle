@@ -1,0 +1,27 @@
+plugins {
+    id 'org.springframework.boot' version '3.5.14' apply false
+    id 'io.spring.dependency-management' version '1.1.7' apply false
+    id 'io.freefair.lombok' version '9.5.0' apply false
+}
+
+ext {
+    springBootVersion = '3.5.14'
+    springAiVersion = '1.1.7'
+    springCloudVersion = '2025.0.2'
+}
+
+subprojects {
+    group = 'com.examplatform'
+
+    repositories {
+        mavenCentral()
+    }
+
+    plugins.withType(JavaPlugin) {
+        java {
+            toolchain {
+                languageVersion = JavaLanguageVersion.of(21)
+            }
+        }
+    }
+}
