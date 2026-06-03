@@ -1,172 +1,27 @@
-/*
- * Open Source Government Examination Platform
- * Root build.gradle — shared dependency management and common plugin configuration
- * for all backend Spring Boot 3.x / Java 21 microservices.
- */
-
-// ── Root-level plugins (applied only to root, not subprojects) ───────────────
 plugins {
-    id 'base'
-    id 'org.springframework.boot'        version '3.3.2' apply false
-    id 'io.spring.dependency-management' version '1.1.6' apply false
-    id 'jacoco'
+    id 'org.springframework.boot' version '3.5.14' apply false
+    id 'io.spring.dependency-management' version '1.1.7' apply false
+    id 'io.freefair.lombok' version '9.5.0' apply false
 }
 
-// ── Versions catalogue ────────────────────────────────────────────────────────
 ext {
-    set('springBootVersion',        '3.3.2')
-    set('springCloudVersion',       '2023.0.1')
-    set('springVaultVersion',       '3.1.2')
-    set('jqwikVersion',             '1.8.5')
-    set('testcontainersVersion',    '1.19.8')
-    set('mapstructVersion',         '1.6.2')
-    set('lombokVersion',            '1.18.30')
-    set('opentelemetryVersion',     '2.6.0')
-    set('kafkaVersion',             '3.7.1')
-    set('pgvectorVersion',          '0.1.6')
-    set('spotbugsVersion',          '4.8.6')
+    springBootVersion = '3.5.14'
+    springAiVersion = '1.1.7'
+    springCloudVersion = '2025.0.2'
 }
 
-// ── Configuration applied to every project (root + subprojects) ───────────────
-allprojects {
-    group   = 'com.examplatform'
-    version = '1.0.0-SNAPSHOT'
-}
-
-// ── Configuration applied to leaf Java subprojects only ──────────────────────
-// Using `plugins.withId` avoids applying Java config to intermediate directory
-// projects (e.g. the implicit `:backend` container project) that Gradle creates
-// when colon-separated paths like 'backend:shared-lib' are used in settings.gradle.
 subprojects {
-    // Apply dependency-management and jacoco only to projects that have java applied
-    plugins.withId('java') {
-        apply plugin: 'io.spring.dependency-management'
-        apply plugin: 'jacoco'
+    group = 'com.examplatform'
 
+    repositories {
+        mavenCentral()
+    }
+
+    plugins.withType(JavaPlugin) {
         java {
             toolchain {
                 languageVersion = JavaLanguageVersion.of(21)
             }
         }
-
-        // Enable virtual threads globally for all Spring Boot services
-        tasks.withType(JavaExec).configureEach {
-            jvmArgs '-Dspring.threads.virtual.enabled=true'
-        }
-        tasks.withType(JavaCompile).configureEach {
-            options.compilerArgs += ['-parameters']
-            options.encoding = 'UTF-8'
-        }
-        tasks.withType(Test).configureEach {
-            jvmArgs '-Dspring.threads.virtual.enabled=true'
-        }
-
-        // ── Dependency management BOM imports ─────────────────────────────────
-        dependencyManagement {
-            imports {
-                mavenBom "org.springframework.boot:spring-boot-dependencies:${springBootVersion}"
-            }
-            dependencies {
-                // jqwik — property-based testing (1.8.x)
-                dependency "net.jqwik:jqwik:${jqwikVersion}"
-                // MapStruct
-                dependency "org.mapstruct:mapstruct:${mapstructVersion}"
-                dependency "org.mapstruct:mapstruct-processor:${mapstructVersion}"
-                // Lombok
-                dependency "org.projectlombok:lombok:${lombokVersion}"
-                // PGVector
-                dependency "com.pgvector:pgvector:${pgvectorVersion}"
-            }
-        }
-
-        // ── Common dependencies shared by all Java subprojects ─────────────────
-        dependencies {
-            // Lombok
-            compileOnly         'org.projectlombok:lombok'
-            annotationProcessor 'org.projectlombok:lombok'
-            testCompileOnly     'org.projectlombok:lombok'
-            testAnnotationProcessor 'org.projectlombok:lombok'
-
-            // Standard test dependencies
-            testImplementation 'org.springframework.boot:spring-boot-starter-test'
-            testImplementation "net.jqwik:jqwik:${jqwikVersion}"
-
-            // Testcontainers (postgres + kafka used in integration tests)
-            testImplementation 'org.testcontainers:junit-jupiter'
-            testImplementation 'org.testcontainers:postgresql'
-            testImplementation 'org.testcontainers:kafka'
-        }
-
-        // ── Test + JaCoCo wiring — deferred until after project evaluation ─────
-        // afterEvaluate ensures 'jacoco' tasks exist before we reference them,
-        // avoiding "unknown property 'jacocoTestReport'" errors.
-        afterEvaluate {
-            test {
-                useJUnitPlatform {
-                    includeEngines 'junit-jupiter', 'jqwik'
-                }
-                finalizedBy tasks.named('jacocoTestReport')
-            }
-
-            jacocoTestReport {
-                dependsOn tasks.named('test')
-                reports {
-                    xml.required  = true
-                    html.required = true
-                }
-            }
-
-            jacocoTestCoverageVerification {
-                violationRules {
-                    rule {
-                        limit {
-                            minimum = 0.70
-                        }
-                    }
-                }
-            }
-        }
     }
-}
-
-// ── Aggregated JaCoCo report across all subprojects ───────────────────────────
-// Configured lazily (inside `gradle.projectsEvaluated`) so all subproject
-// build scripts have been evaluated and the 'java' plugin is already applied
-// before we inspect sourceSets. This avoids "unknown property 'sourceSets'"
-// on the implicit ':backend' container project.
-gradle.projectsEvaluated {
-    task jacocoAggregatedReport(type: JacocoReport) {
-        group       = 'verification'
-        description = 'Generates a combined coverage report across all subprojects.'
-
-        def javaSubprojects = subprojects.findAll { it.plugins.hasPlugin('java') }
-
-        dependsOn javaSubprojects.collect { it.tasks.withType(Test) }
-
-        additionalSourceDirs.setFrom(
-            javaSubprojects.collect { it.sourceSets.main.allSource.srcDirs }.flatten()
-        )
-        sourceDirectories.setFrom(
-            javaSubprojects.collect { it.sourceSets.main.allSource.srcDirs }.flatten()
-        )
-        classDirectories.setFrom(
-            javaSubprojects.collect { it.sourceSets.main.output.classesDirs }.flatten()
-        )
-        executionData.setFrom(
-            javaSubprojects.collect {
-                fileTree(dir: it.buildDir, includes: ['jacoco/*.exec'])
-            }
-        )
-
-        reports {
-            xml.required  = true
-            html.required = true
-        }
-    }
-}
-
-// ── Wrapper task pins the Gradle distribution ─────────────────────────────────
-wrapper {
-    gradleVersion      = '8.10.2'
-    distributionType   = Wrapper.DistributionType.BIN
 }

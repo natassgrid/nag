@@ -1,25 +1,3 @@
-/*
- * Open Source Government Examination Platform
- * Root Gradle settings — declares all backend service subprojects
- */
-
-// ── Plugin management ─────────────────────────────────────────────────────────
-pluginManagement {
-    repositories {
-        gradlePluginPortal()
-        mavenCentral()
-    }
-}
-
-// ── Dependency resolution management ─────────────────────────────────────────
-dependencyResolutionManagement {
-    repositoriesMode.set(RepositoriesMode.PREFER_SETTINGS)
-    repositories {
-        mavenLocal()
-        mavenCentral()
-    }
-}
-
 rootProject.name = 'examination-platform'
 
 // ── Backend modules ──────────────────────────────────────────────────────────
