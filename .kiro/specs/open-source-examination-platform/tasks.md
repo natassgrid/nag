@@ -68,7 +68,7 @@ All services are stateless Spring Boot applications; persistent state lives in P
 - [ ] 4. Question Bank Service — CRUD, versioning, lifecycle FSM, similarity, exposure tracking
   - [x] 4.1 Scaffold `backend/question-bank-service` Spring Boot project: configure JPA with `question_service` schema including Hash-partitioned `question` table (16 partitions), pgvector extension, OpenSearch client, `VaultCryptoService` for per-question AES-256 encryption
     - _Requirements: 4.1, 4.5, 19.6_
-  - [~] 4.2 Implement question creation `POST /api/v1/questions`: validate required metadata (subject, topic, subtopic, chapter, difficulty, cognitiveLevel, questionType); enforce supported question types (Single_MCQ, Multi_MCQ, Numerical, Descriptive, Matrix_Match, Assertion_Reason, Coding, Case_Study); persist in Draft state; encrypt content fields with per-question DEK; accept rich content types (HTML5, SVG, PNG, JPEG, WEBP, Audio, Video, LaTeX, MathML)
+  - [x] 4.2 Implement question creation `POST /api/v1/questions`: validate required metadata (subject, topic, subtopic, chapter, difficulty, cognitiveLevel, questionType); enforce supported question types (Single_MCQ, Multi_MCQ, Numerical, Descriptive, Matrix_Match, Assertion_Reason, Coding, Case_Study); persist in Draft state; encrypt content fields with per-question DEK; accept rich content types (HTML5, SVG, PNG, JPEG, WEBP, Audio, Video, LaTeX, MathML)
     - _Requirements: 4.1, 4.2, 4.3, 4.5_
   - [~] 4.3 Implement question versioning: on every update to question content/metadata, create a `QuestionVersion` record with `authorId`, `changedAt`, JSON diff of modified fields, and encrypted full snapshot; expose `GET /api/v1/questions/{id}/versions`
     - _Requirements: 4.4_
@@ -105,7 +105,7 @@ All services are stateless Spring Boot applications; persistent state lives in P
 - [ ] 6. Examination Service — exam config, sections, marking schemes, navigation
   - [x] 6.1 Scaffold `backend/examination-service` Spring Boot project: configure JPA with `examination_service` schema; implement `Examination`, `Section`, and `SubjectTopicRule` JPA entities with JSONB sections column
     - _Requirements: 7.1, 7.2_
-  - [~] 6.2 Implement exam creation/update API: persist exam with name, duration, total marks, negative marking flag/value, navigation policy (Sequential/Flexible/Restricted), calculator policy (None/Basic/Scientific), review-flag policy, and section list; validate that Σ(marksPerQuestion × questionCount) over all sections == totalMarks; reject with descriptive error on mismatch
+  - [x] 6.2 Implement exam creation/update API: persist exam with name, duration, total marks, negative marking flag/value, navigation policy (Sequential/Flexible/Restricted), calculator policy (None/Basic/Scientific), review-flag policy, and section list; validate that Σ(marksPerQuestion × questionCount) over all sections == totalMarks; reject with descriptive error on mismatch
     - _Requirements: 7.1, 7.2, 7.3, 7.4, 7.5, 7.6_
   - [ ]* 6.3 Write property test for examination section marks validation
     - **Property 11: Examination Section Marks Validation**
