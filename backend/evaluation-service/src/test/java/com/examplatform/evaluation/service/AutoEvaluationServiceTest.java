@@ -14,6 +14,7 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Captor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.kafka.core.KafkaTemplate;
 
 import java.math.BigDecimal;
 import java.util.List;
@@ -31,6 +32,9 @@ class AutoEvaluationServiceTest {
     @Mock
     private EvaluationRepository evaluationRepository;
 
+    @Mock
+    private KafkaTemplate<String, Object> kafkaTemplate;
+
     @Captor
     private ArgumentCaptor<List<Evaluation>> evaluationsCaptor;
 
@@ -43,7 +47,7 @@ class AutoEvaluationServiceTest {
     @BeforeEach
     void setUp() {
         ObjectMapper objectMapper = new ObjectMapper();
-        service = new AutoEvaluationService(evaluationRepository, objectMapper);
+        service = new AutoEvaluationService(evaluationRepository, objectMapper, kafkaTemplate);
         when(evaluationRepository.saveAll(anyList())).thenAnswer(invocation -> invocation.getArgument(0));
     }
 

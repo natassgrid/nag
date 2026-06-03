@@ -8,6 +8,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.kafka.core.KafkaTemplate;
 
 import com.examplatform.evaluation.repository.EvaluationRepository;
 
@@ -25,12 +26,15 @@ class PartialMarkingTest {
     @Mock
     private EvaluationRepository evaluationRepository;
 
+    @Mock
+    private KafkaTemplate<String, Object> kafkaTemplate;
+
     private AutoEvaluationService service;
 
     @BeforeEach
     void setUp() {
         ObjectMapper objectMapper = new ObjectMapper();
-        service = new AutoEvaluationService(evaluationRepository, objectMapper);
+        service = new AutoEvaluationService(evaluationRepository, objectMapper, kafkaTemplate);
     }
 
     @Nested

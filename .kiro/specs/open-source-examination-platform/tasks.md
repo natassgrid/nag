@@ -94,12 +94,12 @@ All services are stateless Spring Boot applications; persistent state lives in P
     - _Requirements: 4.10, 5.6, 15.1_
 
 
-- [ ] 5. Translation Service — multilingual content workflow
-  - [~] 5.1 Scaffold `backend/translation-service` Spring Boot project: configure JPA with `translation_service` schema; configure per-translation AES-256 column encryption via `VaultCryptoService`; enforce UTF-8 storage
+- [x] 5. Translation Service — multilingual content workflow
+  - [x] 5.1 Scaffold `backend/translation-service` Spring Boot project: configure JPA with `translation_service` schema; configure per-translation AES-256 column encryption via `VaultCryptoService`; enforce UTF-8 storage
     - _Requirements: 6.3, 6.6_
-  - [~] 5.2 Implement translation workflow: on request for a Published question, initiate Author→Translator→Reviewer→Approver pipeline; store translation in DRAFT status linked to source question and language code (ISO 639-1/BCP47); support all 22 Eighth Schedule languages
+  - [x] 5.2 Implement translation workflow: on request for a Published question, initiate Author→Translator→Reviewer→Approver pipeline; store translation in DRAFT status linked to source question and language code (ISO 639-1/BCP47); support all 22 Eighth Schedule languages
     - _Requirements: 6.1, 6.2, 6.3_
-  - [~] 5.3 Implement translation review: on Reviewer approval → mark APPROVED, make available for paper generation; on rejection → attach reviewer comments, notify Translator; detect stale translations when source question is modified after approval (publish `STALE` status + Kafka event)
+  - [x] 5.3 Implement translation review: on Reviewer approval → mark APPROVED, make available for paper generation; on rejection → attach reviewer comments, notify Translator; detect stale translations when source question is modified after approval (publish `STALE` status + Kafka event)
     - _Requirements: 6.4, 6.5, 6.7_
 
 - [x] 6. Examination Service — exam config, sections, marking schemes, navigation
@@ -117,7 +117,7 @@ All services are stateless Spring Boot applications; persistent state lives in P
     - _Requirements: 7.7_
 
 
-- [ ] 7. Paper Generator — blueprint-driven assembly, encryption, serialization
+- [x] 7. Paper Generator — blueprint-driven assembly, encryption, serialization
   - [x] 7.1 Scaffold `backend/paper-generator` Spring Boot project: configure JPA with `paper_generator` schema; configure `VaultCryptoService` for per-shift AES-256 paper encryption; configure async Kafka consumer for paper generation request jobs
     - _Requirements: 8.7_
   - [x] 7.2 Implement blueprint-driven paper assembly: `POST /api/v1/papers/generate` submits async job; worker selects questions from Question Bank satisfying subject/topic/difficulty/cognitive ratios; enforces all active reuse policies; attaches difficulty score, topic distribution report, and similarity report
@@ -144,7 +144,7 @@ All services are stateless Spring Boot applications; persistent state lives in P
     - **Property 4: Paper Schema Validation Rejects Invalid Documents**
     - **Validates: Requirements 28.5**
     - Use jqwik generator `invalidPaperDocuments()` producing Papers with at least one invalid field (bad enum, negative marks, missing required field); assert `validate(doc).error.field ∈ fields(doc)` and error value matches violating value
-  - [~] 7.10 Implement paper approval and HSM encryption: `POST /api/v1/papers/{paperId}/approve` transitions paper to APPROVED, then ENCRYPTED; encrypt paper package with shift-specific AES-256 key via `VaultCryptoService`; store only object-store reference (not content inline); complete within 5 minutes of request
+  - [x] 7.10 Implement paper approval and HSM encryption: `POST /api/v1/papers/{paperId}/approve` transitions paper to APPROVED, then ENCRYPTED; encrypt paper package with shift-specific AES-256 key via `VaultCryptoService`; store only object-store reference (not content inline); complete within 5 minutes of request
     - _Requirements: 8.6, 8.7_
   - [x] 7.11 Publish audit events to Kafka `exam.audit.events` on paper generation and paper approval
     - _Requirements: 8.8_
@@ -197,7 +197,7 @@ All services are stateless Spring Boot applications; persistent state lives in P
     - _Requirements: 10.7_
 
 
-- [ ] 11. Evaluation Service — auto-evaluation, partial marking, dual-evaluator workflow
+- [x] 11. Evaluation Service — auto-evaluation, partial marking, dual-evaluator workflow
   - [x] 11.1 Scaffold `backend/evaluation-service` Spring Boot project: configure JPA with `evaluation_service` schema; consume `exam.session.events` (session-submitted) from Kafka to trigger auto-evaluation pipeline
     - _Requirements: 12.1_
   - [x] 11.2 Implement auto-evaluation: for finalized sessions, evaluate all Single_MCQ, Multi_MCQ, and Numerical responses against answer key; apply positive marks, configurable negative marks for wrong answers, zero for unattempted; store `Evaluation` records with `evaluationType=AUTO`
@@ -208,9 +208,9 @@ All services are stateless Spring Boot applications; persistent state lives in P
     - **Property 9: Partial Marking Arithmetic Correctness**
     - **Validates: Requirements 12.2, 12.3**
     - Use jqwik generator `multiCorrectMCQScenarios()` producing arbitrary (selection, answerKey, marksPerQuestion) tuples; assert score formula holds for all subset/non-subset cases
-  - [~] 11.5 Implement manual evaluation workflow: notify Evaluators via Kafka `exam.notifications.outbound` after auto-eval completes; record Evaluator score with evaluator ID, timestamp, comments; implement dual-evaluator routing and flag responses where score divergence exceeds tolerance for arbitration
+  - [x] 11.5 Implement manual evaluation workflow: notify Evaluators via Kafka `exam.notifications.outbound` after auto-eval completes; record Evaluator score with evaluator ID, timestamp, comments; implement dual-evaluator routing and flag responses where score divergence exceeds tolerance for arbitration
     - _Requirements: 12.4, 12.5, 12.6_
-  - [~] 11.6 Compute and store candidate total raw score and section-wise scores after all evaluations are complete; publish event to Kafka `exam.evaluation.events`
+  - [x] 11.6 Compute and store candidate total raw score and section-wise scores after all evaluations are complete; publish event to Kafka `exam.evaluation.events`
     - _Requirements: 12.7_
   - [x] 11.7 Publish audit events to Kafka `exam.audit.events` on each evaluation record creation
     - _Requirements: 12.8_

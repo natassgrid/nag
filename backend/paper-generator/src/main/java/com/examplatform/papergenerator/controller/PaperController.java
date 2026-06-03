@@ -2,6 +2,7 @@ package com.examplatform.papergenerator.controller;
 
 import com.examplatform.papergenerator.domain.Paper;
 import com.examplatform.papergenerator.dto.PaperGenerationRequest;
+import com.examplatform.papergenerator.service.PaperApprovalService;
 import com.examplatform.papergenerator.service.PaperAssemblyService;
 import com.examplatform.papergenerator.service.PaperSerializer;
 import com.examplatform.shared.tenant.TenantContext;
@@ -13,6 +14,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -37,6 +39,7 @@ public class PaperController {
 
     private final PaperAssemblyService paperAssemblyService;
     private final PaperSerializer paperSerializer;
+    private final PaperApprovalService paperApprovalService;
 
     /**
      * Submits an async paper generation job.
@@ -93,6 +96,29 @@ public class PaperController {
         return ResponseEntity.status(HttpStatus.UNPROCESSABLE_ENTITY).body(Map.of(
                 "valid", false,
                 "errors", errors
+        ));
+    }
+
+    /**
+     * Approves a paper, encrypts it with a shift-specific key, and transitions
+     * through DRAFT → APPROVED → ENCRYPTED.
+     *
+     * @param paperId the paper ID to approve
+     * @return 200 OK with the updated paper details
+     */
+    @PostMapping("/{paperId}/approve")
+    @PreAuthorize("hasRole('EXAM_CONTROLLER')")
+    public ResponseEntity<Map<String, Object>> approvePaper(@PathVariable UUID paperId) {
+        String tenantId = TenantContext.get() != null ? TenantContext.get() : "default";
+        log.info("Paper approval requested for paperId={}", paperId);
+
+        Paper paper = paperApprovalService.approvePaper(paperId, tenantId);
+
+        return ResponseEntity.ok(Map.of(
+                "paperId", paper.getId(),
+                "status", paper.getStatus(),
+                "encryptionKeyId", paper.getEncryptionKeyId() != null ? paper.getEncryptionKeyId() : "",
+                "message", "Paper approved and encrypted successfully"
         ));
     }
 }
