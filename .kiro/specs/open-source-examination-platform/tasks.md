@@ -49,7 +49,7 @@ All services are stateless Spring Boot applications; persistent state lives in P
 - [ ] 3. Candidate Service — PII management, DigiLocker, face verification
   - [x] 3.1 Scaffold `backend/candidate-service` Spring Boot project: configure JPA with `candidate_service` schema, `VaultCryptoService` dependency, AES-256 column encryption via JPA `AttributeConverter` for all PII fields (name, DOB, gender, nationality, category, mobile, email, address, reservationCategory, identityDocNumber)
     - _Requirements: 1.6, 16.1, 25.1_
-  - [~] 3.2 Implement candidate profile CRUD: store per-candidate DEK reference in `encryption_key_id`, store SHA-256 hash of mobile for uniqueness check, store SHA-256 + HMAC of identity document for duplicate detection; implement DPDP erasure endpoint that zeroes PII columns and deletes DEK reference
+  - [x] 3.2 Implement candidate profile CRUD: store per-candidate DEK reference in `encryption_key_id`, store SHA-256 hash of mobile for uniqueness check, store SHA-256 + HMAC of identity document for duplicate detection; implement DPDP erasure endpoint that zeroes PII columns and deletes DEK reference
     - _Requirements: 1.6, 25.2_
   - [~] 3.3 Implement DigiLocker verification: call DigiLocker API with OAuth2 token, validate returned document data, update `digiLockerVerified` status to `VERIFIED` or `FAILED`
     - _Requirements: 1.3_
