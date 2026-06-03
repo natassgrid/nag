@@ -175,7 +175,7 @@ All services are stateless Spring Boot applications; persistent state lives in P
 - [ ] 10. Response Service — persistence, auto-save, revision history, offline sync
   - [x] 10.1 Scaffold `backend/response-service` Spring Boot project: configure JPA with `response_service` schema including Range-partitioned `response` table (monthly partitions), composite index on `(session_id, question_id, revision_sequence DESC)`, and index on `candidate_id WHERE is_final=TRUE`; configure Redis for hot session state; configure HPA metric `response_save_rate` (target 50,000 saves/min/pod)
     - _Requirements: 10.1, 19.4, 19.6_
-  - [~] 10.2 Implement response save `POST /api/v1/responses/{sessionId}/save`: persist `Response` record with questionId, selectedOptionIds or enteredValue, timestamp, cumulativeTimeSpentMs, revisionSequence, saveSource within 200ms at p99; enforce Kafka `acks=all` before ACK
+  - [x] 10.2 Implement response save `POST /api/v1/responses/{sessionId}/save`: persist `Response` record with questionId, selectedOptionIds or enteredValue, timestamp, cumulativeTimeSpentMs, revisionSequence, saveSource within 200ms at p99; enforce Kafka `acks=all` before ACK
     - _Requirements: 10.1, 20.3_
   - [ ]* 10.3 Write property test for response persistence round-trip
     - **Property 5: Response Persistence Round-Trip**
@@ -200,7 +200,7 @@ All services are stateless Spring Boot applications; persistent state lives in P
 - [ ] 11. Evaluation Service — auto-evaluation, partial marking, dual-evaluator workflow
   - [x] 11.1 Scaffold `backend/evaluation-service` Spring Boot project: configure JPA with `evaluation_service` schema; consume `exam.session.events` (session-submitted) from Kafka to trigger auto-evaluation pipeline
     - _Requirements: 12.1_
-  - [~] 11.2 Implement auto-evaluation: for finalized sessions, evaluate all Single_MCQ, Multi_MCQ, and Numerical responses against answer key; apply positive marks, configurable negative marks for wrong answers, zero for unattempted; store `Evaluation` records with `evaluationType=AUTO`
+  - [x] 11.2 Implement auto-evaluation: for finalized sessions, evaluate all Single_MCQ, Multi_MCQ, and Numerical responses against answer key; apply positive marks, configurable negative marks for wrong answers, zero for unattempted; store `Evaluation` records with `evaluationType=AUTO`
     - _Requirements: 12.1, 12.2_
   - [~] 11.3 Implement partial marking for Multiple_Correct_MCQ: award `(|selection ∩ answerKey| / |answerKey|) × marksPerQuestion` when `selection ⊆ answerKey`; award zero marks when selection contains any incorrect option
     - _Requirements: 12.3_
