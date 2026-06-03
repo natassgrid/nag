@@ -154,7 +154,7 @@ All services are stateless Spring Boot applications; persistent state lives in P
 
 
 - [ ] 9. Delivery Service — session start, question serving, navigation, proctoring, offline
-  - [-] 9.1 Scaffold `backend/delivery-service` Spring Boot project: configure JPA with `delivery_service` schema; configure Redis for hot exam session state; configure `VaultCryptoService` for shift-key decryption; configure HPA metrics `active_exam_sessions` (target 5,000/pod)
+  - [x] 9.1 Scaffold `backend/delivery-service` Spring Boot project: configure JPA with `delivery_service` schema; configure Redis for hot exam session state; configure `VaultCryptoService` for shift-key decryption; configure HPA metrics `active_exam_sessions` (target 5,000/pod)
     - _Requirements: 9.1, 19.2_
   - [~] 9.2 Implement session start: authenticate candidate JWT, look up shift assignment, decrypt shift paper package using HSM-managed shift key (in-memory only), serve first question within 500ms; enforce single concurrent session (Req 2.7)
     - _Requirements: 9.1, 9.3_
@@ -173,7 +173,7 @@ All services are stateless Spring Boot applications; persistent state lives in P
 
 
 - [ ] 10. Response Service — persistence, auto-save, revision history, offline sync
-  - [~] 10.1 Scaffold `backend/response-service` Spring Boot project: configure JPA with `response_service` schema including Range-partitioned `response` table (monthly partitions), composite index on `(session_id, question_id, revision_sequence DESC)`, and index on `candidate_id WHERE is_final=TRUE`; configure Redis for hot session state; configure HPA metric `response_save_rate` (target 50,000 saves/min/pod)
+  - [x] 10.1 Scaffold `backend/response-service` Spring Boot project: configure JPA with `response_service` schema including Range-partitioned `response` table (monthly partitions), composite index on `(session_id, question_id, revision_sequence DESC)`, and index on `candidate_id WHERE is_final=TRUE`; configure Redis for hot session state; configure HPA metric `response_save_rate` (target 50,000 saves/min/pod)
     - _Requirements: 10.1, 19.4, 19.6_
   - [~] 10.2 Implement response save `POST /api/v1/responses/{sessionId}/save`: persist `Response` record with questionId, selectedOptionIds or enteredValue, timestamp, cumulativeTimeSpentMs, revisionSequence, saveSource within 200ms at p99; enforce Kafka `acks=all` before ACK
     - _Requirements: 10.1, 20.3_
@@ -198,7 +198,7 @@ All services are stateless Spring Boot applications; persistent state lives in P
 
 
 - [ ] 11. Evaluation Service — auto-evaluation, partial marking, dual-evaluator workflow
-  - [~] 11.1 Scaffold `backend/evaluation-service` Spring Boot project: configure JPA with `evaluation_service` schema; consume `exam.session.events` (session-submitted) from Kafka to trigger auto-evaluation pipeline
+  - [x] 11.1 Scaffold `backend/evaluation-service` Spring Boot project: configure JPA with `evaluation_service` schema; consume `exam.session.events` (session-submitted) from Kafka to trigger auto-evaluation pipeline
     - _Requirements: 12.1_
   - [~] 11.2 Implement auto-evaluation: for finalized sessions, evaluate all Single_MCQ, Multi_MCQ, and Numerical responses against answer key; apply positive marks, configurable negative marks for wrong answers, zero for unattempted; store `Evaluation` records with `evaluationType=AUTO`
     - _Requirements: 12.1, 12.2_
@@ -216,7 +216,7 @@ All services are stateless Spring Boot applications; persistent state lives in P
     - _Requirements: 12.8_
 
 - [ ] 12. Result Service — score aggregation, normalization, PDF scorecard, DigiLocker
-  - [~] 12.1 Scaffold `backend/result-service` Spring Boot project: configure JPA with `result_service` schema; integrate iText/PDFBox for PDF generation; configure DigiLocker OAuth2 client
+  - [x] 12.1 Scaffold `backend/result-service` Spring Boot project: configure JPA with `result_service` schema; integrate iText/PDFBox for PDF generation; configure DigiLocker OAuth2 client
     - _Requirements: 13.4, 13.8_
   - [~] 12.2 Implement result computation: for each candidate, compute totalScore, section-wise scores, overallRank, overallPercentile; apply shift normalization formula when configured; store `Result` record
     - _Requirements: 13.1, 13.2_
@@ -235,7 +235,7 @@ All services are stateless Spring Boot applications; persistent state lives in P
 
 
 - [ ] 13. Audit Service — immutable append-only event log, tamper evidence, query API
-  - [~] 13.1 Scaffold `backend/audit-service` Spring Boot project: configure JPA with `audit_service` schema; Range-partition `audit_event` table by `occurred_at` (quarterly, 28 partitions for 7-year retention); enforce `REVOKE UPDATE, DELETE ON audit_event FROM audit_writer_role` at DB level; configure Kafka consumer for `exam.audit.events`
+  - [x] 13.1 Scaffold `backend/audit-service` Spring Boot project: configure JPA with `audit_service` schema; Range-partition `audit_event` table by `occurred_at` (quarterly, 28 partitions for 7-year retention); enforce `REVOKE UPDATE, DELETE ON audit_event FROM audit_writer_role` at DB level; configure Kafka consumer for `exam.audit.events`
     - _Requirements: 15.1, 15.5, 15.6, 19.6_
   - [~] 13.2 Implement audit event ingestion: on Kafka consumption, compute `payloadHash = SHA-256(eventPayload)`, sign with HSM ECDSA P-256 key via `VaultCryptoService`, persist `AuditEvent` with `hsmSignature` and `signingKeyId`; reject any UPDATE/DELETE request on existing records with HTTP 403 and write a new tamper-attempt audit event
     - _Requirements: 15.2, 15.4_
@@ -249,7 +249,7 @@ All services are stateless Spring Boot applications; persistent state lives in P
     - _Requirements: design error-handling table_
 
 - [ ] 14. Notification Service — email/push delivery, retry, in-app notifications
-  - [~] 14.1 Scaffold `backend/notification-service` Spring Boot project: configure Kafka consumer for `exam.notifications.outbound`; configure email client (SMTP/SendGrid); implement in-app notification entity in `notification_service` schema
+  - [x] 14.1 Scaffold `backend/notification-service` Spring Boot project: configure Kafka consumer for `exam.notifications.outbound`; configure email client (SMTP/SendGrid); implement in-app notification entity in `notification_service` schema
     - _Requirements: 14.1_
   - [~] 14.2 Implement notification delivery: send email within 60 seconds of triggering event; retry up to 3 times on failure; mark as UNDELIVERED and log on third failure; ensure no PII or question content in message bodies — identifiers and action links only
     - _Requirements: 14.1, 14.2, 14.4_
@@ -258,7 +258,7 @@ All services are stateless Spring Boot applications; persistent state lives in P
 
 
 - [ ] 15. Admin Service and Analytics Service
-  - [~] 15.1 Scaffold `backend/admin-service` Spring Boot project: implement Super_Admin console APIs — create/update/deactivate/list users for all roles; multi-tenancy isolation by `tenantId`; configuration API (`/api/v1/admin/config`) for session timeout, rate limits, auto-save interval, paper-gen concurrency — accessible to Super_Admin and Security_Admin only
+  - [x] 15.1 Scaffold `backend/admin-service` Spring Boot project: implement Super_Admin console APIs — create/update/deactivate/list users for all roles; multi-tenancy isolation by `tenantId`; configuration API (`/api/v1/admin/config`) for session timeout, rate limits, auto-save interval, paper-gen concurrency — accessible to Super_Admin and Security_Admin only
     - _Requirements: 29.1, 29.2, 29.3, 29.4_
   - [~] 15.2 Implement deactivation: immediately invalidate all active sessions via Redis; prevent new authentication via Keycloak; publish audit event on config-parameter change (paramName, oldValue, newValue, actorId, timestamp)
     - _Requirements: 29.3, 29.5_
