@@ -57,6 +57,10 @@ class AuthenticationServiceTest {
     AuditEventPublisher auditEventPublisher;
     @Mock
     AppSecurityProperties appSecurityProperties;
+    @Mock
+    AccountLockoutService accountLockoutService;
+    @Mock
+    RiskAssessmentService riskAssessmentService;
 
     @InjectMocks
     AuthenticationService authenticationService;

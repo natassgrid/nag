@@ -40,6 +40,8 @@ public class AuthenticationService {
     private final OtpService otpService;
     private final AuditEventPublisher auditEventPublisher;
     private final AppSecurityProperties appSecurityProperties;
+    private final AccountLockoutService accountLockoutService;
+    private final RiskAssessmentService riskAssessmentService;
 
     /**
      * Authenticate a user with username/password and optional MFA OTP.
@@ -82,12 +84,34 @@ public class AuthenticationService {
             account.setLastFailedAt(LocalDateTime.now());
             userAccountRepository.save(account);
             log.warn("Failed login for user [{}] tenant [{}]: {}", account.getId(), tenantId, ex.getMessage());
+            // Check if lockout threshold reached
+            accountLockoutService.checkAndLockIfNeeded(account, tenantId);
             throw new AuthenticationException("Invalid credentials");
         }
 
         // Reset failed attempt counter on successful Keycloak auth
         account.setFailedAttemptCount(0);
         account.setLastFailedAt(null);
+
+        // 3b. Step-up authentication on risk signal (new device / unusual time)
+        if (!account.isMfaEnabled()) {
+            boolean stepUpRequired = riskAssessmentService.isStepUpRequired(
+                    account, request.getDeviceFingerprint(), ipAddress, LocalDateTime.now());
+            if (stepUpRequired) {
+                String otpCode = request.getOtpCode();
+                if (otpCode == null || otpCode.isBlank()) {
+                    // Save reset of failed attempts before throwing
+                    userAccountRepository.save(account);
+                    throw new MfaRequiredException("Step-up authentication required. Please provide OTP code.");
+                }
+                // Verify the step-up OTP
+                String mobileHash = hashingService.sha256(request.getUsername().toLowerCase().trim());
+                boolean otpValid = otpService.verifyOtp(mobileHash, otpCode);
+                if (!otpValid) {
+                    throw new AuthenticationException("Invalid MFA code.");
+                }
+            }
+        }
 
         // 4. MFA enforcement
         if (account.isMfaEnabled()) {

@@ -19,7 +19,7 @@ All services are stateless Spring Boot applications; persistent state lives in P
     - _Requirements: 24.4_
 
 
-- [ ] 2. Identity Service — authentication, MFA, RBAC/ABAC, rate limiting
+- [x] 2. Identity Service — authentication, MFA, RBAC/ABAC, rate limiting
   - [x] 2.1 Scaffold `backend/identity-service` Spring Boot project: configure Spring Security OAuth2 Resource Server, Keycloak adapter, Spring Data JPA with `identity_service` schema, Redis for session state, Actuator, and OpenTelemetry Java agent
     - _Requirements: 2.1, 3.1, 16.3, 23.4_
   - [x] 2.2 Implement candidate registration endpoint `POST /api/v1/identity/register`: validate identity document type (Aadhaar/PAN/Passport/VoterID/DL), persist pending account, enforce duplicate-identity check (SHA-256 hash comparison), return acknowledgement within 2 seconds
@@ -30,11 +30,11 @@ All services are stateless Spring Boot applications; persistent state lives in P
     - _Requirements: 2.1, 2.2, 2.5, 2.7_
   - [x] 2.5 Implement WebAuthn / FIDO2 authentication `POST /api/v1/identity/auth/webauthn` using Spring Security WebAuthn support; verify authenticator assertion and issue JWT
     - _Requirements: 2.3_
-  - [-] 2.6 Implement account lockout: after 5 consecutive failed authentication attempts within 10 minutes, lock account and trigger notification event on Kafka `exam.notifications.outbound`; implement step-up authentication on risk signal (new device/geo/time)
+  - [x] 2.6 Implement account lockout: after 5 consecutive failed authentication attempts within 10 minutes, lock account and trigger notification event on Kafka `exam.notifications.outbound`; implement step-up authentication on risk signal (new device/geo/time)
     - _Requirements: 2.4, 2.6_
-  - [~] 2.7 Implement role assignment/revocation `POST /api/v1/identity/roles/{userId}` (Super_Admin only); enforce all 10 named roles (Super_Admin, Security_Admin, Question_Author, Reviewer, Approver, Exam_Controller, Translator, Evaluator, Auditor, Candidate); enforce least-privilege RBAC on all API endpoints; return HTTP 403 on unauthorized access
+  - [x] 2.7 Implement role assignment/revocation `POST /api/v1/identity/roles/{userId}` (Super_Admin only); enforce all 10 named roles (Super_Admin, Security_Admin, Question_Author, Reviewer, Approver, Exam_Controller, Translator, Evaluator, Auditor, Candidate); enforce least-privilege RBAC on all API endpoints; return HTTP 403 on unauthorized access
     - _Requirements: 3.1, 3.2, 3.3, 3.4, 3.5, 3.6_
-  - [~] 2.8 Implement rate limiting on `/api/v1/identity/auth/*`: Redis token-bucket limiting 10 auth attempts per IP per minute; return HTTP 429 on excess; implement idle-session timeout invalidation
+  - [x] 2.8 Implement rate limiting on `/api/v1/identity/auth/*`: Redis token-bucket limiting 10 auth attempts per IP per minute; return HTTP 429 on excess; implement idle-session timeout invalidation
     - _Requirements: 17.1, 2.8_
   - [ ]* 2.9 Write property test for authentication rate limiting
     - **Property 13: Authentication Rate Limiting**
@@ -42,12 +42,12 @@ All services are stateless Spring Boot applications; persistent state lives in P
     - Use `@Property(tries = 1000)` with jqwik generator `authRequestBursts()` that produces IP addresses and request sequences; assert requests 1–10 receive non-429, requests 11–N receive HTTP 429 within any 60-second window
   - [x] 2.10 Implement HSM/Vault integration: configure Spring Vault `TransitTemplate`; expose `VaultCryptoService` with `encrypt`, `decrypt`, `sign`, `verify`, `rotateKey`, `revokeKey`; ensure private keys never leave Vault boundary; implement 60-second revocation on Security_Admin trigger
     - _Requirements: 16.3, 16.4, 16.5_
-  - [~] 2.11 Publish audit events to Kafka `exam.audit.events` for: login, logout, role-change, denied-access, account-lock, key-revocation; include actor, role, resource, IP, device fingerprint, timestamp
+  - [x] 2.11 Publish audit events to Kafka `exam.audit.events` for: login, logout, role-change, denied-access, account-lock, key-revocation; include actor, role, resource, IP, device fingerprint, timestamp
     - _Requirements: 2.9, 3.3, 3.5, 16.5_
 
 
 - [ ] 3. Candidate Service — PII management, DigiLocker, face verification
-  - [~] 3.1 Scaffold `backend/candidate-service` Spring Boot project: configure JPA with `candidate_service` schema, `VaultCryptoService` dependency, AES-256 column encryption via JPA `AttributeConverter` for all PII fields (name, DOB, gender, nationality, category, mobile, email, address, reservationCategory, identityDocNumber)
+  - [-] 3.1 Scaffold `backend/candidate-service` Spring Boot project: configure JPA with `candidate_service` schema, `VaultCryptoService` dependency, AES-256 column encryption via JPA `AttributeConverter` for all PII fields (name, DOB, gender, nationality, category, mobile, email, address, reservationCategory, identityDocNumber)
     - _Requirements: 1.6, 16.1, 25.1_
   - [~] 3.2 Implement candidate profile CRUD: store per-candidate DEK reference in `encryption_key_id`, store SHA-256 hash of mobile for uniqueness check, store SHA-256 + HMAC of identity document for duplicate detection; implement DPDP erasure endpoint that zeroes PII columns and deletes DEK reference
     - _Requirements: 1.6, 25.2_

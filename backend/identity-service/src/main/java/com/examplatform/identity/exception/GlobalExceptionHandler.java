@@ -149,6 +149,26 @@ public class GlobalExceptionHandler {
     }
 
     /**
+     * Handle rate limit exceeded (too many auth attempts from the same IP).
+     * Returns HTTP 429 Too Many Requests with a Retry-After header.
+     *
+     * @param ex the rate limit exceeded exception
+     * @return 429 Too Many Requests with problem detail
+     */
+    @ExceptionHandler(RateLimitExceededException.class)
+    public ResponseEntity<ProblemDetail> handleRateLimitExceeded(RateLimitExceededException ex) {
+        ProblemDetail pd = ProblemDetailBuilder.forStatus(HttpStatus.TOO_MANY_REQUESTS)
+                .withTitle("Too Many Requests")
+                .withDetail(ex.getMessage())
+                .withProperty("retryAfterSeconds", 60)
+                .build();
+        log.warn("Rate limit exceeded: {}", ex.getMessage());
+        return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
+                .header("Retry-After", "60")
+                .body(pd);
+    }
+
+    /**
      * Catch-all handler for any unhandled exception.
      * Returns HTTP 500 and logs the full stack trace.
      *
