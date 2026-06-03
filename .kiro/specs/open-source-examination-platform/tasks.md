@@ -47,7 +47,7 @@ All services are stateless Spring Boot applications; persistent state lives in P
 
 
 - [ ] 3. Candidate Service — PII management, DigiLocker, face verification
-  - [-] 3.1 Scaffold `backend/candidate-service` Spring Boot project: configure JPA with `candidate_service` schema, `VaultCryptoService` dependency, AES-256 column encryption via JPA `AttributeConverter` for all PII fields (name, DOB, gender, nationality, category, mobile, email, address, reservationCategory, identityDocNumber)
+  - [x] 3.1 Scaffold `backend/candidate-service` Spring Boot project: configure JPA with `candidate_service` schema, `VaultCryptoService` dependency, AES-256 column encryption via JPA `AttributeConverter` for all PII fields (name, DOB, gender, nationality, category, mobile, email, address, reservationCategory, identityDocNumber)
     - _Requirements: 1.6, 16.1, 25.1_
   - [~] 3.2 Implement candidate profile CRUD: store per-candidate DEK reference in `encryption_key_id`, store SHA-256 hash of mobile for uniqueness check, store SHA-256 + HMAC of identity document for duplicate detection; implement DPDP erasure endpoint that zeroes PII columns and deletes DEK reference
     - _Requirements: 1.6, 25.2_
@@ -66,7 +66,7 @@ All services are stateless Spring Boot applications; persistent state lives in P
 
 
 - [ ] 4. Question Bank Service — CRUD, versioning, lifecycle FSM, similarity, exposure tracking
-  - [~] 4.1 Scaffold `backend/question-bank-service` Spring Boot project: configure JPA with `question_service` schema including Hash-partitioned `question` table (16 partitions), pgvector extension, OpenSearch client, `VaultCryptoService` for per-question AES-256 encryption
+  - [x] 4.1 Scaffold `backend/question-bank-service` Spring Boot project: configure JPA with `question_service` schema including Hash-partitioned `question` table (16 partitions), pgvector extension, OpenSearch client, `VaultCryptoService` for per-question AES-256 encryption
     - _Requirements: 4.1, 4.5, 19.6_
   - [~] 4.2 Implement question creation `POST /api/v1/questions`: validate required metadata (subject, topic, subtopic, chapter, difficulty, cognitiveLevel, questionType); enforce supported question types (Single_MCQ, Multi_MCQ, Numerical, Descriptive, Matrix_Match, Assertion_Reason, Coding, Case_Study); persist in Draft state; encrypt content fields with per-question DEK; accept rich content types (HTML5, SVG, PNG, JPEG, WEBP, Audio, Video, LaTeX, MathML)
     - _Requirements: 4.1, 4.2, 4.3, 4.5_
@@ -103,7 +103,7 @@ All services are stateless Spring Boot applications; persistent state lives in P
     - _Requirements: 6.4, 6.5, 6.7_
 
 - [ ] 6. Examination Service — exam config, sections, marking schemes, navigation
-  - [~] 6.1 Scaffold `backend/examination-service` Spring Boot project: configure JPA with `examination_service` schema; implement `Examination`, `Section`, and `SubjectTopicRule` JPA entities with JSONB sections column
+  - [x] 6.1 Scaffold `backend/examination-service` Spring Boot project: configure JPA with `examination_service` schema; implement `Examination`, `Section`, and `SubjectTopicRule` JPA entities with JSONB sections column
     - _Requirements: 7.1, 7.2_
   - [~] 6.2 Implement exam creation/update API: persist exam with name, duration, total marks, negative marking flag/value, navigation policy (Sequential/Flexible/Restricted), calculator policy (None/Basic/Scientific), review-flag policy, and section list; validate that Σ(marksPerQuestion × questionCount) over all sections == totalMarks; reject with descriptive error on mismatch
     - _Requirements: 7.1, 7.2, 7.3, 7.4, 7.5, 7.6_

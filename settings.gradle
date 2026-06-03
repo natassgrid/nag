@@ -3,3 +3,6 @@ rootProject.name = 'examination-platform'
 // ── Backend modules ──────────────────────────────────────────────────────────
 include 'backend:shared-lib'
 include 'backend:identity-service'
+include 'backend:candidate-service'
+include 'backend:question-bank-service'
+include 'backend:examination-service'
