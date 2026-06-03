@@ -117,6 +117,14 @@ app:
     jwt-access-token-lifetime-seconds: ${JWT_ACCESS_TOKEN_LIFETIME_SECONDS:900}
     jwt-refresh-token-lifetime-seconds: ${JWT_REFRESH_TOKEN_LIFETIME_SECONDS:28800}
     session-idle-timeout-seconds: ${SESSION_IDLE_TIMEOUT_SECONDS:1800}
+  keycloak:
+    realm: ${KEYCLOAK_REALM:exam-realm}
+    client-id: ${KEYCLOAK_CLIENT_ID:exam-backend}
+    client-secret: ${KEYCLOAK_CLIENT_SECRET:}
+    admin-client-id: ${KEYCLOAK_ADMIN_CLIENT_ID:admin-cli}
+    admin-username: ${KEYCLOAK_ADMIN_USER:admin}
+    admin-password: ${KEYCLOAK_ADMIN_PASSWORD:admin_secret}
+    server-url: ${KEYCLOAK_SERVER_URL:http://localhost:8080}
 
 logging:
   pattern:
