@@ -31,6 +31,10 @@ dependencies {
     implementation 'org.flywaydb:flyway-core'
     implementation 'org.flywaydb:flyway-database-postgresql'
 
+    // Vault (crypto service)
+    implementation 'org.springframework.cloud:spring-cloud-starter-vault-config'
+    implementation 'org.springframework.vault:spring-vault-core'
+
     // Kafka (audit events)
     implementation 'org.springframework.kafka:spring-kafka'
 

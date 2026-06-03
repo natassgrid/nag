@@ -218,7 +218,7 @@ All services are stateless Spring Boot applications; persistent state lives in P
 - [ ] 12. Result Service — score aggregation, normalization, PDF scorecard, DigiLocker
   - [x] 12.1 Scaffold `backend/result-service` Spring Boot project: configure JPA with `result_service` schema; integrate iText/PDFBox for PDF generation; configure DigiLocker OAuth2 client
     - _Requirements: 13.4, 13.8_
-  - [~] 12.2 Implement result computation: for each candidate, compute totalScore, section-wise scores, overallRank, overallPercentile; apply shift normalization formula when configured; store `Result` record
+  - [x] 12.2 Implement result computation: for each candidate, compute totalScore, section-wise scores, overallRank, overallPercentile; apply shift normalization formula when configured; store `Result` record
     - _Requirements: 13.1, 13.2_
   - [ ]* 12.3 Write property test for result score decomposition invariant
     - **Property 10: Result Score Decomposition Invariant**
@@ -237,7 +237,7 @@ All services are stateless Spring Boot applications; persistent state lives in P
 - [ ] 13. Audit Service — immutable append-only event log, tamper evidence, query API
   - [x] 13.1 Scaffold `backend/audit-service` Spring Boot project: configure JPA with `audit_service` schema; Range-partition `audit_event` table by `occurred_at` (quarterly, 28 partitions for 7-year retention); enforce `REVOKE UPDATE, DELETE ON audit_event FROM audit_writer_role` at DB level; configure Kafka consumer for `exam.audit.events`
     - _Requirements: 15.1, 15.5, 15.6, 19.6_
-  - [~] 13.2 Implement audit event ingestion: on Kafka consumption, compute `payloadHash = SHA-256(eventPayload)`, sign with HSM ECDSA P-256 key via `VaultCryptoService`, persist `AuditEvent` with `hsmSignature` and `signingKeyId`; reject any UPDATE/DELETE request on existing records with HTTP 403 and write a new tamper-attempt audit event
+  - [x] 13.2 Implement audit event ingestion: on Kafka consumption, compute `payloadHash = SHA-256(eventPayload)`, sign with HSM ECDSA P-256 key via `VaultCryptoService`, persist `AuditEvent` with `hsmSignature` and `signingKeyId`; reject any UPDATE/DELETE request on existing records with HTTP 403 and write a new tamper-attempt audit event
     - _Requirements: 15.2, 15.4_
   - [ ]* 13.3 Write property test for audit event tamper detection
     - **Property 7: Audit Event Tamper Detection**
@@ -251,7 +251,7 @@ All services are stateless Spring Boot applications; persistent state lives in P
 - [ ] 14. Notification Service — email/push delivery, retry, in-app notifications
   - [x] 14.1 Scaffold `backend/notification-service` Spring Boot project: configure Kafka consumer for `exam.notifications.outbound`; configure email client (SMTP/SendGrid); implement in-app notification entity in `notification_service` schema
     - _Requirements: 14.1_
-  - [~] 14.2 Implement notification delivery: send email within 60 seconds of triggering event; retry up to 3 times on failure; mark as UNDELIVERED and log on third failure; ensure no PII or question content in message bodies — identifiers and action links only
+  - [x] 14.2 Implement notification delivery: send email within 60 seconds of triggering event; retry up to 3 times on failure; mark as UNDELIVERED and log on third failure; ensure no PII or question content in message bodies — identifiers and action links only
     - _Requirements: 14.1, 14.2, 14.4_
   - [~] 14.3 Implement in-app notifications API: persist in-app events in notification store; serve to authenticated users via `GET /api/v1/notifications` filtered by role and userId; publish to Angular via SSE or WebSocket
     - _Requirements: 14.3_
