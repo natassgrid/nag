@@ -18,6 +18,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.core.ValueOperations;
+import org.springframework.kafka.core.KafkaTemplate;
 
 import java.time.Duration;
 import java.util.List;
@@ -52,6 +53,9 @@ class SessionStartServiceTest {
     private RedisTemplate<String, Object> redisTemplate;
 
     @Mock
+    private KafkaTemplate<String, Object> kafkaTemplate;
+
+    @Mock
     private ValueOperations<String, Object> valueOperations;
 
     private SessionStartService sessionStartService;
@@ -73,6 +77,7 @@ class SessionStartServiceTest {
                 disabilityExtensionService,
                 vaultCryptoService,
                 redisTemplate,
+                kafkaTemplate,
                 new ObjectMapper()
         );
     }

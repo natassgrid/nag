@@ -12,6 +12,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.kafka.core.KafkaTemplate;
 
 import java.math.BigDecimal;
 import java.util.List;
@@ -35,6 +36,9 @@ class ResultComputationServiceTest {
     @Mock
     private ResultRepository resultRepository;
 
+    @Mock
+    private KafkaTemplate<String, Object> kafkaTemplate;
+
     private ResultComputationService service;
 
     private static final UUID EXAM_ID = UUID.randomUUID();
@@ -43,7 +47,7 @@ class ResultComputationServiceTest {
     @BeforeEach
     void setUp() {
         ObjectMapper objectMapper = new ObjectMapper();
-        service = new ResultComputationService(resultRepository, objectMapper);
+        service = new ResultComputationService(resultRepository, objectMapper, kafkaTemplate);
     }
 
     @Nested

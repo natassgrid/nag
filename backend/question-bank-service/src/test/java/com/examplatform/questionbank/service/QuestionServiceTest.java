@@ -37,6 +37,12 @@ class QuestionServiceTest {
     @Mock
     private QuestionRepository questionRepository;
 
+    @Mock
+    private SimilarityDetectionService similarityDetectionService;
+
+    @Mock
+    private org.springframework.kafka.core.KafkaTemplate<String, Object> kafkaTemplate;
+
     @InjectMocks
     private QuestionService questionService;
 

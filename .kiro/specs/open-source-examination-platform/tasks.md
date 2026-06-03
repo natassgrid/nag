@@ -153,7 +153,7 @@ All services are stateless Spring Boot applications; persistent state lives in P
   - Ensure all unit and property tests pass for services 2–7 before proceeding. Ask the user if questions arise.
 
 
-- [ ] 9. Delivery Service — session start, question serving, navigation, proctoring, offline
+- [x] 9. Delivery Service — session start, question serving, navigation, proctoring, offline
   - [x] 9.1 Scaffold `backend/delivery-service` Spring Boot project: configure JPA with `delivery_service` schema; configure Redis for hot exam session state; configure `VaultCryptoService` for shift-key decryption; configure HPA metrics `active_exam_sessions` (target 5,000/pod)
     - _Requirements: 9.1, 19.2_
   - [x] 9.2 Implement session start: authenticate candidate JWT, look up shift assignment, decrypt shift paper package using HSM-managed shift key (in-memory only), serve first question within 500ms; enforce single concurrent session (Req 2.7)
@@ -166,7 +166,7 @@ All services are stateless Spring Boot applications; persistent state lives in P
     - _Requirements: 11.1, 11.2, 11.6, 11.7_
   - [x] 9.6 Implement AI proctoring analysis event handling: consume proctoring frames; publish `exam.audit.events` with event type `no-face-detected`, `multiple-faces-detected`, or `prohibited-object-detected`
     - _Requirements: 11.3, 11.4, 11.5_
-  - [~] 9.7 Implement offline delivery: pre-load and locally decrypt exam package using center-specific time-limited key; serve questions offline; reconcile on reconnect
+  - [x] 9.7 Implement offline delivery: pre-load and locally decrypt exam package using center-specific time-limited key; serve questions offline; reconcile on reconnect
     - _Requirements: 9.7_
   - [x] 9.8 Publish session start and session submission events to Kafka `exam.session.events`; publish security/proctoring alerts to `exam.audit.events`
     - _Requirements: 15.1_
@@ -215,7 +215,7 @@ All services are stateless Spring Boot applications; persistent state lives in P
   - [x] 11.7 Publish audit events to Kafka `exam.audit.events` on each evaluation record creation
     - _Requirements: 12.8_
 
-- [ ] 12. Result Service — score aggregation, normalization, PDF scorecard, DigiLocker
+- [x] 12. Result Service — score aggregation, normalization, PDF scorecard, DigiLocker
   - [x] 12.1 Scaffold `backend/result-service` Spring Boot project: configure JPA with `result_service` schema; integrate iText/PDFBox for PDF generation; configure DigiLocker OAuth2 client
     - _Requirements: 13.4, 13.8_
   - [x] 12.2 Implement result computation: for each candidate, compute totalScore, section-wise scores, overallRank, overallPercentile; apply shift normalization formula when configured; store `Result` record
@@ -226,15 +226,15 @@ All services are stateless Spring Boot applications; persistent state lives in P
     - Use jqwik generator `candidateScoreScenarios()` producing arbitrary candidate sets with section scores; assert `totalScore == Σ sectionScores` and `rank(A) < rank(B) ⟺ totalScore(A) > totalScore(B)` (excluding ties)
   - [x] 12.4 Implement PDF scorecard generation with password derived from candidate's registered date of birth + candidate identifier; include subject-wise and topic-wise performance breakdown; store PDF reference in object store
     - _Requirements: 13.3, 13.4_
-  - [~] 12.5 Implement result publication: expose `GET` scorecard endpoint via Angular portal; expose versioned REST API `GET /api/v1/results/{candidateId}` with OAuth2 access token for third-party integrators; push scorecard to DigiLocker when integration is enabled; publish `exam.notifications.outbound` event for result notification
+  - [x] 12.5 Implement result publication: expose `GET` scorecard endpoint via Angular portal; expose versioned REST API `GET /api/v1/results/{candidateId}` with OAuth2 access token for third-party integrators; push scorecard to DigiLocker when integration is enabled; publish `exam.notifications.outbound` event for result notification
     - _Requirements: 13.3, 13.5, 13.6, 13.8_
-  - [~] 12.6 Compute per-question analytics on exam finalization: difficulty index, discrimination index, response distribution across options; expose via analytics dashboard API
+  - [x] 12.6 Compute per-question analytics on exam finalization: difficulty index, discrimination index, response distribution across options; expose via analytics dashboard API
     - _Requirements: 26.1, 26.5_
   - [x] 12.7 Publish audit event to Kafka `exam.audit.events` on result publication
     - _Requirements: 13.7_
 
 
-- [ ] 13. Audit Service — immutable append-only event log, tamper evidence, query API
+- [x] 13. Audit Service — immutable append-only event log, tamper evidence, query API
   - [x] 13.1 Scaffold `backend/audit-service` Spring Boot project: configure JPA with `audit_service` schema; Range-partition `audit_event` table by `occurred_at` (quarterly, 28 partitions for 7-year retention); enforce `REVOKE UPDATE, DELETE ON audit_event FROM audit_writer_role` at DB level; configure Kafka consumer for `exam.audit.events`
     - _Requirements: 15.1, 15.5, 15.6, 19.6_
   - [x] 13.2 Implement audit event ingestion: on Kafka consumption, compute `payloadHash = SHA-256(eventPayload)`, sign with HSM ECDSA P-256 key via `VaultCryptoService`, persist `AuditEvent` with `hsmSignature` and `signingKeyId`; reject any UPDATE/DELETE request on existing records with HTTP 403 and write a new tamper-attempt audit event
@@ -245,7 +245,7 @@ All services are stateless Spring Boot applications; persistent state lives in P
     - Use jqwik generator `randomAuditEvents()` + `byteModifications()` producing unmodified and byte-modified payloads; assert `verify(signingKeyId, SHA256(payload), hsmSignature) = true` for originals, `false` for modified variants
   - [x] 13.4 Implement read-only query API `GET /api/v1/audit/events`: filter by userId, examId, actionType, time range; accessible to Auditor role only; return paginated results
     - _Requirements: 15.3_
-  - [~] 13.5 Implement local WAL buffer for audit events when Kafka is unavailable; replay on Kafka reconnection to ensure exam operations continue without blocking on audit writes
+  - [x] 13.5 Implement local WAL buffer for audit events when Kafka is unavailable; replay on Kafka reconnection to ensure exam operations continue without blocking on audit writes
     - _Requirements: design error-handling table_
 
 - [x] 14. Notification Service — email/push delivery, retry, in-app notifications

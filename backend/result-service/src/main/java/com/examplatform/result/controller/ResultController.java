@@ -3,6 +3,7 @@ package com.examplatform.result.controller;
 import com.examplatform.result.domain.Result;
 import com.examplatform.result.dto.ComputeResultsRequest;
 import com.examplatform.result.service.ResultComputationService;
+import com.examplatform.result.service.ResultPublicationService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -36,6 +37,7 @@ public class ResultController {
     private static final String DEFAULT_TENANT_ID = "default";
 
     private final ResultComputationService resultComputationService;
+    private final ResultPublicationService resultPublicationService;
 
     /**
      * Retrieves the result for a specific candidate in an exam.
@@ -81,6 +83,27 @@ public class ResultController {
                 tenantId);
 
         return ResponseEntity.status(HttpStatus.CREATED).body(results);
+    }
+
+    /**
+     * Publishes a candidate's result, triggering DigiLocker push and notification.
+     * Accessible only by EXAM_CONTROLLER role.
+     *
+     * @param candidateId the candidate UUID
+     * @param examId      the exam UUID
+     * @param auth        the authentication principal
+     * @return the published result
+     */
+    @PostMapping("/{candidateId}/publish")
+    @PreAuthorize("hasRole('EXAM_CONTROLLER')")
+    public ResponseEntity<Result> publishResult(@PathVariable UUID candidateId,
+                                                @RequestParam UUID examId,
+                                                Authentication auth) {
+        String tenantId = extractTenantId(auth);
+        log.info("POST publish result for candidate={}, exam={}, tenant={}", candidateId, examId, tenantId);
+
+        Result result = resultPublicationService.publishResult(candidateId, examId, tenantId);
+        return ResponseEntity.ok(result);
     }
 
     private String extractTenantId(Authentication auth) {
