@@ -118,7 +118,7 @@ All services are stateless Spring Boot applications; persistent state lives in P
 
 
 - [ ] 7. Paper Generator — blueprint-driven assembly, encryption, serialization
-  - [~] 7.1 Scaffold `backend/paper-generator` Spring Boot project: configure JPA with `paper_generator` schema; configure `VaultCryptoService` for per-shift AES-256 paper encryption; configure async Kafka consumer for paper generation request jobs
+  - [x] 7.1 Scaffold `backend/paper-generator` Spring Boot project: configure JPA with `paper_generator` schema; configure `VaultCryptoService` for per-shift AES-256 paper encryption; configure async Kafka consumer for paper generation request jobs
     - _Requirements: 8.7_
   - [~] 7.2 Implement blueprint-driven paper assembly: `POST /api/v1/papers/generate` submits async job; worker selects questions from Question Bank satisfying subject/topic/difficulty/cognitive ratios; enforces all active reuse policies; attaches difficulty score, topic distribution report, and similarity report
     - _Requirements: 8.1, 8.2, 8.3, 8.4_
@@ -154,7 +154,7 @@ All services are stateless Spring Boot applications; persistent state lives in P
 
 
 - [ ] 9. Delivery Service — session start, question serving, navigation, proctoring, offline
-  - [~] 9.1 Scaffold `backend/delivery-service` Spring Boot project: configure JPA with `delivery_service` schema; configure Redis for hot exam session state; configure `VaultCryptoService` for shift-key decryption; configure HPA metrics `active_exam_sessions` (target 5,000/pod)
+  - [-] 9.1 Scaffold `backend/delivery-service` Spring Boot project: configure JPA with `delivery_service` schema; configure Redis for hot exam session state; configure `VaultCryptoService` for shift-key decryption; configure HPA metrics `active_exam_sessions` (target 5,000/pod)
     - _Requirements: 9.1, 19.2_
   - [~] 9.2 Implement session start: authenticate candidate JWT, look up shift assignment, decrypt shift paper package using HSM-managed shift key (in-memory only), serve first question within 500ms; enforce single concurrent session (Req 2.7)
     - _Requirements: 9.1, 9.3_
