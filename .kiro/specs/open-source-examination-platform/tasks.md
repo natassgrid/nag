@@ -24,13 +24,13 @@ All services are stateless Spring Boot applications; persistent state lives in P
     - _Requirements: 2.1, 3.1, 16.3, 23.4_
   - [x] 2.2 Implement candidate registration endpoint `POST /api/v1/identity/register`: validate identity document type (Aadhaar/PAN/Passport/VoterID/DL), persist pending account, enforce duplicate-identity check (SHA-256 hash comparison), return acknowledgement within 2 seconds
     - _Requirements: 1.1, 1.5_
-  - [ ] 2.3 Implement OTP verification `POST /api/v1/identity/otp/verify`: activate pending account, issue JWT access + refresh tokens via Keycloak token endpoint
+  - [x] 2.3 Implement OTP verification `POST /api/v1/identity/otp/verify`: activate pending account, issue JWT access + refresh tokens via Keycloak token endpoint
     - _Requirements: 1.2_
-  - [~] 2.4 Implement password+MFA authentication `POST /api/v1/identity/auth/token`: validate credentials, enforce MFA OTP/hardware-token step when MFA is enabled, enforce device binding (device fingerprint claim in JWT), enforce single concurrent active session per candidate during shift
+  - [x] 2.4 Implement password+MFA authentication `POST /api/v1/identity/auth/token`: validate credentials, enforce MFA OTP/hardware-token step when MFA is enabled, enforce device binding (device fingerprint claim in JWT), enforce single concurrent active session per candidate during shift
     - _Requirements: 2.1, 2.2, 2.5, 2.7_
-  - [~] 2.5 Implement WebAuthn / FIDO2 authentication `POST /api/v1/identity/auth/webauthn` using Spring Security WebAuthn support; verify authenticator assertion and issue JWT
+  - [x] 2.5 Implement WebAuthn / FIDO2 authentication `POST /api/v1/identity/auth/webauthn` using Spring Security WebAuthn support; verify authenticator assertion and issue JWT
     - _Requirements: 2.3_
-  - [~] 2.6 Implement account lockout: after 5 consecutive failed authentication attempts within 10 minutes, lock account and trigger notification event on Kafka `exam.notifications.outbound`; implement step-up authentication on risk signal (new device/geo/time)
+  - [-] 2.6 Implement account lockout: after 5 consecutive failed authentication attempts within 10 minutes, lock account and trigger notification event on Kafka `exam.notifications.outbound`; implement step-up authentication on risk signal (new device/geo/time)
     - _Requirements: 2.4, 2.6_
   - [~] 2.7 Implement role assignment/revocation `POST /api/v1/identity/roles/{userId}` (Super_Admin only); enforce all 10 named roles (Super_Admin, Security_Admin, Question_Author, Reviewer, Approver, Exam_Controller, Translator, Evaluator, Auditor, Candidate); enforce least-privilege RBAC on all API endpoints; return HTTP 403 on unauthorized access
     - _Requirements: 3.1, 3.2, 3.3, 3.4, 3.5, 3.6_

@@ -22,6 +22,41 @@ import java.util.Map;
 public class GlobalExceptionHandler {
 
     /**
+     * Handle authentication failures (bad credentials, locked/deactivated account, device mismatch).
+     * Returns HTTP 401 Unauthorized.
+     *
+     * @param ex the authentication exception
+     * @return 401 Unauthorized with problem detail
+     */
+    @ExceptionHandler(AuthenticationException.class)
+    public ResponseEntity<ProblemDetail> handleAuthenticationException(AuthenticationException ex) {
+        ProblemDetail pd = ProblemDetailBuilder.forStatus(HttpStatus.UNAUTHORIZED)
+                .withTitle("Unauthorized")
+                .withDetail(ex.getMessage())
+                .build();
+        log.debug("Authentication failed: {}", ex.getMessage());
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(pd);
+    }
+
+    /**
+     * Handle MFA-required signal — returned when the account requires MFA but no OTP was provided.
+     * Returns HTTP 403 Forbidden with {@code mfaRequired: true} to allow clients to prompt for OTP.
+     *
+     * @param ex the MFA required exception
+     * @return 403 Forbidden with {@code mfaRequired} property set to {@code true}
+     */
+    @ExceptionHandler(MfaRequiredException.class)
+    public ResponseEntity<ProblemDetail> handleMfaRequiredException(MfaRequiredException ex) {
+        ProblemDetail pd = ProblemDetailBuilder.forStatus(HttpStatus.FORBIDDEN)
+                .withTitle("MFA Required")
+                .withDetail(ex.getMessage())
+                .withProperty("mfaRequired", true)
+                .build();
+        log.debug("MFA required: {}", ex.getMessage());
+        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(pd);
+    }
+
+    /**
      * Handle duplicate identity document or email during registration.
      * Returns HTTP 409 Conflict.
      *

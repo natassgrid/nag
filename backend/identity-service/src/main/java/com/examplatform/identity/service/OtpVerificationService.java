@@ -79,7 +79,7 @@ public class OtpVerificationService {
         // 6. Publish audit event
         auditEventPublisher.publish(
             AuditEventType.LOGIN,
-            account.getId().toString(),
+            String.valueOf(account.getId()),
             "identity:otp-activation",
             null, null,
             Map.of("tenantId", tenantId, "event", "otp-activation")

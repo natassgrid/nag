@@ -50,6 +50,11 @@ dependencies {
     // Validation
     implementation 'org.springframework.boot:spring-boot-starter-validation'
 
+    // WebAuthn / FIDO2
+    // TODO: For production, add com.webauthn4j:webauthn4j-core for full COSE key parsing
+    // and cryptographic signature verification. The current scaffold uses simplified verification.
+    // implementation 'com.webauthn4j:webauthn4j-core:0.24.1.RELEASE'
+
     // Test
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
     testImplementation 'org.springframework.security:spring-security-test'
@@ -66,4 +71,8 @@ dependencies {
 
 springBoot {
     mainClass = 'com.examplatform.identity.IdentityServiceApplication'
+}
+
+test {
+    useJUnitPlatform()
 }
