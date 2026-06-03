@@ -46,7 +46,7 @@ All services are stateless Spring Boot applications; persistent state lives in P
     - _Requirements: 2.9, 3.3, 3.5, 16.5_
 
 
-- [ ] 3. Candidate Service — PII management, DigiLocker, face verification
+- [x] 3. Candidate Service — PII management, DigiLocker, face verification
   - [x] 3.1 Scaffold `backend/candidate-service` Spring Boot project: configure JPA with `candidate_service` schema, `VaultCryptoService` dependency, AES-256 column encryption via JPA `AttributeConverter` for all PII fields (name, DOB, gender, nationality, category, mobile, email, address, reservationCategory, identityDocNumber)
     - _Requirements: 1.6, 16.1, 25.1_
   - [x] 3.2 Implement candidate profile CRUD: store per-candidate DEK reference in `encryption_key_id`, store SHA-256 hash of mobile for uniqueness check, store SHA-256 + HMAC of identity document for duplicate detection; implement DPDP erasure endpoint that zeroes PII columns and deletes DEK reference
@@ -57,7 +57,7 @@ All services are stateless Spring Boot applications; persistent state lives in P
     - _Requirements: 1.4_
   - [x] 3.5 Implement consent recording: Angular form presents plain-language consent notice before biometric data collection; persist `consentRecorded=true` and `consentTimestamp` on explicit acceptance
     - _Requirements: 25.3_
-  - [~] 3.6 Publish audit event to Kafka `exam.audit.events` on candidate profile creation
+  - [x] 3.6 Publish audit event to Kafka `exam.audit.events` on candidate profile creation
     - _Requirements: 1.7_
   - [ ]* 3.7 Write property test for candidate PII encryption at rest
     - **Property 12: Candidate PII Encryption at Rest**
@@ -65,7 +65,7 @@ All services are stateless Spring Boot applications; persistent state lives in P
     - Use jqwik generator `candidatePIIRecords()` producing arbitrary PII strings; assert `storedBytes ≠ UTF8(piiValue)` and `decrypt(candidateDEK, storedBytes) == piiValue`
 
 
-- [ ] 4. Question Bank Service — CRUD, versioning, lifecycle FSM, similarity, exposure tracking
+- [x] 4. Question Bank Service — CRUD, versioning, lifecycle FSM, similarity, exposure tracking
   - [x] 4.1 Scaffold `backend/question-bank-service` Spring Boot project: configure JPA with `question_service` schema including Hash-partitioned `question` table (16 partitions), pgvector extension, OpenSearch client, `VaultCryptoService` for per-question AES-256 encryption
     - _Requirements: 4.1, 4.5, 19.6_
   - [x] 4.2 Implement question creation `POST /api/v1/questions`: validate required metadata (subject, topic, subtopic, chapter, difficulty, cognitiveLevel, questionType); enforce supported question types (Single_MCQ, Multi_MCQ, Numerical, Descriptive, Matrix_Match, Assertion_Reason, Coding, Case_Study); persist in Draft state; encrypt content fields with per-question DEK; accept rich content types (HTML5, SVG, PNG, JPEG, WEBP, Audio, Video, LaTeX, MathML)
@@ -86,11 +86,11 @@ All services are stateless Spring Boot applications; persistent state lives in P
     - **Property 14: Question Similarity Rejection**
     - **Validates: Requirements 4.7**
     - Use jqwik generator `questionEmbeddingPairs()` producing (submittedEmbedding, publishedEmbedding, cosineSim) tuples; assert `submit(q) = REJECTED(similarId)` when `cosineSim > 0.80`, `ACCEPTED` otherwise
-  - [~] 4.9 Implement exposure tracking: increment `usageCount`, update `lastUsedAt`, append to `usedInExamIds`/`usedInShiftIds` when a question is selected into a paper; implement reuse policy enforcement (NEVER / 1_Year / 2_Years / Custom)
+  - [x] 4.9 Implement exposure tracking: increment `usageCount`, update `lastUsedAt`, append to `usedInExamIds`/`usedInShiftIds` when a question is selected into a paper; implement reuse policy enforcement (NEVER / 1_Year / 2_Years / Custom)
     - _Requirements: 4.8, 4.9_
-  - [~] 4.10 Implement full-text search `GET /api/v1/questions/search` via OpenSearch index (100M question capacity); return results within 2 seconds at p95; expose `GET /api/v1/questions/{id}/analytics` with difficulty index, discrimination index, usage count
+  - [x] 4.10 Implement full-text search `GET /api/v1/questions/search` via OpenSearch index (100M question capacity); return results within 2 seconds at p95; expose `GET /api/v1/questions/{id}/analytics` with difficulty index, discrimination index, usage count
     - _Requirements: 19.3, 26.5_
-  - [~] 4.11 Publish audit events to Kafka `exam.audit.events` on question creation, modification, and each state transition
+  - [x] 4.11 Publish audit events to Kafka `exam.audit.events` on question creation, modification, and each state transition
     - _Requirements: 4.10, 5.6, 15.1_
 
 
@@ -102,7 +102,7 @@ All services are stateless Spring Boot applications; persistent state lives in P
   - [~] 5.3 Implement translation review: on Reviewer approval → mark APPROVED, make available for paper generation; on rejection → attach reviewer comments, notify Translator; detect stale translations when source question is modified after approval (publish `STALE` status + Kafka event)
     - _Requirements: 6.4, 6.5, 6.7_
 
-- [ ] 6. Examination Service — exam config, sections, marking schemes, navigation
+- [x] 6. Examination Service — exam config, sections, marking schemes, navigation
   - [x] 6.1 Scaffold `backend/examination-service` Spring Boot project: configure JPA with `examination_service` schema; implement `Examination`, `Section`, and `SubjectTopicRule` JPA entities with JSONB sections column
     - _Requirements: 7.1, 7.2_
   - [x] 6.2 Implement exam creation/update API: persist exam with name, duration, total marks, negative marking flag/value, navigation policy (Sequential/Flexible/Restricted), calculator policy (None/Basic/Scientific), review-flag policy, and section list; validate that Σ(marksPerQuestion × questionCount) over all sections == totalMarks; reject with descriptive error on mismatch
@@ -113,7 +113,7 @@ All services are stateless Spring Boot applications; persistent state lives in P
     - Use jqwik generator `examSectionConfigs()` producing arbitrary section lists; assert `isValid(exam) ⟺ Σ(marksPerQuestion × questionCount) == exam.totalMarks`
   - [x] 6.4 Implement disability time extension: before session starts, apply `extraTimeMinutes` from candidate profile to session duration
     - _Requirements: 22.6_
-  - [~] 6.5 Publish audit event to Kafka `exam.audit.events` on exam publication
+  - [x] 6.5 Publish audit event to Kafka `exam.audit.events` on exam publication
     - _Requirements: 7.7_
 
 
@@ -126,7 +126,7 @@ All services are stateless Spring Boot applications; persistent state lives in P
     - **Property 1: Blueprint Constraint Satisfaction**
     - **Validates: Requirements 8.1, 8.2**
     - Use jqwik generator `validBlueprints()` + `questionBankMock()` producing arbitrary valid blueprints; assert every generated paper's actual ratio distribution matches blueprint within integer rounding tolerance
-  - [~] 7.4 Implement shift comparability enforcement: for any pair of shift papers in the same exam, assert `|difficultyScore(pi) - difficultyScore(pj)| / totalMarks ≤ 0.02`; return error and block paper approval if violated
+  - [x] 7.4 Implement shift comparability enforcement: for any pair of shift papers in the same exam, assert `|difficultyScore(pi) - difficultyScore(pj)| / totalMarks ≤ 0.02`; return error and block paper approval if violated
     - _Requirements: 8.9_
   - [ ]* 7.5 Write property test for shift paper statistical comparability
     - **Property 2: Shift Paper Statistical Comparability**
@@ -146,7 +146,7 @@ All services are stateless Spring Boot applications; persistent state lives in P
     - Use jqwik generator `invalidPaperDocuments()` producing Papers with at least one invalid field (bad enum, negative marks, missing required field); assert `validate(doc).error.field ∈ fields(doc)` and error value matches violating value
   - [~] 7.10 Implement paper approval and HSM encryption: `POST /api/v1/papers/{paperId}/approve` transitions paper to APPROVED, then ENCRYPTED; encrypt paper package with shift-specific AES-256 key via `VaultCryptoService`; store only object-store reference (not content inline); complete within 5 minutes of request
     - _Requirements: 8.6, 8.7_
-  - [~] 7.11 Publish audit events to Kafka `exam.audit.events` on paper generation and paper approval
+  - [x] 7.11 Publish audit events to Kafka `exam.audit.events` on paper generation and paper approval
     - _Requirements: 8.8_
 
 - [~] 8. Checkpoint — core domain services
@@ -162,17 +162,17 @@ All services are stateless Spring Boot applications; persistent state lives in P
     - _Requirements: 9.2, 9.5_
   - [x] 9.4 Implement session timer: schedule session expiry event at `scheduledEndAt` + disability extension; serve question with language selection from approved translation variants; enforce full-screen lock mode signal via API (Angular enforces locally)
     - _Requirements: 9.3, 9.6, 9.8, 22.6_
-  - [~] 9.5 Implement proctoring capture: record webcam snapshots at configurable interval (min 30s) and screen activity recordings; publish to Kafka `exam.proctoring.alerts`; track `fullScreenExitCount` and flag session after 3 exits; enforce configurable retention window; check consent before storing biometric data
+  - [x] 9.5 Implement proctoring capture: record webcam snapshots at configurable interval (min 30s) and screen activity recordings; publish to Kafka `exam.proctoring.alerts`; track `fullScreenExitCount` and flag session after 3 exits; enforce configurable retention window; check consent before storing biometric data
     - _Requirements: 11.1, 11.2, 11.6, 11.7_
-  - [~] 9.6 Implement AI proctoring analysis event handling: consume proctoring frames; publish `exam.audit.events` with event type `no-face-detected`, `multiple-faces-detected`, or `prohibited-object-detected`
+  - [x] 9.6 Implement AI proctoring analysis event handling: consume proctoring frames; publish `exam.audit.events` with event type `no-face-detected`, `multiple-faces-detected`, or `prohibited-object-detected`
     - _Requirements: 11.3, 11.4, 11.5_
   - [~] 9.7 Implement offline delivery: pre-load and locally decrypt exam package using center-specific time-limited key; serve questions offline; reconcile on reconnect
     - _Requirements: 9.7_
-  - [~] 9.8 Publish session start and session submission events to Kafka `exam.session.events`; publish security/proctoring alerts to `exam.audit.events`
+  - [x] 9.8 Publish session start and session submission events to Kafka `exam.session.events`; publish security/proctoring alerts to `exam.audit.events`
     - _Requirements: 15.1_
 
 
-- [ ] 10. Response Service — persistence, auto-save, revision history, offline sync
+- [x] 10. Response Service — persistence, auto-save, revision history, offline sync
   - [x] 10.1 Scaffold `backend/response-service` Spring Boot project: configure JPA with `response_service` schema including Range-partitioned `response` table (monthly partitions), composite index on `(session_id, question_id, revision_sequence DESC)`, and index on `candidate_id WHERE is_final=TRUE`; configure Redis for hot session state; configure HPA metric `response_save_rate` (target 50,000 saves/min/pod)
     - _Requirements: 10.1, 19.4, 19.6_
   - [x] 10.2 Implement response save `POST /api/v1/responses/{sessionId}/save`: persist `Response` record with questionId, selectedOptionIds or enteredValue, timestamp, cumulativeTimeSpentMs, revisionSequence, saveSource within 200ms at p99; enforce Kafka `acks=all` before ACK
@@ -191,9 +191,9 @@ All services are stateless Spring Boot applications; persistent state lives in P
     - **Property 6: Response Revision History Preservation**
     - **Validates: Requirements 10.5**
     - Use jqwik generator `responseUpdateSequences()` producing sequences of N≥2 updates to the same (sessionId, questionId); assert history returns exactly N records with `revisionSequence` 1..N and each record's value matches corresponding submitted update
-  - [~] 10.8 Implement session finalization `POST /api/v1/responses/{sessionId}/submit`: set `isFinal=true` on all responses for session, lock response set against further modification; trigger Kafka event on `exam.session.events`
+  - [x] 10.8 Implement session finalization `POST /api/v1/responses/{sessionId}/submit`: set `isFinal=true` on all responses for session, lock response set against further modification; trigger Kafka event on `exam.session.events`
     - _Requirements: 10.6_
-  - [~] 10.9 Publish sampled audit events to Kafka `exam.audit.events` on response save (max once per candidate per 60 seconds)
+  - [x] 10.9 Publish sampled audit events to Kafka `exam.audit.events` on response save (max once per candidate per 60 seconds)
     - _Requirements: 10.7_
 
 
@@ -212,7 +212,7 @@ All services are stateless Spring Boot applications; persistent state lives in P
     - _Requirements: 12.4, 12.5, 12.6_
   - [~] 11.6 Compute and store candidate total raw score and section-wise scores after all evaluations are complete; publish event to Kafka `exam.evaluation.events`
     - _Requirements: 12.7_
-  - [~] 11.7 Publish audit events to Kafka `exam.audit.events` on each evaluation record creation
+  - [x] 11.7 Publish audit events to Kafka `exam.audit.events` on each evaluation record creation
     - _Requirements: 12.8_
 
 - [ ] 12. Result Service — score aggregation, normalization, PDF scorecard, DigiLocker
@@ -230,7 +230,7 @@ All services are stateless Spring Boot applications; persistent state lives in P
     - _Requirements: 13.3, 13.5, 13.6, 13.8_
   - [~] 12.6 Compute per-question analytics on exam finalization: difficulty index, discrimination index, response distribution across options; expose via analytics dashboard API
     - _Requirements: 26.1, 26.5_
-  - [~] 12.7 Publish audit event to Kafka `exam.audit.events` on result publication
+  - [x] 12.7 Publish audit event to Kafka `exam.audit.events` on result publication
     - _Requirements: 13.7_
 
 

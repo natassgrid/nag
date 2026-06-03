@@ -14,12 +14,14 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 /**
@@ -38,9 +40,11 @@ public class SessionStartService {
     private final DisabilityExtensionService disabilityExtensionService;
     private final VaultCryptoService vaultCryptoService;
     private final RedisTemplate<String, Object> redisTemplate;
+    private final KafkaTemplate<String, Object> kafkaTemplate;
     private final ObjectMapper objectMapper;
 
     private static final String SESSION_CACHE_PREFIX = "session:";
+    private static final String TOPIC_SESSION_EVENTS = "exam.session.events";
 
     /**
      * Start a new exam session for the given candidate.
@@ -102,7 +106,29 @@ public class SessionStartService {
         String cacheKey = SESSION_CACHE_PREFIX + savedSession.getSessionId();
         redisTemplate.opsForValue().set(cacheKey, savedSession, Duration.ofHours(6));
 
-        // 9. Return response with first question
+        // 9. Publish SESSION_STARTED event to Kafka (fire-and-forget)
+        try {
+            Map<String, Object> event = Map.of(
+                    "eventType", "SESSION_STARTED",
+                    "sessionId", savedSession.getSessionId().toString(),
+                    "candidateId", candidateId.toString(),
+                    "examId", request.getExamId().toString(),
+                    "shiftId", request.getShiftId(),
+                    "startedAt", now.toString(),
+                    "tenantId", tenantId
+            );
+            kafkaTemplate.send(TOPIC_SESSION_EVENTS, savedSession.getSessionId().toString(), event)
+                    .whenComplete((result, ex) -> {
+                        if (ex != null) {
+                            log.error("Failed to publish SESSION_STARTED event for session [{}]: {}",
+                                    savedSession.getSessionId(), ex.getMessage());
+                        }
+                    });
+        } catch (Exception e) {
+            log.error("Unexpected error publishing SESSION_STARTED event: {}", e.getMessage());
+        }
+
+        // 10. Return response with first question
         return SessionStartResponse.builder()
                 .sessionId(savedSession.getSessionId())
                 .examId(request.getExamId())

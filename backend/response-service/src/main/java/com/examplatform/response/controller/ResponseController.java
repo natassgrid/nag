@@ -7,6 +7,7 @@ import com.examplatform.response.dto.SaveResponseResponse;
 import com.examplatform.response.service.BulkSaveService;
 import com.examplatform.response.service.ResponseHistoryService;
 import com.examplatform.response.service.ResponseSaveService;
+import com.examplatform.response.service.SessionFinalizationService;
 import com.examplatform.shared.api.ApiResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -41,6 +42,7 @@ public class ResponseController {
     private final ResponseSaveService responseSaveService;
     private final BulkSaveService bulkSaveService;
     private final ResponseHistoryService responseHistoryService;
+    private final SessionFinalizationService sessionFinalizationService;
 
     /**
      * Save a candidate's response to a question within an active exam session.
@@ -108,6 +110,32 @@ public class ResponseController {
                 sessionId, request, candidateId, tenantId);
 
         return ResponseEntity.ok(ApiResponse.success(results, "Bulk save completed"));
+    }
+
+    /**
+     * Submit (finalize) an exam session: marks all responses as final and
+     * locks the response set against further modifications.
+     *
+     * @param sessionId the exam session UUID
+     * @param jwt       the authenticated JWT principal (candidate)
+     * @param tenantId  tenant identifier from X-Tenant-Id header
+     * @return 200 OK confirmation of submission
+     */
+    @PostMapping("/{sessionId}/submit")
+    @PreAuthorize("hasRole('CANDIDATE')")
+    public ResponseEntity<ApiResponse<Void>> submitSession(
+            @PathVariable UUID sessionId,
+            @AuthenticationPrincipal Jwt jwt,
+            @RequestHeader("X-Tenant-Id") String tenantId) {
+
+        UUID candidateId = UUID.fromString(jwt.getSubject());
+
+        log.debug("Submitting session: sessionId={}, candidate={}, tenant={}",
+                sessionId, candidateId, tenantId);
+
+        sessionFinalizationService.submitSession(sessionId, candidateId, tenantId);
+
+        return ResponseEntity.ok(ApiResponse.success(null, "Session submitted successfully"));
     }
 
     /**

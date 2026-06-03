@@ -39,6 +39,7 @@ import java.util.stream.Collectors;
 public class PaperAssemblyService {
 
     private static final String PAPER_EVENTS_TOPIC = "exam.paper.events";
+    private static final String AUDIT_TOPIC = "exam.audit.events";
     private static final String STATUS_DRAFT = "DRAFT";
 
     private static final String REUSE_POLICY_NEVER = "NEVER";
@@ -146,6 +147,9 @@ public class PaperAssemblyService {
         // Publish async job result to Kafka
         publishPaperEvent(savedPaper);
 
+        // Publish PAPER_GENERATED audit event (fire-and-forget)
+        publishAuditEvent("PAPER_GENERATED", savedPaper, tenantId);
+
         log.info("Paper generated successfully: paperId={}, questionCount={}, difficultyScore={}",
                 savedPaper.getId(), selectedQuestionIds.size(), difficultyScore);
 
@@ -215,6 +219,31 @@ public class PaperAssemblyService {
         kafkaTemplate.send(PAPER_EVENTS_TOPIC, paper.getId().toString(), event);
         log.debug("Published paper generation event to topic={}, paperId={}",
                 PAPER_EVENTS_TOPIC, paper.getId());
+    }
+
+    /**
+     * Publishes a paper audit event to the audit topic (fire-and-forget).
+     */
+    private void publishAuditEvent(String eventType, Paper paper, String tenantId) {
+        try {
+            Map<String, Object> event = new LinkedHashMap<>();
+            event.put("eventType", eventType);
+            event.put("paperId", paper.getId().toString());
+            event.put("examId", paper.getExamId().toString());
+            event.put("shiftId", paper.getShiftId());
+            event.put("tenantId", tenantId);
+            event.put("occurredAt", Instant.now().toString());
+
+            kafkaTemplate.send(AUDIT_TOPIC, paper.getId().toString(), event)
+                    .whenComplete((result, ex) -> {
+                        if (ex != null) {
+                            log.error("Failed to publish audit event [{}] for paper [{}]: {}",
+                                    eventType, paper.getId(), ex.getMessage());
+                        }
+                    });
+        } catch (Exception e) {
+            log.error("Unexpected error publishing paper audit event [{}]: {}", eventType, e.getMessage());
+        }
     }
 
     private String toJson(Object value) {

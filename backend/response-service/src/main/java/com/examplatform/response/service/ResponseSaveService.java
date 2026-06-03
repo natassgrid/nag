@@ -7,10 +7,12 @@ import com.examplatform.response.dto.SaveResponseResponse;
 import com.examplatform.response.repository.ResponseRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
@@ -30,9 +32,13 @@ import java.util.concurrent.ExecutionException;
 public class ResponseSaveService {
 
     private static final String TOPIC_RESPONSE_SAVED = "exam.response.saved";
+    private static final String AUDIT_TOPIC = "exam.audit.events";
+    private static final String AUDIT_THROTTLE_PREFIX = "audit:response:";
+    private static final Duration AUDIT_THROTTLE_TTL = Duration.ofSeconds(60);
 
     private final ResponseRepository responseRepository;
     private final KafkaTemplate<String, Object> kafkaTemplate;
+    private final RedisTemplate<String, Object> redisTemplate;
     private final MetricsConfig metricsConfig;
 
     /**
@@ -95,7 +101,10 @@ public class ResponseSaveService {
         // 5. Increment the response_save_rate counter
         metricsConfig.getResponseSaveCounter().increment();
 
-        // 6. Return SaveResponseResponse
+        // 6. Publish sampled audit event (max once per candidate per 60 seconds)
+        publishSampledAuditEvent(sessionId, candidateId, request.getQuestionId(), tenantId);
+
+        // 7. Return SaveResponseResponse
         log.info("Saved response: sessionId={}, questionId={}, revision={}, saveSource={}",
                 sessionId, request.getQuestionId(), newRevision, request.getSaveSource());
 
@@ -107,5 +116,38 @@ public class ResponseSaveService {
                 .saveSource(request.getSaveSource())
                 .savedAt(saved.getCreatedAt())
                 .build();
+    }
+
+    /**
+     * Publishes a sampled RESPONSE_SAVED audit event to Kafka, throttled to max once
+     * per candidate per 60 seconds using a Redis key with TTL.
+     */
+    private void publishSampledAuditEvent(UUID sessionId, UUID candidateId, UUID questionId, String tenantId) {
+        try {
+            String throttleKey = AUDIT_THROTTLE_PREFIX + candidateId;
+            Boolean wasAbsent = redisTemplate.opsForValue().setIfAbsent(throttleKey, "1", AUDIT_THROTTLE_TTL);
+
+            if (Boolean.TRUE.equals(wasAbsent)) {
+                // No audit event published for this candidate in last 60s — publish now
+                Map<String, Object> auditEvent = Map.of(
+                        "eventType", "RESPONSE_SAVED",
+                        "sessionId", sessionId.toString(),
+                        "candidateId", candidateId.toString(),
+                        "questionId", questionId.toString(),
+                        "tenantId", tenantId,
+                        "occurredAt", Instant.now().toString()
+                );
+                kafkaTemplate.send(AUDIT_TOPIC, candidateId.toString(), auditEvent)
+                        .whenComplete((result, ex) -> {
+                            if (ex != null) {
+                                log.error("Failed to publish sampled RESPONSE_SAVED audit event for candidate [{}]: {}",
+                                        candidateId, ex.getMessage());
+                            }
+                        });
+            }
+        } catch (Exception e) {
+            // Never block main save operation for audit failures
+            log.error("Error publishing sampled audit event: {}", e.getMessage());
+        }
     }
 }

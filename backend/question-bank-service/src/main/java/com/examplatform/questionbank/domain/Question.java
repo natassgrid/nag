@@ -78,6 +78,12 @@ public class Question extends BaseEntity {
     @Column(name = "last_used_at")
     private LocalDateTime lastUsedAt;
 
+    @Column(name = "used_in_exam_ids_json", columnDefinition = "jsonb")
+    private String usedInExamIdsJson;
+
+    @Column(name = "used_in_shift_ids_json", columnDefinition = "jsonb")
+    private String usedInShiftIdsJson;
+
     @Column(name = "author_id", nullable = false)
     private UUID authorId;
 

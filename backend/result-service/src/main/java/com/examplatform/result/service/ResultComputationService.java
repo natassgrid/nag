@@ -8,11 +8,13 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
@@ -33,9 +35,11 @@ public class ResultComputationService {
 
     private static final double TARGET_MEAN = 50.0;
     private static final double TARGET_STD_DEV = 10.0;
+    private static final String AUDIT_TOPIC = "exam.audit.events";
 
     private final ResultRepository resultRepository;
     private final ObjectMapper objectMapper;
+    private final KafkaTemplate<String, Object> kafkaTemplate;
 
     /**
      * Computes results for all candidates in an exam.
@@ -98,6 +102,10 @@ public class ResultComputationService {
 
         List<Result> savedResults = resultRepository.saveAll(results);
         log.info("Saved {} result records for exam={}", savedResults.size(), examId);
+
+        // Publish RESULT_PUBLISHED audit event (fire-and-forget)
+        publishResultAuditEvent(examId, savedResults.size(), tenantId);
+
         return savedResults;
     }
 
@@ -116,6 +124,30 @@ public class ResultComputationService {
                 .orElseThrow(() -> new EntityNotFoundException(
                         String.format("Result not found for candidate=%s, exam=%s, tenant=%s",
                                 candidateId, examId, tenantId)));
+    }
+
+    /**
+     * Publishes a RESULT_PUBLISHED audit event to Kafka (fire-and-forget).
+     */
+    private void publishResultAuditEvent(UUID examId, int candidateCount, String tenantId) {
+        try {
+            Map<String, Object> event = Map.of(
+                    "eventType", "RESULT_PUBLISHED",
+                    "examId", examId.toString(),
+                    "candidateCount", candidateCount,
+                    "tenantId", tenantId,
+                    "occurredAt", Instant.now().toString()
+            );
+            kafkaTemplate.send(AUDIT_TOPIC, examId.toString(), event)
+                    .whenComplete((result, ex) -> {
+                        if (ex != null) {
+                            log.error("Failed to publish RESULT_PUBLISHED audit event for exam [{}]: {}",
+                                    examId, ex.getMessage());
+                        }
+                    });
+        } catch (Exception e) {
+            log.error("Unexpected error publishing RESULT_PUBLISHED audit event: {}", e.getMessage());
+        }
     }
 
     /**

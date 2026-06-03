@@ -14,9 +14,12 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.kafka.core.KafkaTemplate;
 
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -44,6 +47,9 @@ class CandidateProfileServiceTest {
 
     @Mock
     VaultCryptoService vaultCryptoService;
+
+    @Mock
+    KafkaTemplate<String, Object> kafkaTemplate;
 
     @InjectMocks
     CandidateProfileService candidateProfileService;
@@ -116,6 +122,8 @@ class CandidateProfileServiceTest {
                     .thenReturn(false);
             when(candidateProfileRepository.save(any(CandidateProfile.class)))
                     .thenAnswer(invocation -> invocation.getArgument(0));
+            when(kafkaTemplate.send(anyString(), anyString(), any()))
+                    .thenReturn(CompletableFuture.completedFuture(null));
 
             CandidateProfileResponse response = candidateProfileService.create(request, TENANT_ID);
 
@@ -133,6 +141,36 @@ class CandidateProfileServiceTest {
             // Response has masked mobile
             assertThat(response.getMobile()).isEqualTo("****3210");
             assertThat(response.getUserId()).isEqualTo(USER_ID);
+        }
+
+        @Test
+        @DisplayName("publishes CANDIDATE_PROFILE_CREATED audit event after successful creation")
+        @SuppressWarnings("unchecked")
+        void publishesAuditEventOnCreate() {
+            CreateCandidateProfileRequest request = validCreateRequest();
+
+            when(hashingService.sha256(MOBILE)).thenReturn(MOBILE_HASH);
+            when(hashingService.sha256(IDENTITY_DOC)).thenReturn(DOC_HASH);
+            when(hashingService.hmac(eq(IDENTITY_DOC), anyString())).thenReturn(DOC_HMAC);
+            when(candidateProfileRepository.findByMobileHashAndTenantId(MOBILE_HASH, TENANT_ID))
+                    .thenReturn(Optional.empty());
+            when(candidateProfileRepository.existsByIdentityDocHashAndTenantId(DOC_HASH, TENANT_ID))
+                    .thenReturn(false);
+            when(candidateProfileRepository.save(any(CandidateProfile.class)))
+                    .thenAnswer(invocation -> invocation.getArgument(0));
+            when(kafkaTemplate.send(anyString(), anyString(), any()))
+                    .thenReturn(CompletableFuture.completedFuture(null));
+
+            candidateProfileService.create(request, TENANT_ID);
+
+            ArgumentCaptor<Object> eventCaptor = ArgumentCaptor.forClass(Object.class);
+            verify(kafkaTemplate).send(eq("exam.audit.events"), eq(USER_ID.toString()), eventCaptor.capture());
+
+            Map<String, Object> event = (Map<String, Object>) eventCaptor.getValue();
+            assertThat(event.get("eventType")).isEqualTo("CANDIDATE_PROFILE_CREATED");
+            assertThat(event.get("actorId")).isEqualTo(USER_ID.toString());
+            assertThat(event.get("tenantId")).isEqualTo(TENANT_ID);
+            assertThat(event.get("occurredAt")).isNotNull();
         }
 
         @Test

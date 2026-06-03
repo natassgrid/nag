@@ -9,11 +9,14 @@ import com.examplatform.questionbank.repository.QuestionRepository;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
@@ -37,6 +40,8 @@ import java.util.UUID;
 @Transactional
 public class QuestionLifecycleService {
 
+    private static final String AUDIT_TOPIC = "exam.audit.events";
+
     private static final Map<String, Set<String>> VALID_TRANSITIONS = Map.of(
             "DRAFT", Set.of("REVIEW"),
             "REVIEW", Set.of("APPROVED", "DRAFT"),
@@ -46,6 +51,7 @@ public class QuestionLifecycleService {
 
     private final QuestionRepository questionRepository;
     private final ReviewWorkflowService reviewWorkflowService;
+    private final KafkaTemplate<String, Object> kafkaTemplate;
 
     /**
      * Transitions a question to the requested target state.
@@ -95,12 +101,39 @@ public class QuestionLifecycleService {
         log.info("Question transitioned: id={}, from={}, to={}, actor={}, tenant={}",
                 questionId, currentState, targetState, actorId, tenantId);
 
+        // Publish QUESTION_STATE_TRANSITION audit event (fire-and-forget)
+        publishAuditEvent(questionId, actorId, tenantId, currentState, targetState);
+
         // 6. Trigger review workflow processing
         reviewWorkflowService.processTransition(saved, currentState, targetState, actorId,
                 request.getComments(), tenantId);
 
         // 7. Return response
         return toResponse(saved);
+    }
+
+    private void publishAuditEvent(UUID questionId, UUID actorId, String tenantId,
+                                    String fromState, String toState) {
+        try {
+            Map<String, Object> event = new HashMap<>();
+            event.put("eventType", "QUESTION_STATE_TRANSITION");
+            event.put("questionId", questionId.toString());
+            event.put("actorId", actorId.toString());
+            event.put("tenantId", tenantId);
+            event.put("fromState", fromState);
+            event.put("toState", toState);
+            event.put("occurredAt", Instant.now().toString());
+
+            kafkaTemplate.send(AUDIT_TOPIC, questionId.toString(), event)
+                    .whenComplete((result, ex) -> {
+                        if (ex != null) {
+                            log.error("Failed to publish audit event [QUESTION_STATE_TRANSITION] for question [{}]: {}",
+                                    questionId, ex.getMessage());
+                        }
+                    });
+        } catch (Exception e) {
+            log.error("Unexpected error publishing state transition audit event: {}", e.getMessage());
+        }
     }
 
     private QuestionResponse toResponse(Question question) {

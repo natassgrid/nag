@@ -9,10 +9,12 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashSet;
@@ -34,8 +36,11 @@ import java.util.stream.Collectors;
 @Transactional
 public class AutoEvaluationService {
 
+    private static final String AUDIT_TOPIC = "exam.audit.events";
+
     private final EvaluationRepository evaluationRepository;
     private final ObjectMapper objectMapper;
+    private final KafkaTemplate<String, Object> kafkaTemplate;
 
     /**
      * Auto-evaluate all responses for a finalized session.
@@ -94,7 +99,39 @@ public class AutoEvaluationService {
             evaluations.add(eval);
         }
 
-        return evaluationRepository.saveAll(evaluations);
+        List<Evaluation> savedEvaluations = evaluationRepository.saveAll(evaluations);
+
+        // Publish EVALUATION_CREATED audit event (one per session, fire-and-forget)
+        publishEvaluationAuditEvent(sessionId, candidateId, savedEvaluations.size(), tenantId);
+
+        return savedEvaluations;
+    }
+
+    /**
+     * Publishes an EVALUATION_CREATED audit event after auto-evaluation (one per session).
+     */
+    private void publishEvaluationAuditEvent(UUID sessionId, UUID candidateId,
+                                              int evaluationCount, String tenantId) {
+        try {
+            Map<String, Object> event = Map.of(
+                    "eventType", "EVALUATION_CREATED",
+                    "sessionId", sessionId.toString(),
+                    "candidateId", candidateId.toString(),
+                    "evaluationCount", evaluationCount,
+                    "evaluationType", "AUTO",
+                    "tenantId", tenantId,
+                    "occurredAt", Instant.now().toString()
+            );
+            kafkaTemplate.send(AUDIT_TOPIC, sessionId.toString(), event)
+                    .whenComplete((result, ex) -> {
+                        if (ex != null) {
+                            log.error("Failed to publish EVALUATION_CREATED audit event for session [{}]: {}",
+                                    sessionId, ex.getMessage());
+                        }
+                    });
+        } catch (Exception e) {
+            log.error("Unexpected error publishing EVALUATION_CREATED audit event: {}", e.getMessage());
+        }
     }
 
     /**

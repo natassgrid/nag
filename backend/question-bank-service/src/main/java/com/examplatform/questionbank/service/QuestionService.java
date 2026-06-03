@@ -7,11 +7,14 @@ import com.examplatform.questionbank.repository.QuestionRepository;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
+import java.util.Map;
 import java.util.UUID;
 
 /**
@@ -27,8 +30,11 @@ import java.util.UUID;
 @Transactional
 public class QuestionService {
 
+    private static final String AUDIT_TOPIC = "exam.audit.events";
+
     private final QuestionRepository questionRepository;
     private final SimilarityDetectionService similarityDetectionService;
+    private final KafkaTemplate<String, Object> kafkaTemplate;
 
     /**
      * Creates a new question in DRAFT state with a unique per-question DEK.
@@ -76,6 +82,10 @@ public class QuestionService {
         log.info("Question created: id={}, type={}, author={}, tenant={}, dekKey={}",
                 saved.getId(), saved.getQuestionType(), authorId, tenantId, dekKeyName);
 
+        // Publish QUESTION_CREATED audit event (fire-and-forget)
+        publishAuditEvent("QUESTION_CREATED", saved.getId(), authorId, tenantId,
+                Map.of("questionType", saved.getQuestionType(), "state", saved.getState()));
+
         return toResponse(saved);
     }
 
@@ -91,6 +101,31 @@ public class QuestionService {
         Question question = questionRepository.findById(questionId)
                 .orElseThrow(() -> new EntityNotFoundException("Question not found: " + questionId));
         return toResponse(question);
+    }
+
+    private void publishAuditEvent(String eventType, UUID questionId, UUID actorId,
+                                    String tenantId, Map<String, Object> extra) {
+        try {
+            Map<String, Object> event = new java.util.HashMap<>();
+            event.put("eventType", eventType);
+            event.put("questionId", questionId.toString());
+            event.put("actorId", actorId.toString());
+            event.put("tenantId", tenantId);
+            event.put("occurredAt", Instant.now().toString());
+            if (extra != null) {
+                event.putAll(extra);
+            }
+
+            kafkaTemplate.send(AUDIT_TOPIC, questionId.toString(), event)
+                    .whenComplete((result, ex) -> {
+                        if (ex != null) {
+                            log.error("Failed to publish audit event [type={}] for question [{}]: {}",
+                                    eventType, questionId, ex.getMessage());
+                        }
+                    });
+        } catch (Exception e) {
+            log.error("Unexpected error publishing audit event [type={}]: {}", eventType, e.getMessage());
+        }
     }
 
     private QuestionResponse toResponse(Question question) {

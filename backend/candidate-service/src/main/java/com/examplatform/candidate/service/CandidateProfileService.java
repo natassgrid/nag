@@ -7,11 +7,16 @@ import com.examplatform.candidate.dto.UpdateCandidateProfileRequest;
 import com.examplatform.candidate.exception.DuplicateProfileException;
 import com.examplatform.candidate.exception.ProfileNotFoundException;
 import com.examplatform.candidate.repository.CandidateProfileRepository;
+import com.examplatform.shared.audit.AuditEventType;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Instant;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.UUID;
 
 /**
@@ -28,10 +33,12 @@ public class CandidateProfileService {
 
     private static final String HMAC_KEY_PREFIX = "candidate-doc-hmac-";
     private static final String DEK_PREFIX = "candidate-dek-";
+    private static final String AUDIT_TOPIC = "exam.audit.events";
 
     private final CandidateProfileRepository candidateProfileRepository;
     private final HashingService hashingService;
     private final VaultCryptoService vaultCryptoService;
+    private final KafkaTemplate<String, Object> kafkaTemplate;
 
     /**
      * Creates a new candidate profile with per-candidate DEK reference,
@@ -85,6 +92,9 @@ public class CandidateProfileService {
         // 6. Save
         CandidateProfile saved = candidateProfileRepository.save(profile);
         log.info("Created candidate profile for userId={} in tenant={}", request.getUserId(), tenantId);
+
+        // 7. Publish audit event (fire-and-forget — never blocks profile creation)
+        publishAuditEvent(AuditEventType.CANDIDATE_PROFILE_CREATED, request.getUserId().toString(), tenantId);
 
         return toResponse(saved);
     }
@@ -214,6 +224,28 @@ public class CandidateProfileService {
     }
 
     // ── Private helpers ──────────────────────────────────────────────────────
+
+    private void publishAuditEvent(AuditEventType type, String actorId, String tenantId) {
+        try {
+            Map<String, Object> event = new HashMap<>();
+            event.put("eventType", type.name());
+            event.put("actorId", actorId);
+            event.put("tenantId", tenantId);
+            event.put("occurredAt", Instant.now().toString());
+
+            kafkaTemplate.send(AUDIT_TOPIC, actorId, event)
+                    .whenComplete((result, ex) -> {
+                        if (ex != null) {
+                            log.error("Failed to publish audit event [type={}] for actor [{}]: {}",
+                                    type, actorId, ex.getMessage());
+                        } else {
+                            log.debug("Audit event published [type={}, actor={}]", type, actorId);
+                        }
+                    });
+        } catch (Exception e) {
+            log.error("Unexpected error publishing audit event [type={}]: {}", type, e.getMessage(), e);
+        }
+    }
 
     private CandidateProfileResponse toResponse(CandidateProfile profile) {
         return CandidateProfileResponse.builder()

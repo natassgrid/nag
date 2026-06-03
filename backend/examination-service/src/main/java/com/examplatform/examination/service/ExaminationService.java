@@ -13,12 +13,16 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 
+import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 /**
@@ -32,8 +36,11 @@ import java.util.UUID;
 @Transactional
 public class ExaminationService {
 
+    private static final String AUDIT_TOPIC = "exam.audit.events";
+
     private final ExaminationRepository examinationRepository;
     private final ObjectMapper objectMapper;
+    private final KafkaTemplate<String, Object> kafkaTemplate;
 
     /**
      * Creates a new examination in DRAFT status.
@@ -107,6 +114,49 @@ public class ExaminationService {
 
         List<Section> sections = deserializeSections(examination.getSectionsJson());
         return toResponse(examination, sections);
+    }
+
+    /**
+     * Publishes an examination: sets status to PUBLISHED and emits EXAM_PUBLISHED audit event.
+     *
+     * @param examId   the exam UUID
+     * @param tenantId the tenant identifier
+     * @return the updated examination response
+     */
+    public ExaminationResponse publish(UUID examId, String tenantId) {
+        Examination examination = examinationRepository.findById(examId)
+                .orElseThrow(() -> new ExaminationNotFoundException(examId));
+
+        if (!examination.getTenantId().equals(tenantId)) {
+            throw new AccessDeniedException("Cannot publish examination belonging to another tenant");
+        }
+
+        examination.setStatus("PUBLISHED");
+        Examination saved = examinationRepository.save(examination);
+        log.info("Published examination id={} for tenant={}", saved.getId(), tenantId);
+
+        // Publish EXAM_PUBLISHED audit event (fire-and-forget)
+        try {
+            Map<String, Object> event = new HashMap<>();
+            event.put("eventType", "EXAM_PUBLISHED");
+            event.put("examId", saved.getId().toString());
+            event.put("examName", saved.getName());
+            event.put("tenantId", tenantId);
+            event.put("occurredAt", Instant.now().toString());
+
+            kafkaTemplate.send(AUDIT_TOPIC, saved.getId().toString(), event)
+                    .whenComplete((result, ex) -> {
+                        if (ex != null) {
+                            log.error("Failed to publish EXAM_PUBLISHED audit event for exam [{}]: {}",
+                                    examId, ex.getMessage());
+                        }
+                    });
+        } catch (Exception e) {
+            log.error("Unexpected error publishing EXAM_PUBLISHED audit event: {}", e.getMessage());
+        }
+
+        List<Section> sections = deserializeSections(saved.getSectionsJson());
+        return toResponse(saved, sections);
     }
 
     // ── Private helpers ──────────────────────────────────────────────────────
