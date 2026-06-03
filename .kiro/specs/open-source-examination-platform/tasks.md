@@ -22,9 +22,9 @@ All services are stateless Spring Boot applications; persistent state lives in P
 - [ ] 2. Identity Service — authentication, MFA, RBAC/ABAC, rate limiting
   - [x] 2.1 Scaffold `backend/identity-service` Spring Boot project: configure Spring Security OAuth2 Resource Server, Keycloak adapter, Spring Data JPA with `identity_service` schema, Redis for session state, Actuator, and OpenTelemetry Java agent
     - _Requirements: 2.1, 3.1, 16.3, 23.4_
-  - [-] 2.2 Implement candidate registration endpoint `POST /api/v1/identity/register`: validate identity document type (Aadhaar/PAN/Passport/VoterID/DL), persist pending account, enforce duplicate-identity check (SHA-256 hash comparison), return acknowledgement within 2 seconds
+  - [x] 2.2 Implement candidate registration endpoint `POST /api/v1/identity/register`: validate identity document type (Aadhaar/PAN/Passport/VoterID/DL), persist pending account, enforce duplicate-identity check (SHA-256 hash comparison), return acknowledgement within 2 seconds
     - _Requirements: 1.1, 1.5_
-  - [-] 2.3 Implement OTP verification `POST /api/v1/identity/otp/verify`: activate pending account, issue JWT access + refresh tokens via Keycloak token endpoint
+  - [ ] 2.3 Implement OTP verification `POST /api/v1/identity/otp/verify`: activate pending account, issue JWT access + refresh tokens via Keycloak token endpoint
     - _Requirements: 1.2_
   - [~] 2.4 Implement password+MFA authentication `POST /api/v1/identity/auth/token`: validate credentials, enforce MFA OTP/hardware-token step when MFA is enabled, enforce device binding (device fingerprint claim in JWT), enforce single concurrent active session per candidate during shift
     - _Requirements: 2.1, 2.2, 2.5, 2.7_

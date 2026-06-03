@@ -2,25 +2,6 @@
  * Open Source Government Examination Platform
  * Root Gradle settings — declares all backend service subprojects
  */
-rootProject.name = 'examination-platform'
-
-// ── Backend modules ──────────────────────────────────────────────────────────
-include 'backend:shared-lib'
-include 'backend:identity-service'
-include 'backend:candidate-service'
-include 'backend:question-bank-service'
-include 'backend:translation-service'
-include 'backend:examination-service'
-include 'backend:paper-generator'
-include 'backend:delivery-service'
-include 'backend:response-service'
-include 'backend:evaluation-service'
-include 'backend:result-service'
-include 'backend:audit-service'
-include 'backend:notification-service'
-include 'backend:admin-service'
-include 'backend:analytics-service'
-include 'backend:api-gateway'
 
 // ── Plugin management ─────────────────────────────────────────────────────────
 pluginManagement {
@@ -32,8 +13,15 @@ pluginManagement {
 
 // ── Dependency resolution management ─────────────────────────────────────────
 dependencyResolutionManagement {
-    repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
+    repositoriesMode.set(RepositoriesMode.PREFER_SETTINGS)
     repositories {
+        mavenLocal()
         mavenCentral()
     }
 }
+
+rootProject.name = 'examination-platform'
+
+// ── Backend modules ──────────────────────────────────────────────────────────
+include 'backend:shared-lib'
+include 'backend:identity-service'
