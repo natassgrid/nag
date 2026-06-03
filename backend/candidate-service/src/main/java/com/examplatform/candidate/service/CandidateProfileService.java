@@ -196,6 +196,23 @@ public class CandidateProfileService {
         log.info("DPDP erasure completed for userId={} in tenant={}", userId, tenantId);
     }
 
+    /**
+     * Records explicit consent before biometric data collection.
+     * Sets consentRecorded=true and consentTimestamp. Idempotent — overwrites timestamp on re-consent.
+     *
+     * Validates: Requirements 25.3
+     */
+    public void recordConsent(UUID userId, String tenantId) {
+        CandidateProfile profile = candidateProfileRepository
+                .findByUserIdAndTenantId(userId, tenantId)
+                .orElseThrow(() -> new ProfileNotFoundException("Profile not found"));
+
+        profile.setConsentRecorded(true);
+        profile.setConsentTimestamp(java.time.LocalDateTime.now());
+        candidateProfileRepository.save(profile);
+        log.info("Consent recorded for userId={} at {}", userId, profile.getConsentTimestamp());
+    }
+
     // ── Private helpers ──────────────────────────────────────────────────────
 
     private CandidateProfileResponse toResponse(CandidateProfile profile) {

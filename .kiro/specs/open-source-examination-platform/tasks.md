@@ -55,7 +55,7 @@ All services are stateless Spring Boot applications; persistent state lives in P
     - _Requirements: 1.3_
   - [~] 3.4 Implement face verification: compare submitted photograph embedding against identity document photograph; reject and set `faceVerificationStatus=FAILED` when similarity score is below configured threshold
     - _Requirements: 1.4_
-  - [~] 3.5 Implement consent recording: Angular form presents plain-language consent notice before biometric data collection; persist `consentRecorded=true` and `consentTimestamp` on explicit acceptance
+  - [x] 3.5 Implement consent recording: Angular form presents plain-language consent notice before biometric data collection; persist `consentRecorded=true` and `consentTimestamp` on explicit acceptance
     - _Requirements: 25.3_
   - [~] 3.6 Publish audit event to Kafka `exam.audit.events` on candidate profile creation
     - _Requirements: 1.7_
@@ -70,7 +70,7 @@ All services are stateless Spring Boot applications; persistent state lives in P
     - _Requirements: 4.1, 4.5, 19.6_
   - [x] 4.2 Implement question creation `POST /api/v1/questions`: validate required metadata (subject, topic, subtopic, chapter, difficulty, cognitiveLevel, questionType); enforce supported question types (Single_MCQ, Multi_MCQ, Numerical, Descriptive, Matrix_Match, Assertion_Reason, Coding, Case_Study); persist in Draft state; encrypt content fields with per-question DEK; accept rich content types (HTML5, SVG, PNG, JPEG, WEBP, Audio, Video, LaTeX, MathML)
     - _Requirements: 4.1, 4.2, 4.3, 4.5_
-  - [~] 4.3 Implement question versioning: on every update to question content/metadata, create a `QuestionVersion` record with `authorId`, `changedAt`, JSON diff of modified fields, and encrypted full snapshot; expose `GET /api/v1/questions/{id}/versions`
+  - [x] 4.3 Implement question versioning: on every update to question content/metadata, create a `QuestionVersion` record with `authorId`, `changedAt`, JSON diff of modified fields, and encrypted full snapshot; expose `GET /api/v1/questions/{id}/versions`
     - _Requirements: 4.4_
   - [~] 4.4 Implement question lifecycle FSM: enforce valid transitions (DRAFT→REVIEW, REVIEW→APPROVED, REVIEW→DRAFT, APPROVED→PUBLISHED, PUBLISHED→ARCHIVED) via `POST /api/v1/questions/{id}/transition`; reject any transition not in `VALID_TRANSITIONS` with HTTP 422; enforce four-eyes principle (reviewer ≠ approver)
     - _Requirements: 4.6, 5.5_
@@ -120,7 +120,7 @@ All services are stateless Spring Boot applications; persistent state lives in P
 - [ ] 7. Paper Generator — blueprint-driven assembly, encryption, serialization
   - [x] 7.1 Scaffold `backend/paper-generator` Spring Boot project: configure JPA with `paper_generator` schema; configure `VaultCryptoService` for per-shift AES-256 paper encryption; configure async Kafka consumer for paper generation request jobs
     - _Requirements: 8.7_
-  - [~] 7.2 Implement blueprint-driven paper assembly: `POST /api/v1/papers/generate` submits async job; worker selects questions from Question Bank satisfying subject/topic/difficulty/cognitive ratios; enforces all active reuse policies; attaches difficulty score, topic distribution report, and similarity report
+  - [x] 7.2 Implement blueprint-driven paper assembly: `POST /api/v1/papers/generate` submits async job; worker selects questions from Question Bank satisfying subject/topic/difficulty/cognitive ratios; enforces all active reuse policies; attaches difficulty score, topic distribution report, and similarity report
     - _Requirements: 8.1, 8.2, 8.3, 8.4_
   - [ ]* 7.3 Write property test for blueprint constraint satisfaction
     - **Property 1: Blueprint Constraint Satisfaction**
@@ -156,7 +156,7 @@ All services are stateless Spring Boot applications; persistent state lives in P
 - [ ] 9. Delivery Service — session start, question serving, navigation, proctoring, offline
   - [x] 9.1 Scaffold `backend/delivery-service` Spring Boot project: configure JPA with `delivery_service` schema; configure Redis for hot exam session state; configure `VaultCryptoService` for shift-key decryption; configure HPA metrics `active_exam_sessions` (target 5,000/pod)
     - _Requirements: 9.1, 19.2_
-  - [~] 9.2 Implement session start: authenticate candidate JWT, look up shift assignment, decrypt shift paper package using HSM-managed shift key (in-memory only), serve first question within 500ms; enforce single concurrent session (Req 2.7)
+  - [x] 9.2 Implement session start: authenticate candidate JWT, look up shift assignment, decrypt shift paper package using HSM-managed shift key (in-memory only), serve first question within 500ms; enforce single concurrent session (Req 2.7)
     - _Requirements: 9.1, 9.3_
   - [~] 9.3 Implement navigation policy enforcement: apply Sequential/Flexible/Restricted rules from exam configuration on every navigation request; reject policy-violating navigation with HTTP 422; support rendering modes One_Question, Section_Mode, Batch_Mode
     - _Requirements: 9.2, 9.5_
@@ -262,11 +262,11 @@ All services are stateless Spring Boot applications; persistent state lives in P
     - _Requirements: 29.1, 29.2, 29.3, 29.4_
   - [~] 15.2 Implement deactivation: immediately invalidate all active sessions via Redis; prevent new authentication via Keycloak; publish audit event on config-parameter change (paramName, oldValue, newValue, actorId, timestamp)
     - _Requirements: 29.3, 29.5_
-  - [~] 15.3 Scaffold `backend/analytics-service` Spring Boot project: consume finalized result data; implement analytics dashboard API `GET /api/v1/analytics/exams/{id}` — total registered/appeared candidates, score distribution histogram, section-wise averages, top/bottom 10th percentile thresholds; implement CSV and PDF export
+  - [x] 15.3 Scaffold `backend/analytics-service` Spring Boot project: consume finalized result data; implement analytics dashboard API `GET /api/v1/analytics/exams/{id}` — total registered/appeared candidates, score distribution histogram, section-wise averages, top/bottom 10th percentile thresholds; implement CSV and PDF export
     - _Requirements: 26.2, 26.3, 26.4_
 
 - [ ] 16. API Gateway and cross-cutting concerns
-  - [~] 16.1 Configure Spring Cloud Gateway: OAuth2 token validation via Keycloak introspection before routing; Redis token-bucket rate limiting (1,000 req/min standard, configurable for partners); WAF/ModSecurity integration; request sanitization (strip dangerous headers, validate Content-Type); TLS 1.3 termination at ingress; common response envelope middleware; `X-Request-Id` / `X-Tenant-Id` header propagation
+  - [x] 16.1 Configure Spring Cloud Gateway: OAuth2 token validation via Keycloak introspection before routing; Redis token-bucket rate limiting (1,000 req/min standard, configurable for partners); WAF/ModSecurity integration; request sanitization (strip dangerous headers, validate Content-Type); TLS 1.3 termination at ingress; common response envelope middleware; `X-Request-Id` / `X-Tenant-Id` header propagation
     - _Requirements: 17.2, 17.5, 23.3, 23.5, 23.6_
   - [~] 16.2 Configure Spring Cloud Gateway DDoS mitigation: alert and absorb when inbound request rate exceeds 10,000 req/s from single origin; publish security alert to Kafka `exam.audit.events` and `exam.notifications.outbound` within 60 seconds
     - _Requirements: 17.3, 17.7_

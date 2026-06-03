@@ -1,6 +1,7 @@
 package com.examplatform.candidate.controller;
 
 import com.examplatform.candidate.dto.CandidateProfileResponse;
+import com.examplatform.candidate.dto.ConsentRequest;
 import com.examplatform.candidate.dto.CreateCandidateProfileRequest;
 import com.examplatform.candidate.dto.UpdateCandidateProfileRequest;
 import com.examplatform.candidate.service.CandidateProfileService;
@@ -92,6 +93,26 @@ public class CandidateProfileController {
         String tenantId = TenantContext.get();
         candidateProfileService.erasePii(userId, tenantId);
         return ResponseEntity.noContent().build();
+    }
+
+    /**
+     * Record explicit consent before biometric data collection. Requires CANDIDATE role.
+     *
+     * Validates: Requirements 25.3
+     */
+    @PostMapping("/{userId}/consent")
+    @PreAuthorize("hasRole('CANDIDATE')")
+    public ResponseEntity<Void> recordConsent(
+            @PathVariable UUID userId,
+            @Valid @RequestBody ConsentRequest request,
+            @AuthenticationPrincipal Jwt jwt) {
+        if (!request.isConsentGiven()) {
+            return ResponseEntity.badRequest().build();
+        }
+        enforceOwnership(userId, jwt);
+        String tenantId = TenantContext.get();
+        candidateProfileService.recordConsent(userId, tenantId);
+        return ResponseEntity.ok().build();
     }
 
     // ── Private helpers ──────────────────────────────────────────────────────
