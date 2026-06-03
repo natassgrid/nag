@@ -23,9 +23,9 @@ class HashingServiceTest {
         @Test
         @DisplayName("known input produces expected hex")
         void knownInput() {
-            // SHA-256("abc") = ba7816bf8f01cfea414140de5dae2ec73b00361bbef0469348423f656d6cacc0
+            // SHA-256("abc") = ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad
             assertThat(hashingService.sha256("abc"))
-                    .isEqualTo("ba7816bf8f01cfea414140de5dae2ec73b00361bbef0469348423f656d6cacc0");
+                    .isEqualTo("ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad");
         }
 
         @Test

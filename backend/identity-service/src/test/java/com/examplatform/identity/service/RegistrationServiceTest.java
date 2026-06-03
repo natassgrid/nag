@@ -14,6 +14,9 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.test.util.ReflectionTestUtils;
+
+import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -70,6 +73,7 @@ class RegistrationServiceTest {
 
             UserAccount saved = UserAccount.builder().build();
             saved.setTenantId("default");
+            ReflectionTestUtils.setField(saved, "id", UUID.randomUUID());
             when(userAccountRepository.save(any())).thenReturn(saved);
 
             // when
@@ -142,6 +146,7 @@ class RegistrationServiceTest {
 
             UserAccount saved = UserAccount.builder().build();
             saved.setTenantId("default");
+            ReflectionTestUtils.setField(saved, "id", UUID.randomUUID());
             when(userAccountRepository.save(any())).thenReturn(saved);
 
             RegistrationResponse response = registrationService.register(req, "default");
@@ -170,11 +175,12 @@ class RegistrationServiceTest {
 
             UserAccount saved = UserAccount.builder().build();
             saved.setTenantId("default");
+            ReflectionTestUtils.setField(saved, "id", UUID.randomUUID());
             when(userAccountRepository.save(any())).thenReturn(saved);
 
             RegistrationResponse response = registrationService.register(req, "default");
 
-            // userId is null because saved.getId() is null in test (no @PrePersist in unit test)
+            // userId is set because we assigned an id via ReflectionTestUtils
             assertAll(
                     () -> assertThat(response.getMessage()).contains("OTP"),
                     () -> verify(userAccountRepository).save(any())

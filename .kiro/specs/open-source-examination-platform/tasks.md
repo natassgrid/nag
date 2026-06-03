@@ -149,7 +149,7 @@ All services are stateless Spring Boot applications; persistent state lives in P
   - [x] 7.11 Publish audit events to Kafka `exam.audit.events` on paper generation and paper approval
     - _Requirements: 8.8_
 
-- [~] 8. Checkpoint — core domain services
+- [x] 8. Checkpoint — core domain services
   - Ensure all unit and property tests pass for services 2–7 before proceeding. Ask the user if questions arise.
 
 
@@ -276,45 +276,45 @@ All services are stateless Spring Boot applications; persistent state lives in P
     - _Requirements: design error-handling_
 
 
-- [ ] 17. Angular SPA — candidate-facing UI, accessibility, in-app notifications
-  - [~] 17.1 Scaffold `frontend/` Angular 17+ project: configure Angular Material, WCAG 2.2 AA baseline, Angular Router with role-based guards, HTTP interceptor for JWT + `X-Request-Id` + `Accept-Language` headers, axe-core integration for automated accessibility scanning
+- [x] 17. Angular SPA — candidate-facing UI, accessibility, in-app notifications
+  - [x] 17.1 Scaffold `frontend/` Angular 17+ project: configure Angular Material, WCAG 2.2 AA baseline, Angular Router with role-based guards, HTTP interceptor for JWT + `X-Request-Id` + `Accept-Language` headers, axe-core integration for automated accessibility scanning
     - _Requirements: 22.1, 22.2, 22.3_
-  - [~] 17.2 Implement candidate registration, OTP verification, and login pages: form validation, WebAuthn option, MFA OTP input, error display; high-contrast mode toggle (WCAG AA 4.5:1 contrast); keyboard navigation (Tab/Shift+Tab/Enter/Space/Arrow); screen reader ARIA labels for all dynamic content
+  - [x] 17.2 Implement candidate registration, OTP verification, and login pages: form validation, WebAuthn option, MFA OTP input, error display; high-contrast mode toggle (WCAG AA 4.5:1 contrast); keyboard navigation (Tab/Shift+Tab/Enter/Space/Arrow); screen reader ARIA labels for all dynamic content
     - _Requirements: 22.1, 22.2, 22.3, 22.4, 22.5_
-  - [~] 17.3 Implement exam delivery UI: question rendering for all types (HTML5, SVG, LaTeX/MathML via MathJax/KaTeX, PNG/JPEG/WEBP, Audio/Video) without plugins; full-screen locked mode (disable clipboard, devtools, print); 5-minute warning countdown + auto-submit on timer zero; offline response buffering in IndexedDB + reconciliation on reconnect
+  - [x] 17.3 Implement exam delivery UI: question rendering for all types (HTML5, SVG, LaTeX/MathML via MathJax/KaTeX, PNG/JPEG/WEBP, Audio/Video) without plugins; full-screen locked mode (disable clipboard, devtools, print); 5-minute warning countdown + auto-submit on timer zero; offline response buffering in IndexedDB + reconciliation on reconnect
     - _Requirements: 9.4, 9.6, 9.8, 10.4_
-  - [~] 17.4 Implement navigation UI: enforce navigation policy (Sequential/Flexible/Restricted); question palette with status indicators (answered/unanswered/flagged); review-flag toggle; section switcher where policy allows; all interactions keyboard-accessible with ARIA live regions for state changes
+  - [x] 17.4 Implement navigation UI: enforce navigation policy (Sequential/Flexible/Restricted); question palette with status indicators (answered/unanswered/flagged); review-flag toggle; section switcher where policy allows; all interactions keyboard-accessible with ARIA live regions for state changes
     - _Requirements: 9.2, 9.5, 22.2, 22.3_
-  - [~] 17.5 Implement candidate result page: scorecard display with subject/topic breakdown; PDF download link (password: DOB + candidateId); in-app notification panel (SSE/WebSocket); all pages responsive at minimum 320px width without horizontal scroll
+  - [x] 17.5 Implement candidate result page: scorecard display with subject/topic breakdown; PDF download link (password: DOB + candidateId); in-app notification panel (SSE/WebSocket); all pages responsive at minimum 320px width without horizontal scroll
     - _Requirements: 13.3, 14.3, 22.5_
-  - [~] 17.6 Implement Super_Admin console pages: user management (create/update/deactivate/list); exam analytics dashboard (histogram, section averages, percentile thresholds); CSV/PDF report export
+  - [x] 17.6 Implement Super_Admin console pages: user management (create/update/deactivate/list); exam analytics dashboard (histogram, section averages, percentile thresholds); CSV/PDF report export
     - _Requirements: 29.1, 26.2, 26.3_
   - [ ]* 17.7 Write axe-core automated WCAG 2.2 AA scan tests for all exam-facing Angular routes (login, profile, exam instructions, question delivery, result)
     - _Requirements: 22.1_
 
-- [~] 18. Checkpoint — full feature integration
+- [x] 18. Checkpoint — full feature integration
   - Ensure all unit, property, and integration tests pass. Verify Kafka RPO=0 for response capture. Ask the user if questions arise.
 
 
-- [ ] 19. Observability, DevSecOps pipeline, and infrastructure configuration
-  - [~] 19.1 Instrument all services with OpenTelemetry Java agent: emit structured JSON logs (service, traceId, spanId, method, path, status, responseTimeMs, masked userId); expose `/actuator/prometheus` with standard + domain-specific metrics; propagate W3C TraceContext through Kafka headers and HTTP calls; retain metrics ≥90 days, logs ≥365 days
+- [x] 19. Observability, DevSecOps pipeline, and infrastructure configuration
+  - [x] 19.1 Instrument all services with OpenTelemetry Java agent: emit structured JSON logs (service, traceId, spanId, method, path, status, responseTimeMs, masked userId); expose `/actuator/prometheus` with standard + domain-specific metrics; propagate W3C TraceContext through Kafka headers and HTTP calls; retain metrics ≥90 days, logs ≥365 days
     - _Requirements: 21.1, 21.2, 21.3, 21.6_
-  - [~] 19.2 Create pre-built Grafana dashboards (6 dashboards) for: Exam Operations, Authentication, Question Bank, Paper Generation, Proctoring, Infrastructure; configure alerting rule triggering within 2 minutes when error rate > 1% over 5-minute window
+  - [x] 19.2 Create pre-built Grafana dashboards (6 dashboards) for: Exam Operations, Authentication, Question Bank, Paper Generation, Proctoring, Infrastructure; configure alerting rule triggering within 2 minutes when error rate > 1% over 5-minute window
     - _Requirements: 21.4, 21.5_
-  - [~] 19.3 Configure PostgreSQL 16 partitioning: create all partition tables and indexes for `response`, `audit_event`, and `question` tables as defined in the schema design; configure Patroni HA with synchronous standby and PITR with WAL archival every 60 seconds; configure PgBouncer transaction-mode pooling per service
+  - [x] 19.3 Configure PostgreSQL 16 partitioning: create all partition tables and indexes for `response`, `audit_event`, and `question` tables as defined in the schema design; configure Patroni HA with synchronous standby and PITR with WAL archival every 60 seconds; configure PgBouncer transaction-mode pooling per service
     - _Requirements: 19.6, 20.3, 20.5_
-  - [~] 19.4 Configure Kafka cluster: 3+ brokers, replication factor 3, `min.insync.replicas=2`, `acks=all` on all producer configs; create all Kafka topics defined in the design; configure consumer groups per service
+  - [x] 19.4 Configure Kafka cluster: 3+ brokers, replication factor 3, `min.insync.replicas=2`, `acks=all` on all producer configs; create all Kafka topics defined in the design; configure consumer groups per service
     - _Requirements: 20.3_
-  - [~] 19.5 Configure Redis Cluster: 3 masters + 3 replicas across 3 AZs; configure Delivery Service and Response Service clients for hot session state; configure API Gateway token-bucket rate limiting via Redis
+  - [x] 19.5 Configure Redis Cluster: 3 masters + 3 replicas across 3 AZs; configure Delivery Service and Response Service clients for hot session state; configure API Gateway token-bucket rate limiting via Redis
     - _Requirements: 19.2_
-  - [~] 19.6 Write Helm chart under `infrastructure/helm/examination-platform/`: one directory per microservice with `deployment.yaml`, `service.yaml`, `hpa.yaml`, `configmap.yaml`; `values.yaml` with all defaults; `values-production.yaml`; HPA for Delivery/Response/Identity/Paper Generator with custom Prometheus metrics; inject all secrets via Sealed Secrets or External Secrets Operator — no plaintext secrets in values
+  - [x] 19.6 Write Helm chart under `infrastructure/helm/examination-platform/`: one directory per microservice with `deployment.yaml`, `service.yaml`, `hpa.yaml`, `configmap.yaml`; `values.yaml` with all defaults; `values-production.yaml`; HPA for Delivery/Response/Identity/Paper Generator with custom Prometheus metrics; inject all secrets via Sealed Secrets or External Secrets Operator — no plaintext secrets in values
     - _Requirements: 24.6_
-  - [~] 19.7 Complete CI/CD pipeline `.github/workflows/ci.yml`: Build → Unit+Integration Tests → SpotBugs SAST → OWASP Dependency-Check → Semgrep → Docker build + Trivy image scan → OWASP ZAP DAST on staging → Helm upgrade --atomic; block PR merge on HIGH-severity SAST finding; create issue on DAST OWASP Top 10 finding; tag images with commit SHA + semver
+  - [x] 19.7 Complete CI/CD pipeline `.github/workflows/ci.yml`: Build → Unit+Integration Tests → SpotBugs SAST → OWASP Dependency-Check → Semgrep → Docker build + Trivy image scan → OWASP ZAP DAST on staging → Helm upgrade --atomic; block PR merge on HIGH-severity SAST finding; create issue on DAST OWASP Top 10 finding; tag images with commit SHA + semver
     - _Requirements: 24.1, 24.2, 24.3, 24.5_
-  - [~] 19.8 Publish OpenAPI 3.0 spec documents for all services at `/api/v1/docs`; enforce API versioning via URL prefix; document ISO 27001 evidence package (asset inventory, risk register, access control records, audit log exports) accessible to Auditor role
+  - [x] 19.8 Publish OpenAPI 3.0 spec documents for all services at `/api/v1/docs`; enforce API versioning via URL prefix; document ISO 27001 evidence package (asset inventory, risk register, access control records, audit log exports) accessible to Auditor role
     - _Requirements: 23.2, 23.3, 25.5_
 
-- [~] 20. Final checkpoint — all tests pass and all services wired
+- [x] 20. Final checkpoint — all tests pass and all services wired
   - Ensure all unit tests, property tests, integration tests, Playwright E2E tests, and accessibility scans pass. Verify Docker Compose single-command startup. Ask the user if questions arise.
 
 
