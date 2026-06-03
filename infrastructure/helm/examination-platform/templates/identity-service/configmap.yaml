@@ -1,0 +1,82 @@
+{{- if .Values.identityService.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "examination-platform.fullname" . }}-identity-service-config
+  labels:
+    app.kubernetes.io/name: identity-service
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/part-of: exam-platform
+data:
+  application-kubernetes.yml: |
+    spring:
+      application:
+        name: identity-service
+      datasource:
+        url: jdbc:postgresql://${DB_HOST:pgbouncer}:${DB_PORT:6432}/identity_service
+        hikari:
+          maximum-pool-size: 20
+          minimum-idle: 5
+      redis:
+        cluster:
+          nodes: ${REDIS_NODES:redis-1:6379,redis-2:6379,redis-3:6379}
+        password: ${REDIS_PASSWORD}
+      kafka:
+        bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:kafka-1:9092,kafka-2:9092,kafka-3:9092}
+        producer:
+          acks: all
+          retries: 3
+      security:
+        oauth2:
+          resourceserver:
+            jwt:
+              jwk-set-uri: ${KEYCLOAK_JWKS_URI}
+    
+    management:
+      endpoints:
+        web:
+          exposure:
+            include: health,info,prometheus
+      metrics:
+        tags:
+          service: identity-service
+          environment: ${SPRING_PROFILES_ACTIVE:kubernetes}
+    
+    # OpenTelemetry
+    otel:
+      exporter:
+        otlp:
+          endpoint: ${OTEL_EXPORTER_OTLP_ENDPOINT:http://otel-collector:4317}
+      resource:
+        attributes:
+          service.name: identity-service
+
+---
+apiVersion: external-secrets.io/v1beta1
+kind: ExternalSecret
+metadata:
+  name: {{ include "examination-platform.fullname" . }}-identity-service-secrets
+  labels:
+    app.kubernetes.io/name: identity-service
+    app.kubernetes.io/instance: {{ .Release.Name }}
+spec:
+  refreshInterval: {{ .Values.externalSecrets.refreshInterval }}
+  secretStoreRef:
+    name: {{ .Values.externalSecrets.secretStoreRef.name }}
+    kind: {{ .Values.externalSecrets.secretStoreRef.kind }}
+  target:
+    name: {{ include "examination-platform.fullname" . }}-identity-service-secrets
+  data:
+    - secretKey: DB_PASSWORD
+      remoteRef:
+        key: exam-platform/identity-service/db-password
+    - secretKey: REDIS_PASSWORD
+      remoteRef:
+        key: exam-platform/shared/redis-password
+    - secretKey: KEYCLOAK_CLIENT_SECRET
+      remoteRef:
+        key: exam-platform/identity-service/keycloak-secret
+    - secretKey: VAULT_TOKEN
+      remoteRef:
+        key: exam-platform/shared/vault-token
+{{- end }}

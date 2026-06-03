@@ -1,0 +1,68 @@
+{{- if .Values.identityService.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "examination-platform.fullname" . }}-identity-service
+  labels:
+    app.kubernetes.io/name: identity-service
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/part-of: exam-platform
+    app.kubernetes.io/component: backend
+spec:
+  replicas: {{ .Values.identityService.replicas | default .Values.defaults.replicas }}
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: identity-service
+      app.kubernetes.io/instance: {{ .Release.Name }}
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: identity-service
+        app.kubernetes.io/instance: {{ .Release.Name }}
+        app.kubernetes.io/part-of: exam-platform
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/path: /actuator/prometheus
+        prometheus.io/port: "{{ .Values.identityService.managementPort }}"
+    spec:
+      serviceAccountName: {{ include "examination-platform.fullname" . }}-identity-service
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        fsGroup: 1000
+      containers:
+        - name: identity-service
+          image: "{{ .Values.global.image.registry }}/{{ .Values.identityService.image.name }}:{{ .Values.global.image.tag }}"
+          imagePullPolicy: {{ .Values.global.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: {{ .Values.identityService.port }}
+              protocol: TCP
+            - name: management
+              containerPort: {{ .Values.identityService.managementPort }}
+              protocol: TCP
+          env:
+            {{- range $key, $value := .Values.identityService.env }}
+            - name: {{ $key }}
+              value: {{ $value | quote }}
+            {{- end }}
+            - name: JAVA_OPTS
+              value: {{ .Values.defaults.javaOpts | quote }}
+          envFrom:
+            - secretRef:
+                name: {{ include "examination-platform.fullname" . }}-identity-service-secrets
+          resources:
+            {{- toYaml (.Values.identityService.resources | default .Values.defaults.resources) | nindent 12 }}
+          livenessProbe:
+            {{- toYaml .Values.defaults.livenessProbe | nindent 12 }}
+          readinessProbe:
+            {{- toYaml .Values.defaults.readinessProbe | nindent 12 }}
+          volumeMounts:
+            - name: config
+              mountPath: /app/config
+              readOnly: true
+      volumes:
+        - name: config
+          configMap:
+            name: {{ include "examination-platform.fullname" . }}-identity-service-config
+{{- end }}

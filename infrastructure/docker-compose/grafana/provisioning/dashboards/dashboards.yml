@@ -1,0 +1,19 @@
+# =============================================================================
+# Grafana Dashboard Provider Configuration
+# Open Source Government Examination Platform
+# Requirements: 21.4
+# =============================================================================
+apiVersion: 1
+
+providers:
+  - name: 'exam-platform'
+    orgId: 1
+    folder: 'Examination Platform'
+    type: file
+    disableDeletion: false
+    editable: true
+    updateIntervalSeconds: 30
+    allowUiUpdates: true
+    options:
+      path: /etc/grafana/provisioning/dashboards
+      foldersFromFilesStructure: false

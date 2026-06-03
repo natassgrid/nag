@@ -1,0 +1,30 @@
+apiVersion: v2
+name: examination-platform
+description: Open Source Government Examination Platform — Helm chart for Kubernetes deployment
+type: application
+version: 1.0.0
+appVersion: "1.0.0"
+keywords:
+  - examination
+  - government
+  - microservices
+  - spring-boot
+maintainers:
+  - name: Exam Platform Team
+    url: https://github.com/exam-platform
+home: https://github.com/exam-platform/examination-platform
+sources:
+  - https://github.com/exam-platform/examination-platform
+dependencies:
+  - name: postgresql
+    version: "15.x.x"
+    repository: https://charts.bitnami.com/bitnami
+    condition: postgresql.enabled
+  - name: kafka
+    version: "28.x.x"
+    repository: https://charts.bitnami.com/bitnami
+    condition: kafka.enabled
+  - name: redis-cluster
+    version: "10.x.x"
+    repository: https://charts.bitnami.com/bitnami
+    condition: redis-cluster.enabled

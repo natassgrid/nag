@@ -1,0 +1,320 @@
+# =============================================================================
+# Default Values — Open Source Government Examination Platform
+# Requirements: 24.6
+# All secrets injected via External Secrets Operator — no plaintext secrets here
+# =============================================================================
+
+global:
+  image:
+    registry: ghcr.io/exam-platform
+    tag: latest
+    pullPolicy: IfNotPresent
+  environment: staging
+  namespace: exam-platform
+
+# --- External Secrets Operator ---
+externalSecrets:
+  enabled: true
+  secretStoreRef:
+    name: aws-secretsmanager
+    kind: ClusterSecretStore
+  refreshInterval: 1h
+
+# --- Service Defaults ---
+defaults:
+  replicas: 2
+  resources:
+    requests:
+      cpu: 250m
+      memory: 512Mi
+    limits:
+      cpu: 1000m
+      memory: 1Gi
+  javaOpts: "-XX:+UseZGC -XX:MaxRAMPercentage=75.0 -Djava.security.egd=file:/dev/./urandom"
+  livenessProbe:
+    httpGet:
+      path: /actuator/health/liveness
+      port: management
+    initialDelaySeconds: 30
+    periodSeconds: 10
+    failureThreshold: 3
+  readinessProbe:
+    httpGet:
+      path: /actuator/health/readiness
+      port: management
+    initialDelaySeconds: 15
+    periodSeconds: 5
+    failureThreshold: 3
+
+# --- Identity Service ---
+identityService:
+  enabled: true
+  replicas: 3
+  image:
+    name: identity-service
+  port: 8081
+  managementPort: 8081
+  resources:
+    requests:
+      cpu: 500m
+      memory: 768Mi
+    limits:
+      cpu: 2000m
+      memory: 1536Mi
+  hpa:
+    enabled: true
+    minReplicas: 3
+    maxReplicas: 10
+    metrics:
+      - type: Pods
+        pods:
+          metric:
+            name: http_server_requests_per_second
+          target:
+            type: AverageValue
+            averageValue: "500"
+  env:
+    SPRING_PROFILES_ACTIVE: kubernetes
+    OTEL_SERVICE_NAME: identity-service
+
+# --- Candidate Service ---
+candidateService:
+  enabled: true
+  replicas: 2
+  image:
+    name: candidate-service
+  port: 8082
+  managementPort: 8082
+  env:
+    SPRING_PROFILES_ACTIVE: kubernetes
+    OTEL_SERVICE_NAME: candidate-service
+
+# --- Question Bank Service ---
+questionBankService:
+  enabled: true
+  replicas: 2
+  image:
+    name: question-bank-service
+  port: 8083
+  managementPort: 8083
+  env:
+    SPRING_PROFILES_ACTIVE: kubernetes
+    OTEL_SERVICE_NAME: question-bank-service
+
+# --- Translation Service ---
+translationService:
+  enabled: true
+  replicas: 2
+  image:
+    name: translation-service
+  port: 8084
+  managementPort: 8084
+  env:
+    SPRING_PROFILES_ACTIVE: kubernetes
+    OTEL_SERVICE_NAME: translation-service
+
+# --- Examination Service ---
+examinationService:
+  enabled: true
+  replicas: 2
+  image:
+    name: examination-service
+  port: 8085
+  managementPort: 8085
+  env:
+    SPRING_PROFILES_ACTIVE: kubernetes
+    OTEL_SERVICE_NAME: examination-service
+
+# --- Paper Generator ---
+paperGenerator:
+  enabled: true
+  replicas: 2
+  image:
+    name: paper-generator
+  port: 8086
+  managementPort: 8086
+  resources:
+    requests:
+      cpu: 500m
+      memory: 1Gi
+    limits:
+      cpu: 2000m
+      memory: 2Gi
+  hpa:
+    enabled: true
+    minReplicas: 2
+    maxReplicas: 8
+    metrics:
+      - type: Pods
+        pods:
+          metric:
+            name: exam_platform_paper_generation_queue_size
+          target:
+            type: AverageValue
+            averageValue: "5"
+  env:
+    SPRING_PROFILES_ACTIVE: kubernetes
+    OTEL_SERVICE_NAME: paper-generator
+
+# --- Delivery Service ---
+deliveryService:
+  enabled: true
+  replicas: 3
+  image:
+    name: delivery-service
+  port: 8087
+  managementPort: 8087
+  resources:
+    requests:
+      cpu: 1000m
+      memory: 1Gi
+    limits:
+      cpu: 4000m
+      memory: 2Gi
+  hpa:
+    enabled: true
+    minReplicas: 3
+    maxReplicas: 20
+    metrics:
+      - type: Pods
+        pods:
+          metric:
+            name: exam_platform_active_sessions_total
+          target:
+            type: AverageValue
+            averageValue: "5000"
+  env:
+    SPRING_PROFILES_ACTIVE: kubernetes
+    OTEL_SERVICE_NAME: delivery-service
+
+# --- Response Service ---
+responseService:
+  enabled: true
+  replicas: 3
+  image:
+    name: response-service
+  port: 8088
+  managementPort: 8088
+  resources:
+    requests:
+      cpu: 1000m
+      memory: 1Gi
+    limits:
+      cpu: 4000m
+      memory: 2Gi
+  hpa:
+    enabled: true
+    minReplicas: 3
+    maxReplicas: 20
+    metrics:
+      - type: Pods
+        pods:
+          metric:
+            name: exam_platform_response_save_rate
+          target:
+            type: AverageValue
+            averageValue: "50000"
+  env:
+    SPRING_PROFILES_ACTIVE: kubernetes
+    OTEL_SERVICE_NAME: response-service
+
+# --- Evaluation Service ---
+evaluationService:
+  enabled: true
+  replicas: 2
+  image:
+    name: evaluation-service
+  port: 8089
+  managementPort: 8089
+  env:
+    SPRING_PROFILES_ACTIVE: kubernetes
+    OTEL_SERVICE_NAME: evaluation-service
+
+# --- Result Service ---
+resultService:
+  enabled: true
+  replicas: 2
+  image:
+    name: result-service
+  port: 8090
+  managementPort: 8090
+  env:
+    SPRING_PROFILES_ACTIVE: kubernetes
+    OTEL_SERVICE_NAME: result-service
+
+# --- Audit Service ---
+auditService:
+  enabled: true
+  replicas: 2
+  image:
+    name: audit-service
+  port: 8091
+  managementPort: 8091
+  env:
+    SPRING_PROFILES_ACTIVE: kubernetes
+    OTEL_SERVICE_NAME: audit-service
+
+# --- Notification Service ---
+notificationService:
+  enabled: true
+  replicas: 2
+  image:
+    name: notification-service
+  port: 8092
+  managementPort: 8092
+  env:
+    SPRING_PROFILES_ACTIVE: kubernetes
+    OTEL_SERVICE_NAME: notification-service
+
+# --- Admin Service ---
+adminService:
+  enabled: true
+  replicas: 2
+  image:
+    name: admin-service
+  port: 8093
+  managementPort: 8093
+  env:
+    SPRING_PROFILES_ACTIVE: kubernetes
+    OTEL_SERVICE_NAME: admin-service
+
+# --- Analytics Service ---
+analyticsService:
+  enabled: true
+  replicas: 2
+  image:
+    name: analytics-service
+  port: 8094
+  managementPort: 8094
+  env:
+    SPRING_PROFILES_ACTIVE: kubernetes
+    OTEL_SERVICE_NAME: analytics-service
+
+# --- API Gateway ---
+apiGateway:
+  enabled: true
+  replicas: 3
+  image:
+    name: api-gateway
+  port: 8080
+  managementPort: 8080
+  resources:
+    requests:
+      cpu: 500m
+      memory: 512Mi
+    limits:
+      cpu: 2000m
+      memory: 1Gi
+  env:
+    SPRING_PROFILES_ACTIVE: kubernetes
+    OTEL_SERVICE_NAME: api-gateway
+
+# --- Infrastructure Dependencies (disabled by default — use external managed services) ---
+postgresql:
+  enabled: false
+
+kafka:
+  enabled: false
+
+redis-cluster:
+  enabled: false

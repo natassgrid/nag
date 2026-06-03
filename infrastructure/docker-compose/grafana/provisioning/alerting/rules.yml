@@ -1,0 +1,80 @@
+# =============================================================================
+# Grafana Alerting Rules
+# Open Source Government Examination Platform
+# Requirements: 21.5 — Alert within 2 min when error rate > 1% over 5-min window
+# =============================================================================
+apiVersion: 1
+
+groups:
+  - orgId: 1
+    name: exam-platform-alerts
+    folder: Examination Platform
+    interval: 30s
+    rules:
+      - uid: high-error-rate
+        title: "High Error Rate (>1% over 5m)"
+        condition: error_rate_threshold
+        data:
+          - refId: total_requests
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: prometheus
+            model:
+              expr: "sum(rate(http_server_requests_seconds_count[5m]))"
+              intervalMs: 15000
+              maxDataPoints: 20
+          - refId: error_requests
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: prometheus
+            model:
+              expr: "sum(rate(http_server_requests_seconds_count{status=~\"5..\"}[5m]))"
+              intervalMs: 15000
+              maxDataPoints: 20
+          - refId: error_rate_threshold
+            datasourceUid: __expr__
+            model:
+              type: math
+              expression: "$error_requests / $total_requests * 100"
+              conditions:
+                - evaluator:
+                    type: gt
+                    params: [1]
+                  operator:
+                    type: and
+                  reducer:
+                    type: last
+        noDataState: OK
+        execErrState: Alerting
+        for: 2m
+        annotations:
+          summary: "Error rate exceeds 1% threshold"
+          description: "The platform error rate has exceeded 1% over the last 5-minute window. Current rate: {{ $values.error_rate_threshold }}%"
+        labels:
+          severity: critical
+          team: platform-engineering
+
+      - uid: high-response-latency
+        title: "Response Save Latency > 200ms (p99)"
+        condition: latency_threshold
+        data:
+          - refId: latency_threshold
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: prometheus
+            model:
+              expr: "histogram_quantile(0.99, sum(rate(exam_platform_response_save_duration_seconds_bucket[5m])) by (le))"
+              intervalMs: 15000
+              maxDataPoints: 20
+        noDataState: OK
+        execErrState: Alerting
+        for: 2m
+        annotations:
+          summary: "Response save latency exceeds SLA"
+          description: "p99 response save latency exceeds 200ms threshold"
+        labels:
+          severity: warning
+          team: platform-engineering

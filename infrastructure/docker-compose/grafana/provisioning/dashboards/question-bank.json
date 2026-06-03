@@ -1,0 +1,78 @@
+{
+  "dashboard": {
+    "id": null,
+    "uid": "question-bank",
+    "title": "Question Bank",
+    "tags": ["exam-platform", "content"],
+    "timezone": "browser",
+    "refresh": "1m",
+    "schemaVersion": 39,
+    "panels": [
+      {
+        "id": 1,
+        "title": "Question Creation Rate (per hour)",
+        "type": "timeseries",
+        "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
+        "targets": [
+          {
+            "expr": "sum(rate(exam_platform_questions_created_total[1h])) * 3600",
+            "legendFormat": "Questions Created/hr"
+          }
+        ]
+      },
+      {
+        "id": 2,
+        "title": "Review Pipeline Throughput",
+        "type": "timeseries",
+        "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
+        "targets": [
+          {
+            "expr": "sum(rate(exam_platform_questions_reviewed_total[1h])) * 3600",
+            "legendFormat": "Reviewed/hr"
+          },
+          {
+            "expr": "sum(rate(exam_platform_questions_approved_total[1h])) * 3600",
+            "legendFormat": "Approved/hr"
+          }
+        ]
+      },
+      {
+        "id": 3,
+        "title": "Questions by State",
+        "type": "piechart",
+        "gridPos": { "h": 8, "w": 8, "x": 0, "y": 8 },
+        "targets": [
+          {
+            "expr": "sum by (state) (exam_platform_questions_by_state)",
+            "legendFormat": "{{state}}"
+          }
+        ]
+      },
+      {
+        "id": 4,
+        "title": "Similarity Rejections",
+        "type": "stat",
+        "gridPos": { "h": 6, "w": 8, "x": 8, "y": 8 },
+        "targets": [
+          {
+            "expr": "sum(increase(exam_platform_similarity_rejections_total[24h]))",
+            "legendFormat": "Rejections (24h)"
+          }
+        ]
+      },
+      {
+        "id": 5,
+        "title": "Questions Pending Review",
+        "type": "stat",
+        "gridPos": { "h": 6, "w": 8, "x": 16, "y": 8 },
+        "targets": [
+          {
+            "expr": "sum(exam_platform_questions_by_state{state=\"REVIEW\"})",
+            "legendFormat": "Pending Review"
+          }
+        ]
+      }
+    ],
+    "time": { "from": "now-24h", "to": "now" }
+  }
+}

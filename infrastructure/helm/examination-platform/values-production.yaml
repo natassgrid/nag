@@ -1,0 +1,139 @@
+# =============================================================================
+# Production Overrides — Open Source Government Examination Platform
+# Requirements: 24.6
+# Higher replicas, stricter resource limits, production-grade settings
+# =============================================================================
+
+global:
+  environment: production
+  image:
+    pullPolicy: Always
+
+# --- Identity Service ---
+identityService:
+  replicas: 5
+  resources:
+    requests:
+      cpu: 1000m
+      memory: 1Gi
+    limits:
+      cpu: 4000m
+      memory: 2Gi
+  hpa:
+    minReplicas: 5
+    maxReplicas: 20
+
+# --- Delivery Service ---
+deliveryService:
+  replicas: 6
+  resources:
+    requests:
+      cpu: 2000m
+      memory: 2Gi
+    limits:
+      cpu: 8000m
+      memory: 4Gi
+  hpa:
+    minReplicas: 6
+    maxReplicas: 50
+
+# --- Response Service ---
+responseService:
+  replicas: 6
+  resources:
+    requests:
+      cpu: 2000m
+      memory: 2Gi
+    limits:
+      cpu: 8000m
+      memory: 4Gi
+  hpa:
+    minReplicas: 6
+    maxReplicas: 50
+
+# --- Paper Generator ---
+paperGenerator:
+  replicas: 4
+  resources:
+    requests:
+      cpu: 1000m
+      memory: 2Gi
+    limits:
+      cpu: 4000m
+      memory: 4Gi
+  hpa:
+    minReplicas: 4
+    maxReplicas: 16
+
+# --- API Gateway ---
+apiGateway:
+  replicas: 5
+  resources:
+    requests:
+      cpu: 1000m
+      memory: 1Gi
+    limits:
+      cpu: 4000m
+      memory: 2Gi
+
+# --- Evaluation Service ---
+evaluationService:
+  replicas: 4
+  resources:
+    requests:
+      cpu: 500m
+      memory: 1Gi
+    limits:
+      cpu: 2000m
+      memory: 2Gi
+
+# --- Other Services (production baseline) ---
+candidateService:
+  replicas: 3
+  resources:
+    requests:
+      cpu: 500m
+      memory: 768Mi
+    limits:
+      cpu: 2000m
+      memory: 1536Mi
+
+questionBankService:
+  replicas: 3
+  resources:
+    requests:
+      cpu: 500m
+      memory: 768Mi
+    limits:
+      cpu: 2000m
+      memory: 1536Mi
+
+auditService:
+  replicas: 3
+  resources:
+    requests:
+      cpu: 500m
+      memory: 768Mi
+    limits:
+      cpu: 2000m
+      memory: 1536Mi
+
+notificationService:
+  replicas: 3
+  resources:
+    requests:
+      cpu: 250m
+      memory: 512Mi
+    limits:
+      cpu: 1000m
+      memory: 1Gi
+
+resultService:
+  replicas: 3
+  resources:
+    requests:
+      cpu: 500m
+      memory: 1Gi
+    limits:
+      cpu: 2000m
+      memory: 2Gi

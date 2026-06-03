@@ -1,0 +1,82 @@
+# =============================================================================
+# OpenTelemetry Collector Configuration
+# Open Source Government Examination Platform
+# Requirements: 21.1, 21.2, 21.3, 21.6
+# =============================================================================
+
+receivers:
+  otlp:
+    protocols:
+      grpc:
+        endpoint: 0.0.0.0:4317
+      http:
+        endpoint: 0.0.0.0:4318
+
+processors:
+  batch:
+    send_batch_size: 1024
+    send_batch_max_size: 2048
+    timeout: 5s
+
+  memory_limiter:
+    check_interval: 1s
+    limit_mib: 512
+    spike_limit_mib: 128
+
+  attributes:
+    actions:
+      - key: environment
+        value: ${OTEL_ENVIRONMENT:-production}
+        action: upsert
+      - key: platform
+        value: exam-platform
+        action: upsert
+
+exporters:
+  # Jaeger for distributed traces
+  otlp/jaeger:
+    endpoint: ${JAEGER_ENDPOINT:-jaeger:4317}
+    tls:
+      insecure: ${JAEGER_INSECURE:-true}
+
+  # Prometheus for metrics (pull-based)
+  prometheus:
+    endpoint: 0.0.0.0:8889
+    namespace: exam_platform
+    send_timestamps: true
+    metric_expiration: 5m
+    resource_to_telemetry_conversion:
+      enabled: true
+
+  # Logging exporter for debugging (disable in production)
+  logging:
+    verbosity: basic
+    sampling_initial: 5
+    sampling_thereafter: 200
+
+extensions:
+  health_check:
+    endpoint: 0.0.0.0:13133
+
+  zpages:
+    endpoint: 0.0.0.0:55679
+
+service:
+  extensions: [health_check, zpages]
+
+  pipelines:
+    traces:
+      receivers: [otlp]
+      processors: [memory_limiter, batch, attributes]
+      exporters: [otlp/jaeger]
+
+    metrics:
+      receivers: [otlp]
+      processors: [memory_limiter, batch]
+      exporters: [prometheus]
+
+  telemetry:
+    logs:
+      level: info
+    metrics:
+      address: 0.0.0.0:8888

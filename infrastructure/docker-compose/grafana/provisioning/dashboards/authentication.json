@@ -1,0 +1,90 @@
+{
+  "dashboard": {
+    "id": null,
+    "uid": "authentication",
+    "title": "Authentication",
+    "tags": ["exam-platform", "security"],
+    "timezone": "browser",
+    "refresh": "30s",
+    "schemaVersion": 39,
+    "panels": [
+      {
+        "id": 1,
+        "title": "Login Success Rate",
+        "type": "stat",
+        "gridPos": { "h": 6, "w": 6, "x": 0, "y": 0 },
+        "targets": [
+          {
+            "expr": "sum(rate(exam_platform_auth_success_total[5m])) / (sum(rate(exam_platform_auth_success_total[5m])) + sum(rate(exam_platform_auth_failure_total[5m]))) * 100",
+            "legendFormat": "Success %"
+          }
+        ]
+      },
+      {
+        "id": 2,
+        "title": "Login Failures (per minute)",
+        "type": "timeseries",
+        "gridPos": { "h": 8, "w": 12, "x": 0, "y": 6 },
+        "targets": [
+          {
+            "expr": "sum(rate(exam_platform_auth_failure_total[5m])) * 60",
+            "legendFormat": "Failures/min"
+          }
+        ]
+      },
+      {
+        "id": 3,
+        "title": "MFA Usage",
+        "type": "timeseries",
+        "gridPos": { "h": 8, "w": 12, "x": 12, "y": 6 },
+        "targets": [
+          {
+            "expr": "sum(rate(exam_platform_mfa_attempts_total[5m])) * 60",
+            "legendFormat": "MFA Attempts/min"
+          },
+          {
+            "expr": "sum(rate(exam_platform_mfa_success_total[5m])) * 60",
+            "legendFormat": "MFA Success/min"
+          }
+        ]
+      },
+      {
+        "id": 4,
+        "title": "Account Lockouts",
+        "type": "stat",
+        "gridPos": { "h": 6, "w": 6, "x": 6, "y": 0 },
+        "targets": [
+          {
+            "expr": "sum(increase(exam_platform_account_lockouts_total[1h]))",
+            "legendFormat": "Lockouts (1h)"
+          }
+        ]
+      },
+      {
+        "id": 5,
+        "title": "Rate Limited Requests (429)",
+        "type": "timeseries",
+        "gridPos": { "h": 8, "w": 12, "x": 0, "y": 14 },
+        "targets": [
+          {
+            "expr": "sum(rate(exam_platform_rate_limited_total[5m])) * 60",
+            "legendFormat": "Rate Limited/min"
+          }
+        ]
+      },
+      {
+        "id": 6,
+        "title": "Active Sessions",
+        "type": "stat",
+        "gridPos": { "h": 6, "w": 6, "x": 12, "y": 0 },
+        "targets": [
+          {
+            "expr": "sum(exam_platform_active_auth_sessions)",
+            "legendFormat": "Active"
+          }
+        ]
+      }
+    ],
+    "time": { "from": "now-1h", "to": "now" }
+  }
+}
