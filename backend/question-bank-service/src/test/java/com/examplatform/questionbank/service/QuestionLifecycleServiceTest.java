@@ -37,6 +37,9 @@ class QuestionLifecycleServiceTest {
     @Mock
     private QuestionRepository questionRepository;
 
+    @Mock
+    private ReviewWorkflowService reviewWorkflowService;
+
     @InjectMocks
     private QuestionLifecycleService questionLifecycleService;
 

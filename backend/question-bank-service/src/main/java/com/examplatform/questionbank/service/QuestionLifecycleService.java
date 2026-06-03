@@ -45,6 +45,7 @@ public class QuestionLifecycleService {
     );
 
     private final QuestionRepository questionRepository;
+    private final ReviewWorkflowService reviewWorkflowService;
 
     /**
      * Transitions a question to the requested target state.
@@ -94,7 +95,11 @@ public class QuestionLifecycleService {
         log.info("Question transitioned: id={}, from={}, to={}, actor={}, tenant={}",
                 questionId, currentState, targetState, actorId, tenantId);
 
-        // 6. Return response
+        // 6. Trigger review workflow processing
+        reviewWorkflowService.processTransition(saved, currentState, targetState, actorId,
+                request.getComments(), tenantId);
+
+        // 7. Return response
         return toResponse(saved);
     }
 

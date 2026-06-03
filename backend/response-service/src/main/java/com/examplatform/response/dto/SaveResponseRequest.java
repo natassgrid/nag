@@ -59,4 +59,11 @@ public class SaveResponseRequest {
     @NotBlank(message = "saveSource is required")
     @Pattern(regexp = "AUTO|MANUAL|NAVIGATION|OFFLINE", message = "saveSource must be one of: AUTO, MANUAL, NAVIGATION, OFFLINE")
     private String saveSource;
+
+    /**
+     * Client-assigned revision sequence for offline reconciliation.
+     * Used during bulk-save to determine which responses are new vs already persisted.
+     * Optional for regular saves (server auto-increments), required for bulk-save reconciliation.
+     */
+    private Integer revisionSequence;
 }

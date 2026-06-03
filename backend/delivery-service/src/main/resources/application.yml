@@ -115,3 +115,12 @@ otel:
 logging:
   pattern:
     console: '{"timestamp":"%d{ISO8601}","level":"%p","service":"delivery-service","traceId":"%X{traceId}","spanId":"%X{spanId}","message":"%m"}%n'
+
+resilience4j:
+  circuitbreaker:
+    instances:
+      questionBank:
+        sliding-window-size: 10
+        failure-rate-threshold: 50
+        wait-duration-in-open-state: 30s
+        permitted-number-of-calls-in-half-open-state: 3
