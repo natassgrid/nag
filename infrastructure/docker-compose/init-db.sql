@@ -30,10 +30,22 @@ CREATE EXTENSION IF NOT EXISTS vector;
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
 -- Create service-specific roles with least-privilege access
-CREATE ROLE IF NOT EXISTS identity_writer  LOGIN PASSWORD 'identity_pw';
-CREATE ROLE IF NOT EXISTS candidate_writer LOGIN PASSWORD 'candidate_pw';
-CREATE ROLE IF NOT EXISTS question_writer  LOGIN PASSWORD 'question_pw';
-CREATE ROLE IF NOT EXISTS audit_writer_role NOLOGIN;
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'identity_writer') THEN
+        CREATE ROLE identity_writer LOGIN PASSWORD 'identity_pw';
+    END IF;
+    IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'candidate_writer') THEN
+        CREATE ROLE candidate_writer LOGIN PASSWORD 'candidate_pw';
+    END IF;
+    IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'question_writer') THEN
+        CREATE ROLE question_writer LOGIN PASSWORD 'question_pw';
+    END IF;
+    IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'audit_writer_role') THEN
+        CREATE ROLE audit_writer_role NOLOGIN;
+    END IF;
+END
+$$;
 
 -- Grant schema usage
 GRANT USAGE ON SCHEMA identity_service    TO identity_writer;

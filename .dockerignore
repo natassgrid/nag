@@ -1,0 +1,32 @@
+# Git
+.git
+.gitignore
+
+# IDE
+.idea
+.vscode
+*.iml
+
+# Node/Frontend (not needed for backend builds)
+frontend/node_modules
+frontend/dist
+frontend/.angular
+
+# Build outputs (we rebuild inside Docker)
+backend/*/build
+.gradle
+build
+
+# Docker compose files themselves
+infrastructure/docker-compose
+
+# Kiro specs
+.kiro
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Env files (secrets should be passed via env vars)
+.env
+*.env.local
