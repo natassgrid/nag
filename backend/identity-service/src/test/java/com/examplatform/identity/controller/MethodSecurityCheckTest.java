@@ -30,6 +30,11 @@ import org.springframework.http.MediaType;
 @WebMvcTest(controllers = RoleController.class, excludeAutoConfiguration = OAuth2ResourceServerAutoConfiguration.class,
     excludeFilters = @ComponentScan.Filter(type = FilterType.ASSIGNABLE_TYPE, classes = {SecurityConfig.class, RateLimitFilter.class})
 )
+@Import({
+    SecurityConfig.class,
+    RateLimitFilter.class,
+    org.springframework.boot.autoconfigure.aop.AopAutoConfiguration.class
+})
 class MethodSecurityCheckTest {
 
     @Autowired
@@ -39,13 +44,13 @@ class MethodSecurityCheckTest {
     MockMvc mockMvc;
 
     @MockitoBean
-    RateLimitFilter rateLimitFilter;
-
-    @MockitoBean
     com.examplatform.identity.config.AppSecurityProperties appSecurityProperties;
 
     @MockitoBean
     com.examplatform.identity.service.RateLimiterService rateLimiterService;
+
+    @MockitoBean
+    org.springframework.security.oauth2.jwt.JwtDecoder jwtDecoder;
 
     @MockitoBean
     RoleManagementService roleManagementService;
