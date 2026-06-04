@@ -4,7 +4,7 @@ import com.examplatform.admin.client.KeycloakAdminClient;
 import com.examplatform.shared.audit.AuditEventType;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 
@@ -26,7 +26,7 @@ public class UserDeactivationService {
     private static final String SESSION_KEY_PATTERN = "session:*:user:%s";
     private static final String AUDIT_TOPIC = "exam.audit.events";
 
-    private final RedisTemplate<String, Object> redisTemplate;
+    private final StringRedisTemplate redisTemplate;
     private final KeycloakAdminClient keycloakAdminClient;
     private final KafkaTemplate<String, Object> kafkaTemplate;
 

@@ -24,6 +24,7 @@ import java.util.UUID;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.atLeast;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -279,8 +280,8 @@ class PaperAssemblyServiceTest {
         assertThat(savedPaper.getGeneratedBy()).isEqualTo(GENERATED_BY);
         assertThat(savedPaper.getTenantId()).isEqualTo(TENANT_ID);
 
-        // Verify Kafka event was published
-        verify(kafkaTemplate).send(anyString(), anyString(), any());
+        // Verify Kafka events were published (paper event + audit event)
+        verify(kafkaTemplate, atLeast(1)).send(anyString(), anyString(), any());
     }
 
     @Test

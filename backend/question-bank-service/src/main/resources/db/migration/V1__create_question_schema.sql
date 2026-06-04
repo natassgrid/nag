@@ -1,5 +1,8 @@
 CREATE SCHEMA IF NOT EXISTS question_service;
 
+-- Enable pgvector extension (required for similarity search embedding column)
+CREATE EXTENSION IF NOT EXISTS vector;
+
 -- ============================================================
 -- Table: question
 -- ============================================================

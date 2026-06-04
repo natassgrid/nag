@@ -67,7 +67,7 @@ public class RoleController {
     @GetMapping("/{userId}")
     @PreAuthorize("hasRole('SUPER_ADMIN') or #userId.toString() == authentication.name")
     public ResponseEntity<ApiResponse<List<UserRole>>> getRoles(
-            @PathVariable UUID userId,
+            @PathVariable("userId") UUID userId,
             @RequestHeader(value = "X-Tenant-Id", defaultValue = "default") String tenantId) {
         log.debug("Get roles request for user [{}], tenant [{}]", userId, tenantId);
         List<UserRole> roles = roleManagementService.getRoles(userId, tenantId);

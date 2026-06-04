@@ -20,6 +20,8 @@ x-spring-env: &spring-env
   REDIS_PASSWORD: ${REDIS_PASSWORD:-redis_secret}
   KEYCLOAK_ISSUER_URI: http://keycloak:8080/realms/exam-realm
   KEYCLOAK_SERVER_URL: http://keycloak:8080
+  VAULT_ADDR: http://vault:8200
+  VAULT_ROOT_TOKEN: ${VAULT_ROOT_TOKEN:-vault_root_token}
   OTEL_EXPORTER_OTLP_ENDPOINT: http://jaeger:4318
 
 x-depends-base: &depends-base
