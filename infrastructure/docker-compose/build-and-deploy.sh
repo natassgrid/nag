@@ -32,7 +32,7 @@ docker compose -f docker-compose.yml up -d postgres kafka vault keycloak jaeger 
 echo "  Waiting for infrastructure to be healthy..."
 docker compose -f docker-compose.yml up -d --wait postgres kafka vault
 
-# Step 2: Start local registry
+# Step 2: Start local Docker registry
 echo ""
 echo "▶ Starting local Docker registry..."
 docker compose -f docker-compose.yml -f docker-compose.services.yml up -d registry
@@ -44,8 +44,17 @@ if [ -n "$SERVICE" ]; then
     docker compose -f docker-compose.yml -f docker-compose.services.yml build $NO_CACHE "$SERVICE"
     docker compose -f docker-compose.yml -f docker-compose.services.yml up -d "$SERVICE"
 else
-    echo "▶ Building all application services (this may take a few minutes)..."
-    docker compose -f docker-compose.yml -f docker-compose.services.yml build $NO_CACHE
+    echo "▶ Building all application services sequentially (shared Gradle cache)..."
+    SERVICES=(
+        identity-service candidate-service question-bank-service translation-service
+        examination-service paper-generator delivery-service response-service
+        evaluation-service result-service audit-service notification-service
+        admin-service analytics-service api-gateway
+    )
+    for svc in "${SERVICES[@]}"; do
+        echo "  Building $svc..."
+        docker compose -f docker-compose.yml -f docker-compose.services.yml build $NO_CACHE "$svc"
+    done
     echo ""
     echo "▶ Starting all application services..."
     docker compose -f docker-compose.yml -f docker-compose.services.yml up -d
