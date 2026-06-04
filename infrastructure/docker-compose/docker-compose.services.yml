@@ -15,7 +15,8 @@ x-spring-env: &spring-env
   SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-exam_secret}
   SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
   KAFKA_BOOTSTRAP_SERVERS: kafka:9092
-  REDIS_CLUSTER_NODES: redis-node-1:6379,redis-node-2:6380,redis-node-3:6381
+  REDIS_HOST: redis
+  REDIS_PORT: "6379"
   REDIS_PASSWORD: ${REDIS_PASSWORD:-redis_secret}
   KEYCLOAK_ISSUER_URI: http://keycloak:8080/realms/exam-realm
   KEYCLOAK_SERVER_URL: http://keycloak:8080

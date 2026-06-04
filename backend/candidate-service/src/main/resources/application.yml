@@ -30,8 +30,8 @@ spring:
 
   data:
     redis:
-      cluster:
-        nodes: ${REDIS_CLUSTER_NODES:127.0.0.1:6379,127.0.0.1:6380,127.0.0.1:6381}
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
       password: ${REDIS_PASSWORD:redis_secret}
       timeout: 2000ms
 
