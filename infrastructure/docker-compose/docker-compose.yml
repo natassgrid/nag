@@ -295,17 +295,17 @@ services:
         condition: service_healthy
       redis-node-6:
         condition: service_healthy
-    command: >
-      sh -c "redis-cli -a ${REDIS_PASSWORD:-redis_secret}
-        --cluster create
-        ${REDIS_CLUSTER_IP:-127.0.0.1}:6379
-        ${REDIS_CLUSTER_IP:-127.0.0.1}:6380
-        ${REDIS_CLUSTER_IP:-127.0.0.1}:6381
-        ${REDIS_CLUSTER_IP:-127.0.0.1}:6382
-        ${REDIS_CLUSTER_IP:-127.0.0.1}:6383
-        ${REDIS_CLUSTER_IP:-127.0.0.1}:6384
-        --cluster-replicas 1
-        --cluster-yes"
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        redis-cli -a ${REDIS_PASSWORD:-redis_secret} --cluster create \
+          ${REDIS_CLUSTER_IP:-127.0.0.1}:6379 \
+          ${REDIS_CLUSTER_IP:-127.0.0.1}:6380 \
+          ${REDIS_CLUSTER_IP:-127.0.0.1}:6381 \
+          ${REDIS_CLUSTER_IP:-127.0.0.1}:6382 \
+          ${REDIS_CLUSTER_IP:-127.0.0.1}:6383 \
+          ${REDIS_CLUSTER_IP:-127.0.0.1}:6384 \
+          --cluster-replicas 1 --cluster-yes
     networks:
       - exam-network
 

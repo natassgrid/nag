@@ -3,7 +3,6 @@ package com.examplatform.identity.domain;
 import com.examplatform.shared.entity.BaseEntity;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
-import jakarta.persistence.Lob;
 import jakarta.persistence.Table;
 import jakarta.persistence.UniqueConstraint;
 import lombok.AllArgsConstructor;
@@ -33,8 +32,7 @@ public class WebAuthnCredential extends BaseEntity {
     @Column(name = "credential_id", nullable = false, unique = true)
     private String credentialId;
 
-    @Lob
-    @Column(name = "public_key_cose")
+    @Column(name = "public_key_cose", columnDefinition = "bytea")
     private byte[] publicKeyCose;
 
     @Builder.Default
