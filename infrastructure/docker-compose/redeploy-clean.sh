@@ -1,80 +1,155 @@
 #!/bin/bash
 # =============================================================================
-# Clean redeploy — tears down everything, rebuilds, and starts fresh
-# Usage: ./redeploy-clean.sh [--no-cache] [--service <name>]
+# Smart redeploy — only rebuilds services whose code has changed
+# Usage:
+#   ./redeploy-clean.sh                  # Full clean: tear down ALL, rebuild ALL, start ALL
+#   ./redeploy-clean.sh --service <name> # Rebuild and restart ONE service (keeps others running)
+#   ./redeploy-clean.sh --smart          # Only rebuild services with code changes (uses git diff)
+#   ./redeploy-clean.sh --no-cache       # Force rebuild without Docker cache
 # =============================================================================
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 cd "$SCRIPT_DIR"
 
 NO_CACHE=""
 SERVICE=""
+SMART=false
 
 while [[ $# -gt 0 ]]; do
     case $1 in
         --no-cache) NO_CACHE="--no-cache"; shift ;;
         --service) SERVICE="$2"; shift 2 ;;
+        --smart) SMART=true; shift ;;
         *) echo "Unknown option: $1"; exit 1 ;;
     esac
 done
 
 COMPOSE="docker compose -f docker-compose.yml -f docker-compose.services.yml"
 
+ALL_SERVICES=(
+    identity-service candidate-service question-bank-service translation-service
+    examination-service paper-generator delivery-service response-service
+    evaluation-service result-service audit-service notification-service
+    admin-service analytics-service api-gateway
+)
+
+# --- Detect which services have code changes (git-based) ---
+get_changed_services() {
+    local changed=()
+    cd "$PROJECT_ROOT"
+
+    for svc in "${ALL_SERVICES[@]}"; do
+        # Check if service source files changed since last image was built
+        # Compare against the git hash stored in a marker file
+        local marker="/tmp/.exam-build-marker-${svc}"
+        local current_hash
+        current_hash=$(git log -1 --format="%H" -- "backend/${svc}/src" "backend/shared-lib/src" "build.gradle" 2>/dev/null || echo "none")
+
+        if [ -f "$marker" ]; then
+            local last_hash
+            last_hash=$(cat "$marker")
+            if [ "$current_hash" != "$last_hash" ]; then
+                changed+=("$svc")
+            fi
+        else
+            # No marker = never built, needs build
+            changed+=("$svc")
+        fi
+    done
+
+    cd "$SCRIPT_DIR"
+    echo "${changed[@]}"
+}
+
+# --- Mark a service as built (store git hash) ---
+mark_built() {
+    local svc="$1"
+    cd "$PROJECT_ROOT"
+    git log -1 --format="%H" -- "backend/${svc}/src" "backend/shared-lib/src" "build.gradle" 2>/dev/null > "/tmp/.exam-build-marker-${svc}"
+    cd "$SCRIPT_DIR"
+}
+
 echo "============================================="
-echo "  Exam Platform — Clean Redeploy"
+echo "  Exam Platform — Redeploy"
 echo "============================================="
 
-# Step 1: Stop and remove all containers + volumes
+# --- Single service mode ---
+if [ -n "$SERVICE" ]; then
+    echo ""
+    echo "▶ Rebuilding service: $SERVICE"
+    $COMPOSE build $NO_CACHE "$SERVICE"
+    echo ""
+    echo "▶ Restarting service: $SERVICE"
+    $COMPOSE up -d --force-recreate "$SERVICE"
+    mark_built "$SERVICE"
+    echo ""
+    echo "✓ $SERVICE redeployed."
+    exit 0
+fi
+
+# --- Smart mode: only rebuild changed services ---
+if [ "$SMART" = true ]; then
+    echo ""
+    echo "▶ Detecting changed services..."
+    CHANGED=($(get_changed_services))
+
+    if [ ${#CHANGED[@]} -eq 0 ]; then
+        echo "  No code changes detected. Nothing to rebuild."
+        exit 0
+    fi
+
+    echo "  Changed: ${CHANGED[*]}"
+    echo ""
+
+    for svc in "${CHANGED[@]}"; do
+        echo "▶ Building $svc..."
+        $COMPOSE build $NO_CACHE "$svc"
+        mark_built "$svc"
+    done
+
+    echo ""
+    echo "▶ Restarting changed services..."
+    $COMPOSE up -d --force-recreate "${CHANGED[@]}"
+
+    echo ""
+    echo "============================================="
+    echo "  ✓ Smart redeploy complete (${#CHANGED[@]} services rebuilt)"
+    echo "============================================="
+    exit 0
+fi
+
+# --- Full clean mode ---
 echo ""
 echo "▶ Stopping all containers and removing volumes..."
 $COMPOSE down -v --remove-orphans 2>/dev/null || true
 
-# Step 2: Remove dangling images from previous builds
 echo ""
 echo "▶ Pruning old images..."
 docker image prune -f 2>/dev/null || true
 
-# Step 3: Start infrastructure
 echo ""
-echo "▶ Starting infrastructure (postgres, kafka, redis, vault, keycloak, jaeger, prometheus, grafana)..."
+echo "▶ Starting infrastructure..."
 docker compose -f docker-compose.yml up -d
 echo "  Waiting for infrastructure to be healthy..."
 docker compose -f docker-compose.yml up --wait -d postgres kafka vault
 
-# Step 4: Build services
 echo ""
-if [ -n "$SERVICE" ]; then
-    echo "▶ Building service: $SERVICE"
-    $COMPOSE build $NO_CACHE "$SERVICE"
-else
-    echo "▶ Building all services sequentially..."
-    SERVICES=(
-        identity-service candidate-service question-bank-service translation-service
-        examination-service paper-generator delivery-service response-service
-        evaluation-service result-service audit-service notification-service
-        admin-service analytics-service api-gateway
-    )
-    for svc in "${SERVICES[@]}"; do
-        echo "  Building $svc..."
-        $COMPOSE build $NO_CACHE "$svc"
-    done
-fi
+echo "▶ Building all services sequentially..."
+for svc in "${ALL_SERVICES[@]}"; do
+    echo "  Building $svc..."
+    $COMPOSE build $NO_CACHE "$svc"
+    mark_built "$svc"
+done
 
-# Step 5: Start services
 echo ""
-if [ -n "$SERVICE" ]; then
-    echo "▶ Starting service: $SERVICE"
-    $COMPOSE up -d "$SERVICE"
-else
-    echo "▶ Starting all services..."
-    $COMPOSE up -d
-fi
+echo "▶ Starting all services..."
+$COMPOSE up -d
 
-# Step 6: Show status
 echo ""
 echo "============================================="
-echo "  ✓ Clean redeploy complete!"
+echo "  ✓ Full clean redeploy complete!"
 echo "============================================="
 echo ""
 $COMPOSE ps --format "table {{.Name}}\t{{.Status}}\t{{.Ports}}" 2>/dev/null || $COMPOSE ps

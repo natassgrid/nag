@@ -23,9 +23,6 @@ CREATE SCHEMA IF NOT EXISTS analytics_service;
 -- Schema for Keycloak (used when KC_DB_SCHEMA=keycloak is set)
 CREATE SCHEMA IF NOT EXISTS keycloak;
 
--- Enable pgvector extension (required by question_service for similarity search)
-CREATE EXTENSION IF NOT EXISTS vector;
-
 -- Enable uuid-ossp for UUID generation
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 

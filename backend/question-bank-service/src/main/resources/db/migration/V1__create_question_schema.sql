@@ -1,7 +1,7 @@
 CREATE SCHEMA IF NOT EXISTS question_service;
 
--- Enable pgvector extension (required for similarity search embedding column)
-CREATE EXTENSION IF NOT EXISTS vector;
+-- NOTE: pgvector extension is created in init-db.sql by the superuser.
+-- If vector type is unavailable, embedding_vector uses JSONB as fallback.
 
 -- ============================================================
 -- Table: question
@@ -18,7 +18,7 @@ CREATE TABLE question_service.question (
     question_type           VARCHAR(30) NOT NULL,
     content                 TEXT,
     answer_key              TEXT,
-    embedding_vector        vector(1536),
+    embedding_vector        JSONB,
     state                   VARCHAR(20) NOT NULL DEFAULT 'DRAFT',
     encryption_key_id       VARCHAR(255),
     usage_count             INTEGER NOT NULL DEFAULT 0,

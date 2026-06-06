@@ -368,3 +368,12 @@ All services are stateless Spring Boot applications; persistent state lives in P
   - [ ] 21.6 Implement `DigiLockerClientImpl` in result-service — call DigiLocker push API (`POST /v3/file/push-uri`) to push scorecard PDFs for candidate access.
     - File: `backend/result-service/src/main/java/com/examplatform/result/client/DigiLockerClientImpl.java`
     - _Requirements: 13.5_
+
+- [ ] 22. Re-enable pgvector for similarity search
+  - [ ] 22.1 Switch postgres image back to `pgvector/pgvector:pg16` in docker-compose.yml
+  - [ ] 22.2 Change `embedding_vector` column from `JSONB` back to `vector(1536)` in `V1__create_question_schema.sql`
+  - [ ] 22.3 Update `Question.java` entity field from `String` to `float[]` with `@Column(columnDefinition = "vector(1536)")`
+  - [ ] 22.4 Restore native pgvector cosine distance query (`<=>` operator) in `QuestionRepository.findSimilarPublishedQuestion()`
+  - [ ] 22.5 Add `CREATE EXTENSION IF NOT EXISTS vector;` back to `init-db.sql`
+  - [ ] 22.6 Integrate real embedding API (OpenAI text-embedding-ada-002 or similar) in `SimilarityDetectionService.computeEmbedding()`
+    - _Requirements: 4.7_
