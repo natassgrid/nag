@@ -14,8 +14,10 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 /**
  * Service layer for question CRUD operations.
@@ -90,6 +92,30 @@ public class QuestionService {
     }
 
     /**
+     * Lists questions for a tenant with optional filters.
+     *
+     * @param subject    optional subject filter
+     * @param topic      optional topic filter
+     * @param difficulty optional difficulty filter
+     * @param state      optional state filter
+     * @param tenantId   tenant identifier
+     * @return filtered list of question responses
+     */
+    @Transactional(readOnly = true)
+    public List<QuestionResponse> listQuestions(String subject, String topic, String difficulty,
+                                                String state, String tenantId) {
+        List<Question> questions = questionRepository.findByTenantId(tenantId);
+
+        return questions.stream()
+                .filter(q -> subject == null || subject.isBlank() || subject.equalsIgnoreCase(q.getSubject()))
+                .filter(q -> topic == null || topic.isBlank() || topic.equalsIgnoreCase(q.getTopic()))
+                .filter(q -> difficulty == null || difficulty.isBlank() || difficulty.equalsIgnoreCase(q.getDifficulty()))
+                .filter(q -> state == null || state.isBlank() || state.equalsIgnoreCase(q.getState()))
+                .map(this::toResponse)
+                .collect(Collectors.toList());
+    }
+
+    /**
      * Retrieves a question by its ID.
      *
      * @param questionId the question UUID
@@ -101,6 +127,40 @@ public class QuestionService {
         Question question = questionRepository.findById(questionId)
                 .orElseThrow(() -> new EntityNotFoundException("Question not found: " + questionId));
         return toResponse(question);
+    }
+
+    /**
+     * Submits a DRAFT question for review — transitions state from DRAFT to REVIEW.
+     *
+     * @param questionId the question UUID
+     * @param authorId   UUID of the question author
+     * @param tenantId   tenant identifier
+     * @return the updated question response
+     * @throws EntityNotFoundException   if the question is not found
+     * @throws IllegalStateException     if the question is not in DRAFT state
+     * @throws IllegalArgumentException  if the caller is not the author
+     */
+    public QuestionResponse submitForReview(UUID questionId, UUID authorId, String tenantId) {
+        Question question = questionRepository.findById(questionId)
+                .orElseThrow(() -> new EntityNotFoundException("Question not found: " + questionId));
+
+        if (!question.getAuthorId().equals(authorId)) {
+            throw new IllegalArgumentException("Only the question author can submit for review");
+        }
+
+        if (!"DRAFT".equals(question.getState())) {
+            throw new IllegalStateException("Question must be in DRAFT state to submit for review. Current state: " + question.getState());
+        }
+
+        question.setState("REVIEW");
+        Question saved = questionRepository.save(question);
+
+        log.info("Question submitted for review: id={}, author={}, tenant={}", questionId, authorId, tenantId);
+
+        publishAuditEvent("QUESTION_SUBMITTED_FOR_REVIEW", saved.getId(), authorId, tenantId,
+                Map.of("fromState", "DRAFT", "toState", "REVIEW"));
+
+        return toResponse(saved);
     }
 
     private void publishAuditEvent(String eventType, UUID questionId, UUID actorId,

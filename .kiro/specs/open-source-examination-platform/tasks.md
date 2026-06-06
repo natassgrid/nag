@@ -377,3 +377,29 @@ All services are stateless Spring Boot applications; persistent state lives in P
   - [ ] 22.5 Add `CREATE EXTENSION IF NOT EXISTS vector;` back to `init-db.sql`
   - [ ] 22.6 Integrate real embedding API (OpenAI text-embedding-ada-002 or similar) in `SimilarityDetectionService.computeEmbedding()`
     - _Requirements: 4.7_
+
+- [ ] 23. Frontend UI Implementation (Angular Material minimal theme)
+  - [ ] 23.1 Setup global theme and layout — Material light theme, responsive sidenav shell with toolbar, role-based menu items, logout button
+    - Fix APIs: None (UI only)
+  - [ ] 23.2 Login page — Material card with username/password fields, error snackbar, redirect to dashboard on success
+    - Fix APIs: `/api/v1/identity/auth/token` (already working)
+  - [ ] 23.3 Admin Dashboard — Landing page after login showing role-based cards (Users, Questions, Exams, Results), navigation to sub-pages
+    - Fix APIs: None (static UI, data loaded lazily)
+  - [ ] 23.4 User Management (SUPER_ADMIN) — List users table with paginator, assign/revoke roles dialog
+    - Fix APIs: Add `GET /api/v1/identity/users` endpoint, fix `GET /api/v1/identity/roles/{userId}`
+  - [ ] 23.5 Question Bank (QUESTION_AUTHOR) — List questions table with filters (subject, topic, difficulty, state), create/edit question form with rich text, submit for review
+    - Fix APIs: `GET /api/v1/questions` (add pagination), `POST /api/v1/questions`, `PUT /api/v1/questions/{id}`
+  - [ ] 23.6 Question Review (REVIEWER) — List pending questions, approve/reject with comments
+    - Fix APIs: Add `GET /api/v1/questions?state=REVIEW`, `POST /api/v1/questions/{id}/approve`, `POST /api/v1/questions/{id}/reject`
+  - [ ] 23.7 Exam Management (EXAM_CONTROLLER) — Create exam form (name, duration, marks, sections JSON), list exams, publish exam
+    - Fix APIs: `POST /api/v1/examinations`, `GET /api/v1/examinations`, `PUT /api/v1/examinations/{id}/publish`
+  - [ ] 23.8 Candidate Registration & Profile — Self-registration form, OTP verification, view profile
+    - Fix APIs: `/api/v1/identity/register`, `/api/v1/identity/otp/verify`, `GET /api/v1/candidates/{id}`
+  - [ ] 23.9 Exam Delivery (CANDIDATE) — Timer, question display, option selection, navigation palette, review flag, submit
+    - Fix APIs: `POST /api/v1/sessions/start`, `GET /api/v1/sessions/{id}/questions/{seq}`, `POST /api/v1/responses`
+  - [ ] 23.10 Result View (CANDIDATE) — Score card display, section-wise breakdown, PDF download link
+    - Fix APIs: `GET /api/v1/results/{candidateId}/{examId}`, scorecard PDF endpoint
+  - [ ] 23.11 Analytics Dashboard (EXAM_CONTROLLER) — Charts (score distribution, section averages), CSV export
+    - Fix APIs: `GET /api/v1/analytics/exams/{examId}`
+  - [ ] 23.12 Notifications (all roles) — Bell icon with unread count, dropdown list, mark as read
+    - Fix APIs: `GET /api/v1/notifications`, `PUT /api/v1/notifications/{id}/read`

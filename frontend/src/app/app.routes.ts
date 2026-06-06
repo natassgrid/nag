@@ -13,6 +13,11 @@ export const routes: Routes = [
     loadChildren: () => import('./features/auth/auth.routes').then(m => m.AUTH_ROUTES)
   },
   {
+    path: 'dashboard',
+    loadComponent: () => import('./features/dashboard/dashboard.component').then(m => m.DashboardComponent),
+    canActivate: [authGuard]
+  },
+  {
     path: 'exam',
     loadChildren: () => import('./features/exam/exam.routes').then(m => m.EXAM_ROUTES),
     canActivate: [authGuard]
@@ -26,7 +31,13 @@ export const routes: Routes = [
     path: 'admin',
     loadChildren: () => import('./features/admin/admin.routes').then(m => m.ADMIN_ROUTES),
     canActivate: [authGuard, roleGuard],
-    data: { roles: ['Super_Admin', 'Security_Admin'] }
+    data: { roles: ['SUPER_ADMIN', 'SECURITY_ADMIN'] }
+  },
+  {
+    path: 'questions',
+    loadChildren: () => import('./features/questions/questions.routes').then(m => m.QUESTIONS_ROUTES),
+    canActivate: [authGuard, roleGuard],
+    data: { roles: ['QUESTION_AUTHOR', 'REVIEWER'] }
   },
   {
     path: '**',

@@ -5,10 +5,12 @@ import com.examplatform.identity.dto.AuthTokenResponse;
 import com.examplatform.identity.dto.OtpVerifyRequest;
 import com.examplatform.identity.dto.RegistrationRequest;
 import com.examplatform.identity.dto.RegistrationResponse;
+import com.examplatform.identity.dto.UserAccountResponse;
 import com.examplatform.identity.dto.WebAuthnAssertionRequest;
 import com.examplatform.identity.service.AuthenticationService;
 import com.examplatform.identity.service.OtpVerificationService;
 import com.examplatform.identity.service.RegistrationService;
+import com.examplatform.identity.service.RoleManagementService;
 import com.examplatform.identity.service.WebAuthnService;
 import com.examplatform.shared.response.ApiResponse;
 import jakarta.servlet.http.HttpServletRequest;
@@ -16,11 +18,15 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+
+import java.util.List;
 
 /**
  * REST controller for the Identity Service.
@@ -36,6 +42,22 @@ public class IdentityController {
     private final OtpVerificationService otpVerificationService;
     private final AuthenticationService authenticationService;
     private final WebAuthnService webAuthnService;
+    private final RoleManagementService roleManagementService;
+
+    /**
+     * List all user accounts for the given tenant (admin only).
+     *
+     * @param tenantId tenant identifier from request header
+     * @return list of user accounts with roles
+     */
+    @GetMapping("/users")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'SECURITY_ADMIN')")
+    public ResponseEntity<ApiResponse<List<UserAccountResponse>>> listUsers(
+            @RequestHeader(value = "X-Tenant-Id", defaultValue = "default") String tenantId) {
+        log.debug("List users request received for tenant [{}]", tenantId);
+        List<UserAccountResponse> users = roleManagementService.listAllUsers(tenantId);
+        return ResponseEntity.ok(ApiResponse.success(users, "Users retrieved successfully."));
+    }
 
     /**
      * Initiate candidate registration.

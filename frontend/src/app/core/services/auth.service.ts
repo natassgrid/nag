@@ -67,11 +67,25 @@ export class AuthService {
     if (tokenData && tokenData.accessToken) {
       localStorage.setItem(this.TOKEN_KEY, tokenData.accessToken);
       localStorage.setItem(this.REFRESH_KEY, tokenData.refreshToken);
-      localStorage.setItem(this.USER_KEY, JSON.stringify({
-        roles: tokenData.roles || [],
-        userId: tokenData.userId || ''
-      }));
+
+      // Extract roles and userId from JWT payload
+      const payload = this.decodeJwtPayload(tokenData.accessToken);
+      const roles = payload?.realm_access?.roles || tokenData.roles || [];
+      const userId = payload?.sub || payload?.preferred_username || tokenData.userId || '';
+
+      localStorage.setItem(this.USER_KEY, JSON.stringify({ roles, userId }));
       this.isAuthenticatedSubject.next(true);
+    }
+  }
+
+  private decodeJwtPayload(token: string): any {
+    try {
+      const parts = token.split('.');
+      if (parts.length !== 3) return null;
+      const payload = atob(parts[1].replace(/-/g, '+').replace(/_/g, '/'));
+      return JSON.parse(payload);
+    } catch {
+      return null;
     }
   }
 
