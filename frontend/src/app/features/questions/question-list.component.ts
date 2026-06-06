@@ -14,8 +14,10 @@ import { MatSnackBarModule, MatSnackBar } from '@angular/material/snack-bar';
 import { MatCardModule } from '@angular/material/card';
 import { MatChipsModule } from '@angular/material/chips';
 import { MatTooltipModule } from '@angular/material/tooltip';
+import { MatAutocompleteModule } from '@angular/material/autocomplete';
 import { QuestionService, QuestionResponse, CreateQuestionRequest } from './question.service';
 import { QuestionFormDialogComponent, QuestionFormDialogData } from './question-form-dialog.component';
+import { SubjectTopicService, Subject } from './subject-topic.service';
 
 @Component({
   selector: 'app-question-list',
@@ -35,7 +37,8 @@ import { QuestionFormDialogComponent, QuestionFormDialogData } from './question-
     MatSnackBarModule,
     MatCardModule,
     MatChipsModule,
-    MatTooltipModule
+    MatTooltipModule,
+    MatAutocompleteModule
   ],
   template: `
     <div class="question-list-container">
@@ -48,7 +51,18 @@ import { QuestionFormDialogComponent, QuestionFormDialogData } from './question-
           <div class="filters-row">
             <mat-form-field appearance="outline">
               <mat-label>Subject</mat-label>
-              <input matInput [(ngModel)]="filters.subject" (input)="applyFilters()" />
+              <input matInput [(ngModel)]="filters.subject"
+                     [matAutocomplete]="subjectAuto"
+                     (ngModelChange)="filterSubjects($event)"
+                     (blur)="applyFilters()"
+                     placeholder="Type to search...">
+              <mat-autocomplete #subjectAuto="matAutocomplete" (optionSelected)="applyFilters()">
+                <mat-option value="">All Subjects</mat-option>
+                <mat-option *ngFor="let s of filteredSubjects" [value]="s.name">{{ s.name }}</mat-option>
+              </mat-autocomplete>
+              <button *ngIf="filters.subject" mat-icon-button matSuffix (click)="filters.subject=''; applyFilters()" aria-label="Clear">
+                <mat-icon>close</mat-icon>
+              </button>
             </mat-form-field>
 
             <mat-form-field appearance="outline">
@@ -222,11 +236,28 @@ export class QuestionListComponent implements OnInit {
   constructor(
     private questionService: QuestionService,
     private dialog: MatDialog,
-    private snackBar: MatSnackBar
+    private snackBar: MatSnackBar,
+    private subjectTopicService: SubjectTopicService
   ) {}
 
+  subjects: Subject[] = [];
+  filteredSubjects: Subject[] = [];
+
   ngOnInit(): void {
+    this.loadSubjects();
     this.loadQuestions();
+  }
+
+  loadSubjects(): void {
+    this.subjectTopicService.getSubjects().subscribe(subjects => {
+      this.subjects = subjects;
+      this.filteredSubjects = subjects;
+    });
+  }
+
+  filterSubjects(value: string): void {
+    const filter = (value || '').toLowerCase();
+    this.filteredSubjects = this.subjects.filter(s => s.name.toLowerCase().includes(filter));
   }
 
   ngAfterViewInit(): void {
