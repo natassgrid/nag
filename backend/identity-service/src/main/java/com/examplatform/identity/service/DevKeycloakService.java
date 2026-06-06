@@ -33,14 +33,20 @@ public class DevKeycloakService extends KeycloakService {
 
     @Override
     public AuthTokenResponse getTokens(String username, String password) {
-        log.info("[DEV] Issuing signed dev token for user: {}", username);
+        return getTokens(username, password, null);
+    }
+
+    @Override
+    public AuthTokenResponse getTokens(String username, String password, String userId) {
+        log.info("[DEV] Issuing signed dev token for user: {} (id: {})", username, userId);
 
         long now = System.currentTimeMillis() / 1000;
         long exp = now + 3600;
+        String sub = userId != null ? userId : username;
 
         String header = base64Url("{\"alg\":\"HS256\",\"typ\":\"JWT\"}");
         String payload = base64Url("{" +
-                "\"sub\":\"" + username + "\"," +
+                "\"sub\":\"" + sub + "\"," +
                 "\"preferred_username\":\"" + username + "\"," +
                 "\"iss\":\"exam-platform-dev\"," +
                 "\"aud\":\"exam-backend\"," +

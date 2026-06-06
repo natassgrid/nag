@@ -3,7 +3,13 @@ import { CommonModule } from '@angular/common';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatTooltipModule } from '@angular/material/tooltip';
-import { ExamSection } from '../services/exam.service';
+
+export interface ExamSection {
+  sectionId: string;
+  name: string;
+  questionCount: number;
+  marksPerQuestion: number;
+}
 
 @Component({
   selector: 'app-question-palette',

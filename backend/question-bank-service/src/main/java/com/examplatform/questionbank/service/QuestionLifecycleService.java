@@ -136,6 +136,67 @@ public class QuestionLifecycleService {
         }
     }
 
+    /**
+     * Approves a question in REVIEW state — transitions to APPROVED.
+     *
+     * @param questionId the question UUID
+     * @param reviewerId UUID of the reviewer performing approval
+     * @param tenantId   tenant identifier for access scoping
+     * @return the updated question response
+     * @throws EntityNotFoundException    if the question is not found
+     * @throws InvalidTransitionException if the question is not in REVIEW state
+     */
+    public QuestionResponse approve(UUID questionId, UUID reviewerId, String tenantId) {
+        Question question = questionRepository.findById(questionId)
+                .orElseThrow(() -> new EntityNotFoundException("Question not found: " + questionId));
+
+        if (!"REVIEW".equals(question.getState())) {
+            throw new InvalidTransitionException(question.getState(), "APPROVED");
+        }
+
+        question.setReviewerId(reviewerId);
+        question.setState("APPROVED");
+        Question saved = questionRepository.save(question);
+
+        log.info("Question approved: id={}, reviewer={}, tenant={}", questionId, reviewerId, tenantId);
+
+        publishAuditEvent(questionId, reviewerId, tenantId, "REVIEW", "APPROVED");
+        reviewWorkflowService.processTransition(saved, "REVIEW", "APPROVED", reviewerId, null, tenantId);
+
+        return toResponse(saved);
+    }
+
+    /**
+     * Rejects a question in REVIEW state — transitions back to DRAFT for revision.
+     *
+     * @param questionId the question UUID
+     * @param reviewerId UUID of the reviewer performing rejection
+     * @param comments   reviewer comments explaining the rejection
+     * @param tenantId   tenant identifier for access scoping
+     * @return the updated question response
+     * @throws EntityNotFoundException    if the question is not found
+     * @throws InvalidTransitionException if the question is not in REVIEW state
+     */
+    public QuestionResponse reject(UUID questionId, UUID reviewerId, String comments, String tenantId) {
+        Question question = questionRepository.findById(questionId)
+                .orElseThrow(() -> new EntityNotFoundException("Question not found: " + questionId));
+
+        if (!"REVIEW".equals(question.getState())) {
+            throw new InvalidTransitionException(question.getState(), "DRAFT");
+        }
+
+        question.setReviewerId(reviewerId);
+        question.setState("DRAFT");
+        Question saved = questionRepository.save(question);
+
+        log.info("Question rejected: id={}, reviewer={}, tenant={}, comments={}", questionId, reviewerId, tenantId, comments);
+
+        publishAuditEvent(questionId, reviewerId, tenantId, "REVIEW", "DRAFT");
+        reviewWorkflowService.processTransition(saved, "REVIEW", "DRAFT", reviewerId, comments, tenantId);
+
+        return toResponse(saved);
+    }
+
     private QuestionResponse toResponse(Question question) {
         LocalDateTime createdAt = question.getCreatedAt() != null
                 ? LocalDateTime.ofInstant(question.getCreatedAt(), ZoneOffset.UTC)

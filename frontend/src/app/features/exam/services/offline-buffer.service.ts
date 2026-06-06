@@ -1,9 +1,7 @@
 import { Injectable } from '@angular/core';
-import { ResponseSave } from './exam.service';
+import { ResponsePayload } from './exam.service';
 
-interface BufferedResponse extends ResponseSave {
-  timestamp: number;
-  sessionId: string;
+interface BufferedResponse extends ResponsePayload {
   synced: boolean;
 }
 
@@ -36,13 +34,11 @@ export class OfflineBufferService {
     });
   }
 
-  async bufferResponse(sessionId: string, response: ResponseSave): Promise<void> {
+  async bufferResponse(response: ResponsePayload): Promise<void> {
     if (!this.db) await this.init();
 
     const buffered: BufferedResponse = {
       ...response,
-      sessionId,
-      timestamp: Date.now(),
       synced: false
     };
 

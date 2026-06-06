@@ -18,6 +18,11 @@ export const routes: Routes = [
     canActivate: [authGuard]
   },
   {
+    path: 'profile',
+    loadComponent: () => import('./features/profile/profile.component').then(m => m.ProfileComponent),
+    canActivate: [authGuard]
+  },
+  {
     path: 'exam',
     loadChildren: () => import('./features/exam/exam.routes').then(m => m.EXAM_ROUTES),
     canActivate: [authGuard]
@@ -37,7 +42,18 @@ export const routes: Routes = [
     path: 'questions',
     loadChildren: () => import('./features/questions/questions.routes').then(m => m.QUESTIONS_ROUTES),
     canActivate: [authGuard, roleGuard],
-    data: { roles: ['QUESTION_AUTHOR', 'REVIEWER'] }
+    data: { roles: ['QUESTION_AUTHOR', 'REVIEWER', 'APPROVER'] }
+  },
+  {
+    path: 'analytics',
+    loadComponent: () => import('./features/analytics/analytics-dashboard.component').then(m => m.AnalyticsDashboardComponent),
+    canActivate: [authGuard, roleGuard],
+    data: { roles: ['EXAM_CONTROLLER'] }
+  },
+  {
+    path: 'notifications',
+    loadComponent: () => import('./features/notifications/notification-list.component').then(m => m.NotificationListComponent),
+    canActivate: [authGuard]
   },
   {
     path: '**',

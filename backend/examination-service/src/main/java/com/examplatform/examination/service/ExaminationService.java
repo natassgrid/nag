@@ -43,6 +43,19 @@ public class ExaminationService {
     private final KafkaTemplate<String, Object> kafkaTemplate;
 
     /**
+     * Lists all examinations belonging to the given tenant.
+     */
+    public List<ExaminationResponse> listByTenant(String tenantId) {
+        List<Examination> examinations = examinationRepository.findByTenantId(tenantId);
+        return examinations.stream()
+                .map(exam -> {
+                    List<Section> sections = deserializeSections(exam.getSectionsJson());
+                    return toResponse(exam, sections);
+                })
+                .toList();
+    }
+
+    /**
      * Creates a new examination in DRAFT status.
      * Validates that sum(section.marksPerQuestion × section.questionCount) == totalMarks.
      */

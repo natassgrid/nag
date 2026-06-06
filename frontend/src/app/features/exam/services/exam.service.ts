@@ -1,49 +1,46 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { Observable } from 'rxjs';
+import { Observable, map } from 'rxjs';
+
+// --- Interfaces ---
 
 export interface ExamSession {
   sessionId: string;
-  examId: string;
   examName: string;
   totalQuestions: number;
   durationMinutes: number;
-  scheduledEndAt: string;
-  navigationPolicy: 'Sequential' | 'Flexible' | 'Restricted';
-  sections: ExamSection[];
-}
-
-export interface ExamSection {
-  sectionId: string;
-  name: string;
-  questionCount: number;
-  marksPerQuestion: number;
+  startedAt: string;
 }
 
 export interface Question {
-  questionId: string;
+  id: string;
   sequenceNumber: number;
-  sectionId: string;
-  questionType: string;
   content: string;
-  contentType: 'HTML5' | 'LaTeX' | 'MathML' | 'Image' | 'Audio' | 'Video';
-  options?: QuestionOption[];
-  marks: number;
-  negativeMarks: number;
+  questionType: string; // MCQ, MSQ, NUMERICAL, DESCRIPTIVE
+  options?: { id: string; text: string }[];
 }
 
-export interface QuestionOption {
-  optionId: string;
-  label: string;
-  content: string;
-}
-
-export interface ResponseSave {
+export interface ResponsePayload {
+  sessionId: string;
   questionId: string;
+  candidateId: string;
   selectedOptionIds?: string[];
   enteredValue?: string;
+  timestamp: string;
   cumulativeTimeSpentMs: number;
-  saveSource: 'USER' | 'AUTO_SAVE' | 'NAVIGATION';
+  revisionSequence: number;
+  saveSource: string;
+}
+
+export interface SessionStatus {
+  remainingSeconds: number;
+  answeredCount: number;
+}
+
+interface ApiResponse<T> {
+  data: T;
+  message?: string;
+  status?: string;
 }
 
 @Injectable({ providedIn: 'root' })
@@ -52,29 +49,27 @@ export class ExamService {
 
   constructor(private http: HttpClient) {}
 
-  startSession(shiftId: string): Observable<ExamSession> {
-    return this.http.post<ExamSession>(`${this.baseUrl}/sessions/start`, { shiftId });
+  startSession(data: { shiftId: string; examId: string; candidateId: string }): Observable<ExamSession> {
+    return this.http
+      .post<ApiResponse<ExamSession>>(`${this.baseUrl}/sessions/start`, data)
+      .pipe(map(res => res.data));
   }
 
   getQuestion(sessionId: string, sequenceNumber: number): Observable<Question> {
-    return this.http.get<Question>(`${this.baseUrl}/sessions/${sessionId}/questions/${sequenceNumber}`);
+    return this.http
+      .get<ApiResponse<Question>>(`${this.baseUrl}/sessions/${sessionId}/questions/${sequenceNumber}`)
+      .pipe(map(res => res.data));
   }
 
-  saveResponse(sessionId: string, response: ResponseSave): Observable<{ revisionSequence: number }> {
-    return this.http.post<{ revisionSequence: number }>(
-      `/api/v1/responses/${sessionId}/save`, response
-    );
+  saveResponse(data: ResponsePayload): Observable<any> {
+    return this.http
+      .post<ApiResponse<any>>(`${this.baseUrl}/responses`, data)
+      .pipe(map(res => res.data));
   }
 
-  submitExam(sessionId: string): Observable<{ submittedAt: string }> {
-    return this.http.post<{ submittedAt: string }>(
-      `/api/v1/responses/${sessionId}/submit`, {}
-    );
-  }
-
-  getSessionStatus(sessionId: string): Observable<{ remainingSeconds: number; answeredCount: number }> {
-    return this.http.get<{ remainingSeconds: number; answeredCount: number }>(
-      `${this.baseUrl}/sessions/${sessionId}/status`
-    );
+  getSessionStatus(sessionId: string): Observable<SessionStatus> {
+    return this.http
+      .get<ApiResponse<SessionStatus>>(`${this.baseUrl}/sessions/${sessionId}/status`)
+      .pipe(map(res => res.data));
   }
 }

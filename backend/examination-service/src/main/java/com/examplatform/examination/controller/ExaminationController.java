@@ -3,6 +3,7 @@ package com.examplatform.examination.controller;
 import com.examplatform.examination.dto.CreateExaminationRequest;
 import com.examplatform.examination.dto.ExaminationResponse;
 import com.examplatform.examination.service.ExaminationService;
+import com.examplatform.shared.api.ApiResponse;
 import com.examplatform.shared.tenant.TenantContext;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -10,14 +11,18 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.util.List;
 import java.util.UUID;
 
 /**
@@ -34,15 +39,29 @@ public class ExaminationController {
     private final ExaminationService examinationService;
 
     /**
+     * List all examinations for the current tenant. Requires EXAM_CONTROLLER role.
+     */
+    @GetMapping
+    @PreAuthorize("hasRole('EXAM_CONTROLLER')")
+    public ResponseEntity<ApiResponse<List<ExaminationResponse>>> list(
+            @RequestHeader("X-Tenant-Id") String tenantId,
+            @AuthenticationPrincipal Jwt jwt) {
+        List<ExaminationResponse> responses = examinationService.listByTenant(tenantId);
+        return ResponseEntity.ok(ApiResponse.success(responses, "Examinations retrieved successfully"));
+    }
+
+    /**
      * Create a new examination. Requires EXAM_CONTROLLER role.
      */
     @PostMapping
     @PreAuthorize("hasRole('EXAM_CONTROLLER')")
-    public ResponseEntity<ExaminationResponse> create(
-            @Valid @RequestBody CreateExaminationRequest request) {
-        String tenantId = TenantContext.get();
+    public ResponseEntity<ApiResponse<ExaminationResponse>> create(
+            @RequestHeader("X-Tenant-Id") String tenantId,
+            @Valid @RequestBody CreateExaminationRequest request,
+            @AuthenticationPrincipal Jwt jwt) {
         ExaminationResponse response = examinationService.create(request, tenantId);
-        return ResponseEntity.status(HttpStatus.CREATED).body(response);
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(ApiResponse.success(response, "Examination created successfully"));
     }
 
     /**
@@ -50,12 +69,26 @@ public class ExaminationController {
      */
     @PutMapping("/{examId}")
     @PreAuthorize("hasRole('EXAM_CONTROLLER')")
-    public ResponseEntity<ExaminationResponse> update(
+    public ResponseEntity<ApiResponse<ExaminationResponse>> update(
             @PathVariable UUID examId,
-            @Valid @RequestBody CreateExaminationRequest request) {
-        String tenantId = TenantContext.get();
+            @RequestHeader("X-Tenant-Id") String tenantId,
+            @Valid @RequestBody CreateExaminationRequest request,
+            @AuthenticationPrincipal Jwt jwt) {
         ExaminationResponse response = examinationService.update(examId, request, tenantId);
-        return ResponseEntity.ok(response);
+        return ResponseEntity.ok(ApiResponse.success(response, "Examination updated successfully"));
+    }
+
+    /**
+     * Publish an examination (transition from DRAFT to PUBLISHED). Requires EXAM_CONTROLLER role.
+     */
+    @PutMapping("/{examId}/publish")
+    @PreAuthorize("hasRole('EXAM_CONTROLLER')")
+    public ResponseEntity<ApiResponse<ExaminationResponse>> publish(
+            @PathVariable UUID examId,
+            @RequestHeader("X-Tenant-Id") String tenantId,
+            @AuthenticationPrincipal Jwt jwt) {
+        ExaminationResponse response = examinationService.publish(examId, tenantId);
+        return ResponseEntity.ok(ApiResponse.success(response, "Examination published successfully"));
     }
 
     /**
@@ -63,8 +96,10 @@ public class ExaminationController {
      */
     @GetMapping("/{examId}")
     @PreAuthorize("hasAnyRole('EXAM_CONTROLLER', 'SUPER_ADMIN')")
-    public ResponseEntity<ExaminationResponse> getById(@PathVariable UUID examId) {
+    public ResponseEntity<ApiResponse<ExaminationResponse>> getById(
+            @PathVariable UUID examId,
+            @AuthenticationPrincipal Jwt jwt) {
         ExaminationResponse response = examinationService.getById(examId);
-        return ResponseEntity.ok(response);
+        return ResponseEntity.ok(ApiResponse.success(response, "Examination retrieved successfully"));
     }
 }
