@@ -346,3 +346,34 @@ All services are stateless Spring Boot applications; persistent state lives in P
   ]
 }
 ```
+
+## Future Tasks
+
+- [ ] 21. Implement actual inter-service REST clients (replace stubs)
+  - [ ] 21.1 Implement `QuestionBankClientImpl` in paper-generator service — call question-bank-service REST API (`GET /api/questions/search`) with WebClient, passing subject, topic, difficulty, cognitiveLevel, tenantId as query params. Return `List<QuestionSummary>` from response.
+    - File: `backend/paper-generator/src/main/java/com/examplatform/papergenerator/client/QuestionBankClientImpl.java`
+    - _Requirements: 8.1, 8.3_
+  - [ ] 21.2 Implement `KeycloakAdminClientImpl` in admin-service — call Keycloak Admin REST API (`PUT /admin/realms/{realm}/users/{userId}` with `{"enabled": false}`) using service account credentials. Handle token refresh.
+    - File: `backend/admin-service/src/main/java/com/examplatform/admin/client/KeycloakAdminClientImpl.java`
+    - _Requirements: 2.3, 17.1_
+  - [ ] 21.3 Implement `ShiftAssignmentClientImpl` in delivery-service — call examination-service REST API (`GET /api/shifts/{shiftId}/assignments/{candidateId}`) to retrieve paper assignment, duration, and extra time.
+    - File: `backend/delivery-service/src/main/java/com/examplatform/delivery/client/ShiftAssignmentClientImpl.java`
+    - _Requirements: 9.1, 9.2_
+  - [ ] 21.4 Implement `CandidateProfileClientImpl` in delivery-service — call candidate-service REST API (`GET /api/candidates/{candidateId}/extension`) to retrieve disability accommodations (extra time, scribe support).
+    - File: `backend/delivery-service/src/main/java/com/examplatform/delivery/client/CandidateProfileClientImpl.java`
+    - _Requirements: 9.1, 3.4_
+  - [ ] 21.5 Implement `DigiLockerClientImpl` in candidate-service — call DigiLocker API with OAuth2 token (`GET /v3/file/uri`) to fetch and verify identity documents. Parse XML/JSON response into `DigiLockerResponse`.
+    - File: `backend/candidate-service/src/main/java/com/examplatform/candidate/client/DigiLockerClientImpl.java`
+    - _Requirements: 1.3_
+  - [ ] 21.6 Implement `DigiLockerClientImpl` in result-service — call DigiLocker push API (`POST /v3/file/push-uri`) to push scorecard PDFs for candidate access.
+    - File: `backend/result-service/src/main/java/com/examplatform/result/client/DigiLockerClientImpl.java`
+    - _Requirements: 13.5_
+
+- [ ] 22. Re-enable pgvector for similarity search
+  - [ ] 22.1 Switch postgres image back to `pgvector/pgvector:pg16` in docker-compose.yml
+  - [ ] 22.2 Change `embedding_vector` column from `JSONB` back to `vector(1536)` in `V1__create_question_schema.sql`
+  - [ ] 22.3 Update `Question.java` entity field from `String` to `float[]` with `@Column(columnDefinition = "vector(1536)")`
+  - [ ] 22.4 Restore native pgvector cosine distance query (`<=>` operator) in `QuestionRepository.findSimilarPublishedQuestion()`
+  - [ ] 22.5 Add `CREATE EXTENSION IF NOT EXISTS vector;` back to `init-db.sql`
+  - [ ] 22.6 Integrate real embedding API (OpenAI text-embedding-ada-002 or similar) in `SimilarityDetectionService.computeEmbedding()`
+    - _Requirements: 4.7_

@@ -1,0 +1,499 @@
+# =============================================================================
+# Docker Compose — Backend Microservices
+# Builds and runs all 15 services alongside infrastructure (docker-compose.yml)
+# Usage: docker compose -f docker-compose.yml -f docker-compose.services.yml up --build
+# =============================================================================
+
+x-service-common: &service-common
+  restart: unless-stopped
+  networks:
+    - exam-network
+
+x-spring-env: &spring-env
+  SPRING_PROFILES_ACTIVE: docker
+  SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:-exam_admin}
+  SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-exam_secret}
+  SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+  KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+  REDIS_HOST: redis
+  REDIS_PORT: "6379"
+  REDIS_PASSWORD: ${REDIS_PASSWORD:-redis_secret}
+  KEYCLOAK_ISSUER_URI: http://keycloak:8080/realms/exam-realm
+  KEYCLOAK_SERVER_URL: http://keycloak:8080
+  VAULT_ADDR: http://vault:8200
+  VAULT_ROOT_TOKEN: ${VAULT_ROOT_TOKEN:-vault_root_token}
+  OTEL_EXPORTER_OTLP_ENDPOINT: http://jaeger:4318
+
+x-depends-base: &depends-base
+  postgres:
+    condition: service_healthy
+  kafka:
+    condition: service_healthy
+
+services:
+
+  # ===========================================================================
+  # Local Docker Registry (port 5000)
+  # ===========================================================================
+  registry:
+    image: registry:2
+    container_name: exam-registry
+    restart: unless-stopped
+    ports:
+      - "5000:5000"
+    volumes:
+      - registry_data:/var/lib/registry
+    networks:
+      - exam-network
+
+  # ===========================================================================
+  # Identity Service — Auth, MFA, WebAuthn, Rate Limiting
+  # ===========================================================================
+  identity-service:
+    <<: *service-common
+    build:
+      context: ../../
+      dockerfile: backend/Dockerfile
+      args:
+        SERVICE_NAME: identity-service
+    image: localhost:5000/exam/identity-service:latest
+    container_name: exam-identity-service
+    ports:
+      - "${IDENTITY_SERVICE_PORT:-8081}:${IDENTITY_SERVICE_PORT:-8081}"
+    environment:
+      <<: *spring-env
+      SERVER_PORT: ${IDENTITY_SERVICE_PORT:-8081}
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-exam_platform}?currentSchema=identity_service
+      VAULT_ADDR: http://vault:8200
+      VAULT_ROOT_TOKEN: ${VAULT_ROOT_TOKEN:-vault_root_token}
+      OTEL_SERVICE_NAME: identity-service
+    depends_on:
+      <<: *depends-base
+      vault:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:${IDENTITY_SERVICE_PORT:-8081}/actuator/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+  # ===========================================================================
+  # Candidate Service — PII encryption, DigiLocker, face verification
+  # ===========================================================================
+  candidate-service:
+    <<: *service-common
+    build:
+      context: ../../
+      dockerfile: backend/Dockerfile
+      args:
+        SERVICE_NAME: candidate-service
+    image: localhost:5000/exam/candidate-service:latest
+    container_name: exam-candidate-service
+    ports:
+      - "${CANDIDATE_SERVICE_PORT:-8082}:${CANDIDATE_SERVICE_PORT:-8082}"
+    environment:
+      <<: *spring-env
+      SERVER_PORT: ${CANDIDATE_SERVICE_PORT:-8082}
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-exam_platform}?currentSchema=candidate_service
+      VAULT_ADDR: http://vault:8200
+      VAULT_ROOT_TOKEN: ${VAULT_ROOT_TOKEN:-vault_root_token}
+      OTEL_SERVICE_NAME: candidate-service
+    depends_on:
+      <<: *depends-base
+      vault:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:${CANDIDATE_SERVICE_PORT:-8082}/actuator/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+  # ===========================================================================
+  # Question Bank Service — CRUD, versioning, similarity, search
+  # ===========================================================================
+  question-bank-service:
+    <<: *service-common
+    build:
+      context: ../../
+      dockerfile: backend/Dockerfile
+      args:
+        SERVICE_NAME: question-bank-service
+    image: localhost:5000/exam/question-bank-service:latest
+    container_name: exam-question-bank-service
+    ports:
+      - "${QUESTION_BANK_SERVICE_PORT:-8083}:${QUESTION_BANK_SERVICE_PORT:-8083}"
+    environment:
+      <<: *spring-env
+      SERVER_PORT: ${QUESTION_BANK_SERVICE_PORT:-8083}
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-exam_platform}?currentSchema=question_service
+      OTEL_SERVICE_NAME: question-bank-service
+    depends_on:
+      <<: *depends-base
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:${QUESTION_BANK_SERVICE_PORT:-8083}/actuator/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+  # ===========================================================================
+  # Translation Service — 22 languages, review workflow
+  # ===========================================================================
+  translation-service:
+    <<: *service-common
+    build:
+      context: ../../
+      dockerfile: backend/Dockerfile
+      args:
+        SERVICE_NAME: translation-service
+    image: localhost:5000/exam/translation-service:latest
+    container_name: exam-translation-service
+    ports:
+      - "${TRANSLATION_SERVICE_PORT:-8084}:${TRANSLATION_SERVICE_PORT:-8084}"
+    environment:
+      <<: *spring-env
+      SERVER_PORT: ${TRANSLATION_SERVICE_PORT:-8084}
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-exam_platform}?currentSchema=translation_service
+      OTEL_SERVICE_NAME: translation-service
+    depends_on:
+      <<: *depends-base
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:${TRANSLATION_SERVICE_PORT:-8084}/actuator/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+  # ===========================================================================
+  # Examination Service — Sections, marks validation, publication
+  # ===========================================================================
+  examination-service:
+    <<: *service-common
+    build:
+      context: ../../
+      dockerfile: backend/Dockerfile
+      args:
+        SERVICE_NAME: examination-service
+    image: localhost:5000/exam/examination-service:latest
+    container_name: exam-examination-service
+    ports:
+      - "${EXAMINATION_SERVICE_PORT:-8085}:${EXAMINATION_SERVICE_PORT:-8085}"
+    environment:
+      <<: *spring-env
+      SERVER_PORT: ${EXAMINATION_SERVICE_PORT:-8085}
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-exam_platform}?currentSchema=examination_service
+      OTEL_SERVICE_NAME: examination-service
+    depends_on:
+      <<: *depends-base
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:${EXAMINATION_SERVICE_PORT:-8085}/actuator/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+  # ===========================================================================
+  # Paper Generator — Blueprint assembly, comparability, approval
+  # ===========================================================================
+  paper-generator:
+    <<: *service-common
+    build:
+      context: ../../
+      dockerfile: backend/Dockerfile
+      args:
+        SERVICE_NAME: paper-generator
+    image: localhost:5000/exam/paper-generator:latest
+    container_name: exam-paper-generator
+    ports:
+      - "${PAPER_GENERATOR_PORT:-8086}:${PAPER_GENERATOR_PORT:-8086}"
+    environment:
+      <<: *spring-env
+      SERVER_PORT: ${PAPER_GENERATOR_PORT:-8086}
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-exam_platform}?currentSchema=paper_generator
+      OTEL_SERVICE_NAME: paper-generator
+    depends_on:
+      <<: *depends-base
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:${PAPER_GENERATOR_PORT:-8086}/actuator/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+  # ===========================================================================
+  # Delivery Service — Session start, navigation, proctoring, offline, timer
+  # ===========================================================================
+  delivery-service:
+    <<: *service-common
+    build:
+      context: ../../
+      dockerfile: backend/Dockerfile
+      args:
+        SERVICE_NAME: delivery-service
+    image: localhost:5000/exam/delivery-service:latest
+    container_name: exam-delivery-service
+    ports:
+      - "${DELIVERY_SERVICE_PORT:-8087}:${DELIVERY_SERVICE_PORT:-8087}"
+    environment:
+      <<: *spring-env
+      SERVER_PORT: ${DELIVERY_SERVICE_PORT:-8087}
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-exam_platform}?currentSchema=delivery_service
+      OTEL_SERVICE_NAME: delivery-service
+    depends_on:
+      <<: *depends-base
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:${DELIVERY_SERVICE_PORT:-8087}/actuator/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+  # ===========================================================================
+  # Response Service — Save, bulk-save, auto-save, revision history
+  # ===========================================================================
+  response-service:
+    <<: *service-common
+    build:
+      context: ../../
+      dockerfile: backend/Dockerfile
+      args:
+        SERVICE_NAME: response-service
+    image: localhost:5000/exam/response-service:latest
+    container_name: exam-response-service
+    ports:
+      - "${RESPONSE_SERVICE_PORT:-8088}:${RESPONSE_SERVICE_PORT:-8088}"
+    environment:
+      <<: *spring-env
+      SERVER_PORT: ${RESPONSE_SERVICE_PORT:-8088}
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-exam_platform}?currentSchema=response_service
+      OTEL_SERVICE_NAME: response-service
+    depends_on:
+      <<: *depends-base
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:${RESPONSE_SERVICE_PORT:-8088}/actuator/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+  # ===========================================================================
+  # Evaluation Service — Auto-eval, partial marking, manual eval
+  # ===========================================================================
+  evaluation-service:
+    <<: *service-common
+    build:
+      context: ../../
+      dockerfile: backend/Dockerfile
+      args:
+        SERVICE_NAME: evaluation-service
+    image: localhost:5000/exam/evaluation-service:latest
+    container_name: exam-evaluation-service
+    ports:
+      - "${EVALUATION_SERVICE_PORT:-8089}:${EVALUATION_SERVICE_PORT:-8089}"
+    environment:
+      <<: *spring-env
+      SERVER_PORT: ${EVALUATION_SERVICE_PORT:-8089}
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-exam_platform}?currentSchema=evaluation_service
+      OTEL_SERVICE_NAME: evaluation-service
+    depends_on:
+      <<: *depends-base
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:${EVALUATION_SERVICE_PORT:-8089}/actuator/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+  # ===========================================================================
+  # Result Service — Computation, PDF scorecard, publication
+  # ===========================================================================
+  result-service:
+    <<: *service-common
+    build:
+      context: ../../
+      dockerfile: backend/Dockerfile
+      args:
+        SERVICE_NAME: result-service
+    image: localhost:5000/exam/result-service:latest
+    container_name: exam-result-service
+    ports:
+      - "${RESULT_SERVICE_PORT:-8090}:${RESULT_SERVICE_PORT:-8090}"
+    environment:
+      <<: *spring-env
+      SERVER_PORT: ${RESULT_SERVICE_PORT:-8090}
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-exam_platform}?currentSchema=result_service
+      OTEL_SERVICE_NAME: result-service
+    depends_on:
+      <<: *depends-base
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:${RESULT_SERVICE_PORT:-8090}/actuator/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+  # ===========================================================================
+  # Audit Service — HSM signing, tamper detection, WAL buffer
+  # ===========================================================================
+  audit-service:
+    <<: *service-common
+    build:
+      context: ../../
+      dockerfile: backend/Dockerfile
+      args:
+        SERVICE_NAME: audit-service
+    image: localhost:5000/exam/audit-service:latest
+    container_name: exam-audit-service
+    ports:
+      - "${AUDIT_SERVICE_PORT:-8091}:${AUDIT_SERVICE_PORT:-8091}"
+    environment:
+      <<: *spring-env
+      SERVER_PORT: ${AUDIT_SERVICE_PORT:-8091}
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-exam_platform}?currentSchema=audit_service
+      VAULT_ADDR: http://vault:8200
+      VAULT_ROOT_TOKEN: ${VAULT_ROOT_TOKEN:-vault_root_token}
+      OTEL_SERVICE_NAME: audit-service
+    depends_on:
+      <<: *depends-base
+      vault:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:${AUDIT_SERVICE_PORT:-8091}/actuator/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+  # ===========================================================================
+  # Notification Service — Email retry, in-app SSE, PII-free
+  # ===========================================================================
+  notification-service:
+    <<: *service-common
+    build:
+      context: ../../
+      dockerfile: backend/Dockerfile
+      args:
+        SERVICE_NAME: notification-service
+    image: localhost:5000/exam/notification-service:latest
+    container_name: exam-notification-service
+    ports:
+      - "${NOTIFICATION_SERVICE_PORT:-8092}:${NOTIFICATION_SERVICE_PORT:-8092}"
+    environment:
+      <<: *spring-env
+      SERVER_PORT: ${NOTIFICATION_SERVICE_PORT:-8092}
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-exam_platform}?currentSchema=notification_service
+      OTEL_SERVICE_NAME: notification-service
+    depends_on:
+      <<: *depends-base
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:${NOTIFICATION_SERVICE_PORT:-8092}/actuator/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+  # ===========================================================================
+  # Admin Service — Deactivation, config changes
+  # ===========================================================================
+  admin-service:
+    <<: *service-common
+    build:
+      context: ../../
+      dockerfile: backend/Dockerfile
+      args:
+        SERVICE_NAME: admin-service
+    image: localhost:5000/exam/admin-service:latest
+    container_name: exam-admin-service
+    ports:
+      - "${ADMIN_SERVICE_PORT:-8093}:${ADMIN_SERVICE_PORT:-8093}"
+    environment:
+      <<: *spring-env
+      SERVER_PORT: ${ADMIN_SERVICE_PORT:-8093}
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-exam_platform}?currentSchema=admin_service
+      OTEL_SERVICE_NAME: admin-service
+    depends_on:
+      <<: *depends-base
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:${ADMIN_SERVICE_PORT:-8093}/actuator/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+  # ===========================================================================
+  # Analytics Service — Dashboard API, CSV/PDF export
+  # ===========================================================================
+  analytics-service:
+    <<: *service-common
+    build:
+      context: ../../
+      dockerfile: backend/Dockerfile
+      args:
+        SERVICE_NAME: analytics-service
+    image: localhost:5000/exam/analytics-service:latest
+    container_name: exam-analytics-service
+    ports:
+      - "${ANALYTICS_SERVICE_PORT:-8094}:${ANALYTICS_SERVICE_PORT:-8094}"
+    environment:
+      <<: *spring-env
+      SERVER_PORT: ${ANALYTICS_SERVICE_PORT:-8094}
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-exam_platform}?currentSchema=analytics_service
+      OTEL_SERVICE_NAME: analytics-service
+    depends_on:
+      <<: *depends-base
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:${ANALYTICS_SERVICE_PORT:-8094}/actuator/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+  # ===========================================================================
+  # API Gateway — Spring Cloud Gateway, DDoS, Zero Trust, Rate Limiting
+  # ===========================================================================
+  api-gateway:
+    <<: *service-common
+    build:
+      context: ../../
+      dockerfile: backend/Dockerfile
+      args:
+        SERVICE_NAME: api-gateway
+    image: localhost:5000/exam/api-gateway:latest
+    container_name: exam-api-gateway
+    ports:
+      - "${GATEWAY_PORT:-9000}:${GATEWAY_PORT:-9000}"
+    environment:
+      <<: *spring-env
+      SERVER_PORT: ${GATEWAY_PORT:-9000}
+      OTEL_SERVICE_NAME: api-gateway
+      # Route URIs for downstream services
+      IDENTITY_SERVICE_URI: http://identity-service:${IDENTITY_SERVICE_PORT:-8081}
+      CANDIDATE_SERVICE_URI: http://candidate-service:${CANDIDATE_SERVICE_PORT:-8082}
+      QUESTION_BANK_SERVICE_URI: http://question-bank-service:${QUESTION_BANK_SERVICE_PORT:-8083}
+      TRANSLATION_SERVICE_URI: http://translation-service:${TRANSLATION_SERVICE_PORT:-8084}
+      EXAMINATION_SERVICE_URI: http://examination-service:${EXAMINATION_SERVICE_PORT:-8085}
+      PAPER_GENERATOR_URI: http://paper-generator:${PAPER_GENERATOR_PORT:-8086}
+      DELIVERY_SERVICE_URI: http://delivery-service:${DELIVERY_SERVICE_PORT:-8087}
+      RESPONSE_SERVICE_URI: http://response-service:${RESPONSE_SERVICE_PORT:-8088}
+      EVALUATION_SERVICE_URI: http://evaluation-service:${EVALUATION_SERVICE_PORT:-8089}
+      RESULT_SERVICE_URI: http://result-service:${RESULT_SERVICE_PORT:-8090}
+      AUDIT_SERVICE_URI: http://audit-service:${AUDIT_SERVICE_PORT:-8091}
+      NOTIFICATION_SERVICE_URI: http://notification-service:${NOTIFICATION_SERVICE_PORT:-8092}
+      ADMIN_SERVICE_URI: http://admin-service:${ADMIN_SERVICE_PORT:-8093}
+      ANALYTICS_SERVICE_URI: http://analytics-service:${ANALYTICS_SERVICE_PORT:-8094}
+    depends_on:
+      identity-service:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:${GATEWAY_PORT:-9000}/actuator/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+volumes:
+  registry_data:

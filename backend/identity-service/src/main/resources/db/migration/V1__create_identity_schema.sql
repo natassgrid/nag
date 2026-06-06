@@ -1,47 +1,108 @@
 CREATE SCHEMA IF NOT EXISTS identity_service;
 
-CREATE TABLE IF NOT EXISTS identity_service.candidate_account (
-    id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    tenant_id     VARCHAR(100) NOT NULL,
-    doc_type      VARCHAR(20)  NOT NULL,
-    doc_hash      VARCHAR(64)  NOT NULL UNIQUE,
-    mobile_hash   VARCHAR(64)  NOT NULL UNIQUE,
-    email_hash    VARCHAR(64),
-    status        VARCHAR(20)  NOT NULL DEFAULT 'PENDING',
-    mfa_enabled   BOOLEAN      NOT NULL DEFAULT FALSE,
-    device_fingerprint_hash VARCHAR(64),
-    failed_attempt_count    INT          NOT NULL DEFAULT 0,
-    locked_until  TIMESTAMP,
-    created_at    TIMESTAMP    NOT NULL DEFAULT NOW(),
-    updated_at    TIMESTAMP    NOT NULL DEFAULT NOW(),
-    version       BIGINT       NOT NULL DEFAULT 0
+-- ============================================================
+-- Table: user_account
+-- ============================================================
+CREATE TABLE identity_service.user_account (
+    id                  UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    tenant_id           VARCHAR(255) NOT NULL,
+    username            VARCHAR(255) NOT NULL,
+    email_hash          VARCHAR(255) NOT NULL,
+    mobile_hash         VARCHAR(255) NOT NULL,
+    identity_doc_type   VARCHAR(50),
+    identity_doc_hash   VARCHAR(255),
+    identity_doc_hmac   VARCHAR(255),
+    account_status      VARCHAR(50),
+    mfa_enabled         BOOLEAN NOT NULL DEFAULT FALSE,
+    mfa_secret_ref      VARCHAR(255),
+    device_fingerprint  VARCHAR(255),
+    failed_attempt_count INTEGER NOT NULL DEFAULT 0,
+    last_failed_at      TIMESTAMP,
+    locked_at           TIMESTAMP,
+    keycloak_user_id    VARCHAR(255),
+    created_at          TIMESTAMP NOT NULL DEFAULT NOW(),
+    updated_at          TIMESTAMP NOT NULL DEFAULT NOW(),
+    version             BIGINT NOT NULL DEFAULT 0
 );
 
-CREATE INDEX idx_candidate_account_tenant ON identity_service.candidate_account(tenant_id);
-CREATE INDEX idx_candidate_account_status ON identity_service.candidate_account(status);
+CREATE INDEX idx_user_account_tenant_id ON identity_service.user_account(tenant_id);
+CREATE INDEX idx_user_account_email_hash ON identity_service.user_account(email_hash);
+CREATE INDEX idx_user_account_mobile_hash ON identity_service.user_account(mobile_hash);
+CREATE INDEX idx_user_account_keycloak_user_id ON identity_service.user_account(keycloak_user_id);
 
-CREATE TABLE IF NOT EXISTS identity_service.otp_verification (
-    id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    account_id    UUID         NOT NULL REFERENCES identity_service.candidate_account(id),
-    otp_hash      VARCHAR(64)  NOT NULL,
-    purpose       VARCHAR(30)  NOT NULL,
-    expires_at    TIMESTAMP    NOT NULL,
-    used          BOOLEAN      NOT NULL DEFAULT FALSE,
-    created_at    TIMESTAMP    NOT NULL DEFAULT NOW()
+-- ============================================================
+-- Table: otp_verification
+-- ============================================================
+CREATE TABLE identity_service.otp_verification (
+    id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    tenant_id   VARCHAR(255) NOT NULL,
+    user_id     UUID,
+    mobile_hash VARCHAR(255) NOT NULL,
+    otp_hash    VARCHAR(255) NOT NULL,
+    expires_at  TIMESTAMP NOT NULL,
+    verified    BOOLEAN NOT NULL DEFAULT FALSE,
+    created_at  TIMESTAMP NOT NULL DEFAULT NOW(),
+    updated_at  TIMESTAMP NOT NULL DEFAULT NOW(),
+    version     BIGINT NOT NULL DEFAULT 0
 );
 
-CREATE INDEX idx_otp_account ON identity_service.otp_verification(account_id);
+CREATE INDEX idx_otp_verification_tenant_id ON identity_service.otp_verification(tenant_id);
+CREATE INDEX idx_otp_verification_mobile_hash ON identity_service.otp_verification(mobile_hash);
+CREATE INDEX idx_otp_verification_user_id ON identity_service.otp_verification(user_id);
 
-CREATE TABLE IF NOT EXISTS identity_service.role_assignment (
-    id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    tenant_id     VARCHAR(100) NOT NULL,
-    user_id       UUID         NOT NULL,
-    role          VARCHAR(30)  NOT NULL,
-    assigned_by   UUID,
-    assigned_at   TIMESTAMP    NOT NULL DEFAULT NOW(),
-    revoked_at    TIMESTAMP,
-    active        BOOLEAN      NOT NULL DEFAULT TRUE,
-    version       BIGINT       NOT NULL DEFAULT 0
+-- ============================================================
+-- Table: user_role_assignment
+-- ============================================================
+CREATE TABLE identity_service.user_role_assignment (
+    id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    tenant_id   VARCHAR(255) NOT NULL,
+    user_id     UUID NOT NULL,
+    role        VARCHAR(50) NOT NULL,
+    assigned_by UUID,
+    assigned_at TIMESTAMP,
+    created_at  TIMESTAMP NOT NULL DEFAULT NOW(),
+    updated_at  TIMESTAMP NOT NULL DEFAULT NOW(),
+    version     BIGINT NOT NULL DEFAULT 0
 );
 
-CREATE UNIQUE INDEX idx_role_active ON identity_service.role_assignment(user_id, role) WHERE active = TRUE;
+CREATE INDEX idx_user_role_assignment_tenant_id ON identity_service.user_role_assignment(tenant_id);
+CREATE INDEX idx_user_role_assignment_user_id ON identity_service.user_role_assignment(user_id);
+
+-- ============================================================
+-- Table: webauthn_credential
+-- ============================================================
+CREATE TABLE identity_service.webauthn_credential (
+    id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    tenant_id       VARCHAR(255) NOT NULL,
+    user_id         UUID NOT NULL,
+    credential_id   VARCHAR(255) NOT NULL UNIQUE,
+    public_key_cose BYTEA,
+    sign_count      BIGINT NOT NULL DEFAULT 0,
+    aaguid          VARCHAR(255),
+    created_at      TIMESTAMP NOT NULL DEFAULT NOW(),
+    updated_at      TIMESTAMP NOT NULL DEFAULT NOW(),
+    version         BIGINT NOT NULL DEFAULT 0
+);
+
+CREATE INDEX idx_webauthn_credential_tenant_id ON identity_service.webauthn_credential(tenant_id);
+CREATE INDEX idx_webauthn_credential_user_id ON identity_service.webauthn_credential(user_id);
+
+-- ============================================================
+-- Table: active_session
+-- ============================================================
+CREATE TABLE identity_service.active_session (
+    id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    tenant_id     VARCHAR(255) NOT NULL,
+    user_id       UUID NOT NULL,
+    session_token VARCHAR(512) NOT NULL,
+    device_fp     VARCHAR(512),
+    ip_address    VARCHAR(255),
+    expires_at    TIMESTAMP NOT NULL,
+    created_at    TIMESTAMP NOT NULL DEFAULT NOW(),
+    updated_at    TIMESTAMP NOT NULL DEFAULT NOW(),
+    version       BIGINT NOT NULL DEFAULT 0
+);
+
+CREATE INDEX idx_active_session_tenant_id ON identity_service.active_session(tenant_id);
+CREATE INDEX idx_active_session_user_id ON identity_service.active_session(user_id);
+CREATE INDEX idx_active_session_expires_at ON identity_service.active_session(expires_at);

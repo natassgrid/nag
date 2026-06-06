@@ -61,8 +61,8 @@ public class Question extends BaseEntity {
     @Column(name = "answer_key", columnDefinition = "TEXT")
     private String answerKey;
 
-    @Column(name = "embedding_vector", columnDefinition = "vector(1536)")
-    private float[] embeddingVector;
+    @Column(name = "embedding_vector", columnDefinition = "jsonb")
+    private String embeddingVector;
 
     @Column(name = "state", nullable = false, length = 20)
     @Builder.Default

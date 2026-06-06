@@ -4,122 +4,125 @@ spring:
 
   cloud:
     gateway:
-      default-filters:
-        - name: RequestRateLimiter
-          args:
-            redis-rate-limiter.replenishRate: 17
-            redis-rate-limiter.burstCapacity: 1000
-            redis-rate-limiter.requestedTokens: 1
-            key-resolver: "#{@clientKeyResolver}"
-      routes:
-        # Identity Service
-        - id: identity-service
-          uri: ${IDENTITY_SERVICE_URL:http://localhost:8081}
-          predicates:
-            - Path=/api/v1/identity/**
-          filters:
-            - StripPrefix=0
+      server:
+        webflux:
+          default-filters:
+            - name: RequestRateLimiter
+              args:
+                redis-rate-limiter.replenishRate: 17
+                redis-rate-limiter.burstCapacity: 1000
+                redis-rate-limiter.requestedTokens: 1
+                key-resolver: "#{@clientKeyResolver}"
+          routes:
+            # Identity Service
+            - id: identity-service
+              uri: ${IDENTITY_SERVICE_URL:http://localhost:8081}
+              predicates:
+                - Path=/api/v1/identity/**
+              filters:
+                - StripPrefix=0
 
-        # Candidate Service
-        - id: candidate-service
-          uri: ${CANDIDATE_SERVICE_URL:http://localhost:8082}
-          predicates:
-            - Path=/api/v1/candidates/**
-          filters:
-            - StripPrefix=0
+            # Candidate Service
+            - id: candidate-service
+              uri: ${CANDIDATE_SERVICE_URL:http://localhost:8082}
+              predicates:
+                - Path=/api/v1/candidates/**
+              filters:
+                - StripPrefix=0
 
-        # Question Bank Service
-        - id: question-bank-service
-          uri: ${QUESTION_BANK_SERVICE_URL:http://localhost:8083}
-          predicates:
-            - Path=/api/v1/questions/**
-          filters:
-            - StripPrefix=0
+            # Question Bank Service
+            - id: question-bank-service
+              uri: ${QUESTION_BANK_SERVICE_URL:http://localhost:8083}
+              predicates:
+                - Path=/api/v1/questions/**
+              filters:
+                - StripPrefix=0
 
-        # Examination Service
-        - id: examination-service
-          uri: ${EXAMINATION_SERVICE_URL:http://localhost:8084}
-          predicates:
-            - Path=/api/v1/examinations/**
-          filters:
-            - StripPrefix=0
+            # Examination Service
+            - id: examination-service
+              uri: ${EXAMINATION_SERVICE_URL:http://localhost:8084}
+              predicates:
+                - Path=/api/v1/examinations/**
+              filters:
+                - StripPrefix=0
 
-        # Paper Generator
-        - id: paper-generator
-          uri: ${PAPER_GENERATOR_URL:http://localhost:8085}
-          predicates:
-            - Path=/api/v1/papers/**
-          filters:
-            - StripPrefix=0
+            # Paper Generator
+            - id: paper-generator
+              uri: ${PAPER_GENERATOR_URL:http://localhost:8085}
+              predicates:
+                - Path=/api/v1/papers/**
+              filters:
+                - StripPrefix=0
 
-        # Delivery Service
-        - id: delivery-service
-          uri: ${DELIVERY_SERVICE_URL:http://localhost:8086}
-          predicates:
-            - Path=/api/v1/delivery/**
-          filters:
-            - StripPrefix=0
+            # Delivery Service
+            - id: delivery-service
+              uri: ${DELIVERY_SERVICE_URL:http://localhost:8086}
+              predicates:
+                - Path=/api/v1/delivery/**
+              filters:
+                - StripPrefix=0
 
-        # Response Service
-        - id: response-service
-          uri: ${RESPONSE_SERVICE_URL:http://localhost:8087}
-          predicates:
-            - Path=/api/v1/responses/**
-          filters:
-            - StripPrefix=0
+            # Response Service
+            - id: response-service
+              uri: ${RESPONSE_SERVICE_URL:http://localhost:8087}
+              predicates:
+                - Path=/api/v1/responses/**
+              filters:
+                - StripPrefix=0
 
-        # Evaluation Service
-        - id: evaluation-service
-          uri: ${EVALUATION_SERVICE_URL:http://localhost:8088}
-          predicates:
-            - Path=/api/v1/evaluations/**
-          filters:
-            - StripPrefix=0
+            # Evaluation Service
+            - id: evaluation-service
+              uri: ${EVALUATION_SERVICE_URL:http://localhost:8088}
+              predicates:
+                - Path=/api/v1/evaluations/**
+              filters:
+                - StripPrefix=0
 
-        # Result Service
-        - id: result-service
-          uri: ${RESULT_SERVICE_URL:http://localhost:8089}
-          predicates:
-            - Path=/api/v1/results/**
-          filters:
-            - StripPrefix=0
+            # Result Service
+            - id: result-service
+              uri: ${RESULT_SERVICE_URL:http://localhost:8089}
+              predicates:
+                - Path=/api/v1/results/**
+              filters:
+                - StripPrefix=0
 
-        # Audit Service
-        - id: audit-service
-          uri: ${AUDIT_SERVICE_URL:http://localhost:8090}
-          predicates:
-            - Path=/api/v1/audit/**
-          filters:
-            - StripPrefix=0
+            # Audit Service
+            - id: audit-service
+              uri: ${AUDIT_SERVICE_URL:http://localhost:8090}
+              predicates:
+                - Path=/api/v1/audit/**
+              filters:
+                - StripPrefix=0
 
-        # Notification Service
-        - id: notification-service
-          uri: ${NOTIFICATION_SERVICE_URL:http://localhost:8091}
-          predicates:
-            - Path=/api/v1/notifications/**
-          filters:
-            - StripPrefix=0
+            # Notification Service
+            - id: notification-service
+              uri: ${NOTIFICATION_SERVICE_URL:http://localhost:8091}
+              predicates:
+                - Path=/api/v1/notifications/**
+              filters:
+                - StripPrefix=0
 
-        # Admin Service
-        - id: admin-service
-          uri: ${ADMIN_SERVICE_URL:http://localhost:8093}
-          predicates:
-            - Path=/api/v1/admin/**
-          filters:
-            - StripPrefix=0
+            # Admin Service
+            - id: admin-service
+              uri: ${ADMIN_SERVICE_URL:http://localhost:8093}
+              predicates:
+                - Path=/api/v1/admin/**
+              filters:
+                - StripPrefix=0
 
-        # Analytics Service
-        - id: analytics-service
-          uri: ${ANALYTICS_SERVICE_URL:http://localhost:8094}
-          predicates:
-            - Path=/api/v1/analytics/**
-          filters:
-            - StripPrefix=0
+            # Analytics Service
+            - id: analytics-service
+              uri: ${ANALYTICS_SERVICE_URL:http://localhost:8094}
+              predicates:
+                - Path=/api/v1/analytics/**
+              filters:
+                - StripPrefix=0
 
   data:
     redis:
       host: ${REDIS_HOST:localhost}
       port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:redis_secret}
 
   security:
     oauth2:
@@ -140,7 +143,7 @@ management:
     health:
       show-details: always
     gateway:
-      enabled: true
+      access: unrestricted
   metrics:
     tags:
       service: api-gateway

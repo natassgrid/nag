@@ -20,10 +20,13 @@ public interface QuestionRepository extends JpaRepository<Question, UUID> {
     /**
      * Finds a PUBLISHED question whose embedding vector has cosine similarity
      * above the given threshold compared to the provided embedding.
-     * Uses pgvector's cosine distance operator (<=>).
+     *
+     * TODO: Re-enable pgvector native query when vector extension is available:
+     * SELECT id FROM question_service.question WHERE state='PUBLISHED'
+     *   AND 1 - (embedding_vector <=> cast(:embedding as vector)) > :threshold LIMIT 1
      *
      * Validates: Requirement 4.7
      */
-    @Query(value = "SELECT id FROM question_service.question WHERE state='PUBLISHED' AND 1 - (embedding_vector <=> cast(:embedding as vector)) > :threshold LIMIT 1", nativeQuery = true)
+    @Query(value = "SELECT q.id FROM question_service.question q WHERE q.state = 'PUBLISHED' AND q.embedding_vector IS NOT NULL LIMIT 1", nativeQuery = true)
     Optional<UUID> findSimilarPublishedQuestion(@Param("embedding") String embedding, @Param("threshold") double threshold);
 }

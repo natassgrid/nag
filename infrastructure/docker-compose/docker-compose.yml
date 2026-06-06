@@ -11,12 +11,7 @@ networks:
 volumes:
   postgres_data:
   kafka_data:
-  redis_1_data:
-  redis_2_data:
-  redis_3_data:
-  redis_4_data:
-  redis_5_data:
-  redis_6_data:
+  redis_data:
   keycloak_data:
   vault_data:
   prometheus_data:
@@ -41,7 +36,7 @@ services:
       PGDATA: /var/lib/postgresql/data/pgdata
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ./init-db.sql:/docker-entrypoint-initdb.d/init-db.sql:ro
+      - ./init-db.sql:/docker-entrypoint-initdb.d/01-init-db.sql:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-exam_admin} -d ${POSTGRES_DB:-exam_platform}"]
       interval: 10s
@@ -94,218 +89,28 @@ services:
       - exam-network
 
   # ===========================================================================
-  # Redis Cluster — 3 masters + 3 replicas (ports 6379-6384)
-  # Sub-millisecond session lookup, rate limiting, distributed cache
+  # Redis — Standalone mode for local development
+  # For production, use a proper Redis Cluster with sentinel
   # ===========================================================================
-  redis-node-1:
+  redis:
     image: redis:7-alpine
-    container_name: exam-redis-1
+    container_name: exam-redis
     restart: unless-stopped
     ports:
       - "6379:6379"
-      - "16379:16379"
     command: >
       redis-server
       --port 6379
-      --cluster-enabled yes
-      --cluster-config-file /data/nodes.conf
-      --cluster-node-timeout 5000
-      --cluster-announce-ip ${REDIS_CLUSTER_IP:-127.0.0.1}
-      --cluster-announce-port 6379
-      --cluster-announce-bus-port 16379
       --appendonly yes
       --requirepass ${REDIS_PASSWORD:-redis_secret}
-      --masterauth ${REDIS_PASSWORD:-redis_secret}
     volumes:
-      - redis_1_data:/data
+      - redis_data:/data
     healthcheck:
       test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD:-redis_secret}", "ping"]
       interval: 10s
       timeout: 5s
       retries: 10
-      start_period: 20s
-    networks:
-      - exam-network
-
-  redis-node-2:
-    image: redis:7-alpine
-    container_name: exam-redis-2
-    restart: unless-stopped
-    ports:
-      - "6380:6380"
-      - "16380:16380"
-    command: >
-      redis-server
-      --port 6380
-      --cluster-enabled yes
-      --cluster-config-file /data/nodes.conf
-      --cluster-node-timeout 5000
-      --cluster-announce-ip ${REDIS_CLUSTER_IP:-127.0.0.1}
-      --cluster-announce-port 6380
-      --cluster-announce-bus-port 16380
-      --appendonly yes
-      --requirepass ${REDIS_PASSWORD:-redis_secret}
-      --masterauth ${REDIS_PASSWORD:-redis_secret}
-    volumes:
-      - redis_2_data:/data
-    healthcheck:
-      test: ["CMD", "redis-cli", "-p", "6380", "-a", "${REDIS_PASSWORD:-redis_secret}", "ping"]
-      interval: 10s
-      timeout: 5s
-      retries: 10
-      start_period: 20s
-    networks:
-      - exam-network
-
-  redis-node-3:
-    image: redis:7-alpine
-    container_name: exam-redis-3
-    restart: unless-stopped
-    ports:
-      - "6381:6381"
-      - "16381:16381"
-    command: >
-      redis-server
-      --port 6381
-      --cluster-enabled yes
-      --cluster-config-file /data/nodes.conf
-      --cluster-node-timeout 5000
-      --cluster-announce-ip ${REDIS_CLUSTER_IP:-127.0.0.1}
-      --cluster-announce-port 6381
-      --cluster-announce-bus-port 16381
-      --appendonly yes
-      --requirepass ${REDIS_PASSWORD:-redis_secret}
-      --masterauth ${REDIS_PASSWORD:-redis_secret}
-    volumes:
-      - redis_3_data:/data
-    healthcheck:
-      test: ["CMD", "redis-cli", "-p", "6381", "-a", "${REDIS_PASSWORD:-redis_secret}", "ping"]
-      interval: 10s
-      timeout: 5s
-      retries: 10
-      start_period: 20s
-    networks:
-      - exam-network
-
-  redis-node-4:
-    image: redis:7-alpine
-    container_name: exam-redis-4
-    restart: unless-stopped
-    ports:
-      - "6382:6382"
-      - "16382:16382"
-    command: >
-      redis-server
-      --port 6382
-      --cluster-enabled yes
-      --cluster-config-file /data/nodes.conf
-      --cluster-node-timeout 5000
-      --cluster-announce-ip ${REDIS_CLUSTER_IP:-127.0.0.1}
-      --cluster-announce-port 6382
-      --cluster-announce-bus-port 16382
-      --appendonly yes
-      --requirepass ${REDIS_PASSWORD:-redis_secret}
-      --masterauth ${REDIS_PASSWORD:-redis_secret}
-    volumes:
-      - redis_4_data:/data
-    healthcheck:
-      test: ["CMD", "redis-cli", "-p", "6382", "-a", "${REDIS_PASSWORD:-redis_secret}", "ping"]
-      interval: 10s
-      timeout: 5s
-      retries: 10
-      start_period: 20s
-    networks:
-      - exam-network
-
-  redis-node-5:
-    image: redis:7-alpine
-    container_name: exam-redis-5
-    restart: unless-stopped
-    ports:
-      - "6383:6383"
-      - "16383:16383"
-    command: >
-      redis-server
-      --port 6383
-      --cluster-enabled yes
-      --cluster-config-file /data/nodes.conf
-      --cluster-node-timeout 5000
-      --cluster-announce-ip ${REDIS_CLUSTER_IP:-127.0.0.1}
-      --cluster-announce-port 6383
-      --cluster-announce-bus-port 16383
-      --appendonly yes
-      --requirepass ${REDIS_PASSWORD:-redis_secret}
-      --masterauth ${REDIS_PASSWORD:-redis_secret}
-    volumes:
-      - redis_5_data:/data
-    healthcheck:
-      test: ["CMD", "redis-cli", "-p", "6383", "-a", "${REDIS_PASSWORD:-redis_secret}", "ping"]
-      interval: 10s
-      timeout: 5s
-      retries: 10
-      start_period: 20s
-    networks:
-      - exam-network
-
-  redis-node-6:
-    image: redis:7-alpine
-    container_name: exam-redis-6
-    restart: unless-stopped
-    ports:
-      - "6384:6384"
-      - "16384:16384"
-    command: >
-      redis-server
-      --port 6384
-      --cluster-enabled yes
-      --cluster-config-file /data/nodes.conf
-      --cluster-node-timeout 5000
-      --cluster-announce-ip ${REDIS_CLUSTER_IP:-127.0.0.1}
-      --cluster-announce-port 6384
-      --cluster-announce-bus-port 16384
-      --appendonly yes
-      --requirepass ${REDIS_PASSWORD:-redis_secret}
-      --masterauth ${REDIS_PASSWORD:-redis_secret}
-    volumes:
-      - redis_6_data:/data
-    healthcheck:
-      test: ["CMD", "redis-cli", "-p", "6384", "-a", "${REDIS_PASSWORD:-redis_secret}", "ping"]
-      interval: 10s
-      timeout: 5s
-      retries: 10
-      start_period: 20s
-    networks:
-      - exam-network
-
-  # Bootstrap the Redis cluster (runs once, exits after cluster is formed)
-  redis-cluster-init:
-    image: redis:7-alpine
-    container_name: exam-redis-cluster-init
-    restart: on-failure
-    depends_on:
-      redis-node-1:
-        condition: service_healthy
-      redis-node-2:
-        condition: service_healthy
-      redis-node-3:
-        condition: service_healthy
-      redis-node-4:
-        condition: service_healthy
-      redis-node-5:
-        condition: service_healthy
-      redis-node-6:
-        condition: service_healthy
-    command: >
-      sh -c "redis-cli -a ${REDIS_PASSWORD:-redis_secret}
-        --cluster create
-        ${REDIS_CLUSTER_IP:-127.0.0.1}:6379
-        ${REDIS_CLUSTER_IP:-127.0.0.1}:6380
-        ${REDIS_CLUSTER_IP:-127.0.0.1}:6381
-        ${REDIS_CLUSTER_IP:-127.0.0.1}:6382
-        ${REDIS_CLUSTER_IP:-127.0.0.1}:6383
-        ${REDIS_CLUSTER_IP:-127.0.0.1}:6384
-        --cluster-replicas 1
-        --cluster-yes"
+      start_period: 10s
     networks:
       - exam-network
 
