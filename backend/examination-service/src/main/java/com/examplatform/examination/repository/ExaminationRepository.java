@@ -10,5 +10,7 @@ import java.util.UUID;
 @Repository
 public interface ExaminationRepository extends JpaRepository<Examination, UUID> {
 
+    List<Examination> findByTenantId(String tenantId);
+
     List<Examination> findByStatusAndTenantId(String status, String tenantId);
 }

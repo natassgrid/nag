@@ -78,7 +78,7 @@ public class AuthenticationService {
         // 3. Validate password via Keycloak
         AuthTokenResponse tokens;
         try {
-            tokens = keycloakService.getTokens(request.getUsername(), request.getPassword());
+            tokens = keycloakService.getTokens(request.getUsername(), request.getPassword(), account.getId().toString());
         } catch (Exception ex) {
             account.setFailedAttemptCount(account.getFailedAttemptCount() + 1);
             account.setLastFailedAt(LocalDateTime.now());

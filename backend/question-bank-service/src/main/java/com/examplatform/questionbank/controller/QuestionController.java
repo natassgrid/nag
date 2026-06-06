@@ -31,6 +31,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 /**
@@ -215,6 +216,65 @@ public class QuestionController {
         QuestionResponse response = questionLifecycleService.transition(id, request, actorId, tenantId);
 
         return ResponseEntity.ok(ApiResponse.success(response, "Question transitioned successfully"));
+    }
+
+    /**
+     * Approve a question currently in REVIEW state.
+     * Transitions the question to APPROVED state and records the reviewer.
+     * Requires REVIEWER or APPROVER role.
+     *
+     * Validates: Requirements 5.1, 5.2
+     *
+     * @param id       the question UUID
+     * @param jwt      the authenticated JWT principal
+     * @param tenantId tenant identifier from the X-Tenant-Id header
+     * @return 200 OK with the updated question response
+     */
+    @PutMapping("/{id}/approve")
+    @PreAuthorize("hasAnyRole('REVIEWER', 'APPROVER')")
+    public ResponseEntity<ApiResponse<QuestionResponse>> approveQuestion(
+            @PathVariable UUID id,
+            @AuthenticationPrincipal Jwt jwt,
+            @RequestHeader("X-Tenant-Id") String tenantId) {
+
+        UUID reviewerId = UUID.fromString(jwt.getSubject());
+
+        log.info("Approving question: id={}, reviewer={}, tenant={}", id, reviewerId, tenantId);
+
+        QuestionResponse response = questionLifecycleService.approve(id, reviewerId, tenantId);
+
+        return ResponseEntity.ok(ApiResponse.success(response, "Question approved"));
+    }
+
+    /**
+     * Reject a question currently in REVIEW state.
+     * Transitions the question back to DRAFT state for revision.
+     * Requires REVIEWER or APPROVER role.
+     *
+     * Validates: Requirements 5.1, 5.3
+     *
+     * @param id       the question UUID
+     * @param body     request body containing optional "comments" field
+     * @param jwt      the authenticated JWT principal
+     * @param tenantId tenant identifier from the X-Tenant-Id header
+     * @return 200 OK with the updated question response
+     */
+    @PutMapping("/{id}/reject")
+    @PreAuthorize("hasAnyRole('REVIEWER', 'APPROVER')")
+    public ResponseEntity<ApiResponse<QuestionResponse>> rejectQuestion(
+            @PathVariable UUID id,
+            @RequestBody Map<String, String> body,
+            @AuthenticationPrincipal Jwt jwt,
+            @RequestHeader("X-Tenant-Id") String tenantId) {
+
+        UUID reviewerId = UUID.fromString(jwt.getSubject());
+        String comments = body.getOrDefault("comments", "");
+
+        log.info("Rejecting question: id={}, reviewer={}, tenant={}", id, reviewerId, tenantId);
+
+        QuestionResponse response = questionLifecycleService.reject(id, reviewerId, comments, tenantId);
+
+        return ResponseEntity.ok(ApiResponse.success(response, "Question rejected"));
     }
 
     /**

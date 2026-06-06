@@ -25,6 +25,13 @@ public class KeycloakService {
      * POST {serverUrl}/realms/{realm}/protocol/openid-connect/token
      */
     public AuthTokenResponse getTokens(String username, String password) {
+        return getTokens(username, password, null);
+    }
+
+    /**
+     * Exchange username + password for JWT tokens, with optional userId for sub claim.
+     */
+    public AuthTokenResponse getTokens(String username, String password, String userId) {
         String tokenUrl = keycloakProperties.getServerUrl()
             + "/realms/" + keycloakProperties.getRealm()
             + "/protocol/openid-connect/token";

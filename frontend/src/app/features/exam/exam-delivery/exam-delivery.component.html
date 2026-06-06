@@ -1,116 +1,117 @@
-<div class="exam-delivery" role="main" aria-labelledby="exam-title">
-  <!-- Timer Bar -->
-  <header class="exam-header" role="banner">
-    <h1 id="exam-title" class="exam-name">{{ session?.examName }}</h1>
-    <div class="timer-bar"
-         [class.warning]="remainingSeconds <= 300"
-         [class.critical]="remainingSeconds <= 60"
-         role="timer"
-         aria-live="polite"
-         [attr.aria-label]="'Time remaining: ' + formatTime(remainingSeconds)">
-      <mat-icon>timer</mat-icon>
-      <span class="timer-display">{{ formatTime(remainingSeconds) }}</span>
-      <mat-progress-bar mode="determinate"
-                        [value]="timerProgress"
-                        [color]="remainingSeconds <= 300 ? 'warn' : 'primary'"
-                        aria-hidden="true">
-      </mat-progress-bar>
+<!-- PRE-EXAM Screen -->
+<div *ngIf="state === 'PRE_EXAM'" class="pre-exam-container">
+  <mat-card class="pre-exam-card">
+    <h2>Online Examination</h2>
+    <p>You are about to start an examination. Please review the instructions below before proceeding.</p>
+
+    <div class="pre-exam-info">
+      <p><strong>Instructions:</strong></p>
+      <ul>
+        <li>Do not refresh or close the browser window during the exam.</li>
+        <li>Use "Save & Next" to save your answer and proceed.</li>
+        <li>You can navigate between questions using the palette on the right.</li>
+        <li>Use "Mark for Review" to flag questions for later review.</li>
+        <li>Click "Submit Exam" when you are finished.</li>
+      </ul>
     </div>
-    <button mat-icon-button
-            (click)="toggleFullscreen()"
-            [attr.aria-label]="isFullscreen ? 'Exit fullscreen' : 'Enter fullscreen'">
-      <mat-icon>{{ isFullscreen ? 'fullscreen_exit' : 'fullscreen' }}</mat-icon>
+
+    <button mat-raised-button color="primary"
+            (click)="startExam()"
+            [disabled]="isLoading"
+            aria-label="Start the examination">
+      <mat-icon>play_arrow</mat-icon>
+      {{ isLoading ? 'Starting...' : 'Start Exam' }}
     </button>
+
+    <p *ngIf="errorMessage" class="error-msg" role="alert">{{ errorMessage }}</p>
+  </mat-card>
+</div>
+
+<!-- IN-PROGRESS Screen -->
+<div *ngIf="state === 'IN_PROGRESS'" class="exam-container">
+  <!-- Header -->
+  <header class="exam-header">
+    <h1 class="exam-name">{{ session?.examName }}</h1>
+    <app-exam-timer
+      *ngIf="session"
+      [durationSeconds]="session.durationMinutes * 60"
+      (timeUp)="onTimeUp()">
+    </app-exam-timer>
   </header>
 
-  <!-- Question Display Area -->
-  <section class="question-area" aria-labelledby="question-heading" *ngIf="currentQuestion">
-    <div class="question-meta">
-      <span class="question-number" id="question-heading">
-        Question {{ currentQuestion.sequenceNumber }} of {{ session?.totalQuestions }}
-      </span>
-      <span class="question-marks" aria-label="Marks for this question">
-        [{{ currentQuestion.marks }} mark{{ currentQuestion.marks > 1 ? 's' : '' }}]
-      </span>
-      <span *ngIf="currentQuestion.negativeMarks > 0" class="negative-marks" aria-label="Negative marking">
-        (-{{ currentQuestion.negativeMarks }} for wrong answer)
-      </span>
+  <!-- Body -->
+  <div class="exam-body">
+    <!-- Question Panel -->
+    <div class="question-panel">
+      <app-question-display
+        [question]="currentQuestion"
+        [selectedOptionIds]="selectedOptionIds"
+        [enteredValue]="enteredValue"
+        (optionSelected)="onOptionSelected($event)"
+        (valueEntered)="onValueEntered($event)">
+      </app-question-display>
+
+      <p *ngIf="errorMessage" class="error-msg" role="alert">{{ errorMessage }}</p>
     </div>
 
-    <!-- Question Content: supports HTML5, LaTeX/MathML, images -->
-    <div class="question-content"
-         [innerHTML]="renderedContent"
-         aria-label="Question content">
+    <!-- Navigation Palette -->
+    <div class="palette-panel" *ngIf="session">
+      <app-navigation-palette
+        [totalQuestions]="session.totalQuestions"
+        [currentQuestion]="currentQuestion?.sequenceNumber || 1"
+        [answeredSet]="answeredQuestions"
+        [markedSet]="markedQuestions"
+        [visitedSet]="visitedQuestions"
+        (questionSelected)="navigateToQuestion($event)">
+      </app-navigation-palette>
+    </div>
+  </div>
+
+  <!-- Footer Actions -->
+  <footer class="exam-footer">
+    <div class="footer-left">
+      <button mat-stroked-button (click)="clearResponse()" aria-label="Clear response">
+        Clear Response
+      </button>
+      <button mat-stroked-button (click)="markForReview()" aria-label="Mark for review">
+        <mat-icon>flag</mat-icon> Mark for Review
+      </button>
     </div>
 
-    <!-- Options for MCQ -->
-    <div class="options-area" role="radiogroup" aria-label="Answer options" *ngIf="currentQuestion.options?.length">
-      <div *ngFor="let option of currentQuestion.options; let i = index"
-           class="option-item"
-           [class.selected]="selectedOptionIds.includes(option.optionId)">
-        <mat-checkbox *ngIf="currentQuestion.questionType === 'Multi_MCQ'"
-                      [checked]="selectedOptionIds.includes(option.optionId)"
-                      (change)="toggleOption(option.optionId)"
-                      [attr.aria-label]="'Option ' + option.label + ': ' + option.content">
-          <span class="option-label">{{ option.label }}.</span>
-          <span class="option-content" [innerHTML]="option.content"></span>
-        </mat-checkbox>
-        <mat-radio-button *ngIf="currentQuestion.questionType !== 'Multi_MCQ'"
-                          [value]="option.optionId"
-                          [checked]="selectedOptionIds.includes(option.optionId)"
-                          (change)="selectOption(option.optionId)"
-                          [attr.aria-label]="'Option ' + option.label + ': ' + option.content">
-          <span class="option-label">{{ option.label }}.</span>
-          <span class="option-content" [innerHTML]="option.content"></span>
-        </mat-radio-button>
-      </div>
-    </div>
-
-    <!-- Numerical/Text input for non-MCQ -->
-    <div class="text-input-area" *ngIf="!currentQuestion.options?.length">
-      <mat-form-field appearance="outline" class="full-width">
-        <mat-label>Your Answer</mat-label>
-        <input matInput [(ngModel)]="enteredValue"
-               (ngModelChange)="onAnswerChange()"
-               aria-label="Enter your answer">
-      </mat-form-field>
-    </div>
-  </section>
-
-  <!-- Navigation Controls -->
-  <footer class="exam-nav" role="navigation" aria-label="Question navigation">
-    <button mat-stroked-button (click)="clearResponse()" aria-label="Clear response">
-      Clear Response
-    </button>
-    <button mat-stroked-button (click)="markForReview()" aria-label="Mark for review">
-      <mat-icon>flag</mat-icon> Mark for Review
-    </button>
-    <div class="nav-buttons">
-      <button mat-raised-button (click)="previousQuestion()"
+    <div class="footer-right">
+      <button mat-raised-button
+              (click)="previousQuestion()"
               [disabled]="currentQuestion?.sequenceNumber === 1"
               aria-label="Previous question">
         Previous
       </button>
-      <button mat-raised-button color="primary" (click)="saveAndNext()"
+      <button mat-raised-button color="primary"
+              (click)="saveAndNext()"
+              [disabled]="currentQuestion?.sequenceNumber === session?.totalQuestions"
               aria-label="Save and go to next question">
         Save & Next
       </button>
-      <button mat-raised-button color="warn" (click)="submitExam()"
+      <button mat-raised-button color="warn"
+              (click)="openSubmitDialog()"
               aria-label="Submit examination">
         Submit Exam
       </button>
     </div>
   </footer>
+</div>
 
-  <!-- Question Palette (imported as child component) -->
-  <app-question-palette
-    *ngIf="session"
-    [totalQuestions]="session.totalQuestions"
-    [sections]="session.sections"
-    [answeredQuestions]="answeredQuestions"
-    [flaggedQuestions]="flaggedQuestions"
-    [currentQuestion]="currentQuestion?.sequenceNumber || 1"
-    (questionSelected)="navigateToQuestion($event)"
-    (reviewToggled)="toggleReviewFlag($event)">
-  </app-question-palette>
+<!-- SUBMITTED Screen -->
+<div *ngIf="state === 'SUBMITTED'" class="submitted-container">
+  <mat-card class="submitted-card">
+    <mat-icon>check_circle</mat-icon>
+    <h2>Exam Submitted Successfully</h2>
+    <p>Your examination has been submitted. You may close this window.</p>
+
+    <div class="summary-info">
+      <p><strong>Summary</strong></p>
+      <p>Total Questions: {{ session?.totalQuestions }}</p>
+      <p>Questions Answered: {{ answeredQuestions.size }}</p>
+      <p>Marked for Review: {{ markedQuestions.size }}</p>
+    </div>
+  </mat-card>
 </div>

@@ -130,7 +130,7 @@ export class OtpVerifyComponent implements OnInit {
       otp: this.otpForm.value.otp
     }).subscribe({
       next: () => {
-        this.router.navigate(['/exam']);
+        this.router.navigate(['/dashboard']);
       },
       error: (err) => {
         this.isLoading = false;

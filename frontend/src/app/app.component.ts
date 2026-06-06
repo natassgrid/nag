@@ -41,9 +41,11 @@ export class AppComponent {
 
   navItems: NavItem[] = [
     { label: 'Dashboard', icon: 'home', route: '/dashboard', roles: [] },
+    { label: 'Profile', icon: 'person', route: '/profile', roles: [] },
     { label: 'Notifications', icon: 'notifications', route: '/notifications', roles: [] },
     { label: 'User Management', icon: 'people', route: '/admin/users', roles: ['SUPER_ADMIN', 'SECURITY_ADMIN'] },
     { label: 'Question Bank', icon: 'quiz', route: '/questions', roles: ['QUESTION_AUTHOR', 'REVIEWER'] },
+    { label: 'Review Queue', icon: 'rate_review', route: '/questions/review', roles: ['REVIEWER', 'APPROVER'] },
     { label: 'Exam Management', icon: 'assignment', route: '/exam/manage', roles: ['EXAM_CONTROLLER'] },
     { label: 'My Exams', icon: 'school', route: '/exam', roles: ['CANDIDATE'] },
     { label: 'Results', icon: 'grade', route: '/results', roles: ['CANDIDATE'] },

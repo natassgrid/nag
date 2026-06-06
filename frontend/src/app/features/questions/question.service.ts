@@ -77,4 +77,20 @@ export class QuestionService {
       .put<ApiResponse<QuestionResponse>>(`${this.baseUrl}/${id}/submit`, {})
       .pipe(map(res => res.data));
   }
+
+  getQuestionsForReview(): Observable<QuestionResponse[]> {
+    return this.getQuestions({ state: 'REVIEW' });
+  }
+
+  approveQuestion(id: string): Observable<QuestionResponse> {
+    return this.http
+      .put<ApiResponse<QuestionResponse>>(`${this.baseUrl}/${id}/approve`, {})
+      .pipe(map(res => res.data));
+  }
+
+  rejectQuestion(id: string, comments: string): Observable<QuestionResponse> {
+    return this.http
+      .put<ApiResponse<QuestionResponse>>(`${this.baseUrl}/${id}/reject`, { comments })
+      .pipe(map(res => res.data));
+  }
 }

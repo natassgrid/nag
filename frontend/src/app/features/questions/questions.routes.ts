@@ -5,5 +5,10 @@ export const QUESTIONS_ROUTES: Routes = [
     path: '',
     loadComponent: () =>
       import('./question-list.component').then(m => m.QuestionListComponent)
+  },
+  {
+    path: 'review',
+    loadComponent: () =>
+      import('./question-review.component').then(m => m.QuestionReviewComponent)
   }
 ];
