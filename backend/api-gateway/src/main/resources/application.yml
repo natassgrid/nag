@@ -16,7 +16,7 @@ spring:
           routes:
             # Identity Service
             - id: identity-service
-              uri: ${IDENTITY_SERVICE_URL:http://localhost:8081}
+              uri: ${IDENTITY_SERVICE_URI:http://localhost:8081}
               predicates:
                 - Path=/api/v1/identity/**
               filters:
@@ -24,7 +24,7 @@ spring:
 
             # Candidate Service
             - id: candidate-service
-              uri: ${CANDIDATE_SERVICE_URL:http://localhost:8082}
+              uri: ${CANDIDATE_SERVICE_URI:http://localhost:8082}
               predicates:
                 - Path=/api/v1/candidates/**
               filters:
@@ -32,7 +32,7 @@ spring:
 
             # Question Bank Service
             - id: question-bank-service
-              uri: ${QUESTION_BANK_SERVICE_URL:http://localhost:8083}
+              uri: ${QUESTION_BANK_SERVICE_URI:http://localhost:8083}
               predicates:
                 - Path=/api/v1/questions/**
               filters:
@@ -40,7 +40,7 @@ spring:
 
             # Examination Service
             - id: examination-service
-              uri: ${EXAMINATION_SERVICE_URL:http://localhost:8084}
+              uri: ${EXAMINATION_SERVICE_URI:http://localhost:8084}
               predicates:
                 - Path=/api/v1/examinations/**
               filters:
@@ -48,7 +48,7 @@ spring:
 
             # Paper Generator
             - id: paper-generator
-              uri: ${PAPER_GENERATOR_URL:http://localhost:8085}
+              uri: ${PAPER_GENERATOR_URI:http://localhost:8085}
               predicates:
                 - Path=/api/v1/papers/**
               filters:
@@ -56,15 +56,15 @@ spring:
 
             # Delivery Service
             - id: delivery-service
-              uri: ${DELIVERY_SERVICE_URL:http://localhost:8086}
+              uri: ${DELIVERY_SERVICE_URI:http://localhost:8086}
               predicates:
-                - Path=/api/v1/delivery/**
+                - Path=/api/v1/sessions/**,/api/v1/delivery/**
               filters:
                 - StripPrefix=0
 
             # Response Service
             - id: response-service
-              uri: ${RESPONSE_SERVICE_URL:http://localhost:8087}
+              uri: ${RESPONSE_SERVICE_URI:http://localhost:8087}
               predicates:
                 - Path=/api/v1/responses/**
               filters:
@@ -72,7 +72,7 @@ spring:
 
             # Evaluation Service
             - id: evaluation-service
-              uri: ${EVALUATION_SERVICE_URL:http://localhost:8088}
+              uri: ${EVALUATION_SERVICE_URI:http://localhost:8088}
               predicates:
                 - Path=/api/v1/evaluations/**
               filters:
@@ -80,7 +80,7 @@ spring:
 
             # Result Service
             - id: result-service
-              uri: ${RESULT_SERVICE_URL:http://localhost:8089}
+              uri: ${RESULT_SERVICE_URI:http://localhost:8089}
               predicates:
                 - Path=/api/v1/results/**
               filters:
@@ -88,7 +88,7 @@ spring:
 
             # Audit Service
             - id: audit-service
-              uri: ${AUDIT_SERVICE_URL:http://localhost:8090}
+              uri: ${AUDIT_SERVICE_URI:http://localhost:8090}
               predicates:
                 - Path=/api/v1/audit/**
               filters:
@@ -96,7 +96,7 @@ spring:
 
             # Notification Service
             - id: notification-service
-              uri: ${NOTIFICATION_SERVICE_URL:http://localhost:8091}
+              uri: ${NOTIFICATION_SERVICE_URI:http://localhost:8091}
               predicates:
                 - Path=/api/v1/notifications/**
               filters:
@@ -104,7 +104,7 @@ spring:
 
             # Admin Service
             - id: admin-service
-              uri: ${ADMIN_SERVICE_URL:http://localhost:8093}
+              uri: ${ADMIN_SERVICE_URI:http://localhost:8093}
               predicates:
                 - Path=/api/v1/admin/**
               filters:
@@ -112,7 +112,7 @@ spring:
 
             # Analytics Service
             - id: analytics-service
-              uri: ${ANALYTICS_SERVICE_URL:http://localhost:8094}
+              uri: ${ANALYTICS_SERVICE_URI:http://localhost:8094}
               predicates:
                 - Path=/api/v1/analytics/**
               filters:

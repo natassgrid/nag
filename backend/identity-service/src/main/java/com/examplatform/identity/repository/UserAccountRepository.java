@@ -4,6 +4,7 @@ import com.examplatform.identity.domain.UserAccount;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -19,4 +20,6 @@ public interface UserAccountRepository extends JpaRepository<UserAccount, UUID> 
     boolean existsByIdentityDocHashAndTenantId(String identityDocHash, String tenantId);
 
     Optional<UserAccount> findByMobileHashAndTenantId(String mobileHash, String tenantId);
+
+    List<UserAccount> findByTenantId(String tenantId);
 }

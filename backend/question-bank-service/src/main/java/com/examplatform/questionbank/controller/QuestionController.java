@@ -79,6 +79,33 @@ public class QuestionController {
     }
 
     /**
+     * List questions with optional filters.
+     * Requires QUESTION_AUTHOR, REVIEWER, or APPROVER role.
+     *
+     * @param subject    optional subject filter
+     * @param topic      optional topic filter
+     * @param difficulty optional difficulty filter
+     * @param state      optional state filter
+     * @param tenantId   tenant identifier from the X-Tenant-Id header
+     * @return 200 OK with filtered question list
+     */
+    @GetMapping
+    @PreAuthorize("hasAnyRole('QUESTION_AUTHOR', 'REVIEWER', 'APPROVER')")
+    public ResponseEntity<ApiResponse<List<QuestionResponse>>> listQuestions(
+            @RequestParam(required = false) String subject,
+            @RequestParam(required = false) String topic,
+            @RequestParam(required = false) String difficulty,
+            @RequestParam(required = false) String state,
+            @RequestHeader("X-Tenant-Id") String tenantId) {
+
+        log.info("Listing questions: subject={}, topic={}, difficulty={}, state={}, tenant={}",
+                subject, topic, difficulty, state, tenantId);
+
+        List<QuestionResponse> responses = questionService.listQuestions(subject, topic, difficulty, state, tenantId);
+        return ResponseEntity.ok(ApiResponse.success(responses, "Questions retrieved successfully"));
+    }
+
+    /**
      * Retrieve a question by ID.
      * Requires QUESTION_AUTHOR, REVIEWER, or APPROVER role.
      *
@@ -90,6 +117,31 @@ public class QuestionController {
     public ResponseEntity<ApiResponse<QuestionResponse>> getQuestion(@PathVariable UUID id) {
         QuestionResponse response = questionService.getQuestion(id);
         return ResponseEntity.ok(ApiResponse.success(response, "Question retrieved successfully"));
+    }
+
+    /**
+     * Submit a DRAFT question for review — transitions to REVIEW state.
+     * Requires QUESTION_AUTHOR role.
+     *
+     * @param id       the question UUID
+     * @param jwt      the authenticated JWT principal
+     * @param tenantId tenant identifier from the X-Tenant-Id header
+     * @return 200 OK with the updated question response
+     */
+    @PutMapping("/{id}/submit")
+    @PreAuthorize("hasRole('QUESTION_AUTHOR')")
+    public ResponseEntity<ApiResponse<QuestionResponse>> submitForReview(
+            @PathVariable UUID id,
+            @AuthenticationPrincipal Jwt jwt,
+            @RequestHeader("X-Tenant-Id") String tenantId) {
+
+        UUID authorId = UUID.fromString(jwt.getSubject());
+
+        log.info("Submitting question for review: id={}, author={}, tenant={}", id, authorId, tenantId);
+
+        QuestionResponse response = questionService.submitForReview(id, authorId, tenantId);
+
+        return ResponseEntity.ok(ApiResponse.success(response, "Question submitted for review"));
     }
 
     /**

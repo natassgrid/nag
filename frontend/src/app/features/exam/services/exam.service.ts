@@ -48,7 +48,7 @@ export interface ResponseSave {
 
 @Injectable({ providedIn: 'root' })
 export class ExamService {
-  private readonly baseUrl = '/api/v1/delivery';
+  private readonly baseUrl = '/api/v1';
 
   constructor(private http: HttpClient) {}
 

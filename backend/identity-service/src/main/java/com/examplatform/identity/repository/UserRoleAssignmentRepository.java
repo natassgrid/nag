@@ -13,5 +13,7 @@ public interface UserRoleAssignmentRepository extends JpaRepository<UserRoleAssi
 
     List<UserRoleAssignment> findByUserIdAndTenantId(UUID userId, String tenantId);
 
+    List<UserRoleAssignment> findByUserIdIn(List<UUID> userIds);
+
     void deleteByUserIdAndRoleAndTenantId(UUID userId, UserRole role, String tenantId);
 }

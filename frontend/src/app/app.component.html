@@ -1,0 +1,46 @@
+<a class="skip-link" href="#main-content">Skip to main content</a>
+
+@if (authService.isAuthenticated$ | async) {
+  <mat-toolbar color="primary" class="app-toolbar">
+    <button mat-icon-button (click)="sidenav.toggle()" aria-label="Toggle navigation menu">
+      <mat-icon>menu</mat-icon>
+    </button>
+    <span class="app-title">{{ title }}</span>
+    <span class="toolbar-spacer"></span>
+    <span class="user-name">{{ userName }}</span>
+    <button mat-icon-button (click)="onLogout()" aria-label="Logout">
+      <mat-icon>logout</mat-icon>
+    </button>
+  </mat-toolbar>
+
+  <mat-sidenav-container class="sidenav-container">
+    <mat-sidenav
+      #sidenav
+      [mode]="isMobile ? 'over' : 'side'"
+      [opened]="!isMobile"
+      role="navigation"
+    >
+      <mat-nav-list>
+        @for (item of visibleNavItems; track item.route) {
+          <a
+            mat-list-item
+            [routerLink]="item.route"
+            routerLinkActive="active-link"
+            (click)="closeSidenavIfMobile()"
+          >
+            <mat-icon matListItemIcon>{{ item.icon }}</mat-icon>
+            <span matListItemTitle>{{ item.label }}</span>
+          </a>
+        }
+      </mat-nav-list>
+    </mat-sidenav>
+
+    <mat-sidenav-content>
+      <main id="main-content">
+        <router-outlet></router-outlet>
+      </main>
+    </mat-sidenav-content>
+  </mat-sidenav-container>
+} @else {
+  <router-outlet></router-outlet>
+}

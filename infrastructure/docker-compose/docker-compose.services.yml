@@ -23,6 +23,8 @@ x-spring-env: &spring-env
   VAULT_ADDR: http://vault:8200
   VAULT_ROOT_TOKEN: ${VAULT_ROOT_TOKEN:-vault_root_token}
   OTEL_EXPORTER_OTLP_ENDPOINT: http://jaeger:4318
+  # Shared JWT signing secret for dev mode (symmetric HS256)
+  APP_JWT_SECRET: dev-jwt-secret-key-for-local-testing-minimum-32-chars
 
 x-depends-base: &depends-base
   postgres:
@@ -494,6 +496,28 @@ services:
       timeout: 10s
       retries: 5
       start_period: 60s
+
+  # ===========================================================================
+  # Frontend — Angular SPA served via Nginx
+  # ===========================================================================
+  frontend:
+    <<: *service-common
+    build:
+      context: ../../frontend
+      dockerfile: Dockerfile
+    image: localhost:5000/exam/frontend:latest
+    container_name: exam-frontend
+    ports:
+      - "4200:80"
+    depends_on:
+      api-gateway:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:80/health || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
 
 volumes:
   registry_data:

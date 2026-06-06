@@ -1,210 +1,211 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, ViewChild, AfterViewInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { ReactiveFormsModule, FormBuilder, FormGroup, Validators } from '@angular/forms';
-import { MatTableModule } from '@angular/material/table';
-import { MatButtonModule } from '@angular/material/button';
-import { MatIconModule } from '@angular/material/icon';
+import { MatTableModule, MatTableDataSource } from '@angular/material/table';
+import { MatPaginatorModule, MatPaginator } from '@angular/material/paginator';
+import { MatSortModule, MatSort } from '@angular/material/sort';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
-import { MatSelectModule } from '@angular/material/select';
-import { MatDialogModule } from '@angular/material/dialog';
-import { MatCardModule } from '@angular/material/card';
+import { MatButtonModule } from '@angular/material/button';
+import { MatIconModule } from '@angular/material/icon';
 import { MatChipsModule } from '@angular/material/chips';
-import { HttpClient } from '@angular/common/http';
-
-interface User {
-  userId: string;
-  name: string;
-  email: string;
-  roles: string[];
-  status: 'ACTIVE' | 'DEACTIVATED';
-  createdAt: string;
-}
-
-const AVAILABLE_ROLES = [
-  'Super_Admin', 'Security_Admin', 'Question_Author', 'Reviewer',
-  'Approver', 'Exam_Controller', 'Translator', 'Evaluator', 'Auditor', 'Candidate'
-];
+import { MatDialogModule, MatDialog } from '@angular/material/dialog';
+import { MatCardModule } from '@angular/material/card';
+import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
+import { AdminService, UserAccountResponse } from '../services/admin.service';
+import { RoleAssignDialogComponent, RoleAssignDialogData, RoleAssignDialogResult } from './role-assign-dialog.component';
 
 @Component({
   selector: 'app-user-management',
   standalone: true,
   imports: [
     CommonModule,
-    ReactiveFormsModule,
     MatTableModule,
-    MatButtonModule,
-    MatIconModule,
+    MatPaginatorModule,
+    MatSortModule,
     MatFormFieldModule,
     MatInputModule,
-    MatSelectModule,
+    MatButtonModule,
+    MatIconModule,
+    MatChipsModule,
     MatDialogModule,
     MatCardModule,
-    MatChipsModule
+    MatSnackBarModule
   ],
   template: `
     <section class="admin-container" role="main" aria-labelledby="user-mgmt-heading">
       <h1 id="user-mgmt-heading">User Management</h1>
 
-      <!-- Create User Form -->
-      <mat-card class="create-user-card">
-        <mat-card-header>
-          <mat-card-title>{{ editingUser ? 'Edit User' : 'Create User' }}</mat-card-title>
-        </mat-card-header>
-        <mat-card-content>
-          <form [formGroup]="userForm" (ngSubmit)="onSubmit()" aria-label="User form">
-            <div class="form-row">
-              <mat-form-field appearance="outline">
-                <mat-label>Name</mat-label>
-                <input matInput formControlName="name" aria-required="true">
-              </mat-form-field>
-
-              <mat-form-field appearance="outline">
-                <mat-label>Email</mat-label>
-                <input matInput formControlName="email" type="email" aria-required="true">
-              </mat-form-field>
-
-              <mat-form-field appearance="outline">
-                <mat-label>Roles</mat-label>
-                <mat-select formControlName="roles" multiple aria-required="true">
-                  <mat-option *ngFor="let role of availableRoles" [value]="role">{{ role }}</mat-option>
-                </mat-select>
-              </mat-form-field>
-            </div>
-
-            <div class="form-actions">
-              <button mat-raised-button color="primary" type="submit"
-                      [disabled]="userForm.invalid"
-                      [attr.aria-label]="editingUser ? 'Update user' : 'Create user'">
-                {{ editingUser ? 'Update' : 'Create' }}
-              </button>
-              <button mat-stroked-button type="button" *ngIf="editingUser"
-                      (click)="cancelEdit()" aria-label="Cancel editing">
-                Cancel
-              </button>
-            </div>
-          </form>
-        </mat-card-content>
-      </mat-card>
+      <!-- Search / Filter -->
+      <mat-form-field appearance="outline" class="filter-field">
+        <mat-label>Search users</mat-label>
+        <input matInput (keyup)="applyFilter($event)" placeholder="Filter by username, status, or role"
+               aria-label="Filter users">
+        <mat-icon matSuffix>search</mat-icon>
+      </mat-form-field>
 
       <!-- Users Table -->
       <mat-card class="users-table-card">
-        <table mat-table [dataSource]="users" aria-label="Users list">
-          <ng-container matColumnDef="name">
-            <th mat-header-cell *matHeaderCellDef>Name</th>
-            <td mat-cell *matCellDef="let user">{{ user.name }}</td>
+        <table mat-table [dataSource]="dataSource" matSort aria-label="Users list">
+
+          <!-- Username Column -->
+          <ng-container matColumnDef="username">
+            <th mat-header-cell *matHeaderCellDef mat-sort-header>Username</th>
+            <td mat-cell *matCellDef="let user">{{ user.username }}</td>
           </ng-container>
 
-          <ng-container matColumnDef="email">
-            <th mat-header-cell *matHeaderCellDef>Email</th>
-            <td mat-cell *matCellDef="let user">{{ user.email }}</td>
+          <!-- Status Column -->
+          <ng-container matColumnDef="accountStatus">
+            <th mat-header-cell *matHeaderCellDef mat-sort-header>Status</th>
+            <td mat-cell *matCellDef="let user"
+                [class.active]="user.accountStatus === 'ACTIVE'"
+                [class.inactive]="user.accountStatus !== 'ACTIVE'">
+              {{ user.accountStatus }}
+            </td>
           </ng-container>
 
+          <!-- MFA Column -->
+          <ng-container matColumnDef="mfaEnabled">
+            <th mat-header-cell *matHeaderCellDef mat-sort-header>MFA</th>
+            <td mat-cell *matCellDef="let user">
+              <mat-icon [class.mfa-on]="user.mfaEnabled" [class.mfa-off]="!user.mfaEnabled">
+                {{ user.mfaEnabled ? 'verified_user' : 'no_encryption' }}
+              </mat-icon>
+            </td>
+          </ng-container>
+
+          <!-- Roles Column -->
           <ng-container matColumnDef="roles">
             <th mat-header-cell *matHeaderCellDef>Roles</th>
             <td mat-cell *matCellDef="let user">
               <mat-chip-set aria-label="User roles">
-                <mat-chip *ngFor="let role of user.roles">{{ role }}</mat-chip>
+                <mat-chip *ngFor="let role of user.roles" class="role-chip">{{ role }}</mat-chip>
               </mat-chip-set>
+              <span *ngIf="!user.roles?.length" class="no-roles">No roles</span>
             </td>
           </ng-container>
 
-          <ng-container matColumnDef="status">
-            <th mat-header-cell *matHeaderCellDef>Status</th>
-            <td mat-cell *matCellDef="let user"
-                [class.active]="user.status === 'ACTIVE'"
-                [class.deactivated]="user.status === 'DEACTIVATED'">
-              {{ user.status }}
-            </td>
+          <!-- Created Column -->
+          <ng-container matColumnDef="createdAt">
+            <th mat-header-cell *matHeaderCellDef mat-sort-header>Created</th>
+            <td mat-cell *matCellDef="let user">{{ user.createdAt | date:'medium' }}</td>
           </ng-container>
 
+          <!-- Actions Column -->
           <ng-container matColumnDef="actions">
             <th mat-header-cell *matHeaderCellDef>Actions</th>
             <td mat-cell *matCellDef="let user">
-              <button mat-icon-button (click)="editUser(user)" aria-label="Edit user">
-                <mat-icon>edit</mat-icon>
-              </button>
-              <button mat-icon-button color="warn"
-                      (click)="toggleStatus(user)"
-                      [attr.aria-label]="user.status === 'ACTIVE' ? 'Deactivate user' : 'Activate user'">
-                <mat-icon>{{ user.status === 'ACTIVE' ? 'block' : 'check_circle' }}</mat-icon>
+              <button mat-raised-button color="primary" (click)="openRoleDialog(user)"
+                      aria-label="Assign or revoke role for user">
+                <mat-icon>admin_panel_settings</mat-icon>
+                Assign Role
               </button>
             </td>
           </ng-container>
 
           <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
           <tr mat-row *matRowDef="let row; columns: displayedColumns;"></tr>
+
+          <!-- No data row -->
+          <tr class="mat-row" *matNoDataRow>
+            <td class="mat-cell no-data" [attr.colspan]="displayedColumns.length">
+              No users found matching "{{ filterValue }}"
+            </td>
+          </tr>
         </table>
+
+        <mat-paginator [pageSizeOptions]="[10, 25, 50]" showFirstLastButtons
+                       aria-label="Select page of users">
+        </mat-paginator>
       </mat-card>
     </section>
   `,
   styles: [`
-    .admin-container { padding: var(--spacing-lg); max-width: 1200px; margin: 0 auto; }
-    .create-user-card { margin-bottom: var(--spacing-lg); }
-    .form-row { display: flex; gap: var(--spacing-md); flex-wrap: wrap; }
-    .form-row mat-form-field { flex: 1; min-width: 200px; }
-    .form-actions { display: flex; gap: var(--spacing-md); margin-top: var(--spacing-sm); }
+    .admin-container { padding: 24px; max-width: 1400px; margin: 0 auto; }
+    .filter-field { width: 100%; margin-bottom: 16px; }
     .users-table-card { overflow-x: auto; }
     table { width: 100%; }
-    .active { color: var(--color-success); font-weight: 500; }
-    .deactivated { color: var(--color-error); font-weight: 500; }
+    .active { color: #4caf50; font-weight: 500; }
+    .inactive { color: #f44336; font-weight: 500; }
+    .mfa-on { color: #4caf50; }
+    .mfa-off { color: #9e9e9e; }
+    .role-chip { font-size: 11px; }
+    .no-roles { color: #9e9e9e; font-style: italic; }
+    .no-data { text-align: center; padding: 24px; color: #9e9e9e; }
   `]
 })
-export class UserManagementComponent implements OnInit {
-  users: User[] = [];
-  userForm: FormGroup;
-  editingUser: User | null = null;
-  availableRoles = AVAILABLE_ROLES;
-  displayedColumns = ['name', 'email', 'roles', 'status', 'actions'];
+export class UserManagementComponent implements OnInit, AfterViewInit {
+  displayedColumns = ['username', 'accountStatus', 'mfaEnabled', 'roles', 'createdAt', 'actions'];
+  dataSource = new MatTableDataSource<UserAccountResponse>([]);
+  filterValue = '';
 
-  constructor(private fb: FormBuilder, private http: HttpClient) {
-    this.userForm = this.fb.group({
-      name: ['', Validators.required],
-      email: ['', [Validators.required, Validators.email]],
-      roles: [[], Validators.required]
-    });
-  }
+  @ViewChild(MatPaginator) paginator!: MatPaginator;
+  @ViewChild(MatSort) sort!: MatSort;
+
+  constructor(
+    private adminService: AdminService,
+    private dialog: MatDialog,
+    private snackBar: MatSnackBar
+  ) {}
 
   ngOnInit(): void {
     this.loadUsers();
   }
 
+  ngAfterViewInit(): void {
+    this.dataSource.paginator = this.paginator;
+    this.dataSource.sort = this.sort;
+    this.dataSource.filterPredicate = (data: UserAccountResponse, filter: string) => {
+      const searchStr = filter.toLowerCase();
+      return data.username.toLowerCase().includes(searchStr)
+        || data.accountStatus.toLowerCase().includes(searchStr)
+        || data.roles.some(r => r.toLowerCase().includes(searchStr));
+    };
+  }
+
   loadUsers(): void {
-    this.http.get<User[]>('/api/v1/admin/users').subscribe({
-      next: (users) => this.users = users,
-      error: () => {}
+    this.adminService.getUsers().subscribe({
+      next: (users) => {
+        this.dataSource.data = users;
+      },
+      error: (err) => {
+        this.snackBar.open('Failed to load users', 'Dismiss', { duration: 5000 });
+      }
     });
   }
 
-  onSubmit(): void {
-    if (this.userForm.invalid) return;
-
-    const payload = this.userForm.value;
-    if (this.editingUser) {
-      this.http.put(`/api/v1/admin/users/${this.editingUser.userId}`, payload).subscribe({
-        next: () => { this.loadUsers(); this.cancelEdit(); }
-      });
-    } else {
-      this.http.post('/api/v1/admin/users', payload).subscribe({
-        next: () => { this.loadUsers(); this.userForm.reset(); }
-      });
+  applyFilter(event: Event): void {
+    const value = (event.target as HTMLInputElement).value;
+    this.filterValue = value;
+    this.dataSource.filter = value.trim().toLowerCase();
+    if (this.dataSource.paginator) {
+      this.dataSource.paginator.firstPage();
     }
   }
 
-  editUser(user: User): void {
-    this.editingUser = user;
-    this.userForm.patchValue({ name: user.name, email: user.email, roles: user.roles });
-  }
+  openRoleDialog(user: UserAccountResponse): void {
+    const dialogData: RoleAssignDialogData = {
+      username: user.username,
+      userId: user.id,
+      currentRoles: user.roles
+    };
 
-  cancelEdit(): void {
-    this.editingUser = null;
-    this.userForm.reset();
-  }
+    const dialogRef = this.dialog.open(RoleAssignDialogComponent, {
+      width: '420px',
+      data: dialogData
+    });
 
-  toggleStatus(user: User): void {
-    const action = user.status === 'ACTIVE' ? 'deactivate' : 'activate';
-    this.http.post(`/api/v1/admin/users/${user.userId}/${action}`, {}).subscribe({
-      next: () => this.loadUsers()
+    dialogRef.afterClosed().subscribe((result: RoleAssignDialogResult | undefined) => {
+      if (result) {
+        this.adminService.assignRole(user.id, result.role, result.action).subscribe({
+          next: (res) => {
+            this.snackBar.open(res.message, 'OK', { duration: 3000 });
+            this.loadUsers();
+          },
+          error: () => {
+            this.snackBar.open('Role operation failed', 'Dismiss', { duration: 5000 });
+          }
+        });
+      }
     });
   }
 }

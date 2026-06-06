@@ -1,6 +1,6 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { BehaviorSubject, Observable, tap } from 'rxjs';
+import { BehaviorSubject, Observable, tap, map } from 'rxjs';
 
 export interface UserToken {
   accessToken: string;
@@ -64,13 +64,29 @@ export class AuthService {
   }
 
   storeTokens(tokenData: UserToken): void {
-    localStorage.setItem(this.TOKEN_KEY, tokenData.accessToken);
-    localStorage.setItem(this.REFRESH_KEY, tokenData.refreshToken);
-    localStorage.setItem(this.USER_KEY, JSON.stringify({
-      roles: tokenData.roles,
-      userId: tokenData.userId
-    }));
-    this.isAuthenticatedSubject.next(true);
+    if (tokenData && tokenData.accessToken) {
+      localStorage.setItem(this.TOKEN_KEY, tokenData.accessToken);
+      localStorage.setItem(this.REFRESH_KEY, tokenData.refreshToken);
+
+      // Extract roles and userId from JWT payload
+      const payload = this.decodeJwtPayload(tokenData.accessToken);
+      const roles = payload?.realm_access?.roles || tokenData.roles || [];
+      const userId = payload?.sub || payload?.preferred_username || tokenData.userId || '';
+
+      localStorage.setItem(this.USER_KEY, JSON.stringify({ roles, userId }));
+      this.isAuthenticatedSubject.next(true);
+    }
+  }
+
+  private decodeJwtPayload(token: string): any {
+    try {
+      const parts = token.split('.');
+      if (parts.length !== 3) return null;
+      const payload = atob(parts[1].replace(/-/g, '+').replace(/_/g, '/'));
+      return JSON.parse(payload);
+    } catch {
+      return null;
+    }
   }
 
   clearTokens(): void {
@@ -81,8 +97,11 @@ export class AuthService {
   }
 
   login(credentials: { username: string; password: string; mfaCode?: string }): Observable<UserToken> {
-    return this.http.post<UserToken>('/api/v1/identity/auth/token', credentials)
-      .pipe(tap(token => this.storeTokens(token)));
+    return this.http.post<{ status: string; data: UserToken }>('/api/v1/identity/auth/token', credentials)
+      .pipe(
+        map(response => response.data),
+        tap(token => this.storeTokens(token))
+      );
   }
 
   register(data: { name: string; email: string; mobile: string; identityDocType: string; identityDocNumber: string }): Observable<{ registrationId: string }> {

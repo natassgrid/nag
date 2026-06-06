@@ -1,0 +1,26 @@
+<section class="dashboard-container" aria-label="Dashboard">
+  <h1 class="welcome-message">Welcome, {{ username }}</h1>
+  <p class="subtitle">What would you like to do today?</p>
+
+  <div class="card-grid" role="list">
+    @for (card of cards; track card.title) {
+      <mat-card class="dashboard-card" role="listitem" appearance="outlined">
+        <mat-card-header>
+          <mat-icon mat-card-avatar class="card-icon" [attr.aria-hidden]="true">{{ card.icon }}</mat-icon>
+          <mat-card-title>{{ card.title }}</mat-card-title>
+          <mat-card-subtitle>{{ card.description }}</mat-card-subtitle>
+        </mat-card-header>
+        <mat-card-actions align="end">
+          <button
+            mat-flat-button
+            color="primary"
+            (click)="navigateTo(card.route)"
+            [attr.aria-label]="'Go to ' + card.title">
+            Go
+            <mat-icon iconPositionEnd>arrow_forward</mat-icon>
+          </button>
+        </mat-card-actions>
+      </mat-card>
+    }
+  </div>
+</section>

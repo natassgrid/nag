@@ -6,6 +6,7 @@ import com.examplatform.identity.domain.enums.UserRole;
 import com.examplatform.identity.dto.RoleAction;
 import com.examplatform.identity.dto.RoleAssignmentRequest;
 import com.examplatform.identity.dto.RoleAssignmentResponse;
+import com.examplatform.identity.dto.UserAccountResponse;
 import com.examplatform.identity.exception.AccountNotFoundException;
 import com.examplatform.identity.exception.AuthenticationException;
 import com.examplatform.identity.repository.UserAccountRepository;
@@ -17,9 +18,11 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 /**
  * Service responsible for managing user role assignments and revocations.
@@ -119,6 +122,39 @@ public class RoleManagementService {
         return roleAssignmentRepository.findByUserIdAndTenantId(userId, tenantId)
                 .stream()
                 .map(UserRoleAssignment::getRole)
+                .toList();
+    }
+
+    /**
+     * List all user accounts for a tenant with their assigned roles.
+     *
+     * @param tenantId tenant context
+     * @return list of user account responses including roles
+     */
+    public List<UserAccountResponse> listAllUsers(String tenantId) {
+        List<UserAccount> accounts = userAccountRepository.findByTenantId(tenantId);
+        if (accounts.isEmpty()) {
+            return Collections.emptyList();
+        }
+
+        List<UUID> userIds = accounts.stream().map(UserAccount::getId).toList();
+        List<UserRoleAssignment> allAssignments = roleAssignmentRepository.findByUserIdIn(userIds);
+
+        Map<UUID, List<String>> rolesByUser = allAssignments.stream()
+                .collect(Collectors.groupingBy(
+                        UserRoleAssignment::getUserId,
+                        Collectors.mapping(a -> a.getRole().name(), Collectors.toList())
+                ));
+
+        return accounts.stream()
+                .map(account -> UserAccountResponse.builder()
+                        .id(account.getId())
+                        .username(account.getUsername())
+                        .accountStatus(account.getAccountStatus().name())
+                        .mfaEnabled(account.isMfaEnabled())
+                        .roles(rolesByUser.getOrDefault(account.getId(), Collections.emptyList()))
+                        .createdAt(account.getCreatedAt())
+                        .build())
                 .toList();
     }
 }

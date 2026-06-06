@@ -209,7 +209,7 @@ jobs:
         with:
           name: dependency-check-report
           path: 'reports/'
-          retention-days: 14
+          retention-days: 2
 
   # ─────────────────────────────────────────────────────────────────────────────
   # Job 5: DAST — OWASP ZAP baseline scan
@@ -238,7 +238,7 @@ jobs:
         with:
           name: zap-report
           path: report_html.html
-          retention-days: 7
+          retention-days: 2
 
   # ─────────────────────────────────────────────────────────────────────────────
   # Job 6: Container build + Trivy image scan
