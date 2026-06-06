@@ -38,6 +38,14 @@ spring:
               filters:
                 - StripPrefix=0
 
+            # Subjects Service (part of Question Bank)
+            - id: subjects-service
+              uri: ${QUESTION_BANK_SERVICE_URI:http://localhost:8083}
+              predicates:
+                - Path=/api/v1/subjects/**
+              filters:
+                - StripPrefix=0
+
             # Examination Service
             - id: examination-service
               uri: ${EXAMINATION_SERVICE_URI:http://localhost:8084}

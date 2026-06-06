@@ -45,6 +45,7 @@ export class AppComponent {
     { label: 'Notifications', icon: 'notifications', route: '/notifications', roles: [] },
     { label: 'User Management', icon: 'people', route: '/admin/users', roles: ['SUPER_ADMIN', 'SECURITY_ADMIN'] },
     { label: 'Question Bank', icon: 'quiz', route: '/questions', roles: ['QUESTION_AUTHOR', 'REVIEWER'] },
+    { label: 'Subject Management', icon: 'category', route: '/questions/subjects', roles: ['QUESTION_AUTHOR', 'EXAM_CONTROLLER', 'SUPER_ADMIN'] },
     { label: 'Review Queue', icon: 'rate_review', route: '/questions/review', roles: ['REVIEWER', 'APPROVER'] },
     { label: 'Exam Management', icon: 'assignment', route: '/exam/manage', roles: ['EXAM_CONTROLLER'] },
     { label: 'My Exams', icon: 'school', route: '/exam', roles: ['CANDIDATE'] },
