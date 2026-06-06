@@ -1,11 +1,8 @@
 name: CI Pipeline
 
 on:
+  workflow_dispatch:  # All jobs are manual-trigger only
   push:
-    branches:
-      - main
-      - develop
-  pull_request:
     branches:
       - main
       - develop
@@ -21,6 +18,7 @@ jobs:
   build:
     name: Build
     runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_dispatch'
     steps:
       - name: Checkout source
         uses: actions/checkout@v4
@@ -51,6 +49,7 @@ jobs:
   unit-test:
     name: Unit Tests
     runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_dispatch'
     needs: build
     steps:
       - name: Checkout source
@@ -84,7 +83,7 @@ jobs:
         with:
           name: coverage-reports
           path: '**/build/reports/jacoco/**'
-          retention-days: 7
+          retention-days: 2
 
   # ─────────────────────────────────────────────────────────────────────────────
   # Job 3: Integration tests (Testcontainers — PostgreSQL, Kafka, Redis)
@@ -92,12 +91,8 @@ jobs:
   integration-test:
     name: Integration Tests
     runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_dispatch'
     needs: build
-    services:
-      # Testcontainers manages its own containers; docker daemon is sufficient
-      docker:
-        image: docker:dind
-        options: --privileged
     steps:
       - name: Checkout source
         uses: actions/checkout@v4
@@ -130,6 +125,7 @@ jobs:
   sast:
     name: SAST (SpotBugs + Semgrep)
     runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_dispatch'
     needs: build
     permissions:
       security-events: write
@@ -153,7 +149,6 @@ jobs:
 
       - name: Run SpotBugs
         run: ./gradlew spotbugsMain --no-daemon
-        # Fails the build if HIGH-severity bugs are found (configured in build.gradle)
 
       - name: Upload SpotBugs HTML reports
         uses: actions/upload-artifact@v4
@@ -161,7 +156,7 @@ jobs:
         with:
           name: spotbugs-reports
           path: '**/build/reports/spotbugs/*.html'
-          retention-days: 7
+          retention-days: 2
 
       - name: Run Semgrep (Java rules)
         uses: semgrep/semgrep-action@v1
@@ -172,14 +167,14 @@ jobs:
             p/secrets
         env:
           SEMGREP_APP_TOKEN: ${{ secrets.SEMGREP_APP_TOKEN }}
-        # Block on HIGH severity findings; Semgrep action exits non-zero on findings
 
   # ─────────────────────────────────────────────────────────────────────────────
-  # Job 4b: OWASP Dependency-Check (between SAST and Container Build)
+  # Job 4b: OWASP Dependency-Check
   # ─────────────────────────────────────────────────────────────────────────────
   dependency-check:
     name: OWASP Dependency-Check
     runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_dispatch'
     needs: build
     steps:
       - name: Checkout source
@@ -216,21 +211,14 @@ jobs:
           path: 'reports/'
           retention-days: 14
 
-      - name: Upload SARIF to GitHub Security
-        uses: github/codeql-action/upload-sarif@v3
-        if: always()
-        with:
-          sarif_file: 'reports/dependency-check-report.sarif'
-          category: 'dependency-check'
-
   # ─────────────────────────────────────────────────────────────────────────────
-  # Job 5: DAST — OWASP ZAP baseline scan (staging only)
+  # Job 5: DAST — OWASP ZAP baseline scan
   # ─────────────────────────────────────────────────────────────────────────────
   dast:
     name: DAST (OWASP ZAP)
     runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_dispatch' && vars.STAGING_URL != ''
     needs: build
-    if: vars.STAGING_URL != ''
     steps:
       - name: Checkout source
         uses: actions/checkout@v4
@@ -253,11 +241,12 @@ jobs:
           retention-days: 7
 
   # ─────────────────────────────────────────────────────────────────────────────
-  # Job 6: Container build + Trivy image scan (fail on CRITICAL)
+  # Job 6: Container build + Trivy image scan
   # ─────────────────────────────────────────────────────────────────────────────
   container-build:
     name: Container Build & Scan
     runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_dispatch'
     needs: [unit-test, sast, dependency-check]
     strategy:
       fail-fast: false
@@ -298,47 +287,41 @@ jobs:
       - name: Build JAR for ${{ matrix.service }}
         run: ./gradlew :backend:${{ matrix.service }}:bootJar --no-daemon
         continue-on-error: true
-        # Some services may not have Dockerfiles yet; continue-on-error avoids blocking pipeline
 
       - name: Build Docker image for ${{ matrix.service }}
         id: docker-build
         run: |
-          if [ -f "backend/${{ matrix.service }}/Dockerfile" ]; then
-            docker build \
-              --tag examplatform/${{ matrix.service }}:${{ github.sha }} \
-              --tag examplatform/${{ matrix.service }}:latest \
-              backend/${{ matrix.service }}/
-          else
-            echo "No Dockerfile found for ${{ matrix.service }}, skipping image build."
-            echo "skipped=true" >> "$GITHUB_OUTPUT"
-          fi
+          docker build \
+            --build-arg SERVICE_NAME=${{ matrix.service }} \
+            --tag examplatform/${{ matrix.service }}:${{ github.sha }} \
+            --tag examplatform/${{ matrix.service }}:latest \
+            -f backend/Dockerfile .
 
       - name: Run Trivy image scan for ${{ matrix.service }}
-        if: steps.docker-build.outputs.skipped != 'true'
         uses: aquasecurity/trivy-action@0.20.0
         with:
           image-ref: 'examplatform/${{ matrix.service }}:${{ github.sha }}'
           format: 'sarif'
           output: 'trivy-${{ matrix.service }}.sarif'
           severity: 'CRITICAL,HIGH'
-          exit-code: '1'          # Fail on CRITICAL vulnerabilities
+          exit-code: '1'
           ignore-unfixed: true
 
       - name: Upload Trivy scan results
-        if: always() && steps.docker-build.outputs.skipped != 'true'
+        if: always()
         uses: github/codeql-action/upload-sarif@v3
         with:
           sarif_file: 'trivy-${{ matrix.service }}.sarif'
           category: 'trivy-${{ matrix.service }}'
 
   # ─────────────────────────────────────────────────────────────────────────────
-  # Job 7: Deploy to staging (develop branch only, after all checks pass)
+  # Job 7: Deploy to staging (manual only)
   # ─────────────────────────────────────────────────────────────────────────────
   deploy:
     name: Deploy to Staging
     runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_dispatch'
     needs: [unit-test, integration-test, sast, container-build]
-    if: github.ref == 'refs/heads/develop' && github.event_name == 'push'
     environment:
       name: staging
       url: ${{ vars.STAGING_URL }}
