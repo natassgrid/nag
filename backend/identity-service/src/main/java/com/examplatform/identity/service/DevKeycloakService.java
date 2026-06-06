@@ -2,17 +2,21 @@ package com.examplatform.identity.service;
 
 import com.examplatform.identity.dto.AuthTokenResponse;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Primary;
 import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Service;
 
+import javax.crypto.Mac;
+import javax.crypto.spec.SecretKeySpec;
+import java.nio.charset.StandardCharsets;
 import java.util.Base64;
 import java.util.UUID;
 
 /**
- * Dev-mode stub that bypasses Keycloak and issues dummy JWT tokens.
+ * Dev-mode service that issues properly signed JWT tokens using a shared HMAC secret.
+ * All downstream services validate these tokens using the same secret.
  * Active only when 'docker' or 'dev' profile is set.
- * Accepts any password — DO NOT use in production.
  */
 @Slf4j
 @Service
@@ -20,27 +24,37 @@ import java.util.UUID;
 @Profile({"dev", "docker"})
 public class DevKeycloakService extends KeycloakService {
 
-    public DevKeycloakService() {
+    private final String jwtSecret;
+
+    public DevKeycloakService(@Value("${app.jwt.secret:dev-jwt-secret-key-for-local-testing-minimum-32-chars}") String jwtSecret) {
         super(null);
+        this.jwtSecret = jwtSecret;
     }
 
     @Override
     public AuthTokenResponse getTokens(String username, String password) {
-        log.info("[DEV] Issuing dev token for user: {}", username);
+        log.info("[DEV] Issuing signed dev token for user: {}", username);
 
-        String header = Base64.getUrlEncoder().withoutPadding()
-                .encodeToString("{\"alg\":\"none\",\"typ\":\"JWT\"}".getBytes());
-        String payload = Base64.getUrlEncoder().withoutPadding()
-                .encodeToString(("{\"sub\":\"" + UUID.randomUUID() + "\","
-                        + "\"preferred_username\":\"" + username + "\","
-                        + "\"iss\":\"dev-issuer\","
-                        + "\"iat\":" + System.currentTimeMillis() / 1000 + ","
-                        + "\"exp\":" + (System.currentTimeMillis() / 1000 + 3600) + "}")
-                        .getBytes());
-        String devToken = header + "." + payload + ".";
+        long now = System.currentTimeMillis() / 1000;
+        long exp = now + 3600;
+
+        String header = base64Url("{\"alg\":\"HS256\",\"typ\":\"JWT\"}");
+        String payload = base64Url("{" +
+                "\"sub\":\"" + username + "\"," +
+                "\"preferred_username\":\"" + username + "\"," +
+                "\"iss\":\"exam-platform-dev\"," +
+                "\"aud\":\"exam-backend\"," +
+                "\"iat\":" + now + "," +
+                "\"exp\":" + exp + "," +
+                "\"realm_access\":{\"roles\":[\"SUPER_ADMIN\",\"CANDIDATE\",\"QUESTION_AUTHOR\",\"REVIEWER\",\"EXAM_CONTROLLER\"]}" +
+                "}");
+
+        String signingInput = header + "." + payload;
+        String signature = hmacSha256(signingInput);
+        String accessToken = signingInput + "." + signature;
 
         return AuthTokenResponse.builder()
-                .accessToken(devToken)
+                .accessToken(accessToken)
                 .refreshToken(UUID.randomUUID().toString())
                 .expiresIn(3600L)
                 .tokenType("Bearer")
@@ -50,5 +64,23 @@ public class DevKeycloakService extends KeycloakService {
     @Override
     public void activateUser(String keycloakUserId) {
         log.info("[DEV] Skipping Keycloak user activation for: {}", keycloakUserId);
+    }
+
+    private String base64Url(String input) {
+        return Base64.getUrlEncoder().withoutPadding()
+                .encodeToString(input.getBytes(StandardCharsets.UTF_8));
+    }
+
+    private String hmacSha256(String data) {
+        try {
+            Mac mac = Mac.getInstance("HmacSHA256");
+            SecretKeySpec secretKey = new SecretKeySpec(
+                    jwtSecret.getBytes(StandardCharsets.UTF_8), "HmacSHA256");
+            mac.init(secretKey);
+            byte[] hash = mac.doFinal(data.getBytes(StandardCharsets.UTF_8));
+            return Base64.getUrlEncoder().withoutPadding().encodeToString(hash);
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to sign JWT", e);
+        }
     }
 }

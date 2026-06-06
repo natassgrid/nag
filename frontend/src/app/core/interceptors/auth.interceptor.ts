@@ -12,9 +12,10 @@ export const authInterceptor: HttpInterceptorFn = (req, next) => {
 
   let headers = req.headers
     .set('X-Request-Id', generateRequestId())
+    .set('X-Tenant-Id', 'exam-authority-1')
     .set('Accept-Language', navigator.language || 'en');
 
-  if (token) {
+  if (token && token !== 'undefined' && token !== 'null') {
     headers = headers.set('Authorization', `Bearer ${token}`);
   }
 

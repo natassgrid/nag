@@ -1,0 +1,9 @@
+# Override for docker profile — disable Keycloak JWT auto-configuration
+# so DevJwtConfig's HS256 decoder is used instead
+spring:
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri:
+          jwk-set-uri:

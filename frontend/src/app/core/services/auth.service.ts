@@ -1,6 +1,6 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { BehaviorSubject, Observable, tap } from 'rxjs';
+import { BehaviorSubject, Observable, tap, map } from 'rxjs';
 
 export interface UserToken {
   accessToken: string;
@@ -64,13 +64,15 @@ export class AuthService {
   }
 
   storeTokens(tokenData: UserToken): void {
-    localStorage.setItem(this.TOKEN_KEY, tokenData.accessToken);
-    localStorage.setItem(this.REFRESH_KEY, tokenData.refreshToken);
-    localStorage.setItem(this.USER_KEY, JSON.stringify({
-      roles: tokenData.roles,
-      userId: tokenData.userId
-    }));
-    this.isAuthenticatedSubject.next(true);
+    if (tokenData && tokenData.accessToken) {
+      localStorage.setItem(this.TOKEN_KEY, tokenData.accessToken);
+      localStorage.setItem(this.REFRESH_KEY, tokenData.refreshToken);
+      localStorage.setItem(this.USER_KEY, JSON.stringify({
+        roles: tokenData.roles || [],
+        userId: tokenData.userId || ''
+      }));
+      this.isAuthenticatedSubject.next(true);
+    }
   }
 
   clearTokens(): void {
@@ -81,8 +83,11 @@ export class AuthService {
   }
 
   login(credentials: { username: string; password: string; mfaCode?: string }): Observable<UserToken> {
-    return this.http.post<UserToken>('/api/v1/identity/auth/token', credentials)
-      .pipe(tap(token => this.storeTokens(token)));
+    return this.http.post<{ status: string; data: UserToken }>('/api/v1/identity/auth/token', credentials)
+      .pipe(
+        map(response => response.data),
+        tap(token => this.storeTokens(token))
+      );
   }
 
   register(data: { name: string; email: string; mobile: string; identityDocType: string; identityDocNumber: string }): Observable<{ registrationId: string }> {

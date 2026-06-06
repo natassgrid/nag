@@ -86,7 +86,7 @@ export class ExamDeliveryComponent implements OnInit, OnDestroy {
   ngOnInit(): void {
     this.offlineBuffer.init();
     // In a real scenario, shiftId would come from route params or session
-    this.startExam('default-shift');
+    this.startExam('00000000-0000-0000-0000-000000000001');
   }
 
   ngOnDestroy(): void {
