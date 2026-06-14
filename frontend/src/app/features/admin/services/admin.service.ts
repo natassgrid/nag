@@ -23,6 +23,19 @@ export interface RoleAssignmentResponse {
   message: string;
 }
 
+export interface AdminCreateUserRequest {
+  fullName: string;
+  email: string;
+  password: string;
+  roles: string[];
+}
+
+export interface AdminUpdateUserRequest {
+  fullName?: string;
+  accountStatus?: string;
+  mfaEnabled?: boolean;
+}
+
 interface ApiResponse<T> {
   status: string;
   data: T;
@@ -39,6 +52,24 @@ export class AdminService {
   getUsers(): Observable<UserAccountResponse[]> {
     return this.http.get<ApiResponse<UserAccountResponse[]>>(`${this.baseUrl}/users`).pipe(
       map(response => response.data)
+    );
+  }
+
+  createUser(request: AdminCreateUserRequest): Observable<UserAccountResponse> {
+    return this.http.post<ApiResponse<UserAccountResponse>>(`${this.baseUrl}/users`, request).pipe(
+      map(response => response.data)
+    );
+  }
+
+  updateUser(userId: string, request: AdminUpdateUserRequest): Observable<UserAccountResponse> {
+    return this.http.put<ApiResponse<UserAccountResponse>>(`${this.baseUrl}/users/${userId}`, request).pipe(
+      map(response => response.data)
+    );
+  }
+
+  deactivateUser(userId: string): Observable<void> {
+    return this.http.delete<ApiResponse<void>>(`${this.baseUrl}/users/${userId}`).pipe(
+      map(() => undefined)
     );
   }
 

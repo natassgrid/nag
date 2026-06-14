@@ -14,4 +14,6 @@ public class AppSecurityProperties {
     private long jwtAccessTokenLifetimeSeconds = 900;
     private long jwtRefreshTokenLifetimeSeconds = 28800;
     private int sessionIdleTimeoutSeconds = 1800;
+    /** When true, MFA and risk-based step-up authentication are enforced. When false, password-only login is allowed. */
+    private boolean mfaEnabled = false;
 }

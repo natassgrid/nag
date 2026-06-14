@@ -11,8 +11,11 @@ import { MatChipsModule } from '@angular/material/chips';
 import { MatDialogModule, MatDialog } from '@angular/material/dialog';
 import { MatCardModule } from '@angular/material/card';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
+import { MatMenuModule } from '@angular/material/menu';
 import { AdminService, UserAccountResponse } from '../services/admin.service';
 import { RoleAssignDialogComponent, RoleAssignDialogData, RoleAssignDialogResult } from './role-assign-dialog.component';
+import { UserCreateDialogComponent, UserCreateDialogResult } from './user-create-dialog.component';
+import { UserEditDialogComponent, UserEditDialogData, UserEditDialogResult } from './user-edit-dialog.component';
 
 @Component({
   selector: 'app-user-management',
@@ -29,11 +32,19 @@ import { RoleAssignDialogComponent, RoleAssignDialogData, RoleAssignDialogResult
     MatChipsModule,
     MatDialogModule,
     MatCardModule,
-    MatSnackBarModule
+    MatSnackBarModule,
+    MatMenuModule
   ],
   template: `
     <section class="admin-container" role="main" aria-labelledby="user-mgmt-heading">
-      <h1 id="user-mgmt-heading">User Management</h1>
+      <div class="page-header">
+        <h1 id="user-mgmt-heading">User Management</h1>
+        <button mat-raised-button color="primary" (click)="openCreateDialog()"
+                aria-label="Create a new user">
+          <mat-icon>person_add</mat-icon>
+          Create User
+        </button>
+      </div>
 
       <!-- Search / Filter -->
       <mat-form-field appearance="outline" class="filter-field">
@@ -94,11 +105,25 @@ import { RoleAssignDialogComponent, RoleAssignDialogData, RoleAssignDialogResult
           <ng-container matColumnDef="actions">
             <th mat-header-cell *matHeaderCellDef>Actions</th>
             <td mat-cell *matCellDef="let user">
-              <button mat-raised-button color="primary" (click)="openRoleDialog(user)"
-                      aria-label="Assign or revoke role for user">
-                <mat-icon>admin_panel_settings</mat-icon>
-                Assign Role
+              <button mat-icon-button [matMenuTriggerFor]="actionMenu"
+                      aria-label="User actions menu">
+                <mat-icon>more_vert</mat-icon>
               </button>
+              <mat-menu #actionMenu="matMenu">
+                <button mat-menu-item (click)="openEditDialog(user)">
+                  <mat-icon>edit</mat-icon>
+                  <span>Edit User</span>
+                </button>
+                <button mat-menu-item (click)="openRoleDialog(user)">
+                  <mat-icon>admin_panel_settings</mat-icon>
+                  <span>Manage Roles</span>
+                </button>
+                <button mat-menu-item (click)="deactivateUser(user)"
+                        [disabled]="user.accountStatus === 'DEACTIVATED'">
+                  <mat-icon color="warn">block</mat-icon>
+                  <span>Deactivate</span>
+                </button>
+              </mat-menu>
             </td>
           </ng-container>
 
@@ -121,6 +146,8 @@ import { RoleAssignDialogComponent, RoleAssignDialogData, RoleAssignDialogResult
   `,
   styles: [`
     .admin-container { padding: 24px; max-width: 1400px; margin: 0 auto; }
+    .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+    .page-header h1 { margin: 0; }
     .filter-field { width: 100%; margin-bottom: 16px; }
     .users-table-card { overflow-x: auto; }
     table { width: 100%; }
@@ -205,6 +232,66 @@ export class UserManagementComponent implements OnInit, AfterViewInit {
             this.snackBar.open('Role operation failed', 'Dismiss', { duration: 5000 });
           }
         });
+      }
+    });
+  }
+
+  openCreateDialog(): void {
+    const dialogRef = this.dialog.open(UserCreateDialogComponent, {
+      width: '460px'
+    });
+
+    dialogRef.afterClosed().subscribe((result: UserCreateDialogResult | undefined) => {
+      if (result) {
+        this.adminService.createUser(result).subscribe({
+          next: () => {
+            this.snackBar.open('User created successfully', 'OK', { duration: 3000 });
+            this.loadUsers();
+          },
+          error: (err) => {
+            const msg = err.error?.detail || err.error?.message || 'Failed to create user';
+            this.snackBar.open(msg, 'Dismiss', { duration: 5000 });
+          }
+        });
+      }
+    });
+  }
+
+  openEditDialog(user: UserAccountResponse): void {
+    const dialogData: UserEditDialogData = { user };
+
+    const dialogRef = this.dialog.open(UserEditDialogComponent, {
+      width: '460px',
+      data: dialogData
+    });
+
+    dialogRef.afterClosed().subscribe((result: UserEditDialogResult | undefined) => {
+      if (result && Object.keys(result).length > 0) {
+        this.adminService.updateUser(user.id, result).subscribe({
+          next: () => {
+            this.snackBar.open('User updated successfully', 'OK', { duration: 3000 });
+            this.loadUsers();
+          },
+          error: (err) => {
+            const msg = err.error?.detail || err.error?.message || 'Failed to update user';
+            this.snackBar.open(msg, 'Dismiss', { duration: 5000 });
+          }
+        });
+      }
+    });
+  }
+
+  deactivateUser(user: UserAccountResponse): void {
+    if (!confirm(`Are you sure you want to deactivate "${user.username}"? This will prevent them from logging in.`)) {
+      return;
+    }
+    this.adminService.deactivateUser(user.id).subscribe({
+      next: () => {
+        this.snackBar.open('User deactivated', 'OK', { duration: 3000 });
+        this.loadUsers();
+      },
+      error: () => {
+        this.snackBar.open('Failed to deactivate user', 'Dismiss', { duration: 5000 });
       }
     });
   }
