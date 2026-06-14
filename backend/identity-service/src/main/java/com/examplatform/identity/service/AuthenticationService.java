@@ -94,7 +94,7 @@ public class AuthenticationService {
         account.setLastFailedAt(null);
 
         // 3b. Step-up authentication on risk signal (new device / unusual time)
-        if (!account.isMfaEnabled()) {
+        if (appSecurityProperties.isMfaEnabled() && !account.isMfaEnabled()) {
             boolean stepUpRequired = riskAssessmentService.isStepUpRequired(
                     account, request.getDeviceFingerprint(), ipAddress, LocalDateTime.now());
             if (stepUpRequired) {
@@ -114,7 +114,7 @@ public class AuthenticationService {
         }
 
         // 4. MFA enforcement
-        if (account.isMfaEnabled()) {
+        if (appSecurityProperties.isMfaEnabled() && account.isMfaEnabled()) {
             String otpCode = request.getOtpCode();
             if (otpCode == null || otpCode.isBlank()) {
                 throw new MfaRequiredException("MFA required. Please provide OTP code.");

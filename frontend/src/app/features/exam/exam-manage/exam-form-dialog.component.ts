@@ -63,9 +63,9 @@ export interface ExamFormDialogData {
           <mat-form-field appearance="outline">
             <mat-label>Navigation Policy</mat-label>
             <mat-select formControlName="navigationPolicy">
-              <mat-option value="FREE">Free</mat-option>
-              <mat-option value="LINEAR">Linear</mat-option>
-              <mat-option value="SECTION_LOCKED">Section Locked</mat-option>
+              <mat-option value="FLEXIBLE">Flexible</mat-option>
+              <mat-option value="SEQUENTIAL">Sequential</mat-option>
+              <mat-option value="RESTRICTED">Restricted</mat-option>
             </mat-select>
           </mat-form-field>
 
@@ -131,7 +131,7 @@ export class ExamFormDialogComponent implements OnInit {
       totalMarks: [exam?.totalMarks || 100, [Validators.required, Validators.min(1)]],
       negativeMarkingEnabled: [exam?.negativeMarkingEnabled || false],
       negativeMarkingValue: [exam?.negativeMarkingValue || 0],
-      navigationPolicy: [exam?.navigationPolicy || 'FREE', Validators.required],
+      navigationPolicy: [exam?.navigationPolicy || 'FLEXIBLE', Validators.required],
       calculatorPolicy: [exam?.calculatorPolicy || 'NONE', Validators.required],
       reviewFlagEnabled: [exam?.reviewFlagEnabled || false]
     });

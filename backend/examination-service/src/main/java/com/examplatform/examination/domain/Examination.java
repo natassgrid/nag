@@ -9,6 +9,8 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 /**
  * Examination configuration entity.
@@ -50,6 +52,7 @@ public class Examination extends BaseEntity {
     @Column(name = "review_flag_enabled", nullable = false)
     private boolean reviewFlagEnabled;
 
+    @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "sections_json", columnDefinition = "jsonb")
     private String sectionsJson;
 
