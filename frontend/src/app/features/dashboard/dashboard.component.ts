@@ -106,9 +106,9 @@ export class DashboardComponent implements OnInit {
   }
 
   private getVisibleCards(): DashboardCard[] {
-    const userRoles = this.authService.getUserRoles();
+    const userRoles = this.authService.getUserRoles().map(role => role.toUpperCase());
     return this.allCards.filter(card =>
-      card.roles.length === 0 || card.roles.some(role => userRoles.includes(role))
+      card.roles.length === 0 || card.roles.some(role => userRoles.includes(role.toUpperCase()))
     );
   }
 }
