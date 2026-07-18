@@ -97,6 +97,7 @@ export class AuthService {
   }
 
   login(credentials: { username: string; password: string; mfaCode?: string }): Observable<UserToken> {
+    this.clearTokens();
     return this.http.post<{ status: string; data: UserToken }>('/api/v1/identity/auth/token', credentials)
       .pipe(
         map(response => response.data),
