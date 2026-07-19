@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { MatCardModule } from '@angular/material/card';
@@ -249,7 +249,8 @@ export class SubjectManagementComponent implements OnInit {
 
   constructor(
     private subjectTopicService: SubjectTopicService,
-    private snackBar: MatSnackBar
+    private snackBar: MatSnackBar,
+    private cdr: ChangeDetectorRef
   ) {}
 
   ngOnInit(): void {
@@ -262,9 +263,11 @@ export class SubjectManagementComponent implements OnInit {
       next: (data) => {
         this.hierarchy = data;
         this.loading = false;
+        this.cdr.detectChanges();
       },
       error: () => {
         this.loading = false;
+        this.cdr.detectChanges();
         this.snackBar.open('Failed to load hierarchy', 'Close', { duration: 3000 });
       }
     });
