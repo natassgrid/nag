@@ -9,6 +9,7 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
+import { MatCheckboxModule } from '@angular/material/checkbox';
 import { CreateQuestionRequest, QuestionResponse } from './question.service';
 import { SubjectTopicService, Subject, Topic, Subtopic } from './subject-topic.service';
 
@@ -30,7 +31,8 @@ export interface QuestionFormDialogData {
     MatButtonModule,
     MatIconModule,
     MatTooltipModule,
-    MatProgressSpinnerModule
+    MatProgressSpinnerModule,
+    MatCheckboxModule
   ],
   template: `
     <h2 mat-dialog-title>{{ data.question ? 'Edit Question' : 'Create Question' }}</h2>
@@ -151,7 +153,35 @@ export interface QuestionFormDialogData {
           <mat-error *ngIf="form.get('content')?.hasError('required')">Content is required</mat-error>
         </mat-form-field>
 
-        <mat-form-field appearance="outline">
+        <!-- MCQ/MSQ Options section -->
+        <div *ngIf="isMcqOrMsq()" class="options-section">
+          <div class="options-header">
+            <span class="options-label">Answer Options</span>
+            <span class="options-hint">{{ isMcq() ? 'Select exactly one correct answer' : 'Select one or more correct answers' }}</span>
+            <button mat-icon-button type="button" color="primary" (click)="addOption()"
+                    [disabled]="options.length >= 6" matTooltip="Add option (max 6)">
+              <mat-icon>add</mat-icon>
+            </button>
+          </div>
+          <div *ngFor="let opt of options; let i = index" class="option-row">
+            <span class="option-id">{{ optionIds[i] }}</span>
+            <mat-form-field appearance="outline" class="flex-field">
+              <input matInput [(ngModel)]="opt.text" [ngModelOptions]="{standalone: true}"
+                     placeholder="Option text" />
+            </mat-form-field>
+            <mat-checkbox [(ngModel)]="opt.isCorrect" [ngModelOptions]="{standalone: true}"
+                          (change)="isMcq() && onMcqCorrectChange(i)"
+                          matTooltip="Mark as correct">
+            </mat-checkbox>
+            <button mat-icon-button type="button" color="warn" (click)="removeOption(i)"
+                    [disabled]="options.length <= 2" matTooltip="Remove option">
+              <mat-icon>remove_circle</mat-icon>
+            </button>
+          </div>
+          <mat-error *ngIf="optionError">{{ optionError }}</mat-error>
+        </div>
+
+        <mat-form-field appearance="outline" *ngIf="!isMcqOrMsq()">
           <mat-label>Answer Key</mat-label>
           <textarea matInput formControlName="answerKey" rows="3"></textarea>
         </mat-form-field>
@@ -199,13 +229,49 @@ export interface QuestionFormDialogData {
     .inline-create mat-spinner {
       display: inline-block;
     }
+    .options-section {
+      border: 1px solid #e0e0e0;
+      border-radius: 8px;
+      padding: 12px;
+      margin-bottom: 8px;
+    }
+    .options-header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 8px;
+    }
+    .options-label {
+      font-weight: 500;
+      font-size: 14px;
+      flex: 1;
+    }
+    .options-hint {
+      font-size: 12px;
+      color: #888;
+    }
+    .option-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 4px;
+    }
+    .option-id {
+      font-weight: 600;
+      width: 20px;
+      color: #3f51b5;
+    }
+    .option-row .flex-field {
+      flex: 1;
+      margin-bottom: -4px;
+    }
   `]
 })
 export class QuestionFormDialogComponent implements OnInit {
   form: FormGroup;
 
   difficulties = ['EASY', 'MEDIUM', 'HARD'];
-  cognitiveLevels = ['KNOWLEDGE', 'COMPREHENSION', 'APPLICATION', 'ANALYSIS', 'SYNTHESIS', 'EVALUATION'];
+  cognitiveLevels = ['REMEMBER', 'UNDERSTAND', 'APPLY', 'ANALYZE', 'EVALUATE', 'CREATE'];
   questionTypes = ['MCQ', 'MSQ', 'NUMERICAL', 'DESCRIPTIVE'];
 
   // Subject/Topic/Subtopic data
@@ -380,9 +446,50 @@ export class QuestionFormDialogComponent implements OnInit {
     });
   }
 
+  // Options for MCQ/MSQ
+  options: { id: string; text: string; isCorrect: boolean }[] = [];
+  optionIds = ['A', 'B', 'C', 'D', 'E', 'F'];
+  optionError = '';
+
+  isMcqOrMsq(): boolean {
+    const t = this.form.get('questionType')?.value || '';
+    return t === 'MCQ' || t === 'MSQ' || t.includes('MCQ') || t.includes('MSQ') || t.includes('MULTI');
+  }
+
+  isMcq(): boolean {
+    const t = this.form.get('questionType')?.value || '';
+    return t === 'MCQ' || t === 'SINGLE_MCQ';
+  }
+
+  addOption(): void {
+    if (this.options.length < 6) {
+      this.options.push({ id: this.optionIds[this.options.length], text: '', isCorrect: false });
+    }
+  }
+
+  removeOption(i: number): void {
+    if (this.options.length > 2) this.options.splice(i, 1);
+  }
+
+  onMcqCorrectChange(checkedIndex: number): void {
+    // For MCQ, only one can be correct
+    this.options.forEach((o, i) => { if (i !== checkedIndex) o.isCorrect = false; });
+  }
+
   save(): void {
     if (this.form.valid) {
       const value: CreateQuestionRequest = this.form.value;
+      if (this.isMcqOrMsq() && this.options.length >= 2) {
+        const correct = this.options.filter(o => o.isCorrect).length;
+        if (this.isMcq() && correct !== 1) {
+          this.optionError = 'MCQ requires exactly one correct option'; return;
+        }
+        if (!this.isMcq() && correct < 1) {
+          this.optionError = 'MSQ requires at least one correct option'; return;
+        }
+        value.options = this.options.map((o, i) => ({ id: this.optionIds[i], text: o.text, isCorrect: o.isCorrect }));
+      }
+      this.optionError = '';
       this.dialogRef.close(value);
     }
   }
