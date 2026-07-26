@@ -45,6 +45,11 @@ Core principles are: Security First, Privacy by Design, Open Standards, Vendor N
 - **DigiLocker**: Indian government digital document storage and verification service.
 - **LaTeX**: A document preparation system used to render mathematical notation.
 - **MathML**: Mathematical Markup Language for representing mathematical notation in XML.
+- **MCQ**: Multiple Choice Question — a question type (Single_Correct_MCQ) where exactly one option is marked correct.
+- **MSQ**: Multiple Select Question — a question type (Multiple_Correct_MCQ) where one or more options may be marked correct.
+- **Option**: A selectable answer choice associated with an MCQ or MSQ question, carrying an Option_Id, display text, and an `isCorrect` boolean flag.
+- **Option_Id**: The single uppercase letter (A, B, C, D, E, or F) that uniquely identifies an Option within a question.
+- **answerKey**: The JSON field in a question's content record that stores the serialized list of Options for MCQ and MSQ questions.
 - **OpenTelemetry**: A vendor-neutral observability framework for traces, metrics, and logs.
 - **JWT**: JSON Web Token — a compact, self-contained token format for OAuth2/OIDC.
 - **SAST**: Static Application Security Testing.
@@ -519,6 +524,30 @@ Core principles are: Security First, Privacy by Design, Open Standards, Vendor N
 3. WHEN a Super_Admin deactivates a user account, THE Identity_Service SHALL immediately invalidate all active sessions for that user and prevent new authentication.
 4. THE Platform SHALL expose all configurable parameters (session timeout duration, rate limit thresholds, auto-save interval, paper generation concurrency limits) via a configuration API accessible only to Super_Admin and Security_Admin roles.
 5. WHEN a platform configuration parameter is changed via the configuration API, THE Audit_Service SHALL record an immutable configuration-change event containing the parameter name, old value, new value, actor identifier, and timestamp.
+
+---
+
+### Requirement 30: MCQ/MSQ Option Management in the Question Bank
+
+**User Story:** As a Question Author, I want to define, edit, and validate the answer options for MCQ and MSQ questions through the question form dialog, so that each question has a well-formed, correctly marked set of choices that the platform can evaluate automatically.
+
+#### Acceptance Criteria
+
+1. THE Question_Bank_Service SHALL accept an `options` list in every `CreateQuestionRequest` and `QuestionResponse` for Single_Correct_MCQ and Multiple_Correct_MCQ question types, where each entry contains: `id` (Option_Id), `text` (non-empty string), and `isCorrect` (boolean).
+2. THE Question_Bank_Service SHALL enforce that an MCQ or MSQ question contains between 2 and 6 Options inclusive, rejecting requests that fall outside this range with a descriptive validation error.
+3. WHEN a `CreateQuestionRequest` is submitted for a Single_Correct_MCQ question, THE Question_Bank_Service SHALL validate that exactly one Option has `isCorrect` set to `true`; IF the count is zero or greater than one, THEN THE Question_Bank_Service SHALL reject the request with a descriptive error identifying the violation.
+4. WHEN a `CreateQuestionRequest` is submitted for a Multiple_Correct_MCQ question, THE Question_Bank_Service SHALL validate that at least one Option has `isCorrect` set to `true`; IF no Option is marked correct, THEN THE Question_Bank_Service SHALL reject the request with a descriptive error.
+5. THE Question_Bank_Service SHALL assign a unique Option_Id drawn from the ordered set {A, B, C, D, E, F} to each Option, corresponding to its position in the submitted list (first Option → A, second → B, and so on up to a maximum of F).
+6. WHEN a question with options is saved, THE Question_Bank_Service SHALL serialize the Options list as a JSON array into the `answerKey` field of the question content record, preserving the `id`, `text`, and `isCorrect` values for each Option.
+7. WHEN a question record is retrieved, THE Question_Bank_Service SHALL deserialize the `answerKey` JSON field back into the structured Options list and include it in the `QuestionResponse`, with no data loss or field corruption (round-trip property).
+8. THE Angular_App question form dialog SHALL allow a Question_Author to add a new Option to a Single_Correct_MCQ or Multiple_Correct_MCQ question; WHILE the current option count is 6, THE Angular_App SHALL disable the "Add Option" control and display a message indicating the maximum has been reached.
+9. THE Angular_App question form dialog SHALL allow a Question_Author to remove an existing Option; WHILE the current option count is 2, THE Angular_App SHALL disable all individual "Remove Option" controls to preserve the minimum required count.
+10. WHEN a Question_Author enters or modifies the text for an Option in the Angular_App question form dialog, THE Angular_App SHALL update the in-memory Option immediately and mark the form as unsaved.
+11. WHEN a Question_Author selects a correct-answer indicator for a Single_Correct_MCQ question in the Angular_App question form dialog, THE Angular_App SHALL enforce single-selection by deselecting any previously selected Option and marking only the newly selected Option as `isCorrect`.
+12. WHEN a Question_Author toggles a correct-answer indicator for a Multiple_Correct_MCQ question in the Angular_App question form dialog, THE Angular_App SHALL allow multiple Options to be simultaneously marked as `isCorrect` without deselecting previously marked Options.
+13. IF a Question_Author attempts to submit the question form dialog with no Option marked as `isCorrect`, THEN THE Angular_App SHALL display an inline validation error and prevent submission.
+14. THE Angular_App question form dialog SHALL display each Option with its Option_Id label (A, B, C, …) alongside the text input and correct-answer indicator, updated dynamically as Options are added or removed.
+15. WHEN the `answerKey` field is deserialized from a stored question record and the resulting Options list does not match the original serialized list (different count, changed `id`, changed `isCorrect`, or changed `text`), THE Question_Bank_Service SHALL treat the record as corrupted and return an error response identifying the affected question identifier.
 
 ---
 

@@ -27,6 +27,7 @@ export interface CreateQuestionRequest {
   questionType: string;
   content: string;
   answerKey?: string;
+  options?: { id: string; text: string; isCorrect: boolean }[];
 }
 
 interface ApiResponse<T> {
