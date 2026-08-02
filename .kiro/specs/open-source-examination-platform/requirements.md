@@ -179,6 +179,34 @@ Core principles are: Security First, Privacy by Design, Open Standards, Vendor N
 
 ---
 
+### Requirement 7b: Examination Scheduling
+
+**User Story:** As an Exam Controller, I want to plan, publish, and manage examination schedules including dates, shifts, centres, and seat allocations, so that candidates receive accurate admit cards and the examination is conducted in an organised, auditable manner.
+
+#### Acceptance Criteria
+
+1. WHEN an Exam_Controller creates an examination schedule, THE Examination_Service SHALL persist the schedule with: schedule name, version number, government notification reference number, examination date, reserve date, time zone (default IST), and status (Draft / Approved / Published).
+2. THE Examination_Service SHALL support one or more shifts per examination date, each with: shift number, shift name, reporting time, gate closing time, candidate login start time, exam start time, exam end time, candidate exit time, duration in minutes, and buffer time before the next shift.
+3. THE Examination_Service SHALL enforce the following shift timing validation rules, rejecting any schedule where a rule is violated with a descriptive error identifying the failing field:
+   a. Reporting time must precede gate closing time.
+   b. Gate closing time must precede candidate login start time.
+   c. Candidate login start time must precede exam start time.
+   d. Exam start time must precede exam end time.
+   e. Shift duration in minutes must equal the difference between exam start time and exam end time.
+   f. No two shifts on the same examination date may have overlapping time windows.
+4. THE Examination_Service SHALL support multi-day, multi-phase, and multi-session scheduling, allowing an examination to span multiple dates, each with independent shift configurations.
+5. THE Examination_Service SHALL support examination centre management per schedule, recording for each centre: region, state, district, city, centre name, building, floor, laboratory identifier, total capacity, and active status.
+6. FOR EVERY shift, THE Examination_Service SHALL manage seat allocation records containing: total seats, available seats, reserved seats, PwD (Persons with Disabilities) seats, emergency buffer seats, female reserved seats, and special category seats; and SHALL reject any candidate allocation that would cause available seats to drop below zero.
+7. WHEN a schedule is submitted for publication, THE Examination_Service SHALL enforce a multi-stage approval workflow: Draft → Scheduler Review → Exam Controller Approval → Security Review → Chairman Approval → Published; each transition SHALL require an authenticated actor in the appropriate role and SHALL record the approver identifier and timestamp.
+8. WHEN an amendment to a Published schedule is required, THE Examination_Service SHALL require a mandatory amendment reason, route the change through Exam Controller Approval and Chairman Approval, republish the schedule with an incremented version number, and trigger a candidate notification event on Kafka `exam.notifications.outbound`.
+9. THE Examination_Service SHALL maintain a complete version history for every schedule, storing for each version: version number, created-by identifier, creation timestamp, modified-by identifier, modification timestamp, approval timestamp, previous version reference, change reason, and effective-from date.
+10. THE Examination_Service SHALL validate that reserve dates do not conflict with any already-scheduled examination date in the same tenant, rejecting conflicting reserve date assignments with a descriptive error.
+11. THE Examination_Service SHALL validate that no examination centre is allocated to overlapping shifts across different examinations on the same date, returning an error identifying the conflicting centre and shift identifiers.
+12. WHEN a schedule is published or amended, THE Notification_Service SHALL deliver notifications to all allocated candidates via email, SMS, mobile push, and the candidate portal, and trigger regeneration of updated admit cards.
+13. WHEN any scheduling action occurs (create, approve, amend, publish, cancel), THE Audit_Service SHALL record an immutable audit event containing the schedule identifier, version number, actor identifier, action type, previous value, new value, and timestamp.
+
+---
+
 ### Requirement 8: Question Paper Generation
 
 **User Story:** As an Exam Controller, I want to generate statistically balanced question papers from a blueprint, so that all exam shifts are fair and equivalent in difficulty and topic coverage.

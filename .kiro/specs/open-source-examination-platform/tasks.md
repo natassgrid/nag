@@ -102,7 +102,7 @@ All services are stateless Spring Boot applications; persistent state lives in P
   - [x] 5.3 Implement translation review: on Reviewer approval → mark APPROVED, make available for paper generation; on rejection → attach reviewer comments, notify Translator; detect stale translations when source question is modified after approval (publish `STALE` status + Kafka event)
     - _Requirements: 6.4, 6.5, 6.7_
 
-- [x] 6. Examination Service — exam config, sections, marking schemes, navigation
+- [x] 6. Examination Service — exam config, sections, marking schemes, navigation, scheduling
   - [x] 6.1 Scaffold `backend/examination-service` Spring Boot project: configure JPA with `examination_service` schema; implement `Examination`, `Section`, and `SubjectTopicRule` JPA entities with JSONB sections column
     - _Requirements: 7.1, 7.2_
   - [x] 6.2 Implement exam creation/update API: persist exam with name, duration, total marks, negative marking flag/value, navigation policy (Sequential/Flexible/Restricted), calculator policy (None/Basic/Scientific), review-flag policy, and section list; validate that Σ(marksPerQuestion × questionCount) over all sections == totalMarks; reject with descriptive error on mismatch
@@ -115,6 +115,24 @@ All services are stateless Spring Boot applications; persistent state lives in P
     - _Requirements: 22.6_
   - [x] 6.5 Publish audit event to Kafka `exam.audit.events` on exam publication
     - _Requirements: 7.7_
+  - [ ] 6.6 Extend `examination_service` DB schema with scheduling tables: `examination_schedule`, `exam_shift`, `examination_centre`, `shift_seat_allocation`; add `code`, `conducting_authority`, `category`, `examination_type`, `academic_year`, `examination_mode` columns to `examination` table; run Flyway migration V2
+    - _Requirements: 7b.1, 7b.2, 7b.5, 7b.6_
+  - [ ] 6.7 Implement examination schedule CRUD: `POST /api/v1/examinations/{id}/schedules` persists schedule with name, version=1, notification number, exam date, reserve date, time zone, status=DRAFT; `GET` list and single-record endpoints; `PUT` amend endpoint (requires published status + mandatory change reason + increments version); store complete version history via `previous_version_id` chain
+    - _Requirements: 7b.1, 7b.4, 7b.8, 7b.9_
+  - [ ] 6.8 Implement shift management: `POST/PUT /api/v1/examinations/{id}/schedules/{sid}/shifts`; enforce all five timing ordering constraints (reportingTime < gateClosingTime < loginStartTime < examStartTime < examEndTime) and duration equality; reject overlapping shifts on the same date; return descriptive RFC 7807 error identifying the violated constraint
+    - _Requirements: 7b.2, 7b.3_
+  - [ ]* 6.9 Write property test for examination shift timing invariants
+    - **Property 15: Examination Shift Timing Invariants**
+    - **Validates: Requirements 7b.3**
+    - Use jqwik generator `shiftTimingConfigs()` producing arbitrary (reportingTime, gateClosingTime, loginStartTime, examStartTime, examEndTime, durationMinutes) tuples; assert service accepts iff all ordering constraints hold and durationMinutes == examEndTime − examStartTime
+  - [ ] 6.10 Implement examination centre management: `POST/GET /api/v1/examinations/centres`; persist region, state, district, city, centre name, building, floor, laboratory, capacity, active flag; enforce no overlapping centre-shift allocation across different examinations on the same date
+    - _Requirements: 7b.5, 7b.11_
+  - [ ] 6.11 Implement seat allocation: `POST /api/v1/examinations/{id}/schedules/{sid}/shifts/{shiftId}/allocations`; persist totalSeats, availableSeats, reservedSeats, pwdSeats, emergencyBufferSeats, femaleReservedSeats, specialCategorySeats per centre-shift; reject allocations that would cause availableSeats < 0; validate reserve date conflicts across tenant schedules
+    - _Requirements: 7b.6, 7b.10_
+  - [ ] 6.12 Implement schedule approval workflow: enforce state machine Draft → Scheduler_Review → Controller_Approved → Security_Review → Chairman_Approved → Published via `PUT /api/v1/examinations/{id}/schedules/{sid}/transition`; require authenticated actor in the appropriate role at each step; record approver identifier and timestamp; on reach Published, publish candidate notification event to Kafka `exam.notifications.outbound`
+    - _Requirements: 7b.7, 7b.12_
+  - [ ] 6.13 Publish audit events to Kafka `exam.audit.events` on every scheduling action (create, approve, amend, publish, cancel); include schedule identifier, version number, actor identifier, action type, previous value, new value, and timestamp
+    - _Requirements: 7b.13_
 
 
 - [x] 7. Paper Generator — blueprint-driven assembly, encryption, serialization

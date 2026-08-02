@@ -12,12 +12,14 @@ import lombok.NoArgsConstructor;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
 
+import java.util.UUID;
+
 /**
  * Examination configuration entity.
  * Sections are stored as JSONB in {@link #sectionsJson} rather than as a
  * separate table, allowing flexible section definitions without schema changes.
  *
- * Validates: Requirements 7.1, 7.2
+ * Validates: Requirements 7.1, 7.2, 7b.1
  */
 @Data
 @Builder
@@ -30,6 +32,30 @@ public class Examination extends BaseEntity {
 
     @Column(name = "name", nullable = false, length = 500)
     private String name;
+
+    /** Short unique examination code per tenant (e.g. "JEE-MAIN-2027"). */
+    @Column(name = "code", length = 100)
+    private String code;
+
+    /** Authority that conducts this examination (e.g. "NTA", "UPSC"). */
+    @Column(name = "conducting_authority", length = 255)
+    private String conductingAuthority;
+
+    /** RECRUITMENT / ENTRANCE / CERTIFICATION / DEPARTMENTAL */
+    @Column(name = "category", length = 30)
+    private String category;
+
+    /** PRELIMINARY / MAIN / SKILL_TEST / INTERVIEW / PHYSICAL_TEST */
+    @Column(name = "examination_type", length = 30)
+    private String examinationType;
+
+    /** Academic year or recruitment cycle, e.g. "2026-27". */
+    @Column(name = "academic_year", length = 20)
+    private String academicYear;
+
+    /** CBT / OMR / HYBRID */
+    @Column(name = "examination_mode", length = 20)
+    private String examinationMode;
 
     @Column(name = "duration_minutes", nullable = false)
     private int durationMinutes;
@@ -56,6 +82,11 @@ public class Examination extends BaseEntity {
     @Column(name = "sections_json", columnDefinition = "jsonb")
     private String sectionsJson;
 
-    @Column(name = "status", nullable = false, length = 20)
+    /** DRAFT / APPROVED / PUBLISHED / CANCELLED / COMPLETED */
+    @Column(name = "status", nullable = false, length = 30)
     private String status;
+
+    /** UUID of the Exam Controller who created this examination. */
+    @Column(name = "created_by", columnDefinition = "uuid")
+    private UUID createdBy;
 }

@@ -13,5 +13,9 @@ export const EXAM_ROUTES: Routes = [
   {
     path: 'manage',
     loadComponent: () => import('./exam-manage/exam-list.component').then(m => m.ExamListComponent)
+  },
+  {
+    path: 'scheduling',
+    loadChildren: () => import('./scheduling/scheduling.routes').then(m => m.SCHEDULING_ROUTES)
   }
 ];

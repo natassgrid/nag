@@ -71,4 +71,10 @@ export class ExamManagementService {
       .put<ApiResponse<ExaminationResponse>>(`${this.baseUrl}/${id}/publish`, {})
       .pipe(map(res => res.data));
   }
+
+  getExam(id: string): Observable<ExaminationResponse> {
+    return this.http
+      .get<ApiResponse<ExaminationResponse>>(`${this.baseUrl}/${id}`)
+      .pipe(map(res => res.data));
+  }
 }
