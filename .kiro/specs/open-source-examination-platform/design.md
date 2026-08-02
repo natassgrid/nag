@@ -81,7 +81,7 @@ graph TB
 | **Candidate Service** | Candidate Profile | PII storage (AES-256), DigiLocker integration, face verification, disability accommodations, DPDP erasure |
 | **Question Bank Service** | Question Content | Question CRUD, versioning, lifecycle FSM, similarity detection, exposure tracking, reuse policy enforcement, full-text search (OpenSearch) |
 | **Translation Service** | Multilingual Content | Translation workflow for 22 scheduled languages, stale-translation detection, UTF-8 content management |
-| **Examination Service** | Exam Config | Exam definition, section configuration, marking schemes, navigation policies, calculator/review-flag policies |
+| **Examination Service** | Exam Config + Scheduling | Exam definition, section configuration, marking schemes, navigation policies, calculator/review-flag policies; examination scheduling (dates, shifts, centres, seat allocation); multi-stage schedule approval workflow; schedule versioning and amendment workflow |
 | **Paper Generator** | Paper Assembly | Blueprint-driven paper assembly, statistical balance validation, shift comparability, HSM-encrypted paper packaging |
 | **Delivery Service** | Exam Runtime | Shift-key-based paper decryption, question serving, navigation policy enforcement, offline delivery, proctoring capture |
 | **Response Service** | Response Capture | Sub-200ms response persistence, auto-save pipeline, offline buffer reconciliation, revision history, session finalization |
@@ -163,7 +163,28 @@ Common Response Envelope:
 | POST | `/{paperId}/approve` | Approve paper for use |
 | POST | `/validate` | Validate Paper JSON against schema (round-trip) |
 
-#### Response Service (`/api/v1/responses`)
+#### Examination Service (`/api/v1/examinations`)
+
+| Method | Path | Description |
+|---|---|---|
+| POST | `/` | Create examination (Draft state) |
+| PUT | `/{id}` | Update examination config |
+| PUT | `/{id}/publish` | Publish examination configuration |
+| GET | `/` | List examinations (tenant-scoped, paginated) |
+| GET | `/{id}` | Get examination by ID |
+| POST | `/{id}/schedules` | Create a new schedule for an examination |
+| GET | `/{id}/schedules` | List all schedule versions for an examination |
+| GET | `/{id}/schedules/{scheduleId}` | Get one schedule |
+| PUT | `/{id}/schedules/{scheduleId}/transition` | Transition schedule through approval workflow |
+| PUT | `/{id}/schedules/{scheduleId}/amend` | Submit a schedule amendment (mandatory reason) |
+| POST | `/{id}/schedules/{scheduleId}/shifts` | Add a shift to a schedule |
+| PUT | `/{id}/schedules/{scheduleId}/shifts/{shiftId}` | Update shift timings |
+| POST | `/centres` | Create an examination centre |
+| GET | `/centres` | List centres (filter by state/district/city) |
+| POST | `/{id}/schedules/{scheduleId}/shifts/{shiftId}/allocations` | Allocate seats at a centre for a shift |
+| GET | `/{id}/schedules/{scheduleId}/shifts/{shiftId}/allocations` | Get seat allocations for a shift |
+
+
 
 | Method | Path | Description |
 |---|---|---|
@@ -325,7 +346,13 @@ public class Examination {
     UUID            id;
     UUID            tenantId;
     String          name;
-    String          status;                 // DRAFT / PUBLISHED / ACTIVE / COMPLETED / ARCHIVED
+    String          code;                   // unique examination code per tenant
+    String          conductingAuthority;
+    String          category;               // RECRUITMENT / ENTRANCE / CERTIFICATION / DEPARTMENTAL
+    String          examinationType;        // PRELIMINARY / MAIN / SKILL_TEST / INTERVIEW / PHYSICAL_TEST
+    String          academicYear;           // e.g. "2026-27"
+    String          examinationMode;        // CBT / OMR / HYBRID
+    String          status;                 // DRAFT / APPROVED / PUBLISHED / CANCELLED / COMPLETED
     Integer         durationMinutes;
     Integer         totalMarks;
     boolean         negativeMarkingEnabled;
@@ -349,6 +376,90 @@ public class Section {
     BigDecimal  marksPerQuestion;
     Integer     timeLimitMinutes;           // nullable
     List<SubjectTopicRule> distributionRules;
+}
+```
+
+### ExaminationSchedule
+
+```java
+public class ExaminationSchedule {
+    UUID        id;
+    UUID        tenantId;
+    UUID        examinationId;              // FK → Examination
+    String      scheduleName;
+    Integer     version;                    // incremented on every amendment
+    String      notificationNumber;         // government notification reference
+    LocalDate   examDate;
+    LocalDate   reserveDate;               // backup date; must not conflict with other schedules
+    String      timeZone;                  // default "Asia/Kolkata"
+    String      status;                    // DRAFT / SCHEDULER_REVIEW / CONTROLLER_APPROVED /
+                                           // SECURITY_REVIEW / CHAIRMAN_APPROVED / PUBLISHED / CANCELLED
+    String      changeReason;              // mandatory on amendments to Published schedules
+    LocalDate   effectiveFrom;
+    UUID        createdBy;
+    Instant     createdAt;
+    UUID        modifiedBy;
+    Instant     modifiedAt;
+    UUID        approvedBy;
+    Instant     approvedAt;
+    UUID        previousVersionId;         // FK → prior ExaminationSchedule version
+}
+```
+
+### ExamShift
+
+```java
+public class ExamShift {
+    UUID        id;
+    UUID        tenantId;
+    UUID        scheduleId;                // FK → ExaminationSchedule
+    Integer     shiftNumber;               // 1, 2, 3...
+    String      shiftName;                 // "Morning" / "Afternoon" / "Evening"
+    LocalTime   reportingTime;
+    LocalTime   gateClosingTime;
+    LocalTime   loginStartTime;
+    LocalTime   examStartTime;
+    LocalTime   examEndTime;
+    LocalTime   exitTime;
+    Integer     durationMinutes;           // must equal examEndTime − examStartTime
+    Integer     bufferMinutes;             // buffer before next shift
+}
+```
+
+### ExaminationCentre
+
+```java
+public class ExaminationCentre {
+    UUID        id;
+    UUID        tenantId;
+    String      region;
+    String      state;
+    String      district;
+    String      city;
+    String      centreName;
+    String      building;
+    String      floor;
+    String      laboratoryIdentifier;
+    Integer     totalCapacity;
+    boolean     active;
+}
+```
+
+### ShiftSeatAllocation
+
+```java
+public class ShiftSeatAllocation {
+    UUID        id;
+    UUID        tenantId;
+    UUID        shiftId;                   // FK → ExamShift
+    UUID        centreId;                  // FK → ExaminationCentre
+    Integer     totalSeats;
+    Integer     availableSeats;
+    Integer     reservedSeats;
+    Integer     pwdSeats;                  // Persons with Disabilities
+    Integer     emergencyBufferSeats;
+    Integer     femaleReservedSeats;
+    Integer     specialCategorySeats;
 }
 ```
 
@@ -1135,7 +1246,20 @@ Formally: for all IP addresses and all request sequences of length N within a 60
 
 ---
 
-### Property 14: Question Similarity Rejection
+### Property 15: Examination Shift Timing Invariants
+
+*For any* shift configuration submitted to the Examination Service, the service SHALL accept the shift if and only if all of the following ordering constraints hold simultaneously:
+`reportingTime < gateClosingTime < loginStartTime < examStartTime < examEndTime`,
+and `durationMinutes == (examEndTime − examStartTime) in minutes`.
+For any shift where any constraint is violated, the service SHALL reject the submission with a descriptive error identifying the failing constraint.
+
+Formally: `isValid(shift) ⟺ reportingTime < gateClosingTime ∧ gateClosingTime < loginStartTime ∧ loginStartTime < examStartTime ∧ examStartTime < examEndTime ∧ durationMinutes == toMinutes(examEndTime − examStartTime)`.
+
+**Validates: Requirements 7b.3**
+
+---
+
+*End of Correctness Properties*
 
 *For any* question submission where the cosine similarity between the submitted question's content embedding and the content embedding of any published question exceeds the configured threshold (0.80), the Question Bank Service SHALL reject the submission and return the identifier of the similar published question. For any submission where no published question exceeds the threshold, the submission SHALL be accepted.
 
