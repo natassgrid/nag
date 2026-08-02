@@ -1,5 +1,6 @@
 import { Component, ViewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { RouterModule } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatCardModule } from '@angular/material/card';
@@ -20,6 +21,7 @@ import {
   standalone: true,
   imports: [
     CommonModule,
+    RouterModule,
     MatButtonModule,
     MatIconModule,
     MatCardModule,
@@ -47,6 +49,13 @@ import {
           <ng-template #actionsTmpl let-row>
             <button mat-icon-button matTooltip="Edit" (click)="openEditDialog(row)">
               <mat-icon>edit</mat-icon>
+            </button>
+            <button
+              mat-icon-button
+              matTooltip="Schedule"
+              [routerLink]="['/exam/scheduling', row.id]"
+            >
+              <mat-icon>event</mat-icon>
             </button>
             <button
               mat-icon-button
