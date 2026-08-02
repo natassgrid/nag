@@ -1,6 +1,7 @@
 package com.examplatform.questionbank.service;
 
 import com.examplatform.questionbank.domain.Question;
+import com.examplatform.questionbank.domain.enums.QuestionType;
 import com.examplatform.questionbank.dto.CreateQuestionRequest;
 import com.examplatform.questionbank.dto.QuestionResponse;
 import com.examplatform.questionbank.repository.QuestionRepository;
@@ -74,12 +75,12 @@ public class QuestionService {
             }
             // Validate correct options
             long correctCount = options.stream().filter(o -> o.isCorrect()).count();
-            String typeName = request.getQuestionType().name();
-            if (typeName.contains("MCQ") || typeName.equals("MCQ") || typeName.equals("SINGLE_MCQ")) {
+            QuestionType questionType = request.getQuestionType();
+            if (questionType == QuestionType.SINGLE_MCQ) {
                 if (correctCount != 1) {
                     throw new IllegalArgumentException("MCQ questions must have exactly one correct option");
                 }
-            } else if (typeName.contains("MSQ") || typeName.contains("MULTI") || typeName.equals("MULTIPLE_MCQ")) {
+            } else if (questionType == QuestionType.MULTI_MCQ) {
                 if (correctCount < 1) {
                     throw new IllegalArgumentException("MSQ questions must have at least one correct option");
                 }
@@ -232,7 +233,7 @@ public class QuestionService {
         // Try to parse options from answerKey JSON
         java.util.List<com.examplatform.questionbank.dto.QuestionOption> options = null;
         String questionType = question.getQuestionType();
-        if (questionType != null && (questionType.contains("MCQ") || questionType.contains("MSQ") || questionType.contains("MULTI"))
+        if (questionType != null && (questionType.equals("SINGLE_MCQ") || questionType.equals("MULTI_MCQ"))
                 && question.getAnswerKey() != null && question.getAnswerKey().startsWith("[")) {
             try {
                 options = MAPPER.readValue(question.getAnswerKey(),

@@ -178,6 +178,25 @@ services:
       - exam-network
 
   # ===========================================================================
+  # Vault Init — enables Transit engine and creates all required keys once
+  # ===========================================================================
+  vault-init:
+    image: hashicorp/vault:latest
+    container_name: exam-vault-init
+    restart: "no"
+    depends_on:
+      vault:
+        condition: service_healthy
+    environment:
+      VAULT_ADDR: http://vault:8200
+      VAULT_TOKEN: ${VAULT_ROOT_TOKEN:-vault_root_token}
+    volumes:
+      - ./vault-init.sh:/vault-init.sh:ro
+    entrypoint: ["sh", "/vault-init.sh"]
+    networks:
+      - exam-network
+
+  # ===========================================================================
   # Prometheus — metrics collection, scrapes all service /actuator/prometheus
   # Port 9090 — UI at http://localhost:9090
   # ===========================================================================
