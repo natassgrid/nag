@@ -1,6 +1,7 @@
 package com.examplatform.shared.entity;
 
 import com.examplatform.shared.tenant.TenantContext;
+import com.examplatform.shared.util.UuidV7Generator;
 import jakarta.persistence.Column;
 import jakarta.persistence.Id;
 import jakarta.persistence.MappedSuperclass;
@@ -36,11 +37,13 @@ import java.util.UUID;
 public abstract class BaseEntity {
 
     /**
-     * Surrogate primary key — UUID v4.
+     * Surrogate primary key — UUID v7.
      * Generated in {@link #prePersist()} to keep primary key assignment
      * in application code rather than delegating to the database sequence.
-     * This avoids a round-trip for the INSERT and supports offline key
-     * generation in offline delivery mode.
+     * UUID v7 is time-ordered (48-bit ms timestamp prefix), yielding
+     * near-sequential B-tree inserts and eliminating the index page-splits
+     * caused by random v4 UUIDs at scale.
+     * This also supports offline key generation in offline delivery mode.
      */
     @Id
     @Column(name = "id", updatable = false, nullable = false, columnDefinition = "uuid")
@@ -89,7 +92,7 @@ public abstract class BaseEntity {
      * inserted into the database.
      *
      * <ul>
-     *   <li>Generates a random UUID if no {@link #id} was set by a subclass.</li>
+     *   <li>Generates a UUID v7 if no {@link #id} was set by a subclass.</li>
      *   <li>Sets {@link #createdAt} and {@link #updatedAt} to {@code Instant.now()}.</li>
      *   <li>Copies the tenant identifier from {@link TenantContext}.
      *       Falls back to {@code "default"} for background jobs that run
@@ -99,7 +102,7 @@ public abstract class BaseEntity {
     @PrePersist
     protected void prePersist() {
         if (this.id == null) {
-            this.id = UUID.randomUUID();
+            this.id = UuidV7Generator.generate();
         }
         Instant now = Instant.now();
         this.createdAt = now;

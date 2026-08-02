@@ -16,6 +16,7 @@ export interface QuestionResponse {
   state: string;
   authorId: string;
   createdAt: string;
+  options?: { id: string; text: string; isCorrect: boolean }[];
 }
 
 export interface CreateQuestionRequest {

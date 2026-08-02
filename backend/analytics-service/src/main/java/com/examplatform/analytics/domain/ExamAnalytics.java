@@ -1,5 +1,6 @@
 package com.examplatform.analytics.domain;
 
+import com.examplatform.shared.util.UuidV7Generator;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.JdbcTypeCode;
@@ -11,6 +12,10 @@ import java.util.UUID;
 
 /**
  * JPA entity representing computed analytics for an examination.
+ *
+ * <p>Does not extend {@code BaseEntity} (no tenant isolation, no optimistic
+ * lock, append-only compute results). ID is assigned as UUID v7 in
+ * {@link #prePersist()} for time-ordered inserts.
  */
 @Entity
 @Table(name = "exam_analytics", schema = "analytics_service")
@@ -22,7 +27,7 @@ import java.util.UUID;
 public class ExamAnalytics {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.UUID)
+    @Column(name = "id", updatable = false, nullable = false, columnDefinition = "uuid")
     private UUID id;
 
     @Column(name = "exam_id", nullable = false)
@@ -50,4 +55,11 @@ public class ExamAnalytics {
 
     @Column(name = "computed_at", nullable = false)
     private Instant computedAt;
+
+    @PrePersist
+    protected void prePersist() {
+        if (this.id == null) {
+            this.id = UuidV7Generator.generate();
+        }
+    }
 }
