@@ -162,8 +162,12 @@ import { SubjectTopicService, Subject } from './subject-topic.service';
           </div>
 
           <mat-paginator
+            [length]="totalElements"
+            [pageSize]="pageSize"
+            [pageIndex]="pageIndex"
             [pageSizeOptions]="[10, 25, 50]"
             showFirstLastButtons
+            (page)="onPageChange($event)"
           ></mat-paginator>
         </mat-card-content>
       </mat-card>
@@ -230,6 +234,10 @@ export class QuestionListComponent implements OnInit {
     state: ''
   };
 
+  pageIndex = 0;
+  pageSize = 25;
+  totalElements = 0;
+
   @ViewChild(MatPaginator) paginator!: MatPaginator;
   @ViewChild(MatSort) sort!: MatSort;
 
@@ -261,27 +269,34 @@ export class QuestionListComponent implements OnInit {
   }
 
   ngAfterViewInit(): void {
-    this.dataSource.paginator = this.paginator;
     this.dataSource.sort = this.sort;
   }
 
   loadQuestions(): void {
-    const filters: any = {};
-    if (this.filters.subject) filters.subject = this.filters.subject;
+    const filters: any = { page: this.pageIndex, size: this.pageSize };
+    if (this.filters.subject)    filters.subject = this.filters.subject;
     if (this.filters.difficulty) filters.difficulty = this.filters.difficulty;
-    if (this.filters.state) filters.state = this.filters.state;
+    if (this.filters.state)      filters.state = this.filters.state;
 
     this.questionService.getQuestions(filters).subscribe({
-      next: (questions) => {
-        this.dataSource.data = questions;
+      next: (page) => {
+        this.dataSource.data = page.content;
+        this.totalElements = page.totalElements;
       },
-      error: (err) => {
+      error: () => {
         this.snackBar.open('Failed to load questions', 'Close', { duration: 3000 });
       }
     });
   }
 
+  onPageChange(event: any): void {
+    this.pageIndex = event.pageIndex;
+    this.pageSize = event.pageSize;
+    this.loadQuestions();
+  }
+
   applyFilters(): void {
+    this.pageIndex = 0; // reset to first page on filter change
     this.loadQuestions();
   }
 

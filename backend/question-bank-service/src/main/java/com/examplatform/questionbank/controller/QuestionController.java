@@ -30,7 +30,6 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
@@ -80,29 +79,25 @@ public class QuestionController {
     }
 
     /**
-     * List questions with optional filters.
+     * List questions with optional filters and pagination.
      * Requires QUESTION_AUTHOR, REVIEWER, or APPROVER role.
-     *
-     * @param subject    optional subject filter
-     * @param topic      optional topic filter
-     * @param difficulty optional difficulty filter
-     * @param state      optional state filter
-     * @param tenantId   tenant identifier from the X-Tenant-Id header
-     * @return 200 OK with filtered question list
      */
     @GetMapping
     @PreAuthorize("hasAnyRole('QUESTION_AUTHOR', 'REVIEWER', 'APPROVER')")
-    public ResponseEntity<ApiResponse<List<QuestionResponse>>> listQuestions(
+    public ResponseEntity<ApiResponse<Page<QuestionResponse>>> listQuestions(
             @RequestParam(required = false) String subject,
             @RequestParam(required = false) String topic,
             @RequestParam(required = false) String difficulty,
             @RequestParam(required = false) String state,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size,
             @RequestHeader("X-Tenant-Id") String tenantId) {
 
-        log.info("Listing questions: subject={}, topic={}, difficulty={}, state={}, tenant={}",
-                subject, topic, difficulty, state, tenantId);
+        log.info("Listing questions: subject={}, topic={}, difficulty={}, state={}, page={}, size={}, tenant={}",
+                subject, topic, difficulty, state, page, size, tenantId);
 
-        List<QuestionResponse> responses = questionService.listQuestions(subject, topic, difficulty, state, tenantId);
+        Page<QuestionResponse> responses = questionService.listQuestions(
+                subject, topic, difficulty, state, page, size, tenantId);
         return ResponseEntity.ok(ApiResponse.success(responses, "Questions retrieved successfully"));
     }
 
