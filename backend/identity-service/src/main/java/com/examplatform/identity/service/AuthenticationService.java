@@ -113,8 +113,12 @@ public class AuthenticationService {
             }
         }
 
-        // 4. MFA enforcement
-        if (appSecurityProperties.isMfaEnabled() && account.isMfaEnabled()) {
+        // 4. Per-account MFA enforcement.
+        // Enforced whenever the account has MFA enabled, regardless of the global
+        // appSecurityProperties.isMfaEnabled() flag. The global flag only controls
+        // whether the platform mandates MFA for all accounts (step-up, step 3b).
+        // An account that has voluntarily enrolled MFA must always present an OTP.
+        if (account.isMfaEnabled()) {
             String otpCode = request.getOtpCode();
             if (otpCode == null || otpCode.isBlank()) {
                 throw new MfaRequiredException("MFA required. Please provide OTP code.");

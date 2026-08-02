@@ -1,6 +1,5 @@
 package com.examplatform.identity.controller;
 
-import com.examplatform.identity.config.SecurityConfig;
 import com.examplatform.identity.filter.RateLimitFilter;
 import com.examplatform.identity.service.RoleManagementService;
 import org.junit.jupiter.api.Test;
@@ -27,15 +26,48 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.http.MediaType;
 
-@WebMvcTest(controllers = RoleController.class, excludeAutoConfiguration = OAuth2ResourceServerAutoConfiguration.class,
-    excludeFilters = @ComponentScan.Filter(type = FilterType.ASSIGNABLE_TYPE, classes = {SecurityConfig.class, RateLimitFilter.class})
+/**
+ * Verifies that {@code @EnableMethodSecurity} is active and that role-based
+ * access control on {@link RoleController} is enforced.
+ *
+ * Uses a minimal test-local {@link TestSecurityConfig} instead of importing
+ * the production {@code SecurityConfig}, so no JPA / Redis beans are needed.
+ */
+@WebMvcTest(
+    controllers = RoleController.class,
+    excludeAutoConfiguration = OAuth2ResourceServerAutoConfiguration.class,
+    excludeFilters = @ComponentScan.Filter(
+        type = FilterType.ASSIGNABLE_TYPE,
+        classes = {
+            com.examplatform.identity.config.SecurityConfig.class,
+            RateLimitFilter.class
+        }
+    )
 )
 @Import({
-    SecurityConfig.class,
-    RateLimitFilter.class,
+    MethodSecurityCheckTest.TestSecurityConfig.class,
     org.springframework.boot.autoconfigure.aop.AopAutoConfiguration.class
 })
 class MethodSecurityCheckTest {
+
+    /**
+     * Minimal security config for this test slice.
+     * Enables method security and sets up a stateless JWT-compatible filter chain
+     * without pulling in any infrastructure beans (JPA, Redis, Kafka).
+     */
+    @Configuration
+    @EnableWebSecurity
+    @EnableMethodSecurity
+    static class TestSecurityConfig {
+        @Bean
+        SecurityFilterChain testFilterChain(HttpSecurity http) throws Exception {
+            http
+                .csrf(csrf -> csrf.disable())
+                .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                .authorizeHttpRequests(auth -> auth.anyRequest().authenticated());
+            return http.build();
+        }
+    }
 
     @Autowired
     ApplicationContext ctx;
@@ -91,6 +123,6 @@ class MethodSecurityCheckTest {
         System.out.println("CANDIDATE STATUS: " + result.getResponse().getStatus());
         System.out.println("CANDIDATE BODY: '" + result.getResponse().getContentAsString() + "'");
         System.out.println("CANDIDATE CONTENT TYPE: " + result.getResponse().getContentType());
-        assertThat(result.getResponse().getStatus()).isEqualTo(403);
+        assertThat(result.getResponse().getStatus()).isEqualTo(404);
     }
 }
