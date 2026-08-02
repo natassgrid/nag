@@ -73,6 +73,8 @@ services:
       <<: *depends-base
       vault:
         condition: service_healthy
+      redis:
+        condition: service_healthy
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://localhost:${IDENTITY_SERVICE_PORT:-8081}/actuator/health || exit 1"]
       interval: 30s
@@ -245,6 +247,8 @@ services:
       OTEL_SERVICE_NAME: delivery-service
     depends_on:
       <<: *depends-base
+      redis:
+        condition: service_healthy
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://localhost:${DELIVERY_SERVICE_PORT:-8087}/actuator/health || exit 1"]
       interval: 30s
@@ -273,6 +277,8 @@ services:
       OTEL_SERVICE_NAME: response-service
     depends_on:
       <<: *depends-base
+      redis:
+        condition: service_healthy
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://localhost:${RESPONSE_SERVICE_PORT:-8088}/actuator/health || exit 1"]
       interval: 30s
@@ -417,6 +423,8 @@ services:
       OTEL_SERVICE_NAME: admin-service
     depends_on:
       <<: *depends-base
+      redis:
+        condition: service_healthy
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://localhost:${ADMIN_SERVICE_PORT:-8093}/actuator/health || exit 1"]
       interval: 30s

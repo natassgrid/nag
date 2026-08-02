@@ -78,6 +78,9 @@ management:
   endpoint:
     health:
       show-details: always
+  health:
+    redis:
+      enabled: true
   metrics:
     tags:
       service: response-service
