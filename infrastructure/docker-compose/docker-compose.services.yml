@@ -9,6 +9,17 @@ x-service-common: &service-common
   networks:
     - exam-network
 
+# Spring Boot services on this stack (with Vault bootstrap + Hibernate init)
+# take 2–3 minutes to reach /actuator/health UP on a cold start.
+# start_period: 180s means the healthcheck doesn't count failures during that
+# window, so a slow-starting service won't be killed before it's ready.
+# retries: 8 × interval: 30s gives an additional 240s after start_period ends.
+x-healthcheck-spring: &healthcheck-spring
+  interval: 30s
+  timeout: 10s
+  retries: 8
+  start_period: 180s
+
 x-spring-env: &spring-env
   SPRING_PROFILES_ACTIVE: docker
   SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:-exam_admin}
@@ -77,10 +88,7 @@ services:
         condition: service_healthy
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://localhost:${IDENTITY_SERVICE_PORT:-8081}/actuator/health || exit 1"]
-      interval: 30s
-      timeout: 10s
-      retries: 5
-      start_period: 60s
+      <<: *healthcheck-spring
 
   # ===========================================================================
   # Candidate Service — PII encryption, DigiLocker, face verification
@@ -109,10 +117,7 @@ services:
         condition: service_healthy
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://localhost:${CANDIDATE_SERVICE_PORT:-8082}/actuator/health || exit 1"]
-      interval: 30s
-      timeout: 10s
-      retries: 5
-      start_period: 60s
+      <<: *healthcheck-spring
 
   # ===========================================================================
   # Question Bank Service — CRUD, versioning, similarity, search
@@ -137,10 +142,7 @@ services:
       <<: *depends-base
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://localhost:${QUESTION_BANK_SERVICE_PORT:-8083}/actuator/health || exit 1"]
-      interval: 30s
-      timeout: 10s
-      retries: 5
-      start_period: 60s
+      <<: *healthcheck-spring
 
   # ===========================================================================
   # Translation Service — 22 languages, review workflow
@@ -165,10 +167,7 @@ services:
       <<: *depends-base
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://localhost:${TRANSLATION_SERVICE_PORT:-8084}/actuator/health || exit 1"]
-      interval: 30s
-      timeout: 10s
-      retries: 5
-      start_period: 60s
+      <<: *healthcheck-spring
 
   # ===========================================================================
   # Examination Service — Sections, marks validation, publication
@@ -193,10 +192,7 @@ services:
       <<: *depends-base
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://localhost:${EXAMINATION_SERVICE_PORT:-8085}/actuator/health || exit 1"]
-      interval: 30s
-      timeout: 10s
-      retries: 5
-      start_period: 60s
+      <<: *healthcheck-spring
 
   # ===========================================================================
   # Paper Generator — Blueprint assembly, comparability, approval
@@ -221,10 +217,7 @@ services:
       <<: *depends-base
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://localhost:${PAPER_GENERATOR_PORT:-8086}/actuator/health || exit 1"]
-      interval: 30s
-      timeout: 10s
-      retries: 5
-      start_period: 60s
+      <<: *healthcheck-spring
 
   # ===========================================================================
   # Delivery Service — Session start, navigation, proctoring, offline, timer
@@ -251,10 +244,7 @@ services:
         condition: service_healthy
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://localhost:${DELIVERY_SERVICE_PORT:-8087}/actuator/health || exit 1"]
-      interval: 30s
-      timeout: 10s
-      retries: 5
-      start_period: 60s
+      <<: *healthcheck-spring
 
   # ===========================================================================
   # Response Service — Save, bulk-save, auto-save, revision history
@@ -281,10 +271,7 @@ services:
         condition: service_healthy
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://localhost:${RESPONSE_SERVICE_PORT:-8088}/actuator/health || exit 1"]
-      interval: 30s
-      timeout: 10s
-      retries: 5
-      start_period: 60s
+      <<: *healthcheck-spring
 
   # ===========================================================================
   # Evaluation Service — Auto-eval, partial marking, manual eval
@@ -309,10 +296,7 @@ services:
       <<: *depends-base
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://localhost:${EVALUATION_SERVICE_PORT:-8089}/actuator/health || exit 1"]
-      interval: 30s
-      timeout: 10s
-      retries: 5
-      start_period: 60s
+      <<: *healthcheck-spring
 
   # ===========================================================================
   # Result Service — Computation, PDF scorecard, publication
@@ -337,10 +321,7 @@ services:
       <<: *depends-base
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://localhost:${RESULT_SERVICE_PORT:-8090}/actuator/health || exit 1"]
-      interval: 30s
-      timeout: 10s
-      retries: 5
-      start_period: 60s
+      <<: *healthcheck-spring
 
   # ===========================================================================
   # Audit Service — HSM signing, tamper detection, WAL buffer
@@ -369,10 +350,7 @@ services:
         condition: service_healthy
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://localhost:${AUDIT_SERVICE_PORT:-8091}/actuator/health || exit 1"]
-      interval: 30s
-      timeout: 10s
-      retries: 5
-      start_period: 60s
+      <<: *healthcheck-spring
 
   # ===========================================================================
   # Notification Service — Email retry, in-app SSE, PII-free
@@ -397,10 +375,7 @@ services:
       <<: *depends-base
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://localhost:${NOTIFICATION_SERVICE_PORT:-8092}/actuator/health || exit 1"]
-      interval: 30s
-      timeout: 10s
-      retries: 5
-      start_period: 60s
+      <<: *healthcheck-spring
 
   # ===========================================================================
   # Admin Service — Deactivation, config changes
@@ -427,10 +402,7 @@ services:
         condition: service_healthy
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://localhost:${ADMIN_SERVICE_PORT:-8093}/actuator/health || exit 1"]
-      interval: 30s
-      timeout: 10s
-      retries: 5
-      start_period: 60s
+      <<: *healthcheck-spring
 
   # ===========================================================================
   # Analytics Service — Dashboard API, CSV/PDF export
@@ -455,10 +427,7 @@ services:
       <<: *depends-base
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://localhost:${ANALYTICS_SERVICE_PORT:-8094}/actuator/health || exit 1"]
-      interval: 30s
-      timeout: 10s
-      retries: 5
-      start_period: 60s
+      <<: *healthcheck-spring
 
   # ===========================================================================
   # API Gateway — Spring Cloud Gateway, DDoS, Zero Trust, Rate Limiting
@@ -500,10 +469,7 @@ services:
         condition: service_healthy
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://localhost:${GATEWAY_PORT:-9000}/actuator/health || exit 1"]
-      interval: 30s
-      timeout: 10s
-      retries: 5
-      start_period: 60s
+      <<: *healthcheck-spring
 
   # ===========================================================================
   # Frontend — Angular SPA served via Nginx
