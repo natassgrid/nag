@@ -1,268 +1,361 @@
-# Open Source Government Examination Platform (national Assesment Grid)
+# NAG – Next-generation Assessment Grid
 
-A comprehensive, microservices-based examination platform for conducting large-scale government examinations. Built with Java 21, Spring Boot 3.x, Angular 21, and deployed via Docker.
+> **An Open Digital Public Infrastructure (DPI) platform for secure, scalable, AI-ready assessment, entrance examination, certification, and recruitment systems.**
 
-## Architecture
+[![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](LICENSE)
+[![Java](https://img.shields.io/badge/Java-21-orange.svg)]()
+[![Spring Boot](https://img.shields.io/badge/Spring%20Boot-3.x-brightgreen.svg)]()
+[![Status](https://img.shields.io/badge/status-Active%20Development-success.svg)]()
 
-```
-┌─────────────┐     ┌─────────────────┐     ┌──────────────────────┐
-│   Angular   │────▶│   API Gateway   │────▶│  15 Microservices    │
-│  Frontend   │     │  (Port 9000)    │     │  (Ports 8081-8094)   │
-│ (Port 4200) │     └─────────────────┘     └──────────────────────┘
-└─────────────┘              │
-      nginx                  │         ┌───────────────────────────┐
-                             └────────▶│  Infrastructure           │
-                                       │  PostgreSQL, Kafka, Redis │
-                                       │  Vault, Keycloak, Jaeger  │
-                                       └───────────────────────────┘
-```
+---
 
-## Tech Stack
+# What is NAG?
 
-| Layer | Technology |
-|-------|-----------|
-| Backend | Java 21, Spring Boot 3.5.x, Spring Cloud 2025.x |
-| Frontend | Angular 21, Angular Material (Indigo + Amber) |
-| Database | PostgreSQL 16 (per-service schemas) |
-| Messaging | Apache Kafka (KRaft mode) |
-| Cache | Redis (standalone for dev) |
-| Auth | Keycloak (OAuth2/OIDC), HS256 JWT (dev mode) |
-| Secrets | HashiCorp Vault |
-| Observability | Prometheus, Grafana, Jaeger (OpenTelemetry) |
-| Build | Gradle 8.10.2, npm |
-| Deploy | Docker Compose, Helm (production) |
+**Next-generation Assessment Grid (NAG)** is an open-source Digital Public Infrastructure (DPI) platform for building secure, scalable, transparent, and AI-ready assessment ecosystems.
 
-## Backend Services
+NAG enables governments, universities, certification bodies, enterprises, and educational institutions to design, conduct, evaluate, and audit high-stakes examinations at national scale. Built on modern cloud-native architecture, it supports computer-based testing (CBT), entrance examinations, recruitment, certifications, campus hiring, and continuous assessments.
 
-| Service | Port | Description |
-|---------|------|-------------|
-| identity-service | 8081 | Auth, MFA, WebAuthn, user management |
-| candidate-service | 8082 | PII encryption, DigiLocker, face verification |
-| question-bank-service | 8083 | Question CRUD, versioning, lifecycle FSM |
-| translation-service | 8084 | 22 languages, review workflow |
-| examination-service | 8085 | Exam creation, sections, publication |
-| paper-generator | 8086 | Blueprint assembly, encryption |
-| delivery-service | 8087 | Session management, navigation, proctoring |
-| response-service | 8088 | Save/auto-save, revision history |
-| evaluation-service | 8089 | Auto-eval, partial marking |
-| result-service | 8090 | Score computation, PDF scorecards |
-| audit-service | 8091 | HSM signing, tamper detection |
-| notification-service | 8092 | Email, in-app SSE |
-| admin-service | 8093 | User deactivation, config |
-| analytics-service | 8094 | Dashboard API, CSV/PDF export |
-| api-gateway | 9000 | Spring Cloud Gateway, rate limiting |
+Designed as a modular, API-first platform, NAG empowers organizations to retain ownership of their assessment infrastructure while avoiding vendor lock-in and benefiting from a collaborative open-source ecosystem.
 
-## Prerequisites
+---
 
-- Java 21 (OpenJDK)
-- Node.js 22.x + npm
-- Docker + Docker Compose
-- Git
+# Vision
 
-## Quick Start (Docker)
+NAG (National Assessment Grid) is an open-source Digital Public Infrastructure (DPI) initiative designed to modernize the way governments, universities, certification bodies, and enterprises conduct high-stakes assessments.
 
-```bash
-# Clone
-git clone https://github.com/sheelprabhakar/nag.git
-cd nag
+Our mission is to build the world's most secure, transparent, scalable, multilingual, AI-ready examination ecosystem that any organization can deploy, extend, and own.
 
-# Full clean deploy (builds all services + starts infrastructure)
-cd infrastructure/docker-compose
-chmod +x redeploy-clean.sh build-and-deploy.sh
-./redeploy-clean.sh
-```
+Unlike traditional examination software, NAG is built as a cloud-native, microservices-based platform that emphasizes security, auditability, interoperability, and extensibility.
 
-This will:
-1. Tear down any existing containers and volumes
-2. Start infrastructure (PostgreSQL, Kafka, Redis, Vault, Keycloak, Prometheus, Grafana, Jaeger)
-3. Build all 15 backend services sequentially (shared Gradle cache)
-4. Build Angular frontend
-5. Start everything
+---
 
-## Shell Scripts
+# Why NAG?
 
-| Script | Description |
-|--------|-------------|
-| `infrastructure/docker-compose/redeploy-clean.sh` | Full clean redeploy |
-| `infrastructure/docker-compose/redeploy-clean.sh --service <name>` | Rebuild and restart one service |
-| `infrastructure/docker-compose/redeploy-clean.sh --smart` | Only rebuild services with code changes |
-| `infrastructure/docker-compose/redeploy-clean.sh --no-cache` | Force rebuild without Docker cache |
-| `infrastructure/docker-compose/build-and-deploy.sh` | Build and start (no teardown) |
+Every year millions of candidates participate in:
 
-## Build Commands
+- Government recruitment examinations
+- University entrance examinations
+- Professional certifications
+- Departmental promotions
+- Campus recruitment
+- Scholarship examinations
 
-### Backend (Gradle)
+Existing systems often suffer from:
 
-```bash
-# Build all (skip tests)
-./gradlew build -x test
+- Vendor lock-in
+- Limited scalability
+- Security concerns
+- Paper leaks
+- Limited transparency
+- Poor auditability
+- Lack of interoperability
+- High licensing costs
 
-# Build specific service
-./gradlew :backend:identity-service:bootJar
+NAG aims to solve these challenges through an open, community-driven platform built using modern cloud-native technologies.
 
-# Run tests for a service
-./gradlew :backend:identity-service:test
+---
 
-# Run all tests
-./gradlew test
-```
+# Objectives
 
-### Frontend (Angular)
+- Build a secure examination ecosystem
+- Eliminate vendor lock-in
+- Promote transparency
+- Support Digital Public Infrastructure initiatives
+- Enable sovereign deployments
+- Reduce examination fraud
+- Support AI-assisted assessments
+- Provide enterprise-grade observability
+- Encourage community innovation
 
-```bash
-cd frontend
+---
 
-# Install dependencies
-npm ci
+# Key Features
 
-# Development server (proxies API to localhost:9000)
-ng serve
+## Examination Management
 
-# Production build
-ng build --configuration production
+- Examination lifecycle management
+- Multi-phase examinations
+- Multiple shifts
+- Multiple schedules
+- Center allocation
+- Candidate allocation
+- Scheduling engine
 
-# Run tests
-ng test
-```
+---
 
-### Docker
+## Candidate Management
 
-```bash
-cd infrastructure/docker-compose
+- Registration
+- Profile management
+- Reservation support
+- Document verification
+- Admit cards
+- Hall tickets
+- Notifications
 
-# Start infrastructure only
-docker compose -f docker-compose.yml up -d
+---
 
-# Start infrastructure + services
-docker compose -f docker-compose.yml -f docker-compose.services.yml up -d
+## Question Bank
 
-# Build one service image
-docker compose -f docker-compose.yml -f docker-compose.services.yml build identity-service
+- Rich question authoring
+- Versioning
+- Approval workflow
+- Metadata
+- Difficulty tagging
+- Multi-language support
+- Reusable question bank
 
-# View logs
-docker compose -f docker-compose.yml -f docker-compose.services.yml logs -f identity-service
+---
 
-# Stop everything
-docker compose -f docker-compose.yml -f docker-compose.services.yml down
+## Secure Paper Generation
 
-# Stop + remove volumes (fresh DB)
-docker compose -f docker-compose.yml -f docker-compose.services.yml down -v
-```
+- Blueprint driven generation
+- Difficulty balancing
+- Randomization
+- Multiple paper sets
+- Secure encryption
+- Digital signatures
+- Time-lock support
 
-## Access URLs (Docker deployment)
+---
 
-| Service | URL |
-|---------|-----|
-| Frontend | http://localhost:4200 |
-| API Gateway | http://localhost:9000 |
-| Keycloak | http://localhost:8080 |
-| Vault | http://localhost:8200 |
-| Prometheus | http://localhost:9090 |
-| Grafana | http://localhost:3000 |
-| Jaeger | http://localhost:16686 |
-| PostgreSQL | localhost:5432 |
+## Examination Delivery
 
-## Default Credentials
+- Computer Based Test (CBT)
+- Offline mode
+- Hybrid mode
+- Auto save
+- Resume support
+- Accessibility support
 
-### PostgreSQL
-- User: `exam_admin`
-- Password: `exam_secret`
-- Database: `exam_platform`
+---
 
-### Grafana
-- User: `admin`
-- Password: `grafana_secret`
+## Evaluation
 
-### Vault
-- Token: `vault_root_token`
+- Automatic evaluation
+- Manual evaluation
+- Hybrid evaluation
+- Normalization
+- Percentile calculation
+- Merit generation
 
-### Seed Users (dev mode)
+---
 
-| Username | Role | Password |
-|----------|------|----------|
-| superadmin | SUPER_ADMIN | any (dev mode) |
-| secadmin | SECURITY_ADMIN | any |
-| author1 | QUESTION_AUTHOR | any |
-| reviewer1 | REVIEWER | any |
-| controller1 | EXAM_CONTROLLER | any |
-| candidate1 | CANDIDATE | any |
-| translator1 | TRANSLATOR | any |
-| evaluator1 | EVALUATOR | any |
-| auditor1 | AUDITOR | any |
-| approver1 | APPROVER | any |
+## AI Ready
 
-Tenant: `exam-authority-1`
+Future roadmap includes:
 
-> In Docker/dev profile, `DevKeycloakService` issues HS256-signed JWT tokens. Any password works.
+- AI-assisted question generation
+- AI translation validation
+- AI proctoring
+- AI anomaly detection
+- AI analytics
+- AI-powered examination insights
 
-## Project Structure
+---
+
+# Platform Architecture
+
+NAG follows a cloud-native microservices architecture.
 
 ```
-nag/
-├── backend/
-│   ├── shared-lib/              # Common DTOs, BaseEntity, utilities
-│   ├── identity-service/        # Auth, users, roles
-│   ├── candidate-service/       # Candidate profiles
-│   ├── question-bank-service/   # Questions CRUD + lifecycle
-│   ├── translation-service/     # Multi-language translations
-│   ├── examination-service/     # Exam management
-│   ├── paper-generator/         # Paper assembly
-│   ├── delivery-service/        # Exam sessions
-│   ├── response-service/        # Answer collection
-│   ├── evaluation-service/      # Scoring
-│   ├── result-service/          # Results + scorecards
-│   ├── audit-service/           # Audit trail
-│   ├── notification-service/    # Notifications
-│   ├── admin-service/           # Admin operations
-│   ├── analytics-service/       # Analytics
-│   ├── api-gateway/             # Spring Cloud Gateway
-│   └── Dockerfile               # Multi-stage build for all services
-├── frontend/
-│   ├── src/app/
-│   │   ├── core/                # Auth service, guards, interceptors
-│   │   └── features/            # Login, Dashboard, Questions, Exams, etc.
-│   ├── Dockerfile               # Multi-stage build (Node + Nginx)
-│   ├── nginx.conf               # API proxy + SPA routing
-│   └── proxy.conf.json          # ng serve proxy config
-├── infrastructure/
-│   ├── docker-compose/
-│   │   ├── docker-compose.yml           # Infrastructure services
-│   │   ├── docker-compose.services.yml  # Application services
-│   │   ├── init-db.sql                  # Database schema init
-│   │   ├── redeploy-clean.sh            # Build + deploy script
-│   │   └── .env                         # Environment variables
-│   ├── helm/                    # Kubernetes Helm charts
-│   ├── observability/           # OpenTelemetry config
-│   └── docs/                    # API docs, ISO 27001
-├── docs/
-│   └── test-curls.md            # API test commands
-├── .github/workflows/ci.yml     # CI pipeline (manual trigger)
-├── build.gradle                 # Root Gradle config
-├── settings.gradle              # Module declarations
-└── .kiro/specs/                 # Design specs and task tracking
+                 +-----------------------+
+                 |    Web / Mobile UI    |
+                 +-----------+-----------+
+                             |
+                    API Gateway / BFF
+                             |
+ ---------------------------------------------------------------
+| Identity | Candidate | Exam | Question | Schedule | Workflow |
+ ---------------------------------------------------------------
+| Paper | Delivery | Evaluation | Result | Analytics | Audit |
+ ---------------------------------------------------------------
+                             |
+                      Event Streaming
+                           Kafka
+                             |
+ ---------------------------------------------------------------
+| PostgreSQL | Redis | OpenSearch | Object Storage | Vault |
+ ---------------------------------------------------------------
+                             |
+                  Kubernetes / Cloud Platform
 ```
 
-## Security (Dev Mode)
+---
 
-In Docker/dev profile:
-1. Login → `DevKeycloakService` signs JWT with HS256 using shared secret
-2. All services validate JWT using the same secret (`DevJwtConfig`)
-3. Roles extracted from `realm_access.roles` in the JWT payload
-4. API Gateway enforces auth on all routes except `/api/v1/identity/auth/**`
+# Core Modules
 
-Production uses Keycloak JWKS endpoint for RS256 token validation.
+- Identity & Access Management
+- Candidate Management
+- Examination Management
+- Examination Scheduling
+- Question Bank
+- Translation Management
+- Paper Generation
+- Examination Delivery
+- Evaluation
+- Result Processing
+- Notification
+- Analytics
+- Audit
+- Administration
 
-## API Documentation
+---
 
-See [docs/test-curls.md](docs/test-curls.md) for curl commands to test all endpoints.
+# Technology Stack
 
-## Contributing
+## Backend
 
-1. Create a feature branch from `develop`
-2. Make changes
-3. Run tests: `./gradlew test`
-4. Push and create a PR to `develop`
+- Java 21
+- Spring Boot
+- Spring Security
+- Spring Cloud
+- Spring AI
 
-## License
+## Frontend
 
-Apache 2.0
+- Angular
+- TypeScript
+
+## Infrastructure
+
+- Kubernetes
+- Docker
+- Kafka
+- PostgreSQL
+- Redis
+- OpenSearch
+- HashiCorp Vault
+
+## Observability
+
+- OpenTelemetry
+- Prometheus
+- Grafana
+- Jaeger
+
+## Security
+
+- OAuth2
+- OIDC
+- JWT
+- Keycloak
+- TLS
+- Role-Based Access Control (RBAC)
+
+---
+
+# Design Principles
+
+- Security First
+- Cloud Native
+- API First
+- Event Driven
+- Zero Trust
+- Privacy by Design
+- AI Ready
+- Open Standards
+- Vendor Neutral
+- Community Driven
+
+---
+
+# Roadmap
+
+## Phase 1
+
+- Core Platform
+- Identity
+- Examination Scheduling
+- Candidate Management
+
+## Phase 2
+
+- Question Bank
+- Workflow Engine
+- Paper Generation
+- Notifications
+
+## Phase 3
+
+- Secure Delivery
+- Evaluation
+- Result Processing
+
+## Phase 4
+
+- AI Proctoring
+- AI Analytics
+- AI Question Generation
+
+## Phase 5
+
+- Internationalization
+- Digital Credentials
+- Adaptive Assessments
+
+---
+
+# Target Deployments
+
+NAG is designed for:
+
+- National Testing Agencies
+- Public Service Commissions
+- Government Recruitment Boards
+- Universities
+- Schools
+- Certification Bodies
+- Corporate Learning Platforms
+- Enterprise Assessments
+
+---
+
+# Contributing
+
+We welcome contributions from developers, architects, educators, security researchers, accessibility experts, and government technology professionals.
+
+Ways to contribute:
+
+- Report issues
+- Submit pull requests
+- Improve documentation
+- Add new modules
+- Enhance security
+- Build integrations
+- Improve accessibility
+
+Please read our CONTRIBUTING.md before submitting changes.
+
+---
+
+# Documentation
+
+Comprehensive documentation is available in the `/docs` directory.
+
+- Architecture
+- Deployment Guide
+- Developer Guide
+- API Reference
+- Security Architecture
+- Database Design
+- Module Specifications
+- Roadmap
+
+---
+
+# License
+
+Licensed under the Apache License 2.0.
+
+---
+
+# Vision Statement
+
+> **To build the world's most trusted open Digital Public Infrastructure for secure, scalable, transparent, multilingual, and AI-powered assessment systems.**
+
+---
+
+## Star the Project
+
+If NAG helps your organization or inspires your work, please consider giving the repository a ⭐ and joining our community.
