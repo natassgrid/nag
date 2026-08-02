@@ -21,7 +21,7 @@ Designed as a modular, API-first platform, NAG empowers organizations to retain 
 
 # Vision
 
-NAG (National Assessment Grid) is an open-source Digital Public Infrastructure (DPI) initiative designed to modernize the way governments, universities, certification bodies, and enterprises conduct high-stakes assessments.
+NAG (Next-generation Assessment Grid) is an open-source Digital Public Infrastructure (DPI) initiative designed to modernize the way governments, universities, certification bodies, and enterprises conduct high-stakes assessments.
 
 Our mission is to build the world's most secure, transparent, scalable, multilingual, AI-ready examination ecosystem that any organization can deploy, extend, and own.
 
