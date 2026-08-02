@@ -1,19 +1,22 @@
-import { Component, OnInit, ChangeDetectorRef } from '@angular/core';
+import { Component, OnInit, ChangeDetectorRef, ViewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { MatTableModule, MatTableDataSource } from '@angular/material/table';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatCardModule } from '@angular/material/card';
 import { MatSnackBarModule, MatSnackBar } from '@angular/material/snack-bar';
 import { MatChipsModule } from '@angular/material/chips';
 import { MatTooltipModule } from '@angular/material/tooltip';
-import { MatPaginatorModule, PageEvent } from '@angular/material/paginator';
 import { MatDividerModule } from '@angular/material/divider';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
-import { MatBadgeModule } from '@angular/material/badge';
+import { tap } from 'rxjs/operators';
 import { QuestionService, QuestionResponse } from './question.service';
+import {
+  PaginatedTableComponent,
+  ColumnDef,
+  PaginatedDataFetcher
+} from '../../shared/components/paginated-table';
 
 @Component({
   selector: 'app-question-review',
@@ -21,18 +24,16 @@ import { QuestionService, QuestionResponse } from './question.service';
   imports: [
     CommonModule,
     FormsModule,
-    MatTableModule,
     MatButtonModule,
     MatIconModule,
     MatCardModule,
     MatSnackBarModule,
     MatChipsModule,
     MatTooltipModule,
-    MatPaginatorModule,
     MatDividerModule,
     MatFormFieldModule,
     MatInputModule,
-    MatBadgeModule
+    PaginatedTableComponent
   ],
   template: `
     <div class="review-container">
@@ -42,7 +43,6 @@ import { QuestionService, QuestionResponse } from './question.service';
         <h2 class="page-title">
           <mat-icon>rate_review</mat-icon>
           Review Queue
-          <span class="badge" *ngIf="totalElements > 0">{{ totalElements }}</span>
         </h2>
         <div class="view-toggle">
           <button
@@ -66,95 +66,27 @@ import { QuestionService, QuestionResponse } from './question.service';
         </div>
       </div>
 
-      <!-- ── TABLE VIEW ── -->
+      <!-- ── TABLE VIEW WITH REUSABLE PAGINATED TABLE ── -->
       <ng-container *ngIf="viewMode === 'table'">
-        <div class="table-panel">
-          <div class="table-container">
-            <table mat-table [dataSource]="dataSource" class="question-table">
+        <app-paginated-table
+          #paginatedTable
+          [fetcher]="fetcher"
+          [columns]="columns"
+          [actionsTemplate]="actionsTmpl"
+          (rowClick)="select($event)"
+          searchPlaceholder="Search review questions..."
+        ></app-paginated-table>
 
-              <!-- Subject Column -->
-              <ng-container matColumnDef="subject">
-                <th mat-header-cell *matHeaderCellDef>Subject</th>
-                <td mat-cell *matCellDef="let q" class="subject-cell">{{ q.subject }}</td>
-              </ng-container>
-
-              <!-- Topic Column -->
-              <ng-container matColumnDef="topic">
-                <th mat-header-cell *matHeaderCellDef>Topic</th>
-                <td mat-cell *matCellDef="let q">
-                  {{ q.topic }}
-                  <span *ngIf="q.subtopic" class="subtopic-text"> · {{ q.subtopic }}</span>
-                </td>
-              </ng-container>
-
-              <!-- Difficulty Column -->
-              <ng-container matColumnDef="difficulty">
-                <th mat-header-cell *matHeaderCellDef>Difficulty</th>
-                <td mat-cell *matCellDef="let q">
-                  <mat-chip-set>
-                    <mat-chip [class]="getDiffClass(q.difficulty)" class="diff-chip">
-                      {{ q.difficulty || 'N/A' }}
-                    </mat-chip>
-                  </mat-chip-set>
-                </td>
-              </ng-container>
-
-              <!-- Type Column -->
-              <ng-container matColumnDef="questionType">
-                <th mat-header-cell *matHeaderCellDef>Type</th>
-                <td mat-cell *matCellDef="let q">
-                  <mat-chip-set>
-                    <mat-chip class="type-chip">{{ formatType(q.questionType) }}</mat-chip>
-                  </mat-chip-set>
-                </td>
-              </ng-container>
-
-              <!-- Created Column -->
-              <ng-container matColumnDef="createdAt">
-                <th mat-header-cell *matHeaderCellDef>Created</th>
-                <td mat-cell *matCellDef="let q">{{ q.createdAt | date:'shortDate' }}</td>
-              </ng-container>
-
-              <!-- Actions Column -->
-              <ng-container matColumnDef="actions">
-                <th mat-header-cell *matHeaderCellDef>Action</th>
-                <td mat-cell *matCellDef="let q">
-                  <button
-                    mat-stroked-button
-                    color="primary"
-                    (click)="select(q); $event.stopPropagation()"
-                  >
-                    <mat-icon>rate_review</mat-icon>
-                    Review
-                  </button>
-                </td>
-              </ng-container>
-
-              <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
-              <tr
-                mat-row
-                *matRowDef="let row; columns: displayedColumns;"
-                [class.selected-row]="selected?.id === row.id"
-                (click)="select(row)"
-              ></tr>
-
-              <tr class="mat-row" *matNoDataRow>
-                <td class="mat-cell no-data-cell" [attr.colspan]="displayedColumns.length">
-                  No questions pending review.
-                </td>
-              </tr>
-            </table>
-          </div>
-
-          <mat-paginator
-            [length]="totalElements"
-            [pageSize]="pageSize"
-            [pageIndex]="pageIndex"
-            [pageSizeOptions]="[10, 20, 50]"
-            (page)="onPageChange($event)"
-            aria-label="Select page">
-          </mat-paginator>
-        </div>
+        <ng-template #actionsTmpl let-q>
+          <button
+            mat-stroked-button
+            color="primary"
+            (click)="select(q); $event.stopPropagation()"
+          >
+            <mat-icon>rate_review</mat-icon>
+            Review
+          </button>
+        </ng-template>
       </ng-container>
 
       <div class="layout" [class.table-mode-layout]="viewMode === 'table'">
@@ -190,18 +122,9 @@ import { QuestionService, QuestionResponse } from './question.service';
               </mat-chip-set>
             </div>
           </div>
-
-          <mat-paginator
-            [length]="totalElements"
-            [pageSize]="pageSize"
-            [pageIndex]="pageIndex"
-            [pageSizeOptions]="[10, 20, 50]"
-            (page)="onPageChange($event)"
-            aria-label="Select page">
-          </mat-paginator>
         </div>
 
-        <!-- ── RIGHT / BELOW: detail panel ── -->
+        <!-- ── DETAIL PANEL ── -->
         <div class="detail-panel" *ngIf="selected; else noSelection">
 
           <!-- Metadata row -->
@@ -326,14 +249,6 @@ import { QuestionService, QuestionResponse } from './question.service';
       margin: 0;
     }
     .page-title mat-icon { font-size: 26px; height: 26px; width: 26px; }
-    .badge {
-      background: #f44336;
-      color: white;
-      border-radius: 12px;
-      padding: 2px 8px;
-      font-size: 13px;
-      font-weight: 600;
-    }
     .view-toggle { display: flex; gap: 4px; }
 
     /* Layout */
@@ -348,24 +263,6 @@ import { QuestionService, QuestionResponse } from './question.service';
     }
     .layout.table-mode-layout .detail-panel {
       width: 100%;
-    }
-
-    /* Table Panel */
-    .table-panel {
-      border: 1px solid #e0e0e0;
-      border-radius: 8px;
-      background: white;
-      overflow: hidden;
-    }
-    .table-container { overflow-x: auto; }
-    .question-table { width: 100%; }
-    .subject-cell { font-weight: 600; }
-    .subtopic-text { color: #616161; font-size: 12px; }
-    .selected-row { background-color: #e3f2fd !important; }
-    .no-data-cell {
-      text-align: center;
-      padding: 48px;
-      color: #9e9e9e;
     }
 
     /* Left list */
@@ -403,8 +300,8 @@ import { QuestionService, QuestionResponse } from './question.service';
     .list-item-mid { font-size: 12px; color: #616161; margin-bottom: 4px; }
     .list-item-preview { font-size: 12px; color: #757575; margin-bottom: 6px; line-height: 1.4; }
     .list-item-meta { display: flex; gap: 4px; }
-    .diff-chip { font-size: 11px !important; height: 20px !important; padding: 0 6px !important; }
-    .type-chip { font-size: 11px !important; height: 20px !important; padding: 0 6px !important; background: #ede7f6 !important; }
+    ::ng-deep .diff-chip { font-size: 11px !important; height: 20px !important; padding: 0 6px !important; }
+    ::ng-deep .type-chip { font-size: 11px !important; height: 20px !important; padding: 0 6px !important; background: #ede7f6 !important; }
 
     /* Detail panel */
     .detail-panel {
@@ -503,24 +400,56 @@ import { QuestionService, QuestionResponse } from './question.service';
     .no-selection mat-icon { font-size: 48px; height: 48px; width: 48px; }
 
     /* Difficulty chips */
-    .chip-easy   { background-color: #c8e6c9 !important; }
-    .chip-medium { background-color: #fff9c4 !important; }
-    .chip-hard   { background-color: #ffcdd2 !important; }
+    ::ng-deep .chip-easy   { background-color: #c8e6c9 !important; }
+    ::ng-deep .chip-medium { background-color: #fff9c4 !important; }
+    ::ng-deep .chip-hard   { background-color: #ffcdd2 !important; }
   `]
 })
-export class QuestionReviewComponent implements OnInit {
+export class QuestionReviewComponent {
 
-  displayedColumns = ['subject', 'topic', 'difficulty', 'questionType', 'createdAt', 'actions'];
-  dataSource = new MatTableDataSource<QuestionResponse>([]);
+  @ViewChild('paginatedTable') paginatedTable!: PaginatedTableComponent<QuestionResponse>;
+
   questions: QuestionResponse[] = [];
   selected: QuestionResponse | null = null;
   rejectComment = '';
   acting = false;
   viewMode: 'table' | 'split' = 'table';
 
-  pageIndex = 0;
-  pageSize = 20;
-  totalElements = 0;
+  columns: ColumnDef<QuestionResponse>[] = [
+    { key: 'subject', header: 'Subject', sortable: true },
+    { key: 'topic', header: 'Topic', sortable: true },
+    {
+      key: 'difficulty',
+      header: 'Difficulty',
+      type: 'chip',
+      chipClass: (val) => 'chip-' + (val || 'medium').toLowerCase(),
+      sortable: true
+    },
+    {
+      key: 'questionType',
+      header: 'Type',
+      cell: (row) => this.formatType(row.questionType),
+      sortable: true
+    },
+    { key: 'createdAt', header: 'Created', type: 'date', sortable: true },
+    { key: 'actions', header: 'Action', type: 'actions' }
+  ];
+
+  fetcher: PaginatedDataFetcher<QuestionResponse> = (req) => {
+    return this.questionService.getQuestionsForReview(req.page, req.size).pipe(
+      tap(page => {
+        const list = page?.content ?? (Array.isArray(page) ? page : []);
+        this.questions = [...list];
+        if (this.selected) {
+          const still = this.questions.find(q => q.id === this.selected!.id);
+          this.selected = still ?? (this.questions[0] ?? null);
+        } else {
+          this.selected = this.questions[0] ?? null;
+        }
+        this.cdr.detectChanges();
+      })
+    );
+  };
 
   constructor(
     private questionService: QuestionService,
@@ -528,46 +457,14 @@ export class QuestionReviewComponent implements OnInit {
     private cdr: ChangeDetectorRef
   ) {}
 
-  ngOnInit(): void {
-    this.loadReviewQuestions();
-  }
-
-  loadReviewQuestions(): void {
-    this.questionService.getQuestionsForReview(this.pageIndex, this.pageSize).subscribe({
-      next: (page) => {
-        console.log('[ReviewComponent] page received:', page);
-        const list = page?.content ?? (Array.isArray(page) ? page : []);
-        this.questions = [...list];
-        this.dataSource.data = [...list];
-        this.totalElements = page?.totalElements ?? this.questions.length;
-        if (this.selected) {
-          const still = this.questions.find(q => q.id === this.selected!.id);
-          this.selected = still ?? (this.questions[0] ?? null);
-        } else {
-          this.selected = this.questions[0] ?? null;
-        }
-        this.rejectComment = '';
-        this.cdr.detectChanges();
-      },
-      error: (err) => {
-        console.error('[ReviewComponent] error:', err);
-        this.snackBar.open('Failed to load questions for review', 'Close', { duration: 3000 });
-        this.cdr.detectChanges();
-      }
-    });
+  reload(): void {
+    this.paginatedTable?.reload();
   }
 
   select(question: QuestionResponse): void {
     this.selected = question;
     this.rejectComment = '';
     this.cdr.detectChanges();
-  }
-
-  onPageChange(event: PageEvent): void {
-    this.pageIndex = event.pageIndex;
-    this.pageSize = event.pageSize;
-    this.selected = null;
-    this.loadReviewQuestions();
   }
 
   approve(): void {
@@ -577,7 +474,7 @@ export class QuestionReviewComponent implements OnInit {
       next: () => {
         this.snackBar.open('Question approved', 'Close', { duration: 3000 });
         this.acting = false;
-        this.loadReviewQuestions();
+        this.reload();
       },
       error: (err) => {
         this.snackBar.open(err.error?.message || 'Failed to approve question', 'Close', { duration: 3000 });
@@ -594,7 +491,7 @@ export class QuestionReviewComponent implements OnInit {
       next: () => {
         this.snackBar.open('Question rejected and returned to author', 'Close', { duration: 3000 });
         this.acting = false;
-        this.loadReviewQuestions();
+        this.reload();
       },
       error: (err) => {
         this.snackBar.open(err.error?.message || 'Failed to reject question', 'Close', { duration: 3000 });
