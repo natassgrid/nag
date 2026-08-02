@@ -6,6 +6,8 @@
 #   ./redeploy-clean.sh --service <name> # Rebuild and restart ONE service (keeps others running)
 #   ./redeploy-clean.sh --smart          # Only rebuild services with code changes (uses git diff)
 #   ./redeploy-clean.sh --no-cache       # Force rebuild without Docker cache
+#   ./redeploy-clean.sh --restart        # Restart ALL services without rebuilding (keeps images)
+#   ./redeploy-clean.sh --restart --service <name>  # Restart ONE service without rebuilding
 # =============================================================================
 set -e
 
@@ -16,12 +18,14 @@ cd "$SCRIPT_DIR"
 NO_CACHE=""
 SERVICE=""
 SMART=false
+RESTART_ONLY=false
 
 while [[ $# -gt 0 ]]; do
     case $1 in
         --no-cache) NO_CACHE="--no-cache"; shift ;;
         --service) SERVICE="$2"; shift 2 ;;
         --smart) SMART=true; shift ;;
+        --restart) RESTART_ONLY=true; shift ;;
         *) echo "Unknown option: $1"; exit 1 ;;
     esac
 done
@@ -78,6 +82,15 @@ echo "============================================="
 # --- Single service mode ---
 if [ -n "$SERVICE" ]; then
     echo ""
+    if [ "$RESTART_ONLY" = true ]; then
+        echo "▶ Restarting service (no build): $SERVICE"
+        $COMPOSE stop "$SERVICE"
+        $COMPOSE up -d --no-recreate "$SERVICE" 2>/dev/null || $COMPOSE up -d "$SERVICE"
+        echo ""
+        echo "✓ $SERVICE restarted (image unchanged)."
+        exit 0
+    fi
+
     echo "▶ Rebuilding service: $SERVICE"
     $COMPOSE build $NO_CACHE "$SERVICE"
     echo ""
@@ -117,6 +130,22 @@ if [ "$SMART" = true ]; then
     echo "============================================="
     echo "  ✓ Smart redeploy complete (${#CHANGED[@]} services rebuilt)"
     echo "============================================="
+    exit 0
+fi
+
+# --- Restart only mode: restart all services without rebuilding ---
+if [ "$RESTART_ONLY" = true ]; then
+    echo ""
+    echo "▶ Restarting all services (no build)..."
+    $COMPOSE stop
+    $COMPOSE up -d
+
+    echo ""
+    echo "============================================="
+    echo "  ✓ All services restarted (images unchanged)"
+    echo "============================================="
+    echo ""
+    $COMPOSE ps --format "table {{.Name}}\t{{.Status}}\t{{.Ports}}" 2>/dev/null || $COMPOSE ps
     exit 0
 fi
 

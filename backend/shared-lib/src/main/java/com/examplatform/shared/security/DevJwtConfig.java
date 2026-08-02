@@ -1,4 +1,4 @@
-package com.examplatform.questionbank.config;
+package com.examplatform.shared.security;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
@@ -13,7 +13,7 @@ import java.nio.charset.StandardCharsets;
 
 /**
  * Dev/Docker JWT decoder — validates HS256 tokens signed by DevKeycloakService.
- * Uses the same shared secret as identity-service's DevKeycloakService.
+ * Shared across all services. Active only in 'dev' or 'docker' profiles.
  */
 @Configuration
 @Profile({"dev", "docker"})
@@ -27,6 +27,8 @@ public class DevJwtConfig {
     public JwtDecoder jwtDecoder() {
         SecretKeySpec key = new SecretKeySpec(
                 jwtSecret.getBytes(StandardCharsets.UTF_8), "HmacSHA256");
-        return NimbusJwtDecoder.withSecretKey(key).macAlgorithm(org.springframework.security.oauth2.jose.jws.MacAlgorithm.HS256).build();
+        return NimbusJwtDecoder.withSecretKey(key)
+                .macAlgorithm(org.springframework.security.oauth2.jose.jws.MacAlgorithm.HS256)
+                .build();
     }
 }

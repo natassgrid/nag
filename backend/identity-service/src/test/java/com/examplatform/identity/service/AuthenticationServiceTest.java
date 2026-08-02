@@ -115,7 +115,7 @@ class AuthenticationServiceTest {
             UserAccount account = activeAccount();
             when(userAccountRepository.findByEmailHashAndTenantId(EMAIL_HASH, TENANT_ID))
                     .thenReturn(Optional.of(account));
-            when(keycloakService.getTokens(any(), any())).thenReturn(stubTokens());
+            when(keycloakService.getTokens(any(), any(), any())).thenReturn(stubTokens());
             when(activeSessionRepository.existsByUserIdAndTenantId(any(), eq(TENANT_ID)))
                     .thenReturn(false);
 
@@ -147,7 +147,7 @@ class AuthenticationServiceTest {
 
             when(userAccountRepository.findByEmailHashAndTenantId(EMAIL_HASH, TENANT_ID))
                     .thenReturn(Optional.of(account));
-            when(keycloakService.getTokens(any(), any())).thenReturn(stubTokens());
+            when(keycloakService.getTokens(any(), any(), any())).thenReturn(stubTokens());
             when(otpService.verifyOtp(EMAIL_HASH, "123456")).thenReturn(true);
             when(activeSessionRepository.existsByUserIdAndTenantId(any(), eq(TENANT_ID)))
                     .thenReturn(false);
@@ -180,7 +180,7 @@ class AuthenticationServiceTest {
 
             when(userAccountRepository.findByEmailHashAndTenantId(EMAIL_HASH, TENANT_ID))
                     .thenReturn(Optional.of(account));
-            when(keycloakService.getTokens(any(), any())).thenReturn(stubTokens());
+            when(keycloakService.getTokens(any(), any(), any())).thenReturn(stubTokens());
 
             AuthTokenRequest request = AuthTokenRequest.builder()
                     .username("user@example.com")
@@ -201,7 +201,7 @@ class AuthenticationServiceTest {
 
             when(userAccountRepository.findByEmailHashAndTenantId(EMAIL_HASH, TENANT_ID))
                     .thenReturn(Optional.of(account));
-            when(keycloakService.getTokens(any(), any())).thenReturn(stubTokens());
+            when(keycloakService.getTokens(any(), any(), any())).thenReturn(stubTokens());
 
             AuthTokenRequest request = AuthTokenRequest.builder()
                     .username("user@example.com")
@@ -225,7 +225,7 @@ class AuthenticationServiceTest {
 
             when(userAccountRepository.findByEmailHashAndTenantId(EMAIL_HASH, TENANT_ID))
                     .thenReturn(Optional.of(account));
-            when(keycloakService.getTokens(any(), any()))
+            when(keycloakService.getTokens(any(), any(), any()))
                     .thenThrow(new RuntimeException("401 Unauthorized"));
 
             AuthTokenRequest request = AuthTokenRequest.builder()
@@ -335,7 +335,7 @@ class AuthenticationServiceTest {
 
             when(userAccountRepository.findByEmailHashAndTenantId(EMAIL_HASH, TENANT_ID))
                     .thenReturn(Optional.of(account));
-            when(keycloakService.getTokens(any(), any())).thenReturn(stubTokens());
+            when(keycloakService.getTokens(any(), any(), any())).thenReturn(stubTokens());
 
             AuthTokenRequest request = AuthTokenRequest.builder()
                     .username("user@example.com")
@@ -357,7 +357,7 @@ class AuthenticationServiceTest {
 
             when(userAccountRepository.findByEmailHashAndTenantId(EMAIL_HASH, TENANT_ID))
                     .thenReturn(Optional.of(account));
-            when(keycloakService.getTokens(any(), any())).thenReturn(stubTokens());
+            when(keycloakService.getTokens(any(), any(), any())).thenReturn(stubTokens());
             when(activeSessionRepository.existsByUserIdAndTenantId(any(), eq(TENANT_ID)))
                     .thenReturn(false);
 
@@ -384,7 +384,7 @@ class AuthenticationServiceTest {
 
             when(userAccountRepository.findByEmailHashAndTenantId(EMAIL_HASH, TENANT_ID))
                     .thenReturn(Optional.of(account));
-            when(keycloakService.getTokens(any(), any())).thenReturn(stubTokens());
+            when(keycloakService.getTokens(any(), any(), any())).thenReturn(stubTokens());
             when(activeSessionRepository.existsByUserIdAndTenantId(any(), eq(TENANT_ID)))
                     .thenReturn(true);  // session already exists
 
@@ -410,7 +410,7 @@ class AuthenticationServiceTest {
 
             when(userAccountRepository.findByEmailHashAndTenantId(EMAIL_HASH, TENANT_ID))
                     .thenReturn(Optional.of(account));
-            when(keycloakService.getTokens(any(), any())).thenReturn(stubTokens());
+            when(keycloakService.getTokens(any(), any(), any())).thenReturn(stubTokens());
             when(activeSessionRepository.existsByUserIdAndTenantId(any(), eq(TENANT_ID)))
                     .thenReturn(false);
 

@@ -38,6 +38,17 @@ public class DevSecurityConfig {
             )
             .oauth2ResourceServer(oauth2 -> oauth2
                 .jwt(jwt -> jwt.jwtDecoder(devJwtDecoder()))
+                .bearerTokenConverter(exchange -> {
+                    // Don't extract Bearer token for public auth endpoints
+                    String path = exchange.getRequest().getPath().value();
+                    if (path.startsWith("/api/v1/identity/auth/") ||
+                        path.startsWith("/api/v1/identity/register") ||
+                        path.startsWith("/api/v1/identity/otp/")) {
+                        return reactor.core.publisher.Mono.empty();
+                    }
+                    return new org.springframework.security.oauth2.server.resource.web.server.authentication.ServerBearerTokenAuthenticationConverter()
+                            .convert(exchange);
+                })
             );
         return http.build();
     }

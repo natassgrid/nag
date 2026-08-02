@@ -1,27 +1,49 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { ReactiveFormsModule, FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { MatCardModule } from '@angular/material/card';
 import { MatIconModule } from '@angular/material/icon';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatChipsModule } from '@angular/material/chips';
 import { MatDividerModule } from '@angular/material/divider';
-import { ProfileService, CandidateProfile } from './profile.service';
+import { MatFormFieldModule } from '@angular/material/form-field';
+import { MatInputModule } from '@angular/material/input';
+import { MatSelectModule } from '@angular/material/select';
+import { MatButtonModule } from '@angular/material/button';
+import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
+import { ProfileService, CandidateProfile, ProfileCreateUpdateRequest } from './profile.service';
 import { AuthService } from '../../core/services/auth.service';
+
+const DOC_TYPES = ['AADHAAR', 'PAN', 'PASSPORT', 'VOTER_ID', 'DRIVING_LICENSE'];
 
 @Component({
   selector: 'app-profile',
   standalone: true,
   imports: [
     CommonModule,
+    ReactiveFormsModule,
     MatCardModule,
     MatIconModule,
     MatProgressSpinnerModule,
     MatChipsModule,
-    MatDividerModule
+    MatDividerModule,
+    MatFormFieldModule,
+    MatInputModule,
+    MatSelectModule,
+    MatButtonModule,
+    MatSnackBarModule
   ],
   template: `
     <div class="profile-container" role="main" aria-labelledby="profile-heading">
-      <mat-card class="profile-card" appearance="outlined" *ngIf="profile; else loading">
+
+      <!-- Loading State -->
+      <div class="loading-container" *ngIf="isLoading" aria-label="Loading profile">
+        <mat-spinner diameter="40"></mat-spinner>
+        <p>Loading profile...</p>
+      </div>
+
+      <!-- Profile View Mode -->
+      <mat-card class="profile-card" appearance="outlined" *ngIf="!isLoading && profile && !isEditing">
         <mat-card-header class="profile-header">
           <div class="profile-avatar">
             <mat-icon class="avatar-icon" aria-hidden="true">account_circle</mat-icon>
@@ -82,20 +104,87 @@ import { AuthService } from '../../core/services/auth.service';
             </div>
           </div>
         </mat-card-content>
+
+        <mat-card-actions class="profile-actions">
+          <button mat-raised-button color="primary" (click)="startEdit()"
+                  aria-label="Edit profile">
+            <mat-icon>edit</mat-icon>
+            Edit Profile
+          </button>
+        </mat-card-actions>
       </mat-card>
 
-      <ng-template #loading>
-        <div class="loading-container" *ngIf="isLoading" aria-label="Loading profile">
-          <mat-spinner diameter="40"></mat-spinner>
-          <p>Loading profile...</p>
-        </div>
-        <mat-card class="profile-card error-card" appearance="outlined" *ngIf="errorMessage">
-          <mat-card-content class="error-content">
-            <mat-icon class="error-icon">error_outline</mat-icon>
-            <p>{{ errorMessage }}</p>
-          </mat-card-content>
-        </mat-card>
-      </ng-template>
+      <!-- Create / Edit Form -->
+      <mat-card class="profile-card" appearance="outlined" *ngIf="!isLoading && (isEditing || profileNotFound)">
+        <mat-card-header class="profile-header">
+          <div class="profile-avatar">
+            <mat-icon class="avatar-icon" aria-hidden="true">{{ profileNotFound ? 'person_add' : 'edit' }}</mat-icon>
+          </div>
+          <h1 id="profile-heading" class="profile-name">
+            {{ profileNotFound ? 'Create Your Profile' : 'Edit Profile' }}
+          </h1>
+          <p class="form-subtitle" *ngIf="profileNotFound">
+            Complete your profile to get started with the platform.
+          </p>
+        </mat-card-header>
+
+        <mat-divider></mat-divider>
+
+        <mat-card-content class="form-content">
+          <form [formGroup]="profileForm" (ngSubmit)="saveProfile()" class="profile-form">
+            <mat-form-field appearance="outline" class="full-width">
+              <mat-label>Full Name</mat-label>
+              <input matInput formControlName="name" placeholder="Your full name" />
+              <mat-icon matPrefix>person</mat-icon>
+              <mat-error *ngIf="profileForm.get('name')?.hasError('required')">Name is required</mat-error>
+            </mat-form-field>
+
+            <mat-form-field appearance="outline" class="full-width">
+              <mat-label>Email</mat-label>
+              <input matInput formControlName="email" type="email" placeholder="your@email.com" />
+              <mat-icon matPrefix>email</mat-icon>
+              <mat-error *ngIf="profileForm.get('email')?.hasError('required')">Email is required</mat-error>
+              <mat-error *ngIf="profileForm.get('email')?.hasError('email')">Enter a valid email</mat-error>
+            </mat-form-field>
+
+            <mat-form-field appearance="outline" class="full-width">
+              <mat-label>Mobile Number</mat-label>
+              <input matInput formControlName="mobile" placeholder="10-digit mobile number" />
+              <mat-icon matPrefix>phone</mat-icon>
+              <mat-error *ngIf="profileForm.get('mobile')?.hasError('required')">Mobile is required</mat-error>
+              <mat-error *ngIf="profileForm.get('mobile')?.hasError('pattern')">Enter a valid 10-digit number</mat-error>
+            </mat-form-field>
+
+            <mat-form-field appearance="outline" class="full-width">
+              <mat-label>Identity Document Type</mat-label>
+              <mat-select formControlName="identityDocType">
+                <mat-option *ngFor="let doc of docTypes" [value]="doc">{{ doc }}</mat-option>
+              </mat-select>
+              <mat-icon matPrefix>badge</mat-icon>
+              <mat-error *ngIf="profileForm.get('identityDocType')?.hasError('required')">Document type is required</mat-error>
+            </mat-form-field>
+
+            <mat-form-field appearance="outline" class="full-width">
+              <mat-label>Identity Document Number</mat-label>
+              <input matInput formControlName="identityDocNumber" placeholder="Document number" />
+              <mat-icon matPrefix>article</mat-icon>
+              <mat-error *ngIf="profileForm.get('identityDocNumber')?.hasError('required')">Document number is required</mat-error>
+            </mat-form-field>
+
+            <div class="form-actions">
+              <button mat-button type="button" (click)="cancelEdit()" *ngIf="isEditing && !profileNotFound">
+                Cancel
+              </button>
+              <button mat-raised-button color="primary" type="submit"
+                      [disabled]="profileForm.invalid || isSaving">
+                <mat-icon *ngIf="!isSaving">{{ profileNotFound ? 'person_add' : 'save' }}</mat-icon>
+                <mat-spinner *ngIf="isSaving" diameter="20" class="button-spinner"></mat-spinner>
+                <span *ngIf="!isSaving">{{ profileNotFound ? 'Create Profile' : 'Save Changes' }}</span>
+              </button>
+            </div>
+          </form>
+        </mat-card-content>
+      </mat-card>
     </div>
   `,
   styles: [`
@@ -135,6 +224,13 @@ import { AuthService } from '../../core/services/auth.service';
       font-size: 24px;
       font-weight: 600;
       color: #333;
+    }
+
+    .form-subtitle {
+      margin: 0;
+      font-size: 14px;
+      color: #666;
+      text-align: center;
     }
 
     .verified {
@@ -187,6 +283,37 @@ import { AuthService } from '../../core/services/auth.service';
       color: #333;
     }
 
+    .profile-actions {
+      display: flex;
+      justify-content: center;
+      padding: 16px 24px 24px;
+    }
+
+    .form-content {
+      padding: 24px;
+    }
+
+    .profile-form {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .full-width {
+      width: 100%;
+    }
+
+    .form-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 12px;
+      margin-top: 16px;
+    }
+
+    .button-spinner {
+      display: inline-block;
+    }
+
     .loading-container {
       display: flex;
       flex-direction: column;
@@ -195,70 +322,134 @@ import { AuthService } from '../../core/services/auth.service';
       padding: 48px;
       color: #666;
     }
-
-    .error-card {
-      max-width: 400px;
-      width: 100%;
-    }
-
-    .error-content {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      padding: 32px;
-      text-align: center;
-      color: #666;
-    }
-
-    .error-icon {
-      font-size: 48px;
-      width: 48px;
-      height: 48px;
-      color: #f44336;
-      margin-bottom: 12px;
-    }
   `]
 })
 export class ProfileComponent implements OnInit {
   profile: CandidateProfile | null = null;
-  isLoading = true;
-  errorMessage = '';
+  isLoading = false;
+  isEditing = false;
+  isSaving = false;
+  profileNotFound = true;
+  profileForm!: FormGroup;
+  docTypes = DOC_TYPES;
+
+  private userId: string | null = null;
 
   constructor(
     private profileService: ProfileService,
-    private authService: AuthService
-  ) {}
+    private authService: AuthService,
+    private fb: FormBuilder,
+    private snackBar: MatSnackBar
+  ) {
+    this.initForm();
+  }
 
   ngOnInit(): void {
-    const userId = this.authService.getUserId();
-    if (!userId) {
-      this.isLoading = false;
-      this.errorMessage = 'Unable to determine user ID. Please log in again.';
-      return;
-    }
+    this.userId = this.authService.getUserId();
+    this.prefillFromToken();
 
-    this.profileService.getProfile(userId).subscribe({
+    if (this.userId) {
+      this.isLoading = true;
+      this.profileNotFound = false;
+
+      this.profileService.getProfile(this.userId).subscribe({
+        next: (profile) => {
+          if (profile) {
+            this.profile = profile;
+            this.profileNotFound = false;
+          } else {
+            this.profileNotFound = true;
+          }
+          this.isLoading = false;
+        },
+        error: () => {
+          this.profileNotFound = true;
+          this.isLoading = false;
+        }
+      });
+
+      // Fallback: if subscribe callbacks never fire, show form after 3s
+      setTimeout(() => {
+        if (this.isLoading) {
+          this.profileNotFound = true;
+          this.isLoading = false;
+        }
+      }, 3000);
+    }
+  }
+
+  startEdit(): void {
+    if (this.profile) {
+      this.profileForm.patchValue({
+        name: this.profile.name,
+        email: this.profile.email,
+        mobile: this.profile.mobile,
+        identityDocType: this.profile.identityDocType,
+        identityDocNumber: this.profile.identityDocNumber
+      });
+    }
+    this.isEditing = true;
+  }
+
+  cancelEdit(): void {
+    this.isEditing = false;
+  }
+
+  saveProfile(): void {
+    if (this.profileForm.invalid || !this.userId) return;
+
+    this.isSaving = true;
+    const data: ProfileCreateUpdateRequest = this.profileForm.value;
+
+    const operation = this.profileNotFound
+      ? this.profileService.createProfile(data)
+      : this.profileService.updateProfile(this.userId, data);
+
+    operation.subscribe({
       next: (profile) => {
         this.profile = profile;
-        this.isLoading = false;
+        this.profileNotFound = false;
+        this.isEditing = false;
+        this.isSaving = false;
+        this.snackBar.open(
+          this.profileNotFound ? 'Profile created successfully' : 'Profile updated successfully',
+          'OK', { duration: 3000 }
+        );
       },
-      error: () => {
-        // Fallback: show basic info from JWT token when candidate profile doesn't exist
-        const token = this.authService.getToken();
-        const payload = token ? this.decodePayload(token) : null;
-        this.profile = {
-          id: userId,
-          name: payload?.preferred_username || userId,
-          email: '-',
-          mobile: '-',
-          identityDocType: '-',
-          identityDocNumber: '-',
-          verificationStatus: 'ACTIVE',
-          registrationDate: ''
-        };
-        this.isLoading = false;
+      error: (err) => {
+        this.isSaving = false;
+        const msg = err.error?.detail || err.error?.message || 'Failed to save profile';
+        this.snackBar.open(msg, 'Dismiss', { duration: 5000 });
       }
     });
+  }
+
+  maskDocNumber(docNumber: string): string {
+    if (!docNumber || docNumber.length <= 4) return docNumber;
+    const visible = docNumber.slice(-4);
+    const masked = '*'.repeat(docNumber.length - 4);
+    return masked + visible;
+  }
+
+  private initForm(): void {
+    this.profileForm = this.fb.group({
+      name: ['', [Validators.required, Validators.minLength(3)]],
+      email: ['', [Validators.required, Validators.email]],
+      mobile: ['', [Validators.required, Validators.pattern(/^[6-9]\d{9}$/)]],
+      identityDocType: ['', Validators.required],
+      identityDocNumber: ['', Validators.required]
+    });
+  }
+
+  private prefillFromToken(): void {
+    const token = this.authService.getToken();
+    const payload = token ? this.decodePayload(token) : null;
+    if (payload) {
+      this.profileForm.patchValue({
+        name: payload.preferred_username || payload.name || '',
+        email: payload.email || ''
+      });
+    }
   }
 
   private decodePayload(token: string): any {
@@ -267,12 +458,5 @@ export class ProfileComponent implements OnInit {
       if (parts.length !== 3) return null;
       return JSON.parse(atob(parts[1].replace(/-/g, '+').replace(/_/g, '/')));
     } catch { return null; }
-  }
-
-  maskDocNumber(docNumber: string): string {
-    if (!docNumber || docNumber.length <= 4) return docNumber;
-    const visible = docNumber.slice(-4);
-    const masked = '*'.repeat(docNumber.length - 4);
-    return masked + visible;
   }
 }

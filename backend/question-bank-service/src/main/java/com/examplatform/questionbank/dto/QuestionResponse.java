@@ -32,4 +32,7 @@ public class QuestionResponse {
     private String state;
     private UUID authorId;
     private LocalDateTime createdAt;
+
+    /** Parsed options for MCQ/MSQ questions */
+    private java.util.List<QuestionOption> options;
 }

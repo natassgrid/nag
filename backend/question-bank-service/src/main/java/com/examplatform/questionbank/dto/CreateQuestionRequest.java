@@ -46,9 +46,8 @@ public class CreateQuestionRequest {
 
     private String answerKey;
 
-    /**
-     * Describes the format of the content field.
-     * Accepted values: HTML5, SVG, PNG, JPEG, WEBP, AUDIO, VIDEO, LATEX, MATHML
-     */
     private String contentType;
+
+    /** Options for MCQ/MSQ questions (2-6 items, A-F) */
+    private java.util.List<QuestionOption> options;
 }

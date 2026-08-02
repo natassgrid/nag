@@ -30,7 +30,7 @@ import { Question } from '../services/exam.service';
       <div class="question-content" [innerHTML]="question.content" aria-label="Question content"></div>
 
       <!-- MCQ Options (Radio) -->
-      <div class="options-list" *ngIf="question.questionType === 'MCQ' && question.options?.length">
+      <div class="options-list" *ngIf="question.questionType === 'SINGLE_MCQ' && question.options?.length">
         <mat-radio-group [value]="selectedOptionIds[0] || ''" (change)="onRadioChange($event.value)"
                          aria-label="Select one answer">
           <mat-radio-button *ngFor="let option of question.options; let i = index"
@@ -43,7 +43,7 @@ import { Question } from '../services/exam.service';
       </div>
 
       <!-- MSQ Options (Checkbox) -->
-      <div class="options-list" *ngIf="question.questionType === 'MSQ' && question.options?.length">
+      <div class="options-list" *ngIf="question.questionType === 'MULTI_MCQ' && question.options?.length">
         <div *ngFor="let option of question.options; let i = index" class="option-item">
           <mat-checkbox [checked]="selectedOptionIds.includes(option.id)"
                         (change)="onCheckboxChange(option.id, $event.checked)"

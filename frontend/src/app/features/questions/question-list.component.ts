@@ -15,7 +15,7 @@ import { MatCardModule } from '@angular/material/card';
 import { MatChipsModule } from '@angular/material/chips';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { MatAutocompleteModule } from '@angular/material/autocomplete';
-import { QuestionService, QuestionResponse, CreateQuestionRequest } from './question.service';
+import { QuestionService, QuestionResponse } from './question.service';
 import { QuestionFormDialogComponent, QuestionFormDialogData } from './question-form-dialog.component';
 import { SubjectTopicService, Subject } from './subject-topic.service';
 
@@ -291,17 +291,10 @@ export class QuestionListComponent implements OnInit {
       data: {} as QuestionFormDialogData
     });
 
-    dialogRef.afterClosed().subscribe((result: CreateQuestionRequest | undefined) => {
+    dialogRef.afterClosed().subscribe((result: QuestionResponse | undefined) => {
       if (result) {
-        this.questionService.createQuestion(result).subscribe({
-          next: () => {
-            this.snackBar.open('Question created successfully', 'Close', { duration: 3000 });
-            this.loadQuestions();
-          },
-          error: () => {
-            this.snackBar.open('Failed to create question', 'Close', { duration: 3000 });
-          }
-        });
+        this.snackBar.open('Question created successfully', 'Close', { duration: 3000 });
+        this.loadQuestions();
       }
     });
   }
@@ -312,17 +305,10 @@ export class QuestionListComponent implements OnInit {
       data: { question } as QuestionFormDialogData
     });
 
-    dialogRef.afterClosed().subscribe((result: CreateQuestionRequest | undefined) => {
+    dialogRef.afterClosed().subscribe((result: QuestionResponse | undefined) => {
       if (result) {
-        this.questionService.updateQuestion(question.id, result).subscribe({
-          next: () => {
-            this.snackBar.open('Question updated successfully', 'Close', { duration: 3000 });
-            this.loadQuestions();
-          },
-          error: () => {
-            this.snackBar.open('Failed to update question', 'Close', { duration: 3000 });
-          }
-        });
+        this.snackBar.open('Question updated successfully', 'Close', { duration: 3000 });
+        this.loadQuestions();
       }
     });
   }

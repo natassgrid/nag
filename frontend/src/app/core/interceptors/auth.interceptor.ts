@@ -16,7 +16,14 @@ export const authInterceptor: HttpInterceptorFn = (req, next) => {
     .set('Accept-Language', navigator.language || 'en');
 
   if (token && token !== 'undefined' && token !== 'null') {
-    headers = headers.set('Authorization', `Bearer ${token}`);
+    // Don't send auth token on unauthenticated (public) endpoints
+    const isUnauthenticated = req.url.includes('/identity/auth/') ||
+                              req.url.includes('/identity/register') ||
+                              req.url.includes('/identity/otp/') ||
+                              req.url.includes('/actuator/');
+    if (!isUnauthenticated) {
+      headers = headers.set('Authorization', `Bearer ${token}`);
+    }
   }
 
   const clonedReq = req.clone({ headers });

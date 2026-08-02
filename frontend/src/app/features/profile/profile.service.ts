@@ -13,6 +13,14 @@ export interface CandidateProfile {
   registrationDate: string;
 }
 
+export interface ProfileCreateUpdateRequest {
+  name: string;
+  email: string;
+  mobile: string;
+  identityDocType: string;
+  identityDocNumber: string;
+}
+
 interface ApiResponse<T> {
   status: string;
   data: T;
@@ -22,8 +30,20 @@ interface ApiResponse<T> {
 export class ProfileService {
   constructor(private http: HttpClient) {}
 
-  getProfile(userId: string): Observable<CandidateProfile> {
+  getProfile(userId: string): Observable<CandidateProfile | null> {
     return this.http.get<ApiResponse<CandidateProfile>>(`/api/v1/candidates/${userId}`)
+      .pipe(
+        map(res => res?.data ?? null)
+      );
+  }
+
+  createProfile(data: ProfileCreateUpdateRequest): Observable<CandidateProfile> {
+    return this.http.post<ApiResponse<CandidateProfile>>('/api/v1/candidates', data)
+      .pipe(map(res => res.data));
+  }
+
+  updateProfile(userId: string, data: ProfileCreateUpdateRequest): Observable<CandidateProfile> {
+    return this.http.put<ApiResponse<CandidateProfile>>(`/api/v1/candidates/${userId}`, data)
       .pipe(map(res => res.data));
   }
 }
