@@ -18,7 +18,6 @@ import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
-import java.util.stream.Collectors;
 
 /**
  * Service layer for question CRUD operations.
@@ -129,27 +128,35 @@ public class QuestionService {
     }
 
     /**
-     * Lists questions for a tenant with optional filters.
-     *
-     * @param subject    optional subject filter
-     * @param topic      optional topic filter
-     * @param difficulty optional difficulty filter
-     * @param state      optional state filter
-     * @param tenantId   tenant identifier
-     * @return filtered list of question responses
+     * Lists questions for a tenant with optional filters and pagination.
      */
     @Transactional(readOnly = true)
-    public List<QuestionResponse> listQuestions(String subject, String topic, String difficulty,
-                                                String state, String tenantId) {
-        List<Question> questions = questionRepository.findByTenantId(tenantId);
+    public org.springframework.data.domain.Page<QuestionResponse> listQuestions(
+            String subject, String topic, String difficulty, String state,
+            int page, int size, String tenantId) {
 
-        return questions.stream()
-                .filter(q -> subject == null || subject.isBlank() || subject.equalsIgnoreCase(q.getSubject()))
-                .filter(q -> topic == null || topic.isBlank() || topic.equalsIgnoreCase(q.getTopic()))
-                .filter(q -> difficulty == null || difficulty.isBlank() || difficulty.equalsIgnoreCase(q.getDifficulty()))
-                .filter(q -> state == null || state.isBlank() || state.equalsIgnoreCase(q.getState()))
-                .map(this::toResponse)
-                .collect(Collectors.toList());
+        org.springframework.data.domain.Pageable pageable =
+                org.springframework.data.domain.PageRequest.of(page, size,
+                        org.springframework.data.domain.Sort.by("createdAt").descending());
+
+        org.springframework.data.jpa.domain.Specification<Question> spec =
+                org.springframework.data.jpa.domain.Specification
+                        .where(tenantEquals(tenantId))
+                        .and(fieldEquals("subject", subject))
+                        .and(fieldEquals("topic", topic))
+                        .and(fieldEquals("difficulty", difficulty))
+                        .and(fieldEquals("state", state));
+
+        return questionRepository.findAll(spec, pageable).map(this::toResponse);
+    }
+
+    private org.springframework.data.jpa.domain.Specification<Question> tenantEquals(String tenantId) {
+        return (root, query, cb) -> cb.equal(root.get("tenantId"), tenantId);
+    }
+
+    private org.springframework.data.jpa.domain.Specification<Question> fieldEquals(String field, String value) {
+        if (value == null || value.isBlank()) return null;
+        return (root, query, cb) -> cb.equal(cb.lower(root.get(field)), value.toLowerCase());
     }
 
     /**

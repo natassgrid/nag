@@ -26,6 +26,7 @@
             mat-list-item
             [routerLink]="item.route"
             routerLinkActive="active-link"
+            [routerLinkActiveOptions]="{exact: true}"
             (click)="closeSidenavIfMobile()"
           >
             <mat-icon matListItemIcon>{{ item.icon }}</mat-icon>
