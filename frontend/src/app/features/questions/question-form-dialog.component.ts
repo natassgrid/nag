@@ -10,7 +10,7 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatCheckboxModule } from '@angular/material/checkbox';
-import { CreateQuestionRequest, QuestionResponse } from './question.service';
+import { CreateQuestionRequest, QuestionResponse, QuestionService } from './question.service';
 import { SubjectTopicService, Subject, Topic, Subtopic } from './subject-topic.service';
 
 export interface QuestionFormDialogData {
@@ -141,8 +141,8 @@ export interface QuestionFormDialogData {
 
         <mat-form-field appearance="outline">
           <mat-label>Question Type</mat-label>
-          <mat-select formControlName="questionType">
-            <mat-option *ngFor="let t of questionTypes" [value]="t">{{ t }}</mat-option>
+          <mat-select formControlName="questionType" (selectionChange)="onQuestionTypeChange($event.value)">
+            <mat-option *ngFor="let t of questionTypes" [value]="t.value">{{ t.label }}</mat-option>
           </mat-select>
           <mat-error *ngIf="form.get('questionType')?.hasError('required')">Type is required</mat-error>
         </mat-form-field>
@@ -187,11 +187,14 @@ export interface QuestionFormDialogData {
         </mat-form-field>
       </form>
     </mat-dialog-content>
+    <div *ngIf="saveError" style="color: #c62828; font-size: 13px; padding: 0 24px 8px;">{{ saveError }}</div>
     <mat-dialog-actions align="end">
-      <button mat-button mat-dialog-close>Cancel</button>
-      <button mat-raised-button color="primary" [disabled]="form.invalid" (click)="save()">
-        Save
+      <button mat-button [disabled]="saving" (click)="cancel()">Cancel</button>
+      <button mat-raised-button color="primary" [disabled]="saving" (click)="save()">
+        <mat-spinner *ngIf="saving" diameter="18" style="display:inline-block;margin-right:6px;vertical-align:middle;"></mat-spinner>
+        {{ saving ? 'Saving…' : 'Save' }}
       </button>
+      <span *ngIf="!saving && form.invalid" style="font-size:11px;color:#999;margin-left:4px;">Fix errors above</span>
     </mat-dialog-actions>
   `,
   styles: [`
@@ -272,7 +275,16 @@ export class QuestionFormDialogComponent implements OnInit {
 
   difficulties = ['EASY', 'MEDIUM', 'HARD'];
   cognitiveLevels = ['REMEMBER', 'UNDERSTAND', 'APPLY', 'ANALYZE', 'EVALUATE', 'CREATE'];
-  questionTypes = ['MCQ', 'MSQ', 'NUMERICAL', 'DESCRIPTIVE'];
+  questionTypes = [
+    { value: 'SINGLE_MCQ',      label: 'MCQ (Single Correct)' },
+    { value: 'MULTI_MCQ',       label: 'MSQ (Multiple Correct)' },
+    { value: 'NUMERICAL',       label: 'Numerical' },
+    { value: 'DESCRIPTIVE',     label: 'Descriptive' },
+    { value: 'MATRIX_MATCH',    label: 'Matrix Match' },
+    { value: 'ASSERTION_REASON',label: 'Assertion & Reason' },
+    { value: 'CODING',          label: 'Coding' },
+    { value: 'CASE_STUDY',      label: 'Case Study' },
+  ];
 
   // Subject/Topic/Subtopic data
   subjects: Subject[] = [];
@@ -297,7 +309,8 @@ export class QuestionFormDialogComponent implements OnInit {
     private fb: FormBuilder,
     private dialogRef: MatDialogRef<QuestionFormDialogComponent>,
     @Inject(MAT_DIALOG_DATA) public data: QuestionFormDialogData,
-    private subjectTopicService: SubjectTopicService
+    private subjectTopicService: SubjectTopicService,
+    private questionService: QuestionService
   ) {
     const q = data.question;
     this.form = this.fb.group({
@@ -314,6 +327,11 @@ export class QuestionFormDialogComponent implements OnInit {
 
   ngOnInit(): void {
     this.loadSubjects();
+    // Seed the tracked type for edit mode (or any pre-filled value)
+    const initialType = this.form.get('questionType')?.value || '';
+    if (initialType) {
+      this.onQuestionTypeChange(initialType);
+    }
   }
 
   loadSubjects(): void {
@@ -450,15 +468,30 @@ export class QuestionFormDialogComponent implements OnInit {
   options: { id: string; text: string; isCorrect: boolean }[] = [];
   optionIds = ['A', 'B', 'C', 'D', 'E', 'F'];
   optionError = '';
+  saving = false;
+  saveError = '';
+  currentQuestionType = '';
+
+  onQuestionTypeChange(value: string): void {
+    this.currentQuestionType = value;
+    // Reset options when switching away from MCQ/MSQ
+    if (value !== 'SINGLE_MCQ' && value !== 'MULTI_MCQ') {
+      this.options = [];
+    } else if (this.options.length === 0) {
+      this.options = [
+        { id: 'A', text: '', isCorrect: false },
+        { id: 'B', text: '', isCorrect: false }
+      ];
+    }
+    this.optionError = '';
+  }
 
   isMcqOrMsq(): boolean {
-    const t = this.form.get('questionType')?.value || '';
-    return t === 'MCQ' || t === 'MSQ' || t.includes('MCQ') || t.includes('MSQ') || t.includes('MULTI');
+    return this.currentQuestionType === 'SINGLE_MCQ' || this.currentQuestionType === 'MULTI_MCQ';
   }
 
   isMcq(): boolean {
-    const t = this.form.get('questionType')?.value || '';
-    return t === 'MCQ' || t === 'SINGLE_MCQ';
+    return this.currentQuestionType === 'SINGLE_MCQ';
   }
 
   addOption(): void {
@@ -476,7 +509,12 @@ export class QuestionFormDialogComponent implements OnInit {
     this.options.forEach((o, i) => { if (i !== checkedIndex) o.isCorrect = false; });
   }
 
+  cancel(): void {
+    this.dialogRef.close();
+  }
+
   save(): void {
+    this.form.markAllAsTouched();
     if (this.form.valid) {
       const value: CreateQuestionRequest = this.form.value;
       if (this.isMcqOrMsq() && this.options.length >= 2) {
@@ -490,7 +528,23 @@ export class QuestionFormDialogComponent implements OnInit {
         value.options = this.options.map((o, i) => ({ id: this.optionIds[i], text: o.text, isCorrect: o.isCorrect }));
       }
       this.optionError = '';
-      this.dialogRef.close(value);
+      this.saveError = '';
+      this.saving = true;
+
+      const call = this.data.question
+        ? this.questionService.updateQuestion(this.data.question.id, value)
+        : this.questionService.createQuestion(value);
+
+      call.subscribe({
+        next: (created) => {
+          this.saving = false;
+          this.dialogRef.close(created);
+        },
+        error: (err) => {
+          this.saving = false;
+          this.saveError = err?.error?.message || err?.error?.error || 'Failed to save question. Please try again.';
+        }
+      });
     }
   }
 }

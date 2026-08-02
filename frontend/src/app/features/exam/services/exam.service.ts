@@ -16,7 +16,7 @@ export interface Question {
   id: string;
   sequenceNumber: number;
   content: string;
-  questionType: string; // MCQ, MSQ, NUMERICAL, DESCRIPTIVE
+  questionType: string; // SINGLE_MCQ, MULTI_MCQ, NUMERICAL, DESCRIPTIVE, MATRIX_MATCH, ASSERTION_REASON, CODING, CASE_STUDY
   options?: { id: string; text: string }[];
 }
 

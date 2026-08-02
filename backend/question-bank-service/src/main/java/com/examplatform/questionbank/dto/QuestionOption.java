@@ -26,5 +26,6 @@ public class QuestionOption {
     private String text;
 
     /** True if this option is part of the correct answer */
-    private boolean isCorrect;
+    @com.fasterxml.jackson.annotation.JsonProperty("isCorrect")
+    private boolean correct;
 }

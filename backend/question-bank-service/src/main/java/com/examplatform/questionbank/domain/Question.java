@@ -11,6 +11,8 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 import java.time.LocalDateTime;
 import java.util.UUID;
@@ -61,6 +63,7 @@ public class Question extends BaseEntity {
     @Column(name = "answer_key", columnDefinition = "TEXT")
     private String answerKey;
 
+    @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "embedding_vector", columnDefinition = "jsonb")
     private String embeddingVector;
 
@@ -78,9 +81,11 @@ public class Question extends BaseEntity {
     @Column(name = "last_used_at")
     private LocalDateTime lastUsedAt;
 
+    @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "used_in_exam_ids_json", columnDefinition = "jsonb")
     private String usedInExamIdsJson;
 
+    @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "used_in_shift_ids_json", columnDefinition = "jsonb")
     private String usedInShiftIdsJson;
 
