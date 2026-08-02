@@ -1,111 +1,323 @@
 # Security Policy
 
-## Supported Versions
+# Security at NAG
 
-The following versions of the Open Source Government Examination Platform receive security updates:
+Security is the foundation of the **Next-generation Assessment Grid (NAG)**.
 
-| Version | Supported          |
-| ------- | ------------------ |
-| 1.x (latest) | ✅ Active support |
-| < 1.0   | ❌ No longer supported |
+NAG is designed as an Open Digital Public Infrastructure (DPI) platform for conducting secure, scalable, transparent, and AI-ready assessments, entrance examinations, certifications, and recruitment processes.
 
-Security patches are backported only to the **latest minor release** on the `main` branch.
-Older releases are not patched; users are encouraged to upgrade.
+Because NAG may be used for high-stakes examinations, we take security vulnerabilities seriously and appreciate responsible disclosure from the community.
 
 ---
 
-## Reporting a Vulnerability
+# Supported Versions
 
-**Do not report security vulnerabilities as public GitHub Issues.**
-Public disclosure of a vulnerability before a patch is available puts all users at risk.
+Only actively maintained releases receive security updates.
 
-### Private Disclosure Process
-
-1. **Email the security team** at `security@examplatform.example.com` with the subject line:
-   `[SECURITY] <Short description of the issue>`
-
-2. Include the following information in your report:
-   - Description of the vulnerability and its potential impact
-   - Affected component(s) and version(s)
-   - Step-by-step reproduction instructions
-   - Any proof-of-concept code or screenshots (remove real PII before attaching)
-   - Your suggested remediation, if any
-
-3. **Encrypt sensitive details** using the project's PGP public key (published at
-   `https://examplatform.example.com/.well-known/security.txt`).
-
-4. You will receive an acknowledgement within **48 hours** confirming receipt.
+| Version | Supported |
+|----------|-----------|
+| 1.x | ✅ |
+| 0.x | Best Effort |
 
 ---
 
-## Response Timeline
+# Reporting a Security Vulnerability
 
-| Stage | Target Time |
-| ----- | ----------- |
-| Acknowledgement of report | 48 hours |
-| Initial triage and severity assessment | 5 business days |
-| Patch development begins (Critical/High) | 7 business days |
-| Patch development begins (Medium/Low) | 30 business days |
-| Coordinated public disclosure | After patch is released and users have had time to upgrade (minimum 90 days from report) |
+**Please DO NOT create a public GitHub Issue for security vulnerabilities.**
 
-We follow [Responsible Disclosure](https://en.wikipedia.org/wiki/Responsible_disclosure) practices.
-If you believe a critical vulnerability is being exploited in the wild, please indicate this clearly
-in your report so we can expedite the response.
+Instead, report vulnerabilities privately.
 
----
+Include:
 
-## Severity Classification
-
-We use the [CVSS v3.1](https://www.first.org/cvss/calculator/3.1) scoring system to classify severity:
-
-| CVSS Score | Severity |
-| ---------- | -------- |
-| 9.0 – 10.0 | Critical |
-| 7.0 – 8.9  | High     |
-| 4.0 – 6.9  | Medium   |
-| 0.1 – 3.9  | Low      |
+- Description
+- Impact
+- Steps to reproduce
+- Proof of Concept (if available)
+- Suggested mitigation
+- Contact information
 
 ---
 
-## Security Contacts
+# Response Timeline
 
-| Role | Contact |
-| ---- | ------- |
-| Security Lead | `security@examplatform.example.com` |
-| Maintainers | See [CODEOWNERS](.github/CODEOWNERS) |
-
-For general (non-security) bug reports, use the [GitHub Issues](../../issues) tracker.
-
----
-
-## Scope
-
-The following are **in scope** for security reports:
-
-- All backend services under `backend/`
-- API Gateway authentication and authorization
-- HSM/Vault key management integration
-- Candidate PII handling and encryption
-- Authentication flows (OAuth2/OIDC, MFA, WebAuthn)
-- Audit trail tamper detection
-- CI/CD pipeline security
-
-The following are **out of scope**:
-
-- Social engineering attacks targeting project maintainers
-- Denial-of-service attacks requiring physical access
-- Issues in third-party dependencies (report these to the upstream project directly)
-- Theoretical vulnerabilities without a working proof-of-concept
+| Activity | Target |
+|----------|---------|
+| Initial acknowledgement | 48 Hours |
+| Initial assessment | 5 Business Days |
+| Risk classification | 7 Business Days |
+| Fix development | Depends on severity |
+| Public disclosure | After fix is available |
 
 ---
 
-## Security Best Practices for Contributors
+# Severity Classification
 
-- Never commit secrets, credentials, or private keys to the repository.
-- Use `vault` or environment variables for all sensitive configuration.
-- Follow secure coding guidelines in [CONTRIBUTING.md](CONTRIBUTING.md).
-- Run `./gradlew spotbugsMain` and `./gradlew dependencyCheckAnalyze` before submitting a PR.
+## Critical
+
+Examples
+
+- Authentication bypass
+- Authorization bypass
+- Remote Code Execution
+- Question paper exposure
+- Encryption key compromise
+- Database compromise
+- Privilege escalation
+- Digital signature compromise
+
+Target Fix
+
+Within 72 hours whenever possible.
 
 ---
 
-*This security policy is adapted from the [GitHub Security Advisory](https://docs.github.com/en/code-security/security-advisories) best practices.*
+## High
+
+Examples
+
+- Sensitive information disclosure
+- SQL Injection
+- SSRF
+- XXE
+- Stored XSS
+- JWT validation bypass
+
+Target
+
+Within 14 days.
+
+---
+
+## Medium
+
+Examples
+
+- Reflected XSS
+- Missing security headers
+- Configuration issues
+- Rate limiting weaknesses
+
+Target
+
+Within 30 days.
+
+---
+
+## Low
+
+Examples
+
+- Information leakage
+- Minor configuration improvements
+- Security hardening recommendations
+
+Target
+
+Next scheduled release.
+
+---
+
+# Security Principles
+
+NAG follows the following principles:
+
+- Zero Trust Architecture
+- Least Privilege
+- Defense in Depth
+- Secure by Default
+- Privacy by Design
+- Fail Secure
+- Principle of Least Knowledge
+- Continuous Verification
+- Immutable Audit Logging
+- Secure Software Supply Chain
+
+---
+
+# Authentication
+
+Supported mechanisms include:
+
+- OAuth 2.1
+- OpenID Connect (OIDC)
+- Multi-Factor Authentication (MFA)
+- Passkeys (Future)
+- WebAuthn (Future)
+- SAML 2.0 (Enterprise)
+
+---
+
+# Authorization
+
+NAG supports:
+
+- Role-Based Access Control (RBAC)
+- Attribute-Based Access Control (ABAC)
+- Fine-grained Permissions
+- Multi-level Approval Workflows
+- Separation of Duties (SoD)
+
+---
+
+# Cryptography
+
+Recommended algorithms:
+
+## Data at Rest
+
+- AES-256-GCM
+
+## Data in Transit
+
+- TLS 1.3
+
+## Password Hashing
+
+- Argon2id
+
+## Digital Signatures
+
+- RSA-4096
+- ECDSA P-384 (Optional)
+
+## Hashing
+
+- SHA-256
+- SHA-512
+
+---
+
+# Secrets Management
+
+Sensitive credentials should never be committed to Git.
+
+Recommended solutions:
+
+- HashiCorp Vault
+- Cloud Secret Managers
+- Kubernetes Secrets
+- Hardware Security Modules (HSM)
+
+---
+
+# Secure Development
+
+Developers should:
+
+- Enable dependency scanning
+- Enable secret scanning
+- Enable CodeQL
+- Review pull requests
+- Write security tests
+- Follow OWASP ASVS
+- Follow OWASP Top 10
+
+---
+
+# Examination Security
+
+NAG is designed with support for:
+
+- End-to-End Question Paper Encryption
+- Multi-party Approval
+- Time-Locked Paper Release
+- Digital Signatures
+- Secure Question Distribution
+- Candidate Identity Verification
+- Immutable Audit Trails
+- Secure Browser Integration
+- AI-assisted Proctoring
+- Anti-Tampering Controls
+
+---
+
+# Infrastructure Security
+
+Recommended deployment:
+
+- Kubernetes
+- Network Policies
+- Service Mesh (Istio/Linkerd)
+- mTLS
+- API Gateway
+- WAF
+- DDoS Protection
+- Image Signing
+- Runtime Security
+- Container Scanning
+
+---
+
+# Logging & Monitoring
+
+Security monitoring should include:
+
+- Authentication Events
+- Authorization Failures
+- Administrative Actions
+- Examination Lifecycle Events
+- Configuration Changes
+- API Access Logs
+- Audit Logs
+- Suspicious Activity Detection
+
+Recommended tools:
+
+- OpenTelemetry
+- Prometheus
+- Grafana
+- Jaeger
+- SIEM Integration
+
+---
+
+# Responsible Disclosure
+
+Researchers acting in good faith will not be subject to legal action for responsibly reporting vulnerabilities.
+
+We request that you:
+
+- Give us reasonable time to investigate.
+- Avoid accessing or modifying user data.
+- Avoid disrupting production systems.
+- Keep vulnerability details confidential until a fix is released.
+
+---
+
+# Security Roadmap
+
+Upcoming security enhancements include:
+
+- Hardware Security Module (HSM) Integration
+- Threshold Cryptography
+- Confidential Computing
+- FIDO2 Authentication
+- Passkey Support
+- Secure Remote Proctoring
+- AI-powered Threat Detection
+- Tamper-Evident Audit Ledger
+- Software Bill of Materials (SBOM)
+- SLSA-Compliant Build Pipeline
+
+---
+
+# Security Standards
+
+NAG aims to align with industry best practices including:
+
+- OWASP Top 10
+- OWASP ASVS
+- OWASP API Security Top 10
+- CWE Top 25
+- NIST Secure Software Development Framework (SSDF)
+- CIS Benchmarks
+
+---
+
+# Contact
+
+For security-related questions or responsible disclosure, please contact the project maintainers through the project's private security reporting channel.
+
+---
+
+> **Security is not a feature—it is a core design principle of NAG.**
