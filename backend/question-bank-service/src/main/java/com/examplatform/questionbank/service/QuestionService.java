@@ -39,6 +39,9 @@ public class QuestionService {
     private final SimilarityDetectionService similarityDetectionService;
     private final KafkaTemplate<String, Object> kafkaTemplate;
 
+    @org.springframework.beans.factory.annotation.Value("${app.encryption.enabled:false}")
+    private boolean encryptionEnabled;
+
     /**
      * Creates a new question in DRAFT state with a unique per-question DEK.
      *
@@ -57,8 +60,8 @@ public class QuestionService {
         // Check similarity against existing PUBLISHED questions before creating Draft
         similarityDetectionService.checkSimilarity(request.getContent());
 
-        // Generate per-question DEK key name (unique per question)
-        String dekKeyName = "question-dek-" + UUID.randomUUID();
+        // Generate per-question DEK key name only when encryption is enabled
+        String dekKeyName = encryptionEnabled ? "question-dek-" + UUID.randomUUID() : null;
 
         // Validate and serialize options for MCQ/MSQ
         String answerKey = request.getAnswerKey();
@@ -112,11 +115,11 @@ public class QuestionService {
         // Set tenant context
         question.setTenantId(tenantId);
 
-        // Persist (content & answerKey encrypted automatically by EncryptedFieldConverter)
+        // Persist — EncryptedFieldConverter encrypts content/answerKey only when app.encryption.enabled=true
         Question saved = questionRepository.save(question);
 
-        log.info("Question created: id={}, type={}, author={}, tenant={}, dekKey={}",
-                saved.getId(), saved.getQuestionType(), authorId, tenantId, dekKeyName);
+        log.info("Question created: id={}, type={}, author={}, tenant={}, encrypted={}",
+                saved.getId(), saved.getQuestionType(), authorId, tenantId, encryptionEnabled);
 
         // Publish QUESTION_CREATED audit event (fire-and-forget)
         publishAuditEvent("QUESTION_CREATED", saved.getId(), authorId, tenantId,
