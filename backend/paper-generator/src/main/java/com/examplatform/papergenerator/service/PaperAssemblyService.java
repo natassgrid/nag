@@ -127,7 +127,8 @@ public class PaperAssemblyService {
                 .collect(Collectors.groupingBy(QuestionSummary::getTopic, Collectors.counting()));
 
         // Build paper definition and topic distribution JSON
-        String paperDefinitionJson = toJson(selectedQuestionIds);
+        // Store as {"questionIds": [...]} so PaperSerializer can extract IDs correctly
+        String paperDefinitionJson = toJson(Map.of("questionIds", selectedQuestionIds));
         String topicDistributionJson = toJson(topicDistribution);
 
         // Create Paper entity in DRAFT status

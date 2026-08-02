@@ -48,6 +48,7 @@ export class AppComponent {
     { label: 'Subject Management', icon: 'category', route: '/questions/subjects', roles: ['QUESTION_AUTHOR', 'EXAM_CONTROLLER', 'SUPER_ADMIN'] },
     { label: 'Review Queue', icon: 'rate_review', route: '/questions/review', roles: ['REVIEWER', 'APPROVER'] },
     { label: 'Exam Management', icon: 'assignment', route: '/exam/manage', roles: ['EXAM_CONTROLLER'] },
+    { label: 'Paper Generation', icon: 'description', route: '/papers', roles: ['EXAM_CONTROLLER', 'SUPER_ADMIN'] },
     { label: 'My Exams', icon: 'school', route: '/exam', roles: ['CANDIDATE'] },
     { label: 'Results', icon: 'grade', route: '/results', roles: ['CANDIDATE'] },
     { label: 'Evaluations', icon: 'rate_review', route: '/evaluations', roles: ['EVALUATOR'] },
