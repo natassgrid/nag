@@ -130,23 +130,12 @@ export class ExamListComponent {
   ];
 
   fetcher: PaginatedDataFetcher<ExaminationResponse> = (req) => {
-    return this.examService.getExams().pipe(
+    return this.examService.getExams(req.page, req.size, req.search).pipe(
       map(exams => {
-        let filtered = exams;
-        if (req.search) {
-          const query = req.search.toLowerCase();
-          filtered = exams.filter(e =>
-            e.name.toLowerCase().includes(query) ||
-            e.status.toLowerCase().includes(query) ||
-            (e.navigationPolicy && e.navigationPolicy.toLowerCase().includes(query))
-          );
-        }
-        const start = req.page * req.size;
-        const paged = filtered.slice(start, start + req.size);
         return {
-          content: paged,
-          totalElements: filtered.length,
-          totalPages: Math.ceil(filtered.length / req.size),
+          content: exams,
+          totalElements: exams.length,
+          totalPages: 1,
           size: req.size,
           number: req.page
         };

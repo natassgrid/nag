@@ -5,6 +5,12 @@ import { Observable, map } from 'rxjs';
 export interface ExaminationResponse {
   id: string;
   name: string;
+  code?: string;
+  conductingAuthority?: string;
+  category?: string;
+  examinationType?: string;
+  academicYear?: string;
+  examinationMode?: string;
   durationMinutes: number;
   totalMarks: number;
   negativeMarkingEnabled: boolean;
@@ -25,6 +31,12 @@ export interface Section {
 
 export interface CreateExamRequest {
   name: string;
+  code?: string;
+  conductingAuthority?: string;
+  category?: string;
+  examinationType?: string;
+  academicYear?: string;
+  examinationMode?: string;
   durationMinutes: number;
   totalMarks: number;
   negativeMarkingEnabled: boolean;
@@ -48,10 +60,12 @@ export class ExamManagementService {
 
   constructor(private http: HttpClient) {}
 
-  getExams(): Observable<ExaminationResponse[]> {
+  getExams(page = 0, size = 20, search?: string): Observable<ExaminationResponse[]> {
+    let params = `?page=${page}&size=${size}`;
+    if (search) params += `&search=${encodeURIComponent(search)}`;
     return this.http
-      .get<ApiResponse<ExaminationResponse[]>>(this.baseUrl)
-      .pipe(map(res => res.data));
+      .get<ApiResponse<any>>(`${this.baseUrl}${params}`)
+      .pipe(map(res => res?.data?.content ?? res?.data ?? []));
   }
 
   createExam(data: CreateExamRequest): Observable<ExaminationResponse> {
@@ -75,6 +89,6 @@ export class ExamManagementService {
   getExam(id: string): Observable<ExaminationResponse> {
     return this.http
       .get<ApiResponse<ExaminationResponse>>(`${this.baseUrl}/${id}`)
-      .pipe(map(res => res.data));
+      .pipe(map(res => res?.data as ExaminationResponse));
   }
 }

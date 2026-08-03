@@ -28,15 +28,30 @@ import lombok.NoArgsConstructor;
 @Table(name = "examination_centre", schema = "examination_service")
 public class ExaminationCentre extends BaseEntity {
 
+    /** FK → geo_country.id (cascading dropdown selection). */
+    @Column(name = "country_id")
+    private Long countryId;
+
+    /** FK → geo_state.id (cascading dropdown selection). */
+    @Column(name = "state_id")
+    private Long stateId;
+
+    /** FK → geo_city.id (cascading dropdown selection). */
+    @Column(name = "city_id")
+    private Long cityId;
+
+    /** Denormalized region name (for display/filter without joins). */
     @Column(name = "region", length = 100)
     private String region;
 
+    /** Denormalized state name. */
     @Column(name = "state", nullable = false, length = 100)
     private String state;
 
     @Column(name = "district", length = 100)
     private String district;
 
+    /** Denormalized city name. */
     @Column(name = "city", nullable = false, length = 100)
     private String city;
 

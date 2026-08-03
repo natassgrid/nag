@@ -39,12 +39,16 @@ public class ExaminationCentreService {
     private final ExaminationCentreRepository centreRepository;
     private final ExamShiftRepository shiftRepository;
     private final ShiftSeatAllocationRepository allocationRepository;
+    private final GeoLocationService geoLocationService;
     private final KafkaTemplate<String, Object> kafkaTemplate;
 
     // ── Centres ───────────────────────────────────────────────────────────────
 
     public CentreResponse createCentre(CreateCentreRequest request, String tenantId) {
         ExaminationCentre centre = ExaminationCentre.builder()
+                .countryId(request.getCountryId())
+                .stateId(request.getStateId())
+                .cityId(request.getCityId())
                 .region(request.getRegion())
                 .state(request.getState())
                 .district(request.getDistrict())
@@ -74,6 +78,27 @@ public class ExaminationCentreService {
             centres = centreRepository.findByTenantIdAndActiveTrue(tenantId);
         }
         return centres.stream().map(this::toCentreResponse).toList();
+    }
+
+    /**
+     * Lists centres with server-side pagination and optional search/filter.
+     */
+    @Transactional(readOnly = true)
+    public org.springframework.data.domain.Page<CentreResponse> listCentresPaged(
+            String tenantId, String search, String state, String city, int page, int size) {
+        org.springframework.data.domain.Pageable pageable =
+                org.springframework.data.domain.PageRequest.of(page, size,
+                        org.springframework.data.domain.Sort.by("createdAt").descending());
+
+        org.springframework.data.domain.Page<ExaminationCentre> centrePage;
+        if (search != null && !search.isBlank()) {
+            centrePage = centreRepository.findByTenantIdAndCentreNameContainingIgnoreCaseAndActiveTrue(
+                    tenantId, search.trim(), pageable);
+        } else {
+            centrePage = centreRepository.findByTenantIdAndActiveTrue(tenantId, pageable);
+        }
+
+        return centrePage.map(this::toCentreResponse);
     }
 
     @Transactional(readOnly = true)
@@ -154,8 +179,23 @@ public class ExaminationCentreService {
     }
 
     private CentreResponse toCentreResponse(ExaminationCentre c) {
+        String countryName = geoLocationService.getCountryById(c.getCountryId())
+                .map(g -> g.getName()).orElse(null);
+
+        String stateName = geoLocationService.getStateByCountryIdAndStateId(c.getCountryId(), c.getStateId())
+                .map(g -> g.getName()).orElse(c.getState());
+
+        String cityName = geoLocationService.getCityByStateIdAndCityId(c.getStateId(), c.getCityId())
+                .map(g -> g.getName()).orElse(c.getCity());
+
         return CentreResponse.builder()
                 .id(c.getId())
+                .countryId(c.getCountryId())
+                .stateId(c.getStateId())
+                .cityId(c.getCityId())
+                .countryName(countryName)
+                .stateName(stateName)
+                .cityName(cityName)
                 .region(c.getRegion())
                 .state(c.getState())
                 .district(c.getDistrict())

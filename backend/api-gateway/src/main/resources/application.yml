@@ -48,9 +48,17 @@ spring:
 
             # Examination Service
             - id: examination-service
-              uri: ${EXAMINATION_SERVICE_URI:http://localhost:8084}
+              uri: ${EXAMINATION_SERVICE_URI:http://localhost:8085}
               predicates:
                 - Path=/api/v1/examinations/**
+              filters:
+                - StripPrefix=0
+
+            # Geo Location (served by Examination Service — public, no auth)
+            - id: geo-location-service
+              uri: ${EXAMINATION_SERVICE_URI:http://localhost:8085}
+              predicates:
+                - Path=/api/v1/geo/**
               filters:
                 - StripPrefix=0
 
