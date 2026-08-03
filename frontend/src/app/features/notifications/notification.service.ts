@@ -1,6 +1,6 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { Observable, map } from 'rxjs';
+import { Observable, map, of, catchError } from 'rxjs';
 
 export interface Notification {
   id: string;
@@ -28,7 +28,10 @@ export class NotificationService {
   getNotifications(): Observable<Notification[]> {
     return this.http
       .get<ApiResponse<Notification[]>>(this.baseUrl)
-      .pipe(map(res => res.data));
+      .pipe(
+        map(res => res?.data ?? []),
+        catchError(() => of([] as Notification[]))
+      );
   }
 
   markAsRead(id: string): Observable<void> {

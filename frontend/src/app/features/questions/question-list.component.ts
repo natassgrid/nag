@@ -20,6 +20,7 @@ import {
   ColumnDef,
   PaginatedDataFetcher
 } from '../../shared/components/paginated-table';
+import { PageHeaderComponent } from '../../shared/components/page-header/page-header.component';
 
 @Component({
   selector: 'app-question-list',
@@ -38,14 +39,23 @@ import {
     MatChipsModule,
     MatTooltipModule,
     MatAutocompleteModule,
-    PaginatedTableComponent
+    PaginatedTableComponent,
+    PageHeaderComponent
   ],
   template: `
-    <div class="question-list-container">
+    <div class="page-layout">
+      <app-page-header
+        title="Question Bank"
+        subtitle="Create, review, and manage examination questions."
+        icon="quiz"
+      >
+        <button mat-raised-button color="primary" (click)="openCreateDialog()">
+          <mat-icon>add</mat-icon>
+          Create Question
+        </button>
+      </app-page-header>
+
       <mat-card>
-        <mat-card-header>
-          <mat-card-title>Question Bank</mat-card-title>
-        </mat-card-header>
         <mat-card-content>
 
           <!-- Filters -->
@@ -125,37 +135,19 @@ import {
 
         </mat-card-content>
       </mat-card>
-
-      <!-- FAB -->
-      <button
-        mat-fab
-        color="primary"
-        class="create-fab"
-        matTooltip="Create Question"
-        (click)="openCreateDialog()"
-      >
-        <mat-icon>add</mat-icon>
-      </button>
     </div>
   `,
   styles: [`
-    .question-list-container {
-      padding: 24px;
-      position: relative;
-    }
     .filters-row {
       display: flex;
       gap: 16px;
-      flex-wrap: wrap;
+      flex-wrap: nowrap;
       margin-bottom: 16px;
+      align-items: center;
     }
     .filters-row mat-form-field {
-      min-width: 180px;
-    }
-    .create-fab {
-      position: fixed;
-      bottom: 32px;
-      right: 32px;
+      flex: 1;
+      min-width: 0;
     }
     ::ng-deep .chip-easy { background-color: #c8e6c9 !important; }
     ::ng-deep .chip-medium { background-color: #fff9c4 !important; }

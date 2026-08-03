@@ -4,9 +4,9 @@ import { RouterModule } from '@angular/router';
 import { MatCardModule } from '@angular/material/card';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
-import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { ResultService, ResultResponse } from '../result.service';
 import { AuthService } from '../../../core/services/auth.service';
+import { PageHeaderComponent } from '../../../shared/components/page-header/page-header.component';
 
 @Component({
   selector: 'app-result-list',
@@ -17,28 +17,22 @@ import { AuthService } from '../../../core/services/auth.service';
     MatCardModule,
     MatButtonModule,
     MatIconModule,
-    MatProgressSpinnerModule
+    PageHeaderComponent
   ],
   template: `
-    <div class="result-list-container">
-      <h1 class="page-title">My Exam Results</h1>
+    <div class="page-layout">
+      <app-page-header
+        title="My Exam Results"
+        subtitle="View your scores, ranks, and percentiles for completed examinations."
+        icon="grade"
+      ></app-page-header>
 
-      <div *ngIf="isLoading" class="loading-container" role="status" aria-live="polite">
-        <mat-spinner diameter="48"></mat-spinner>
-        <p>Loading results...</p>
-      </div>
-
-      <div *ngIf="errorMessage && !isLoading" class="error-message" role="alert">
-        <mat-icon>error_outline</mat-icon>
-        <span>{{ errorMessage }}</span>
-      </div>
-
-      <div *ngIf="!isLoading && !errorMessage && results.length === 0" class="empty-state" role="status">
+      <div *ngIf="results.length === 0" class="empty-state" role="status">
         <mat-icon class="empty-icon">assignment</mat-icon>
         <p>No results available yet.</p>
       </div>
 
-      <div class="results-grid" *ngIf="!isLoading && results.length > 0">
+      <div class="results-grid" *ngIf="results.length > 0">
         <mat-card *ngFor="let result of results" class="result-card">
           <mat-card-header>
             <mat-icon mat-card-avatar>school</mat-icon>
@@ -72,32 +66,6 @@ import { AuthService } from '../../../core/services/auth.service';
     </div>
   `,
   styles: [`
-    .result-list-container {
-      padding: 24px;
-      max-width: 1200px;
-      margin: 0 auto;
-    }
-    .page-title {
-      font-size: 1.5rem;
-      font-weight: 500;
-      margin-bottom: 24px;
-    }
-    .loading-container {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      padding: 48px;
-      gap: 16px;
-    }
-    .error-message {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      padding: 16px;
-      color: #d32f2f;
-      background: #fdecea;
-      border-radius: 8px;
-    }
     .empty-state {
       text-align: center;
       padding: 48px;
@@ -143,8 +111,6 @@ import { AuthService } from '../../../core/services/auth.service';
 })
 export class ResultListComponent implements OnInit {
   results: ResultResponse[] = [];
-  isLoading = true;
-  errorMessage = '';
 
   constructor(
     private resultService: ResultService,
@@ -153,21 +119,10 @@ export class ResultListComponent implements OnInit {
 
   ngOnInit(): void {
     const candidateId = this.authService.getUserId();
-    if (!candidateId) {
-      this.isLoading = false;
-      this.errorMessage = 'Unable to identify candidate. Please log in again.';
-      return;
-    }
+    if (!candidateId) return;
 
-    this.resultService.getResults(candidateId).subscribe({
-      next: (data) => {
-        this.results = data || [];
-        this.isLoading = false;
-      },
-      error: (err) => {
-        this.isLoading = false;
-        this.errorMessage = err.error?.message || 'Failed to load results.';
-      }
+    this.resultService.getResults(candidateId).subscribe(data => {
+      this.results = data || [];
     });
   }
 }

@@ -1,6 +1,6 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { Observable, map } from 'rxjs';
+import { Observable, map, of, catchError } from 'rxjs';
 
 export interface CandidateProfile {
   id: string;
@@ -33,7 +33,8 @@ export class ProfileService {
   getProfile(userId: string): Observable<CandidateProfile | null> {
     return this.http.get<ApiResponse<CandidateProfile>>(`/api/v1/candidates/${userId}`)
       .pipe(
-        map(res => res?.data ?? null)
+        map(res => res?.data ?? null),
+        catchError(() => of(null))
       );
   }
 

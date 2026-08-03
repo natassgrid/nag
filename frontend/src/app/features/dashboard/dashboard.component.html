@@ -1,6 +1,9 @@
-<section class="dashboard-container" aria-label="Dashboard">
-  <h1 class="welcome-message">Welcome, {{ username }}</h1>
-  <p class="subtitle">What would you like to do today?</p>
+<div class="page-layout" aria-label="Dashboard">
+  <app-page-header
+    [title]="'Welcome, ' + username"
+    subtitle="What would you like to do today?"
+    icon="home"
+  ></app-page-header>
 
   <div class="card-grid" role="list">
     @for (card of cards; track card.title) {
@@ -23,4 +26,4 @@
       </mat-card>
     }
   </div>
-</section>
+</div>

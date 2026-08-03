@@ -17,6 +17,7 @@ import {
   ColumnDef,
   PaginatedDataFetcher
 } from '../../shared/components/paginated-table';
+import { PageHeaderComponent } from '../../shared/components/page-header/page-header.component';
 
 @Component({
   selector: 'app-question-review',
@@ -33,17 +34,18 @@ import {
     MatDividerModule,
     MatFormFieldModule,
     MatInputModule,
-    PaginatedTableComponent
+    PaginatedTableComponent,
+    PageHeaderComponent
   ],
   template: `
-    <div class="review-container">
+    <div class="page-layout">
 
       <!-- Page header -->
-      <div class="page-header">
-        <h2 class="page-title">
-          <mat-icon>rate_review</mat-icon>
-          Review Queue
-        </h2>
+      <app-page-header
+        title="Review Queue"
+        subtitle="Review pending questions, approve or reject with feedback."
+        icon="rate_review"
+      >
         <div class="view-toggle">
           <button
             mat-icon-button
@@ -64,7 +66,7 @@ import {
             <mat-icon>view_sidebar</mat-icon>
           </button>
         </div>
-      </div>
+      </app-page-header>
 
       <!-- ── TABLE VIEW WITH REUSABLE PAGINATED TABLE ── -->
       <ng-container *ngIf="viewMode === 'table'">
@@ -228,27 +230,7 @@ import {
     </div>
   `,
   styles: [`
-    .review-container {
-      padding: 24px;
-      max-width: 1400px;
-    }
-
-    /* Header */
-    .page-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 20px;
-    }
-    .page-title {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      font-size: 22px;
-      font-weight: 500;
-      margin: 0;
-    }
-    .page-title mat-icon { font-size: 26px; height: 26px; width: 26px; }
+    /* View toggle */
     .view-toggle { display: flex; gap: 4px; }
 
     /* Layout */

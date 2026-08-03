@@ -15,6 +15,7 @@ import {
   ColumnDef,
   PaginatedDataFetcher
 } from '../../../shared/components/paginated-table';
+import { PageHeaderComponent } from '../../../shared/components/page-header/page-header.component';
 
 @Component({
   selector: 'app-exam-list',
@@ -28,14 +29,23 @@ import {
     MatSnackBarModule,
     MatDialogModule,
     MatTooltipModule,
-    PaginatedTableComponent
+    PaginatedTableComponent,
+    PageHeaderComponent
   ],
   template: `
-    <div class="exam-list-container">
-      <mat-card class="exam-list-card">
-        <mat-card-header>
-          <mat-card-title>Exam Management</mat-card-title>
-        </mat-card-header>
+    <div class="page-layout">
+      <app-page-header
+        title="Exam Management"
+        subtitle="Create, configure, and publish examinations."
+        icon="assignment"
+      >
+        <button mat-raised-button color="primary" (click)="openCreateDialog()" matTooltip="Create Exam">
+          <mat-icon>add</mat-icon>
+          Create Exam
+        </button>
+      </app-page-header>
+
+      <mat-card>
         <mat-card-content>
           <app-paginated-table
             #paginatedTable
@@ -69,31 +79,9 @@ import {
 
         </mat-card-content>
       </mat-card>
-
-      <button
-        mat-fab
-        color="primary"
-        class="fab-create"
-        matTooltip="Create Exam"
-        (click)="openCreateDialog()"
-      >
-        <mat-icon>add</mat-icon>
-      </button>
     </div>
   `,
   styles: [`
-    .exam-list-container {
-      padding: 24px;
-      position: relative;
-    }
-    .exam-list-card {
-      margin: 0;
-    }
-    .fab-create {
-      position: fixed;
-      bottom: 32px;
-      right: 32px;
-    }
     ::ng-deep .status-draft {
       background-color: #fff3e0 !important;
       color: #e65100 !important;

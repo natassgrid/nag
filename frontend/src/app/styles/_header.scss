@@ -1,0 +1,26 @@
+@use "variables" as *;
+
+@mixin header() {
+  .app-toolbar {
+    .mat-mdc-mini-fab,
+    .mat-mdc-icon-button {
+      background-color: $header-button-background-color;
+      box-shadow: $header-button-box-shadow;
+      color: $header-button-font-color;
+
+      &:hover {
+        background-color: $header-button-background-color-hover;
+      }
+    }
+  }
+}
+
+@mixin header-dark() {
+  .app-toolbar.mat-toolbar {
+    background-color: #31313C !important;
+
+    .app-title {
+      color: #889AFF;
+    }
+  }
+}

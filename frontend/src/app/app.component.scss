@@ -1,3 +1,5 @@
+@use 'styles/variables' as *;
+
 :host {
   display: flex;
   flex-direction: column;
@@ -9,7 +11,7 @@
   left: -9999px;
   z-index: 999;
   padding: 0.5rem 1rem;
-  background: #3f51b5;
+  background: $blue;
   color: white;
   text-decoration: none;
 
@@ -22,11 +24,14 @@
   position: sticky;
   top: 0;
   z-index: 1000;
+  height: $header-height;
 }
 
 .app-title {
   margin-left: 8px;
   font-size: 1.2rem;
+  font-weight: $fw-normal;
+  color: $white;
 }
 
 .toolbar-spacer {
@@ -35,7 +40,8 @@
 
 .user-name {
   margin-right: 8px;
-  font-size: 0.9rem;
+  font-size: $fs-small;
+  color: $white-70;
 }
 
 .sidenav-container {
@@ -43,13 +49,24 @@
 }
 
 mat-sidenav {
-  width: 250px;
+  width: 260px;
+  border-right: none;
+  box-shadow: 2px 0 8px $shadow-white;
 }
 
 .active-link {
-  background-color: rgba(63, 81, 181, 0.1);
+  background-color: $blue-white;
+
+  .mat-icon {
+    color: $blue;
+  }
 }
 
 #main-content {
-  padding: 16px;
+  padding: $sidebar-content-padding;
+  background-color: $background-color;
+
+  @media (max-width: $medium) {
+    padding: $sidebar-content-mobile-padding;
+  }
 }

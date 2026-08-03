@@ -12,6 +12,7 @@ import {
   PaginatedDataFetcher
 } from '../../../shared/components/paginated-table';
 import { ColumnDef } from '../../../shared/components/paginated-table/pagination.model';
+import { PageHeaderComponent } from '../../../shared/components/page-header/page-header.component';
 
 @Component({
   selector: 'app-schedule-list',
@@ -23,18 +24,15 @@ import { ColumnDef } from '../../../shared/components/paginated-table/pagination
     MatIconModule,
     MatTooltipModule,
     PaginatedTableComponent,
+    PageHeaderComponent,
   ],
   template: `
-    <div class="page-container">
-      <div class="page-header">
-        <div>
-          <h1 class="page-title">
-            <mat-icon class="title-icon">event</mat-icon>
-            Examination Scheduling
-          </h1>
-          <p class="page-subtitle">Select an examination to manage its schedules, shifts, and seat allocations.</p>
-        </div>
-      </div>
+    <div class="page-layout">
+      <app-page-header
+        title="Examination Scheduling"
+        subtitle="Select an examination to manage its schedules, shifts, and seat allocations."
+        icon="event"
+      ></app-page-header>
 
       <mat-card>
         <mat-card-content>
@@ -61,11 +59,6 @@ import { ColumnDef } from '../../../shared/components/paginated-table/pagination
     </div>
   `,
   styles: [`
-    .page-container { padding: 24px; max-width: 1200px; margin: 0 auto; }
-    .page-header { margin-bottom: 20px; }
-    .page-title { margin: 0; font-size: 24px; font-weight: 600; display: flex; align-items: center; gap: 10px; }
-    .title-icon { font-size: 28px; height: 28px; width: 28px; color: #1976d2; }
-    .page-subtitle { margin: 4px 0 0; font-size: 14px; color: #757575; }
     ::ng-deep .status-draft { background-color: #fff3e0 !important; color: #e65100 !important; }
     ::ng-deep .status-published { background-color: #e8f5e9 !important; color: #1b5e20 !important; }
   `]
