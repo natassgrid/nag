@@ -36,14 +36,8 @@ const DOC_TYPES = ['AADHAAR', 'PAN', 'PASSPORT', 'VOTER_ID', 'DRIVING_LICENSE'];
   template: `
     <div class="profile-container" role="main" aria-labelledby="profile-heading">
 
-      <!-- Loading State -->
-      <div class="loading-container" *ngIf="isLoading" aria-label="Loading profile">
-        <mat-spinner diameter="40"></mat-spinner>
-        <p>Loading profile...</p>
-      </div>
-
       <!-- Profile View Mode -->
-      <mat-card class="profile-card" appearance="outlined" *ngIf="!isLoading && profile && !isEditing">
+      <mat-card class="profile-card" appearance="outlined" *ngIf="profile && !isEditing">
         <mat-card-header class="profile-header">
           <div class="profile-avatar">
             <mat-icon class="avatar-icon" aria-hidden="true">account_circle</mat-icon>
@@ -115,7 +109,7 @@ const DOC_TYPES = ['AADHAAR', 'PAN', 'PASSPORT', 'VOTER_ID', 'DRIVING_LICENSE'];
       </mat-card>
 
       <!-- Create / Edit Form -->
-      <mat-card class="profile-card" appearance="outlined" *ngIf="!isLoading && (isEditing || profileNotFound)">
+      <mat-card class="profile-card" appearance="outlined" *ngIf="isEditing || profileNotFound">
         <mat-card-header class="profile-header">
           <div class="profile-avatar">
             <mat-icon class="avatar-icon" aria-hidden="true">{{ profileNotFound ? 'person_add' : 'edit' }}</mat-icon>
@@ -326,7 +320,6 @@ const DOC_TYPES = ['AADHAAR', 'PAN', 'PASSPORT', 'VOTER_ID', 'DRIVING_LICENSE'];
 })
 export class ProfileComponent implements OnInit {
   profile: CandidateProfile | null = null;
-  isLoading = false;
   isEditing = false;
   isSaving = false;
   profileNotFound = true;
@@ -349,7 +342,6 @@ export class ProfileComponent implements OnInit {
     this.prefillFromToken();
 
     if (this.userId) {
-      this.isLoading = true;
       this.profileNotFound = false;
 
       this.profileService.getProfile(this.userId).subscribe({
@@ -360,21 +352,11 @@ export class ProfileComponent implements OnInit {
           } else {
             this.profileNotFound = true;
           }
-          this.isLoading = false;
         },
         error: () => {
           this.profileNotFound = true;
-          this.isLoading = false;
         }
       });
-
-      // Fallback: if subscribe callbacks never fire, show form after 3s
-      setTimeout(() => {
-        if (this.isLoading) {
-          this.profileNotFound = true;
-          this.isLoading = false;
-        }
-      }, 3000);
     }
   }
 

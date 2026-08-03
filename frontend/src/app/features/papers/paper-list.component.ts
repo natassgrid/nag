@@ -29,6 +29,7 @@ import {
   PaginatedDataFetcher
 } from '../../shared/components/paginated-table';
 import { ColumnDef } from '../../shared/components/paginated-table/pagination.model';
+import { PageHeaderComponent } from '../../shared/components/page-header/page-header.component';
 
 @Component({
   selector: 'app-paper-list',
@@ -49,32 +50,26 @@ import { ColumnDef } from '../../shared/components/paginated-table/pagination.mo
     MatProgressSpinnerModule,
     MatBadgeModule,
     PaginatedTableComponent,
+    PageHeaderComponent,
   ],
   template: `
-    <div class="papers-container">
+    <div class="page-layout">
 
       <!-- ── Page header ─────────────────────────────────────────────── -->
-      <div class="page-header">
-        <div class="page-title-group">
-          <h1 class="page-title">
-            <mat-icon class="title-icon">description</mat-icon>
-            Paper Generation
-          </h1>
-          <p class="page-subtitle">
-            Generate, review, and approve examination papers from blueprints.
-          </p>
-        </div>
-
+      <app-page-header
+        title="Paper Generation"
+        subtitle="Generate, review, and approve examination papers from blueprints."
+        icon="description"
+      >
         <button
           mat-raised-button
           color="primary"
           (click)="openGenerateDialog()"
-          class="generate-btn"
         >
           <mat-icon>auto_awesome</mat-icon>
           Generate Paper
         </button>
-      </div>
+      </app-page-header>
 
       <!-- ── Filter bar ───────────────────────────────────────────────── -->
       <mat-card class="filter-card">
@@ -187,58 +182,6 @@ import { ColumnDef } from '../../shared/components/paginated-table/pagination.mo
     </div>
   `,
   styles: [`
-    .papers-container {
-      padding: 24px;
-      display: flex;
-      flex-direction: column;
-      gap: 20px;
-      max-width: 1400px;
-      margin: 0 auto;
-    }
-
-    /* ── Header ─────────────────────────────────────────────────────── */
-    .page-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: flex-start;
-      gap: 16px;
-      flex-wrap: wrap;
-    }
-
-    .page-title-group {
-      display: flex;
-      flex-direction: column;
-      gap: 4px;
-    }
-
-    .page-title {
-      margin: 0;
-      font-size: 24px;
-      font-weight: 600;
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      color: #212121;
-    }
-
-    .title-icon {
-      font-size: 28px;
-      height: 28px;
-      width: 28px;
-      color: #1976d2;
-    }
-
-    .page-subtitle {
-      margin: 0;
-      font-size: 14px;
-      color: #757575;
-    }
-
-    .generate-btn {
-      flex-shrink: 0;
-      height: 42px;
-    }
-
     /* ── Filter bar ─────────────────────────────────────────────────── */
     .filter-card {
       margin: 0;
@@ -248,11 +191,12 @@ import { ColumnDef } from '../../shared/components/paginated-table/pagination.mo
       display: flex;
       gap: 12px;
       align-items: center;
-      flex-wrap: wrap;
+      flex-wrap: nowrap;
     }
 
     .filter-field {
-      flex: 1 1 260px;
+      flex: 1;
+      min-width: 0;
       margin-bottom: -1.25em;
     }
 

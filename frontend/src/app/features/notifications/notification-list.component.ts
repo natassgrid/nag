@@ -4,9 +4,9 @@ import { MatCardModule } from '@angular/material/card';
 import { MatListModule } from '@angular/material/list';
 import { MatIconModule } from '@angular/material/icon';
 import { MatButtonModule } from '@angular/material/button';
-import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatDividerModule } from '@angular/material/divider';
 import { NotificationService, Notification } from './notification.service';
+import { PageHeaderComponent } from '../../shared/components/page-header/page-header.component';
 
 @Component({
   selector: 'app-notification-list',
@@ -17,29 +17,23 @@ import { NotificationService, Notification } from './notification.service';
     MatListModule,
     MatIconModule,
     MatButtonModule,
-    MatProgressSpinnerModule,
-    MatDividerModule
+    MatDividerModule,
+    PageHeaderComponent
   ],
   template: `
-    <div class="notifications-container">
-      <h1 class="page-title">Notifications</h1>
+    <div class="page-layout">
+      <app-page-header
+        title="Notifications"
+        subtitle="View and manage your platform notifications."
+        icon="notifications"
+      ></app-page-header>
 
-      <div *ngIf="isLoading" class="loading-container" role="status" aria-live="polite">
-        <mat-spinner diameter="48"></mat-spinner>
-        <p>Loading notifications...</p>
-      </div>
-
-      <div *ngIf="errorMessage && !isLoading" class="error-message" role="alert">
-        <mat-icon>error_outline</mat-icon>
-        <span>{{ errorMessage }}</span>
-      </div>
-
-      <div *ngIf="!isLoading && !errorMessage && notifications.length === 0" class="empty-state" role="status">
+      <div *ngIf="notifications.length === 0" class="empty-state" role="status">
         <mat-icon class="empty-icon">notifications_none</mat-icon>
         <p>No notifications yet.</p>
       </div>
 
-      <mat-card *ngIf="!isLoading && notifications.length > 0" class="notification-card">
+      <mat-card *ngIf="notifications.length > 0" class="notification-card">
         <mat-card-content>
           <mat-nav-list role="list" aria-label="Notification list">
             <ng-container *ngFor="let notification of notifications; let last = last">
@@ -82,32 +76,6 @@ import { NotificationService, Notification } from './notification.service';
     </div>
   `,
   styles: [`
-    .notifications-container {
-      padding: 24px;
-      max-width: 800px;
-      margin: 0 auto;
-    }
-    .page-title {
-      font-size: 1.5rem;
-      font-weight: 500;
-      margin-bottom: 24px;
-    }
-    .loading-container {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      padding: 48px;
-      gap: 16px;
-    }
-    .error-message {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      padding: 16px;
-      color: #d32f2f;
-      background: #fdecea;
-      border-radius: 8px;
-    }
     .empty-state {
       text-align: center;
       padding: 48px;
@@ -188,22 +156,13 @@ import { NotificationService, Notification } from './notification.service';
 })
 export class NotificationListComponent implements OnInit {
   notifications: Notification[] = [];
-  isLoading = true;
-  errorMessage = '';
   expandedId: string | null = null;
 
   constructor(private notificationService: NotificationService) {}
 
   ngOnInit(): void {
-    this.notificationService.getNotifications().subscribe({
-      next: (data) => {
-        this.notifications = data || [];
-        this.isLoading = false;
-      },
-      error: (err) => {
-        this.isLoading = false;
-        this.errorMessage = err.error?.message || 'Failed to load notifications.';
-      }
+    this.notificationService.getNotifications().subscribe(data => {
+      this.notifications = data || [];
     });
   }
 
@@ -220,9 +179,6 @@ export class NotificationListComponent implements OnInit {
         next: () => {
           notification.isRead = true;
           notification.status = 'READ';
-        },
-        error: () => {
-          // Silently fail — still expand the notification
         }
       });
     }

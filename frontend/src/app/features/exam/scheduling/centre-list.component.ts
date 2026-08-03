@@ -16,6 +16,7 @@ import {
   PaginatedDataFetcher
 } from '../../../shared/components/paginated-table';
 import { ColumnDef } from '../../../shared/components/paginated-table/pagination.model';
+import { PageHeaderComponent } from '../../../shared/components/page-header/page-header.component';
 
 @Component({
   selector: 'app-centre-list',
@@ -30,21 +31,19 @@ import { ColumnDef } from '../../../shared/components/paginated-table/pagination
     MatSnackBarModule,
     MatDialogModule,
     PaginatedTableComponent,
+    PageHeaderComponent,
   ],
   template: `
-    <div class="page-container">
-      <div class="page-header">
-        <div>
-          <h1 class="page-title">
-            <mat-icon class="title-icon">location_on</mat-icon>
-            Examination Centres
-          </h1>
-          <p class="page-subtitle">Manage centres where examinations are conducted.</p>
-        </div>
+    <div class="page-layout">
+      <app-page-header
+        title="Examination Centres"
+        subtitle="Manage centres where examinations are conducted."
+        icon="location_on"
+      >
         <button mat-raised-button color="primary" (click)="openCreate()">
           <mat-icon>add</mat-icon> New Centre
         </button>
-      </div>
+      </app-page-header>
 
       <mat-card>
         <mat-card-content>
@@ -69,11 +68,6 @@ import { ColumnDef } from '../../../shared/components/paginated-table/pagination
     </div>
   `,
   styles: [`
-    .page-container { padding: 24px; max-width: 1200px; margin: 0 auto; }
-    .page-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 20px; }
-    .page-title { margin: 0; font-size: 24px; font-weight: 600; display: flex; align-items: center; gap: 10px; }
-    .title-icon { font-size: 28px; height: 28px; width: 28px; color: #1976d2; }
-    .page-subtitle { margin: 4px 0 0; font-size: 14px; color: #757575; }
     ::ng-deep .chip-active { background-color: #e8f5e9 !important; color: #2e7d32 !important; }
     ::ng-deep .chip-inactive { background-color: #ffebee !important; color: #b71c1c !important; }
   `]

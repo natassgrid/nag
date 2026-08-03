@@ -12,6 +12,7 @@ import { RoleAssignDialogComponent, RoleAssignDialogData, RoleAssignDialogResult
 import { UserCreateDialogComponent, UserCreateDialogResult } from './user-create-dialog.component';
 import { UserEditDialogComponent, UserEditDialogData, UserEditDialogResult } from './user-edit-dialog.component';
 import { ConfirmDialogComponent, ConfirmDialogData } from '../../../shared/components/confirm-dialog/confirm-dialog.component';
+import { PageHeaderComponent } from '../../../shared/components/page-header/page-header.component';
 import {
   PaginatedTableComponent,
   ColumnDef,
@@ -29,17 +30,21 @@ import {
     MatDialogModule,
     MatSnackBarModule,
     MatMenuModule,
-    PaginatedTableComponent
+    PaginatedTableComponent,
+    PageHeaderComponent
   ],
   template: `
-    <section class="admin-container" role="main" aria-labelledby="user-mgmt-heading">
-      <div class="page-header">
-        <h1 id="user-mgmt-heading">User Management</h1>
+    <div class="page-layout" role="main" aria-labelledby="user-mgmt-heading">
+      <app-page-header
+        title="User Management"
+        subtitle="Create, edit, and manage platform user accounts and roles."
+        icon="people"
+      >
         <button mat-raised-button color="primary" (click)="openCreateDialog()" aria-label="Create a new user">
           <mat-icon>person_add</mat-icon>
           Create User
         </button>
-      </div>
+      </app-page-header>
 
       <!-- Reusable Paginated Table -->
       <app-paginated-table
@@ -87,18 +92,15 @@ import {
         </mat-menu>
       </ng-template>
 
-    </section>
+    </div>
   `,
   styles: [`
-    .admin-container { padding: 24px; max-width: 1400px; margin: 0 auto; }
-    .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
-    .page-header h1 { margin: 0; }
-    ::ng-deep .active-status { background-color: #c8e6c9 !important; color: #2e7d32 !important; }
-    ::ng-deep .inactive-status { background-color: #ffcdd2 !important; color: #c62828 !important; }
     .mfa-on { color: #4caf50; }
     .mfa-off { color: #9e9e9e; }
     .role-chip { font-size: 11px; }
     .no-roles { color: #9e9e9e; font-style: italic; }
+    ::ng-deep .active-status { background-color: #c8e6c9 !important; color: #2e7d32 !important; }
+    ::ng-deep .inactive-status { background-color: #ffcdd2 !important; color: #c62828 !important; }
   `]
 })
 export class UserManagementComponent {

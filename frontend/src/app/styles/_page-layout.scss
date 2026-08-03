@@ -1,0 +1,17 @@
+@use "variables" as *;
+
+// Uniform page layout for all listing/management pages.
+// Usage: add class="page-layout" to the outermost wrapper div.
+.page-layout {
+  padding: 24px;
+  max-width: 1400px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+
+  @media (max-width: $medium) {
+    padding: 16px;
+    gap: 16px;
+  }
+}

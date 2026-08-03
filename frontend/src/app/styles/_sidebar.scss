@@ -1,0 +1,57 @@
+@use "variables" as *;
+
+@mixin sidebar($color) {
+  $sidebar-font-color: $gray-08;
+  $sidebar-font-color-active: $dark-grey;
+  $sidebar-background-color-active: $blue-white;
+  $sidebar-background-color-hover: $blue-white;
+  $sidebar-icon-color-active: $color;
+
+  mat-sidenav {
+    .mat-mdc-list-item {
+      color: $sidebar-font-color;
+      --mat-list-list-item-label-text-color: #{$sidebar-font-color};
+      --mat-list-list-item-hover-label-text-color: #{$sidebar-font-color};
+      border-radius: 8px;
+      margin: 2px 8px;
+
+      &.active-link {
+        background-color: $sidebar-background-color-active;
+        color: $sidebar-font-color-active;
+        --mat-list-list-item-label-text-color: #{$sidebar-font-color-active};
+
+        .mat-icon {
+          color: $sidebar-icon-color-active;
+        }
+      }
+
+      &:hover {
+        background-color: $sidebar-background-color-hover;
+      }
+    }
+  }
+}
+
+@mixin sidebar-dark() {
+  $sidebar-bg: #23232D;
+  $sidebar-hover: #13131A;
+  $sidebar-active: #13131A;
+  $sidebar-color: #D6D6D6;
+
+  mat-sidenav {
+    background-color: $sidebar-bg;
+
+    .mat-mdc-list-item {
+      color: $sidebar-color;
+      --mat-list-list-item-label-text-color: #{$sidebar-color};
+
+      &.active-link {
+        background-color: $sidebar-active;
+      }
+
+      &:hover {
+        background-color: $sidebar-hover;
+      }
+    }
+  }
+}

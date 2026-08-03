@@ -16,6 +16,7 @@ import {
   TopicNode,
   SubtopicNode
 } from './subject-topic.service';
+import { PageHeaderComponent } from '../../shared/components/page-header/page-header.component';
 
 @Component({
   selector: 'app-subject-management',
@@ -31,14 +32,16 @@ import {
     MatExpansionModule,
     MatProgressSpinnerModule,
     MatSnackBarModule,
-    MatChipsModule
+    MatChipsModule,
+    PageHeaderComponent
   ],
   template: `
-    <div class="subject-management">
-      <div class="header">
-        <h1>Subject Management</h1>
-        <p class="subtitle">Manage the Subject → Topic → Subtopic hierarchy for question categorization</p>
-      </div>
+    <div class="page-layout">
+      <app-page-header
+        title="Subject Management"
+        subtitle="Manage the Subject → Topic → Subtopic hierarchy for question categorization."
+        icon="category"
+      ></app-page-header>
 
       <div *ngIf="loading" class="loading-container">
         <mat-spinner diameter="40"></mat-spinner>
@@ -147,19 +150,6 @@ import {
     </div>
   `,
   styles: [`
-    .subject-management {
-      padding: 24px;
-      max-width: 1000px;
-      margin: 0 auto;
-    }
-    .header h1 {
-      margin: 0;
-      font-size: 24px;
-    }
-    .subtitle {
-      color: #666;
-      margin-top: 4px;
-    }
     .loading-container {
       display: flex;
       flex-direction: column;
