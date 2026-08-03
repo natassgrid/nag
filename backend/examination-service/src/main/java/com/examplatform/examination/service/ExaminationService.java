@@ -56,6 +56,28 @@ public class ExaminationService {
     }
 
     /**
+     * Lists examinations with server-side pagination and optional search filter.
+     */
+    public org.springframework.data.domain.Page<ExaminationResponse> listByTenantPaged(
+            String tenantId, String search, int page, int size) {
+        org.springframework.data.domain.Pageable pageable =
+                org.springframework.data.domain.PageRequest.of(page, size,
+                        org.springframework.data.domain.Sort.by("createdAt").descending());
+
+        org.springframework.data.domain.Page<Examination> examPage;
+        if (search != null && !search.isBlank()) {
+            examPage = examinationRepository.findByTenantIdAndNameContainingIgnoreCase(tenantId, search.trim(), pageable);
+        } else {
+            examPage = examinationRepository.findByTenantId(tenantId, pageable);
+        }
+
+        return examPage.map(exam -> {
+            List<Section> sections = deserializeSections(exam.getSectionsJson());
+            return toResponse(exam, sections);
+        });
+    }
+
+    /**
      * Creates a new examination in DRAFT status.
      * Validates that sum(section.marksPerQuestion × section.questionCount) == totalMarks.
      */

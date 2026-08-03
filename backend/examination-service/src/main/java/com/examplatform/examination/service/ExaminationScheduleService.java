@@ -129,6 +129,20 @@ public class ExaminationScheduleService {
     }
 
     /**
+     * Lists schedule versions with server-side pagination, newest first.
+     */
+    @Transactional(readOnly = true)
+    public org.springframework.data.domain.Page<ScheduleResponse> listSchedulesPaged(
+            UUID examId, String tenantId, int page, int size) {
+        org.springframework.data.domain.Pageable pageable =
+                org.springframework.data.domain.PageRequest.of(page, size,
+                        org.springframework.data.domain.Sort.by("scheduleVersion").descending());
+        return scheduleRepository
+                .findByExaminationIdAndTenantId(examId, tenantId, pageable)
+                .map(this::toResponse);
+    }
+
+    /**
      * Gets a single schedule by ID, enforcing tenant ownership.
      */
     @Transactional(readOnly = true)

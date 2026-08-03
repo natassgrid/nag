@@ -18,6 +18,10 @@ public interface ExaminationScheduleRepository extends JpaRepository<Examination
     List<ExaminationSchedule> findByExaminationIdAndTenantIdOrderByScheduleVersionDesc(
             UUID examinationId, String tenantId);
 
+    /** Paginated schedules for an examination, ordered newest first. */
+    org.springframework.data.domain.Page<ExaminationSchedule> findByExaminationIdAndTenantId(
+            UUID examinationId, String tenantId, org.springframework.data.domain.Pageable pageable);
+
     /** Find the latest (highest version) published schedule for an examination. */
     Optional<ExaminationSchedule> findFirstByExaminationIdAndStatusAndTenantIdOrderByScheduleVersionDesc(
             UUID examinationId, String status, String tenantId);

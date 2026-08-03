@@ -23,6 +23,7 @@ import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
@@ -62,12 +63,15 @@ public class ExaminationScheduleController {
 
     @GetMapping
     @PreAuthorize("hasAnyRole('EXAM_CONTROLLER','SUPER_ADMIN','SECURITY_ADMIN')")
-    public ResponseEntity<ApiResponse<List<ScheduleResponse>>> list(
+    public ResponseEntity<ApiResponse<org.springframework.data.domain.Page<ScheduleResponse>>> list(
             @PathVariable UUID examId,
             @RequestHeader("X-Tenant-Id") String tenantId,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size,
             @AuthenticationPrincipal Jwt jwt) {
 
-        List<ScheduleResponse> responses = scheduleService.listSchedules(examId, tenantId);
+        org.springframework.data.domain.Page<ScheduleResponse> responses =
+                scheduleService.listSchedulesPaged(examId, tenantId, page, size);
         return ResponseEntity.ok(ApiResponse.success(responses, "Schedules retrieved successfully"));
     }
 

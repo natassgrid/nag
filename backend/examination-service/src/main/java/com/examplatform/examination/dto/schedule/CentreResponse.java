@@ -18,6 +18,12 @@ import java.util.UUID;
 public class CentreResponse {
 
     private UUID id;
+    private Long countryId;
+    private Long stateId;
+    private Long cityId;
+    private String countryName;
+    private String stateName;
+    private String cityName;
     private String region;
     private String state;
     private String district;

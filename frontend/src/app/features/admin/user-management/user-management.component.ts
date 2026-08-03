@@ -11,6 +11,7 @@ import { AdminService, UserAccountResponse } from '../services/admin.service';
 import { RoleAssignDialogComponent, RoleAssignDialogData, RoleAssignDialogResult } from './role-assign-dialog.component';
 import { UserCreateDialogComponent, UserCreateDialogResult } from './user-create-dialog.component';
 import { UserEditDialogComponent, UserEditDialogData, UserEditDialogResult } from './user-edit-dialog.component';
+import { ConfirmDialogComponent, ConfirmDialogData } from '../../../shared/components/confirm-dialog/confirm-dialog.component';
 import {
   PaginatedTableComponent,
   ColumnDef,
@@ -233,17 +234,26 @@ export class UserManagementComponent {
   }
 
   deactivateUser(user: UserAccountResponse): void {
-    if (!confirm(`Are you sure you want to deactivate "${user.username}"? This will prevent them from logging in.`)) {
-      return;
-    }
-    this.adminService.deactivateUser(user.id).subscribe({
-      next: () => {
-        this.snackBar.open('User deactivated', 'OK', { duration: 3000 });
-        this.reload();
-      },
-      error: () => {
-        this.snackBar.open('Failed to deactivate user', 'Dismiss', { duration: 5000 });
-      }
+    const ref = this.dialog.open(ConfirmDialogComponent, {
+      data: {
+        title: 'Deactivate User',
+        message: `Are you sure you want to deactivate "${user.username}"? This will prevent them from logging in.`,
+        confirmText: 'Deactivate',
+        color: 'warn',
+        icon: 'person_off'
+      } as ConfirmDialogData
+    });
+    ref.afterClosed().subscribe(confirmed => {
+      if (!confirmed) return;
+      this.adminService.deactivateUser(user.id).subscribe({
+        next: () => {
+          this.snackBar.open('User deactivated', 'OK', { duration: 3000 });
+          this.reload();
+        },
+        error: () => {
+          this.snackBar.open('Failed to deactivate user', 'Dismiss', { duration: 5000 });
+        }
+      });
     });
   }
 }

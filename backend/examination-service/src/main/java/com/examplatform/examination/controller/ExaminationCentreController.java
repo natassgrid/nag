@@ -56,13 +56,17 @@ public class ExaminationCentreController {
 
     @GetMapping("/api/v1/examinations/centres")
     @PreAuthorize("hasAnyRole('EXAM_CONTROLLER','SUPER_ADMIN','SECURITY_ADMIN')")
-    public ResponseEntity<ApiResponse<List<CentreResponse>>> listCentres(
+    public ResponseEntity<ApiResponse<org.springframework.data.domain.Page<CentreResponse>>> listCentres(
             @RequestHeader("X-Tenant-Id") String tenantId,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size,
+            @RequestParam(required = false) String search,
             @RequestParam(required = false) String state,
             @RequestParam(required = false) String city,
             @AuthenticationPrincipal Jwt jwt) {
 
-        List<CentreResponse> centres = centreService.listCentres(tenantId, state, city);
+        org.springframework.data.domain.Page<CentreResponse> centres =
+                centreService.listCentresPaged(tenantId, search, state, city, page, size);
         return ResponseEntity.ok(ApiResponse.success(centres, "Centres retrieved successfully"));
     }
 

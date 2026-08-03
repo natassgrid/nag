@@ -1,19 +1,21 @@
-import { Component, OnInit, ViewChild } from '@angular/core';
+import { Component, ViewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { MatCardModule } from '@angular/material/card';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
-import { MatInputModule } from '@angular/material/input';
-import { MatFormFieldModule } from '@angular/material/form-field';
-import { MatDialog, MatDialogModule } from '@angular/material/dialog';
-import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { MatTooltipModule } from '@angular/material/tooltip';
-import { map } from 'rxjs';
-
-import { SchedulingService, CentreResponse } from './scheduling.service';
+import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
+import { MatDialog, MatDialogModule } from '@angular/material/dialog';
+import { map } from 'rxjs/operators';
+import { SchedulingService, CentreResponse, CreateCentreRequest } from './scheduling.service';
 import { CentreFormDialogComponent } from './centre-form-dialog.component';
-import { PaginatedTableComponent } from '../../../shared/components/paginated-table/paginated-table.component';
-import { ColumnDef, PaginatedDataFetcher, PaginatedResponse } from '../../../shared/components/paginated-table/pagination.model';
+import { ConfirmDialogComponent, ConfirmDialogData } from '../../../shared/components/confirm-dialog/confirm-dialog.component';
+import {
+  PaginatedTableComponent,
+  PaginatedDataFetcher
+} from '../../../shared/components/paginated-table';
+import { ColumnDef } from '../../../shared/components/paginated-table/pagination.model';
 
 @Component({
   selector: 'app-centre-list',
@@ -21,167 +23,91 @@ import { ColumnDef, PaginatedDataFetcher, PaginatedResponse } from '../../../sha
   imports: [
     CommonModule,
     FormsModule,
+    MatCardModule,
     MatButtonModule,
     MatIconModule,
-    MatInputModule,
-    MatFormFieldModule,
-    MatDialogModule,
-    MatSnackBarModule,
     MatTooltipModule,
-    PaginatedTableComponent
+    MatSnackBarModule,
+    MatDialogModule,
+    PaginatedTableComponent,
   ],
   template: `
     <div class="page-container">
       <div class="page-header">
         <div>
-          <h1>Examination Centres</h1>
-          <p class="subtitle">Manage examination centres across states, cities, and districts.</p>
+          <h1 class="page-title">
+            <mat-icon class="title-icon">location_on</mat-icon>
+            Examination Centres
+          </h1>
+          <p class="page-subtitle">Manage centres where examinations are conducted.</p>
         </div>
-        <button mat-raised-button color="primary" (click)="openCreateCentreDialog()">
+        <button mat-raised-button color="primary" (click)="openCreate()">
           <mat-icon>add</mat-icon> New Centre
         </button>
       </div>
 
-      <!-- Filter Bar -->
-      <div class="filter-bar">
-        <mat-form-field appearance="outline">
-          <mat-label>State</mat-label>
-          <input matInput [(ngModel)]="filterState" placeholder="Filter by State" (keyup.enter)="applyFilters()" />
-        </mat-form-field>
+      <mat-card>
+        <mat-card-content>
+          <app-paginated-table
+            #centreTable
+            [fetcher]="fetcher"
+            [columns]="columns"
+            [actionsTemplate]="actionsTmpl"
+            title="Centres"
+            searchPlaceholder="Search by name, city, or state..."
+          ></app-paginated-table>
 
-        <mat-form-field appearance="outline">
-          <mat-label>City</mat-label>
-          <input matInput [(ngModel)]="filterCity" placeholder="Filter by City" (keyup.enter)="applyFilters()" />
-        </mat-form-field>
-
-        <button mat-raised-button color="primary" (click)="applyFilters()">Apply Filters</button>
-        <button mat-button (click)="clearFilters()">Clear</button>
-      </div>
-
-      <app-paginated-table
-        #table
-        [fetcher]="fetcher"
-        [columns]="columns"
-        [actionsTemplate]="actionsTmpl"
-        [filters]="activeFilters"
-        title="Centres List"
-        searchPlaceholder="Search centre name..."
-      >
-      </app-paginated-table>
-
-      <ng-template #actionsTmpl let-row>
-        <button
-          *ngIf="row.active"
-          mat-stroked-button
-          color="warn"
-          (click)="deactivateCentre(row)"
-          matTooltip="Deactivate this centre"
-        >
-          Deactivate
-        </button>
-        <span *ngIf="!row.active" class="inactive-label">Deactivated</span>
-      </ng-template>
+          <ng-template #actionsTmpl let-row>
+            <button mat-icon-button color="warn" matTooltip="Deactivate"
+                    *ngIf="row.active" (click)="deactivate(row)"
+                    aria-label="Deactivate centre">
+              <mat-icon>block</mat-icon>
+            </button>
+          </ng-template>
+        </mat-card-content>
+      </mat-card>
     </div>
   `,
   styles: [`
-    .page-container {
-      padding: 24px;
-      max-width: 1400px;
-      margin: 0 auto;
-    }
-    .page-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 24px;
-    }
-    .page-header h1 {
-      margin: 0 0 4px 0;
-      font-size: 24px;
-      font-weight: 600;
-    }
-    .subtitle {
-      margin: 0;
-      color: #666;
-      font-size: 14px;
-    }
-
-    .filter-bar {
-      display: flex;
-      align-items: center;
-      gap: 16px;
-      margin-bottom: 20px;
-      flex-wrap: wrap;
-    }
-    .filter-bar mat-form-field {
-      margin-bottom: -1.25em;
-      min-width: 200px;
-    }
-
-    .inactive-label {
-      color: #9e9e9e;
-      font-style: italic;
-      font-size: 13px;
-    }
-
-    ::ng-deep .chip-active {
-      background: #e8f5e9 !important;
-      color: #2e7d32 !important;
-    }
-    ::ng-deep .chip-inactive {
-      background: #ffebee !important;
-      color: #c62828 !important;
-    }
+    .page-container { padding: 24px; max-width: 1200px; margin: 0 auto; }
+    .page-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 20px; }
+    .page-title { margin: 0; font-size: 24px; font-weight: 600; display: flex; align-items: center; gap: 10px; }
+    .title-icon { font-size: 28px; height: 28px; width: 28px; color: #1976d2; }
+    .page-subtitle { margin: 4px 0 0; font-size: 14px; color: #757575; }
+    ::ng-deep .chip-active { background-color: #e8f5e9 !important; color: #2e7d32 !important; }
+    ::ng-deep .chip-inactive { background-color: #ffebee !important; color: #b71c1c !important; }
   `]
 })
-export class CentreListComponent implements OnInit {
-  @ViewChild('table') table!: PaginatedTableComponent<CentreResponse>;
+export class CentreListComponent {
 
-  filterState = '';
-  filterCity = '';
-  activeFilters: Record<string, any> = {};
+  @ViewChild('centreTable') centreTable!: PaginatedTableComponent<CentreResponse>;
 
   columns: ColumnDef<CentreResponse>[] = [
-    { key: 'centreName', header: 'Centre Name', sortable: true },
-    { key: 'city', header: 'City', sortable: true },
-    { key: 'state', header: 'State', sortable: true },
-    { key: 'district', header: 'District', sortable: true, cell: r => r.district || '-' },
-    { key: 'totalCapacity', header: 'Total Capacity', sortable: true },
+    { key: 'centreName', header: 'Name', sortable: true },
+    { key: 'city', header: 'City', cell: (row) => row.cityName || row.city, sortable: true },
+    { key: 'state', header: 'State', cell: (row) => row.stateName || row.state, sortable: true },
+    { key: 'district', header: 'District', cell: (row) => row.district || '—' },
+    { key: 'totalCapacity', header: 'Capacity', sortable: true },
     {
       key: 'active',
       header: 'Status',
       type: 'chip',
-      cell: r => (r.active ? 'Active' : 'Inactive'),
-      chipClass: val => (val === 'Active' ? 'chip-active' : 'chip-inactive')
+      cell: (row) => row.active ? 'Active' : 'Inactive',
+      chipClass: (val) => val === 'Active' ? 'chip-active' : 'chip-inactive'
     },
     { key: 'actions', header: 'Actions', type: 'actions' }
   ];
 
-  fetcher: PaginatedDataFetcher<CentreResponse> = (params) => {
-    const state = params.filters?.['state'];
-    const city = params.filters?.['city'];
-
-    return this.schedulingService.listCentres(state, city).pipe(
+  fetcher: PaginatedDataFetcher<CentreResponse> = (req) => {
+    return this.schedulingService.listCentres(undefined, undefined, req.page, req.size, req.search).pipe(
       map(centres => {
-        let filtered = centres || [];
-        if (params.search) {
-          const q = params.search.toLowerCase();
-          filtered = filtered.filter(
-            c => c.centreName.toLowerCase().includes(q) || c.city.toLowerCase().includes(q)
-          );
-        }
-
-        const total = filtered.length;
-        const start = params.page * params.size;
-        const pageData = filtered.slice(start, start + params.size);
-
         return {
-          content: pageData,
-          totalElements: total,
-          totalPages: Math.ceil(total / params.size) || 1,
-          size: params.size,
-          number: params.page
-        } as PaginatedResponse<CentreResponse>;
+          content: centres,
+          totalElements: centres.length,
+          totalPages: 1,
+          size: req.size,
+          number: req.page
+        };
       })
     );
   };
@@ -192,44 +118,37 @@ export class CentreListComponent implements OnInit {
     private snackBar: MatSnackBar
   ) {}
 
-  ngOnInit(): void {}
-
-  applyFilters(): void {
-    this.activeFilters = {};
-    if (this.filterState.trim()) this.activeFilters['state'] = this.filterState.trim();
-    if (this.filterCity.trim()) this.activeFilters['city'] = this.filterCity.trim();
+  reload(): void {
+    this.centreTable?.reload();
   }
 
-  clearFilters(): void {
-    this.filterState = '';
-    this.filterCity = '';
-    this.activeFilters = {};
-  }
-
-  openCreateCentreDialog(): void {
-    const dialogRef = this.dialog.open(CentreFormDialogComponent, { width: '500px' });
-    dialogRef.afterClosed().subscribe(req => {
-      if (req) {
-        this.schedulingService.createCentre(req).subscribe({
-          next: () => {
-            this.snackBar.open('Centre created successfully', 'OK', { duration: 3000 });
-            this.table.reload();
-          },
-          error: err => this.snackBar.open(err?.error?.message || 'Failed to create centre', 'Dismiss', { duration: 4000 })
-        });
-      }
+  openCreate(): void {
+    const ref = this.dialog.open(CentreFormDialogComponent, { width: '640px', data: {} });
+    ref.afterClosed().subscribe((result: CreateCentreRequest | undefined) => {
+      if (!result) return;
+      this.schedulingService.createCentre(result).subscribe({
+        next: () => { this.snackBar.open('Centre created', 'OK', { duration: 3000 }); this.reload(); },
+        error: (e) => this.snackBar.open(e?.error?.message || 'Error creating centre', 'Dismiss', { duration: 4000 })
+      });
     });
   }
 
-  deactivateCentre(centre: CentreResponse): void {
-    if (confirm(`Are you sure you want to deactivate ${centre.centreName}?`)) {
+  deactivate(centre: CentreResponse): void {
+    const ref = this.dialog.open(ConfirmDialogComponent, {
+      data: {
+        title: 'Deactivate Centre',
+        message: `Deactivate centre "${centre.centreName}"? It will no longer be available for seat allocation.`,
+        confirmText: 'Deactivate',
+        color: 'warn',
+        icon: 'block'
+      } as ConfirmDialogData
+    });
+    ref.afterClosed().subscribe(confirmed => {
+      if (!confirmed) return;
       this.schedulingService.deactivateCentre(centre.id).subscribe({
-        next: () => {
-          this.snackBar.open('Centre deactivated', 'OK', { duration: 3000 });
-          this.table.reload();
-        },
-        error: err => this.snackBar.open(err?.error?.message || 'Failed to deactivate centre', 'Dismiss', { duration: 4000 })
+        next: () => { this.snackBar.open('Centre deactivated', 'OK', { duration: 3000 }); this.reload(); },
+        error: (e) => this.snackBar.open(e?.error?.message || 'Error', 'Dismiss', { duration: 4000 })
       });
-    }
+    });
   }
 }
