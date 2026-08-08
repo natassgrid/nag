@@ -46,6 +46,23 @@ class QuestionServiceTest {
     @InjectMocks
     private QuestionService questionService;
 
+    @org.junit.jupiter.api.BeforeEach
+    void setUp() {
+        org.mockito.Mockito.lenient()
+                .when(kafkaTemplate.send(org.mockito.ArgumentMatchers.anyString(),
+                        org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any()))
+                .thenReturn(java.util.concurrent.CompletableFuture.completedFuture(null));
+
+        // Set @Value field that isn't injected by @InjectMocks
+        try {
+            var field = questionService.getClass().getDeclaredField("encryptionEnabled");
+            field.setAccessible(true);
+            field.set(questionService, true);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
+
     private CreateQuestionRequest validRequest() {
         return CreateQuestionRequest.builder()
                 .subject("Mathematics")
