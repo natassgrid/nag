@@ -22,8 +22,11 @@
     "@angular/platform-browser": "^21.2.16",
     "@angular/platform-browser-dynamic": "^21.2.16",
     "@angular/router": "^21.2.16",
+    "is-hotkey": "^0.2.0",
     "katex": "^0.16.9",
     "rxjs": "~7.8.1",
+    "slate": "^0.110.2",
+    "slate-history": "^0.110.3",
     "tslib": "^2.6.2",
     "zone.js": "~0.15.0"
   },

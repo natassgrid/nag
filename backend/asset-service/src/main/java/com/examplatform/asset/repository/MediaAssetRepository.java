@@ -36,10 +36,10 @@ public interface MediaAssetRepository extends JpaRepository<MediaAsset, UUID> {
     @Query("""
             SELECT a FROM MediaAsset a
             WHERE a.tenantId = :tenantId
-              AND (:filename IS NULL OR LOWER(a.originalFilename) LIKE LOWER(CONCAT('%', :filename, '%')))
+              AND (:filename IS NULL OR LOWER(a.originalFilename) LIKE LOWER(CONCAT('%', CAST(:filename AS string), '%')))
               AND (:assetType IS NULL OR a.assetType = :assetType)
               AND (:contentType IS NULL OR a.contentType = :contentType)
-              AND (:tags IS NULL OR LOWER(a.tags) LIKE LOWER(CONCAT('%', :tags, '%')))
+              AND (:tags IS NULL OR LOWER(a.tags) LIKE LOWER(CONCAT('%', CAST(:tags AS string), '%')))
               AND (:status IS NULL OR a.status = :status)
               AND (:storageProvider IS NULL OR a.storageProvider = :storageProvider)
               AND a.status <> 'DELETED'

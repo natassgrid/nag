@@ -42,6 +42,9 @@ RUN addgroup -S appgroup && adduser -S appuser -G appgroup
 
 WORKDIR /app
 
+# Create asset storage directory writable by appuser (used by asset-service)
+RUN mkdir -p /data/asset-storage && chown appuser:appgroup /data/asset-storage
+
 # Copy the built jar
 COPY --from=builder /workspace/backend/${SERVICE_NAME}/build/libs/*.jar app.jar
 
