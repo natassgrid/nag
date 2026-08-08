@@ -1,0 +1,41 @@
+@use "variables" as *;
+
+@mixin mat-card() {
+  .mat-mdc-card {
+    color: $dark-grey;
+    margin: 0;
+    padding: 24px;
+    box-shadow: $card-shadow;
+    border-radius: 12px;
+
+    &:not([class*=mat-elevation-z]) {
+      box-shadow: $card-shadow;
+    }
+
+    .mat-mdc-card-title {
+      font-size: $fs-medium;
+      font-weight: $fw-lighter;
+      color: $grey;
+    }
+  }
+}
+
+@mixin mat-card-dark() {
+  .mat-mdc-card {
+    color: $white;
+    background-color: #23232D;
+
+    &:not([class*=mat-elevation-z]) {
+      box-shadow: none;
+    }
+
+    .mat-mdc-card-title {
+      color: $white;
+    }
+
+    .mat-mdc-card-subtitle,
+    .mat-mdc-card-content p {
+      color: #D6D6D6;
+    }
+  }
+}

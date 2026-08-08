@@ -4,6 +4,7 @@ import com.examplatform.papergenerator.domain.Paper;
 import com.examplatform.papergenerator.dto.PaperDocument;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -97,12 +98,26 @@ public class PaperSerializer {
      * @return list of validation error messages, empty if valid
      */
     public List<String> validate(String json) {
+        // Guard: empty or blank input is not valid JSON
+        if (json == null || json.isBlank()) {
+            return List.of("Invalid JSON format: input is empty");
+        }
         try {
-            PaperDocument document = objectMapper.readValue(json, PaperDocument.class);
+            // Use JsonNode first so we can detect null / non-object documents
+            // before attempting PaperDocument deserialization
+            JsonNode root = objectMapper.readTree(json);
+            if (root == null || root.isNull() || !root.isObject()) {
+                return List.of("Invalid JSON format: document must be a JSON object");
+            }
+
+            PaperDocument document = objectMapper.treeToValue(root, PaperDocument.class);
 
             java.util.ArrayList<String> errors = new java.util.ArrayList<>();
 
-            if (document.getSchemaVersion() == null || document.getSchemaVersion().isBlank()) {
+            // schemaVersion: check the raw node — @Builder.Default fills it in at
+            // Java level but the JSON field may be genuinely absent
+            if (!root.has("schemaVersion") || root.get("schemaVersion").isNull()
+                    || root.get("schemaVersion").asText().isBlank()) {
                 errors.add("schemaVersion is required");
             } else if (!SUPPORTED_VERSIONS.contains(document.getSchemaVersion())) {
                 errors.add("Unsupported schema version: " + document.getSchemaVersion()

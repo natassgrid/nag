@@ -21,7 +21,8 @@ import java.util.Map;
 public class GlobalExceptionHandler {
 
     @ExceptionHandler(SectionMarksValidationException.class)
-    public ResponseEntity<Map<String, Object>> handleSectionMarksValidation(SectionMarksValidationException ex) {
+    public ResponseEntity<Map<String, Object>> handleSectionMarksValidation(
+            SectionMarksValidationException ex) {
         log.warn("Section marks validation failed: {}", ex.getMessage());
         Map<String, Object> body = new HashMap<>();
         body.put("timestamp", Instant.now().toString());
@@ -33,9 +34,47 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.UNPROCESSABLE_ENTITY).body(body);
     }
 
-    @ExceptionHandler(ExaminationNotFoundException.class)
-    public ResponseEntity<Map<String, Object>> handleNotFound(ExaminationNotFoundException ex) {
-        log.warn("Examination not found: {}", ex.getMessage());
+    @ExceptionHandler(ShiftTimingViolationException.class)
+    public ResponseEntity<Map<String, Object>> handleShiftTiming(ShiftTimingViolationException ex) {
+        log.warn("Shift timing violation: {}", ex.getMessage());
+        Map<String, Object> body = new HashMap<>();
+        body.put("timestamp", Instant.now().toString());
+        body.put("status", HttpStatus.UNPROCESSABLE_ENTITY.value());
+        body.put("error", "Shift Timing Violation");
+        body.put("message", ex.getMessage());
+        body.put("violatedConstraint", ex.getViolatedConstraint());
+        return ResponseEntity.status(HttpStatus.UNPROCESSABLE_ENTITY).body(body);
+    }
+
+    @ExceptionHandler(ScheduleWorkflowException.class)
+    public ResponseEntity<Map<String, Object>> handleScheduleWorkflow(ScheduleWorkflowException ex) {
+        log.warn("Schedule workflow violation: {}", ex.getMessage());
+        Map<String, Object> body = new HashMap<>();
+        body.put("timestamp", Instant.now().toString());
+        body.put("status", HttpStatus.UNPROCESSABLE_ENTITY.value());
+        body.put("error", "Invalid Schedule Transition");
+        body.put("message", ex.getMessage());
+        if (ex.getCurrentStatus() != null) body.put("currentStatus", ex.getCurrentStatus());
+        if (ex.getTargetStatus() != null)  body.put("targetStatus",  ex.getTargetStatus());
+        return ResponseEntity.status(HttpStatus.UNPROCESSABLE_ENTITY).body(body);
+    }
+
+    @ExceptionHandler(ScheduleDateConflictException.class)
+    public ResponseEntity<Map<String, Object>> handleDateConflict(ScheduleDateConflictException ex) {
+        log.warn("Schedule date conflict: {}", ex.getMessage());
+        return buildResponse(HttpStatus.CONFLICT, ex.getMessage());
+    }
+
+    @ExceptionHandler(SeatAllocationException.class)
+    public ResponseEntity<Map<String, Object>> handleSeatAllocation(SeatAllocationException ex) {
+        log.warn("Seat allocation error: {}", ex.getMessage());
+        return buildResponse(HttpStatus.UNPROCESSABLE_ENTITY, ex.getMessage());
+    }
+
+    @ExceptionHandler({ScheduleNotFoundException.class, ShiftNotFoundException.class,
+                        CentreNotFoundException.class, ExaminationNotFoundException.class})
+    public ResponseEntity<Map<String, Object>> handleNotFound(RuntimeException ex) {
+        log.warn("Resource not found: {}", ex.getMessage());
         return buildResponse(HttpStatus.NOT_FOUND, ex.getMessage());
     }
 

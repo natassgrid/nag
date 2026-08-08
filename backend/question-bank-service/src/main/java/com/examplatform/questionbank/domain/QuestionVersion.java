@@ -11,6 +11,8 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 import java.time.Instant;
 import java.util.UUID;
@@ -40,7 +42,8 @@ public class QuestionVersion extends BaseEntity {
     @Column(name = "changed_at", nullable = false)
     private Instant changedAt;
 
-    @Column(name = "diff_json", nullable = false, columnDefinition = "JSONB")
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "diff_json", nullable = false, columnDefinition = "jsonb")
     private String diffJson;
 
     @Convert(converter = EncryptedFieldConverter.class)

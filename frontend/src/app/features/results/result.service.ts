@@ -1,6 +1,6 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { Observable, map } from 'rxjs';
+import { Observable, map, of, catchError } from 'rxjs';
 
 export interface SectionScore {
   sectionName: string;
@@ -35,12 +35,18 @@ export class ResultService {
   getResults(candidateId: string): Observable<ResultResponse[]> {
     return this.http
       .get<ApiResponse<ResultResponse[]>>(`${this.baseUrl}?candidateId=${candidateId}`)
-      .pipe(map(res => res.data));
+      .pipe(
+        map(res => res?.data ?? []),
+        catchError(() => of([] as ResultResponse[]))
+      );
   }
 
   getResult(candidateId: string, examId: string): Observable<ResultResponse> {
     return this.http
       .get<ApiResponse<ResultResponse>>(`${this.baseUrl}/${candidateId}/${examId}`)
-      .pipe(map(res => res.data));
+      .pipe(
+        map(res => res?.data ?? ({} as ResultResponse)),
+        catchError(() => of({} as ResultResponse))
+      );
   }
 }

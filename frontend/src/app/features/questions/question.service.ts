@@ -16,6 +16,7 @@ export interface QuestionResponse {
   state: string;
   authorId: string;
   createdAt: string;
+  options?: { id: string; text: string; isCorrect: boolean }[];
 }
 
 export interface CreateQuestionRequest {
@@ -28,6 +29,14 @@ export interface CreateQuestionRequest {
   content: string;
   answerKey?: string;
   options?: { id: string; text: string; isCorrect: boolean }[];
+}
+
+export interface PagedResponse<T> {
+  content: T[];
+  totalElements: number;
+  totalPages: number;
+  size: number;
+  number: number; // current page (0-based)
 }
 
 interface ApiResponse<T> {
@@ -48,17 +57,36 @@ export class QuestionService {
     topic?: string;
     difficulty?: string;
     state?: string;
-  }): Observable<QuestionResponse[]> {
+    page?: number;
+    size?: number;
+  }): Observable<PagedResponse<QuestionResponse>> {
     let params = new HttpParams();
     if (filters) {
-      if (filters.subject) params = params.set('subject', filters.subject);
-      if (filters.topic) params = params.set('topic', filters.topic);
+      if (filters.subject)    params = params.set('subject', filters.subject);
+      if (filters.topic)      params = params.set('topic', filters.topic);
       if (filters.difficulty) params = params.set('difficulty', filters.difficulty);
-      if (filters.state) params = params.set('state', filters.state);
+      if (filters.state)      params = params.set('state', filters.state);
+      params = params.set('page', String(filters.page ?? 0));
+      params = params.set('size', String(filters.size ?? 20));
     }
     return this.http
-      .get<ApiResponse<QuestionResponse[]>>(this.baseUrl, { params })
-      .pipe(map(res => res.data));
+      .get<ApiResponse<any>>(this.baseUrl, { params })
+      .pipe(map(res => {
+        const payload = res?.data ?? res;
+        if (Array.isArray(payload)) {
+          return { content: payload, totalElements: payload.length, totalPages: 1, size: payload.length, number: 0 };
+        }
+        if (payload && Array.isArray(payload.content)) {
+          return {
+            content: payload.content,
+            totalElements: payload.totalElements ?? payload.content.length,
+            totalPages: payload.totalPages ?? 1,
+            size: payload.size ?? payload.content.length,
+            number: payload.number ?? 0
+          };
+        }
+        return { content: [], totalElements: 0, totalPages: 0, size: 20, number: 0 };
+      }));
   }
 
   createQuestion(data: CreateQuestionRequest): Observable<QuestionResponse> {
@@ -79,8 +107,8 @@ export class QuestionService {
       .pipe(map(res => res.data));
   }
 
-  getQuestionsForReview(): Observable<QuestionResponse[]> {
-    return this.getQuestions({ state: 'REVIEW' });
+  getQuestionsForReview(page = 0, size = 20): Observable<PagedResponse<QuestionResponse>> {
+    return this.getQuestions({ state: 'REVIEW', page, size });
   }
 
   approveQuestion(id: string): Observable<QuestionResponse> {

@@ -84,14 +84,33 @@ public class GlobalExceptionHandler {
 
     /**
      * Handles illegal argument exceptions (400).
+     * Also covers duplicate-name conflicts for blueprint templates.
      */
     @ExceptionHandler(IllegalArgumentException.class)
     public ProblemDetail handleIllegalArgument(IllegalArgumentException ex) {
         log.warn("Illegal argument: {}", ex.getMessage());
+        // Treat duplicate-name errors as 409 Conflict
+        boolean isConflict = ex.getMessage() != null && ex.getMessage().contains("already exists");
+        HttpStatus status = isConflict ? HttpStatus.CONFLICT : HttpStatus.BAD_REQUEST;
+        ProblemDetail problem = ProblemDetail.forStatusAndDetail(status, ex.getMessage());
+        problem.setTitle(isConflict ? "Conflict" : "Bad Request");
+        problem.setType(URI.create(isConflict
+                ? "urn:examplatform:error:conflict"
+                : "urn:examplatform:error:bad-request"));
+        problem.setProperty("timestamp", Instant.now());
+        return problem;
+    }
+
+    /**
+     * Handles illegal state exceptions (409).
+     */
+    @ExceptionHandler(IllegalStateException.class)
+    public ProblemDetail handleIllegalState(IllegalStateException ex) {
+        log.warn("Illegal state: {}", ex.getMessage());
         ProblemDetail problem = ProblemDetail.forStatusAndDetail(
-                HttpStatus.BAD_REQUEST, ex.getMessage());
-        problem.setTitle("Bad Request");
-        problem.setType(URI.create("urn:examplatform:error:bad-request"));
+                HttpStatus.CONFLICT, ex.getMessage());
+        problem.setTitle("Conflict");
+        problem.setType(URI.create("urn:examplatform:error:conflict"));
         problem.setProperty("timestamp", Instant.now());
         return problem;
     }

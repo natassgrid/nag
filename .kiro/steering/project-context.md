@@ -8,7 +8,7 @@ This is a large-scale, secure, multilingual, cloud-native examination platform d
 
 - **Architecture Style**: Domain-driven microservices monorepo
 - **Backend**: Java 21 / Spring Boot 3.x with virtual threads (Project Loom)
-- **Frontend**: Angular 17+ SPA (WCAG 2.2 AA compliant)
+- **Frontend**: Angular 21 SPA (WCAG 2.2 AA compliant)
 - **Database**: PostgreSQL 16 with per-service schemas (single cluster)
 - **Cache**: Redis Cluster (session/rate-limiting/hot state)
 - **Messaging**: Apache Kafka (domain events, RPO=0)
@@ -90,6 +90,23 @@ Key classes:
 10. **Multi-tenancy**: `X-Tenant-Id` header, `tenantId` column on entities
 11. **Authentication**: OAuth2 JWT tokens, validated by each service via Keycloak JWKS
 12. **Profiles**: `application.yml` (default), `application-docker.yml` (Docker Compose)
+
+## Frontend Conventions (Angular 21)
+
+1. **Component style**: Standalone components only — NO NgModules
+2. **State management**: RxJS Observables only — NO signals, NO NgRx
+3. **UI library**: Angular Material 21
+4. **List pages**: Always use the shared `PaginatedTableComponent` with a `fetcher: PaginatedDataFetcher<T>` function. The fetcher returns `Observable<PaginatedResponse<T>>`. The paginated table handles loading, empty state, search, pagination, and change detection internally. Never use manual `loading` flags or `ChangeDetectorRef` for list data — let the table handle it.
+5. **Service pattern**: `@Injectable({ providedIn: 'root' })`. All API responses are wrapped in `ApiResponse<T>` by the backend. For paginated list endpoints, the backend returns `Page<T>` (Spring Data) which serializes as `{ content: [], totalElements, totalPages, size, number }`. Services unwrap via `.pipe(map(res => res?.data?.content ?? res?.data ?? []))` for arrays. Always pass `page`, `size`, and `search` query params to the backend — never do client-side pagination. The fetcher in the component passes `req.page`, `req.size`, `req.search` directly to the service method.
+6. **Server-side pagination (backend)**: All list/search endpoints MUST accept `?page=0&size=20&search=` query params and return Spring `Page<T>`. Use `PageRequest.of(page, size, Sort.by(...))` in the service layer with Spring Data JPA paginated repository methods (`findBy...(... , Pageable pageable)` returning `Page<T>`). The controller returns `ApiResponse<Page<ResponseDTO>>`. This ensures the browser Network tab always shows pagination query params.
+7. **Form dialogs**: Use `MatDialog` with `MAT_DIALOG_DATA` injection. Dialog closes with `dialogRef.close(formValue)`. Parent component subscribes to `afterClosed()` and calls the service, then `this.table.reload()`.
+8. **Confirmation dialogs**: Never use browser `confirm()`. Use the shared `ConfirmDialogComponent` at `shared/components/confirm-dialog/confirm-dialog.component.ts`. It accepts `ConfirmDialogData { title, message, confirmText, cancelText, color, icon }` and returns `boolean` on close.
+9. **Snackbar feedback**: `this.snackBar.open('Message', 'OK', { duration: 3000 })` on success; `this.snackBar.open(err?.error?.message || 'Error', 'Dismiss', { duration: 4000 })` on error.
+8. **DatePicker**: Always set `[min]="minDate"` where `minDate = new Date()` to allow only future dates. Always convert to ISO string before sending: `d instanceof Date ? d.toISOString().split('T')[0] : d`.
+9. **Cascading dropdowns**: Use `valueChanges` subscription on parent control → clear child + load options → auto-set denormalized name field. See `centre-form-dialog.component.ts` for reference.
+10. **Routing**: Lazy-load features via `loadChildren` or `loadComponent`. Use `roleGuard` with `data: { roles: [...] }`. All scheduling routes are under `/exam/scheduling/`.
+11. **Proxy**: Angular dev server proxies `/api` → `http://localhost:9000` (API gateway). All service base URLs are relative (e.g., `/api/v1/examinations`).
+12. **Imports**: Every standalone component explicitly imports all Material modules it uses in its `imports` array.
 
 ## Local Development
 

@@ -123,6 +123,31 @@ public enum AuditEventType {
     EXAM_PUBLISHED,
 
     // -----------------------------------------------------------------------
+    // Examination scheduling domain
+    // -----------------------------------------------------------------------
+
+    /** A new examination schedule was created in DRAFT state. */
+    SCHEDULE_CREATED,
+
+    /** An examination schedule transitioned through the approval workflow. */
+    SCHEDULE_STATUS_CHANGED,
+
+    /** A published examination schedule was amended (version incremented). */
+    SCHEDULE_AMENDED,
+
+    /** An examination schedule was cancelled. */
+    SCHEDULE_CANCELLED,
+
+    /** A shift was added to an examination schedule. */
+    SHIFT_CREATED,
+
+    /** A shift's timing was updated. */
+    SHIFT_UPDATED,
+
+    /** Seat allocation was created or updated for a shift + centre pair. */
+    SEAT_ALLOCATION_UPDATED,
+
+    // -----------------------------------------------------------------------
     // Security domain
     // -----------------------------------------------------------------------
 

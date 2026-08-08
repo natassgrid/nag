@@ -327,8 +327,20 @@ export class QuestionFormDialogComponent implements OnInit {
 
   ngOnInit(): void {
     this.loadSubjects();
-    // Seed the tracked type for edit mode (or any pre-filled value)
+
+    const q = this.data.question;
     const initialType = this.form.get('questionType')?.value || '';
+
+    // In edit mode, load existing options BEFORE calling onQuestionTypeChange
+    // so the type handler sees options.length > 0 and doesn't overwrite them
+    if (q?.options && q.options.length > 0) {
+      this.options = q.options.map(o => ({
+        id: o.id,
+        text: o.text,
+        isCorrect: o.isCorrect
+      }));
+    }
+
     if (initialType) {
       this.onQuestionTypeChange(initialType);
     }
@@ -474,10 +486,11 @@ export class QuestionFormDialogComponent implements OnInit {
 
   onQuestionTypeChange(value: string): void {
     this.currentQuestionType = value;
-    // Reset options when switching away from MCQ/MSQ
+    // Only reset/seed options if we're not in edit mode with existing options already loaded
     if (value !== 'SINGLE_MCQ' && value !== 'MULTI_MCQ') {
       this.options = [];
     } else if (this.options.length === 0) {
+      // Seed two blank options only when starting fresh
       this.options = [
         { id: 'A', text: '', isCorrect: false },
         { id: 'B', text: '', isCorrect: false }

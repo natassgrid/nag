@@ -45,6 +45,12 @@ export const routes: Routes = [
     data: { roles: ['QUESTION_AUTHOR', 'REVIEWER', 'APPROVER', 'SUPER_ADMIN', 'EXAM_CONTROLLER'] }
   },
   {
+    path: 'papers',
+    loadChildren: () => import('./features/papers/papers.routes').then(m => m.PAPERS_ROUTES),
+    canActivate: [authGuard, roleGuard],
+    data: { roles: ['EXAM_CONTROLLER', 'SUPER_ADMIN'] }
+  },
+  {
     path: 'analytics',
     loadComponent: () => import('./features/analytics/analytics-dashboard.component').then(m => m.AnalyticsDashboardComponent),
     canActivate: [authGuard, roleGuard],

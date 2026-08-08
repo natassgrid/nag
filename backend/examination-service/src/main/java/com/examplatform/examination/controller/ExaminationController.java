@@ -20,6 +20,7 @@ import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
@@ -39,14 +40,18 @@ public class ExaminationController {
     private final ExaminationService examinationService;
 
     /**
-     * List all examinations for the current tenant. Requires EXAM_CONTROLLER role.
+     * List all examinations for the current tenant (paginated). Requires EXAM_CONTROLLER role.
      */
     @GetMapping
     @PreAuthorize("hasRole('EXAM_CONTROLLER')")
-    public ResponseEntity<ApiResponse<List<ExaminationResponse>>> list(
+    public ResponseEntity<ApiResponse<org.springframework.data.domain.Page<ExaminationResponse>>> list(
             @RequestHeader("X-Tenant-Id") String tenantId,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size,
+            @RequestParam(required = false) String search,
             @AuthenticationPrincipal Jwt jwt) {
-        List<ExaminationResponse> responses = examinationService.listByTenant(tenantId);
+        org.springframework.data.domain.Page<ExaminationResponse> responses =
+                examinationService.listByTenantPaged(tenantId, search, page, size);
         return ResponseEntity.ok(ApiResponse.success(responses, "Examinations retrieved successfully"));
     }
 

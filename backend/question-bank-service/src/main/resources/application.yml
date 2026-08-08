@@ -108,6 +108,10 @@ app:
     host: ${OPENSEARCH_HOST:localhost}
     port: ${OPENSEARCH_PORT:9200}
     scheme: ${OPENSEARCH_SCHEME:http}
+  # Feature flag: set to true to encrypt question content/answerKey via Vault Transit.
+  # When false, content is stored as plaintext (default for local dev).
+  encryption:
+    enabled: ${QUESTION_ENCRYPTION_ENABLED:false}
 
 logging:
   pattern:

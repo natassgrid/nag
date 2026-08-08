@@ -38,6 +38,58 @@ export interface ExamFormDialogData {
           <mat-error *ngIf="form.get('name')?.hasError('required')">Name is required</mat-error>
         </mat-form-field>
 
+        <!-- New identity fields -->
+        <div class="form-row">
+          <mat-form-field appearance="outline">
+            <mat-label>Exam Code</mat-label>
+            <input matInput formControlName="code" placeholder="e.g. JEE-MAIN-2027" />
+          </mat-form-field>
+          <mat-form-field appearance="outline">
+            <mat-label>Conducting Authority</mat-label>
+            <input matInput formControlName="conductingAuthority" placeholder="e.g. NTA, UPSC" />
+          </mat-form-field>
+        </div>
+
+        <div class="form-row">
+          <mat-form-field appearance="outline">
+            <mat-label>Category</mat-label>
+            <mat-select formControlName="category">
+              <mat-option value="">None</mat-option>
+              <mat-option value="RECRUITMENT">Recruitment</mat-option>
+              <mat-option value="ENTRANCE">Entrance</mat-option>
+              <mat-option value="CERTIFICATION">Certification</mat-option>
+              <mat-option value="DEPARTMENTAL">Departmental</mat-option>
+            </mat-select>
+          </mat-form-field>
+          <mat-form-field appearance="outline">
+            <mat-label>Examination Type</mat-label>
+            <mat-select formControlName="examinationType">
+              <mat-option value="">None</mat-option>
+              <mat-option value="PRELIMINARY">Preliminary</mat-option>
+              <mat-option value="MAIN">Main</mat-option>
+              <mat-option value="SKILL_TEST">Skill Test</mat-option>
+              <mat-option value="INTERVIEW">Interview</mat-option>
+              <mat-option value="PHYSICAL_TEST">Physical Test</mat-option>
+            </mat-select>
+          </mat-form-field>
+        </div>
+
+        <div class="form-row">
+          <mat-form-field appearance="outline">
+            <mat-label>Academic Year</mat-label>
+            <input matInput formControlName="academicYear" placeholder="e.g. 2026-27" />
+          </mat-form-field>
+          <mat-form-field appearance="outline">
+            <mat-label>Mode</mat-label>
+            <mat-select formControlName="examinationMode">
+              <mat-option value="">None</mat-option>
+              <mat-option value="CBT">CBT (Computer Based)</mat-option>
+              <mat-option value="OMR">OMR (Paper Based)</mat-option>
+              <mat-option value="HYBRID">Hybrid</mat-option>
+            </mat-select>
+          </mat-form-field>
+        </div>
+
         <div class="form-row">
           <mat-form-field appearance="outline">
             <mat-label>Duration (minutes)</mat-label>
@@ -127,6 +179,12 @@ export class ExamFormDialogComponent implements OnInit {
     const exam = this.data.exam;
     this.form = this.fb.group({
       name: [exam?.name || '', Validators.required],
+      code: [exam?.code || ''],
+      conductingAuthority: [exam?.conductingAuthority || ''],
+      category: [exam?.category || ''],
+      examinationType: [exam?.examinationType || ''],
+      academicYear: [exam?.academicYear || ''],
+      examinationMode: [exam?.examinationMode || ''],
       durationMinutes: [exam?.durationMinutes || 60, [Validators.required, Validators.min(1)]],
       totalMarks: [exam?.totalMarks || 100, [Validators.required, Validators.min(1)]],
       negativeMarkingEnabled: [exam?.negativeMarkingEnabled || false],

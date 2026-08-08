@@ -48,9 +48,17 @@ spring:
 
             # Examination Service
             - id: examination-service
-              uri: ${EXAMINATION_SERVICE_URI:http://localhost:8084}
+              uri: ${EXAMINATION_SERVICE_URI:http://localhost:8085}
               predicates:
                 - Path=/api/v1/examinations/**
+              filters:
+                - StripPrefix=0
+
+            # Geo Location (served by Examination Service — public, no auth)
+            - id: geo-location-service
+              uri: ${EXAMINATION_SERVICE_URI:http://localhost:8085}
+              predicates:
+                - Path=/api/v1/geo/**
               filters:
                 - StripPrefix=0
 
@@ -123,6 +131,14 @@ spring:
               uri: ${ANALYTICS_SERVICE_URI:http://localhost:8094}
               predicates:
                 - Path=/api/v1/analytics/**
+              filters:
+                - StripPrefix=0
+
+            # Asset Service
+            - id: asset-service
+              uri: ${ASSET_SERVICE_URI:http://localhost:8095}
+              predicates:
+                - Path=/api/v1/assets/**
               filters:
                 - StripPrefix=0
 

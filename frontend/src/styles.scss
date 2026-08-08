@@ -1,31 +1,56 @@
+@use 'sass:map';
 @use '@angular/material' as mat;
+@use 'app/styles/variables' as *;
+@use 'app/styles/palettes' as *;
+@use 'app/styles/scrollbar' as *;
+@use 'app/styles/sidebar' as *;
+@use 'app/styles/header' as *;
+@use 'app/styles/card' as *;
+@use 'app/styles/page-layout';
 
-// Indigo + Amber theme for Government Examination Platform
-// Using violet (closest to indigo) and yellow (closest to amber) M3 palettes
-@include mat.theme((
+// ---------- Material Theme (M2 compat layer) ----------
+
+@function mat-palette($base-palette, $default: 500, $lighter: 100, $darker: 700, $text: $default) {
+  @return mat.m2-define-palette($base-palette, $default, $lighter, $darker, $text);
+}
+
+$ama-primary: mat-palette($ama-blue);
+$ama-accent: mat-palette($ama-yellow);
+$ama-warn: mat-palette($ama-pink);
+
+$ama-theme: mat.m2-define-light-theme((
   color: (
-    primary: mat.$violet-palette,
-    tertiary: mat.$yellow-palette,
-    theme-type: light,
-  ),
-  typography: Roboto,
-  density: 0,
+    primary: $ama-primary,
+    accent: $ama-accent,
+    warn: $ama-warn,
+  )
 ));
 
-/* WCAG 2.2 AA Baseline Styles */
+@include mat.core();
+@include mat.all-component-themes($ama-theme);
+
+// ---------- Component-level theme mixins ----------
+
+@include scrollbar();
+@include header();
+@include mat-card();
+@include sidebar($blue);
+
+// ---------- Global resets & WCAG baseline ----------
+
 :root {
-  --color-primary: #3f51b5;
-  --color-primary-dark: #303f9f;
-  --color-accent: #ffc107;
-  --color-text: #212121;
-  --color-text-secondary: #616161;
-  --color-background: #fafafa;
-  --color-surface: #ffffff;
-  --color-error: #d32f2f;
-  --color-success: #388e3c;
-  --color-warning: #f57c00;
-  --color-border: #bdbdbd;
-  --focus-outline: 3px solid #3f51b5;
+  --color-primary: #{$blue};
+  --color-primary-dark: #3d5afe;
+  --color-accent: #{$yellow};
+  --color-text: #{$dark-grey};
+  --color-text-secondary: #{$grey};
+  --color-background: #{$background-color};
+  --color-surface: #{$white};
+  --color-error: #{$pink};
+  --color-success: #{$green};
+  --color-warning: #{$yellow};
+  --color-border: #{$default};
+  --focus-outline: 3px solid #{$blue};
   --focus-offset: 2px;
   --spacing-xs: 4px;
   --spacing-sm: 8px;
@@ -45,19 +70,19 @@ html, body {
   margin: 0;
   padding: 0;
   font-family: Roboto, 'Helvetica Neue', sans-serif;
-  font-size: 16px;
+  font-size: $fs-normal;
   line-height: 1.5;
   color: var(--color-text);
   background-color: var(--color-background);
 }
 
-/* Focus styles for keyboard navigation - WCAG 2.4.7 */
+// Focus styles for keyboard navigation — WCAG 2.4.7
 :focus-visible {
   outline: var(--focus-outline);
   outline-offset: var(--focus-offset);
 }
 
-/* Skip to content link for screen readers */
+// Skip to content link for screen readers
 .skip-link {
   position: absolute;
   top: -40px;
@@ -73,7 +98,7 @@ html, body {
   }
 }
 
-/* Minimum touch target 44x44px - WCAG 2.5.8 */
+// Minimum touch target 44x44px — WCAG 2.5.8
 button,
 a,
 input[type="submit"],
@@ -83,37 +108,32 @@ input[type="button"],
   min-width: 44px;
 }
 
-/* Layout utilities */
+// Layout utilities
 .page-container {
   max-width: 1200px;
   margin: 0 auto;
   padding: var(--spacing-lg);
 }
 
-.mat-toolbar {
-  background: var(--color-primary) !important;
-  color: white !important;
+// Toolbar override using theme color
+.mat-toolbar.mat-primary {
+  background: $blue !important;
+  color: $white !important;
 }
 
-/* Card styling */
-.mat-mdc-card {
-  border-radius: 8px !important;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1) !important;
-}
-
-/* Snackbar styling */
+// Snackbar variants
 .mat-mdc-snack-bar-container {
   &.error-snackbar {
-    --mdc-snackbar-container-color: var(--color-error);
+    --mdc-snackbar-container-color: #{$pink};
     --mdc-snackbar-supporting-text-color: white;
   }
   &.success-snackbar {
-    --mdc-snackbar-container-color: var(--color-success);
+    --mdc-snackbar-container-color: #{$green};
     --mdc-snackbar-supporting-text-color: white;
   }
 }
 
-/* Responsive minimum 320px without horizontal scroll */
+// Responsive baseline
 @media (max-width: 320px) {
   body {
     overflow-x: hidden;

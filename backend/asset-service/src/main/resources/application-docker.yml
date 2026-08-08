@@ -1,0 +1,28 @@
+spring:
+  datasource:
+    url: jdbc:postgresql://postgres:5432/exam_platform
+    username: exam_admin
+    password: exam_secret
+    hikari:
+      schema: asset_service
+
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: http://keycloak:8080/realms/exam-realm
+          jwk-set-uri: http://keycloak:8080/realms/exam-realm/protocol/openid-connect/certs
+
+  kafka:
+    bootstrap-servers: kafka:9092
+
+otel:
+  exporter:
+    otlp:
+      endpoint: http://otel-collector:4317
+
+asset:
+  storage:
+    provider: filesystem
+    filesystem:
+      base-path: /data/asset-storage

@@ -290,6 +290,18 @@ analyticsService:
     SPRING_PROFILES_ACTIVE: kubernetes
     OTEL_SERVICE_NAME: analytics-service
 
+# --- Asset Service ---
+assetService:
+  enabled: true
+  replicas: 2
+  image:
+    name: asset-service
+  port: 8095
+  managementPort: 8095
+  env:
+    SPRING_PROFILES_ACTIVE: kubernetes
+    OTEL_SERVICE_NAME: asset-service
+
 # --- API Gateway ---
 apiGateway:
   enabled: true

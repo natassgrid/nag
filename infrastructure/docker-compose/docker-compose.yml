@@ -167,7 +167,7 @@ services:
       - IPC_LOCK
     command: server -dev
     healthcheck:
-      test: ["CMD-SHELL", "vault status -address=http://localhost:8200 || exit 1"]
+      test: ["CMD-SHELL", "vault status -address=http://localhost:8200 | grep -q 'Sealed.*false' || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 10
@@ -192,6 +192,7 @@ services:
       VAULT_TOKEN: ${VAULT_ROOT_TOKEN:-vault_root_token}
     volumes:
       - ./vault-init.sh:/vault-init.sh:ro
+      - vault_data:/vault/data
     entrypoint: ["sh", "/vault-init.sh"]
     networks:
       - exam-network
