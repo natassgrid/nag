@@ -12,6 +12,7 @@ import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatCheckboxModule } from '@angular/material/checkbox';
 import { CreateQuestionRequest, QuestionResponse, QuestionService } from './question.service';
 import { SubjectTopicService, Subject, Topic, Subtopic } from './subject-topic.service';
+import { ExamEditorComponent, ExamDocument, EMPTY_DOCUMENT } from '../../shared/components/exam-editor';
 
 export interface QuestionFormDialogData {
   question?: QuestionResponse;
@@ -32,7 +33,8 @@ export interface QuestionFormDialogData {
     MatIconModule,
     MatTooltipModule,
     MatProgressSpinnerModule,
-    MatCheckboxModule
+    MatCheckboxModule,
+    ExamEditorComponent
   ],
   template: `
     <h2 mat-dialog-title>{{ data.question ? 'Edit Question' : 'Create Question' }}</h2>
@@ -147,11 +149,15 @@ export interface QuestionFormDialogData {
           <mat-error *ngIf="form.get('questionType')?.hasError('required')">Type is required</mat-error>
         </mat-form-field>
 
-        <mat-form-field appearance="outline">
-          <mat-label>Content</mat-label>
-          <textarea matInput formControlName="content" rows="5"></textarea>
-          <mat-error *ngIf="form.get('content')?.hasError('required')">Content is required</mat-error>
-        </mat-form-field>
+        <div class="editor-field">
+          <label class="editor-label">Content <span class="required">*</span></label>
+          <exam-editor
+            [value]="editorDocument"
+            (valueChange)="onEditorChange($event)"
+            placeholder="Enter question content..."
+          ></exam-editor>
+          <mat-error *ngIf="form.get('content')?.hasError('required') && form.get('content')?.touched">Content is required</mat-error>
+        </div>
 
         <!-- MCQ/MSQ Options section -->
         <div *ngIf="isMcqOrMsq()" class="options-section">
@@ -268,6 +274,18 @@ export interface QuestionFormDialogData {
       flex: 1;
       margin-bottom: -4px;
     }
+    .editor-field {
+      margin-bottom: 8px;
+    }
+    .editor-label {
+      font-size: 13px;
+      color: #666;
+      margin-bottom: 4px;
+      display: block;
+    }
+    .editor-label .required {
+      color: #c62828;
+    }
   `]
 })
 export class QuestionFormDialogComponent implements OnInit {
@@ -323,6 +341,16 @@ export class QuestionFormDialogComponent implements OnInit {
       content: [q?.content || '', Validators.required],
       answerKey: [q?.answerKey || '']
     });
+
+    // Initialize editor document from existing content (JSON) or empty
+    if (q?.content) {
+      try {
+        this.editorDocument = JSON.parse(q.content);
+      } catch {
+        // Legacy plain text content — wrap in a paragraph
+        this.editorDocument = [{ type: 'paragraph', children: [{ text: q.content }] }];
+      }
+    }
   }
 
   ngOnInit(): void {
@@ -483,6 +511,18 @@ export class QuestionFormDialogComponent implements OnInit {
   saving = false;
   saveError = '';
   currentQuestionType = '';
+
+  // Rich text editor document
+  editorDocument: ExamDocument = [...EMPTY_DOCUMENT];
+
+  onEditorChange(doc: ExamDocument): void {
+    this.editorDocument = doc;
+    // Serialize to JSON string for the form field
+    const serialized = JSON.stringify(doc);
+    this.form.patchValue({ content: serialized });
+    this.form.get('content')?.markAsDirty();
+    this.form.get('content')?.markAsTouched();
+  }
 
   onQuestionTypeChange(value: string): void {
     this.currentQuestionType = value;
