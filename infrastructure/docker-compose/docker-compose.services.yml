@@ -430,6 +430,33 @@ services:
       <<: *healthcheck-spring
 
   # ===========================================================================
+  # Asset Service — Media upload, storage, metadata extraction
+  # ===========================================================================
+  asset-service:
+    <<: *service-common
+    build:
+      context: ../../
+      dockerfile: backend/Dockerfile
+      args:
+        SERVICE_NAME: asset-service
+    image: localhost:5000/exam/asset-service:latest
+    container_name: exam-asset-service
+    ports:
+      - "${ASSET_SERVICE_PORT:-8095}:${ASSET_SERVICE_PORT:-8095}"
+    environment:
+      <<: *spring-env
+      SERVER_PORT: ${ASSET_SERVICE_PORT:-8095}
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-exam_platform}?currentSchema=asset_service
+      OTEL_SERVICE_NAME: asset-service
+    depends_on:
+      <<: *depends-base
+    volumes:
+      - asset_storage:/data/asset-storage
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:${ASSET_SERVICE_PORT:-8095}/actuator/health || exit 1"]
+      <<: *healthcheck-spring
+
+  # ===========================================================================
   # API Gateway — Spring Cloud Gateway, DDoS, Zero Trust, Rate Limiting
   # ===========================================================================
   api-gateway:
@@ -462,6 +489,7 @@ services:
       NOTIFICATION_SERVICE_URI: http://notification-service:${NOTIFICATION_SERVICE_PORT:-8092}
       ADMIN_SERVICE_URI: http://admin-service:${ADMIN_SERVICE_PORT:-8093}
       ANALYTICS_SERVICE_URI: http://analytics-service:${ANALYTICS_SERVICE_PORT:-8094}
+      ASSET_SERVICE_URI: http://asset-service:${ASSET_SERVICE_PORT:-8095}
     depends_on:
       identity-service:
         condition: service_healthy
@@ -495,3 +523,4 @@ services:
 
 volumes:
   registry_data:
+  asset_storage:

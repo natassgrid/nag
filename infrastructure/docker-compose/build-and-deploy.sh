@@ -49,7 +49,7 @@ else
         identity-service candidate-service question-bank-service translation-service
         examination-service paper-generator delivery-service response-service
         evaluation-service result-service audit-service notification-service
-        admin-service analytics-service api-gateway
+        admin-service analytics-service asset-service api-gateway
     )
     for svc in "${SERVICES[@]}"; do
         echo "  Building $svc..."
@@ -67,7 +67,7 @@ SERVICES=(
     identity-service candidate-service question-bank-service translation-service
     examination-service paper-generator delivery-service response-service
     evaluation-service result-service audit-service notification-service
-    admin-service analytics-service api-gateway
+    admin-service analytics-service asset-service api-gateway
 )
 
 for svc in "${SERVICES[@]}"; do
@@ -97,6 +97,7 @@ echo "  Audit:           http://localhost:8091"
 echo "  Notification:    http://localhost:8092"
 echo "  Admin:           http://localhost:8093"
 echo "  Analytics:       http://localhost:8094"
+echo "  Asset:           http://localhost:8095"
 echo ""
 echo "Infrastructure:"
 echo "  Keycloak:        http://localhost:8080"

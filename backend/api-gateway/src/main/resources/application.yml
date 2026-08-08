@@ -134,6 +134,14 @@ spring:
               filters:
                 - StripPrefix=0
 
+            # Asset Service
+            - id: asset-service
+              uri: ${ASSET_SERVICE_URI:http://localhost:8095}
+              predicates:
+                - Path=/api/v1/assets/**
+              filters:
+                - StripPrefix=0
+
   data:
     redis:
       host: ${REDIS_HOST:localhost}

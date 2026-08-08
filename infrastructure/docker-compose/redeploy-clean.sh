@@ -36,7 +36,7 @@ ALL_SERVICES=(
     identity-service candidate-service question-bank-service translation-service
     examination-service paper-generator delivery-service response-service
     evaluation-service result-service audit-service notification-service
-    admin-service analytics-service api-gateway
+    admin-service analytics-service asset-service api-gateway
 )
 
 # --- Detect which services have code changes (git-based) ---
