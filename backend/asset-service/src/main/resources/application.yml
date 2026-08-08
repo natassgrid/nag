@@ -56,7 +56,7 @@ spring:
       enabled: true
 
 server:
-  port: ${ASSET_SERVICE_PORT:8090}
+  port: ${ASSET_SERVICE_PORT:8095}
   servlet:
     context-path: /
   shutdown: graceful

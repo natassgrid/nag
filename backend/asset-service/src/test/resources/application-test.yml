@@ -1,0 +1,51 @@
+spring:
+  application:
+    name: asset-service-test
+
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    properties:
+      hibernate:
+        default_schema: asset_service
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+
+  flyway:
+    enabled: true
+    schemas: asset_service
+    locations: classpath:db/migration
+
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: http://localhost:19999/realms/test
+          jwk-set-uri: http://localhost:19999/realms/test/protocol/openid-connect/certs
+
+  kafka:
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+
+  servlet:
+    multipart:
+      max-file-size: 10MB
+      max-request-size: 10MB
+
+  threads:
+    virtual:
+      enabled: true
+
+server:
+  port: 0
+
+asset:
+  storage:
+    provider: filesystem
+    max-file-size: 10485760
+    filesystem:
+      base-path: ./target/test-asset-storage
+
+logging:
+  level:
+    com.examplatform: DEBUG
