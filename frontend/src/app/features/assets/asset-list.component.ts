@@ -16,6 +16,7 @@ import { AssetService } from './asset.service';
 import { AssetResponse, AssetType, AssetStatus } from './asset.model';
 import { AssetUploadDialogComponent } from './asset-upload-dialog.component';
 import { AssetMetadataDialogComponent } from './asset-metadata-dialog.component';
+import { AssetPreviewDialogComponent } from './asset-preview-dialog.component';
 import { ConfirmDialogComponent, ConfirmDialogData } from '../../shared/components/confirm-dialog/confirm-dialog.component';
 import {
   PaginatedTableComponent,
@@ -143,7 +144,7 @@ export class AssetListComponent implements OnInit {
 
   @ViewChild('paginatedTable') paginatedTable!: PaginatedTableComponent<AssetResponse>;
 
-  filters: Record<string, string> = { assetType: '', status: '', tags: '' };
+  filters = { assetType: '', status: '', tags: '' };
 
   columns: ColumnDef<AssetResponse>[] = [
     { key: 'originalFilename', header: 'Filename', sortable: true },
@@ -188,7 +189,12 @@ export class AssetListComponent implements OnInit {
     });
   }
 
-  previewAsset(asset: AssetResponse): void { window.open(this.assetService.getDownloadUrl(asset.id), '_blank'); }
+  previewAsset(asset: AssetResponse): void {
+    this.dialog.open(AssetPreviewDialogComponent, {
+      width: '720px',
+      data: { asset }
+    });
+  }
 
   archiveAsset(asset: AssetResponse): void {
     const dialogRef = this.dialog.open(ConfirmDialogComponent, {
