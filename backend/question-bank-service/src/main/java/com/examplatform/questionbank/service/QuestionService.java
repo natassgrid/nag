@@ -95,6 +95,39 @@ public class QuestionService {
             }
         }
 
+        // Validate and serialize options for MCQ/MSQ
+        String answerKey = request.getAnswerKey();
+        if (request.getOptions() != null && !request.getOptions().isEmpty()) {
+            var options = request.getOptions();
+            // Validate option count (2-6)
+            if (options.size() < 2 || options.size() > 6) {
+                throw new IllegalArgumentException("MCQ/MSQ questions must have between 2 and 6 options");
+            }
+            // Assign option IDs A-F based on position
+            String[] ids = {"A", "B", "C", "D", "E", "F"};
+            for (int i = 0; i < options.size(); i++) {
+                options.get(i).setId(ids[i]);
+            }
+            // Validate correct options
+            long correctCount = options.stream().filter(o -> o.isCorrect()).count();
+            QuestionType questionType = request.getQuestionType();
+            if (questionType == QuestionType.SINGLE_MCQ) {
+                if (correctCount != 1) {
+                    throw new IllegalArgumentException("MCQ questions must have exactly one correct option");
+                }
+            } else if (questionType == QuestionType.MULTI_MCQ) {
+                if (correctCount < 1) {
+                    throw new IllegalArgumentException("MSQ questions must have at least one correct option");
+                }
+            }
+            // Serialize to JSON
+            try {
+                answerKey = new com.fasterxml.jackson.databind.ObjectMapper().writeValueAsString(options);
+            } catch (Exception e) {
+                throw new RuntimeException("Failed to serialize options", e);
+            }
+        }
+
         // Build Question entity
         Question question = Question.builder()
                 .subject(request.getSubject())
