@@ -57,6 +57,12 @@ export const routes: Routes = [
     data: { roles: ['EXAM_CONTROLLER'] }
   },
   {
+    path: 'assets',
+    loadChildren: () => import('./features/assets/assets.routes').then(m => m.ASSETS_ROUTES),
+    canActivate: [authGuard, roleGuard],
+    data: { roles: ['QUESTION_AUTHOR', 'CONTENT_MANAGER', 'SUPER_ADMIN', 'ADMIN'] }
+  },
+  {
     path: 'notifications',
     loadComponent: () => import('./features/notifications/notification-list.component').then(m => m.NotificationListComponent),
     canActivate: [authGuard]
