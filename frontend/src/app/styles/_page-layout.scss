@@ -3,7 +3,10 @@
 // Uniform page layout for all listing/management pages.
 // Usage: add class="page-layout" to the outermost wrapper div.
 .page-layout {
-  padding: 24px;
+  padding-top: 12px;
+  padding-left: 12px;
+  padding-right: 24px;
+  padding-bottom: 24px;
   max-width: 1400px;
   margin: 0 auto;
   display: flex;
@@ -11,7 +14,10 @@
   gap: 20px;
 
   @media (max-width: $medium) {
-    padding: 16px;
+    padding-top: 8px;
+    padding-left: 8px;
+    padding-right: 16px;
+    padding-bottom: 16px;
     gap: 16px;
   }
 }

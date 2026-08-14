@@ -7,9 +7,6 @@ import { MatCardModule } from '@angular/material/card';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { MatDialog, MatDialogModule } from '@angular/material/dialog';
 import { MatTooltipModule } from '@angular/material/tooltip';
-import { MatFormFieldModule } from '@angular/material/form-field';
-import { MatInputModule } from '@angular/material/input';
-import { MatSelectModule } from '@angular/material/select';
 import { MatChipsModule } from '@angular/material/chips';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatBadgeModule } from '@angular/material/badge';
@@ -26,7 +23,8 @@ import {
 } from './paper-generate-dialog.component';
 import {
   PaginatedTableComponent,
-  PaginatedDataFetcher
+  PaginatedDataFetcher,
+  FilterCategory
 } from '../../shared/components/paginated-table';
 import { ColumnDef } from '../../shared/components/paginated-table/pagination.model';
 import { PageHeaderComponent } from '../../shared/components/page-header/page-header.component';
@@ -43,9 +41,6 @@ import { PageHeaderComponent } from '../../shared/components/page-header/page-he
     MatSnackBarModule,
     MatDialogModule,
     MatTooltipModule,
-    MatFormFieldModule,
-    MatInputModule,
-    MatSelectModule,
     MatChipsModule,
     MatProgressSpinnerModule,
     MatBadgeModule,
@@ -71,98 +66,51 @@ import { PageHeaderComponent } from '../../shared/components/page-header/page-he
         </button>
       </app-page-header>
 
-      <!-- ── Filter bar ───────────────────────────────────────────────── -->
-      <mat-card class="filter-card">
-        <mat-card-content>
-          <div class="filter-row">
-            <mat-form-field appearance="outline" class="filter-field">
-              <mat-label>Filter by Exam ID</mat-label>
-              <mat-icon matPrefix>search</mat-icon>
-              <input
-                matInput
-                [(ngModel)]="filterExamId"
-                (keyup.enter)="applyFilter()"
-                placeholder="Paste exam UUID…"
-              />
-              <button
-                *ngIf="filterExamId"
-                mat-icon-button
-                matSuffix
-                (click)="filterExamId = ''; applyFilter()"
-                aria-label="Clear exam filter"
-              >
-                <mat-icon>close</mat-icon>
-              </button>
-            </mat-form-field>
-
-            <mat-form-field appearance="outline" class="filter-field filter-status">
-              <mat-label>Status</mat-label>
-              <mat-select [(ngModel)]="filterStatus" (ngModelChange)="applyFilter()">
-                <mat-option value="">All</mat-option>
-                <mat-option value="DRAFT">Draft</mat-option>
-                <mat-option value="APPROVED">Approved</mat-option>
-                <mat-option value="ENCRYPTED">Encrypted</mat-option>
-              </mat-select>
-            </mat-form-field>
-
-            <button mat-stroked-button (click)="applyFilter()" matTooltip="Apply filters">
-              <mat-icon>filter_list</mat-icon> Filter
-            </button>
-            <button mat-stroked-button (click)="clearFilters()" *ngIf="filterExamId || filterStatus">
-              <mat-icon>clear</mat-icon> Clear
-            </button>
-          </div>
-        </mat-card-content>
-      </mat-card>
-
       <!-- ── Paper table ──────────────────────────────────────────────── -->
-      <mat-card class="table-card">
-        <mat-card-content>
-          <app-paginated-table
-            #paperTable
-            [fetcher]="fetcher"
-            [columns]="columns"
-            [actionsTemplate]="actionsTmpl"
-            [filters]="activeFilters"
-            title="Generated Papers"
-            searchPlaceholder="Search by shift ID or paper ID…"
-          ></app-paginated-table>
+      <app-paginated-table
+        #paperTable
+        [fetcher]="fetcher"
+        [columns]="columns"
+        [actionsTemplate]="actionsTmpl"
+        [filters]="activeFilters"
+        [filterCategories]="filterCategories"
+        (filterChange)="onFilterChange($event)"
+        title="Generated Papers"
+        searchPlaceholder="Search by shift ID or paper ID…"
+      ></app-paginated-table>
 
-          <!-- Actions template ─────────────────────────────────────── -->
-          <ng-template #actionsTmpl let-row>
-            <!-- Approve: only DRAFT papers -->
-            <button
-              mat-icon-button
-              color="primary"
-              matTooltip="Approve & Encrypt"
-              *ngIf="row.status === 'DRAFT'"
-              (click)="approvePaper(row)"
-              [disabled]="approvingId === row.paperId"
-              aria-label="Approve and encrypt paper"
-            >
-              <mat-spinner
-                diameter="20"
-                *ngIf="approvingId === row.paperId"
-              ></mat-spinner>
-              <mat-icon *ngIf="approvingId !== row.paperId">verified</mat-icon>
-            </button>
+      <!-- Actions template ─────────────────────────────────────── -->
+      <ng-template #actionsTmpl let-row>
+        <!-- Approve: only DRAFT papers -->
+        <button
+          mat-icon-button
+          color="primary"
+          matTooltip="Approve & Encrypt"
+          *ngIf="row.status === 'DRAFT'"
+          (click)="approvePaper(row)"
+          [disabled]="approvingId === row.paperId"
+          aria-label="Approve and encrypt paper"
+        >
+          <mat-spinner
+            diameter="20"
+            *ngIf="approvingId === row.paperId"
+          ></mat-spinner>
+          <mat-icon *ngIf="approvingId !== row.paperId">verified</mat-icon>
+        </button>
 
-            <!-- Already approved / encrypted: show lock icon, no action -->
-            <mat-icon
-              *ngIf="row.status === 'APPROVED'"
-              class="status-icon approved"
-              matTooltip="Approved — awaiting encryption"
-            >check_circle_outline</mat-icon>
+        <!-- Already approved / encrypted: show lock icon, no action -->
+        <mat-icon
+          *ngIf="row.status === 'APPROVED'"
+          class="status-icon approved"
+          matTooltip="Approved — awaiting encryption"
+        >check_circle_outline</mat-icon>
 
-            <mat-icon
-              *ngIf="row.status === 'ENCRYPTED'"
-              class="status-icon encrypted"
-              matTooltip="Encrypted and sealed"
-            >lock</mat-icon>
-          </ng-template>
-
-        </mat-card-content>
-      </mat-card>
+        <mat-icon
+          *ngIf="row.status === 'ENCRYPTED'"
+          class="status-icon encrypted"
+          matTooltip="Encrypted and sealed"
+        >lock</mat-icon>
+      </ng-template>
 
       <!-- ── Last generation result banner ────────────────────────────── -->
       <div class="result-banner" *ngIf="lastResult" [class.result-banner--success]="lastResult.status !== 'ERROR'">
@@ -182,28 +130,6 @@ import { PageHeaderComponent } from '../../shared/components/page-header/page-he
     </div>
   `,
   styles: [`
-    /* ── Filter bar ─────────────────────────────────────────────────── */
-    .filter-card {
-      margin: 0;
-    }
-
-    .filter-row {
-      display: flex;
-      gap: 12px;
-      align-items: center;
-      flex-wrap: nowrap;
-    }
-
-    .filter-field {
-      flex: 1;
-      min-width: 0;
-      margin-bottom: -1.25em;
-    }
-
-    .filter-status {
-      flex: 0 0 160px;
-    }
-
     /* ── Table card ─────────────────────────────────────────────────── */
     .table-card {
       margin: 0;
@@ -231,6 +157,7 @@ import { PageHeaderComponent } from '../../shared/components/page-header/page-he
       background: #ffebee;
       border-left: 4px solid #e53935;
       color: #b71c1c;
+      margin-top: 16px;
     }
 
     .result-banner--success {
@@ -283,11 +210,32 @@ export class PaperListComponent implements OnInit {
 
   @ViewChild('paperTable') paperTable?: PaginatedTableComponent<PaperSummary>;
 
-  filterExamId = '';
-  filterStatus = '';
   activeFilters: Record<string, any> = {};
   approvingId: string | null = null;
   lastResult: (PaperGenerationResponse & { status: string }) | null = null;
+
+  filterCategories: FilterCategory[] = [
+    {
+      key: 'status',
+      label: 'Status',
+      expanded: true,
+      options: [
+        { label: 'Draft', value: 'DRAFT' },
+        { label: 'Approved', value: 'APPROVED' },
+        { label: 'Encrypted', value: 'ENCRYPTED' }
+      ]
+    },
+    {
+      key: 'createdAt',
+      label: 'Created Date',
+      expanded: false,
+      options: [
+        { label: 'Today', value: 'TODAY' },
+        { label: 'Last 7 Days', value: 'LAST_7_DAYS' },
+        { label: 'Last 30 Days', value: 'LAST_30_DAYS' }
+      ]
+    }
+  ];
 
   columns: ColumnDef<PaperSummary>[] = [
     {
@@ -314,11 +262,15 @@ export class PaperListComponent implements OnInit {
   ];
 
   fetcher: PaginatedDataFetcher<PaperSummary> = (req) => {
+    const statusVal = Array.isArray(this.activeFilters['status'])
+      ? this.activeFilters['status'][0]
+      : this.activeFilters['status'];
+
     return this.paperService.getPapers(
       req.page,
       req.size,
       this.activeFilters['examId'],
-      this.activeFilters['status']
+      statusVal
     );
   };
 
@@ -330,19 +282,8 @@ export class PaperListComponent implements OnInit {
 
   ngOnInit(): void {}
 
-  // ── Filters ──────────────────────────────────────────────────────────────
-
-  applyFilter(): void {
-    const filters: Record<string, any> = {};
-    if (this.filterExamId.trim()) filters['examId'] = this.filterExamId.trim();
-    if (this.filterStatus) filters['status'] = this.filterStatus;
-    this.activeFilters = filters;
-  }
-
-  clearFilters(): void {
-    this.filterExamId = '';
-    this.filterStatus = '';
-    this.activeFilters = {};
+  onFilterChange(filters: Record<string, any>): void {
+    this.activeFilters = { ...filters };
   }
 
   // ── Generate ─────────────────────────────────────────────────────────────
@@ -353,7 +294,7 @@ export class PaperListComponent implements OnInit {
       maxWidth: '95vw',
       disableClose: false,
       data: {
-        examId: this.filterExamId || undefined
+        examId: this.activeFilters['examId'] || undefined
       } as PaperGenerateDialogData
     });
 
@@ -429,3 +370,4 @@ export class PaperListComponent implements OnInit {
       });
   }
 }
+

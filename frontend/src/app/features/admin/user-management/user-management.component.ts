@@ -16,7 +16,8 @@ import { PageHeaderComponent } from '../../../shared/components/page-header/page
 import {
   PaginatedTableComponent,
   ColumnDef,
-  PaginatedDataFetcher
+  PaginatedDataFetcher,
+  FilterCategory
 } from '../../../shared/components/paginated-table';
 
 @Component({
@@ -52,6 +53,8 @@ import {
         title="Users List"
         [fetcher]="fetcher"
         [columns]="columns"
+        [filterCategories]="filterCategories"
+        (filterChange)="onFilterChange($event)"
         [actionsTemplate]="actionsTmpl"
         searchPlaceholder="Filter by username, status, or role..."
       ></app-paginated-table>
@@ -110,6 +113,40 @@ export class UserManagementComponent {
   @ViewChild('rolesTmpl', { static: true }) rolesTmpl!: any;
 
   columns: ColumnDef<UserAccountResponse>[] = [];
+  filters: Record<string, any> = {};
+
+  filterCategories: FilterCategory[] = [
+    {
+      key: 'accountStatus',
+      label: 'Status',
+      expanded: true,
+      options: [
+        { label: 'Active', value: 'ACTIVE' },
+        { label: 'Deactivated', value: 'DEACTIVATED' }
+      ]
+    },
+    {
+      key: 'roles',
+      label: 'Role',
+      expanded: false,
+      options: [
+        { label: 'Admin', value: 'ADMIN' },
+        { label: 'Candidate', value: 'CANDIDATE' },
+        { label: 'Author', value: 'AUTHOR' },
+        { label: 'Reviewer', value: 'REVIEWER' },
+        { label: 'Proctor', value: 'PROCTOR' }
+      ]
+    },
+    {
+      key: 'mfaEnabled',
+      label: 'MFA Status',
+      expanded: false,
+      options: [
+        { label: 'Enabled', value: true },
+        { label: 'Disabled', value: false }
+      ]
+    }
+  ];
 
   fetcher: PaginatedDataFetcher<UserAccountResponse> = (req) => {
     return this.adminService.getUsers().pipe(
@@ -122,6 +159,20 @@ export class UserManagementComponent {
             u.accountStatus.toLowerCase().includes(query) ||
             (u.roles && u.roles.some(r => r.toLowerCase().includes(query)))
           );
+        }
+        if (req.filters) {
+          if (req.filters['accountStatus']) {
+            const statusVals = Array.isArray(req.filters['accountStatus']) ? req.filters['accountStatus'] : [req.filters['accountStatus']];
+            filtered = filtered.filter(u => statusVals.includes(u.accountStatus));
+          }
+          if (req.filters['roles']) {
+            const roleVals = Array.isArray(req.filters['roles']) ? req.filters['roles'] : [req.filters['roles']];
+            filtered = filtered.filter(u => u.roles && u.roles.some(r => roleVals.includes(r)));
+          }
+          if (req.filters['mfaEnabled'] !== undefined) {
+            const mfaVal = req.filters['mfaEnabled'];
+            filtered = filtered.filter(u => u.mfaEnabled === mfaVal);
+          }
         }
         const start = req.page * req.size;
         const paged = filtered.slice(start, start + req.size);
@@ -157,6 +208,10 @@ export class UserManagementComponent {
       { key: 'createdAt', header: 'Created', type: 'date', sortable: true },
       { key: 'actions', header: 'Actions', type: 'actions' }
     ];
+  }
+
+  onFilterChange(filters: Record<string, any>): void {
+    this.filters = { ...filters };
   }
 
   reload(): void {

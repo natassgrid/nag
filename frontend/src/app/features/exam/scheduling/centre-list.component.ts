@@ -45,26 +45,22 @@ import { PageHeaderComponent } from '../../../shared/components/page-header/page
         </button>
       </app-page-header>
 
-      <mat-card>
-        <mat-card-content>
-          <app-paginated-table
-            #centreTable
-            [fetcher]="fetcher"
-            [columns]="columns"
-            [actionsTemplate]="actionsTmpl"
-            title="Centres"
-            searchPlaceholder="Search by name, city, or state..."
-          ></app-paginated-table>
+      <app-paginated-table
+        #centreTable
+        [fetcher]="fetcher"
+        [columns]="columns"
+        [actionsTemplate]="actionsTmpl"
+        title="Centres List"
+        searchPlaceholder="Search by name, city, or state..."
+      ></app-paginated-table>
 
-          <ng-template #actionsTmpl let-row>
-            <button mat-icon-button color="warn" matTooltip="Deactivate"
-                    *ngIf="row.active" (click)="deactivate(row)"
-                    aria-label="Deactivate centre">
-              <mat-icon>block</mat-icon>
-            </button>
-          </ng-template>
-        </mat-card-content>
-      </mat-card>
+      <ng-template #actionsTmpl let-row>
+        <button mat-icon-button color="warn" matTooltip="Deactivate"
+                *ngIf="row.active" (click)="deactivate(row)"
+                aria-label="Deactivate centre">
+          <mat-icon>block</mat-icon>
+        </button>
+      </ng-template>
     </div>
   `,
   styles: [`

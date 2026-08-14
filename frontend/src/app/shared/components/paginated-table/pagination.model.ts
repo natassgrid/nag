@@ -48,3 +48,19 @@ export interface ColumnDef<T> {
   /** Custom template reference for 'custom' column types */
   template?: TemplateRef<any>;
 }
+
+export interface FilterOption {
+  label: string;
+  value: any;
+  checked?: boolean;
+}
+
+export interface FilterCategory {
+  key: string;
+  label: string;
+  expanded?: boolean;
+  type?: 'checkbox' | 'select' | 'text' | 'date-range';
+  options?: FilterOption[];
+  selectedValue?: any;
+}
+

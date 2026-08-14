@@ -45,40 +45,36 @@ import { PageHeaderComponent } from '../../../shared/components/page-header/page
         </button>
       </app-page-header>
 
-      <mat-card>
-        <mat-card-content>
-          <app-paginated-table
-            #paginatedTable
-            [fetcher]="fetcher"
-            [columns]="columns"
-            [actionsTemplate]="actionsTmpl"
-            searchPlaceholder="Search exams by name, status, or policy..."
-          ></app-paginated-table>
+      <app-paginated-table
+        #paginatedTable
+        [fetcher]="fetcher"
+        [columns]="columns"
+        [actionsTemplate]="actionsTmpl"
+        title="Exams List"
+        searchPlaceholder="Search exams by name, status, or policy..."
+      ></app-paginated-table>
 
-          <!-- Custom Actions Column Template -->
-          <ng-template #actionsTmpl let-row>
-            <button mat-icon-button matTooltip="Edit" (click)="openEditDialog(row)">
-              <mat-icon>edit</mat-icon>
-            </button>
-            <button
-              mat-icon-button
-              matTooltip="Schedule"
-              [routerLink]="['/exam/scheduling', row.id]"
-            >
-              <mat-icon>event</mat-icon>
-            </button>
-            <button
-              mat-icon-button
-              matTooltip="Publish"
-              *ngIf="row.status === 'DRAFT'"
-              (click)="publishExam(row)"
-            >
-              <mat-icon>publish</mat-icon>
-            </button>
-          </ng-template>
-
-        </mat-card-content>
-      </mat-card>
+      <!-- Custom Actions Column Template -->
+      <ng-template #actionsTmpl let-row>
+        <button mat-icon-button matTooltip="Edit" (click)="openEditDialog(row)">
+          <mat-icon>edit</mat-icon>
+        </button>
+        <button
+          mat-icon-button
+          matTooltip="Schedule"
+          [routerLink]="['/exam/scheduling', row.id]"
+        >
+          <mat-icon>event</mat-icon>
+        </button>
+        <button
+          mat-icon-button
+          matTooltip="Publish"
+          *ngIf="row.status === 'DRAFT'"
+          (click)="publishExam(row)"
+        >
+          <mat-icon>publish</mat-icon>
+        </button>
+      </ng-template>
     </div>
   `,
   styles: [`
