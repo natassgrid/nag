@@ -79,6 +79,19 @@ echo "============================================="
 echo "  Exam Platform — Redeploy"
 echo "============================================="
 
+# --- Ensure builder base image exists ---
+ensure_builder_base() {
+    if ! docker image inspect exam/builder-base:latest >/dev/null 2>&1; then
+        echo "▶ Building builder base image (one-time)..."
+        cd "$PROJECT_ROOT"
+        docker build -f backend/Dockerfile.base -t exam/builder-base:latest .
+        cd "$SCRIPT_DIR"
+        echo "✓ Builder base image ready."
+    fi
+}
+
+ensure_builder_base
+
 # --- Single service mode ---
 if [ -n "$SERVICE" ]; then
     echo ""

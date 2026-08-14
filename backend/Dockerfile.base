@@ -1,0 +1,21 @@
+# =============================================================================
+# Base builder image with JDK 21 + Gradle pre-installed
+# Build once: docker build -f backend/Dockerfile.base -t exam/builder-base .
+# Reused by all service Dockerfiles to skip Gradle install (~23s saved per build)
+# =============================================================================
+FROM eclipse-temurin:21-jdk
+
+ARG GRADLE_VERSION=8.10.2
+
+WORKDIR /workspace
+
+# Install Gradle from local zip
+COPY backend/gradle/gradle-${GRADLE_VERSION}-bin.zip /tmp/gradle.zip
+RUN apt-get update && apt-get install -y --no-install-recommends unzip && \
+    unzip -q /tmp/gradle.zip -d /opt && \
+    ln -sf /opt/gradle-${GRADLE_VERSION}/bin/gradle /usr/local/bin/gradle && \
+    rm -f /tmp/gradle.zip && \
+    apt-get remove -y unzip && apt-get autoremove -y && rm -rf /var/lib/apt/lists/*
+
+# Verify
+RUN gradle --version
