@@ -1,106 +1,114 @@
-import { Component, Inject, OnInit } from '@angular/core';
+import { Component, Input, Output, EventEmitter, OnInit, OnChanges, SimpleChanges } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
-import { MAT_DIALOG_DATA, MatDialogModule, MatDialogRef } from '@angular/material/dialog';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { MatSelectModule } from '@angular/material/select';
 import { MatButtonModule } from '@angular/material/button';
 import { MatSlideToggleModule } from '@angular/material/slide-toggle';
 import { GeoLocationService, GeoCountry, GeoState, GeoCity } from './geo-location.service';
-import { CentreResponse } from './scheduling.service';
-
-export interface CentreFormDialogData {
-  centre?: CentreResponse;
-}
+import { CentreResponse, CreateCentreRequest } from './scheduling.service';
+import { RightDrawerComponent } from '../../../shared/components/right-drawer/right-drawer.component';
 
 @Component({
   selector: 'app-centre-form-dialog',
   standalone: true,
   imports: [
-    CommonModule, ReactiveFormsModule, MatDialogModule,
+    CommonModule, ReactiveFormsModule,
     MatFormFieldModule, MatInputModule, MatSelectModule,
-    MatButtonModule, MatSlideToggleModule,
+    MatButtonModule, MatSlideToggleModule, RightDrawerComponent
   ],
   template: `
-    <h2 mat-dialog-title>{{ data.centre ? 'Edit Centre' : 'Create Examination Centre' }}</h2>
-    <mat-dialog-content>
-      <form [formGroup]="form" class="dialog-form">
-        <!-- Cascading geo dropdowns -->
-        <div class="form-row">
-          <mat-form-field appearance="outline">
-            <mat-label>Country</mat-label>
-            <mat-select formControlName="countryId">
-              <mat-option *ngFor="let c of countries" [value]="c.id">{{ c.name }}</mat-option>
-            </mat-select>
-            <mat-hint>Select country first</mat-hint>
-          </mat-form-field>
-          <mat-form-field appearance="outline">
-            <mat-label>State / UT</mat-label>
-            <mat-select formControlName="stateId" [disabled]="!states.length">
-              <mat-option *ngFor="let s of states" [value]="s.id">{{ s.name }}</mat-option>
-            </mat-select>
-          </mat-form-field>
-          <mat-form-field appearance="outline">
-            <mat-label>City</mat-label>
-            <mat-select formControlName="cityId" [disabled]="!cities.length">
-              <mat-option *ngFor="let c of cities" [value]="c.id">{{ c.name }}</mat-option>
-            </mat-select>
-          </mat-form-field>
-        </div>
+    <app-right-drawer
+      [isOpen]="isOpen"
+      [title]="centre ? 'Edit Centre' : 'Create Examination Centre'"
+      [subtitle]="centre ? 'Update venue location, capacity, and lab details.' : 'Register a new venue location and laboratory capacity.'"
+      width="480px"
+      (close)="cancel()"
+    >
+      <div drawer-body>
+        <form [formGroup]="form" class="dialog-form">
+          <!-- Cascading geo dropdowns -->
+          <div class="form-row">
+            <mat-form-field appearance="outline">
+              <mat-label>Country</mat-label>
+              <mat-select formControlName="countryId">
+                <mat-option *ngFor="let c of countries" [value]="c.id">{{ c.name }}</mat-option>
+              </mat-select>
+              <mat-hint>Select country first</mat-hint>
+            </mat-form-field>
+            <mat-form-field appearance="outline">
+              <mat-label>State / UT</mat-label>
+              <mat-select formControlName="stateId" [disabled]="!states.length">
+                <mat-option *ngFor="let s of states" [value]="s.id">{{ s.name }}</mat-option>
+              </mat-select>
+            </mat-form-field>
+            <mat-form-field appearance="outline">
+              <mat-label>City</mat-label>
+              <mat-select formControlName="cityId" [disabled]="!cities.length">
+                <mat-option *ngFor="let c of cities" [value]="c.id">{{ c.name }}</mat-option>
+              </mat-select>
+            </mat-form-field>
+          </div>
 
-        <mat-form-field appearance="outline" class="full-width">
-          <mat-label>District</mat-label>
-          <input matInput formControlName="district" placeholder="Optional district name" />
-        </mat-form-field>
-
-        <mat-form-field appearance="outline" class="full-width">
-          <mat-label>Centre Name</mat-label>
-          <input matInput formControlName="centreName" placeholder="e.g. NDMC Centre 1" />
-          <mat-error *ngIf="form.get('centreName')?.hasError('required')">Required</mat-error>
-        </mat-form-field>
-
-        <div class="form-row">
-          <mat-form-field appearance="outline">
-            <mat-label>Building</mat-label>
-            <input matInput formControlName="building" placeholder="Block / Building name" />
+          <mat-form-field appearance="outline" class="full-width">
+            <mat-label>District</mat-label>
+            <input matInput formControlName="district" placeholder="Optional district name" />
           </mat-form-field>
-          <mat-form-field appearance="outline">
-            <mat-label>Floor</mat-label>
-            <input matInput formControlName="floor" placeholder="e.g. Ground, 1st" />
-          </mat-form-field>
-        </div>
 
-        <div class="form-row">
-          <mat-form-field appearance="outline">
-            <mat-label>Laboratory ID</mat-label>
-            <input matInput formControlName="laboratoryIdentifier" placeholder="e.g. LAB-A" />
+          <mat-form-field appearance="outline" class="full-width">
+            <mat-label>Centre Name</mat-label>
+            <input matInput formControlName="centreName" placeholder="e.g. NDMC Centre 1" />
+            <mat-error *ngIf="form.get('centreName')?.hasError('required')">Required</mat-error>
           </mat-form-field>
-          <mat-form-field appearance="outline">
-            <mat-label>Total Capacity</mat-label>
-            <input matInput type="number" formControlName="totalCapacity" min="0" />
-          </mat-form-field>
-        </div>
 
-        <mat-slide-toggle formControlName="active" class="toggle-field">Active</mat-slide-toggle>
-      </form>
-    </mat-dialog-content>
-    <mat-dialog-actions align="end">
-      <button mat-button mat-dialog-close>Cancel</button>
-      <button mat-raised-button color="primary" [disabled]="form.invalid" (click)="save()">
-        {{ data.centre ? 'Update' : 'Create' }}
-      </button>
-    </mat-dialog-actions>
+          <div class="form-row">
+            <mat-form-field appearance="outline">
+              <mat-label>Building</mat-label>
+              <input matInput formControlName="building" placeholder="Block / Building name" />
+            </mat-form-field>
+            <mat-form-field appearance="outline">
+              <mat-label>Floor</mat-label>
+              <input matInput formControlName="floor" placeholder="e.g. Ground, 1st" />
+            </mat-form-field>
+          </div>
+
+          <div class="form-row">
+            <mat-form-field appearance="outline">
+              <mat-label>Laboratory ID</mat-label>
+              <input matInput formControlName="laboratoryIdentifier" placeholder="e.g. LAB-A" />
+            </mat-form-field>
+            <mat-form-field appearance="outline">
+              <mat-label>Total Capacity</mat-label>
+              <input matInput type="number" formControlName="totalCapacity" min="0" />
+            </mat-form-field>
+          </div>
+
+          <mat-slide-toggle formControlName="active" class="toggle-field">Active</mat-slide-toggle>
+        </form>
+      </div>
+
+      <div drawer-footer>
+        <button mat-button (click)="cancel()">Cancel</button>
+        <button mat-raised-button color="primary" [disabled]="form.invalid" (click)="save()">
+          {{ centre ? 'Update' : 'Create' }}
+        </button>
+      </div>
+    </app-right-drawer>
   `,
   styles: [`
-    .dialog-form { display: flex; flex-direction: column; gap: 12px; min-width: 520px; padding-top: 8px; }
+    .dialog-form { display: flex; flex-direction: column; gap: 12px; }
     .full-width { width: 100%; }
     .form-row { display: flex; gap: 16px; }
     .form-row mat-form-field { flex: 1; }
     .toggle-field { margin: 8px 0; }
   `]
 })
-export class CentreFormDialogComponent implements OnInit {
+export class CentreFormDialogComponent implements OnInit, OnChanges {
+  @Input() isOpen = false;
+  @Input() centre?: CentreResponse;
+  @Output() close = new EventEmitter<CreateCentreRequest | null>();
+
   form!: FormGroup;
   countries: GeoCountry[] = [];
   states: GeoState[] = [];
@@ -108,13 +116,24 @@ export class CentreFormDialogComponent implements OnInit {
 
   constructor(
     private fb: FormBuilder,
-    private dialogRef: MatDialogRef<CentreFormDialogComponent>,
-    private geoService: GeoLocationService,
-    @Inject(MAT_DIALOG_DATA) public data: CentreFormDialogData
-  ) {}
+    private geoService: GeoLocationService
+  ) {
+    this.initForm();
+  }
 
   ngOnInit(): void {
-    const c = this.data.centre;
+    this.loadCountries();
+  }
+
+  ngOnChanges(changes: SimpleChanges): void {
+    if (changes['isOpen'] && this.isOpen) {
+      this.initForm();
+      this.loadCountries();
+    }
+  }
+
+  initForm(): void {
+    const c = this.centre;
     this.form = this.fb.group({
       countryId: [c?.countryId || null],
       stateId: [c?.stateId || null],
@@ -129,11 +148,12 @@ export class CentreFormDialogComponent implements OnInit {
       totalCapacity: [c?.totalCapacity || 0, Validators.min(0)],
       active: [c?.active !== false],
     });
+  }
 
-    // Load countries
+  loadCountries(): void {
+    const c = this.centre;
     this.geoService.getCountries().subscribe(list => {
       this.countries = list;
-      // If editing, cascade pre-selections
       if (c?.countryId) {
         this.geoService.getStates(c.countryId).subscribe(s => {
           this.states = s;
@@ -144,7 +164,6 @@ export class CentreFormDialogComponent implements OnInit {
       }
     });
 
-    // Cascade: country → states
     this.form.get('countryId')!.valueChanges.subscribe(countryId => {
       this.states = [];
       this.cities = [];
@@ -154,7 +173,6 @@ export class CentreFormDialogComponent implements OnInit {
       }
     });
 
-    // Cascade: state → cities + set state name
     this.form.get('stateId')!.valueChanges.subscribe(stateId => {
       this.cities = [];
       this.form.patchValue({ cityId: null, city: '' }, { emitEvent: false });
@@ -165,7 +183,6 @@ export class CentreFormDialogComponent implements OnInit {
       }
     });
 
-    // Cascade: city → set city name
     this.form.get('cityId')!.valueChanges.subscribe(cityId => {
       if (cityId) {
         const sel = this.cities.find(c => c.id === cityId);
@@ -174,10 +191,14 @@ export class CentreFormDialogComponent implements OnInit {
     });
   }
 
+  cancel(): void {
+    this.close.emit(null);
+  }
+
   save(): void {
     if (this.form.invalid) return;
     const v = this.form.value;
-    this.dialogRef.close({
+    this.close.emit({
       countryId: v.countryId || undefined,
       stateId: v.stateId || undefined,
       cityId: v.cityId || undefined,

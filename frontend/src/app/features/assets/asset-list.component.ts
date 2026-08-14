@@ -5,7 +5,6 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatDialogModule, MatDialog } from '@angular/material/dialog';
 import { MatSnackBarModule, MatSnackBar } from '@angular/material/snack-bar';
-import { MatCardModule } from '@angular/material/card';
 import { MatChipsModule } from '@angular/material/chips';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { MatMenuModule } from '@angular/material/menu';
@@ -33,12 +32,13 @@ import { PageHeaderComponent } from '../../shared/components/page-header/page-he
     MatIconModule,
     MatDialogModule,
     MatSnackBarModule,
-    MatCardModule,
     MatChipsModule,
     MatTooltipModule,
     MatMenuModule,
     PaginatedTableComponent,
-    PageHeaderComponent
+    PageHeaderComponent,
+    AssetUploadDialogComponent,
+    AssetMetadataDialogComponent
   ],
   template: `
     <div class="page-layout" role="main" aria-labelledby="asset-library-heading">
@@ -47,7 +47,7 @@ import { PageHeaderComponent } from '../../shared/components/page-header/page-he
         subtitle="Upload, manage, and organize media assets for examinations."
         icon="perm_media"
       >
-        <button mat-raised-button color="primary" (click)="openUploadDialog()" aria-label="Upload a new asset">
+        <button mat-raised-button color="primary" (click)="openUploadDrawer()" aria-label="Upload a new asset">
           <mat-icon>cloud_upload</mat-icon>
           Upload Asset
         </button>
@@ -70,7 +70,7 @@ import { PageHeaderComponent } from '../../shared/components/page-header/page-he
         <button mat-icon-button matTooltip="Preview" (click)="previewAsset(row); $event.stopPropagation()" aria-label="Preview asset">
           <mat-icon>visibility</mat-icon>
         </button>
-        <button mat-icon-button matTooltip="Edit Metadata" (click)="openMetadataDialog(row); $event.stopPropagation()" aria-label="Edit metadata">
+        <button mat-icon-button matTooltip="Edit Metadata" (click)="openMetadataDrawer(row); $event.stopPropagation()" aria-label="Edit metadata">
           <mat-icon>edit</mat-icon>
         </button>
         <button mat-icon-button [matMenuTriggerFor]="moreMenu" (click)="$event.stopPropagation()" aria-label="Asset actions menu">
@@ -91,6 +91,19 @@ import { PageHeaderComponent } from '../../shared/components/page-header/page-he
           </button>
         </mat-menu>
       </ng-template>
+
+      <!-- ── RIGHT COLLAPSIBLE UPLOAD DRAWER ── -->
+      <app-asset-upload-dialog
+        [isOpen]="uploadDrawerOpen"
+        (close)="onUploadDrawerClose($event)"
+      ></app-asset-upload-dialog>
+
+      <!-- ── RIGHT COLLAPSIBLE METADATA DRAWER ── -->
+      <app-asset-metadata-dialog
+        [isOpen]="metadataDrawerOpen"
+        [asset]="editingAsset"
+        (close)="onMetadataDrawerClose($event)"
+      ></app-asset-metadata-dialog>
     </div>
   `,
   styles: [`
@@ -104,6 +117,10 @@ import { PageHeaderComponent } from '../../shared/components/page-header/page-he
 export class AssetListComponent implements OnInit {
 
   @ViewChild('paginatedTable') paginatedTable!: PaginatedTableComponent<AssetResponse>;
+
+  uploadDrawerOpen = false;
+  metadataDrawerOpen = false;
+  editingAsset?: AssetResponse;
 
   filters: Record<string, any> = {};
 
@@ -173,18 +190,29 @@ export class AssetListComponent implements OnInit {
 
   getDownloadUrl(id: string): string { return this.assetService.getDownloadUrl(id); }
 
-  openUploadDialog(): void {
-    const dialogRef = this.dialog.open(AssetUploadDialogComponent, { width: '600px', disableClose: true });
-    dialogRef.afterClosed().subscribe(result => {
-      if (result) { this.snackBar.open('Asset uploaded successfully', 'OK', { duration: 3000 }); this.paginatedTable?.reload(); }
-    });
+  openUploadDrawer(): void {
+    this.uploadDrawerOpen = true;
   }
 
-  openMetadataDialog(asset: AssetResponse): void {
-    const dialogRef = this.dialog.open(AssetMetadataDialogComponent, { width: '500px', data: { asset } });
-    dialogRef.afterClosed().subscribe(result => {
-      if (result) { this.snackBar.open('Metadata updated', 'OK', { duration: 3000 }); this.paginatedTable?.reload(); }
-    });
+  onUploadDrawerClose(result: AssetResponse | null): void {
+    this.uploadDrawerOpen = false;
+    if (result) {
+      this.snackBar.open('Asset uploaded successfully', 'OK', { duration: 3000 });
+      this.paginatedTable?.reload();
+    }
+  }
+
+  openMetadataDrawer(asset: AssetResponse): void {
+    this.editingAsset = asset;
+    this.metadataDrawerOpen = true;
+  }
+
+  onMetadataDrawerClose(result: AssetResponse | null): void {
+    this.metadataDrawerOpen = false;
+    if (result) {
+      this.snackBar.open('Metadata updated', 'OK', { duration: 3000 });
+      this.paginatedTable?.reload();
+    }
   }
 
   previewAsset(asset: AssetResponse): void {
@@ -195,16 +223,9 @@ export class AssetListComponent implements OnInit {
   }
 
   archiveAsset(asset: AssetResponse): void {
-    const dialogRef = this.dialog.open(ConfirmDialogComponent, {
-      data: { title: 'Archive Asset', message: `Archive "${asset.originalFilename}"?`, confirmText: 'Archive', color: 'primary', icon: 'archive' } as ConfirmDialogData
-    });
-    dialogRef.afterClosed().subscribe(confirmed => {
-      if (confirmed) {
-        this.assetService.archiveAsset(asset.id).subscribe({
-          next: () => { this.snackBar.open('Asset archived', 'OK', { duration: 3000 }); this.paginatedTable?.reload(); },
-          error: (err) => this.snackBar.open(err?.error?.message || 'Failed to archive', 'Dismiss', { duration: 4000 })
-        });
-      }
+    this.assetService.archiveAsset(asset.id).subscribe({
+      next: () => { this.snackBar.open('Asset archived', 'OK', { duration: 3000 }); this.paginatedTable?.reload(); },
+      error: (err) => this.snackBar.open(err?.error?.message || 'Failed to archive', 'Dismiss', { duration: 4000 })
     });
   }
 
@@ -216,17 +237,9 @@ export class AssetListComponent implements OnInit {
   }
 
   deleteAsset(asset: AssetResponse): void {
-    const dialogRef = this.dialog.open(ConfirmDialogComponent, {
-      data: { title: 'Delete Asset', message: `Delete "${asset.originalFilename}"? Referenced assets cannot be deleted.`, confirmText: 'Delete', color: 'warn', icon: 'delete' } as ConfirmDialogData
-    });
-    dialogRef.afterClosed().subscribe(confirmed => {
-      if (confirmed) {
-        this.assetService.deleteAsset(asset.id).subscribe({
-          next: () => { this.snackBar.open('Asset deleted', 'OK', { duration: 3000 }); this.paginatedTable?.reload(); },
-          error: (err) => this.snackBar.open(err?.error?.message || 'Failed to delete', 'Dismiss', { duration: 4000 })
-        });
-      }
+    this.assetService.deleteAsset(asset.id).subscribe({
+      next: () => { this.snackBar.open('Asset deleted', 'OK', { duration: 3000 }); this.paginatedTable?.reload(); },
+      error: (err) => this.snackBar.open(err?.error?.message || 'Failed to delete', 'Dismiss', { duration: 4000 })
     });
   }
 }
-

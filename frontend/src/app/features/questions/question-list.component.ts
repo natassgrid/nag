@@ -3,13 +3,11 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
-import { MatDialogModule, MatDialog } from '@angular/material/dialog';
 import { MatSnackBarModule, MatSnackBar } from '@angular/material/snack-bar';
-import { MatCardModule } from '@angular/material/card';
 import { MatChipsModule } from '@angular/material/chips';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { QuestionService, QuestionResponse } from './question.service';
-import { QuestionFormDialogComponent, QuestionFormDialogData } from './question-form-dialog.component';
+import { QuestionFormDialogComponent } from './question-form-dialog.component';
 import { SubjectTopicService, Subject } from './subject-topic.service';
 import {
   PaginatedTableComponent,
@@ -27,13 +25,12 @@ import { PageHeaderComponent } from '../../shared/components/page-header/page-he
     FormsModule,
     MatButtonModule,
     MatIconModule,
-    MatDialogModule,
     MatSnackBarModule,
-    MatCardModule,
     MatChipsModule,
     MatTooltipModule,
     PaginatedTableComponent,
-    PageHeaderComponent
+    PageHeaderComponent,
+    QuestionFormDialogComponent
   ],
   template: `
     <div class="page-layout">
@@ -42,7 +39,7 @@ import { PageHeaderComponent } from '../../shared/components/page-header/page-he
         subtitle="Create, review, and manage examination questions."
         icon="quiz"
       >
-        <button mat-raised-button color="primary" (click)="openCreateDialog()">
+        <button mat-raised-button color="primary" (click)="openCreateDrawer()">
           <mat-icon>add</mat-icon>
           Create Question
         </button>
@@ -63,7 +60,7 @@ import { PageHeaderComponent } from '../../shared/components/page-header/page-he
 
       <!-- Custom Actions Column Template -->
       <ng-template #actionsTmpl let-row>
-        <button mat-icon-button matTooltip="Edit" (click)="openEditDialog(row)">
+        <button mat-icon-button matTooltip="Edit" (click)="openEditDrawer(row)">
           <mat-icon>edit</mat-icon>
         </button>
         <button
@@ -75,6 +72,13 @@ import { PageHeaderComponent } from '../../shared/components/page-header/page-he
           <mat-icon>send</mat-icon>
         </button>
       </ng-template>
+
+      <!-- ── RIGHT COLLAPSIBLE DRAWER FORM ── -->
+      <app-question-form-dialog
+        [isOpen]="drawerOpen"
+        [question]="editingQuestion"
+        (close)="onDrawerClose($event)"
+      ></app-question-form-dialog>
     </div>
   `,
   styles: [`
@@ -91,6 +95,9 @@ import { PageHeaderComponent } from '../../shared/components/page-header/page-he
 export class QuestionListComponent implements OnInit {
 
   @ViewChild('paginatedTable') paginatedTable!: PaginatedTableComponent<QuestionResponse>;
+
+  drawerOpen = false;
+  editingQuestion?: QuestionResponse;
 
   filters: Record<string, any> = {};
 
@@ -186,7 +193,6 @@ export class QuestionListComponent implements OnInit {
 
   constructor(
     private questionService: QuestionService,
-    private dialog: MatDialog,
     private snackBar: MatSnackBar,
     private subjectTopicService: SubjectTopicService
   ) {}
@@ -213,32 +219,23 @@ export class QuestionListComponent implements OnInit {
     this.paginatedTable?.reload();
   }
 
-  openCreateDialog(): void {
-    const dialogRef = this.dialog.open(QuestionFormDialogComponent, {
-      width: '600px',
-      data: {} as QuestionFormDialogData
-    });
-
-    dialogRef.afterClosed().subscribe((result: QuestionResponse | undefined) => {
-      if (result) {
-        this.snackBar.open('Question created successfully', 'Close', { duration: 3000 });
-        this.reload();
-      }
-    });
+  openCreateDrawer(): void {
+    this.editingQuestion = undefined;
+    this.drawerOpen = true;
   }
 
-  openEditDialog(question: QuestionResponse): void {
-    const dialogRef = this.dialog.open(QuestionFormDialogComponent, {
-      width: '600px',
-      data: { question } as QuestionFormDialogData
-    });
+  openEditDrawer(question: QuestionResponse): void {
+    this.editingQuestion = question;
+    this.drawerOpen = true;
+  }
 
-    dialogRef.afterClosed().subscribe((result: QuestionResponse | undefined) => {
-      if (result) {
-        this.snackBar.open('Question updated successfully', 'Close', { duration: 3000 });
-        this.reload();
-      }
-    });
+  onDrawerClose(result: QuestionResponse | null): void {
+    this.drawerOpen = false;
+    if (result) {
+      const msg = this.editingQuestion ? 'Question updated successfully' : 'Question created successfully';
+      this.snackBar.open(msg, 'Close', { duration: 3000 });
+      this.reload();
+    }
   }
 
   submitForReview(question: QuestionResponse): void {
@@ -254,4 +251,3 @@ export class QuestionListComponent implements OnInit {
     });
   }
 }
-

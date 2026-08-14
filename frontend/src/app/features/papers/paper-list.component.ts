@@ -3,13 +3,10 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
-import { MatCardModule } from '@angular/material/card';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
-import { MatDialog, MatDialogModule } from '@angular/material/dialog';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { MatChipsModule } from '@angular/material/chips';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
-import { MatBadgeModule } from '@angular/material/badge';
 import { of, catchError } from 'rxjs';
 import {
   PaperService,
@@ -17,10 +14,7 @@ import {
   PaperSummary,
   PaperGenerationResponse
 } from './paper.service';
-import {
-  PaperGenerateDialogComponent,
-  PaperGenerateDialogData
-} from './paper-generate-dialog.component';
+import { PaperGenerateDialogComponent } from './paper-generate-dialog.component';
 import {
   PaginatedTableComponent,
   PaginatedDataFetcher,
@@ -37,15 +31,13 @@ import { PageHeaderComponent } from '../../shared/components/page-header/page-he
     FormsModule,
     MatButtonModule,
     MatIconModule,
-    MatCardModule,
     MatSnackBarModule,
-    MatDialogModule,
     MatTooltipModule,
     MatChipsModule,
     MatProgressSpinnerModule,
-    MatBadgeModule,
     PaginatedTableComponent,
     PageHeaderComponent,
+    PaperGenerateDialogComponent
   ],
   template: `
     <div class="page-layout">
@@ -59,7 +51,7 @@ import { PageHeaderComponent } from '../../shared/components/page-header/page-he
         <button
           mat-raised-button
           color="primary"
-          (click)="openGenerateDialog()"
+          (click)="openGenerateDrawer()"
         >
           <mat-icon>auto_awesome</mat-icon>
           Generate Paper
@@ -127,14 +119,16 @@ import { PageHeaderComponent } from '../../shared/components/page-header/page-he
         </button>
       </div>
 
+      <!-- ── RIGHT COLLAPSIBLE GENERATE PAPER DRAWER ── -->
+      <app-paper-generate-dialog
+        [isOpen]="generateDrawerOpen"
+        [examId]="activeFilters['examId'] || undefined"
+        (close)="onGenerateDrawerClose($event)"
+      ></app-paper-generate-dialog>
+
     </div>
   `,
   styles: [`
-    /* ── Table card ─────────────────────────────────────────────────── */
-    .table-card {
-      margin: 0;
-    }
-
     /* ── Status icons ───────────────────────────────────────────────── */
     .status-icon {
       font-size: 20px;
@@ -210,6 +204,7 @@ export class PaperListComponent implements OnInit {
 
   @ViewChild('paperTable') paperTable?: PaginatedTableComponent<PaperSummary>;
 
+  generateDrawerOpen = false;
   activeFilters: Record<string, any> = {};
   approvingId: string | null = null;
   lastResult: (PaperGenerationResponse & { status: string }) | null = null;
@@ -276,7 +271,6 @@ export class PaperListComponent implements OnInit {
 
   constructor(
     private paperService: PaperService,
-    private dialog: MatDialog,
     private snackBar: MatSnackBar
   ) {}
 
@@ -288,58 +282,52 @@ export class PaperListComponent implements OnInit {
 
   // ── Generate ─────────────────────────────────────────────────────────────
 
-  openGenerateDialog(): void {
-    const dialogRef = this.dialog.open(PaperGenerateDialogComponent, {
-      width: '780px',
-      maxWidth: '95vw',
-      disableClose: false,
-      data: {
-        examId: this.activeFilters['examId'] || undefined
-      } as PaperGenerateDialogData
-    });
+  openGenerateDrawer(): void {
+    this.generateDrawerOpen = true;
+  }
 
-    dialogRef.afterClosed().subscribe((request: PaperGenerationRequest | undefined) => {
-      if (!request) return;
+  onGenerateDrawerClose(request: PaperGenerationRequest | null): void {
+    this.generateDrawerOpen = false;
+    if (!request) return;
 
-      this.paperService
-        .generatePaper(request)
-        .pipe(
-          catchError((err) => {
-            const detail =
-              err?.error?.detail ?? err?.error?.message ?? err?.message ?? 'Unknown error';
-            const gapDetails: any[] = err?.error?.gapDetails ?? [];
-            const gapMsg = gapDetails.length
-              ? ' Gaps: ' +
-                gapDetails
-                  .map(
-                    (g: any) =>
-                      `${g.subject}/${g.topic}/${g.difficulty} (need ${g.needed}, have ${g.available})`
-                  )
-                  .join('; ')
-              : '';
-            this.lastResult = {
-              paperId: '',
-              status: 'ERROR',
-              message: detail + gapMsg
-            };
-            this.snackBar.open('Paper generation failed: ' + detail, 'Dismiss', {
-              duration: 6000,
-              panelClass: 'snack-error'
-            });
-            return of(null);
-          })
-        )
-        .subscribe((res) => {
-          if (!res) return;
-          this.lastResult = { ...res, status: res.status ?? 'DRAFT' };
-          this.snackBar.open(
-            `Paper generated — ID: ${res.paperId.substring(0, 8)}…`,
-            'OK',
-            { duration: 5000 }
-          );
-          this.paperTable?.reload();
-        });
-    });
+    this.paperService
+      .generatePaper(request)
+      .pipe(
+        catchError((err) => {
+          const detail =
+            err?.error?.detail ?? err?.error?.message ?? err?.message ?? 'Unknown error';
+          const gapDetails: any[] = err?.error?.gapDetails ?? [];
+          const gapMsg = gapDetails.length
+            ? ' Gaps: ' +
+              gapDetails
+                .map(
+                  (g: any) =>
+                    `${g.subject}/${g.topic}/${g.difficulty} (need ${g.needed}, have ${g.available})`
+                )
+                .join('; ')
+            : '';
+          this.lastResult = {
+            paperId: '',
+            status: 'ERROR',
+            message: detail + gapMsg
+          };
+          this.snackBar.open('Paper generation failed: ' + detail, 'Dismiss', {
+            duration: 6000,
+            panelClass: 'snack-error'
+          });
+          return of(null);
+        })
+      )
+      .subscribe((res) => {
+        if (!res) return;
+        this.lastResult = { ...res, status: res.status ?? 'DRAFT' };
+        this.snackBar.open(
+          `Paper generated — ID: ${res.paperId.substring(0, 8)}…`,
+          'OK',
+          { duration: 5000 }
+        );
+        this.paperTable?.reload();
+      });
   }
 
   // ── Approve ───────────────────────────────────────────────────────────────
@@ -370,4 +358,3 @@ export class PaperListComponent implements OnInit {
       });
   }
 }
-
