@@ -31,12 +31,12 @@ import { MatButtonModule } from '@angular/material/button';
   styles: [`
     .right-drawer-overlay {
       position: fixed;
-      top: 0;
+      top: 64px;
       left: 0;
       right: 0;
       bottom: 0;
-      background: rgba(0, 0, 0, 0.32);
-      z-index: 1000;
+      background: rgba(0, 0, 0, 0.2);
+      z-index: 999;
       display: flex;
       justify-content: flex-end;
       opacity: 0;
@@ -52,7 +52,7 @@ import { MatButtonModule } from '@angular/material/button';
       max-width: 90vw;
       height: 100%;
       background: #ffffff;
-      box-shadow: -4px 0 24px rgba(0, 0, 0, 0.15);
+      box-shadow: -4px 0 24px rgba(0, 0, 0, 0.12);
       display: flex;
       flex-direction: column;
       transform: translateX(100%);
