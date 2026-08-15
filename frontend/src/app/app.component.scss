@@ -30,6 +30,8 @@
   top: 0;
   z-index: 1000;
   height: $header-height;
+  display: flex;
+  align-items: center;
 }
 
 .app-title {
@@ -43,12 +45,6 @@
   flex: 1;
 }
 
-.user-name {
-  margin-right: 8px;
-  font-size: $fs-small;
-  color: $white-70;
-}
-
 .sidenav-container {
   flex: 1;
 }
@@ -57,6 +53,90 @@ mat-sidenav {
   width: 260px;
   border-right: none;
   box-shadow: 2px 0 8px $shadow-white;
+  overflow-x: hidden;
+}
+
+// Grouped navigation styles
+.nav-group {
+  margin-top: 4px;
+
+  &:first-of-type {
+    margin-top: 8px;
+  }
+}
+
+.nav-group-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  width: 100%;
+  border: none;
+  background: none;
+  cursor: pointer;
+  user-select: none;
+  border-radius: 4px;
+  transition: background-color 0.15s;
+
+  &:hover {
+    background-color: $black-04;
+  }
+
+  &:focus-visible {
+    outline: 2px solid $blue;
+    outline-offset: -2px;
+  }
+}
+
+.nav-group-icon {
+  font-size: 20px;
+  width: 20px;
+  height: 20px;
+  color: $grey;
+}
+
+.nav-group-label {
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  color: $dark-grey;
+}
+
+.nav-group-spacer {
+  flex: 1;
+}
+
+.nav-group-chevron {
+  font-size: 18px;
+  width: 18px;
+  height: 18px;
+  color: $light-grey;
+  transition: transform 0.2s ease;
+
+  &.expanded {
+    transform: rotate(180deg);
+  }
+}
+
+.nav-group-items {
+  overflow: hidden;
+  max-height: 500px;
+  transition: max-height 0.25s ease, opacity 0.2s ease;
+  opacity: 1;
+
+  &.collapsed {
+    max-height: 0;
+    opacity: 0;
+  }
+}
+
+.nav-group-item {
+  padding-left: 20px !important;
+}
+
+.dashboard-item {
+  padding-left: 20px !important;
 }
 
 .active-link {
