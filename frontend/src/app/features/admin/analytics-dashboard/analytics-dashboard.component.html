@@ -1,0 +1,85 @@
+    <section class="analytics-container" role="main" aria-labelledby="analytics-heading">
+      <h1 id="analytics-heading">Exam Analytics Dashboard</h1>
+
+      <!-- Exam Selector -->
+      <mat-form-field appearance="outline" class="exam-selector">
+        <mat-label>Select Exam</mat-label>
+        <mat-select (selectionChange)="loadAnalytics($event.value)" aria-label="Select exam for analytics">
+          <mat-option *ngFor="let exam of examList" [value]="exam.id">{{ exam.name }}</mat-option>
+        </mat-select>
+      </mat-form-field>
+
+      <div *ngIf="analytics" class="analytics-content">
+        <!-- Summary Cards -->
+        <div class="summary-cards">
+          <mat-card class="summary-card">
+            <mat-card-content>
+              <div class="metric-value">{{ analytics.totalRegistered }}</div>
+              <div class="metric-label">Registered</div>
+            </mat-card-content>
+          </mat-card>
+          <mat-card class="summary-card">
+            <mat-card-content>
+              <div class="metric-value">{{ analytics.totalAppeared }}</div>
+              <div class="metric-label">Appeared</div>
+            </mat-card-content>
+          </mat-card>
+          <mat-card class="summary-card">
+            <mat-card-content>
+              <div class="metric-value">{{ analytics.top10Percentile | number:'1.1-1' }}</div>
+              <div class="metric-label">Top 10th Percentile Score</div>
+            </mat-card-content>
+          </mat-card>
+          <mat-card class="summary-card">
+            <mat-card-content>
+              <div class="metric-value">{{ analytics.bottom10Percentile | number:'1.1-1' }}</div>
+              <div class="metric-label">Bottom 10th Percentile Score</div>
+            </mat-card-content>
+          </mat-card>
+        </div>
+
+        <!-- Score Distribution Histogram -->
+        <mat-card class="histogram-card">
+          <mat-card-header>
+            <mat-card-title>Score Distribution</mat-card-title>
+          </mat-card-header>
+          <mat-card-content>
+            <div class="histogram" role="img" aria-label="Score distribution histogram">
+              <div *ngFor="let bin of analytics.scoreDistribution" class="histogram-bar-container">
+                <div class="histogram-bar"
+                     [style.height.%]="getBarHeight(bin.count)"
+                     [attr.aria-label]="bin.rangeLabel + ': ' + bin.count + ' candidates (' + bin.percentage + '%)'">
+                </div>
+                <div class="histogram-label">{{ bin.rangeLabel }}</div>
+                <div class="histogram-count">{{ bin.count }}</div>
+              </div>
+            </div>
+          </mat-card-content>
+        </mat-card>
+
+        <!-- Section Averages -->
+        <mat-card class="section-averages-card">
+          <mat-card-header>
+            <mat-card-title>Section-wise Averages</mat-card-title>
+          </mat-card-header>
+          <mat-card-content>
+            <table mat-table [dataSource]="analytics.sectionAverages" aria-label="Section-wise average scores">
+              <ng-container matColumnDef="sectionName">
+                <th mat-header-cell *matHeaderCellDef>Section</th>
+                <td mat-cell *matCellDef="let section">{{ section.sectionName }}</td>
+              </ng-container>
+              <ng-container matColumnDef="averageScore">
+                <th mat-header-cell *matHeaderCellDef>Average Score</th>
+                <td mat-cell *matCellDef="let section">{{ section.averageScore | number:'1.2-2' }}</td>
+              </ng-container>
+              <ng-container matColumnDef="maxScore">
+                <th mat-header-cell *matHeaderCellDef>Max Score</th>
+                <td mat-cell *matCellDef="let section">{{ section.maxScore }}</td>
+              </ng-container>
+              <tr mat-header-row *matHeaderRowDef="['sectionName', 'averageScore', 'maxScore']"></tr>
+              <tr mat-row *matRowDef="let row; columns: ['sectionName', 'averageScore', 'maxScore']"></tr>
+            </table>
+          </mat-card-content>
+        </mat-card>
+      </div>
+    </section>

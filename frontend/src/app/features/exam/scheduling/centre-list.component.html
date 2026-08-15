@@ -1,0 +1,34 @@
+    <div class="page-layout">
+      <app-page-header
+        title="Examination Centres"
+        subtitle="Manage centres where examinations are conducted."
+        icon="location_on"
+      >
+        <button mat-raised-button color="primary" (click)="openCreateDrawer()">
+          <mat-icon>add</mat-icon> New Centre
+        </button>
+      </app-page-header>
+
+      <app-paginated-table
+        #centreTable
+        [fetcher]="fetcher"
+        [columns]="columns"
+        [actionsTemplate]="actionsTmpl"
+        title="Centres List"
+        searchPlaceholder="Search by name, city, or state..."
+      ></app-paginated-table>
+
+      <ng-template #actionsTmpl let-row>
+        <button mat-icon-button color="warn" matTooltip="Deactivate"
+                *ngIf="row.active" (click)="deactivate(row)"
+                aria-label="Deactivate centre">
+          <mat-icon>block</mat-icon>
+        </button>
+      </ng-template>
+
+      <!-- ── RIGHT COLLAPSIBLE DRAWER FORM ── -->
+      <app-centre-form-dialog
+        [isOpen]="drawerOpen"
+        (close)="onDrawerClose($event)"
+      ></app-centre-form-dialog>
+    </div>

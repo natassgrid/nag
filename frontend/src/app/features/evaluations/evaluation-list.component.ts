@@ -26,32 +26,7 @@ import { PageHeaderComponent } from '../../shared/components/page-header/page-he
   selector: 'app-evaluation-list',
   standalone: true,
   imports: [CommonModule, MatIconModule, PageHeaderComponent],
-  template: `
-    <div class="page-layout">
-      <app-page-header
-        title="Evaluations"
-        subtitle="Review and evaluate candidate responses."
-        icon="rate_review"
-      ></app-page-header>
-
-      <div class="placeholder">
-        <mat-icon class="placeholder-icon">rate_review</mat-icon>
-        <p>Evaluation functionality coming soon.</p>
-      </div>
-    </div>
-  `,
-  styles: [`
-    .placeholder {
-      text-align: center;
-      padding: 48px;
-      color: #666;
-    }
-    .placeholder-icon {
-      font-size: 48px;
-      width: 48px;
-      height: 48px;
-      color: #bbb;
-    }
-  `]
+  templateUrl: './evaluation-list.component.html',
+  styleUrls: ['./evaluation-list.component.scss']
 })
 export class EvaluationListComponent {}

@@ -32,56 +32,8 @@ import { RightDrawerComponent } from '../../shared/components/right-drawer/right
   selector: 'app-asset-metadata-dialog',
   standalone: true,
   imports: [CommonModule, FormsModule, ReactiveFormsModule, MatFormFieldModule, MatInputModule, MatButtonModule, MatProgressSpinnerModule, RightDrawerComponent],
-  template: `
-    <app-right-drawer
-      [isOpen]="isOpen"
-      title="Edit Asset Metadata"
-      subtitle="Update title, description, alt text, and tags for this asset."
-      width="480px"
-      (close)="cancel()"
-    >
-      <div drawer-body>
-        <p class="filename" *ngIf="asset">{{ asset.originalFilename }} ({{ asset.assetType }})</p>
-        <form [formGroup]="form" class="metadata-form">
-          <mat-form-field appearance="outline">
-            <mat-label>Title</mat-label>
-            <input matInput formControlName="title" />
-          </mat-form-field>
-          <mat-form-field appearance="outline">
-            <mat-label>Description</mat-label>
-            <textarea matInput formControlName="description" rows="3"></textarea>
-          </mat-form-field>
-          <mat-form-field appearance="outline">
-            <mat-label>Alt Text (accessibility)</mat-label>
-            <input matInput formControlName="altText" />
-          </mat-form-field>
-          <mat-form-field appearance="outline">
-            <mat-label>Tags (comma-separated)</mat-label>
-            <input matInput formControlName="tags" />
-          </mat-form-field>
-          <mat-form-field appearance="outline">
-            <mat-label>Language</mat-label>
-            <input matInput formControlName="language" placeholder="e.g. en, hi" />
-          </mat-form-field>
-        </form>
-        <p *ngIf="error" class="error-msg">{{ error }}</p>
-      </div>
-
-      <div drawer-footer>
-        <button mat-button [disabled]="saving" (click)="cancel()">Cancel</button>
-        <button mat-raised-button color="primary" [disabled]="saving" (click)="save()">
-          <mat-spinner *ngIf="saving" diameter="18" style="display:inline-block;margin-right:6px;vertical-align:middle;"></mat-spinner>
-          {{ saving ? 'Saving...' : 'Save' }}
-        </button>
-      </div>
-    </app-right-drawer>
-  `,
-  styles: [`
-    .metadata-form { display: flex; flex-direction: column; gap: 4px; }
-    .metadata-form mat-form-field { width: 100%; }
-    .filename { font-size: 13px; color: #666; margin-bottom: 12px; }
-    .error-msg { color: #c62828; font-size: 13px; }
-  `]
+  templateUrl: './asset-metadata-dialog.component.html',
+  styleUrls: ['./asset-metadata-dialog.component.scss']
 })
 export class AssetMetadataDialogComponent implements OnInit, OnChanges {
   @Input() isOpen = false;

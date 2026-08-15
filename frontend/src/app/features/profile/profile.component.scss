@@ -1,0 +1,134 @@
+    .profile-container {
+      display: flex;
+      justify-content: center;
+      padding: 32px 16px;
+    }
+
+    .profile-card {
+      max-width: 560px;
+      width: 100%;
+      border-radius: 12px;
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.06), 0 1px 4px rgba(0, 0, 0, 0.03);
+    }
+
+    .profile-header {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 32px 24px 24px;
+    }
+
+    .profile-avatar {
+      margin-bottom: 12px;
+    }
+
+    .avatar-icon {
+      font-size: 72px;
+      width: 72px;
+      height: 72px;
+      color: #3f51b5;
+    }
+
+    .profile-name {
+      margin: 0 0 12px;
+      font-size: 24px;
+      font-weight: 600;
+      color: #333;
+    }
+
+    .form-subtitle {
+      margin: 0;
+      font-size: 14px;
+      color: #666;
+      text-align: center;
+    }
+
+    .verified {
+      background-color: #e8f5e9 !important;
+      color: #2e7d32 !important;
+    }
+
+    .pending {
+      background-color: #fff3e0 !important;
+      color: #e65100 !important;
+    }
+
+    .profile-details {
+      padding: 24px;
+    }
+
+    .detail-row {
+      display: flex;
+      align-items: flex-start;
+      gap: 16px;
+      padding: 12px 0;
+      border-bottom: 1px solid #f0f0f0;
+    }
+
+    .detail-row:last-child {
+      border-bottom: none;
+    }
+
+    .detail-icon {
+      color: #666;
+      margin-top: 2px;
+    }
+
+    .detail-content {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .detail-label {
+      font-size: 12px;
+      color: #888;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      font-weight: 500;
+    }
+
+    .detail-value {
+      font-size: 15px;
+      color: #333;
+    }
+
+    .profile-actions {
+      display: flex;
+      justify-content: center;
+      padding: 16px 24px 24px;
+    }
+
+    .form-content {
+      padding: 24px;
+    }
+
+    .profile-form {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .full-width {
+      width: 100%;
+    }
+
+    .form-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 12px;
+      margin-top: 16px;
+    }
+
+    .button-spinner {
+      display: inline-block;
+    }
+
+    .loading-container {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 16px;
+      padding: 48px;
+      color: #666;
+    }

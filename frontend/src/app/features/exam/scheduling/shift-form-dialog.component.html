@@ -1,0 +1,85 @@
+    <h2 mat-dialog-title>{{ data.shift ? 'Edit Shift' : 'Add Shift' }}</h2>
+    <mat-dialog-content>
+      <form [formGroup]="form" class="dialog-form">
+        <div class="form-row">
+          <mat-form-field appearance="outline">
+            <mat-label>Shift Number</mat-label>
+            <input matInput type="number" formControlName="shiftNumber" min="1" />
+            <mat-error *ngIf="form.get('shiftNumber')?.hasError('required')">Required</mat-error>
+            <mat-error *ngIf="form.get('shiftNumber')?.hasError('min')">Min 1</mat-error>
+          </mat-form-field>
+          <mat-form-field appearance="outline">
+            <mat-label>Shift Name</mat-label>
+            <input matInput formControlName="shiftName" placeholder="Morning / Afternoon / Evening" />
+          </mat-form-field>
+        </div>
+
+        <div class="form-row">
+          <mat-form-field appearance="outline">
+            <mat-label>Reporting Time</mat-label>
+            <input matInput type="time" formControlName="reportingTime" />
+            <mat-error *ngIf="form.get('reportingTime')?.hasError('required')">Required</mat-error>
+          </mat-form-field>
+          <mat-form-field appearance="outline">
+            <mat-label>Gate Closing Time</mat-label>
+            <input matInput type="time" formControlName="gateClosingTime" />
+            <mat-error *ngIf="form.get('gateClosingTime')?.hasError('required')">Required</mat-error>
+          </mat-form-field>
+        </div>
+
+        <div class="form-row">
+          <mat-form-field appearance="outline">
+            <mat-label>Login Start Time</mat-label>
+            <input matInput type="time" formControlName="loginStartTime" />
+            <mat-error *ngIf="form.get('loginStartTime')?.hasError('required')">Required</mat-error>
+          </mat-form-field>
+          <mat-form-field appearance="outline">
+            <mat-label>Exam Start Time</mat-label>
+            <input matInput type="time" formControlName="examStartTime" />
+            <mat-error *ngIf="form.get('examStartTime')?.hasError('required')">Required</mat-error>
+          </mat-form-field>
+        </div>
+
+        <div class="form-row">
+          <mat-form-field appearance="outline">
+            <mat-label>Exam End Time</mat-label>
+            <input matInput type="time" formControlName="examEndTime" />
+            <mat-error *ngIf="form.get('examEndTime')?.hasError('required')">Required</mat-error>
+          </mat-form-field>
+          <mat-form-field appearance="outline">
+            <mat-label>Exit Time</mat-label>
+            <input matInput type="time" formControlName="exitTime" />
+            <mat-hint>Optional</mat-hint>
+          </mat-form-field>
+        </div>
+
+        <div class="form-row">
+          <mat-form-field appearance="outline">
+            <mat-label>Duration (minutes)</mat-label>
+            <input matInput type="number" formControlName="durationMinutes" min="1" />
+            <mat-hint>Auto-computed from Start/End</mat-hint>
+            <mat-error *ngIf="form.get('durationMinutes')?.hasError('required')">Required</mat-error>
+          </mat-form-field>
+          <mat-form-field appearance="outline">
+            <mat-label>Buffer Minutes</mat-label>
+            <input matInput type="number" formControlName="bufferMinutes" min="0" />
+            <mat-hint>Gap before next shift</mat-hint>
+          </mat-form-field>
+        </div>
+
+        <!-- Timing validation errors -->
+        <div class="validation-errors" *ngIf="timingErrors.length > 0">
+          <div class="timing-error" *ngFor="let err of timingErrors">
+            <mat-icon>warning</mat-icon> {{ err }}
+          </div>
+        </div>
+      </form>
+    </mat-dialog-content>
+    <mat-dialog-actions align="end">
+      <button mat-button mat-dialog-close>Cancel</button>
+      <button mat-raised-button color="primary"
+              [disabled]="form.invalid || timingErrors.length > 0"
+              (click)="save()">
+        {{ data.shift ? 'Update' : 'Add' }}
+      </button>
+    </mat-dialog-actions>

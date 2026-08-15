@@ -60,39 +60,8 @@ const ALL_ROLES = [
     MatSelectModule,
     MatButtonModule
   ],
-  template: `
-    <h2 mat-dialog-title>Manage Roles — {{ data.username }}</h2>
-    <mat-dialog-content>
-      <p>Current roles: {{ data.currentRoles.length ? data.currentRoles.join(', ') : 'None' }}</p>
-
-      <mat-form-field appearance="outline" class="full-width">
-        <mat-label>Select Role</mat-label>
-        <mat-select [(value)]="selectedRole">
-          <mat-option *ngFor="let role of allRoles" [value]="role">{{ role }}</mat-option>
-        </mat-select>
-      </mat-form-field>
-    </mat-dialog-content>
-
-    <mat-dialog-actions align="end">
-      <button mat-button mat-dialog-close>Cancel</button>
-      <button mat-raised-button color="primary"
-              [disabled]="!selectedRole"
-              (click)="submit('ASSIGN')"
-              aria-label="Assign selected role">
-        Assign
-      </button>
-      <button mat-raised-button color="warn"
-              [disabled]="!selectedRole || !isCurrentRole(selectedRole)"
-              (click)="submit('REVOKE')"
-              aria-label="Revoke selected role">
-        Revoke
-      </button>
-    </mat-dialog-actions>
-  `,
-  styles: [`
-    .full-width { width: 100%; }
-    mat-dialog-content { min-width: 320px; }
-  `]
+  templateUrl: './role-assign-dialog.component.html',
+  styleUrls: ['./role-assign-dialog.component.scss']
 })
 export class RoleAssignDialogComponent {
   allRoles = ALL_ROLES;

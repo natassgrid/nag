@@ -39,56 +39,8 @@ import { ScheduleResponse, ScheduleTransitionRequest } from './scheduling.servic
     MatSelectModule,
     MatButtonModule
   ],
-  template: `
-    <h2 mat-dialog-title>Transition Schedule Status</h2>
-    <mat-dialog-content>
-      <div class="current-status-info">
-        <strong>Current Status:</strong> <span class="chip">{{ data.status }}</span>
-      </div>
-      <form [formGroup]="form" class="form-container">
-        <mat-form-field appearance="outline" class="full-width">
-          <mat-label>Target Status</mat-label>
-          <mat-select formControlName="targetStatus" required>
-            <mat-option *ngFor="let option of availableOptions" [value]="option">
-              {{ option }}
-            </mat-option>
-          </mat-select>
-          <mat-error *ngIf="form.get('targetStatus')?.hasError('required')">Target status is required</mat-error>
-        </mat-form-field>
-
-        <mat-form-field appearance="outline" class="full-width">
-          <mat-label>Comment (Optional)</mat-label>
-          <textarea matInput formControlName="comment" rows="3" placeholder="Add approval or review comment..."></textarea>
-        </mat-form-field>
-      </form>
-    </mat-dialog-content>
-
-    <mat-dialog-actions align="end">
-      <button mat-button (click)="cancel()">Cancel</button>
-      <button mat-raised-button color="primary" [disabled]="form.invalid" (click)="save()">Submit Transition</button>
-    </mat-dialog-actions>
-  `,
-  styles: [`
-    .current-status-info {
-      margin-bottom: 16px;
-      font-size: 14px;
-    }
-    .chip {
-      background: #e0e0e0;
-      padding: 4px 8px;
-      border-radius: 4px;
-      font-weight: 600;
-    }
-    .form-container {
-      display: flex;
-      flex-direction: column;
-      gap: 12px;
-      min-width: 360px;
-    }
-    .full-width {
-      width: 100%;
-    }
-  `]
+  templateUrl: './transition-dialog.component.html',
+  styleUrls: ['./transition-dialog.component.scss']
 })
 export class TransitionDialogComponent implements OnInit {
   form!: FormGroup;

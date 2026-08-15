@@ -1,0 +1,39 @@
+    <button
+      mat-button
+      [matMenuTriggerFor]="userMenu"
+      class="user-menu-trigger"
+      aria-label="User menu"
+    >
+      <mat-icon class="avatar-icon">account_circle</mat-icon>
+      <span class="user-display-name">{{ userName }}</span>
+      <mat-icon class="dropdown-arrow">arrow_drop_down</mat-icon>
+    </button>
+
+    <mat-menu #userMenu="matMenu" xPosition="before">
+      <div class="user-menu-header" (click)="$event.stopPropagation()">
+        <mat-icon class="menu-avatar">account_circle</mat-icon>
+        <div class="menu-user-info">
+          <span class="menu-user-name">{{ userName }}</span>
+          <span class="menu-user-role">{{ primaryRole }}</span>
+        </div>
+      </div>
+
+      <mat-divider></mat-divider>
+
+      <a mat-menu-item routerLink="/profile">
+        <mat-icon>person</mat-icon>
+        <span>Profile</span>
+      </a>
+
+      <a mat-menu-item routerLink="/preferences">
+        <mat-icon>settings</mat-icon>
+        <span>Preferences</span>
+      </a>
+
+      <mat-divider></mat-divider>
+
+      <button mat-menu-item (click)="onSignOut()">
+        <mat-icon>logout</mat-icon>
+        <span>Sign Out</span>
+      </button>
+    </mat-menu>

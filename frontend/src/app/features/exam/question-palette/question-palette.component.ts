@@ -35,64 +35,7 @@ export interface ExamSection {
   standalone: true,
   imports: [CommonModule, MatButtonModule, MatIconModule, MatTooltipModule],
   templateUrl: './question-palette.component.html',
-  styles: [`
-    .palette-container {
-      position: fixed;
-      right: 0;
-      top: 80px;
-      bottom: 80px;
-      width: 280px;
-      background: var(--color-surface);
-      border-left: 1px solid var(--color-border);
-      padding: var(--spacing-md);
-      overflow-y: auto;
-      display: flex;
-      flex-direction: column;
-      gap: var(--spacing-md);
-    }
-    .palette-header { font-weight: 500; font-size: 1rem; margin-bottom: var(--spacing-sm); }
-    .section-tabs {
-      display: flex; gap: var(--spacing-xs); flex-wrap: wrap;
-      margin-bottom: var(--spacing-sm);
-    }
-    .section-tab {
-      padding: var(--spacing-xs) var(--spacing-sm);
-      border: 1px solid var(--color-border);
-      border-radius: 4px;
-      background: transparent;
-      cursor: pointer;
-      min-width: 44px; min-height: 44px;
-    }
-    .section-tab.active { background: var(--color-primary); color: white; border-color: var(--color-primary); }
-    .question-grid {
-      display: grid;
-      grid-template-columns: repeat(5, 1fr);
-      gap: var(--spacing-xs);
-    }
-    .q-btn {
-      width: 44px; height: 44px;
-      border-radius: 4px;
-      border: 2px solid var(--color-border);
-      display: flex; align-items: center; justify-content: center;
-      cursor: pointer; font-weight: 500;
-      background: white;
-      transition: all 0.15s;
-    }
-    .q-btn:hover { border-color: var(--color-primary); }
-    .q-btn:focus-visible { outline: var(--focus-outline); outline-offset: var(--focus-offset); }
-    .q-btn.answered { background: #1b5e20; color: white; border-color: #1b5e20; }
-    .q-btn.flagged { background: #e65100; color: white; border-color: #e65100; }
-    .q-btn.current { border-color: var(--color-primary); box-shadow: 0 0 0 2px var(--color-primary); }
-    .legend {
-      display: flex; flex-wrap: wrap; gap: var(--spacing-sm);
-      margin-top: var(--spacing-md); font-size: 0.85rem;
-    }
-    .legend-item { display: flex; align-items: center; gap: 4px; }
-    .legend-dot { width: 14px; height: 14px; border-radius: 2px; border: 1px solid var(--color-border); }
-    .legend-dot.answered { background: #1b5e20; }
-    .legend-dot.flagged { background: #e65100; }
-    .legend-dot.unanswered { background: white; }
-  `]
+  styleUrls: ['./question-palette.component.scss']
 })
 export class QuestionPaletteComponent {
   @Input() totalQuestions = 0;

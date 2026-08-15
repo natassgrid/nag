@@ -1,0 +1,20 @@
+    <div class="exam-editor-wrapper" [class.disabled]="disabled" [class.focused]="focused">
+      <editor-toolbar
+        [pluginRegistry]="pluginRegistry"
+        [context]="pluginContext"
+        [document]="document"
+        [selection]="selection"
+      ></editor-toolbar>
+      <editor-content
+        [document]="document"
+        [placeholder]="placeholder"
+        [disabled]="disabled"
+        [selection]="selection"
+        (documentChange)="onContentChange($event)"
+        (selectionChange)="onSelectionChange($event)"
+        (paste)="onPaste($event)"
+        (focused)="onFocus()"
+        (blurred)="onBlur()"
+        (keydown)="onKeyDown($event)"
+      ></editor-content>
+    </div>

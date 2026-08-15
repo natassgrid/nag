@@ -26,32 +26,7 @@ import { PageHeaderComponent } from '../../../shared/components/page-header/page
   selector: 'app-settings',
   standalone: true,
   imports: [CommonModule, MatIconModule, PageHeaderComponent],
-  template: `
-    <div class="page-layout">
-      <app-page-header
-        title="System Settings"
-        subtitle="Manage system-wide configuration and platform preferences."
-        icon="settings"
-      ></app-page-header>
-
-      <div class="placeholder">
-        <mat-icon class="placeholder-icon">settings</mat-icon>
-        <p>System settings coming soon.</p>
-      </div>
-    </div>
-  `,
-  styles: [`
-    .placeholder {
-      text-align: center;
-      padding: 48px;
-      color: #666;
-    }
-    .placeholder-icon {
-      font-size: 48px;
-      width: 48px;
-      height: 48px;
-      color: #bbb;
-    }
-  `]
+  templateUrl: './settings.component.html',
+  styleUrls: ['./settings.component.scss']
 })
 export class SettingsComponent {}

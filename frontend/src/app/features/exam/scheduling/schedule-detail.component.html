@@ -1,0 +1,238 @@
+    <div class="page-container">
+      <!-- Header -->
+      <div class="page-header">
+        <div>
+          <h1 class="page-title">
+            <mat-icon class="title-icon">event</mat-icon>
+            {{ examName || 'Examination Schedules' }}
+          </h1>
+          <p class="page-subtitle" *ngIf="examName">Manage schedules, shifts, and seat allocations.</p>
+        </div>
+      </div>
+
+      <mat-card>
+        <mat-card-content>
+          <mat-tab-group [(selectedIndex)]="activeTab" animationDuration="150ms">
+
+            <!-- ═══ TAB 1: Schedules ═══ -->
+            <mat-tab label="Schedules">
+              <div class="tab-content">
+                <div class="tab-toolbar">
+                  <span class="tab-toolbar-title">Schedule Versions</span>
+                  <button mat-raised-button color="primary" (click)="openCreateSchedule()">
+                    <mat-icon>add</mat-icon> New Schedule
+                  </button>
+                </div>
+
+                <div class="loading" *ngIf="loadingSchedules"><mat-spinner diameter="32"></mat-spinner></div>
+                <div class="empty" *ngIf="!loadingSchedules && schedules.length === 0">
+                  <mat-icon>event_busy</mat-icon><p>No schedules created yet.</p>
+                </div>
+
+                <table mat-table [dataSource]="schedules" *ngIf="!loadingSchedules && schedules.length > 0" class="full-width">
+                  <ng-container matColumnDef="version">
+                    <th mat-header-cell *matHeaderCellDef>Ver</th>
+                    <td mat-cell *matCellDef="let row">v{{ row.scheduleVersion }}</td>
+                  </ng-container>
+                  <ng-container matColumnDef="scheduleName">
+                    <th mat-header-cell *matHeaderCellDef>Name</th>
+                    <td mat-cell *matCellDef="let row">{{ row.scheduleName }}</td>
+                  </ng-container>
+                  <ng-container matColumnDef="examDate">
+                    <th mat-header-cell *matHeaderCellDef>Exam Date</th>
+                    <td mat-cell *matCellDef="let row">{{ row.examDate }}</td>
+                  </ng-container>
+                  <ng-container matColumnDef="reserveDate">
+                    <th mat-header-cell *matHeaderCellDef>Reserve Date</th>
+                    <td mat-cell *matCellDef="let row">{{ row.reserveDate || '—' }}</td>
+                  </ng-container>
+                  <ng-container matColumnDef="notificationNumber">
+                    <th mat-header-cell *matHeaderCellDef>Notification #</th>
+                    <td mat-cell *matCellDef="let row">{{ row.notificationNumber || '—' }}</td>
+                  </ng-container>
+                  <ng-container matColumnDef="status">
+                    <th mat-header-cell *matHeaderCellDef>Status</th>
+                    <td mat-cell *matCellDef="let row">
+                      <mat-chip-set><mat-chip [class]="'status-' + (row.status||'').toLowerCase()">{{ row.status }}</mat-chip></mat-chip-set>
+                    </td>
+                  </ng-container>
+                  <ng-container matColumnDef="actions">
+                    <th mat-header-cell *matHeaderCellDef>Actions</th>
+                    <td mat-cell *matCellDef="let row">
+                      <button mat-icon-button matTooltip="Edit" (click)="openEditSchedule(row)"
+                              *ngIf="row.status === 'DRAFT'"
+                              aria-label="Edit schedule">
+                        <mat-icon>edit</mat-icon>
+                      </button>
+                      <button mat-icon-button matTooltip="Transition" (click)="openTransition(row)"
+                              *ngIf="row.status !== 'CANCELLED' && row.status !== 'PUBLISHED'"
+                              aria-label="Transition schedule">
+                        <mat-icon>arrow_forward</mat-icon>
+                      </button>
+                      <button mat-icon-button matTooltip="Amend" color="accent" (click)="openAmend(row)"
+                              *ngIf="row.status === 'PUBLISHED'" aria-label="Amend schedule">
+                        <mat-icon>edit_note</mat-icon>
+                      </button>
+                      <button mat-icon-button matTooltip="Cancel" color="warn" (click)="cancelSchedule(row)"
+                              *ngIf="row.status !== 'CANCELLED'" aria-label="Cancel schedule">
+                        <mat-icon>cancel</mat-icon>
+                      </button>
+                      <button mat-icon-button matTooltip="View Shifts" (click)="selectScheduleForShifts(row)"
+                              aria-label="View shifts">
+                        <mat-icon>schedule</mat-icon>
+                      </button>
+                    </td>
+                  </ng-container>
+                  <tr mat-header-row *matHeaderRowDef="scheduleColumns"></tr>
+                  <tr mat-row *matRowDef="let row; columns: scheduleColumns;"></tr>
+                </table>
+              </div>
+            </mat-tab>
+
+            <!-- ═══ TAB 2: Shifts ═══ -->
+            <mat-tab label="Shifts">
+              <div class="tab-content">
+                <div class="tab-toolbar">
+                  <mat-form-field appearance="outline" class="schedule-select">
+                    <mat-label>Select Schedule</mat-label>
+                    <mat-select [(ngModel)]="selectedScheduleId" (ngModelChange)="loadShifts()">
+                      <mat-option *ngFor="let s of schedules" [value]="s.id">
+                        v{{ s.scheduleVersion }} — {{ s.scheduleName }} ({{ s.status }})
+                      </mat-option>
+                    </mat-select>
+                  </mat-form-field>
+                  <button mat-raised-button color="primary" [disabled]="!selectedScheduleId" (click)="openAddShift()">
+                    <mat-icon>add</mat-icon> Add Shift
+                  </button>
+                </div>
+
+                <div class="empty" *ngIf="!selectedScheduleId">
+                  <mat-icon>info</mat-icon><p>Select a schedule above to view its shifts.</p>
+                </div>
+
+                <div class="loading" *ngIf="loadingShifts"><mat-spinner diameter="32"></mat-spinner></div>
+
+                <table mat-table [dataSource]="shifts" *ngIf="selectedScheduleId && !loadingShifts && shifts.length > 0" class="full-width">
+                  <ng-container matColumnDef="shiftNumber">
+                    <th mat-header-cell *matHeaderCellDef>#</th>
+                    <td mat-cell *matCellDef="let row">{{ row.shiftNumber }}</td>
+                  </ng-container>
+                  <ng-container matColumnDef="shiftName">
+                    <th mat-header-cell *matHeaderCellDef>Name</th>
+                    <td mat-cell *matCellDef="let row">{{ row.shiftName || '—' }}</td>
+                  </ng-container>
+                  <ng-container matColumnDef="reportingTime">
+                    <th mat-header-cell *matHeaderCellDef>Reporting</th>
+                    <td mat-cell *matCellDef="let row">{{ row.reportingTime }}</td>
+                  </ng-container>
+                  <ng-container matColumnDef="gateClosingTime">
+                    <th mat-header-cell *matHeaderCellDef>Gate Close</th>
+                    <td mat-cell *matCellDef="let row">{{ row.gateClosingTime }}</td>
+                  </ng-container>
+                  <ng-container matColumnDef="examStartTime">
+                    <th mat-header-cell *matHeaderCellDef>Start</th>
+                    <td mat-cell *matCellDef="let row">{{ row.examStartTime }}</td>
+                  </ng-container>
+                  <ng-container matColumnDef="examEndTime">
+                    <th mat-header-cell *matHeaderCellDef>End</th>
+                    <td mat-cell *matCellDef="let row">{{ row.examEndTime }}</td>
+                  </ng-container>
+                  <ng-container matColumnDef="durationMinutes">
+                    <th mat-header-cell *matHeaderCellDef>Duration</th>
+                    <td mat-cell *matCellDef="let row">{{ row.durationMinutes }} min</td>
+                  </ng-container>
+                  <ng-container matColumnDef="shiftActions">
+                    <th mat-header-cell *matHeaderCellDef>Actions</th>
+                    <td mat-cell *matCellDef="let row">
+                      <button mat-icon-button matTooltip="Edit" (click)="openEditShift(row)" aria-label="Edit shift">
+                        <mat-icon>edit</mat-icon>
+                      </button>
+                      <button mat-icon-button matTooltip="Seat Allocations" (click)="selectShiftForSeats(row)" aria-label="View seats">
+                        <mat-icon>event_seat</mat-icon>
+                      </button>
+                    </td>
+                  </ng-container>
+                  <tr mat-header-row *matHeaderRowDef="shiftColumns"></tr>
+                  <tr mat-row *matRowDef="let row; columns: shiftColumns;"></tr>
+                </table>
+
+                <div class="empty" *ngIf="selectedScheduleId && !loadingShifts && shifts.length === 0">
+                  <mat-icon>schedule</mat-icon><p>No shifts configured for this schedule.</p>
+                </div>
+              </div>
+            </mat-tab>
+
+            <!-- ═══ TAB 3: Centres & Seats ═══ -->
+            <mat-tab label="Centres & Seats">
+              <div class="tab-content">
+                <div class="tab-toolbar">
+                  <mat-form-field appearance="outline" class="schedule-select">
+                    <mat-label>Schedule</mat-label>
+                    <mat-select [(ngModel)]="seatsScheduleId" (ngModelChange)="loadShiftsForSeats()">
+                      <mat-option *ngFor="let s of schedules" [value]="s.id">
+                        v{{ s.scheduleVersion }} — {{ s.scheduleName }}
+                      </mat-option>
+                    </mat-select>
+                  </mat-form-field>
+                  <mat-form-field appearance="outline" class="schedule-select">
+                    <mat-label>Shift</mat-label>
+                    <mat-select [(ngModel)]="seatsShiftId" [disabled]="!seatsScheduleId" (ngModelChange)="loadAllocations()">
+                      <mat-option *ngFor="let sh of seatsShifts" [value]="sh.id">
+                        #{{ sh.shiftNumber }} {{ sh.shiftName || '' }} ({{ sh.examStartTime }}–{{ sh.examEndTime }})
+                      </mat-option>
+                    </mat-select>
+                  </mat-form-field>
+                  <button mat-raised-button color="primary" [disabled]="!seatsShiftId" (click)="openAddAllocation()">
+                    <mat-icon>add</mat-icon> Add Allocation
+                  </button>
+                </div>
+
+                <div class="empty" *ngIf="!seatsShiftId">
+                  <mat-icon>info</mat-icon><p>Select a schedule and shift to view seat allocations.</p>
+                </div>
+
+                <div class="loading" *ngIf="loadingAllocations"><mat-spinner diameter="32"></mat-spinner></div>
+
+                <table mat-table [dataSource]="allocations" *ngIf="seatsShiftId && !loadingAllocations && allocations.length > 0" class="full-width">
+                  <ng-container matColumnDef="centreId">
+                    <th mat-header-cell *matHeaderCellDef>Centre ID</th>
+                    <td mat-cell *matCellDef="let row">{{ row.centreId | slice:0:8 }}…</td>
+                  </ng-container>
+                  <ng-container matColumnDef="totalSeats">
+                    <th mat-header-cell *matHeaderCellDef>Total</th>
+                    <td mat-cell *matCellDef="let row">{{ row.totalSeats }}</td>
+                  </ng-container>
+                  <ng-container matColumnDef="availableSeats">
+                    <th mat-header-cell *matHeaderCellDef>Available</th>
+                    <td mat-cell *matCellDef="let row">{{ row.availableSeats }}</td>
+                  </ng-container>
+                  <ng-container matColumnDef="pwdSeats">
+                    <th mat-header-cell *matHeaderCellDef>PwD</th>
+                    <td mat-cell *matCellDef="let row">{{ row.pwdSeats }}</td>
+                  </ng-container>
+                  <ng-container matColumnDef="emergencyBufferSeats">
+                    <th mat-header-cell *matHeaderCellDef>Buffer</th>
+                    <td mat-cell *matCellDef="let row">{{ row.emergencyBufferSeats }}</td>
+                  </ng-container>
+                  <ng-container matColumnDef="allocActions">
+                    <th mat-header-cell *matHeaderCellDef>Actions</th>
+                    <td mat-cell *matCellDef="let row">
+                      <button mat-icon-button matTooltip="Edit Allocation" (click)="openEditAllocation(row)" aria-label="Edit allocation">
+                        <mat-icon>edit</mat-icon>
+                      </button>
+                    </td>
+                  </ng-container>
+                  <tr mat-header-row *matHeaderRowDef="allocColumns"></tr>
+                  <tr mat-row *matRowDef="let row; columns: allocColumns;"></tr>
+                </table>
+
+                <div class="empty" *ngIf="seatsShiftId && !loadingAllocations && allocations.length === 0">
+                  <mat-icon>event_seat</mat-icon><p>No seat allocations for this shift yet.</p>
+                </div>
+              </div>
+            </mat-tab>
+
+          </mat-tab-group>
+        </mat-card-content>
+      </mat-card>
+    </div>

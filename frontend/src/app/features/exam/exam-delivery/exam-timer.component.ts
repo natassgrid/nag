@@ -25,38 +25,8 @@ import { MatIconModule } from '@angular/material/icon';
   selector: 'app-exam-timer',
   standalone: true,
   imports: [CommonModule, MatIconModule],
-  template: `
-    <div class="timer-container"
-         [class.warning]="remainingSeconds <= 300 && remainingSeconds > 0"
-         role="timer"
-         aria-live="polite"
-         [attr.aria-label]="'Time remaining: ' + formatTime()">
-      <mat-icon>timer</mat-icon>
-      <span class="timer-display">{{ formatTime() }}</span>
-    </div>
-  `,
-  styles: [`
-    .timer-container {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      font-family: monospace;
-      font-size: 1.3rem;
-      font-weight: 500;
-      padding: 8px 16px;
-      border-radius: 8px;
-      background: #f5f5f5;
-    }
-    .timer-container.warning {
-      color: #d32f2f;
-      background: #ffebee;
-      font-weight: 700;
-    }
-    .timer-display {
-      min-width: 60px;
-      text-align: center;
-    }
-  `]
+  templateUrl: './exam-timer.component.html',
+  styleUrls: ['./exam-timer.component.scss']
 })
 export class ExamTimerComponent implements OnInit, OnDestroy {
   @Input() durationSeconds = 0;

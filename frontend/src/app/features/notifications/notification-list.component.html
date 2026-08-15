@@ -1,0 +1,53 @@
+    <div class="page-layout">
+      <app-page-header
+        title="Notifications"
+        subtitle="View and manage your platform notifications."
+        icon="notifications"
+      ></app-page-header>
+
+      <div *ngIf="notifications.length === 0" class="empty-state" role="status">
+        <mat-icon class="empty-icon">notifications_none</mat-icon>
+        <p>No notifications yet.</p>
+      </div>
+
+      <mat-card *ngIf="notifications.length > 0" class="notification-card">
+        <mat-card-content>
+          <mat-nav-list role="list" aria-label="Notification list">
+            <ng-container *ngFor="let notification of notifications; let last = last">
+              <mat-list-item class="notification-item"
+                             [class.unread]="!notification.isRead"
+                             (click)="onNotificationClick(notification)"
+                             role="listitem"
+                             [attr.aria-label]="notification.subject">
+                <div matListItemIcon class="indicator-wrapper">
+                  <span *ngIf="!notification.isRead" class="unread-dot" aria-label="Unread"></span>
+                  <mat-icon>{{ getTypeIcon(notification.type) }}</mat-icon>
+                </div>
+                <div matListItemTitle class="notification-subject"
+                     [class.bold]="!notification.isRead">
+                  {{ notification.subject }}
+                </div>
+                <div matListItemLine class="notification-body">
+                  {{ truncateBody(notification.body) }}
+                </div>
+                <div matListItemMeta class="notification-time">
+                  {{ getRelativeTime(notification.sentAt) }}
+                </div>
+              </mat-list-item>
+
+              <!-- Expanded content -->
+              <div *ngIf="expandedId === notification.id" class="notification-expanded">
+                <p class="expanded-body">{{ notification.body }}</p>
+                <div class="expanded-meta">
+                  <span class="meta-chip">{{ notification.type }}</span>
+                  <span class="meta-chip">{{ notification.status }}</span>
+                  <span class="meta-time">Sent: {{ notification.sentAt | date:'medium' }}</span>
+                </div>
+              </div>
+
+              <mat-divider *ngIf="!last"></mat-divider>
+            </ng-container>
+          </mat-nav-list>
+        </mat-card-content>
+      </mat-card>
+    </div>

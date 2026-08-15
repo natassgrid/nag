@@ -48,68 +48,8 @@ import { PageHeaderComponent } from '../../../shared/components/page-header/page
     PageHeaderComponent,
     ExamFormDialogComponent
   ],
-  template: `
-    <div class="page-layout">
-      <app-page-header
-        title="Exam Management"
-        subtitle="Create, configure, and publish examinations."
-        icon="assignment"
-      >
-        <button mat-raised-button color="primary" (click)="openCreateDrawer()" matTooltip="Create Exam">
-          <mat-icon>add</mat-icon>
-          Create Exam
-        </button>
-      </app-page-header>
-
-      <app-paginated-table
-        #paginatedTable
-        [fetcher]="fetcher"
-        [columns]="columns"
-        [actionsTemplate]="actionsTmpl"
-        title="Exams List"
-        searchPlaceholder="Search exams by name, status, or policy..."
-      ></app-paginated-table>
-
-      <!-- Custom Actions Column Template -->
-      <ng-template #actionsTmpl let-row>
-        <button mat-icon-button matTooltip="Edit" (click)="openEditDrawer(row)">
-          <mat-icon>edit</mat-icon>
-        </button>
-        <button
-          mat-icon-button
-          matTooltip="Schedule"
-          [routerLink]="['/exam/scheduling', row.id]"
-        >
-          <mat-icon>event</mat-icon>
-        </button>
-        <button
-          mat-icon-button
-          matTooltip="Publish"
-          *ngIf="row.status === 'DRAFT'"
-          (click)="publishExam(row)"
-        >
-          <mat-icon>publish</mat-icon>
-        </button>
-      </ng-template>
-
-      <!-- ── RIGHT COLLAPSIBLE DRAWER FORM ── -->
-      <app-exam-form-dialog
-        [isOpen]="drawerOpen"
-        [exam]="editingExam"
-        (close)="onDrawerClose($event)"
-      ></app-exam-form-dialog>
-    </div>
-  `,
-  styles: [`
-    ::ng-deep .status-draft {
-      background-color: #fff3e0 !important;
-      color: #e65100 !important;
-    }
-    ::ng-deep .status-published {
-      background-color: #e8f5e9 !important;
-      color: #2e7d32 !important;
-    }
-  `]
+  templateUrl: './exam-list.component.html',
+  styleUrls: ['./exam-list.component.scss']
 })
 export class ExamListComponent {
 

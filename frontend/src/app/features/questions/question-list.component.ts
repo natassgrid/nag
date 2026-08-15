@@ -51,65 +51,8 @@ import { PageHeaderComponent } from '../../shared/components/page-header/page-he
     PageHeaderComponent,
     QuestionFormDialogComponent
   ],
-  template: `
-    <div class="page-layout">
-      <app-page-header
-        title="Question Bank"
-        subtitle="Create, review, and manage examination questions."
-        icon="quiz"
-      >
-        <button mat-raised-button color="primary" (click)="openCreateDrawer()">
-          <mat-icon>add</mat-icon>
-          Create Question
-        </button>
-      </app-page-header>
-
-      <!-- Reusable Paginated Table with Filter Drawer -->
-      <app-paginated-table
-        #paginatedTable
-        [fetcher]="fetcher"
-        [columns]="columns"
-        [filters]="filters"
-        [filterCategories]="filterCategories"
-        (filterChange)="onFilterChange($event)"
-        [actionsTemplate]="actionsTmpl"
-        title="Questions List"
-        searchPlaceholder="Search questions..."
-      ></app-paginated-table>
-
-      <!-- Custom Actions Column Template -->
-      <ng-template #actionsTmpl let-row>
-        <button mat-icon-button matTooltip="Edit" (click)="openEditDrawer(row)">
-          <mat-icon>edit</mat-icon>
-        </button>
-        <button
-          mat-icon-button
-          matTooltip="Submit for Review"
-          (click)="submitForReview(row)"
-          *ngIf="row.state === 'DRAFT'"
-        >
-          <mat-icon>send</mat-icon>
-        </button>
-      </ng-template>
-
-      <!-- ── RIGHT COLLAPSIBLE DRAWER FORM ── -->
-      <app-question-form-dialog
-        [isOpen]="drawerOpen"
-        [question]="editingQuestion"
-        (close)="onDrawerClose($event)"
-      ></app-question-form-dialog>
-    </div>
-  `,
-  styles: [`
-    ::ng-deep .chip-easy { background-color: #c8e6c9 !important; }
-    ::ng-deep .chip-medium { background-color: #fff9c4 !important; }
-    ::ng-deep .chip-hard { background-color: #ffcdd2 !important; }
-    ::ng-deep .chip-state-draft { background-color: #e0e0e0 !important; }
-    ::ng-deep .chip-state-review { background-color: #bbdefb !important; }
-    ::ng-deep .chip-state-approved { background-color: #c8e6c9 !important; }
-    ::ng-deep .chip-state-published { background-color: #b2dfdb !important; }
-    ::ng-deep .chip-state-archived { background-color: #f5f5f5 !important; }
-  `]
+  templateUrl: './question-list.component.html',
+  styleUrls: ['./question-list.component.scss']
 })
 export class QuestionListComponent implements OnInit {
 

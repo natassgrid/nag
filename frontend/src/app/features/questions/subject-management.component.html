@@ -1,0 +1,118 @@
+
+    <div class="page-layout" role="main" aria-labelledby="subject-mgmt-heading">
+      <app-page-header
+        title="Subject Management"
+        subtitle="Manage the Subject → Topic → Subtopic hierarchy for question categorization."
+        icon="category"
+      >
+        <button mat-raised-button color="primary" (click)="toggleAddForm()" aria-label="Add a new subject">
+          <mat-icon>add</mat-icon>
+          Add Subject
+        </button>
+      </app-page-header>
+
+      <div *ngIf="loading" class="loading-container">
+        <mat-spinner diameter="40"></mat-spinner>
+        <p>Loading hierarchy...</p>
+      </div>
+
+      <div *ngIf="!loading" class="content">
+        <!-- Add Subject -->
+        <mat-card class="add-card" *ngIf="showAddSubject">
+          <mat-card-content>
+            <div class="inline-form">
+              <mat-form-field appearance="outline" class="flex-field">
+                <mat-label>New Subject Name</mat-label>
+                <input matInput #subjectInput [(ngModel)]="newSubjectName" placeholder="e.g. General Knowledge" />
+              </mat-form-field>
+              <mat-form-field appearance="outline">
+                <mat-label>Code</mat-label>
+                <input matInput [(ngModel)]="newSubjectCode" placeholder="e.g. GK" />
+              </mat-form-field>
+              <button mat-raised-button color="primary"
+                      [disabled]="!newSubjectName || creating"
+                      (click)="createSubject()">
+                <mat-icon>add</mat-icon> Save Subject
+              </button>
+            </div>
+          </mat-card-content>
+        </mat-card>
+
+        <!-- Hierarchy Tree -->
+        <mat-accordion multi>
+          <mat-expansion-panel *ngFor="let subject of hierarchy" class="subject-panel">
+            <mat-expansion-panel-header>
+              <mat-panel-title>
+                <mat-icon class="panel-icon">menu_book</mat-icon>
+                {{ subject.name }}
+                <mat-chip *ngIf="subject.code" class="code-chip">{{ subject.code }}</mat-chip>
+              </mat-panel-title>
+              <mat-panel-description>
+                {{ subject.topics.length }} topic(s)
+              </mat-panel-description>
+            </mat-expansion-panel-header>
+
+            <p *ngIf="subject.description" class="description">{{ subject.description }}</p>
+
+            <!-- Add Topic -->
+            <div class="inline-form nested">
+              <mat-form-field appearance="outline" class="flex-field">
+                <mat-label>New Topic</mat-label>
+                <input matInput [(ngModel)]="newTopicNames[subject.id]" placeholder="Topic name" />
+              </mat-form-field>
+              <button mat-raised-button color="accent"
+                      [disabled]="!newTopicNames[subject.id] || creating"
+                      (click)="createTopic(subject)">
+                <mat-icon>add</mat-icon> Add Topic
+              </button>
+            </div>
+
+            <!-- Topics -->
+            <mat-accordion multi class="topic-accordion">
+              <mat-expansion-panel *ngFor="let topic of subject.topics" class="topic-panel">
+                <mat-expansion-panel-header>
+                  <mat-panel-title>
+                    <mat-icon class="panel-icon">topic</mat-icon>
+                    {{ topic.name }}
+                  </mat-panel-title>
+                  <mat-panel-description>
+                    {{ topic.subtopics.length }} subtopic(s)
+                  </mat-panel-description>
+                </mat-expansion-panel-header>
+
+                <p *ngIf="topic.description" class="description">{{ topic.description }}</p>
+
+                <!-- Add Subtopic -->
+                <div class="inline-form nested">
+                  <mat-form-field appearance="outline" class="flex-field">
+                    <mat-label>New Subtopic</mat-label>
+                    <input matInput [(ngModel)]="newSubtopicNames[topic.id]" placeholder="Subtopic name" />
+                  </mat-form-field>
+                  <button mat-raised-button color="accent"
+                          [disabled]="!newSubtopicNames[topic.id] || creating"
+                          (click)="createSubtopic(subject, topic)">
+                    <mat-icon>add</mat-icon> Add Subtopic
+                  </button>
+                </div>
+
+                <!-- Subtopics list -->
+                <div class="subtopic-list">
+                  <div *ngFor="let subtopic of topic.subtopics" class="subtopic-item">
+                    <mat-icon class="subtopic-icon">label</mat-icon>
+                    <span>{{ subtopic.name }}</span>
+                    <span *ngIf="subtopic.description" class="subtopic-desc">— {{ subtopic.description }}</span>
+                  </div>
+                  <p *ngIf="topic.subtopics.length === 0" class="empty-msg">No subtopics yet</p>
+                </div>
+              </mat-expansion-panel>
+            </mat-accordion>
+
+            <p *ngIf="subject.topics.length === 0" class="empty-msg">No topics yet. Add one above.</p>
+          </mat-expansion-panel>
+        </mat-accordion>
+
+        <p *ngIf="hierarchy.length === 0" class="empty-msg center">
+          No subjects found. Create one to get started.
+        </p>
+      </div>
+    </div>

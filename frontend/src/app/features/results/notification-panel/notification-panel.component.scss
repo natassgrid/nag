@@ -1,0 +1,11 @@
+
+    .notification-panel { max-width: 360px; width: 100%; max-height: 500px; overflow-y: auto; }
+    .unread { font-weight: 500; background: rgba(21, 101, 192, 0.04); }
+    .type-info { color: var(--color-primary); }
+    .type-success { color: var(--color-success); }
+    .type-warning { color: var(--color-warning); }
+    .type-error { color: var(--color-error); }
+    .empty-state { text-align: center; padding: var(--spacing-lg); color: var(--color-text-secondary); }
+    @media (max-width: 320px) {
+      .notification-panel { max-width: 100%; }
+    }

@@ -41,73 +41,8 @@ export interface AmendScheduleDialogData {
     MatFormFieldModule, MatInputModule, MatSelectModule,
     MatButtonModule, MatDatepickerModule, MatNativeDateModule,
   ],
-  template: `
-    <h2 mat-dialog-title>Amend Schedule (v{{ data.schedule.scheduleVersion }})</h2>
-    <mat-dialog-content>
-      <form [formGroup]="form" class="dialog-form">
-        <mat-form-field appearance="outline" class="full-width">
-          <mat-label>Change Reason</mat-label>
-          <textarea matInput formControlName="changeReason" rows="3"
-                    placeholder="Explain why this schedule is being amended"></textarea>
-          <mat-error *ngIf="form.get('changeReason')?.hasError('required')">Mandatory for amendments</mat-error>
-        </mat-form-field>
-
-        <mat-form-field appearance="outline" class="full-width">
-          <mat-label>Schedule Name</mat-label>
-          <input matInput formControlName="scheduleName" />
-          <mat-error *ngIf="form.get('scheduleName')?.hasError('required')">Required</mat-error>
-        </mat-form-field>
-
-        <mat-form-field appearance="outline" class="full-width">
-          <mat-label>Notification Number</mat-label>
-          <input matInput formControlName="notificationNumber" />
-        </mat-form-field>
-
-        <div class="form-row">
-          <mat-form-field appearance="outline">
-            <mat-label>Exam Date</mat-label>
-            <input matInput [matDatepicker]="examDp" formControlName="examDate" />
-            <mat-datepicker-toggle matIconSuffix [for]="examDp"></mat-datepicker-toggle>
-            <mat-datepicker #examDp></mat-datepicker>
-            <mat-error *ngIf="form.get('examDate')?.hasError('required')">Required</mat-error>
-          </mat-form-field>
-          <mat-form-field appearance="outline">
-            <mat-label>Reserve Date</mat-label>
-            <input matInput [matDatepicker]="resDp" formControlName="reserveDate" />
-            <mat-datepicker-toggle matIconSuffix [for]="resDp"></mat-datepicker-toggle>
-            <mat-datepicker #resDp></mat-datepicker>
-          </mat-form-field>
-        </div>
-
-        <div class="form-row">
-          <mat-form-field appearance="outline">
-            <mat-label>Effective From</mat-label>
-            <input matInput [matDatepicker]="effDp" formControlName="effectiveFrom" />
-            <mat-datepicker-toggle matIconSuffix [for]="effDp"></mat-datepicker-toggle>
-            <mat-datepicker #effDp></mat-datepicker>
-          </mat-form-field>
-          <mat-form-field appearance="outline">
-            <mat-label>Time Zone</mat-label>
-            <mat-select formControlName="timeZone">
-              <mat-option value="Asia/Kolkata">Asia/Kolkata (IST)</mat-option>
-              <mat-option value="Asia/Colombo">Asia/Colombo</mat-option>
-              <mat-option value="UTC">UTC</mat-option>
-            </mat-select>
-          </mat-form-field>
-        </div>
-      </form>
-    </mat-dialog-content>
-    <mat-dialog-actions align="end">
-      <button mat-button mat-dialog-close>Cancel</button>
-      <button mat-raised-button color="primary" [disabled]="form.invalid" (click)="save()">Submit Amendment</button>
-    </mat-dialog-actions>
-  `,
-  styles: [`
-    .dialog-form { display: flex; flex-direction: column; gap: 12px; min-width: 460px; padding-top: 8px; }
-    .full-width { width: 100%; }
-    .form-row { display: flex; gap: 16px; }
-    .form-row mat-form-field { flex: 1; }
-  `]
+  templateUrl: './amend-schedule-dialog.component.html',
+  styleUrls: ['./amend-schedule-dialog.component.scss']
 })
 export class AmendScheduleDialogComponent implements OnInit {
   form!: FormGroup;

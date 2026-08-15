@@ -41,63 +41,8 @@ export interface ScheduleFormDialogData {
     MatFormFieldModule, MatInputModule, MatSelectModule,
     MatButtonModule, MatDatepickerModule, MatNativeDateModule,
   ],
-  template: `
-    <h2 mat-dialog-title>{{ isEdit ? 'Edit Schedule' : 'Create Schedule' }}</h2>
-    <mat-dialog-content>
-      <form [formGroup]="form" class="dialog-form">
-        <mat-form-field appearance="outline" class="full-width">
-          <mat-label>Schedule Name</mat-label>
-          <input matInput formControlName="scheduleName" placeholder="e.g. Phase 1" />
-          <mat-error *ngIf="form.get('scheduleName')?.hasError('required')">Required</mat-error>
-        </mat-form-field>
-
-        <mat-form-field appearance="outline" class="full-width">
-          <mat-label>Notification Number</mat-label>
-          <input matInput formControlName="notificationNumber" placeholder="Government gazette reference" />
-          <mat-hint>Optional — official notification reference</mat-hint>
-        </mat-form-field>
-
-        <div class="form-row">
-          <mat-form-field appearance="outline">
-            <mat-label>Exam Date</mat-label>
-            <input matInput [matDatepicker]="examDp" [min]="minDate" formControlName="examDate" />
-            <mat-datepicker-toggle matIconSuffix [for]="examDp"></mat-datepicker-toggle>
-            <mat-datepicker #examDp></mat-datepicker>
-            <mat-error *ngIf="form.get('examDate')?.hasError('required')">Required</mat-error>
-          </mat-form-field>
-
-          <mat-form-field appearance="outline">
-            <mat-label>Reserve Date</mat-label>
-            <input matInput [matDatepicker]="resDp" [min]="minDate" formControlName="reserveDate" />
-            <mat-datepicker-toggle matIconSuffix [for]="resDp"></mat-datepicker-toggle>
-            <mat-datepicker #resDp></mat-datepicker>
-            <mat-hint>Optional backup date</mat-hint>
-          </mat-form-field>
-        </div>
-
-        <mat-form-field appearance="outline" class="full-width">
-          <mat-label>Time Zone</mat-label>
-          <mat-select formControlName="timeZone">
-            <mat-option value="Asia/Kolkata">Asia/Kolkata (IST)</mat-option>
-            <mat-option value="Asia/Colombo">Asia/Colombo</mat-option>
-            <mat-option value="UTC">UTC</mat-option>
-          </mat-select>
-        </mat-form-field>
-      </form>
-    </mat-dialog-content>
-    <mat-dialog-actions align="end">
-      <button mat-button mat-dialog-close>Cancel</button>
-      <button mat-raised-button color="primary" [disabled]="form.invalid" (click)="save()">
-        {{ isEdit ? 'Update' : 'Create' }}
-      </button>
-    </mat-dialog-actions>
-  `,
-  styles: [`
-    .dialog-form { display: flex; flex-direction: column; gap: 12px; min-width: 420px; padding-top: 8px; }
-    .full-width { width: 100%; }
-    .form-row { display: flex; gap: 16px; }
-    .form-row mat-form-field { flex: 1; }
-  `]
+  templateUrl: './schedule-form-dialog.component.html',
+  styleUrls: ['./schedule-form-dialog.component.scss']
 })
 export class ScheduleFormDialogComponent implements OnInit {
   form!: FormGroup;

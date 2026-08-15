@@ -39,69 +39,8 @@ import { HttpClient } from '@angular/common/http';
     MatFormFieldModule,
     MatProgressSpinnerModule
   ],
-  template: `
-    <section class="export-container" role="main" aria-labelledby="export-heading">
-      <h1 id="export-heading">Report Export</h1>
-
-      <mat-card class="export-card">
-        <mat-card-header>
-          <mat-card-title>Export Exam Reports</mat-card-title>
-        </mat-card-header>
-        <mat-card-content>
-          <div class="export-form">
-            <mat-form-field appearance="outline">
-              <mat-label>Select Exam</mat-label>
-              <mat-select [(value)]="selectedExamId" aria-label="Select exam for export">
-                <mat-option *ngFor="let exam of examList" [value]="exam.id">{{ exam.name }}</mat-option>
-              </mat-select>
-            </mat-form-field>
-
-            <mat-form-field appearance="outline">
-              <mat-label>Report Type</mat-label>
-              <mat-select [(value)]="reportType" aria-label="Select report type">
-                <mat-option value="results">Result Summary</mat-option>
-                <mat-option value="analytics">Analytics Report</mat-option>
-                <mat-option value="attendance">Attendance Report</mat-option>
-              </mat-select>
-            </mat-form-field>
-          </div>
-
-          <div class="export-actions">
-            <button mat-raised-button color="primary"
-                    (click)="exportCSV()"
-                    [disabled]="!selectedExamId || isExporting"
-                    aria-label="Export report as CSV">
-              <mat-icon>table_chart</mat-icon>
-              Export CSV
-            </button>
-
-            <button mat-raised-button color="accent"
-                    (click)="exportPDF()"
-                    [disabled]="!selectedExamId || isExporting"
-                    aria-label="Export report as PDF">
-              <mat-icon>picture_as_pdf</mat-icon>
-              Export PDF
-            </button>
-          </div>
-
-          <mat-progress-spinner *ngIf="isExporting" mode="indeterminate" diameter="32"
-                                aria-label="Export in progress">
-          </mat-progress-spinner>
-
-          <div *ngIf="exportMessage" role="status" aria-live="polite" class="export-message">
-            {{ exportMessage }}
-          </div>
-        </mat-card-content>
-      </mat-card>
-    </section>
-  `,
-  styles: [`
-    .export-container { padding: var(--spacing-lg); max-width: 800px; margin: 0 auto; }
-    .export-form { display: flex; gap: var(--spacing-md); flex-wrap: wrap; margin-bottom: var(--spacing-md); }
-    .export-form mat-form-field { flex: 1; min-width: 200px; }
-    .export-actions { display: flex; gap: var(--spacing-md); margin-bottom: var(--spacing-md); }
-    .export-message { margin-top: var(--spacing-md); color: var(--color-success); font-weight: 500; }
-  `]
+  templateUrl: './report-export.component.html',
+  styleUrls: ['./report-export.component.scss']
 })
 export class ReportExportComponent {
   examList: { id: string; name: string }[] = [];

@@ -1,0 +1,14 @@
+    .status-badge {
+      padding: 4px 10px;
+      border-radius: 12px;
+      font-size: 12px;
+      font-weight: 500;
+    }
+    .status-badge.active { background-color: #c8e6c9; color: #2e7d32; }
+    .status-badge.inactive { background-color: #ffcdd2; color: #c62828; }
+    .perm-chip { font-size: 11px; }
+    .more-chip { background-color: #e3f2fd !important; color: #1565c0 !important; }
+    .no-perms { color: #9e9e9e; font-style: italic; font-size: 13px; }
+    .drawer-form-container { display: flex; flex-direction: column; gap: 16px; padding-top: 8px; }
+    .full-width { width: 100%; }
+    .toggle-field { padding: 8px 0; }
