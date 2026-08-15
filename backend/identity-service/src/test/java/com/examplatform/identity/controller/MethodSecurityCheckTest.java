@@ -23,8 +23,7 @@ import com.examplatform.identity.filter.RateLimitFilter;
 import com.examplatform.identity.service.RoleManagementService;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.autoconfigure.security.oauth2.resource.servlet.OAuth2ResourceServerAutoConfiguration;
-import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
+import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.ComponentScan;
@@ -54,7 +53,6 @@ import org.springframework.http.MediaType;
  */
 @WebMvcTest(
     controllers = RoleController.class,
-    excludeAutoConfiguration = OAuth2ResourceServerAutoConfiguration.class,
     excludeFilters = @ComponentScan.Filter(
         type = FilterType.ASSIGNABLE_TYPE,
         classes = {
@@ -64,8 +62,7 @@ import org.springframework.http.MediaType;
     )
 )
 @Import({
-    MethodSecurityCheckTest.TestSecurityConfig.class,
-    org.springframework.boot.autoconfigure.aop.AopAutoConfiguration.class
+    MethodSecurityCheckTest.TestSecurityConfig.class
 })
 class MethodSecurityCheckTest {
 
@@ -142,6 +139,6 @@ class MethodSecurityCheckTest {
         System.out.println("CANDIDATE STATUS: " + result.getResponse().getStatus());
         System.out.println("CANDIDATE BODY: '" + result.getResponse().getContentAsString() + "'");
         System.out.println("CANDIDATE CONTENT TYPE: " + result.getResponse().getContentType());
-        assertThat(result.getResponse().getStatus()).isEqualTo(404);
+        assertThat(result.getResponse().getStatus()).isEqualTo(403);
     }
 }

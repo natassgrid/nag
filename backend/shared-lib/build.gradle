@@ -15,54 +15,54 @@
  */
 plugins {
     id 'java-library'
-    id 'io.spring.dependency-management'
-    id 'io.freefair.lombok'
+    alias(libs.plugins.spring.dependency.management)
+    alias(libs.plugins.lombok)
 }
 
 version = '1.0.0-SNAPSHOT'
 
 dependencyManagement {
     imports {
-        mavenBom "org.springframework.boot:spring-boot-dependencies:${springBootVersion}"
+        mavenBom "org.springframework.boot:spring-boot-dependencies:${libs.versions.spring.boot.get()}"
     }
 }
 
 dependencies {
     // Spring Context (for @Component, etc. — lightweight, no full Boot)
-    api 'org.springframework:spring-context'
+    api libs.spring.context
 
     // Spring Web (for ProblemDetail support — included in spring-webmvc)
-    api 'org.springframework:spring-web'
+    api libs.spring.web
 
     // Spring Data JPA (for @MappedSuperclass, @PrePersist, etc.)
-    api 'org.springframework.data:spring-data-jpa'
+    api libs.spring.data.jpa
 
     // Jakarta Persistence (JPA annotations)
-    api 'jakarta.persistence:jakarta.persistence-api'
+    api libs.jakarta.persistence.api
 
     // UUID v7 — time-ordered, k-sortable UUIDs for all primary keys
-    api 'com.fasterxml.uuid:java-uuid-generator:5.1.0'
+    api libs.java.uuid.generator
 
     // Jackson for JSON serialisation of ApiResponse
-    api 'com.fasterxml.jackson.core:jackson-databind'
-    api 'com.fasterxml.jackson.datatype:jackson-datatype-jsr310'
+    api libs.jackson.databind
+    api libs.jackson.datatype.jsr310
 
     // Validation
-    api 'jakarta.validation:jakarta.validation-api'
+    api libs.jakarta.validation.api
 
     // Spring Security (for shared security configs)
-    api 'org.springframework.boot:spring-boot-starter-security'
-    api 'org.springframework.boot:spring-boot-starter-oauth2-resource-server'
+    api libs.spring.boot.starter.security
+    api libs.spring.boot.starter.oauth2.resource.server
 
     // Hibernate (JPA provider — needed at compile time for @MappedSuperclass processing)
-    compileOnly 'org.hibernate.orm:hibernate-core'
+    compileOnly libs.hibernate.core
 
     // Test dependencies
-    testImplementation 'org.springframework.boot:spring-boot-starter-test'
-    testImplementation 'org.junit.jupiter:junit-jupiter'
-    testImplementation 'org.junit.jupiter:junit-jupiter-params'
-    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
-    testImplementation 'org.assertj:assertj-core'
+    testImplementation libs.spring.boot.starter.test
+    testImplementation libs.junit.jupiter
+    testImplementation libs.junit.jupiter.params
+    testRuntimeOnly libs.junit.platform.launcher
+    testImplementation libs.assertj.core
 }
 
 test {
