@@ -152,19 +152,30 @@ public class QuestionService {
     @Transactional(readOnly = true)
     public org.springframework.data.domain.Page<QuestionResponse> listQuestions(
             String subject, String topic, String difficulty, String state,
-            int page, int size, String tenantId) {
+            String search, int page, int size, String tenantId) {
 
         org.springframework.data.domain.Pageable pageable =
                 org.springframework.data.domain.PageRequest.of(page, size,
                         org.springframework.data.domain.Sort.by("createdAt").descending());
 
         org.springframework.data.jpa.domain.Specification<Question> spec =
-                org.springframework.data.jpa.domain.Specification
-                        .where(tenantEquals(tenantId))
-                        .and(fieldEquals("subject", subject))
-                        .and(fieldEquals("topic", topic))
-                        .and(fieldEquals("difficulty", difficulty))
-                        .and(fieldEquals("state", state));
+                org.springframework.data.jpa.domain.Specification.where(tenantEquals(tenantId));
+
+        if (subject != null && !subject.isBlank()) {
+            spec = spec.and(fieldEquals("subject", subject));
+        }
+        if (topic != null && !topic.isBlank()) {
+            spec = spec.and(fieldEquals("topic", topic));
+        }
+        if (difficulty != null && !difficulty.isBlank()) {
+            spec = spec.and(fieldEquals("difficulty", difficulty));
+        }
+        if (state != null && !state.isBlank()) {
+            spec = spec.and(fieldEquals("state", state));
+        }
+        if (search != null && !search.isBlank()) {
+            spec = spec.and(searchLike(search));
+        }
 
         return questionRepository.findAll(spec, pageable).map(this::toResponse);
     }
@@ -174,8 +185,16 @@ public class QuestionService {
     }
 
     private org.springframework.data.jpa.domain.Specification<Question> fieldEquals(String field, String value) {
-        if (value == null || value.isBlank()) return null;
         return (root, query, cb) -> cb.equal(cb.lower(root.get(field)), value.toLowerCase());
+    }
+
+    private org.springframework.data.jpa.domain.Specification<Question> searchLike(String search) {
+        String pattern = "%" + search.toLowerCase() + "%";
+        return (root, query, cb) -> cb.or(
+                cb.like(cb.lower(root.get("subject")), pattern),
+                cb.like(cb.lower(root.get("topic")), pattern),
+                cb.like(cb.lower(root.get("content")), pattern)
+        );
     }
 
     /**

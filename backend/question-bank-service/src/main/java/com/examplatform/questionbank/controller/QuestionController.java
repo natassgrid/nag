@@ -109,15 +109,16 @@ public class QuestionController {
             @RequestParam(required = false) String topic,
             @RequestParam(required = false) String difficulty,
             @RequestParam(required = false) String state,
+            @RequestParam(required = false) String search,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size,
             @RequestHeader("X-Tenant-Id") String tenantId) {
 
-        log.info("Listing questions: subject={}, topic={}, difficulty={}, state={}, page={}, size={}, tenant={}",
-                subject, topic, difficulty, state, page, size, tenantId);
+        log.info("Listing questions: subject={}, topic={}, difficulty={}, state={}, search={}, page={}, size={}, tenant={}",
+                subject, topic, difficulty, state, search, page, size, tenantId);
 
         Page<QuestionResponse> responses = questionService.listQuestions(
-                subject, topic, difficulty, state, page, size, tenantId);
+                subject, topic, difficulty, state, search, page, size, tenantId);
         return ResponseEntity.ok(ApiResponse.success(responses, "Questions retrieved successfully"));
     }
 

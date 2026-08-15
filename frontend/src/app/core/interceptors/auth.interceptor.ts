@@ -19,6 +19,8 @@
 
 import { HttpInterceptorFn } from '@angular/common/http';
 import { inject } from '@angular/core';
+import { Router } from '@angular/router';
+import { tap, catchError, throwError } from 'rxjs';
 import { AuthService } from '../services/auth.service';
 
 function generateRequestId(): string {
@@ -27,6 +29,7 @@ function generateRequestId(): string {
 
 export const authInterceptor: HttpInterceptorFn = (req, next) => {
   const authService = inject(AuthService);
+  const router = inject(Router);
   const token = authService.getToken();
 
   let headers = req.headers
@@ -46,5 +49,14 @@ export const authInterceptor: HttpInterceptorFn = (req, next) => {
   }
 
   const clonedReq = req.clone({ headers });
-  return next(clonedReq);
+  return next(clonedReq).pipe(
+    catchError(error => {
+      if (error.status === 401) {
+        // Token expired or invalid — clear session and redirect to login
+        authService.logout();
+        router.navigate(['/auth/login']);
+      }
+      return throwError(() => error);
+    })
+  );
 };

@@ -6,6 +6,7 @@
           <ng-container *ngIf="button.dropdown; else simpleButton">
             <button
               mat-icon-button
+              type="button"
               [matMenuTriggerFor]="menu"
               [matTooltip]="button.label"
               [attr.aria-label]="button.label"
@@ -16,6 +17,7 @@
             <mat-menu #menu="matMenu">
               <button
                 mat-menu-item
+                type="button"
                 *ngFor="let item of button.dropdown"
                 (click)="executeDropdownItem(item)"
                 [attr.aria-label]="item.label"
@@ -35,9 +37,11 @@
           <ng-template #simpleButton>
             <button
               mat-icon-button
+              type="button"
               [matTooltip]="button.label + (button.shortcut ? ' (' + button.shortcut + ')' : '')"
               [attr.aria-label]="button.label"
               [class.active]="isButtonActive(button)"
+              (mousedown)="$event.preventDefault()"
               (click)="executeButton(button)"
               class="toolbar-btn"
             >
@@ -54,8 +58,10 @@
       <mat-divider vertical class="toolbar-divider"></mat-divider>
       <button
         mat-icon-button
+        type="button"
         matTooltip="Undo (Ctrl+Z)"
         aria-label="Undo"
+        (mousedown)="$event.preventDefault()"
         (click)="onUndo()"
         class="toolbar-btn"
       >
@@ -63,8 +69,10 @@
       </button>
       <button
         mat-icon-button
+        type="button"
         matTooltip="Redo (Ctrl+Shift+Z)"
         aria-label="Redo"
+        (mousedown)="$event.preventDefault()"
         (click)="onRedo()"
         class="toolbar-btn"
       >
