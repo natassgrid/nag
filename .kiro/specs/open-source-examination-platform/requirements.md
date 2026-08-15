@@ -2,7 +2,7 @@
 
 ## Introduction
 
-The Open Source Government Examination Platform is a large-scale, secure, multilingual, cloud-native examination system designed to support national, state, university, certification, and recruitment examinations across India. It is built on Java Spring Boot with PostgreSQL, an Angular frontend, Docker-based development, and a vendor-neutral deployment model.
+The Open Digital Public Infrastructure (DPI) Platform is a large-scale, secure, multilingual, cloud-native examination system designed to support national, state, university, certification, and recruitment examinations across India. It is built on Java Spring Boot with PostgreSQL, an Angular frontend, Docker-based development, and a vendor-neutral deployment model.
 
 The platform serves Examination Authorities, Candidates, Question Authors, Reviewers, Translators, Exam Controllers, Evaluators, Auditors, and Security Administrators. It targets 500,000 concurrent candidates, 5 million registered users, and a question bank of 100 million questions with 99.99% availability.
 
@@ -12,7 +12,7 @@ Core principles are: Security First, Privacy by Design, Open Standards, Vendor N
 
 ## Glossary
 
-- **Platform**: The Open Source Government Examination Platform as a whole.
+- **Platform**: The Open Digital Public Infrastructure (DPI) Platform as a whole.
 - **Identity_Service**: The Spring Boot microservice responsible for authentication, authorization, and session management.
 - **Candidate_Service**: The Spring Boot microservice managing candidate profiles and verification.
 - **Question_Bank_Service**: The Spring Boot microservice managing question creation, versioning, and lifecycle.

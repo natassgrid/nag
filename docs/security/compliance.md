@@ -1,4 +1,4 @@
-# Compliance & Regulatory Standards — Government Examination Platform
+# Compliance & Regulatory Standards — Open Digital Public Infrastructure (DPI) Platform
 
 ## 1. Compliance Mapping Framework
 

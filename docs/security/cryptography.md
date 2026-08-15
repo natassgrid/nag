@@ -1,4 +1,4 @@
-# Cryptography Standards & Key Management — Government Examination Platform
+# Cryptography Standards & Key Management — Open Digital Public Infrastructure (DPI) Platform
 
 ## 1. Cryptographic Standards
 

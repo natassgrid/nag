@@ -1,6 +1,15 @@
+# SPDX-License-Identifier: AGPL-3.0-only
+#
+# National Assessment Grid (NAG) - Open Digital Public Infrastructure (DPI) Platform
+# Copyright (C) 2025 NAG Contributors
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU Affero General Public License as published
+# by the Free Software Foundation, version 3 of the License.
+
 # =============================================================================
 # Shared SpringDoc/OpenAPI Configuration
-# Open Source Government Examination Platform
+# Open Digital Public Infrastructure (DPI) Platform
 # Requirements: 23.2, 23.3
 #
 # Include in each service's application.yml:
@@ -31,14 +40,14 @@ springdoc:
 openapi:
   info:
     title: "${spring.application.name} API"
-    description: "Open Source Government Examination Platform — ${spring.application.name}"
+    description: "Open Digital Public Infrastructure (DPI) Platform — ${spring.application.name}"
     version: "1.0.0"
     contact:
       name: Exam Platform Team
       url: https://github.com/exam-platform
     license:
-      name: Apache 2.0
-      url: https://www.apache.org/licenses/LICENSE-2.0
+      name: AGPL-3.0-only
+      url: https://www.gnu.org/licenses/agpl-3.0.html
   servers:
     - url: "${API_BASE_URL:http://localhost:${server.port}}"
       description: "${ENVIRONMENT:Local} Server"

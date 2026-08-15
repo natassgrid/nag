@@ -2,7 +2,7 @@
 
 ## 1. System Vision & Purpose
 
-The **National Assessment Grid (NAG)** is an open-source, enterprise-grade government examination platform designed to manage end-to-end competitive examinations, question bank authoring, automated cryptographic paper generation, nationwide exam delivery, and evaluation.
+The **National Assessment Grid (NAG)** is an open-source, enterprise-grade Open Digital Public Infrastructure (DPI) Platform designed to manage end-to-end competitive examinations, question bank authoring, automated cryptographic paper generation, nationwide exam delivery, and evaluation.
 
 ### Core Objectives
 - **Security & Leak Prevention**: Zero-trust cryptography, time-locked paper decryption keys (Shamir Secret Sharing), and watermarked delivery.
