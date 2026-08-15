@@ -227,7 +227,7 @@ import {
             <div *ngFor="let cat of activeCategories" class="filter-section">
               <div class="section-header" (click)="toggleCategory(cat)">
                 <span class="section-title">{{ cat.label }}</span>
-                <span class="expand-icon">{{ cat.expanded ? '˄' : '˅' }}</span>
+                <mat-icon class="expand-icon" [class.expanded]="cat.expanded">expand_more</mat-icon>
               </div>
 
               <div class="section-content" *ngIf="cat.expanded">
@@ -487,9 +487,15 @@ import {
     }
 
     .expand-icon {
-      font-size: 16px;
-      font-weight: bold;
+      font-size: 18px;
+      width: 18px;
+      height: 18px;
       color: #666666;
+      transition: transform 0.2s ease;
+
+      &.expanded {
+        transform: rotate(180deg);
+      }
     }
 
     .section-content {

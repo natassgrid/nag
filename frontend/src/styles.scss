@@ -124,8 +124,9 @@ input[type="button"],
 }
 
 // Search Field & Form Field 38px height and label alignment fix
+// Exclude form fields that contain a textarea — they need auto height
 .search-field,
-.mat-mdc-form-field {
+.mat-mdc-form-field:not(:has(textarea)) {
   --mdc-outlined-text-field-container-height: 38px;
 
   .mat-mdc-text-field-wrapper.mdc-text-field--outlined {
@@ -181,6 +182,37 @@ input[type="button"],
 
     .mat-mdc-form-field-subscript-wrapper {
       display: none !important;
+    }
+  }
+}
+
+// Fix label offset for form fields with icon prefix (search fields)
+.search-field .mat-mdc-text-field-wrapper .mdc-floating-label:not(.mdc-floating-label--float-above),
+.mat-mdc-form-field:has(.mat-mdc-form-field-icon-prefix) .mat-mdc-text-field-wrapper .mdc-floating-label:not(.mdc-floating-label--float-above) {
+  left: 36px !important;
+}
+
+// Textarea form fields — allow natural height
+.mat-mdc-form-field:has(textarea) {
+  .mat-mdc-text-field-wrapper.mdc-text-field--outlined {
+    height: auto !important;
+
+    .mat-mdc-form-field-flex {
+      height: auto !important;
+      align-items: flex-start !important;
+    }
+
+    .mat-mdc-form-field-infix {
+      min-height: unset !important;
+      height: auto !important;
+      padding-top: 12px !important;
+      padding-bottom: 12px !important;
+      display: block !important;
+    }
+
+    textarea.mat-mdc-input-element {
+      width: 100% !important;
+      box-sizing: border-box !important;
     }
   }
 }

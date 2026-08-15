@@ -55,7 +55,7 @@ export const routes: Routes = [
     path: 'admin',
     loadChildren: () => import('./features/admin/admin.routes').then(m => m.ADMIN_ROUTES),
     canActivate: [authGuard, roleGuard],
-    data: { roles: ['SUPER_ADMIN', 'SECURITY_ADMIN'] }
+    data: { roles: ['SUPER_ADMIN', 'SECURITY_ADMIN', 'AUDITOR'] }
   },
   {
     path: 'questions',
@@ -84,6 +84,17 @@ export const routes: Routes = [
   {
     path: 'notifications',
     loadComponent: () => import('./features/notifications/notification-list.component').then(m => m.NotificationListComponent),
+    canActivate: [authGuard]
+  },
+  {
+    path: 'evaluations',
+    loadComponent: () => import('./features/evaluations/evaluation-list.component').then(m => m.EvaluationListComponent),
+    canActivate: [authGuard, roleGuard],
+    data: { roles: ['EVALUATOR'] }
+  },
+  {
+    path: 'preferences',
+    loadComponent: () => import('./features/preferences/preferences.component').then(m => m.PreferencesComponent),
     canActivate: [authGuard]
   },
   {

@@ -13,10 +13,16 @@
     </button>
     <span class="app-title">{{ title }}</span>
     <span class="toolbar-spacer"></span>
-    <span class="user-name">{{ userName }}</span>
-    <button mat-icon-button (click)="onLogout()" aria-label="Logout">
-      <mat-icon>logout</mat-icon>
-    </button>
+
+    <!-- Notification bell -->
+    <app-notification-panel></app-notification-panel>
+
+    <!-- User avatar menu -->
+    <app-user-menu
+      [userName]="userName"
+      [primaryRole]="primaryRole"
+      (signOut)="onLogout()"
+    ></app-user-menu>
   </mat-toolbar>
 
   <mat-sidenav-container class="sidenav-container">
@@ -27,17 +33,56 @@
       role="navigation"
     >
       <mat-nav-list>
-        @for (item of visibleNavItems; track item.route) {
-          <a
-            mat-list-item
-            [routerLink]="item.route"
-            routerLinkActive="active-link"
-            [routerLinkActiveOptions]="{exact: true}"
-            (click)="closeSidenavIfMobile()"
-          >
-            <mat-icon matListItemIcon>{{ item.icon }}</mat-icon>
-            <span matListItemTitle>{{ item.label }}</span>
-          </a>
+        <!-- Dashboard (always visible, top-level) -->
+        <a
+          mat-list-item
+          [routerLink]="dashboardItem.route"
+          routerLinkActive="active-link"
+          [routerLinkActiveOptions]="{exact: true}"
+          (click)="closeSidenavIfMobile()"
+          class="dashboard-item"
+        >
+          <mat-icon matListItemIcon>{{ dashboardItem.icon }}</mat-icon>
+          <span matListItemTitle>{{ dashboardItem.label }}</span>
+        </a>
+
+        <!-- Grouped navigation sections (collapsible) -->
+        @for (group of visibleNavGroups; track group.label) {
+          <div class="nav-group">
+            <button
+              class="nav-group-header"
+              (click)="toggleGroup(group.label)"
+              [attr.aria-expanded]="isGroupExpanded(group.label)"
+              [attr.aria-controls]="'nav-group-' + group.label"
+              type="button"
+            >
+              <mat-icon class="nav-group-icon">{{ group.icon }}</mat-icon>
+              <span class="nav-group-label">{{ group.label }}</span>
+              <span class="nav-group-spacer"></span>
+              <mat-icon class="nav-group-chevron" [class.expanded]="isGroupExpanded(group.label)">expand_more</mat-icon>
+            </button>
+            <div
+              class="nav-group-items"
+              [class.collapsed]="!isGroupExpanded(group.label)"
+              [id]="'nav-group-' + group.label"
+              role="group"
+              [attr.aria-label]="group.label"
+            >
+              @for (item of group.items; track item.route) {
+                <a
+                  mat-list-item
+                  [routerLink]="item.route"
+                  routerLinkActive="active-link"
+                  [routerLinkActiveOptions]="{exact: item.route === '/questions' || item.route === '/exam'}"
+                  (click)="closeSidenavIfMobile()"
+                  class="nav-group-item"
+                >
+                  <mat-icon matListItemIcon>{{ item.icon }}</mat-icon>
+                  <span matListItemTitle>{{ item.label }}</span>
+                </a>
+              }
+            </div>
+          </div>
         }
       </mat-nav-list>
     </mat-sidenav>

@@ -78,6 +78,7 @@ import { RightDrawerComponent } from '../../shared/components/right-drawer/right
   `,
   styles: [`
     .metadata-form { display: flex; flex-direction: column; gap: 4px; }
+    .metadata-form mat-form-field { width: 100%; }
     .filename { font-size: 13px; color: #666; margin-bottom: 12px; }
     .error-msg { color: #c62828; font-size: 13px; }
   `]
