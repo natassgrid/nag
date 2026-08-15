@@ -53,24 +53,29 @@ import { PageHeaderComponent } from '../../../shared/components/page-header/page
         icon="event"
       ></app-page-header>
 
-      <app-paginated-table
-        #paginatedTable
-        [fetcher]="fetcher"
-        [columns]="columns"
-        [actionsTemplate]="actionsTmpl"
-        title="Examinations List"
+      <mat-card>
+        <mat-card-content>
+          <app-paginated-table
+            #paginatedTable
+            [fetcher]="fetcher"
+            [columns]="columns"
+            [actionsTemplate]="actionsTmpl"
+            title="Examinations"
+            title="Examinations List"
         searchPlaceholder="Search by name, code, or status..."
         (rowClick)="viewSchedules($event)"
       ></app-paginated-table>
 
-      <ng-template #actionsTmpl let-row>
-        <button mat-stroked-button color="primary"
-                (click)="viewSchedules(row); $event.stopPropagation()"
-                matTooltip="Manage schedules"
-                aria-label="View schedules">
-          <mat-icon>calendar_month</mat-icon> Schedules
-        </button>
-      </ng-template>
+          <ng-template #actionsTmpl let-row>
+            <button mat-stroked-button color="primary"
+                    (click)="viewSchedules(row); $event.stopPropagation()"
+                    matTooltip="Manage schedules"
+                    aria-label="View schedules">
+              <mat-icon>calendar_month</mat-icon> Schedules
+            </button>
+          </ng-template>
+        </mat-card-content>
+      </mat-card>
     </div>
   `,
   styles: [`

@@ -1,3 +1,4 @@
+package com.examplatform.asset.repository;
 /*
  * SPDX-License-Identifier: AGPL-3.0-only
  *
@@ -17,7 +18,6 @@
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
 
-package com.examplatform.asset.repository;
 
 import com.examplatform.asset.domain.entity.MediaAsset;
 import com.examplatform.asset.domain.enums.AssetStatus;

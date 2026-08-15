@@ -1,3 +1,4 @@
+package com.examplatform.questionbank.service;
 /*
  * SPDX-License-Identifier: AGPL-3.0-only
  *
@@ -17,7 +18,6 @@
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
 
-package com.examplatform.questionbank.service;
 
 import com.examplatform.questionbank.domain.Question;
 import com.examplatform.questionbank.domain.enums.QuestionType;
