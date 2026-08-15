@@ -39,7 +39,7 @@ cd "$SCRIPT_DIR"
 COMPOSE="docker compose -f docker-compose.yml"
 COMPOSE_SERVICES="docker compose -f docker-compose.yml -f docker-compose.services.yml"
 INFRA_SERVICES="postgres redis vault vault-init kafka keycloak ollama ollama-pull litellm"
-APP_SERVICES="identity-service question-bank-service api-gateway"
+APP_SERVICES="identity-service question-bank-service api-gateway frontend"
 
 ACTION="start"
 
@@ -75,7 +75,7 @@ case $ACTION in
     $COMPOSE ps postgres redis vault kafka keycloak ollama litellm 2>/dev/null || $COMPOSE ps
     echo ""
     echo "--- Application ---"
-    $COMPOSE_SERVICES ps identity-service question-bank-service api-gateway 2>/dev/null || true
+    $COMPOSE_SERVICES ps identity-service question-bank-service api-gateway frontend 2>/dev/null || true
     echo ""
     echo "▶ Ollama models:"
     docker exec exam-ollama ollama list 2>/dev/null || echo "  (Ollama not running)"
@@ -103,7 +103,7 @@ case $ACTION in
     $COMPOSE up -d $INFRA_SERVICES
     echo ""
     echo "⏳ Waiting for infrastructure to be healthy..."
-    $COMPOSE up --wait -d postgres vault keycloak ollama
+    $COMPOSE up --wait -d postgres vault ollama
     echo ""
     echo "▶ Starting application services..."
     $COMPOSE_SERVICES up -d $APP_SERVICES
@@ -113,20 +113,19 @@ case $ACTION in
     echo "  Ollama is pulling models in the background (ollama-pull container)."
     echo "  Monitor with: docker logs -f exam-ollama-pull"
     echo ""
-    echo "  Frontend: http://localhost:4200  (run: cd frontend && npm start)"
+    echo "  Frontend: http://localhost:4200"
     echo "  API Gateway: http://localhost:9000"
     ;;
 
   start)
     echo "▶ Starting pipeline infrastructure..."
     echo "  Infra: postgres, redis, vault, kafka, keycloak, ollama, litellm"
-    echo "  Apps:  identity-service, question-bank-service, api-gateway"
-    echo "  UI:    frontend (run manually: cd frontend && npm start)"
+    echo "  Apps:  identity-service, question-bank-service, api-gateway, frontend"
     echo ""
     $COMPOSE up -d $INFRA_SERVICES
     echo ""
     echo "⏳ Waiting for infrastructure to be healthy..."
-    $COMPOSE up --wait -d postgres vault keycloak ollama 2>/dev/null || true
+    $COMPOSE up --wait -d postgres vault ollama 2>/dev/null || true
     echo ""
     echo "▶ Starting application services..."
     $COMPOSE_SERVICES up -d $APP_SERVICES
@@ -148,10 +147,7 @@ case $ACTION in
     echo "    Identity     → localhost:8081"
     echo "    Question Bank→ localhost:8083"
     echo "    API Gateway  → localhost:9000"
-    echo ""
-    echo "  Frontend (run separately):"
-    echo "    cd frontend && npm start"
-    echo "    → http://localhost:4200"
+    echo "    Frontend     → localhost:4200"
     echo ""
     echo "  Models are being pulled (first run only):"
     echo "    docker logs -f exam-ollama-pull"
