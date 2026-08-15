@@ -70,6 +70,7 @@ export class EditorContentComponent implements AfterViewInit, OnChanges {
   @Output() keydown = new EventEmitter<KeyboardEvent>();
 
   private isRendering = false;
+  private isInternalChange = false;
 
   constructor(private assetService: EditorAssetService) {}
 
@@ -79,6 +80,11 @@ export class EditorContentComponent implements AfterViewInit, OnChanges {
 
   ngOnChanges(changes: SimpleChanges): void {
     if (changes['document'] && !changes['document'].firstChange) {
+      if (this.isInternalChange) {
+        // Change originated from user input — DOM is already correct, skip re-render
+        this.isInternalChange = false;
+        return;
+      }
       this.renderDocument();
     }
   }
@@ -99,6 +105,7 @@ export class EditorContentComponent implements AfterViewInit, OnChanges {
     // Parse DOM back to document model
     const newDoc = this.parseDomToDocument();
     if (newDoc) {
+      this.isInternalChange = true;
       this.documentChange.emit(newDoc);
     }
   }
