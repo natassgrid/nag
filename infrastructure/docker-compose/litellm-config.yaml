@@ -1,0 +1,47 @@
+# LiteLLM Proxy Configuration
+# Unified LLM Gateway for the Exam Platform
+# Docs: https://docs.litellm.ai/docs/proxy/configs
+
+model_list:
+  # ─── Embedding Models (local via Ollama) ───────────────────────────────────
+  - model_name: nomic-embed-text
+    litellm_params:
+      model: ollama/nomic-embed-text
+      api_base: http://ollama:11434
+
+  # ─── Chat/Completion Models (local via Ollama) ─────────────────────────────
+  # Pull additional models via: docker exec exam-ollama ollama pull <model>
+  - model_name: qwen3-8b
+    litellm_params:
+      model: ollama/qwen3:8b
+      api_base: http://ollama:11434
+
+  - model_name: llama3
+    litellm_params:
+      model: ollama/llama3
+      api_base: http://ollama:11434
+
+  - model_name: mistral
+    litellm_params:
+      model: ollama/mistral
+      api_base: http://ollama:11434
+
+  # ─── External Models (uncomment and set API keys as needed) ────────────────
+  # - model_name: gpt-4o
+  #   litellm_params:
+  #     model: openai/gpt-4o
+  #     api_key: os.environ/OPENAI_API_KEY
+
+  # - model_name: claude-sonnet
+  #   litellm_params:
+  #     model: anthropic/claude-sonnet-4-20250514
+  #     api_key: os.environ/ANTHROPIC_API_KEY
+
+general_settings:
+  master_key: sk-litellm-dev-key
+  drop_params: true
+
+litellm_settings:
+  num_retries: 2
+  request_timeout: 120
+  set_verbose: false

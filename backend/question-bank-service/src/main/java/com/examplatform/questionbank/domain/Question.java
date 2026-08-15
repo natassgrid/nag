@@ -82,6 +82,12 @@ public class Question extends BaseEntity {
     @Column(name = "answer_key", columnDefinition = "TEXT")
     private String answerKey;
 
+    @Column(name = "explanation", columnDefinition = "TEXT")
+    private String explanation;
+
+    @Column(name = "\"references\"", columnDefinition = "TEXT")
+    private String references;
+
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "embedding_vector", columnDefinition = "jsonb")
     private String embeddingVector;

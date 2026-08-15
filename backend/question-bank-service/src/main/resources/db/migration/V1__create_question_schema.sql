@@ -25,6 +25,8 @@ CREATE TABLE question_service.question (
     question_type           VARCHAR(30) NOT NULL,
     content                 TEXT,
     answer_key              TEXT,
+    explanation             TEXT,
+    "references"            TEXT,
     embedding_vector        JSONB,
     state                   VARCHAR(20) NOT NULL DEFAULT 'DRAFT',
     encryption_key_id       VARCHAR(255),
@@ -65,3 +67,286 @@ CREATE TABLE question_service.question_version (
 
 CREATE INDEX idx_question_version_tenant_id ON question_service.question_version(tenant_id);
 CREATE INDEX idx_question_version_question_id ON question_service.question_version(question_id);
+
+-- ============================================================
+-- Subject → Topic → Subtopic hierarchy tables
+-- ============================================================
+
+-- Table: subject
+CREATE TABLE question_service.subject (
+    id          UUID PRIMARY KEY,
+    tenant_id   VARCHAR(255) NOT NULL,
+    name        VARCHAR(200) NOT NULL,
+    code        VARCHAR(50),
+    description TEXT,
+    active      BOOLEAN NOT NULL DEFAULT TRUE,
+    created_at  TIMESTAMP NOT NULL DEFAULT NOW(),
+    updated_at  TIMESTAMP NOT NULL DEFAULT NOW(),
+    version     BIGINT NOT NULL DEFAULT 0,
+    CONSTRAINT uq_subject_name_tenant UNIQUE (name, tenant_id)
+);
+
+CREATE INDEX idx_subject_tenant_id ON question_service.subject(tenant_id);
+CREATE INDEX idx_subject_name ON question_service.subject(name);
+
+-- Table: topic
+CREATE TABLE question_service.topic (
+    id          UUID PRIMARY KEY,
+    tenant_id   VARCHAR(255) NOT NULL,
+    subject_id  UUID NOT NULL REFERENCES question_service.subject(id) ON DELETE CASCADE,
+    name        VARCHAR(200) NOT NULL,
+    description TEXT,
+    active      BOOLEAN NOT NULL DEFAULT TRUE,
+    created_at  TIMESTAMP NOT NULL DEFAULT NOW(),
+    updated_at  TIMESTAMP NOT NULL DEFAULT NOW(),
+    version     BIGINT NOT NULL DEFAULT 0,
+    CONSTRAINT uq_topic_name_subject_tenant UNIQUE (name, subject_id, tenant_id)
+);
+
+CREATE INDEX idx_topic_tenant_id ON question_service.topic(tenant_id);
+CREATE INDEX idx_topic_subject_id ON question_service.topic(subject_id);
+
+-- Table: subtopic
+CREATE TABLE question_service.subtopic (
+    id          UUID PRIMARY KEY,
+    tenant_id   VARCHAR(255) NOT NULL,
+    topic_id    UUID NOT NULL REFERENCES question_service.topic(id) ON DELETE CASCADE,
+    name        VARCHAR(200) NOT NULL,
+    description TEXT,
+    active      BOOLEAN NOT NULL DEFAULT TRUE,
+    created_at  TIMESTAMP NOT NULL DEFAULT NOW(),
+    updated_at  TIMESTAMP NOT NULL DEFAULT NOW(),
+    version     BIGINT NOT NULL DEFAULT 0,
+    CONSTRAINT uq_subtopic_name_topic_tenant UNIQUE (name, topic_id, tenant_id)
+);
+
+CREATE INDEX idx_subtopic_tenant_id ON question_service.subtopic(tenant_id);
+CREATE INDEX idx_subtopic_topic_id ON question_service.subtopic(topic_id);
+
+-- ============================================================
+-- Seed Data: Indian Examination Subjects for tenant 'exam-authority-1'
+-- ============================================================
+
+-- Subjects
+INSERT INTO question_service.subject (id, tenant_id, name, code, description) VALUES
+('10000001-0000-0000-0000-000000000001', 'exam-authority-1', 'General Studies', 'GS', 'General Studies covering history, geography, polity, economy, science and current affairs'),
+('10000001-0000-0000-0000-000000000002', 'exam-authority-1', 'Mathematics', 'MATH', 'Mathematics including arithmetic, algebra, geometry, statistics and trigonometry'),
+('10000001-0000-0000-0000-000000000003', 'exam-authority-1', 'English', 'ENG', 'English language including grammar, comprehension and vocabulary'),
+('10000001-0000-0000-0000-000000000004', 'exam-authority-1', 'Reasoning', 'REAS', 'Logical, analytical and verbal reasoning'),
+('10000001-0000-0000-0000-000000000005', 'exam-authority-1', 'General Science', 'GSCI', 'General science covering physics, chemistry and biology'),
+('10000001-0000-0000-0000-000000000006', 'exam-authority-1', 'Computer Science', 'CS', 'Computer science including programming, databases and networking');
+
+-- Topics for General Studies
+INSERT INTO question_service.topic (id, tenant_id, subject_id, name, description) VALUES
+('20000001-0000-0000-0000-000000000001', 'exam-authority-1', '10000001-0000-0000-0000-000000000001', 'Indian History', 'History of India from ancient to modern times'),
+('20000001-0000-0000-0000-000000000002', 'exam-authority-1', '10000001-0000-0000-0000-000000000001', 'Indian Geography', 'Physical, economic and human geography of India'),
+('20000001-0000-0000-0000-000000000003', 'exam-authority-1', '10000001-0000-0000-0000-000000000001', 'Indian Polity', 'Indian constitution, governance and political system'),
+('20000001-0000-0000-0000-000000000004', 'exam-authority-1', '10000001-0000-0000-0000-000000000001', 'Indian Economy', 'Economic planning, banking, trade and fiscal policy'),
+('20000001-0000-0000-0000-000000000005', 'exam-authority-1', '10000001-0000-0000-0000-000000000001', 'Science & Technology', 'Scientific developments and technological advancements'),
+('20000001-0000-0000-0000-000000000006', 'exam-authority-1', '10000001-0000-0000-0000-000000000001', 'Environment', 'Environmental science, ecology and conservation'),
+('20000001-0000-0000-0000-000000000007', 'exam-authority-1', '10000001-0000-0000-0000-000000000001', 'Current Affairs', 'National and international current events');
+
+-- Topics for Mathematics
+INSERT INTO question_service.topic (id, tenant_id, subject_id, name, description) VALUES
+('20000001-0000-0000-0000-000000000008', 'exam-authority-1', '10000001-0000-0000-0000-000000000002', 'Arithmetic', 'Basic arithmetic operations and concepts'),
+('20000001-0000-0000-0000-000000000009', 'exam-authority-1', '10000001-0000-0000-0000-000000000002', 'Algebra', 'Algebraic expressions, equations and operations'),
+('20000001-0000-0000-0000-000000000010', 'exam-authority-1', '10000001-0000-0000-0000-000000000002', 'Geometry', 'Geometric shapes, properties and measurements'),
+('20000001-0000-0000-0000-000000000011', 'exam-authority-1', '10000001-0000-0000-0000-000000000002', 'Statistics', 'Statistical measures and data analysis'),
+('20000001-0000-0000-0000-000000000012', 'exam-authority-1', '10000001-0000-0000-0000-000000000002', 'Trigonometry', 'Trigonometric ratios, identities and applications');
+
+-- Topics for English
+INSERT INTO question_service.topic (id, tenant_id, subject_id, name, description) VALUES
+('20000001-0000-0000-0000-000000000013', 'exam-authority-1', '10000001-0000-0000-0000-000000000003', 'Grammar', 'English grammar rules and usage'),
+('20000001-0000-0000-0000-000000000014', 'exam-authority-1', '10000001-0000-0000-0000-000000000003', 'Comprehension', 'Reading comprehension and passage analysis'),
+('20000001-0000-0000-0000-000000000015', 'exam-authority-1', '10000001-0000-0000-0000-000000000003', 'Vocabulary', 'Word knowledge and usage');
+
+-- Topics for Reasoning
+INSERT INTO question_service.topic (id, tenant_id, subject_id, name, description) VALUES
+('20000001-0000-0000-0000-000000000016', 'exam-authority-1', '10000001-0000-0000-0000-000000000004', 'Logical Reasoning', 'Logic-based problem solving'),
+('20000001-0000-0000-0000-000000000017', 'exam-authority-1', '10000001-0000-0000-0000-000000000004', 'Analytical Reasoning', 'Analysis and pattern recognition'),
+('20000001-0000-0000-0000-000000000018', 'exam-authority-1', '10000001-0000-0000-0000-000000000004', 'Verbal Reasoning', 'Verbal logic and inference');
+
+-- Topics for General Science
+INSERT INTO question_service.topic (id, tenant_id, subject_id, name, description) VALUES
+('20000001-0000-0000-0000-000000000019', 'exam-authority-1', '10000001-0000-0000-0000-000000000005', 'Physics', 'Fundamental physics concepts'),
+('20000001-0000-0000-0000-000000000020', 'exam-authority-1', '10000001-0000-0000-0000-000000000005', 'Chemistry', 'Chemistry concepts and applications'),
+('20000001-0000-0000-0000-000000000021', 'exam-authority-1', '10000001-0000-0000-0000-000000000005', 'Biology', 'Biological sciences');
+
+-- Topics for Computer Science
+INSERT INTO question_service.topic (id, tenant_id, subject_id, name, description) VALUES
+('20000001-0000-0000-0000-000000000022', 'exam-authority-1', '10000001-0000-0000-0000-000000000006', 'Programming', 'Programming concepts and paradigms'),
+('20000001-0000-0000-0000-000000000023', 'exam-authority-1', '10000001-0000-0000-0000-000000000006', 'Databases', 'Database management concepts'),
+('20000001-0000-0000-0000-000000000024', 'exam-authority-1', '10000001-0000-0000-0000-000000000006', 'Networking', 'Computer networking fundamentals');
+
+-- ============================================================
+-- Subtopics (seed data)
+-- ============================================================
+
+-- General Studies > Indian History
+INSERT INTO question_service.subtopic (id, tenant_id, topic_id, name, description) VALUES
+('30000001-0000-0000-0000-000000000001', 'exam-authority-1', '20000001-0000-0000-0000-000000000001', 'Ancient India', 'Indus Valley, Vedic period, Mauryas, Guptas'),
+('30000001-0000-0000-0000-000000000002', 'exam-authority-1', '20000001-0000-0000-0000-000000000001', 'Medieval India', 'Delhi Sultanate, Mughal Empire, regional kingdoms'),
+('30000001-0000-0000-0000-000000000003', 'exam-authority-1', '20000001-0000-0000-0000-000000000001', 'Modern India', 'British rule, socio-religious reforms'),
+('30000001-0000-0000-0000-000000000004', 'exam-authority-1', '20000001-0000-0000-0000-000000000001', 'Indian Freedom Movement', 'Independence struggle and national leaders');
+
+-- General Studies > Indian Geography
+INSERT INTO question_service.subtopic (id, tenant_id, topic_id, name, description) VALUES
+('30000001-0000-0000-0000-000000000005', 'exam-authority-1', '20000001-0000-0000-0000-000000000002', 'Physical Geography', 'Landforms, rivers, mountains'),
+('30000001-0000-0000-0000-000000000006', 'exam-authority-1', '20000001-0000-0000-0000-000000000002', 'Economic Geography', 'Resources, industries, agriculture'),
+('30000001-0000-0000-0000-000000000007', 'exam-authority-1', '20000001-0000-0000-0000-000000000002', 'Human Geography', 'Population, urbanization, migration'),
+('30000001-0000-0000-0000-000000000008', 'exam-authority-1', '20000001-0000-0000-0000-000000000002', 'Indian Climate', 'Monsoons, seasons, climate zones');
+
+-- General Studies > Indian Polity
+INSERT INTO question_service.subtopic (id, tenant_id, topic_id, name, description) VALUES
+('30000001-0000-0000-0000-000000000009', 'exam-authority-1', '20000001-0000-0000-0000-000000000003', 'Constitution', 'Constitutional framework and amendments'),
+('30000001-0000-0000-0000-000000000010', 'exam-authority-1', '20000001-0000-0000-0000-000000000003', 'Parliament', 'Parliamentary system and procedures'),
+('30000001-0000-0000-0000-000000000011', 'exam-authority-1', '20000001-0000-0000-0000-000000000003', 'Judiciary', 'Indian judicial system'),
+('30000001-0000-0000-0000-000000000012', 'exam-authority-1', '20000001-0000-0000-0000-000000000003', 'Panchayati Raj', 'Local self-governance'),
+('30000001-0000-0000-0000-000000000013', 'exam-authority-1', '20000001-0000-0000-0000-000000000003', 'Fundamental Rights', 'Constitutional rights and duties');
+
+-- General Studies > Indian Economy
+INSERT INTO question_service.subtopic (id, tenant_id, topic_id, name, description) VALUES
+('30000001-0000-0000-0000-000000000014', 'exam-authority-1', '20000001-0000-0000-0000-000000000004', 'Planning', 'Five-year plans and NITI Aayog'),
+('30000001-0000-0000-0000-000000000015', 'exam-authority-1', '20000001-0000-0000-0000-000000000004', 'GDP', 'Gross Domestic Product and national income'),
+('30000001-0000-0000-0000-000000000016', 'exam-authority-1', '20000001-0000-0000-0000-000000000004', 'Banking', 'Banking system, RBI, monetary policy'),
+('30000001-0000-0000-0000-000000000017', 'exam-authority-1', '20000001-0000-0000-0000-000000000004', 'Inflation', 'Price levels, CPI, WPI'),
+('30000001-0000-0000-0000-000000000018', 'exam-authority-1', '20000001-0000-0000-0000-000000000004', 'Foreign Trade', 'Exports, imports, trade policy');
+
+-- General Studies > Science & Technology
+INSERT INTO question_service.subtopic (id, tenant_id, topic_id, name, description) VALUES
+('30000001-0000-0000-0000-000000000019', 'exam-authority-1', '20000001-0000-0000-0000-000000000005', 'Physics', 'Applied physics in technology'),
+('30000001-0000-0000-0000-000000000020', 'exam-authority-1', '20000001-0000-0000-0000-000000000005', 'Chemistry', 'Chemistry in daily life and industry'),
+('30000001-0000-0000-0000-000000000021', 'exam-authority-1', '20000001-0000-0000-0000-000000000005', 'Biology', 'Biotechnology and medical science'),
+('30000001-0000-0000-0000-000000000022', 'exam-authority-1', '20000001-0000-0000-0000-000000000005', 'Computer Science', 'IT developments and digital India'),
+('30000001-0000-0000-0000-000000000023', 'exam-authority-1', '20000001-0000-0000-0000-000000000005', 'Space Technology', 'ISRO missions and space research');
+
+-- General Studies > Environment
+INSERT INTO question_service.subtopic (id, tenant_id, topic_id, name, description) VALUES
+('30000001-0000-0000-0000-000000000024', 'exam-authority-1', '20000001-0000-0000-0000-000000000006', 'Ecology', 'Ecosystems and ecological principles'),
+('30000001-0000-0000-0000-000000000025', 'exam-authority-1', '20000001-0000-0000-0000-000000000006', 'Climate Change', 'Global warming and climate adaptation'),
+('30000001-0000-0000-0000-000000000026', 'exam-authority-1', '20000001-0000-0000-0000-000000000006', 'Biodiversity', 'Species diversity and conservation'),
+('30000001-0000-0000-0000-000000000027', 'exam-authority-1', '20000001-0000-0000-0000-000000000006', 'Pollution', 'Air, water and soil pollution'),
+('30000001-0000-0000-0000-000000000028', 'exam-authority-1', '20000001-0000-0000-0000-000000000006', 'Environmental Laws', 'Environmental protection legislation');
+
+-- General Studies > Current Affairs
+INSERT INTO question_service.subtopic (id, tenant_id, topic_id, name, description) VALUES
+('30000001-0000-0000-0000-000000000029', 'exam-authority-1', '20000001-0000-0000-0000-000000000007', 'National', 'National events and developments'),
+('30000001-0000-0000-0000-000000000030', 'exam-authority-1', '20000001-0000-0000-0000-000000000007', 'International', 'International affairs and diplomacy'),
+('30000001-0000-0000-0000-000000000031', 'exam-authority-1', '20000001-0000-0000-0000-000000000007', 'Sports', 'Sports events and achievements'),
+('30000001-0000-0000-0000-000000000032', 'exam-authority-1', '20000001-0000-0000-0000-000000000007', 'Awards', 'Awards and recognitions');
+
+-- Mathematics > Arithmetic
+INSERT INTO question_service.subtopic (id, tenant_id, topic_id, name, description) VALUES
+('30000001-0000-0000-0000-000000000033', 'exam-authority-1', '20000001-0000-0000-0000-000000000008', 'Number System', 'Natural, whole, integers, rational numbers'),
+('30000001-0000-0000-0000-000000000034', 'exam-authority-1', '20000001-0000-0000-0000-000000000008', 'Percentage', 'Percentage calculations and applications'),
+('30000001-0000-0000-0000-000000000035', 'exam-authority-1', '20000001-0000-0000-0000-000000000008', 'Profit & Loss', 'Cost price, selling price, profit and loss'),
+('30000001-0000-0000-0000-000000000036', 'exam-authority-1', '20000001-0000-0000-0000-000000000008', 'Time & Work', 'Work rate and efficiency problems'),
+('30000001-0000-0000-0000-000000000037', 'exam-authority-1', '20000001-0000-0000-0000-000000000008', 'Speed & Distance', 'Speed, time and distance problems');
+
+-- Mathematics > Algebra
+INSERT INTO question_service.subtopic (id, tenant_id, topic_id, name, description) VALUES
+('30000001-0000-0000-0000-000000000038', 'exam-authority-1', '20000001-0000-0000-0000-000000000009', 'Linear Equations', 'Linear equations in one and two variables'),
+('30000001-0000-0000-0000-000000000039', 'exam-authority-1', '20000001-0000-0000-0000-000000000009', 'Quadratic Equations', 'Quadratic equations and their solutions'),
+('30000001-0000-0000-0000-000000000040', 'exam-authority-1', '20000001-0000-0000-0000-000000000009', 'Polynomials', 'Polynomial operations and factoring'),
+('30000001-0000-0000-0000-000000000041', 'exam-authority-1', '20000001-0000-0000-0000-000000000009', 'Progressions', 'AP, GP and HP sequences');
+
+-- Mathematics > Geometry
+INSERT INTO question_service.subtopic (id, tenant_id, topic_id, name, description) VALUES
+('30000001-0000-0000-0000-000000000042', 'exam-authority-1', '20000001-0000-0000-0000-000000000010', 'Triangles', 'Properties of triangles and theorems'),
+('30000001-0000-0000-0000-000000000043', 'exam-authority-1', '20000001-0000-0000-0000-000000000010', 'Circles', 'Circle properties, tangents and chords'),
+('30000001-0000-0000-0000-000000000044', 'exam-authority-1', '20000001-0000-0000-0000-000000000010', 'Coordinate Geometry', 'Points, lines and curves in coordinate plane'),
+('30000001-0000-0000-0000-000000000045', 'exam-authority-1', '20000001-0000-0000-0000-000000000010', 'Mensuration', 'Area, perimeter, volume calculations');
+
+-- Mathematics > Statistics
+INSERT INTO question_service.subtopic (id, tenant_id, topic_id, name, description) VALUES
+('30000001-0000-0000-0000-000000000046', 'exam-authority-1', '20000001-0000-0000-0000-000000000011', 'Mean', 'Arithmetic mean and weighted mean'),
+('30000001-0000-0000-0000-000000000047', 'exam-authority-1', '20000001-0000-0000-0000-000000000011', 'Median', 'Median and quartiles'),
+('30000001-0000-0000-0000-000000000048', 'exam-authority-1', '20000001-0000-0000-0000-000000000011', 'Mode', 'Mode and frequency distribution'),
+('30000001-0000-0000-0000-000000000049', 'exam-authority-1', '20000001-0000-0000-0000-000000000011', 'Probability', 'Basic probability and events'),
+('30000001-0000-0000-0000-000000000050', 'exam-authority-1', '20000001-0000-0000-0000-000000000011', 'Data Interpretation', 'Charts, graphs and data analysis');
+
+-- Mathematics > Trigonometry
+INSERT INTO question_service.subtopic (id, tenant_id, topic_id, name, description) VALUES
+('30000001-0000-0000-0000-000000000051', 'exam-authority-1', '20000001-0000-0000-0000-000000000012', 'Ratios', 'Trigonometric ratios of standard angles'),
+('30000001-0000-0000-0000-000000000052', 'exam-authority-1', '20000001-0000-0000-0000-000000000012', 'Identities', 'Trigonometric identities and proofs'),
+('30000001-0000-0000-0000-000000000053', 'exam-authority-1', '20000001-0000-0000-0000-000000000012', 'Heights & Distances', 'Application problems using trigonometry');
+
+-- English > Grammar
+INSERT INTO question_service.subtopic (id, tenant_id, topic_id, name, description) VALUES
+('30000001-0000-0000-0000-000000000054', 'exam-authority-1', '20000001-0000-0000-0000-000000000013', 'Tenses', 'Present, past and future tenses'),
+('30000001-0000-0000-0000-000000000055', 'exam-authority-1', '20000001-0000-0000-0000-000000000013', 'Voice', 'Active and passive voice'),
+('30000001-0000-0000-0000-000000000056', 'exam-authority-1', '20000001-0000-0000-0000-000000000013', 'Narration', 'Direct and indirect speech'),
+('30000001-0000-0000-0000-000000000057', 'exam-authority-1', '20000001-0000-0000-0000-000000000013', 'Articles', 'Definite and indefinite articles'),
+('30000001-0000-0000-0000-000000000058', 'exam-authority-1', '20000001-0000-0000-0000-000000000013', 'Prepositions', 'Prepositions of time, place and direction');
+
+-- English > Comprehension
+INSERT INTO question_service.subtopic (id, tenant_id, topic_id, name, description) VALUES
+('30000001-0000-0000-0000-000000000059', 'exam-authority-1', '20000001-0000-0000-0000-000000000014', 'Reading Comprehension', 'Passage reading and inference'),
+('30000001-0000-0000-0000-000000000060', 'exam-authority-1', '20000001-0000-0000-0000-000000000014', 'Cloze Test', 'Fill in the blanks in passages'),
+('30000001-0000-0000-0000-000000000061', 'exam-authority-1', '20000001-0000-0000-0000-000000000014', 'Para Jumbles', 'Sentence rearrangement');
+
+-- English > Vocabulary
+INSERT INTO question_service.subtopic (id, tenant_id, topic_id, name, description) VALUES
+('30000001-0000-0000-0000-000000000062', 'exam-authority-1', '20000001-0000-0000-0000-000000000015', 'Synonyms', 'Words with similar meanings'),
+('30000001-0000-0000-0000-000000000063', 'exam-authority-1', '20000001-0000-0000-0000-000000000015', 'Antonyms', 'Words with opposite meanings'),
+('30000001-0000-0000-0000-000000000064', 'exam-authority-1', '20000001-0000-0000-0000-000000000015', 'Idioms', 'Idiomatic expressions and phrases'),
+('30000001-0000-0000-0000-000000000065', 'exam-authority-1', '20000001-0000-0000-0000-000000000015', 'One Word Substitution', 'Single words for phrases');
+
+-- Reasoning > Logical Reasoning
+INSERT INTO question_service.subtopic (id, tenant_id, topic_id, name, description) VALUES
+('30000001-0000-0000-0000-000000000066', 'exam-authority-1', '20000001-0000-0000-0000-000000000016', 'Syllogisms', 'Logical deduction from premises'),
+('30000001-0000-0000-0000-000000000067', 'exam-authority-1', '20000001-0000-0000-0000-000000000016', 'Blood Relations', 'Family relationship puzzles'),
+('30000001-0000-0000-0000-000000000068', 'exam-authority-1', '20000001-0000-0000-0000-000000000016', 'Coding-Decoding', 'Pattern-based encoding problems'),
+('30000001-0000-0000-0000-000000000069', 'exam-authority-1', '20000001-0000-0000-0000-000000000016', 'Direction Sense', 'Direction and distance problems');
+
+-- Reasoning > Analytical Reasoning
+INSERT INTO question_service.subtopic (id, tenant_id, topic_id, name, description) VALUES
+('30000001-0000-0000-0000-000000000070', 'exam-authority-1', '20000001-0000-0000-0000-000000000017', 'Puzzles', 'Logic puzzles and brain teasers'),
+('30000001-0000-0000-0000-000000000071', 'exam-authority-1', '20000001-0000-0000-0000-000000000017', 'Seating Arrangement', 'Linear and circular arrangement'),
+('30000001-0000-0000-0000-000000000072', 'exam-authority-1', '20000001-0000-0000-0000-000000000017', 'Data Sufficiency', 'Determining data adequacy');
+
+-- Reasoning > Verbal Reasoning
+INSERT INTO question_service.subtopic (id, tenant_id, topic_id, name, description) VALUES
+('30000001-0000-0000-0000-000000000073', 'exam-authority-1', '20000001-0000-0000-0000-000000000018', 'Statement & Conclusions', 'Drawing conclusions from statements'),
+('30000001-0000-0000-0000-000000000074', 'exam-authority-1', '20000001-0000-0000-0000-000000000018', 'Assumptions', 'Identifying implicit assumptions');
+
+-- General Science > Physics
+INSERT INTO question_service.subtopic (id, tenant_id, topic_id, name, description) VALUES
+('30000001-0000-0000-0000-000000000075', 'exam-authority-1', '20000001-0000-0000-0000-000000000019', 'Mechanics', 'Force, motion, energy and work'),
+('30000001-0000-0000-0000-000000000076', 'exam-authority-1', '20000001-0000-0000-0000-000000000019', 'Optics', 'Light, reflection, refraction'),
+('30000001-0000-0000-0000-000000000077', 'exam-authority-1', '20000001-0000-0000-0000-000000000019', 'Electricity', 'Current, voltage, resistance, circuits'),
+('30000001-0000-0000-0000-000000000078', 'exam-authority-1', '20000001-0000-0000-0000-000000000019', 'Magnetism', 'Magnetic fields and electromagnetic induction'),
+('30000001-0000-0000-0000-000000000079', 'exam-authority-1', '20000001-0000-0000-0000-000000000019', 'Modern Physics', 'Atomic structure, radioactivity, nuclear physics');
+
+-- General Science > Chemistry
+INSERT INTO question_service.subtopic (id, tenant_id, topic_id, name, description) VALUES
+('30000001-0000-0000-0000-000000000080', 'exam-authority-1', '20000001-0000-0000-0000-000000000020', 'Organic', 'Carbon compounds and hydrocarbons'),
+('30000001-0000-0000-0000-000000000081', 'exam-authority-1', '20000001-0000-0000-0000-000000000020', 'Inorganic', 'Elements, compounds, metals and non-metals'),
+('30000001-0000-0000-0000-000000000082', 'exam-authority-1', '20000001-0000-0000-0000-000000000020', 'Physical Chemistry', 'Chemical kinetics, thermodynamics, equilibrium'),
+('30000001-0000-0000-0000-000000000083', 'exam-authority-1', '20000001-0000-0000-0000-000000000020', 'Periodic Table', 'Element properties and periodic trends');
+
+-- General Science > Biology
+INSERT INTO question_service.subtopic (id, tenant_id, topic_id, name, description) VALUES
+('30000001-0000-0000-0000-000000000084', 'exam-authority-1', '20000001-0000-0000-0000-000000000021', 'Cell Biology', 'Cell structure and functions'),
+('30000001-0000-0000-0000-000000000085', 'exam-authority-1', '20000001-0000-0000-0000-000000000021', 'Human Body', 'Anatomy and physiology'),
+('30000001-0000-0000-0000-000000000086', 'exam-authority-1', '20000001-0000-0000-0000-000000000021', 'Genetics', 'Heredity and genetic variation'),
+('30000001-0000-0000-0000-000000000087', 'exam-authority-1', '20000001-0000-0000-0000-000000000021', 'Ecology', 'Ecosystems and food chains'),
+('30000001-0000-0000-0000-000000000088', 'exam-authority-1', '20000001-0000-0000-0000-000000000021', 'Diseases', 'Communicable and non-communicable diseases');
+
+-- Computer Science > Programming
+INSERT INTO question_service.subtopic (id, tenant_id, topic_id, name, description) VALUES
+('30000001-0000-0000-0000-000000000089', 'exam-authority-1', '20000001-0000-0000-0000-000000000022', 'Data Structures', 'Arrays, linked lists, trees, graphs'),
+('30000001-0000-0000-0000-000000000090', 'exam-authority-1', '20000001-0000-0000-0000-000000000022', 'Algorithms', 'Sorting, searching, dynamic programming'),
+('30000001-0000-0000-0000-000000000091', 'exam-authority-1', '20000001-0000-0000-0000-000000000022', 'OOP Concepts', 'Encapsulation, inheritance, polymorphism');
+
+-- Computer Science > Databases
+INSERT INTO question_service.subtopic (id, tenant_id, topic_id, name, description) VALUES
+('30000001-0000-0000-0000-000000000092', 'exam-authority-1', '20000001-0000-0000-0000-000000000023', 'SQL', 'Structured Query Language'),
+('30000001-0000-0000-0000-000000000093', 'exam-authority-1', '20000001-0000-0000-0000-000000000023', 'DBMS Concepts', 'Database management system fundamentals'),
+('30000001-0000-0000-0000-000000000094', 'exam-authority-1', '20000001-0000-0000-0000-000000000023', 'Normalization', 'Database normalization forms');
+
+-- Computer Science > Networking
+INSERT INTO question_service.subtopic (id, tenant_id, topic_id, name, description) VALUES
+('30000001-0000-0000-0000-000000000095', 'exam-authority-1', '20000001-0000-0000-0000-000000000024', 'OSI Model', 'Seven layers of the OSI model'),
+('30000001-0000-0000-0000-000000000096', 'exam-authority-1', '20000001-0000-0000-0000-000000000024', 'TCP/IP', 'TCP/IP protocol suite'),
+('30000001-0000-0000-0000-000000000097', 'exam-authority-1', '20000001-0000-0000-0000-000000000024', 'Network Security', 'Firewalls, encryption, security protocols');
