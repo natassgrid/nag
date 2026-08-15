@@ -1,4 +1,4 @@
-# Penetration Testing & Red Teaming Policy — Government Examination Platform
+# Penetration Testing & Red Teaming Policy — Open Digital Public Infrastructure (DPI) Platform
 
 ## 1. Objectives & Scope
 

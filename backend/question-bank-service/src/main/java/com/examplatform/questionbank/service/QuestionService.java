@@ -1,4 +1,23 @@
 package com.examplatform.questionbank.service;
+/*
+ * SPDX-License-Identifier: AGPL-3.0-only
+ *
+ * National Assessment Grid (NAG) - Open Digital Public Infrastructure (DPI) Platform
+ * Copyright (C) 2025 NAG Contributors
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as published
+ * by the Free Software Foundation, version 3 of the License.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program. If not, see <https://www.gnu.org/licenses/>.
+ */
+
 
 import com.examplatform.questionbank.domain.Question;
 import com.examplatform.questionbank.domain.enums.QuestionType;
@@ -61,72 +80,6 @@ public class QuestionService {
 
         // Generate per-question DEK key name only when encryption is enabled
         String dekKeyName = encryptionEnabled ? "question-dek-" + UUID.randomUUID() : null;
-
-        // Validate and serialize options for MCQ/MSQ
-        String answerKey = request.getAnswerKey();
-        if (request.getOptions() != null && !request.getOptions().isEmpty()) {
-            var options = request.getOptions();
-            // Validate option count (2-6)
-            if (options.size() < 2 || options.size() > 6) {
-                throw new IllegalArgumentException("MCQ/MSQ questions must have between 2 and 6 options");
-            }
-            // Assign option IDs A-F based on position
-            String[] ids = {"A", "B", "C", "D", "E", "F"};
-            for (int i = 0; i < options.size(); i++) {
-                options.get(i).setId(ids[i]);
-            }
-            // Validate correct options
-            long correctCount = options.stream().filter(o -> o.isCorrect()).count();
-            QuestionType questionType = request.getQuestionType();
-            if (questionType == QuestionType.SINGLE_MCQ) {
-                if (correctCount != 1) {
-                    throw new IllegalArgumentException("MCQ questions must have exactly one correct option");
-                }
-            } else if (questionType == QuestionType.MULTI_MCQ) {
-                if (correctCount < 1) {
-                    throw new IllegalArgumentException("MSQ questions must have at least one correct option");
-                }
-            }
-            // Serialize to JSON
-            try {
-                answerKey = new com.fasterxml.jackson.databind.ObjectMapper().writeValueAsString(options);
-            } catch (Exception e) {
-                throw new RuntimeException("Failed to serialize options", e);
-            }
-        }
-
-        // Validate and serialize options for MCQ/MSQ
-        String answerKey = request.getAnswerKey();
-        if (request.getOptions() != null && !request.getOptions().isEmpty()) {
-            var options = request.getOptions();
-            // Validate option count (2-6)
-            if (options.size() < 2 || options.size() > 6) {
-                throw new IllegalArgumentException("MCQ/MSQ questions must have between 2 and 6 options");
-            }
-            // Assign option IDs A-F based on position
-            String[] ids = {"A", "B", "C", "D", "E", "F"};
-            for (int i = 0; i < options.size(); i++) {
-                options.get(i).setId(ids[i]);
-            }
-            // Validate correct options
-            long correctCount = options.stream().filter(o -> o.isCorrect()).count();
-            QuestionType questionType = request.getQuestionType();
-            if (questionType == QuestionType.SINGLE_MCQ) {
-                if (correctCount != 1) {
-                    throw new IllegalArgumentException("MCQ questions must have exactly one correct option");
-                }
-            } else if (questionType == QuestionType.MULTI_MCQ) {
-                if (correctCount < 1) {
-                    throw new IllegalArgumentException("MSQ questions must have at least one correct option");
-                }
-            }
-            // Serialize to JSON
-            try {
-                answerKey = new com.fasterxml.jackson.databind.ObjectMapper().writeValueAsString(options);
-            } catch (Exception e) {
-                throw new RuntimeException("Failed to serialize options", e);
-            }
-        }
 
         // Validate and serialize options for MCQ/MSQ
         String answerKey = request.getAnswerKey();

@@ -1,4 +1,4 @@
-# Open Source Government Examination Platform — Project Context
+# Open Digital Public Infrastructure (DPI) Platform — Project Context
 
 ## Project Overview
 

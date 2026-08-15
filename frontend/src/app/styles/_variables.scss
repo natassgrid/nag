@@ -1,3 +1,8 @@
+/* SPDX-License-Identifier: AGPL-3.0-only
+ * National Assessment Grid (NAG) - Open Digital Public Infrastructure (DPI) Platform
+ * Copyright (C) 2025 NAG Contributors
+ */
+
 @forward "colors";
 @use "colors" as *;
 
@@ -39,8 +44,8 @@ $footer-height: 48px;
 $footer-link-color: $blue;
 
 // Sidebar
-$sidebar-content-padding: 36px;
-$sidebar-content-mobile-padding: 16px;
+$sidebar-content-padding: 18px;
+$sidebar-content-mobile-padding: 8px;
 
 // Card shadows (admin template style)
 $card-shadow: 0 3px 11px 0 $shadow-white, 0 3px 3px -2px $shadow-grey, 0 1px 8px 0 $shadow-dark-grey;

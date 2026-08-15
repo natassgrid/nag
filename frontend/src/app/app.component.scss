@@ -1,3 +1,8 @@
+/* SPDX-License-Identifier: AGPL-3.0-only
+ * National Assessment Grid (NAG) - Open Digital Public Infrastructure (DPI) Platform
+ * Copyright (C) 2025 NAG Contributors
+ */
+
 @use 'styles/variables' as *;
 
 :host {
@@ -63,10 +68,16 @@ mat-sidenav {
 }
 
 #main-content {
-  padding: $sidebar-content-padding;
+  padding-top: 18px;
+  padding-left: 18px;
+  padding-right: $sidebar-content-padding * 2;
+  padding-bottom: $sidebar-content-padding * 2;
   background-color: $background-color;
 
   @media (max-width: $medium) {
-    padding: $sidebar-content-mobile-padding;
+    padding-top: 8px;
+    padding-left: 8px;
+    padding-right: $sidebar-content-mobile-padding * 2;
+    padding-bottom: $sidebar-content-mobile-padding * 2;
   }
 }

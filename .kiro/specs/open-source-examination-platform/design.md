@@ -1,12 +1,12 @@
 # Design Document
 
-## Open Source Government Examination Platform
+## Open Digital Public Infrastructure (DPI) Platform
 
 ---
 
 ## Overview
 
-The Open Source Government Examination Platform is a cloud-native, microservices-based system built to conduct national-scale government examinations at 500,000 concurrent sessions. The platform is designed around four core imperatives: **Security First** (HSM-managed keys, Zero Trust, AES-256), **Massive Scale** (horizontal pod autoscaling, Kafka-backed async pipelines, Redis caching), **Availability** (99.99% SLA, RPO=0, RTO=15 min), and **Vendor Neutrality** (CNCF-conformant Kubernetes, Helm charts, open standards).
+The Open Digital Public Infrastructure (DPI) Platform is a cloud-native, microservices-based system built to conduct national-scale government examinations at 500,000 concurrent sessions. The platform is designed around four core imperatives: **Security First** (HSM-managed keys, Zero Trust, AES-256), **Massive Scale** (horizontal pod autoscaling, Kafka-backed async pipelines, Redis caching), **Availability** (99.99% SLA, RPO=0, RTO=15 min), and **Vendor Neutrality** (CNCF-conformant Kubernetes, Helm charts, open standards).
 
 ### Architecture Philosophy
 

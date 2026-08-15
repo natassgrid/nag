@@ -1,3 +1,22 @@
+/*
+ * SPDX-License-Identifier: AGPL-3.0-only
+ *
+ * National Assessment Grid (NAG) - Open Digital Public Infrastructure (DPI) Platform
+ * Copyright (C) 2025 NAG Contributors
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as published
+ * by the Free Software Foundation, version 3 of the License.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program. If not, see <https://www.gnu.org/licenses/>.
+ */
+
 package com.examplatform.shared.audit;
 
 import org.junit.jupiter.api.Test;
@@ -11,7 +30,7 @@ import static org.junit.jupiter.api.Assertions.*;
 class AuditEventTypeTest {
 
     /**
-     * Complete set of all 22 audit event types defined in the platform spec (Task 1.2).
+     * Complete set of all 29 audit event types defined in the platform spec.
      * Any removal or rename of an existing value is a breaking change and requires a
      * database migration.
      */
@@ -36,7 +55,11 @@ class AuditEventTypeTest {
             // Translation domain
             "TRANSLATION_CREATED", "TRANSLATION_APPROVED",
             // Exam publication domain
-            "EXAM_PUBLISHED"
+            "EXAM_PUBLISHED",
+            // Examination scheduling domain
+            "SCHEDULE_CREATED", "SCHEDULE_STATUS_CHANGED", "SCHEDULE_AMENDED",
+            "SCHEDULE_CANCELLED", "SHIFT_CREATED", "SHIFT_UPDATED",
+            "SEAT_ALLOCATION_UPDATED"
     );
 
     @Test
@@ -65,8 +88,8 @@ class AuditEventTypeTest {
 
     @Test
     void enumCountMatchesSpecification() {
-        assertEquals(22, AuditEventType.values().length,
-                "AuditEventType must define exactly 22 event types per the platform spec");
+        assertEquals(29, AuditEventType.values().length,
+                "AuditEventType must define exactly 29 event types per the platform spec");
     }
 
     @Test

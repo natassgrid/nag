@@ -1,24 +1,38 @@
 import { Component, OnInit, ViewChild } from '@angular/core';
+/*
+ * SPDX-License-Identifier: AGPL-3.0-only
+ *
+ * National Assessment Grid (NAG) - Open Digital Public Infrastructure (DPI) Platform
+ * Copyright (C) 2025 NAG Contributors
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as published
+ * by the Free Software Foundation, version 3 of the License.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program. If not, see <https://www.gnu.org/licenses/>.
+ */
+
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { MatFormFieldModule } from '@angular/material/form-field';
-import { MatInputModule } from '@angular/material/input';
-import { MatSelectModule } from '@angular/material/select';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
-import { MatDialogModule, MatDialog } from '@angular/material/dialog';
 import { MatSnackBarModule, MatSnackBar } from '@angular/material/snack-bar';
-import { MatCardModule } from '@angular/material/card';
 import { MatChipsModule } from '@angular/material/chips';
 import { MatTooltipModule } from '@angular/material/tooltip';
-import { MatAutocompleteModule } from '@angular/material/autocomplete';
 import { QuestionService, QuestionResponse } from './question.service';
-import { QuestionFormDialogComponent, QuestionFormDialogData } from './question-form-dialog.component';
+import { QuestionFormDialogComponent } from './question-form-dialog.component';
 import { SubjectTopicService, Subject } from './subject-topic.service';
 import {
   PaginatedTableComponent,
   ColumnDef,
-  PaginatedDataFetcher
+  PaginatedDataFetcher,
+  FilterCategory
 } from '../../shared/components/paginated-table';
 import { PageHeaderComponent } from '../../shared/components/page-header/page-header.component';
 
@@ -28,19 +42,14 @@ import { PageHeaderComponent } from '../../shared/components/page-header/page-he
   imports: [
     CommonModule,
     FormsModule,
-    MatFormFieldModule,
-    MatInputModule,
-    MatSelectModule,
     MatButtonModule,
     MatIconModule,
-    MatDialogModule,
     MatSnackBarModule,
-    MatCardModule,
     MatChipsModule,
     MatTooltipModule,
-    MatAutocompleteModule,
     PaginatedTableComponent,
-    PageHeaderComponent
+    PageHeaderComponent,
+    QuestionFormDialogComponent
   ],
   template: `
     <div class="page-layout">
@@ -49,106 +58,49 @@ import { PageHeaderComponent } from '../../shared/components/page-header/page-he
         subtitle="Create, review, and manage examination questions."
         icon="quiz"
       >
-        <button mat-raised-button color="primary" (click)="openCreateDialog()">
+        <button mat-raised-button color="primary" (click)="openCreateDrawer()">
           <mat-icon>add</mat-icon>
           Create Question
         </button>
       </app-page-header>
 
-      <mat-card>
-        <mat-card-content>
+      <!-- Reusable Paginated Table with Filter Drawer -->
+      <app-paginated-table
+        #paginatedTable
+        [fetcher]="fetcher"
+        [columns]="columns"
+        [filters]="filters"
+        [filterCategories]="filterCategories"
+        (filterChange)="onFilterChange($event)"
+        [actionsTemplate]="actionsTmpl"
+        title="Questions List"
+        searchPlaceholder="Search questions..."
+      ></app-paginated-table>
 
-          <!-- Filters -->
-          <div class="filters-row">
-            <mat-form-field appearance="outline">
-              <mat-label>Subject</mat-label>
-              <input
-                matInput
-                [(ngModel)]="filters.subject"
-                [matAutocomplete]="subjectAuto"
-                (ngModelChange)="filterSubjects($event)"
-                (blur)="applyFilters()"
-                placeholder="Type to search..."
-              />
-              <mat-autocomplete #subjectAuto="matAutocomplete" (optionSelected)="applyFilters()">
-                <mat-option value="">All Subjects</mat-option>
-                <mat-option *ngFor="let s of filteredSubjects" [value]="s.name">{{ s.name }}</mat-option>
-              </mat-autocomplete>
-              <button
-                *ngIf="filters.subject"
-                mat-icon-button
-                matSuffix
-                (click)="filters.subject=''; applyFilters()"
-                aria-label="Clear"
-              >
-                <mat-icon>close</mat-icon>
-              </button>
-            </mat-form-field>
+      <!-- Custom Actions Column Template -->
+      <ng-template #actionsTmpl let-row>
+        <button mat-icon-button matTooltip="Edit" (click)="openEditDrawer(row)">
+          <mat-icon>edit</mat-icon>
+        </button>
+        <button
+          mat-icon-button
+          matTooltip="Submit for Review"
+          (click)="submitForReview(row)"
+          *ngIf="row.state === 'DRAFT'"
+        >
+          <mat-icon>send</mat-icon>
+        </button>
+      </ng-template>
 
-            <mat-form-field appearance="outline">
-              <mat-label>Difficulty</mat-label>
-              <mat-select [(ngModel)]="filters.difficulty" (selectionChange)="applyFilters()">
-                <mat-option value="">All</mat-option>
-                <mat-option value="EASY">Easy</mat-option>
-                <mat-option value="MEDIUM">Medium</mat-option>
-                <mat-option value="HARD">Hard</mat-option>
-              </mat-select>
-            </mat-form-field>
-
-            <mat-form-field appearance="outline">
-              <mat-label>State</mat-label>
-              <mat-select [(ngModel)]="filters.state" (selectionChange)="applyFilters()">
-                <mat-option value="">All</mat-option>
-                <mat-option value="DRAFT">Draft</mat-option>
-                <mat-option value="REVIEW">Review</mat-option>
-                <mat-option value="APPROVED">Approved</mat-option>
-                <mat-option value="PUBLISHED">Published</mat-option>
-                <mat-option value="ARCHIVED">Archived</mat-option>
-              </mat-select>
-            </mat-form-field>
-          </div>
-
-          <!-- Reusable Paginated Table -->
-          <app-paginated-table
-            #paginatedTable
-            [fetcher]="fetcher"
-            [columns]="columns"
-            [filters]="filters"
-            [actionsTemplate]="actionsTmpl"
-            searchPlaceholder="Search questions..."
-          ></app-paginated-table>
-
-          <!-- Custom Actions Column Template -->
-          <ng-template #actionsTmpl let-row>
-            <button mat-icon-button matTooltip="Edit" (click)="openEditDialog(row)">
-              <mat-icon>edit</mat-icon>
-            </button>
-            <button
-              mat-icon-button
-              matTooltip="Submit for Review"
-              (click)="submitForReview(row)"
-              *ngIf="row.state === 'DRAFT'"
-            >
-              <mat-icon>send</mat-icon>
-            </button>
-          </ng-template>
-
-        </mat-card-content>
-      </mat-card>
+      <!-- ── RIGHT COLLAPSIBLE DRAWER FORM ── -->
+      <app-question-form-dialog
+        [isOpen]="drawerOpen"
+        [question]="editingQuestion"
+        (close)="onDrawerClose($event)"
+      ></app-question-form-dialog>
     </div>
   `,
   styles: [`
-    .filters-row {
-      display: flex;
-      gap: 16px;
-      flex-wrap: nowrap;
-      margin-bottom: 16px;
-      align-items: center;
-    }
-    .filters-row mat-form-field {
-      flex: 1;
-      min-width: 0;
-    }
     ::ng-deep .chip-easy { background-color: #c8e6c9 !important; }
     ::ng-deep .chip-medium { background-color: #fff9c4 !important; }
     ::ng-deep .chip-hard { background-color: #ffcdd2 !important; }
@@ -163,14 +115,64 @@ export class QuestionListComponent implements OnInit {
 
   @ViewChild('paginatedTable') paginatedTable!: PaginatedTableComponent<QuestionResponse>;
 
-  filters = {
-    subject: '',
-    difficulty: '',
-    state: ''
-  };
+  drawerOpen = false;
+  editingQuestion?: QuestionResponse;
+
+  filters: Record<string, any> = {};
+
+  filterCategories: FilterCategory[] = [
+    {
+      key: 'questionType',
+      label: 'Question Type',
+      expanded: true,
+      options: [
+        { label: 'MCQ', value: 'SINGLE_MCQ' },
+        { label: 'True / False', value: 'TRUE_FALSE' },
+        { label: 'Descriptive', value: 'DESCRIPTIVE' },
+        { label: 'Coding', value: 'CODING' }
+      ]
+    },
+    {
+      key: 'state',
+      label: 'Status',
+      expanded: false,
+      options: [
+        { label: 'Draft', value: 'DRAFT' },
+        { label: 'Review', value: 'REVIEW' },
+        { label: 'Approved', value: 'APPROVED' },
+        { label: 'Published', value: 'PUBLISHED' },
+        { label: 'Archived', value: 'ARCHIVED' }
+      ]
+    },
+    {
+      key: 'subject',
+      label: 'Subject',
+      expanded: false,
+      options: []
+    },
+    {
+      key: 'difficulty',
+      label: 'Difficulty',
+      expanded: false,
+      options: [
+        { label: 'Easy', value: 'EASY' },
+        { label: 'Medium', value: 'MEDIUM' },
+        { label: 'Hard', value: 'HARD' }
+      ]
+    },
+    {
+      key: 'createdAt',
+      label: 'Created Date',
+      expanded: false,
+      options: [
+        { label: 'Today', value: 'TODAY' },
+        { label: 'Last 7 Days', value: 'LAST_7_DAYS' },
+        { label: 'Last 30 Days', value: 'LAST_30_DAYS' }
+      ]
+    }
+  ];
 
   subjects: Subject[] = [];
-  filteredSubjects: Subject[] = [];
 
   columns: ColumnDef<QuestionResponse>[] = [
     { key: 'subject', header: 'Subject', sortable: true },
@@ -195,10 +197,14 @@ export class QuestionListComponent implements OnInit {
   ];
 
   fetcher: PaginatedDataFetcher<QuestionResponse> = (req) => {
+    const activeSubject = Array.isArray(this.filters['subject']) ? this.filters['subject'][0] : this.filters['subject'];
+    const activeDifficulty = Array.isArray(this.filters['difficulty']) ? this.filters['difficulty'][0] : this.filters['difficulty'];
+    const activeState = Array.isArray(this.filters['state']) ? this.filters['state'][0] : this.filters['state'];
+
     return this.questionService.getQuestions({
-      subject: this.filters.subject || undefined,
-      difficulty: this.filters.difficulty || undefined,
-      state: this.filters.state || undefined,
+      subject: activeSubject || undefined,
+      difficulty: activeDifficulty || undefined,
+      state: activeState || undefined,
       page: req.page,
       size: req.size
     });
@@ -206,7 +212,6 @@ export class QuestionListComponent implements OnInit {
 
   constructor(
     private questionService: QuestionService,
-    private dialog: MatDialog,
     private snackBar: MatSnackBar,
     private subjectTopicService: SubjectTopicService
   ) {}
@@ -218,49 +223,38 @@ export class QuestionListComponent implements OnInit {
   loadSubjects(): void {
     this.subjectTopicService.getSubjects().subscribe(subjects => {
       this.subjects = subjects;
-      this.filteredSubjects = subjects;
+      const subjectCat = this.filterCategories.find(c => c.key === 'subject');
+      if (subjectCat) {
+        subjectCat.options = subjects.map(s => ({ label: s.name, value: s.name }));
+      }
     });
   }
 
-  filterSubjects(value: string): void {
-    const filter = (value || '').toLowerCase();
-    this.filteredSubjects = this.subjects.filter(s => s.name.toLowerCase().includes(filter));
-  }
-
-  applyFilters(): void {
-    this.filters = { ...this.filters }; // trigger ngOnChanges in PaginatedTableComponent
+  onFilterChange(updatedFilters: Record<string, any>): void {
+    this.filters = { ...updatedFilters };
   }
 
   reload(): void {
     this.paginatedTable?.reload();
   }
 
-  openCreateDialog(): void {
-    const dialogRef = this.dialog.open(QuestionFormDialogComponent, {
-      width: '600px',
-      data: {} as QuestionFormDialogData
-    });
-
-    dialogRef.afterClosed().subscribe((result: QuestionResponse | undefined) => {
-      if (result) {
-        this.snackBar.open('Question created successfully', 'Close', { duration: 3000 });
-        this.reload();
-      }
-    });
+  openCreateDrawer(): void {
+    this.editingQuestion = undefined;
+    this.drawerOpen = true;
   }
 
-  openEditDialog(question: QuestionResponse): void {
-    const dialogRef = this.dialog.open(QuestionFormDialogComponent, {
-      width: '600px',
-      data: { question } as QuestionFormDialogData
-    });
+  openEditDrawer(question: QuestionResponse): void {
+    this.editingQuestion = question;
+    this.drawerOpen = true;
+  }
 
-    dialogRef.afterClosed().subscribe((result: QuestionResponse | undefined) => {
-      if (result) {
-        this.snackBar.open('Question updated successfully', 'Close', { duration: 3000 });
-        this.reload();
-      }
-    });
+  onDrawerClose(result: QuestionResponse | null): void {
+    this.drawerOpen = false;
+    if (result) {
+      const msg = this.editingQuestion ? 'Question updated successfully' : 'Question created successfully';
+      this.snackBar.open(msg, 'Close', { duration: 3000 });
+      this.reload();
+    }
   }
 
   submitForReview(question: QuestionResponse): void {

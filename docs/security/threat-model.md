@@ -1,8 +1,8 @@
-# Threat Model — Government Examination Platform
+# Threat Model — Open Digital Public Infrastructure (DPI) Platform
 
 ## 1. Overview & Objectives
 
-The **National Assessment Grid (NAG)** is an open-source government examination platform designed to manage high-stakes competitive examinations, question bank generation, paper encryption, exam delivery, and evaluation. Given the high-stakes nature of public sector examinations, securing the system against unauthorized paper disclosure, candidate impersonation, tampering, and denial-of-service attacks is paramount.
+The **National Assessment Grid (NAG)** is an open-source Open Digital Public Infrastructure (DPI) Platform designed to manage high-stakes competitive examinations, question bank generation, paper encryption, exam delivery, and evaluation. Given the high-stakes nature of public sector examinations, securing the system against unauthorized paper disclosure, candidate impersonation, tampering, and denial-of-service attacks is paramount.
 
 This document outlines the system threat model based on the **STRIDE** methodology (Spoofing, Tampering, Repudiation, Information Disclosure, Denial of Service, Elevation of Privilege).
 

@@ -1,3 +1,8 @@
+/* SPDX-License-Identifier: AGPL-3.0-only
+ * National Assessment Grid (NAG) - Open Digital Public Infrastructure (DPI) Platform
+ * Copyright (C) 2025 NAG Contributors
+ */
+
 @use 'sass:map';
 @use '@angular/material' as mat;
 @use 'app/styles/variables' as *;
@@ -112,7 +117,86 @@ input[type="button"],
 .page-container {
   max-width: 1200px;
   margin: 0 auto;
-  padding: var(--spacing-lg);
+  padding-top: 12px;
+  padding-left: 12px;
+  padding-right: var(--spacing-lg);
+  padding-bottom: var(--spacing-lg);
+}
+
+// Search Field & Form Field 38px height and label alignment fix
+.search-field,
+.mat-mdc-form-field {
+  --mdc-outlined-text-field-container-height: 38px;
+
+  .mat-mdc-text-field-wrapper.mdc-text-field--outlined {
+    height: 38px !important;
+
+    .mat-mdc-form-field-flex {
+      height: 38px !important;
+      align-items: center !important;
+    }
+
+    .mat-mdc-form-field-infix {
+      min-height: 38px !important;
+      height: 38px !important;
+      padding-top: 6px !important;
+      padding-bottom: 6px !important;
+      display: flex !important;
+      align-items: center !important;
+      box-sizing: border-box !important;
+    }
+
+    /* Unfocused label vertical centering */
+    .mdc-floating-label:not(.mdc-floating-label--float-above) {
+      top: 19px !important;
+      transform: translateY(-50%) !important;
+    }
+
+    /* Offset unfocused label past the search prefix icon */
+    &.mdc-text-field--with-leading-icon .mdc-floating-label:not(.mdc-floating-label--float-above) {
+      left: 36px !important;
+    }
+
+    /* Floated label positioning above notch */
+    .mdc-floating-label--float-above {
+      top: 17px !important;
+      left: 12px !important;
+      transform: translateY(-100%) scale(0.75) !important;
+    }
+
+    input.mat-mdc-input-element {
+      margin-top: 0 !important;
+      vertical-align: middle !important;
+      height: 24px !important;
+      line-height: 24px !important;
+    }
+
+    .mat-mdc-form-field-icon-prefix,
+    .mat-mdc-form-field-icon-suffix {
+      padding: 0 !important;
+      align-self: center !important;
+      display: flex !important;
+      align-items: center !important;
+    }
+
+    .mat-mdc-form-field-subscript-wrapper {
+      display: none !important;
+    }
+  }
+}
+
+.filter-toggle-btn,
+button.mat-mdc-raised-button,
+button.mat-mdc-stroked-button,
+button.mat-mdc-flat-button,
+button.mat-mdc-button:not(.mat-mdc-icon-button) {
+  height: 38px !important;
+  min-height: 38px !important;
+  max-height: 38px !important;
+  line-height: 38px !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
 }
 
 // Toolbar override using theme color
@@ -139,3 +223,4 @@ input[type="button"],
     overflow-x: hidden;
   }
 }
+

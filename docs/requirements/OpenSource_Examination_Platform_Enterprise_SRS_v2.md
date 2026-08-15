@@ -1,5 +1,5 @@
 
-# Open Source Government Examination Platform
+# Open Digital Public Infrastructure (DPI) Platform
 # Enterprise Software Requirements Specification (SRS) v2
 
 Version: 2.0

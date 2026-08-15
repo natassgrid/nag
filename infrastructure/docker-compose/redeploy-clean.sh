@@ -1,4 +1,14 @@
 #!/bin/bash
+
+# SPDX-License-Identifier: AGPL-3.0-only
+#
+# National Assessment Grid (NAG) - Open Digital Public Infrastructure (DPI) Platform
+# Copyright (C) 2025 NAG Contributors
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU Affero General Public License as published
+# by the Free Software Foundation, version 3 of the License.
+
 # =============================================================================
 # Smart redeploy — only rebuilds services whose code has changed
 # Usage:
@@ -78,6 +88,19 @@ mark_built() {
 echo "============================================="
 echo "  Exam Platform — Redeploy"
 echo "============================================="
+
+# --- Ensure builder base image exists ---
+ensure_builder_base() {
+    if ! docker image inspect exam/builder-base:latest >/dev/null 2>&1; then
+        echo "▶ Building builder base image (one-time)..."
+        cd "$PROJECT_ROOT"
+        docker build -f backend/Dockerfile.base -t exam/builder-base:latest .
+        cd "$SCRIPT_DIR"
+        echo "✓ Builder base image ready."
+    fi
+}
+
+ensure_builder_base
 
 # --- Single service mode ---
 if [ -n "$SERVICE" ]; then

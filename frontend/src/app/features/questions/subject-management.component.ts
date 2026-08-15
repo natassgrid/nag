@@ -1,4 +1,23 @@
 import { Component, OnInit, ChangeDetectorRef } from '@angular/core';
+/*
+ * SPDX-License-Identifier: AGPL-3.0-only
+ *
+ * National Assessment Grid (NAG) - Open Digital Public Infrastructure (DPI) Platform
+ * Copyright (C) 2025 NAG Contributors
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as published
+ * by the Free Software Foundation, version 3 of the License.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program. If not, see <https://www.gnu.org/licenses/>.
+ */
+
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { MatCardModule } from '@angular/material/card';
@@ -36,12 +55,17 @@ import { PageHeaderComponent } from '../../shared/components/page-header/page-he
     PageHeaderComponent
   ],
   template: `
-    <div class="page-layout">
+    <div class="page-layout" role="main" aria-labelledby="subject-mgmt-heading">
       <app-page-header
         title="Subject Management"
         subtitle="Manage the Subject → Topic → Subtopic hierarchy for question categorization."
         icon="category"
-      ></app-page-header>
+      >
+        <button mat-raised-button color="primary" (click)="toggleAddForm()" aria-label="Add a new subject">
+          <mat-icon>add</mat-icon>
+          Add Subject
+        </button>
+      </app-page-header>
 
       <div *ngIf="loading" class="loading-container">
         <mat-spinner diameter="40"></mat-spinner>
@@ -50,12 +74,12 @@ import { PageHeaderComponent } from '../../shared/components/page-header/page-he
 
       <div *ngIf="!loading" class="content">
         <!-- Add Subject -->
-        <mat-card class="add-card">
+        <mat-card class="add-card" *ngIf="showAddSubject">
           <mat-card-content>
             <div class="inline-form">
               <mat-form-field appearance="outline" class="flex-field">
                 <mat-label>New Subject Name</mat-label>
-                <input matInput [(ngModel)]="newSubjectName" placeholder="e.g. General Knowledge" />
+                <input matInput #subjectInput [(ngModel)]="newSubjectName" placeholder="e.g. General Knowledge" />
               </mat-form-field>
               <mat-form-field appearance="outline">
                 <mat-label>Code</mat-label>
@@ -64,7 +88,7 @@ import { PageHeaderComponent } from '../../shared/components/page-header/page-he
               <button mat-raised-button color="primary"
                       [disabled]="!newSubjectName || creating"
                       (click)="createSubject()">
-                <mat-icon>add</mat-icon> Add Subject
+                <mat-icon>add</mat-icon> Save Subject
               </button>
             </div>
           </mat-card-content>
@@ -158,7 +182,10 @@ import { PageHeaderComponent } from '../../shared/components/page-header/page-he
       gap: 16px;
     }
     .add-card {
-      margin-bottom: 24px;
+      margin-bottom: 16px;
+    }
+    ::ng-deep .add-card .mat-mdc-card-content {
+      padding: 12px 16px !important;
     }
     .inline-form {
       display: flex;
@@ -166,8 +193,23 @@ import { PageHeaderComponent } from '../../shared/components/page-header/page-he
       gap: 12px;
     }
     .inline-form.nested {
-      margin: 12px 0;
+      margin: 8px 0;
       padding-left: 8px;
+    }
+    .inline-form mat-form-field {
+      height: 38px;
+      margin-bottom: 0;
+    }
+    .inline-form button {
+      height: 38px;
+      min-height: 38px;
+      box-sizing: border-box;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+    }
+    ::ng-deep .inline-form .mat-mdc-form-field-subscript-wrapper {
+      display: none;
     }
     .flex-field {
       flex: 1;
@@ -231,6 +273,7 @@ export class SubjectManagementComponent implements OnInit {
   hierarchy: SubjectHierarchy[] = [];
   loading = true;
   creating = false;
+  showAddSubject = true;
 
   newSubjectName = '';
   newSubjectCode = '';
@@ -242,6 +285,11 @@ export class SubjectManagementComponent implements OnInit {
     private snackBar: MatSnackBar,
     private cdr: ChangeDetectorRef
   ) {}
+
+  toggleAddForm(): void {
+    this.showAddSubject = !this.showAddSubject;
+    this.cdr.detectChanges();
+  }
 
   ngOnInit(): void {
     this.loadHierarchy();

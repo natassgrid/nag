@@ -1,3 +1,8 @@
+-- SPDX-License-Identifier: AGPL-3.0-only
+--
+-- National Assessment Grid (NAG) - Open Digital Public Infrastructure (DPI) Platform
+-- Copyright (C) 2025 NAG Contributors
+
 -- =============================================================================
 -- Seed Data — Test users, roles, and logins for development
 -- Loaded after init-db.sql via docker-entrypoint-initdb.d

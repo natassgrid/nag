@@ -1,7 +1,25 @@
-import { Component, Inject, OnInit } from '@angular/core';
+/*
+ * SPDX-License-Identifier: AGPL-3.0-only
+ *
+ * National Assessment Grid (NAG) - Open Digital Public Infrastructure (DPI) Platform
+ * Copyright (C) 2025 NAG Contributors
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as published
+ * by the Free Software Foundation, version 3 of the License.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program. If not, see <https://www.gnu.org/licenses/>.
+ */
+
+import { Component, Input, Output, EventEmitter, OnInit, OnChanges, SimpleChanges } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule, ReactiveFormsModule, FormBuilder, FormGroup, Validators } from '@angular/forms';
-import { MAT_DIALOG_DATA, MatDialogModule, MatDialogRef } from '@angular/material/dialog';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { MatSelectModule } from '@angular/material/select';
@@ -12,10 +30,8 @@ import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatCheckboxModule } from '@angular/material/checkbox';
 import { CreateQuestionRequest, QuestionResponse, QuestionService } from './question.service';
 import { SubjectTopicService, Subject, Topic, Subtopic } from './subject-topic.service';
-
-export interface QuestionFormDialogData {
-  question?: QuestionResponse;
-}
+import { ExamEditorComponent, ExamDocument, EMPTY_DOCUMENT } from '../../shared/components/exam-editor';
+import { RightDrawerComponent } from '../../shared/components/right-drawer/right-drawer.component';
 
 @Component({
   selector: 'app-question-form-dialog',
@@ -24,7 +40,6 @@ export interface QuestionFormDialogData {
     CommonModule,
     FormsModule,
     ReactiveFormsModule,
-    MatDialogModule,
     MatFormFieldModule,
     MatInputModule,
     MatSelectModule,
@@ -32,178 +47,189 @@ export interface QuestionFormDialogData {
     MatIconModule,
     MatTooltipModule,
     MatProgressSpinnerModule,
-    MatCheckboxModule
+    MatCheckboxModule,
+    ExamEditorComponent,
+    RightDrawerComponent
   ],
   template: `
-    <h2 mat-dialog-title>{{ data.question ? 'Edit Question' : 'Create Question' }}</h2>
-    <mat-dialog-content>
-      <form [formGroup]="form" class="question-form">
-        <!-- Subject dropdown with inline create -->
-        <div class="field-with-action">
-          <mat-form-field appearance="outline" class="flex-field">
-            <mat-label>Subject</mat-label>
-            <mat-select formControlName="subject" (selectionChange)="onSubjectChange($event.value)">
-              <mat-option *ngFor="let s of subjects" [value]="s.name">{{ s.name }}</mat-option>
-            </mat-select>
-            <mat-error *ngIf="form.get('subject')?.hasError('required')">Subject is required</mat-error>
-          </mat-form-field>
-          <button mat-icon-button color="primary" type="button" (click)="toggleNewSubject()"
-                  matTooltip="Add new subject">
-            <mat-icon>add_circle</mat-icon>
-          </button>
-        </div>
-        <div *ngIf="showNewSubject" class="inline-create">
-          <mat-form-field appearance="outline" class="flex-field">
-            <mat-label>New Subject Name</mat-label>
-            <input matInput [(ngModel)]="newSubjectName" [ngModelOptions]="{standalone: true}" />
-          </mat-form-field>
-          <button mat-raised-button color="accent" type="button"
-                  [disabled]="!newSubjectName || creatingSubject"
-                  (click)="createNewSubject()">
-            <mat-spinner *ngIf="creatingSubject" diameter="18"></mat-spinner>
-            <span *ngIf="!creatingSubject">Create</span>
-          </button>
-          <button mat-button type="button" (click)="showNewSubject = false">Cancel</button>
-        </div>
-
-        <!-- Topic dropdown with inline create -->
-        <div class="field-with-action">
-          <mat-form-field appearance="outline" class="flex-field">
-            <mat-label>Topic</mat-label>
-            <mat-select formControlName="topic" (selectionChange)="onTopicChange($event.value)"
-                        [disabled]="!selectedSubject">
-              <mat-option *ngFor="let t of topics" [value]="t.name">{{ t.name }}</mat-option>
-            </mat-select>
-            <mat-error *ngIf="form.get('topic')?.hasError('required')">Topic is required</mat-error>
-          </mat-form-field>
-          <button mat-icon-button color="primary" type="button" (click)="toggleNewTopic()"
-                  [disabled]="!selectedSubject" matTooltip="Add new topic">
-            <mat-icon>add_circle</mat-icon>
-          </button>
-        </div>
-        <div *ngIf="showNewTopic" class="inline-create">
-          <mat-form-field appearance="outline" class="flex-field">
-            <mat-label>New Topic Name</mat-label>
-            <input matInput [(ngModel)]="newTopicName" [ngModelOptions]="{standalone: true}" />
-          </mat-form-field>
-          <button mat-raised-button color="accent" type="button"
-                  [disabled]="!newTopicName || creatingTopic"
-                  (click)="createNewTopic()">
-            <mat-spinner *ngIf="creatingTopic" diameter="18"></mat-spinner>
-            <span *ngIf="!creatingTopic">Create</span>
-          </button>
-          <button mat-button type="button" (click)="showNewTopic = false">Cancel</button>
-        </div>
-
-        <!-- Subtopic dropdown with inline create -->
-        <div class="field-with-action">
-          <mat-form-field appearance="outline" class="flex-field">
-            <mat-label>Subtopic</mat-label>
-            <mat-select formControlName="subtopic" [disabled]="!selectedTopic">
-              <mat-option value="">-- None --</mat-option>
-              <mat-option *ngFor="let st of subtopics" [value]="st.name">{{ st.name }}</mat-option>
-            </mat-select>
-          </mat-form-field>
-          <button mat-icon-button color="primary" type="button" (click)="toggleNewSubtopic()"
-                  [disabled]="!selectedTopic" matTooltip="Add new subtopic">
-            <mat-icon>add_circle</mat-icon>
-          </button>
-        </div>
-        <div *ngIf="showNewSubtopic" class="inline-create">
-          <mat-form-field appearance="outline" class="flex-field">
-            <mat-label>New Subtopic Name</mat-label>
-            <input matInput [(ngModel)]="newSubtopicName" [ngModelOptions]="{standalone: true}" />
-          </mat-form-field>
-          <button mat-raised-button color="accent" type="button"
-                  [disabled]="!newSubtopicName || creatingSubtopic"
-                  (click)="createNewSubtopic()">
-            <mat-spinner *ngIf="creatingSubtopic" diameter="18"></mat-spinner>
-            <span *ngIf="!creatingSubtopic">Create</span>
-          </button>
-          <button mat-button type="button" (click)="showNewSubtopic = false">Cancel</button>
-        </div>
-
-        <mat-form-field appearance="outline">
-          <mat-label>Difficulty</mat-label>
-          <mat-select formControlName="difficulty">
-            <mat-option *ngFor="let d of difficulties" [value]="d">{{ d }}</mat-option>
-          </mat-select>
-          <mat-error *ngIf="form.get('difficulty')?.hasError('required')">Difficulty is required</mat-error>
-        </mat-form-field>
-
-        <mat-form-field appearance="outline">
-          <mat-label>Cognitive Level</mat-label>
-          <mat-select formControlName="cognitiveLevel">
-            <mat-option *ngFor="let c of cognitiveLevels" [value]="c">{{ c }}</mat-option>
-          </mat-select>
-          <mat-error *ngIf="form.get('cognitiveLevel')?.hasError('required')">Cognitive level is required</mat-error>
-        </mat-form-field>
-
-        <mat-form-field appearance="outline">
-          <mat-label>Question Type</mat-label>
-          <mat-select formControlName="questionType" (selectionChange)="onQuestionTypeChange($event.value)">
-            <mat-option *ngFor="let t of questionTypes" [value]="t.value">{{ t.label }}</mat-option>
-          </mat-select>
-          <mat-error *ngIf="form.get('questionType')?.hasError('required')">Type is required</mat-error>
-        </mat-form-field>
-
-        <mat-form-field appearance="outline">
-          <mat-label>Content</mat-label>
-          <textarea matInput formControlName="content" rows="5"></textarea>
-          <mat-error *ngIf="form.get('content')?.hasError('required')">Content is required</mat-error>
-        </mat-form-field>
-
-        <!-- MCQ/MSQ Options section -->
-        <div *ngIf="isMcqOrMsq()" class="options-section">
-          <div class="options-header">
-            <span class="options-label">Answer Options</span>
-            <span class="options-hint">{{ isMcq() ? 'Select exactly one correct answer' : 'Select one or more correct answers' }}</span>
-            <button mat-icon-button type="button" color="primary" (click)="addOption()"
-                    [disabled]="options.length >= 6" matTooltip="Add option (max 6)">
-              <mat-icon>add</mat-icon>
-            </button>
-          </div>
-          <div *ngFor="let opt of options; let i = index" class="option-row">
-            <span class="option-id">{{ optionIds[i] }}</span>
+    <app-right-drawer
+      [isOpen]="isOpen"
+      [title]="question ? 'Edit Question' : 'Create Question'"
+      [subtitle]="question ? 'Modify existing examination question parameters and content.' : 'Add a new question with options, subject, and difficulty metrics.'"
+      width="540px"
+      (close)="cancel()"
+    >
+      <div drawer-body>
+        <form [formGroup]="form" class="question-form">
+          <!-- Subject dropdown with inline create -->
+          <div class="field-with-action">
             <mat-form-field appearance="outline" class="flex-field">
-              <input matInput [(ngModel)]="opt.text" [ngModelOptions]="{standalone: true}"
-                     placeholder="Option text" />
+              <mat-label>Subject</mat-label>
+              <mat-select formControlName="subject" (selectionChange)="onSubjectChange($event.value)">
+                <mat-option *ngFor="let s of subjects" [value]="s.name">{{ s.name }}</mat-option>
+              </mat-select>
+              <mat-error *ngIf="form.get('subject')?.hasError('required')">Subject is required</mat-error>
             </mat-form-field>
-            <mat-checkbox [(ngModel)]="opt.isCorrect" [ngModelOptions]="{standalone: true}"
-                          (change)="isMcq() && onMcqCorrectChange(i)"
-                          matTooltip="Mark as correct">
-            </mat-checkbox>
-            <button mat-icon-button type="button" color="warn" (click)="removeOption(i)"
-                    [disabled]="options.length <= 2" matTooltip="Remove option">
-              <mat-icon>remove_circle</mat-icon>
+            <button mat-icon-button color="primary" type="button" (click)="toggleNewSubject()"
+                    matTooltip="Add new subject">
+              <mat-icon>add_circle</mat-icon>
             </button>
           </div>
-          <mat-error *ngIf="optionError">{{ optionError }}</mat-error>
-        </div>
+          <div *ngIf="showNewSubject" class="inline-create">
+            <mat-form-field appearance="outline" class="flex-field">
+              <mat-label>New Subject Name</mat-label>
+              <input matInput [(ngModel)]="newSubjectName" [ngModelOptions]="{standalone: true}" />
+            </mat-form-field>
+            <button mat-raised-button color="accent" type="button"
+                    [disabled]="!newSubjectName || creatingSubject"
+                    (click)="createNewSubject()">
+              <mat-spinner *ngIf="creatingSubject" diameter="18"></mat-spinner>
+              <span *ngIf="!creatingSubject">Create</span>
+            </button>
+            <button mat-button type="button" (click)="showNewSubject = false">Cancel</button>
+          </div>
 
-        <mat-form-field appearance="outline" *ngIf="!isMcqOrMsq()">
-          <mat-label>Answer Key</mat-label>
-          <textarea matInput formControlName="answerKey" rows="3"></textarea>
-        </mat-form-field>
-      </form>
-    </mat-dialog-content>
-    <div *ngIf="saveError" style="color: #c62828; font-size: 13px; padding: 0 24px 8px;">{{ saveError }}</div>
-    <mat-dialog-actions align="end">
-      <button mat-button [disabled]="saving" (click)="cancel()">Cancel</button>
-      <button mat-raised-button color="primary" [disabled]="saving" (click)="save()">
-        <mat-spinner *ngIf="saving" diameter="18" style="display:inline-block;margin-right:6px;vertical-align:middle;"></mat-spinner>
-        {{ saving ? 'Saving…' : 'Save' }}
-      </button>
-      <span *ngIf="!saving && form.invalid" style="font-size:11px;color:#999;margin-left:4px;">Fix errors above</span>
-    </mat-dialog-actions>
+          <!-- Topic dropdown with inline create -->
+          <div class="field-with-action">
+            <mat-form-field appearance="outline" class="flex-field">
+              <mat-label>Topic</mat-label>
+              <mat-select formControlName="topic" (selectionChange)="onTopicChange($event.value)"
+                          [disabled]="!selectedSubject">
+                <mat-option *ngFor="let t of topics" [value]="t.name">{{ t.name }}</mat-option>
+              </mat-select>
+              <mat-error *ngIf="form.get('topic')?.hasError('required')">Topic is required</mat-error>
+            </mat-form-field>
+            <button mat-icon-button color="primary" type="button" (click)="toggleNewTopic()"
+                    [disabled]="!selectedSubject" matTooltip="Add new topic">
+              <mat-icon>add_circle</mat-icon>
+            </button>
+          </div>
+          <div *ngIf="showNewTopic" class="inline-create">
+            <mat-form-field appearance="outline" class="flex-field">
+              <mat-label>New Topic Name</mat-label>
+              <input matInput [(ngModel)]="newTopicName" [ngModelOptions]="{standalone: true}" />
+            </mat-form-field>
+            <button mat-raised-button color="accent" type="button"
+                    [disabled]="!newTopicName || creatingTopic"
+                    (click)="createNewTopic()">
+              <mat-spinner *ngIf="creatingTopic" diameter="18"></mat-spinner>
+              <span *ngIf="!creatingTopic">Create</span>
+            </button>
+            <button mat-button type="button" (click)="showNewTopic = false">Cancel</button>
+          </div>
+
+          <!-- Subtopic dropdown with inline create -->
+          <div class="field-with-action">
+            <mat-form-field appearance="outline" class="flex-field">
+              <mat-label>Subtopic</mat-label>
+              <mat-select formControlName="subtopic" [disabled]="!selectedTopic">
+                <mat-option value="">-- None --</mat-option>
+                <mat-option *ngFor="let st of subtopics" [value]="st.name">{{ st.name }}</mat-option>
+              </mat-select>
+            </mat-form-field>
+            <button mat-icon-button color="primary" type="button" (click)="toggleNewSubtopic()"
+                    [disabled]="!selectedTopic" matTooltip="Add new subtopic">
+              <mat-icon>add_circle</mat-icon>
+            </button>
+          </div>
+          <div *ngIf="showNewSubtopic" class="inline-create">
+            <mat-form-field appearance="outline" class="flex-field">
+              <mat-label>New Subtopic Name</mat-label>
+              <input matInput [(ngModel)]="newSubtopicName" [ngModelOptions]="{standalone: true}" />
+            </mat-form-field>
+            <button mat-raised-button color="accent" type="button"
+                    [disabled]="!newSubtopicName || creatingSubtopic"
+                    (click)="createNewSubtopic()">
+              <mat-spinner *ngIf="creatingSubtopic" diameter="18"></mat-spinner>
+              <span *ngIf="!creatingSubtopic">Create</span>
+            </button>
+            <button mat-button type="button" (click)="showNewSubtopic = false">Cancel</button>
+          </div>
+
+          <mat-form-field appearance="outline">
+            <mat-label>Difficulty</mat-label>
+            <mat-select formControlName="difficulty">
+              <mat-option *ngFor="let d of difficulties" [value]="d">{{ d }}</mat-option>
+            </mat-select>
+            <mat-error *ngIf="form.get('difficulty')?.hasError('required')">Difficulty is required</mat-error>
+          </mat-form-field>
+
+          <mat-form-field appearance="outline">
+            <mat-label>Cognitive Level</mat-label>
+            <mat-select formControlName="cognitiveLevel">
+              <mat-option *ngFor="let c of cognitiveLevels" [value]="c">{{ c }}</mat-option>
+            </mat-select>
+            <mat-error *ngIf="form.get('cognitiveLevel')?.hasError('required')">Cognitive level is required</mat-error>
+          </mat-form-field>
+
+          <mat-form-field appearance="outline">
+            <mat-label>Question Type</mat-label>
+            <mat-select formControlName="questionType" (selectionChange)="onQuestionTypeChange($event.value)">
+              <mat-option *ngFor="let t of questionTypes" [value]="t.value">{{ t.label }}</mat-option>
+            </mat-select>
+            <mat-error *ngIf="form.get('questionType')?.hasError('required')">Type is required</mat-error>
+          </mat-form-field>
+
+          <div class="editor-field">
+            <label class="editor-label">Content <span class="required">*</span></label>
+            <exam-editor
+              [value]="editorDocument"
+              (valueChange)="onEditorChange($event)"
+              placeholder="Enter question content..."
+            ></exam-editor>
+            <mat-error *ngIf="form.get('content')?.hasError('required') && form.get('content')?.touched">Content is required</mat-error>
+          </div>
+
+          <!-- MCQ/MSQ Options section -->
+          <div *ngIf="isMcqOrMsq()" class="options-section">
+            <div class="options-header">
+              <span class="options-label">Answer Options</span>
+              <span class="options-hint">{{ isMcq() ? 'Select exactly one correct answer' : 'Select one or more correct answers' }}</span>
+              <button mat-icon-button type="button" color="primary" (click)="addOption()"
+                      [disabled]="options.length >= 6" matTooltip="Add option (max 6)">
+                <mat-icon>add</mat-icon>
+              </button>
+            </div>
+            <div *ngFor="let opt of options; let i = index" class="option-row">
+              <span class="option-id">{{ optionIds[i] }}</span>
+              <mat-form-field appearance="outline" class="flex-field">
+                <input matInput [(ngModel)]="opt.text" [ngModelOptions]="{standalone: true}"
+                       placeholder="Option text" />
+              </mat-form-field>
+              <mat-checkbox [(ngModel)]="opt.isCorrect" [ngModelOptions]="{standalone: true}"
+                            (change)="isMcq() && onMcqCorrectChange(i)"
+                            matTooltip="Mark as correct">
+              </mat-checkbox>
+              <button mat-icon-button type="button" color="warn" (click)="removeOption(i)"
+                      [disabled]="options.length <= 2" matTooltip="Remove option">
+                <mat-icon>remove_circle</mat-icon>
+              </button>
+            </div>
+            <mat-error *ngIf="optionError">{{ optionError }}</mat-error>
+          </div>
+
+          <mat-form-field appearance="outline" *ngIf="!isMcqOrMsq()">
+            <mat-label>Answer Key</mat-label>
+            <textarea matInput formControlName="answerKey" rows="3"></textarea>
+          </mat-form-field>
+        </form>
+        <div *ngIf="saveError" style="color: #c62828; font-size: 13px; margin-top: 8px;">{{ saveError }}</div>
+      </div>
+
+      <div drawer-footer>
+        <button mat-button [disabled]="saving" (click)="cancel()">Cancel</button>
+        <button mat-raised-button color="primary" [disabled]="saving" (click)="save()">
+          <mat-spinner *ngIf="saving" diameter="18" style="display:inline-block;margin-right:6px;vertical-align:middle;"></mat-spinner>
+          {{ saving ? 'Saving…' : 'Save' }}
+        </button>
+      </div>
+    </app-right-drawer>
   `,
   styles: [`
     .question-form {
       display: flex;
       flex-direction: column;
       gap: 8px;
-      min-width: 450px;
-      padding-top: 8px;
     }
     mat-form-field {
       width: 100%;
@@ -268,10 +294,26 @@ export interface QuestionFormDialogData {
       flex: 1;
       margin-bottom: -4px;
     }
+    .editor-field {
+      margin-bottom: 8px;
+    }
+    .editor-label {
+      font-size: 13px;
+      color: #666;
+      margin-bottom: 4px;
+      display: block;
+    }
+    .editor-label .required {
+      color: #c62828;
+    }
   `]
 })
-export class QuestionFormDialogComponent implements OnInit {
-  form: FormGroup;
+export class QuestionFormDialogComponent implements OnInit, OnChanges {
+  @Input() isOpen = false;
+  @Input() question?: QuestionResponse;
+  @Output() close = new EventEmitter<QuestionResponse | null>();
+
+  form!: FormGroup;
 
   difficulties = ['EASY', 'MEDIUM', 'HARD'];
   cognitiveLevels = ['REMEMBER', 'UNDERSTAND', 'APPLY', 'ANALYZE', 'EVALUATE', 'CREATE'];
@@ -286,7 +328,6 @@ export class QuestionFormDialogComponent implements OnInit {
     { value: 'CASE_STUDY',      label: 'Case Study' },
   ];
 
-  // Subject/Topic/Subtopic data
   subjects: Subject[] = [];
   topics: Topic[] = [];
   subtopics: Subtopic[] = [];
@@ -294,7 +335,6 @@ export class QuestionFormDialogComponent implements OnInit {
   selectedSubject: Subject | null = null;
   selectedTopic: Topic | null = null;
 
-  // Inline create state
   showNewSubject = false;
   showNewTopic = false;
   showNewSubtopic = false;
@@ -305,14 +345,35 @@ export class QuestionFormDialogComponent implements OnInit {
   creatingTopic = false;
   creatingSubtopic = false;
 
+  options: { id: string; text: string; isCorrect: boolean }[] = [];
+  optionIds = ['A', 'B', 'C', 'D', 'E', 'F'];
+  optionError = '';
+  saving = false;
+  saveError = '';
+  currentQuestionType = '';
+
+  editorDocument: ExamDocument = [...EMPTY_DOCUMENT];
+
   constructor(
     private fb: FormBuilder,
-    private dialogRef: MatDialogRef<QuestionFormDialogComponent>,
-    @Inject(MAT_DIALOG_DATA) public data: QuestionFormDialogData,
     private subjectTopicService: SubjectTopicService,
     private questionService: QuestionService
   ) {
-    const q = data.question;
+    this.initForm();
+  }
+
+  ngOnInit(): void {
+    this.loadSubjects();
+  }
+
+  ngOnChanges(changes: SimpleChanges): void {
+    if (changes['isOpen'] && this.isOpen) {
+      this.initForm();
+    }
+  }
+
+  initForm(): void {
+    const q = this.question;
     this.form = this.fb.group({
       subject: [q?.subject || '', Validators.required],
       topic: [q?.topic || '', Validators.required],
@@ -323,24 +384,28 @@ export class QuestionFormDialogComponent implements OnInit {
       content: [q?.content || '', Validators.required],
       answerKey: [q?.answerKey || '']
     });
-  }
 
-  ngOnInit(): void {
-    this.loadSubjects();
+    if (q?.content) {
+      try {
+        this.editorDocument = JSON.parse(q.content);
+      } catch {
+        this.editorDocument = [{ type: 'paragraph', children: [{ text: q.content }] }];
+      }
+    } else {
+      this.editorDocument = [...EMPTY_DOCUMENT];
+    }
 
-    const q = this.data.question;
-    const initialType = this.form.get('questionType')?.value || '';
-
-    // In edit mode, load existing options BEFORE calling onQuestionTypeChange
-    // so the type handler sees options.length > 0 and doesn't overwrite them
     if (q?.options && q.options.length > 0) {
       this.options = q.options.map(o => ({
         id: o.id,
         text: o.text,
         isCorrect: o.isCorrect
       }));
+    } else {
+      this.options = [];
     }
 
+    const initialType = this.form.get('questionType')?.value || '';
     if (initialType) {
       this.onQuestionTypeChange(initialType);
     }
@@ -349,9 +414,8 @@ export class QuestionFormDialogComponent implements OnInit {
   loadSubjects(): void {
     this.subjectTopicService.getSubjects().subscribe(subjects => {
       this.subjects = subjects;
-      // If editing, auto-select subject and load topics
-      if (this.data.question?.subject) {
-        const match = subjects.find(s => s.name === this.data.question!.subject);
+      if (this.question?.subject) {
+        const match = subjects.find(s => s.name === this.question!.subject);
         if (match) {
           this.selectedSubject = match;
           this.loadTopics(match);
@@ -375,9 +439,8 @@ export class QuestionFormDialogComponent implements OnInit {
   loadTopics(subject: Subject): void {
     this.subjectTopicService.getTopics(subject.id).subscribe(topics => {
       this.topics = topics;
-      // If editing, auto-select topic and load subtopics
-      if (this.data.question?.topic) {
-        const match = topics.find(t => t.name === this.data.question!.topic);
+      if (this.question?.topic) {
+        const match = topics.find(t => t.name === this.question!.topic);
         if (match) {
           this.selectedTopic = match;
           this.loadSubtopics(match);
@@ -403,7 +466,6 @@ export class QuestionFormDialogComponent implements OnInit {
     });
   }
 
-  // Inline create methods
   toggleNewSubject(): void {
     this.showNewSubject = !this.showNewSubject;
     this.newSubjectName = '';
@@ -476,21 +538,19 @@ export class QuestionFormDialogComponent implements OnInit {
     });
   }
 
-  // Options for MCQ/MSQ
-  options: { id: string; text: string; isCorrect: boolean }[] = [];
-  optionIds = ['A', 'B', 'C', 'D', 'E', 'F'];
-  optionError = '';
-  saving = false;
-  saveError = '';
-  currentQuestionType = '';
+  onEditorChange(doc: ExamDocument): void {
+    this.editorDocument = doc;
+    const serialized = JSON.stringify(doc);
+    this.form.patchValue({ content: serialized });
+    this.form.get('content')?.markAsDirty();
+    this.form.get('content')?.markAsTouched();
+  }
 
   onQuestionTypeChange(value: string): void {
     this.currentQuestionType = value;
-    // Only reset/seed options if we're not in edit mode with existing options already loaded
     if (value !== 'SINGLE_MCQ' && value !== 'MULTI_MCQ') {
       this.options = [];
     } else if (this.options.length === 0) {
-      // Seed two blank options only when starting fresh
       this.options = [
         { id: 'A', text: '', isCorrect: false },
         { id: 'B', text: '', isCorrect: false }
@@ -518,12 +578,11 @@ export class QuestionFormDialogComponent implements OnInit {
   }
 
   onMcqCorrectChange(checkedIndex: number): void {
-    // For MCQ, only one can be correct
     this.options.forEach((o, i) => { if (i !== checkedIndex) o.isCorrect = false; });
   }
 
   cancel(): void {
-    this.dialogRef.close();
+    this.close.emit(null);
   }
 
   save(): void {
@@ -544,14 +603,14 @@ export class QuestionFormDialogComponent implements OnInit {
       this.saveError = '';
       this.saving = true;
 
-      const call = this.data.question
-        ? this.questionService.updateQuestion(this.data.question.id, value)
+      const call = this.question
+        ? this.questionService.updateQuestion(this.question.id, value)
         : this.questionService.createQuestion(value);
 
       call.subscribe({
-        next: (created) => {
+        next: (res) => {
           this.saving = false;
-          this.dialogRef.close(created);
+          this.close.emit(res);
         },
         error: (err) => {
           this.saving = false;

@@ -1,4 +1,4 @@
-# 0001: Microservices Architecture for Government Examination Platform
+# 0001: Microservices Architecture for Open Digital Public Infrastructure (DPI) Platform
 
 - **Status**: Accepted
 - **Date**: 2026-08-02

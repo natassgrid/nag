@@ -1,4 +1,4 @@
-# Data Privacy & Candidate Protection — Government Examination Platform
+# Data Privacy & Candidate Protection — Open Digital Public Infrastructure (DPI) Platform
 
 ## 1. Overview & Compliance Framework
 

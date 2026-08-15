@@ -1,4 +1,4 @@
-# Exam Paper Security & Leakage Prevention — Government Examination Platform
+# Exam Paper Security & Leakage Prevention — Open Digital Public Infrastructure (DPI) Platform
 
 ## 1. Overview
 
