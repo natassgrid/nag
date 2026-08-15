@@ -7,7 +7,7 @@ This is a large-scale, secure, multilingual, cloud-native examination platform d
 ## Architecture
 
 - **Architecture Style**: Domain-driven microservices monorepo
-- **Backend**: Java 21 / Spring Boot 3.x with virtual threads (Project Loom)
+- **Backend**: Java 21 / Spring Boot 4.1.0 with virtual threads (Project Loom)
 - **Frontend**: Angular 21 SPA (WCAG 2.2 AA compliant)
 - **Database**: PostgreSQL 16 with per-service schemas (single cluster)
 - **Cache**: Redis Cluster (session/rate-limiting/hot state)
@@ -22,7 +22,7 @@ This is a large-scale, secure, multilingual, cloud-native examination platform d
 
 - **Build Tool**: Gradle (multi-module, `settings.gradle` at root)
 - **Java Toolchain**: Java 21, Temurin distribution
-- **Spring Boot**: 3.5.14
+- **Spring Boot**: 4.1.0
 - **Spring Cloud**: 2025.0.2
 - **Lombok**: FreeFair plugin 9.5.0
 - **Test Framework**: JUnit 5 + jqwik (property-based testing)
@@ -96,7 +96,8 @@ Key classes:
 1. **Component style**: Standalone components only — NO NgModules
 2. **State management**: RxJS Observables only — NO signals, NO NgRx
 3. **UI library**: Angular Material 21
-4. **List pages**: Always use the shared `PaginatedTableComponent` with a `fetcher: PaginatedDataFetcher<T>` function. The fetcher returns `Observable<PaginatedResponse<T>>`. The paginated table handles loading, empty state, search, pagination, and change detection internally. Never use manual `loading` flags or `ChangeDetectorRef` for list data — let the table handle it.
+4. **File structure**: Every component MUST have separate files for template, styles, and logic. Use `templateUrl: './component-name.component.html'` and `styleUrls: ['./component-name.component.scss']`. NEVER use inline `template:` or `styles:[]` in the `@Component` decorator. Each component directory contains: `component-name.component.ts`, `component-name.component.html`, `component-name.component.scss`.
+5. **List pages**: Always use the shared `PaginatedTableComponent` with a `fetcher: PaginatedDataFetcher<T>` function. The fetcher returns `Observable<PaginatedResponse<T>>`. The paginated table handles loading, empty state, search, pagination, and change detection internally. Never use manual `loading` flags or `ChangeDetectorRef` for list data — let the table handle it.
 5. **Service pattern**: `@Injectable({ providedIn: 'root' })`. All API responses are wrapped in `ApiResponse<T>` by the backend. For paginated list endpoints, the backend returns `Page<T>` (Spring Data) which serializes as `{ content: [], totalElements, totalPages, size, number }`. Services unwrap via `.pipe(map(res => res?.data?.content ?? res?.data ?? []))` for arrays. Always pass `page`, `size`, and `search` query params to the backend — never do client-side pagination. The fetcher in the component passes `req.page`, `req.size`, `req.search` directly to the service method.
 6. **Server-side pagination (backend)**: All list/search endpoints MUST accept `?page=0&size=20&search=` query params and return Spring `Page<T>`. Use `PageRequest.of(page, size, Sort.by(...))` in the service layer with Spring Data JPA paginated repository methods (`findBy...(... , Pageable pageable)` returning `Page<T>`). The controller returns `ApiResponse<Page<ResponseDTO>>`. This ensures the browser Network tab always shows pagination query params.
 7. **Form dialogs**: Use `MatDialog` with `MAT_DIALOG_DATA` injection. Dialog closes with `dialogRef.close(formValue)`. Parent component subscribes to `afterClosed()` and calls the service, then `this.table.reload()`.
