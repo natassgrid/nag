@@ -315,17 +315,32 @@ services:
     networks:
       - exam-network
 
-  # Pulls the embedding model on first start
+  # Pulls AI models into the running Ollama server (skips if already present)
   ollama-pull:
-    image: ollama/ollama:latest
+    image: curlimages/curl:latest
     container_name: exam-ollama-pull
     restart: "no"
     depends_on:
       ollama:
         condition: service_healthy
-    entrypoint: ["sh", "-c", "ollama pull nomic-embed-text && ollama pull qwen3:8b"]
-    environment:
-      OLLAMA_HOST: http://ollama:11434
+    entrypoint:
+      - sh
+      - -c
+      - |
+        echo "Checking models..."
+        if ! curl -sf http://ollama:11434/api/tags | grep -q "nomic-embed-text"; then
+          echo "Pulling nomic-embed-text..."
+          curl -sf http://ollama:11434/api/pull -d '{"name":"nomic-embed-text"}'
+        else
+          echo "nomic-embed-text already present, skipping."
+        fi
+        if ! curl -sf http://ollama:11434/api/tags | grep -q "qwen3:8b"; then
+          echo "Pulling qwen3:8b..."
+          curl -sf http://ollama:11434/api/pull -d '{"name":"qwen3:8b"}'
+        else
+          echo "qwen3:8b already present, skipping."
+        fi
+        echo "Done."
     networks:
       - exam-network
 
