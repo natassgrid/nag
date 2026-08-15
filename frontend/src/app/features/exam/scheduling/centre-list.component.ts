@@ -1,16 +1,13 @@
 import { Component, ViewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { MatCardModule } from '@angular/material/card';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
-import { MatDialog, MatDialogModule } from '@angular/material/dialog';
 import { map } from 'rxjs/operators';
 import { SchedulingService, CentreResponse, CreateCentreRequest } from './scheduling.service';
 import { CentreFormDialogComponent } from './centre-form-dialog.component';
-import { ConfirmDialogComponent, ConfirmDialogData } from '../../../shared/components/confirm-dialog/confirm-dialog.component';
 import {
   PaginatedTableComponent,
   PaginatedDataFetcher
@@ -24,14 +21,13 @@ import { PageHeaderComponent } from '../../../shared/components/page-header/page
   imports: [
     CommonModule,
     FormsModule,
-    MatCardModule,
     MatButtonModule,
     MatIconModule,
     MatTooltipModule,
     MatSnackBarModule,
-    MatDialogModule,
     PaginatedTableComponent,
     PageHeaderComponent,
+    CentreFormDialogComponent
   ],
   template: `
     <div class="page-layout">
@@ -40,31 +36,33 @@ import { PageHeaderComponent } from '../../../shared/components/page-header/page
         subtitle="Manage centres where examinations are conducted."
         icon="location_on"
       >
-        <button mat-raised-button color="primary" (click)="openCreate()">
+        <button mat-raised-button color="primary" (click)="openCreateDrawer()">
           <mat-icon>add</mat-icon> New Centre
         </button>
       </app-page-header>
 
-      <mat-card>
-        <mat-card-content>
-          <app-paginated-table
-            #centreTable
-            [fetcher]="fetcher"
-            [columns]="columns"
-            [actionsTemplate]="actionsTmpl"
-            title="Centres"
-            searchPlaceholder="Search by name, city, or state..."
-          ></app-paginated-table>
+      <app-paginated-table
+        #centreTable
+        [fetcher]="fetcher"
+        [columns]="columns"
+        [actionsTemplate]="actionsTmpl"
+        title="Centres List"
+        searchPlaceholder="Search by name, city, or state..."
+      ></app-paginated-table>
 
-          <ng-template #actionsTmpl let-row>
-            <button mat-icon-button color="warn" matTooltip="Deactivate"
-                    *ngIf="row.active" (click)="deactivate(row)"
-                    aria-label="Deactivate centre">
-              <mat-icon>block</mat-icon>
-            </button>
-          </ng-template>
-        </mat-card-content>
-      </mat-card>
+      <ng-template #actionsTmpl let-row>
+        <button mat-icon-button color="warn" matTooltip="Deactivate"
+                *ngIf="row.active" (click)="deactivate(row)"
+                aria-label="Deactivate centre">
+          <mat-icon>block</mat-icon>
+        </button>
+      </ng-template>
+
+      <!-- ── RIGHT COLLAPSIBLE DRAWER FORM ── -->
+      <app-centre-form-dialog
+        [isOpen]="drawerOpen"
+        (close)="onDrawerClose($event)"
+      ></app-centre-form-dialog>
     </div>
   `,
   styles: [`
@@ -75,6 +73,8 @@ import { PageHeaderComponent } from '../../../shared/components/page-header/page
 export class CentreListComponent {
 
   @ViewChild('centreTable') centreTable!: PaginatedTableComponent<CentreResponse>;
+
+  drawerOpen = false;
 
   columns: ColumnDef<CentreResponse>[] = [
     { key: 'centreName', header: 'Name', sortable: true },
@@ -108,7 +108,6 @@ export class CentreListComponent {
 
   constructor(
     private schedulingService: SchedulingService,
-    private dialog: MatDialog,
     private snackBar: MatSnackBar
   ) {}
 
@@ -116,33 +115,30 @@ export class CentreListComponent {
     this.centreTable?.reload();
   }
 
-  openCreate(): void {
-    const ref = this.dialog.open(CentreFormDialogComponent, { width: '640px', data: {} });
-    ref.afterClosed().subscribe((result: CreateCentreRequest | undefined) => {
-      if (!result) return;
-      this.schedulingService.createCentre(result).subscribe({
-        next: () => { this.snackBar.open('Centre created', 'OK', { duration: 3000 }); this.reload(); },
-        error: (e) => this.snackBar.open(e?.error?.message || 'Error creating centre', 'Dismiss', { duration: 4000 })
-      });
+  openCreateDrawer(): void {
+    this.drawerOpen = true;
+  }
+
+  onDrawerClose(result: CreateCentreRequest | null): void {
+    this.drawerOpen = false;
+    if (!result) return;
+
+    this.schedulingService.createCentre(result).subscribe({
+      next: () => {
+        this.snackBar.open('Centre created', 'OK', { duration: 3000 });
+        this.reload();
+      },
+      error: (e) => this.snackBar.open(e?.error?.message || 'Error creating centre', 'Dismiss', { duration: 4000 })
     });
   }
 
   deactivate(centre: CentreResponse): void {
-    const ref = this.dialog.open(ConfirmDialogComponent, {
-      data: {
-        title: 'Deactivate Centre',
-        message: `Deactivate centre "${centre.centreName}"? It will no longer be available for seat allocation.`,
-        confirmText: 'Deactivate',
-        color: 'warn',
-        icon: 'block'
-      } as ConfirmDialogData
-    });
-    ref.afterClosed().subscribe(confirmed => {
-      if (!confirmed) return;
-      this.schedulingService.deactivateCentre(centre.id).subscribe({
-        next: () => { this.snackBar.open('Centre deactivated', 'OK', { duration: 3000 }); this.reload(); },
-        error: (e) => this.snackBar.open(e?.error?.message || 'Error', 'Dismiss', { duration: 4000 })
-      });
+    this.schedulingService.deactivateCentre(centre.id).subscribe({
+      next: () => {
+        this.snackBar.open('Centre deactivated', 'OK', { duration: 3000 });
+        this.reload();
+      },
+      error: (e) => this.snackBar.open(e?.error?.message || 'Error', 'Dismiss', { duration: 4000 })
     });
   }
 }

@@ -76,6 +76,7 @@ import { PageHeaderComponent } from '../../shared/components/page-header/page-he
           [columns]="columns"
           [actionsTemplate]="actionsTmpl"
           (rowClick)="select($event)"
+          title="Pending Reviews"
           searchPlaceholder="Search review questions..."
         ></app-paginated-table>
 

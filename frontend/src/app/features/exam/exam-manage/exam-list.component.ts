@@ -3,13 +3,11 @@ import { CommonModule } from '@angular/common';
 import { RouterModule } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
-import { MatCardModule } from '@angular/material/card';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
-import { MatDialog, MatDialogModule } from '@angular/material/dialog';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { map } from 'rxjs/operators';
 import { ExamManagementService, ExaminationResponse, CreateExamRequest } from './exam-management.service';
-import { ExamFormDialogComponent, ExamFormDialogData } from './exam-form-dialog.component';
+import { ExamFormDialogComponent } from './exam-form-dialog.component';
 import {
   PaginatedTableComponent,
   ColumnDef,
@@ -25,12 +23,11 @@ import { PageHeaderComponent } from '../../../shared/components/page-header/page
     RouterModule,
     MatButtonModule,
     MatIconModule,
-    MatCardModule,
     MatSnackBarModule,
-    MatDialogModule,
     MatTooltipModule,
     PaginatedTableComponent,
-    PageHeaderComponent
+    PageHeaderComponent,
+    ExamFormDialogComponent
   ],
   template: `
     <div class="page-layout">
@@ -39,46 +36,49 @@ import { PageHeaderComponent } from '../../../shared/components/page-header/page
         subtitle="Create, configure, and publish examinations."
         icon="assignment"
       >
-        <button mat-raised-button color="primary" (click)="openCreateDialog()" matTooltip="Create Exam">
+        <button mat-raised-button color="primary" (click)="openCreateDrawer()" matTooltip="Create Exam">
           <mat-icon>add</mat-icon>
           Create Exam
         </button>
       </app-page-header>
 
-      <mat-card>
-        <mat-card-content>
-          <app-paginated-table
-            #paginatedTable
-            [fetcher]="fetcher"
-            [columns]="columns"
-            [actionsTemplate]="actionsTmpl"
-            searchPlaceholder="Search exams by name, status, or policy..."
-          ></app-paginated-table>
+      <app-paginated-table
+        #paginatedTable
+        [fetcher]="fetcher"
+        [columns]="columns"
+        [actionsTemplate]="actionsTmpl"
+        title="Exams List"
+        searchPlaceholder="Search exams by name, status, or policy..."
+      ></app-paginated-table>
 
-          <!-- Custom Actions Column Template -->
-          <ng-template #actionsTmpl let-row>
-            <button mat-icon-button matTooltip="Edit" (click)="openEditDialog(row)">
-              <mat-icon>edit</mat-icon>
-            </button>
-            <button
-              mat-icon-button
-              matTooltip="Schedule"
-              [routerLink]="['/exam/scheduling', row.id]"
-            >
-              <mat-icon>event</mat-icon>
-            </button>
-            <button
-              mat-icon-button
-              matTooltip="Publish"
-              *ngIf="row.status === 'DRAFT'"
-              (click)="publishExam(row)"
-            >
-              <mat-icon>publish</mat-icon>
-            </button>
-          </ng-template>
+      <!-- Custom Actions Column Template -->
+      <ng-template #actionsTmpl let-row>
+        <button mat-icon-button matTooltip="Edit" (click)="openEditDrawer(row)">
+          <mat-icon>edit</mat-icon>
+        </button>
+        <button
+          mat-icon-button
+          matTooltip="Schedule"
+          [routerLink]="['/exam/scheduling', row.id]"
+        >
+          <mat-icon>event</mat-icon>
+        </button>
+        <button
+          mat-icon-button
+          matTooltip="Publish"
+          *ngIf="row.status === 'DRAFT'"
+          (click)="publishExam(row)"
+        >
+          <mat-icon>publish</mat-icon>
+        </button>
+      </ng-template>
 
-        </mat-card-content>
-      </mat-card>
+      <!-- ── RIGHT COLLAPSIBLE DRAWER FORM ── -->
+      <app-exam-form-dialog
+        [isOpen]="drawerOpen"
+        [exam]="editingExam"
+        (close)="onDrawerClose($event)"
+      ></app-exam-form-dialog>
     </div>
   `,
   styles: [`
@@ -95,6 +95,9 @@ import { PageHeaderComponent } from '../../../shared/components/page-header/page
 export class ExamListComponent {
 
   @ViewChild('paginatedTable') paginatedTable!: PaginatedTableComponent<ExaminationResponse>;
+
+  drawerOpen = false;
+  editingExam?: ExaminationResponse;
 
   columns: ColumnDef<ExaminationResponse>[] = [
     { key: 'name', header: 'Name', sortable: true },
@@ -133,7 +136,6 @@ export class ExamListComponent {
 
   constructor(
     private examService: ExamManagementService,
-    private dialog: MatDialog,
     private snackBar: MatSnackBar
   ) {}
 
@@ -141,48 +143,43 @@ export class ExamListComponent {
     this.paginatedTable?.reload();
   }
 
-  openCreateDialog(): void {
-    const dialogRef = this.dialog.open(ExamFormDialogComponent, {
-      width: '600px',
-      data: {} as ExamFormDialogData
-    });
-
-    dialogRef.afterClosed().subscribe((result: CreateExamRequest | undefined) => {
-      if (result) {
-        this.examService.createExam(result).subscribe({
-          next: () => {
-            this.snackBar.open('Examination created successfully', 'OK', { duration: 3000 });
-            this.reload();
-          },
-          error: (err) => {
-            this.snackBar.open('Failed to create examination', 'Dismiss', { duration: 3000 });
-            console.error('Error creating exam:', err);
-          }
-        });
-      }
-    });
+  openCreateDrawer(): void {
+    this.editingExam = undefined;
+    this.drawerOpen = true;
   }
 
-  openEditDialog(exam: ExaminationResponse): void {
-    const dialogRef = this.dialog.open(ExamFormDialogComponent, {
-      width: '600px',
-      data: { exam } as ExamFormDialogData
-    });
+  openEditDrawer(exam: ExaminationResponse): void {
+    this.editingExam = exam;
+    this.drawerOpen = true;
+  }
 
-    dialogRef.afterClosed().subscribe((result: CreateExamRequest | undefined) => {
-      if (result) {
-        this.examService.updateExam(exam.id, result).subscribe({
-          next: () => {
-            this.snackBar.open('Examination updated successfully', 'OK', { duration: 3000 });
-            this.reload();
-          },
-          error: (err) => {
-            this.snackBar.open('Failed to update examination', 'Dismiss', { duration: 3000 });
-            console.error('Error updating exam:', err);
-          }
-        });
-      }
-    });
+  onDrawerClose(result: CreateExamRequest | null): void {
+    this.drawerOpen = false;
+    if (!result) return;
+
+    if (this.editingExam) {
+      this.examService.updateExam(this.editingExam.id, result).subscribe({
+        next: () => {
+          this.snackBar.open('Examination updated successfully', 'OK', { duration: 3000 });
+          this.reload();
+        },
+        error: (err) => {
+          this.snackBar.open('Failed to update examination', 'Dismiss', { duration: 3000 });
+          console.error('Error updating exam:', err);
+        }
+      });
+    } else {
+      this.examService.createExam(result).subscribe({
+        next: () => {
+          this.snackBar.open('Examination created successfully', 'OK', { duration: 3000 });
+          this.reload();
+        },
+        error: (err) => {
+          this.snackBar.open('Failed to create examination', 'Dismiss', { duration: 3000 });
+          console.error('Error creating exam:', err);
+        }
+      });
+    }
   }
 
   publishExam(exam: ExaminationResponse): void {
