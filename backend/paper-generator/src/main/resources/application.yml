@@ -61,7 +61,7 @@ spring:
     bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
     producer:
       key-serializer: org.apache.kafka.common.serialization.StringSerializer
-      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JacksonJsonSerializer
       acks: all
       retries: 3
       properties:
@@ -93,6 +93,15 @@ management:
   endpoint:
     health:
       show-details: always
+      probes:
+        enabled: true
+  health:
+    db:
+      enabled: true
+    kafka:
+      enabled: true
+    vault:
+      enabled: true
   metrics:
     tags:
       service: paper-generator

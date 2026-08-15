@@ -21,7 +21,6 @@ package com.examplatform.admin;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
-import org.springframework.boot.autoconfigure.data.redis.RedisRepositoriesAutoConfiguration;
 import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
 import org.springframework.scheduling.annotation.EnableScheduling;
 
@@ -34,7 +33,7 @@ import org.springframework.scheduling.annotation.EnableScheduling;
  * Without this exclusion, Spring Data enters multi-store strict mode and scans every
  * JPA repository interface against both stores, adding significant startup latency.
  */
-@SpringBootApplication(exclude = RedisRepositoriesAutoConfiguration.class)
+@SpringBootApplication(exclude = { org.springframework.boot.data.redis.autoconfigure.DataRedisRepositoriesAutoConfiguration.class })
 @EnableJpaRepositories(basePackages = "com.examplatform.admin.repository")
 @EnableScheduling
 public class AdminServiceApplication {
@@ -42,4 +41,4 @@ public class AdminServiceApplication {
     public static void main(String[] args) {
         SpringApplication.run(AdminServiceApplication.class, args);
     }
-}
+}

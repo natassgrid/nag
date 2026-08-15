@@ -1,0 +1,87 @@
+    <div class="page-layout">
+
+      <!-- ── Page header ─────────────────────────────────────────────── -->
+      <app-page-header
+        title="Paper Generation"
+        subtitle="Generate, review, and approve examination papers from blueprints."
+        icon="description"
+      >
+        <button
+          mat-raised-button
+          color="primary"
+          (click)="openGenerateDrawer()"
+        >
+          <mat-icon>auto_awesome</mat-icon>
+          Generate Paper
+        </button>
+      </app-page-header>
+
+      <!-- ── Paper table ──────────────────────────────────────────────── -->
+      <app-paginated-table
+        #paperTable
+        [fetcher]="fetcher"
+        [columns]="columns"
+        [actionsTemplate]="actionsTmpl"
+        [filters]="activeFilters"
+        [filterCategories]="filterCategories"
+        (filterChange)="onFilterChange($event)"
+        title="Generated Papers"
+        searchPlaceholder="Search by shift ID or paper ID…"
+      ></app-paginated-table>
+
+      <!-- Actions template ─────────────────────────────────────── -->
+      <ng-template #actionsTmpl let-row>
+        <!-- Approve: only DRAFT papers -->
+        <button
+          mat-icon-button
+          color="primary"
+          matTooltip="Approve & Encrypt"
+          *ngIf="row.status === 'DRAFT'"
+          (click)="approvePaper(row)"
+          [disabled]="approvingId === row.paperId"
+          aria-label="Approve and encrypt paper"
+        >
+          <mat-spinner
+            diameter="20"
+            *ngIf="approvingId === row.paperId"
+          ></mat-spinner>
+          <mat-icon *ngIf="approvingId !== row.paperId">verified</mat-icon>
+        </button>
+
+        <!-- Already approved / encrypted: show lock icon, no action -->
+        <mat-icon
+          *ngIf="row.status === 'APPROVED'"
+          class="status-icon approved"
+          matTooltip="Approved — awaiting encryption"
+        >check_circle_outline</mat-icon>
+
+        <mat-icon
+          *ngIf="row.status === 'ENCRYPTED'"
+          class="status-icon encrypted"
+          matTooltip="Encrypted and sealed"
+        >lock</mat-icon>
+      </ng-template>
+
+      <!-- ── Last generation result banner ────────────────────────────── -->
+      <div class="result-banner" *ngIf="lastResult" [class.result-banner--success]="lastResult.status !== 'ERROR'">
+        <mat-icon>{{ lastResult.status !== 'ERROR' ? 'check_circle' : 'error' }}</mat-icon>
+        <div class="result-text">
+          <strong>{{ lastResult.status !== 'ERROR' ? 'Paper generated' : 'Generation failed' }}</strong>
+          <span class="result-detail">{{ lastResult.message }}</span>
+          <span class="result-id" *ngIf="lastResult.paperId">
+            Paper ID: <code>{{ lastResult.paperId }}</code>
+          </span>
+        </div>
+        <button mat-icon-button (click)="lastResult = null" aria-label="Dismiss">
+          <mat-icon>close</mat-icon>
+        </button>
+      </div>
+
+      <!-- ── RIGHT COLLAPSIBLE GENERATE PAPER DRAWER ── -->
+      <app-paper-generate-dialog
+        [isOpen]="generateDrawerOpen"
+        [examId]="activeFilters['examId'] || undefined"
+        (close)="onGenerateDrawerClose($event)"
+      ></app-paper-generate-dialog>
+
+    </div>

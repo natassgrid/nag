@@ -55,6 +55,48 @@ export interface AdminUpdateUserRequest {
   mfaEnabled?: boolean;
 }
 
+export interface PermissionResponse {
+  id: string;
+  code: string;
+  name: string;
+  description: string;
+  module: string;
+}
+
+export interface RoleDefinitionResponse {
+  id: string;
+  name: string;
+  code: string;
+  description: string;
+  active: boolean;
+  systemRole: boolean;
+  permissions: PermissionResponse[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateRoleRequest {
+  name: string;
+  code: string;
+  description?: string;
+  permissionIds?: string[];
+}
+
+export interface UpdateRoleRequest {
+  name?: string;
+  description?: string;
+  active?: boolean;
+  permissionIds?: string[];
+}
+
+export interface PaginatedPage<T> {
+  content: T[];
+  totalElements: number;
+  totalPages: number;
+  size: number;
+  number: number;
+}
+
 interface ApiResponse<T> {
   status: string;
   data: T;
@@ -97,5 +139,47 @@ export class AdminService {
     return this.http.post<ApiResponse<RoleAssignmentResponse>>(`${this.baseUrl}/roles/${userId}`, body).pipe(
       map(response => response.data)
     );
+  }
+
+  // ===================================================================
+  // Role Definition CRUD
+  // ===================================================================
+
+  getRoleDefinitions(page: number, size: number, search: string): Observable<PaginatedPage<RoleDefinitionResponse>> {
+    return this.http.get<ApiResponse<PaginatedPage<RoleDefinitionResponse>>>(
+      `${this.baseUrl}/roles/definitions`,
+      { params: { page: page.toString(), size: size.toString(), search } }
+    ).pipe(map(response => response.data));
+  }
+
+  getRoleDefinition(roleId: string): Observable<RoleDefinitionResponse> {
+    return this.http.get<ApiResponse<RoleDefinitionResponse>>(
+      `${this.baseUrl}/roles/definitions/${roleId}`
+    ).pipe(map(response => response.data));
+  }
+
+  createRoleDefinition(request: CreateRoleRequest): Observable<RoleDefinitionResponse> {
+    return this.http.post<ApiResponse<RoleDefinitionResponse>>(
+      `${this.baseUrl}/roles/definitions`, request
+    ).pipe(map(response => response.data));
+  }
+
+  updateRoleDefinition(roleId: string, request: UpdateRoleRequest): Observable<RoleDefinitionResponse> {
+    return this.http.put<ApiResponse<RoleDefinitionResponse>>(
+      `${this.baseUrl}/roles/definitions/${roleId}`, request
+    ).pipe(map(response => response.data));
+  }
+
+  deleteRoleDefinition(roleId: string): Observable<void> {
+    return this.http.delete<ApiResponse<void>>(
+      `${this.baseUrl}/roles/definitions/${roleId}`
+    ).pipe(map(() => undefined));
+  }
+
+  getPermissions(page: number, size: number, search: string): Observable<PaginatedPage<PermissionResponse>> {
+    return this.http.get<ApiResponse<PaginatedPage<PermissionResponse>>>(
+      `${this.baseUrl}/roles/permissions`,
+      { params: { page: page.toString(), size: size.toString(), search } }
+    ).pipe(map(response => response.data));
   }
 }

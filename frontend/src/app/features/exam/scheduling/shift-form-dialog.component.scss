@@ -1,0 +1,6 @@
+    .dialog-form { display: flex; flex-direction: column; gap: 12px; min-width: 500px; padding-top: 8px; }
+    .form-row { display: flex; gap: 16px; }
+    .form-row mat-form-field { flex: 1; }
+    .validation-errors { background: #fff3e0; border-left: 4px solid #e65100; padding: 10px 14px; border-radius: 4px; }
+    .timing-error { display: flex; align-items: center; gap: 6px; font-size: 13px; color: #e65100; margin: 4px 0; }
+    .timing-error mat-icon { font-size: 18px; height: 18px; width: 18px; }

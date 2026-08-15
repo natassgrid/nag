@@ -72,7 +72,7 @@ public class RequestSanitizationFilter implements GlobalFilter, Ordered {
         // Strip dangerous headers
         ServerHttpRequest.Builder requestBuilder = request.mutate();
         for (String dangerousHeader : DANGEROUS_HEADERS) {
-            if (request.getHeaders().containsKey(dangerousHeader)) {
+            if (request.getHeaders().containsHeader(dangerousHeader)) {
                 requestBuilder.headers(headers -> headers.remove(dangerousHeader));
             }
         }

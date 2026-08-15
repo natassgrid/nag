@@ -1,0 +1,12 @@
+    .analytics-container { padding: var(--spacing-lg); max-width: 1200px; margin: 0 auto; }
+    .exam-selector { width: 300px; margin-bottom: var(--spacing-lg); }
+    .summary-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: var(--spacing-md); margin-bottom: var(--spacing-lg); }
+    .summary-card { text-align: center; }
+    .metric-value { font-size: 2rem; font-weight: 500; color: var(--color-primary); }
+    .metric-label { color: var(--color-text-secondary); margin-top: var(--spacing-xs); }
+    .histogram { display: flex; align-items: flex-end; gap: var(--spacing-xs); height: 200px; padding-top: var(--spacing-md); }
+    .histogram-bar-container { display: flex; flex-direction: column; align-items: center; flex: 1; }
+    .histogram-bar { width: 100%; background: var(--color-primary); border-radius: 4px 4px 0 0; min-height: 4px; transition: height 0.3s; }
+    .histogram-label { font-size: 0.75rem; margin-top: var(--spacing-xs); color: var(--color-text-secondary); }
+    .histogram-count { font-size: 0.75rem; font-weight: 500; }
+    table { width: 100%; }

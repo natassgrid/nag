@@ -1,0 +1,16 @@
+    .exam-editor-wrapper {
+      border: 1px solid #e0e0e0;
+      border-radius: 8px;
+      overflow: hidden;
+      background: #fff;
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+    .exam-editor-wrapper.focused {
+      border-color: #1976d2;
+      box-shadow: 0 0 0 2px rgba(25, 118, 210, 0.12);
+    }
+    .exam-editor-wrapper.disabled {
+      opacity: 0.6;
+      pointer-events: none;
+      background: #fafafa;
+    }

@@ -1,0 +1,45 @@
+
+    <div class="page-layout">
+      <app-page-header
+        title="My Exam Results"
+        subtitle="View your scores, ranks, and percentiles for completed examinations."
+        icon="grade"
+      ></app-page-header>
+
+      <div *ngIf="results.length === 0" class="empty-state" role="status">
+        <mat-icon class="empty-icon">assignment</mat-icon>
+        <p>No results available yet.</p>
+      </div>
+
+      <div class="results-grid" *ngIf="results.length > 0">
+        <mat-card *ngFor="let result of results" class="result-card">
+          <mat-card-header>
+            <mat-icon mat-card-avatar>school</mat-icon>
+            <mat-card-title>Exam: {{ result.examId }}</mat-card-title>
+            <mat-card-subtitle>{{ result.createdAt | date:'mediumDate' }}</mat-card-subtitle>
+          </mat-card-header>
+          <mat-card-content>
+            <div class="result-stats">
+              <div class="stat">
+                <span class="stat-label">Total Score</span>
+                <span class="stat-value">{{ result.totalScore }}</span>
+              </div>
+              <div class="stat">
+                <span class="stat-label">Rank</span>
+                <span class="stat-value">#{{ result.overallRank }}</span>
+              </div>
+              <div class="stat">
+                <span class="stat-label">Percentile</span>
+                <span class="stat-value">{{ result.overallPercentile | number:'1.1-1' }}%</span>
+              </div>
+            </div>
+          </mat-card-content>
+          <mat-card-actions align="end">
+            <a mat-button color="primary" [routerLink]="[result.examId]">
+              <mat-icon>visibility</mat-icon>
+              View Details
+            </a>
+          </mat-card-actions>
+        </mat-card>
+      </div>
+    </div>

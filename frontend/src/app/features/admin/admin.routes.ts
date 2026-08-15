@@ -30,11 +30,23 @@ export const ADMIN_ROUTES: Routes = [
     loadComponent: () => import('./user-management/user-management.component').then(m => m.UserManagementComponent)
   },
   {
+    path: 'roles',
+    loadComponent: () => import('./role-management/role-management.component').then(m => m.RoleManagementComponent)
+  },
+  {
     path: 'analytics',
     loadComponent: () => import('./analytics-dashboard/analytics-dashboard.component').then(m => m.AnalyticsDashboardComponent)
   },
   {
     path: 'reports',
     loadComponent: () => import('./report-export/report-export.component').then(m => m.ReportExportComponent)
+  },
+  {
+    path: 'audit',
+    loadComponent: () => import('./audit-log/audit-log.component').then(m => m.AuditLogComponent)
+  },
+  {
+    path: 'settings',
+    loadComponent: () => import('./settings/settings.component').then(m => m.SettingsComponent)
   }
 ];

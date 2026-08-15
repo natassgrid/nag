@@ -1,0 +1,93 @@
+.loading-container {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 48px;
+      gap: 16px;
+    }
+    .add-card {
+      margin-bottom: 16px;
+    }
+    ::ng-deep .add-card .mat-mdc-card-content {
+      padding: 12px 16px !important;
+    }
+    .inline-form {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .inline-form.nested {
+      margin: 8px 0;
+      padding-left: 8px;
+    }
+    .inline-form mat-form-field {
+      height: 38px;
+      margin-bottom: 0;
+    }
+    .inline-form button {
+      height: 38px;
+      min-height: 38px;
+      box-sizing: border-box;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+    }
+    ::ng-deep .inline-form .mat-mdc-form-field-subscript-wrapper {
+      display: none;
+    }
+    .flex-field {
+      flex: 1;
+    }
+    .subject-panel {
+      margin-bottom: 8px;
+    }
+    .topic-accordion {
+      margin-top: 8px;
+    }
+    .topic-panel {
+      margin-bottom: 4px;
+    }
+    .panel-icon {
+      margin-right: 8px;
+      font-size: 20px;
+      vertical-align: middle;
+    }
+    .code-chip {
+      margin-left: 8px;
+      font-size: 11px;
+    }
+    .description {
+      color: #666;
+      font-style: italic;
+      margin: 4px 0 12px 0;
+    }
+    .subtopic-list {
+      padding: 8px 0 8px 16px;
+    }
+    .subtopic-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 0;
+      border-bottom: 1px solid #f0f0f0;
+    }
+    .subtopic-item:last-child {
+      border-bottom: none;
+    }
+    .subtopic-icon {
+      font-size: 16px;
+      color: #888;
+    }
+    .subtopic-desc {
+      color: #888;
+      font-size: 13px;
+    }
+    .empty-msg {
+      color: #999;
+      font-style: italic;
+      padding: 8px 0;
+    }
+    .empty-msg.center {
+      text-align: center;
+      padding: 32px;
+    }

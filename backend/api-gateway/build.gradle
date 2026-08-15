@@ -15,47 +15,47 @@
  */
 plugins {
     id 'java'
-    id 'org.springframework.boot'
-    id 'io.spring.dependency-management'
-    id 'io.freefair.lombok'
+    alias(libs.plugins.spring.boot)
+    alias(libs.plugins.spring.dependency.management)
+    alias(libs.plugins.lombok)
 }
 
 version = '0.0.1-SNAPSHOT'
 
 dependencyManagement {
     imports {
-        mavenBom "org.springframework.cloud:spring-cloud-dependencies:${springCloudVersion}"
+        mavenBom "org.springframework.cloud:spring-cloud-dependencies:${libs.versions.spring.cloud.get()}"
     }
 }
 
 dependencies {
     // Spring Cloud Gateway (reactive)
-    implementation 'org.springframework.cloud:spring-cloud-starter-gateway'
+    implementation libs.spring.cloud.starter.gateway
 
     // Reactive web (required by Spring Cloud Gateway — do NOT include spring-boot-starter-web)
-    implementation 'org.springframework.boot:spring-boot-starter-webflux'
+    implementation libs.spring.boot.starter.webflux
 
     // Security — OAuth2 Resource Server (JWT) for reactive stack
-    implementation 'org.springframework.boot:spring-boot-starter-security'
-    implementation 'org.springframework.boot:spring-boot-starter-oauth2-resource-server'
+    implementation libs.spring.boot.starter.security
+    implementation libs.spring.boot.starter.oauth2.resource.server
 
     // Redis for rate limiting
-    implementation 'org.springframework.boot:spring-boot-starter-data-redis-reactive'
+    implementation libs.spring.boot.starter.data.redis.reactive
 
     // Kafka (security alerts)
-    implementation 'org.springframework.kafka:spring-kafka'
+    implementation libs.spring.kafka
 
     // Actuator + Prometheus
-    implementation 'org.springframework.boot:spring-boot-starter-actuator'
-    implementation 'io.micrometer:micrometer-registry-prometheus'
+    implementation libs.spring.boot.starter.actuator
+    implementation libs.micrometer.registry.prometheus
 
     // Test
-    testImplementation 'org.springframework.boot:spring-boot-starter-test'
-    testImplementation 'org.springframework.security:spring-security-test'
-    testImplementation 'io.projectreactor:reactor-test'
-    testImplementation 'org.junit.jupiter:junit-jupiter'
-    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
-    testImplementation 'org.assertj:assertj-core'
+    testImplementation libs.spring.boot.starter.test
+    testImplementation libs.spring.security.test
+    testImplementation libs.reactor.test
+    testImplementation libs.junit.jupiter
+    testRuntimeOnly libs.junit.platform.launcher
+    testImplementation libs.assertj.core
 }
 
 springBoot {

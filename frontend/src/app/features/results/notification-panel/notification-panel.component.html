@@ -1,0 +1,30 @@
+
+    <mat-card class="notification-panel" role="region" aria-labelledby="notification-heading">
+      <mat-card-header>
+        <mat-card-title id="notification-heading">
+          <mat-icon [matBadge]="unreadCount" matBadgeColor="warn"
+                    [matBadgeHidden]="unreadCount === 0">notifications</mat-icon>
+          Notifications
+        </mat-card-title>
+      </mat-card-header>
+      <mat-card-content>
+        <mat-nav-list aria-label="Notification list" role="log" aria-live="polite">
+          <mat-list-item *ngFor="let notification of notifications"
+                         [class.unread]="!notification.read"
+                         (click)="markRead(notification)"
+                         role="listitem"
+                         [attr.aria-label]="notification.title + ': ' + notification.message">
+            <mat-icon matListItemIcon [class]="'type-' + notification.type">
+              {{ getIcon(notification.type) }}
+            </mat-icon>
+            <div matListItemTitle>{{ notification.title }}</div>
+            <div matListItemLine>{{ notification.message }}</div>
+            <div matListItemMeta>{{ notification.timestamp | date:'short' }}</div>
+          </mat-list-item>
+        </mat-nav-list>
+
+        <div *ngIf="notifications.length === 0" class="empty-state" role="status">
+          No notifications yet.
+        </div>
+      </mat-card-content>
+    </mat-card>

@@ -1,0 +1,43 @@
+    .page-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+
+    .page-header__left {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .page-header__title {
+      margin: 0;
+      font-size: 24px;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      color: #4A4A4A;
+    }
+
+    .page-header__icon {
+      font-size: 28px;
+      height: 28px;
+      width: 28px;
+      color: #536DFE;
+    }
+
+    .page-header__subtitle {
+      margin: 0;
+      font-size: 14px;
+      color: #757575;
+    }
+
+    .page-header__actions {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      flex-shrink: 0;
+    }

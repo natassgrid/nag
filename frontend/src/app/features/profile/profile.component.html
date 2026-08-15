@@ -1,0 +1,146 @@
+    <div class="profile-container" role="main" aria-labelledby="profile-heading">
+
+      <!-- Profile View Mode -->
+      <mat-card class="profile-card" appearance="outlined" *ngIf="profile && !isEditing">
+        <mat-card-header class="profile-header">
+          <div class="profile-avatar">
+            <mat-icon class="avatar-icon" aria-hidden="true">account_circle</mat-icon>
+          </div>
+          <h1 id="profile-heading" class="profile-name">{{ profile.name }}</h1>
+          <mat-chip-set aria-label="Verification status">
+            <mat-chip [class.verified]="profile.verificationStatus === 'VERIFIED'"
+                      [class.pending]="profile.verificationStatus !== 'VERIFIED'"
+                      highlighted>
+              <mat-icon matChipAvatar>
+                {{ profile.verificationStatus === 'VERIFIED' ? 'verified' : 'pending' }}
+              </mat-icon>
+              {{ profile.verificationStatus }}
+            </mat-chip>
+          </mat-chip-set>
+        </mat-card-header>
+
+        <mat-divider></mat-divider>
+
+        <mat-card-content class="profile-details">
+          <div class="detail-row">
+            <mat-icon class="detail-icon" aria-hidden="true">email</mat-icon>
+            <div class="detail-content">
+              <span class="detail-label">Email</span>
+              <span class="detail-value">{{ profile.email }}</span>
+            </div>
+          </div>
+
+          <div class="detail-row">
+            <mat-icon class="detail-icon" aria-hidden="true">phone</mat-icon>
+            <div class="detail-content">
+              <span class="detail-label">Mobile Number</span>
+              <span class="detail-value">{{ profile.mobile }}</span>
+            </div>
+          </div>
+
+          <div class="detail-row">
+            <mat-icon class="detail-icon" aria-hidden="true">badge</mat-icon>
+            <div class="detail-content">
+              <span class="detail-label">Document Type</span>
+              <span class="detail-value">{{ profile.identityDocType }}</span>
+            </div>
+          </div>
+
+          <div class="detail-row">
+            <mat-icon class="detail-icon" aria-hidden="true">article</mat-icon>
+            <div class="detail-content">
+              <span class="detail-label">Document Number</span>
+              <span class="detail-value">{{ maskDocNumber(profile.identityDocNumber) }}</span>
+            </div>
+          </div>
+
+          <div class="detail-row">
+            <mat-icon class="detail-icon" aria-hidden="true">calendar_today</mat-icon>
+            <div class="detail-content">
+              <span class="detail-label">Registration Date</span>
+              <span class="detail-value">{{ profile.registrationDate | date:'mediumDate' }}</span>
+            </div>
+          </div>
+        </mat-card-content>
+
+        <mat-card-actions class="profile-actions">
+          <button mat-raised-button color="primary" (click)="startEdit()"
+                  aria-label="Edit profile">
+            <mat-icon>edit</mat-icon>
+            Edit Profile
+          </button>
+        </mat-card-actions>
+      </mat-card>
+
+      <!-- Create / Edit Form -->
+      <mat-card class="profile-card" appearance="outlined" *ngIf="isEditing || profileNotFound">
+        <mat-card-header class="profile-header">
+          <div class="profile-avatar">
+            <mat-icon class="avatar-icon" aria-hidden="true">{{ profileNotFound ? 'person_add' : 'edit' }}</mat-icon>
+          </div>
+          <h1 id="profile-heading" class="profile-name">
+            {{ profileNotFound ? 'Create Your Profile' : 'Edit Profile' }}
+          </h1>
+          <p class="form-subtitle" *ngIf="profileNotFound">
+            Complete your profile to get started with the platform.
+          </p>
+        </mat-card-header>
+
+        <mat-divider></mat-divider>
+
+        <mat-card-content class="form-content">
+          <form [formGroup]="profileForm" (ngSubmit)="saveProfile()" class="profile-form">
+            <mat-form-field appearance="outline" class="full-width">
+              <mat-label>Full Name</mat-label>
+              <input matInput formControlName="name" placeholder="Your full name" />
+              <mat-icon matPrefix>person</mat-icon>
+              <mat-error *ngIf="profileForm.get('name')?.hasError('required')">Name is required</mat-error>
+            </mat-form-field>
+
+            <mat-form-field appearance="outline" class="full-width">
+              <mat-label>Email</mat-label>
+              <input matInput formControlName="email" type="email" placeholder="your@email.com" />
+              <mat-icon matPrefix>email</mat-icon>
+              <mat-error *ngIf="profileForm.get('email')?.hasError('required')">Email is required</mat-error>
+              <mat-error *ngIf="profileForm.get('email')?.hasError('email')">Enter a valid email</mat-error>
+            </mat-form-field>
+
+            <mat-form-field appearance="outline" class="full-width">
+              <mat-label>Mobile Number</mat-label>
+              <input matInput formControlName="mobile" placeholder="10-digit mobile number" />
+              <mat-icon matPrefix>phone</mat-icon>
+              <mat-error *ngIf="profileForm.get('mobile')?.hasError('required')">Mobile is required</mat-error>
+              <mat-error *ngIf="profileForm.get('mobile')?.hasError('pattern')">Enter a valid 10-digit number</mat-error>
+            </mat-form-field>
+
+            <mat-form-field appearance="outline" class="full-width">
+              <mat-label>Identity Document Type</mat-label>
+              <mat-select formControlName="identityDocType">
+                <mat-option *ngFor="let doc of docTypes" [value]="doc">{{ doc }}</mat-option>
+              </mat-select>
+              <mat-icon matPrefix>badge</mat-icon>
+              <mat-error *ngIf="profileForm.get('identityDocType')?.hasError('required')">Document type is required</mat-error>
+            </mat-form-field>
+
+            <mat-form-field appearance="outline" class="full-width">
+              <mat-label>Identity Document Number</mat-label>
+              <input matInput formControlName="identityDocNumber" placeholder="Document number" />
+              <mat-icon matPrefix>article</mat-icon>
+              <mat-error *ngIf="profileForm.get('identityDocNumber')?.hasError('required')">Document number is required</mat-error>
+            </mat-form-field>
+
+            <div class="form-actions">
+              <button mat-button type="button" (click)="cancelEdit()" *ngIf="isEditing && !profileNotFound">
+                Cancel
+              </button>
+              <button mat-raised-button color="primary" type="submit"
+                      [disabled]="profileForm.invalid || isSaving">
+                <mat-icon *ngIf="!isSaving">{{ profileNotFound ? 'person_add' : 'save' }}</mat-icon>
+                <mat-spinner *ngIf="isSaving" diameter="20" class="button-spinner"></mat-spinner>
+                <span *ngIf="!isSaving">{{ profileNotFound ? 'Create Profile' : 'Save Changes' }}</span>
+              </button>
+            </div>
+          </form>
+        </mat-card-content>
+      </mat-card>
+    </div>

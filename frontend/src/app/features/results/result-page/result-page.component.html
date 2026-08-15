@@ -1,0 +1,86 @@
+
+    <main id="main-content" class="result-container" role="main" aria-labelledby="result-heading">
+      <div class="result-content">
+        <!-- Scorecard Header -->
+        <mat-card class="scorecard-header" *ngIf="result">
+          <mat-card-header>
+            <mat-card-title id="result-heading">{{ result.examName }} — Scorecard</mat-card-title>
+            <mat-card-subtitle>{{ result.candidateName }}</mat-card-subtitle>
+          </mat-card-header>
+          <mat-card-content>
+            <div class="score-summary" role="region" aria-label="Score summary">
+              <div class="score-item">
+                <span class="score-label">Total Score</span>
+                <span class="score-value">{{ result.totalScore }} / {{ result.maxScore }}</span>
+              </div>
+              <div class="score-item">
+                <span class="score-label">Rank</span>
+                <span class="score-value">{{ result.overallRank }}</span>
+              </div>
+              <div class="score-item">
+                <span class="score-label">Percentile</span>
+                <span class="score-value">{{ result.overallPercentile | number:'1.2-2' }}%</span>
+              </div>
+            </div>
+          </mat-card-content>
+        </mat-card>
+
+        <!-- Section-wise Breakdown -->
+        <mat-card class="section-breakdown" *ngIf="result">
+          <mat-card-header>
+            <mat-card-title>Subject/Section Breakdown</mat-card-title>
+          </mat-card-header>
+          <mat-card-content>
+            <div *ngFor="let section of result.sections" class="section-item">
+              <h3 class="section-name">{{ section.sectionName }}</h3>
+              <div class="section-score">
+                {{ section.score }} / {{ section.maxScore }}
+                ({{ section.percentage | number:'1.1-1' }}%)
+              </div>
+              <mat-divider></mat-divider>
+
+              <!-- Topic breakdown -->
+              <table mat-table [dataSource]="section.topics" class="topic-table"
+                     *ngIf="section.topics.length > 0"
+                     aria-label="Topic-wise score breakdown">
+                <ng-container matColumnDef="topicName">
+                  <th mat-header-cell *matHeaderCellDef>Topic</th>
+                  <td mat-cell *matCellDef="let topic">{{ topic.topicName }}</td>
+                </ng-container>
+                <ng-container matColumnDef="score">
+                  <th mat-header-cell *matHeaderCellDef>Score</th>
+                  <td mat-cell *matCellDef="let topic">{{ topic.score }} / {{ topic.maxScore }}</td>
+                </ng-container>
+                <tr mat-header-row *matHeaderRowDef="['topicName', 'score']"></tr>
+                <tr mat-row *matRowDef="let row; columns: ['topicName', 'score']"></tr>
+              </table>
+            </div>
+          </mat-card-content>
+        </mat-card>
+
+        <!-- PDF Download -->
+        <mat-card class="download-section" *ngIf="result">
+          <mat-card-content>
+            <p>Download your detailed scorecard (PDF is password-protected with your DOB + Candidate ID).</p>
+            <a mat-raised-button color="primary"
+               [href]="result.pdfDownloadUrl"
+               download
+               aria-label="Download scorecard PDF">
+              <mat-icon>download</mat-icon>
+              Download PDF Scorecard
+            </a>
+          </mat-card-content>
+        </mat-card>
+
+        <!-- Loading / Error states -->
+        <div *ngIf="isLoading" class="loading" role="status" aria-live="polite">
+          Loading your results...
+        </div>
+        <div *ngIf="errorMessage" class="error-message" role="alert">
+          {{ errorMessage }}
+        </div>
+      </div>
+
+      <!-- Notification Panel -->
+      <app-notification-panel></app-notification-panel>
+    </main>

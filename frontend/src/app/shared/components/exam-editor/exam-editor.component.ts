@@ -89,46 +89,8 @@ import { EditorContentComponent } from './editor-content.component';
     }
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
-  template: `
-    <div class="exam-editor-wrapper" [class.disabled]="disabled" [class.focused]="focused">
-      <editor-toolbar
-        [pluginRegistry]="pluginRegistry"
-        [context]="pluginContext"
-        [document]="document"
-        [selection]="selection"
-      ></editor-toolbar>
-      <editor-content
-        [document]="document"
-        [placeholder]="placeholder"
-        [disabled]="disabled"
-        [selection]="selection"
-        (documentChange)="onContentChange($event)"
-        (selectionChange)="onSelectionChange($event)"
-        (paste)="onPaste($event)"
-        (focused)="onFocus()"
-        (blurred)="onBlur()"
-        (keydown)="onKeyDown($event)"
-      ></editor-content>
-    </div>
-  `,
-  styles: [`
-    .exam-editor-wrapper {
-      border: 1px solid #e0e0e0;
-      border-radius: 8px;
-      overflow: hidden;
-      background: #fff;
-      transition: border-color 0.2s, box-shadow 0.2s;
-    }
-    .exam-editor-wrapper.focused {
-      border-color: #1976d2;
-      box-shadow: 0 0 0 2px rgba(25, 118, 210, 0.12);
-    }
-    .exam-editor-wrapper.disabled {
-      opacity: 0.6;
-      pointer-events: none;
-      background: #fafafa;
-    }
-  `]
+  templateUrl: './exam-editor.component.html',
+  styleUrls: ['./exam-editor.component.scss']
 })
 export class ExamEditorComponent implements OnInit, OnDestroy, ControlValueAccessor {
 

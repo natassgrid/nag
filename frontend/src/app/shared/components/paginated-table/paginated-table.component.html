@@ -1,0 +1,194 @@
+    <div class="paginated-table-wrapper">
+
+      <!-- Table Header & Search Toolbar -->
+      <div class="toolbar" *ngIf="title || enableSearch || enableFilter">
+        <div class="toolbar-title" *ngIf="title">
+          <h3>{{ title }}</h3>
+        </div>
+
+        <div class="toolbar-actions">
+          <mat-form-field appearance="outline" class="search-field" *ngIf="enableSearch">
+            <mat-label>{{ searchPlaceholder }}</mat-label>
+            <mat-icon matPrefix>search</mat-icon>
+            <input
+              matInput
+              [(ngModel)]="searchQuery"
+              (ngModelChange)="onSearchChange($event)"
+            />
+            <button
+              *ngIf="searchQuery"
+              mat-icon-button
+              matSuffix
+              (click)="clearSearch()"
+              aria-label="Clear search"
+            >
+              <mat-icon>close</mat-icon>
+            </button>
+          </mat-form-field>
+
+          <button
+            mat-stroked-button
+            class="filter-toggle-btn"
+            [class.active-filter]="activeFilterCount > 0 || drawerOpen"
+            (click)="toggleDrawer()"
+            *ngIf="enableFilter"
+            matTooltip="Toggle Filters"
+            aria-label="Toggle Filters"
+          >
+            <mat-icon>filter_list</mat-icon>
+            <span>Filters</span>
+            <span class="filter-badge" *ngIf="activeFilterCount > 0">{{ activeFilterCount }}</span>
+          </button>
+
+          <button
+            mat-icon-button
+            matTooltip="Refresh"
+            (click)="reload()"
+            [disabled]="loading"
+            aria-label="Refresh table data"
+          >
+            <mat-icon>refresh</mat-icon>
+          </button>
+        </div>
+      </div>
+
+      <!-- Main Layout with Table Container and Filter Drawer -->
+      <div class="table-content-layout">
+
+        <!-- Table Container -->
+        <div class="table-container" [class.loading-state]="loading">
+
+          <div class="spinner-overlay" *ngIf="loading">
+            <mat-spinner diameter="40"></mat-spinner>
+          </div>
+
+          <table
+            mat-table
+            [dataSource]="dataSource"
+            matSort
+            (matSortChange)="onSortChange($event)"
+            class="custom-paginated-table"
+          >
+
+            <!-- Render Configured Columns -->
+            <ng-container *ngFor="let col of columns" [matColumnDef]="col.key">
+              <th
+                mat-header-cell
+                *matHeaderCellDef
+                [mat-sort-header]="col.sortable ? col.key : ''"
+                [disabled]="!col.sortable"
+              >
+                {{ col.header }}
+              </th>
+
+              <td mat-cell *matCellDef="let row">
+
+                <!-- Custom Template -->
+                <ng-container *ngIf="col.type === 'custom' && col.template">
+                  <ng-container
+                    *ngTemplateOutlet="col.template; context: { $implicit: row, row: row, value: getCellValue(row, col) }"
+                  ></ng-container>
+                </ng-container>
+
+                <!-- Actions Template -->
+                <ng-container *ngIf="col.type === 'actions' && actionsTemplate">
+                  <ng-container
+                    *ngTemplateOutlet="actionsTemplate; context: { $implicit: row, row: row }"
+                  ></ng-container>
+                </ng-container>
+
+                <!-- Chip / Badge -->
+                <ng-container *ngIf="col.type === 'chip' || col.type === 'badge'">
+                  <mat-chip-set>
+                    <mat-chip [class]="col.chipClass ? col.chipClass(getCellValue(row, col), row) : ''">
+                      {{ getCellValue(row, col) }}
+                    </mat-chip>
+                  </mat-chip-set>
+                </ng-container>
+
+                <!-- Date -->
+                <ng-container *ngIf="col.type === 'date'">
+                  {{ getCellValue(row, col) | date:'short' }}
+                </ng-container>
+
+                <!-- Standard Text -->
+                <ng-container *ngIf="!col.type || col.type === 'text'">
+                  {{ getCellValue(row, col) }}
+                </ng-container>
+
+              </td>
+            </ng-container>
+
+            <tr mat-header-row *matHeaderRowDef="displayedColumnKeys"></tr>
+            <tr
+              mat-row
+              *matRowDef="let row; columns: displayedColumnKeys;"
+              (click)="onRowClick(row)"
+              class="clickable-row"
+            ></tr>
+
+            <!-- Empty State -->
+            <tr class="mat-row" *matNoDataRow>
+              <td class="mat-cell no-data-cell" [attr.colspan]="displayedColumnKeys.length">
+                <div class="empty-state">
+                  <mat-icon>inbox</mat-icon>
+                  <p>No records found.</p>
+                </div>
+              </td>
+            </tr>
+
+          </table>
+        </div>
+
+        <!-- Filter Drawer Overlay / Panel -->
+        <div class="filter-drawer" [class.open]="drawerOpen" *ngIf="enableFilter">
+          <div class="filter-drawer-header">
+            <span class="drawer-title">Filters</span>
+            <button mat-icon-button class="close-btn" (click)="toggleDrawer()" aria-label="Close filters">
+              <mat-icon>close</mat-icon>
+            </button>
+          </div>
+
+          <div class="filter-drawer-body">
+            <div *ngFor="let cat of activeCategories" class="filter-section">
+              <div class="section-header" (click)="toggleCategory(cat)">
+                <span class="section-title">{{ cat.label }}</span>
+                <mat-icon class="expand-icon" [class.expanded]="cat.expanded">expand_more</mat-icon>
+              </div>
+
+              <div class="section-content" *ngIf="cat.expanded">
+                <div *ngFor="let opt of cat.options" class="filter-option-row">
+                  <mat-checkbox
+                    [(ngModel)]="opt.checked"
+                    color="primary"
+                  >
+                    {{ opt.label }}
+                  </mat-checkbox>
+                </div>
+                <div *ngIf="!cat.options || cat.options.length === 0" class="no-options">
+                  No options available
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="filter-drawer-footer">
+            <button mat-stroked-button class="btn-reset" (click)="resetDrawerFilters()">Reset</button>
+            <button mat-raised-button color="primary" class="btn-apply" (click)="applyDrawerFilters()">Apply</button>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Paginator -->
+      <mat-paginator
+        [length]="totalElements"
+        [pageSize]="pageSize"
+        [pageIndex]="pageIndex"
+        [pageSizeOptions]="pageSizeOptions"
+        (page)="onPageChange($event)"
+        showFirstLastButtons
+        aria-label="Select page"
+      ></mat-paginator>
+
+    </div>

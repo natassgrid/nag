@@ -30,8 +30,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.autoconfigure.security.oauth2.resource.servlet.OAuth2ResourceServerAutoConfiguration;
-import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
+import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.Configuration;
@@ -65,8 +64,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  *
  * <p><strong>Validates: Requirements 3.1, 3.2, 3.3, 3.4, 3.5, 3.6</strong>
  */
-@WebMvcTest(controllers = RoleController.class,
-    excludeAutoConfiguration = OAuth2ResourceServerAutoConfiguration.class)
+@WebMvcTest(controllers = RoleController.class)
 @Import(RoleControllerTest.TestSecurityConfig.class)
 @DisplayName("RoleController")
 @org.junit.jupiter.api.Disabled("TODO: Fix WebMvcTest security context interaction with RateLimitFilter")

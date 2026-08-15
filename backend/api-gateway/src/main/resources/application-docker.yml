@@ -7,12 +7,14 @@
 # it under the terms of the GNU Affero General Public License as published
 # by the Free Software Foundation, version 3 of the License.
 
-# Override for docker profile — disable Keycloak JWT auto-configuration
-# so DevSecurityConfig's HS256 decoder is used instead
+# Override for docker profile — disable Keycloak JWT validation.
+# DevSecurityConfig provides a @Primary HS256 ReactiveJwtDecoder that takes precedence.
+# We set a dummy jwk-set-uri to prevent the auto-config from failing on empty validation,
+# but the @Primary bean from DevSecurityConfig is what actually gets used.
 spring:
   security:
     oauth2:
       resourceserver:
         jwt:
-          issuer-uri:
-          jwk-set-uri:
+          issuer-uri: http://localhost:8080/realms/exam-realm
+          jwk-set-uri: http://localhost:8080/realms/exam-realm/protocol/openid-connect/certs

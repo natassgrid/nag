@@ -1,0 +1,54 @@
+    <div class="question-display" *ngIf="question">
+      <!-- Question Header -->
+      <div class="question-header">
+        <span class="question-number">Question {{ question.sequenceNumber }}</span>
+        <span class="question-type-badge">{{ question.questionType }}</span>
+      </div>
+
+      <!-- Question Content -->
+      <div class="question-content" [innerHTML]="question.content" aria-label="Question content"></div>
+
+      <!-- MCQ Options (Radio) -->
+      <div class="options-list" *ngIf="question.questionType === 'SINGLE_MCQ' && question.options?.length">
+        <mat-radio-group [value]="selectedOptionIds[0] || ''" (change)="onRadioChange($event.value)"
+                         aria-label="Select one answer">
+          <mat-radio-button *ngFor="let option of question.options; let i = index"
+                            [value]="option.id"
+                            class="option-item"
+                            [attr.aria-label]="'Option ' + (i + 1) + ': ' + option.text">
+            <span class="option-text">{{ option.text }}</span>
+          </mat-radio-button>
+        </mat-radio-group>
+      </div>
+
+      <!-- MSQ Options (Checkbox) -->
+      <div class="options-list" *ngIf="question.questionType === 'MULTI_MCQ' && question.options?.length">
+        <div *ngFor="let option of question.options; let i = index" class="option-item">
+          <mat-checkbox [checked]="selectedOptionIds.includes(option.id)"
+                        (change)="onCheckboxChange(option.id, $event.checked)"
+                        [attr.aria-label]="'Option ' + (i + 1) + ': ' + option.text">
+            <span class="option-text">{{ option.text }}</span>
+          </mat-checkbox>
+        </div>
+      </div>
+
+      <!-- Numerical Input -->
+      <div class="text-input-area" *ngIf="question.questionType === 'NUMERICAL'">
+        <mat-form-field appearance="outline" class="full-width">
+          <mat-label>Enter numerical answer</mat-label>
+          <input matInput type="number" [ngModel]="enteredValue"
+                 (ngModelChange)="onValueChange($event)"
+                 aria-label="Enter numerical answer">
+        </mat-form-field>
+      </div>
+
+      <!-- Descriptive Input -->
+      <div class="text-input-area" *ngIf="question.questionType === 'DESCRIPTIVE'">
+        <mat-form-field appearance="outline" class="full-width">
+          <mat-label>Enter your answer</mat-label>
+          <textarea matInput rows="6" [ngModel]="enteredValue"
+                    (ngModelChange)="onValueChange($event)"
+                    aria-label="Enter descriptive answer"></textarea>
+        </mat-form-field>
+      </div>
+    </div>
