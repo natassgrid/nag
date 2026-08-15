@@ -24,6 +24,10 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.kafka.config.TopicBuilder;
 
+/**
+ * Identity-service specific Kafka topic declarations.
+ * ProducerFactory and KafkaTemplate are provided by shared-lib's KafkaProducerConfig.
+ */
 @Configuration
 public class KafkaConfig {
 

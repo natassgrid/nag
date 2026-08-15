@@ -49,8 +49,9 @@ dependencies {
     implementation libs.spring.kafka
 
     // Flyway database migrations
-    implementation libs.flyway.core
-    implementation libs.flyway.database.postgresql
+    // Spring Boot 4.x requires the starter + database-specific module
+    implementation libs.spring.boot.starter.flyway
+    runtimeOnly libs.flyway.database.postgresql
 
     // Actuator + Prometheus
     implementation libs.spring.boot.starter.actuator

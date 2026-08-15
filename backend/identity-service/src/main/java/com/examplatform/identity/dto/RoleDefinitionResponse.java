@@ -17,28 +17,30 @@
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
 
-import { Routes } from '@angular/router';
+package com.examplatform.identity.dto;
 
-export const ADMIN_ROUTES: Routes = [
-  {
-    path: '',
-    redirectTo: 'users',
-    pathMatch: 'full'
-  },
-  {
-    path: 'users',
-    loadComponent: () => import('./user-management/user-management.component').then(m => m.UserManagementComponent)
-  },
-  {
-    path: 'roles',
-    loadComponent: () => import('./role-management/role-management.component').then(m => m.RoleManagementComponent)
-  },
-  {
-    path: 'analytics',
-    loadComponent: () => import('./analytics-dashboard/analytics-dashboard.component').then(m => m.AnalyticsDashboardComponent)
-  },
-  {
-    path: 'reports',
-    loadComponent: () => import('./report-export/report-export.component').then(m => m.ReportExportComponent)
-  }
-];
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+
+import java.time.Instant;
+import java.util.List;
+import java.util.UUID;
+
+@Data
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
+public class RoleDefinitionResponse {
+
+    private UUID id;
+    private String name;
+    private String code;
+    private String description;
+    private boolean active;
+    private boolean systemRole;
+    private List<PermissionResponse> permissions;
+    private Instant createdAt;
+    private Instant updatedAt;
+}

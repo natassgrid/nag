@@ -70,6 +70,11 @@ management:
   endpoint:
     health:
       show-details: always
+      probes:
+        enabled: true
+  health:
+    db:
+      enabled: true
   metrics:
     tags:
       service: analytics-service

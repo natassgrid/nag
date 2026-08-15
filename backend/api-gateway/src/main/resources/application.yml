@@ -164,6 +164,9 @@ spring:
           issuer-uri: ${KEYCLOAK_ISSUER_URI:http://localhost:8080/realms/exam-realm}
           jwk-set-uri: ${KEYCLOAK_ISSUER_URI:http://localhost:8080/realms/exam-realm}/protocol/openid-connect/certs
 
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+
 server:
   port: ${GATEWAY_PORT:9000}
 
@@ -175,8 +178,13 @@ management:
   endpoint:
     health:
       show-details: always
+      probes:
+        enabled: true
     gateway:
       access: unrestricted
+  health:
+    redis:
+      enabled: true
   metrics:
     tags:
       service: api-gateway

@@ -43,8 +43,9 @@ dependencies {
     runtimeOnly libs.postgresql
 
     // Flyway database migrations
-    implementation libs.flyway.core
-    implementation libs.flyway.database.postgresql
+    // Spring Boot 4.x requires the starter + database-specific module
+    implementation libs.spring.boot.starter.flyway
+    runtimeOnly libs.flyway.database.postgresql
 
     // Apache HttpClient 5 (required by OpenSearch client and Spring Cloud Vault)
     implementation libs.httpclient5
