@@ -5,15 +5,25 @@
 # Requires: docker build -f backend/Dockerfile.base -t exam/builder-base .
 # =============================================================================
 
-# --- Stage 1: Build with Gradle (uses pre-built base with Gradle installed) ---
+# --- Stage 1: Build with Gradle (uses project's Gradle wrapper) ---
 FROM exam/builder-base:latest AS builder
 
 ARG SERVICE_NAME
 
 WORKDIR /workspace
 
-# Copy build config (layer caching)
+# Copy Gradle wrapper and build config (layer caching)
+COPY gradlew ./
+COPY gradle/ gradle/
 COPY build.gradle settings.gradle ./
+
+# Copy local Gradle distribution to avoid network download during build
+COPY backend/gradle/gradle-8.14.5-bin.zip /tmp/gradle-8.14.5-bin.zip
+
+# Point wrapper at the local zip file and make executable
+RUN chmod +x gradlew && \
+    sed -i 's|distributionUrl=.*|distributionUrl=file\\:/tmp/gradle-8.14.5-bin.zip|' gradle/wrapper/gradle-wrapper.properties && \
+    ./gradlew --version
 
 # Copy all backend source (needed for multi-module resolution)
 COPY backend/ backend/
@@ -21,7 +31,7 @@ COPY backend/ backend/
 # Build the target service jar
 RUN --mount=type=cache,target=/root/.gradle/caches \
     --mount=type=cache,target=/root/.gradle/wrapper \
-    gradle :backend:${SERVICE_NAME}:bootJar -x test --no-daemon
+    ./gradlew :backend:${SERVICE_NAME}:bootJar -x test --no-daemon
 
 # --- Stage 2: Runtime ---
 FROM eclipse-temurin:21-jre-alpine
