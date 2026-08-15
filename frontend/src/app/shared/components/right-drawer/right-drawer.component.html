@@ -1,0 +1,19 @@
+    <div class="right-drawer-overlay" [class.open]="isOpen" (click)="onBackdropClick($event)">
+      <div class="right-drawer-panel" [style.width]="width" (click)="$event.stopPropagation()">
+        <div class="right-drawer-header">
+          <div class="header-text-container">
+            <h3>{{ title }}</h3>
+            <p class="drawer-subtitle" *ngIf="subtitle">{{ subtitle }}</p>
+          </div>
+          <button mat-icon-button (click)="close.emit()" aria-label="Close drawer">
+            <mat-icon>close</mat-icon>
+          </button>
+        </div>
+        <div class="right-drawer-body">
+          <ng-content select="[drawer-body], form, div"></ng-content>
+        </div>
+        <div class="right-drawer-footer" *ngIf="showFooter">
+          <ng-content select="[drawer-footer]"></ng-content>
+        </div>
+      </div>
+    </div>

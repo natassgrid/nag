@@ -45,43 +45,8 @@ import { PageHeaderComponent } from '../../../shared/components/page-header/page
     PaginatedTableComponent,
     PageHeaderComponent,
   ],
-  template: `
-    <div class="page-layout">
-      <app-page-header
-        title="Examination Scheduling"
-        subtitle="Select an examination to manage its schedules, shifts, and seat allocations."
-        icon="event"
-      ></app-page-header>
-
-      <mat-card>
-        <mat-card-content>
-          <app-paginated-table
-            #paginatedTable
-            [fetcher]="fetcher"
-            [columns]="columns"
-            [actionsTemplate]="actionsTmpl"
-            title="Examinations"
-            title="Examinations List"
-        searchPlaceholder="Search by name, code, or status..."
-        (rowClick)="viewSchedules($event)"
-      ></app-paginated-table>
-
-          <ng-template #actionsTmpl let-row>
-            <button mat-stroked-button color="primary"
-                    (click)="viewSchedules(row); $event.stopPropagation()"
-                    matTooltip="Manage schedules"
-                    aria-label="View schedules">
-              <mat-icon>calendar_month</mat-icon> Schedules
-            </button>
-          </ng-template>
-        </mat-card-content>
-      </mat-card>
-    </div>
-  `,
-  styles: [`
-    ::ng-deep .status-draft { background-color: #fff3e0 !important; color: #e65100 !important; }
-    ::ng-deep .status-published { background-color: #e8f5e9 !important; color: #1b5e20 !important; }
-  `]
+  templateUrl: './schedule-list.component.html',
+  styleUrls: ['./schedule-list.component.scss']
 })
 export class ScheduleListComponent {
 

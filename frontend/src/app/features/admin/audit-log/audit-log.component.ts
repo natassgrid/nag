@@ -26,32 +26,7 @@ import { PageHeaderComponent } from '../../../shared/components/page-header/page
   selector: 'app-audit-log',
   standalone: true,
   imports: [CommonModule, MatIconModule, PageHeaderComponent],
-  template: `
-    <div class="page-layout">
-      <app-page-header
-        title="Audit Log"
-        subtitle="View system audit trail and tamper-evident event log."
-        icon="security"
-      ></app-page-header>
-
-      <div class="placeholder">
-        <mat-icon class="placeholder-icon">security</mat-icon>
-        <p>Audit log functionality coming soon.</p>
-      </div>
-    </div>
-  `,
-  styles: [`
-    .placeholder {
-      text-align: center;
-      padding: 48px;
-      color: #666;
-    }
-    .placeholder-icon {
-      font-size: 48px;
-      width: 48px;
-      height: 48px;
-      color: #bbb;
-    }
-  `]
+  templateUrl: './audit-log.component.html',
+  styleUrls: ['./audit-log.component.scss']
 })
 export class AuditLogComponent {}

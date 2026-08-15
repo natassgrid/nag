@@ -1,0 +1,64 @@
+    <div class="page-layout" role="main" aria-labelledby="asset-library-heading">
+      <app-page-header
+        title="Asset Library"
+        subtitle="Upload, manage, and organize media assets for examinations."
+        icon="perm_media"
+      >
+        <button mat-raised-button color="primary" (click)="openUploadDrawer()" aria-label="Upload a new asset">
+          <mat-icon>cloud_upload</mat-icon>
+          Upload Asset
+        </button>
+      </app-page-header>
+
+      <!-- Reusable Paginated Table -->
+      <app-paginated-table
+        #paginatedTable
+        title="Assets List"
+        [fetcher]="fetcher"
+        [columns]="columns"
+        [filterCategories]="filterCategories"
+        (filterChange)="onFilterChange($event)"
+        [actionsTemplate]="actionsTmpl"
+        searchPlaceholder="Filter by filename, type, or status..."
+      ></app-paginated-table>
+
+      <!-- Actions Column Template -->
+      <ng-template #actionsTmpl let-row>
+        <button mat-icon-button matTooltip="Preview" (click)="previewAsset(row); $event.stopPropagation()" aria-label="Preview asset">
+          <mat-icon>visibility</mat-icon>
+        </button>
+        <button mat-icon-button matTooltip="Edit Metadata" (click)="openMetadataDrawer(row); $event.stopPropagation()" aria-label="Edit metadata">
+          <mat-icon>edit</mat-icon>
+        </button>
+        <button mat-icon-button [matMenuTriggerFor]="moreMenu" (click)="$event.stopPropagation()" aria-label="Asset actions menu">
+          <mat-icon>more_vert</mat-icon>
+        </button>
+        <mat-menu #moreMenu="matMenu">
+          <a mat-menu-item [href]="getDownloadUrl(row.id)" target="_blank">
+            <mat-icon>download</mat-icon> Download
+          </a>
+          <button mat-menu-item *ngIf="row.status === 'ACTIVE'" (click)="archiveAsset(row)">
+            <mat-icon>archive</mat-icon> Archive
+          </button>
+          <button mat-menu-item *ngIf="row.status === 'ARCHIVED'" (click)="restoreAsset(row)">
+            <mat-icon>unarchive</mat-icon> Restore
+          </button>
+          <button mat-menu-item (click)="deleteAsset(row)">
+            <mat-icon color="warn">delete</mat-icon> Delete
+          </button>
+        </mat-menu>
+      </ng-template>
+
+      <!-- ── RIGHT COLLAPSIBLE UPLOAD DRAWER ── -->
+      <app-asset-upload-dialog
+        [isOpen]="uploadDrawerOpen"
+        (close)="onUploadDrawerClose($event)"
+      ></app-asset-upload-dialog>
+
+      <!-- ── RIGHT COLLAPSIBLE METADATA DRAWER ── -->
+      <app-asset-metadata-dialog
+        [isOpen]="metadataDrawerOpen"
+        [asset]="editingAsset"
+        (close)="onMetadataDrawerClose($event)"
+      ></app-asset-metadata-dialog>
+    </div>

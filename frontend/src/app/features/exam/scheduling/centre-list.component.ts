@@ -48,46 +48,8 @@ import { PageHeaderComponent } from '../../../shared/components/page-header/page
     PageHeaderComponent,
     CentreFormDialogComponent
   ],
-  template: `
-    <div class="page-layout">
-      <app-page-header
-        title="Examination Centres"
-        subtitle="Manage centres where examinations are conducted."
-        icon="location_on"
-      >
-        <button mat-raised-button color="primary" (click)="openCreateDrawer()">
-          <mat-icon>add</mat-icon> New Centre
-        </button>
-      </app-page-header>
-
-      <app-paginated-table
-        #centreTable
-        [fetcher]="fetcher"
-        [columns]="columns"
-        [actionsTemplate]="actionsTmpl"
-        title="Centres List"
-        searchPlaceholder="Search by name, city, or state..."
-      ></app-paginated-table>
-
-      <ng-template #actionsTmpl let-row>
-        <button mat-icon-button color="warn" matTooltip="Deactivate"
-                *ngIf="row.active" (click)="deactivate(row)"
-                aria-label="Deactivate centre">
-          <mat-icon>block</mat-icon>
-        </button>
-      </ng-template>
-
-      <!-- ── RIGHT COLLAPSIBLE DRAWER FORM ── -->
-      <app-centre-form-dialog
-        [isOpen]="drawerOpen"
-        (close)="onDrawerClose($event)"
-      ></app-centre-form-dialog>
-    </div>
-  `,
-  styles: [`
-    ::ng-deep .chip-active { background-color: #e8f5e9 !important; color: #2e7d32 !important; }
-    ::ng-deep .chip-inactive { background-color: #ffebee !important; color: #b71c1c !important; }
-  `]
+  templateUrl: './centre-list.component.html',
+  styleUrls: ['./centre-list.component.scss']
 })
 export class CentreListComponent {
 

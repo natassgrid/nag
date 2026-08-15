@@ -1,0 +1,120 @@
+    <app-right-drawer
+      [isOpen]="isOpen"
+      [title]="exam ? 'Edit Examination' : 'Create Examination'"
+      [subtitle]="exam ? 'Update examination parameters, timing, and marking rules.' : 'Configure new examination specifications, total marks, and policies.'"
+      width="500px"
+      (close)="cancel()"
+    >
+      <div drawer-body>
+        <form [formGroup]="form" class="exam-form">
+          <mat-form-field appearance="outline" class="full-width">
+            <mat-label>Name</mat-label>
+            <input matInput formControlName="name" placeholder="Examination name" />
+            <mat-error *ngIf="form.get('name')?.hasError('required')">Name is required</mat-error>
+          </mat-form-field>
+
+          <div class="form-row">
+            <mat-form-field appearance="outline">
+              <mat-label>Exam Code</mat-label>
+              <input matInput formControlName="code" placeholder="e.g. JEE-MAIN-2027" />
+            </mat-form-field>
+            <mat-form-field appearance="outline">
+              <mat-label>Conducting Authority</mat-label>
+              <input matInput formControlName="conductingAuthority" placeholder="e.g. NTA, UPSC" />
+            </mat-form-field>
+          </div>
+
+          <div class="form-row">
+            <mat-form-field appearance="outline">
+              <mat-label>Category</mat-label>
+              <mat-select formControlName="category">
+                <mat-option value="">None</mat-option>
+                <mat-option value="RECRUITMENT">Recruitment</mat-option>
+                <mat-option value="ENTRANCE">Entrance</mat-option>
+                <mat-option value="CERTIFICATION">Certification</mat-option>
+                <mat-option value="DEPARTMENTAL">Departmental</mat-option>
+              </mat-select>
+            </mat-form-field>
+            <mat-form-field appearance="outline">
+              <mat-label>Examination Type</mat-label>
+              <mat-select formControlName="examinationType">
+                <mat-option value="">None</mat-option>
+                <mat-option value="PRELIMINARY">Preliminary</mat-option>
+                <mat-option value="MAIN">Main</mat-option>
+                <mat-option value="SKILL_TEST">Skill Test</mat-option>
+                <mat-option value="INTERVIEW">Interview</mat-option>
+                <mat-option value="PHYSICAL_TEST">Physical Test</mat-option>
+              </mat-select>
+            </mat-form-field>
+          </div>
+
+          <div class="form-row">
+            <mat-form-field appearance="outline">
+              <mat-label>Academic Year</mat-label>
+              <input matInput formControlName="academicYear" placeholder="e.g. 2026-27" />
+            </mat-form-field>
+            <mat-form-field appearance="outline">
+              <mat-label>Mode</mat-label>
+              <mat-select formControlName="examinationMode">
+                <mat-option value="">None</mat-option>
+                <mat-option value="CBT">CBT (Computer Based)</mat-option>
+                <mat-option value="OMR">OMR (Paper Based)</mat-option>
+                <mat-option value="HYBRID">Hybrid</mat-option>
+              </mat-select>
+            </mat-form-field>
+          </div>
+
+          <div class="form-row">
+            <mat-form-field appearance="outline">
+              <mat-label>Duration (minutes)</mat-label>
+              <input matInput type="number" formControlName="durationMinutes" />
+            </mat-form-field>
+
+            <mat-form-field appearance="outline">
+              <mat-label>Total Marks</mat-label>
+              <input matInput type="number" formControlName="totalMarks" />
+            </mat-form-field>
+          </div>
+
+          <mat-slide-toggle formControlName="negativeMarkingEnabled" class="toggle-field">
+            Negative Marking Enabled
+          </mat-slide-toggle>
+
+          <mat-form-field appearance="outline" *ngIf="form.get('negativeMarkingEnabled')?.value" class="full-width">
+            <mat-label>Negative Marking Value</mat-label>
+            <input matInput type="number" step="0.25" formControlName="negativeMarkingValue" />
+          </mat-form-field>
+
+          <div class="form-row">
+            <mat-form-field appearance="outline">
+              <mat-label>Navigation Policy</mat-label>
+              <mat-select formControlName="navigationPolicy">
+                <mat-option value="FLEXIBLE">Flexible</mat-option>
+                <mat-option value="SEQUENTIAL">Sequential</mat-option>
+                <mat-option value="RESTRICTED">Restricted</mat-option>
+              </mat-select>
+            </mat-form-field>
+
+            <mat-form-field appearance="outline">
+              <mat-label>Calculator Policy</mat-label>
+              <mat-select formControlName="calculatorPolicy">
+                <mat-option value="NONE">None</mat-option>
+                <mat-option value="BASIC">Basic</mat-option>
+                <mat-option value="SCIENTIFIC">Scientific</mat-option>
+              </mat-select>
+            </mat-form-field>
+          </div>
+
+          <mat-checkbox formControlName="reviewFlagEnabled" class="checkbox-field">
+            Review Flag Enabled
+          </mat-checkbox>
+        </form>
+      </div>
+
+      <div drawer-footer>
+        <button mat-button (click)="cancel()">Cancel</button>
+        <button mat-raised-button color="primary" [disabled]="form.invalid" (click)="save()">
+          {{ exam ? 'Update' : 'Create' }}
+        </button>
+      </div>
+    </app-right-drawer>

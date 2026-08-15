@@ -1,0 +1,37 @@
+    <div class="palette-wrapper" role="navigation" aria-label="Question navigation palette">
+      <h3 class="palette-title">Questions</h3>
+
+      <div class="question-grid">
+        <button *ngFor="let num of questionNumbers"
+                class="q-btn"
+                [class.current]="num === currentQuestion"
+                [class.answered]="answeredSet.has(num)"
+                [class.marked]="markedSet.has(num)"
+                [class.not-visited]="!visitedSet.has(num) && num !== currentQuestion"
+                (click)="onQuestionClick(num)"
+                [attr.aria-label]="'Question ' + num + ', ' + getStatusLabel(num)"
+                [attr.aria-current]="num === currentQuestion ? 'true' : null">
+          {{ num }}
+        </button>
+      </div>
+
+      <!-- Legend -->
+      <div class="legend" aria-label="Status legend">
+        <div class="legend-item">
+          <span class="legend-dot not-visited"></span>
+          <span>Not Visited</span>
+        </div>
+        <div class="legend-item">
+          <span class="legend-dot current"></span>
+          <span>Current</span>
+        </div>
+        <div class="legend-item">
+          <span class="legend-dot answered"></span>
+          <span>Answered</span>
+        </div>
+        <div class="legend-item">
+          <span class="legend-dot marked"></span>
+          <span>Marked for Review</span>
+        </div>
+      </div>
+    </div>

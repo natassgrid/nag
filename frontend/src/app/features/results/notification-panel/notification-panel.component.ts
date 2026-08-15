@@ -45,49 +45,8 @@ interface Notification {
     MatBadgeModule,
     MatButtonModule
   ],
-  template: `
-    <mat-card class="notification-panel" role="region" aria-labelledby="notification-heading">
-      <mat-card-header>
-        <mat-card-title id="notification-heading">
-          <mat-icon [matBadge]="unreadCount" matBadgeColor="warn"
-                    [matBadgeHidden]="unreadCount === 0">notifications</mat-icon>
-          Notifications
-        </mat-card-title>
-      </mat-card-header>
-      <mat-card-content>
-        <mat-nav-list aria-label="Notification list" role="log" aria-live="polite">
-          <mat-list-item *ngFor="let notification of notifications"
-                         [class.unread]="!notification.read"
-                         (click)="markRead(notification)"
-                         role="listitem"
-                         [attr.aria-label]="notification.title + ': ' + notification.message">
-            <mat-icon matListItemIcon [class]="'type-' + notification.type">
-              {{ getIcon(notification.type) }}
-            </mat-icon>
-            <div matListItemTitle>{{ notification.title }}</div>
-            <div matListItemLine>{{ notification.message }}</div>
-            <div matListItemMeta>{{ notification.timestamp | date:'short' }}</div>
-          </mat-list-item>
-        </mat-nav-list>
-
-        <div *ngIf="notifications.length === 0" class="empty-state" role="status">
-          No notifications yet.
-        </div>
-      </mat-card-content>
-    </mat-card>
-  `,
-  styles: [`
-    .notification-panel { max-width: 360px; width: 100%; max-height: 500px; overflow-y: auto; }
-    .unread { font-weight: 500; background: rgba(21, 101, 192, 0.04); }
-    .type-info { color: var(--color-primary); }
-    .type-success { color: var(--color-success); }
-    .type-warning { color: var(--color-warning); }
-    .type-error { color: var(--color-error); }
-    .empty-state { text-align: center; padding: var(--spacing-lg); color: var(--color-text-secondary); }
-    @media (max-width: 320px) {
-      .notification-panel { max-width: 100%; }
-    }
-  `]
+  templateUrl: './notification-panel.component.html',
+  styleUrls: ['./notification-panel.component.scss']
 })
 export class NotificationPanelComponent implements OnInit, OnDestroy {
   notifications: Notification[] = [];

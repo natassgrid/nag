@@ -52,36 +52,8 @@ export interface AssetPickerDialogData {
     MatSelectModule, MatButtonModule, MatIconModule, MatCardModule, MatTabsModule,
     MatSnackBarModule, PaginatedTableComponent
   ],
-  template: `
-    <h2 mat-dialog-title>{{ data.title || 'Select Asset' }}</h2>
-    <mat-dialog-content>
-      <div class="picker-toolbar">
-        <button mat-stroked-button color="primary" (click)="uploadNew()">
-          <mat-icon>cloud_upload</mat-icon> Upload New
-        </button>
-      </div>
-
-      <app-paginated-table
-        #pickerTable
-        [fetcher]="fetcher"
-        [columns]="columns"
-        [actionsTemplate]="selectTmpl"
-        searchPlaceholder="Search assets..."
-        [defaultPageSize]="10"
-      ></app-paginated-table>
-
-      <ng-template #selectTmpl let-row>
-        <button mat-raised-button color="primary" (click)="select(row)">Select</button>
-      </ng-template>
-    </mat-dialog-content>
-    <mat-dialog-actions align="end">
-      <button mat-button (click)="dialogRef.close()">Cancel</button>
-    </mat-dialog-actions>
-  `,
-  styles: [`
-    .picker-toolbar { display: flex; justify-content: flex-end; margin-bottom: 12px; }
-    mat-dialog-content { min-width: 600px; max-height: 500px; }
-  `]
+  templateUrl: './asset-picker-dialog.component.html',
+  styleUrls: ['./asset-picker-dialog.component.scss']
 })
 export class AssetPickerDialogComponent {
 

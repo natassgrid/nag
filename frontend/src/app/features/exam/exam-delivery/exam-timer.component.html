@@ -1,0 +1,8 @@
+    <div class="timer-container"
+         [class.warning]="remainingSeconds <= 300 && remainingSeconds > 0"
+         role="timer"
+         aria-live="polite"
+         [attr.aria-label]="'Time remaining: ' + formatTime()">
+      <mat-icon>timer</mat-icon>
+      <span class="timer-display">{{ formatTime() }}</span>
+    </div>

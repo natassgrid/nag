@@ -1,0 +1,19 @@
+    <div
+      #editorArea
+      class="editor-content"
+      contenteditable="true"
+      [attr.aria-label]="'Rich text editor'"
+      [attr.aria-placeholder]="placeholder"
+      [attr.data-placeholder]="placeholder"
+      [class.empty]="isEmpty()"
+      role="textbox"
+      aria-multiline="true"
+      spellcheck="true"
+      (input)="onInput($event)"
+      (keydown)="keydown.emit($event)"
+      (paste)="paste.emit($event)"
+      (focus)="focused.emit()"
+      (blur)="blurred.emit()"
+      (mouseup)="trackSelection()"
+      (keyup)="trackSelection()"
+    ></div>

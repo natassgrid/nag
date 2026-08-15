@@ -50,61 +50,8 @@ import { EditorAssetService } from './services';
   standalone: true,
   imports: [CommonModule],
   changeDetection: ChangeDetectionStrategy.OnPush,
-  template: `
-    <div
-      #editorArea
-      class="editor-content"
-      contenteditable="true"
-      [attr.aria-label]="'Rich text editor'"
-      [attr.aria-placeholder]="placeholder"
-      [attr.data-placeholder]="placeholder"
-      [class.empty]="isEmpty()"
-      role="textbox"
-      aria-multiline="true"
-      spellcheck="true"
-      (input)="onInput($event)"
-      (keydown)="keydown.emit($event)"
-      (paste)="paste.emit($event)"
-      (focus)="focused.emit()"
-      (blur)="blurred.emit()"
-      (mouseup)="trackSelection()"
-      (keyup)="trackSelection()"
-    ></div>
-  `,
-  styles: [`
-    .editor-content {
-      min-height: 200px;
-      max-height: 600px;
-      overflow-y: auto;
-      padding: 16px 20px;
-      font-family: 'Roboto', sans-serif;
-      font-size: 15px;
-      line-height: 1.7;
-      color: #212121;
-      outline: none;
-      cursor: text;
-    }
-    .editor-content.empty::before {
-      content: attr(data-placeholder);
-      color: #9e9e9e;
-      pointer-events: none;
-      position: absolute;
-    }
-    .editor-content:focus {
-      outline: none;
-    }
-    :host ::ng-deep h1 { font-size: 1.8em; font-weight: 600; margin: 0.5em 0; }
-    :host ::ng-deep h2 { font-size: 1.5em; font-weight: 600; margin: 0.4em 0; }
-    :host ::ng-deep h3 { font-size: 1.25em; font-weight: 600; margin: 0.3em 0; }
-    :host ::ng-deep p { margin: 0.3em 0; }
-    :host ::ng-deep ol, :host ::ng-deep ul { margin: 0.3em 0; padding-left: 1.5em; }
-    :host ::ng-deep li { margin: 0.2em 0; }
-    :host ::ng-deep .media-block { margin: 12px 0; text-align: center; }
-    :host ::ng-deep .media-block img { max-width: 100%; height: auto; border-radius: 4px; }
-    :host ::ng-deep .media-block audio, :host ::ng-deep .media-block video {
-      max-width: 100%; border-radius: 4px;
-    }
-  `]
+  templateUrl: './editor-content.component.html',
+  styleUrls: ['./editor-content.component.scss']
 })
 export class EditorContentComponent implements AfterViewInit, OnChanges {
 

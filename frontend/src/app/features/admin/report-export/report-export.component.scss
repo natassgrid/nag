@@ -1,0 +1,5 @@
+    .export-container { padding: var(--spacing-lg); max-width: 800px; margin: 0 auto; }
+    .export-form { display: flex; gap: var(--spacing-md); flex-wrap: wrap; margin-bottom: var(--spacing-md); }
+    .export-form mat-form-field { flex: 1; min-width: 200px; }
+    .export-actions { display: flex; gap: var(--spacing-md); margin-bottom: var(--spacing-md); }
+    .export-message { margin-top: var(--spacing-md); color: var(--color-success); font-weight: 500; }

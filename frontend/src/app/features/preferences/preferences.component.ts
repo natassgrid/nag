@@ -27,32 +27,7 @@ import { PageHeaderComponent } from '../../shared/components/page-header/page-he
   selector: 'app-preferences',
   standalone: true,
   imports: [CommonModule, MatIconModule, MatCardModule, PageHeaderComponent],
-  template: `
-    <div class="page-layout">
-      <app-page-header
-        title="Preferences"
-        subtitle="Manage your personal preferences and notification settings."
-        icon="tune"
-      ></app-page-header>
-
-      <div class="placeholder">
-        <mat-icon class="placeholder-icon">tune</mat-icon>
-        <p>Preferences functionality coming soon.</p>
-      </div>
-    </div>
-  `,
-  styles: [`
-    .placeholder {
-      text-align: center;
-      padding: 48px;
-      color: #666;
-    }
-    .placeholder-icon {
-      font-size: 48px;
-      width: 48px;
-      height: 48px;
-      color: #bbb;
-    }
-  `]
+  templateUrl: './preferences.component.html',
+  styleUrls: ['./preferences.component.scss']
 })
 export class PreferencesComponent {}

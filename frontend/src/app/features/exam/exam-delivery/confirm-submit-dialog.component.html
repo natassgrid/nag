@@ -1,0 +1,20 @@
+    <h2 mat-dialog-title>Confirm Submission</h2>
+    <mat-dialog-content>
+      <p>Are you sure you want to submit the exam?</p>
+      <p class="summary">
+        You have answered <strong>{{ data.answeredCount }}</strong> out of
+        <strong>{{ data.totalQuestions }}</strong> questions.
+      </p>
+      <p *ngIf="data.answeredCount < data.totalQuestions" class="warning-text">
+        <mat-icon class="warning-icon">warning</mat-icon>
+        {{ data.totalQuestions - data.answeredCount }} question(s) are unanswered.
+      </p>
+    </mat-dialog-content>
+    <mat-dialog-actions align="end">
+      <button mat-stroked-button (click)="onCancel()" aria-label="Cancel submission">
+        Cancel
+      </button>
+      <button mat-raised-button color="warn" (click)="onConfirm()" aria-label="Confirm submission">
+        Submit Exam
+      </button>
+    </mat-dialog-actions>
