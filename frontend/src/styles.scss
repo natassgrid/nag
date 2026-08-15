@@ -104,7 +104,7 @@ html, body {
 }
 
 // Minimum touch target 44x44px — WCAG 2.5.8
-button,
+button:not(.ql-toolbar button),
 a,
 input[type="submit"],
 input[type="button"],

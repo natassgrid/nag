@@ -19,13 +19,14 @@
 
 import { Component, ViewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { RouterOutlet, RouterLink, RouterLinkActive } from '@angular/router';
+import { RouterOutlet, RouterLink, RouterLinkActive, Router, NavigationEnd } from '@angular/router';
 import { MatToolbarModule } from '@angular/material/toolbar';
 import { MatSidenavModule, MatSidenav } from '@angular/material/sidenav';
 import { MatListModule } from '@angular/material/list';
 import { MatIconModule } from '@angular/material/icon';
 import { MatButtonModule } from '@angular/material/button';
 import { BreakpointObserver, Breakpoints } from '@angular/cdk/layout';
+import { filter, map } from 'rxjs';
 import { AuthService } from './core/services/auth.service';
 import { NotificationPanelComponent } from './shared/components/notification-panel/notification-panel.component';
 import { UserMenuComponent } from './shared/components/user-menu/user-menu.component';
@@ -66,6 +67,7 @@ export interface NavGroup {
 export class AppComponent {
   title = 'Exam Platform';
   isMobile = false;
+  isAuthRoute = false;
 
   @ViewChild('sidenav') sidenav!: MatSidenav;
 
@@ -135,7 +137,8 @@ export class AppComponent {
 
   constructor(
     public authService: AuthService,
-    private breakpointObserver: BreakpointObserver
+    private breakpointObserver: BreakpointObserver,
+    private router: Router
   ) {
     // All groups expanded by default
     this.navGroups.forEach(g => this.expandedGroups.add(g.label));
@@ -145,6 +148,15 @@ export class AppComponent {
       .subscribe(result => {
         this.isMobile = result.matches;
       });
+
+    // Track whether current route is an auth page (login, register, etc.)
+    this.isAuthRoute = this.router.url.startsWith('/auth');
+    this.router.events.pipe(
+      filter(event => event instanceof NavigationEnd),
+      map((event: NavigationEnd) => event.urlAfterRedirects.startsWith('/auth'))
+    ).subscribe(isAuth => {
+      this.isAuthRoute = isAuth;
+    });
   }
 
   toggleGroup(label: string): void {
@@ -173,7 +185,7 @@ export class AppComponent {
   }
 
   get userName(): string {
-    return this.authService.getUserId() || 'User';
+    return this.authService.getUserName() || 'User';
   }
 
   get primaryRole(): string {
@@ -200,6 +212,8 @@ export class AppComponent {
 
   onLogout(): void {
     this.authService.logout();
+    // Force full page navigation to clear all state
+    window.location.href = '/auth/login';
   }
 
   closeSidenavIfMobile(): void {

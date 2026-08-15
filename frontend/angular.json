@@ -27,7 +27,7 @@
               "includePaths": ["src", "src/app"]
             },
             "assets": ["src/favicon.svg", "src/assets"],
-            "styles": ["src/styles.scss"],
+            "styles": ["node_modules/quill/dist/quill.snow.css", "src/styles.scss"],
             "scripts": []
           },
           "configurations": {

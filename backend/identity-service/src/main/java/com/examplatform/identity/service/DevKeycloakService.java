@@ -67,6 +67,7 @@ public class DevKeycloakService extends KeycloakService {
         String payload = base64Url("{" +
                 "\"sub\":\"" + sub + "\"," +
                 "\"preferred_username\":\"" + username + "\"," +
+                "\"name\":\"" + username + "\"," +
                 "\"iss\":\"exam-platform-dev\"," +
                 "\"aud\":\"exam-backend\"," +
                 "\"iat\":" + now + "," +

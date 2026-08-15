@@ -30,7 +30,7 @@ import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatCheckboxModule } from '@angular/material/checkbox';
 import { CreateQuestionRequest, QuestionResponse, QuestionService } from './question.service';
 import { SubjectTopicService, Subject, Topic, Subtopic } from './subject-topic.service';
-import { ExamEditorComponent, ExamDocument, EMPTY_DOCUMENT } from '../../shared/components/exam-editor';
+import { ExamEditorComponent } from '../../shared/components/exam-editor';
 import { RightDrawerComponent } from '../../shared/components/right-drawer/right-drawer.component';
 
 @Component({
@@ -98,7 +98,7 @@ export class QuestionFormDialogComponent implements OnInit, OnChanges {
   saveError = '';
   currentQuestionType = '';
 
-  editorDocument: ExamDocument = [...EMPTY_DOCUMENT];
+  editorContent: string = '';
 
   constructor(
     private fb: FormBuilder,
@@ -132,13 +132,9 @@ export class QuestionFormDialogComponent implements OnInit, OnChanges {
     });
 
     if (q?.content) {
-      try {
-        this.editorDocument = JSON.parse(q.content);
-      } catch {
-        this.editorDocument = [{ type: 'paragraph', children: [{ text: q.content }] }];
-      }
+      this.editorContent = q.content;
     } else {
-      this.editorDocument = [...EMPTY_DOCUMENT];
+      this.editorContent = '';
     }
 
     if (q?.options && q.options.length > 0) {
@@ -284,10 +280,9 @@ export class QuestionFormDialogComponent implements OnInit, OnChanges {
     });
   }
 
-  onEditorChange(doc: ExamDocument): void {
-    this.editorDocument = doc;
-    const serialized = JSON.stringify(doc);
-    this.form.patchValue({ content: serialized });
+  onEditorChange(html: string): void {
+    this.editorContent = html;
+    this.form.patchValue({ content: html });
     this.form.get('content')?.markAsDirty();
     this.form.get('content')?.markAsTouched();
   }
