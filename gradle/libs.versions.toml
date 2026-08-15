@@ -65,6 +65,7 @@ spring-vault-core = { module = "org.springframework.vault:spring-vault-core" }
 postgresql = { module = "org.postgresql:postgresql" }
 flyway-core = { module = "org.flywaydb:flyway-core" }
 flyway-database-postgresql = { module = "org.flywaydb:flyway-database-postgresql" }
+spring-boot-starter-flyway = { module = "org.springframework.boot:spring-boot-starter-flyway" }
 
 # ── Jackson ────────────────────────────────────────────────────────────────────
 # Spring Boot 4.1 manages both Jackson 2 (com.fasterxml) and Jackson 3 (tools.jackson).
@@ -84,7 +85,7 @@ hibernate-core = { module = "org.hibernate.orm:hibernate-core" }
 micrometer-registry-prometheus = { module = "io.micrometer:micrometer-registry-prometheus" }
 
 # ── Resilience ────────────────────────────────────────────────────────────────
-resilience4j-spring-boot3 = { module = "io.github.resilience4j:resilience4j-spring-boot3", version.ref = "resilience4j" }
+resilience4j-spring-boot4 = { module = "io.github.resilience4j:resilience4j-spring-boot4", version.ref = "resilience4j" }
 
 # ── UUID generation ───────────────────────────────────────────────────────────
 java-uuid-generator = { module = "com.fasterxml.uuid:java-uuid-generator", version.ref = "java-uuid-generator" }

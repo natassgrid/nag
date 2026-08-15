@@ -50,6 +50,9 @@ dependencies {
     // Validation
     api libs.jakarta.validation.api
 
+    // Spring Kafka (for shared producer configuration)
+    api libs.spring.kafka
+
     // Spring Security (for shared security configs)
     api libs.spring.boot.starter.security
     api libs.spring.boot.starter.oauth2.resource.server

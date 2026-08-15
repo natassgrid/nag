@@ -18,6 +18,7 @@
 #   ./redeploy-clean.sh --no-cache       # Force rebuild without Docker cache
 #   ./redeploy-clean.sh --restart        # Restart ALL services without rebuilding (keeps images)
 #   ./redeploy-clean.sh --restart --service <name>  # Restart ONE service without rebuilding
+#   ./redeploy-clean.sh --health         # Check health status of all running services
 # =============================================================================
 set -e
 
@@ -29,6 +30,7 @@ NO_CACHE=""
 SERVICE=""
 SMART=false
 RESTART_ONLY=false
+HEALTH_CHECK=false
 
 while [[ $# -gt 0 ]]; do
     case $1 in
@@ -36,6 +38,7 @@ while [[ $# -gt 0 ]]; do
         --service) SERVICE="$2"; shift 2 ;;
         --smart) SMART=true; shift ;;
         --restart) RESTART_ONLY=true; shift ;;
+        --health) HEALTH_CHECK=true; shift ;;
         *) echo "Unknown option: $1"; exit 1 ;;
     esac
 done
@@ -102,6 +105,101 @@ ensure_builder_base() {
 
 ensure_builder_base
 
+# --- Health check mode ---
+if [ "$HEALTH_CHECK" = true ]; then
+    echo ""
+    echo "▶ Checking health status of all services..."
+    echo ""
+
+    # Service name → port mapping
+    declare -A SERVICE_PORTS=(
+        [identity-service]=8081
+        [candidate-service]=8082
+        [question-bank-service]=8083
+        [translation-service]=8084
+        [examination-service]=8085
+        [paper-generator]=8086
+        [delivery-service]=8087
+        [response-service]=8088
+        [evaluation-service]=8089
+        [result-service]=8090
+        [audit-service]=8091
+        [notification-service]=8092
+        [admin-service]=8093
+        [analytics-service]=8094
+        [asset-service]=8095
+        [api-gateway]=9000
+    )
+
+    HEALTHY=0
+    UNHEALTHY=0
+    DOWN=0
+    TOTAL=${#ALL_SERVICES[@]}
+
+    printf "  %-25s %-12s %-8s %s\n" "SERVICE" "STATUS" "PORT" "DETAILS"
+    printf "  %-25s %-12s %-8s %s\n" "-------" "------" "----" "-------"
+
+    for svc in "${ALL_SERVICES[@]}"; do
+        port=${SERVICE_PORTS[$svc]}
+        container="exam-${svc}"
+
+        # Check if container is running
+        if ! docker ps --format '{{.Names}}' | grep -q "^${container}$"; then
+            printf "  %-25s %-12s %-8s %s\n" "$svc" "⬇ DOWN" "$port" "Container not running"
+            DOWN=$((DOWN + 1))
+            continue
+        fi
+
+        # First check Docker's own healthcheck status (most reliable)
+        docker_health=$(docker inspect --format='{{.State.Health.Status}}' "$container" 2>/dev/null || echo "none")
+
+        if [ "$docker_health" = "starting" ]; then
+            printf "  %-25s %-12s %-8s %s\n" "$svc" "⏳ STARTING" "$port" "Still initializing..."
+            UNHEALTHY=$((UNHEALTHY + 1))
+            continue
+        fi
+
+        # Query health endpoint — try host first, fallback to docker exec
+        health_response=$(curl -s --connect-timeout 3 --max-time 5 "http://localhost:${port}/actuator/health" 2>/dev/null || echo "")
+
+        if [ -z "$health_response" ]; then
+            health_response=$(docker exec "$container" wget -qO- "http://localhost:${port}/actuator/health" 2>/dev/null || echo "")
+        fi
+
+        if [ -z "$health_response" ]; then
+            printf "  %-25s %-12s %-8s %s\n" "$svc" "⚠ NO RESP" "$port" "No response from actuator"
+            UNHEALTHY=$((UNHEALTHY + 1))
+            continue
+        fi
+
+        # Parse top-level status from JSON (last "status" field or the one after "groups")
+        # The top-level status in Spring Boot actuator is the outermost "status" field
+        status=$(echo "$health_response" | grep -o '"status":"[^"]*"' | tail -1 | cut -d'"' -f4)
+
+        if [ "$status" = "UP" ]; then
+            # Get component statuses
+            components=$(echo "$health_response" | grep -o '"[a-zA-Z]*":{"status":"[^"]*"' | \
+                sed 's/"\([^"]*\)":{"status":"\([^"]*\)"/\1:\2/g' | tr '\n' ' ')
+            printf "  %-25s %-12s %-8s %s\n" "$svc" "✓ UP" "$port" "$components"
+            HEALTHY=$((HEALTHY + 1))
+        elif [ "$status" = "DOWN" ]; then
+            components=$(echo "$health_response" | grep -o '"[a-zA-Z]*":{"status":"DOWN"' | \
+                sed 's/"\([^"]*\)":{"status":"DOWN"/\1:DOWN/g' | tr '\n' ' ')
+            printf "  %-25s %-12s %-8s %s\n" "$svc" "✗ DOWN" "$port" "$components"
+            UNHEALTHY=$((UNHEALTHY + 1))
+        else
+            printf "  %-25s %-12s %-8s %s\n" "$svc" "⚠ ${status:-UNKNOWN}" "$port" ""
+            UNHEALTHY=$((UNHEALTHY + 1))
+        fi
+    done
+
+    echo ""
+    echo "============================================="
+    echo "  Health Summary: $HEALTHY healthy, $UNHEALTHY unhealthy, $DOWN down (of $TOTAL total)"
+    echo "============================================="
+    exit 0
+fi
+
 # --- Single service mode ---
 if [ -n "$SERVICE" ]; then
     echo ""
@@ -139,8 +237,12 @@ if [ "$SMART" = true ]; then
     echo "  Changed: ${CHANGED[*]}"
     echo ""
 
+    local total=${#CHANGED[@]}
+    local built=0
+
     for svc in "${CHANGED[@]}"; do
-        echo "▶ Building $svc..."
+        built=$((built + 1))
+        echo "▶ [$built/$total] Building $svc... ($(( total - built )) remaining)"
         $COMPOSE build $NO_CACHE "$svc"
         mark_built "$svc"
     done
@@ -189,8 +291,11 @@ docker compose -f docker-compose.yml up --wait -d postgres kafka vault
 
 echo ""
 echo "▶ Building all services sequentially..."
+TOTAL=${#ALL_SERVICES[@]}
+BUILT=0
 for svc in "${ALL_SERVICES[@]}"; do
-    echo "  Building $svc..."
+    BUILT=$((BUILT + 1))
+    echo "  [$BUILT/$TOTAL] Building $svc... ($((TOTAL - BUILT)) remaining)"
     $COMPOSE build $NO_CACHE "$svc"
     mark_built "$svc"
 done

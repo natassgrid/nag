@@ -44,6 +44,9 @@ spring:
     schemas: admin_service
     locations: classpath:db/migration
 
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+
   security:
     oauth2:
       resourceserver:
@@ -69,8 +72,14 @@ management:
   endpoint:
     health:
       show-details: always
+      probes:
+        enabled: true
   health:
     redis:
+      enabled: true
+    db:
+      enabled: true
+    kafka:
       enabled: true
   metrics:
     tags:
