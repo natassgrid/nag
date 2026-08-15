@@ -1,3 +1,8 @@
+-- SPDX-License-Identifier: AGPL-3.0-only
+--
+-- National Assessment Grid (NAG) - Open Digital Public Infrastructure (DPI) Platform
+-- Copyright (C) 2025 NAG Contributors
+
 -- =============================================================================
 -- Seed Data — Test users and roles for development
 -- email_hash = SHA-256(username), mobile_hash = SHA-256(username + "_mobile")

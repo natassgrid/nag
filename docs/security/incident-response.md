@@ -1,4 +1,4 @@
-# Incident Response & Forensic Plan — Government Examination Platform
+# Incident Response & Forensic Plan — Open Digital Public Infrastructure (DPI) Platform
 
 ## 1. Overview & Incident Classification
 

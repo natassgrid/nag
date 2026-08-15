@@ -1,8 +1,8 @@
-# Implementation Plan: Open Source Government Examination Platform
+# Implementation Plan: Open Digital Public Infrastructure (DPI) Platform
 
 ## Overview
 
-This plan implements the Open Source Government Examination Platform as a Java 21 / Spring Boot 3.x microservices monorepo.
+This plan implements the Open Digital Public Infrastructure (DPI) Platform as a Java 21 / Spring Boot 3.x microservices monorepo.
 Tasks are organized by bounded context and follow the architecture described in the design document.
 All services are stateless Spring Boot applications; persistent state lives in PostgreSQL 16, session/cache state in Redis Cluster, and async domain events flow over Apache Kafka.
 

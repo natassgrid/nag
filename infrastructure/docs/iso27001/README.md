@@ -2,7 +2,7 @@
 
 ## Overview
 
-This directory documents the ISO 27001:2022 Information Security Management System (ISMS) evidence structure for the Open Source Government Examination Platform. All artifacts are maintained for audit readiness and are accessible to users with the **Auditor** role via the Admin Service API.
+This directory documents the ISO 27001:2022 Information Security Management System (ISMS) evidence structure for the Open Digital Public Infrastructure (DPI) Platform. All artifacts are maintained for audit readiness and are accessible to users with the **Auditor** role via the Admin Service API.
 
 ## Evidence Package Structure
 

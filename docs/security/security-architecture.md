@@ -1,4 +1,4 @@
-# Security Architecture — Government Examination Platform
+# Security Architecture — Open Digital Public Infrastructure (DPI) Platform
 
 ## 1. Core Principles & Defense-in-Depth
 

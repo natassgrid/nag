@@ -346,7 +346,7 @@ Comprehensive documentation is available in the `/docs` directory.
 
 # License
 
-Licensed under the Apache License 2.0.
+Licensed under the [GNU Affero General Public License v3.0 (AGPL-3.0-only)](https://www.gnu.org/licenses/agpl-3.0.html).
 
 ---
 

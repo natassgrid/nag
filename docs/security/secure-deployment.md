@@ -1,4 +1,4 @@
-# Secure Deployment & Infrastructure Hardening — Government Examination Platform
+# Secure Deployment & Infrastructure Hardening — Open Digital Public Infrastructure (DPI) Platform
 
 ## 1. Container & Kubernetes Hardening
 

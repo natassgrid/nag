@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!-- =============================================================================
   Shared Logback Configuration — Structured JSON Output
-  Open Source Government Examination Platform
+  Open Digital Public Infrastructure (DPI) Platform
   Requirements: 21.1, 21.6
   
   Usage: Include in each service's src/main/resources/logback-spring.xml via:

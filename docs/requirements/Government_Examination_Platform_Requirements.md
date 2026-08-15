@@ -1,4 +1,4 @@
-# Government Examination Platform - Requirements Specification
+# Open Digital Public Infrastructure (DPI) Platform - Requirements Specification
 
 ## Overview
 Enterprise-scale examination platform for Indian Government examinations such as UPSC, SSC, IBPS, RRB, NTA, State PSCs, Banking, Defence, Universities, and Recruitment Boards.

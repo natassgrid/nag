@@ -1,4 +1,4 @@
-# Contributing to the Open Source Government Examination Platform
+# Contributing to the Open Digital Public Infrastructure (DPI) Platform
 
 Thank you for your interest in contributing! This document describes the process for reporting issues, proposing changes, and submitting pull requests.
 
