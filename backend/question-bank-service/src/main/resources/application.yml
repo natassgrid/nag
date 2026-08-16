@@ -90,7 +90,7 @@ spring:
       base-url: ${LITELLM_BASE_URL:http://localhost:4000}
       api-key: ${LITELLM_API_KEY:sk-litellm-dev-key}
       connect-timeout: 30s
-      read-timeout: 5m
+      read-timeout: 15m
       chat:
         options:
           model: qwen2.5-1.5b
