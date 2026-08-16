@@ -5,6 +5,10 @@
         subtitle="Create, review, and manage examination questions."
         icon="quiz"
       >
+        <button mat-raised-button color="accent" (click)="openAiGenerateDrawer()">
+          <mat-icon>auto_awesome</mat-icon>
+          AI Generate
+        </button>
         <button mat-raised-button color="primary" (click)="openCreateDrawer()">
           <mat-icon>add</mat-icon>
           Create Question
@@ -45,4 +49,10 @@
         [question]="editingQuestion"
         (close)="onDrawerClose($event)"
       ></app-question-form-dialog>
+
+      <!-- ── AI GENERATION DRAWER ── -->
+      <app-ai-generate-dialog
+        [isOpen]="aiDrawerOpen"
+        (close)="onAiDrawerClose($event)"
+      ></app-ai-generate-dialog>
     </div>

@@ -35,7 +35,10 @@ spring:
   flyway:
     enabled: true
     schemas: question_service
+    default-schema: question_service
     locations: classpath:db/migration
+    init-sqls:
+      - SET search_path TO question_service, public
 
   data:
     redis:

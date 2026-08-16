@@ -50,6 +50,39 @@ export interface CreateQuestionRequest {
   options?: { id: string; text: string; isCorrect: boolean }[];
 }
 
+export interface QuestionGenerationRequest {
+  subject: string;
+  topic: string;
+  subtopic?: string;
+  difficulty: string;
+  cognitiveLevel: string;
+  questionType: string;
+  count: number;
+  avoidDuplicate: boolean;
+  autoSave: boolean;
+}
+
+export interface GeneratedQuestion {
+  content: string;
+  answerKey: string;
+  explanation: string;
+  options?: { id: string; text: string; isCorrect: boolean }[];
+  difficulty: string;
+  cognitiveLevel: string;
+  questionType: string;
+  validation: { valid: boolean; errors: string[] };
+  duplicate?: { similarQuestionId: string; similarity: number };
+  savedQuestionId?: string;
+}
+
+export interface QuestionGenerationResponse {
+  questions: GeneratedQuestion[];
+  modelUsed: string;
+  totalGenerated: number;
+  totalValid: number;
+  totalDuplicates: number;
+}
+
 export interface PagedResponse<T> {
   content: T[];
   totalElements: number;
@@ -139,6 +172,12 @@ export class QuestionService {
   rejectQuestion(id: string, comments: string): Observable<QuestionResponse> {
     return this.http
       .put<ApiResponse<QuestionResponse>>(`${this.baseUrl}/${id}/reject`, { comments })
+      .pipe(map(res => res.data));
+  }
+
+  generateQuestions(request: QuestionGenerationRequest): Observable<QuestionGenerationResponse> {
+    return this.http
+      .post<ApiResponse<QuestionGenerationResponse>>(`${this.baseUrl}/generate`, request)
       .pipe(map(res => res.data));
   }
 }
