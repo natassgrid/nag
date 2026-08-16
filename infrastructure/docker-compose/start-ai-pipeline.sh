@@ -142,6 +142,7 @@ case $ACTION in
     echo "    Keycloak     → localhost:8080 (admin/admin_secret)"
     echo "    Ollama       → localhost:11434"
     echo "    LiteLLM      → localhost:4000 (key: sk-litellm-dev-key)"
+    echo "    IndicTrans2  → localhost:7860 (English → 22 Indian languages)"
     echo ""
     echo "  Application:"
     echo "    Identity     → localhost:8081"

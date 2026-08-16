@@ -328,17 +328,29 @@ services:
       - -c
       - |
         echo "Checking models..."
-        if ! curl -sf http://ollama:11434/api/tags | grep -q "nomic-embed-text"; then
-          echo "Pulling nomic-embed-text..."
-          curl -sf http://ollama:11434/api/pull -d '{"name":"nomic-embed-text"}'
+        if ! curl -sf http://ollama:11434/api/tags | grep -q "all-minilm"; then
+          echo "Pulling all-minilm..."
+          curl -sf http://ollama:11434/api/pull -d '{"name":"all-minilm"}'
         else
-          echo "nomic-embed-text already present, skipping."
+          echo "all-minilm already present, skipping."
         fi
-        if ! curl -sf http://ollama:11434/api/tags | grep -q "qwen3:8b"; then
-          echo "Pulling qwen3:8b..."
-          curl -sf http://ollama:11434/api/pull -d '{"name":"qwen3:8b"}'
+        if ! curl -sf http://ollama:11434/api/tags | grep -q "qwen2.5:1.5b"; then
+          echo "Pulling qwen2.5:1.5b..."
+          curl -sf http://ollama:11434/api/pull -d '{"name":"qwen2.5:1.5b"}'
         else
-          echo "qwen3:8b already present, skipping."
+          echo "qwen2.5:1.5b already present, skipping."
+        fi
+        if ! curl -sf http://ollama:11434/api/tags | grep -q "qwen2-math"; then
+          echo "Pulling qwen2-math:1.5b..."
+          curl -sf http://ollama:11434/api/pull -d '{"name":"qwen2-math:1.5b"}'
+        else
+          echo "qwen2-math:1.5b already present, skipping."
+        fi
+        if ! curl -sf http://ollama:11434/api/tags | grep -q "llama3.2:1b"; then
+          echo "Pulling llama3.2:1b..."
+          curl -sf http://ollama:11434/api/pull -d '{"name":"llama3.2:1b"}'
+        else
+          echo "llama3.2:1b already present, skipping."
         fi
         echo "Done."
     networks:
@@ -378,3 +390,18 @@ services:
       start_period: 30s
     networks:
       - exam-network
+
+  # ===========================================================================
+  # IndicTrans2 — English to 22 Indian Languages Translation
+  # Model: ai4bharat/indictrans2-en-indic-dist-200M (~850MB)
+  # Port 7860 — REST API at http://localhost:7860
+  #
+  # Translate:
+  #   curl http://localhost:7860/translate \
+  #     -H "Content-Type: application/json" \
+  #     -d '{"text": "What is the capital of India?", "target_lang": "hin_Deva"}'
+  #
+  # Supported: hin_Deva, ben_Beng, tam_Taml, tel_Telu, mar_Deva, guj_Gujr,
+  #            kan_Knda, mal_Mlym, pan_Guru, ory_Orya, urd_Arab + 13 more
+  # ===========================================================================
+  
