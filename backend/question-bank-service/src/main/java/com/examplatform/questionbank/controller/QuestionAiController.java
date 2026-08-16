@@ -76,7 +76,7 @@ public class QuestionAiController {
      * @return generation response with questions, validation results, and metadata
      */
     @PostMapping("/generate")
-    @PreAuthorize("hasAnyRole('ADMIN', 'QUESTION_CREATOR')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'QUESTION_AUTHOR')")
     public ResponseEntity<ApiResponse<QuestionGenerationResponse>> generateQuestions(
             @Valid @RequestBody QuestionGenerationRequest request,
             @RequestHeader("X-Tenant-Id") String tenantId) {
@@ -110,7 +110,7 @@ public class QuestionAiController {
      * @return summary with total processed count and failures
      */
     @PostMapping("/embeddings/backfill")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasRole('SUPER_ADMIN')")
     public ResponseEntity<ApiResponse<Map<String, Object>>> backfillEmbeddings(
             @RequestHeader("X-Tenant-Id") String tenantId) {
 

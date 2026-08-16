@@ -27,6 +27,7 @@ import { MatChipsModule } from '@angular/material/chips';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { QuestionService, QuestionResponse } from './question.service';
 import { QuestionFormDialogComponent } from './question-form-dialog.component';
+import { AiGenerateDialogComponent } from './ai-generate-dialog/ai-generate-dialog.component';
 import { SubjectTopicService, Subject } from './subject-topic.service';
 import {
   PaginatedTableComponent,
@@ -49,7 +50,8 @@ import { PageHeaderComponent } from '../../shared/components/page-header/page-he
     MatTooltipModule,
     PaginatedTableComponent,
     PageHeaderComponent,
-    QuestionFormDialogComponent
+    QuestionFormDialogComponent,
+    AiGenerateDialogComponent
   ],
   templateUrl: './question-list.component.html',
   styleUrls: ['./question-list.component.scss']
@@ -60,6 +62,7 @@ export class QuestionListComponent implements OnInit {
 
   drawerOpen = false;
   editingQuestion?: QuestionResponse;
+  aiDrawerOpen = false;
 
   filters: Record<string, any> = {};
 
@@ -184,6 +187,17 @@ export class QuestionListComponent implements OnInit {
   openCreateDrawer(): void {
     this.editingQuestion = undefined;
     this.drawerOpen = true;
+  }
+
+  openAiGenerateDrawer(): void {
+    this.aiDrawerOpen = true;
+  }
+
+  onAiDrawerClose(hasSaved: boolean): void {
+    this.aiDrawerOpen = false;
+    if (hasSaved) {
+      this.reload();
+    }
   }
 
   openEditDrawer(question: QuestionResponse): void {

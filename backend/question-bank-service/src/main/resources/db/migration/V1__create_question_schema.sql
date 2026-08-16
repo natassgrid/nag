@@ -5,8 +5,8 @@
 
 CREATE SCHEMA IF NOT EXISTS question_service;
 
--- Enable pgvector extension (must be created by superuser in init-db.sql)
--- CREATE EXTENSION IF NOT EXISTS vector;
+-- Enable pgvector extension for halfvec type (requires pgvector/pgvector Docker image)
+CREATE EXTENSION IF NOT EXISTS vector SCHEMA public;
 
 -- ============================================================
 -- Table: question (hash-partitioned by subject for scalability)
