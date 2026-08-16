@@ -26,6 +26,7 @@ volumes:
   prometheus_data:
   grafana_data:
   ollama_data:
+  indictrans2_cache:
 
 services:
 
@@ -404,4 +405,23 @@ services:
   # Supported: hin_Deva, ben_Beng, tam_Taml, tel_Telu, mar_Deva, guj_Gujr,
   #            kan_Knda, mal_Mlym, pan_Guru, ory_Orya, urd_Arab + 13 more
   # ===========================================================================
-  
+  indictrans2:
+    build:
+      context: ../indictrans2
+      dockerfile: Dockerfile
+    container_name: exam-indictrans2
+    restart: unless-stopped
+    ports:
+      - "${INDICTRANS_PORT:-7860}:7860"
+    environment:
+      HF_TOKEN: ${HF_TOKEN:-}
+    volumes:
+      - indictrans2_cache:/root/.cache/huggingface
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:7860/health')\" || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 120s
+    networks:
+      - exam-network
