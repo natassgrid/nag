@@ -20,6 +20,8 @@
 package com.examplatform.questionbank.domain;
 
 import com.examplatform.questionbank.crypto.EncryptedFieldConverter;
+import com.examplatform.questionbank.domain.converter.HalfVecAttributeConverter;
+import com.examplatform.questionbank.dto.QuestionOption;
 import com.examplatform.shared.entity.BaseEntity;
 import jakarta.persistence.Column;
 import jakarta.persistence.Convert;
@@ -34,15 +36,35 @@ import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
 
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.UUID;
 
 /**
  * Question entity with per-question AES-256 encryption for content fields
  * and pgvector embedding column for similarity detection.
  *
- * Hash-partitioned across 16 partitions by id for horizontal scalability.
+ * <h3>Partitioning Strategy (NFR-5)</h3>
+ * <p>The underlying table {@code question_service.question} is hash-partitioned
+ * by {@code subject} into 8 partitions. The database-level primary key is a
+ * composite {@code (id, subject)} — required by PostgreSQL since the partition
+ * key must be part of the primary key constraint.
  *
- * Validates: Requirements 4.1, 4.5, 19.6
+ * <p><strong>JPA Compatibility:</strong> This entity uses only {@code id} (UUID v7)
+ * as the JPA {@link jakarta.persistence.Id @Id}. This is valid because:
+ * <ul>
+ *   <li>UUID v7 is globally unique across all partitions — no collision possible.</li>
+ *   <li>{@code findById(UUID)} scans all partitions but still returns at most one row.</li>
+ *   <li>Queries that include {@code subject} in the WHERE clause benefit from
+ *       partition pruning (PostgreSQL only scans the target partition).</li>
+ *   <li>A JPA {@code @IdClass} or {@code @EmbeddedId} is NOT required because
+ *       JPA identity only needs application-level uniqueness, which UUID v7 guarantees.</li>
+ * </ul>
+ *
+ * <p><strong>Performance Note:</strong> Repository queries SHOULD include {@code subject}
+ * in their predicates whenever possible to enable partition pruning. The native
+ * similarity queries already do this (see {@code QuestionRepository#findTopSimilarQuestions}).
+ *
+ * Validates: Requirements 4.1, 4.5, NFR-5
  */
 @Data
 @Builder
@@ -82,15 +104,19 @@ public class Question extends BaseEntity {
     @Column(name = "answer_key", columnDefinition = "TEXT")
     private String answerKey;
 
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "options", columnDefinition = "jsonb")
+    private List<QuestionOption> options;
+
     @Column(name = "explanation", columnDefinition = "TEXT")
     private String explanation;
 
     @Column(name = "\"references\"", columnDefinition = "TEXT")
     private String references;
 
-    @JdbcTypeCode(SqlTypes.JSON)
-    @Column(name = "embedding_vector", columnDefinition = "jsonb")
-    private String embeddingVector;
+    @Convert(converter = HalfVecAttributeConverter.class)
+    @Column(name = "embedding", columnDefinition = "halfvec(384)")
+    private float[] embedding;
 
     @Column(name = "state", nullable = false, length = 20)
     @Builder.Default

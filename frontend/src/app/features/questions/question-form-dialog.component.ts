@@ -28,10 +28,12 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatCheckboxModule } from '@angular/material/checkbox';
+import { MatSlideToggleModule } from '@angular/material/slide-toggle';
 import { CreateQuestionRequest, QuestionResponse, QuestionService } from './question.service';
 import { SubjectTopicService, Subject, Topic, Subtopic } from './subject-topic.service';
 import { ExamEditorComponent } from '../../shared/components/exam-editor';
 import { RightDrawerComponent } from '../../shared/components/right-drawer/right-drawer.component';
+import { MathRendererComponent } from '../../shared/components/math-renderer/math-renderer.component';
 
 @Component({
   selector: 'app-question-form-dialog',
@@ -48,8 +50,10 @@ import { RightDrawerComponent } from '../../shared/components/right-drawer/right
     MatTooltipModule,
     MatProgressSpinnerModule,
     MatCheckboxModule,
+    MatSlideToggleModule,
     ExamEditorComponent,
-    RightDrawerComponent
+    RightDrawerComponent,
+    MathRendererComponent
   ],
   templateUrl: './question-form-dialog.component.html',
   styleUrls: ['./question-form-dialog.component.scss']
@@ -99,6 +103,9 @@ export class QuestionFormDialogComponent implements OnInit, OnChanges {
   currentQuestionType = '';
 
   editorContent: string = '';
+
+  showContentPreview = false;
+  showOptionPreviews = false;
 
   constructor(
     private fb: FormBuilder,

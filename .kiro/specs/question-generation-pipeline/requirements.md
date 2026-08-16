@@ -27,13 +27,13 @@
 - Generated questions MUST pass duplicate detection before being stored.
 
 ### FR-4: Content Format Support
-- Question `content`, `answer_key`, `explanation`, and `options[].text` MUST support multiple formats:
-  - **TEXT** — plain text
-  - **LATEX** — LaTeX math expressions (e.g., `$$x = \frac{-b \pm \sqrt{b^2-4ac}}{2a}$$`)
-  - **SVG** — inline SVG diagrams (e.g., `<svg>...</svg>`)
-  - **MIXED** — combination of text, LaTeX, and SVG in a single field
-- The `content_format` column MUST indicate the primary format: `TEXT`, `HTML`, `LATEX`, `SVG`, or `MIXED`.
-- The frontend MUST render each format appropriately (KaTeX for LaTeX, inline SVG, HTML sanitized).
+- Question `content`, `answer_key`, `explanation`, and `options[].text` are always **mixed format** — they can contain any combination of:
+  - Plain text
+  - LaTeX math expressions (e.g., `$$x = \frac{-b \pm \sqrt{b^2-4ac}}{2a}$$`)
+  - Inline SVG diagrams (e.g., `<svg>...</svg>`)
+  - HTML markup
+- There is NO separate `content_format` column — content is always treated as mixed.
+- The frontend MUST detect and render each format inline: KaTeX for `$$...$$`, native SVG for `<svg>`, HTML for the rest.
 
 ### FR-5: Options Storage
 - MCQ/MSQ options MUST be stored as a JSONB array in the `options` column on the question table.

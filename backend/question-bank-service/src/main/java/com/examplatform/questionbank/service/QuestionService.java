@@ -19,10 +19,13 @@ package com.examplatform.questionbank.service;
  */
 
 
+import com.examplatform.questionbank.ai.embedding.EmbeddingService;
+import com.examplatform.questionbank.ai.similarity.SimilarityCheckResult;
 import com.examplatform.questionbank.domain.Question;
 import com.examplatform.questionbank.domain.enums.QuestionType;
 import com.examplatform.questionbank.dto.CreateQuestionRequest;
 import com.examplatform.questionbank.dto.QuestionResponse;
+import com.examplatform.questionbank.exception.SimilarQuestionException;
 import com.examplatform.questionbank.repository.QuestionRepository;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
@@ -55,6 +58,7 @@ public class QuestionService {
 
     private final QuestionRepository questionRepository;
     private final SimilarityDetectionService similarityDetectionService;
+    private final EmbeddingService embeddingService;
     private final KafkaTemplate<String, Object> kafkaTemplate;
 
     @org.springframework.beans.factory.annotation.Value("${app.encryption.enabled:false}")
@@ -75,8 +79,21 @@ public class QuestionService {
                     + "SINGLE_MCQ, MULTI_MCQ, NUMERICAL, DESCRIPTIVE, MATRIX_MATCH, ASSERTION_REASON, CODING, CASE_STUDY");
         }
 
-        // Check similarity against existing PUBLISHED questions before creating Draft
-        similarityDetectionService.checkSimilarity(request.getContent());
+        // Check similarity against existing questions in same subject+tenant (FR-2)
+        // Uses enforceNoDuplicate: throws SimilarQuestionException on > 0.92, returns WARN for 0.85–0.92
+        // NFR-2: If LLM/embedding service is unavailable, question creation still succeeds with warning logged
+        SimilarityCheckResult similarityResult = null;
+        try {
+            similarityResult = similarityDetectionService.enforceNoDuplicate(
+                    request.getContent(), request.getSubject(), tenantId);
+        } catch (SimilarQuestionException e) {
+            // Near-duplicate detected (> 0.92) — propagate to reject creation
+            throw e;
+        } catch (Exception e) {
+            // LLM/embedding service unavailable — proceed without duplicate detection (NFR-2)
+            log.warn("Similarity check unavailable during question creation. " +
+                    "Proceeding without duplicate detection. Reason: {}", e.getMessage());
+        }
 
         // Generate per-question DEK key name only when encryption is enabled
         String dekKeyName = encryptionEnabled ? "question-dek-" + UUID.randomUUID() : null;
@@ -125,6 +142,7 @@ public class QuestionService {
                 .questionType(request.getQuestionType().name())
                 .content(request.getContent())
                 .answerKey(answerKey)
+                .options(request.getOptions())
                 .explanation(request.getExplanation())
                 .references(request.getReferences())
                 .state("DRAFT")
@@ -138,6 +156,20 @@ public class QuestionService {
         // Persist — EncryptedFieldConverter encrypts content/answerKey only when app.encryption.enabled=true
         Question saved = questionRepository.save(question);
 
+        // Generate and store embedding (FR-1: embeddings MUST be generated on question creation)
+        // NFR-2: If LLM service is unavailable, question creation still succeeds without embedding
+        try {
+            float[] embedding = embeddingService.embed(request.getContent());
+            if (embedding != null && embedding.length > 0) {
+                saved.setEmbedding(embedding);
+                saved = questionRepository.save(saved);
+                log.debug("Embedding generated and stored for question: id={}", saved.getId());
+            }
+        } catch (Exception e) {
+            log.warn("Failed to generate embedding for question id={}. " +
+                    "Question created without embedding. Reason: {}", saved.getId(), e.getMessage());
+        }
+
         log.info("Question created: id={}, type={}, author={}, tenant={}, encrypted={}",
                 saved.getId(), saved.getQuestionType(), authorId, tenantId, encryptionEnabled);
 
@@ -145,7 +177,22 @@ public class QuestionService {
         publishAuditEvent("QUESTION_CREATED", saved.getId(), authorId, tenantId,
                 Map.of("questionType", saved.getQuestionType(), "state", saved.getState()));
 
-        return toResponse(saved);
+        // Build response with similarity warnings if applicable (FR-2: flag for human review)
+        QuestionResponse response = toResponse(saved);
+        if (similarityResult != null && similarityResult.status() == SimilarityCheckResult.Status.WARN) {
+            List<QuestionResponse.SimilarQuestionWarning> warnings = similarityResult.similarQuestions().stream()
+                    .map(sq -> QuestionResponse.SimilarQuestionWarning.builder()
+                            .questionId(sq.questionId())
+                            .similarity(sq.similarity())
+                            .contentSnippet(sq.content())
+                            .build())
+                    .toList();
+            response.setWarnings(warnings);
+            log.info("Question created with similarity warnings: id={}, warningCount={}",
+                    saved.getId(), warnings.size());
+        }
+
+        return response;
     }
 
     /**
@@ -280,16 +327,19 @@ public class QuestionService {
                 ? LocalDateTime.ofInstant(question.getCreatedAt(), ZoneOffset.UTC)
                 : null;
 
-        // Try to parse options from answerKey JSON
-        java.util.List<com.examplatform.questionbank.dto.QuestionOption> options = null;
-        String questionType = question.getQuestionType();
-        if (questionType != null && (questionType.equals("SINGLE_MCQ") || questionType.equals("MULTI_MCQ"))
-                && question.getAnswerKey() != null && question.getAnswerKey().startsWith("[")) {
-            try {
-                options = MAPPER.readValue(question.getAnswerKey(),
-                        new com.fasterxml.jackson.core.type.TypeReference<
-                                java.util.List<com.examplatform.questionbank.dto.QuestionOption>>() {});
-            } catch (Exception ignored) {}
+        // Use the options field directly from the entity (JSONB column).
+        // Fall back to parsing from answerKey JSON for legacy data.
+        java.util.List<com.examplatform.questionbank.dto.QuestionOption> options = question.getOptions();
+        if ((options == null || options.isEmpty())) {
+            String questionType = question.getQuestionType();
+            if (questionType != null && (questionType.equals("SINGLE_MCQ") || questionType.equals("MULTI_MCQ"))
+                    && question.getAnswerKey() != null && question.getAnswerKey().startsWith("[")) {
+                try {
+                    options = MAPPER.readValue(question.getAnswerKey(),
+                            new com.fasterxml.jackson.core.type.TypeReference<
+                                    java.util.List<com.examplatform.questionbank.dto.QuestionOption>>() {});
+                } catch (Exception ignored) {}
+            }
         }
 
         return QuestionResponse.builder()

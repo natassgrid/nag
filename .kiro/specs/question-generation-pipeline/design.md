@@ -62,16 +62,15 @@
 -- question table: hash-partitioned by subject (8 partitions)
 -- embedding: halfvec(384) with IVFFlat cosine index
 -- options: JSONB array [{id, text, isCorrect}]
--- content_format: TEXT | HTML | LATEX | SVG | MIXED
+-- content is always mixed: text + $$LaTeX$$ + <svg>...</svg> inline
 
 CREATE TABLE question_service.question (
     id UUID NOT NULL,
     subject VARCHAR(100) NOT NULL,
     ...
-    content_format VARCHAR(10) NOT NULL DEFAULT 'TEXT',
-    content TEXT,              -- supports: text, HTML, LaTeX ($$..$$), SVG
+    content TEXT,              -- always mixed: text + $$LaTeX$$ + <svg>...</svg>
     options JSONB,            -- [{id:"A", text:"...", isCorrect:false}]
-    answer_key TEXT,          -- supports same formats as content
+    answer_key TEXT,          -- same mixed format
     explanation TEXT,
     "references" TEXT,
     embedding halfvec(384),   -- all-minilm 384-dim half-precision vector
@@ -80,33 +79,37 @@ CREATE TABLE question_service.question (
 ) PARTITION BY HASH (subject);
 ```
 
-## Content Format Examples
+## Content Format (always mixed)
 
-### Plain Text
-```json
-{ "content_format": "TEXT", "content": "What is the SI unit of force?" }
-```
+All content fields (`content`, `answer_key`, `explanation`, `options[].text`) are always mixed format — no separate column needed. The frontend auto-detects and renders:
+- `$$...$$` → KaTeX math rendering
+- `<svg>...</svg>` → inline SVG
+- Everything else → HTML/text
 
-### LaTeX (math expressions)
-```json
-{ "content_format": "LATEX", "content": "Solve: $$x^2 - 5x + 6 = 0$$" }
-```
-
-### SVG (diagrams)
-```json
-{ "content_format": "SVG", "content": "<svg width='200' height='100'><circle cx='50' cy='50' r='40'/></svg>\nWhat is the area of the circle?" }
-```
-
-### Mixed (text + LaTeX)
+### Example: Math question with LaTeX options
 ```json
 {
-  "content_format": "MIXED",
-  "content": "If $$f(x) = x^2 + 3x + 2$$, find $$f(2)$$.",
+  "content": "Solve: $$x^2 - 5x + 6 = 0$$",
   "options": [
-    {"id": "A", "text": "$$8$$", "isCorrect": false},
-    {"id": "B", "text": "$$12$$", "isCorrect": true},
-    {"id": "C", "text": "$$10$$", "isCorrect": false},
-    {"id": "D", "text": "$$6$$", "isCorrect": false}
+    {"id": "A", "text": "$$x = 2, 3$$", "isCorrect": true},
+    {"id": "B", "text": "$$x = 1, 6$$", "isCorrect": false},
+    {"id": "C", "text": "$$x = -2, -3$$", "isCorrect": false},
+    {"id": "D", "text": "$$x = 2, -3$$", "isCorrect": false}
+  ],
+  "answerKey": "A",
+  "explanation": "Factoring: $$(x-2)(x-3) = 0$$, so $$x = 2$$ or $$x = 3$$"
+}
+```
+
+### Example: Diagram with SVG
+```json
+{
+  "content": "Identify the shape:\n<svg width='100' height='100'><circle cx='50' cy='50' r='40' fill='none' stroke='black'/></svg>",
+  "options": [
+    {"id": "A", "text": "Circle", "isCorrect": true},
+    {"id": "B", "text": "Square", "isCorrect": false},
+    {"id": "C", "text": "Triangle", "isCorrect": false},
+    {"id": "D", "text": "Ellipse", "isCorrect": false}
   ]
 }
 ```

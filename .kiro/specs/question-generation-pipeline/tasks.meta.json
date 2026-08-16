@@ -1,0 +1,573 @@
+{
+  "pbtResults": {},
+  "executionHistory": {
+    "1.1: Add Spring AI 2.0.0 BOM and OpenAI starter + pgvector dependency to `question-bank-service/build.gradle`": [
+      {
+        "executionId": "913878c9-df1c-48b0-bd4f-c55e2bcc2924",
+        "chatSessionId": "sess_e51d3f78-bbad-4592-9e76-e3144ffb2f4b",
+        "timestamp": 1786886571679
+      },
+      {
+        "executionId": "913878c9-df1c-48b0-bd4f-c55e2bcc2924",
+        "chatSessionId": "sess_e51d3f78-bbad-4592-9e76-e3144ffb2f4b",
+        "timestamp": 1786886585711
+      },
+      {
+        "executionId": "913878c9-df1c-48b0-bd4f-c55e2bcc2924",
+        "chatSessionId": "sess_e51d3f78-bbad-4592-9e76-e3144ffb2f4b",
+        "timestamp": 1786886934599
+      }
+    ],
+    "1.2: Create `SpringAiConfig.java` with `ChatClient` and `EmbeddingModel` beans pointing to LiteLLM (http://litellm:4000)": [
+      {
+        "executionId": "913878c9-df1c-48b0-bd4f-c55e2bcc2924",
+        "chatSessionId": "sess_e51d3f78-bbad-4592-9e76-e3144ffb2f4b",
+        "timestamp": 1786886572272
+      },
+      {
+        "executionId": "913878c9-df1c-48b0-bd4f-c55e2bcc2924",
+        "chatSessionId": "sess_e51d3f78-bbad-4592-9e76-e3144ffb2f4b",
+        "timestamp": 1786886943374
+      },
+      {
+        "executionId": "913878c9-df1c-48b0-bd4f-c55e2bcc2924",
+        "chatSessionId": "sess_e51d3f78-bbad-4592-9e76-e3144ffb2f4b",
+        "timestamp": 1786887127644
+      }
+    ],
+    "1.3: Add Spring AI config to `application.yml` and `application-docker.yml` (base-url, api-key, model: all-minilm for embedding, qwen2.5-1.5b for chat)": [
+      {
+        "executionId": "913878c9-df1c-48b0-bd4f-c55e2bcc2924",
+        "chatSessionId": "sess_e51d3f78-bbad-4592-9e76-e3144ffb2f4b",
+        "timestamp": 1786886572438
+      },
+      {
+        "executionId": "913878c9-df1c-48b0-bd4f-c55e2bcc2924",
+        "chatSessionId": "sess_e51d3f78-bbad-4592-9e76-e3144ffb2f4b",
+        "timestamp": 1786887136242
+      },
+      {
+        "executionId": "913878c9-df1c-48b0-bd4f-c55e2bcc2924",
+        "chatSessionId": "sess_e51d3f78-bbad-4592-9e76-e3144ffb2f4b",
+        "timestamp": 1786887303739
+      }
+    ],
+    "1.4: Create `EmbeddingService` interface with `float[] embed(String text)` and `List<float[]> embedBatch(List<String> texts)`": [
+      {
+        "executionId": "913878c9-df1c-48b0-bd4f-c55e2bcc2924",
+        "chatSessionId": "sess_e51d3f78-bbad-4592-9e76-e3144ffb2f4b",
+        "timestamp": 1786886572536
+      },
+      {
+        "executionId": "913878c9-df1c-48b0-bd4f-c55e2bcc2924",
+        "chatSessionId": "sess_e51d3f78-bbad-4592-9e76-e3144ffb2f4b",
+        "timestamp": 1786887311987
+      },
+      {
+        "executionId": "913878c9-df1c-48b0-bd4f-c55e2bcc2924",
+        "chatSessionId": "sess_e51d3f78-bbad-4592-9e76-e3144ffb2f4b",
+        "timestamp": 1786887378031
+      }
+    ],
+    "1.5: Implement `SpringAiEmbeddingService` using Spring AI's `EmbeddingModel` to call all-minilm (384-dim) via LiteLLM": [
+      {
+        "executionId": "913878c9-df1c-48b0-bd4f-c55e2bcc2924",
+        "chatSessionId": "sess_e51d3f78-bbad-4592-9e76-e3144ffb2f4b",
+        "timestamp": 1786886572634
+      },
+      {
+        "executionId": "913878c9-df1c-48b0-bd4f-c55e2bcc2924",
+        "chatSessionId": "sess_e51d3f78-bbad-4592-9e76-e3144ffb2f4b",
+        "timestamp": 1786887386863
+      },
+      {
+        "executionId": "913878c9-df1c-48b0-bd4f-c55e2bcc2924",
+        "chatSessionId": "sess_e51d3f78-bbad-4592-9e76-e3144ffb2f4b",
+        "timestamp": 1786887502073
+      }
+    ],
+    "1.6: Write unit test for `SpringAiEmbeddingService` with mocked `EmbeddingModel`": [
+      {
+        "executionId": "913878c9-df1c-48b0-bd4f-c55e2bcc2924",
+        "chatSessionId": "sess_e51d3f78-bbad-4592-9e76-e3144ffb2f4b",
+        "timestamp": 1786886572702
+      },
+      {
+        "executionId": "913878c9-df1c-48b0-bd4f-c55e2bcc2924",
+        "chatSessionId": "sess_e51d3f78-bbad-4592-9e76-e3144ffb2f4b",
+        "timestamp": 1786887506469
+      },
+      {
+        "executionId": "913878c9-df1c-48b0-bd4f-c55e2bcc2924",
+        "chatSessionId": "sess_e51d3f78-bbad-4592-9e76-e3144ffb2f4b",
+        "timestamp": 1786887646270
+      }
+    ],
+    "2.1: Update `Question` entity — add `embedding` field (mapped to `halfvec(384)` column), `options` JSONB field": [
+      {
+        "executionId": "913878c9-df1c-48b0-bd4f-c55e2bcc2924",
+        "chatSessionId": "sess_e51d3f78-bbad-4592-9e76-e3144ffb2f4b",
+        "timestamp": 1786886572769
+      },
+      {
+        "executionId": "913878c9-df1c-48b0-bd4f-c55e2bcc2924",
+        "chatSessionId": "sess_e51d3f78-bbad-4592-9e76-e3144ffb2f4b",
+        "timestamp": 1786887651437
+      },
+      {
+        "executionId": "913878c9-df1c-48b0-bd4f-c55e2bcc2924",
+        "chatSessionId": "sess_e51d3f78-bbad-4592-9e76-e3144ffb2f4b",
+        "timestamp": 1786887913486
+      }
+    ],
+    "2.2: Remove old `embedding_vector` JSONB field from entity": [
+      {
+        "executionId": "913878c9-df1c-48b0-bd4f-c55e2bcc2924",
+        "chatSessionId": "sess_e51d3f78-bbad-4592-9e76-e3144ffb2f4b",
+        "timestamp": 1786886572819
+      },
+      {
+        "executionId": "913878c9-df1c-48b0-bd4f-c55e2bcc2924",
+        "chatSessionId": "sess_e51d3f78-bbad-4592-9e76-e3144ffb2f4b",
+        "timestamp": 1786887918310
+      },
+      {
+        "executionId": "913878c9-df1c-48b0-bd4f-c55e2bcc2924",
+        "chatSessionId": "sess_e51d3f78-bbad-4592-9e76-e3144ffb2f4b",
+        "timestamp": 1786887986382
+      }
+    ],
+    "2.3: Add pgvector JPA type support (custom `@Type` or `AttributeConverter` for halfvec)": [
+      {
+        "executionId": "913878c9-df1c-48b0-bd4f-c55e2bcc2924",
+        "chatSessionId": "sess_e51d3f78-bbad-4592-9e76-e3144ffb2f4b",
+        "timestamp": 1786886572884
+      },
+      {
+        "executionId": "913878c9-df1c-48b0-bd4f-c55e2bcc2924",
+        "chatSessionId": "sess_e51d3f78-bbad-4592-9e76-e3144ffb2f4b",
+        "timestamp": 1786887990929
+      },
+      {
+        "executionId": "913878c9-df1c-48b0-bd4f-c55e2bcc2924",
+        "chatSessionId": "sess_e51d3f78-bbad-4592-9e76-e3144ffb2f4b",
+        "timestamp": 1786888381172
+      }
+    ],
+    "2.4: Update `QuestionRepository` — add native query for cosine similarity search using `<=>` operator on halfvec": [
+      {
+        "executionId": "913878c9-df1c-48b0-bd4f-c55e2bcc2924",
+        "chatSessionId": "sess_e51d3f78-bbad-4592-9e76-e3144ffb2f4b",
+        "timestamp": 1786886572963
+      },
+      {
+        "executionId": "913878c9-df1c-48b0-bd4f-c55e2bcc2924",
+        "chatSessionId": "sess_e51d3f78-bbad-4592-9e76-e3144ffb2f4b",
+        "timestamp": 1786888385578
+      },
+      {
+        "executionId": "913878c9-df1c-48b0-bd4f-c55e2bcc2924",
+        "chatSessionId": "sess_e51d3f78-bbad-4592-9e76-e3144ffb2f4b",
+        "timestamp": 1786888610842
+      }
+    ],
+    "2.5: Update `QuestionResponse` and `CreateQuestionRequest` DTOs — update `options` handling": [
+      {
+        "executionId": "913878c9-df1c-48b0-bd4f-c55e2bcc2924",
+        "chatSessionId": "sess_e51d3f78-bbad-4592-9e76-e3144ffb2f4b",
+        "timestamp": 1786886573028
+      },
+      {
+        "executionId": "913878c9-df1c-48b0-bd4f-c55e2bcc2924",
+        "chatSessionId": "sess_e51d3f78-bbad-4592-9e76-e3144ffb2f4b",
+        "timestamp": 1786888616479
+      },
+      {
+        "executionId": "913878c9-df1c-48b0-bd4f-c55e2bcc2924",
+        "chatSessionId": "sess_e51d3f78-bbad-4592-9e76-e3144ffb2f4b",
+        "timestamp": 1786889457485
+      }
+    ],
+    "2.6: Verify partitioned table works with JPA (composite PK: id + subject)": [
+      {
+        "executionId": "913878c9-df1c-48b0-bd4f-c55e2bcc2924",
+        "chatSessionId": "sess_e51d3f78-bbad-4592-9e76-e3144ffb2f4b",
+        "timestamp": 1786886573137
+      },
+      {
+        "executionId": "913878c9-df1c-48b0-bd4f-c55e2bcc2924",
+        "chatSessionId": "sess_e51d3f78-bbad-4592-9e76-e3144ffb2f4b",
+        "timestamp": 1786889462563
+      },
+      {
+        "executionId": "913878c9-df1c-48b0-bd4f-c55e2bcc2924",
+        "chatSessionId": "sess_e51d3f78-bbad-4592-9e76-e3144ffb2f4b",
+        "timestamp": 1786889616175
+      }
+    ],
+    "3.1: Create `SimilarityDetectionService` using native pgvector `<=>` cosine distance on halfvec(384)": [
+      {
+        "executionId": "913878c9-df1c-48b0-bd4f-c55e2bcc2924",
+        "chatSessionId": "sess_e51d3f78-bbad-4592-9e76-e3144ffb2f4b",
+        "timestamp": 1786886573200
+      },
+      {
+        "executionId": "913878c9-df1c-48b0-bd4f-c55e2bcc2924",
+        "chatSessionId": "sess_e51d3f78-bbad-4592-9e76-e3144ffb2f4b",
+        "timestamp": 1786889622073
+      },
+      {
+        "executionId": "913878c9-df1c-48b0-bd4f-c55e2bcc2924",
+        "chatSessionId": "sess_e51d3f78-bbad-4592-9e76-e3144ffb2f4b",
+        "timestamp": 1786889966623
+      }
+    ],
+    "3.2: Integrate embedding generation into `QuestionService.createQuestion()` — generate and store embedding after save": [
+      {
+        "executionId": "913878c9-df1c-48b0-bd4f-c55e2bcc2924",
+        "chatSessionId": "sess_e51d3f78-bbad-4592-9e76-e3144ffb2f4b",
+        "timestamp": 1786886573265
+      },
+      {
+        "executionId": "913878c9-df1c-48b0-bd4f-c55e2bcc2924",
+        "chatSessionId": "sess_e51d3f78-bbad-4592-9e76-e3144ffb2f4b",
+        "timestamp": 1786889971634
+      },
+      {
+        "executionId": "913878c9-df1c-48b0-bd4f-c55e2bcc2924",
+        "chatSessionId": "sess_e51d3f78-bbad-4592-9e76-e3144ffb2f4b",
+        "timestamp": 1786890188441
+      }
+    ],
+    "3.3: Integrate duplicate detection into `QuestionService.createQuestion()` — check similarity before save, reject > 0.92, warn > 0.85": [
+      {
+        "executionId": "913878c9-df1c-48b0-bd4f-c55e2bcc2924",
+        "chatSessionId": "sess_e51d3f78-bbad-4592-9e76-e3144ffb2f4b",
+        "timestamp": 1786886573333
+      },
+      {
+        "executionId": "913878c9-df1c-48b0-bd4f-c55e2bcc2924",
+        "chatSessionId": "sess_e51d3f78-bbad-4592-9e76-e3144ffb2f4b",
+        "timestamp": 1786890193363
+      },
+      {
+        "executionId": "913878c9-df1c-48b0-bd4f-c55e2bcc2924",
+        "chatSessionId": "sess_e51d3f78-bbad-4592-9e76-e3144ffb2f4b",
+        "timestamp": 1786890439546
+      }
+    ],
+    "3.4: Add `POST /api/v1/questions/embeddings/backfill` endpoint for admin batch embedding generation (batches of 50)": [
+      {
+        "executionId": "913878c9-df1c-48b0-bd4f-c55e2bcc2924",
+        "chatSessionId": "sess_e51d3f78-bbad-4592-9e76-e3144ffb2f4b",
+        "timestamp": 1786886573400
+      },
+      {
+        "executionId": "913878c9-df1c-48b0-bd4f-c55e2bcc2924",
+        "chatSessionId": "sess_e51d3f78-bbad-4592-9e76-e3144ffb2f4b",
+        "timestamp": 1786890445437
+      },
+      {
+        "executionId": "913878c9-df1c-48b0-bd4f-c55e2bcc2924",
+        "chatSessionId": "sess_e51d3f78-bbad-4592-9e76-e3144ffb2f4b",
+        "timestamp": 1786890572873
+      }
+    ],
+    "3.5: Write integration test for duplicate detection flow": [
+      {
+        "executionId": "913878c9-df1c-48b0-bd4f-c55e2bcc2924",
+        "chatSessionId": "sess_e51d3f78-bbad-4592-9e76-e3144ffb2f4b",
+        "timestamp": 1786886573463
+      },
+      {
+        "executionId": "913878c9-df1c-48b0-bd4f-c55e2bcc2924",
+        "chatSessionId": "sess_e51d3f78-bbad-4592-9e76-e3144ffb2f4b",
+        "timestamp": 1786890578519
+      },
+      {
+        "executionId": "913878c9-df1c-48b0-bd4f-c55e2bcc2924",
+        "chatSessionId": "sess_e51d3f78-bbad-4592-9e76-e3144ffb2f4b",
+        "timestamp": 1786890962486
+      }
+    ],
+    "4.1: Create `ModelRouter.java` — maps subject to model name (math→qwen2-math-1.5b, trivia→llama3.2-1b, general→qwen2.5-1.5b)": [
+      {
+        "executionId": "913878c9-df1c-48b0-bd4f-c55e2bcc2924",
+        "chatSessionId": "sess_e51d3f78-bbad-4592-9e76-e3144ffb2f4b",
+        "timestamp": 1786886573520
+      },
+      {
+        "executionId": "913878c9-df1c-48b0-bd4f-c55e2bcc2924",
+        "chatSessionId": "sess_e51d3f78-bbad-4592-9e76-e3144ffb2f4b",
+        "timestamp": 1786890974783
+      },
+      {
+        "executionId": "913878c9-df1c-48b0-bd4f-c55e2bcc2924",
+        "chatSessionId": "sess_e51d3f78-bbad-4592-9e76-e3144ffb2f4b",
+        "timestamp": 1786891100461
+      }
+    ],
+    "4.2: Create `QuestionGenerationRequest` DTO (subject, topic, subtopic, difficulty, cognitiveLevel, questionType, count, avoidDuplicate)": [
+      {
+        "executionId": "913878c9-df1c-48b0-bd4f-c55e2bcc2924",
+        "chatSessionId": "sess_e51d3f78-bbad-4592-9e76-e3144ffb2f4b",
+        "timestamp": 1786886573581
+      },
+      {
+        "executionId": "913878c9-df1c-48b0-bd4f-c55e2bcc2924",
+        "chatSessionId": "sess_e51d3f78-bbad-4592-9e76-e3144ffb2f4b",
+        "timestamp": 1786891105602
+      },
+      {
+        "executionId": "913878c9-df1c-48b0-bd4f-c55e2bcc2924",
+        "chatSessionId": "sess_e51d3f78-bbad-4592-9e76-e3144ffb2f4b",
+        "timestamp": 1786891197340
+      }
+    ],
+    "4.3: Create `QuestionGenerationResponse` DTO (list of generated questions, validation results, duplicates detected, model used)": [
+      {
+        "executionId": "913878c9-df1c-48b0-bd4f-c55e2bcc2924",
+        "chatSessionId": "sess_e51d3f78-bbad-4592-9e76-e3144ffb2f4b",
+        "timestamp": 1786886573650
+      },
+      {
+        "executionId": "913878c9-df1c-48b0-bd4f-c55e2bcc2924",
+        "chatSessionId": "sess_e51d3f78-bbad-4592-9e76-e3144ffb2f4b",
+        "timestamp": 1786891203593
+      },
+      {
+        "executionId": "913878c9-df1c-48b0-bd4f-c55e2bcc2924",
+        "chatSessionId": "sess_e51d3f78-bbad-4592-9e76-e3144ffb2f4b",
+        "timestamp": 1786891299126
+      }
+    ],
+    "4.4: Create `QuestionGenerationService` interface": [
+      {
+        "executionId": "913878c9-df1c-48b0-bd4f-c55e2bcc2924",
+        "chatSessionId": "sess_e51d3f78-bbad-4592-9e76-e3144ffb2f4b",
+        "timestamp": 1786886573718
+      },
+      {
+        "executionId": "913878c9-df1c-48b0-bd4f-c55e2bcc2924",
+        "chatSessionId": "sess_e51d3f78-bbad-4592-9e76-e3144ffb2f4b",
+        "timestamp": 1786891305054
+      },
+      {
+        "executionId": "913878c9-df1c-48b0-bd4f-c55e2bcc2924",
+        "chatSessionId": "sess_e51d3f78-bbad-4592-9e76-e3144ffb2f4b",
+        "timestamp": 1786891372405
+      }
+    ],
+    "4.5: Implement `SpringAiGenerationService`:": [
+      {
+        "executionId": "913878c9-df1c-48b0-bd4f-c55e2bcc2924",
+        "chatSessionId": "sess_e51d3f78-bbad-4592-9e76-e3144ffb2f4b",
+        "timestamp": 1786886573787
+      },
+      {
+        "executionId": "913878c9-df1c-48b0-bd4f-c55e2bcc2924",
+        "chatSessionId": "sess_e51d3f78-bbad-4592-9e76-e3144ffb2f4b",
+        "timestamp": 1786891378020
+      },
+      {
+        "executionId": "913878c9-df1c-48b0-bd4f-c55e2bcc2924",
+        "chatSessionId": "sess_e51d3f78-bbad-4592-9e76-e3144ffb2f4b",
+        "timestamp": 1786891776904
+      }
+    ],
+    "4.6: Implement RAG retrieval: query top-5 similar existing questions via halfvec embedding for context injection": [
+      {
+        "executionId": "913878c9-df1c-48b0-bd4f-c55e2bcc2924",
+        "chatSessionId": "sess_e51d3f78-bbad-4592-9e76-e3144ffb2f4b",
+        "timestamp": 1786886573872
+      },
+      {
+        "executionId": "913878c9-df1c-48b0-bd4f-c55e2bcc2924",
+        "chatSessionId": "sess_e51d3f78-bbad-4592-9e76-e3144ffb2f4b",
+        "timestamp": 1786891781732
+      },
+      {
+        "executionId": "913878c9-df1c-48b0-bd4f-c55e2bcc2924",
+        "chatSessionId": "sess_e51d3f78-bbad-4592-9e76-e3144ffb2f4b",
+        "timestamp": 1786891834960
+      }
+    ],
+    "4.7: Add `POST /api/v1/questions/generate` endpoint in `QuestionAiController`": [
+      {
+        "executionId": "913878c9-df1c-48b0-bd4f-c55e2bcc2924",
+        "chatSessionId": "sess_e51d3f78-bbad-4592-9e76-e3144ffb2f4b",
+        "timestamp": 1786886573962
+      },
+      {
+        "executionId": "913878c9-df1c-48b0-bd4f-c55e2bcc2924",
+        "chatSessionId": "sess_e51d3f78-bbad-4592-9e76-e3144ffb2f4b",
+        "timestamp": 1786891840261
+      },
+      {
+        "executionId": "913878c9-df1c-48b0-bd4f-c55e2bcc2924",
+        "chatSessionId": "sess_e51d3f78-bbad-4592-9e76-e3144ffb2f4b",
+        "timestamp": 1786891933349
+      }
+    ],
+    "4.8: Add option to auto-save generated questions as DRAFT (vs. return-only preview mode)": [
+      {
+        "executionId": "913878c9-df1c-48b0-bd4f-c55e2bcc2924",
+        "chatSessionId": "sess_e51d3f78-bbad-4592-9e76-e3144ffb2f4b",
+        "timestamp": 1786886574016
+      },
+      {
+        "executionId": "913878c9-df1c-48b0-bd4f-c55e2bcc2924",
+        "chatSessionId": "sess_e51d3f78-bbad-4592-9e76-e3144ffb2f4b",
+        "timestamp": 1786891938372
+      },
+      {
+        "executionId": "913878c9-df1c-48b0-bd4f-c55e2bcc2924",
+        "chatSessionId": "sess_e51d3f78-bbad-4592-9e76-e3144ffb2f4b",
+        "timestamp": 1786892009786
+      }
+    ],
+    "4.9: Write integration test for question generation with mocked ChatClient": [
+      {
+        "executionId": "913878c9-df1c-48b0-bd4f-c55e2bcc2924",
+        "chatSessionId": "sess_e51d3f78-bbad-4592-9e76-e3144ffb2f4b",
+        "timestamp": 1786886574084
+      },
+      {
+        "executionId": "913878c9-df1c-48b0-bd4f-c55e2bcc2924",
+        "chatSessionId": "sess_e51d3f78-bbad-4592-9e76-e3144ffb2f4b",
+        "timestamp": 1786892014747
+      },
+      {
+        "executionId": "913878c9-df1c-48b0-bd4f-c55e2bcc2924",
+        "chatSessionId": "sess_e51d3f78-bbad-4592-9e76-e3144ffb2f4b",
+        "timestamp": 1786892350021
+      }
+    ],
+    "5.1: Frontend: integrate KaTeX library for rendering `$$...$$` blocks in question content and options": [
+      {
+        "executionId": "913878c9-df1c-48b0-bd4f-c55e2bcc2924",
+        "chatSessionId": "sess_e51d3f78-bbad-4592-9e76-e3144ffb2f4b",
+        "timestamp": 1786886574154
+      },
+      {
+        "executionId": "913878c9-df1c-48b0-bd4f-c55e2bcc2924",
+        "chatSessionId": "sess_e51d3f78-bbad-4592-9e76-e3144ffb2f4b",
+        "timestamp": 1786892361620
+      },
+      {
+        "executionId": "913878c9-df1c-48b0-bd4f-c55e2bcc2924",
+        "chatSessionId": "sess_e51d3f78-bbad-4592-9e76-e3144ffb2f4b",
+        "timestamp": 1786892560284
+      }
+    ],
+    "5.2: Frontend: support inline SVG rendering in question content and options": [
+      {
+        "executionId": "913878c9-df1c-48b0-bd4f-c55e2bcc2924",
+        "chatSessionId": "sess_e51d3f78-bbad-4592-9e76-e3144ffb2f4b",
+        "timestamp": 1786886574218
+      },
+      {
+        "executionId": "913878c9-df1c-48b0-bd4f-c55e2bcc2924",
+        "chatSessionId": "sess_e51d3f78-bbad-4592-9e76-e3144ffb2f4b",
+        "timestamp": 1786892568824
+      },
+      {
+        "executionId": "913878c9-df1c-48b0-bd4f-c55e2bcc2924",
+        "chatSessionId": "sess_e51d3f78-bbad-4592-9e76-e3144ffb2f4b",
+        "timestamp": 1786892815827
+      }
+    ],
+    "5.3: Frontend: update Create Question form to support mixed content input (text + LaTeX + SVG preview)": [
+      {
+        "executionId": "913878c9-df1c-48b0-bd4f-c55e2bcc2924",
+        "chatSessionId": "sess_e51d3f78-bbad-4592-9e76-e3144ffb2f4b",
+        "timestamp": 1786886574286
+      },
+      {
+        "executionId": "913878c9-df1c-48b0-bd4f-c55e2bcc2924",
+        "chatSessionId": "sess_e51d3f78-bbad-4592-9e76-e3144ffb2f4b",
+        "timestamp": 1786892821027
+      },
+      {
+        "executionId": "913878c9-df1c-48b0-bd4f-c55e2bcc2924",
+        "chatSessionId": "sess_e51d3f78-bbad-4592-9e76-e3144ffb2f4b",
+        "timestamp": 1786893106149
+      }
+    ],
+    "6.1: Add Apache PDFBox 3.x dependency to `build.gradle`": [
+      {
+        "executionId": "913878c9-df1c-48b0-bd4f-c55e2bcc2924",
+        "chatSessionId": "sess_e51d3f78-bbad-4592-9e76-e3144ffb2f4b",
+        "timestamp": 1786886574349
+      },
+      {
+        "executionId": "913878c9-df1c-48b0-bd4f-c55e2bcc2924",
+        "chatSessionId": "sess_e51d3f78-bbad-4592-9e76-e3144ffb2f4b",
+        "timestamp": 1786893117483
+      }
+    ],
+    "6.2: Create `PdfQuestionExtractor` — extracts text per page, extracts embedded images": [
+      {
+        "executionId": "913878c9-df1c-48b0-bd4f-c55e2bcc2924",
+        "chatSessionId": "sess_e51d3f78-bbad-4592-9e76-e3144ffb2f4b",
+        "timestamp": 1786886574418
+      }
+    ],
+    "6.3: Create `PdfImportService` — accepts PDF, extracts content, prompts LLM to structure, stores as DRAFT": [
+      {
+        "executionId": "913878c9-df1c-48b0-bd4f-c55e2bcc2924",
+        "chatSessionId": "sess_e51d3f78-bbad-4592-9e76-e3144ffb2f4b",
+        "timestamp": 1786886574529
+      }
+    ],
+    "6.4: Add `POST /api/v1/questions/import/pdf` endpoint (multipart upload, max 50MB)": [
+      {
+        "executionId": "913878c9-df1c-48b0-bd4f-c55e2bcc2924",
+        "chatSessionId": "sess_e51d3f78-bbad-4592-9e76-e3144ffb2f4b",
+        "timestamp": 1786886574587
+      }
+    ],
+    "6.5: Write unit test for `PdfQuestionExtractor`": [
+      {
+        "executionId": "913878c9-df1c-48b0-bd4f-c55e2bcc2924",
+        "chatSessionId": "sess_e51d3f78-bbad-4592-9e76-e3144ffb2f4b",
+        "timestamp": 1786886574651
+      }
+    ],
+    "7.1: Add OpenTelemetry span instrumentation to embedding and generation service calls": [
+      {
+        "executionId": "913878c9-df1c-48b0-bd4f-c55e2bcc2924",
+        "chatSessionId": "sess_e51d3f78-bbad-4592-9e76-e3144ffb2f4b",
+        "timestamp": 1786886574702
+      }
+    ],
+    "7.2: Add token usage logging from LLM response metadata": [
+      {
+        "executionId": "913878c9-df1c-48b0-bd4f-c55e2bcc2924",
+        "chatSessionId": "sess_e51d3f78-bbad-4592-9e76-e3144ffb2f4b",
+        "timestamp": 1786886574765
+      }
+    ],
+    "7.3: Configure retry logic (2 retries, 120s timeout) via Spring AI client configuration": [
+      {
+        "executionId": "913878c9-df1c-48b0-bd4f-c55e2bcc2924",
+        "chatSessionId": "sess_e51d3f78-bbad-4592-9e76-e3144ffb2f4b",
+        "timestamp": 1786886574820
+      }
+    ],
+    "7.4: Add circuit breaker — if Ollama/LiteLLM is down, question creation proceeds without AI features": [
+      {
+        "executionId": "913878c9-df1c-48b0-bd4f-c55e2bcc2924",
+        "chatSessionId": "sess_e51d3f78-bbad-4592-9e76-e3144ffb2f4b",
+        "timestamp": 1786886574883
+      }
+    ],
+    "7.5: Add Prometheus metrics: `ai_embedding_duration_seconds`, `ai_generation_duration_seconds`, `ai_generation_questions_total`": [
+      {
+        "executionId": "913878c9-df1c-48b0-bd4f-c55e2bcc2924",
+        "chatSessionId": "sess_e51d3f78-bbad-4592-9e76-e3144ffb2f4b",
+        "timestamp": 1786886574949
+      }
+    ]
+  }
+}

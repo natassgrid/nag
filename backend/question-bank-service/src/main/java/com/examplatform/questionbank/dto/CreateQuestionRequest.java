@@ -22,6 +22,7 @@ package com.examplatform.questionbank.dto;
 import com.examplatform.questionbank.domain.enums.CognitiveLevel;
 import com.examplatform.questionbank.domain.enums.DifficultyLevel;
 import com.examplatform.questionbank.domain.enums.QuestionType;
+import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import lombok.AllArgsConstructor;
@@ -74,5 +75,6 @@ public class CreateQuestionRequest {
     private String contentType;
 
     /** Options for MCQ/MSQ questions (2-6 items, A-F) */
+    @Valid
     private java.util.List<QuestionOption> options;
 }
