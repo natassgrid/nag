@@ -24,6 +24,7 @@ This is a large-scale, secure, multilingual, cloud-native examination platform d
 - **Java Toolchain**: Java 21, Temurin distribution
 - **Spring Boot**: 4.1.0
 - **Spring Cloud**: 2025.0.2
+- **Spring AI**: 2.0.0 (OpenAI-compatible client → LiteLLM gateway)
 - **Lombok**: FreeFair plugin 9.5.0
 - **Test Framework**: JUnit 5 + jqwik (property-based testing)
 - **CI**: GitHub Actions (build → unit test → integration test → SAST → DAST → container build → deploy)

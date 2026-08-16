@@ -65,6 +65,12 @@ public class CreateQuestionRequest {
 
     private String answerKey;
 
+    /** Detailed explanation of the correct answer (shown post-evaluation) */
+    private String explanation;
+
+    /** Source references: textbook, chapter, page, URL, etc. */
+    private String references;
+
     private String contentType;
 
     /** Options for MCQ/MSQ questions (2-6 items, A-F) */

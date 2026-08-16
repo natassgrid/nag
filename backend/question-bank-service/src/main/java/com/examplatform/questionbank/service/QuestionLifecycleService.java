@@ -232,6 +232,8 @@ public class QuestionLifecycleService {
                 .questionType(question.getQuestionType())
                 .content(question.getContent())
                 .answerKey(question.getAnswerKey())
+                .explanation(question.getExplanation())
+                .references(question.getReferences())
                 .state(question.getState())
                 .authorId(question.getAuthorId())
                 .createdAt(createdAt)

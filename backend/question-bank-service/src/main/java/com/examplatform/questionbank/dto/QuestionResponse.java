@@ -48,6 +48,8 @@ public class QuestionResponse {
     private String questionType;
     private String content;
     private String answerKey;
+    private String explanation;
+    private String references;
     private String state;
     private UUID authorId;
     private LocalDateTime createdAt;
