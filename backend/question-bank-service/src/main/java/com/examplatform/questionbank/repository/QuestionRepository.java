@@ -20,6 +20,8 @@
 package com.examplatform.questionbank.repository;
 
 import com.examplatform.questionbank.domain.Question;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Query;
@@ -33,6 +35,18 @@ import java.util.UUID;
 @Repository
 public interface QuestionRepository extends JpaRepository<Question, UUID>, JpaSpecificationExecutor<Question> {
 
+    /**
+     * Partition-pruned lookup: finds a question by id AND subject.
+     * Since the table is hash-partitioned by subject, including subject
+     * in the predicate enables PostgreSQL to scan only the target partition
+     * instead of all 8 partitions (as findById would do).
+     *
+     * Use this when the caller already knows the subject for optimal performance.
+     *
+     * Validates: NFR-5 (partition pruning)
+     */
+    Optional<Question> findByIdAndSubject(UUID id, String subject);
+
     List<Question> findBySubjectAndStateAndTenantId(String subject, String state, String tenantId);
 
     List<Question> findByAuthorIdAndTenantId(UUID authorId, String tenantId);
@@ -45,10 +59,44 @@ public interface QuestionRepository extends JpaRepository<Question, UUID>, JpaSp
      *
      * TODO: Re-enable pgvector native query when vector extension is available:
      * SELECT id FROM question_service.question WHERE state='PUBLISHED'
-     *   AND 1 - (embedding_vector <=> cast(:embedding as vector)) > :threshold LIMIT 1
+     *   AND 1 - (embedding <=> cast(:embedding as halfvec(384))) > :threshold LIMIT 1
      *
      * Validates: Requirement 4.7
      */
-    @Query(value = "SELECT q.id FROM question_service.question q WHERE q.state = 'PUBLISHED' AND q.embedding_vector IS NOT NULL LIMIT 1", nativeQuery = true)
+    @Query(value = "SELECT q.id FROM question_service.question q WHERE q.state = 'PUBLISHED' AND q.embedding IS NOT NULL LIMIT 1", nativeQuery = true)
     Optional<UUID> findSimilarPublishedQuestion(@Param("embedding") String embedding, @Param("threshold") double threshold);
+
+    /**
+     * Finds the top-N most similar questions using pgvector cosine distance operator on halfvec(384).
+     * Returns questions from the same subject and tenant with their similarity scores.
+     * Used for both duplicate detection (reject > 0.92, flag 0.85–0.92) and RAG retrieval.
+     *
+     * The IVFFlat index on halfvec_cosine_ops ensures sub-200ms lookups.
+     *
+     * Validates: Requirements FR-2 (Duplicate Detection), FR-3 (RAG retrieval)
+     */
+    @Query(value = """
+            SELECT q.id AS id, q.subject AS subject, q.content AS content,
+                   1 - (q.embedding <=> cast(:queryVec AS halfvec(384))) AS similarity
+            FROM question_service.question q
+            WHERE q.tenant_id = :tenantId
+              AND q.subject = :subject
+              AND q.embedding IS NOT NULL
+            ORDER BY q.embedding <=> cast(:queryVec AS halfvec(384))
+            LIMIT :limit
+            """, nativeQuery = true)
+    List<SimilarityResult> findTopSimilarQuestions(
+            @Param("queryVec") String queryVec,
+            @Param("subject") String subject,
+            @Param("tenantId") String tenantId,
+            @Param("limit") int limit);
+
+    /**
+     * Finds questions with null embeddings for a given tenant, used by the
+     * batch embedding backfill endpoint (FR-9). Processes in pageable batches of 50.
+     *
+     * Validates: Requirements FR-9 (Batch Embedding Backfill)
+     */
+    @Query("SELECT q FROM Question q WHERE q.tenantId = :tenantId AND q.embedding IS NULL")
+    Page<Question> findQuestionsWithNullEmbedding(@Param("tenantId") String tenantId, Pageable pageable);
 }

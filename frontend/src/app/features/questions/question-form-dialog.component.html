@@ -124,13 +124,25 @@
 
           <!-- Question content editor (full width, maximum visibility) -->
           <div class="editor-field">
-            <label class="editor-label">Content <span class="required">*</span></label>
+            <div class="editor-header">
+              <label class="editor-label">Content <span class="required">*</span></label>
+              <mat-slide-toggle
+                [(ngModel)]="showContentPreview"
+                [ngModelOptions]="{standalone: true}"
+                color="primary">
+                Preview
+              </mat-slide-toggle>
+            </div>
             <exam-editor
               [value]="editorContent"
               (valueChange)="onEditorChange($event)"
-              placeholder="Enter question content..."
+              placeholder="Enter question content... Use $$...$$ for LaTeX math, <svg>...</svg> for diagrams"
             ></exam-editor>
             <mat-error *ngIf="form.get('content')?.hasError('required') && form.get('content')?.touched">Content is required</mat-error>
+            <div *ngIf="showContentPreview && editorContent" class="content-preview">
+              <div class="preview-label">Live Preview</div>
+              <app-math-renderer [content]="editorContent"></app-math-renderer>
+            </div>
           </div>
 
           <!-- MCQ/MSQ Options section -->
@@ -138,25 +150,36 @@
             <div class="options-header">
               <span class="options-label">Answer Options</span>
               <span class="options-hint">{{ isMcq() ? 'Select exactly one correct answer' : 'Select one or more correct answers' }}</span>
+              <mat-slide-toggle
+                [(ngModel)]="showOptionPreviews"
+                [ngModelOptions]="{standalone: true}"
+                color="primary">
+                Preview
+              </mat-slide-toggle>
               <button mat-icon-button type="button" color="primary" (click)="addOption()"
                       [disabled]="options.length >= 6" matTooltip="Add option (max 6)">
                 <mat-icon>add</mat-icon>
               </button>
             </div>
-            <div *ngFor="let opt of options; let i = index" class="option-row">
-              <span class="option-id">{{ optionIds[i] }}</span>
-              <mat-form-field appearance="outline" class="flex-field">
-                <input matInput [(ngModel)]="opt.text" [ngModelOptions]="{standalone: true}"
-                       placeholder="Option text" />
-              </mat-form-field>
-              <mat-checkbox [(ngModel)]="opt.isCorrect" [ngModelOptions]="{standalone: true}"
-                            (change)="isMcq() && onMcqCorrectChange(i)"
-                            matTooltip="Mark as correct">
-              </mat-checkbox>
-              <button mat-icon-button type="button" color="warn" (click)="removeOption(i)"
-                      [disabled]="options.length <= 2" matTooltip="Remove option">
-                <mat-icon>remove_circle</mat-icon>
-              </button>
+            <div *ngFor="let opt of options; let i = index" class="option-row-wrapper">
+              <div class="option-row">
+                <span class="option-id">{{ optionIds[i] }}</span>
+                <mat-form-field appearance="outline" class="flex-field">
+                  <input matInput [(ngModel)]="opt.text" [ngModelOptions]="{standalone: true}"
+                         placeholder="Option text (use $$...$$ for LaTeX)" />
+                </mat-form-field>
+                <mat-checkbox [(ngModel)]="opt.isCorrect" [ngModelOptions]="{standalone: true}"
+                              (change)="isMcq() && onMcqCorrectChange(i)"
+                              matTooltip="Mark as correct">
+                </mat-checkbox>
+                <button mat-icon-button type="button" color="warn" (click)="removeOption(i)"
+                        [disabled]="options.length <= 2" matTooltip="Remove option">
+                  <mat-icon>remove_circle</mat-icon>
+                </button>
+              </div>
+              <div *ngIf="showOptionPreviews && opt.text" class="option-preview">
+                <app-math-renderer [content]="opt.text"></app-math-renderer>
+              </div>
             </div>
             <mat-error *ngIf="optionError">{{ optionError }}</mat-error>
           </div>

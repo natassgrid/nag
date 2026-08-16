@@ -25,6 +25,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.UUID;
 
 /**
@@ -55,5 +56,29 @@ public class QuestionResponse {
     private LocalDateTime createdAt;
 
     /** Parsed options for MCQ/MSQ questions */
-    private java.util.List<QuestionOption> options;
+    private List<QuestionOption> options;
+
+    /**
+     * Warnings about similar questions detected during creation (similarity 0.85–0.92).
+     * Null/empty when no similar questions were found or for non-creation responses.
+     *
+     * Validates: Requirements FR-2 (Duplicate Detection — flag for human review)
+     */
+    private List<SimilarQuestionWarning> warnings;
+
+    /**
+     * Warning metadata about a similar question detected during duplicate checking.
+     */
+    @Data
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class SimilarQuestionWarning {
+        /** ID of the similar existing question */
+        private UUID questionId;
+        /** Cosine similarity score (0.85–0.92 range) */
+        private double similarity;
+        /** Snippet of the similar question's content */
+        private String contentSnippet;
+    }
 }

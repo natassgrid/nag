@@ -82,6 +82,18 @@ spring:
       properties:
         spring.json.trusted.packages: "com.examplatform.*"
 
+  ai:
+    openai:
+      base-url: ${LITELLM_BASE_URL:http://localhost:4000}
+      api-key: ${LITELLM_API_KEY:sk-litellm-dev-key}
+      chat:
+        options:
+          model: qwen2.5-1.5b
+          temperature: 0.7
+      embedding:
+        options:
+          model: all-minilm
+
   threads:
     virtual:
       enabled: true

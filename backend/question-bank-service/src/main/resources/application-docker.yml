@@ -16,3 +16,7 @@ spring:
         jwt:
           issuer-uri:
           jwk-set-uri:
+
+  ai:
+    openai:
+      base-url: ${LITELLM_BASE_URL:http://litellm:4000}

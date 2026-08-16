@@ -19,6 +19,7 @@
 
 package com.examplatform.questionbank.service;
 
+import com.examplatform.questionbank.ai.embedding.EmbeddingService;
 import com.examplatform.questionbank.domain.Question;
 import com.examplatform.questionbank.domain.enums.CognitiveLevel;
 import com.examplatform.questionbank.domain.enums.DifficultyLevel;
@@ -58,6 +59,9 @@ class QuestionServiceTest {
 
     @Mock
     private SimilarityDetectionService similarityDetectionService;
+
+    @Mock
+    private EmbeddingService embeddingService;
 
     @Mock
     private org.springframework.kafka.core.KafkaTemplate<String, Object> kafkaTemplate;
