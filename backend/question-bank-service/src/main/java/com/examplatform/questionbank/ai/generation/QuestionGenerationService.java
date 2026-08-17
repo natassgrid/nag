@@ -53,5 +53,5 @@ public interface QuestionGenerationService {
      * @return the generation response containing questions, validation results,
      *         duplicate detection outcomes, and metadata
      */
-    QuestionGenerationResponse generate(QuestionGenerationRequest request, String tenantId);
+    QuestionGenerationResponse generate(QuestionGenerationRequest request, String tenantId, java.util.UUID authorId);
 }

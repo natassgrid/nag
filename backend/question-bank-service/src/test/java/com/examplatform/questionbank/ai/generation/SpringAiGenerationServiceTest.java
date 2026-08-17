@@ -162,7 +162,7 @@ class SpringAiGenerationServiceTest {
                     .build();
 
             // Act
-            QuestionGenerationResponse response = generationService.generate(request, TENANT_ID);
+            QuestionGenerationResponse response = generationService.generate(request, TENANT_ID, java.util.UUID.randomUUID());
 
             // Assert
             assertThat(response).isNotNull();
@@ -241,7 +241,7 @@ class SpringAiGenerationServiceTest {
                     .build();
 
             // Act
-            QuestionGenerationResponse response = generationService.generate(request, TENANT_ID);
+            QuestionGenerationResponse response = generationService.generate(request, TENANT_ID, java.util.UUID.randomUUID());
 
             // Assert
             assertThat(response.getTotalGenerated()).isEqualTo(2);
@@ -293,7 +293,7 @@ class SpringAiGenerationServiceTest {
                     .build();
 
             // Act
-            QuestionGenerationResponse response = generationService.generate(request, TENANT_ID);
+            QuestionGenerationResponse response = generationService.generate(request, TENANT_ID, java.util.UUID.randomUUID());
 
             // Assert
             assertThat(response.getTotalGenerated()).isEqualTo(1);
@@ -325,7 +325,7 @@ class SpringAiGenerationServiceTest {
                     .build();
 
             // Act
-            QuestionGenerationResponse response = generationService.generate(request, TENANT_ID);
+            QuestionGenerationResponse response = generationService.generate(request, TENANT_ID, java.util.UUID.randomUUID());
 
             // Assert
             assertThat(response.getModelUsed()).isEqualTo("qwen2-math-1.5b");
@@ -351,7 +351,7 @@ class SpringAiGenerationServiceTest {
                     .build();
 
             // Act
-            QuestionGenerationResponse response = generationService.generate(request, TENANT_ID);
+            QuestionGenerationResponse response = generationService.generate(request, TENANT_ID, java.util.UUID.randomUUID());
 
             // Assert
             assertThat(response.getModelUsed()).isEqualTo("llama3.2-1b");
@@ -377,7 +377,7 @@ class SpringAiGenerationServiceTest {
                     .build();
 
             // Act
-            QuestionGenerationResponse response = generationService.generate(request, TENANT_ID);
+            QuestionGenerationResponse response = generationService.generate(request, TENANT_ID, java.util.UUID.randomUUID());
 
             // Assert
             assertThat(response.getModelUsed()).isEqualTo("qwen2.5-1.5b");
@@ -429,7 +429,7 @@ class SpringAiGenerationServiceTest {
                     .build();
 
             // Act
-            QuestionGenerationResponse response = generationService.generate(request, TENANT_ID);
+            QuestionGenerationResponse response = generationService.generate(request, TENANT_ID, java.util.UUID.randomUUID());
 
             // Assert
             assertThat(response.getTotalGenerated()).isEqualTo(1);
@@ -478,7 +478,7 @@ class SpringAiGenerationServiceTest {
                     .build();
 
             // Act
-            QuestionGenerationResponse response = generationService.generate(request, TENANT_ID);
+            QuestionGenerationResponse response = generationService.generate(request, TENANT_ID, java.util.UUID.randomUUID());
 
             // Assert
             QuestionGenerationResponse.GeneratedQuestion question = response.getQuestions().getFirst();
@@ -527,7 +527,7 @@ class SpringAiGenerationServiceTest {
                     .build();
 
             // Act
-            QuestionGenerationResponse response = generationService.generate(request, TENANT_ID);
+            QuestionGenerationResponse response = generationService.generate(request, TENANT_ID, java.util.UUID.randomUUID());
 
             // Assert
             QuestionGenerationResponse.GeneratedQuestion question = response.getQuestions().getFirst();
@@ -559,7 +559,7 @@ class SpringAiGenerationServiceTest {
                     .build();
 
             // Act
-            QuestionGenerationResponse response = generationService.generate(request, TENANT_ID);
+            QuestionGenerationResponse response = generationService.generate(request, TENANT_ID, java.util.UUID.randomUUID());
 
             // Assert
             assertThat(response.getTotalGenerated()).isEqualTo(0);
@@ -621,7 +621,7 @@ class SpringAiGenerationServiceTest {
                     .build();
 
             // Act
-            QuestionGenerationResponse response = generationService.generate(request, TENANT_ID);
+            QuestionGenerationResponse response = generationService.generate(request, TENANT_ID, java.util.UUID.randomUUID());
 
             // Assert
             assertThat(response.getTotalDuplicates()).isEqualTo(1);
@@ -674,7 +674,7 @@ class SpringAiGenerationServiceTest {
                     .build();
 
             // Act
-            QuestionGenerationResponse response = generationService.generate(request, TENANT_ID);
+            QuestionGenerationResponse response = generationService.generate(request, TENANT_ID, java.util.UUID.randomUUID());
 
             // Assert
             assertThat(response.getTotalDuplicates()).isEqualTo(0);
@@ -747,7 +747,7 @@ class SpringAiGenerationServiceTest {
                     .build();
 
             // Act
-            QuestionGenerationResponse response = generationService.generate(request, TENANT_ID);
+            QuestionGenerationResponse response = generationService.generate(request, TENANT_ID, java.util.UUID.randomUUID());
 
             // Assert
             assertThat(response.getTotalValid()).isEqualTo(1);
@@ -797,7 +797,7 @@ class SpringAiGenerationServiceTest {
                     .build();
 
             // Act
-            QuestionGenerationResponse response = generationService.generate(request, TENANT_ID);
+            QuestionGenerationResponse response = generationService.generate(request, TENANT_ID, java.util.UUID.randomUUID());
 
             // Assert
             assertThat(response.getTotalValid()).isEqualTo(1);
@@ -853,7 +853,7 @@ class SpringAiGenerationServiceTest {
                     .build();
 
             // Act
-            QuestionGenerationResponse response = generationService.generate(request, TENANT_ID);
+            QuestionGenerationResponse response = generationService.generate(request, TENANT_ID, java.util.UUID.randomUUID());
 
             // Assert
             assertThat(response.getTotalDuplicates()).isEqualTo(1);
@@ -912,7 +912,7 @@ class SpringAiGenerationServiceTest {
                     .build();
 
             // Act
-            QuestionGenerationResponse response = generationService.generate(request, TENANT_ID);
+            QuestionGenerationResponse response = generationService.generate(request, TENANT_ID, java.util.UUID.randomUUID());
 
             // Assert
             assertThat(response.getTotalGenerated()).isEqualTo(1);

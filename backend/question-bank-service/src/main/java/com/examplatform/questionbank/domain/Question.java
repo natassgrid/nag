@@ -20,7 +20,6 @@
 package com.examplatform.questionbank.domain;
 
 import com.examplatform.questionbank.crypto.EncryptedFieldConverter;
-import com.examplatform.questionbank.domain.converter.HalfVecAttributeConverter;
 import com.examplatform.questionbank.dto.QuestionOption;
 import com.examplatform.shared.entity.BaseEntity;
 import jakarta.persistence.Column;
@@ -114,8 +113,7 @@ public class Question extends BaseEntity {
     @Column(name = "\"references\"", columnDefinition = "TEXT")
     private String references;
 
-    @Convert(converter = HalfVecAttributeConverter.class)
-    @Column(name = "embedding", columnDefinition = "halfvec(384)")
+    @Column(name = "embedding", columnDefinition = "halfvec(384)", insertable = false, updatable = false)
     private float[] embedding;
 
     @Column(name = "state", nullable = false, length = 20)

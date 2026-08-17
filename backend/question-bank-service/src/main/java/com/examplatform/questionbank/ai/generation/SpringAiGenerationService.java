@@ -79,7 +79,7 @@ public class SpringAiGenerationService implements QuestionGenerationService {
     private final ObjectMapper objectMapper;
 
     @Override
-    public QuestionGenerationResponse generate(QuestionGenerationRequest request, String tenantId) {
+    public QuestionGenerationResponse generate(QuestionGenerationRequest request, String tenantId, java.util.UUID authorId) {
         log.info("Starting question generation: subject={}, topic={}, count={}, model selection pending",
                 request.getSubject(), request.getTopic(), request.getCount());
 
@@ -129,7 +129,7 @@ public class SpringAiGenerationService implements QuestionGenerationService {
             // Auto-save if valid, not duplicate, and autoSave enabled
             UUID savedId = null;
             if (request.isAutoSave() && validation.isValid() && duplicateResult == null) {
-                savedId = persistAsDraft(raw, request, tenantId);
+                savedId = persistAsDraft(raw, request, tenantId, authorId);
             }
 
             processedQuestions.add(QuestionGenerationResponse.GeneratedQuestion.builder()
@@ -188,7 +188,7 @@ public class SpringAiGenerationService implements QuestionGenerationService {
                 Rules:
                 - Generate questions strictly matching the specified type, difficulty, and cognitive level.
                 - Content may include plain text, LaTeX math ($$...$$), and inline SVG diagrams.
-                - For MCQ (SINGLE_MCQ): exactly 4 options (A, B, C, D), exactly 1 correct.
+                - For MCQ (SINGLE_MCQ): exactly 4 options with ids A, B, C, D. Set "isCorrect": true on EXACTLY ONE option and "isCorrect": false on the other three. The "answerKey" must be the id (A/B/C/D) of the correct option.
                 - For MSQ (MULTI_MCQ): exactly 4 options (A, B, C, D), 2 or more correct.
                 - For NUMERICAL: no options, answerKey is the numeric value.
                 - For DESCRIPTIVE: no options, answerKey contains the model answer.
@@ -201,7 +201,7 @@ public class SpringAiGenerationService implements QuestionGenerationService {
                   "content": "question text (may include $$LaTeX$$ or <svg>)",
                   "answerKey": "correct answer key or value",
                   "explanation": "explanation of the correct answer",
-                  "options": [{"id": "A", "text": "...", "isCorrect": false}, ...],
+                  "options": [{"id": "A", "text": "option text", "isCorrect": true}, {"id": "B", "text": "option text", "isCorrect": false}, {"id": "C", "text": "option text", "isCorrect": false}, {"id": "D", "text": "option text", "isCorrect": false}],
                   "difficulty": "EASY|MEDIUM|HARD",
                   "cognitiveLevel": "REMEMBER|UNDERSTAND|APPLY|ANALYZE|EVALUATE|CREATE",
                   "questionType": "%s"
@@ -338,6 +338,28 @@ public class SpringAiGenerationService implements QuestionGenerationService {
                         .filter(QuestionOption::isCorrect)
                         .count();
 
+                // Auto-fix: if no option has isCorrect=true, try to derive from answerKey.
+                // LLMs often forget isCorrect or use numeric indices (1,2,3,4) instead of A,B,C,D.
+                if (correctCount == 0 && question.answerKey != null && !question.answerKey.isBlank()) {
+                    String key = question.answerKey.trim();
+                    // Try matching by option ID (A/B/C/D)
+                    for (QuestionOption opt : question.options) {
+                        if (opt.getId() != null && opt.getId().equalsIgnoreCase(key)) {
+                            opt.setCorrect(true);
+                            correctCount = 1;
+                            break;
+                        }
+                    }
+                    // Try matching by numeric index (1-based: 1=A, 2=B, 3=C, 4=D)
+                    if (correctCount == 0 && key.matches("\\d+")) {
+                        int idx = Integer.parseInt(key) - 1;
+                        if (idx >= 0 && idx < question.options.size()) {
+                            question.options.get(idx).setCorrect(true);
+                            correctCount = 1;
+                        }
+                    }
+                }
+
                 if ("SINGLE_MCQ".equalsIgnoreCase(expectedType)) {
                     if (correctCount != 1) {
                         errors.add("SINGLE_MCQ must have exactly 1 correct option, got " + correctCount);
@@ -348,20 +370,9 @@ public class SpringAiGenerationService implements QuestionGenerationService {
                     }
                 }
 
-                // Verify answerKey matches correct options
-                if (question.answerKey != null && !question.answerKey.isBlank()) {
-                    Set<String> correctOptionIds = question.options.stream()
-                            .filter(QuestionOption::isCorrect)
-                            .map(QuestionOption::getId)
-                            .collect(Collectors.toSet());
-
-                    if (!correctOptionIds.contains(question.answerKey)
-                            && correctCount == 1
-                            && "SINGLE_MCQ".equalsIgnoreCase(expectedType)) {
-                        errors.add("Answer key '" + question.answerKey
-                                + "' does not match any correct option");
-                    }
-                }
+                // Note: answerKey mismatch is NOT a validation failure for MCQs.
+                // LLMs often put the textual answer instead of the option letter (A/B/C/D).
+                // The isCorrect flag on options is the source of truth for MCQs.
             }
         }
 
@@ -398,7 +409,7 @@ public class SpringAiGenerationService implements QuestionGenerationService {
     /**
      * Persists a valid, non-duplicate generated question as DRAFT.
      */
-    private UUID persistAsDraft(RawGeneratedQuestion raw, QuestionGenerationRequest request, String tenantId) {
+    private UUID persistAsDraft(RawGeneratedQuestion raw, QuestionGenerationRequest request, String tenantId, UUID authorId) {
         try {
             Question question = Question.builder()
                     .subject(request.getSubject())
@@ -413,7 +424,7 @@ public class SpringAiGenerationService implements QuestionGenerationService {
                     .options(raw.options)
                     .references("AI-generated via " + modelRouter.selectModel(request.getSubject()))
                     .state("DRAFT")
-                    .authorId(UUID.fromString("00000000-0000-0000-0000-000000000000"))
+                    .authorId(authorId)
                     .build();
             question.setTenantId(tenantId);
 
