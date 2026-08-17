@@ -136,7 +136,7 @@
             <exam-editor
               [value]="editorContent"
               (valueChange)="onEditorChange($event)"
-              placeholder="Enter question content... Use $$...$$ for LaTeX math, <svg>...</svg> for diagrams"
+              placeholder="Enter question content... Use dollar-dollar for LaTeX math"
             ></exam-editor>
             <mat-error *ngIf="form.get('content')?.hasError('required') && form.get('content')?.touched">Content is required</mat-error>
             <div *ngIf="showContentPreview && editorContent" class="content-preview">
