@@ -99,4 +99,12 @@ public interface QuestionRepository extends JpaRepository<Question, UUID>, JpaSp
      */
     @Query("SELECT q FROM Question q WHERE q.tenantId = :tenantId AND q.embedding IS NULL")
     Page<Question> findQuestionsWithNullEmbedding(@Param("tenantId") String tenantId, Pageable pageable);
+
+    /**
+     * Updates the embedding for a question using a native query with proper halfvec cast.
+     * This bypasses Hibernate type binding issues with pgvector types.
+     */
+    @org.springframework.data.jpa.repository.Modifying
+    @Query(value = "UPDATE question_service.question SET embedding = cast(:embedding AS halfvec(384)) WHERE id = :id", nativeQuery = true)
+    void updateEmbedding(@Param("id") UUID id, @Param("embedding") String embedding);
 }

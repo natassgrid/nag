@@ -77,14 +77,13 @@ public class QuestionAiController {
      */
     @PostMapping("/generate")
     @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'QUESTION_AUTHOR')")
-    public ResponseEntity<ApiResponse<QuestionGenerationResponse>> generateQuestions(
-            @Valid @RequestBody QuestionGenerationRequest request,
-            @RequestHeader("X-Tenant-Id") String tenantId) {
+    public ResponseEntity<ApiResponse<QuestionGenerationResponse>> generateQuestions(@Valid @RequestBody QuestionGenerationRequest request, @RequestHeader("X-Tenant-Id") String tenantId, @org.springframework.security.core.annotation.AuthenticationPrincipal org.springframework.security.oauth2.jwt.Jwt jwt) {
 
         log.info("AI question generation requested: subject={}, topic={}, count={}, tenant={}",
                 request.getSubject(), request.getTopic(), request.getCount(), tenantId);
 
-        QuestionGenerationResponse response = questionGenerationService.generate(request, tenantId);
+        java.util.UUID authorId = java.util.UUID.fromString(jwt.getSubject());
+        QuestionGenerationResponse response = questionGenerationService.generate(request, tenantId, authorId);
 
         log.info("AI generation completed: model={}, generated={}, valid={}, duplicates={}, tenant={}",
                 response.getModelUsed(), response.getTotalGenerated(),

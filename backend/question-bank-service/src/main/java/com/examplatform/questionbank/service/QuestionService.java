@@ -156,13 +156,13 @@ public class QuestionService {
         // Persist — EncryptedFieldConverter encrypts content/answerKey only when app.encryption.enabled=true
         Question saved = questionRepository.save(question);
 
-        // Generate and store embedding (FR-1: embeddings MUST be generated on question creation)
+        // Generate and store embedding via native query (FR-1)
+        // Column is insertable=false/updatable=false so we use native SQL with halfvec cast.
         // NFR-2: If LLM service is unavailable, question creation still succeeds without embedding
         try {
             float[] embedding = embeddingService.embed(request.getContent());
             if (embedding != null && embedding.length > 0) {
-                saved.setEmbedding(embedding);
-                saved = questionRepository.save(saved);
+                questionRepository.updateEmbedding(saved.getId(), embeddingToString(embedding));
                 log.debug("Embedding generated and stored for question: id={}", saved.getId());
             }
         } catch (Exception e) {
@@ -360,5 +360,15 @@ public class QuestionService {
                 .createdAt(createdAt)
                 .options(options)
                 .build();
+    }
+
+    private String embeddingToString(float[] embedding) {
+        StringBuilder sb = new StringBuilder("[");
+        for (int i = 0; i < embedding.length; i++) {
+            if (i > 0) sb.append(",");
+            sb.append(embedding[i]);
+        }
+        sb.append("]");
+        return sb.toString();
     }
 }

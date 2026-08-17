@@ -26,37 +26,32 @@ import jakarta.persistence.Converter;
 import java.sql.SQLException;
 
 /**
- * JPA {@link AttributeConverter} that converts between {@code float[]} (Java)
- * and the PostgreSQL pgvector {@code halfvec} string representation.
+ * JPA AttributeConverter that converts between float[] (Java) and PostgreSQL
+ * pgvector halfvec type via PGhalfvec (a PGobject subclass).
  *
- * <p>pgvector's halfvec type stores half-precision (FP16) floating point vectors.
- * The wire format is a bracket-enclosed, comma-separated list: {@code [0.1,0.2,0.3]}.
- * This converter uses pgvector-java's {@link PGhalfvec} class for correct
- * serialization and deserialization.</p>
- *
- * <p>Applied explicitly on entity fields via {@code @Convert(converter = HalfVecAttributeConverter.class)}.
- *
- * Validates: Requirements FR-1 (embedding storage as halfvec(384))
+ * Uses PGhalfvec as the DB column type so the JDBC driver sends the correct
+ * type OID, avoiding the "column is of type halfvec but expression is of type
+ * character varying" error.
  */
 @Converter
-public class HalfVecAttributeConverter implements AttributeConverter<float[], String> {
+public class HalfVecAttributeConverter implements AttributeConverter<float[], PGhalfvec> {
 
     @Override
-    public String convertToDatabaseColumn(float[] attribute) {
+    public PGhalfvec convertToDatabaseColumn(float[] attribute) {
         if (attribute == null) {
             return null;
         }
-        return new PGhalfvec(attribute).toString();
+        return new PGhalfvec(attribute);
     }
 
     @Override
-    public float[] convertToEntityAttribute(String dbData) {
+    public float[] convertToEntityAttribute(PGhalfvec dbData) {
         if (dbData == null) {
             return null;
         }
         try {
-            return new PGhalfvec(dbData).toArray();
-        } catch (SQLException | NumberFormatException e) {
+            return dbData.toArray();
+        } catch (Exception e) {
             throw new IllegalArgumentException("Failed to parse halfvec value: " + dbData, e);
         }
     }

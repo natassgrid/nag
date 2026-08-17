@@ -145,7 +145,7 @@ services:
     environment:
       <<: *spring-env
       SERVER_PORT: ${QUESTION_BANK_SERVICE_PORT:-8083}
-      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-exam_platform}?currentSchema=question_service
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-exam_platform}?currentSchema=question_service,public
       OTEL_SERVICE_NAME: question-bank-service
     depends_on:
       <<: *depends-base

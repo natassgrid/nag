@@ -35,10 +35,11 @@ export class RightDrawerComponent {
   @Input() subtitle = '';
   @Input() width = '480px';
   @Input() showFooter = true;
+  @Input() disableBackdropClose = false;
   @Output() close = new EventEmitter<void>();
 
   onBackdropClick(event: MouseEvent): void {
-    if ((event.target as HTMLElement).classList.contains('right-drawer-overlay')) {
+    if (!this.disableBackdropClose && (event.target as HTMLElement).classList.contains('right-drawer-overlay')) {
       this.close.emit();
     }
   }

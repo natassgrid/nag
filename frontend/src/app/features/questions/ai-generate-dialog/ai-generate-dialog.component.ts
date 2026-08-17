@@ -17,7 +17,7 @@
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
 
-import { Component, Input, Output, EventEmitter, OnInit, OnChanges, SimpleChanges } from '@angular/core';
+import { Component, Input, Output, EventEmitter, OnInit, OnChanges, SimpleChanges, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule, ReactiveFormsModule, FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { MatFormFieldModule } from '@angular/material/form-field';
@@ -101,7 +101,8 @@ export class AiGenerateDialogComponent implements OnInit, OnChanges {
     private fb: FormBuilder,
     private subjectTopicService: SubjectTopicService,
     private questionService: QuestionService,
-    private snackBar: MatSnackBar
+    private snackBar: MatSnackBar,
+    private cdr: ChangeDetectorRef
   ) {
     this.initForm();
   }
@@ -126,7 +127,7 @@ export class AiGenerateDialogComponent implements OnInit, OnChanges {
       questionType: ['', Validators.required],
       count: [3, [Validators.required, Validators.min(1), Validators.max(10)]],
       avoidDuplicate: [true],
-      autoSave: [false]
+      autoSave: [true]
     });
   }
 
@@ -189,10 +190,12 @@ export class AiGenerateDialogComponent implements OnInit, OnChanges {
       next: (res) => {
         this.generating = false;
         this.response = res;
+        this.cdr.detectChanges();
       },
       error: (err) => {
         this.generating = false;
         this.generationError = err?.error?.message || err?.error?.error || 'Failed to generate questions. Please try again.';
+        this.cdr.detectChanges();
       }
     });
   }
