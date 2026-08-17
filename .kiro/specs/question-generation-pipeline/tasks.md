@@ -66,3 +66,13 @@
 - [ ] 7.3: Configure retry logic (2 retries, 120s timeout) via Spring AI client configuration
 - [ ] 7.4: Add circuit breaker — if Ollama/LiteLLM is down, question creation proceeds without AI features
 - [ ] 7.5: Add Prometheus metrics: `ai_embedding_duration_seconds`, `ai_generation_duration_seconds`, `ai_generation_questions_total`
+
+## Phase 8: Production Optimization (Future)
+
+> These optimizations are identified for future implementation when moving from local Ollama to cloud LLM providers (e.g., Amazon Bedrock with Nova Lite).
+
+- [ ] 8.1: **Batch Inference Mode** - Implement asynchronous batch generation using Amazon Bedrock Batch Inference for non-real-time bulk question generation. Cuts token costs by 50% (input: 0.03 USD/1M, output: 0.12 USD/1M). Estimated 100K questions for ~3.30 USD instead of ~6.60 USD.
+- [ ] 8.2: **Prompt Caching** - Enable Bedrock prompt caching for the system prompt (~350 tokens) which is identical across all generation calls. Yields up to 90% savings on repeated input segments for single-question calls.
+- [ ] 8.3: **Structured Output Token Overhead Audit** - If SpringAiGenerationService adopts BeanOutputConverter or structured output wrappers, Spring AI will automatically append a lengthy instructions block to the user prompt (+150-300 tokens per call). Audit and optimize to minimize hidden token cost multipliers.
+- [ ] 8.4: **Model Router Cloud Extension** - Extend ModelRouter to support Bedrock model IDs (e.g., amazon.nova-lite-v1:0) alongside local Ollama models, switchable via configuration.
+- [ ] 8.5: **Cost Tracking Dashboard** - Add per-tenant token usage tracking (input/output tokens, model, cost estimate) and expose via analytics dashboard.

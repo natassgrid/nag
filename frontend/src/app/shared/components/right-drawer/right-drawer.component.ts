@@ -35,7 +35,7 @@ export class RightDrawerComponent {
   @Input() subtitle = '';
   @Input() width = '480px';
   @Input() showFooter = true;
-  @Input() disableBackdropClose = false;
+  @Input() disableBackdropClose = true;
   @Output() close = new EventEmitter<void>();
 
   onBackdropClick(event: MouseEvent): void {
