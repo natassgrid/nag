@@ -103,8 +103,8 @@ public class QuestionService {
         if (request.getOptions() != null && !request.getOptions().isEmpty()) {
             var options = request.getOptions();
             // Validate option count (2-6)
-            if (options.size() < 2 || options.size() > 6) {
-                throw new IllegalArgumentException("MCQ/MSQ questions must have between 2 and 6 options");
+            if (options.size() < 2 || options.size() > 5) {
+                throw new IllegalArgumentException("MCQ/MSQ questions must have between 2 and 5 options");
             }
             // Assign option IDs A-F based on position
             String[] ids = {"A", "B", "C", "D", "E", "F"};

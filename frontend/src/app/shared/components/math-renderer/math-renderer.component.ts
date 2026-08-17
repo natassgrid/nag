@@ -75,13 +75,34 @@ export class MathRendererComponent implements OnChanges {
       return;
     }
 
+    // Decode HTML entities (rich text editors convert spaces to &nbsp; etc.)
+    const decoded = this.decodeHtmlEntities(this.content);
     // Pre-clean: convert LaTeX document commands to readable HTML
-    const cleaned = this.cleanLatexDocCommands(this.content);
+    const cleaned = this.cleanLatexDocCommands(decoded);
     const segments = this.parseContent(cleaned);
     const html = segments.map(seg => seg.rendered ?? seg.content).join('');
 
     // Bypass security to allow SVG and KaTeX HTML output
     this.renderedHtml = this.sanitizer.bypassSecurityTrustHtml(html);
+  }
+
+  /**
+   * Decodes HTML entities that rich text editors introduce.
+   * Converts &nbsp; to space, &amp; to &, &lt;/&gt; to angle brackets, etc.
+   * Also strips wrapping <p> tags that editors add around content.
+   */
+  private decodeHtmlEntities(content: string): string {
+    return content
+      .replace(/<p>/gi, '')
+      .replace(/<\/p>/gi, '\n')
+      .replace(/<br\s*\/?>/gi, '\n')
+      .replace(/&nbsp;/g, ' ')
+      .replace(/&amp;/g, '&')
+      .replace(/&lt;/g, '<')
+      .replace(/&gt;/g, '>')
+      .replace(/&quot;/g, '"')
+      .replace(/&#39;/g, "'")
+      .trim();
   }
 
   /**
