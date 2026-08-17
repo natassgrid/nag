@@ -135,7 +135,8 @@ export class QuestionFormDialogComponent implements OnInit, OnChanges {
       cognitiveLevel: [q?.cognitiveLevel || '', Validators.required],
       questionType: [q?.questionType || '', Validators.required],
       content: [q?.content || '', Validators.required],
-      answerKey: [q?.answerKey || '']
+      answerKey: [q?.answerKey || ''],
+      explanation: [q?.explanation || '']
     });
 
     if (q?.content) {
@@ -316,7 +317,7 @@ export class QuestionFormDialogComponent implements OnInit, OnChanges {
   }
 
   addOption(): void {
-    if (this.options.length < 6) {
+    if (this.options.length < 5) {
       this.options.push({ id: this.optionIds[this.options.length], text: '', isCorrect: false });
     }
   }

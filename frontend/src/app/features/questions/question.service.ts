@@ -32,6 +32,7 @@ export interface QuestionResponse {
   questionType: string;
   content: string;
   answerKey: string;
+  explanation?: string;
   state: string;
   authorId: string;
   createdAt: string;
@@ -47,6 +48,7 @@ export interface CreateQuestionRequest {
   questionType: string;
   content: string;
   answerKey?: string;
+  explanation?: string;
   options?: { id: string; text: string; isCorrect: boolean }[];
 }
 
