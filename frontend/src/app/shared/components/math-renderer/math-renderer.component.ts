@@ -38,6 +38,9 @@ interface ContentSegment {
  * - LaTeX math expressions wrapped in $$...$$
  * - Inline SVG elements
  *
+ * Also handles LLM-generated content that incorrectly uses LaTeX document
+ * commands (\begin{enumerate}, \item, etc.) by converting them to HTML.
+ *
  * Usage:
  *   <app-math-renderer [content]="questionContent"></app-math-renderer>
  */
@@ -55,6 +58,9 @@ export class MathRendererComponent implements OnChanges {
   /** The fully rendered HTML output (sanitized for SVG, KaTeX for math). */
   renderedHtml: SafeHtml = '';
 
+  /** Non-math LaTeX commands that should be rendered as plain text/HTML. */
+  private static readonly NON_MATH_PATTERN = /\\(begin|end)\{(enumerate|itemize|document|figure|table|center)\}|\\item|\\textbf|\\textit|\\section|\\subsection/;
+
   constructor(private sanitizer: DomSanitizer) {}
 
   ngOnChanges(changes: SimpleChanges): void {
@@ -69,11 +75,29 @@ export class MathRendererComponent implements OnChanges {
       return;
     }
 
-    const segments = this.parseContent(this.content);
+    // Pre-clean: convert LaTeX document commands to readable HTML
+    const cleaned = this.cleanLatexDocCommands(this.content);
+    const segments = this.parseContent(cleaned);
     const html = segments.map(seg => seg.rendered ?? seg.content).join('');
 
     // Bypass security to allow SVG and KaTeX HTML output
     this.renderedHtml = this.sanitizer.bypassSecurityTrustHtml(html);
+  }
+
+  /**
+   * Converts LaTeX document-structure commands to readable HTML.
+   * Handles cases where LLMs output \begin{enumerate}, \item etc. as content.
+   */
+  private cleanLatexDocCommands(content: string): string {
+    return content
+      .replace(/\\begin\{enumerate\}/g, '')
+      .replace(/\\end\{enumerate\}/g, '')
+      .replace(/\\begin\{itemize\}/g, '')
+      .replace(/\\end\{itemize\}/g, '')
+      .replace(/\\item\s*/g, '<br>\u2022 ')
+      .replace(/\\textbf\{([^}]*)\}/g, '<strong>$1</strong>')
+      .replace(/\\textit\{([^}]*)\}/g, '<em>$1</em>')
+      .replace(/\\\\(\s)/g, '<br>$1');
   }
 
   /**
@@ -116,11 +140,21 @@ export class MathRendererComponent implements OnChanges {
 
   /**
    * Renders a LaTeX string to HTML using KaTeX.
-   * On error, returns the raw LaTeX wrapped in a styled error span.
+   * If the content contains non-math LaTeX commands (enumerate, item, etc.),
+   * it is displayed as plain text instead of attempting math rendering.
    */
   private renderKatex(latex: string): string {
+    if (!latex || !latex.trim()) {
+      return '';
+    }
+
+    // If it contains document-structure LaTeX commands, display as plain text
+    if (MathRendererComponent.NON_MATH_PATTERN.test(latex)) {
+      return `<span class="math-as-text">${this.escapeHtml(latex)}</span>`;
+    }
+
     try {
-      return katex.renderToString(latex, {
+      return katex.renderToString(latex.trim(), {
         throwOnError: false,
         displayMode: true,
         output: 'html'
