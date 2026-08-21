@@ -27,6 +27,7 @@ import com.examplatform.questionbank.dto.CreateQuestionRequest;
 import com.examplatform.questionbank.dto.QuestionResponse;
 import com.examplatform.questionbank.exception.SimilarQuestionException;
 import com.examplatform.questionbank.repository.QuestionRepository;
+import com.examplatform.questionbank.util.EmbeddingUtils;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -162,7 +163,7 @@ public class QuestionService {
         try {
             float[] embedding = embeddingService.embed(request.getContent());
             if (embedding != null && embedding.length > 0) {
-                questionRepository.updateEmbedding(saved.getId(), embeddingToString(embedding));
+                questionRepository.updateEmbedding(saved.getId(), EmbeddingUtils.embeddingToString(embedding));
                 log.debug("Embedding generated and stored for question: id={}", saved.getId());
             }
         } catch (Exception e) {
@@ -360,15 +361,5 @@ public class QuestionService {
                 .createdAt(createdAt)
                 .options(options)
                 .build();
-    }
-
-    private String embeddingToString(float[] embedding) {
-        StringBuilder sb = new StringBuilder("[");
-        for (int i = 0; i < embedding.length; i++) {
-            if (i > 0) sb.append(",");
-            sb.append(embedding[i]);
-        }
-        sb.append("]");
-        return sb.toString();
     }
 }
