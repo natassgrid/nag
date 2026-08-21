@@ -3,7 +3,7 @@
       [isOpen]="isOpen"
       [title]="question ? 'Edit Question' : 'Create Question'"
       [subtitle]="question ? 'Modify existing examination question parameters and content.' : 'Add a new question with options, subject, and difficulty metrics.'"
-      width="50%"
+      width="65%"
       (close)="cancel()"
     >
       <div drawer-body>
@@ -136,7 +136,7 @@
             <exam-editor
               [value]="editorContent"
               (valueChange)="onEditorChange($event)"
-              placeholder="Enter question content... Use dollar-dollar for LaTeX math"
+              placeholder="Enter question content... Use $$...$$ for LaTeX math"
             ></exam-editor>
             <mat-error *ngIf="form.get('content')?.hasError('required') && form.get('content')?.touched">Content is required</mat-error>
             <div *ngIf="showContentPreview && editorContent" class="content-preview">
@@ -189,11 +189,27 @@
             <textarea matInput formControlName="answerKey" rows="3"></textarea>
           </mat-form-field>
 
-          <!-- Explanation field -->
-          <mat-form-field appearance="outline">
-            <mat-label>Explanation</mat-label>
-            <textarea matInput formControlName="explanation" rows="3" placeholder="Explain the correct answer (shown post-evaluation)"></textarea>
-          </mat-form-field>
+          <!-- Explanation field with editor and preview -->
+          <div class="editor-field">
+            <div class="editor-header">
+              <label class="editor-label">Explanation</label>
+              <mat-slide-toggle
+                [(ngModel)]="showExplanationPreview"
+                [ngModelOptions]="{standalone: true}"
+                color="primary">
+                Preview
+              </mat-slide-toggle>
+            </div>
+            <exam-editor
+              [value]="explanationContent"
+              (valueChange)="onExplanationChange($event)"
+              placeholder="Explain the correct answer... Use $$...$$ for LaTeX math"
+            ></exam-editor>
+            <div *ngIf="showExplanationPreview && explanationContent" class="content-preview">
+              <div class="preview-label">Live Preview</div>
+              <app-math-renderer [content]="explanationContent"></app-math-renderer>
+            </div>
+          </div>
         </form>
         <div *ngIf="saveError" style="color: #c62828; font-size: 13px; margin-top: 8px;">{{ saveError }}</div>
       </div>

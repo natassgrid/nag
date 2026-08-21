@@ -77,12 +77,12 @@ public interface QuestionRepository extends JpaRepository<Question, UUID>, JpaSp
      */
     @Query(value = """
             SELECT q.id AS id, q.subject AS subject, q.content AS content,
-                   1 - (q.embedding <=> cast(:queryVec AS halfvec(384))) AS similarity
+                   1 - (q.embedding <=> cast(:queryVec AS public.halfvec(384))) AS similarity
             FROM question_service.question q
             WHERE q.tenant_id = :tenantId
               AND q.subject = :subject
               AND q.embedding IS NOT NULL
-            ORDER BY q.embedding <=> cast(:queryVec AS halfvec(384))
+            ORDER BY q.embedding <=> cast(:queryVec AS public.halfvec(384))
             LIMIT :limit
             """, nativeQuery = true)
     List<SimilarityResult> findTopSimilarQuestions(
@@ -107,6 +107,6 @@ public interface QuestionRepository extends JpaRepository<Question, UUID>, JpaSp
      * This bypasses Hibernate type binding issues with pgvector types.
      */
     @org.springframework.data.jpa.repository.Modifying
-    @Query(value = "UPDATE question_service.question SET embedding = cast(:embedding AS halfvec(384)) WHERE id = :id", nativeQuery = true)
+    @Query(value = "UPDATE question_service.question SET embedding = cast(:embedding AS public.halfvec(384)) WHERE id = :id", nativeQuery = true)
     void updateEmbedding(@Param("id") UUID id, @Param("embedding") String embedding);
 }

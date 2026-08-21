@@ -21,6 +21,7 @@ spring:
       minimum-idle: 5
       connection-timeout: 30000
       schema: question_service
+      connection-init-sql: SET search_path TO question_service, public
 
   jpa:
     hibernate:

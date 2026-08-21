@@ -93,9 +93,6 @@ export class MathRendererComponent implements OnChanges {
    */
   private decodeHtmlEntities(content: string): string {
     return content
-      .replace(/<p>/gi, '')
-      .replace(/<\/p>/gi, '\n')
-      .replace(/<br\s*\/?>/gi, '\n')
       .replace(/&nbsp;/g, ' ')
       .replace(/&amp;/g, '&')
       .replace(/&lt;/g, '<')
@@ -126,16 +123,32 @@ export class MathRendererComponent implements OnChanges {
    * Non-math segments retain their original HTML/SVG content.
    */
   private parseContent(content: string): ContentSegment[] {
+    let cleanContent = content;
+    if (!cleanContent) return [];
+
+    // Convert single-dollar $math$ to $$math$$ (enclosed in $$...$$)
+    cleanContent = cleanContent.replace(/(^|[^$])\$([^$\n]+)\$([^$]|$)/g, '$1$$$$$2$$$$$3');
+
+    // Handle unmatched $$ delimiters (e.g. stray $$ at start of non-LaTeX questions)
+    const matches = cleanContent.match(/\$\$/g);
+    if (matches && matches.length % 2 !== 0) {
+      if (cleanContent.startsWith('$$')) {
+        cleanContent = cleanContent.substring(2);
+      } else if (cleanContent.endsWith('$$')) {
+        cleanContent = cleanContent.substring(0, cleanContent.length - 2);
+      }
+    }
+
     const segments: ContentSegment[] = [];
     // Match $$...$$ (non-greedy, handles multiline)
     const mathRegex = /\$\$([\s\S]*?)\$\$/g;
     let lastIndex = 0;
     let match: RegExpExecArray | null;
 
-    while ((match = mathRegex.exec(content)) !== null) {
+    while ((match = mathRegex.exec(cleanContent)) !== null) {
       // Add any text/HTML/SVG before this math block
       if (match.index > lastIndex) {
-        const htmlContent = content.substring(lastIndex, match.index);
+        const htmlContent = cleanContent.substring(lastIndex, match.index);
         segments.push({ type: 'html', content: htmlContent, rendered: htmlContent });
       }
 
@@ -151,8 +164,8 @@ export class MathRendererComponent implements OnChanges {
     }
 
     // Add any remaining content after the last math block
-    if (lastIndex < content.length) {
-      const remaining = content.substring(lastIndex);
+    if (lastIndex < cleanContent.length) {
+      const remaining = cleanContent.substring(lastIndex);
       segments.push({ type: 'html', content: remaining, rendered: remaining });
     }
 
@@ -177,7 +190,7 @@ export class MathRendererComponent implements OnChanges {
     try {
       return katex.renderToString(latex.trim(), {
         throwOnError: false,
-        displayMode: true,
+        displayMode: false,
         output: 'html'
       });
     } catch (e) {

@@ -1,6 +1,7 @@
 :host {
   display: block;
   width: 100%;
+  box-sizing: border-box;
 }
 
 ::ng-deep .ql-toolbar.ql-snow {
@@ -8,6 +9,8 @@
   border-radius: 4px 4px 0 0;
   padding: 4px 8px;
   background: #fafafa;
+  width: 100% !important;
+  box-sizing: border-box !important;
 
   // Override global button min-size rules for Quill toolbar
   button {
@@ -51,12 +54,16 @@
   min-height: 150px;
   font-size: 14px;
   font-family: inherit;
+  width: 100% !important;
+  box-sizing: border-box !important;
 }
 
 ::ng-deep .ql-editor {
   min-height: 150px;
   padding: 12px 16px;
   line-height: 1.6;
+  width: 100% !important;
+  box-sizing: border-box !important;
 }
 
 ::ng-deep .ql-editor.ql-blank::before {
