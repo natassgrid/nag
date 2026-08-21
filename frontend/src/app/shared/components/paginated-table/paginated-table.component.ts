@@ -83,7 +83,7 @@ export class PaginatedTableComponent<T = any> implements OnInit, OnDestroy, OnCh
   @Input() enableFilter: boolean = true;
   @Input() searchPlaceholder: string = 'Search...';
   @Input() pageSizeOptions: number[] = [10, 20, 50];
-  @Input() defaultPageSize: number = 20;
+  @Input() defaultPageSize: number = 10;
   @Input() filters: Record<string, any> = {};
   @Input() filterCategories?: FilterCategory[];
   @Input() actionsTemplate?: TemplateRef<any>;
@@ -95,7 +95,7 @@ export class PaginatedTableComponent<T = any> implements OnInit, OnDestroy, OnCh
   loading = false;
   totalElements = 0;
   pageIndex = 0;
-  pageSize = 20;
+  pageSize = 10;
   searchQuery = '';
   sortColumn = '';
   sortDirection: 'asc' | 'desc' = 'asc';

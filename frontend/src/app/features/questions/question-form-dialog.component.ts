@@ -103,9 +103,11 @@ export class QuestionFormDialogComponent implements OnInit, OnChanges {
   currentQuestionType = '';
 
   editorContent: string = '';
+  explanationContent: string = '';
 
   showContentPreview = false;
   showOptionPreviews = false;
+  showExplanationPreview = false;
 
   constructor(
     private fb: FormBuilder,
@@ -143,6 +145,12 @@ export class QuestionFormDialogComponent implements OnInit, OnChanges {
       this.editorContent = q.content;
     } else {
       this.editorContent = '';
+    }
+
+    if (q?.explanation) {
+      this.explanationContent = q.explanation;
+    } else {
+      this.explanationContent = '';
     }
 
     if (q?.options && q.options.length > 0) {
@@ -295,6 +303,35 @@ export class QuestionFormDialogComponent implements OnInit, OnChanges {
     this.form.get('content')?.markAsTouched();
   }
 
+  onExplanationChange(html: string): void {
+    this.explanationContent = html;
+    this.form.patchValue({ explanation: html });
+    this.form.get('explanation')?.markAsDirty();
+    this.form.get('explanation')?.markAsTouched();
+  }
+
+  formatLatex(text: string): string {
+    if (!text) return '';
+    let formatted = text;
+
+    // Convert single-dollar $math$ to $$math$$ (enclosed in $$...$$)
+    formatted = formatted.replace(/(^|[^$])\$([^$\n]+)\$([^$]|$)/g, '$1$$$$$2$$$$$3');
+
+    // Remove empty math blocks $$ $$ or $$$$
+    formatted = formatted.replace(/\$\$\s*\$\$/g, '');
+
+    // If odd number of $$, strip unmatched leading/trailing $$
+    const matches = formatted.match(/\$\$/g);
+    if (matches && matches.length % 2 !== 0) {
+      if (formatted.startsWith('$$')) {
+        formatted = formatted.substring(2);
+      } else if (formatted.endsWith('$$')) {
+        formatted = formatted.substring(0, formatted.length - 2);
+      }
+    }
+    return formatted;
+  }
+
   onQuestionTypeChange(value: string): void {
     this.currentQuestionType = value;
     if (value !== 'SINGLE_MCQ' && value !== 'MULTI_MCQ') {
@@ -337,7 +374,9 @@ export class QuestionFormDialogComponent implements OnInit, OnChanges {
   save(): void {
     this.form.markAllAsTouched();
     if (this.form.valid) {
-      const value: CreateQuestionRequest = this.form.value;
+      const value: CreateQuestionRequest = { ...this.form.value };
+      if (value.content) value.content = this.formatLatex(value.content);
+      if (value.explanation) value.explanation = this.formatLatex(value.explanation);
       if (this.isMcqOrMsq() && this.options.length >= 2) {
         const correct = this.options.filter(o => o.isCorrect).length;
         if (this.isMcq() && correct !== 1) {
@@ -346,7 +385,11 @@ export class QuestionFormDialogComponent implements OnInit, OnChanges {
         if (!this.isMcq() && correct < 1) {
           this.optionError = 'MSQ requires at least one correct option'; return;
         }
-        value.options = this.options.map((o, i) => ({ id: this.optionIds[i], text: o.text, isCorrect: o.isCorrect }));
+        value.options = this.options.map((o, i) => ({
+          id: this.optionIds[i],
+          text: this.formatLatex(o.text),
+          isCorrect: o.isCorrect
+        }));
       }
       this.optionError = '';
       this.saveError = '';

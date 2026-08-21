@@ -197,8 +197,9 @@ public class SpringAiGenerationService implements QuestionGenerationService {
                 - For DESCRIPTIVE: no options, answerKey contains the model answer.
                 - Always provide a clear explanation for the correct answer.
                 - Do NOT repeat questions from the provided context — generate novel questions.
+                - Use only english language
                 
-                Output ONLY a JSON array of question objects. No markdown, no explanation outside JSON.
+                Output ONLY a JSON array of question objects. No markdown, only English language, no explanation outside JSON.
                 Each question object must have these fields:
                 {
                   "content": "question text (may include $$LaTeX$$ or <svg>)",

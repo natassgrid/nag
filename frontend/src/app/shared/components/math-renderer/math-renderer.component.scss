@@ -12,6 +12,14 @@
   line-height: 1.6;
   word-wrap: break-word;
 
+  // KaTeX inline math expressions
+  :host ::ng-deep .katex {
+    display: inline-block;
+    vertical-align: middle;
+    font-size: 1.05em;
+    line-height: 1.2;
+  }
+
   // KaTeX display math blocks
   :host ::ng-deep .katex-display {
     margin: 0.5em 0;
