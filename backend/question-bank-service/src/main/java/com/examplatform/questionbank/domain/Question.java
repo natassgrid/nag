@@ -26,6 +26,7 @@ import jakarta.persistence.Column;
 import jakarta.persistence.Convert;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Table;
+import jakarta.persistence.Transient;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -113,7 +114,7 @@ public class Question extends BaseEntity {
     @Column(name = "\"references\"", columnDefinition = "TEXT")
     private String references;
 
-    @Column(name = "embedding", columnDefinition = "halfvec(384)", insertable = false, updatable = false)
+    @Transient
     private float[] embedding;
 
     @Column(name = "state", nullable = false, length = 20)

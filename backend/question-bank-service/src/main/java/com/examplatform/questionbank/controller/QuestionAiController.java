@@ -25,6 +25,7 @@ import com.examplatform.questionbank.ai.generation.QuestionGenerationResponse;
 import com.examplatform.questionbank.ai.generation.QuestionGenerationService;
 import com.examplatform.questionbank.domain.Question;
 import com.examplatform.questionbank.repository.QuestionRepository;
+import com.examplatform.questionbank.util.EmbeddingUtils;
 import com.examplatform.shared.api.ApiResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -33,6 +34,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
@@ -110,6 +112,7 @@ public class QuestionAiController {
      */
     @PostMapping("/embeddings/backfill")
     @PreAuthorize("hasRole('SUPER_ADMIN')")
+    @Transactional
     public ResponseEntity<ApiResponse<Map<String, Object>>> backfillEmbeddings(
             @RequestHeader("X-Tenant-Id") String tenantId) {
 
@@ -139,10 +142,10 @@ public class QuestionAiController {
 
                 List<Question> questions = batch.getContent();
                 for (int i = 0; i < questions.size(); i++) {
-                    questions.get(i).setEmbedding(embeddings.get(i));
+                    questionRepository.updateEmbedding(
+                            questions.get(i).getId(), EmbeddingUtils.embeddingToString(embeddings.get(i)));
                 }
 
-                questionRepository.saveAll(questions);
                 totalProcessed += questions.size();
 
                 log.info("Backfill batch completed: processed={}, remaining={}",

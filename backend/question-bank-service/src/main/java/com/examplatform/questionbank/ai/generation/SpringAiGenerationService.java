@@ -22,6 +22,7 @@ import com.examplatform.questionbank.dto.QuestionOption;
 import com.examplatform.questionbank.repository.QuestionRepository;
 import com.examplatform.questionbank.repository.SimilarityResult;
 import com.examplatform.questionbank.service.SimilarityDetectionService;
+import com.examplatform.questionbank.util.EmbeddingUtils;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -30,6 +31,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.prompt.ChatOptions;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -79,6 +81,7 @@ public class SpringAiGenerationService implements QuestionGenerationService {
     private final ObjectMapper objectMapper;
 
     @Override
+    @Transactional
     public QuestionGenerationResponse generate(QuestionGenerationRequest request, String tenantId, java.util.UUID authorId) {
         log.info("Starting question generation: subject={}, topic={}, count={}, model selection pending",
                 request.getSubject(), request.getTopic(), request.getCount());
@@ -167,7 +170,7 @@ public class SpringAiGenerationService implements QuestionGenerationService {
             String queryText = request.getTopic()
                     + (request.getSubtopic() != null ? " " + request.getSubtopic() : "");
             float[] queryEmbedding = embeddingService.embed(queryText);
-            String embeddingStr = embeddingToString(queryEmbedding);
+            String embeddingStr = EmbeddingUtils.embeddingToString(queryEmbedding);
 
             return questionRepository.findTopSimilarQuestions(
                     embeddingStr, request.getSubject(), tenantId, RAG_TOP_K);
@@ -428,30 +431,28 @@ public class SpringAiGenerationService implements QuestionGenerationService {
                     .build();
             question.setTenantId(tenantId);
 
-            // Generate embedding for the new question
-            float[] embedding = embeddingService.embed(raw.content);
-            question.setEmbedding(embedding);
-
             Question saved = questionRepository.save(question);
+
+            // Generate and store embedding via native query (halfvec cast)
+            // The embedding column is insertable=false/updatable=false so JPA setEmbedding won't persist.
+            // NFR-2: If embedding service is unavailable, question is still saved without embedding.
+            try {
+                float[] embedding = embeddingService.embed(raw.content);
+                if (embedding != null && embedding.length > 0) {
+                    questionRepository.updateEmbedding(saved.getId(), EmbeddingUtils.embeddingToString(embedding));
+                    log.debug("Embedding generated for auto-saved question: id={}", saved.getId());
+                }
+            } catch (Exception e) {
+                log.warn("Failed to generate embedding for auto-saved question id={}. Reason: {}",
+                        saved.getId(), e.getMessage());
+            }
+
             log.debug("Auto-saved generated question as DRAFT: id={}", saved.getId());
             return saved.getId();
         } catch (Exception e) {
             log.error("Failed to auto-save generated question: {}", e.getMessage());
             return null;
         }
-    }
-
-    /**
-     * Converts a float array embedding to a pgvector-compatible string.
-     */
-    private String embeddingToString(float[] embedding) {
-        StringBuilder sb = new StringBuilder("[");
-        for (int i = 0; i < embedding.length; i++) {
-            if (i > 0) sb.append(",");
-            sb.append(embedding[i]);
-        }
-        sb.append("]");
-        return sb.toString();
     }
 
     /**

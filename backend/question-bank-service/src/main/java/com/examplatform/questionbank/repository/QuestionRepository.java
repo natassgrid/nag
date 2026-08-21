@@ -97,7 +97,9 @@ public interface QuestionRepository extends JpaRepository<Question, UUID>, JpaSp
      *
      * Validates: Requirements FR-9 (Batch Embedding Backfill)
      */
-    @Query("SELECT q FROM Question q WHERE q.tenantId = :tenantId AND q.embedding IS NULL")
+    @Query(value = "SELECT * FROM question_service.question WHERE tenant_id = :tenantId AND embedding IS NULL",
+            countQuery = "SELECT count(*) FROM question_service.question WHERE tenant_id = :tenantId AND embedding IS NULL",
+            nativeQuery = true)
     Page<Question> findQuestionsWithNullEmbedding(@Param("tenantId") String tenantId, Pageable pageable);
 
     /**

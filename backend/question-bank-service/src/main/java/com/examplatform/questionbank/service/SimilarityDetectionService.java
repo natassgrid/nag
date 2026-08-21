@@ -26,6 +26,7 @@ import com.examplatform.questionbank.ai.similarity.SimilarityCheckResult.Status;
 import com.examplatform.questionbank.exception.SimilarQuestionException;
 import com.examplatform.questionbank.repository.QuestionRepository;
 import com.examplatform.questionbank.repository.SimilarityResult;
+import com.examplatform.questionbank.util.EmbeddingUtils;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -107,7 +108,7 @@ public class SimilarityDetectionService {
 
         // Generate embedding using all-minilm (384-dim)
         float[] embedding = embeddingService.embed(content);
-        String embeddingStr = embeddingToString(embedding);
+        String embeddingStr = EmbeddingUtils.embeddingToString(embedding);
 
         // Query top-K similar questions via pgvector cosine operator
         List<SimilarityResult> results = questionRepository.findTopSimilarQuestions(
@@ -201,20 +202,6 @@ public class SimilarityDetectionService {
         }
 
         return dotProduct / denominator;
-    }
-
-    /**
-     * Converts a float array embedding to a pgvector-compatible string format.
-     * e.g., "[0.1,0.2,0.3,...]"
-     */
-    String embeddingToString(float[] embedding) {
-        StringBuilder sb = new StringBuilder("[");
-        for (int i = 0; i < embedding.length; i++) {
-            if (i > 0) sb.append(",");
-            sb.append(embedding[i]);
-        }
-        sb.append("]");
-        return sb.toString();
     }
 
     /**

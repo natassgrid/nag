@@ -25,6 +25,7 @@ import com.examplatform.questionbank.ai.similarity.SimilarityCheckResult.Status;
 import com.examplatform.questionbank.exception.SimilarQuestionException;
 import com.examplatform.questionbank.repository.QuestionRepository;
 import com.examplatform.questionbank.repository.SimilarityResult;
+import com.examplatform.questionbank.util.EmbeddingUtils;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -255,7 +256,7 @@ class SimilarityDetectionServiceTest {
         @DisplayName("converts float array to pgvector format")
         void convertsToCorrectFormat() {
             float[] embedding = {0.1f, 0.2f, 0.3f};
-            String result = similarityDetectionService.embeddingToString(embedding);
+            String result = EmbeddingUtils.embeddingToString(embedding);
             assertThat(result).startsWith("[").endsWith("]");
             assertThat(result).contains("0.1").contains("0.2").contains("0.3");
         }

@@ -19,10 +19,12 @@
 
 package com.examplatform.questionbank.service;
 
+import com.examplatform.questionbank.ai.embedding.EmbeddingService;
 import com.examplatform.questionbank.domain.Question;
 import com.examplatform.questionbank.dto.CreateQuestionRequest;
 import com.examplatform.questionbank.dto.QuestionResponse;
 import com.examplatform.questionbank.repository.QuestionRepository;
+import com.examplatform.questionbank.util.EmbeddingUtils;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -48,6 +50,7 @@ public class QuestionUpdateService {
 
     private final QuestionRepository questionRepository;
     private final QuestionVersioningService questionVersioningService;
+    private final EmbeddingService embeddingService;
 
     /**
      * Updates an existing question and creates a version record tracking the changes.
@@ -79,6 +82,21 @@ public class QuestionUpdateService {
 
         // Save updated question
         Question updated = questionRepository.save(existing);
+
+        // Regenerate embedding if content changed (keeps similarity search accurate)
+        // NFR-2: If LLM/embedding service is unavailable, update still succeeds without new embedding
+        if (!java.util.Objects.equals(oldState.getContent(), updated.getContent())) {
+            try {
+                float[] embedding = embeddingService.embed(updated.getContent());
+                if (embedding != null && embedding.length > 0) {
+                    questionRepository.updateEmbedding(updated.getId(), EmbeddingUtils.embeddingToString(embedding));
+                    log.debug("Embedding regenerated for updated question: id={}", updated.getId());
+                }
+            } catch (Exception e) {
+                log.warn("Failed to regenerate embedding for question id={}. " +
+                        "Update succeeded without new embedding. Reason: {}", updated.getId(), e.getMessage());
+            }
+        }
 
         // Create version record
         questionVersioningService.createVersion(oldState, updated, authorId, tenantId);
