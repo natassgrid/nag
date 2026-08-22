@@ -64,6 +64,43 @@ export interface QuestionGenerationRequest {
   autoSave: boolean;
 }
 
+export interface BatchGenerationRequest {
+  items: BatchItem[];
+  avoidDuplicates: boolean;
+}
+
+export interface BatchItem {
+  subject: string;
+  topic: string;
+  subtopic?: string;
+  difficulty: string;
+  cognitiveLevel: string;
+  questionType: string;
+  count: number;
+}
+
+export interface BatchJobResponse {
+  id: string;
+  status: string;
+  subject: string;
+  topic: string;
+  subtopic?: string;
+  difficulty: string;
+  cognitiveLevel: string;
+  questionType: string;
+  totalRequested: number;
+  totalGenerated: number;
+  totalFailed: number;
+  totalDuplicates: number;
+  modelUsed: string;
+  initiatedBy: string;
+  createdAt: string;
+  startedAt?: string;
+  completedAt?: string;
+  errorMessage?: string;
+  progress: number;
+}
+
 export interface GeneratedQuestion {
   content: string;
   answerKey: string;
@@ -180,6 +217,24 @@ export class QuestionService {
   generateQuestions(request: QuestionGenerationRequest): Observable<QuestionGenerationResponse> {
     return this.http
       .post<ApiResponse<QuestionGenerationResponse>>(`${this.baseUrl}/generate`, request)
+      .pipe(map(res => res.data));
+  }
+
+  submitBatchJob(request: BatchGenerationRequest): Observable<BatchJobResponse> {
+    return this.http
+      .post<ApiResponse<BatchJobResponse>>(`${this.baseUrl}/batch`, request)
+      .pipe(map(res => res.data));
+  }
+
+  getBatchJobStatus(jobId: string): Observable<BatchJobResponse> {
+    return this.http
+      .get<ApiResponse<BatchJobResponse>>(`${this.baseUrl}/batch/${jobId}`)
+      .pipe(map(res => res.data));
+  }
+
+  cancelBatchJob(jobId: string): Observable<BatchJobResponse> {
+    return this.http
+      .post<ApiResponse<BatchJobResponse>>(`${this.baseUrl}/batch/${jobId}/cancel`, {})
       .pipe(map(res => res.data));
   }
 }

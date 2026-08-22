@@ -61,11 +61,11 @@ public class QuestionGenerationRequest {
     @NotBlank(message = "Question type is required")
     private String questionType;
 
-    /** Number of questions to generate (1–10). */
+    /** Number of questions to generate (1–5). */
     @Min(value = 1, message = "Count must be at least 1")
-    @Max(value = 10, message = "Count must be at most 10")
+    @Max(value = 5, message = "Count must be at most 5")
     @Builder.Default
-    private int count = 1;
+    private int count = 3;
 
     /** Whether to check for duplicates before returning generated questions. */
     @Builder.Default

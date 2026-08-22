@@ -1,44 +1,40 @@
 # LiteLLM Proxy Configuration
 # Unified LLM Gateway for the Exam Platform
 # Docs: https://docs.litellm.ai/docs/proxy/configs
+#
+# Model Strategy:
+#   - EASY difficulty  → Amazon Nova Micro (fast, cost-efficient)
+#   - MEDIUM difficulty → Amazon Nova Lite (balanced)
+#   - HARD difficulty   → Amazon Nova Lite (balanced)
+#
+# All models are routed via AWS Bedrock using service account credentials.
 
 model_list:
-  # ─── Embedding Models (local via Ollama) ───────────────────────────────────
+  # ─── Embedding Model (local via Ollama) ────────────────────────────────────
   - model_name: all-minilm
     litellm_params:
       model: ollama/all-minilm
       api_base: http://ollama:11434
 
-  # ─── Chat/Completion Models (local via Ollama) ─────────────────────────────
+  # ─── AWS Bedrock Models (question generation) ──────────────────────────────
+  # Uses service account credentials (AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY)
+  # passed via environment variables to the LiteLLM container.
 
-  # Balanced/Structured output — general question generation
-  - model_name: qwen2.5-1.5b
+  # Amazon Nova Micro — fast, cost-efficient for EASY difficulty questions
+  - model_name: nova-micro
     litellm_params:
-      model: ollama/qwen2.5:1.5b
-      api_base: http://ollama:11434
+      model: bedrock/amazon.nova-micro-v1:0
+      aws_access_key_id: os.environ/AWS_ACCESS_KEY_ID
+      aws_secret_access_key: os.environ/AWS_SECRET_ACCESS_KEY
+      aws_region_name: os.environ/AWS_REGION_NAME
 
-  # Math & Science specialist — math/physics/chemistry questions
-  - model_name: qwen2-math-1.5b
+  # Amazon Nova Lite — balanced for MEDIUM and HARD difficulty questions
+  - model_name: nova-lite
     litellm_params:
-      model: ollama/qwen2-math:1.5b
-      api_base: http://ollama:11434
-
-  # Fast trivia — history, geography, sports, current affairs
-  - model_name: llama3.2-1b
-    litellm_params:
-      model: ollama/llama3.2:1b
-      api_base: http://ollama:11434
-
-  # ─── External Models (uncomment and set API keys as needed) ────────────────
-  # - model_name: gpt-4o
-  #   litellm_params:
-  #     model: openai/gpt-4o
-  #     api_key: os.environ/OPENAI_API_KEY
-
-  # - model_name: claude-sonnet
-  #   litellm_params:
-  #     model: anthropic/claude-sonnet-4-20250514
-  #     api_key: os.environ/ANTHROPIC_API_KEY
+      model: bedrock/amazon.nova-lite-v1:0
+      aws_access_key_id: os.environ/AWS_ACCESS_KEY_ID
+      aws_secret_access_key: os.environ/AWS_SECRET_ACCESS_KEY
+      aws_region_name: os.environ/AWS_REGION_NAME
 
 general_settings:
   master_key: sk-litellm-dev-key

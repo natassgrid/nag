@@ -15,54 +15,71 @@
  */
 package com.examplatform.questionbank.ai.generation;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 /**
  * Routes question-generation requests to the appropriate LLM model
- * based on the subject domain.
+ * based on the difficulty level.
  *
- * <p>Model selection strategy (via LiteLLM gateway model names):
+ * <p>Model selection strategy (configurable via application.yml):
  * <ul>
- *   <li><b>Math/Science</b> (mathematics, general science, physics, chemistry)
- *       → {@code qwen2-math-1.5b}</li>
- *   <li><b>Trivia/GK</b> (general studies, indian history, indian geography,
- *       current affairs, sports) → {@code llama3.2-1b}</li>
- *   <li><b>All other subjects</b> → {@code qwen2.5-1.5b} (balanced/structured)</li>
+ *   <li><b>EASY</b> → Amazon Nova Micro (fast, cost-efficient)</li>
+ *   <li><b>MEDIUM</b> → Amazon Nova Lite (balanced)</li>
+ *   <li><b>HARD</b> → Amazon Nova Lite (balanced)</li>
  * </ul>
+ *
+ * <p>All model names refer to LiteLLM gateway route names. The actual
+ * Bedrock model IDs are configured in {@code litellm-config.yaml}.
  *
  * @see <a href="https://docs.litellm.ai/">LiteLLM Documentation</a>
  */
 @Component
 public class ModelRouter {
 
-    /** LiteLLM model name for math and science subjects. */
-    public static final String MODEL_MATH = "qwen2-math-1.5b";
+    @Value("${app.ai.models.easy:nova-micro}")
+    private String easyModel;
 
-    /** LiteLLM model name for trivia / general knowledge subjects. */
-    public static final String MODEL_TRIVIA = "llama3.2-1b";
+    @Value("${app.ai.models.medium:nova-lite}")
+    private String mediumModel;
 
-    /** LiteLLM model name for all other (general) subjects. */
-    public static final String MODEL_GENERAL = "qwen2.5-1.5b";
+    @Value("${app.ai.models.hard:nova-lite}")
+    private String hardModel;
 
     /**
-     * Selects the appropriate LLM model name for a given subject.
+     * Selects the LLM model based on the difficulty level.
      *
-     * <p>Matching is case-insensitive. If the subject is {@code null} or blank,
-     * the general-purpose model is returned.
-     *
-     * @param subject the examination subject (e.g., "Mathematics", "Indian History")
+     * @param difficulty the difficulty level (EASY, MEDIUM, HARD)
      * @return the LiteLLM model name to use for question generation
      */
-    public String selectModel(String subject) {
-        if (subject == null || subject.isBlank()) {
-            return MODEL_GENERAL;
+    public String selectModel(String difficulty) {
+        if (difficulty == null || difficulty.isBlank()) {
+            return mediumModel;
         }
 
-        return switch (subject.toLowerCase().trim()) {
-            case "mathematics", "general science", "physics", "chemistry" -> MODEL_MATH;
-            case "general studies", "indian history", "indian geography",
-                 "current affairs", "sports" -> MODEL_TRIVIA;
-            default -> MODEL_GENERAL;
+        return switch (difficulty.toUpperCase().trim()) {
+            case "EASY" -> easyModel;
+            case "MEDIUM" -> mediumModel;
+            case "HARD" -> hardModel;
+            default -> mediumModel;
+        };
+    }
+
+    /**
+     * Returns the Bedrock model ID for batch inference based on difficulty.
+     *
+     * @param difficulty the difficulty level (EASY, MEDIUM, HARD)
+     * @return the AWS Bedrock model ID for batch inference
+     */
+    public String selectBatchModelId(String difficulty) {
+        if (difficulty == null || difficulty.isBlank()) {
+            return "amazon.nova-lite-v1:0";
+        }
+
+        return switch (difficulty.toUpperCase().trim()) {
+            case "EASY" -> "amazon.nova-micro-v1:0";
+            case "MEDIUM", "HARD" -> "amazon.nova-lite-v1:0";
+            default -> "amazon.nova-lite-v1:0";
         };
     }
 }

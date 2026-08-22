@@ -1,17 +1,5 @@
 /*
  * SPDX-License-Identifier: AGPL-3.0-only
- *
- * Open Digital Public Infrastructure (DPI) Platform
- * Copyright (C) 2025 Open Digital Public Infrastructure (DPI) Platform Contributors
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU Affero General Public License as published
- * by the Free Software Foundation, version 3 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU Affero General Public License for more details.
  */
 package com.examplatform.questionbank.ai.generation;
 
@@ -20,60 +8,71 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.NullAndEmptySource;
 import org.junit.jupiter.params.provider.ValueSource;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.test.context.TestPropertySource;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-/**
- * Unit tests for {@link ModelRouter}.
- * Validates subject-to-model routing logic.
- */
-@DisplayName("ModelRouter")
+@SpringBootTest(classes = ModelRouter.class)
+@TestPropertySource(properties = {
+        "app.ai.models.easy=nova-micro",
+        "app.ai.models.medium=nova-lite",
+        "app.ai.models.hard=nova-lite"
+})
+@DisplayName("ModelRouter â€” difficulty-based model routing")
 class ModelRouterTest {
 
-    private final ModelRouter modelRouter = new ModelRouter();
+    @Autowired
+    private ModelRouter modelRouter;
 
     @ParameterizedTest
-    @ValueSource(strings = {"mathematics", "Mathematics", "MATHEMATICS", "general science",
-            "General Science", "physics", "Physics", "chemistry", "Chemistry"})
-    @DisplayName("selectModel() routes math/science subjects to qwen2-math-1.5b")
-    void selectModel_mathAndScience_returnsQwen2Math(String subject) {
-        assertThat(modelRouter.selectModel(subject)).isEqualTo(ModelRouter.MODEL_MATH);
+    @ValueSource(strings = {"EASY", "easy", "Easy"})
+    @DisplayName("selectModel() routes EASY difficulty to nova-micro")
+    void selectModel_easy_returnsNovaMicro(String difficulty) {
+        assertThat(modelRouter.selectModel(difficulty)).isEqualTo("nova-micro");
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {"general studies", "General Studies", "indian history",
-            "Indian History", "indian geography", "Indian Geography",
-            "current affairs", "Current Affairs", "sports", "Sports"})
-    @DisplayName("selectModel() routes trivia/GK subjects to llama3.2-1b")
-    void selectModel_triviaSubjects_returnsLlama(String subject) {
-        assertThat(modelRouter.selectModel(subject)).isEqualTo(ModelRouter.MODEL_TRIVIA);
+    @ValueSource(strings = {"MEDIUM", "medium", "Medium"})
+    @DisplayName("selectModel() routes MEDIUM difficulty to nova-lite")
+    void selectModel_medium_returnsNovaLite(String difficulty) {
+        assertThat(modelRouter.selectModel(difficulty)).isEqualTo("nova-lite");
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {"english", "Hindi", "computer science", "Economics",
-            "Political Science", "unknown subject"})
-    @DisplayName("selectModel() routes other subjects to qwen2.5-1.5b")
-    void selectModel_otherSubjects_returnsGeneralModel(String subject) {
-        assertThat(modelRouter.selectModel(subject)).isEqualTo(ModelRouter.MODEL_GENERAL);
+    @ValueSource(strings = {"HARD", "hard", "Hard"})
+    @DisplayName("selectModel() routes HARD difficulty to nova-lite")
+    void selectModel_hard_returnsNovaLite(String difficulty) {
+        assertThat(modelRouter.selectModel(difficulty)).isEqualTo("nova-lite");
     }
 
     @ParameterizedTest
     @NullAndEmptySource
-    @DisplayName("selectModel() returns general model for null/empty subject")
-    void selectModel_nullOrEmpty_returnsGeneralModel(String subject) {
-        assertThat(modelRouter.selectModel(subject)).isEqualTo(ModelRouter.MODEL_GENERAL);
+    @DisplayName("selectModel() returns medium model for null/empty difficulty")
+    void selectModel_nullOrEmpty_returnsMediumModel(String difficulty) {
+        assertThat(modelRouter.selectModel(difficulty)).isEqualTo("nova-lite");
     }
 
     @Test
     @DisplayName("selectModel() trims whitespace before matching")
     void selectModel_withWhitespace_matchesCorrectly() {
-        assertThat(modelRouter.selectModel("  mathematics  ")).isEqualTo(ModelRouter.MODEL_MATH);
-        assertThat(modelRouter.selectModel("  sports  ")).isEqualTo(ModelRouter.MODEL_TRIVIA);
+        assertThat(modelRouter.selectModel("  EASY  ")).isEqualTo("nova-micro");
+        assertThat(modelRouter.selectModel("  HARD  ")).isEqualTo("nova-lite");
     }
 
     @Test
-    @DisplayName("selectModel() returns general model for blank string")
-    void selectModel_blankString_returnsGeneralModel() {
-        assertThat(modelRouter.selectModel("   ")).isEqualTo(ModelRouter.MODEL_GENERAL);
+    @DisplayName("selectModel() returns medium model for unknown difficulty")
+    void selectModel_unknownDifficulty_returnsMediumModel() {
+        assertThat(modelRouter.selectModel("EXTREME")).isEqualTo("nova-lite");
+    }
+
+    @Test
+    @DisplayName("selectBatchModelId() returns correct Bedrock model IDs by difficulty")
+    void selectBatchModelId_returnCorrectIds() {
+        assertThat(modelRouter.selectBatchModelId("EASY")).isEqualTo("amazon.nova-micro-v1:0");
+        assertThat(modelRouter.selectBatchModelId("MEDIUM")).isEqualTo("amazon.nova-lite-v1:0");
+        assertThat(modelRouter.selectBatchModelId("HARD")).isEqualTo("amazon.nova-lite-v1:0");
+        assertThat(modelRouter.selectBatchModelId(null)).isEqualTo("amazon.nova-lite-v1:0");
     }
 }

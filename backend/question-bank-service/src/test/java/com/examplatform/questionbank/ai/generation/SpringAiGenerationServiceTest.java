@@ -143,7 +143,7 @@ class SpringAiGenerationServiceTest {
                     ]
                     """;
 
-            when(modelRouter.selectModel("Mathematics")).thenReturn("qwen2-math-1.5b");
+            when(modelRouter.selectModel(any())).thenReturn("nova-lite");
             mockChatClientResponse(llmResponse);
             mockEmbeddingService();
             mockEmptyRagContext();
@@ -166,7 +166,7 @@ class SpringAiGenerationServiceTest {
 
             // Assert
             assertThat(response).isNotNull();
-            assertThat(response.getModelUsed()).isEqualTo("qwen2-math-1.5b");
+            assertThat(response.getModelUsed()).isEqualTo("nova-lite");
             assertThat(response.getTotalGenerated()).isEqualTo(1);
             assertThat(response.getTotalValid()).isEqualTo(1);
             assertThat(response.getTotalDuplicates()).isEqualTo(0);
@@ -222,7 +222,7 @@ class SpringAiGenerationServiceTest {
                     ]
                     """;
 
-            when(modelRouter.selectModel("Mathematics")).thenReturn("qwen2-math-1.5b");
+            when(modelRouter.selectModel(any())).thenReturn("nova-lite");
             mockChatClientResponse(llmResponse);
             mockEmbeddingService();
             mockEmptyRagContext();
@@ -274,7 +274,7 @@ class SpringAiGenerationServiceTest {
                     ]
                     ```""";
 
-            when(modelRouter.selectModel("General Science")).thenReturn("qwen2-math-1.5b");
+            when(modelRouter.selectModel(any())).thenReturn("nova-lite");
             mockChatClientResponse(llmResponse);
             mockEmbeddingService();
             mockEmptyRagContext();
@@ -310,7 +310,7 @@ class SpringAiGenerationServiceTest {
         @DisplayName("selects math model for Mathematics subject")
         void generate_mathSubject_usesMathModel() {
             // Arrange
-            when(modelRouter.selectModel("Mathematics")).thenReturn("qwen2-math-1.5b");
+            when(modelRouter.selectModel(any())).thenReturn("nova-lite");
             mockChatClientResponse("[]");
             mockEmbeddingService();
             mockEmptyRagContext();
@@ -328,15 +328,15 @@ class SpringAiGenerationServiceTest {
             QuestionGenerationResponse response = generationService.generate(request, TENANT_ID, java.util.UUID.randomUUID());
 
             // Assert
-            assertThat(response.getModelUsed()).isEqualTo("qwen2-math-1.5b");
-            verify(modelRouter).selectModel("Mathematics");
+            assertThat(response.getModelUsed()).isEqualTo("nova-lite");
+            verify(modelRouter).selectModel(any());
         }
 
         @Test
         @DisplayName("selects trivia model for Indian History subject")
         void generate_historySubject_usesTriviaModel() {
             // Arrange
-            when(modelRouter.selectModel("Indian History")).thenReturn("llama3.2-1b");
+            when(modelRouter.selectModel(any())).thenReturn("nova-micro");
             mockChatClientResponse("[]");
             mockEmbeddingService();
             mockEmptyRagContext();
@@ -354,15 +354,15 @@ class SpringAiGenerationServiceTest {
             QuestionGenerationResponse response = generationService.generate(request, TENANT_ID, java.util.UUID.randomUUID());
 
             // Assert
-            assertThat(response.getModelUsed()).isEqualTo("llama3.2-1b");
-            verify(modelRouter).selectModel("Indian History");
+            assertThat(response.getModelUsed()).isEqualTo("nova-micro");
+            verify(modelRouter).selectModel(any());
         }
 
         @Test
         @DisplayName("selects general model for English subject")
         void generate_generalSubject_usesGeneralModel() {
             // Arrange
-            when(modelRouter.selectModel("English")).thenReturn("qwen2.5-1.5b");
+            when(modelRouter.selectModel(any())).thenReturn("nova-lite");
             mockChatClientResponse("[]");
             mockEmbeddingService();
             mockEmptyRagContext();
@@ -380,8 +380,8 @@ class SpringAiGenerationServiceTest {
             QuestionGenerationResponse response = generationService.generate(request, TENANT_ID, java.util.UUID.randomUUID());
 
             // Assert
-            assertThat(response.getModelUsed()).isEqualTo("qwen2.5-1.5b");
-            verify(modelRouter).selectModel("English");
+            assertThat(response.getModelUsed()).isEqualTo("nova-lite");
+            verify(modelRouter).selectModel(any());
         }
     }
 
@@ -412,7 +412,7 @@ class SpringAiGenerationServiceTest {
                     ]
                     """;
 
-            when(modelRouter.selectModel("Mathematics")).thenReturn("qwen2-math-1.5b");
+            when(modelRouter.selectModel(any())).thenReturn("nova-lite");
             mockChatClientResponse(llmResponse);
             mockEmbeddingService();
             mockEmptyRagContext();
@@ -443,7 +443,7 @@ class SpringAiGenerationServiceTest {
         @Test
         @DisplayName("marks question invalid when MCQ has wrong number of options")
         void generate_wrongOptionCount_validationFails() {
-            // Arrange — only 2 options instead of required 4
+            // Arrange â€” only 2 options instead of required 4
             String llmResponse = """
                     [
                       {
@@ -461,7 +461,7 @@ class SpringAiGenerationServiceTest {
                     ]
                     """;
 
-            when(modelRouter.selectModel("Mathematics")).thenReturn("qwen2-math-1.5b");
+            when(modelRouter.selectModel(any())).thenReturn("nova-lite");
             mockChatClientResponse(llmResponse);
             mockEmbeddingService();
             mockEmptyRagContext();
@@ -490,7 +490,7 @@ class SpringAiGenerationServiceTest {
         @Test
         @DisplayName("marks question invalid when SINGLE_MCQ has multiple correct options")
         void generate_multipleCorrectInSingleMcq_validationFails() {
-            // Arrange — 2 correct options in SINGLE_MCQ
+            // Arrange â€” 2 correct options in SINGLE_MCQ
             String llmResponse = """
                     [
                       {
@@ -510,7 +510,7 @@ class SpringAiGenerationServiceTest {
                     ]
                     """;
 
-            when(modelRouter.selectModel("Indian Geography")).thenReturn("llama3.2-1b");
+            when(modelRouter.selectModel(any())).thenReturn("nova-micro");
             mockChatClientResponse(llmResponse);
             mockEmbeddingService();
             mockEmptyRagContext();
@@ -542,7 +542,7 @@ class SpringAiGenerationServiceTest {
             // Arrange
             String llmResponse = "This is not valid JSON at all {{{";
 
-            when(modelRouter.selectModel("Mathematics")).thenReturn("qwen2-math-1.5b");
+            when(modelRouter.selectModel(any())).thenReturn("nova-lite");
             mockChatClientResponse(llmResponse);
             mockEmbeddingService();
             mockEmptyRagContext();
@@ -595,7 +595,7 @@ class SpringAiGenerationServiceTest {
                     ]
                     """;
 
-            when(modelRouter.selectModel("Mathematics")).thenReturn("qwen2-math-1.5b");
+            when(modelRouter.selectModel(any())).thenReturn("nova-lite");
             mockChatClientResponse(llmResponse);
             mockEmbeddingService();
             mockEmptyRagContext();
@@ -657,7 +657,7 @@ class SpringAiGenerationServiceTest {
                     ]
                     """;
 
-            when(modelRouter.selectModel("Physics")).thenReturn("qwen2-math-1.5b");
+            when(modelRouter.selectModel(any())).thenReturn("nova-lite");
             mockChatClientResponse(llmResponse);
             mockEmbeddingService();
             mockEmptyRagContext();
@@ -711,7 +711,7 @@ class SpringAiGenerationServiceTest {
                     ]
                     """;
 
-            when(modelRouter.selectModel("Physics")).thenReturn("qwen2-math-1.5b");
+            when(modelRouter.selectModel(any())).thenReturn("nova-lite");
             mockChatClientResponse(llmResponse);
             mockEmbeddingService();
             mockEmptyRagContext();
@@ -778,7 +778,7 @@ class SpringAiGenerationServiceTest {
                     ]
                     """;
 
-            when(modelRouter.selectModel("English")).thenReturn("qwen2.5-1.5b");
+            when(modelRouter.selectModel(any())).thenReturn("nova-lite");
             mockChatClientResponse(llmResponse);
             mockEmbeddingService();
             mockEmptyRagContext();
@@ -829,7 +829,7 @@ class SpringAiGenerationServiceTest {
                     ]
                     """;
 
-            when(modelRouter.selectModel("Mathematics")).thenReturn("qwen2-math-1.5b");
+            when(modelRouter.selectModel(any())).thenReturn("nova-lite");
             mockChatClientResponse(llmResponse);
             mockEmbeddingService();
             mockEmptyRagContext();
@@ -894,7 +894,7 @@ class SpringAiGenerationServiceTest {
                     ]
                     """;
 
-            when(modelRouter.selectModel("Mathematics")).thenReturn("qwen2-math-1.5b");
+            when(modelRouter.selectModel(any())).thenReturn("nova-lite");
             mockChatClientResponse(llmResponse);
             mockEmbeddingService();
             when(similarityDetectionService.checkSimilarity(anyString(), anyString(), anyString()))

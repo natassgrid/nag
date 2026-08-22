@@ -17,7 +17,7 @@
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
 
-import { Component, Input, Output, EventEmitter, OnInit, OnChanges, SimpleChanges, ChangeDetectorRef } from '@angular/core';
+import { Component, Input, Output, EventEmitter, OnInit, OnChanges, SimpleChanges, ChangeDetectorRef, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule, ReactiveFormsModule, FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { MatFormFieldModule } from '@angular/material/form-field';
@@ -27,15 +27,22 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
+import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { MatSlideToggleModule } from '@angular/material/slide-toggle';
 import { MatSliderModule } from '@angular/material/slider';
 import { MatChipsModule } from '@angular/material/chips';
+import { MatRadioModule } from '@angular/material/radio';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
+import { Subscription, interval } from 'rxjs';
+import { switchMap, takeWhile } from 'rxjs/operators';
 import {
   QuestionService,
   QuestionGenerationRequest,
   QuestionGenerationResponse,
-  GeneratedQuestion
+  GeneratedQuestion,
+  BatchGenerationRequest,
+  BatchItem,
+  BatchJobResponse
 } from '../question.service';
 import { SubjectTopicService, Subject, Topic, Subtopic } from '../subject-topic.service';
 import { RightDrawerComponent } from '../../../shared/components/right-drawer/right-drawer.component';
@@ -55,9 +62,11 @@ import { MathRendererComponent } from '../../../shared/components/math-renderer/
     MatIconModule,
     MatTooltipModule,
     MatProgressSpinnerModule,
+    MatProgressBarModule,
     MatSlideToggleModule,
     MatSliderModule,
     MatChipsModule,
+    MatRadioModule,
     MatSnackBarModule,
     RightDrawerComponent,
     MathRendererComponent
@@ -65,7 +74,7 @@ import { MathRendererComponent } from '../../../shared/components/math-renderer/
   templateUrl: './ai-generate-dialog.component.html',
   styleUrls: ['./ai-generate-dialog.component.scss']
 })
-export class AiGenerateDialogComponent implements OnInit, OnChanges {
+export class AiGenerateDialogComponent implements OnInit, OnChanges, OnDestroy {
   @Input() isOpen = false;
   @Output() close = new EventEmitter<boolean>();
 
@@ -91,11 +100,20 @@ export class AiGenerateDialogComponent implements OnInit, OnChanges {
   selectedSubject: Subject | null = null;
   selectedTopic: Topic | null = null;
 
+  // Generation mode: 'batch' (Bedrock async) or 'realtime' (LiteLLM sync)
+  generationMode: 'batch' | 'realtime' = 'batch';
+
   generating = false;
   generationError = '';
   response: QuestionGenerationResponse | null = null;
   savingIds = new Set<number>();
   savedIndices = new Set<number>();
+
+  // Batch job tracking
+  batchItems: BatchItem[] = [];
+  batchJob: BatchJobResponse | null = null;
+  batchPolling = false;
+  private pollSubscription: Subscription | null = null;
 
   constructor(
     private fb: FormBuilder,
@@ -117,6 +135,10 @@ export class AiGenerateDialogComponent implements OnInit, OnChanges {
     }
   }
 
+  ngOnDestroy(): void {
+    this.stopPolling();
+  }
+
   private initForm(): void {
     this.form = this.fb.group({
       subject: ['', Validators.required],
@@ -125,23 +147,57 @@ export class AiGenerateDialogComponent implements OnInit, OnChanges {
       difficulty: ['', Validators.required],
       cognitiveLevel: ['', Validators.required],
       questionType: ['', Validators.required],
-      count: [3, [Validators.required, Validators.min(1), Validators.max(10)]],
+      count: [5, [Validators.required, Validators.min(1), Validators.max(5)]],
       avoidDuplicate: [true],
       autoSave: [true]
     });
   }
 
   private resetState(): void {
+    this.stopPolling();
     this.initForm();
+    this.generationMode = 'batch';
     this.response = null;
+    this.batchJob = null;
+    this.batchItems = [];
     this.generationError = '';
     this.generating = false;
+    this.batchPolling = false;
     this.savingIds.clear();
     this.savedIndices.clear();
     this.topics = [];
     this.subtopics = [];
     this.selectedSubject = null;
     this.selectedTopic = null;
+  }
+
+  onModeChange(): void {
+    // Both modes use the same max (5), no validator update needed
+  }
+
+  addToBatch(): void {
+    this.form.markAllAsTouched();
+    if (!this.form.valid) return;
+
+    const formVal = this.form.value;
+    this.batchItems.push({
+      subject: formVal.subject,
+      topic: formVal.topic,
+      subtopic: formVal.subtopic || undefined,
+      difficulty: formVal.difficulty,
+      cognitiveLevel: formVal.cognitiveLevel,
+      questionType: formVal.questionType,
+      count: formVal.count
+    });
+    this.snackBar.open(`Added to batch (${this.batchItems.length} items, ${this.totalBatchQuestions} questions)`, 'OK', { duration: 2000 });
+  }
+
+  removeFromBatch(index: number): void {
+    this.batchItems.splice(index, 1);
+  }
+
+  get totalBatchQuestions(): number {
+    return this.batchItems.reduce((sum, item) => sum + item.count, 0);
   }
 
   loadSubjects(): void {
@@ -180,6 +236,45 @@ export class AiGenerateDialogComponent implements OnInit, OnChanges {
     this.form.markAllAsTouched();
     if (!this.form.valid) return;
 
+    if (this.generationMode === 'batch') {
+      this.submitBatchJob();
+    } else {
+      this.generateRealtime();
+    }
+  }
+
+  private submitBatchJob(): void {
+    if (this.batchItems.length === 0) {
+      this.generationError = 'Add at least one item to the batch before submitting.';
+      return;
+    }
+
+    this.generating = true;
+    this.generationError = '';
+    this.batchJob = null;
+
+    const request: BatchGenerationRequest = {
+      items: this.batchItems,
+      avoidDuplicates: this.form.value.avoidDuplicate
+    };
+
+    this.questionService.submitBatchJob(request).subscribe({
+      next: (job) => {
+        this.generating = false;
+        this.batchJob = job;
+        this.snackBar.open('Batch job submitted. Processing will continue in the background.', 'OK', { duration: 4000 });
+        this.startPolling(job.id);
+        this.cdr.detectChanges();
+      },
+      error: (err) => {
+        this.generating = false;
+        this.generationError = err?.error?.message || err?.error?.error || 'Failed to submit batch job.';
+        this.cdr.detectChanges();
+      }
+    });
+  }
+
+  private generateRealtime(): void {
     this.generating = true;
     this.generationError = '';
     this.response = null;
@@ -196,6 +291,59 @@ export class AiGenerateDialogComponent implements OnInit, OnChanges {
         this.generating = false;
         this.generationError = err?.error?.message || err?.error?.error || 'Failed to generate questions. Please try again.';
         this.cdr.detectChanges();
+      }
+    });
+  }
+
+  private startPolling(jobId: string): void {
+    this.batchPolling = true;
+    this.pollSubscription = interval(5000).pipe(
+      switchMap(() => this.questionService.getBatchJobStatus(jobId)),
+      takeWhile(job => this.isJobActive(job), true)
+    ).subscribe({
+      next: (job) => {
+        this.batchJob = job;
+        if (!this.isJobActive(job)) {
+          this.batchPolling = false;
+          if (job.status === 'COMPLETED' || job.status === 'PARTIALLY_COMPLETED') {
+            this.snackBar.open(
+              `Batch complete: ${job.totalGenerated} questions generated.`, 'OK', { duration: 5000 });
+          } else if (job.status === 'FAILED') {
+            this.snackBar.open('Batch job failed: ' + (job.errorMessage || 'Unknown error'), 'Dismiss', { duration: 6000 });
+          }
+        }
+        this.cdr.detectChanges();
+      },
+      error: () => {
+        this.batchPolling = false;
+        this.cdr.detectChanges();
+      }
+    });
+  }
+
+  stopPolling(): void {
+    if (this.pollSubscription) {
+      this.pollSubscription.unsubscribe();
+      this.pollSubscription = null;
+    }
+    this.batchPolling = false;
+  }
+
+  private isJobActive(job: BatchJobResponse): boolean {
+    return job.status === 'PENDING' || job.status === 'PROCESSING';
+  }
+
+  cancelBatchJob(): void {
+    if (!this.batchJob) return;
+    this.questionService.cancelBatchJob(this.batchJob.id).subscribe({
+      next: (job) => {
+        this.batchJob = job;
+        this.stopPolling();
+        this.snackBar.open('Batch job cancelled.', 'OK', { duration: 3000 });
+        this.cdr.detectChanges();
+      },
+      error: (err) => {
+        this.snackBar.open(err?.error?.message || 'Failed to cancel job', 'Dismiss', { duration: 4000 });
       }
     });
   }
@@ -233,7 +381,10 @@ export class AiGenerateDialogComponent implements OnInit, OnChanges {
   }
 
   onClose(): void {
-    const hasSaved = this.savedIndices.size > 0 || (this.response?.questions?.some(q => q.savedQuestionId) ?? false);
+    this.stopPolling();
+    const hasSaved = this.savedIndices.size > 0
+      || (this.response?.questions?.some(q => q.savedQuestionId) ?? false)
+      || (this.batchJob?.totalGenerated ?? 0) > 0;
     this.close.emit(hasSaved);
   }
 }
