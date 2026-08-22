@@ -21,6 +21,7 @@ httpclient5 = "5.4.1"
 httpcore5 = "5.3.1"
 opensearch = "2.10.0"
 pgvector = "0.1.6"
+aws-sdk = "2.31.1"
 testcontainers = "1.20.4"
 
 # ────────────────────────────────────────────────────────────────────────────────
@@ -110,6 +111,13 @@ httpcore5-h2 = { module = "org.apache.httpcomponents.core5:httpcore5-h2", versio
 # ── OpenSearch ────────────────────────────────────────────────────────────────
 opensearch-java = { module = "org.opensearch.client:opensearch-java", version.ref = "opensearch" }
 opensearch-rest-client = { module = "org.opensearch.client:opensearch-rest-client", version.ref = "opensearch" }
+
+# ── AWS SDK v2 (for Bedrock Batch Inference + S3) ─────────────────────────────
+aws-bom = { module = "software.amazon.awssdk:bom", version.ref = "aws-sdk" }
+aws-bedrock = { module = "software.amazon.awssdk:bedrock" }
+aws-bedrock-runtime = { module = "software.amazon.awssdk:bedrockruntime" }
+aws-s3 = { module = "software.amazon.awssdk:s3" }
+aws-sts = { module = "software.amazon.awssdk:sts" }
 
 # ── Reactor (version managed by Boot BOM) ─────────────────────────────────────
 reactor-test = { module = "io.projectreactor:reactor-test" }

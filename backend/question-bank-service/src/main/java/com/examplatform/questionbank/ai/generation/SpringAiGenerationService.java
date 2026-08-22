@@ -86,9 +86,9 @@ public class SpringAiGenerationService implements QuestionGenerationService {
         log.info("Starting question generation: subject={}, topic={}, count={}, model selection pending",
                 request.getSubject(), request.getTopic(), request.getCount());
 
-        // Step 1: Select model via ModelRouter
-        String modelName = modelRouter.selectModel(request.getSubject());
-        log.debug("Selected model: {} for subject: {}", modelName, request.getSubject());
+        // Step 1: Select model via ModelRouter (difficulty-based)
+        String modelName = modelRouter.selectModel(request.getDifficulty());
+        log.debug("Selected model: {} for difficulty: {}", modelName, request.getDifficulty());
 
         // Step 2: RAG — retrieve top-K similar existing questions for context
         List<SimilarityResult> ragContext = retrieveRagContext(request, tenantId);
@@ -426,7 +426,7 @@ public class SpringAiGenerationService implements QuestionGenerationService {
                     .answerKey(raw.answerKey)
                     .explanation(raw.explanation)
                     .options(raw.options)
-                    .references("AI-generated via " + modelRouter.selectModel(request.getSubject()))
+                    .references("AI-generated via " + modelRouter.selectModel(request.getDifficulty()))
                     .state("DRAFT")
                     .authorId(authorId)
                     .build();

@@ -66,6 +66,13 @@ dependencies {
     // Spring AI (LLM + Embeddings via LiteLLM OpenAI-compatible gateway)
     implementation libs.spring.ai.starter.model.openai
 
+    // AWS SDK v2 (Bedrock Batch Inference + S3 for input/output)
+    implementation platform(libs.aws.bom)
+    implementation libs.aws.bedrock
+    implementation libs.aws.bedrock.runtime
+    implementation libs.aws.s3
+    implementation libs.aws.sts
+
     // pgvector (halfvec similarity search)
     implementation libs.pgvector
 
