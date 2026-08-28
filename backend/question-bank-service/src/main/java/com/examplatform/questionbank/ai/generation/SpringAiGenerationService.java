@@ -191,6 +191,7 @@ public class SpringAiGenerationService implements QuestionGenerationService {
                 Rules:
                 - Generate questions strictly matching the specified type, difficulty, and cognitive level.
                 - Content may include plain text, LaTeX math ($$...$$), and inline SVG diagrams.
+                - ALL LaTeX math, in EVERY field (content, options, answerKey, and explanation), MUST be delimited with $$...$$. Never use \\( ... \\) or \\[ ... \\] delimiters.
                 - For MCQ (SINGLE_MCQ): exactly 4 options with ids A, B, C, D. Set "isCorrect": true on EXACTLY ONE option and "isCorrect": false on the other three. The "answerKey" must be the id (A/B/C/D) of the correct option.
                 - For MSQ (MULTI_MCQ): exactly 4 options (A, B, C, D), 2 or more correct.
                 - For NUMERICAL: no options, answerKey is the numeric value.
@@ -287,12 +288,55 @@ public class SpringAiGenerationService implements QuestionGenerationService {
         }
 
         try {
-            return objectMapper.readValue(json, new TypeReference<List<RawGeneratedQuestion>>() {});
+            List<RawGeneratedQuestion> parsed =
+                    objectMapper.readValue(json, new TypeReference<List<RawGeneratedQuestion>>() {});
+            return parsed.stream().map(this::normalizeLatexDelimiters).toList();
         } catch (JsonProcessingException e) {
             log.error("Failed to parse LLM response as JSON: {}", e.getMessage());
             log.debug("Raw response: {}", response);
             return List.of();
         }
+    }
+
+    /**
+     * Normalizes LaTeX delimiters across all text-bearing fields so the frontend
+     * renderer only ever sees {@code $$...$$}. LLMs frequently emit inline
+     * {@code \( ... \)} or display {@code \[ ... \]} delimiters (especially in the
+     * explanation field) despite prompt instructions, so we convert them here.
+     */
+    private RawGeneratedQuestion normalizeLatexDelimiters(RawGeneratedQuestion raw) {
+        if (raw == null) {
+            return null;
+        }
+        List<QuestionOption> normalizedOptions = raw.options;
+        if (normalizedOptions != null) {
+            for (QuestionOption option : normalizedOptions) {
+                if (option != null) {
+                    option.setText(normalizeLatex(option.getText()));
+                }
+            }
+        }
+        return new RawGeneratedQuestion(
+                normalizeLatex(raw.content),
+                normalizeLatex(raw.answerKey),
+                normalizeLatex(raw.explanation),
+                normalizedOptions,
+                raw.difficulty,
+                raw.cognitiveLevel,
+                raw.questionType);
+    }
+
+    /**
+     * Converts {@code \( ... \)} (inline) and {@code \[ ... \]} (display) LaTeX
+     * delimiters to {@code $$...$$}. Existing {@code $$...$$} spans are left untouched.
+     */
+    private String normalizeLatex(String text) {
+        if (text == null || text.isEmpty()) {
+            return text;
+        }
+        return text
+                .replaceAll("(?s)\\\\\\((.*?)\\\\\\)", "\\$\\$$1\\$\\$")
+                .replaceAll("(?s)\\\\\\[(.*?)\\\\\\]", "\\$\\$$1\\$\\$");
     }
 
     /**

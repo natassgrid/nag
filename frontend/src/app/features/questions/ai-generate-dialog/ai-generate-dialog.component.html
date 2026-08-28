@@ -15,13 +15,13 @@
       <div class="mode-section">
         <label class="mode-label">Generation Mode</label>
         <mat-radio-group [(ngModel)]="generationMode" [ngModelOptions]="{standalone: true}" (change)="onModeChange()">
-          <mat-radio-button value="batch" color="primary">
+          <mat-radio-button value="batch" disabled color="primary">
             <span class="mode-option">
               <mat-icon>cloud_queue</mat-icon>
               Bedrock Batch (Recommended)
             </span>
           </mat-radio-button>
-          <mat-radio-button value="realtime" color="primary">
+          <mat-radio-button value="realtime" checked color="primary">
             <span class="mode-option">
               <mat-icon>bolt</mat-icon>
               Realtime
