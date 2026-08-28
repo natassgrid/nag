@@ -144,7 +144,7 @@ services:
       - "${QUESTION_BANK_SERVICE_PORT:-8083}:${QUESTION_BANK_SERVICE_PORT:-8083}"
     environment:
       <<: *spring-env
-      DEBUG: true
+      DEBUG: false
       AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID}
       AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY}
       AWS_REGION_NAME: ${AWS_REGION_NAME}

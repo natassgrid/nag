@@ -20,8 +20,9 @@ COPY build.gradle settings.gradle ./
 # Copy local Gradle distribution to avoid network download during build
 COPY backend/gradle/gradle-8.14.5-bin.zip /tmp/gradle-8.14.5-bin.zip
 
-# Point wrapper at the local zip file and make executable
-RUN chmod +x gradlew && \
+# Fix Windows CRLF line endings, make executable, point wrapper at local zip
+RUN sed -i 's/\r$//' gradlew && \
+    chmod +x gradlew && \
     sed -i 's|distributionUrl=.*|distributionUrl=file\\:/tmp/gradle-8.14.5-bin.zip|' gradle/wrapper/gradle-wrapper.properties && \
     ./gradlew --version
 

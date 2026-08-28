@@ -77,8 +77,10 @@ export class MathRendererComponent implements OnChanges {
 
     // Decode HTML entities (rich text editors convert spaces to &nbsp; etc.)
     const decoded = this.decodeHtmlEntities(this.content);
+    // Normalize \( ... \) and \[ ... \] delimiters to $$...$$ so all sources render consistently
+    const normalized = this.normalizeMathDelimiters(decoded);
     // Pre-clean: convert LaTeX document commands to readable HTML
-    const cleaned = this.cleanLatexDocCommands(decoded);
+    const cleaned = this.cleanLatexDocCommands(normalized);
     const segments = this.parseContent(cleaned);
     const html = segments.map(seg => seg.rendered ?? seg.content).join('');
 
@@ -100,6 +102,19 @@ export class MathRendererComponent implements OnChanges {
       .replace(/&quot;/g, '"')
       .replace(/&#39;/g, "'")
       .trim();
+  }
+
+  /**
+   * Normalizes alternate LaTeX math delimiters to the canonical $$...$$ form.
+   * LLMs and external sources frequently emit inline \( ... \) or display
+   * \[ ... \] delimiters. Converting them here means the parser only needs to
+   * handle $$...$$, and content renders consistently regardless of its origin.
+   * Existing $$...$$ spans are left untouched.
+   */
+  private normalizeMathDelimiters(content: string): string {
+    return content
+      .replace(/\\\(([\s\S]*?)\\\)/g, '$$$$$1$$$$')
+      .replace(/\\\[([\s\S]*?)\\\]/g, '$$$$$1$$$$');
   }
 
   /**
