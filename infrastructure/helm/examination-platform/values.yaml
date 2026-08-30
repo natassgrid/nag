@@ -330,6 +330,36 @@ apiGateway:
     SPRING_PROFILES_ACTIVE: kubernetes
     OTEL_SERVICE_NAME: api-gateway
 
+# --- Candidate Frontend ---
+candidateFrontend:
+  enabled: true
+  replicas: 2
+  image:
+    name: candidate-frontend
+  port: 80
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 500m
+      memory: 256Mi
+
+# --- Frontend (Admin) ---
+frontend:
+  enabled: true
+  replicas: 2
+  image:
+    name: frontend
+  port: 80
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 500m
+      memory: 256Mi
+
 # --- Infrastructure Dependencies (disabled by default — use external managed services) ---
 postgresql:
   enabled: false
