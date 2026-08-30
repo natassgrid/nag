@@ -73,8 +73,16 @@ const Profile: React.FC = () => {
   const [isNewProfile, setIsNewProfile] = useState(false);
   const [currentProfile, setCurrentProfile] = useState<CandidateProfileResponse | null>(profile);
 
-  // Extract email/username from JWT claims for display fallback
+  // Extract candidate name and email from profile, local storage, or JWT claims
   const jwtPayload = tokenManager.decodePayload();
+  const storedName = localStorage.getItem('nag_candidate_name') || '';
+  const tokenName = (jwtPayload?.name as string) || '';
+  const candidateName =
+    currentProfile?.fullName ||
+    storedName ||
+    (tokenName && !tokenName.includes('@') ? tokenName : '') ||
+    'Candidate';
+
   const tokenEmail = (jwtPayload?.preferred_username as string)?.includes('@')
     ? (jwtPayload?.preferred_username as string)
     : (jwtPayload?.email as string) || (jwtPayload?.preferred_username as string) || '';
@@ -127,7 +135,7 @@ const Profile: React.FC = () => {
   } = useForm<PersonalForm>({
     resolver: zodResolver(personalSchema),
     defaultValues: {
-      fullName: currentProfile?.fullName ?? '',
+      fullName: currentProfile?.fullName || storedName || (tokenName && !tokenName.includes('@') ? tokenName : '') || '',
       dateOfBirth: currentProfile?.dateOfBirth ?? '',
       gender: (currentProfile?.gender as PersonalForm['gender']) ?? 'MALE',
       nationality: currentProfile?.nationality ?? 'INDIAN',
@@ -138,18 +146,16 @@ const Profile: React.FC = () => {
   });
 
   useEffect(() => {
-    if (currentProfile) {
-      resetPersonal({
-        fullName: currentProfile.fullName ?? '',
-        dateOfBirth: currentProfile.dateOfBirth ?? '',
-        gender: (currentProfile.gender as PersonalForm['gender']) ?? 'MALE',
-        nationality: currentProfile.nationality ?? 'INDIAN',
-        category: (currentProfile.category as PersonalForm['category']) ?? 'GENERAL',
-        reservationCategory: currentProfile.reservationCategory ?? '',
-        identityDocNumber: currentProfile.identityDocNumber ?? '',
-      });
-    }
-  }, [currentProfile, resetPersonal]);
+    resetPersonal({
+      fullName: currentProfile?.fullName || storedName || (tokenName && !tokenName.includes('@') ? tokenName : '') || '',
+      dateOfBirth: currentProfile?.dateOfBirth ?? '',
+      gender: (currentProfile?.gender as PersonalForm['gender']) ?? 'MALE',
+      nationality: currentProfile?.nationality ?? 'INDIAN',
+      category: (currentProfile?.category as PersonalForm['category']) ?? 'GENERAL',
+      reservationCategory: currentProfile?.reservationCategory ?? '',
+      identityDocNumber: currentProfile?.identityDocNumber ?? '',
+    });
+  }, [currentProfile, storedName, tokenName, resetPersonal]);
 
   const onSavePersonal = async (data: PersonalForm) => {
     const uid = userId || tokenManager.getUserId();
@@ -375,7 +381,7 @@ const Profile: React.FC = () => {
         <div>
           <div className="flex items-center gap-3">
             <h1 className="text-2xl font-bold text-gray-900">
-              {currentProfile?.fullName || 'Candidate Profile'}
+              {candidateName}
             </h1>
             {currentProfile?.digiLockerVerified === 'VERIFIED' && (
               <span className="inline-flex items-center gap-1 bg-green-50 border border-green-200 text-green-700 text-xs px-2.5 py-1 rounded-full font-medium">
@@ -383,16 +389,13 @@ const Profile: React.FC = () => {
               </span>
             )}
           </div>
-          <div className="flex flex-wrap items-center gap-3 text-xs text-gray-500 mt-2">
-            {displayEmail && (
+          {displayEmail && (
+            <div className="flex items-center gap-2 text-xs text-gray-500 mt-2">
               <span className="inline-flex items-center gap-1.5 font-semibold text-indigo-700 bg-indigo-50 border border-indigo-100 px-2.5 py-1 rounded-lg">
                 <Mail className="w-3.5 h-3.5 text-indigo-600" /> {displayEmail}
               </span>
-            )}
-            <span className="bg-gray-50 border border-gray-200 px-2.5 py-1 rounded-lg">
-              User ID: <span className="font-mono text-gray-700">{userId || 'Not Logged In'}</span>
-            </span>
-          </div>
+            </div>
+          )}
         </div>
 
         <div className="flex items-center gap-3">
