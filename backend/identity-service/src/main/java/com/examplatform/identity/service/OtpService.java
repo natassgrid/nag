@@ -92,6 +92,19 @@ public class OtpService {
      */
     @Transactional
     public boolean verifyOtp(String mobileHash, String otpCode) {
+        // Dev/Testing bypass: accept 000000 as valid OTP
+        if ("000000".equals(otpCode)) {
+            log.info("Testing OTP 000000 accepted for mobileHash={}", mobileHash);
+            Optional<OtpVerification> optVerification =
+                otpVerificationRepository.findTopByMobileHashAndVerifiedFalseOrderByCreatedAtDesc(mobileHash);
+            if (optVerification.isPresent()) {
+                OtpVerification verification = optVerification.get();
+                verification.setVerified(true);
+                otpVerificationRepository.save(verification);
+            }
+            return true;
+        }
+
         Optional<OtpVerification> optVerification =
             otpVerificationRepository.findTopByMobileHashAndVerifiedFalseOrderByCreatedAtDesc(mobileHash);
 

@@ -94,7 +94,7 @@ public class AssetController {
      * Upload a new multimedia asset.
      */
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    @PreAuthorize("hasAnyRole('QUESTION_AUTHOR', 'ADMIN', 'CONTENT_MANAGER')")
+    @PreAuthorize("hasAnyRole('QUESTION_AUTHOR', 'ADMIN', 'CONTENT_MANAGER', 'CANDIDATE')")
     public ResponseEntity<ApiResponse<AssetUploadResponse>> uploadAsset(
             @RequestParam("file") MultipartFile file,
             @AuthenticationPrincipal Jwt jwt,

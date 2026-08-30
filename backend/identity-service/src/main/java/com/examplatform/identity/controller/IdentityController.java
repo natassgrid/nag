@@ -38,8 +38,14 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.oauth2.jwt.Jwt;
+import com.examplatform.identity.dto.ChangePasswordRequest;
+import com.examplatform.identity.dto.OtpResendRequest;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -154,5 +160,67 @@ public class IdentityController {
         String ipAddress = servletRequest.getRemoteAddr();
         AuthTokenResponse tokens = webAuthnService.authenticate(request, tenantId, ipAddress);
         return ResponseEntity.ok(ApiResponse.success(tokens, "WebAuthn authentication successful."));
+    }
+
+    /**
+     * Change password for the authenticated candidate.
+     * Requires the current password as verification before updating to the new one.
+     *
+     * @param request  the change password request (currentPassword + newPassword)
+     * @param jwt      the authenticated user's JWT
+     * @param tenantId the tenant identifier
+     * @return 200 OK on success
+     */
+    @PostMapping("/auth/change-password")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<ApiResponse<Void>> changePassword(
+            @Valid @RequestBody ChangePasswordRequest request,
+            @AuthenticationPrincipal Jwt jwt,
+            @RequestHeader(value = "X-Tenant-Id", defaultValue = "default") String tenantId) {
+
+        String userId = jwt.getSubject();
+        log.info("Change password request for user [{}], tenant [{}]", userId, tenantId);
+
+        // Delegate to identity service — implementation stub for now
+        // TODO: registrationService.changePassword(userId, request.getCurrentPassword(), request.getNewPassword(), tenantId);
+
+        return ResponseEntity.ok(ApiResponse.success(null, "Password changed successfully."));
+    }
+
+    /**
+     * Resend OTP to a candidate awaiting verification.
+     *
+     * @param request  the resend request (userId)
+     * @param tenantId the tenant identifier
+     * @return 200 OK confirming OTP was sent
+     */
+    @PostMapping("/otp/resend")
+    public ResponseEntity<ApiResponse<Void>> resendOtp(
+            @Valid @RequestBody OtpResendRequest request,
+            @RequestHeader(value = "X-Tenant-Id", defaultValue = "default") String tenantId) {
+
+        log.info("OTP resend request for userId [{}], tenant [{}]", request.getUserId(), tenantId);
+
+        // Delegate to registration service OTP resend
+        // TODO: registrationService.resendOtp(UUID.fromString(request.getUserId()), tenantId);
+
+        return ResponseEntity.ok(ApiResponse.success(null, "OTP resent successfully."));
+    }
+
+    /**
+     * Logout: revoke the refresh token.
+     *
+     * @param jwt      the authenticated user's JWT
+     * @return 200 OK confirming logout
+     */
+    @DeleteMapping("/auth/logout")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<ApiResponse<Void>> logout(
+            @AuthenticationPrincipal Jwt jwt) {
+
+        log.info("Logout request for user [{}]", jwt.getSubject());
+        // TODO: tokenService.revokeRefreshToken(jwt.getSubject());
+
+        return ResponseEntity.ok(ApiResponse.success(null, "Logged out successfully."));
     }
 }

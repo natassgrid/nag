@@ -1,0 +1,26 @@
+# SPDX-License-Identifier: AGPL-3.0-only
+#
+# National Assessment Grid (NAG) - Open Digital Public Infrastructure (DPI) Platform
+# Copyright (C) 2025 NAG Contributors
+
+{{- if .Values.candidateFrontend.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "examination-platform.fullname" . }}-candidate-frontend
+  labels:
+    app.kubernetes.io/name: candidate-frontend
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/part-of: exam-platform
+    app.kubernetes.io/component: frontend
+spec:
+  type: ClusterIP
+  ports:
+    - port: {{ .Values.candidateFrontend.port }}
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    app.kubernetes.io/name: candidate-frontend
+    app.kubernetes.io/instance: {{ .Release.Name }}
+{{- end }}

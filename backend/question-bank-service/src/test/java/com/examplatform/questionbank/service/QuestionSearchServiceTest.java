@@ -51,7 +51,7 @@ class QuestionSearchServiceTest {
     @InjectMocks
     QuestionSearchService questionSearchService;
 
-    private static final String TENANT_ID = "exam-authority-1";
+    private static final String TENANT_ID = "default";
 
     @Test
     @DisplayName("search returns matching questions filtered by subject and query")
