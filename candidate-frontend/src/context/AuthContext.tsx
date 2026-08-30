@@ -40,6 +40,7 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 const PENDING_USER_KEY = 'nag_pending_user_id';
+const PENDING_MOBILE_KEY = 'nag_pending_mobile';
 const OTP_SENT_KEY = 'nag_otp_sent_to';
 
 // ─── Provider ─────────────────────────────────────────────────────────────────
@@ -111,29 +112,37 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setPendingUserId(null);
       setOtpSentTo(null);
       sessionStorage.removeItem(PENDING_USER_KEY);
+      sessionStorage.removeItem(PENDING_MOBILE_KEY);
       sessionStorage.removeItem(OTP_SENT_KEY);
     }
   }, []);
 
   const register = useCallback(async (request: RegistrationRequest): Promise<void> => {
     const response = await authService.register(request);
-    // Store pending userId so VerifyOtp page can use it
+    // Store pending userId and mobile so VerifyOtp page can use it
     setPendingUserId(response.userId);
     setOtpSentTo(response.otpSentTo);
     sessionStorage.setItem(PENDING_USER_KEY, response.userId);
+    sessionStorage.setItem(PENDING_MOBILE_KEY, request.mobile);
     sessionStorage.setItem(OTP_SENT_KEY, JSON.stringify(response.otpSentTo));
   }, []);
 
   const verifyOtp = useCallback(async (otp: string): Promise<boolean> => {
-    if (!pendingUserId) return false;
+    const pendingMobile = sessionStorage.getItem(PENDING_MOBILE_KEY);
+    if (!pendingUserId && !pendingMobile) return false;
     try {
-      const tokens = await authService.verifyOtp({ userId: pendingUserId, otp });
+      const tokens = await authService.verifyOtp({
+        userId: pendingUserId ?? undefined,
+        mobile: pendingMobile ?? undefined,
+        otp,
+      });
       tokenManager.setTokens(tokens.accessToken, tokens.refreshToken, tokens.expiresIn, tokens.userId);
       setIsAuthenticated(true);
       setIsVerified(true);
       setPendingUserId(null);
       setOtpSentTo(null);
       sessionStorage.removeItem(PENDING_USER_KEY);
+      sessionStorage.removeItem(PENDING_MOBILE_KEY);
       sessionStorage.removeItem(OTP_SENT_KEY);
       await refreshProfile();
       return true;

@@ -41,7 +41,8 @@ export interface RegistrationResponse {
 }
 
 export interface OtpVerifyRequest {
-  userId: string;
+  userId?: string;
+  mobile?: string;
   otp: string;
 }
 
