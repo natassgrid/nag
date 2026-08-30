@@ -72,6 +72,7 @@ public class CandidateProfileController {
     public ResponseEntity<CandidateProfileResponse> create(
             @Valid @RequestBody CreateCandidateProfileRequest request,
             @AuthenticationPrincipal Jwt jwt) {
+        enforceOwnership(request.getUserId(), jwt);
         String tenantId = TenantContext.get();
         CandidateProfileResponse response = candidateProfileService.create(request, tenantId);
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
