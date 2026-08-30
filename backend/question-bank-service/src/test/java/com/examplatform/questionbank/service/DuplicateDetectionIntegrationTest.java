@@ -75,6 +75,15 @@ class DuplicateDetectionIntegrationTest {
     private QuestionRepository questionRepository;
 
     @Mock
+    private com.examplatform.questionbank.repository.SubjectRepository subjectRepository;
+
+    @Mock
+    private com.examplatform.questionbank.repository.TopicRepository topicRepository;
+
+    @Mock
+    private com.examplatform.questionbank.repository.SubtopicRepository subtopicRepository;
+
+    @Mock
     private KafkaTemplate<String, Object> kafkaTemplate;
 
     // Real SimilarityDetectionService with mocked dependencies
@@ -101,6 +110,9 @@ class DuplicateDetectionIntegrationTest {
         // Wire QuestionService with real SimilarityDetectionService and mocked dependencies
         questionService = new QuestionService(
                 questionRepository,
+                subjectRepository,
+                topicRepository,
+                subtopicRepository,
                 similarityDetectionService,
                 embeddingService,
                 kafkaTemplate
@@ -118,10 +130,20 @@ class DuplicateDetectionIntegrationTest {
         // Lenient stub for Kafka — fire-and-forget audit events
         lenient().when(kafkaTemplate.send(anyString(), any(), any()))
                 .thenReturn(CompletableFuture.completedFuture(null));
+
+        // Lenient stub for the Subject -> Topic -> Subtopic hierarchy resolution
+        stubHierarchy();
     }
+
+    private static final Long SUBJECT_ID = 1L;
+    private static final Long TOPIC_ID = 2L;
+    private static final Long SUBTOPIC_ID = 3L;
 
     private CreateQuestionRequest createMcqRequest(String content) {
         return CreateQuestionRequest.builder()
+                .subjectId(SUBJECT_ID)
+                .topicId(TOPIC_ID)
+                .subtopicId(SUBTOPIC_ID)
                 .subject(SUBJECT)
                 .topic("Calculus")
                 .subtopic("Differentiation")
@@ -132,6 +154,43 @@ class DuplicateDetectionIntegrationTest {
                 .content(content)
                 .answerKey("A")
                 .build();
+    }
+
+    /**
+     * Stubs the Subject -> Topic -> Subtopic lookups so
+     * {@link QuestionService#resolveHierarchy} resolves successfully to the
+     * fixed test ids/names. Lenient because rejection scenarios never reach save
+     * but still resolve the hierarchy first.
+     */
+    private void stubHierarchy() {
+        com.examplatform.questionbank.domain.Subject subject =
+                com.examplatform.questionbank.domain.Subject.builder().name(SUBJECT).build();
+        subject.setTenantId(TENANT_ID);
+        setNumericId(subject, SUBJECT_ID);
+
+        com.examplatform.questionbank.domain.Topic topic =
+                com.examplatform.questionbank.domain.Topic.builder().subjectId(SUBJECT_ID).name("Calculus").build();
+        topic.setTenantId(TENANT_ID);
+        setNumericId(topic, TOPIC_ID);
+
+        com.examplatform.questionbank.domain.Subtopic subtopic =
+                com.examplatform.questionbank.domain.Subtopic.builder().topicId(TOPIC_ID).name("Differentiation").build();
+        subtopic.setTenantId(TENANT_ID);
+        setNumericId(subtopic, SUBTOPIC_ID);
+
+        lenient().when(subjectRepository.findById(SUBJECT_ID)).thenReturn(java.util.Optional.of(subject));
+        lenient().when(topicRepository.findById(TOPIC_ID)).thenReturn(java.util.Optional.of(topic));
+        lenient().when(subtopicRepository.findById(SUBTOPIC_ID)).thenReturn(java.util.Optional.of(subtopic));
+    }
+
+    private static void setNumericId(Object entity, Long id) {
+        try {
+            var f = entity.getClass().getSuperclass().getDeclaredField("id");
+            f.setAccessible(true);
+            f.set(entity, id);
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to set numeric id in test", e);
+        }
     }
 
     private void stubRepositorySave() {

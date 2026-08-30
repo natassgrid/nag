@@ -223,6 +223,9 @@ public class QuestionLifecycleService {
 
         return QuestionResponse.builder()
                 .id(question.getId())
+                .subjectId(question.getSubjectId())
+                .topicId(question.getTopicId())
+                .subtopicId(question.getSubtopicId())
                 .subject(question.getSubject())
                 .topic(question.getTopic())
                 .subtopic(question.getSubtopic())

@@ -32,7 +32,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
-import java.util.UUID;
 import java.util.stream.Collectors;
 
 /**
@@ -80,12 +79,12 @@ public class SubjectTopicService {
     // -----------------------------------------------------------------------
 
     @Transactional(readOnly = true)
-    public List<Topic> listTopics(UUID subjectId, String tenantId) {
+    public List<Topic> listTopics(Long subjectId, String tenantId) {
         return topicRepository.findBySubjectIdAndTenantId(subjectId, tenantId);
     }
 
     @Transactional
-    public Topic createTopic(UUID subjectId, String name, String description, String tenantId) {
+    public Topic createTopic(Long subjectId, String name, String description, String tenantId) {
         if (topicRepository.existsByNameAndSubjectIdAndTenantId(name, subjectId, tenantId)) {
             throw new IllegalArgumentException("Topic with name '" + name + "' already exists for this subject");
         }
@@ -107,12 +106,12 @@ public class SubjectTopicService {
     // -----------------------------------------------------------------------
 
     @Transactional(readOnly = true)
-    public List<Subtopic> listSubtopics(UUID topicId, String tenantId) {
+    public List<Subtopic> listSubtopics(Long topicId, String tenantId) {
         return subtopicRepository.findByTopicIdAndTenantId(topicId, tenantId);
     }
 
     @Transactional
-    public Subtopic createSubtopic(UUID topicId, String name, String description, String tenantId) {
+    public Subtopic createSubtopic(Long topicId, String name, String description, String tenantId) {
         if (subtopicRepository.existsByNameAndTopicIdAndTenantId(name, topicId, tenantId)) {
             throw new IllegalArgumentException("Subtopic with name '" + name + "' already exists for this topic");
         }
@@ -127,6 +126,51 @@ public class SubjectTopicService {
 
         log.info("Creating subtopic: name={}, topicId={}, tenant={}", name, topicId, tenantId);
         return subtopicRepository.save(subtopic);
+    }
+
+    // -----------------------------------------------------------------------
+    // Name-based resolution (for AI generation / import by name)
+    // -----------------------------------------------------------------------
+
+    /**
+     * Resolved hierarchy ids for a given set of subject/topic/subtopic names.
+     */
+    public record HierarchyIds(Long subjectId, Long topicId, Long subtopicId) {}
+
+    /**
+     * Resolves subject/topic/subtopic names to their numeric ids for a tenant,
+     * creating any missing nodes on the fly. Used by AI generation and by
+     * name-based imports where the caller supplies names rather than ids.
+     *
+     * @param subjectName required subject name
+     * @param topicName   required topic name (under the subject)
+     * @param subtopicName optional subtopic name (under the topic)
+     */
+    @Transactional
+    public HierarchyIds resolveOrCreateByName(String subjectName, String topicName,
+                                              String subtopicName, String tenantId) {
+        if (subjectName == null || subjectName.isBlank()) {
+            throw new IllegalArgumentException("Subject name is required to resolve hierarchy");
+        }
+        if (topicName == null || topicName.isBlank()) {
+            throw new IllegalArgumentException("Topic name is required to resolve hierarchy");
+        }
+
+        Subject subject = subjectRepository.findByNameAndTenantId(subjectName, tenantId)
+                .orElseGet(() -> createSubject(subjectName, null, null, tenantId));
+
+        Topic topic = topicRepository.findByNameAndSubjectIdAndTenantId(topicName, subject.getId(), tenantId)
+                .orElseGet(() -> createTopic(subject.getId(), topicName, null, tenantId));
+
+        Long subtopicId = null;
+        if (subtopicName != null && !subtopicName.isBlank()) {
+            Subtopic subtopic = subtopicRepository
+                    .findByNameAndTopicIdAndTenantId(subtopicName, topic.getId(), tenantId)
+                    .orElseGet(() -> createSubtopic(topic.getId(), subtopicName, null, tenantId));
+            subtopicId = subtopic.getId();
+        }
+
+        return new HierarchyIds(subject.getId(), topic.getId(), subtopicId);
     }
 
     // -----------------------------------------------------------------------

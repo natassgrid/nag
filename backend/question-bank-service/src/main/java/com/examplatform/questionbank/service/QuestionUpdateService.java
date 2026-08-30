@@ -50,6 +50,7 @@ public class QuestionUpdateService {
 
     private final QuestionRepository questionRepository;
     private final QuestionVersioningService questionVersioningService;
+    private final QuestionService questionService;
     private final EmbeddingService embeddingService;
 
     /**
@@ -69,10 +70,14 @@ public class QuestionUpdateService {
         // Clone current state for diff comparison
         Question oldState = cloneQuestionState(existing);
 
-        // Update fields from request
-        existing.setSubject(request.getSubject());
-        existing.setTopic(request.getTopic());
-        existing.setSubtopic(request.getSubtopic());
+        // Resolve and validate the numeric hierarchy, then update id + denormalized names
+        QuestionService.ResolvedHierarchy hierarchy = questionService.resolveHierarchy(request, tenantId);
+        existing.setSubjectId(hierarchy.subjectId());
+        existing.setTopicId(hierarchy.topicId());
+        existing.setSubtopicId(hierarchy.subtopicId());
+        existing.setSubject(hierarchy.subjectName());
+        existing.setTopic(hierarchy.topicName());
+        existing.setSubtopic(hierarchy.subtopicName());
         existing.setChapter(request.getChapter());
         existing.setDifficulty(request.getDifficulty().name());
         existing.setCognitiveLevel(request.getCognitiveLevel().name());
@@ -108,6 +113,9 @@ public class QuestionUpdateService {
 
     private Question cloneQuestionState(Question source) {
         return Question.builder()
+                .subjectId(source.getSubjectId())
+                .topicId(source.getTopicId())
+                .subtopicId(source.getSubtopicId())
                 .subject(source.getSubject())
                 .topic(source.getTopic())
                 .subtopic(source.getSubtopic())
@@ -129,6 +137,9 @@ public class QuestionUpdateService {
 
         return QuestionResponse.builder()
                 .id(question.getId())
+                .subjectId(question.getSubjectId())
+                .topicId(question.getTopicId())
+                .subtopicId(question.getSubtopicId())
                 .subject(question.getSubject())
                 .topic(question.getTopic())
                 .subtopic(question.getSubtopic())

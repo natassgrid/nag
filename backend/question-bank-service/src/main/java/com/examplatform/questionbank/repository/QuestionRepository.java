@@ -36,16 +36,16 @@ import java.util.UUID;
 public interface QuestionRepository extends JpaRepository<Question, UUID>, JpaSpecificationExecutor<Question> {
 
     /**
-     * Partition-pruned lookup: finds a question by id AND subject.
-     * Since the table is hash-partitioned by subject, including subject
+     * Partition-pruned lookup: finds a question by id AND subjectId.
+     * Since the table is hash-partitioned by subject_id, including subjectId
      * in the predicate enables PostgreSQL to scan only the target partition
      * instead of all 8 partitions (as findById would do).
      *
-     * Use this when the caller already knows the subject for optimal performance.
+     * Use this when the caller already knows the subjectId for optimal performance.
      *
      * Validates: NFR-5 (partition pruning)
      */
-    Optional<Question> findByIdAndSubject(UUID id, String subject);
+    Optional<Question> findByIdAndSubjectId(UUID id, Long subjectId);
 
     List<Question> findBySubjectAndStateAndTenantId(String subject, String state, String tenantId);
 

@@ -23,6 +23,9 @@ import { Observable, map } from 'rxjs';
 
 export interface QuestionResponse {
   id: string;
+  subjectId: number;
+  topicId: number;
+  subtopicId?: number;
   subject: string;
   topic: string;
   subtopic: string;
@@ -40,6 +43,11 @@ export interface QuestionResponse {
 }
 
 export interface CreateQuestionRequest {
+  /** Numeric hierarchy ids — source of truth for the backend link. */
+  subjectId?: number;
+  topicId?: number;
+  subtopicId?: number;
+  /** Names kept for readability; backend resolves/denormalizes from the ids. */
   subject: string;
   topic: string;
   subtopic?: string;
@@ -50,6 +58,14 @@ export interface CreateQuestionRequest {
   answerKey?: string;
   explanation?: string;
   options?: { id: string; text: string; isCorrect: boolean }[];
+}
+
+export interface ImportResult {
+  filesProcessed: number;
+  totalRecords: number;
+  imported: number;
+  failed: number;
+  failures: { file: string; recordIndex: number; error: string }[];
 }
 
 export interface QuestionGenerationRequest {
@@ -211,6 +227,39 @@ export class QuestionService {
   rejectQuestion(id: string, comments: string): Observable<QuestionResponse> {
     return this.http
       .put<ApiResponse<QuestionResponse>>(`${this.baseUrl}/${id}/reject`, { comments })
+      .pipe(map(res => res.data));
+  }
+
+  /**
+   * Exports questions matching the given filters as a compressed ZIP archive.
+   * The archive contains batch files (100 questions each) plus a manifest.
+   * Returns the raw Blob so the caller can trigger a browser download.
+   */
+  exportQuestions(filters?: {
+    format?: 'json' | 'csv';
+    subject?: string;
+    topic?: string;
+    difficulty?: string;
+    state?: string;
+    search?: string;
+  }): Observable<Blob> {
+    let params = new HttpParams().set('format', filters?.format ?? 'json');
+    if (filters?.subject)    params = params.set('subject', filters.subject);
+    if (filters?.topic)      params = params.set('topic', filters.topic);
+    if (filters?.difficulty) params = params.set('difficulty', filters.difficulty);
+    if (filters?.state)      params = params.set('state', filters.state);
+    if (filters?.search)     params = params.set('search', filters.search);
+    return this.http.get(`${this.baseUrl}/export`, { params, responseType: 'blob' });
+  }
+
+  /**
+   * Imports questions from a ZIP archive of JSON/CSV batch files.
+   */
+  importQuestions(file: File): Observable<ImportResult> {
+    const formData = new FormData();
+    formData.append('file', file);
+    return this.http
+      .post<ApiResponse<ImportResult>>(`${this.baseUrl}/import`, formData)
       .pipe(map(res => res.data));
   }
 
