@@ -82,6 +82,7 @@ public class KeycloakService {
                 .refreshToken((String) response.get("refresh_token"))
                 .expiresIn(expiresIn)
                 .tokenType("Bearer")
+                .userId(userId)
                 .build();
         } catch (Exception e) {
             log.error("Failed to obtain tokens from Keycloak for user {}: {}", username, e.getMessage());

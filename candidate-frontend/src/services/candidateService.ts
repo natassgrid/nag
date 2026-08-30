@@ -2,6 +2,7 @@
 // Wraps all candidate-service REST calls for profile management.
 
 import { api, unwrap } from './api';
+import { tokenManager } from '../utils/tokenManager';
 import type {
   AssetUploadResponse,
   CandidateProfileResponse,
@@ -19,26 +20,42 @@ export const candidateService = {
   },
 
   /** Fetch candidate profile by userId (UUID). */
-  async getProfile(userId: string): Promise<CandidateProfileResponse> {
-    return (await api.get<CandidateProfileResponse>(`${BASE}/${userId}`)).data;
+  async getProfile(userId?: string | null): Promise<CandidateProfileResponse> {
+    const id = userId || tokenManager.getUserId();
+    if (!id || id === 'undefined' || id === 'null') {
+      throw new Error('Valid userId is required to fetch candidate profile');
+    }
+    return (await api.get<CandidateProfileResponse>(`${BASE}/${id}`)).data;
   },
 
   /** Update candidate profile fields. */
   async updateProfile(
-    userId: string,
-    request: UpdateCandidateProfileRequest,
+    userId?: string | null,
+    request?: UpdateCandidateProfileRequest,
   ): Promise<CandidateProfileResponse> {
-    return (await api.put<CandidateProfileResponse>(`${BASE}/${userId}`, request)).data;
+    const id = userId || tokenManager.getUserId();
+    if (!id || id === 'undefined' || id === 'null') {
+      throw new Error('Valid userId is required to update candidate profile');
+    }
+    return (await api.put<CandidateProfileResponse>(`${BASE}/${id}`, request || {})).data;
   },
 
   /** Record explicit biometric consent before face/document collection. */
-  async recordConsent(userId: string, request: ConsentRequest): Promise<void> {
-    await api.post(`${BASE}/${userId}/consent`, request);
+  async recordConsent(userId?: string | null, request?: ConsentRequest): Promise<void> {
+    const id = userId || tokenManager.getUserId();
+    if (!id || id === 'undefined' || id === 'null') {
+      throw new Error('Valid userId is required to record consent');
+    }
+    await api.post(`${BASE}/${id}/consent`, request || { consentGiven: true });
   },
 
   /** Trigger DigiLocker document verification. */
-  async verifyDigiLocker(userId: string): Promise<{ status: string }> {
-    return (await api.post<{ status: string }>(`${BASE}/${userId}/digilocker/verify`)).data;
+  async verifyDigiLocker(userId?: string | null): Promise<{ status: string }> {
+    const id = userId || tokenManager.getUserId();
+    if (!id || id === 'undefined' || id === 'null') {
+      throw new Error('Valid userId is required for DigiLocker verification');
+    }
+    return (await api.post<{ status: string }>(`${BASE}/${id}/digilocker/verify`)).data;
   },
 
   /**
@@ -60,7 +77,11 @@ export const candidateService = {
   },
 
   /** Request erasure of all PII (DPDP right to be forgotten). */
-  async erasePii(userId: string): Promise<void> {
-    await api.delete(`${BASE}/${userId}/pii`);
+  async erasePii(userId?: string | null): Promise<void> {
+    const id = userId || tokenManager.getUserId();
+    if (!id || id === 'undefined' || id === 'null') {
+      throw new Error('Valid userId is required for PII erasure');
+    }
+    await api.delete(`${BASE}/${id}/pii`);
   },
 };

@@ -66,7 +66,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // Fetch profile from backend when authenticated
   const refreshProfile = useCallback(async () => {
     const userId = tokenManager.getUserId();
-    if (!userId) return;
+    if (!userId || userId === 'undefined' || userId === 'null') return;
     setProfileLoading(true);
     try {
       const p = await candidateService.getProfile(userId);

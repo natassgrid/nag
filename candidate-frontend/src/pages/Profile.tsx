@@ -86,9 +86,14 @@ const Profile: React.FC = () => {
 
   // Load profile on mount
   useEffect(() => {
-    if (!userId) return;
+    const uid = userId || tokenManager.getUserId();
+    if (!uid || uid === 'undefined' || uid === 'null') {
+      setLoading(false);
+      setIsNewProfile(true);
+      return;
+    }
     setLoading(true);
-    candidateService.getProfile(userId)
+    candidateService.getProfile(uid)
       .then((p) => {
         setCurrentProfile(p);
         setIsNewProfile(false);
@@ -139,12 +144,16 @@ const Profile: React.FC = () => {
   }, [currentProfile, resetPersonal]);
 
   const onSavePersonal = async (data: PersonalForm) => {
-    if (!userId) return;
+    const uid = userId || tokenManager.getUserId();
+    if (!uid || uid === 'undefined') {
+      toast.error('Authentication Error', 'Please login again to update profile.');
+      return;
+    }
     try {
       if (isNewProfile) {
         // Create initial profile with required fields
         const createReq: CreateCandidateProfileRequest = {
-          userId,
+          userId: uid,
           fullName: data.fullName,
           dateOfBirth: data.dateOfBirth,
           gender: data.gender,
@@ -153,7 +162,7 @@ const Profile: React.FC = () => {
           reservationCategory: data.reservationCategory || undefined,
           identityDocNumber: data.identityDocNumber || 'NOT_SPECIFIED',
           mobile: currentProfile?.mobile ?? '9999999999',
-          email: currentProfile?.email ?? `${userId}@candidate.nag.gov.in`,
+          email: currentProfile?.email ?? `${uid}@candidate.nag.gov.in`,
           address: currentProfile?.address ?? '',
         };
         const created = await candidateService.createProfile(createReq);
@@ -171,7 +180,7 @@ const Profile: React.FC = () => {
           reservationCategory: data.reservationCategory || undefined,
           identityDocNumber: data.identityDocNumber || undefined,
         };
-        const updated = await candidateService.updateProfile(userId, updateReq);
+        const updated = await candidateService.updateProfile(uid, updateReq);
         setCurrentProfile(updated);
         await refreshProfile();
         toast.success('Personal details saved!');
@@ -207,11 +216,15 @@ const Profile: React.FC = () => {
   }, [currentProfile, resetContact]);
 
   const onSaveContact = async (data: ContactForm) => {
-    if (!userId) return;
+    const uid = userId || tokenManager.getUserId();
+    if (!uid || uid === 'undefined') {
+      toast.error('Authentication Error', 'Please login again.');
+      return;
+    }
     try {
       if (isNewProfile) {
         const createReq: CreateCandidateProfileRequest = {
-          userId,
+          userId: uid,
           fullName: currentProfile?.fullName ?? 'Candidate',
           dateOfBirth: currentProfile?.dateOfBirth ?? '2000-01-01',
           gender: currentProfile?.gender ?? 'MALE',
@@ -236,7 +249,7 @@ const Profile: React.FC = () => {
         if (data.email && !data.email.startsWith('**')) {
           updateReq.email = data.email;
         }
-        const updated = await candidateService.updateProfile(userId, updateReq);
+        const updated = await candidateService.updateProfile(uid, updateReq);
         setCurrentProfile(updated);
       }
       await refreshProfile();
@@ -248,13 +261,14 @@ const Profile: React.FC = () => {
 
   // ── DigiLocker Verification ────────────────────────────────────────────────
   const handleVerifyDigiLocker = async () => {
-    if (!userId) return;
+    const uid = userId || tokenManager.getUserId();
+    if (!uid) return;
     setDigiLockerLoading(true);
     try {
-      const res = await candidateService.verifyDigiLocker(userId);
+      const res = await candidateService.verifyDigiLocker(uid);
       toast.success('DigiLocker Verification', `Status: ${res.status}`);
       // Refresh profile to reflect verified status
-      const updated = await candidateService.getProfile(userId);
+      const updated = await candidateService.getProfile(uid);
       setCurrentProfile(updated);
       await refreshProfile();
     } catch {
@@ -266,12 +280,13 @@ const Profile: React.FC = () => {
 
   // ── DPDP Consent Recording ─────────────────────────────────────────────────
   const handleRecordConsent = async () => {
-    if (!userId) return;
+    const uid = userId || tokenManager.getUserId();
+    if (!uid) return;
     setConsentLoading(true);
     try {
-      await candidateService.recordConsent(userId, { consentGiven: true, consentVersion: 'v1.0' });
+      await candidateService.recordConsent(uid, { consentGiven: true, consentVersion: 'v1.0' });
       toast.success('Consent Recorded', 'Biometric & identity DPDP consent has been recorded.');
-      const updated = await candidateService.getProfile(userId);
+      const updated = await candidateService.getProfile(uid);
       setCurrentProfile(updated);
       await refreshProfile();
     } catch {
@@ -283,10 +298,11 @@ const Profile: React.FC = () => {
 
   // ── DPDP PII Erasure (Right to be Forgotten) ───────────────────────────────
   const handleErasePii = async () => {
-    if (!userId) return;
+    const uid = userId || tokenManager.getUserId();
+    if (!uid) return;
     setErasingPii(true);
     try {
-      await candidateService.erasePii(userId);
+      await candidateService.erasePii(uid);
       toast.success('Data Erased', 'Your PII has been erased as per DPDP Act.');
       setEraseModalOpen(false);
       // Log user out as their profile is wiped
@@ -362,7 +378,7 @@ const Profile: React.FC = () => {
             )}
           </div>
           <p className="text-gray-500 text-sm mt-1">
-            User ID: <span className="font-mono text-xs text-gray-600">{userId}</span>
+            User ID: <span className="font-mono text-xs text-gray-600">{userId || 'Not Logged In'}</span>
           </p>
         </div>
 

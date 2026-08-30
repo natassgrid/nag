@@ -84,6 +84,7 @@ public class DevKeycloakService extends KeycloakService {
                 .refreshToken(UUID.randomUUID().toString())
                 .expiresIn(3600L)
                 .tokenType("Bearer")
+                .userId(sub)
                 .build();
     }
 

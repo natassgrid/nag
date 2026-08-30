@@ -8,12 +8,23 @@ const USER_ID_KEY = 'nag_user_id';
 const EXPIRES_AT_KEY = 'nag_token_expires_at';
 
 export const tokenManager = {
-  setTokens(accessToken: string, refreshToken: string, expiresIn: number, userId: string): void {
-    const expiresAt = Date.now() + expiresIn * 1000;
+  setTokens(accessToken: string, refreshToken?: string, expiresIn?: number, userId?: string): void {
+    const expiresAt = Date.now() + (expiresIn || 3600) * 1000;
     localStorage.setItem(ACCESS_TOKEN_KEY, accessToken);
-    localStorage.setItem(REFRESH_TOKEN_KEY, refreshToken);
-    localStorage.setItem(USER_ID_KEY, userId);
+    if (refreshToken) {
+      localStorage.setItem(REFRESH_TOKEN_KEY, refreshToken);
+    }
     localStorage.setItem(EXPIRES_AT_KEY, String(expiresAt));
+
+    // Resolve userId from argument or JWT payload claims
+    let resolvedId = userId;
+    if (!resolvedId || resolvedId === 'undefined' || resolvedId === 'null') {
+      const payload = tokenManager.decodePayload();
+      resolvedId = (payload?.sub as string) || (payload?.userId as string) || '';
+    }
+    if (resolvedId && resolvedId !== 'undefined' && resolvedId !== 'null') {
+      localStorage.setItem(USER_ID_KEY, resolvedId);
+    }
   },
 
   getAccessToken(): string | null {
@@ -25,7 +36,18 @@ export const tokenManager = {
   },
 
   getUserId(): string | null {
-    return localStorage.getItem(USER_ID_KEY);
+    const id = localStorage.getItem(USER_ID_KEY);
+    if (id && id !== 'undefined' && id !== 'null') {
+      return id;
+    }
+    // Fallback: decode directly from JWT access token payload
+    const payload = tokenManager.decodePayload();
+    const sub = (payload?.sub as string) || (payload?.userId as string) || null;
+    if (sub && sub !== 'undefined' && sub !== 'null') {
+      localStorage.setItem(USER_ID_KEY, sub);
+      return sub;
+    }
+    return null;
   },
 
   isAccessTokenExpired(): boolean {
