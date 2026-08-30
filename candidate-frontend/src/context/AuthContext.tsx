@@ -93,11 +93,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       tokenManager.setTokens(tokens.accessToken, tokens.refreshToken, tokens.expiresIn, tokens.userId);
       setIsAuthenticated(true);
       setIsVerified(true);
-      await refreshProfile();
+      try {
+        await refreshProfile();
+      } catch (profileErr) {
+        console.warn('Profile load on login:', profileErr);
+      }
       return true;
     } catch (err) {
       console.error('Login failed', err);
-      return false;
+      throw err;
     }
   }, [refreshProfile]);
 

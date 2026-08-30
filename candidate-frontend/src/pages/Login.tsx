@@ -49,12 +49,19 @@ const Login: React.FC = () => {
   } = useForm<ForgotForm>({ resolver: zodResolver(forgotSchema) });
 
   const onSubmit = async (data: LoginForm) => {
-    const success = await login(data.username, data.password);
-    if (success) {
+    try {
+      await login(data.username, data.password);
       toast.success('Welcome back!', 'You have logged in successfully.');
       navigate('/dashboard');
-    } else {
-      toast.error('Login failed', 'Invalid credentials. Please check and try again.');
+    } catch (err: unknown) {
+      const errObj = err as { response?: { data?: { detail?: string; message?: string; title?: string } }; message?: string };
+      const detail =
+        errObj?.response?.data?.detail ||
+        errObj?.response?.data?.message ||
+        errObj?.response?.data?.title ||
+        errObj?.message ||
+        'Invalid credentials. Please check and try again.';
+      toast.error('Login failed', detail);
     }
   };
 
