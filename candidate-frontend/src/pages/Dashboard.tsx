@@ -1,253 +1,206 @@
-import React from 'react';
+// src/pages/Dashboard.tsx
+// Connected dashboard — loads exams from examService, results from resultService,
+// notifications from notificationService, profile from AuthContext.
+
+import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext';
-import { 
-  Calendar, 
-  CheckCircle2, 
-  AlertTriangle, 
-  ArrowRight, 
-  BookOpen, 
-  Award, 
-  BellRing,
-  HelpCircle,
-  FileText
+import {
+  BookOpen, CheckCircle, Clock, Bell, ChevronRight,
 } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
+import { examService } from '../services/examService';
+import { notificationService } from '../services/notificationService';
+import type { ExamApplicationResponse, NotificationDto } from '../types/api';
 
-export const Dashboard: React.FC = () => {
-  const { user } = useAuth();
+const Dashboard: React.FC = () => {
+  const { profile, profileLoading } = useAuth();
+  const [myExams, setMyExams] = useState<ExamApplicationResponse[]>([]);
+  const [notifications, setNotifications] = useState<NotificationDto[]>([]);
+  const [examsLoading, setExamsLoading] = useState(true);
+  const [notifsLoading, setNotifsLoading] = useState(true);
 
-  // Mock Announcements
-  const announcements = [
-    { id: 1, title: 'Admit Card released for National Entrance Exam 2026', date: 'August 28, 2026', priority: 'high' },
-    { id: 2, title: 'Exam Guidelines: Do not carry electronic items to CBT centers', date: 'August 25, 2026', priority: 'medium' },
-    { id: 3, title: 'Helpdesk available 24/7 for Technical support during Take Exam phase', date: 'August 20, 2026', priority: 'low' },
-  ];
+  useEffect(() => {
+    examService.getMyExams()
+      .then(setMyExams)
+      .catch(() => setMyExams([]))
+      .finally(() => setExamsLoading(false));
 
-  // Calculate profile completeness
-  const calculateCompleteness = () => {
-    if (!user) return 0;
-    let score = 0;
-    if (user.name) score += 10;
-    if (user.email) score += 10;
-    if (user.mobile) score += 10;
-    if (user.dob) score += 10;
-    if (user.gender) score += 10;
-    if (user.address) score += 10;
-    if (user.qualification) score += 15;
-    if (user.photoUploaded) score += 10;
-    if (user.signatureUploaded) score += 10;
-    if (user.idProofUploaded) score += 5;
-    return score;
-  };
+    notificationService.getNotifications(0, 5)
+      .then((page) => setNotifications(page.content))
+      .catch(() => setNotifications([]))
+      .finally(() => setNotifsLoading(false));
+  }, []);
 
-  const profileScore = calculateCompleteness();
+  const displayName = profile
+    ? `${profile.firstName} ${profile.lastName}`
+    : 'Candidate';
+
+  const completeness = profile?.completionPercentage ?? 0;
+
+  const appliedExams = myExams.filter((e) => e.status === 'APPLIED' || e.status === 'CONFIRMED');
 
   return (
     <div className="space-y-6">
       {/* Welcome Banner */}
-      <div className="bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 rounded-2xl shadow-xl p-6 md:p-8 text-white relative overflow-hidden border border-slate-800">
-        <div className="relative z-10 max-w-2xl">
-          <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight">
-            Welcome back, {user?.name}!
-          </h1>
-          <p className="mt-2 text-indigo-200 text-sm md:text-base leading-relaxed">
-            Monitor your exam registrations, verify your application profiles, complete pending documents, and access your test interfaces securely here.
-          </p>
-          <div className="mt-4 flex flex-wrap gap-3">
-            <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-green-950/60 text-green-300 border border-green-500/30">
-              <CheckCircle2 className="h-3.5 w-3.5 mr-1" /> Verified Candidate Account
-            </span>
-            <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-indigo-950/60 text-indigo-300 border border-indigo-500/30">
-              ID: NAG-2026-{user?.mobile ? user.mobile.slice(-4) : '0000'}
-            </span>
+      <div className="bg-gradient-to-r from-indigo-600 to-purple-600 rounded-2xl p-6 text-white shadow-lg">
+        <h1 className="text-2xl font-bold mb-1">
+          {profileLoading ? 'Welcome back!' : `Welcome, ${displayName}!`}
+        </h1>
+        <p className="text-indigo-200 text-sm">
+          {new Date().toLocaleDateString('en-IN', {
+            weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
+          })}
+        </p>
+
+        {/* Profile completeness */}
+        {completeness < 100 && (
+          <div className="mt-4 bg-white/10 rounded-xl p-4">
+            <div className="flex justify-between items-center mb-2">
+              <span className="text-sm font-medium">Profile Completion</span>
+              <span className="text-sm font-bold">{completeness}%</span>
+            </div>
+            <div className="w-full bg-white/20 rounded-full h-2">
+              <div
+                className="bg-white h-2 rounded-full transition-all duration-500"
+                style={{ width: `${completeness}%` }}
+              />
+            </div>
+            <p className="text-xs text-indigo-200 mt-2">
+              Complete your profile to apply for exams.{' '}
+              <Link to="/profile" className="underline text-white font-medium">
+                Complete now →
+              </Link>
+            </p>
+          </div>
+        )}
+      </div>
+
+      {/* Stats */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+        {[
+          { label: 'Registered Exams', value: appliedExams.length, icon: BookOpen, color: 'text-indigo-600 bg-indigo-100' },
+          { label: 'Profile Complete', value: `${completeness}%`, icon: CheckCircle, color: 'text-green-600 bg-green-100' },
+          { label: 'Notifications', value: notifications.filter((n) => !n.isRead).length, icon: Bell, color: 'text-amber-600 bg-amber-100' },
+        ].map((stat) => (
+          <div key={stat.label} className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
+            <div className={`inline-flex p-2 rounded-lg ${stat.color} mb-2`}>
+              <stat.icon className="w-5 h-5" />
+            </div>
+            <p className="text-2xl font-bold text-gray-800">{stat.value}</p>
+            <p className="text-xs text-gray-500 mt-0.5">{stat.label}</p>
+          </div>
+        ))}
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Registered Exams */}
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-100">
+          <div className="flex items-center justify-between p-5 border-b border-gray-100">
+            <h2 className="font-semibold text-gray-800 flex items-center gap-2">
+              <Clock className="w-4 h-4 text-indigo-500" /> Registered Exams
+            </h2>
+            <Link to="/exams" className="text-xs text-indigo-600 hover:underline flex items-center gap-1">
+              Browse all <ChevronRight className="w-3 h-3" />
+            </Link>
+          </div>
+          <div className="p-5">
+            {examsLoading ? (
+              <div className="space-y-3">
+                {[1, 2].map((i) => (
+                  <div key={i} className="h-14 bg-gray-100 rounded-lg animate-pulse" />
+                ))}
+              </div>
+            ) : appliedExams.length === 0 ? (
+              <div className="text-center py-8 text-gray-400">
+                <BookOpen className="w-10 h-10 mx-auto mb-2 text-gray-300" />
+                <p className="text-sm">No exams registered yet.</p>
+                <Link to="/exams" className="text-indigo-600 text-sm hover:underline mt-1 inline-block">
+                  Browse available exams →
+                </Link>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {appliedExams.map((app) => (
+                  <div key={app.applicationId} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                    <div>
+                      <p className="text-sm font-medium text-gray-800 truncate max-w-[180px]">
+                        {app.applicationId}
+                      </p>
+                      <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
+                        app.status === 'CONFIRMED' ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'
+                      }`}>
+                        {app.status}
+                      </span>
+                    </div>
+                    {app.hallTicketNumber && (
+                      <p className="text-xs text-gray-500">Hall Ticket: {app.hallTicketNumber}</p>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </div>
-        <div className="absolute right-0 bottom-0 opacity-10 transform translate-x-10 translate-y-10 scale-150 hidden md:block">
-          <BookOpen className="h-48 w-48 text-indigo-400" />
+
+        {/* Notifications */}
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-100">
+          <div className="flex items-center justify-between p-5 border-b border-gray-100">
+            <h2 className="font-semibold text-gray-800 flex items-center gap-2">
+              <Bell className="w-4 h-4 text-amber-500" /> Notifications
+            </h2>
+          </div>
+          <div className="p-5">
+            {notifsLoading ? (
+              <div className="space-y-3">
+                {[1, 2, 3].map((i) => (
+                  <div key={i} className="h-12 bg-gray-100 rounded-lg animate-pulse" />
+                ))}
+              </div>
+            ) : notifications.length === 0 ? (
+              <div className="text-center py-8 text-gray-400">
+                <Bell className="w-10 h-10 mx-auto mb-2 text-gray-300" />
+                <p className="text-sm">No notifications yet.</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {notifications.map((n) => (
+                  <div key={n.id} className={`p-3 rounded-lg ${n.isRead ? 'bg-gray-50' : 'bg-indigo-50 border border-indigo-100'}`}>
+                    <p className="text-sm font-medium text-gray-800">{n.title}</p>
+                    <p className="text-xs text-gray-500 mt-0.5">{n.body}</p>
+                    <p className="text-xs text-gray-400 mt-1">
+                      {new Date(n.createdAt).toLocaleDateString('en-IN')}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
-      {/* Warning/Alerts */}
-      {profileScore < 85 && (
-        <div className="bg-amber-50 border-l-4 border-amber-500 p-4 rounded-r-lg shadow-sm">
-          <div className="flex">
-            <AlertTriangle className="h-5 w-5 text-amber-600 flex-shrink-0" />
-            <div className="ml-3 flex-1 md:flex md:justify-between items-center">
-              <div>
-                <p className="text-sm font-semibold text-amber-800">
-                  Your registration profile is incomplete ({profileScore}% complete)
-                </p>
-                <p className="text-xs text-amber-700 mt-0.5">
-                  Complete your details and upload required documents to qualify for upcoming schedules.
-                </p>
-              </div>
-              <p className="mt-3 md:mt-0 text-sm">
-                <Link
-                  to="/profile"
-                  className="font-bold text-amber-800 hover:text-amber-900 inline-flex items-center"
-                >
-                  Edit Profile <ArrowRight className="ml-1 h-4 w-4" />
-                </Link>
-              </p>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Grid: Main Info */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Left Column: Registered & Completed Exams */}
-        <div className="lg:col-span-2 space-y-6">
-          {/* Registered Exams */}
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-            <div className="px-5 py-4 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
-              <h2 className="text-sm font-bold text-slate-800 uppercase tracking-wider flex items-center">
-                <BookOpen className="h-5 w-5 mr-2 text-indigo-600" />
-                Registered Examinations
-              </h2>
-              <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-indigo-100 text-indigo-800">
-                {user?.registeredExams.length} Active
-              </span>
-            </div>
-            
-            <div className="divide-y divide-gray-100">
-              {user && user.registeredExams.length > 0 ? (
-                user.registeredExams.map((examId) => {
-                  // In real app, load details. Here we mock
-                  const examDetails = {
-                    id: examId,
-                    name: examId === 'EXAM001' ? 'National Entrance Examination (Graduate) 2026' : 'AI & Machine Learning Scholarship Test',
-                    date: 'September 15, 2026',
-                    time: '10:00 AM - 01:00 PM',
-                    duration: '180 mins',
-                    status: 'Admit Card Generated'
-                  };
-                  return (
-                    <div key={examId} className="p-5 flex flex-col sm:flex-row justify-between sm:items-center hover:bg-slate-50/40 transition-colors">
-                      <div className="space-y-1">
-                        <div className="flex items-center space-x-2">
-                          <span className="px-2 py-0.5 rounded bg-indigo-50 text-indigo-700 text-xs font-mono font-bold">
-                            {examDetails.id}
-                          </span>
-                          <span className="text-xs font-semibold text-green-700 bg-green-50 px-2 py-0.5 rounded">
-                            {examDetails.status}
-                          </span>
-                        </div>
-                        <h3 className="text-base font-bold text-slate-800">{examDetails.name}</h3>
-                        <div className="flex flex-wrap text-xs text-gray-500 gap-x-4 gap-y-1">
-                          <span className="flex items-center"><Calendar className="h-3.5 w-3.5 mr-1" /> {examDetails.date}</span>
-                          <span>Duration: {examDetails.duration}</span>
-                        </div>
-                      </div>
-                      <div className="mt-4 sm:mt-0 flex space-x-2">
-                        <Link
-                          to={`/take-exam/${examDetails.id}`}
-                          className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-lg shadow-sm transition-colors text-center inline-flex items-center"
-                        >
-                          Take Test Screen
-                        </Link>
-                      </div>
-                    </div>
-                  );
-                })
-              ) : (
-                <div className="p-8 text-center">
-                  <p className="text-gray-500 text-sm">You haven't registered for any exams yet.</p>
-                  <Link to="/exams" className="text-indigo-600 font-semibold text-sm hover:underline mt-2 inline-block">
-                    Browse and Apply for Exams &rarr;
-                  </Link>
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* Completed Exams */}
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-            <div className="px-5 py-4 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
-              <h2 className="text-sm font-bold text-slate-800 uppercase tracking-wider flex items-center">
-                <Award className="h-5 w-5 mr-2 text-indigo-600" />
-                Completed Assessments
-              </h2>
-              <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-green-100 text-green-800">
-                {user?.completedExams.length} Complete
-              </span>
-            </div>
-            
-            <div className="divide-y divide-gray-100">
-              {user && user.completedExams.length > 0 ? (
-                user.completedExams.map((exam) => (
-                  <div key={exam.examId} className="p-5 flex justify-between items-center hover:bg-slate-50/40 transition-colors">
-                    <div className="space-y-1">
-                      <h3 className="text-sm font-bold text-slate-800">{exam.examName}</h3>
-                      <p className="text-xs text-gray-500">Taken on {exam.date}</p>
-                    </div>
-                    <div className="flex items-center space-x-4">
-                      <div className="text-right">
-                        <p className="text-sm font-extrabold text-indigo-600">{exam.percentile}%ile</p>
-                        <p className="text-[10px] text-gray-400">Score: {exam.score}/{exam.totalQuestions}</p>
-                      </div>
-                      <Link
-                        to="/results"
-                        className="p-1.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg transition-colors"
-                        title="View Report Card"
-                      >
-                        <FileText className="h-4.5 w-4.5" />
-                      </Link>
-                    </div>
-                  </div>
-                ))
-              ) : (
-                <div className="p-8 text-center text-gray-500 text-sm">
-                  No completed exams on record.
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-
-        {/* Right Column: Notices / Board and Helpdesk */}
-        <div className="space-y-6">
-          {/* Announcement Board */}
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-5 space-y-4">
-            <h2 className="text-sm font-bold text-slate-800 uppercase tracking-wider flex items-center pb-2 border-b border-gray-100">
-              <BellRing className="h-5 w-5 mr-2 text-indigo-600" />
-              Important Notices
-            </h2>
-            <div className="space-y-4">
-              {announcements.map((ann) => (
-                <div key={ann.id} className="text-sm group border-b border-gray-50 pb-3 last:border-0 last:pb-0">
-                  <div className="flex items-center justify-between">
-                    <span className="text-[10px] font-semibold text-gray-400">{ann.date}</span>
-                    <span className={`h-1.5 w-1.5 rounded-full ${
-                      ann.priority === 'high' ? 'bg-red-500' : ann.priority === 'medium' ? 'bg-amber-500' : 'bg-slate-400'
-                    }`}></span>
-                  </div>
-                  <h4 className="font-bold text-slate-700 mt-1 hover:text-indigo-600 cursor-pointer transition-colors leading-tight">
-                    {ann.title}
-                  </h4>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Quick Support / Center Desk */}
-          <div className="bg-gradient-to-br from-indigo-50 to-indigo-100 rounded-xl shadow-sm border border-indigo-200/50 p-5 space-y-4">
-            <h3 className="text-sm font-bold text-indigo-900 uppercase tracking-wider flex items-center">
-              <HelpCircle className="h-5 w-5 mr-2 text-indigo-600" />
-              NAG Helpdesk Desk
-            </h3>
-            <p className="text-xs text-indigo-800 leading-relaxed">
-              Facing difficulties during registration or uploading documents? Contact candidate cell:
-            </p>
-            <div className="text-xs space-y-1.5 text-indigo-900 bg-white/60 p-3 rounded-lg border border-indigo-200/40">
-              <p><strong>Email:</strong> candidate.support@nag.gov.in</p>
-              <p><strong>Toll Free:</strong> 1800-345-NAG (624)</p>
-              <p><strong>Timings:</strong> 09:00 AM - 06:00 PM IST</p>
-            </div>
-          </div>
+      {/* Quick Links */}
+      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
+        <h2 className="font-semibold text-gray-800 mb-4">Quick Actions</h2>
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          {[
+            { to: '/profile', icon: '👤', label: 'Complete Profile' },
+            { to: '/exams', icon: '📋', label: 'Browse Exams' },
+            { to: '/results', icon: '🏆', label: 'View Results' },
+            { to: '/password-management', icon: '🔒', label: 'Change Password' },
+          ].map((link) => (
+            <Link
+              key={link.to}
+              to={link.to}
+              className="flex flex-col items-center gap-2 p-4 rounded-xl border border-gray-200 hover:border-indigo-300 hover:bg-indigo-50 transition text-center"
+            >
+              <span className="text-2xl">{link.icon}</span>
+              <span className="text-xs font-medium text-gray-700">{link.label}</span>
+            </Link>
+          ))}
         </div>
       </div>
     </div>
   );
 };
+
 export default Dashboard;

@@ -1,10 +1,14 @@
+// src/App.tsx
+// Root router with ErrorBoundary + ToastProvider wrapping all routes.
+
 import React from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
+import { ToastProvider } from './components/Toast';
+import { ErrorBoundary } from './components/ErrorBoundary';
 import ProtectedRoute from './components/ProtectedRoute';
 import Layout from './components/Layout';
 
-// Pages
 import Login from './pages/Login';
 import Register from './pages/Register';
 import VerifyOtp from './pages/VerifyOtp';
@@ -15,93 +19,62 @@ import BrowseExams from './pages/BrowseExams';
 import TakeExam from './pages/TakeExam';
 import Results from './pages/Results';
 
-export const App: React.FC = () => {
+const App: React.FC = () => {
   return (
-    <AuthProvider>
-      <BrowserRouter>
-        <Routes>
-          {/* Public Authentication routes */}
-          <Route path="/login" element={<Login />} />
-          <Route path="/register" element={<Register />} />
-          
-          {/* OTP Verification (Authenticated but not verified) */}
-          <Route
-            path="/verify"
-            element={
-              <ProtectedRoute requireVerification={false}>
-                <VerifyOtp />
-              </ProtectedRoute>
-            }
-          />
+    <ErrorBoundary>
+      <ToastProvider>
+        <AuthProvider>
+          <BrowserRouter>
+            <Routes>
+              {/* Public routes */}
+              <Route path="/login" element={<Login />} />
+              <Route path="/register" element={<Register />} />
 
-          {/* Protected Dashboard routes */}
-          <Route
-            path="/dashboard"
-            element={
-              <ProtectedRoute>
-                <Layout>
-                  <Dashboard />
-                </Layout>
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/profile"
-            element={
-              <ProtectedRoute>
-                <Layout>
-                  <Profile />
-                </Layout>
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/exams"
-            element={
-              <ProtectedRoute>
-                <Layout>
-                  <BrowseExams />
-                </Layout>
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/results"
-            element={
-              <ProtectedRoute>
-                <Layout>
-                  <Results />
-                </Layout>
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/password-management"
-            element={
-              <ProtectedRoute>
-                <Layout>
-                  <PasswordMgmt />
-                </Layout>
-              </ProtectedRoute>
-            }
-          />
+              {/* OTP verification — requires pending registration */}
+              <Route
+                path="/verify"
+                element={
+                  <ProtectedRoute requirePending>
+                    <VerifyOtp />
+                  </ProtectedRoute>
+                }
+              />
 
-          {/* Protected Exam taker page (Full screen workspace - no sidebar layout) */}
-          <Route
-            path="/take-exam/:id"
-            element={
-              <ProtectedRoute>
-                <TakeExam />
-              </ProtectedRoute>
-            }
-          />
+              {/* Full-screen exam — no sidebar layout */}
+              <Route
+                path="/take-exam/:examId/:shiftId"
+                element={
+                  <ProtectedRoute>
+                    <ErrorBoundary>
+                      <TakeExam />
+                    </ErrorBoundary>
+                  </ProtectedRoute>
+                }
+              />
 
-          {/* Redirects */}
-          <Route path="/" element={<Navigate to="/dashboard" replace />} />
-          <Route path="*" element={<Navigate to="/dashboard" replace />} />
-        </Routes>
-      </BrowserRouter>
-    </AuthProvider>
+              {/* Authenticated routes with sidebar layout */}
+              <Route
+                element={
+                  <ProtectedRoute>
+                    <Layout />
+                  </ProtectedRoute>
+                }
+              >
+                <Route path="/" element={<Navigate to="/dashboard" replace />} />
+                <Route path="/dashboard" element={<Dashboard />} />
+                <Route path="/profile" element={<Profile />} />
+                <Route path="/password-management" element={<PasswordMgmt />} />
+                <Route path="/exams" element={<BrowseExams />} />
+                <Route path="/results" element={<Results />} />
+              </Route>
+
+              {/* Catch-all */}
+              <Route path="*" element={<Navigate to="/login" replace />} />
+            </Routes>
+          </BrowserRouter>
+        </AuthProvider>
+      </ToastProvider>
+    </ErrorBoundary>
   );
 };
 

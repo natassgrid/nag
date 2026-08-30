@@ -1,194 +1,223 @@
-import React, { useState } from 'react';
-import { useAuth } from '../context/AuthContext';
-import { Search, Calendar, Check, AlertCircle } from 'lucide-react';
+// src/pages/BrowseExams.tsx
+// Connected exam listing → GET /api/v1/examinations/public (paginated)
+// Apply Now → POST /api/v1/examinations/{examId}/apply
 
-interface MockExam {
-  id: string;
-  name: string;
-  code: string;
-  eligibility: string;
-  date: string;
-  fee: string;
-  duration: string;
-  status: 'open' | 'closed' | 'upcoming';
-}
+import React, { useEffect, useState, useCallback } from 'react';
+import { Search, BookOpen, Calendar, Clock, Award, CheckCircle, Loader } from 'lucide-react';
+import { examService } from '../services/examService';
+import { useToast } from '../components/Toast';
+import type { ExaminationResponse } from '../types/api';
 
-const AVAILABLE_EXAMS: MockExam[] = [
-  {
-    id: 'EXAM001',
-    name: 'National Entrance Examination (Graduate) 2026',
-    code: 'NEE-G26',
-    eligibility: 'Bachelor\'s Degree in any discipline',
-    date: 'September 15, 2026',
-    fee: '₹1000',
-    duration: '180 mins',
-    status: 'open'
-  },
-  {
-    id: 'EXAM002',
-    name: 'AI & Machine Learning Scholarship Test 2026',
-    code: 'AIMLST-26',
-    eligibility: 'Pursuing graduation or equivalent computer background',
-    date: 'October 05, 2026',
-    fee: 'Free',
-    duration: '90 mins',
-    status: 'open'
-  },
-  {
-    id: 'EXAM003',
-    name: 'Civil Services Preliminary Screening 2026',
-    code: 'CSPS-26',
-    eligibility: 'Graduate in any discipline',
-    date: 'November 20, 2026',
-    fee: '₹200',
-    duration: '120 mins',
-    status: 'open'
-  },
-  {
-    id: 'EXAM004',
-    name: 'Central Recruitment Officer Grade-A Assessment',
-    code: 'CROA-26',
-    eligibility: 'Post-graduation with 2 years experience',
-    date: 'Closed',
-    fee: '₹500',
-    duration: '150 mins',
-    status: 'closed'
-  }
-];
+const BrowseExams: React.FC = () => {
+  const { toast } = useToast();
+  const [exams, setExams] = useState<ExaminationResponse[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState('');
+  const [applying, setApplying] = useState<string | null>(null);
+  const [appliedIds, setAppliedIds] = useState<Set<string>>(new Set());
+  const [page, setPage] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
 
-export const BrowseExams: React.FC = () => {
-  const { user, applyForExam } = useAuth();
-  const [searchTerm, setSearchTerm] = useState('');
-  const [filterStatus, setFilterStatus] = useState<'all' | 'applied' | 'not-applied'>('all');
-  
-  const [alert, setAlert] = useState<{ examId: string; type: 'success'; text: string } | null>(null);
+  const fetchExams = useCallback(async (q: string, p: number) => {
+    setLoading(true);
+    try {
+      const result = await examService.listPublishedExams({ search: q || undefined, page: p, size: 12 });
+      setExams(result.content);
+      setTotalPages(result.totalPages);
+    } catch {
+      toast.error('Failed to load exams', 'Please refresh and try again.');
+    } finally {
+      setLoading(false);
+    }
+  }, [toast]);
 
-  const handleApply = (examId: string, examName: string) => {
-    applyForExam(examId);
-    setAlert({ examId, type: 'success', text: `You have successfully applied for ${examName}.` });
-    setTimeout(() => setAlert(null), 4000);
+  useEffect(() => {
+    // Load already-applied exams on mount
+    examService.getMyExams()
+      .then((apps) => setAppliedIds(new Set(apps.map((a) => a.examId))))
+      .catch(() => {});
+  }, []);
+
+  // Debounced search
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setPage(0);
+      void fetchExams(search, 0);
+    }, 400);
+    return () => clearTimeout(timer);
+  }, [search, fetchExams]);
+
+  useEffect(() => {
+    void fetchExams(search, page);
+  }, [page, fetchExams, search]);
+
+  const handleApply = async (exam: ExaminationResponse) => {
+    setApplying(exam.id);
+    try {
+      await examService.applyForExam({ examId: exam.id });
+      setAppliedIds((prev) => new Set(prev).add(exam.id));
+      toast.success('Application submitted!', `You've applied for "${exam.title}".`);
+    } catch (err: unknown) {
+      const error = err as { response?: { data?: { message?: string }; status?: number } };
+      if (error.response?.status === 409) {
+        toast.warning('Already applied', 'You have already applied for this exam.');
+        setAppliedIds((prev) => new Set(prev).add(exam.id));
+      } else {
+        toast.error('Application failed', error.response?.data?.message ?? 'Please try again.');
+      }
+    } finally {
+      setApplying(null);
+    }
   };
 
-  const filteredExams = AVAILABLE_EXAMS.filter((exam) => {
-    const matchesSearch = exam.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-                          exam.code.toLowerCase().includes(searchTerm.toLowerCase());
-    
-    const isApplied = user?.registeredExams.includes(exam.id) || false;
-    
-    if (filterStatus === 'applied') return matchesSearch && isApplied;
-    if (filterStatus === 'not-applied') return matchesSearch && !isApplied;
-    return matchesSearch;
-  });
+  const formatDate = (d: string) =>
+    new Date(d).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
 
   return (
     <div className="space-y-6">
-      {/* Header */}
       <div>
-        <h1 className="text-2xl font-extrabold text-slate-800">Browse Examinations</h1>
-        <p className="text-sm text-slate-500">Explore open entrance and recruitment tests and register.</p>
+        <h1 className="text-2xl font-bold text-gray-800">Browse Examinations</h1>
+        <p className="text-gray-500 text-sm mt-1">Find and apply for upcoming government examinations.</p>
       </div>
 
-      {/* Filter / Search Bar */}
-      <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-200 flex flex-col md:flex-row gap-4 justify-between items-center">
-        {/* Search */}
-        <div className="relative w-full md:w-96">
-          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-            <Search className="h-4.5 w-4.5 text-gray-400" />
-          </div>
-          <input
-            type="text"
-            placeholder="Search by exam name or code..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="pl-10 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm text-slate-900 focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 text-sm"
-          />
-        </div>
+      {/* Search */}
+      <div className="relative">
+        <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4" />
+        <input
+          type="search"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="Search by exam name, department…"
+          className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm"
+        />
+      </div>
 
-        {/* Filter status buttons */}
-        <div className="flex space-x-2 w-full md:w-auto">
-          {(['all', 'applied', 'not-applied'] as const).map((status) => (
-            <button
-              key={status}
-              onClick={() => setFilterStatus(status)}
-              className={`px-3 py-1.5 rounded-lg text-xs font-semibold uppercase tracking-wider transition-colors flex-1 md:flex-none ${
-                filterStatus === status
-                  ? 'bg-indigo-600 text-white'
-                  : 'bg-gray-100 hover:bg-gray-200 text-gray-700'
-              }`}
-            >
-              {status === 'all' ? 'All Exams' : status === 'applied' ? 'Applied Only' : 'Not Applied'}
-            </button>
+      {/* Exam grid */}
+      {loading ? (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <div key={i} className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 animate-pulse">
+              <div className="h-5 bg-gray-200 rounded w-3/4 mb-3" />
+              <div className="h-3 bg-gray-100 rounded w-full mb-2" />
+              <div className="h-3 bg-gray-100 rounded w-2/3 mb-4" />
+              <div className="h-9 bg-gray-200 rounded-lg" />
+            </div>
           ))}
         </div>
-      </div>
+      ) : exams.length === 0 ? (
+        <div className="text-center py-16 text-gray-400">
+          <BookOpen className="w-12 h-12 mx-auto mb-3 text-gray-300" />
+          <p className="font-medium text-gray-500">No examinations found</p>
+          <p className="text-sm">
+            {search ? 'Try a different search term.' : 'Check back later for new exam announcements.'}
+          </p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {exams.map((exam) => {
+            const isApplied = appliedIds.has(exam.id);
+            const isApplying = applying === exam.id;
+            const appOpen = new Date(exam.applicationEndDate) > new Date();
 
-      {/* Exam Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {filteredExams.map((exam) => {
-          const isApplied = user?.registeredExams.includes(exam.id) || false;
-          const isTaken = user?.completedExams.some((c) => c.examId === exam.id) || false;
-          
-          return (
-            <div key={exam.id} className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 flex flex-col justify-between space-y-4 hover:shadow-md transition-shadow relative">
-              {alert?.examId === exam.id && (
-                <div className="absolute top-2 left-2 right-2 bg-green-50 text-green-800 text-xs font-semibold p-2.5 rounded-lg border border-green-200 flex items-center z-10 animate-fade-in shadow">
-                  <Check className="h-4 w-4 mr-2 text-green-600 flex-shrink-0" />
-                  {alert.text}
-                </div>
-              )}
-
-              <div className="space-y-2">
-                <div className="flex justify-between items-start">
-                  <span className="px-2.5 py-0.5 rounded text-xs font-bold font-mono bg-indigo-50 text-indigo-700 border border-indigo-100">
-                    {exam.code}
-                  </span>
-                  <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide ${
-                    exam.status === 'open' 
-                      ? 'bg-green-100 text-green-800' 
-                      : 'bg-red-100 text-red-800'
-                  }`}>
-                    {exam.status === 'open' ? 'Registration Open' : 'Closed'}
-                  </span>
-                </div>
-                <h3 className="text-base font-extrabold text-slate-800 leading-snug">{exam.name}</h3>
-                
-                <div className="pt-2 text-xs space-y-1.5 text-gray-600">
-                  <p><strong>Eligibility:</strong> {exam.eligibility}</p>
-                  <p className="flex items-center"><Calendar className="h-3.5 w-3.5 mr-1 text-gray-400" /> <strong>Exam Date:</strong> {exam.date}</p>
-                  <div className="flex space-x-4 pt-1 border-t border-gray-50 mt-2">
-                    <p><strong>Duration:</strong> {exam.duration}</p>
-                    <p><strong>Application Fee:</strong> {exam.fee}</p>
+            return (
+              <div key={exam.id} className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 flex flex-col">
+                {/* Header */}
+                <div className="flex items-start justify-between gap-2 mb-3">
+                  <div className="bg-indigo-100 p-2 rounded-lg shrink-0">
+                    <BookOpen className="w-5 h-5 text-indigo-600" />
                   </div>
+                  <span className={`text-xs px-2 py-1 rounded-full font-medium ${
+                    exam.status === 'PUBLISHED' ? 'bg-green-100 text-green-700' :
+                    exam.status === 'ACTIVE' ? 'bg-blue-100 text-blue-700' :
+                    'bg-gray-100 text-gray-600'
+                  }`}>
+                    {exam.status}
+                  </span>
+                </div>
+
+                <h3 className="font-semibold text-gray-800 text-sm mb-1 line-clamp-2">{exam.title}</h3>
+                <p className="text-xs text-gray-500 line-clamp-2 mb-3">{exam.description}</p>
+
+                {/* Details */}
+                <div className="space-y-1.5 text-xs text-gray-500 mb-4">
+                  <p className="flex items-center gap-1.5">
+                    <Calendar className="w-3.5 h-3.5 text-indigo-400" />
+                    Exam: {formatDate(exam.examDate)}
+                  </p>
+                  <p className="flex items-center gap-1.5">
+                    <Clock className="w-3.5 h-3.5 text-indigo-400" />
+                    Duration: {exam.durationMinutes} min
+                  </p>
+                  <p className="flex items-center gap-1.5">
+                    <Award className="w-3.5 h-3.5 text-indigo-400" />
+                    Total Marks: {exam.totalMarks}
+                  </p>
+                  {exam.applicationFee > 0 && (
+                    <p className="flex items-center gap-1.5">
+                      <span className="text-indigo-400 font-bold">₹</span>
+                      Application Fee: ₹{exam.applicationFee}
+                    </p>
+                  )}
+                </div>
+
+                {/* Apply deadline */}
+                {appOpen && (
+                  <p className="text-xs text-amber-600 bg-amber-50 rounded-lg px-2 py-1 mb-3 text-center">
+                    Apply by: {formatDate(exam.applicationEndDate)}
+                  </p>
+                )}
+
+                {/* CTA */}
+                <div className="mt-auto">
+                  {isApplied ? (
+                    <div className="flex items-center justify-center gap-2 w-full py-2.5 bg-green-50 text-green-700 rounded-lg text-sm font-medium border border-green-200">
+                      <CheckCircle className="w-4 h-4" /> Applied
+                    </div>
+                  ) : !appOpen ? (
+                    <div className="w-full py-2.5 bg-gray-100 text-gray-400 rounded-lg text-sm font-medium text-center">
+                      Applications Closed
+                    </div>
+                  ) : (
+                    <button
+                      onClick={() => void handleApply(exam)}
+                      disabled={isApplying}
+                      className="w-full flex items-center justify-center gap-2 py-2.5 bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-400 text-white rounded-lg text-sm font-medium transition"
+                    >
+                      {isApplying ? <Loader className="w-4 h-4 animate-spin" /> : null}
+                      {isApplying ? 'Applying…' : 'Apply Now'}
+                    </button>
+                  )}
                 </div>
               </div>
+            );
+          })}
+        </div>
+      )}
 
-              <div className="pt-4 border-t border-gray-100 flex items-center justify-between">
-                {isTaken ? (
-                  <span className="text-xs font-bold text-slate-500 bg-slate-100 px-3 py-1.5 rounded-lg w-full text-center">
-                    Assessment Completed
-                  </span>
-                ) : isApplied ? (
-                  <span className="text-xs font-bold text-green-700 bg-green-50 border border-green-200 px-3 py-1.5 rounded-lg w-full text-center flex items-center justify-center">
-                    <Check className="h-4 w-4 mr-1 text-green-600" /> Applied & Registered
-                  </span>
-                ) : exam.status === 'closed' ? (
-                  <span className="text-xs font-bold text-red-700 bg-red-50 border border-red-200 px-3 py-1.5 rounded-lg w-full text-center flex items-center justify-center">
-                    <AlertCircle className="h-4 w-4 mr-1" /> Closed
-                  </span>
-                ) : (
-                  <button
-                    onClick={() => handleApply(exam.id, exam.name)}
-                    className="w-full py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-bold transition-colors shadow-sm"
-                  >
-                    Apply Now
-                  </button>
-                )}
-              </div>
-            </div>
-          );
-        })}
-      </div>
+      {/* Pagination */}
+      {!loading && totalPages > 1 && (
+        <div className="flex justify-center gap-2">
+          <button
+            onClick={() => setPage((p) => Math.max(0, p - 1))}
+            disabled={page === 0}
+            className="px-4 py-2 border border-gray-300 rounded-lg text-sm disabled:opacity-40 hover:bg-gray-50"
+          >
+            Previous
+          </button>
+          <span className="px-4 py-2 text-sm text-gray-600">
+            Page {page + 1} of {totalPages}
+          </span>
+          <button
+            onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))}
+            disabled={page >= totalPages - 1}
+            className="px-4 py-2 border border-gray-300 rounded-lg text-sm disabled:opacity-40 hover:bg-gray-50"
+          >
+            Next
+          </button>
+        </div>
+      )}
     </div>
   );
 };
+
 export default BrowseExams;

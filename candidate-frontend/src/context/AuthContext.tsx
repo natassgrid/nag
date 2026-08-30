@@ -1,254 +1,168 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+// src/context/AuthContext.tsx
+// Real auth context — delegates to authService and candidateService.
+// All mock setTimeout calls removed; JWT tokens stored via tokenManager.
 
-export interface UserProfile {
-  name: string;
-  email: string;
-  mobile: string;
-  dob?: string;
-  gender?: string;
-  category?: string;
-  address?: string;
-  qualification?: string;
-  university?: string;
-  passingYear?: string;
-  percentage?: string;
-  photoUploaded?: boolean;
-  signatureUploaded?: boolean;
-  idProofUploaded?: boolean;
-  registeredExams: string[]; // Exam IDs
-  completedExams: {
-    examId: string;
-    examName: string;
-    score: number;
-    totalQuestions: number;
-    percentile: number;
-    rank: number;
-    date: string;
-  }[];
-}
+import React, { createContext, useCallback, useContext, useEffect, useState } from 'react';
+import { authService } from '../services/authService';
+import { candidateService } from '../services/candidateService';
+import { tokenManager } from '../utils/tokenManager';
+import type {
+  CandidateProfileResponse,
+  RegistrationRequest,
+} from '../types/api';
+
+// ─── Context shape ────────────────────────────────────────────────────────────
 
 interface AuthContextType {
-  user: UserProfile | null;
+  /** Full candidate profile from the server. null when not logged in. */
+  profile: CandidateProfileResponse | null;
+  /** True after a successful login with valid JWT. */
   isAuthenticated: boolean;
+  /** True after email+mobile OTP verification. */
   isVerified: boolean;
+  /** userId returned by /register, persisted across page refreshes for OTP flow. */
+  pendingUserId: string | null;
+  /** Masked contact info shown on OTP screen. */
   otpSentTo: { email: string; mobile: string } | null;
-  login: (email: string, password: string) => Promise<boolean>;
-  logout: () => void;
-  register: (name: string, email: string, mobile: string, password: string) => Promise<void>;
+  /** Whether the profile is currently being fetched from the backend. */
+  profileLoading: boolean;
+
+  login: (username: string, password: string) => Promise<boolean>;
+  logout: () => Promise<void>;
+  register: (request: RegistrationRequest) => Promise<void>;
   verifyOtp: (otp: string) => Promise<boolean>;
   resendOtp: () => Promise<void>;
-  updateProfile: (details: Partial<UserProfile>) => void;
-  applyForExam: (examId: string) => void;
-  submitExamResult: (examId: string, examName: string, score: number, totalQuestions: number) => void;
-  changePassword: (oldPass: string, newPass: string) => Promise<boolean>;
+  refreshProfile: () => Promise<void>;
 }
+
+// ─── Context & persistence keys ──────────────────────────────────────────────
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-const DEFAULT_USER: UserProfile = {
-  name: "John Doe",
-  email: "candidate@nag.gov.in",
-  mobile: "9876543210",
-  dob: "2000-01-01",
-  gender: "Male",
-  category: "General",
-  address: "123, Admin Colony, New Delhi, 110001",
-  qualification: "B.Tech in Computer Science",
-  university: "State Technical University",
-  passingYear: "2023",
-  percentage: "82.5",
-  photoUploaded: true,
-  signatureUploaded: true,
-  idProofUploaded: true,
-  registeredExams: ["EXAM001"],
-  completedExams: [
-    {
-      examId: "EXAM000",
-      examName: "Foundation Assessment Test 2025",
-      score: 85,
-      totalQuestions: 100,
-      percentile: 98.4,
-      rank: 142,
-      date: "2025-11-15"
-    }
-  ]
-};
+const PENDING_USER_KEY = 'nag_pending_user_id';
+const OTP_SENT_KEY = 'nag_otp_sent_to';
+
+// ─── Provider ─────────────────────────────────────────────────────────────────
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [user, setUser] = useState<UserProfile | null>(() => {
-    const saved = localStorage.getItem('nag_candidate_user');
-    return saved ? JSON.parse(saved) : DEFAULT_USER;
-  });
-
-  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => {
-    return localStorage.getItem('nag_candidate_auth') === 'true';
-  });
-
+  const [profile, setProfile] = useState<CandidateProfileResponse | null>(null);
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(
+    () => tokenManager.isAuthenticated(),
+  );
   const [isVerified, setIsVerified] = useState<boolean>(() => {
-    return localStorage.getItem('nag_candidate_verified') === 'true';
+    // User is verified if they have a valid token (OTP was verified to get it)
+    return tokenManager.isAuthenticated();
   });
-
+  const [pendingUserId, setPendingUserId] = useState<string | null>(
+    () => sessionStorage.getItem(PENDING_USER_KEY),
+  );
   const [otpSentTo, setOtpSentTo] = useState<{ email: string; mobile: string } | null>(() => {
-    const saved = localStorage.getItem('nag_candidate_otp_sent');
-    return saved ? JSON.parse(saved) : null;
+    const saved = sessionStorage.getItem(OTP_SENT_KEY);
+    return saved ? (JSON.parse(saved) as { email: string; mobile: string }) : null;
   });
+  const [profileLoading, setProfileLoading] = useState<boolean>(false);
 
-  useEffect(() => {
-    if (user) {
-      localStorage.setItem('nag_candidate_user', JSON.stringify(user));
-    } else {
-      localStorage.removeItem('nag_candidate_user');
+  // Fetch profile from backend when authenticated
+  const refreshProfile = useCallback(async () => {
+    const userId = tokenManager.getUserId();
+    if (!userId) return;
+    setProfileLoading(true);
+    try {
+      const p = await candidateService.getProfile(userId);
+      setProfile(p);
+    } catch (err) {
+      console.error('Failed to load candidate profile', err);
+    } finally {
+      setProfileLoading(false);
     }
-  }, [user]);
+  }, []);
 
+  // On mount: if we have a valid token, load the profile
   useEffect(() => {
-    localStorage.setItem('nag_candidate_auth', String(isAuthenticated));
-  }, [isAuthenticated]);
-
-  useEffect(() => {
-    localStorage.setItem('nag_candidate_verified', String(isVerified));
-  }, [isVerified]);
-
-  useEffect(() => {
-    if (otpSentTo) {
-      localStorage.setItem('nag_candidate_otp_sent', JSON.stringify(otpSentTo));
-    } else {
-      localStorage.removeItem('nag_candidate_otp_sent');
+    if (isAuthenticated) {
+      void refreshProfile();
     }
-  }, [otpSentTo]);
+  }, [isAuthenticated, refreshProfile]);
 
-  const login = async (email: string, password: string): Promise<boolean> => {
-    // Simple mock authentication
-    // Check default credentials or registered credentials
-    await new Promise((resolve) => setTimeout(resolve, 800)); // Simulate API call
-    
-    if (email === "candidate@nag.gov.in" && password === "password123") {
+  // ── Auth actions ─────────────────────────────────────────────────────────────
+
+  const login = useCallback(async (username: string, password: string): Promise<boolean> => {
+    try {
+      const tokens = await authService.login({ username, password });
+      tokenManager.setTokens(tokens.accessToken, tokens.refreshToken, tokens.expiresIn, tokens.userId);
       setIsAuthenticated(true);
       setIsVerified(true);
+      await refreshProfile();
       return true;
+    } catch (err) {
+      console.error('Login failed', err);
+      return false;
     }
+  }, [refreshProfile]);
 
-    if (user && email === user.email && password === "password123") {
-      setIsAuthenticated(true);
-      setIsVerified(true);
-      return true;
-    }
-
-    // Allow mock login for any credentials for prototype ease
-    if (user && email === user.email) {
-      setIsAuthenticated(true);
-      setIsVerified(true);
-      return true;
-    }
-
-    return false;
-  };
-
-  const logout = () => {
-    setIsAuthenticated(false);
-    setIsVerified(false);
-    setOtpSentTo(null);
-  };
-
-  const register = async (name: string, email: string, mobile: string, password: string) => {
-    await new Promise((resolve) => setTimeout(resolve, 1000));
-    
-    // Create new profile skeleton
-    const newProfile: UserProfile = {
-      name,
-      email,
-      mobile,
-      registeredExams: [],
-      completedExams: []
-    };
-    
-    // Keep reference to mock password
-    console.log("Mock registered with password length:", password.length);
-    
-    setUser(newProfile);
-    setIsAuthenticated(true); // Logged in but not verified
-    setIsVerified(false);
-    setOtpSentTo({ email, mobile });
-  };
-
-  const verifyOtp = async (otp: string): Promise<boolean> => {
-    await new Promise((resolve) => setTimeout(resolve, 800));
-    if (otp === "123456" || otp.length === 6) { // Mock code
-      setIsVerified(true);
+  const logout = useCallback(async (): Promise<void> => {
+    try {
+      await authService.logout();
+    } finally {
+      tokenManager.clearTokens();
+      setIsAuthenticated(false);
+      setIsVerified(false);
+      setProfile(null);
+      setPendingUserId(null);
       setOtpSentTo(null);
-      return true;
+      sessionStorage.removeItem(PENDING_USER_KEY);
+      sessionStorage.removeItem(OTP_SENT_KEY);
     }
-    return false;
-  };
+  }, []);
 
-  const resendOtp = async () => {
-    await new Promise((resolve) => setTimeout(resolve, 500));
-  };
+  const register = useCallback(async (request: RegistrationRequest): Promise<void> => {
+    const response = await authService.register(request);
+    // Store pending userId so VerifyOtp page can use it
+    setPendingUserId(response.userId);
+    setOtpSentTo(response.otpSentTo);
+    sessionStorage.setItem(PENDING_USER_KEY, response.userId);
+    sessionStorage.setItem(OTP_SENT_KEY, JSON.stringify(response.otpSentTo));
+  }, []);
 
-  const updateProfile = (details: Partial<UserProfile>) => {
-    setUser((prev) => {
-      if (!prev) return null;
-      return { ...prev, ...details };
-    });
-  };
+  const verifyOtp = useCallback(async (otp: string): Promise<boolean> => {
+    if (!pendingUserId) return false;
+    try {
+      const tokens = await authService.verifyOtp({ userId: pendingUserId, otp });
+      tokenManager.setTokens(tokens.accessToken, tokens.refreshToken, tokens.expiresIn, tokens.userId);
+      setIsAuthenticated(true);
+      setIsVerified(true);
+      setPendingUserId(null);
+      setOtpSentTo(null);
+      sessionStorage.removeItem(PENDING_USER_KEY);
+      sessionStorage.removeItem(OTP_SENT_KEY);
+      await refreshProfile();
+      return true;
+    } catch (err) {
+      console.error('OTP verification failed', err);
+      return false;
+    }
+  }, [pendingUserId, refreshProfile]);
 
-  const applyForExam = (examId: string) => {
-    setUser((prev) => {
-      if (!prev) return null;
-      if (prev.registeredExams.includes(examId)) return prev;
-      return {
-        ...prev,
-        registeredExams: [...prev.registeredExams, examId]
-      };
-    });
-  };
-
-  const submitExamResult = (examId: string, examName: string, score: number, totalQuestions: number) => {
-    setUser((prev) => {
-      if (!prev) return null;
-      
-      // Remove from registered, add to completed
-      const newRegistered = prev.registeredExams.filter(id => id !== examId);
-      
-      const newCompletedItem = {
-        examId,
-        examName,
-        score,
-        totalQuestions,
-        percentile: parseFloat((70 + Math.random() * 29).toFixed(2)), // Random mock percentile 70-99%
-        rank: Math.floor(Math.random() * 500) + 1,
-        date: new Date().toISOString().split('T')[0]
-      };
-
-      return {
-        ...prev,
-        registeredExams: newRegistered,
-        completedExams: [...prev.completedExams, newCompletedItem]
-      };
-    });
-  };
-
-  const changePassword = async (oldPass: string, newPass: string): Promise<boolean> => {
-    await new Promise((resolve) => setTimeout(resolve, 800));
-    return oldPass.length > 0 && newPass.length > 0; // Simulate check
-  };
+  const resendOtp = useCallback(async (): Promise<void> => {
+    if (!pendingUserId) return;
+    await authService.resendOtp({ userId: pendingUserId });
+  }, [pendingUserId]);
 
   return (
     <AuthContext.Provider
       value={{
-        user,
+        profile,
         isAuthenticated,
         isVerified,
+        pendingUserId,
         otpSentTo,
+        profileLoading,
         login,
         logout,
         register,
         verifyOtp,
         resendOtp,
-        updateProfile,
-        applyForExam,
-        submitExamResult,
-        changePassword
+        refreshProfile,
       }}
     >
       {children}
@@ -256,7 +170,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   );
 };
 
-export const useAuth = () => {
+export const useAuth = (): AuthContextType => {
   const context = useContext(AuthContext);
   if (context === undefined) {
     throw new Error('useAuth must be used within an AuthProvider');

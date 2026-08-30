@@ -97,6 +97,36 @@ public class ExaminationService {
     }
 
     /**
+     * Lists PUBLISHED examinations for the given tenant with pagination.
+     * Used by the candidate-facing public endpoint — no admin role required.
+     *
+     * @param tenantId tenant identifier
+     * @param search   optional search term matched against exam name
+     * @param page     zero-based page number
+     * @param size     page size
+     * @return paginated list of published examinations
+     */
+    public org.springframework.data.domain.Page<ExaminationResponse> listPublishedPaged(
+            String tenantId, String search, int page, int size) {
+        org.springframework.data.domain.Pageable pageable =
+                org.springframework.data.domain.PageRequest.of(page, size,
+                        org.springframework.data.domain.Sort.by("createdAt").descending());
+
+        org.springframework.data.domain.Page<Examination> examPage;
+        if (search != null && !search.isBlank()) {
+            examPage = examinationRepository.findByStatusAndTenantIdAndNameContainingIgnoreCase(
+                    "PUBLISHED", tenantId, search.trim(), pageable);
+        } else {
+            examPage = examinationRepository.findByStatusAndTenantId("PUBLISHED", tenantId, pageable);
+        }
+
+        return examPage.map(exam -> {
+            List<Section> sections = deserializeSections(exam.getSectionsJson());
+            return toResponse(exam, sections);
+        });
+    }
+
+    /**
      * Creates a new examination in DRAFT status.
      * Validates that sum(section.marksPerQuestion × section.questionCount) == totalMarks.
      */

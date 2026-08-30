@@ -1,354 +1,374 @@
-import React, { useState, useEffect } from 'react';
+// src/pages/TakeExam.tsx
+// Full-screen CBT — wired to real delivery and response service APIs.
+// Start session → navigate → save per question → submit.
+
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext';
-import { 
-  Clock, 
-  User, 
-  HelpCircle, 
-  AlertTriangle
-} from 'lucide-react';
+import { Clock, AlertTriangle, CheckSquare, Square } from 'lucide-react';
+import { sessionService } from '../services/sessionService';
+import { responseService } from '../services/responseService';
+import { useToast } from '../components/Toast';
+import { offlineQueue } from '../utils/offlineQueue';
+import type { QuestionDto, SessionStartResponse } from '../types/api';
 
-interface Question {
-  id: number;
-  text: string;
-  options: string[];
-  correctOptionIndex: number;
-}
+// ─── Types ────────────────────────────────────────────────────────────────────
 
-const MOCK_QUESTIONS: Question[] = [
-  {
-    id: 1,
-    text: "Which of the following is an open-source initiative designed to serve as Digital Public Infrastructure (DPI) for secure, scalable assessments?",
-    options: ["NAG (Next-generation Assessment Grid)", "Kubernetes Orchestrator", "Apache Kafka Streamer", "HashiCorp Vault Service"],
-    correctOptionIndex: 0
-  },
-  {
-    id: 2,
-    text: "What type of architecture does NAG follow for scalable cloud deployments?",
-    options: ["Monolithic architecture", "Cloud-native microservices architecture", "Peer-to-peer decentralized architecture", "Serverless-only event listeners"],
-    correctOptionIndex: 1
-  },
-  {
-    id: 3,
-    text: "Which primary programming language and framework is used in the NAG backend?",
-    options: ["Node.js & Express", "Python & Django", "Java & Spring Boot", "Go & Gin"],
-    correctOptionIndex: 2
-  },
-  {
-    id: 4,
-    text: "In NAG, which tool is recommended to manage encrypted credentials and secrets securely?",
-    options: ["PostgreSQL Database", "Redis Cache", "HashiCorp Vault", "Apache Kafka"],
-    correctOptionIndex: 2
-  },
-  {
-    id: 5,
-    text: "What database is primarily configured in NAG for persistent relational records like candidate profiles?",
-    options: ["Redis", "PostgreSQL", "OpenSearch", "MongoDB"],
-    correctOptionIndex: 1
-  },
-  {
-    id: 6,
-    text: "Which protocol is utilized to authenticate candidate logins securely using tokens?",
-    options: ["OAuth2 / JWT", "FTP", "SNMP", "SMTP"],
-    correctOptionIndex: 0
-  },
-  {
-    id: 7,
-    text: "What is the primary script execution engine used by browser frontends (like Angular/React) to build dynamic DOMs?",
-    options: ["Python Engine", "V8 JavaScript/TypeScript Engine", "Java Virtual Machine", "C++ compiler"],
-    correctOptionIndex: 1
-  },
-  {
-    id: 8,
-    text: "What observability tool stack is typically used to trace microservice latency in NAG?",
-    options: ["Prometheus & Grafana & OpenTelemetry", "Nginx logs only", "Chrome Developer Tools", "System Event Viewers"],
-    correctOptionIndex: 0
-  }
-];
+type AnswerMap = Record<string, { optionIndex: number | null; markedForReview: boolean; revSeq: number }>;
 
-export const TakeExam: React.FC = () => {
-  const { id } = useParams<{ id: string }>();
+// ─── Component ────────────────────────────────────────────────────────────────
+
+const TakeExam: React.FC = () => {
+  const { examId = '', shiftId = '' } = useParams<{ examId: string; shiftId: string }>();
   const navigate = useNavigate();
-  const { submitExamResult } = useAuth();
+  const { toast } = useToast();
 
-  const examName = id === 'EXAM001' ? 'National Entrance Examination (Graduate) 2026' : 'AI & Machine Learning Scholarship Test';
-  
-  // Timer state (90 minutes in seconds = 5400)
-  const [timeLeft, setTimeLeft] = useState(5400);
-
-  // Exam answering state
+  const [session, setSession] = useState<SessionStartResponse | null>(null);
+  const [questions, setQuestions] = useState<QuestionDto[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
-  const [answers, setAnswers] = useState<{ [key: number]: number }>({}); // questionId -> selectedOptionIndex
-  const [statusMap, setStatusMap] = useState<{ [key: number]: 'visited' | 'answered' | 'review' | 'answered-review' }>({
-    1: 'visited' // First question is visited by default
-  });
+  const [answers, setAnswers] = useState<AnswerMap>({});
+  const [timeLeft, setTimeLeft] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
+  const [online, setOnline] = useState(navigator.onLine);
+  const sessionIdRef = useRef<string>('');
 
-  // Submit Modal
-  const [showSubmitModal, setShowSubmitModal] = useState(false);
-
-  // Timer Effect
+  // ── Session start ──────────────────────────────────────────────────────────
   useEffect(() => {
-    if (timeLeft <= 0) {
-      handleAutoSubmit();
-      return;
-    }
-    const timer = setInterval(() => setTimeLeft((t) => t - 1), 1000);
-    return () => clearInterval(timer);
-  }, [timeLeft]);
-
-  // Format Time
-  const formatTime = (seconds: number) => {
-    const hrs = Math.floor(seconds / 3600);
-    const mins = Math.floor((seconds % 3600) / 60);
-    const secs = seconds % 60;
-    return `${hrs.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
-  };
-
-  const handleSelectOption = (optionIndex: number) => {
-    const qId = MOCK_QUESTIONS[currentIndex].id;
-    setAnswers(prev => ({ ...prev, [qId]: optionIndex }));
-  };
-
-  const handleSaveNext = () => {
-    const qId = MOCK_QUESTIONS[currentIndex].id;
-    const isAnswered = answers[qId] !== undefined;
-
-    // Update status
-    setStatusMap(prev => ({
-      ...prev,
-      [qId]: isAnswered ? 'answered' : 'visited'
-    }));
-
-    // Move to next question if not last
-    if (currentIndex < MOCK_QUESTIONS.length - 1) {
-      const nextQId = MOCK_QUESTIONS[currentIndex + 1].id;
-      setCurrentIndex(prev => prev + 1);
-      // Mark next as visited if not already set
-      if (!statusMap[nextQId]) {
-        setStatusMap(prev => ({ ...prev, [nextQId]: 'visited' }));
+    const startSession = async () => {
+      try {
+        const s = await sessionService.startSession({ examId, shiftId });
+        setSession(s);
+        sessionIdRef.current = s.sessionId;
+        setQuestions(s.questions);
+        // Sync timer to server time
+        const serverExpiry = new Date(s.expiresAt).getTime();
+        setTimeLeft(Math.max(0, Math.floor((serverExpiry - Date.now()) / 1000)));
+      } catch {
+        toast.error('Cannot start exam', 'Failed to initialize session. Please try again.');
+        navigate(-1);
+      } finally {
+        setLoading(false);
       }
-    }
-  };
+    };
+    void startSession();
+  }, [examId, shiftId, toast, navigate]);
 
-  const handleMarkReviewNext = () => {
-    const qId = MOCK_QUESTIONS[currentIndex].id;
-    const isAnswered = answers[qId] !== undefined;
+  // ── Timer countdown ────────────────────────────────────────────────────────
+  useEffect(() => {
+    if (!session || timeLeft <= 0) return;
+    const interval = setInterval(() => {
+      setTimeLeft((t) => {
+        if (t <= 1) {
+          clearInterval(interval);
+          void handleSubmit(true);
+          return 0;
+        }
+        return t - 1;
+      });
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [session]); // eslint-disable-line react-hooks/exhaustive-deps
 
-    setStatusMap(prev => ({
-      ...prev,
-      [qId]: isAnswered ? 'answered-review' : 'review'
-    }));
-
-    if (currentIndex < MOCK_QUESTIONS.length - 1) {
-      const nextQId = MOCK_QUESTIONS[currentIndex + 1].id;
-      setCurrentIndex(prev => prev + 1);
-      if (!statusMap[nextQId]) {
-        setStatusMap(prev => ({ ...prev, [nextQId]: 'visited' }));
+  // ── Fullscreen enforcement ─────────────────────────────────────────────────
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.hidden && sessionIdRef.current) {
+        void sessionService.recordFullScreenExit(sessionIdRef.current);
       }
-    }
-  };
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+  }, []);
 
-  const handleClearResponse = () => {
-    const qId = MOCK_QUESTIONS[currentIndex].id;
-    setAnswers(prev => {
-      const copy = { ...prev };
-      delete copy[qId];
-      return copy;
-    });
-    setStatusMap(prev => ({
+  // ── Online/offline detection ───────────────────────────────────────────────
+  useEffect(() => {
+    const onOnline = async () => {
+      setOnline(true);
+      if (sessionIdRef.current && offlineQueue.hasItems(sessionIdRef.current)) {
+        toast.info('Back online', 'Syncing your saved answers…');
+        await responseService.flushOfflineQueue(sessionIdRef.current);
+        toast.success('Synced!', 'All offline responses have been saved.');
+      }
+    };
+    const onOffline = () => {
+      setOnline(false);
+      toast.warning('You are offline', 'Answers will be saved locally and synced when back online.');
+    };
+    window.addEventListener('online', onOnline);
+    window.addEventListener('offline', onOffline);
+    return () => {
+      window.removeEventListener('online', onOnline);
+      window.removeEventListener('offline', onOffline);
+    };
+  }, [toast]);
+
+  // ── Answer a question ──────────────────────────────────────────────────────
+  const handleAnswer = useCallback(
+    async (questionId: string, optionIndex: number) => {
+      const prev = answers[questionId];
+      const revSeq = (prev?.revSeq ?? 0) + 1;
+      const newAnswer = { optionIndex, markedForReview: prev?.markedForReview ?? false, revSeq };
+
+      setAnswers((a) => ({ ...a, [questionId]: newAnswer }));
+
+      // Auto-save to backend
+      if (sessionIdRef.current) {
+        await responseService.saveResponse(sessionIdRef.current, {
+          questionId,
+          responseType: 'MCQ',
+          selectedOptionIndex: optionIndex,
+          markedForReview: newAnswer.markedForReview,
+          timeTakenSeconds: 0,
+          revisionSequence: revSeq,
+        });
+      }
+    },
+    [answers],
+  );
+
+  const toggleReview = (questionId: string) => {
+    setAnswers((prev) => ({
       ...prev,
-      [qId]: 'visited'
+      [questionId]: {
+        ...prev[questionId],
+        markedForReview: !prev[questionId]?.markedForReview,
+      },
     }));
   };
 
-  const handlePaletteClick = (index: number) => {
-    setCurrentIndex(index);
-    const qId = MOCK_QUESTIONS[index].id;
-    if (!statusMap[qId]) {
-      setStatusMap(prev => ({ ...prev, [qId]: 'visited' }));
+  // ── Navigate between questions ─────────────────────────────────────────────
+  const goToQuestion = useCallback(
+    async (index: number) => {
+      if (!session) return;
+      setCurrentIndex(index);
+      try {
+        await sessionService.navigate(session.sessionId, { targetQuestionIndex: index });
+      } catch {
+        // Non-critical — just a navigation record
+      }
+    },
+    [session],
+  );
+
+  // ── Submit ─────────────────────────────────────────────────────────────────
+  const handleSubmit = async (autoSubmit = false) => {
+    if (!session) return;
+    setSubmitting(true);
+    try {
+      await responseService.submitSession(session.sessionId);
+      toast.success(autoSubmit ? 'Time up — submitted!' : 'Exam submitted!', 'Your responses have been recorded.');
+      navigate('/results');
+    } catch {
+      toast.error('Submission failed', 'Please try again immediately.');
+    } finally {
+      setSubmitting(false);
+      setShowConfirm(false);
     }
   };
 
-  const getPaletteColorClass = (qId: number) => {
-    const status = statusMap[qId];
-    if (status === 'answered') return 'bg-green-600 text-white border-green-700';
-    if (status === 'review') return 'bg-purple-600 text-white border-purple-700';
-    if (status === 'answered-review') return 'bg-indigo-700 text-white border-indigo-900 ring-2 ring-purple-300';
-    if (status === 'visited') return 'bg-red-500 text-white border-red-600';
-    return 'bg-gray-100 text-gray-700 border-gray-300';
+  // ── Helpers ───────────────────────────────────────────────────────────────
+  const formatTime = (s: number) => {
+    const h = Math.floor(s / 3600);
+    const m = Math.floor((s % 3600) / 60);
+    const sec = s % 60;
+    return h > 0
+      ? `${h}:${String(m).padStart(2, '0')}:${String(sec).padStart(2, '0')}`
+      : `${String(m).padStart(2, '0')}:${String(sec).padStart(2, '0')}`;
   };
 
-  // Counting statistics
-  const answeredCount = Object.keys(answers).length;
-  const reviewCount = Object.values(statusMap).filter(v => v === 'review').length;
-  const answeredReviewCount = Object.values(statusMap).filter(v => v === 'answered-review').length;
-  const notAnsweredCount = Object.values(statusMap).filter(v => v === 'visited').length;
-  const notVisitedCount = MOCK_QUESTIONS.length - Object.keys(statusMap).length;
-
-  const handleAutoSubmit = () => {
-    executeSubmission();
+  const getQuestionStatus = (q: QuestionDto) => {
+    const ans = answers[q.id];
+    if (ans?.markedForReview) return 'review';
+    if (ans?.optionIndex !== null && ans?.optionIndex !== undefined) return 'answered';
+    return 'unanswered';
   };
 
-  const executeSubmission = () => {
-    // Calculate final score
-    let score = 0;
-    MOCK_QUESTIONS.forEach(q => {
-      if (answers[q.id] === q.correctOptionIndex) {
-        score += 1;
-      }
-    });
+  const statusColors: Record<string, string> = {
+    answered: 'bg-green-500 text-white',
+    review: 'bg-amber-400 text-white',
+    unanswered: 'bg-gray-200 text-gray-600',
+    current: 'bg-indigo-600 text-white ring-2 ring-indigo-300',
+  };
 
-    submitExamResult(
-      id || 'EXAM001',
-      examName,
-      score,
-      MOCK_QUESTIONS.length
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-900 text-white">
+        <div className="text-center">
+          <div className="w-12 h-12 border-4 border-indigo-400 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+          <p>Initializing exam session…</p>
+        </div>
+      </div>
     );
-    navigate('/results');
-  };
+  }
+
+  if (!session || questions.length === 0) return null;
+
+  const currentQuestion = questions[currentIndex];
+  const currentAnswer = answers[currentQuestion?.id];
+
+  const answeredCount = Object.values(answers).filter(
+    (a) => a.optionIndex !== null && a.optionIndex !== undefined,
+  ).length;
+  const reviewCount = Object.values(answers).filter((a) => a.markedForReview).length;
 
   return (
-    <div className="fixed inset-0 bg-slate-100 flex flex-col z-50 overflow-hidden font-sans">
-      {/* Exam Taker Header */}
-      <header className="bg-slate-900 text-white h-16 px-4 md:px-6 flex items-center justify-between flex-shrink-0 border-b border-slate-800">
-        <div className="flex items-center space-x-3">
-          <div className="h-8 w-8 bg-indigo-600 rounded flex items-center justify-center font-black text-sm">N</div>
-          <div>
-            <h1 className="text-xs md:text-sm font-bold truncate max-w-[200px] md:max-w-md">{examName}</h1>
-            <p className="text-[10px] text-slate-400">Subject: General Aptitude & Computer Sciences</p>
+    <div className="min-h-screen bg-gray-900 flex flex-col">
+      {/* Header */}
+      <header className="bg-gray-800 border-b border-gray-700 px-4 py-3 flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <div className="bg-indigo-600 px-3 py-1.5 rounded-lg text-white text-sm font-semibold">
+            NAG
+          </div>
+          <div className="text-white text-sm">
+            Q {currentIndex + 1}/{questions.length}
           </div>
         </div>
 
-        {/* Timer Block */}
-        <div className="flex items-center space-x-2 bg-slate-800 border border-slate-700 rounded-lg px-3 py-1.5 shadow-inner">
-          <Clock className="h-4.5 w-4.5 text-indigo-400 animate-pulse" />
-          <span className="font-mono text-xs md:text-sm font-bold text-slate-100">
-            Time Left: <span className={timeLeft < 300 ? 'text-red-500 font-extrabold animate-pulse' : 'text-green-400'}>{formatTime(timeLeft)}</span>
-          </span>
+        {/* Offline indicator */}
+        {!online && (
+          <div className="flex items-center gap-1.5 bg-amber-600 text-white text-xs px-3 py-1 rounded-full">
+            <AlertTriangle className="w-3 h-3" /> Offline — saving locally
+          </div>
+        )}
+
+        {/* Timer */}
+        <div className={`flex items-center gap-2 px-4 py-2 rounded-lg font-mono text-lg font-bold ${
+          timeLeft < 300 ? 'bg-red-600 text-white' : 'bg-gray-700 text-white'
+        }`}>
+          <Clock className="w-5 h-5" />
+          {formatTime(timeLeft)}
         </div>
       </header>
 
-      {/* Main Split Section */}
-      <div className="flex-1 flex overflow-hidden">
-        {/* Left Side: Question Display */}
-        <div className="flex-1 flex flex-col justify-between overflow-y-auto bg-white p-4 md:p-6 lg:p-8">
-          <div className="max-w-3xl w-full mx-auto space-y-6">
-            {/* Question title and navigation */}
-            <div className="flex justify-between items-center border-b border-gray-100 pb-3">
-              <h2 className="text-base font-extrabold text-slate-800 flex items-center">
-                <HelpCircle className="h-5 w-5 mr-2 text-indigo-600" />
-                Question {currentIndex + 1} of {MOCK_QUESTIONS.length}
-              </h2>
-              <span className="text-xs bg-indigo-50 text-indigo-700 font-bold px-2 py-0.5 rounded">
-                Marks: +1.0 | -0.25
-              </span>
-            </div>
-
-            {/* Question Text */}
-            <div className="bg-slate-50 p-5 rounded-xl border border-slate-200/60 shadow-sm">
-              <p className="text-slate-800 font-semibold text-sm md:text-base leading-relaxed whitespace-pre-line">
-                {MOCK_QUESTIONS[currentIndex].text}
-              </p>
+      <div className="flex flex-1 overflow-hidden">
+        {/* Main question area */}
+        <main className="flex-1 overflow-y-auto p-6">
+          <div className="max-w-3xl mx-auto">
+            {/* Question */}
+            <div className="bg-gray-800 rounded-xl p-6 mb-4">
+              <div className="flex items-center gap-2 mb-4">
+                <span className="bg-indigo-600 text-white text-xs px-2 py-0.5 rounded font-medium">
+                  Q{currentIndex + 1}
+                </span>
+                <span className="text-gray-400 text-xs">{currentQuestion.sectionName}</span>
+                <span className="ml-auto text-xs text-gray-400">
+                  +{currentQuestion.marks} / -{currentQuestion.negativeMarks}
+                </span>
+              </div>
+              <p className="text-white text-base leading-relaxed">{currentQuestion.text}</p>
             </div>
 
             {/* Options */}
-            <div className="space-y-3">
-              {MOCK_QUESTIONS[currentIndex].options.map((option, idx) => {
-                const isSelected = answers[MOCK_QUESTIONS[currentIndex].id] === idx;
-                return (
-                  <button
-                    key={idx}
-                    onClick={() => handleSelectOption(idx)}
-                    className={`w-full text-left p-4 rounded-xl border text-sm transition-all flex items-center ${
-                      isSelected
-                        ? 'border-indigo-600 bg-indigo-50/50 text-indigo-900 font-bold shadow-sm'
-                        : 'border-gray-200 hover:bg-slate-50 text-slate-700'
-                    }`}
-                  >
-                    <span className={`h-5 w-5 rounded-full border flex items-center justify-center mr-3 flex-shrink-0 text-xs font-semibold ${
-                      isSelected ? 'border-indigo-600 bg-indigo-600 text-white' : 'border-gray-400 text-gray-500'
-                    }`}>
-                      {String.fromCharCode(65 + idx)}
-                    </span>
-                    {option}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* Action Footer */}
-          <div className="border-t border-gray-200 pt-4 mt-8 bg-white flex flex-wrap gap-3 justify-between items-center max-w-3xl w-full mx-auto">
-            <div className="flex space-x-2">
-              <button
-                onClick={handleClearResponse}
-                className="px-4 py-2 border border-gray-300 hover:bg-gray-50 text-gray-700 text-xs font-bold rounded-lg transition-colors"
-              >
-                Clear Response
-              </button>
-              <button
-                onClick={handleMarkReviewNext}
-                className="px-4 py-2 bg-purple-100 hover:bg-purple-200 text-purple-800 text-xs font-bold rounded-lg transition-colors"
-              >
-                Mark for Review & Next
-              </button>
-            </div>
-            
-            <div className="flex space-x-2">
-              <button
-                onClick={handleSaveNext}
-                className="px-5 py-2 bg-green-600 hover:bg-green-700 text-white text-xs font-bold rounded-lg transition-colors shadow-sm"
-              >
-                {currentIndex === MOCK_QUESTIONS.length - 1 ? 'Save & Review Palette' : 'Save & Next'}
-              </button>
-            </div>
-          </div>
-        </div>
-
-        {/* Right Side: Question Palette & Candidate Profile */}
-        <aside className="w-80 bg-slate-900 text-white flex flex-col justify-between border-l border-slate-800 flex-shrink-0 hidden lg:flex">
-          {/* Candidate Profile Details */}
-          <div className="p-4 bg-slate-950 border-b border-slate-800 flex items-center space-x-3">
-            <div className="h-12 w-12 rounded bg-indigo-600 flex items-center justify-center font-bold text-white shadow-inner uppercase">
-              <User className="h-6 w-6" />
-            </div>
-            <div>
-              <p className="text-xs text-slate-400">Candidate Code: CND-782</p>
-              <p className="text-sm font-bold truncate text-slate-100">Jane Doe</p>
-            </div>
-          </div>
-
-          {/* Question grid palette */}
-          <div className="flex-1 p-4 overflow-y-auto space-y-4">
-            <h3 className="text-xs font-extrabold uppercase tracking-wider text-slate-400">Question Palette</h3>
-            <div className="grid grid-cols-4 gap-2.5">
-              {MOCK_QUESTIONS.map((q, idx) => (
+            <div className="space-y-3 mb-6">
+              {currentQuestion.options.map((opt) => (
                 <button
-                  key={q.id}
-                  onClick={() => handlePaletteClick(idx)}
-                  className={`h-10 w-10 border rounded-lg font-bold text-xs flex items-center justify-center transition-all ${getPaletteColorClass(q.id)} ${
-                    currentIndex === idx ? 'ring-2 ring-indigo-400 ring-offset-2 ring-offset-slate-900 scale-105' : ''
+                  key={opt.index}
+                  onClick={() => void handleAnswer(currentQuestion.id, opt.index)}
+                  className={`w-full text-left p-4 rounded-xl border transition ${
+                    currentAnswer?.optionIndex === opt.index
+                      ? 'border-indigo-500 bg-indigo-900/50 text-indigo-200'
+                      : 'border-gray-700 bg-gray-800 text-gray-300 hover:border-gray-500'
                   }`}
                 >
-                  {q.id}
+                  <span className="inline-flex items-center gap-3">
+                    <span className={`w-7 h-7 rounded-full border flex items-center justify-center text-sm font-bold shrink-0 ${
+                      currentAnswer?.optionIndex === opt.index
+                        ? 'bg-indigo-500 border-indigo-500 text-white'
+                        : 'border-gray-600 text-gray-400'
+                    }`}>
+                      {String.fromCharCode(65 + opt.index)}
+                    </span>
+                    {opt.text}
+                  </span>
                 </button>
+              ))}
+            </div>
+
+            {/* Action buttons */}
+            <div className="flex items-center gap-3 flex-wrap">
+              <button
+                onClick={() => toggleReview(currentQuestion.id)}
+                className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition ${
+                  currentAnswer?.markedForReview
+                    ? 'bg-amber-500 text-white'
+                    : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                }`}
+              >
+                {currentAnswer?.markedForReview ? (
+                  <CheckSquare className="w-4 h-4" />
+                ) : (
+                  <Square className="w-4 h-4" />
+                )}
+                Mark for Review
+              </button>
+
+              <div className="flex items-center gap-2 ml-auto">
+                <button
+                  onClick={() => goToQuestion(Math.max(0, currentIndex - 1))}
+                  disabled={currentIndex === 0}
+                  className="px-4 py-2 bg-gray-700 text-gray-300 rounded-lg text-sm disabled:opacity-40 hover:bg-gray-600"
+                >
+                  Previous
+                </button>
+                {currentIndex < questions.length - 1 ? (
+                  <button
+                    onClick={() => goToQuestion(currentIndex + 1)}
+                    className="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm hover:bg-indigo-700"
+                  >
+                    Save &amp; Next
+                  </button>
+                ) : (
+                  <button
+                    onClick={() => setShowConfirm(true)}
+                    className="px-4 py-2 bg-green-600 text-white rounded-lg text-sm hover:bg-green-700 font-medium"
+                  >
+                    Submit Exam
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+        </main>
+
+        {/* Question palette sidebar */}
+        <aside className="w-64 bg-gray-800 border-l border-gray-700 flex flex-col overflow-y-auto">
+          <div className="p-4 border-b border-gray-700">
+            <h3 className="text-white text-sm font-semibold mb-3">Question Palette</h3>
+            <div className="space-y-1.5 text-xs text-gray-400">
+              {[
+                { color: 'bg-green-500', label: `Answered (${answeredCount})` },
+                { color: 'bg-amber-400', label: `Review (${reviewCount})` },
+                { color: 'bg-gray-600', label: `Not attempted (${questions.length - answeredCount - reviewCount})` },
+              ].map((l) => (
+                <div key={l.label} className="flex items-center gap-2">
+                  <span className={`w-3 h-3 rounded-full shrink-0 ${l.color}`} />
+                  {l.label}
+                </div>
               ))}
             </div>
           </div>
 
-          {/* Palette Legend Summary & Submit */}
-          <div className="p-4 border-t border-slate-800 bg-slate-950 space-y-4">
-            <div className="grid grid-cols-2 gap-2 text-[10px] text-slate-300">
-              <div className="flex items-center"><span className="h-3 w-3 bg-green-600 rounded mr-1.5"></span>Answered ({answeredCount})</div>
-              <div className="flex items-center"><span className="h-3 w-3 bg-red-500 rounded mr-1.5"></span>Not Answered ({notAnsweredCount})</div>
-              <div className="flex items-center"><span className="h-3 w-3 bg-purple-600 rounded mr-1.5"></span>Marked Review ({reviewCount})</div>
-              <div className="flex items-center"><span className="h-3 w-3 bg-indigo-700 rounded mr-1.5"></span>Ans & Review ({answeredReviewCount})</div>
-              <div className="flex items-center"><span className="h-3 w-3 bg-gray-100 rounded mr-1.5"></span>Not Visited ({notVisitedCount})</div>
-            </div>
+          <div className="p-4 grid grid-cols-5 gap-1.5">
+            {questions.map((q, i) => {
+              const status = i === currentIndex ? 'current' : getQuestionStatus(q);
+              return (
+                <button
+                  key={q.id}
+                  onClick={() => goToQuestion(i)}
+                  className={`w-9 h-9 text-xs font-bold rounded-lg transition ${statusColors[status]}`}
+                  aria-label={`Question ${i + 1}, ${status}`}
+                >
+                  {i + 1}
+                </button>
+              );
+            })}
+          </div>
 
+          <div className="mt-auto p-4">
             <button
-              onClick={() => setShowSubmitModal(true)}
-              className="w-full py-2.5 bg-red-600 hover:bg-red-700 text-white rounded-lg font-extrabold text-xs shadow-md uppercase tracking-wider transition-colors"
+              onClick={() => setShowConfirm(true)}
+              className="w-full bg-green-600 hover:bg-green-700 text-white font-semibold py-2.5 rounded-lg text-sm transition"
             >
               Submit Exam
             </button>
@@ -356,74 +376,37 @@ export const TakeExam: React.FC = () => {
         </aside>
       </div>
 
-      {/* Mobile Submit Button (Floating for small screens) */}
-      <div className="lg:hidden p-3 bg-white border-t border-gray-200 flex space-x-2">
-        <button 
-          onClick={() => {
-            // cycle previous
-            if (currentIndex > 0) setCurrentIndex(prev => prev - 1);
-          }}
-          disabled={currentIndex === 0}
-          className="flex-1 py-2 border border-gray-300 rounded-lg text-xs font-bold text-gray-700 disabled:opacity-30"
+      {/* Submit confirmation modal */}
+      {showConfirm && (
+        <div
+          className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="confirm-title"
         >
-          Previous
-        </button>
-        <button 
-          onClick={() => {
-            // cycle next
-            if (currentIndex < MOCK_QUESTIONS.length - 1) setCurrentIndex(prev => prev + 1);
-          }}
-          disabled={currentIndex === MOCK_QUESTIONS.length - 1}
-          className="flex-1 py-2 border border-gray-300 rounded-lg text-xs font-bold text-gray-700 disabled:opacity-30"
-        >
-          Next
-        </button>
-        <button
-          onClick={() => setShowSubmitModal(true)}
-          className="flex-1 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg text-xs font-bold"
-        >
-          Submit Exam
-        </button>
-      </div>
-
-      {/* Confirmation Submit Modal */}
-      {showSubmitModal && (
-        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-xl shadow-xl max-w-md w-full overflow-hidden border border-gray-200">
-            <div className="p-5 border-b border-gray-100 flex items-center bg-red-50 text-red-800">
-              <AlertTriangle className="h-5 w-5 mr-2 text-red-600" />
-              <h3 className="font-extrabold text-sm uppercase tracking-wider">Confirm Exam Submission</h3>
+          <div className="bg-white rounded-2xl p-6 max-w-md w-full">
+            <AlertTriangle className="w-10 h-10 text-amber-500 mx-auto mb-3" />
+            <h3 id="confirm-title" className="text-lg font-bold text-gray-800 text-center mb-2">
+              Submit Examination?
+            </h3>
+            <div className="text-sm text-gray-600 text-center mb-6 space-y-1">
+              <p>Answered: <strong>{answeredCount}</strong> / {questions.length}</p>
+              <p>Marked for review: <strong>{reviewCount}</strong></p>
+              <p className="text-amber-600 font-medium">This action cannot be undone.</p>
             </div>
-            
-            <div className="p-5 space-y-4">
-              <p className="text-xs text-gray-500">
-                You are about to submit your response sheets. Once submitted, answers cannot be edited.
-              </p>
-              
-              <div className="bg-slate-50 p-4 rounded-lg border border-slate-200/60 text-xs space-y-2 text-slate-700">
-                <div className="flex justify-between font-semibold"><span>Total Questions:</span> <span className="text-slate-900">{MOCK_QUESTIONS.length}</span></div>
-                <div className="flex justify-between text-green-700 font-semibold"><span>Answered Questions:</span> <span>{answeredCount}</span></div>
-                <div className="flex justify-between text-red-600 font-semibold"><span>Unanswered / Visited:</span> <span>{notAnsweredCount}</span></div>
-                <div className="flex justify-between text-purple-700 font-semibold"><span>Marked for Review:</span> <span>{reviewCount + answeredReviewCount}</span></div>
-              </div>
-
-              <p className="text-xs text-slate-800 font-bold text-center">
-                Are you sure you want to end the test?
-              </p>
-            </div>
-
-            <div className="p-4 border-t border-gray-100 bg-gray-50 flex justify-end space-x-2">
+            <div className="flex gap-3">
               <button
-                onClick={() => setShowSubmitModal(false)}
-                className="px-4 py-2 border border-gray-300 hover:bg-gray-100 rounded-lg text-xs font-bold text-gray-700 transition-colors"
+                onClick={() => setShowConfirm(false)}
+                className="flex-1 border border-gray-300 text-gray-700 py-2.5 rounded-lg hover:bg-gray-50 font-medium"
               >
-                Back to Exam
+                Continue Exam
               </button>
               <button
-                onClick={executeSubmission}
-                className="px-4 py-2 bg-red-600 hover:bg-red-700 rounded-lg text-xs font-bold text-white transition-colors flex items-center"
+                onClick={() => void handleSubmit(false)}
+                disabled={submitting}
+                className="flex-1 bg-green-600 hover:bg-green-700 disabled:bg-green-400 text-white py-2.5 rounded-lg font-medium"
               >
-                Yes, Submit Test
+                {submitting ? 'Submitting…' : 'Yes, Submit'}
               </button>
             </div>
           </div>
@@ -432,4 +415,5 @@ export const TakeExam: React.FC = () => {
     </div>
   );
 };
+
 export default TakeExam;

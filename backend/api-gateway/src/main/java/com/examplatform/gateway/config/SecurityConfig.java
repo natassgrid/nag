@@ -48,7 +48,7 @@ public class SecurityConfig {
             .csrf(ServerHttpSecurity.CsrfSpec::disable)
             .authorizeExchange(exchanges -> exchanges
                 .pathMatchers("/actuator/health", "/actuator/info", "/actuator/prometheus").permitAll()
-                .pathMatchers("/api/v1/identity/register", "/api/v1/identity/auth/**", "/api/v1/identity/otp/**").permitAll()
+                .pathMatchers("/api/v1/identity/register", "/api/v1/identity/auth/**", "/api/v1/identity/otp/**", "/api/v1/examinations/public/**").permitAll()
                 .anyExchange().authenticated()
             )
             .oauth2ResourceServer(oauth2 -> oauth2
@@ -57,7 +57,8 @@ public class SecurityConfig {
                     String path = exchange.getRequest().getPath().value();
                     if (path.startsWith("/api/v1/identity/auth/") ||
                         path.startsWith("/api/v1/identity/register") ||
-                        path.startsWith("/api/v1/identity/otp/")) {
+                        path.startsWith("/api/v1/identity/otp/") ||
+                        path.startsWith("/api/v1/examinations/public/")) {
                         return reactor.core.publisher.Mono.empty();
                     }
                     return new org.springframework.security.oauth2.server.resource.web.server.authentication.ServerBearerTokenAuthenticationConverter()

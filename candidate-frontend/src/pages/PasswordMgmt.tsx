@@ -1,135 +1,154 @@
-import React, { useState } from 'react';
-import { useAuth } from '../context/AuthContext';
-import { KeyRound, CheckCircle, AlertCircle, Save, Loader2 } from 'lucide-react';
+// src/pages/PasswordMgmt.tsx
+// Connected password change form → POST /api/v1/identity/auth/change-password
 
-export const PasswordMgmt: React.FC = () => {
-  const { changePassword } = useAuth();
-  const [currentPassword, setCurrentPassword] = useState('');
-  const [newPassword, setNewPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
-  
-  const [isLoading, setIsLoading] = useState(false);
-  const [alert, setAlert] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+import React from 'react';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
+import { Lock, Eye, EyeOff, ShieldCheck } from 'lucide-react';
+import { authService } from '../services/authService';
+import { useToast } from '../components/Toast';
+import { useState } from 'react';
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setAlert(null);
+const schema = z
+  .object({
+    currentPassword: z.string().min(1, 'Current password is required'),
+    newPassword: z
+      .string()
+      .min(8, 'Minimum 8 characters')
+      .regex(/[A-Z]/, 'At least one uppercase letter')
+      .regex(/[0-9]/, 'At least one number')
+      .regex(/[^a-zA-Z0-9]/, 'At least one special character'),
+    confirmPassword: z.string(),
+  })
+  .refine((d) => d.newPassword === d.confirmPassword, {
+    message: 'Passwords do not match',
+    path: ['confirmPassword'],
+  });
 
-    if (!currentPassword || !newPassword || !confirmPassword) {
-      setAlert({ type: 'error', text: 'All fields are required' });
-      return;
-    }
+type Form = z.infer<typeof schema>;
 
-    if (newPassword !== confirmPassword) {
-      setAlert({ type: 'error', text: 'New password and confirm password do not match' });
-      return;
-    }
+const PasswordMgmt: React.FC = () => {
+  const { toast } = useToast();
+  const [show, setShow] = useState({ current: false, new: false, confirm: false });
 
-    if (newPassword.length < 6) {
-      setAlert({ type: 'error', text: 'New password must be at least 6 characters long' });
-      return;
-    }
+  const {
+    register,
+    handleSubmit,
+    reset,
+    formState: { errors, isSubmitting },
+  } = useForm<Form>({ resolver: zodResolver(schema) });
 
-    setIsLoading(true);
+  const onSubmit = async (data: Form) => {
     try {
-      const ok = await changePassword(currentPassword, newPassword);
-      if (ok) {
-        setAlert({ type: 'success', text: 'Your password has been changed successfully.' });
-        setCurrentPassword('');
-        setNewPassword('');
-        setConfirmPassword('');
+      await authService.changePassword({
+        currentPassword: data.currentPassword,
+        newPassword: data.newPassword,
+      });
+      toast.success('Password changed!', 'Your password has been updated successfully.');
+      reset();
+    } catch (err: unknown) {
+      const error = err as { response?: { data?: { message?: string }; status?: number } };
+      if (error.response?.status === 401 || error.response?.status === 403) {
+        toast.error('Incorrect password', 'The current password you entered is wrong.');
       } else {
-        setAlert({ type: 'error', text: 'Failed to verify current password.' });
+        toast.error('Change failed', error.response?.data?.message ?? 'Please try again.');
       }
-    } catch {
-      setAlert({ type: 'error', text: 'An error occurred. Please try again.' });
-    } finally {
-      setIsLoading(false);
     }
   };
 
+  const toggleShow = (field: keyof typeof show) =>
+    setShow((prev) => ({ ...prev, [field]: !prev[field] }));
+
+  const inputCls =
+    'w-full border border-gray-300 rounded-lg px-4 py-2.5 pr-10 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500';
+  const errCls = 'text-red-500 text-xs mt-1';
+  const labelCls = 'block text-sm font-medium text-gray-700 mb-1.5';
+
+  const fields: { name: keyof Form; label: string; showKey: keyof typeof show }[] = [
+    { name: 'currentPassword', label: 'Current Password', showKey: 'current' },
+    { name: 'newPassword', label: 'New Password', showKey: 'new' },
+    { name: 'confirmPassword', label: 'Confirm New Password', showKey: 'confirm' },
+  ];
+
   return (
-    <div className="space-y-6">
-      {/* Header */}
+    <div className="max-w-lg mx-auto space-y-6">
       <div>
-        <h1 className="text-2xl font-extrabold text-slate-800">Password Management</h1>
-        <p className="text-sm text-slate-500">Update your account credentials to keep your portal secure.</p>
+        <h1 className="text-2xl font-bold text-gray-800">Change Password</h1>
+        <p className="text-gray-500 text-sm mt-1">
+          Keep your account secure by using a strong, unique password.
+        </p>
       </div>
 
-      {/* Main Panel */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden max-w-xl">
-        <div className="px-5 py-4 border-b border-gray-100 bg-gray-50/50 flex items-center">
-          <KeyRound className="h-5 w-5 mr-2 text-indigo-600" />
-          <h2 className="text-sm font-bold text-slate-800 uppercase tracking-wider">Change Password</h2>
+      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+        <div className="flex items-center gap-3 mb-6">
+          <div className="bg-indigo-100 p-2.5 rounded-xl">
+            <Lock className="w-5 h-5 text-indigo-600" />
+          </div>
+          <div>
+            <h2 className="font-semibold text-gray-800">Update Password</h2>
+            <p className="text-xs text-gray-500">You'll need to log in again after changing.</p>
+          </div>
         </div>
 
-        <div className="p-6">
-          {alert && (
-            <div className={`mb-6 p-4 rounded-lg border flex items-center ${
-              alert.type === 'success' 
-                ? 'bg-green-50 border-green-200 text-green-800' 
-                : 'bg-red-50 border-red-200 text-red-800'
-            }`}>
-              {alert.type === 'success' ? (
-                <CheckCircle className="h-5 w-5 mr-3 flex-shrink-0 text-green-600" />
-              ) : (
-                <AlertCircle className="h-5 w-5 mr-3 flex-shrink-0 text-red-600" />
-              )}
-              <span className="text-sm font-semibold">{alert.text}</span>
+        <form onSubmit={handleSubmit(onSubmit)} noValidate className="space-y-5">
+          {fields.map(({ name, label, showKey }) => (
+            <div key={name}>
+              <label className={labelCls}>{label}</label>
+              <div className="relative">
+                <input
+                  {...register(name)}
+                  type={show[showKey] ? 'text' : 'password'}
+                  aria-invalid={!!errors[name]}
+                  placeholder="••••••••"
+                  className={inputCls}
+                />
+                <button
+                  type="button"
+                  onClick={() => toggleShow(showKey)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                  aria-label={`${show[showKey] ? 'Hide' : 'Show'} ${label.toLowerCase()}`}
+                >
+                  {show[showKey] ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
+              </div>
+              {errors[name] && <p className={errCls}>{errors[name]?.message}</p>}
             </div>
-          )}
+          ))}
 
-          <form onSubmit={handleSubmit} className="space-y-5">
-            <div>
-              <label className="block text-sm font-medium text-slate-700">Current Password</label>
-              <input
-                type="password"
-                required
-                value={currentPassword}
-                onChange={(e) => setCurrentPassword(e.target.value)}
-                placeholder="Enter current password"
-                className="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm text-slate-900 focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 text-sm"
-              />
-            </div>
+          {/* Password strength hints */}
+          <div className="bg-gray-50 rounded-lg p-3 text-xs text-gray-600 space-y-1">
+            <p className="font-medium text-gray-700 mb-1 flex items-center gap-1">
+              <ShieldCheck className="w-3.5 h-3.5" /> Password Requirements
+            </p>
+            {[
+              'Minimum 8 characters',
+              'At least one uppercase letter (A-Z)',
+              'At least one number (0-9)',
+              'At least one special character (!@#$…)',
+            ].map((req) => (
+              <p key={req} className="flex items-center gap-1.5">
+                <span className="text-gray-400">•</span> {req}
+              </p>
+            ))}
+          </div>
 
-            <div>
-              <label className="block text-sm font-medium text-slate-700">New Password</label>
-              <input
-                type="password"
-                required
-                value={newPassword}
-                onChange={(e) => setNewPassword(e.target.value)}
-                placeholder="Enter new password (min. 6 chars)"
-                className="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm text-slate-900 focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 text-sm"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-slate-700">Confirm New Password</label>
-              <input
-                type="password"
-                required
-                value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
-                placeholder="Confirm new password"
-                className="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm text-slate-900 focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 text-sm"
-              />
-            </div>
-
-            <div className="flex justify-end pt-2">
-              <button
-                type="submit"
-                disabled={isLoading}
-                className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-semibold text-sm flex items-center shadow transition-colors disabled:opacity-50"
-              >
-                {isLoading ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
-                Change Password
-              </button>
-            </div>
-          </form>
-        </div>
+          <button
+            type="submit"
+            disabled={isSubmitting}
+            className="w-full flex items-center justify-center gap-2 bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-400 text-white font-semibold py-3 rounded-lg transition"
+          >
+            {isSubmitting ? (
+              <span className="inline-block w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+            ) : (
+              <Lock className="w-4 h-4" />
+            )}
+            {isSubmitting ? 'Changing password…' : 'Change Password'}
+          </button>
+        </form>
       </div>
     </div>
   );
 };
+
 export default PasswordMgmt;

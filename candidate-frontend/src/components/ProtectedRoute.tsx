@@ -1,34 +1,35 @@
+// src/components/ProtectedRoute.tsx
+// Guards routes based on auth state and JWT validity.
+
 import React from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { tokenManager } from '../utils/tokenManager';
 
-interface ProtectedRouteProps {
+interface Props {
   children: React.ReactNode;
-  requireVerification?: boolean;
+  /** Set true for the /verify route — allows pending (not-yet-verified) users */
+  requirePending?: boolean;
 }
 
-export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ 
-  children, 
-  requireVerification = true 
-}) => {
-  const { isAuthenticated, isVerified } = useAuth();
+const ProtectedRoute: React.FC<Props> = ({ children, requirePending = false }) => {
+  const { isAuthenticated, isVerified, pendingUserId } = useAuth();
   const location = useLocation();
 
-  if (!isAuthenticated) {
-    // Redirect to login page
+  // requirePending: user must be in OTP flow (has pendingUserId but not yet verified)
+  if (requirePending) {
+    if (pendingUserId) return <>{children}</>;
+    // If already verified, send to dashboard
+    if (isAuthenticated && isVerified) return <Navigate to="/dashboard" replace />;
+    return <Navigate to="/register" replace />;
+  }
+
+  // Standard protected route: must be authenticated + verified + token not expired
+  if (!isAuthenticated || !isVerified || !tokenManager.isAuthenticated()) {
     return <Navigate to="/login" state={{ from: location }} replace />;
-  }
-
-  if (requireVerification && !isVerified) {
-    // Redirect to OTP verification page
-    return <Navigate to="/verify" replace />;
-  }
-
-  if (location.pathname === '/verify' && isVerified) {
-    // If they are verified and try to visit verification page, take them to dashboard
-    return <Navigate to="/dashboard" replace />;
   }
 
   return <>{children}</>;
 };
+
 export default ProtectedRoute;
