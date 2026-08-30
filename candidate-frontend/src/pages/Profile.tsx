@@ -19,6 +19,7 @@ import {
   FileCheck,
   RefreshCw,
   AlertTriangle,
+  Mail,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { candidateService } from '../services/candidateService';
@@ -71,6 +72,13 @@ const Profile: React.FC = () => {
   const [loading, setLoading] = useState(!profile);
   const [isNewProfile, setIsNewProfile] = useState(false);
   const [currentProfile, setCurrentProfile] = useState<CandidateProfileResponse | null>(profile);
+
+  // Extract email/username from JWT claims for display fallback
+  const jwtPayload = tokenManager.decodePayload();
+  const tokenEmail = (jwtPayload?.preferred_username as string)?.includes('@')
+    ? (jwtPayload?.preferred_username as string)
+    : (jwtPayload?.email as string) || (jwtPayload?.preferred_username as string) || '';
+  const displayEmail = currentProfile?.email || tokenEmail;
 
   // Document uploads & KYC states
   const [uploading, setUploading] = useState<Record<string, boolean>>({});
@@ -200,20 +208,18 @@ const Profile: React.FC = () => {
     resolver: zodResolver(contactSchema),
     defaultValues: {
       mobile: currentProfile?.mobile ?? '',
-      email: currentProfile?.email ?? '',
+      email: displayEmail ?? '',
       address: currentProfile?.address ?? '',
     },
   });
 
   useEffect(() => {
-    if (currentProfile) {
-      resetContact({
-        mobile: currentProfile.mobile ?? '',
-        email: currentProfile.email ?? '',
-        address: currentProfile.address ?? '',
-      });
-    }
-  }, [currentProfile, resetContact]);
+    resetContact({
+      mobile: currentProfile?.mobile ?? '',
+      email: displayEmail ?? '',
+      address: currentProfile?.address ?? '',
+    });
+  }, [currentProfile, displayEmail, resetContact]);
 
   const onSaveContact = async (data: ContactForm) => {
     const uid = userId || tokenManager.getUserId();
@@ -377,9 +383,16 @@ const Profile: React.FC = () => {
               </span>
             )}
           </div>
-          <p className="text-gray-500 text-sm mt-1">
-            User ID: <span className="font-mono text-xs text-gray-600">{userId || 'Not Logged In'}</span>
-          </p>
+          <div className="flex flex-wrap items-center gap-3 text-xs text-gray-500 mt-2">
+            {displayEmail && (
+              <span className="inline-flex items-center gap-1.5 font-semibold text-indigo-700 bg-indigo-50 border border-indigo-100 px-2.5 py-1 rounded-lg">
+                <Mail className="w-3.5 h-3.5 text-indigo-600" /> {displayEmail}
+              </span>
+            )}
+            <span className="bg-gray-50 border border-gray-200 px-2.5 py-1 rounded-lg">
+              User ID: <span className="font-mono text-gray-700">{userId || 'Not Logged In'}</span>
+            </span>
+          </div>
         </div>
 
         <div className="flex items-center gap-3">
