@@ -19,7 +19,7 @@
 
 package com.examplatform.questionbank.domain;
 
-import com.examplatform.shared.entity.BaseEntity;
+import com.examplatform.shared.entity.NumericBaseEntity;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Table;
@@ -33,6 +33,10 @@ import lombok.NoArgsConstructor;
 /**
  * Represents an examination subject (e.g. General Studies, Mathematics).
  * Unique per name + tenant combination.
+ *
+ * <p>Uses a numeric ({@code BIGINT}) primary key (see {@link NumericBaseEntity})
+ * so that the large {@code question} fact table can reference it with a compact
+ * 8-byte foreign key.
  */
 @Data
 @Builder
@@ -42,7 +46,7 @@ import lombok.NoArgsConstructor;
 @Entity
 @Table(name = "subject", schema = "question_service",
        uniqueConstraints = @UniqueConstraint(columnNames = {"name", "tenant_id"}))
-public class Subject extends BaseEntity {
+public class Subject extends NumericBaseEntity {
 
     @Column(name = "name", nullable = false, length = 200)
     private String name;

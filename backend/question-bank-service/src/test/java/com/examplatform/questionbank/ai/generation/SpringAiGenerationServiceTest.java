@@ -70,6 +70,9 @@ class SpringAiGenerationServiceTest {
     @Mock
     private QuestionRepository questionRepository;
 
+    @Mock
+    private com.examplatform.questionbank.service.SubjectTopicService subjectTopicService;
+
     private SpringAiGenerationService generationService;
 
     private final ObjectMapper objectMapper = new ObjectMapper();
@@ -78,7 +81,7 @@ class SpringAiGenerationServiceTest {
     void setUp() {
         generationService = new SpringAiGenerationService(
                 chatClient, modelRouter, embeddingService,
-                similarityDetectionService, questionRepository, objectMapper);
+                similarityDetectionService, questionRepository, subjectTopicService, objectMapper);
     }
 
     /**
@@ -734,6 +737,8 @@ class SpringAiGenerationServiceTest {
                 throw new RuntimeException("Failed to set ID on mock question", e);
             }
             when(questionRepository.save(any(Question.class))).thenReturn(savedQuestion);
+            when(subjectTopicService.resolveOrCreateByName(eq("Physics"), eq("Mechanics"), any(), eq(TENANT_ID)))
+                    .thenReturn(new com.examplatform.questionbank.service.SubjectTopicService.HierarchyIds(1L, 2L, null));
 
             QuestionGenerationRequest request = QuestionGenerationRequest.builder()
                     .subject("Physics")

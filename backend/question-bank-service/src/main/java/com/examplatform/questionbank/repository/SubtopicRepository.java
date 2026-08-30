@@ -25,14 +25,13 @@ import org.springframework.stereotype.Repository;
 
 import java.util.List;
 import java.util.Optional;
-import java.util.UUID;
 
 @Repository
-public interface SubtopicRepository extends JpaRepository<Subtopic, UUID> {
+public interface SubtopicRepository extends JpaRepository<Subtopic, Long> {
 
-    List<Subtopic> findByTopicIdAndTenantId(UUID topicId, String tenantId);
+    List<Subtopic> findByTopicIdAndTenantId(Long topicId, String tenantId);
 
-    Optional<Subtopic> findByNameAndTopicIdAndTenantId(String name, UUID topicId, String tenantId);
+    Optional<Subtopic> findByNameAndTopicIdAndTenantId(String name, Long topicId, String tenantId);
 
-    boolean existsByNameAndTopicIdAndTenantId(String name, UUID topicId, String tenantId);
+    boolean existsByNameAndTopicIdAndTenantId(String name, Long topicId, String tenantId);
 }

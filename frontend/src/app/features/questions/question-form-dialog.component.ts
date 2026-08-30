@@ -375,6 +375,12 @@ export class QuestionFormDialogComponent implements OnInit, OnChanges {
     this.form.markAllAsTouched();
     if (this.form.valid) {
       const value: CreateQuestionRequest = { ...this.form.value };
+      // Attach numeric hierarchy ids (source of truth for the backend link).
+      // The form controls hold names; the selected entities carry the ids.
+      value.subjectId = this.selectedSubject?.id ?? undefined;
+      value.topicId = this.selectedTopic?.id ?? undefined;
+      const selectedSubtopic = this.subtopics.find(st => st.name === value.subtopic);
+      value.subtopicId = selectedSubtopic?.id ?? undefined;
       if (value.content) value.content = this.formatLatex(value.content);
       if (value.explanation) value.explanation = this.formatLatex(value.explanation);
       if (this.isMcqOrMsq() && this.options.length >= 2) {

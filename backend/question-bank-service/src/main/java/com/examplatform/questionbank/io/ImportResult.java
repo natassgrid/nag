@@ -17,51 +17,52 @@
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
 
-package com.examplatform.questionbank.dto;
+package com.examplatform.questionbank.io;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.util.ArrayList;
 import java.util.List;
 
 /**
- * DTO representing the full Subject → Topic → Subtopic hierarchy tree.
+ * Summary of a question import run: how many files/rows were processed, how many
+ * questions were created, and a per-failure breakdown for diagnosis.
  */
 @Data
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class SubjectHierarchyResponse {
+public class ImportResult {
 
-    private Long id;
-    private String name;
-    private String code;
-    private String description;
-    private boolean active;
-    private List<TopicNode> topics;
+    /** Number of batch files found and processed inside the archive. */
+    private int filesProcessed;
 
-    @Data
-    @Builder
-    @NoArgsConstructor
-    @AllArgsConstructor
-    public static class TopicNode {
-        private Long id;
-        private String name;
-        private String description;
-        private boolean active;
-        private List<SubtopicNode> subtopics;
-    }
+    /** Total question records read across all files. */
+    private int totalRecords;
+
+    /** Number of questions successfully created. */
+    private int imported;
+
+    /** Number of records that failed validation or creation. */
+    private int failed;
+
+    /** Per-record failures (bounded to avoid unbounded responses). */
+    @Builder.Default
+    private List<FailedRecord> failures = new ArrayList<>();
 
     @Data
     @Builder
     @NoArgsConstructor
     @AllArgsConstructor
-    public static class SubtopicNode {
-        private Long id;
-        private String name;
-        private String description;
-        private boolean active;
+    public static class FailedRecord {
+        /** Archive entry (file) the record came from. */
+        private String file;
+        /** 0-based index of the record within its file. */
+        private int recordIndex;
+        /** Human-readable reason for the failure. */
+        private String error;
     }
 }

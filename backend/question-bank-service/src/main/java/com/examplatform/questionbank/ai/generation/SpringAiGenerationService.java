@@ -22,6 +22,7 @@ import com.examplatform.questionbank.dto.QuestionOption;
 import com.examplatform.questionbank.repository.QuestionRepository;
 import com.examplatform.questionbank.repository.SimilarityResult;
 import com.examplatform.questionbank.service.SimilarityDetectionService;
+import com.examplatform.questionbank.service.SubjectTopicService;
 import com.examplatform.questionbank.util.EmbeddingUtils;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
@@ -78,6 +79,7 @@ public class SpringAiGenerationService implements QuestionGenerationService {
     private final EmbeddingService embeddingService;
     private final SimilarityDetectionService similarityDetectionService;
     private final QuestionRepository questionRepository;
+    private final SubjectTopicService subjectTopicService;
     private final ObjectMapper objectMapper;
 
     @Override
@@ -459,7 +461,12 @@ public class SpringAiGenerationService implements QuestionGenerationService {
      */
     private UUID persistAsDraft(RawGeneratedQuestion raw, QuestionGenerationRequest request, String tenantId, UUID authorId) {
         try {
+            SubjectTopicService.HierarchyIds ids = subjectTopicService.resolveOrCreateByName(
+                    request.getSubject(), request.getTopic(), request.getSubtopic(), tenantId);
             Question question = Question.builder()
+                    .subjectId(ids.subjectId())
+                    .topicId(ids.topicId())
+                    .subtopicId(ids.subtopicId())
                     .subject(request.getSubject())
                     .topic(request.getTopic())
                     .subtopic(request.getSubtopic())

@@ -9,6 +9,7 @@ import com.examplatform.questionbank.domain.Question;
 import com.examplatform.questionbank.dto.QuestionOption;
 import com.examplatform.questionbank.repository.QuestionRepository;
 import com.examplatform.questionbank.service.SimilarityDetectionService;
+import com.examplatform.questionbank.service.SubjectTopicService;
 import com.examplatform.questionbank.util.EmbeddingUtils;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -67,6 +68,7 @@ public class BedrockBatchService {
     private final ModelRouter modelRouter;
     private final EmbeddingService embeddingService;
     private final SimilarityDetectionService similarityDetectionService;
+    private final SubjectTopicService subjectTopicService;
     private final ObjectMapper objectMapper;
 
     @Value("${app.ai.bedrock.s3-bucket:exam-bedrock-batch}")
@@ -405,10 +407,18 @@ public class BedrockBatchService {
 
     private UUID persistQuestion(RawQuestion raw, BatchGenerationRequest.BatchItem item, BatchGenerationJob job) {
         try {
+            String subjectName = item != null ? item.getSubject() : "Unknown";
+            String topicName = item != null ? item.getTopic() : "Unknown";
+            String subtopicName = item != null ? item.getSubtopic() : null;
+            SubjectTopicService.HierarchyIds ids = subjectTopicService.resolveOrCreateByName(
+                    subjectName, topicName, subtopicName, job.getTenantId());
             Question question = Question.builder()
-                    .subject(item != null ? item.getSubject() : "Unknown")
-                    .topic(item != null ? item.getTopic() : "Unknown")
-                    .subtopic(item != null ? item.getSubtopic() : null)
+                    .subjectId(ids.subjectId())
+                    .topicId(ids.topicId())
+                    .subtopicId(ids.subtopicId())
+                    .subject(subjectName)
+                    .topic(topicName)
+                    .subtopic(subtopicName)
                     .difficulty(raw.difficulty != null ? raw.difficulty : (item != null ? item.getDifficulty() : "MEDIUM"))
                     .cognitiveLevel(raw.cognitiveLevel != null ? raw.cognitiveLevel : (item != null ? item.getCognitiveLevel() : "APPLY"))
                     .questionType(raw.questionType != null ? raw.questionType : (item != null ? item.getQuestionType() : "SINGLE_MCQ"))

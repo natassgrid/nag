@@ -43,7 +43,6 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
-import java.util.UUID;
 
 /**
  * REST controller for Subject → Topic → Subtopic management.
@@ -102,7 +101,7 @@ public class SubjectTopicController {
     @GetMapping("/{subjectId}/topics")
     @PreAuthorize("hasAnyRole('QUESTION_AUTHOR', 'REVIEWER', 'EXAM_CONTROLLER', 'SUPER_ADMIN')")
     public ResponseEntity<ApiResponse<List<Topic>>> listTopics(
-            @PathVariable UUID subjectId,
+            @PathVariable Long subjectId,
             @RequestHeader("X-Tenant-Id") String tenantId) {
 
         List<Topic> topics = subjectTopicService.listTopics(subjectId, tenantId);
@@ -115,7 +114,7 @@ public class SubjectTopicController {
     @PostMapping("/{subjectId}/topics")
     @PreAuthorize("hasAnyRole('QUESTION_AUTHOR', 'REVIEWER', 'EXAM_CONTROLLER', 'SUPER_ADMIN')")
     public ResponseEntity<ApiResponse<Topic>> createTopic(
-            @PathVariable UUID subjectId,
+            @PathVariable Long subjectId,
             @Valid @RequestBody CreateTopicRequest request,
             @RequestHeader("X-Tenant-Id") String tenantId) {
 
@@ -139,8 +138,8 @@ public class SubjectTopicController {
     @GetMapping("/{subjectId}/topics/{topicId}/subtopics")
     @PreAuthorize("hasAnyRole('QUESTION_AUTHOR', 'REVIEWER', 'EXAM_CONTROLLER', 'SUPER_ADMIN')")
     public ResponseEntity<ApiResponse<List<Subtopic>>> listSubtopics(
-            @PathVariable UUID subjectId,
-            @PathVariable UUID topicId,
+            @PathVariable Long subjectId,
+            @PathVariable Long topicId,
             @RequestHeader("X-Tenant-Id") String tenantId) {
 
         List<Subtopic> subtopics = subjectTopicService.listSubtopics(topicId, tenantId);
@@ -153,8 +152,8 @@ public class SubjectTopicController {
     @PostMapping("/{subjectId}/topics/{topicId}/subtopics")
     @PreAuthorize("hasAnyRole('QUESTION_AUTHOR', 'REVIEWER', 'EXAM_CONTROLLER', 'SUPER_ADMIN')")
     public ResponseEntity<ApiResponse<Subtopic>> createSubtopic(
-            @PathVariable UUID subjectId,
-            @PathVariable UUID topicId,
+            @PathVariable Long subjectId,
+            @PathVariable Long topicId,
             @Valid @RequestBody CreateSubtopicRequest request,
             @RequestHeader("X-Tenant-Id") String tenantId) {
 

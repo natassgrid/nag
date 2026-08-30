@@ -42,12 +42,27 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 public class CreateQuestionRequest {
 
-    @NotBlank(message = "Subject is required")
+    /** Numeric FK to the subject. Source of truth for the hierarchy link. */
+    @NotNull(message = "Subject id is required")
+    private Long subjectId;
+
+    /** Numeric FK to the topic. Source of truth for the hierarchy link. */
+    @NotNull(message = "Topic id is required")
+    private Long topicId;
+
+    /** Numeric FK to the subtopic (optional). */
+    private Long subtopicId;
+
+    /**
+     * Subject name. Optional on input — the service resolves and denormalizes
+     * it from {@link #subjectId}. Present for readability in imported files.
+     */
     private String subject;
 
-    @NotBlank(message = "Topic is required")
+    /** Topic name. Optional on input — resolved from {@link #topicId}. */
     private String topic;
 
+    /** Subtopic name. Optional on input — resolved from {@link #subtopicId}. */
     private String subtopic;
 
     private String chapter;
