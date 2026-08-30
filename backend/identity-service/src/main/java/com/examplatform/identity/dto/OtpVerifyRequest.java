@@ -39,4 +39,9 @@ public class OtpVerifyRequest {
     @NotBlank(message = "OTP is required")
     @Size(min = 6, max = 6, message = "OTP must be 6 digits")
     private String otp;
+
+    public OtpVerifyRequest(String mobile, String otp) {
+        this.mobile = mobile;
+        this.otp = otp;
+    }
 }

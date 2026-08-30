@@ -73,7 +73,7 @@ class CandidateProfileServiceTest {
     @InjectMocks
     CandidateProfileService candidateProfileService;
 
-    private static final String TENANT_ID = "exam-authority-1";
+    private static final String TENANT_ID = "default";
     private static final UUID USER_ID = UUID.fromString("11111111-1111-1111-1111-111111111111");
     private static final String MOBILE = "9876543210";
     private static final String EMAIL = "candidate@example.com";
