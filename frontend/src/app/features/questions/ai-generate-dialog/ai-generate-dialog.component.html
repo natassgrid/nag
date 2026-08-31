@@ -294,21 +294,21 @@
     </div>
   </div>
 
-  <div drawer-footer>
-    <button mat-button (click)="onClose()" [disabled]="generating">Cancel</button>
-    <div *ngIf="generationMode === 'batch'" style="display:flex;gap:8px;">
-      <button mat-stroked-button color="accent" (click)="addToBatch()" [disabled]="generating">
-        <mat-icon>add</mat-icon> Add to Batch
+  <div drawer-footer class="drawer-footer-actions">
+    <button mat-button class="footer-btn btn-cancel" (click)="onClose()" [disabled]="generating">Cancel</button>
+    <div *ngIf="generationMode === 'batch'" class="batch-footer-group">
+      <button mat-stroked-button class="footer-btn btn-add-batch" (click)="addToBatch()" [disabled]="generating">
+        <mat-icon class="footer-btn-icon">add</mat-icon> Add to Batch
       </button>
-      <button mat-raised-button color="primary" (click)="generate()" [disabled]="generating || batchItems.length === 0">
-        <mat-spinner *ngIf="generating" diameter="18" style="display:inline-block;margin-right:6px;vertical-align:middle;"></mat-spinner>
-        <mat-icon *ngIf="!generating">cloud_upload</mat-icon>
+      <button mat-flat-button color="primary" class="footer-btn btn-submit-batch" (click)="generate()" [disabled]="generating || batchItems.length === 0">
+        <mat-spinner *ngIf="generating" diameter="16" class="footer-spinner"></mat-spinner>
+        <mat-icon *ngIf="!generating" class="footer-btn-icon">cloud_upload</mat-icon>
         {{ generating ? 'Submitting...' : 'Submit Batch (' + totalBatchQuestions + ')' }}
       </button>
     </div>
-    <button *ngIf="generationMode === 'realtime'" mat-raised-button color="primary" (click)="generate()" [disabled]="generating">
-      <mat-spinner *ngIf="generating" diameter="18" style="display:inline-block;margin-right:6px;vertical-align:middle;"></mat-spinner>
-      <mat-icon *ngIf="!generating">auto_awesome</mat-icon>
+    <button *ngIf="generationMode === 'realtime'" mat-flat-button color="primary" class="footer-btn btn-generate" (click)="generate()" [disabled]="generating">
+      <mat-spinner *ngIf="generating" diameter="16" class="footer-spinner"></mat-spinner>
+      <mat-icon *ngIf="!generating" class="footer-btn-icon">auto_awesome</mat-icon>
       {{ generating ? 'Generating...' : 'Generate' }}
     </button>
   </div>

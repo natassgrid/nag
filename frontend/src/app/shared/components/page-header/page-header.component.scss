@@ -1,9 +1,10 @@
     .page-header {
       display: flex;
       justify-content: space-between;
-      align-items: flex-start;
+      align-items: center;
       gap: 16px;
       flex-wrap: wrap;
+      margin-bottom: 20px;
     }
 
     .page-header__left {
@@ -14,30 +15,31 @@
 
     .page-header__title {
       margin: 0;
-      font-size: 24px;
-      font-weight: 600;
+      font-size: 22px;
+      font-weight: 700;
       display: flex;
       align-items: center;
       gap: 10px;
-      color: #4A4A4A;
+      color: #0F172A;
+      letter-spacing: -0.01em;
     }
 
     .page-header__icon {
-      font-size: 28px;
-      height: 28px;
-      width: 28px;
-      color: #536DFE;
+      font-size: 26px;
+      height: 26px;
+      width: 26px;
+      color: #4F46E5;
     }
 
     .page-header__subtitle {
       margin: 0;
-      font-size: 14px;
-      color: #757575;
+      font-size: 13px;
+      color: #64748B;
     }
 
     .page-header__actions {
       display: flex;
-      gap: 8px;
+      gap: 10px;
       align-items: center;
-      flex-shrink: 0;
+      flex-wrap: wrap;
     }

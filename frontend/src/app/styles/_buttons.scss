@@ -1,0 +1,246 @@
+﻿/* SPDX-License-Identifier: AGPL-3.0-only
+ * National Assessment Grid (NAG) - Open Digital Public Infrastructure (DPI) Platform
+ * Copyright (C) 2025 NAG Contributors
+ */
+
+@use "colors" as *;
+
+@mixin buttons() {
+  // Global Material button normalization
+  .filter-toggle-btn,
+  button.mat-mdc-raised-button,
+  button.mat-mdc-stroked-button,
+  button.mat-mdc-flat-button,
+  button.mat-mdc-unelevated-button,
+  button.mat-mdc-button:not(.mat-mdc-icon-button),
+  .action-btn,
+  .footer-btn {
+    height: 38px !important;
+    min-height: 38px !important;
+    max-height: 38px !important;
+    line-height: 36px !important;
+    box-sizing: border-box !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    padding: 0 16px !important;
+    border-radius: 8px !important;
+    font-family: inherit !important;
+    font-size: 13px !important;
+    font-weight: 500 !important;
+    letter-spacing: 0.01em !important;
+    vertical-align: middle !important;
+    transition: all 0.15s ease-in-out !important;
+
+    .mat-mdc-button-touch-target {
+      display: none !important;
+    }
+
+    .btn-icon,
+    .footer-btn-icon,
+    mat-icon:not(.mat-icon-no-color) {
+      font-size: 18px !important;
+      width: 18px !important;
+      height: 18px !important;
+      line-height: 18px !important;
+      margin-right: 6px !important;
+      display: inline-flex !important;
+      align-items: center !important;
+      justify-content: center !important;
+      vertical-align: middle !important;
+    }
+  }
+
+  // Primary Buttons (Indigo 600)
+  button.mat-mdc-raised-button.mat-primary,
+  button.mat-mdc-unelevated-button.mat-primary,
+  button.mat-mdc-flat-button.mat-primary,
+  .btn-primary,
+  .btn-create,
+  .btn-submit-batch,
+  .btn-generate {
+    background-color: #4F46E5 !important;
+    color: #FFFFFF !important;
+    font-weight: 600 !important;
+    box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05) !important;
+    border: none !important;
+
+    &:hover:not([disabled]):not(.mat-mdc-button-disabled) {
+      background-color: #4338CA !important;
+      box-shadow: 0 4px 12px rgba(79, 70, 229, 0.3) !important;
+    }
+
+    &:active:not([disabled]):not(.mat-mdc-button-disabled) {
+      background-color: #3730A3 !important;
+    }
+
+    &[disabled],
+    &.mat-mdc-button-disabled {
+      background-color: #E2E8F0 !important;
+      color: #94A3B8 !important;
+      box-shadow: none !important;
+      cursor: not-allowed !important;
+    }
+  }
+
+  // Accent Buttons (Amber 500)
+  button.mat-mdc-raised-button.mat-accent,
+  button.mat-mdc-unelevated-button.mat-accent,
+  button.mat-mdc-flat-button.mat-accent,
+  .btn-accent {
+    background-color: #F59E0B !important;
+    color: #FFFFFF !important;
+    font-weight: 600 !important;
+    border: none !important;
+
+    &:hover:not([disabled]):not(.mat-mdc-button-disabled) {
+      background-color: #D97706 !important;
+      box-shadow: 0 4px 12px rgba(245, 158, 11, 0.3) !important;
+    }
+  }
+
+  // Warn / Danger Buttons (Red 500)
+  button.mat-mdc-raised-button.mat-warn,
+  button.mat-mdc-unelevated-button.mat-warn,
+  button.mat-mdc-flat-button.mat-warn,
+  .btn-warn {
+    background-color: #EF4444 !important;
+    color: #FFFFFF !important;
+    font-weight: 600 !important;
+    border: none !important;
+
+    &:hover:not([disabled]):not(.mat-mdc-button-disabled) {
+      background-color: #DC2626 !important;
+      box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3) !important;
+    }
+  }
+
+  // Stroked / Secondary Buttons
+  button.mat-mdc-stroked-button,
+  .btn-secondary,
+  .btn-export {
+    background-color: #FFFFFF !important;
+    border: 1px solid #CBD5E1 !important;
+    color: #334155 !important;
+    font-weight: 500 !important;
+
+    .btn-icon,
+    mat-icon {
+      color: #64748B;
+    }
+
+    &:hover:not([disabled]):not(.mat-mdc-button-disabled) {
+      background-color: #F8FAFC !important;
+      border-color: #94A3B8 !important;
+      color: #0F172A !important;
+
+      .btn-icon,
+      mat-icon {
+        color: #4F46E5;
+      }
+    }
+
+    &[disabled],
+    &.mat-mdc-button-disabled {
+      opacity: 0.5 !important;
+      cursor: not-allowed !important;
+    }
+
+    &.mat-primary {
+      border-color: #C7D2FE !important;
+      color: #4F46E5 !important;
+
+      &:hover:not([disabled]):not(.mat-mdc-button-disabled) {
+        background-color: #EEF2FF !important;
+        border-color: #4F46E5 !important;
+      }
+    }
+
+    &.mat-warn {
+      border-color: #FECACA !important;
+      color: #EF4444 !important;
+
+      &:hover:not([disabled]):not(.mat-mdc-button-disabled) {
+        background-color: #FEF2F2 !important;
+        border-color: #EF4444 !important;
+      }
+    }
+  }
+
+  // Subtle Tinted Buttons (Indigo 50)
+  .btn-tinted,
+  .btn-import,
+  .btn-add-batch {
+    background-color: #EEF2FF !important;
+    border: 1px solid #C7D2FE !important;
+    color: #4338CA !important;
+    font-weight: 600 !important;
+
+    .btn-icon,
+    .footer-btn-icon,
+    mat-icon {
+      color: #4F46E5 !important;
+    }
+
+    &:hover:not([disabled]):not(.mat-mdc-button-disabled) {
+      background-color: #E0E7FF !important;
+      border-color: #818CF8 !important;
+      color: #3730A3 !important;
+    }
+
+    &[disabled],
+    &.mat-mdc-button-disabled {
+      opacity: 0.5 !important;
+      cursor: not-allowed !important;
+    }
+  }
+
+  // Gradient Buttons (Indigo-Violet AI theme)
+  .btn-gradient,
+  .btn-ai {
+    background: linear-gradient(135deg, #6366F1 0%, #8B5CF6 100%) !important;
+    color: #FFFFFF !important;
+    border: none !important;
+    font-weight: 600 !important;
+    box-shadow: 0 2px 8px rgba(99, 102, 241, 0.35) !important;
+
+    .btn-icon,
+    mat-icon {
+      color: #FFFFFF !important;
+    }
+
+    &:hover:not([disabled]):not(.mat-mdc-button-disabled) {
+      background: linear-gradient(135deg, #4F46E5 0%, #7C3AED 100%) !important;
+      box-shadow: 0 4px 14px rgba(99, 102, 241, 0.45) !important;
+    }
+  }
+
+  // Text / Ghost Buttons
+  button.mat-mdc-button:not(.mat-mdc-icon-button):not(.mat-mdc-stroked-button):not(.mat-mdc-raised-button):not(.mat-mdc-unelevated-button),
+  .btn-ghost,
+  .btn-cancel {
+    font-weight: 500 !important;
+    color: #64748B !important;
+
+    &:hover:not([disabled]):not(.mat-mdc-button-disabled) {
+      color: #0F172A !important;
+      background-color: #F1F5F9 !important;
+    }
+
+    &.mat-primary {
+      color: #4F46E5 !important;
+
+      &:hover:not([disabled]):not(.mat-mdc-button-disabled) {
+        background-color: #EEF2FF !important;
+      }
+    }
+
+    &.mat-warn {
+      color: #EF4444 !important;
+
+      &:hover:not([disabled]):not(.mat-mdc-button-disabled) {
+        background-color: #FEF2F2 !important;
+      }
+    }
+  }
+}

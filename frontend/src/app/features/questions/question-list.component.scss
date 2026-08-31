@@ -1,8 +1,5 @@
-::ng-deep .chip-easy { background-color: #c8e6c9 !important; }
-    ::ng-deep .chip-medium { background-color: #fff9c4 !important; }
-    ::ng-deep .chip-hard { background-color: #ffcdd2 !important; }
-    ::ng-deep .chip-state-draft { background-color: #e0e0e0 !important; }
-    ::ng-deep .chip-state-review { background-color: #bbdefb !important; }
-    ::ng-deep .chip-state-approved { background-color: #c8e6c9 !important; }
-    ::ng-deep .chip-state-published { background-color: #b2dfdb !important; }
-    ::ng-deep .chip-state-archived { background-color: #f5f5f5 !important; }
+// Question list component styles (Delegates to app/styles/buttons and app/styles/chips)
+.page-layout {
+  position: relative;
+}
+

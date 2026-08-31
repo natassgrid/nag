@@ -51,245 +51,179 @@ import { AuthService } from '../../../core/services/auth.service';
   ],
   template: `
     <main class="register-container" role="main" aria-labelledby="register-heading">
-      <mat-card class="register-card" appearance="outlined">
-        <!-- Registration Step -->
-        <ng-container *ngIf="!showOtpStep">
-          <mat-card-header class="register-header">
-            <div class="app-branding">
-              <mat-icon class="app-logo" aria-hidden="true">person_add</mat-icon>
-              <h1 id="register-heading" class="app-title">Create Account</h1>
+      <div class="register-wrapper">
+        <!-- Candidate-style NAG Logo -->
+        <div class="brand-header">
+          <div class="brand-badge-container">
+            <div class="brand-icon-box">
+              <mat-icon class="brand-icon" aria-hidden="true">menu_book</mat-icon>
             </div>
-            <p class="register-subtitle">Register as a candidate</p>
-          </mat-card-header>
+            <div class="brand-text">
+              <h1 class="brand-title">NAG</h1>
+              <p class="brand-subtitle">National Assessment Grid</p>
+            </div>
+          </div>
+          <p class="portal-tag">Administration Portal</p>
+        </div>
 
-          <mat-card-content>
-            <form [formGroup]="registerForm" (ngSubmit)="onRegister()" aria-label="Registration form">
-              <mat-form-field appearance="outline" class="full-width">
-                <mat-label>Full Name</mat-label>
-                <input matInput formControlName="name"
-                       autocomplete="name"
-                       aria-required="true">
-                <mat-icon matPrefix>person</mat-icon>
-                <mat-error *ngIf="registerForm.get('name')?.hasError('required')">
+        <div class="register-card">
+          <!-- Registration Step -->
+          <ng-container *ngIf="!showOtpStep">
+            <h2 id="register-heading" class="card-title">Create Account</h2>
+
+            <form [formGroup]="registerForm" (ngSubmit)="onRegister()" aria-label="Registration form" class="register-form">
+              <div class="form-group">
+                <label class="input-label">Full Name</label>
+                <input
+                  formControlName="name"
+                  type="text"
+                  placeholder="Jane Doe"
+                  autocomplete="name"
+                  aria-required="true"
+                  class="candidate-input"
+                  [class.has-error]="registerForm.get('name')?.invalid && registerForm.get('name')?.touched"
+                />
+                <p class="input-error" *ngIf="registerForm.get('name')?.invalid && registerForm.get('name')?.touched">
                   Full name is required
-                </mat-error>
-              </mat-form-field>
+                </p>
+              </div>
 
-              <mat-form-field appearance="outline" class="full-width">
-                <mat-label>Email</mat-label>
-                <input matInput formControlName="email"
-                       type="email"
-                       autocomplete="email"
-                       aria-required="true">
-                <mat-icon matPrefix>email</mat-icon>
-                <mat-error *ngIf="registerForm.get('email')?.hasError('required')">
-                  Email is required
-                </mat-error>
-                <mat-error *ngIf="registerForm.get('email')?.hasError('email')">
+              <div class="form-group">
+                <label class="input-label">Email Address</label>
+                <input
+                  formControlName="email"
+                  type="email"
+                  placeholder="you@example.com"
+                  autocomplete="email"
+                  aria-required="true"
+                  class="candidate-input"
+                  [class.has-error]="registerForm.get('email')?.invalid && registerForm.get('email')?.touched"
+                />
+                <p class="input-error" *ngIf="registerForm.get('email')?.invalid && registerForm.get('email')?.touched">
                   Enter a valid email address
-                </mat-error>
-              </mat-form-field>
+                </p>
+              </div>
 
-              <mat-form-field appearance="outline" class="full-width">
-                <mat-label>Mobile Number</mat-label>
-                <input matInput formControlName="mobile"
-                       type="tel"
-                       autocomplete="tel"
-                       placeholder="+91XXXXXXXXXX"
-                       aria-required="true">
-                <mat-icon matPrefix>phone</mat-icon>
-                <mat-error *ngIf="registerForm.get('mobile')?.hasError('required')">
-                  Mobile number is required
-                </mat-error>
-                <mat-error *ngIf="registerForm.get('mobile')?.hasError('pattern')">
+              <div class="form-group">
+                <label class="input-label">Mobile Number</label>
+                <input
+                  formControlName="mobile"
+                  type="tel"
+                  autocomplete="tel"
+                  placeholder="+919876543210"
+                  aria-required="true"
+                  class="candidate-input"
+                  [class.has-error]="registerForm.get('mobile')?.invalid && registerForm.get('mobile')?.touched"
+                />
+                <p class="input-error" *ngIf="registerForm.get('mobile')?.invalid && registerForm.get('mobile')?.touched">
                   Enter a valid Indian mobile number (+91XXXXXXXXXX)
-                </mat-error>
-              </mat-form-field>
+                </p>
+              </div>
 
-              <mat-form-field appearance="outline" class="full-width">
-                <mat-label>Identity Document Type</mat-label>
-                <mat-select formControlName="identityDocType" aria-required="true">
-                  <mat-option value="AADHAAR">Aadhaar</mat-option>
-                  <mat-option value="PAN">PAN</mat-option>
-                  <mat-option value="VOTER_ID">Voter ID</mat-option>
-                  <mat-option value="PASSPORT">Passport</mat-option>
-                </mat-select>
-                <mat-icon matPrefix>badge</mat-icon>
-                <mat-error *ngIf="registerForm.get('identityDocType')?.hasError('required')">
+              <div class="form-group">
+                <label class="input-label">Identity Document Type</label>
+                <select
+                  formControlName="identityDocType"
+                  aria-required="true"
+                  class="candidate-input candidate-select"
+                  [class.has-error]="registerForm.get('identityDocType')?.invalid && registerForm.get('identityDocType')?.touched"
+                >
+                  <option value="" disabled selected>Select document</option>
+                  <option value="AADHAAR">Aadhaar Card</option>
+                  <option value="PAN">PAN Card</option>
+                  <option value="VOTER_ID">Voter ID</option>
+                  <option value="PASSPORT">Passport</option>
+                </select>
+                <p class="input-error" *ngIf="registerForm.get('identityDocType')?.invalid && registerForm.get('identityDocType')?.touched">
                   Document type is required
-                </mat-error>
-              </mat-form-field>
+                </p>
+              </div>
 
-              <mat-form-field appearance="outline" class="full-width">
-                <mat-label>Identity Document Number</mat-label>
-                <input matInput formControlName="identityDocNumber"
-                       aria-required="true">
-                <mat-icon matPrefix>article</mat-icon>
-                <mat-error *ngIf="registerForm.get('identityDocNumber')?.hasError('required')">
+              <div class="form-group">
+                <label class="input-label">Identity Document Number</label>
+                <input
+                  formControlName="identityDocNumber"
+                  type="text"
+                  placeholder="Enter document number"
+                  aria-required="true"
+                  class="candidate-input"
+                  [class.has-error]="registerForm.get('identityDocNumber')?.invalid && registerForm.get('identityDocNumber')?.touched"
+                />
+                <p class="input-error" *ngIf="registerForm.get('identityDocNumber')?.invalid && registerForm.get('identityDocNumber')?.touched">
                   Document number is required
-                </mat-error>
-              </mat-form-field>
+                </p>
+              </div>
 
-              <button mat-raised-button color="primary" type="submit"
-                      class="submit-button full-width"
-                      [disabled]="registerForm.invalid || isLoading"
-                      aria-label="Submit registration">
+              <button
+                mat-flat-button
+                color="primary"
+                type="submit"
+                class="submit-button"
+                [disabled]="registerForm.invalid || isLoading"
+                aria-label="Submit registration"
+              >
                 <mat-spinner *ngIf="isLoading" diameter="20" class="button-spinner"></mat-spinner>
-                <span *ngIf="!isLoading">Register</span>
+                <span *ngIf="!isLoading">Register Account</span>
               </button>
             </form>
 
             <div class="auth-links">
-              <a [routerLink]="['/auth/login']" aria-label="Already have an account? Sign in">
-                Already have an account? Sign In
+              <span class="auth-hint">Already have an account?</span>
+              <a [routerLink]="['/auth/login']" class="login-link" aria-label="Already have an account? Sign in">
+                Sign In
               </a>
             </div>
-          </mat-card-content>
-        </ng-container>
+          </ng-container>
 
-        <!-- OTP Verification Step -->
-        <ng-container *ngIf="showOtpStep">
-          <mat-card-header class="register-header">
-            <div class="app-branding">
-              <mat-icon class="app-logo" aria-hidden="true">verified_user</mat-icon>
-              <h1 id="register-heading" class="app-title">Verify OTP</h1>
-            </div>
-            <p class="register-subtitle">Enter the 6-digit OTP sent to your registered mobile number</p>
-          </mat-card-header>
+          <!-- OTP Verification Step -->
+          <ng-container *ngIf="showOtpStep">
+            <h2 id="register-heading" class="card-title">Verify OTP</h2>
+            <p class="step-subtitle">Enter the 6-digit OTP sent to your registered mobile number</p>
 
-          <mat-card-content>
-            <form [formGroup]="otpForm" (ngSubmit)="onVerifyOtp()" aria-label="OTP verification form">
-              <mat-form-field appearance="outline" class="full-width">
-                <mat-label>OTP Code</mat-label>
-                <input matInput formControlName="otp"
-                       type="text"
-                       inputmode="numeric"
-                       maxlength="6"
-                       autocomplete="one-time-code"
-                       aria-required="true"
-                       aria-label="6-digit One Time Password">
-                <mat-icon matPrefix>lock</mat-icon>
-                <mat-error *ngIf="otpForm.get('otp')?.hasError('required')">
-                  OTP is required
-                </mat-error>
-                <mat-error *ngIf="otpForm.get('otp')?.hasError('pattern')">
+            <form [formGroup]="otpForm" (ngSubmit)="onVerifyOtp()" aria-label="OTP verification form" class="register-form">
+              <div class="form-group">
+                <label class="input-label">OTP Code</label>
+                <input
+                  formControlName="otp"
+                  type="text"
+                  inputmode="numeric"
+                  maxlength="6"
+                  placeholder="123456"
+                  autocomplete="one-time-code"
+                  aria-required="true"
+                  aria-label="6-digit One Time Password"
+                  class="candidate-input"
+                  [class.has-error]="otpForm.get('otp')?.invalid && otpForm.get('otp')?.touched"
+                />
+                <p class="input-error" *ngIf="otpForm.get('otp')?.invalid && otpForm.get('otp')?.touched">
                   Must be exactly 6 digits
-                </mat-error>
-              </mat-form-field>
+                </p>
+              </div>
 
-              <button mat-raised-button color="primary" type="submit"
-                      class="submit-button full-width"
-                      [disabled]="otpForm.invalid || isVerifying"
-                      aria-label="Verify OTP code">
+              <button
+                mat-flat-button
+                color="primary"
+                type="submit"
+                class="submit-button"
+                [disabled]="otpForm.invalid || isVerifying"
+                aria-label="Verify OTP code"
+              >
                 <mat-spinner *ngIf="isVerifying" diameter="20" class="button-spinner"></mat-spinner>
                 <span *ngIf="!isVerifying">Verify & Activate</span>
               </button>
             </form>
 
             <div class="auth-links">
-              <a href="javascript:void(0)" (click)="backToRegister()"
+              <a href="javascript:void(0)" (click)="backToRegister()" class="login-link"
                  aria-label="Go back to registration form">
                 ← Back to registration
               </a>
             </div>
-          </mat-card-content>
-        </ng-container>
-      </mat-card>
+          </ng-container>
+        </div>
+      </div>
     </main>
-  `,
-  styles: [`
-    .register-container {
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      min-height: 100vh;
-      padding: 16px;
-      background: linear-gradient(135deg, #e8eaf6 0%, #fafafa 100%);
-    }
-
-    .register-card {
-      max-width: 460px;
-      width: 100%;
-      padding: 32px 24px;
-      border-radius: 12px;
-      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.08), 0 2px 8px rgba(0, 0, 0, 0.04);
-    }
-
-    .register-header {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      margin-bottom: 24px;
-    }
-
-    .app-branding {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 8px;
-    }
-
-    .app-logo {
-      font-size: 48px;
-      width: 48px;
-      height: 48px;
-      color: #3f51b5;
-    }
-
-    .app-title {
-      margin: 0;
-      font-size: 24px;
-      font-weight: 600;
-      color: #3f51b5;
-      letter-spacing: -0.5px;
-    }
-
-    .register-subtitle {
-      margin: 8px 0 0;
-      font-size: 14px;
-      color: #666;
-      text-align: center;
-    }
-
-    .full-width {
-      width: 100%;
-    }
-
-    mat-form-field.full-width {
-      margin-bottom: 8px;
-    }
-
-    .submit-button {
-      height: 48px;
-      font-size: 16px;
-      font-weight: 500;
-      margin-top: 8px;
-      border-radius: 8px;
-    }
-
-    .button-spinner {
-      display: inline-block;
-    }
-
-    ::ng-deep .submit-button .mat-mdc-button-persistent-ripple {
-      border-radius: 8px;
-    }
-
-    .auth-links {
-      margin-top: 24px;
-      text-align: center;
-    }
-
-    .auth-links a {
-      color: #3f51b5;
-      text-decoration: none;
-      font-size: 14px;
-    }
-
-    .auth-links a:hover {
-      text-decoration: underline;
-    }
-  `]
+  `
 })
 export class RegisterComponent {
   registerForm: FormGroup;
