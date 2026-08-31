@@ -47,10 +47,10 @@ const Layout: React.FC = () => {
     navigate('/login');
   };
 
-  const displayName = profile ? `${profile.firstName} ${profile.lastName}` : 'Candidate';
-  const initials = profile
-    ? (profile.firstName[0] + profile.lastName[0]).toUpperCase()
-    : 'C';
+  const displayName = profile?.fullName || (profile?.firstName && profile?.lastName ? `${profile.firstName} ${profile.lastName}` : 'Candidate');
+  const initials = profile?.fullName
+    ? profile.fullName.trim().split(/\s+/).map((n) => n[0]).join('').substring(0, 2).toUpperCase()
+    : (profile?.firstName ? profile.firstName[0].toUpperCase() : 'C');
   const completeness = profile?.completionPercentage ?? 0;
 
   // Load initial notifications

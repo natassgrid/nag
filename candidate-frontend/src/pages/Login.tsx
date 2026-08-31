@@ -7,7 +7,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Link, useNavigate } from 'react-router-dom';
-import { Eye, EyeOff, LogIn, BookOpen } from 'lucide-react';
+import { Eye, EyeOff, LogIn, BookOpen, AlertCircle } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { authService } from '../services/authService';
 import { useToast } from '../components/Toast';
@@ -35,6 +35,7 @@ const Login: React.FC = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [showForgot, setShowForgot] = useState(false);
   const [forgotSent, setForgotSent] = useState(false);
+  const [loginError, setLoginError] = useState<string | null>(null);
 
   const {
     register,
@@ -49,12 +50,42 @@ const Login: React.FC = () => {
   } = useForm<ForgotForm>({ resolver: zodResolver(forgotSchema) });
 
   const onSubmit = async (data: LoginForm) => {
-    const success = await login(data.username, data.password);
-    if (success) {
+    setLoginError(null);
+    try {
+      await login(data.username, data.password);
       toast.success('Welcome back!', 'You have logged in successfully.');
       navigate('/dashboard');
-    } else {
-      toast.error('Login failed', 'Invalid credentials. Please check and try again.');
+    } catch (err: unknown) {
+      const errObj = err as {
+        response?: {
+          status?: number;
+          data?: { detail?: string; message?: string; title?: string; error?: string };
+        };
+        message?: string;
+      };
+
+      let detail =
+        errObj?.response?.data?.detail ||
+        errObj?.response?.data?.message ||
+        errObj?.response?.data?.error ||
+        errObj?.response?.data?.title;
+
+      if (!detail) {
+        if (errObj?.response?.status === 401) {
+          detail = 'Invalid email/mobile or password. Please verify your credentials.';
+        } else if (errObj?.response?.status === 403) {
+          detail = 'Access forbidden. Account may be locked or pending verification.';
+        } else if (errObj?.response?.status === 500) {
+          detail = 'Internal authentication error. Please try again.';
+        } else if (errObj?.message) {
+          detail = errObj.message;
+        } else {
+          detail = 'Invalid credentials. Please check and try again.';
+        }
+      }
+
+      setLoginError(detail);
+      toast.error('Login failed', detail);
     }
   };
 
@@ -91,6 +122,16 @@ const Login: React.FC = () => {
           {!showForgot ? (
             <>
               <h2 className="text-xl font-semibold text-white mb-6">Sign in to your account</h2>
+
+              {loginError && (
+                <div className="mb-6 p-4 bg-red-500/15 border border-red-500/40 rounded-xl text-red-200 text-sm flex items-start gap-3">
+                  <AlertCircle className="w-5 h-5 text-red-400 shrink-0 mt-0.5" />
+                  <div>
+                    <p className="font-semibold text-red-300">Sign in failed</p>
+                    <p className="text-xs text-red-200/90 mt-0.5 leading-relaxed">{loginError}</p>
+                  </div>
+                </div>
+              )}
 
               <form onSubmit={handleSubmit(onSubmit)} noValidate className="space-y-5">
                 <div>

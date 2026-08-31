@@ -101,9 +101,8 @@ public class OtpVerificationService {
         // 5. Issue tokens
         AuthTokenResponse tokens = keycloakService.getTokens(
             account.getUsername(),
-            // Password not stored in plaintext — use a one-time activation grant
-            // For now, fall back to client_credentials until password grant is wired
-            ""
+            "",
+            account.getId().toString()
         );
 
         // 6. Publish audit event

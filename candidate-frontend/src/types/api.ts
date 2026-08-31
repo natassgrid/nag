@@ -116,49 +116,56 @@ export interface EducationDetail {
 
 export interface CreateCandidateProfileRequest {
   userId: string;
-  firstName: string;
-  lastName: string;
+  fullName: string;
   dateOfBirth: string;          // ISO date: "YYYY-MM-DD"
-  gender: Gender;
-  category: Category;
-  address: Address;
-  education: EducationDetail;
+  gender: string;
+  nationality: string;
+  category?: string;
+  mobile: string;
+  email: string;
+  address?: string;
+  reservationCategory?: string;
+  identityDocNumber: string;
 }
 
 export interface UpdateCandidateProfileRequest {
-  firstName?: string;
-  lastName?: string;
+  fullName?: string;
   dateOfBirth?: string;
-  gender?: Gender;
-  category?: Category;
-  address?: Address;
-  education?: EducationDetail;
+  gender?: string;
+  nationality?: string;
+  category?: string;
+  mobile?: string;
+  email?: string;
+  address?: string;
+  reservationCategory?: string;
+  identityDocNumber?: string;
 }
 
 export interface CandidateProfileResponse {
-  id: string;                   // UUID
   userId: string;               // UUID - linked identity account
-  firstName: string;
-  lastName: string;
-  fullName: string;
-  dateOfBirth: string;
-  gender: Gender;
-  category: Category;
-  address: Address;
-  education: EducationDetail;
-  photoAssetId?: string;        // UUID pointing to asset-service
-  signatureAssetId?: string;
-  idProofAssetId?: string;
-  kycVerified: boolean;
-  consentGiven: boolean;
-  completionPercentage: number; // 0-100
-  createdAt: string;
-  updatedAt: string;
+  fullName?: string | null;
+  dateOfBirth?: string | null;
+  gender?: string | null;
+  nationality?: string | null;
+  category?: string | null;
+  mobile?: string | null;       // masked: ****1234
+  email?: string | null;        // masked
+  address?: string | null;
+  reservationCategory?: string | null;
+  identityDocNumber?: string | null;
+  digiLockerVerified?: string | null;
+  faceVerificationStatus?: string | null;
+  consentRecorded?: boolean;
+  completionPercentage?: number; // 0-100 client calculated
+  // Client backward compatibility fields
+  firstName?: string;
+  lastName?: string;
+  education?: EducationDetail;
 }
 
 export interface ConsentRequest {
   consentGiven: boolean;
-  consentVersion: string;
+  consentVersion?: string;
 }
 
 // ─── Examination Service DTOs ────────────────────────────────────────────────

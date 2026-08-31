@@ -40,5 +40,7 @@ public interface UserAccountRepository extends JpaRepository<UserAccount, UUID> 
 
     Optional<UserAccount> findByMobileHashAndTenantId(String mobileHash, String tenantId);
 
+    Optional<UserAccount> findByUsernameIgnoreCaseAndTenantId(String username, String tenantId);
+
     List<UserAccount> findByTenantId(String tenantId);
 }

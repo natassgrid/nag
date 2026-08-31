@@ -66,7 +66,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // Fetch profile from backend when authenticated
   const refreshProfile = useCallback(async () => {
     const userId = tokenManager.getUserId();
-    if (!userId) return;
+    if (!userId || userId === 'undefined' || userId === 'null') return;
     setProfileLoading(true);
     try {
       const p = await candidateService.getProfile(userId);
@@ -93,11 +93,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       tokenManager.setTokens(tokens.accessToken, tokens.refreshToken, tokens.expiresIn, tokens.userId);
       setIsAuthenticated(true);
       setIsVerified(true);
-      await refreshProfile();
+      try {
+        await refreshProfile();
+      } catch (profileErr) {
+        console.warn('Profile load on login:', profileErr);
+      }
       return true;
     } catch (err) {
       console.error('Login failed', err);
-      return false;
+      throw err;
     }
   }, [refreshProfile]);
 
@@ -119,11 +123,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const register = useCallback(async (request: RegistrationRequest): Promise<void> => {
     const response = await authService.register(request);
-    // Store pending userId and mobile so VerifyOtp page can use it
+    // Store pending userId, mobile, and registration data so VerifyOtp can auto-initialize profile
     setPendingUserId(response.userId);
     setOtpSentTo(response.otpSentTo);
     sessionStorage.setItem(PENDING_USER_KEY, response.userId);
     sessionStorage.setItem(PENDING_MOBILE_KEY, request.mobile);
+    sessionStorage.setItem('nag_pending_registration', JSON.stringify(request));
     sessionStorage.setItem(OTP_SENT_KEY, JSON.stringify(response.otpSentTo));
   }, []);
 
@@ -144,6 +149,33 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       sessionStorage.removeItem(PENDING_USER_KEY);
       sessionStorage.removeItem(PENDING_MOBILE_KEY);
       sessionStorage.removeItem(OTP_SENT_KEY);
+
+      // Auto-create initial candidate profile in candidate-service using registration data
+      const pendingRegStr = sessionStorage.getItem('nag_pending_registration');
+      if (pendingRegStr) {
+        try {
+          const regData = JSON.parse(pendingRegStr) as RegistrationRequest;
+          const resolvedId = tokens.userId || tokenManager.getUserId();
+          if (resolvedId) {
+            await candidateService.createProfile({
+              userId: resolvedId,
+              fullName: regData.fullName,
+              dateOfBirth: '2000-01-01',
+              gender: 'PREFER_NOT_TO_SAY',
+              nationality: 'INDIAN',
+              category: 'GENERAL',
+              mobile: regData.mobile,
+              email: regData.email,
+              identityDocNumber: regData.identityDocNumber,
+              address: '',
+            });
+            sessionStorage.removeItem('nag_pending_registration');
+          }
+        } catch (profileCreateErr) {
+          console.warn('Auto-create profile during OTP verification:', profileCreateErr);
+        }
+      }
+
       await refreshProfile();
       return true;
     } catch (err) {

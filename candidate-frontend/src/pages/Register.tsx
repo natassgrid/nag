@@ -167,6 +167,9 @@ const Register: React.FC = () => {
         identityDocType: data.identityDocType,
         identityDocNumber: sanitizedDocNumber,
       };
+      localStorage.setItem('nag_candidate_name', data.fullName);
+      localStorage.setItem('nag_candidate_doc_type', data.identityDocType);
+      localStorage.setItem('nag_candidate_doc_num', sanitizedDocNumber);
       await authRegister(request);
       toast.success('Registration initiated!', 'OTP has been sent to your email and mobile.');
       navigate('/verify');
