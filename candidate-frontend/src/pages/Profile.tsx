@@ -99,15 +99,21 @@ const Profile: React.FC = () => {
   const photoRef = useRef<HTMLInputElement>(null);
   const sigRef = useRef<HTMLInputElement>(null);
   const idRef = useRef<HTMLInputElement>(null);
+  const fetchedUserIdRef = useRef<string | null>(null);
 
   // Load profile on mount
   useEffect(() => {
     const uid = userId || tokenManager.getUserId();
-    if (!uid || uid === 'undefined' || uid === 'null') {
+    const UUID_REGEX = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
+    if (!uid || !UUID_REGEX.test(uid)) {
       setLoading(false);
       setIsNewProfile(true);
       return;
     }
+    if (fetchedUserIdRef.current === uid) {
+      return;
+    }
+    fetchedUserIdRef.current = uid;
     setLoading(true);
     candidateService.getProfile(uid)
       .then((p) => {
@@ -124,7 +130,7 @@ const Profile: React.FC = () => {
         }
       })
       .finally(() => setLoading(false));
-  }, [userId, toast]);
+  }, [userId]);
 
   // ── Personal Form ──────────────────────────────────────────────────────────
   const {

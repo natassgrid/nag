@@ -2,7 +2,7 @@
 // Lightweight toast notification system.
 // Usage: import { useToast } from './Toast'; const { toast } = useToast();
 
-import React, { createContext, useCallback, useContext, useState } from 'react';
+import React, { createContext, useCallback, useContext, useMemo, useState } from 'react';
 import { CheckCircle, XCircle, AlertTriangle, Info, X } from 'lucide-react';
 
 type ToastType = 'success' | 'error' | 'warning' | 'info';
@@ -54,12 +54,15 @@ export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     setToasts((prev) => prev.filter((t) => t.id !== id));
   }, []);
 
-  const toast = {
-    success: (title: string, message?: string) => add('success', title, message),
-    error: (title: string, message?: string) => add('error', title, message),
-    warning: (title: string, message?: string) => add('warning', title, message),
-    info: (title: string, message?: string) => add('info', title, message),
-  };
+  const toast = useMemo(
+    () => ({
+      success: (title: string, message?: string) => add('success', title, message),
+      error: (title: string, message?: string) => add('error', title, message),
+      warning: (title: string, message?: string) => add('warning', title, message),
+      info: (title: string, message?: string) => add('info', title, message),
+    }),
+    [add],
+  );
 
   return (
     <ToastContext.Provider value={{ toast }}>

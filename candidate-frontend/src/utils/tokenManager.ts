@@ -7,6 +7,8 @@ const REFRESH_TOKEN_KEY = 'nag_refresh_token';
 const USER_ID_KEY = 'nag_user_id';
 const EXPIRES_AT_KEY = 'nag_token_expires_at';
 
+const UUID_REGEX = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
+
 export const tokenManager = {
   setTokens(accessToken: string, refreshToken?: string, expiresIn?: number, userId?: string): void {
     const expiresAt = Date.now() + (expiresIn || 3600) * 1000;
@@ -16,13 +18,15 @@ export const tokenManager = {
     }
     localStorage.setItem(EXPIRES_AT_KEY, String(expiresAt));
 
-    // Resolve userId from argument or JWT payload claims
+    // Resolve userId from argument or JWT payload claims (must be valid UUID)
     let resolvedId = userId;
-    if (!resolvedId || resolvedId === 'undefined' || resolvedId === 'null') {
+    if (!resolvedId || !UUID_REGEX.test(resolvedId)) {
       const payload = tokenManager.decodePayload();
-      resolvedId = (payload?.sub as string) || (payload?.userId as string) || '';
+      const sub = (payload?.sub as string) || '';
+      const uid = (payload?.userId as string) || (payload?.id as string) || '';
+      resolvedId = UUID_REGEX.test(uid) ? uid : UUID_REGEX.test(sub) ? sub : '';
     }
-    if (resolvedId && resolvedId !== 'undefined' && resolvedId !== 'null') {
+    if (resolvedId && UUID_REGEX.test(resolvedId)) {
       localStorage.setItem(USER_ID_KEY, resolvedId);
     }
   },
@@ -37,15 +41,17 @@ export const tokenManager = {
 
   getUserId(): string | null {
     const id = localStorage.getItem(USER_ID_KEY);
-    if (id && id !== 'undefined' && id !== 'null') {
+    if (id && UUID_REGEX.test(id)) {
       return id;
     }
     // Fallback: decode directly from JWT access token payload
     const payload = tokenManager.decodePayload();
-    const sub = (payload?.sub as string) || (payload?.userId as string) || null;
-    if (sub && sub !== 'undefined' && sub !== 'null') {
-      localStorage.setItem(USER_ID_KEY, sub);
-      return sub;
+    const uid = (payload?.userId as string) || (payload?.id as string) || '';
+    const sub = (payload?.sub as string) || '';
+    const valid = UUID_REGEX.test(uid) ? uid : UUID_REGEX.test(sub) ? sub : null;
+    if (valid) {
+      localStorage.setItem(USER_ID_KEY, valid);
+      return valid;
     }
     return null;
   },
