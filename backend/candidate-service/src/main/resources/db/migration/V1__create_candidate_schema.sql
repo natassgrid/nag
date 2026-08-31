@@ -32,6 +32,9 @@ CREATE TABLE candidate_service.candidate_profile (
     face_verification_status VARCHAR(20),
     consent_recorded        BOOLEAN NOT NULL DEFAULT FALSE,
     consent_timestamp       TIMESTAMP,
+    photo_asset_id          UUID,
+    signature_asset_id      UUID,
+    id_proof_asset_id       UUID,
     created_at              TIMESTAMP NOT NULL DEFAULT NOW(),
     updated_at              TIMESTAMP NOT NULL DEFAULT NOW(),
     version                 BIGINT NOT NULL DEFAULT 0

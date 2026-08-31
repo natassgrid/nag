@@ -8,6 +8,7 @@ import { useAuth } from '../context/AuthContext';
 import { notificationService } from '../services/notificationService';
 import { tokenManager } from '../utils/tokenManager';
 import { useToast } from './Toast';
+import { CandidateAvatar } from './CandidateAvatar';
 import type { NotificationDto } from '../types/api';
 import {
   LayoutDashboard,
@@ -48,9 +49,6 @@ const Layout: React.FC = () => {
   };
 
   const displayName = profile?.fullName || (profile?.firstName && profile?.lastName ? `${profile.firstName} ${profile.lastName}` : 'Candidate');
-  const initials = profile?.fullName
-    ? profile.fullName.trim().split(/\s+/).map((n) => n[0]).join('').substring(0, 2).toUpperCase()
-    : (profile?.firstName ? profile.firstName[0].toUpperCase() : 'C');
   const completeness = profile?.completionPercentage ?? 0;
 
   // Load initial notifications
@@ -104,9 +102,12 @@ const Layout: React.FC = () => {
 
       {/* User brief */}
       <div className="px-4 py-3 mb-4 bg-slate-800/50 border-y border-slate-700/50 flex items-center gap-3">
-        <div className="h-10 w-10 rounded-full bg-indigo-600 flex items-center justify-center font-bold text-white">
-          {initials}
-        </div>
+        <CandidateAvatar
+          photoAssetId={profile?.photoAssetId}
+          name={displayName}
+          size="md"
+          bordered={true}
+        />
         <div className="flex-1 min-w-0">
           <p className="text-sm font-semibold truncate text-slate-100">{displayName}</p>
           <div className="flex items-center text-xs text-green-400 mt-0.5">
@@ -276,9 +277,11 @@ const Layout: React.FC = () => {
             </div>
 
             {/* Avatar */}
-            <div className="h-8 w-8 rounded-full bg-indigo-100 flex items-center justify-center font-bold text-indigo-700 border border-indigo-200 text-xs">
-              {initials}
-            </div>
+            <CandidateAvatar
+              photoAssetId={profile?.photoAssetId}
+              name={displayName}
+              size="sm"
+            />
           </div>
         </header>
 

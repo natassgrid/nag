@@ -139,6 +139,9 @@ export interface UpdateCandidateProfileRequest {
   address?: string;
   reservationCategory?: string;
   identityDocNumber?: string;
+  photoAssetId?: string;
+  signatureAssetId?: string;
+  idProofAssetId?: string;
 }
 
 export interface CandidateProfileResponse {
@@ -156,6 +159,9 @@ export interface CandidateProfileResponse {
   digiLockerVerified?: string | null;
   faceVerificationStatus?: string | null;
   consentRecorded?: boolean;
+  photoAssetId?: string | null;
+  signatureAssetId?: string | null;
+  idProofAssetId?: string | null;
   completionPercentage?: number; // 0-100 client calculated
   // Client backward compatibility fields
   firstName?: string;

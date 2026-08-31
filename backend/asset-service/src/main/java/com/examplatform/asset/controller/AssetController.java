@@ -116,7 +116,7 @@ public class AssetController {
      * Retrieve asset metadata by ID.
      */
     @GetMapping("/{id}")
-    @PreAuthorize("hasAnyRole('QUESTION_AUTHOR', 'REVIEWER', 'APPROVER', 'ADMIN', 'CONTENT_MANAGER')")
+    @PreAuthorize("hasAnyRole('QUESTION_AUTHOR', 'REVIEWER', 'APPROVER', 'ADMIN', 'CONTENT_MANAGER', 'CANDIDATE')")
     public ResponseEntity<ApiResponse<AssetUploadResponse>> getAsset(@PathVariable UUID id) {
         AssetUploadResponse response = assetService.getAsset(id);
         return ResponseEntity.ok(ApiResponse.success(response, "Asset retrieved successfully"));
@@ -208,7 +208,7 @@ public class AssetController {
      * Download the binary content of an asset.
      */
     @GetMapping("/{id}/download")
-    @PreAuthorize("hasAnyRole('QUESTION_AUTHOR', 'REVIEWER', 'APPROVER', 'ADMIN', 'CONTENT_MANAGER')")
+    @PreAuthorize("hasAnyRole('QUESTION_AUTHOR', 'REVIEWER', 'APPROVER', 'ADMIN', 'CONTENT_MANAGER', 'CANDIDATE')")
     public ResponseEntity<InputStreamResource> downloadAsset(@PathVariable UUID id) {
         MediaAsset asset = assetService.getAssetEntity(id);
         Optional<InputStream> content = assetService.downloadAsset(id);

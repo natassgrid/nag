@@ -10,6 +10,7 @@ import {
 import { useAuth } from '../context/AuthContext';
 import { examService } from '../services/examService';
 import { notificationService } from '../services/notificationService';
+import { CandidateAvatar } from '../components/CandidateAvatar';
 import type { ExamApplicationResponse, NotificationDto } from '../types/api';
 
 const Dashboard: React.FC = () => {
@@ -32,7 +33,7 @@ const Dashboard: React.FC = () => {
   }, []);
 
   const displayName = profile
-    ? `${profile.firstName} ${profile.lastName}`
+    ? profile.fullName || `${profile.firstName || ''} ${profile.lastName || ''}`.trim() || 'Candidate'
     : 'Candidate';
 
   const completeness = profile?.completionPercentage ?? 0;
@@ -42,15 +43,25 @@ const Dashboard: React.FC = () => {
   return (
     <div className="space-y-6">
       {/* Welcome Banner */}
-      <div className="bg-gradient-to-r from-indigo-600 to-purple-600 rounded-2xl p-6 text-white shadow-lg">
-        <h1 className="text-2xl font-bold mb-1">
-          {profileLoading ? 'Welcome back!' : `Welcome, ${displayName}!`}
-        </h1>
-        <p className="text-indigo-200 text-sm">
-          {new Date().toLocaleDateString('en-IN', {
-            weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
-          })}
-        </p>
+      <div className="bg-gradient-to-r from-indigo-600 to-purple-600 rounded-2xl p-6 text-white shadow-lg flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div className="flex items-center gap-4">
+          <CandidateAvatar
+            photoAssetId={profile?.photoAssetId}
+            name={displayName}
+            size="lg"
+            bordered={true}
+          />
+          <div>
+            <h1 className="text-2xl font-bold mb-1">
+              {profileLoading ? 'Welcome back!' : `Welcome, ${displayName}!`}
+            </h1>
+            <p className="text-indigo-200 text-sm">
+              {new Date().toLocaleDateString('en-IN', {
+                weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
+              })}
+            </p>
+          </div>
+        </div>
 
         {/* Profile completeness */}
         {completeness < 100 && (
