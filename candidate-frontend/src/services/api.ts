@@ -58,13 +58,23 @@ api.interceptors.response.use(
   async (error) => {
     const originalRequest = error.config as AxiosRequestConfig & { _retry?: boolean };
 
-    if (error.response?.status === 401 && !originalRequest._retry) {
+    // Do NOT intercept 401s on auth/login/registration endpoints — let the caller handle and display the error
+    const url = originalRequest?.url || '';
+    const isAuthEndpoint =
+      url.includes('/api/v1/identity/auth/token') ||
+      url.includes('/api/v1/identity/auth/refresh') ||
+      url.includes('/api/v1/identity/register') ||
+      url.includes('/api/v1/identity/otp');
+
+    if (error.response?.status === 401 && !isAuthEndpoint && !originalRequest._retry) {
       const refreshToken = tokenManager.getRefreshToken();
 
-      // If no refresh token, redirect to login
+      // If no refresh token, clear tokens and redirect only if not already on /login
       if (!refreshToken) {
         tokenManager.clearTokens();
-        window.location.href = '/login';
+        if (window.location.pathname !== '/login' && window.location.pathname !== '/register') {
+          window.location.href = '/login';
+        }
         return Promise.reject(error);
       }
 
@@ -103,7 +113,9 @@ api.interceptors.response.use(
       } catch (refreshError) {
         processQueue(refreshError, null);
         tokenManager.clearTokens();
-        window.location.href = '/login';
+        if (window.location.pathname !== '/login') {
+          window.location.href = '/login';
+        }
         return Promise.reject(refreshError);
       } finally {
         isRefreshing = false;
