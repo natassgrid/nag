@@ -24,6 +24,8 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.util.UUID;
+
 /**
  * Request DTO for partial update of a candidate profile.
  * All fields are nullable — only non-null fields are applied.
@@ -55,4 +57,10 @@ public class UpdateCandidateProfileRequest {
     private String reservationCategory;
 
     private String identityDocNumber;
+
+    private UUID photoAssetId;
+
+    private UUID signatureAssetId;
+
+    private UUID idProofAssetId;
 }

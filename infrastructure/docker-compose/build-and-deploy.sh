@@ -60,6 +60,7 @@ else
         examination-service paper-generator delivery-service response-service
         evaluation-service result-service audit-service notification-service
         admin-service analytics-service asset-service api-gateway
+        frontend candidate-frontend
     )
     for svc in "${SERVICES[@]}"; do
         echo "  Building $svc..."
@@ -78,6 +79,7 @@ SERVICES=(
     examination-service paper-generator delivery-service response-service
     evaluation-service result-service audit-service notification-service
     admin-service analytics-service asset-service api-gateway
+    frontend candidate-frontend
 )
 
 for svc in "${SERVICES[@]}"; do

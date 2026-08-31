@@ -179,6 +179,15 @@ public class CandidateProfileService {
             profile.setIdentityDocHash(docHash);
             profile.setIdentityDocHmac(docHmac);
         }
+        if (request.getPhotoAssetId() != null) {
+            profile.setPhotoAssetId(request.getPhotoAssetId());
+        }
+        if (request.getSignatureAssetId() != null) {
+            profile.setSignatureAssetId(request.getSignatureAssetId());
+        }
+        if (request.getIdProofAssetId() != null) {
+            profile.setIdProofAssetId(request.getIdProofAssetId());
+        }
 
         CandidateProfile saved = candidateProfileRepository.save(profile);
         log.info("Updated candidate profile for userId={} in tenant={}", userId, tenantId);
@@ -281,6 +290,9 @@ public class CandidateProfileService {
                 .digiLockerVerified(profile.getDigiLockerVerified())
                 .faceVerificationStatus(profile.getFaceVerificationStatus())
                 .consentRecorded(profile.isConsentRecorded())
+                .photoAssetId(profile.getPhotoAssetId())
+                .signatureAssetId(profile.getSignatureAssetId())
+                .idProofAssetId(profile.getIdProofAssetId())
                 .build();
     }
 

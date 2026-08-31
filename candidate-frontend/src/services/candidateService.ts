@@ -40,6 +40,11 @@ export const candidateService = {
     return (await api.put<CandidateProfileResponse>(`${BASE}/${id}`, request || {})).data;
   },
 
+  /** Update candidate profile photo asset ID. */
+  async updateProfilePhoto(userId: string, photoAssetId: string): Promise<CandidateProfileResponse> {
+    return (await api.put<CandidateProfileResponse>(`${BASE}/${userId}`, { photoAssetId })).data;
+  },
+
   /** Record explicit biometric consent before face/document collection. */
   async recordConsent(userId?: string | null, request?: ConsentRequest): Promise<void> {
     const id = userId || tokenManager.getUserId();

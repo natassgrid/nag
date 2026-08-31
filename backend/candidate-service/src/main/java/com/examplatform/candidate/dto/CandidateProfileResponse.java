@@ -46,4 +46,7 @@ public class CandidateProfileResponse {
     private String digiLockerVerified;
     private String faceVerificationStatus;
     private boolean consentRecorded;
+    private UUID photoAssetId;
+    private UUID signatureAssetId;
+    private UUID idProofAssetId;
 }
