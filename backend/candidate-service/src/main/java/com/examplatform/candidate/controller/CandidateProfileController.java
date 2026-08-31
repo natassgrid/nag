@@ -19,11 +19,14 @@
 
 package com.examplatform.candidate.controller;
 
+import com.examplatform.candidate.dto.CandidateEducationRequest;
+import com.examplatform.candidate.dto.CandidateEducationResponse;
 import com.examplatform.candidate.dto.CandidateProfileResponse;
 import com.examplatform.candidate.dto.ConsentRequest;
 import com.examplatform.candidate.dto.CreateCandidateProfileRequest;
 import com.examplatform.candidate.dto.FaceVerificationRequest;
 import com.examplatform.candidate.dto.UpdateCandidateProfileRequest;
+import com.examplatform.candidate.service.CandidateEducationService;
 import com.examplatform.candidate.service.CandidateProfileService;
 import com.examplatform.candidate.service.DigiLockerService;
 import com.examplatform.candidate.service.FaceVerificationService;
@@ -46,11 +49,12 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
 /**
- * REST controller for candidate profile CRUD and DPDP erasure operations.
+ * REST controller for candidate profile CRUD, educational details, and DPDP erasure operations.
  *
  * Validates: Requirements 1.6, 25.2
  */
@@ -61,6 +65,7 @@ import java.util.UUID;
 public class CandidateProfileController {
 
     private final CandidateProfileService candidateProfileService;
+    private final CandidateEducationService candidateEducationService;
     private final DigiLockerService digiLockerService;
     private final FaceVerificationService faceVerificationService;
 
@@ -122,6 +127,66 @@ public class CandidateProfileController {
     }
 
     /**
+     * List all educational details for a candidate.
+     */
+    @GetMapping("/{userId}/education")
+    @PreAuthorize("hasAnyRole('CANDIDATE', 'SUPER_ADMIN')")
+    public ResponseEntity<List<CandidateEducationResponse>> getEducation(
+            @PathVariable UUID userId,
+            @AuthenticationPrincipal Jwt jwt) {
+        enforceOwnershipOrAdmin(userId, jwt);
+        String tenantId = getTenantId();
+        List<CandidateEducationResponse> response = candidateEducationService.getEducationByUserId(userId, tenantId);
+        return ResponseEntity.ok(response);
+    }
+
+    /**
+     * Add a new educational qualification record. Requires CANDIDATE role.
+     */
+    @PostMapping("/{userId}/education")
+    @PreAuthorize("hasRole('CANDIDATE')")
+    public ResponseEntity<CandidateEducationResponse> addEducation(
+            @PathVariable UUID userId,
+            @Valid @RequestBody CandidateEducationRequest request,
+            @AuthenticationPrincipal Jwt jwt) {
+        enforceOwnership(userId, jwt);
+        String tenantId = getTenantId();
+        CandidateEducationResponse response = candidateEducationService.addEducation(userId, request, tenantId);
+        return ResponseEntity.status(HttpStatus.CREATED).body(response);
+    }
+
+    /**
+     * Update an educational qualification record. Requires CANDIDATE role.
+     */
+    @PutMapping("/{userId}/education/{educationId}")
+    @PreAuthorize("hasRole('CANDIDATE')")
+    public ResponseEntity<CandidateEducationResponse> updateEducation(
+            @PathVariable UUID userId,
+            @PathVariable UUID educationId,
+            @Valid @RequestBody CandidateEducationRequest request,
+            @AuthenticationPrincipal Jwt jwt) {
+        enforceOwnership(userId, jwt);
+        String tenantId = getTenantId();
+        CandidateEducationResponse response = candidateEducationService.updateEducation(userId, educationId, request, tenantId);
+        return ResponseEntity.ok(response);
+    }
+
+    /**
+     * Delete an educational qualification record. Requires CANDIDATE role.
+     */
+    @DeleteMapping("/{userId}/education/{educationId}")
+    @PreAuthorize("hasRole('CANDIDATE')")
+    public ResponseEntity<Void> deleteEducation(
+            @PathVariable UUID userId,
+            @PathVariable UUID educationId,
+            @AuthenticationPrincipal Jwt jwt) {
+        enforceOwnership(userId, jwt);
+        String tenantId = getTenantId();
+        candidateEducationService.deleteEducation(userId, educationId, tenantId);
+        return ResponseEntity.noContent().build();
+    }
+
+    /**
      * Record explicit consent before biometric data collection. Requires CANDIDATE role.
      *
      * Validates: Requirements 25.3
@@ -178,7 +243,7 @@ public class CandidateProfileController {
         return TenantContext.get() != null ? TenantContext.get() : "default";
     }
 
-    // ── Private helpers ──────────────────────────────────────────────────────
+    // ── Private helpers ─────────────────────────────────────────────────────────
 
     private void enforceOwnership(UUID userId, Jwt jwt) {
         String sub = jwt.getSubject();
