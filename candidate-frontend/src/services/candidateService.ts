@@ -60,20 +60,20 @@ export const candidateService = {
 
   /**
    * Upload a candidate document (photo, signature, id-proof) to asset-service.
-   * The `referenceType` param tells asset-service how to tag the file.
    */
-  async uploadDocument(
-    file: File,
-    referenceType: 'PHOTO' | 'SIGNATURE' | 'ID_PROOF',
-  ): Promise<AssetUploadResponse> {
+  async uploadDocument(file: File): Promise<AssetUploadResponse> {
     const formData = new FormData();
     formData.append('file', file);
-    formData.append('referenceType', referenceType);
     return unwrap(
       await api.post('/api/v1/assets', formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
       }),
     );
+  },
+
+  /** Get binary download / view URL for an uploaded asset. */
+  getAssetDownloadUrl(assetId: string): string {
+    return `/api/v1/assets/${assetId}/download`;
   },
 
   /** Request erasure of all PII (DPDP right to be forgotten). */

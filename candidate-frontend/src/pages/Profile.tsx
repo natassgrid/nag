@@ -8,18 +8,15 @@ import { z } from 'zod';
 import {
   User,
   MapPin,
-  ShieldCheck,
   Upload,
   CheckCircle,
-  AlertCircle,
   Save,
   Loader2,
   Trash2,
-  Lock,
-  FileCheck,
-  RefreshCw,
-  AlertTriangle,
   Mail,
+  FileText,
+  ExternalLink,
+  Lock,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { candidateService } from '../services/candidateService';
@@ -74,17 +71,24 @@ type ContactForm = z.infer<typeof contactSchema>;
 
 // ─── Tabs Definition ─────────────────────────────────────────────────────────
 
-type Tab = 'personal' | 'contact' | 'verification' | 'documents';
+type Tab = 'personal' | 'contact' | 'documents';
 
 const TABS: { id: Tab; name: string; icon: React.ComponentType<{ className?: string }> }[] = [
   { id: 'personal', name: 'Personal Details', icon: User },
   { id: 'contact', name: 'Contact & Address', icon: MapPin },
-  { id: 'verification', name: 'KYC & DPDP Consent', icon: ShieldCheck },
   { id: 'documents', name: 'Document Uploads', icon: Upload },
 ];
 
+export interface UploadedDoc {
+  id: string;
+  filename: string;
+  fileSize?: number;
+  contentType?: string;
+  uploadedAt: string;
+}
+
 const Profile: React.FC = () => {
-  const { profile, refreshProfile, logout } = useAuth();
+  const { profile, refreshProfile } = useAuth();
   const { toast } = useToast();
   const userId = tokenManager.getUserId();
 
@@ -108,13 +112,16 @@ const Profile: React.FC = () => {
     : (jwtPayload?.email as string) || (jwtPayload?.preferred_username as string) || '';
   const displayEmail = currentProfile?.email || tokenEmail;
 
-  // Document uploads & KYC states
+  // Document uploads integrated with asset-service
   const [uploading, setUploading] = useState<Record<string, boolean>>({});
-  const [uploadedFiles, setUploadedFiles] = useState<Record<string, string>>({});
-  const [digiLockerLoading, setDigiLockerLoading] = useState(false);
-  const [consentLoading, setConsentLoading] = useState(false);
-  const [eraseModalOpen, setEraseModalOpen] = useState(false);
-  const [erasingPii, setErasingPii] = useState(false);
+  const [uploadedDocs, setUploadedDocs] = useState<Record<string, UploadedDoc>>(() => {
+    try {
+      const saved = localStorage.getItem('nag_uploaded_docs');
+      return saved ? JSON.parse(saved) : {};
+    } catch {
+      return {};
+    }
+  });
 
   const photoRef = useRef<HTMLInputElement>(null);
   const sigRef = useRef<HTMLInputElement>(null);
@@ -314,76 +321,53 @@ const Profile: React.FC = () => {
     }
   };
 
-  // ── DigiLocker Verification ────────────────────────────────────────────────
-  const handleVerifyDigiLocker = async () => {
-    const uid = userId || tokenManager.getUserId();
-    if (!uid) return;
-    setDigiLockerLoading(true);
-    try {
-      const res = await candidateService.verifyDigiLocker(uid);
-      toast.success('DigiLocker Verification', `Status: ${res.status}`);
-      // Refresh profile to reflect verified status
-      const updated = await candidateService.getProfile(uid);
-      setCurrentProfile(updated);
-      await refreshProfile();
-    } catch {
-      toast.error('DigiLocker Verification Failed', 'Could not verify document.');
-    } finally {
-      setDigiLockerLoading(false);
-    }
-  };
-
-  // ── DPDP Consent Recording ─────────────────────────────────────────────────
-  const handleRecordConsent = async () => {
-    const uid = userId || tokenManager.getUserId();
-    if (!uid) return;
-    setConsentLoading(true);
-    try {
-      await candidateService.recordConsent(uid, { consentGiven: true, consentVersion: 'v1.0' });
-      toast.success('Consent Recorded', 'Biometric & identity DPDP consent has been recorded.');
-      const updated = await candidateService.getProfile(uid);
-      setCurrentProfile(updated);
-      await refreshProfile();
-    } catch {
-      toast.error('Consent recording failed', 'Please try again.');
-    } finally {
-      setConsentLoading(false);
-    }
-  };
-
-  // ── DPDP PII Erasure (Right to be Forgotten) ───────────────────────────────
-  const handleErasePii = async () => {
-    const uid = userId || tokenManager.getUserId();
-    if (!uid) return;
-    setErasingPii(true);
-    try {
-      await candidateService.erasePii(uid);
-      toast.success('Data Erased', 'Your PII has been erased as per DPDP Act.');
-      setEraseModalOpen(false);
-      // Log user out as their profile is wiped
-      await logout();
-    } catch {
-      toast.error('Erasure failed', 'Could not process erasure request.');
-    } finally {
-      setErasingPii(false);
-    }
-  };
-
-  // ── Document Upload ────────────────────────────────────────────────────────
+  // ── Document Upload with Asset Management Service ───────────────────────────
   const handleFileUpload = async (
     file: File,
     type: 'PHOTO' | 'SIGNATURE' | 'ID_PROOF',
   ) => {
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error('File too large', 'Maximum allowed file size is 5MB.');
+      return;
+    }
     setUploading((prev) => ({ ...prev, [type]: true }));
     try {
-      const asset = await candidateService.uploadDocument(file, type);
-      setUploadedFiles((prev) => ({ ...prev, [type]: asset.originalFilename }));
-      toast.success(`${type.replace('_', ' ')} uploaded!`, `Asset ID: ${asset.id}`);
-    } catch {
-      toast.error('Upload failed', 'Ensure file is under 5MB (JPG, PNG, PDF).');
+      const asset = await candidateService.uploadDocument(file);
+      const docInfo: UploadedDoc = {
+        id: String(asset.id),
+        filename: asset.originalFilename || file.name,
+        fileSize: asset.fileSize || file.size,
+        contentType: asset.contentType || file.type,
+        uploadedAt: new Date().toLocaleDateString('en-IN', {
+          day: 'numeric',
+          month: 'short',
+          year: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit',
+        }),
+      };
+      setUploadedDocs((prev) => {
+        const next = { ...prev, [type]: docInfo };
+        localStorage.setItem('nag_uploaded_docs', JSON.stringify(next));
+        return next;
+      });
+      toast.success(`${type.replace('_', ' ')} Uploaded!`, `${file.name} saved to Asset Service`);
+    } catch (err: unknown) {
+      console.error('Document upload error:', err);
+      toast.error('Upload failed', 'Ensure asset-service is running and file format is valid.');
     } finally {
       setUploading((prev) => ({ ...prev, [type]: false }));
     }
+  };
+
+  const handleRemoveDoc = (type: 'PHOTO' | 'SIGNATURE' | 'ID_PROOF') => {
+    setUploadedDocs((prev) => {
+      const next = { ...prev };
+      delete next[type];
+      localStorage.setItem('nag_uploaded_docs', JSON.stringify(next));
+      return next;
+    });
+    toast.info('Document Removed', `${type.replace('_', ' ')} has been removed.`);
   };
 
   // ── Calculate Profile Completeness ─────────────────────────────────────────
@@ -395,9 +379,9 @@ const Profile: React.FC = () => {
     if (currentProfile.gender) score += 10;
     if (currentProfile.category) score += 10;
     if (currentProfile.address) score += 15;
-    if (currentProfile.mobile) score += 10;
-    if (currentProfile.email) score += 10;
-    if (currentProfile.consentRecorded) score += 10;
+    if (uploadedDocs['PHOTO']) score += 10;
+    if (uploadedDocs['SIGNATURE']) score += 10;
+    if (uploadedDocs['ID_PROOF']) score += 10;
     return Math.min(100, score);
   };
 
@@ -659,132 +643,23 @@ const Profile: React.FC = () => {
           </form>
         )}
 
-        {/* ── TAB 3: KYC & DPDP Consent ────────────────────────────────────── */}
-        {activeTab === 'verification' && (
-          <div className="space-y-8">
-            <div>
-              <h2 className="text-lg font-bold text-gray-900">Identity Verification & DPDP Compliance</h2>
-              <p className="text-xs text-gray-500 mt-0.5">
-                Digital Personal Data Protection (DPDP) Act 2023 controls and automated DigiLocker verification
-              </p>
-            </div>
-
-            {/* DigiLocker Section */}
-            <div className="border border-gray-200 rounded-2xl p-5 bg-gradient-to-r from-blue-50/50 to-indigo-50/50">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                <div className="flex items-start gap-3.5">
-                  <div className="p-2.5 bg-blue-100 text-blue-700 rounded-xl mt-0.5">
-                    <FileCheck className="w-6 h-6" />
-                  </div>
-                  <div>
-                    <h3 className="font-bold text-gray-900">DigiLocker Identity Verification</h3>
-                    <p className="text-xs text-gray-600 mt-1 max-w-xl">
-                      Instantly verify candidate identity document credentials against the National DigiLocker repository.
-                    </p>
-                    <div className="flex items-center gap-2 mt-2">
-                      <span className="text-xs text-gray-500">Current Status:</span>
-                      {currentProfile?.digiLockerVerified === 'VERIFIED' ? (
-                        <span className="text-xs font-semibold text-green-700 bg-green-100 px-2 py-0.5 rounded-full flex items-center gap-1">
-                          <CheckCircle className="w-3 h-3" /> Verified
-                        </span>
-                      ) : (
-                        <span className="text-xs font-semibold text-amber-700 bg-amber-100 px-2 py-0.5 rounded-full flex items-center gap-1">
-                          <AlertCircle className="w-3 h-3" /> {currentProfile?.digiLockerVerified || 'Pending Verification'}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                </div>
-
-                <button
-                  type="button"
-                  onClick={handleVerifyDigiLocker}
-                  disabled={digiLockerLoading}
-                  className="flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300 text-white px-5 py-2.5 rounded-xl text-sm font-semibold shadow-sm transition whitespace-nowrap"
-                >
-                  {digiLockerLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
-                  {digiLockerLoading ? 'Verifying…' : 'Verify with DigiLocker'}
-                </button>
-              </div>
-            </div>
-
-            {/* DPDP Biometric & Identity Consent Section */}
-            <div className="border border-gray-200 rounded-2xl p-5 bg-gray-50/70">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                <div className="flex items-start gap-3.5">
-                  <div className="p-2.5 bg-emerald-100 text-emerald-700 rounded-xl mt-0.5">
-                    <ShieldCheck className="w-6 h-6" />
-                  </div>
-                  <div>
-                    <h3 className="font-bold text-gray-900">Biometric & Identity Consent (DPDP Section 6)</h3>
-                    <p className="text-xs text-gray-600 mt-1 max-w-xl">
-                      Explicit consent for proctoring snapshots, face verification, and exam validation under the DPDP Act.
-                    </p>
-                    <div className="flex items-center gap-2 mt-2">
-                      <span className="text-xs text-gray-500">Status:</span>
-                      {currentProfile?.consentRecorded ? (
-                        <span className="text-xs font-semibold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-full flex items-center gap-1">
-                          <CheckCircle className="w-3 h-3" /> Consent Recorded
-                        </span>
-                      ) : (
-                        <span className="text-xs font-semibold text-amber-700 bg-amber-100 px-2 py-0.5 rounded-full flex items-center gap-1">
-                          <AlertCircle className="w-3 h-3" /> Not Yet Given
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                </div>
-
-                <button
-                  type="button"
-                  onClick={handleRecordConsent}
-                  disabled={consentLoading || currentProfile?.consentRecorded}
-                  className="flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-700 disabled:bg-emerald-300 text-white px-5 py-2.5 rounded-xl text-sm font-semibold shadow-sm transition whitespace-nowrap"
-                >
-                  {consentLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle className="w-4 h-4" />}
-                  {currentProfile?.consentRecorded ? 'Consent Active' : 'Give DPDP Consent'}
-                </button>
-              </div>
-            </div>
-
-            {/* DPDP Section: Right to be Forgotten (Danger Zone) */}
-            <div className="border border-red-200 rounded-2xl p-5 bg-red-50/50">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                <div className="flex items-start gap-3.5">
-                  <div className="p-2.5 bg-red-100 text-red-700 rounded-xl mt-0.5">
-                    <Trash2 className="w-6 h-6" />
-                  </div>
-                  <div>
-                    <h3 className="font-bold text-red-900">Right to be Forgotten (DPDP Section 12)</h3>
-                    <p className="text-xs text-red-700 mt-1 max-w-xl">
-                      Erase all personally identifiable information (PII) from NAG and revoke encryption keys. This will permanently deactivate your profile.
-                    </p>
-                  </div>
-                </div>
-
-                <button
-                  type="button"
-                  onClick={() => setEraseModalOpen(true)}
-                  className="flex items-center justify-center gap-2 bg-red-600 hover:bg-red-700 text-white px-5 py-2.5 rounded-xl text-sm font-semibold shadow-sm transition whitespace-nowrap"
-                >
-                  <Trash2 className="w-4 h-4" /> Request PII Erasure
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* ── TAB 4: Document Uploads ──────────────────────────────────────── */}
+        {/* ── TAB 3: Document Uploads (Asset Management Service) ──────────── */}
         {activeTab === 'documents' && (
           <div className="space-y-6">
-            <div className="pb-3 border-b border-gray-100">
-              <h2 className="text-lg font-bold text-gray-900">Candidate Document Uploads</h2>
-              <p className="text-xs text-gray-500 mt-0.5">
-                Upload passport photo, signature, and government ID proof (JPG, PNG, or PDF up to 5MB)
-              </p>
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-3 border-b border-gray-100 gap-2">
+              <div>
+                <h2 className="text-lg font-bold text-gray-900">Candidate Document Uploads</h2>
+                <p className="text-xs text-gray-500 mt-0.5">
+                  Secure multimedia asset storage for passport photograph, official signature, and government identity proof
+                </p>
+              </div>
+              <div className="flex items-center gap-2 text-xs font-semibold text-indigo-700 bg-indigo-50 px-3 py-1.5 rounded-lg border border-indigo-100 w-fit">
+                <FileText className="w-3.5 h-3.5 text-indigo-600" />
+                <span>Asset Management Service Active</span>
+              </div>
             </div>
 
-            <div className="grid grid-cols-1 gap-4">
+            <div className="grid grid-cols-1 gap-5">
               {[
                 {
                   key: 'PHOTO' as const,
@@ -792,111 +667,119 @@ const Profile: React.FC = () => {
                   desc: 'Recent color photograph with white or light background (JPG/PNG, max 5MB)',
                   ref: photoRef,
                   accept: 'image/jpeg,image/png',
+                  icon: '📸',
                 },
                 {
                   key: 'SIGNATURE' as const,
-                  label: 'Official Signature',
+                  label: 'Official Candidate Signature',
                   desc: 'Clear signature on white paper with dark ink (JPG/PNG, max 2MB)',
                   ref: sigRef,
                   accept: 'image/jpeg,image/png',
+                  icon: '✍️',
                 },
                 {
                   key: 'ID_PROOF' as const,
                   label: 'Government Identity Proof',
-                  desc: 'Scanned copy of Aadhaar / PAN / Passport / Voter ID (JPG/PNG/PDF, max 5MB)',
+                  desc: 'Scanned copy of Aadhaar / PAN / Passport / Voter ID / DL (JPG/PNG/PDF, max 5MB)',
                   ref: idRef,
                   accept: 'image/jpeg,image/png,application/pdf',
+                  icon: '🪪',
                 },
-              ].map(({ key, label, desc, ref, accept }) => (
-                <div
-                  key={key}
-                  className="flex flex-col sm:flex-row sm:items-center justify-between p-5 border border-gray-200 hover:border-indigo-200 rounded-2xl bg-white transition gap-4"
-                >
-                  <div className="space-y-1">
-                    <p className="text-sm font-bold text-gray-900">{label}</p>
-                    <p className="text-xs text-gray-500">{desc}</p>
-                    {uploadedFiles[key] ? (
-                      <p className="text-xs text-green-600 font-medium flex items-center gap-1.5 pt-1">
-                        <CheckCircle className="w-3.5 h-3.5" /> Uploaded: {uploadedFiles[key]}
-                      </p>
-                    ) : (
-                      <p className="text-xs text-gray-400 pt-1">No file uploaded yet</p>
-                    )}
-                  </div>
+              ].map(({ key, label, desc, ref, accept, icon }) => {
+                const doc = uploadedDocs[key];
+                return (
+                  <div
+                    key={key}
+                    className="p-5 border border-gray-200 hover:border-indigo-300 rounded-2xl bg-white transition shadow-sm"
+                  >
+                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                      <div className="flex items-start gap-4">
+                        <div className="w-12 h-12 rounded-xl bg-gray-50 border border-gray-100 flex items-center justify-center text-2xl shrink-0">
+                          {icon}
+                        </div>
+                        <div className="space-y-1">
+                          <div className="flex items-center gap-2">
+                            <p className="text-sm font-bold text-gray-900">{label}</p>
+                            {doc ? (
+                              <span className="text-[11px] font-semibold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-full flex items-center gap-1">
+                                <CheckCircle className="w-3 h-3" /> Uploaded
+                              </span>
+                            ) : (
+                              <span className="text-[11px] font-semibold text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full">
+                                Required
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-xs text-gray-500">{desc}</p>
+                          {doc && (
+                            <div className="flex flex-wrap items-center gap-2 text-xs text-gray-600 pt-1">
+                              <span className="font-medium text-gray-800 bg-gray-100 px-2 py-0.5 rounded-md border border-gray-200">
+                                {doc.filename}
+                              </span>
+                              {doc.fileSize && (
+                                <span className="text-gray-400">
+                                  {(doc.fileSize / 1024).toFixed(1)} KB
+                                </span>
+                              )}
+                              <span className="text-gray-400">• Uploaded on {doc.uploadedAt}</span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
 
-                  <div className="flex items-center gap-3">
-                    <input
-                      ref={ref}
-                      type="file"
-                      accept={accept}
-                      className="hidden"
-                      onChange={(e) => {
-                        const file = e.target.files?.[0];
-                        if (file) void handleFileUpload(file, key);
-                      }}
-                    />
-                    <button
-                      type="button"
-                      onClick={() => ref.current?.click()}
-                      disabled={uploading[key]}
-                      className="flex items-center gap-2 bg-indigo-50 hover:bg-indigo-100 disabled:bg-gray-50 text-indigo-700 text-sm font-semibold px-4 py-2.5 rounded-xl transition border border-indigo-200"
-                    >
-                      {uploading[key] ? (
-                        <Loader2 className="w-4 h-4 animate-spin text-indigo-600" />
-                      ) : (
-                        <Upload className="w-4 h-4 text-indigo-600" />
-                      )}
-                      {uploading[key] ? 'Uploading…' : 'Choose File'}
-                    </button>
+                      <div className="flex items-center gap-2.5 self-end md:self-center shrink-0">
+                        {doc && (
+                          <>
+                            <a
+                              href={candidateService.getAssetDownloadUrl(doc.id)}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="flex items-center gap-1.5 bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs font-semibold px-3 py-2 rounded-xl transition"
+                            >
+                              <ExternalLink className="w-3.5 h-3.5" /> View
+                            </a>
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveDoc(key)}
+                              className="p-2 text-gray-400 hover:text-red-600 rounded-xl hover:bg-red-50 transition"
+                              title="Remove document"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </>
+                        )}
+                        <input
+                          ref={ref}
+                          type="file"
+                          accept={accept}
+                          className="hidden"
+                          onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            if (file) void handleFileUpload(file, key);
+                          }}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => ref.current?.click()}
+                          disabled={uploading[key]}
+                          className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-400 text-white text-xs font-semibold px-4 py-2 rounded-xl transition shadow-sm"
+                        >
+                          {uploading[key] ? (
+                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                          ) : (
+                            <Upload className="w-3.5 h-3.5" />
+                          )}
+                          {uploading[key] ? 'Uploading…' : doc ? 'Replace File' : 'Upload File'}
+                        </button>
+                      </div>
+                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
         )}
       </div>
-
-      {/* DPDP Erasure Confirmation Modal */}
-      {eraseModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-fadeIn">
-          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4 border border-gray-200">
-            <div className="flex items-center gap-3 text-red-600">
-              <div className="p-2 bg-red-100 rounded-full">
-                <AlertTriangle className="w-6 h-6" />
-              </div>
-              <h3 className="text-lg font-bold text-gray-900">Confirm PII Erasure</h3>
-            </div>
-
-            <p className="text-sm text-gray-600 leading-relaxed">
-              Under Section 12 of the DPDP Act 2023, this action will permanently zero out your personal details, revoke your encryption key, and delete your candidate profile record.
-            </p>
-
-            <div className="bg-red-50 p-3 rounded-xl border border-red-200 text-xs text-red-800 font-medium">
-              ⚠️ Warning: You will be immediately logged out and will lose eligibility for registered exams.
-            </div>
-
-            <div className="flex items-center justify-end gap-3 pt-2">
-              <button
-                type="button"
-                onClick={() => setEraseModalOpen(false)}
-                disabled={erasingPii}
-                className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={handleErasePii}
-                disabled={erasingPii}
-                className="flex items-center gap-2 px-4 py-2 text-sm font-semibold text-white bg-red-600 hover:bg-red-700 disabled:bg-red-400 rounded-lg transition"
-              >
-                {erasingPii ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
-                {erasingPii ? 'Erasing…' : 'Yes, Erase My Data'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 };
