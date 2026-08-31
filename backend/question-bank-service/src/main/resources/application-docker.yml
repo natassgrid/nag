@@ -7,12 +7,20 @@
 # it under the terms of the GNU Affero General Public License as published
 # by the Free Software Foundation, version 3 of the License.
 
-# Override for docker profile — disable Keycloak JWT auto-configuration
-# so DevJwtConfig's HS256 decoder is used instead
+# Override for docker profile - DevJwtConfig provides @Primary JwtDecoder (HS256).
+# We unset issuer/jwk so Keycloak is not contacted, but the reactive auto-config
+# is excluded at the application class level.
 spring:
+  autoconfigure:
+    exclude:
+      - org.springframework.boot.security.oauth2.server.resource.autoconfigure.reactive.ReactiveOAuth2ResourceServerAutoConfiguration
   security:
     oauth2:
       resourceserver:
         jwt:
-          issuer-uri:
-          jwk-set-uri:
+          issuer-uri: ""
+          jwk-set-uri: ""
+
+  ai:
+    openai:
+      base-url: ${LITELLM_BASE_URL:http://litellm:4000}

@@ -5,6 +5,27 @@
         subtitle="Create, review, and manage examination questions."
         icon="quiz"
       >
+        <button mat-stroked-button [disabled]="exporting" (click)="exportQuestions('json')"
+                matTooltip="Export matching questions as JSON (batched ZIP)">
+          <mat-icon>download</mat-icon>
+          Export JSON
+        </button>
+        <button mat-stroked-button [disabled]="exporting" (click)="exportQuestions('csv')"
+                matTooltip="Export matching questions as CSV (batched ZIP)">
+          <mat-icon>download</mat-icon>
+          Export CSV
+        </button>
+        <button mat-stroked-button [disabled]="importing" (click)="importInput.click()"
+                matTooltip="Import questions from a ZIP of JSON/CSV batch files">
+          <mat-icon>upload</mat-icon>
+          Import
+        </button>
+        <input #importInput type="file" accept=".zip,application/zip" hidden
+               (change)="onImportFileSelected($event)" />
+        <button mat-raised-button color="accent" (click)="openAiGenerateDrawer()">
+          <mat-icon>auto_awesome</mat-icon>
+          AI Generate
+        </button>
         <button mat-raised-button color="primary" (click)="openCreateDrawer()">
           <mat-icon>add</mat-icon>
           Create Question
@@ -45,4 +66,10 @@
         [question]="editingQuestion"
         (close)="onDrawerClose($event)"
       ></app-question-form-dialog>
+
+      <!-- ── AI GENERATION DRAWER ── -->
+      <app-ai-generate-dialog
+        [isOpen]="aiDrawerOpen"
+        (close)="onAiDrawerClose($event)"
+      ></app-ai-generate-dialog>
     </div>

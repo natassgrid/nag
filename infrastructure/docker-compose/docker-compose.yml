@@ -25,6 +25,8 @@ volumes:
   vault_data:
   prometheus_data:
   grafana_data:
+  ollama_data:
+  indictrans2_cache:
 
 services:
 
@@ -33,7 +35,7 @@ services:
   # All service schemas in a single cluster (per design doc)
   # ===========================================================================
   postgres:
-    image: postgres:16
+    image: pgvector/pgvector:pg16
     container_name: exam-postgres
     restart: unless-stopped
     ports:
@@ -288,5 +290,141 @@ services:
       timeout: 5s
       retries: 10
       start_period: 15s
+    networks:
+      - exam-network
+
+  # ===========================================================================
+  # Ollama — Local LLM/embedding model server
+  # Runs nomic-ai/nomic-embed-text-v1.5 for question similarity detection
+  # Port 11434 — API at http://localhost:11434
+  # Embedding endpoint: POST http://localhost:11434/api/embeddings
+  # ===========================================================================
+  ollama:
+    image: ollama/ollama:latest
+    container_name: exam-ollama
+    restart: unless-stopped
+    ports:
+      - "${OLLAMA_PORT:-11434}:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+    healthcheck:
+      test: ["CMD", "ollama", "list"]
+      interval: 15s
+      timeout: 10s
+      retries: 10
+      start_period: 30s
+    networks:
+      - exam-network
+
+  # Pulls AI models into the running Ollama server (skips if already present)
+  ollama-pull:
+    image: curlimages/curl:latest
+    container_name: exam-ollama-pull
+    restart: "no"
+    depends_on:
+      ollama:
+        condition: service_healthy
+    entrypoint:
+      - sh
+      - -c
+      - |
+        echo "Checking models..."
+        if ! curl -sf http://ollama:11434/api/tags | grep -q "all-minilm"; then
+          echo "Pulling all-minilm..."
+          curl -sf http://ollama:11434/api/pull -d '{"name":"all-minilm"}'
+        else
+          echo "all-minilm already present, skipping."
+        fi
+        if ! curl -sf http://ollama:11434/api/tags | grep -q "qwen2.5:1.5b"; then
+          echo "Pulling qwen2.5:1.5b..."
+          curl -sf http://ollama:11434/api/pull -d '{"name":"qwen2.5:1.5b"}'
+        else
+          echo "qwen2.5:1.5b already present, skipping."
+        fi
+        if ! curl -sf http://ollama:11434/api/tags | grep -q "qwen2-math"; then
+          echo "Pulling qwen2-math:1.5b..."
+          curl -sf http://ollama:11434/api/pull -d '{"name":"qwen2-math:1.5b"}'
+        else
+          echo "qwen2-math:1.5b already present, skipping."
+        fi
+        if ! curl -sf http://ollama:11434/api/tags | grep -q "llama3.2:1b"; then
+          echo "Pulling llama3.2:1b..."
+          curl -sf http://ollama:11434/api/pull -d '{"name":"llama3.2:1b"}'
+        else
+          echo "llama3.2:1b already present, skipping."
+        fi
+        echo "Done."
+    networks:
+      - exam-network
+
+  # ===========================================================================
+  # LiteLLM — Unified LLM Gateway (OpenAI-compatible proxy)
+  # Routes requests to Ollama, OpenAI, Azure, Anthropic, etc.
+  # Port 4000 — OpenAI-compatible API at http://localhost:4000
+  #
+  # Generate embeddings:
+  #   curl http://localhost:4000/v1/embeddings \
+  #     -H "Authorization: Bearer sk-litellm-dev-key" \
+  #     -H "Content-Type: application/json" \
+  #     -d '{"model": "nomic-embed-text", "input": "What is the capital of India?"}'
+  # ===========================================================================
+  litellm:
+    image: ghcr.io/berriai/litellm:main-latest
+    container_name: exam-litellm
+    restart: unless-stopped
+    ports:
+      - "${LITELLM_PORT:-4000}:4000"
+    environment:
+      LITELLM_MASTER_KEY: ${LITELLM_MASTER_KEY:-sk-litellm-dev-key}
+      OLLAMA_API_BASE: http://ollama:11434
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:-}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-}
+      AWS_REGION_NAME: ${AWS_REGION_NAME:-us-east-1}
+    volumes:
+      - ./litellm-config.yaml:/app/config.yaml:ro
+    command: ["--config", "/app/config.yaml", "--port", "4000"]
+    depends_on:
+      ollama:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:4000/health || exit 1"]
+      interval: 15s
+      timeout: 10s
+      retries: 10
+      start_period: 30s
+    networks:
+      - exam-network
+
+  # ===========================================================================
+  # IndicTrans2 — English to 22 Indian Languages Translation
+  # Model: ai4bharat/indictrans2-en-indic-dist-200M (~850MB)
+  # Port 7860 — REST API at http://localhost:7860
+  #
+  # Translate:
+  #   curl http://localhost:7860/translate \
+  #     -H "Content-Type: application/json" \
+  #     -d '{"text": "What is the capital of India?", "target_lang": "hin_Deva"}'
+  #
+  # Supported: hin_Deva, ben_Beng, tam_Taml, tel_Telu, mar_Deva, guj_Gujr,
+  #            kan_Knda, mal_Mlym, pan_Guru, ory_Orya, urd_Arab + 13 more
+  # ===========================================================================
+  indictrans2:
+    build:
+      context: ../indictrans2
+      dockerfile: Dockerfile
+    container_name: exam-indictrans2
+    restart: unless-stopped
+    ports:
+      - "${INDICTRANS_PORT:-7860}:7860"
+    environment:
+      HF_TOKEN: ${HF_TOKEN:-}
+    volumes:
+      - indictrans2_cache:/root/.cache/huggingface
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:7860/health')\" || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 120s
     networks:
       - exam-network

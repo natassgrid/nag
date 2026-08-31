@@ -22,7 +22,7 @@ import { HttpClient } from '@angular/common/http';
 import { Observable, map } from 'rxjs';
 
 export interface Subject {
-  id: string;
+  id: number;
   name: string;
   code: string;
   description: string;
@@ -30,23 +30,23 @@ export interface Subject {
 }
 
 export interface Topic {
-  id: string;
-  subjectId: string;
+  id: number;
+  subjectId: number;
   name: string;
   description: string;
   active: boolean;
 }
 
 export interface Subtopic {
-  id: string;
-  topicId: string;
+  id: number;
+  topicId: number;
   name: string;
   description: string;
   active: boolean;
 }
 
 export interface SubjectHierarchy {
-  id: string;
+  id: number;
   name: string;
   code: string;
   description: string;
@@ -55,7 +55,7 @@ export interface SubjectHierarchy {
 }
 
 export interface TopicNode {
-  id: string;
+  id: number;
   name: string;
   description: string;
   active: boolean;
@@ -63,7 +63,7 @@ export interface TopicNode {
 }
 
 export interface SubtopicNode {
-  id: string;
+  id: number;
   name: string;
   description: string;
   active: boolean;
@@ -94,25 +94,25 @@ export class SubjectTopicService {
       .pipe(map(res => res.data));
   }
 
-  getTopics(subjectId: string): Observable<Topic[]> {
+  getTopics(subjectId: number): Observable<Topic[]> {
     return this.http
       .get<ApiResponse<Topic[]>>(`${this.baseUrl}/${subjectId}/topics`)
       .pipe(map(res => res.data));
   }
 
-  createTopic(subjectId: string, data: { name: string; description?: string }): Observable<Topic> {
+  createTopic(subjectId: number, data: { name: string; description?: string }): Observable<Topic> {
     return this.http
       .post<ApiResponse<Topic>>(`${this.baseUrl}/${subjectId}/topics`, data)
       .pipe(map(res => res.data));
   }
 
-  getSubtopics(topicId: string, subjectId: string): Observable<Subtopic[]> {
+  getSubtopics(topicId: number, subjectId: number): Observable<Subtopic[]> {
     return this.http
       .get<ApiResponse<Subtopic[]>>(`${this.baseUrl}/${subjectId}/topics/${topicId}/subtopics`)
       .pipe(map(res => res.data));
   }
 
-  createSubtopic(subjectId: string, topicId: string, data: { name: string; description?: string }): Observable<Subtopic> {
+  createSubtopic(subjectId: number, topicId: number, data: { name: string; description?: string }): Observable<Subtopic> {
     return this.http
       .post<ApiResponse<Subtopic>>(`${this.baseUrl}/${subjectId}/topics/${topicId}/subtopics`, data)
       .pipe(map(res => res.data));

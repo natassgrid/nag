@@ -5,7 +5,7 @@
  * Copyright (C) 2025 NAG Contributors
  *
  * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU Affero General Public License as published
+ * it under the terms of the GNU标志 Affero General Public License as published
  * by the Free Software Foundation, version 3 of the License.
  *
  * This program is distributed in the hope that it will be useful,
@@ -48,6 +48,12 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(ProfileNotFoundException.class)
     public ResponseEntity<Map<String, Object>> handleNotFound(ProfileNotFoundException ex) {
         log.warn("Profile not found: {}", ex.getMessage());
+        return buildResponse(HttpStatus.NOT_FOUND, ex.getMessage());
+    }
+
+    @ExceptionHandler(EducationNotFoundException.class)
+    public ResponseEntity<Map<String, Object>> handleEducationNotFound(EducationNotFoundException ex) {
+        log.warn("Education not found: {}", ex.getMessage());
         return buildResponse(HttpStatus.NOT_FOUND, ex.getMessage());
     }
 

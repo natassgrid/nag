@@ -19,11 +19,21 @@ package com.examplatform.questionbank.service;
  */
 
 
+import com.examplatform.questionbank.ai.embedding.EmbeddingService;
+import com.examplatform.questionbank.ai.similarity.SimilarityCheckResult;
 import com.examplatform.questionbank.domain.Question;
+import com.examplatform.questionbank.domain.Subject;
+import com.examplatform.questionbank.domain.Subtopic;
+import com.examplatform.questionbank.domain.Topic;
 import com.examplatform.questionbank.domain.enums.QuestionType;
 import com.examplatform.questionbank.dto.CreateQuestionRequest;
 import com.examplatform.questionbank.dto.QuestionResponse;
+import com.examplatform.questionbank.exception.SimilarQuestionException;
 import com.examplatform.questionbank.repository.QuestionRepository;
+import com.examplatform.questionbank.repository.SubjectRepository;
+import com.examplatform.questionbank.repository.SubtopicRepository;
+import com.examplatform.questionbank.repository.TopicRepository;
+import com.examplatform.questionbank.util.EmbeddingUtils;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -54,11 +64,80 @@ public class QuestionService {
     private static final String AUDIT_TOPIC = "exam.audit.events";
 
     private final QuestionRepository questionRepository;
+    private final SubjectRepository subjectRepository;
+    private final TopicRepository topicRepository;
+    private final SubtopicRepository subtopicRepository;
     private final SimilarityDetectionService similarityDetectionService;
+    private final EmbeddingService embeddingService;
     private final KafkaTemplate<String, Object> kafkaTemplate;
 
     @org.springframework.beans.factory.annotation.Value("${app.encryption.enabled:false}")
     private boolean encryptionEnabled;
+
+    /**
+     * Result of resolving the Subject -> Topic -> Subtopic hierarchy for a
+     * question, carrying both the numeric ids (source of truth) and the
+     * denormalized names used by downstream features.
+     */
+    public record ResolvedHierarchy(
+            Long subjectId, String subjectName,
+            Long topicId, String topicName,
+            Long subtopicId, String subtopicName) {}
+
+    /**
+     * Resolves and validates the hierarchy referenced by a create/update request.
+     *
+     * <p>The numeric ids ({@code subjectId}/{@code topicId}/{@code subtopicId})
+     * are authoritative. This method verifies that each id exists within the
+     * tenant, that the topic belongs to the subject, and that the subtopic (if
+     * present) belongs to the topic. It returns the resolved names so the caller
+     * can denormalize them onto the question row.
+     *
+     * @throws IllegalArgumentException if any id is missing, not found in the
+     *         tenant, or the parent/child relationship is inconsistent
+     */
+    public ResolvedHierarchy resolveHierarchy(CreateQuestionRequest request, String tenantId) {
+        if (request.getSubjectId() == null) {
+            throw new IllegalArgumentException("subjectId is required");
+        }
+        if (request.getTopicId() == null) {
+            throw new IllegalArgumentException("topicId is required");
+        }
+
+        Subject subject = subjectRepository.findById(request.getSubjectId())
+                .filter(s -> tenantId.equals(s.getTenantId()))
+                .orElseThrow(() -> new IllegalArgumentException(
+                        "Subject not found for id=" + request.getSubjectId() + " in tenant " + tenantId));
+
+        Topic topic = topicRepository.findById(request.getTopicId())
+                .filter(t -> tenantId.equals(t.getTenantId()))
+                .orElseThrow(() -> new IllegalArgumentException(
+                        "Topic not found for id=" + request.getTopicId() + " in tenant " + tenantId));
+        if (!topic.getSubjectId().equals(subject.getId())) {
+            throw new IllegalArgumentException("Topic " + topic.getId()
+                    + " does not belong to subject " + subject.getId());
+        }
+
+        Long subtopicId = null;
+        String subtopicName = null;
+        if (request.getSubtopicId() != null) {
+            Subtopic subtopic = subtopicRepository.findById(request.getSubtopicId())
+                    .filter(st -> tenantId.equals(st.getTenantId()))
+                    .orElseThrow(() -> new IllegalArgumentException(
+                            "Subtopic not found for id=" + request.getSubtopicId() + " in tenant " + tenantId));
+            if (!subtopic.getTopicId().equals(topic.getId())) {
+                throw new IllegalArgumentException("Subtopic " + subtopic.getId()
+                        + " does not belong to topic " + topic.getId());
+            }
+            subtopicId = subtopic.getId();
+            subtopicName = subtopic.getName();
+        }
+
+        return new ResolvedHierarchy(
+                subject.getId(), subject.getName(),
+                topic.getId(), topic.getName(),
+                subtopicId, subtopicName);
+    }
 
     /**
      * Creates a new question in DRAFT state with a unique per-question DEK.
@@ -75,8 +154,26 @@ public class QuestionService {
                     + "SINGLE_MCQ, MULTI_MCQ, NUMERICAL, DESCRIPTIVE, MATRIX_MATCH, ASSERTION_REASON, CODING, CASE_STUDY");
         }
 
-        // Check similarity against existing PUBLISHED questions before creating Draft
-        similarityDetectionService.checkSimilarity(request.getContent());
+        // Resolve and validate the Subject -> Topic -> Subtopic hierarchy by numeric id.
+        // Populates the denormalized name fields on the request so downstream code
+        // (similarity, reviewer routing, search, versioning, export) keeps working.
+        ResolvedHierarchy hierarchy = resolveHierarchy(request, tenantId);
+
+        // Check similarity against existing questions in same subject+tenant (FR-2)
+        // Uses enforceNoDuplicate: throws SimilarQuestionException on > 0.92, returns WARN for 0.85–0.92
+        // NFR-2: If LLM/embedding service is unavailable, question creation still succeeds with warning logged
+        SimilarityCheckResult similarityResult = null;
+        try {
+            similarityResult = similarityDetectionService.enforceNoDuplicate(
+                    request.getContent(), hierarchy.subjectName(), tenantId);
+        } catch (SimilarQuestionException e) {
+            // Near-duplicate detected (> 0.92) — propagate to reject creation
+            throw e;
+        } catch (Exception e) {
+            // LLM/embedding service unavailable — proceed without duplicate detection (NFR-2)
+            log.warn("Similarity check unavailable during question creation. " +
+                    "Proceeding without duplicate detection. Reason: {}", e.getMessage());
+        }
 
         // Generate per-question DEK key name only when encryption is enabled
         String dekKeyName = encryptionEnabled ? "question-dek-" + UUID.randomUUID() : null;
@@ -86,8 +183,8 @@ public class QuestionService {
         if (request.getOptions() != null && !request.getOptions().isEmpty()) {
             var options = request.getOptions();
             // Validate option count (2-6)
-            if (options.size() < 2 || options.size() > 6) {
-                throw new IllegalArgumentException("MCQ/MSQ questions must have between 2 and 6 options");
+            if (options.size() < 2 || options.size() > 5) {
+                throw new IllegalArgumentException("MCQ/MSQ questions must have between 2 and 5 options");
             }
             // Assign option IDs A-F based on position
             String[] ids = {"A", "B", "C", "D", "E", "F"};
@@ -116,15 +213,21 @@ public class QuestionService {
 
         // Build Question entity
         Question question = Question.builder()
-                .subject(request.getSubject())
-                .topic(request.getTopic())
-                .subtopic(request.getSubtopic())
+                .subjectId(hierarchy.subjectId())
+                .topicId(hierarchy.topicId())
+                .subtopicId(hierarchy.subtopicId())
+                .subject(hierarchy.subjectName())
+                .topic(hierarchy.topicName())
+                .subtopic(hierarchy.subtopicName())
                 .chapter(request.getChapter())
                 .difficulty(request.getDifficulty().name())
                 .cognitiveLevel(request.getCognitiveLevel().name())
                 .questionType(request.getQuestionType().name())
                 .content(request.getContent())
                 .answerKey(answerKey)
+                .options(request.getOptions())
+                .explanation(request.getExplanation())
+                .references(request.getReferences())
                 .state("DRAFT")
                 .encryptionKeyId(dekKeyName)
                 .authorId(authorId)
@@ -136,6 +239,20 @@ public class QuestionService {
         // Persist — EncryptedFieldConverter encrypts content/answerKey only when app.encryption.enabled=true
         Question saved = questionRepository.save(question);
 
+        // Generate and store embedding via native query (FR-1)
+        // Column is insertable=false/updatable=false so we use native SQL with halfvec cast.
+        // NFR-2: If LLM service is unavailable, question creation still succeeds without embedding
+        try {
+            float[] embedding = embeddingService.embed(request.getContent());
+            if (embedding != null && embedding.length > 0) {
+                questionRepository.updateEmbedding(saved.getId(), EmbeddingUtils.embeddingToString(embedding));
+                log.debug("Embedding generated and stored for question: id={}", saved.getId());
+            }
+        } catch (Exception e) {
+            log.warn("Failed to generate embedding for question id={}. " +
+                    "Question created without embedding. Reason: {}", saved.getId(), e.getMessage());
+        }
+
         log.info("Question created: id={}, type={}, author={}, tenant={}, encrypted={}",
                 saved.getId(), saved.getQuestionType(), authorId, tenantId, encryptionEnabled);
 
@@ -143,7 +260,22 @@ public class QuestionService {
         publishAuditEvent("QUESTION_CREATED", saved.getId(), authorId, tenantId,
                 Map.of("questionType", saved.getQuestionType(), "state", saved.getState()));
 
-        return toResponse(saved);
+        // Build response with similarity warnings if applicable (FR-2: flag for human review)
+        QuestionResponse response = toResponse(saved);
+        if (similarityResult != null && similarityResult.status() == SimilarityCheckResult.Status.WARN) {
+            List<QuestionResponse.SimilarQuestionWarning> warnings = similarityResult.similarQuestions().stream()
+                    .map(sq -> QuestionResponse.SimilarQuestionWarning.builder()
+                            .questionId(sq.questionId())
+                            .similarity(sq.similarity())
+                            .contentSnippet(sq.content())
+                            .build())
+                    .toList();
+            response.setWarnings(warnings);
+            log.info("Question created with similarity warnings: id={}, warningCount={}",
+                    saved.getId(), warnings.size());
+        }
+
+        return response;
     }
 
     /**
@@ -152,19 +284,30 @@ public class QuestionService {
     @Transactional(readOnly = true)
     public org.springframework.data.domain.Page<QuestionResponse> listQuestions(
             String subject, String topic, String difficulty, String state,
-            int page, int size, String tenantId) {
+            String search, int page, int size, String tenantId) {
 
         org.springframework.data.domain.Pageable pageable =
                 org.springframework.data.domain.PageRequest.of(page, size,
                         org.springframework.data.domain.Sort.by("createdAt").descending());
 
         org.springframework.data.jpa.domain.Specification<Question> spec =
-                org.springframework.data.jpa.domain.Specification
-                        .where(tenantEquals(tenantId))
-                        .and(fieldEquals("subject", subject))
-                        .and(fieldEquals("topic", topic))
-                        .and(fieldEquals("difficulty", difficulty))
-                        .and(fieldEquals("state", state));
+                org.springframework.data.jpa.domain.Specification.where(tenantEquals(tenantId));
+
+        if (subject != null && !subject.isBlank()) {
+            spec = spec.and(fieldEquals("subject", subject));
+        }
+        if (topic != null && !topic.isBlank()) {
+            spec = spec.and(fieldEquals("topic", topic));
+        }
+        if (difficulty != null && !difficulty.isBlank()) {
+            spec = spec.and(fieldEquals("difficulty", difficulty));
+        }
+        if (state != null && !state.isBlank()) {
+            spec = spec.and(fieldEquals("state", state));
+        }
+        if (search != null && !search.isBlank()) {
+            spec = spec.and(searchLike(search));
+        }
 
         return questionRepository.findAll(spec, pageable).map(this::toResponse);
     }
@@ -174,8 +317,16 @@ public class QuestionService {
     }
 
     private org.springframework.data.jpa.domain.Specification<Question> fieldEquals(String field, String value) {
-        if (value == null || value.isBlank()) return null;
         return (root, query, cb) -> cb.equal(cb.lower(root.get(field)), value.toLowerCase());
+    }
+
+    private org.springframework.data.jpa.domain.Specification<Question> searchLike(String search) {
+        String pattern = "%" + search.toLowerCase() + "%";
+        return (root, query, cb) -> cb.or(
+                cb.like(cb.lower(root.get("subject")), pattern),
+                cb.like(cb.lower(root.get("topic")), pattern),
+                cb.like(cb.lower(root.get("content")), pattern)
+        );
     }
 
     /**
@@ -259,20 +410,26 @@ public class QuestionService {
                 ? LocalDateTime.ofInstant(question.getCreatedAt(), ZoneOffset.UTC)
                 : null;
 
-        // Try to parse options from answerKey JSON
-        java.util.List<com.examplatform.questionbank.dto.QuestionOption> options = null;
-        String questionType = question.getQuestionType();
-        if (questionType != null && (questionType.equals("SINGLE_MCQ") || questionType.equals("MULTI_MCQ"))
-                && question.getAnswerKey() != null && question.getAnswerKey().startsWith("[")) {
-            try {
-                options = MAPPER.readValue(question.getAnswerKey(),
-                        new com.fasterxml.jackson.core.type.TypeReference<
-                                java.util.List<com.examplatform.questionbank.dto.QuestionOption>>() {});
-            } catch (Exception ignored) {}
+        // Use the options field directly from the entity (JSONB column).
+        // Fall back to parsing from answerKey JSON for legacy data.
+        java.util.List<com.examplatform.questionbank.dto.QuestionOption> options = question.getOptions();
+        if ((options == null || options.isEmpty())) {
+            String questionType = question.getQuestionType();
+            if (questionType != null && (questionType.equals("SINGLE_MCQ") || questionType.equals("MULTI_MCQ"))
+                    && question.getAnswerKey() != null && question.getAnswerKey().startsWith("[")) {
+                try {
+                    options = MAPPER.readValue(question.getAnswerKey(),
+                            new com.fasterxml.jackson.core.type.TypeReference<
+                                    java.util.List<com.examplatform.questionbank.dto.QuestionOption>>() {});
+                } catch (Exception ignored) {}
+            }
         }
 
         return QuestionResponse.builder()
                 .id(question.getId())
+                .subjectId(question.getSubjectId())
+                .topicId(question.getTopicId())
+                .subtopicId(question.getSubtopicId())
                 .subject(question.getSubject())
                 .topic(question.getTopic())
                 .subtopic(question.getSubtopic())
@@ -282,6 +439,8 @@ public class QuestionService {
                 .questionType(question.getQuestionType())
                 .content(question.getContent())
                 .answerKey(question.getAnswerKey())
+                .explanation(question.getExplanation())
+                .references(question.getReferences())
                 .state(question.getState())
                 .authorId(question.getAuthorId())
                 .createdAt(createdAt)

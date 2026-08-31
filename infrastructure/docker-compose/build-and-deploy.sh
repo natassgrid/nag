@@ -60,6 +60,7 @@ else
         examination-service paper-generator delivery-service response-service
         evaluation-service result-service audit-service notification-service
         admin-service analytics-service asset-service api-gateway
+        frontend candidate-frontend
     )
     for svc in "${SERVICES[@]}"; do
         echo "  Building $svc..."
@@ -78,6 +79,7 @@ SERVICES=(
     examination-service paper-generator delivery-service response-service
     evaluation-service result-service audit-service notification-service
     admin-service analytics-service asset-service api-gateway
+    frontend candidate-frontend
 )
 
 for svc in "${SERVICES[@]}"; do
@@ -93,8 +95,10 @@ echo "============================================="
 echo ""
 echo "Service endpoints:"
 echo "  API Gateway:     http://localhost:9000"
+echo "  Admin UI (Web):  http://localhost:4200"
+echo "  Candidate UI:    http://localhost:4300"
 echo "  Identity:        http://localhost:8081"
-echo "  Candidate:       http://localhost:8082"
+echo "  Candidate API:   http://localhost:8082"
 echo "  Question Bank:   http://localhost:8083"
 echo "  Translation:     http://localhost:8084"
 echo "  Examination:     http://localhost:8085"

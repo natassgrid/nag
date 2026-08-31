@@ -146,3 +146,25 @@ resultService:
     limits:
       cpu: 2000m
       memory: 2Gi
+
+# --- Candidate Frontend (production) ---
+candidateFrontend:
+  replicas: 4
+  resources:
+    requests:
+      cpu: 200m
+      memory: 256Mi
+    limits:
+      cpu: 1000m
+      memory: 512Mi
+
+# --- Frontend / Admin UI (production) ---
+frontend:
+  replicas: 3
+  resources:
+    requests:
+      cpu: 200m
+      memory: 256Mi
+    limits:
+      cpu: 1000m
+      memory: 512Mi

@@ -69,8 +69,31 @@ export class AuthService {
     }
   }
 
+  getUserName(): string | null {
+    const user = localStorage.getItem(this.USER_KEY);
+    if (!user) return null;
+    try {
+      return JSON.parse(user).userName || null;
+    } catch {
+      return null;
+    }
+  }
+
   hasToken(): boolean {
     return !!this.getToken();
+  }
+
+  isTokenExpired(): boolean {
+    const token = this.getToken();
+    if (!token) return true;
+    try {
+      const payload = this.decodeJwtPayload(token);
+      if (!payload || !payload.exp) return true;
+      // exp is in seconds, Date.now() in milliseconds
+      return Date.now() >= payload.exp * 1000;
+    } catch {
+      return true;
+    }
   }
 
   hasRole(role: string): boolean {
@@ -91,8 +114,9 @@ export class AuthService {
       const payload = this.decodeJwtPayload(tokenData.accessToken);
       const roles = payload?.realm_access?.roles || tokenData.roles || [];
       const userId = payload?.sub || payload?.preferred_username || tokenData.userId || '';
+      const userName = payload?.name || payload?.preferred_username || tokenData.userId || '';
 
-      localStorage.setItem(this.USER_KEY, JSON.stringify({ roles, userId }));
+      localStorage.setItem(this.USER_KEY, JSON.stringify({ roles, userId, userName }));
       this.isAuthenticatedSubject.next(true);
     }
   }

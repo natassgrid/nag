@@ -1,0 +1,47 @@
+# LiteLLM Proxy Configuration
+# Unified LLM Gateway for the Exam Platform
+# Docs: https://docs.litellm.ai/docs/proxy/configs
+#
+# Model Strategy:
+#   - EASY difficulty  → Amazon Nova Micro (fast, cost-efficient)
+#   - MEDIUM difficulty → Amazon Nova Lite (balanced)
+#   - HARD difficulty   → Amazon Nova Lite (balanced)
+#
+# All models are routed via AWS Bedrock using service account credentials.
+
+model_list:
+  # ─── Embedding Model (local via Ollama) ────────────────────────────────────
+  - model_name: all-minilm
+    litellm_params:
+      model: ollama/all-minilm
+      api_base: http://ollama:11434
+
+  # ─── AWS Bedrock Models (question generation) ──────────────────────────────
+  # Uses service account credentials (AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY)
+  # passed via environment variables to the LiteLLM container.
+
+  # Amazon Nova Micro — fast, cost-efficient for EASY difficulty questions
+  - model_name: nova-micro
+    litellm_params:
+      model: bedrock/amazon.nova-micro-v1:0
+      aws_access_key_id: os.environ/AWS_ACCESS_KEY_ID
+      aws_secret_access_key: os.environ/AWS_SECRET_ACCESS_KEY
+      aws_region_name: os.environ/AWS_REGION_NAME
+
+  # Amazon Nova Lite — balanced for MEDIUM and HARD difficulty questions
+  - model_name: nova-lite
+    litellm_params:
+      model: bedrock/amazon.nova-lite-v1:0
+      aws_access_key_id: os.environ/AWS_ACCESS_KEY_ID
+      aws_secret_access_key: os.environ/AWS_SECRET_ACCESS_KEY
+      aws_region_name: os.environ/AWS_REGION_NAME
+
+general_settings:
+  master_key: sk-litellm-dev-key
+  drop_params: true
+
+litellm_settings:
+  num_retries: 2
+  request_timeout: 900
+  set_verbose: false
+  drop_params: true

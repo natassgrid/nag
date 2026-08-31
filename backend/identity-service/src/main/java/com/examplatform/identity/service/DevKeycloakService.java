@@ -67,6 +67,7 @@ public class DevKeycloakService extends KeycloakService {
         String payload = base64Url("{" +
                 "\"sub\":\"" + sub + "\"," +
                 "\"preferred_username\":\"" + username + "\"," +
+                "\"name\":\"" + username + "\"," +
                 "\"iss\":\"exam-platform-dev\"," +
                 "\"aud\":\"exam-backend\"," +
                 "\"iat\":" + now + "," +
@@ -83,6 +84,7 @@ public class DevKeycloakService extends KeycloakService {
                 .refreshToken(UUID.randomUUID().toString())
                 .expiresIn(3600L)
                 .tokenType("Bearer")
+                .userId(sub)
                 .build();
     }
 

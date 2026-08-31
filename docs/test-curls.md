@@ -18,7 +18,7 @@ curl http://localhost:9000/api/v1/identity/actuator/health
 ```bash
 curl -X POST http://localhost:9000/api/v1/identity/auth/token \
   -H "Content-Type: application/json" \
-  -H "X-Tenant-Id: exam-authority-1" \
+  -H "X-Tenant-Id: default" \
   -d '{
     "username": "superadmin",
     "password": "Password@123"
@@ -29,7 +29,7 @@ curl -X POST http://localhost:9000/api/v1/identity/auth/token \
 ```bash
 curl -X POST http://localhost:9000/api/v1/identity/auth/token \
   -H "Content-Type: application/json" \
-  -H "X-Tenant-Id: exam-authority-1" \
+  -H "X-Tenant-Id: default" \
   -d '{
     "username": "superadmin",
     "password": "Password@123",
@@ -42,7 +42,7 @@ curl -X POST http://localhost:9000/api/v1/identity/auth/token \
 ```bash
 curl -X POST http://localhost:9000/api/v1/identity/register \
   -H "Content-Type: application/json" \
-  -H "X-Tenant-Id: exam-authority-1" \
+  -H "X-Tenant-Id: default" \
   -d '{
     "username": "newuser",
     "mobileNumber": "+919876543210",
@@ -54,7 +54,7 @@ curl -X POST http://localhost:9000/api/v1/identity/register \
 ### Get User Roles
 ```bash
 curl http://localhost:9000/api/v1/identity/roles/a0000001-0000-0000-0000-000000000001 \
-  -H "X-Tenant-Id: exam-authority-1" \
+  -H "X-Tenant-Id: default" \
   -H "Authorization: Bearer <JWT_TOKEN>"
 ```
 
@@ -62,7 +62,7 @@ curl http://localhost:9000/api/v1/identity/roles/a0000001-0000-0000-0000-0000000
 ```bash
 curl -X POST http://localhost:9000/api/v1/identity/roles/a0000006-0000-0000-0000-000000000006 \
   -H "Content-Type: application/json" \
-  -H "X-Tenant-Id: exam-authority-1" \
+  -H "X-Tenant-Id: default" \
   -H "Authorization: Bearer <JWT_TOKEN>" \
   -d '{
     "role": "EVALUATOR",
@@ -76,7 +76,7 @@ curl -X POST http://localhost:9000/api/v1/identity/roles/a0000006-0000-0000-0000
 ```bash
 curl -X POST http://localhost:9000/api/v1/questions \
   -H "Content-Type: application/json" \
-  -H "X-Tenant-Id: exam-authority-1" \
+  -H "X-Tenant-Id: default" \
   -H "Authorization: Bearer <JWT_TOKEN>" \
   -d '{
     "subject": "Mathematics",
@@ -93,7 +93,7 @@ curl -X POST http://localhost:9000/api/v1/questions \
 ### List Questions by Subject
 ```bash
 curl "http://localhost:9000/api/v1/questions?subject=Mathematics&state=DRAFT" \
-  -H "X-Tenant-Id: exam-authority-1" \
+  -H "X-Tenant-Id: default" \
   -H "Authorization: Bearer <JWT_TOKEN>"
 ```
 
@@ -103,7 +103,7 @@ curl "http://localhost:9000/api/v1/questions?subject=Mathematics&state=DRAFT" \
 ```bash
 curl -X POST http://localhost:9000/api/v1/examinations \
   -H "Content-Type: application/json" \
-  -H "X-Tenant-Id: exam-authority-1" \
+  -H "X-Tenant-Id: default" \
   -H "Authorization: Bearer <JWT_TOKEN>" \
   -d '{
     "name": "Civil Services Preliminary Exam 2026",
@@ -123,7 +123,7 @@ curl -X POST http://localhost:9000/api/v1/examinations \
 ### Get Candidate Profile
 ```bash
 curl http://localhost:9000/api/v1/candidates/a0000006-0000-0000-0000-000000000006 \
-  -H "X-Tenant-Id: exam-authority-1" \
+  -H "X-Tenant-Id: default" \
   -H "Authorization: Bearer <JWT_TOKEN>"
 ```
 
@@ -132,7 +132,7 @@ curl http://localhost:9000/api/v1/candidates/a0000006-0000-0000-0000-00000000000
 ### Get System Config
 ```bash
 curl http://localhost:9000/api/v1/admin/config \
-  -H "X-Tenant-Id: exam-authority-1" \
+  -H "X-Tenant-Id: default" \
   -H "Authorization: Bearer <JWT_TOKEN>"
 ```
 
@@ -140,7 +140,7 @@ curl http://localhost:9000/api/v1/admin/config \
 ```bash
 curl -X PUT http://localhost:9000/api/v1/admin/config \
   -H "Content-Type: application/json" \
-  -H "X-Tenant-Id: exam-authority-1" \
+  -H "X-Tenant-Id: default" \
   -H "Authorization: Bearer <JWT_TOKEN>" \
   -d '{
     "paramName": "max.concurrent.sessions",
@@ -153,7 +153,7 @@ curl -X PUT http://localhost:9000/api/v1/admin/config \
 ### Query Audit Events
 ```bash
 curl "http://localhost:9000/api/v1/audit/events?eventType=ROLE_CHANGE&limit=10" \
-  -H "X-Tenant-Id: exam-authority-1" \
+  -H "X-Tenant-Id: default" \
   -H "Authorization: Bearer <JWT_TOKEN>"
 ```
 
@@ -162,7 +162,7 @@ curl "http://localhost:9000/api/v1/audit/events?eventType=ROLE_CHANGE&limit=10" 
 ### Get Notifications for User
 ```bash
 curl http://localhost:9000/api/v1/notifications \
-  -H "X-Tenant-Id: exam-authority-1" \
+  -H "X-Tenant-Id: default" \
   -H "Authorization: Bearer <JWT_TOKEN>"
 ```
 
@@ -171,7 +171,7 @@ curl http://localhost:9000/api/v1/notifications \
 ### Get Exam Analytics
 ```bash
 curl http://localhost:9000/api/v1/analytics/exams/{examId} \
-  -H "X-Tenant-Id: exam-authority-1" \
+  -H "X-Tenant-Id: default" \
   -H "Authorization: Bearer <JWT_TOKEN>"
 ```
 
@@ -192,7 +192,7 @@ curl http://localhost:9000/api/v1/analytics/exams/{examId} \
 | auditor1 | a0000009-0000-0000-0000-000000000009 | AUDITOR | Password@123 |
 | approver1 | a0000010-0000-0000-0000-000000000010 | APPROVER | Password@123 |
 
-Tenant: `exam-authority-1`
+Tenant: `default`
 
 ## Direct Service Access (bypass gateway)
 

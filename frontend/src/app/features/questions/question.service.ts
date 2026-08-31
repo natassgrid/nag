@@ -23,6 +23,9 @@ import { Observable, map } from 'rxjs';
 
 export interface QuestionResponse {
   id: string;
+  subjectId: number;
+  topicId: number;
+  subtopicId?: number;
   subject: string;
   topic: string;
   subtopic: string;
@@ -32,6 +35,7 @@ export interface QuestionResponse {
   questionType: string;
   content: string;
   answerKey: string;
+  explanation?: string;
   state: string;
   authorId: string;
   createdAt: string;
@@ -39,6 +43,11 @@ export interface QuestionResponse {
 }
 
 export interface CreateQuestionRequest {
+  /** Numeric hierarchy ids — source of truth for the backend link. */
+  subjectId?: number;
+  topicId?: number;
+  subtopicId?: number;
+  /** Names kept for readability; backend resolves/denormalizes from the ids. */
   subject: string;
   topic: string;
   subtopic?: string;
@@ -47,7 +56,86 @@ export interface CreateQuestionRequest {
   questionType: string;
   content: string;
   answerKey?: string;
+  explanation?: string;
   options?: { id: string; text: string; isCorrect: boolean }[];
+}
+
+export interface ImportResult {
+  filesProcessed: number;
+  totalRecords: number;
+  imported: number;
+  failed: number;
+  failures: { file: string; recordIndex: number; error: string }[];
+}
+
+export interface QuestionGenerationRequest {
+  subject: string;
+  topic: string;
+  subtopic?: string;
+  difficulty: string;
+  cognitiveLevel: string;
+  questionType: string;
+  count: number;
+  avoidDuplicate: boolean;
+  autoSave: boolean;
+}
+
+export interface BatchGenerationRequest {
+  items: BatchItem[];
+  avoidDuplicates: boolean;
+}
+
+export interface BatchItem {
+  subject: string;
+  topic: string;
+  subtopic?: string;
+  difficulty: string;
+  cognitiveLevel: string;
+  questionType: string;
+  count: number;
+}
+
+export interface BatchJobResponse {
+  id: string;
+  status: string;
+  subject: string;
+  topic: string;
+  subtopic?: string;
+  difficulty: string;
+  cognitiveLevel: string;
+  questionType: string;
+  totalRequested: number;
+  totalGenerated: number;
+  totalFailed: number;
+  totalDuplicates: number;
+  modelUsed: string;
+  initiatedBy: string;
+  createdAt: string;
+  startedAt?: string;
+  completedAt?: string;
+  errorMessage?: string;
+  progress: number;
+}
+
+export interface GeneratedQuestion {
+  content: string;
+  answerKey: string;
+  explanation: string;
+  options?: { id: string; text: string; isCorrect: boolean }[];
+  difficulty: string;
+  cognitiveLevel: string;
+  questionType: string;
+  validation: { valid: boolean; errors: string[] };
+  duplicate?: { similarQuestionId: string; similarity: number };
+  savedQuestionId?: string;
+}
+
+export interface QuestionGenerationResponse {
+  questions: GeneratedQuestion[];
+  modelUsed: string;
+  totalGenerated: number;
+  totalValid: number;
+  totalDuplicates: number;
 }
 
 export interface PagedResponse<T> {
@@ -139,6 +227,63 @@ export class QuestionService {
   rejectQuestion(id: string, comments: string): Observable<QuestionResponse> {
     return this.http
       .put<ApiResponse<QuestionResponse>>(`${this.baseUrl}/${id}/reject`, { comments })
+      .pipe(map(res => res.data));
+  }
+
+  /**
+   * Exports questions matching the given filters as a compressed ZIP archive.
+   * The archive contains batch files (100 questions each) plus a manifest.
+   * Returns the raw Blob so the caller can trigger a browser download.
+   */
+  exportQuestions(filters?: {
+    format?: 'json' | 'csv';
+    subject?: string;
+    topic?: string;
+    difficulty?: string;
+    state?: string;
+    search?: string;
+  }): Observable<Blob> {
+    let params = new HttpParams().set('format', filters?.format ?? 'json');
+    if (filters?.subject)    params = params.set('subject', filters.subject);
+    if (filters?.topic)      params = params.set('topic', filters.topic);
+    if (filters?.difficulty) params = params.set('difficulty', filters.difficulty);
+    if (filters?.state)      params = params.set('state', filters.state);
+    if (filters?.search)     params = params.set('search', filters.search);
+    return this.http.get(`${this.baseUrl}/export`, { params, responseType: 'blob' });
+  }
+
+  /**
+   * Imports questions from a ZIP archive of JSON/CSV batch files.
+   */
+  importQuestions(file: File): Observable<ImportResult> {
+    const formData = new FormData();
+    formData.append('file', file);
+    return this.http
+      .post<ApiResponse<ImportResult>>(`${this.baseUrl}/import`, formData)
+      .pipe(map(res => res.data));
+  }
+
+  generateQuestions(request: QuestionGenerationRequest): Observable<QuestionGenerationResponse> {
+    return this.http
+      .post<ApiResponse<QuestionGenerationResponse>>(`${this.baseUrl}/generate`, request)
+      .pipe(map(res => res.data));
+  }
+
+  submitBatchJob(request: BatchGenerationRequest): Observable<BatchJobResponse> {
+    return this.http
+      .post<ApiResponse<BatchJobResponse>>(`${this.baseUrl}/batch`, request)
+      .pipe(map(res => res.data));
+  }
+
+  getBatchJobStatus(jobId: string): Observable<BatchJobResponse> {
+    return this.http
+      .get<ApiResponse<BatchJobResponse>>(`${this.baseUrl}/batch/${jobId}`)
+      .pipe(map(res => res.data));
+  }
+
+  cancelBatchJob(jobId: string): Observable<BatchJobResponse> {
+    return this.http
+      .post<ApiResponse<BatchJobResponse>>(`${this.baseUrl}/batch/${jobId}/cancel`, {})
       .pipe(map(res => res.data));
   }
 }

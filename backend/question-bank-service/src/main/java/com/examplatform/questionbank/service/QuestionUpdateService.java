@@ -19,10 +19,12 @@
 
 package com.examplatform.questionbank.service;
 
+import com.examplatform.questionbank.ai.embedding.EmbeddingService;
 import com.examplatform.questionbank.domain.Question;
 import com.examplatform.questionbank.dto.CreateQuestionRequest;
 import com.examplatform.questionbank.dto.QuestionResponse;
 import com.examplatform.questionbank.repository.QuestionRepository;
+import com.examplatform.questionbank.util.EmbeddingUtils;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -48,6 +50,8 @@ public class QuestionUpdateService {
 
     private final QuestionRepository questionRepository;
     private final QuestionVersioningService questionVersioningService;
+    private final QuestionService questionService;
+    private final EmbeddingService embeddingService;
 
     /**
      * Updates an existing question and creates a version record tracking the changes.
@@ -66,10 +70,14 @@ public class QuestionUpdateService {
         // Clone current state for diff comparison
         Question oldState = cloneQuestionState(existing);
 
-        // Update fields from request
-        existing.setSubject(request.getSubject());
-        existing.setTopic(request.getTopic());
-        existing.setSubtopic(request.getSubtopic());
+        // Resolve and validate the numeric hierarchy, then update id + denormalized names
+        QuestionService.ResolvedHierarchy hierarchy = questionService.resolveHierarchy(request, tenantId);
+        existing.setSubjectId(hierarchy.subjectId());
+        existing.setTopicId(hierarchy.topicId());
+        existing.setSubtopicId(hierarchy.subtopicId());
+        existing.setSubject(hierarchy.subjectName());
+        existing.setTopic(hierarchy.topicName());
+        existing.setSubtopic(hierarchy.subtopicName());
         existing.setChapter(request.getChapter());
         existing.setDifficulty(request.getDifficulty().name());
         existing.setCognitiveLevel(request.getCognitiveLevel().name());
@@ -79,6 +87,21 @@ public class QuestionUpdateService {
 
         // Save updated question
         Question updated = questionRepository.save(existing);
+
+        // Regenerate embedding if content changed (keeps similarity search accurate)
+        // NFR-2: If LLM/embedding service is unavailable, update still succeeds without new embedding
+        if (!java.util.Objects.equals(oldState.getContent(), updated.getContent())) {
+            try {
+                float[] embedding = embeddingService.embed(updated.getContent());
+                if (embedding != null && embedding.length > 0) {
+                    questionRepository.updateEmbedding(updated.getId(), EmbeddingUtils.embeddingToString(embedding));
+                    log.debug("Embedding regenerated for updated question: id={}", updated.getId());
+                }
+            } catch (Exception e) {
+                log.warn("Failed to regenerate embedding for question id={}. " +
+                        "Update succeeded without new embedding. Reason: {}", updated.getId(), e.getMessage());
+            }
+        }
 
         // Create version record
         questionVersioningService.createVersion(oldState, updated, authorId, tenantId);
@@ -90,6 +113,9 @@ public class QuestionUpdateService {
 
     private Question cloneQuestionState(Question source) {
         return Question.builder()
+                .subjectId(source.getSubjectId())
+                .topicId(source.getTopicId())
+                .subtopicId(source.getSubtopicId())
                 .subject(source.getSubject())
                 .topic(source.getTopic())
                 .subtopic(source.getSubtopic())
@@ -111,6 +137,9 @@ public class QuestionUpdateService {
 
         return QuestionResponse.builder()
                 .id(question.getId())
+                .subjectId(question.getSubjectId())
+                .topicId(question.getTopicId())
+                .subtopicId(question.getSubtopicId())
                 .subject(question.getSubject())
                 .topic(question.getTopic())
                 .subtopic(question.getSubtopic())
@@ -120,6 +149,8 @@ public class QuestionUpdateService {
                 .questionType(question.getQuestionType())
                 .content(question.getContent())
                 .answerKey(question.getAnswerKey())
+                .explanation(question.getExplanation())
+                .references(question.getReferences())
                 .state(question.getState())
                 .authorId(question.getAuthorId())
                 .createdAt(createdAt)

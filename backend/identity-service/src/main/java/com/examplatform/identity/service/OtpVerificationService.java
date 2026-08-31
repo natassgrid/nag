@@ -33,6 +33,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Map;
+import java.util.UUID;
 
 @Slf4j
 @Service
@@ -56,13 +57,23 @@ public class OtpVerificationService {
      */
     @Transactional
     public AuthTokenResponse verifyOtpAndActivate(OtpVerifyRequest request, String tenantId) {
-        String mobileHash = hashingService.sha256(request.getMobile().trim());
+        UserAccount account;
+        if (request.getUserId() != null && !request.getUserId().isBlank()) {
+            UUID uid = UUID.fromString(request.getUserId().trim());
+            account = userAccountRepository.findById(uid)
+                .orElseThrow(() -> new AccountNotFoundException(
+                    "No pending account found for the provided user ID."));
+        } else if (request.getMobile() != null && !request.getMobile().isBlank()) {
+            String mobileHash = hashingService.sha256(request.getMobile().trim());
+            account = userAccountRepository
+                .findByMobileHashAndTenantId(mobileHash, tenantId)
+                .orElseThrow(() -> new AccountNotFoundException(
+                    "No pending account found for the provided mobile number."));
+        } else {
+            throw new IllegalArgumentException("Either userId or mobile must be provided for OTP verification.");
+        }
 
-        // 1. Find pending account
-        UserAccount account = userAccountRepository
-            .findByMobileHashAndTenantId(mobileHash, tenantId)
-            .orElseThrow(() -> new AccountNotFoundException(
-                "No pending account found for the provided mobile number."));
+        String mobileHash = account.getMobileHash();
 
         if (account.getAccountStatus() == AccountStatus.ACTIVE) {
             throw new InvalidOtpException("Account is already activated. Please login instead.");
@@ -90,9 +101,8 @@ public class OtpVerificationService {
         // 5. Issue tokens
         AuthTokenResponse tokens = keycloakService.getTokens(
             account.getUsername(),
-            // Password not stored in plaintext — use a one-time activation grant
-            // For now, fall back to client_credentials until password grant is wired
-            ""
+            "",
+            account.getId().toString()
         );
 
         // 6. Publish audit event

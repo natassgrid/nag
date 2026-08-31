@@ -144,8 +144,18 @@ services:
       - "${QUESTION_BANK_SERVICE_PORT:-8083}:${QUESTION_BANK_SERVICE_PORT:-8083}"
     environment:
       <<: *spring-env
+      DEBUG: false
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY}
+      AWS_REGION_NAME: ${AWS_REGION_NAME}
+      AI_MODEL_EASY: ${AI_MODEL_EASY}
+      AI_MODEL_MEDIUM: ${AI_MODEL_MEDIUM}
+      AI_MODEL_HARD: ${AI_MODEL_HARD}
+      AI_BEDROCK_ROLE_ARN: ${AI_BEDROCK_ROLE_ARN}
+      AI_BEDROCK_S3_BUCKET: ${AI_BEDROCK_S3_BUCKET}
+
       SERVER_PORT: ${QUESTION_BANK_SERVICE_PORT:-8083}
-      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-exam_platform}?currentSchema=question_service
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-exam_platform}?currentSchema=question_service,public
       OTEL_SERVICE_NAME: question-bank-service
     depends_on:
       <<: *depends-base
@@ -525,6 +535,28 @@ services:
         condition: service_healthy
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://localhost:80/health || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+  # ===========================================================================
+  # Candidate Frontend — React SPA served via Nginx
+  # ===========================================================================
+  candidate-frontend:
+    <<: *service-common
+    build:
+      context: ../../candidate-frontend
+      dockerfile: Dockerfile
+    image: localhost:5000/exam/candidate-frontend:latest
+    container_name: exam-candidate-frontend
+    ports:
+      - "4300:80"
+    depends_on:
+      api-gateway:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:80/health || exit 1"]
       interval: 30s
       timeout: 5s
       retries: 3

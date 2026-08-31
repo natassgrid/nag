@@ -118,6 +118,15 @@ public class CandidateProfile extends BaseEntity {
     @Column(name = "consent_timestamp")
     private LocalDateTime consentTimestamp;
 
+    @Column(name = "photo_asset_id")
+    private UUID photoAssetId;
+
+    @Column(name = "signature_asset_id")
+    private UUID signatureAssetId;
+
+    @Column(name = "id_proof_asset_id")
+    private UUID idProofAssetId;
+
     @Column(name = "user_id", nullable = false)
     private UUID userId;
 }

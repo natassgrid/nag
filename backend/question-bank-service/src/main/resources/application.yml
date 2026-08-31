@@ -12,7 +12,7 @@ spring:
     name: question-bank-service
 
   datasource:
-    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/exam_platform}
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/exam_platform?currentSchema=question_service,public}
     username: ${SPRING_DATASOURCE_USERNAME:exam_admin}
     password: ${SPRING_DATASOURCE_PASSWORD:exam_secret}
     driver-class-name: org.postgresql.Driver
@@ -21,6 +21,7 @@ spring:
       minimum-idle: 5
       connection-timeout: 30000
       schema: question_service
+      connection-init-sql: SET search_path TO question_service, public
 
   jpa:
     hibernate:
@@ -35,7 +36,10 @@ spring:
   flyway:
     enabled: true
     schemas: question_service
+    default-schema: question_service
     locations: classpath:db/migration
+    init-sqls:
+      - SET search_path TO question_service, public
 
   data:
     redis:
@@ -81,6 +85,20 @@ spring:
       value-deserializer: org.springframework.kafka.support.serializer.JacksonJsonDeserializer
       properties:
         spring.json.trusted.packages: "com.examplatform.*"
+
+  ai:
+    openai:
+      base-url: ${LITELLM_BASE_URL:http://localhost:4000}
+      api-key: ${LITELLM_API_KEY:sk-litellm-dev-key}
+      connect-timeout: 30s
+      read-timeout: 15m
+      chat:
+        options:
+          model: qwen2.5-1.5b
+          temperature: 0.7
+      embedding:
+        options:
+          model: all-minilm
 
   threads:
     virtual:
@@ -130,6 +148,24 @@ app:
   # When false, content is stored as plaintext (default for local dev).
   encryption:
     enabled: ${QUESTION_ENCRYPTION_ENABLED:false}
+  # AI generation configuration
+  ai:
+    # Difficulty-based model routing (LiteLLM model names)
+    # These map to Bedrock models configured in litellm-config.yaml
+    models:
+      easy: ${AI_MODEL_EASY:nova-micro}
+      medium: ${AI_MODEL_MEDIUM:nova-lite}
+      hard: ${AI_MODEL_HARD:nova-lite}
+    # AWS Bedrock Batch Inference configuration
+    bedrock:
+      enabled: ${AI_BEDROCK_ENABLED:true}
+      aws-region: ${AWS_REGION_NAME:us-east-1}
+      aws-access-key-id: ${AWS_ACCESS_KEY_ID:}
+      aws-secret-access-key: ${AWS_SECRET_ACCESS_KEY:}
+      role-arn: ${AI_BEDROCK_ROLE_ARN:}
+      s3-bucket: ${AI_BEDROCK_S3_BUCKET:exam-bedrock-batch}
+      s3-input-prefix: ${AI_BEDROCK_S3_INPUT_PREFIX:batch-input/}
+      s3-output-prefix: ${AI_BEDROCK_S3_OUTPUT_PREFIX:batch-output/}
 
 logging:
   pattern:

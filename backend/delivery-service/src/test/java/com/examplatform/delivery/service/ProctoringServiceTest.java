@@ -70,7 +70,7 @@ class ProctoringServiceTest {
 
     private static final UUID SESSION_ID = UUID.randomUUID();
     private static final UUID CANDIDATE_ID = UUID.randomUUID();
-    private static final String TENANT_ID = "exam-authority-1";
+    private static final String TENANT_ID = "default";
 
     private ExamSession testSession;
 

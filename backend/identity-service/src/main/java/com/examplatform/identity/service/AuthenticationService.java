@@ -74,10 +74,13 @@ public class AuthenticationService {
      */
     public AuthTokenResponse authenticate(AuthTokenRequest request, String tenantId, String ipAddress) {
 
-        // 1. Find account by email hash
-        String emailHash = hashingService.sha256(request.getUsername().toLowerCase().trim());
+        // 1. Find account by email hash, mobile hash, or username
+        String rawInput = request.getUsername().trim();
+        String hash = hashingService.sha256(rawInput.toLowerCase());
         UserAccount account = userAccountRepository
-                .findByEmailHashAndTenantId(emailHash, tenantId)
+                .findByEmailHashAndTenantId(hash, tenantId)
+                .or(() -> userAccountRepository.findByMobileHashAndTenantId(hash, tenantId))
+                .or(() -> userAccountRepository.findByUsernameIgnoreCaseAndTenantId(rawInput, tenantId))
                 .orElseThrow(() -> new AuthenticationException("Invalid credentials"));
 
         // 2. Check account status

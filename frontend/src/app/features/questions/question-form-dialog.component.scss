@@ -1,74 +1,107 @@
 .question-form {
-      display: flex;
-      flex-direction: column;
-      gap: 8px;
-    }
-    mat-form-field {
-      width: 100%;
-    }
-    textarea {
-      resize: vertical;
-    }
-    .field-with-action {
-      display: flex;
-      align-items: center;
-      gap: 4px;
-    }
-    .flex-field {
-      flex: 1;
-    }
-    .inline-create {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      margin-bottom: 8px;
-      padding-left: 16px;
-    }
-    .inline-create mat-form-field {
-      flex: 1;
-    }
-    .inline-create mat-spinner {
-      display: inline-block;
-    }
-    .options-section {
-      border: 1px solid #e0e0e0;
-      border-radius: 8px;
-      padding: 12px;
-      margin-bottom: 8px;
-    }
-    .options-header {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      margin-bottom: 8px;
-    }
-    .options-label {
-      font-weight: 500;
-      font-size: 14px;
-      flex: 1;
-    }
-    .options-hint {
-      font-size: 12px;
-      color: #888;
-    }
-    .option-row {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      margin-bottom: 4px;
-    }
-    .option-id {
-      font-weight: 600;
-      width: 20px;
-      color: #3f51b5;
-    }
-    .option-row .flex-field {
-      flex: 1;
-      margin-bottom: -4px;
-    }
-    .editor-field {
-      margin-bottom: 8px;
-    }
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 100%;
+  box-sizing: border-box;
+}
+.metadata-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px 16px;
+  margin-bottom: 16px;
+  width: 100%;
+  box-sizing: border-box;
+}
+.metadata-grid mat-form-field {
+  width: 100%;
+}
+.metadata-grid .field-with-action {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+mat-form-field {
+  width: 100%;
+}
+textarea {
+  resize: vertical;
+}
+.field-with-action {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.flex-field {
+  flex: 1;
+}
+.inline-create {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+  padding-left: 16px;
+  width: 100%;
+  box-sizing: border-box;
+}
+.inline-create mat-form-field {
+  flex: 1;
+}
+.inline-create mat-spinner {
+  display: inline-block;
+}
+.options-section {
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  padding: 12px;
+  margin-bottom: 12px;
+  width: 100%;
+  box-sizing: border-box;
+}
+.options-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+.options-label {
+  font-weight: 500;
+  font-size: 14px;
+  flex: 1;
+}
+.options-hint {
+  font-size: 12px;
+  color: #888;
+}
+.option-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px;
+  width: 100%;
+  box-sizing: border-box;
+}
+.option-id {
+  font-weight: 600;
+  width: 20px;
+  color: #3f51b5;
+}
+.option-row .flex-field {
+  flex: 1;
+  margin-bottom: -4px;
+}
+.editor-field {
+  margin-bottom: 12px;
+  width: 100%;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+}
+.editor-field exam-editor {
+  display: block;
+  width: 100%;
+  box-sizing: border-box;
+}
     .editor-label {
       font-size: 13px;
       color: #666;
@@ -77,4 +110,40 @@
     }
     .editor-label .required {
       color: #c62828;
+    }
+
+    .editor-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 4px;
+    }
+    .content-preview {
+      margin-top: 8px;
+      padding: 12px 16px;
+      border: 1px solid #e0e0e0;
+      border-radius: 8px;
+      background-color: #fafafa;
+      min-height: 48px;
+      width: 100%;
+      box-sizing: border-box;
+    }
+    .preview-label {
+      font-size: 11px;
+      color: #888;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 6px;
+    }
+    .option-row-wrapper {
+      margin-bottom: 4px;
+    }
+    .option-preview {
+      margin-left: 28px;
+      margin-bottom: 8px;
+      padding: 6px 10px;
+      border-left: 3px solid #3f51b5;
+      background-color: #f5f5f5;
+      border-radius: 0 4px 4px 0;
+      font-size: 14px;
     }

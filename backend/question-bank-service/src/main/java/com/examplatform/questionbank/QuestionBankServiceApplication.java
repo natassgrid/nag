@@ -21,10 +21,12 @@ package com.examplatform.questionbank;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.scheduling.annotation.EnableAsync;
 import org.springframework.scheduling.annotation.EnableScheduling;
 
-@SpringBootApplication
+@SpringBootApplication(excludeName = {"org.springframework.boot.autoconfigure.security.reactive.ReactiveSecurityAutoConfiguration", "org.springframework.boot.autoconfigure.security.oauth2.resource.reactive.ReactiveOAuth2ResourceServerAutoConfiguration", "org.springframework.boot.security.oauth2.server.resource.autoconfigure.reactive.ReactiveOAuth2ResourceServerAutoConfiguration"})
 @EnableScheduling
+@EnableAsync
 public class QuestionBankServiceApplication {
 
     public static void main(String[] args) {

@@ -25,6 +25,7 @@ import com.examplatform.candidate.dto.CreateCandidateProfileRequest;
 import com.examplatform.candidate.dto.UpdateCandidateProfileRequest;
 import com.examplatform.candidate.exception.DuplicateProfileException;
 import com.examplatform.candidate.exception.ProfileNotFoundException;
+import com.examplatform.candidate.repository.CandidateEducationRepository;
 import com.examplatform.candidate.repository.CandidateProfileRepository;
 import com.examplatform.shared.audit.AuditEventType;
 import lombok.RequiredArgsConstructor;
@@ -55,6 +56,7 @@ public class CandidateProfileService {
     private static final String AUDIT_TOPIC = "exam.audit.events";
 
     private final CandidateProfileRepository candidateProfileRepository;
+    private final CandidateEducationRepository candidateEducationRepository;
     private final HashingService hashingService;
     private final VaultCryptoService vaultCryptoService;
     private final KafkaTemplate<String, Object> kafkaTemplate;
@@ -179,6 +181,15 @@ public class CandidateProfileService {
             profile.setIdentityDocHash(docHash);
             profile.setIdentityDocHmac(docHmac);
         }
+        if (request.getPhotoAssetId() != null) {
+            profile.setPhotoAssetId(request.getPhotoAssetId());
+        }
+        if (request.getSignatureAssetId() != null) {
+            profile.setSignatureAssetId(request.getSignatureAssetId());
+        }
+        if (request.getIdProofAssetId() != null) {
+            profile.setIdProofAssetId(request.getIdProofAssetId());
+        }
 
         CandidateProfile saved = candidateProfileRepository.save(profile);
         log.info("Updated candidate profile for userId={} in tenant={}", userId, tenantId);
@@ -188,6 +199,7 @@ public class CandidateProfileService {
 
     /**
      * DPDP erasure: zeroes all PII columns, removes DEK reference, and revokes the DEK.
+     * Also erases associated candidate education records.
      */
     public void erasePii(UUID userId, String tenantId) {
         CandidateProfile profile = candidateProfileRepository
@@ -218,7 +230,10 @@ public class CandidateProfileService {
         // 4. Save
         candidateProfileRepository.save(profile);
 
-        // 5. Revoke the DEK in Vault
+        // 5. Erase associated educational qualification records
+        candidateEducationRepository.deleteByUserIdAndTenantId(userId, tenantId);
+
+        // 6. Revoke the DEK in Vault
         String dekKeyName = DEK_PREFIX + userId;
         vaultCryptoService.revokeKey(dekKeyName);
 
@@ -242,7 +257,7 @@ public class CandidateProfileService {
         log.info("Consent recorded for userId={} at {}", userId, profile.getConsentTimestamp());
     }
 
-    // ── Private helpers ──────────────────────────────────────────────────────
+    // ── Private helpers ─────────────────────────────────────────────────────────
 
     private void publishAuditEvent(AuditEventType type, String actorId, String tenantId) {
         try {
@@ -281,6 +296,9 @@ public class CandidateProfileService {
                 .digiLockerVerified(profile.getDigiLockerVerified())
                 .faceVerificationStatus(profile.getFaceVerificationStatus())
                 .consentRecorded(profile.isConsentRecorded())
+                .photoAssetId(profile.getPhotoAssetId())
+                .signatureAssetId(profile.getSignatureAssetId())
+                .idProofAssetId(profile.getIdProofAssetId())
                 .build();
     }
 

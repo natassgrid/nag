@@ -1,0 +1,315 @@
+<app-right-drawer
+  [isOpen]="isOpen"
+  title="AI Question Generator"
+  subtitle="Generate questions using AI based on your criteria."
+  width="55%"
+    [showFooter]="!response && !batchJob"
+  [disableBackdropClose]="true"
+  (close)="onClose()"
+>
+  <div drawer-body>
+    <!-- Generation Form -->
+    <form [formGroup]="form" class="generate-form" *ngIf="!response && !batchJob">
+
+      <!-- Mode Selection -->
+      <div class="mode-section">
+        <label class="mode-label">Generation Mode</label>
+        <mat-radio-group [(ngModel)]="generationMode" [ngModelOptions]="{standalone: true}" (change)="onModeChange()">
+          <mat-radio-button value="batch" disabled color="primary">
+            <span class="mode-option">
+              <mat-icon>cloud_queue</mat-icon>
+              Bedrock Batch (Recommended)
+            </span>
+          </mat-radio-button>
+          <mat-radio-button value="realtime" checked color="primary">
+            <span class="mode-option">
+              <mat-icon>bolt</mat-icon>
+              Realtime
+            </span>
+          </mat-radio-button>
+        </mat-radio-group>
+        <p class="mode-hint" *ngIf="generationMode === 'batch'">
+          Uses AWS Bedrock batch inference for high-quality generation. Processes asynchronously.
+        </p>
+        <p class="mode-hint" *ngIf="generationMode === 'realtime'">
+          Instant generation via Bedrock models through LiteLLM. Best for quick previews.
+        </p>
+      </div>
+
+      <div class="form-grid">
+        <mat-form-field appearance="outline">
+          <mat-label>Subject</mat-label>
+          <mat-select formControlName="subject" (selectionChange)="onSubjectChange($event.value)">
+            <mat-option *ngFor="let s of subjects" [value]="s.name">{{ s.name }}</mat-option>
+          </mat-select>
+          <mat-error *ngIf="form.get('subject')?.hasError('required')">Subject is required</mat-error>
+        </mat-form-field>
+
+        <mat-form-field appearance="outline">
+          <mat-label>Topic</mat-label>
+          <mat-select formControlName="topic" (selectionChange)="onTopicChange($event.value)"
+                      [disabled]="!selectedSubject">
+            <mat-option *ngFor="let t of topics" [value]="t.name">{{ t.name }}</mat-option>
+          </mat-select>
+          <mat-error *ngIf="form.get('topic')?.hasError('required')">Topic is required</mat-error>
+        </mat-form-field>
+
+        <mat-form-field appearance="outline">
+          <mat-label>Subtopic</mat-label>
+          <mat-select formControlName="subtopic" [disabled]="!selectedTopic">
+            <mat-option value="">-- None --</mat-option>
+            <mat-option *ngFor="let st of subtopics" [value]="st.name">{{ st.name }}</mat-option>
+          </mat-select>
+        </mat-form-field>
+
+        <mat-form-field appearance="outline">
+          <mat-label>Difficulty</mat-label>
+          <mat-select formControlName="difficulty">
+            <mat-option *ngFor="let d of difficulties" [value]="d">{{ d }}</mat-option>
+          </mat-select>
+          <mat-error *ngIf="form.get('difficulty')?.hasError('required')">Difficulty is required</mat-error>
+        </mat-form-field>
+
+        <mat-form-field appearance="outline">
+          <mat-label>Cognitive Level</mat-label>
+          <mat-select formControlName="cognitiveLevel">
+            <mat-option *ngFor="let c of cognitiveLevels" [value]="c">{{ c }}</mat-option>
+          </mat-select>
+          <mat-error *ngIf="form.get('cognitiveLevel')?.hasError('required')">Cognitive level is required</mat-error>
+        </mat-form-field>
+
+        <mat-form-field appearance="outline">
+          <mat-label>Question Type</mat-label>
+          <mat-select formControlName="questionType">
+            <mat-option *ngFor="let t of questionTypes" [value]="t.value">{{ t.label }}</mat-option>
+          </mat-select>
+          <mat-error *ngIf="form.get('questionType')?.hasError('required')">Type is required</mat-error>
+        </mat-form-field>
+      </div>
+
+      <!-- Model Info (batch mode — auto-selected by difficulty) -->
+      <div class="model-info" *ngIf="generationMode === 'batch'">
+        <mat-icon>smart_toy</mat-icon>
+        <span>Model auto-selected by difficulty: EASY → Nova Micro, MEDIUM/HARD → Nova Lite</span>
+      </div>
+
+      <!-- Batch Items Queue -->
+      <div class="batch-queue" *ngIf="generationMode === 'batch' && batchItems.length > 0">
+        <div class="batch-queue-header">
+          <strong>Batch Queue ({{ batchItems.length }} items, {{ totalBatchQuestions }} questions)</strong>
+        </div>
+        <div *ngFor="let item of batchItems; let i = index" class="batch-queue-item">
+          <span>{{ item.subject }} / {{ item.topic }} — {{ item.difficulty }} — {{ item.questionType }} × {{ item.count }}</span>
+          <button mat-icon-button (click)="removeFromBatch(i)" matTooltip="Remove">
+            <mat-icon>close</mat-icon>
+          </button>
+        </div>
+      </div>
+
+      <div class="count-section">
+        <mat-form-field appearance="outline" class="count-field">
+          <mat-label>Number of Questions</mat-label>
+          <input matInput type="number" formControlName="count" min="1" max="5" />
+          <mat-hint>1 to 5</mat-hint>
+          <mat-error *ngIf="form.get('count')?.hasError('required')">Count is required</mat-error>
+          <mat-error *ngIf="form.get('count')?.hasError('min')">Minimum is 1</mat-error>
+          <mat-error *ngIf="form.get('count')?.hasError('max')">Maximum is 5</mat-error>
+        </mat-form-field>
+      </div>
+
+      <div class="toggles-section">
+        <mat-slide-toggle formControlName="avoidDuplicate" color="primary">
+          Avoid duplicates
+        </mat-slide-toggle>
+        <mat-slide-toggle formControlName="autoSave" color="primary" *ngIf="generationMode === 'realtime'">
+          Auto-save as draft
+        </mat-slide-toggle>
+      </div>
+
+      <div *ngIf="generationError" class="error-message">{{ generationError }}</div>
+    </form>
+
+    <!-- Loading State -->
+    <div *ngIf="generating" class="loading-container">
+      <mat-spinner diameter="48"></mat-spinner>
+      <p class="loading-text">
+        {{ generationMode === 'batch' ? 'Submitting batch job...' : 'Generating questions with AI...' }}
+      </p>
+      <p class="loading-hint">This may take a few moments.</p>
+    </div>
+
+    <!-- Batch Job Status -->
+    <div *ngIf="batchJob" class="batch-status-container">
+      <div class="batch-header">
+        <mat-icon class="batch-icon">cloud_queue</mat-icon>
+        <div>
+          <h3 class="batch-title">Bedrock Batch Job</h3>
+          <span class="batch-status" [ngClass]="'status-' + batchJob.status.toLowerCase()">
+            {{ batchJob.status }}
+          </span>
+        </div>
+      </div>
+
+      <div class="batch-details">
+        <div class="batch-detail-row">
+          <span>Model:</span>
+          <strong>{{ batchJob.modelUsed }}</strong>
+        </div>
+        <div class="batch-detail-row">
+          <span>Requested:</span>
+          <strong>{{ batchJob.totalRequested }} questions</strong>
+        </div>
+        <div class="batch-detail-row" *ngIf="batchJob.totalGenerated > 0">
+          <span>Generated:</span>
+          <strong class="text-success">{{ batchJob.totalGenerated }}</strong>
+        </div>
+        <div class="batch-detail-row" *ngIf="batchJob.totalDuplicates > 0">
+          <span>Duplicates skipped:</span>
+          <strong class="text-warn">{{ batchJob.totalDuplicates }}</strong>
+        </div>
+        <div class="batch-detail-row" *ngIf="batchJob.totalFailed > 0">
+          <span>Failed:</span>
+          <strong class="text-error">{{ batchJob.totalFailed }}</strong>
+        </div>
+      </div>
+
+      <!-- Progress bar -->
+      <div class="batch-progress" *ngIf="batchPolling || batchJob.status === 'PROCESSING'">
+        <mat-progress-bar mode="indeterminate" color="primary"></mat-progress-bar>
+        <p class="batch-progress-text">Processing in background... You can close this panel and check back later.</p>
+      </div>
+
+      <!-- Completed message -->
+      <div class="batch-complete" *ngIf="batchJob.status === 'COMPLETED' || batchJob.status === 'PARTIALLY_COMPLETED'">
+        <mat-icon class="complete-icon">check_circle</mat-icon>
+        <p>{{ batchJob.totalGenerated }} questions have been saved as drafts. Refresh the question list to see them.</p>
+      </div>
+
+      <!-- Error message -->
+      <div class="batch-error" *ngIf="batchJob.status === 'FAILED'">
+        <mat-icon class="error-icon">error</mat-icon>
+        <p>{{ batchJob.errorMessage || 'Batch job failed. Please try again.' }}</p>
+      </div>
+
+      <!-- Actions -->
+      <div class="batch-actions">
+        <button mat-button (click)="batchJob = null; stopPolling()">
+          <mat-icon>arrow_back</mat-icon>
+          New Generation
+        </button>
+        <button mat-stroked-button color="warn"
+                *ngIf="batchJob.status === 'PENDING' || batchJob.status === 'PROCESSING'"
+                (click)="cancelBatchJob()">
+          <mat-icon>cancel</mat-icon>
+          Cancel Job
+        </button>
+        <button mat-raised-button color="primary" (click)="onClose()">
+          Done
+        </button>
+      </div>
+    </div>
+
+    <!-- Realtime Results -->
+    <div *ngIf="response" class="results-container">
+      <!-- Summary Stats -->
+      <div class="summary-stats">
+        <div class="stat-chip">
+          <mat-icon>auto_awesome</mat-icon>
+          <span>{{ response.totalGenerated }} generated</span>
+        </div>
+        <div class="stat-chip valid">
+          <mat-icon>check_circle</mat-icon>
+          <span>{{ response.totalValid }} valid</span>
+        </div>
+        <div class="stat-chip duplicate" *ngIf="response.totalDuplicates > 0">
+          <mat-icon>content_copy</mat-icon>
+          <span>{{ response.totalDuplicates }} duplicates</span>
+        </div>
+        <div class="stat-chip model">
+          <mat-icon>smart_toy</mat-icon>
+          <span>{{ response.modelUsed }}</span>
+        </div>
+      </div>
+
+      <!-- Question Results List -->
+      <div class="questions-list">
+        <div *ngFor="let q of response.questions; let i = index" class="question-card">
+          <div class="question-header">
+            <span class="question-number">Q{{ i + 1 }}</span>
+            <span class="validation-badge" [class.valid]="q.validation?.valid" [class.invalid]="!q.validation?.valid">
+              <mat-icon>{{ q.validation?.valid ? 'check_circle' : 'error' }}</mat-icon>
+              {{ q.validation?.valid ? 'Valid' : 'Invalid' }}
+            </span>
+            <span class="duplicate-badge" *ngIf="q.duplicate">
+              <mat-icon>warning</mat-icon>
+              Duplicate ({{ (q.duplicate.similarity * 100).toFixed(0) }}% similar)
+            </span>
+            <span class="saved-badge" *ngIf="q.savedQuestionId || savedIndices.has(i)">
+              <mat-icon>save</mat-icon>
+              Saved
+            </span>
+          </div>
+
+          <div class="question-content">
+            <app-math-renderer [content]="q.content"></app-math-renderer>
+          </div>
+
+          <div *ngIf="q.options && q.options.length > 0" class="question-options">
+            <div *ngFor="let opt of q.options" class="option-item" [class.correct]="opt.isCorrect">
+              <span class="option-label">{{ opt.id }}.</span>
+              <app-math-renderer [content]="opt.text"></app-math-renderer>
+              <mat-icon *ngIf="opt.isCorrect" class="correct-icon">check</mat-icon>
+            </div>
+          </div>
+
+          <div *ngIf="q.explanation" class="question-explanation">
+            <strong>Explanation:</strong>
+            <app-math-renderer [content]="q.explanation"></app-math-renderer>
+          </div>
+
+          <div *ngIf="!q.validation?.valid && q.validation?.errors?.length" class="validation-errors">
+            <span *ngFor="let err of q.validation.errors" class="error-item">{{ err }}</span>
+          </div>
+
+          <div class="question-actions" *ngIf="canSave(q, i)">
+            <button mat-stroked-button color="primary" (click)="saveAsDraft(q, i)" [disabled]="savingIds.has(i)">
+              <mat-spinner *ngIf="savingIds.has(i)" diameter="16"></mat-spinner>
+              <mat-icon *ngIf="!savingIds.has(i)">save</mat-icon>
+              {{ savingIds.has(i) ? 'Saving...' : 'Save as Draft' }}
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Generate More / Back -->
+      <div class="results-actions">
+        <button mat-button (click)="response = null">
+          <mat-icon>arrow_back</mat-icon>
+          Generate More
+        </button>
+        <button mat-raised-button color="primary" (click)="onClose()">
+          Done
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <div drawer-footer>
+    <button mat-button (click)="onClose()" [disabled]="generating">Cancel</button>
+    <div *ngIf="generationMode === 'batch'" style="display:flex;gap:8px;">
+      <button mat-stroked-button color="accent" (click)="addToBatch()" [disabled]="generating">
+        <mat-icon>add</mat-icon> Add to Batch
+      </button>
+      <button mat-raised-button color="primary" (click)="generate()" [disabled]="generating || batchItems.length === 0">
+        <mat-spinner *ngIf="generating" diameter="18" style="display:inline-block;margin-right:6px;vertical-align:middle;"></mat-spinner>
+        <mat-icon *ngIf="!generating">cloud_upload</mat-icon>
+        {{ generating ? 'Submitting...' : 'Submit Batch (' + totalBatchQuestions + ')' }}
+      </button>
+    </div>
+    <button *ngIf="generationMode === 'realtime'" mat-raised-button color="primary" (click)="generate()" [disabled]="generating">
+      <mat-spinner *ngIf="generating" diameter="18" style="display:inline-block;margin-right:6px;vertical-align:middle;"></mat-spinner>
+      <mat-icon *ngIf="!generating">auto_awesome</mat-icon>
+      {{ generating ? 'Generating...' : 'Generate' }}
+    </button>
+  </div>
+</app-right-drawer>

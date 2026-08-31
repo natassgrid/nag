@@ -1,0 +1,47 @@
+/*
+ * SPDX-License-Identifier: AGPL-3.0-only
+ * National Assessment Grid (NAG) - Open Digital Public Infrastructure (DPI) Platform
+ * Copyright (C) 2025 NAG Contributors
+ */
+
+:host {
+  display: block;
+}
+
+.math-renderer {
+  line-height: 1.6;
+  word-wrap: break-word;
+
+  // KaTeX inline math expressions
+  :host ::ng-deep .katex {
+    display: inline-block;
+    vertical-align: middle;
+    font-size: 1.05em;
+    line-height: 1.2;
+  }
+
+  // KaTeX display math blocks
+  :host ::ng-deep .katex-display {
+    margin: 0.5em 0;
+    overflow-x: auto;
+    overflow-y: hidden;
+  }
+
+  // Inline SVG diagrams
+  :host ::ng-deep svg {
+    display: inline-block;
+    vertical-align: middle;
+    max-width: 100%;
+    height: auto;
+  }
+
+  // Error fallback styling for failed LaTeX render
+  :host ::ng-deep .math-render-error {
+    color: var(--color-error, #d32f2f);
+    font-family: monospace;
+    font-size: 0.9em;
+    background-color: rgba(211, 47, 47, 0.08);
+    padding: 2px 4px;
+    border-radius: 3px;
+  }
+}

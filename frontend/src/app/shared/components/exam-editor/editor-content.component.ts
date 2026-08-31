@@ -27,7 +27,9 @@ import {
   ViewChild,
   AfterViewInit,
   OnChanges,
-  SimpleChanges
+  OnDestroy,
+  SimpleChanges,
+  NgZone
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import {
@@ -53,7 +55,7 @@ import { EditorAssetService } from './services';
   templateUrl: './editor-content.component.html',
   styleUrls: ['./editor-content.component.scss']
 })
-export class EditorContentComponent implements AfterViewInit, OnChanges {
+export class EditorContentComponent implements AfterViewInit, OnChanges, OnDestroy {
 
   @ViewChild('editorArea') editorArea!: ElementRef<HTMLDivElement>;
 
@@ -71,11 +73,18 @@ export class EditorContentComponent implements AfterViewInit, OnChanges {
 
   private isRendering = false;
   private isInternalChange = false;
+  private selectionChangeHandler = () => this.onSelectionChange();
 
-  constructor(private assetService: EditorAssetService) {}
+  constructor(private assetService: EditorAssetService, private ngZone: NgZone) {}
 
   ngAfterViewInit(): void {
     this.renderDocument();
+    // Listen for selection changes at document level for reliable tracking
+    document.addEventListener('selectionchange', this.selectionChangeHandler);
+  }
+
+  ngOnDestroy(): void {
+    document.removeEventListener('selectionchange', this.selectionChangeHandler);
   }
 
   ngOnChanges(changes: SimpleChanges): void {
@@ -108,6 +117,21 @@ export class EditorContentComponent implements AfterViewInit, OnChanges {
       this.isInternalChange = true;
       this.documentChange.emit(newDoc);
     }
+  }
+
+  onFocused(): void {
+    this.focused.emit();
+    this.trackSelection();
+  }
+
+  private onSelectionChange(): void {
+    const editorEl = this.editorArea?.nativeElement;
+    if (!editorEl) return;
+    const sel = window.getSelection();
+    if (!sel || sel.rangeCount === 0) return;
+    // Only track if selection is within our editor
+    if (!editorEl.contains(sel.anchorNode)) return;
+    this.ngZone.run(() => this.trackSelection());
   }
 
   trackSelection(): void {

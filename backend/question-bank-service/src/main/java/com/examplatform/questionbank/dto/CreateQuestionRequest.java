@@ -22,6 +22,7 @@ package com.examplatform.questionbank.dto;
 import com.examplatform.questionbank.domain.enums.CognitiveLevel;
 import com.examplatform.questionbank.domain.enums.DifficultyLevel;
 import com.examplatform.questionbank.domain.enums.QuestionType;
+import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import lombok.AllArgsConstructor;
@@ -41,12 +42,27 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 public class CreateQuestionRequest {
 
-    @NotBlank(message = "Subject is required")
+    /** Numeric FK to the subject. Source of truth for the hierarchy link. */
+    @NotNull(message = "Subject id is required")
+    private Long subjectId;
+
+    /** Numeric FK to the topic. Source of truth for the hierarchy link. */
+    @NotNull(message = "Topic id is required")
+    private Long topicId;
+
+    /** Numeric FK to the subtopic (optional). */
+    private Long subtopicId;
+
+    /**
+     * Subject name. Optional on input — the service resolves and denormalizes
+     * it from {@link #subjectId}. Present for readability in imported files.
+     */
     private String subject;
 
-    @NotBlank(message = "Topic is required")
+    /** Topic name. Optional on input — resolved from {@link #topicId}. */
     private String topic;
 
+    /** Subtopic name. Optional on input — resolved from {@link #subtopicId}. */
     private String subtopic;
 
     private String chapter;
@@ -65,8 +81,15 @@ public class CreateQuestionRequest {
 
     private String answerKey;
 
+    /** Detailed explanation of the correct answer (shown post-evaluation) */
+    private String explanation;
+
+    /** Source references: textbook, chapter, page, URL, etc. */
+    private String references;
+
     private String contentType;
 
     /** Options for MCQ/MSQ questions (2-6 items, A-F) */
+    @Valid
     private java.util.List<QuestionOption> options;
 }

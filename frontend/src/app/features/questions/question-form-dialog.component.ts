@@ -28,10 +28,12 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatCheckboxModule } from '@angular/material/checkbox';
+import { MatSlideToggleModule } from '@angular/material/slide-toggle';
 import { CreateQuestionRequest, QuestionResponse, QuestionService } from './question.service';
 import { SubjectTopicService, Subject, Topic, Subtopic } from './subject-topic.service';
-import { ExamEditorComponent, ExamDocument, EMPTY_DOCUMENT } from '../../shared/components/exam-editor';
+import { ExamEditorComponent } from '../../shared/components/exam-editor';
 import { RightDrawerComponent } from '../../shared/components/right-drawer/right-drawer.component';
+import { MathRendererComponent } from '../../shared/components/math-renderer/math-renderer.component';
 
 @Component({
   selector: 'app-question-form-dialog',
@@ -48,8 +50,10 @@ import { RightDrawerComponent } from '../../shared/components/right-drawer/right
     MatTooltipModule,
     MatProgressSpinnerModule,
     MatCheckboxModule,
+    MatSlideToggleModule,
     ExamEditorComponent,
-    RightDrawerComponent
+    RightDrawerComponent,
+    MathRendererComponent
   ],
   templateUrl: './question-form-dialog.component.html',
   styleUrls: ['./question-form-dialog.component.scss']
@@ -98,7 +102,12 @@ export class QuestionFormDialogComponent implements OnInit, OnChanges {
   saveError = '';
   currentQuestionType = '';
 
-  editorDocument: ExamDocument = [...EMPTY_DOCUMENT];
+  editorContent: string = '';
+  explanationContent: string = '';
+
+  showContentPreview = false;
+  showOptionPreviews = false;
+  showExplanationPreview = false;
 
   constructor(
     private fb: FormBuilder,
@@ -128,17 +137,20 @@ export class QuestionFormDialogComponent implements OnInit, OnChanges {
       cognitiveLevel: [q?.cognitiveLevel || '', Validators.required],
       questionType: [q?.questionType || '', Validators.required],
       content: [q?.content || '', Validators.required],
-      answerKey: [q?.answerKey || '']
+      answerKey: [q?.answerKey || ''],
+      explanation: [q?.explanation || '']
     });
 
     if (q?.content) {
-      try {
-        this.editorDocument = JSON.parse(q.content);
-      } catch {
-        this.editorDocument = [{ type: 'paragraph', children: [{ text: q.content }] }];
-      }
+      this.editorContent = q.content;
     } else {
-      this.editorDocument = [...EMPTY_DOCUMENT];
+      this.editorContent = '';
+    }
+
+    if (q?.explanation) {
+      this.explanationContent = q.explanation;
+    } else {
+      this.explanationContent = '';
     }
 
     if (q?.options && q.options.length > 0) {
@@ -284,12 +296,40 @@ export class QuestionFormDialogComponent implements OnInit, OnChanges {
     });
   }
 
-  onEditorChange(doc: ExamDocument): void {
-    this.editorDocument = doc;
-    const serialized = JSON.stringify(doc);
-    this.form.patchValue({ content: serialized });
+  onEditorChange(html: string): void {
+    this.editorContent = html;
+    this.form.patchValue({ content: html });
     this.form.get('content')?.markAsDirty();
     this.form.get('content')?.markAsTouched();
+  }
+
+  onExplanationChange(html: string): void {
+    this.explanationContent = html;
+    this.form.patchValue({ explanation: html });
+    this.form.get('explanation')?.markAsDirty();
+    this.form.get('explanation')?.markAsTouched();
+  }
+
+  formatLatex(text: string): string {
+    if (!text) return '';
+    let formatted = text;
+
+    // Convert single-dollar $math$ to $$math$$ (enclosed in $$...$$)
+    formatted = formatted.replace(/(^|[^$])\$([^$\n]+)\$([^$]|$)/g, '$1$$$$$2$$$$$3');
+
+    // Remove empty math blocks $$ $$ or $$$$
+    formatted = formatted.replace(/\$\$\s*\$\$/g, '');
+
+    // If odd number of $$, strip unmatched leading/trailing $$
+    const matches = formatted.match(/\$\$/g);
+    if (matches && matches.length % 2 !== 0) {
+      if (formatted.startsWith('$$')) {
+        formatted = formatted.substring(2);
+      } else if (formatted.endsWith('$$')) {
+        formatted = formatted.substring(0, formatted.length - 2);
+      }
+    }
+    return formatted;
   }
 
   onQuestionTypeChange(value: string): void {
@@ -314,7 +354,7 @@ export class QuestionFormDialogComponent implements OnInit, OnChanges {
   }
 
   addOption(): void {
-    if (this.options.length < 6) {
+    if (this.options.length < 5) {
       this.options.push({ id: this.optionIds[this.options.length], text: '', isCorrect: false });
     }
   }
@@ -334,7 +374,15 @@ export class QuestionFormDialogComponent implements OnInit, OnChanges {
   save(): void {
     this.form.markAllAsTouched();
     if (this.form.valid) {
-      const value: CreateQuestionRequest = this.form.value;
+      const value: CreateQuestionRequest = { ...this.form.value };
+      // Attach numeric hierarchy ids (source of truth for the backend link).
+      // The form controls hold names; the selected entities carry the ids.
+      value.subjectId = this.selectedSubject?.id ?? undefined;
+      value.topicId = this.selectedTopic?.id ?? undefined;
+      const selectedSubtopic = this.subtopics.find(st => st.name === value.subtopic);
+      value.subtopicId = selectedSubtopic?.id ?? undefined;
+      if (value.content) value.content = this.formatLatex(value.content);
+      if (value.explanation) value.explanation = this.formatLatex(value.explanation);
       if (this.isMcqOrMsq() && this.options.length >= 2) {
         const correct = this.options.filter(o => o.isCorrect).length;
         if (this.isMcq() && correct !== 1) {
@@ -343,7 +391,11 @@ export class QuestionFormDialogComponent implements OnInit, OnChanges {
         if (!this.isMcq() && correct < 1) {
           this.optionError = 'MSQ requires at least one correct option'; return;
         }
-        value.options = this.options.map((o, i) => ({ id: this.optionIds[i], text: o.text, isCorrect: o.isCorrect }));
+        value.options = this.options.map((o, i) => ({
+          id: this.optionIds[i],
+          text: this.formatLatex(o.text),
+          isCorrect: o.isCorrect
+        }));
       }
       this.optionError = '';
       this.saveError = '';

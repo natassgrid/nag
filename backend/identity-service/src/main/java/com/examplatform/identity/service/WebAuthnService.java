@@ -105,7 +105,7 @@ public class WebAuthnService {
         webAuthnCredentialRepository.save(credential);
 
         // 6. Issue tokens via Keycloak (using service account or direct grant)
-        AuthTokenResponse tokens = keycloakService.getTokens(account.getUsername(), "");
+        AuthTokenResponse tokens = keycloakService.getTokens(account.getUsername(), "", account.getId().toString());
 
         // 7. Publish audit event
         auditEventPublisher.publish(AuditEventType.LOGIN,

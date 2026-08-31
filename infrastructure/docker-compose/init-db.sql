@@ -32,6 +32,9 @@ CREATE SCHEMA IF NOT EXISTS keycloak;
 -- Enable uuid-ossp for UUID generation
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
+-- Enable pgvector extension for halfvec similarity search (question-bank-service)
+CREATE EXTENSION IF NOT EXISTS vector;
+
 -- Create service-specific roles with least-privilege access
 DO $$
 BEGIN

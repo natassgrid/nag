@@ -62,7 +62,7 @@ class ConsentRecordingTest {
     @InjectMocks
     CandidateProfileService candidateProfileService;
 
-    private static final String TENANT_ID = "exam-authority-1";
+    private static final String TENANT_ID = "default";
     private static final UUID USER_ID = UUID.fromString("22222222-2222-2222-2222-222222222222");
 
     private CandidateProfile profileWithoutConsent() {

@@ -6,7 +6,7 @@
 
 <a class="skip-link" href="#main-content">Skip to main content</a>
 
-@if (authService.isAuthenticated$ | async) {
+@if ((authService.isAuthenticated$ | async) && !isAuthRoute) {
   <mat-toolbar color="primary" class="app-toolbar">
     <button mat-icon-button (click)="sidenav.toggle()" aria-label="Toggle navigation menu">
       <mat-icon>menu</mat-icon>

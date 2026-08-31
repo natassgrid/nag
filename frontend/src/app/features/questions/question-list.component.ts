@@ -27,6 +27,7 @@ import { MatChipsModule } from '@angular/material/chips';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { QuestionService, QuestionResponse } from './question.service';
 import { QuestionFormDialogComponent } from './question-form-dialog.component';
+import { AiGenerateDialogComponent } from './ai-generate-dialog/ai-generate-dialog.component';
 import { SubjectTopicService, Subject } from './subject-topic.service';
 import {
   PaginatedTableComponent,
@@ -49,7 +50,8 @@ import { PageHeaderComponent } from '../../shared/components/page-header/page-he
     MatTooltipModule,
     PaginatedTableComponent,
     PageHeaderComponent,
-    QuestionFormDialogComponent
+    QuestionFormDialogComponent,
+    AiGenerateDialogComponent
   ],
   templateUrl: './question-list.component.html',
   styleUrls: ['./question-list.component.scss']
@@ -60,6 +62,7 @@ export class QuestionListComponent implements OnInit {
 
   drawerOpen = false;
   editingQuestion?: QuestionResponse;
+  aiDrawerOpen = false;
 
   filters: Record<string, any> = {};
 
@@ -186,6 +189,17 @@ export class QuestionListComponent implements OnInit {
     this.drawerOpen = true;
   }
 
+  openAiGenerateDrawer(): void {
+    this.aiDrawerOpen = true;
+  }
+
+  onAiDrawerClose(hasSaved: boolean): void {
+    this.aiDrawerOpen = false;
+    if (hasSaved) {
+      this.reload();
+    }
+  }
+
   openEditDrawer(question: QuestionResponse): void {
     this.editingQuestion = question;
     this.drawerOpen = true;
@@ -211,5 +225,68 @@ export class QuestionListComponent implements OnInit {
         this.snackBar.open(message, 'Close', { duration: 3000 });
       }
     });
+  }
+
+  exporting = false;
+  importing = false;
+
+  /** Downloads a ZIP export of questions matching the active filters. */
+  exportQuestions(format: 'json' | 'csv'): void {
+    const activeSubject = Array.isArray(this.filters['subject']) ? this.filters['subject'][0] : this.filters['subject'];
+    const activeDifficulty = Array.isArray(this.filters['difficulty']) ? this.filters['difficulty'][0] : this.filters['difficulty'];
+    const activeState = Array.isArray(this.filters['state']) ? this.filters['state'][0] : this.filters['state'];
+
+    this.exporting = true;
+    this.questionService.exportQuestions({
+      format,
+      subject: activeSubject || undefined,
+      difficulty: activeDifficulty || undefined,
+      state: activeState || undefined
+    }).subscribe({
+      next: (blob) => {
+        this.exporting = false;
+        this.triggerDownload(blob, `questions-export-${format}-${new Date().toISOString().slice(0, 10)}.zip`);
+        this.snackBar.open('Export ready', 'Close', { duration: 3000 });
+      },
+      error: () => {
+        this.exporting = false;
+        this.snackBar.open('Export failed', 'Close', { duration: 4000 });
+      }
+    });
+  }
+
+  /** Handles the hidden file input change: uploads the selected ZIP for import. */
+  onImportFileSelected(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    const file = input.files && input.files[0];
+    if (!file) {
+      return;
+    }
+    this.importing = true;
+    this.questionService.importQuestions(file).subscribe({
+      next: (result) => {
+        this.importing = false;
+        input.value = '';
+        this.snackBar.open(
+          `Imported ${result.imported} question(s), ${result.failed} failed`,
+          'Close',
+          { duration: 4000 });
+        this.reload();
+      },
+      error: (err) => {
+        this.importing = false;
+        input.value = '';
+        this.snackBar.open(err?.error?.message || 'Import failed', 'Close', { duration: 4000 });
+      }
+    });
+  }
+
+  private triggerDownload(blob: Blob, fileName: string): void {
+    const url = window.URL.createObjectURL(blob);
+    const anchor = document.createElement('a');
+    anchor.href = url;
+    anchor.download = fileName;
+    anchor.click();
+    window.URL.revokeObjectURL(url);
   }
 }

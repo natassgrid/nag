@@ -25,7 +25,6 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.util.List;
-import java.util.UUID;
 
 /**
  * DTO representing the full Subject → Topic → Subtopic hierarchy tree.
@@ -36,7 +35,7 @@ import java.util.UUID;
 @AllArgsConstructor
 public class SubjectHierarchyResponse {
 
-    private UUID id;
+    private Long id;
     private String name;
     private String code;
     private String description;
@@ -48,7 +47,7 @@ public class SubjectHierarchyResponse {
     @NoArgsConstructor
     @AllArgsConstructor
     public static class TopicNode {
-        private UUID id;
+        private Long id;
         private String name;
         private String description;
         private boolean active;
@@ -60,7 +59,7 @@ public class SubjectHierarchyResponse {
     @NoArgsConstructor
     @AllArgsConstructor
     public static class SubtopicNode {
-        private UUID id;
+        private Long id;
         private String name;
         private String description;
         private boolean active;

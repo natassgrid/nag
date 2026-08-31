@@ -12,7 +12,7 @@
       (input)="onInput($event)"
       (keydown)="keydown.emit($event)"
       (paste)="paste.emit($event)"
-      (focus)="focused.emit()"
+      (focus)="onFocused()"
       (blur)="blurred.emit()"
       (mouseup)="trackSelection()"
       (keyup)="trackSelection()"
