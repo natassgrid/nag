@@ -47,158 +47,98 @@ import { AuthService } from '../../../core/services/auth.service';
   ],
   template: `
     <main class="login-container" role="main" aria-labelledby="login-heading">
-      <mat-card class="login-card" appearance="outlined">
-        <mat-card-header class="login-header">
-          <div class="app-branding">
-            <mat-icon class="app-logo" aria-hidden="true">school</mat-icon>
-            <h1 id="login-heading" class="app-title">Exam Platform</h1>
+      <div class="login-wrapper">
+        <!-- Candidate-style NAG Logo -->
+        <div class="brand-header">
+          <div class="brand-badge-container">
+            <div class="brand-icon-box">
+              <mat-icon class="brand-icon" aria-hidden="true">menu_book</mat-icon>
+            </div>
+            <div class="brand-text">
+              <h1 class="brand-title">NAG</h1>
+              <p class="brand-subtitle">National Assessment Grid</p>
+            </div>
           </div>
-          <p class="login-subtitle">Sign in to your account</p>
-        </mat-card-header>
+          <p class="portal-tag">Administration Portal</p>
+        </div>
 
-        <mat-card-content>
-          <form [formGroup]="loginForm" (ngSubmit)="onSubmit()" aria-label="Login form">
-            <mat-form-field appearance="outline" class="full-width">
-              <mat-label>Username</mat-label>
-              <input matInput formControlName="username"
-                     type="text"
-                     autocomplete="username"
-                     aria-required="true"
-                     [attr.aria-invalid]="loginForm.get('username')?.invalid && loginForm.get('username')?.touched">
-              <mat-icon matPrefix>person</mat-icon>
-              <mat-error *ngIf="loginForm.get('username')?.hasError('required')">
-                Username is required
-              </mat-error>
-            </mat-form-field>
+        <!-- Glassmorphic Card -->
+        <div class="login-card">
+          <h2 id="login-heading" class="card-title">Sign in to your account</h2>
 
-            <mat-form-field appearance="outline" class="full-width">
-              <mat-label>Password</mat-label>
-              <input matInput formControlName="password"
-                     [type]="hidePassword ? 'password' : 'text'"
-                     autocomplete="current-password"
-                     aria-required="true"
-                     [attr.aria-invalid]="loginForm.get('password')?.invalid && loginForm.get('password')?.touched">
-              <mat-icon matPrefix>lock</mat-icon>
-              <button mat-icon-button matSuffix type="button"
-                      (click)="hidePassword = !hidePassword"
-                      [attr.aria-label]="hidePassword ? 'Show password' : 'Hide password'">
-                <mat-icon>{{ hidePassword ? 'visibility_off' : 'visibility' }}</mat-icon>
-              </button>
-              <mat-error *ngIf="loginForm.get('password')?.hasError('required')">
+          <form [formGroup]="loginForm" (ngSubmit)="onSubmit()" aria-label="Login form" class="login-form">
+            <div class="form-group">
+              <label class="input-label" for="username-input">Email or Mobile Number</label>
+              <input
+                id="username-input"
+                formControlName="username"
+                type="text"
+                autocomplete="username"
+                placeholder="you@example.com or 9876543210"
+                aria-required="true"
+                [attr.aria-invalid]="loginForm.get('username')?.invalid && loginForm.get('username')?.touched"
+                class="candidate-input"
+                [class.has-error]="loginForm.get('username')?.invalid && loginForm.get('username')?.touched"
+              />
+              <p class="input-error" *ngIf="loginForm.get('username')?.invalid && loginForm.get('username')?.touched">
+                Username or email is required
+              </p>
+            </div>
+
+            <div class="form-group">
+              <label class="input-label" for="password-input">Password</label>
+              <div class="password-input-wrapper">
+                <input
+                  id="password-input"
+                  formControlName="password"
+                  [type]="hidePassword ? 'password' : 'text'"
+                  autocomplete="current-password"
+                  placeholder="••••••••"
+                  aria-required="true"
+                  [attr.aria-invalid]="loginForm.get('password')?.invalid && loginForm.get('password')?.touched"
+                  class="candidate-input password-input"
+                  [class.has-error]="loginForm.get('password')?.invalid && loginForm.get('password')?.touched"
+                />
+                <button
+                  type="button"
+                  (click)="hidePassword = !hidePassword"
+                  class="password-toggle-btn"
+                  [attr.aria-label]="hidePassword ? 'Show password' : 'Hide password'"
+                >
+                  <mat-icon class="toggle-icon">{{ hidePassword ? 'visibility_off' : 'visibility' }}</mat-icon>
+                </button>
+              </div>
+              <p class="input-error" *ngIf="loginForm.get('password')?.invalid && loginForm.get('password')?.touched">
                 Password is required
-              </mat-error>
-            </mat-form-field>
+              </p>
+            </div>
 
-            <button mat-raised-button color="primary" type="submit"
-                    class="login-button full-width"
-                    [disabled]="loginForm.invalid || isLoading"
-                    aria-label="Sign in to your account">
+            <button
+              mat-flat-button
+              color="primary"
+              type="submit"
+              class="login-button"
+              [disabled]="loginForm.invalid || isLoading"
+              aria-label="Sign in to your account"
+            >
               <mat-spinner *ngIf="isLoading" diameter="20" class="button-spinner"></mat-spinner>
-              <span *ngIf="!isLoading">Sign In</span>
+              <span *ngIf="!isLoading" class="btn-content">
+                <mat-icon class="btn-icon">login</mat-icon>
+                Sign In
+              </span>
             </button>
           </form>
 
           <div class="auth-links">
-            <a [routerLink]="['/auth/register']" aria-label="Create a new account">
-              Don't have an account? Register
+            <span class="auth-hint">Don't have an account?</span>
+            <a [routerLink]="['/auth/register']" class="register-link" aria-label="Register here">
+              Register here
             </a>
           </div>
-        </mat-card-content>
-      </mat-card>
+        </div>
+      </div>
     </main>
-  `,
-  styles: [`
-    .login-container {
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      min-height: 100vh;
-      padding: 16px;
-      background: linear-gradient(135deg, #e8eaf6 0%, #fafafa 100%);
-    }
-
-    .login-card {
-      max-width: 400px;
-      width: 100%;
-      padding: 32px 24px;
-      border-radius: 12px;
-      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.08), 0 2px 8px rgba(0, 0, 0, 0.04);
-    }
-
-    .login-header {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      margin-bottom: 24px;
-    }
-
-    .app-branding {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 8px;
-    }
-
-    .app-logo {
-      font-size: 48px;
-      width: 48px;
-      height: 48px;
-      color: #3f51b5;
-    }
-
-    .app-title {
-      margin: 0;
-      font-size: 24px;
-      font-weight: 600;
-      color: #3f51b5;
-      letter-spacing: -0.5px;
-    }
-
-    .login-subtitle {
-      margin: 8px 0 0;
-      font-size: 14px;
-      color: #666;
-    }
-
-    .full-width {
-      width: 100%;
-    }
-
-    mat-form-field.full-width {
-      margin-bottom: 8px;
-    }
-
-    .login-button {
-      height: 48px;
-      font-size: 16px;
-      font-weight: 500;
-      margin-top: 8px;
-      border-radius: 8px;
-    }
-
-    .button-spinner {
-      display: inline-block;
-    }
-
-    ::ng-deep .login-button .mat-mdc-button-persistent-ripple {
-      border-radius: 8px;
-    }
-
-    .auth-links {
-      margin-top: 24px;
-      text-align: center;
-    }
-
-    .auth-links a {
-      color: #3f51b5;
-      text-decoration: none;
-      font-size: 14px;
-    }
-
-    .auth-links a:hover {
-      text-decoration: underline;
-    }
-  `]
+  `
 })
 export class LoginComponent {
   loginForm: FormGroup;

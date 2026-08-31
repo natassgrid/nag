@@ -3,50 +3,70 @@
  * Copyright (C) 2025 NAG Contributors
  */
 
-// Base color tokens — adapted from Angular Material Admin
-$yellow: #ffc260;
-$blue: #536DFE;
-$light-blue: #798DFE;
-$white-blue: #B1BCFF;
-$blue-white: #F3F5FF;
-$pink: #ff4081;
-$dark-pink: #ff0f60;
-$green: #31C2A0;
-$violet: #9013FE;
-$white: white;
-$dark-grey: #4A4A4A;
-$light-grey: #B9B9B9;
-$grey: #6E6E6E;
-$sky: #c0caff;
-$default: #E0E0E0;
+// Candidate & Modern NAG Design Tokens
+$indigo: #4F46E5;
+$indigo-light: #6366F1;
+$indigo-dark: #4338CA;
+$indigo-subtle: #EEF2FF;
+
+// Base theme mapping (for backwards compatibility across components)
+$blue: #4F46E5;
+$light-blue: #6366F1;
+$white-blue: #EEF2FF;
+$blue-white: #EEF2FF;
+
+$yellow: #F59E0B;
+$pink: #EF4444;
+$dark-pink: #DC2626;
+$green: #10B981;
+$violet: #8B5CF6;
+$white: #FFFFFF;
+
+// Slate neutral scale (matching Candidate Portal)
+$slate-900: #0F172A;
+$slate-800: #1E293B;
+$slate-700: #334155;
+$slate-600: #475569;
+$slate-500: #64748B;
+$slate-400: #94A3B8;
+$slate-300: #CBD5E1;
+$slate-200: #E2E8F0;
+$slate-100: #F1F5F9;
+$slate-50: #F8FAFC;
+
+$dark-grey: #0F172A;
+$grey: #475569;
+$light-grey: #94A3B8;
+$sky: #C7D2FE;
+$default: #E2E8F0;
 
 // Alpha variants
 $white-35: rgba(255, 255, 255, 0.35);
 $white-50: rgba(255, 255, 255, 0.5);
 $white-70: rgba(255, 255, 255, 0.7);
-$white-80: #FFFFFF80;
+$white-80: rgba(255, 255, 255, 0.8);
 
-$white-gray: rgba(224, 224, 224, 0.5);
+$white-gray: rgba(226, 232, 240, 0.5);
 
-$gray-08: rgba(110, 110, 110, 0.8);
-$gray-80: #D8D8D880;
-$gray-06: rgba(110, 110, 110, 0.6);
-$gray-70: rgba(155, 155, 155, 0.7);
+$gray-08: #94A3B8;
+$gray-80: rgba(203, 213, 225, 0.8);
+$gray-06: rgba(148, 163, 184, 0.6);
+$gray-70: rgba(148, 163, 184, 0.7);
 
-$black-08: rgba(0, 0, 0, 0.08);
-$black-04: rgba(0, 0, 0, 0.04);
-$black-12: rgba(0, 0, 0, 0.12);
+$black-08: rgba(15, 23, 42, 0.08);
+$black-04: rgba(15, 23, 42, 0.04);
+$black-12: rgba(15, 23, 42, 0.12);
 
-$pink-15: rgba(255, 92, 147, 0.15);
-$blue-15: rgba(83, 109, 254, 0.15);
-$green-15: rgba(60, 212, 160, 0.15);
-$yellow-15: rgba(255, 194, 96, 0.15);
-$violet-15: rgba(144, 19, 254, 0.15);
+$pink-15: rgba(239, 68, 68, 0.15);
+$blue-15: rgba(79, 70, 229, 0.15);
+$green-15: rgba(16, 185, 129, 0.15);
+$yellow-15: rgba(245, 158, 11, 0.15);
+$violet-15: rgba(139, 92, 246, 0.15);
 
-// Shadows
-$shadow-white: #E8EAFC;
-$shadow-grey: #B2B2B21A;
-$shadow-dark-grey: #9A9A9A1A;
+// Modern Shadows
+$shadow-white: rgba(15, 23, 42, 0.04);
+$shadow-grey: rgba(15, 23, 42, 0.06);
+$shadow-dark-grey: rgba(15, 23, 42, 0.08);
 
-// Background
-$background-color: #F6F7FF;
+// Background Canvas (Slate 50)
+$background-color: #F8FAFC;
