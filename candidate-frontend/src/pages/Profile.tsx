@@ -25,6 +25,7 @@ import { useAuth } from '../context/AuthContext';
 import { candidateService } from '../services/candidateService';
 import { tokenManager } from '../utils/tokenManager';
 import { useToast } from '../components/Toast';
+import { DOC_TYPES, DOC_VALIDATION, type IdentityDocType } from './Register';
 import type {
   CandidateProfileResponse,
   CreateCandidateProfileRequest,
@@ -33,15 +34,34 @@ import type {
 
 // ─── Validation Schemas ───────────────────────────────────────────────────────
 
-const personalSchema = z.object({
-  fullName: z.string().min(2, 'Full name must be at least 2 characters'),
-  dateOfBirth: z.string().min(1, 'Date of birth is required'),
-  gender: z.enum(['MALE', 'FEMALE', 'OTHER', 'PREFER_NOT_TO_SAY'] as const),
-  nationality: z.string().min(2, 'Nationality is required'),
-  category: z.enum(['GENERAL', 'OBC', 'SC', 'ST', 'EWS'] as const),
-  reservationCategory: z.string().optional(),
-  identityDocNumber: z.string().optional(),
-});
+const personalSchema = z
+  .object({
+    fullName: z.string().min(2, 'Full name must be at least 2 characters'),
+    dateOfBirth: z.string().min(1, 'Date of birth is required'),
+    gender: z.enum(['MALE', 'FEMALE', 'OTHER', 'PREFER_NOT_TO_SAY'] as const),
+    nationality: z.string().min(2, 'Nationality is required'),
+    category: z.enum(['GENERAL', 'OBC', 'SC', 'ST', 'EWS'] as const),
+    reservationCategory: z.string().optional(),
+    identityDocType: z.enum(['AADHAAR', 'PAN', 'PASSPORT', 'VOTER_ID', 'DL'] as const, {
+      message: 'Select an identity document type',
+    }),
+    identityDocNumber: z.string().min(1, 'Identity document number is required'),
+  })
+  .superRefine((data, ctx) => {
+    if (data.identityDocType && data.identityDocNumber) {
+      const rule = DOC_VALIDATION[data.identityDocType];
+      if (rule) {
+        const cleanVal = rule.sanitize(data.identityDocNumber);
+        if (cleanVal && !rule.pattern.test(cleanVal)) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: rule.errorMessage,
+            path: ['identityDocNumber'],
+          });
+        }
+      }
+    }
+  });
 
 const contactSchema = z.object({
   mobile: z.string().min(10, 'Valid mobile number is required'),
@@ -132,14 +152,20 @@ const Profile: React.FC = () => {
       .finally(() => setLoading(false));
   }, [userId]);
 
+  // Identity document stored defaults
+  const storedDocType = (localStorage.getItem('nag_candidate_doc_type') as IdentityDocType) || 'AADHAAR';
+  const storedDocNum = localStorage.getItem('nag_candidate_doc_num') || '';
+
   // ── Personal Form ──────────────────────────────────────────────────────────
   const {
     register: personalRegister,
     handleSubmit: handlePersonalSubmit,
+    watch: personalWatch,
     formState: { errors: personalErrors, isSubmitting: personalSaving },
     reset: resetPersonal,
   } = useForm<PersonalForm>({
     resolver: zodResolver(personalSchema),
+    mode: 'onTouched',
     defaultValues: {
       fullName: currentProfile?.fullName || storedName || (tokenName && !tokenName.includes('@') ? tokenName : '') || '',
       dateOfBirth: currentProfile?.dateOfBirth ?? '',
@@ -147,9 +173,13 @@ const Profile: React.FC = () => {
       nationality: currentProfile?.nationality ?? 'INDIAN',
       category: (currentProfile?.category as PersonalForm['category']) ?? 'GENERAL',
       reservationCategory: currentProfile?.reservationCategory ?? '',
-      identityDocNumber: currentProfile?.identityDocNumber ?? '',
+      identityDocType: storedDocType,
+      identityDocNumber: storedDocNum,
     },
   });
+
+  const selectedPersonalDocType = personalWatch('identityDocType') || 'AADHAAR';
+  const activePersonalDocConfig = DOC_VALIDATION[selectedPersonalDocType];
 
   useEffect(() => {
     resetPersonal({
@@ -159,9 +189,10 @@ const Profile: React.FC = () => {
       nationality: currentProfile?.nationality ?? 'INDIAN',
       category: (currentProfile?.category as PersonalForm['category']) ?? 'GENERAL',
       reservationCategory: currentProfile?.reservationCategory ?? '',
-      identityDocNumber: currentProfile?.identityDocNumber ?? '',
+      identityDocType: storedDocType,
+      identityDocNumber: storedDocNum,
     });
-  }, [currentProfile, storedName, tokenName, resetPersonal]);
+  }, [currentProfile, storedName, tokenName, storedDocType, storedDocNum, resetPersonal]);
 
   const onSavePersonal = async (data: PersonalForm) => {
     const uid = userId || tokenManager.getUserId();
@@ -170,6 +201,12 @@ const Profile: React.FC = () => {
       return;
     }
     try {
+      const docRule = data.identityDocType ? DOC_VALIDATION[data.identityDocType] : null;
+      const sanitizedDoc = docRule ? docRule.sanitize(data.identityDocNumber) : data.identityDocNumber.trim();
+      localStorage.setItem('nag_candidate_name', data.fullName);
+      localStorage.setItem('nag_candidate_doc_type', data.identityDocType);
+      localStorage.setItem('nag_candidate_doc_num', sanitizedDoc);
+
       if (isNewProfile) {
         // Create initial profile with required fields
         const createReq: CreateCandidateProfileRequest = {
@@ -180,7 +217,7 @@ const Profile: React.FC = () => {
           nationality: data.nationality,
           category: data.category,
           reservationCategory: data.reservationCategory || undefined,
-          identityDocNumber: data.identityDocNumber || 'NOT_SPECIFIED',
+          identityDocNumber: sanitizedDoc || 'NOT_SPECIFIED',
           mobile: currentProfile?.mobile ?? '9999999999',
           email: currentProfile?.email ?? `${uid}@candidate.nag.gov.in`,
           address: currentProfile?.address ?? '',
@@ -189,7 +226,7 @@ const Profile: React.FC = () => {
         setCurrentProfile(created);
         setIsNewProfile(false);
         await refreshProfile();
-        toast.success('Profile created successfully!');
+        toast.success('Profile created successfully!', 'Your personal details have been saved.');
       } else {
         const updateReq: UpdateCandidateProfileRequest = {
           fullName: data.fullName,
@@ -198,7 +235,7 @@ const Profile: React.FC = () => {
           nationality: data.nationality,
           category: data.category,
           reservationCategory: data.reservationCategory || undefined,
-          identityDocNumber: data.identityDocNumber || undefined,
+          identityDocNumber: sanitizedDoc || undefined,
         };
         const updated = await candidateService.updateProfile(uid, updateReq);
         setCurrentProfile(updated);
@@ -517,16 +554,38 @@ const Profile: React.FC = () => {
                 />
               </div>
 
-              <div className="sm:col-span-2">
-                <label className={labelCls}>Identity Document Number</label>
+              <div>
+                <label className={labelCls}>Identity Document Type *</label>
+                <select {...personalRegister('identityDocType')} className={inputCls}>
+                  {DOC_TYPES.map((doc) => (
+                    <option key={doc.value} value={doc.value}>
+                      {doc.label}
+                    </option>
+                  ))}
+                </select>
+                {personalErrors.identityDocType && (
+                  <p className={errCls}>{personalErrors.identityDocType.message}</p>
+                )}
+              </div>
+
+              <div>
+                <label className={labelCls}>
+                  Identity Document Number ({activePersonalDocConfig?.label || 'Document'}) *
+                </label>
                 <input
                   {...personalRegister('identityDocNumber')}
-                  placeholder="Identity Document Number (e.g. Aadhaar / PAN / Passport)"
+                  placeholder={activePersonalDocConfig?.placeholder || 'Document Number'}
+                  maxLength={activePersonalDocConfig?.maxLength || 30}
                   className={inputCls}
                 />
-                <p className="text-xs text-gray-400 mt-1">
-                  Stored as SHA-256 HMAC hash for verification without plain-text exposure.
-                </p>
+                {personalErrors.identityDocNumber && (
+                  <p className={errCls}>{personalErrors.identityDocNumber.message}</p>
+                )}
+                {activePersonalDocConfig && (
+                  <p className="text-xs text-gray-400 mt-1">
+                    {activePersonalDocConfig.hint} • Stored as SHA-256 HMAC hash.
+                  </p>
+                )}
               </div>
             </div>
 
