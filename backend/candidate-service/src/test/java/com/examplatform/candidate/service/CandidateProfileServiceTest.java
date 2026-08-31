@@ -24,6 +24,7 @@ import com.examplatform.candidate.dto.CandidateProfileResponse;
 import com.examplatform.candidate.dto.CreateCandidateProfileRequest;
 import com.examplatform.candidate.exception.DuplicateProfileException;
 import com.examplatform.candidate.exception.ProfileNotFoundException;
+import com.examplatform.candidate.repository.CandidateEducationRepository;
 import com.examplatform.candidate.repository.CandidateProfileRepository;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -60,6 +61,9 @@ class CandidateProfileServiceTest {
 
     @Mock
     CandidateProfileRepository candidateProfileRepository;
+
+    @Mock
+    CandidateEducationRepository candidateEducationRepository;
 
     @Mock
     HashingService hashingService;
@@ -269,7 +273,7 @@ class CandidateProfileServiceTest {
     class ErasePii {
 
         @Test
-        @DisplayName("nulls all PII fields, sets hashes to [ERASED], and revokes DEK")
+        @DisplayName("nulls all PII fields, sets hashes to [ERASED], deletes education records, and revokes DEK")
         void erasesAllPiiAndRevokesDek() {
             CandidateProfile profile = savedProfile();
 
@@ -299,6 +303,7 @@ class CandidateProfileServiceTest {
             assertThat(erased.getIdentityDocHash()).isEqualTo("[ERASED]");
             assertThat(erased.getIdentityDocHmac()).isEqualTo("[ERASED]");
 
+            verify(candidateEducationRepository).deleteByUserIdAndTenantId(USER_ID, TENANT_ID);
             verify(vaultCryptoService).revokeKey("candidate-dek-" + USER_ID);
         }
 

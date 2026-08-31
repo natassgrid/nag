@@ -20,7 +20,7 @@ export interface Page<T> {
   last: boolean;
 }
 
-// ─── Identity Service DTOs ────────────────────────────────────────────────────
+// ─── Identity Service DTOs ──────────────────────────────────────────────────
 
 export interface RegistrationRequest {
   fullName: string;
@@ -84,7 +84,7 @@ export interface OtpResendRequest {
   userId: string;
 }
 
-// ─── Candidate Service DTOs ──────────────────────────────────────────────────
+// ─── Candidate Service DTOs ─────────────────────────────────────────────────
 
 export type Gender = 'MALE' | 'FEMALE' | 'OTHER' | 'PREFER_NOT_TO_SAY';
 export type Category = 'GENERAL' | 'OBC' | 'SC' | 'ST' | 'EWS';
@@ -95,7 +95,8 @@ export type Qualification =
   | 'DIPLOMA'
   | 'GRADUATE'
   | 'POST_GRADUATE'
-  | 'PHD';
+  | 'PHD'
+  | 'OTHER';
 
 export interface Address {
   street: string;
@@ -113,6 +114,36 @@ export interface EducationDetail {
   percentage: number;
   specialization?: string;
 }
+
+export interface CandidateEducation {
+  id?: string;
+  userId?: string;
+  qualification: Qualification | string;
+  courseName?: string;
+  boardOrUniversity: string;
+  institutionName?: string;
+  passingYear: number;
+  percentageOrCgpa?: number | string;
+  gradeOrDivision?: string;
+  specialization?: string;
+  rollNumber?: string;
+  certificateAssetId?: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export type CandidateEducationRequest = {
+  qualification: Qualification | string;
+  courseName?: string;
+  boardOrUniversity: string;
+  institutionName?: string;
+  passingYear: number;
+  percentageOrCgpa?: number | string;
+  gradeOrDivision?: string;
+  specialization?: string;
+  rollNumber?: string;
+  certificateAssetId?: string;
+};
 
 export interface CreateCandidateProfileRequest {
   userId: string;
@@ -174,7 +205,7 @@ export interface ConsentRequest {
   consentVersion?: string;
 }
 
-// ─── Examination Service DTOs ────────────────────────────────────────────────
+// ─── Examination Service DTOs ───────────────────────────────────────────────
 
 export type ExamStatus = 'DRAFT' | 'PUBLISHED' | 'ACTIVE' | 'COMPLETED' | 'CANCELLED';
 export type ExamMode = 'ONLINE' | 'OFFLINE' | 'HYBRID';
@@ -211,12 +242,7 @@ export interface ExamApplicationResponse {
   hallTicketNumber?: string;
 }
 
-// ─── Delivery Service DTOs ───────────────────────────────────────────────────
-
-export interface SessionStartRequest {
-  examId: string;               // UUID
-  shiftId: string;              // UUID
-}
+// ─── Delivery Service DTOs ─────────────────────────────────────────────────
 
 export type NavigationMode = 'SEQUENTIAL' | 'FLEXIBLE' | 'RESTRICTED';
 
@@ -235,6 +261,12 @@ export interface QuestionDto {
   negativeMarks: number;
   sectionId: string;
   sectionName: string;
+}
+
+export interface SessionStartRequest {
+  examId: string;
+  shiftId?: string;
+  candidateId?: string;
 }
 
 export interface SessionStartResponse {
@@ -261,7 +293,7 @@ export interface NavigationResponse {
   allowedActions: string[];     // ['NEXT', 'PREVIOUS', 'JUMP', 'MARK_REVIEW']
 }
 
-// ─── Response Service DTOs ───────────────────────────────────────────────────
+// ─── Response Service DTOs ─────────────────────────────────────────────────
 
 export type ResponseType = 'MCQ' | 'INTEGER' | 'DESCRIPTIVE';
 
@@ -286,7 +318,7 @@ export interface BulkSaveRequest {
   responses: SaveResponseRequest[];
 }
 
-// ─── Result Service DTOs ─────────────────────────────────────────────────────
+// ─── Result Service DTOs ───────────────────────────────────────────────────
 
 export type ResultStatus = 'PENDING' | 'COMPUTED' | 'PUBLISHED' | 'WITHHELD';
 
@@ -322,7 +354,7 @@ export interface ResultDto {
   publishedAt?: string;
 }
 
-// ─── Asset Service DTOs ──────────────────────────────────────────────────────
+// ─── Asset Service DTOs ────────────────────────────────────────────────────
 
 export type AssetType = 'IMAGE' | 'DOCUMENT' | 'VIDEO' | 'AUDIO';
 
@@ -336,7 +368,7 @@ export interface AssetUploadResponse {
   createdAt: string;
 }
 
-// ─── Notification DTOs ───────────────────────────────────────────────────────
+// ─── Notification DTOs ─────────────────────────────────────────────────────
 
 export type NotificationType =
   | 'EXAM_APPLIED'

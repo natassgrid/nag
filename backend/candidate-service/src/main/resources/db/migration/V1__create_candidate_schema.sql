@@ -44,3 +44,28 @@ CREATE INDEX idx_candidate_profile_tenant_id ON candidate_service.candidate_prof
 CREATE INDEX idx_candidate_profile_user_id ON candidate_service.candidate_profile(user_id);
 CREATE INDEX idx_candidate_profile_mobile_hash ON candidate_service.candidate_profile(mobile_hash);
 CREATE INDEX idx_candidate_profile_identity_doc_hash ON candidate_service.candidate_profile(identity_doc_hash);
+
+-- ============================================================
+-- Table: candidate_education
+-- ============================================================
+CREATE TABLE candidate_service.candidate_education (
+    id                      UUID PRIMARY KEY,
+    tenant_id               VARCHAR(255) NOT NULL,
+    user_id                 UUID NOT NULL,
+    qualification           VARCHAR(50) NOT NULL,
+    course_name             VARCHAR(255),
+    board_or_university     VARCHAR(255) NOT NULL,
+    institution_name        VARCHAR(255),
+    passing_year            INTEGER NOT NULL,
+    percentage_or_cgpa      NUMERIC(5, 2),
+    grade_or_division       VARCHAR(50),
+    specialization          VARCHAR(255),
+    roll_number             VARCHAR(100),
+    certificate_asset_id    UUID,
+    created_at              TIMESTAMP NOT NULL DEFAULT NOW(),
+    updated_at              TIMESTAMP NOT NULL DEFAULT NOW(),
+    version                 BIGINT NOT NULL DEFAULT 0
+);
+
+CREATE INDEX idx_candidate_education_tenant_id ON candidate_service.candidate_education(tenant_id);
+CREATE INDEX idx_candidate_education_user_id ON candidate_service.candidate_education(user_id);
