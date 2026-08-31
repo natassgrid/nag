@@ -73,7 +73,7 @@ public class CandidateProfileController {
             @Valid @RequestBody CreateCandidateProfileRequest request,
             @AuthenticationPrincipal Jwt jwt) {
         enforceOwnership(request.getUserId(), jwt);
-        String tenantId = TenantContext.get();
+        String tenantId = getTenantId();
         CandidateProfileResponse response = candidateProfileService.create(request, tenantId);
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
@@ -87,7 +87,7 @@ public class CandidateProfileController {
             @PathVariable UUID userId,
             @AuthenticationPrincipal Jwt jwt) {
         enforceOwnershipOrAdmin(userId, jwt);
-        String tenantId = TenantContext.get();
+        String tenantId = getTenantId();
         CandidateProfileResponse response = candidateProfileService.getByUserId(userId, tenantId);
         return ResponseEntity.ok(response);
     }
@@ -102,7 +102,7 @@ public class CandidateProfileController {
             @RequestBody UpdateCandidateProfileRequest request,
             @AuthenticationPrincipal Jwt jwt) {
         enforceOwnership(userId, jwt);
-        String tenantId = TenantContext.get();
+        String tenantId = getTenantId();
         CandidateProfileResponse response = candidateProfileService.update(userId, request, tenantId);
         return ResponseEntity.ok(response);
     }
@@ -116,7 +116,7 @@ public class CandidateProfileController {
             @PathVariable UUID userId,
             @AuthenticationPrincipal Jwt jwt) {
         enforceOwnershipOrAdmin(userId, jwt);
-        String tenantId = TenantContext.get();
+        String tenantId = getTenantId();
         candidateProfileService.erasePii(userId, tenantId);
         return ResponseEntity.noContent().build();
     }
@@ -136,7 +136,7 @@ public class CandidateProfileController {
             return ResponseEntity.badRequest().build();
         }
         enforceOwnership(userId, jwt);
-        String tenantId = TenantContext.get();
+        String tenantId = getTenantId();
         candidateProfileService.recordConsent(userId, tenantId);
         return ResponseEntity.ok().build();
     }
@@ -152,7 +152,7 @@ public class CandidateProfileController {
             @PathVariable UUID userId,
             @AuthenticationPrincipal Jwt jwt) {
         enforceOwnership(userId, jwt);
-        String tenantId = TenantContext.get();
+        String tenantId = getTenantId();
         String status = digiLockerService.verifyDocument(userId, tenantId);
         return ResponseEntity.ok(Map.of("status", status));
     }
@@ -169,9 +169,13 @@ public class CandidateProfileController {
             @Valid @RequestBody FaceVerificationRequest request,
             @AuthenticationPrincipal Jwt jwt) {
         enforceOwnership(userId, jwt);
-        String tenantId = TenantContext.get();
+        String tenantId = getTenantId();
         String status = faceVerificationService.verifyFace(userId, request, tenantId);
         return ResponseEntity.ok(Map.of("status", status));
+    }
+
+    private String getTenantId() {
+        return TenantContext.get() != null ? TenantContext.get() : "default";
     }
 
     // ── Private helpers ──────────────────────────────────────────────────────
