@@ -39,13 +39,30 @@ export const api: AxiosInstance = axios.create({
   },
 });
 
-// ── Request interceptor: attach bearer token ──────────────────────────────────
+// ── Request interceptor: attach bearer token only to protected endpoints ──────
 api.interceptors.request.use(
   (config: InternalAxiosRequestConfig) => {
-    const token = tokenManager.getAccessToken();
-    if (token) {
-      config.headers = config.headers ?? {};
-      config.headers['Authorization'] = `Bearer ${token}`;
+    const url = config.url || '';
+    // Public/unauthenticated endpoints that MUST NOT include old or expired Bearer tokens
+    const isPublicAuthEndpoint =
+      url.includes('/identity/auth/token') ||
+      url.includes('/identity/auth/refresh') ||
+      url.includes('/identity/auth/forgot-password') ||
+      url.includes('/identity/auth/reset-password') ||
+      url.includes('/identity/register') ||
+      url.includes('/identity/otp/') ||
+      url.includes('/actuator/');
+
+    if (!isPublicAuthEndpoint) {
+      const token = tokenManager.getAccessToken();
+      if (token && token !== 'undefined' && token !== 'null') {
+        config.headers = config.headers ?? {};
+        config.headers['Authorization'] = `Bearer ${token}`;
+      }
+    } else {
+      if (config.headers?.['Authorization']) {
+        delete config.headers['Authorization'];
+      }
     }
     return config;
   },
@@ -61,10 +78,12 @@ api.interceptors.response.use(
     // Do NOT intercept 401s on auth/login/registration endpoints — let the caller handle and display the error
     const url = originalRequest?.url || '';
     const isAuthEndpoint =
-      url.includes('/api/v1/identity/auth/token') ||
-      url.includes('/api/v1/identity/auth/refresh') ||
-      url.includes('/api/v1/identity/register') ||
-      url.includes('/api/v1/identity/otp');
+      url.includes('/identity/auth/token') ||
+      url.includes('/identity/auth/refresh') ||
+      url.includes('/identity/auth/forgot-password') ||
+      url.includes('/identity/auth/reset-password') ||
+      url.includes('/identity/register') ||
+      url.includes('/identity/otp/');
 
     if (error.response?.status === 401 && !isAuthEndpoint && !originalRequest._retry) {
       const refreshToken = tokenManager.getRefreshToken();
@@ -96,7 +115,7 @@ api.interceptors.response.use(
 
       try {
         const { data } = await axios.post(
-          `${BASE_URL}/api/v1/identity/auth/refresh`,
+          `${BASE_URL}/api/v1/identity/auth/refresh` as string,
           { refreshToken },
           { headers: { 'X-Tenant-Id': TENANT_ID } },
         );
