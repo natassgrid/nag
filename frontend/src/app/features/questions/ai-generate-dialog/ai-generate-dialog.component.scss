@@ -94,43 +94,5 @@
 .batch-complete { background: #ecfdf5; color: #047857; }
 .batch-error { background: #fef2f2; color: #ef4444; }
 
-/* Drawer Footer Action Buttons */
-.drawer-footer-actions {
-  display: flex; align-items: center; justify-content: flex-end; gap: 12px; width: 100%;
-}
 .batch-footer-group { display: flex; align-items: center; gap: 10px; }
-
-.footer-btn {
-  height: 38px !important; min-height: 38px !important; max-height: 38px !important;
-  line-height: 36px !important; box-sizing: border-box !important;
-  font-size: 13px !important; font-weight: 600 !important; border-radius: 8px !important;
-  display: inline-flex !important; align-items: center !important; justify-content: center !important;
-  padding: 0 16px !important; transition: all 0.15s ease-in-out !important;
-
-  .footer-btn-icon {
-    font-size: 18px !important; width: 18px !important; height: 18px !important;
-    line-height: 18px !important; margin-right: 6px !important;
-    display: inline-flex !important; align-items: center !important; justify-content: center !important;
-    vertical-align: middle !important;
-  }
-  .footer-spinner { margin-right: 6px; display: inline-block; }
-}
-
-.btn-cancel {
-  color: #64748b !important;
-  &:hover { color: #0f172a !important; background-color: #f1f5f9 !important; }
-}
-
-// Add to Batch Button (Candidate Accent Tint)
-.btn-add-batch {
-  background-color: #eef2ff !important; border: 1px solid #c7d2fe !important; color: #4338ca !important;
-  .footer-btn-icon { color: #4f46e5 !important; }
-  &:hover:not([disabled]) { background-color: #e0e7ff !important; border-color: #818cf8 !important; color: #3730a3 !important; }
-  &[disabled] { opacity: 0.5 !important; cursor: not-allowed !important; }
-}
-
-.btn-submit-batch, .btn-generate {
-  background-color: #4f46e5 !important; color: #ffffff !important; border: none !important;
-  box-shadow: 0 2px 8px rgba(79, 70, 229, 0.35) !important;
-  &:hover:not([disabled]) { background-color: #4338ca !important; box-shadow: 0 4px 14px rgba(79, 70, 229, 0.45) !important; }
-}
+.footer-spinner { margin-right: 6px; display: inline-block; }

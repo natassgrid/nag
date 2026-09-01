@@ -24,5 +24,12 @@ export const PAPERS_ROUTES: Routes = [
     path: '',
     loadComponent: () =>
       import('./paper-list.component').then((m) => m.PaperListComponent)
+  },
+  {
+    path: 'blueprints',
+    loadComponent: () =>
+      import('./blueprints/blueprint-management.component').then(
+        (m) => m.BlueprintManagementComponent
+      )
   }
 ];

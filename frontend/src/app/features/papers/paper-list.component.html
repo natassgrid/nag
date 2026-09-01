@@ -3,20 +3,29 @@
       <!-- ── Page header ─────────────────────────────────────────────── -->
       <app-page-header
         title="Paper Generation"
-        subtitle="Generate, review, and approve examination papers from blueprints."
+        subtitle="Generate, review, and approve examination papers from blueprint rules."
         icon="description"
       >
         <button
+          mat-stroked-button
+          class="action-btn btn-secondary"
+          (click)="navigateToBlueprints()"
+        >
+          <mat-icon class="btn-icon">rule</mat-icon>
+          Blueprint Rules
+        </button>
+        <button
           mat-raised-button
           color="primary"
+          class="action-btn btn-primary"
           (click)="openGenerateDrawer()"
         >
-          <mat-icon>auto_awesome</mat-icon>
+          <mat-icon class="btn-icon">auto_awesome</mat-icon>
           Generate Paper
         </button>
       </app-page-header>
 
-      <!-- ── Paper table ──────────────────────────────────────────────── -->
+      <!-- ── Paper table ─────────────────────────────────────────────── -->
       <app-paginated-table
         #paperTable
         [fetcher]="fetcher"
@@ -29,7 +38,7 @@
         searchPlaceholder="Search by shift ID or paper ID…"
       ></app-paginated-table>
 
-      <!-- Actions template ─────────────────────────────────────── -->
+      <!-- Actions template ───────────────────────────────────────────── -->
       <ng-template #actionsTmpl let-row>
         <!-- Approve: only DRAFT papers -->
         <button
@@ -62,7 +71,7 @@
         >lock</mat-icon>
       </ng-template>
 
-      <!-- ── Last generation result banner ────────────────────────────── -->
+      <!-- ── Last generation result banner ───────────────────────────── -->
       <div class="result-banner" *ngIf="lastResult" [class.result-banner--success]="lastResult.status !== 'ERROR'">
         <mat-icon>{{ lastResult.status !== 'ERROR' ? 'check_circle' : 'error' }}</mat-icon>
         <div class="result-text">

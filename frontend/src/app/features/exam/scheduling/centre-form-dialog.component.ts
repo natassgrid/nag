@@ -43,6 +43,7 @@ import { RightDrawerComponent } from '../../../shared/components/right-drawer/ri
 export class CentreFormDialogComponent implements OnInit, OnChanges {
   @Input() isOpen = false;
   @Input() centre?: CentreResponse;
+  @Input() width = '600px';
   @Output() close = new EventEmitter<CreateCentreRequest | null>();
 
   form!: FormGroup;

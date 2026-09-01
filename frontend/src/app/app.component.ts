@@ -97,6 +97,7 @@ export class AppComponent {
       items: [
         { label: 'Exams', icon: 'assignment', route: '/exam/manage', roles: ['EXAM_CONTROLLER'] },
         { label: 'Papers', icon: 'description', route: '/papers', roles: ['EXAM_CONTROLLER', 'SUPER_ADMIN'] },
+        { label: 'Blueprint Rules', icon: 'rule', route: '/papers/blueprints', roles: ['EXAM_CONTROLLER', 'SUPER_ADMIN'] },
         { label: 'Schedules', icon: 'event', route: '/exam/scheduling', roles: ['EXAM_CONTROLLER', 'SUPER_ADMIN'] },
         { label: 'Exam Centres', icon: 'location_on', route: '/exam/scheduling/centres', roles: ['EXAM_CONTROLLER', 'SUPER_ADMIN'] },
         { label: 'Centre Allocation', icon: 'group_work', route: '/exam/scheduling/allocation', roles: ['EXAM_CONTROLLER', 'SUPER_ADMIN'] },

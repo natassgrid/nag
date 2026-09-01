@@ -1,0 +1,306 @@
+<div class="page-layout">
+  <!-- Page Header -->
+  <app-page-header
+    title="Blueprint Rules & Templates"
+    subtitle="Configure, standardize, and maintain rule distributions for automated examination paper generation."
+    icon="rule"
+  >
+    <button mat-stroked-button class="action-btn btn-secondary" (click)="navigateBackToPapers()">
+      <mat-icon class="btn-icon">arrow_back</mat-icon>
+      Back to Papers
+    </button>
+    <button mat-stroked-button class="action-btn btn-secondary" (click)="loadTemplates()" [disabled]="loading">
+      <mat-icon class="btn-icon">refresh</mat-icon>
+      Refresh
+    </button>
+    <button mat-flat-button color="primary" class="action-btn btn-create" (click)="openCreateDrawer()">
+      <mat-icon class="btn-icon">add</mat-icon>
+      Create Blueprint
+    </button>
+  </app-page-header>
+
+  <!-- Filter & Search Toolbar -->
+  <div class="toolbar-card">
+    <div class="search-box">
+      <mat-icon class="search-icon">search</mat-icon>
+      <input
+        type="text"
+        [(ngModel)]="searchQuery"
+        (ngModelChange)="applyFilter()"
+        placeholder="Search blueprints by name, subject, topic, or exam ID..."
+      />
+      <button mat-icon-button *ngIf="searchQuery" (click)="searchQuery = ''; applyFilter()" class="clear-btn">
+        <mat-icon>clear</mat-icon>
+      </button>
+    </div>
+
+    <div class="toolbar-stats">
+      <span class="stat-pill">
+        <strong>{{ filteredTemplates.length }}</strong> Template(s) found
+      </span>
+    </div>
+  </div>
+
+  <!-- Loading State -->
+  <div class="loading-container" *ngIf="loading">
+    <mat-spinner diameter="40"></mat-spinner>
+    <p>Loading blueprint templates...</p>
+  </div>
+
+  <!-- Empty State -->
+  <div class="empty-state-card" *ngIf="!loading && filteredTemplates.length === 0">
+    <mat-icon class="empty-icon">rule</mat-icon>
+    <h3>{{ searchQuery ? 'No matching blueprints' : 'No Blueprint Templates Found' }}</h3>
+    <p>
+      {{
+        searchQuery
+          ? 'Try adjusting your search criteria to find matching blueprint templates.'
+          : 'Create your first blueprint rule template to streamline question paper generation.'
+      }}
+    </p>
+    <button mat-flat-button color="primary" class="btn-primary" (click)="openCreateDrawer()">
+      <mat-icon class="btn-icon">add</mat-icon>
+      Create Blueprint Template
+    </button>
+  </div>
+
+  <!-- Blueprint Cards Grid -->
+  <div class="blueprints-grid" *ngIf="!loading && filteredTemplates.length > 0">
+    <div *ngFor="let tpl of filteredTemplates" class="blueprint-card">
+      <div class="card-header">
+        <div class="header-main">
+          <div class="title-row">
+            <h3 class="template-title" [title]="tpl.name">{{ tpl.name }}</h3>
+            <span class="exam-tag" *ngIf="tpl.examId" [matTooltip]="'Pinned to Exam ID: ' + tpl.examId">
+              <mat-icon class="tag-icon">assignment</mat-icon> Exam-Specific
+            </span>
+            <span class="exam-tag global-tag" *ngIf="!tpl.examId">
+              <mat-icon class="tag-icon">public</mat-icon> Universal
+            </span>
+          </div>
+          <p class="template-desc" *ngIf="tpl.description">{{ tpl.description }}</p>
+          <p class="template-desc empty-desc" *ngIf="!tpl.description">No description provided</p>
+        </div>
+      </div>
+
+      <div class="card-metrics">
+        <div class="metric-chip total-chip">
+          <mat-icon>quiz</mat-icon>
+          <span><strong>{{ getTotalQuestions(tpl) }}</strong> Questions</span>
+        </div>
+        <div class="metric-chip rules-chip">
+          <mat-icon>format_list_numbered</mat-icon>
+          <span><strong>{{ tpl.rules.length }}</strong> Rules</span>
+        </div>
+        <div class="difficulty-pills" *ngIf="tpl.rules && tpl.rules.length > 0">
+          <span class="diff-pill easy" *ngIf="getDifficultyBreakdown(tpl).easy > 0">
+            E: {{ getDifficultyBreakdown(tpl).easy }}
+          </span>
+          <span class="diff-pill medium" *ngIf="getDifficultyBreakdown(tpl).medium > 0">
+            M: {{ getDifficultyBreakdown(tpl).medium }}
+          </span>
+          <span class="diff-pill hard" *ngIf="getDifficultyBreakdown(tpl).hard > 0">
+            H: {{ getDifficultyBreakdown(tpl).hard }}
+          </span>
+        </div>
+      </div>
+
+      <!-- Subjects Covered -->
+      <div class="card-subjects">
+        <span class="subjects-label">Subjects:</span>
+        <div class="subject-chips">
+          <span class="subject-badge" *ngFor="let sub of getDistinctSubjects(tpl)">
+            {{ sub }}
+          </span>
+          <span class="no-subjects" *ngIf="getDistinctSubjects(tpl).length === 0">None specified</span>
+        </div>
+      </div>
+
+      <!-- Rules Mini Table / Preview -->
+      <div class="rules-preview-list">
+        <div class="rules-preview-header">
+          <span>Subject / Topic</span>
+          <span>Diff / Cog</span>
+          <span>Qty</span>
+        </div>
+        <div class="rules-preview-row" *ngFor="let rule of (tpl.rules || []).slice(0, 4)">
+          <div class="rule-sub-top">
+            <strong>{{ rule.subject }}</strong>
+            <span class="rule-topic">{{ rule.topic }}</span>
+          </div>
+          <div class="rule-meta-tags">
+            <span class="mini-tag" *ngIf="rule.difficulty">{{ rule.difficulty }}</span>
+            <span class="mini-tag cog-tag" *ngIf="rule.cognitiveLevel">{{ rule.cognitiveLevel }}</span>
+            <span class="mini-tag muted" *ngIf="!rule.difficulty && !rule.cognitiveLevel">Any</span>
+          </div>
+          <div class="rule-count-col">
+            <span class="count-pill">{{ rule.questionCount }}</span>
+          </div>
+        </div>
+        <div class="more-rules-row" *ngIf="(tpl.rules || []).length > 4">
+          + {{ tpl.rules.length - 4 }} more rule(s)...
+        </div>
+      </div>
+
+      <!-- Card Action Buttons -->
+      <div class="card-footer">
+        <button mat-button class="btn-ghost btn-sm" (click)="duplicateTemplate(tpl)" matTooltip="Clone this template">
+          <mat-icon class="btn-icon">content_copy</mat-icon> Clone
+        </button>
+        <button mat-button color="warn" class="btn-sm" (click)="deleteTemplate(tpl, $event)" [disabled]="deletingId === tpl.id" matTooltip="Delete template">
+          <mat-spinner diameter="16" *ngIf="deletingId === tpl.id"></mat-spinner>
+          <mat-icon class="btn-icon" *ngIf="deletingId !== tpl.id">delete_outline</mat-icon>
+          Delete
+        </button>
+        <button mat-stroked-button class="action-btn btn-secondary btn-sm" (click)="openEditDrawer(tpl)">
+          <mat-icon class="btn-icon">edit</mat-icon> Edit
+        </button>
+        <button mat-flat-button color="primary" class="action-btn btn-primary btn-sm" (click)="useToGenerate(tpl)" matTooltip="Generate paper using this blueprint">
+          <mat-icon class="btn-icon">auto_awesome</mat-icon> Generate
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- RIGHT DRAWER: CREATE / EDIT BLUEPRINT -->
+  <app-right-drawer
+    [isOpen]="drawerOpen"
+    [title]="editingTemplate ? 'Edit Blueprint Template' : 'Create Blueprint Template'"
+    [subtitle]="editingTemplate ? 'Update blueprint rules, difficulty distributions, and exam mappings.' : 'Configure a reusable blueprint specification with subject-topic rules.'"
+    width="640px"
+    (close)="closeDrawer()"
+  >
+    <div drawer-body>
+      <form [formGroup]="form" class="blueprint-form" autocomplete="off">
+        <!-- Blueprint Metadata -->
+        <div class="section-title">Blueprint Information</div>
+        <div class="form-row">
+          <mat-form-field appearance="outline" class="flex-2">
+            <mat-label>Blueprint Name</mat-label>
+            <input matInput formControlName="name" placeholder="e.g. JEE Mains 2026 Core" />
+            <mat-error *ngIf="form.get('name')?.hasError('required')">Name is required</mat-error>
+            <mat-error *ngIf="form.get('name')?.hasError('maxlength')">Max 100 characters</mat-error>
+          </mat-form-field>
+
+          <mat-form-field appearance="outline" class="flex-1">
+            <mat-label>Exam ID (Optional)</mat-label>
+            <input matInput formControlName="examId" placeholder="UUID or blank for universal" />
+            <mat-error *ngIf="form.get('examId')?.hasError('pattern')">Must be a valid UUID</mat-error>
+          </mat-form-field>
+        </div>
+
+        <mat-form-field appearance="outline" class="full-width">
+          <mat-label>Description (Optional)</mat-label>
+          <textarea matInput formControlName="description" rows="2" placeholder="Brief notes or purpose of this blueprint template..."></textarea>
+        </mat-form-field>
+
+        <mat-divider class="form-divider"></mat-divider>
+
+        <!-- Rules Section -->
+        <div class="rules-section-header">
+          <div>
+            <div class="section-title">Blueprint Rules ({{ rules.length }})</div>
+            <div class="section-subtitle">Total: {{ totalQuestionsInForm }} question(s) configured</div>
+          </div>
+          <button mat-stroked-button type="button" class="action-btn btn-secondary btn-sm" (click)="addRule()" [disabled]="rules.length >= 30">
+            <mat-icon class="btn-icon">add</mat-icon> Add Rule
+          </button>
+        </div>
+
+        <div formArrayName="blueprintRules" class="rules-editor-list">
+          <div *ngFor="let rule of rules.controls; let i = index" [formGroupName]="i" class="rule-edit-card">
+            <div class="rule-edit-header">
+              <span class="rule-number-tag">Rule {{ i + 1 }}</span>
+              <button
+                mat-icon-button
+                color="warn"
+                type="button"
+                class="btn-icon-sm"
+                (click)="removeRule(i)"
+                matTooltip="Remove this rule"
+                [disabled]="rules.length <= 1"
+              >
+                <mat-icon>delete_outline</mat-icon>
+              </button>
+            </div>
+
+            <div class="form-row">
+              <mat-form-field appearance="outline" class="flex-1">
+                <mat-label>Subject</mat-label>
+                <input matInput formControlName="subject" placeholder="e.g. Physics" />
+                <mat-error *ngIf="rule.get('subject')?.hasError('required')">Required</mat-error>
+              </mat-form-field>
+
+              <mat-form-field appearance="outline" class="flex-1">
+                <mat-label>Topic</mat-label>
+                <input matInput formControlName="topic" placeholder="e.g. Thermodynamics" />
+                <mat-error *ngIf="rule.get('topic')?.hasError('required')">Required</mat-error>
+              </mat-form-field>
+            </div>
+
+            <div class="form-row">
+              <mat-form-field appearance="outline" class="flex-1">
+                <mat-label>Difficulty</mat-label>
+                <mat-select formControlName="difficulty">
+                  <mat-option value="">Any Difficulty</mat-option>
+                  <mat-option value="EASY">Easy</mat-option>
+                  <mat-option value="MEDIUM">Medium</mat-option>
+                  <mat-option value="HARD">Hard</mat-option>
+                </mat-select>
+              </mat-form-field>
+
+              <mat-form-field appearance="outline" class="flex-1">
+                <mat-label>Cognitive Level</mat-label>
+                <mat-select formControlName="cognitiveLevel">
+                  <mat-option value="">Any Level</mat-option>
+                  <mat-option value="REMEMBER">Remember</mat-option>
+                  <mat-option value="UNDERSTAND">Understand</mat-option>
+                  <mat-option value="APPLY">Apply</mat-option>
+                  <mat-option value="ANALYZE">Analyze</mat-option>
+                  <mat-option value="EVALUATE">Evaluate</mat-option>
+                  <mat-option value="CREATE">Create</mat-option>
+                </mat-select>
+              </mat-form-field>
+
+              <mat-form-field appearance="outline" class="count-input">
+                <mat-label>Questions</mat-label>
+                <input matInput type="number" formControlName="questionCount" min="1" max="500" />
+                <mat-error *ngIf="rule.get('questionCount')?.hasError('min')">Min 1</mat-error>
+              </mat-form-field>
+            </div>
+          </div>
+        </div>
+
+        <div class="rules-bottom-bar" *ngIf="rules.length > 0">
+          <button mat-stroked-button type="button" class="action-btn btn-secondary btn-sm" (click)="addRule()" [disabled]="rules.length >= 30">
+            <mat-icon class="btn-icon">add</mat-icon> Add Another Rule
+          </button>
+        </div>
+      </form>
+    </div>
+
+    <div drawer-footer class="drawer-footer-actions">
+      <button mat-button class="footer-btn btn-cancel" type="button" (click)="closeDrawer()">Cancel</button>
+      <button
+        mat-flat-button
+        color="primary"
+        type="button"
+        class="footer-btn btn-primary"
+        [disabled]="form.invalid || rules.length === 0 || saving"
+        (click)="saveBlueprint()"
+      >
+        <mat-spinner diameter="18" *ngIf="saving" style="display:inline-block;margin-right:6px;vertical-align:middle;"></mat-spinner>
+        <mat-icon class="footer-btn-icon" *ngIf="!saving">save</mat-icon>
+        {{ saving ? 'Saving...' : (editingTemplate ? 'Update Blueprint' : 'Save Blueprint') }}
+      </button>
+    </div>
+  </app-right-drawer>
+
+  <!-- QUICK GENERATE PAPER MODAL -->
+  <app-paper-generate-dialog
+    [isOpen]="generateModalOpen"
+    [examId]="generateExamId"
+    [preselectedTemplate]="selectedTemplateForGeneration"
+    (close)="onGenerateClose($event)"
+  ></app-paper-generate-dialog>
+</div>

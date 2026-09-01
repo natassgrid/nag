@@ -1,4 +1,3 @@
-import { Component, OnInit, ViewChild } from '@angular/core';
 /*
  * SPDX-License-Identifier: AGPL-3.0-only
  *
@@ -18,8 +17,10 @@ import { Component, OnInit, ViewChild } from '@angular/core';
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
 
+import { Component, OnInit, ViewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { Router } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
@@ -132,16 +133,21 @@ export class PaperListComponent implements OnInit {
 
   constructor(
     private paperService: PaperService,
-    private snackBar: MatSnackBar
+    private snackBar: MatSnackBar,
+    private router: Router
   ) {}
 
   ngOnInit(): void {}
+
+  navigateToBlueprints(): void {
+    this.router.navigate(['/papers/blueprints']);
+  }
 
   onFilterChange(filters: Record<string, any>): void {
     this.activeFilters = { ...filters };
   }
 
-  // ── Generate ─────────────────────────────────────────────────────────────
+  // ── Generate ─────────────────────────────────────────────────────────
 
   openGenerateDrawer(): void {
     this.generateDrawerOpen = true;
@@ -191,7 +197,7 @@ export class PaperListComponent implements OnInit {
       });
   }
 
-  // ── Approve ───────────────────────────────────────────────────────────────
+  // ── Approve ──────────────────────────────────────────────────────────
 
   approvePaper(paper: PaperSummary): void {
     this.approvingId = paper.paperId;
