@@ -48,6 +48,10 @@ import {
   BlueprintTemplateRequest,
   BlueprintRule
 } from '../paper.service';
+import {
+  ExamManagementService,
+  ExaminationResponse
+} from '../../exam/exam-manage/exam-management.service';
 import { PageHeaderComponent } from '../../../shared/components/page-header/page-header.component';
 import { RightDrawerComponent } from '../../../shared/components/right-drawer/right-drawer.component';
 import { PaperGenerateDialogComponent } from '../paper-generate-dialog.component';
@@ -80,6 +84,7 @@ import { PaperGenerateDialogComponent } from '../paper-generate-dialog.component
 export class BlueprintManagementComponent implements OnInit {
   templates: BlueprintTemplateResponse[] = [];
   filteredTemplates: BlueprintTemplateResponse[] = [];
+  exams: ExaminationResponse[] = [];
   loading = true;
   saving = false;
   deletingId: string | null = null;
@@ -96,11 +101,9 @@ export class BlueprintManagementComponent implements OnInit {
   generateExamId?: string;
   selectedTemplateForGeneration?: BlueprintTemplateResponse;
 
-  private readonly UUID_PATTERN =
-    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-
   constructor(
     private paperService: PaperService,
+    private examService: ExamManagementService,
     private fb: FormBuilder,
     private snackBar: MatSnackBar,
     private router: Router,
@@ -110,17 +113,31 @@ export class BlueprintManagementComponent implements OnInit {
   }
 
   ngOnInit(): void {
+    this.loadExams();
     this.loadTemplates();
+  }
+
+  loadExams(): void {
+    this.examService
+      .getExams(0, 100)
+      .pipe(catchError(() => of([])))
+      .subscribe((res) => {
+        this.exams = res;
+        this.cdr.detectChanges();
+      });
+  }
+
+  getExamName(examId?: string): string {
+    if (!examId) return 'Universal';
+    const found = this.exams.find((e) => e.id === examId);
+    return found ? found.name : examId.substring(0, 8) + '…';
   }
 
   initForm(template?: BlueprintTemplateResponse): void {
     this.form = this.fb.group({
       name: [template?.name ?? '', [Validators.required, Validators.maxLength(100)]],
       description: [template?.description ?? '', [Validators.maxLength(255)]],
-      examId: [
-        template?.examId ?? '',
-        template?.examId ? [Validators.pattern(this.UUID_PATTERN)] : []
-      ],
+      examId: [template?.examId ?? ''],
       blueprintRules: this.fb.array([])
     });
 

@@ -27,7 +27,7 @@
         type="text"
         [(ngModel)]="searchQuery"
         (ngModelChange)="applyFilter()"
-        placeholder="Search blueprints by name, subject, topic, or exam ID..."
+        placeholder="Search blueprints by name, subject, topic, or exam..."
       />
       <button mat-icon-button *ngIf="searchQuery" (click)="searchQuery = ''; applyFilter()" class="clear-btn">
         <mat-icon>clear</mat-icon>
@@ -71,8 +71,8 @@
         <div class="header-main">
           <div class="title-row">
             <h3 class="template-title" [title]="tpl.name">{{ tpl.name }}</h3>
-            <span class="exam-tag" *ngIf="tpl.examId" [matTooltip]="'Pinned to Exam ID: ' + tpl.examId">
-              <mat-icon class="tag-icon">assignment</mat-icon> Exam-Specific
+            <span class="exam-tag" *ngIf="tpl.examId" [matTooltip]="'Exam: ' + getExamName(tpl.examId)">
+              <mat-icon class="tag-icon">assignment</mat-icon> {{ getExamName(tpl.examId) }}
             </span>
             <span class="exam-tag global-tag" *ngIf="!tpl.examId">
               <mat-icon class="tag-icon">public</mat-icon> Universal
@@ -183,9 +183,13 @@
           </mat-form-field>
 
           <mat-form-field appearance="outline" class="flex-1">
-            <mat-label>Exam ID (Optional)</mat-label>
-            <input matInput formControlName="examId" placeholder="UUID or blank for universal" />
-            <mat-error *ngIf="form.get('examId')?.hasError('pattern')">Must be a valid UUID</mat-error>
+            <mat-label>Exam Scope (Optional)</mat-label>
+            <mat-select formControlName="examId" placeholder="Select exam scope...">
+              <mat-option [value]="''">-- Universal (All Exams) --</mat-option>
+              <mat-option *ngFor="let ex of exams" [value]="ex.id">
+                {{ ex.name }} {{ ex.code ? '(' + ex.code + ')' : '' }}
+              </mat-option>
+            </mat-select>
           </mat-form-field>
         </div>
 
