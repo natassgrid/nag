@@ -14,7 +14,8 @@
  * GNU Affero General Public License for more details.
  *
  * You should have received a copy of the GNU Affero General Public License
- * along with this program. If not, see <https://www.gnu.org/licenses/>.\n */
+ * along with this program. If not, see <https://www.gnu.org/licenses/>.
+ */
 
 import {
   Component,
@@ -52,6 +53,10 @@ import {
   BlueprintTemplateResponse,
   BlueprintRule
 } from './paper.service';
+import {
+  ExamManagementService,
+  ExaminationResponse
+} from '../exam/exam-manage/exam-management.service';
 import { RightDrawerComponent } from '../../shared/components/right-drawer/right-drawer.component';
 
 @Component({
@@ -82,6 +87,7 @@ export class PaperGenerateDialogComponent implements OnInit, OnChanges {
   @Output() close = new EventEmitter<PaperGenerationRequest | null>();
 
   form!: FormGroup;
+  exams: ExaminationResponse[] = [];
   templates: BlueprintTemplateResponse[] = [];
   selectedTemplate: BlueprintTemplateResponse | null = null;
   loadingTemplates = false;
@@ -93,6 +99,7 @@ export class PaperGenerateDialogComponent implements OnInit, OnChanges {
   constructor(
     private fb: FormBuilder,
     private paperService: PaperService,
+    private examService: ExamManagementService,
     private snackBar: MatSnackBar,
     private router: Router
   ) {
@@ -100,12 +107,14 @@ export class PaperGenerateDialogComponent implements OnInit, OnChanges {
   }
 
   ngOnInit(): void {
+    this.loadExams();
     this.loadTemplates();
   }
 
   ngOnChanges(changes: SimpleChanges): void {
     if (changes['isOpen'] && this.isOpen) {
       this.initForm();
+      this.loadExams();
       this.loadTemplates();
     }
     if (changes['preselectedTemplate'] && this.preselectedTemplate) {
@@ -113,11 +122,20 @@ export class PaperGenerateDialogComponent implements OnInit, OnChanges {
     }
   }
 
+  loadExams(): void {
+    this.examService
+      .getExams(0, 100)
+      .pipe(catchError(() => of([])))
+      .subscribe((res) => {
+        this.exams = res;
+      });
+  }
+
   initForm(): void {
     this.form = this.fb.group({
       examId: [
         this.examId ?? '',
-        [Validators.required, Validators.pattern(this.UUID_PATTERN)]
+        [Validators.required]
       ],
       shiftId: ['', [Validators.required, Validators.maxLength(50)]],
       templateId: [''],
@@ -160,6 +178,10 @@ export class PaperGenerateDialogComponent implements OnInit, OnChanges {
           if (match) this.applyTemplate(match);
         }
       });
+  }
+
+  onExamSelectionChange(examId: string): void {
+    this.loadTemplates();
   }
 
   onTemplateSelectionChange(templateId: string): void {

@@ -12,10 +12,17 @@
           <div class="section-heading">1. Paper Identity</div>
           <div class="form-row">
             <mat-form-field appearance="outline" class="flex-2">
-              <mat-label>Exam ID</mat-label>
-              <input matInput formControlName="examId" placeholder="UUID of the examination" />
-              <mat-error *ngIf="form.get('examId')?.hasError('required')">Exam ID is required</mat-error>
-              <mat-error *ngIf="form.get('examId')?.hasError('pattern')">Must be a valid UUID format</mat-error>
+              <mat-label>Examination</mat-label>
+              <mat-select
+                formControlName="examId"
+                (selectionChange)="onExamSelectionChange($event.value)"
+                placeholder="Select examination..."
+              >
+                <mat-option *ngFor="let ex of exams" [value]="ex.id">
+                  {{ ex.name }} {{ ex.code ? '(' + ex.code + ')' : '' }}
+                </mat-option>
+              </mat-select>
+              <mat-error *ngIf="form.get('examId')?.hasError('required')">Examination is required</mat-error>
             </mat-form-field>
             <mat-form-field appearance="outline" class="flex-1">
               <mat-label>Shift ID</mat-label>
