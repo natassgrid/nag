@@ -33,12 +33,14 @@ import java.util.UUID;
  * Global filter that ensures every request has an X-Request-Id header.
  * If the incoming request does not include X-Request-Id, a new UUID is generated and added.
  * The X-Request-Id is also propagated to the response for traceability.
+ * Also propagates token query parameter to Authorization header for downstream microservices.
  */
 @Component
 public class RequestIdFilter implements GlobalFilter, Ordered {
 
     private static final String REQUEST_ID_HEADER = "X-Request-Id";
     private static final String TENANT_ID_HEADER = "X-Tenant-Id";
+    private static final String AUTHORIZATION_HEADER = "Authorization";
 
     @Override
     public Mono<Void> filter(ServerWebExchange exchange, GatewayFilterChain chain) {
@@ -61,6 +63,20 @@ public class RequestIdFilter implements GlobalFilter, Ordered {
         String tenantId = request.getHeaders().getFirst(TENANT_ID_HEADER);
         if (tenantId != null && !tenantId.isBlank()) {
             exchange.getResponse().getHeaders().add(TENANT_ID_HEADER, tenantId);
+        }
+
+        // Propagate token from query parameter to Authorization header for downstream services (e.g. SSE EventSource)
+        String authHeader = request.getHeaders().getFirst(AUTHORIZATION_HEADER);
+        if (authHeader == null || authHeader.isBlank()) {
+            String tokenParam = request.getQueryParams().getFirst("token");
+            if (tokenParam == null || tokenParam.isBlank()) {
+                tokenParam = request.getQueryParams().getFirst("access_token");
+            }
+            if (tokenParam != null && !tokenParam.isBlank()) {
+                request = request.mutate()
+                        .header(AUTHORIZATION_HEADER, "Bearer " + tokenParam)
+                        .build();
+            }
         }
 
         ServerWebExchange mutatedExchange = exchange.mutate().request(request).build();

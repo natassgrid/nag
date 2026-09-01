@@ -24,7 +24,10 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Profile;
 import org.springframework.security.config.annotation.web.reactive.EnableWebFluxSecurity;
 import org.springframework.security.config.web.server.ServerHttpSecurity;
+import org.springframework.security.oauth2.server.resource.authentication.BearerTokenAuthenticationToken;
 import org.springframework.security.web.server.SecurityWebFilterChain;
+import org.springframework.security.web.server.authentication.ServerAuthenticationConverter;
+import reactor.core.publisher.Mono;
 
 /**
  * Reactive security configuration for the API Gateway.
@@ -44,6 +47,36 @@ public class SecurityConfig {
 
     @Bean
     public SecurityWebFilterChain securityWebFilterChain(ServerHttpSecurity http) {
+        ServerAuthenticationConverter tokenConverter = exchange -> {
+            String path = exchange.getRequest().getPath().value();
+            if (path.startsWith("/api/v1/identity/auth/") ||
+                path.startsWith("/api/v1/identity/register") ||
+                path.startsWith("/api/v1/identity/otp/") ||
+                path.startsWith("/api/v1/examinations/public/")) {
+                return Mono.empty();
+            }
+
+            // 1. Check Authorization header first
+            String authHeader = exchange.getRequest().getHeaders().getFirst("Authorization");
+            if (authHeader != null && authHeader.regionMatches(true, 0, "Bearer ", 0, 7)) {
+                String token = authHeader.substring(7).trim();
+                if (!token.isBlank()) {
+                    return Mono.just(new BearerTokenAuthenticationToken(token));
+                }
+            }
+
+            // 2. Check query parameters ?token= or ?access_token= (for SSE streams)
+            String tokenParam = exchange.getRequest().getQueryParams().getFirst("token");
+            if (tokenParam == null || tokenParam.isBlank()) {
+                tokenParam = exchange.getRequest().getQueryParams().getFirst("access_token");
+            }
+            if (tokenParam != null && !tokenParam.isBlank()) {
+                return Mono.just(new BearerTokenAuthenticationToken(tokenParam));
+            }
+
+            return Mono.empty();
+        };
+
         http
             .csrf(ServerHttpSecurity.CsrfSpec::disable)
             .authorizeExchange(exchanges -> exchanges
@@ -53,17 +86,7 @@ public class SecurityConfig {
             )
             .oauth2ResourceServer(oauth2 -> oauth2
                 .jwt(jwt -> {})
-                .bearerTokenConverter(exchange -> {
-                    String path = exchange.getRequest().getPath().value();
-                    if (path.startsWith("/api/v1/identity/auth/") ||
-                        path.startsWith("/api/v1/identity/register") ||
-                        path.startsWith("/api/v1/identity/otp/") ||
-                        path.startsWith("/api/v1/examinations/public/")) {
-                        return reactor.core.publisher.Mono.empty();
-                    }
-                    return new org.springframework.security.oauth2.server.resource.web.server.authentication.ServerBearerTokenAuthenticationConverter()
-                            .convert(exchange);
-                })
+                .bearerTokenConverter(tokenConverter)
             );
         return http.build();
     }

@@ -11,7 +11,7 @@ import type {
   RegistrationRequest,
 } from '../types/api';
 
-// ─── Context shape ────────────────────────────────────────────────────────────
+// ─── Context shape ──────────────────────────────────────────────────────────
 
 interface AuthContextType {
   /** Full candidate profile from the server. null when not logged in. */
@@ -35,7 +35,7 @@ interface AuthContextType {
   refreshProfile: () => Promise<void>;
 }
 
-// ─── Context & persistence keys ──────────────────────────────────────────────
+// ─── Context & persistence keys ────────────────────────────────────────────
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
@@ -43,7 +43,7 @@ const PENDING_USER_KEY = 'nag_pending_user_id';
 const PENDING_MOBILE_KEY = 'nag_pending_mobile';
 const OTP_SENT_KEY = 'nag_otp_sent_to';
 
-// ─── Provider ─────────────────────────────────────────────────────────────────
+// ─── Provider ──────────────────────────────────────────────────────────────
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [profile, setProfile] = useState<CandidateProfileResponse | null>(null);
@@ -85,10 +85,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   }, [isAuthenticated, refreshProfile]);
 
-  // ── Auth actions ─────────────────────────────────────────────────────────────
+  // ── Auth actions ──────────────────────────────────────────────────────────
 
   const login = useCallback(async (username: string, password: string): Promise<boolean> => {
     try {
+      tokenManager.clearTokens();
       const tokens = await authService.login({ username, password });
       tokenManager.setTokens(tokens.accessToken, tokens.refreshToken, tokens.expiresIn, tokens.userId);
       setIsAuthenticated(true);

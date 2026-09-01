@@ -25,12 +25,14 @@ import org.springframework.security.config.annotation.method.configuration.Enabl
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
+import org.springframework.security.oauth2.server.resource.web.BearerTokenResolver;
 import org.springframework.security.web.SecurityFilterChain;
 
 /**
  * Security configuration for notification-service.
  * OAuth2 Resource Server with JWT validation; permit actuator endpoints;
  * require authentication for all other requests.
+ * Supports token query parameter for SSE (Server-Sent Events) streams without multi-token conflicts.
  */
 @Configuration
 @EnableWebSecurity
@@ -47,8 +49,36 @@ public class SecurityConfig {
                 .anyRequest().authenticated()
             )
             .oauth2ResourceServer(oauth2 -> oauth2
+                .bearerTokenResolver(bearerTokenResolver())
                 .jwt(jwt -> {})
             );
         return http.build();
+    }
+
+    @Bean
+    public BearerTokenResolver bearerTokenResolver() {
+        return request -> {
+            // 1. Authorization header takes precedence (populated directly or by API Gateway)
+            String authHeader = request.getHeader("Authorization");
+            if (authHeader != null && authHeader.regionMatches(true, 0, "Bearer ", 0, 7)) {
+                String token = authHeader.substring(7).trim();
+                if (!token.isBlank()) {
+                    return token;
+                }
+            }
+
+            // 2. Query parameters fallback for EventSource SSE streams
+            String tokenParam = request.getParameter("token");
+            if (tokenParam != null && !tokenParam.isBlank()) {
+                return tokenParam;
+            }
+
+            String accessTokenParam = request.getParameter("access_token");
+            if (accessTokenParam != null && !accessTokenParam.isBlank()) {
+                return accessTokenParam;
+            }
+
+            return null;
+        };
     }
 }

@@ -72,10 +72,12 @@ const Layout: React.FC = () => {
         toast.info(notification.title, notification.body);
       }
     });
-    eventSourceRef.current = es;
-    return () => {
-      es.close();
-    };
+    if (es) {
+      eventSourceRef.current = es;
+      return () => {
+        es.close();
+      };
+    }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleMarkRead = async (id: string) => {
