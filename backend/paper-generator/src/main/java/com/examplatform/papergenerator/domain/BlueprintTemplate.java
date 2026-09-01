@@ -28,6 +28,8 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 import java.util.UUID;
 
@@ -69,6 +71,7 @@ public class BlueprintTemplate extends BaseEntity {
      * Serialised array of BlueprintRule objects stored as JSONB.
      * Deserialization is handled by the service layer via ObjectMapper.
      */
+    @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "rules_json", nullable = false, columnDefinition = "jsonb")
     private String rulesJson;
 

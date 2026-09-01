@@ -2,7 +2,7 @@
       [isOpen]="isOpen"
       [title]="centre ? 'Edit Centre' : 'Create Examination Centre'"
       [subtitle]="centre ? 'Update venue location, capacity, and lab details.' : 'Register a new venue location and laboratory capacity.'"
-      width="480px"
+      [width]="width"
       (close)="cancel()"
     >
       <div drawer-body>
@@ -11,22 +11,23 @@
           <div class="form-row">
             <mat-form-field appearance="outline">
               <mat-label>Country</mat-label>
-              <mat-select formControlName="countryId">
+              <mat-select formControlName="countryId" placeholder="Select Country">
                 <mat-option *ngFor="let c of countries" [value]="c.id">{{ c.name }}</mat-option>
               </mat-select>
-              <mat-hint>Select country first</mat-hint>
             </mat-form-field>
             <mat-form-field appearance="outline">
               <mat-label>State / UT</mat-label>
-              <mat-select formControlName="stateId" [disabled]="!states.length">
+              <mat-select formControlName="stateId" [disabled]="!states.length" [placeholder]="!states.length ? 'Select country first' : 'Select State / UT'">
                 <mat-option *ngFor="let s of states" [value]="s.id">{{ s.name }}</mat-option>
               </mat-select>
+              <mat-hint *ngIf="!states.length">Select country first</mat-hint>
             </mat-form-field>
             <mat-form-field appearance="outline">
               <mat-label>City</mat-label>
-              <mat-select formControlName="cityId" [disabled]="!cities.length">
+              <mat-select formControlName="cityId" [disabled]="!cities.length" [placeholder]="!cities.length ? 'Select state first' : 'Select City'">
                 <mat-option *ngFor="let c of cities" [value]="c.id">{{ c.name }}</mat-option>
               </mat-select>
+              <mat-hint *ngIf="!cities.length">Select state first</mat-hint>
             </mat-form-field>
           </div>
 

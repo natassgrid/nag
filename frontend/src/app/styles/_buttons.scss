@@ -49,6 +49,73 @@
       justify-content: center !important;
       vertical-align: middle !important;
     }
+
+    .tpl-count-badge {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      background-color: #E2E8F0;
+      color: #475569;
+      font-size: 11px;
+      font-weight: 700;
+      padding: 0 6px;
+      height: 18px;
+      line-height: 18px;
+      border-radius: 9px;
+      margin-left: 6px;
+      vertical-align: middle;
+      transition: background-color 0.15s ease, color 0.15s ease;
+    }
+
+    &:hover .tpl-count-badge {
+      background-color: #EEF2FF;
+      color: #4F46E5;
+    }
+  }
+
+  // Small button variant
+  .btn-sm {
+    height: 32px !important;
+    min-height: 32px !important;
+    max-height: 32px !important;
+    line-height: 30px !important;
+    font-size: 12px !important;
+    padding: 0 12px !important;
+    border-radius: 6px !important;
+
+    .btn-icon,
+    mat-icon {
+      font-size: 16px !important;
+      width: 16px !important;
+      height: 16px !important;
+      line-height: 16px !important;
+      margin-right: 4px !important;
+    }
+  }
+
+  // Small icon button variant
+  button.mat-mdc-icon-button.btn-icon-sm {
+    width: 32px !important;
+    height: 32px !important;
+    padding: 0 !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+
+    mat-icon {
+      font-size: 18px !important;
+      width: 18px !important;
+      height: 18px !important;
+    }
+  }
+
+  // Drawer footer container helper
+  .drawer-footer-actions {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 12px;
+    width: 100%;
   }
 
   // Primary Buttons (Indigo 600)
@@ -87,7 +154,8 @@
   button.mat-mdc-raised-button.mat-accent,
   button.mat-mdc-unelevated-button.mat-accent,
   button.mat-mdc-flat-button.mat-accent,
-  .btn-accent {
+  .btn-accent,
+  .btn-save-template {
     background-color: #F59E0B !important;
     color: #FFFFFF !important;
     font-weight: 600 !important;
@@ -96,6 +164,12 @@
     &:hover:not([disabled]):not(.mat-mdc-button-disabled) {
       background-color: #D97706 !important;
       box-shadow: 0 4px 12px rgba(245, 158, 11, 0.3) !important;
+    }
+
+    &[disabled],
+    &.mat-mdc-button-disabled {
+      opacity: 0.55 !important;
+      cursor: not-allowed !important;
     }
   }
 
@@ -118,7 +192,8 @@
   // Stroked / Secondary Buttons
   button.mat-mdc-stroked-button,
   .btn-secondary,
-  .btn-export {
+  .btn-export,
+  .btn-load-template {
     background-color: #FFFFFF !important;
     border: 1px solid #CBD5E1 !important;
     color: #334155 !important;

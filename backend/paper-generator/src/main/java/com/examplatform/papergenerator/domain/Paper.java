@@ -28,6 +28,8 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 import java.util.UUID;
 
@@ -57,12 +59,14 @@ public class Paper extends BaseEntity {
     @Column(name = "status", nullable = false, length = 20)
     private String status;
 
+    @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "paper_definition_json", columnDefinition = "jsonb")
     private String paperDefinitionJson;
 
     @Column(name = "difficulty_score")
     private double difficultyScore;
 
+    @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "topic_distribution_json", columnDefinition = "jsonb")
     private String topicDistributionJson;
 
