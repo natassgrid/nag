@@ -21,6 +21,8 @@ package com.examplatform.examination.service;
 
 import com.examplatform.examination.domain.Examination;
 import com.examplatform.examination.domain.Section;
+import com.examplatform.examination.domain.enums.CalculatorPolicy;
+import com.examplatform.examination.domain.enums.NavigationPolicy;
 import com.examplatform.examination.dto.CreateExaminationRequest;
 import com.examplatform.examination.dto.ExaminationResponse;
 import com.examplatform.examination.exception.ExaminationNotFoundException;
@@ -29,12 +31,12 @@ import com.examplatform.examination.repository.ExaminationRepository;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 import java.time.LocalDateTime;
@@ -135,15 +137,26 @@ public class ExaminationService {
 
         String sectionsJson = serializeSections(request.getSections());
 
+        boolean isNegMarking = Boolean.TRUE.equals(request.getNegativeMarkingEnabled());
+        double negValue = (isNegMarking && request.getNegativeMarkingValue() != null)
+                ? request.getNegativeMarkingValue()
+                : 0.0;
+
         Examination examination = Examination.builder()
                 .name(request.getName())
-                .durationMinutes(request.getDurationMinutes())
-                .totalMarks(request.getTotalMarks())
-                .negativeMarkingEnabled(request.isNegativeMarkingEnabled())
-                .negativeMarkingValue(request.isNegativeMarkingEnabled() ? request.getNegativeMarkingValue() : 0.0)
-                .navigationPolicy(request.getNavigationPolicy().name())
-                .calculatorPolicy(request.getCalculatorPolicy().name())
-                .reviewFlagEnabled(request.isReviewFlagEnabled())
+                .code(request.getCode())
+                .conductingAuthority(request.getConductingAuthority())
+                .category(request.getCategory())
+                .examinationType(request.getExaminationType())
+                .academicYear(request.getAcademicYear())
+                .examinationMode(request.getExaminationMode())
+                .durationMinutes(request.getDurationMinutes() != null ? request.getDurationMinutes() : 0)
+                .totalMarks(request.getTotalMarks() != null ? request.getTotalMarks() : 0)
+                .negativeMarkingEnabled(isNegMarking)
+                .negativeMarkingValue(negValue)
+                .navigationPolicy(request.getNavigationPolicy() != null ? request.getNavigationPolicy().name() : NavigationPolicy.FLEXIBLE.name())
+                .calculatorPolicy(request.getCalculatorPolicy() != null ? request.getCalculatorPolicy().name() : CalculatorPolicy.NONE.name())
+                .reviewFlagEnabled(Boolean.TRUE.equals(request.getReviewFlagEnabled()))
                 .sectionsJson(sectionsJson)
                 .status("DRAFT")
                 .build();
@@ -172,14 +185,25 @@ public class ExaminationService {
 
         String sectionsJson = serializeSections(request.getSections());
 
+        boolean isNegMarking = Boolean.TRUE.equals(request.getNegativeMarkingEnabled());
+        double negValue = (isNegMarking && request.getNegativeMarkingValue() != null)
+                ? request.getNegativeMarkingValue()
+                : 0.0;
+
         examination.setName(request.getName());
-        examination.setDurationMinutes(request.getDurationMinutes());
-        examination.setTotalMarks(request.getTotalMarks());
-        examination.setNegativeMarkingEnabled(request.isNegativeMarkingEnabled());
-        examination.setNegativeMarkingValue(request.isNegativeMarkingEnabled() ? request.getNegativeMarkingValue() : 0.0);
-        examination.setNavigationPolicy(request.getNavigationPolicy().name());
-        examination.setCalculatorPolicy(request.getCalculatorPolicy().name());
-        examination.setReviewFlagEnabled(request.isReviewFlagEnabled());
+        examination.setCode(request.getCode());
+        examination.setConductingAuthority(request.getConductingAuthority());
+        examination.setCategory(request.getCategory());
+        examination.setExaminationType(request.getExaminationType());
+        examination.setAcademicYear(request.getAcademicYear());
+        examination.setExaminationMode(request.getExaminationMode());
+        examination.setDurationMinutes(request.getDurationMinutes() != null ? request.getDurationMinutes() : 0);
+        examination.setTotalMarks(request.getTotalMarks() != null ? request.getTotalMarks() : 0);
+        examination.setNegativeMarkingEnabled(isNegMarking);
+        examination.setNegativeMarkingValue(negValue);
+        examination.setNavigationPolicy(request.getNavigationPolicy() != null ? request.getNavigationPolicy().name() : NavigationPolicy.FLEXIBLE.name());
+        examination.setCalculatorPolicy(request.getCalculatorPolicy() != null ? request.getCalculatorPolicy().name() : CalculatorPolicy.NONE.name());
+        examination.setReviewFlagEnabled(Boolean.TRUE.equals(request.getReviewFlagEnabled()));
         examination.setSectionsJson(sectionsJson);
 
         Examination saved = examinationRepository.save(examination);
@@ -243,11 +267,18 @@ public class ExaminationService {
         return toResponse(saved, sections);
     }
 
-    // ── Private helpers ──────────────────────────────────────────────────────
+    // ── Private helpers ──────────────────────────────────────────────────────────
 
     private void validateSectionMarks(CreateExaminationRequest request) {
+        if (request.getSections() == null || request.getTotalMarks() == null) {
+            return;
+        }
         double actualTotal = request.getSections().stream()
-                .mapToDouble(section -> section.getMarksPerQuestion() * section.getQuestionCount())
+                .mapToDouble(section -> {
+                    double marks = section.getMarksPerQuestion() != null ? section.getMarksPerQuestion() : 0.0;
+                    int count = section.getQuestionCount() != null ? section.getQuestionCount() : 0;
+                    return marks * count;
+                })
                 .sum();
 
         if (Math.abs(actualTotal - request.getTotalMarks()) > 0.001) {
@@ -278,6 +309,12 @@ public class ExaminationService {
         return ExaminationResponse.builder()
                 .id(examination.getId())
                 .name(examination.getName())
+                .code(examination.getCode())
+                .conductingAuthority(examination.getConductingAuthority())
+                .category(examination.getCategory())
+                .examinationType(examination.getExaminationType())
+                .academicYear(examination.getAcademicYear())
+                .examinationMode(examination.getExaminationMode())
                 .durationMinutes(examination.getDurationMinutes())
                 .totalMarks(examination.getTotalMarks())
                 .negativeMarkingEnabled(examination.isNegativeMarkingEnabled())

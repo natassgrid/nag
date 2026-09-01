@@ -37,8 +37,8 @@ import java.util.List;
 public class Section {
     private String name;
     private String subject;
-    private int questionCount;
-    private double marksPerQuestion;
-    private double negativeMarksPerQuestion;
+    private Integer questionCount;
+    private Double marksPerQuestion;
+    private Double negativeMarksPerQuestion;
     private List<SubjectTopicRule> topicRules;
 }

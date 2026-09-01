@@ -47,15 +47,29 @@ public class CreateExaminationRequest {
     @NotBlank
     private String name;
 
+    private String code;
+
+    private String conductingAuthority;
+
+    private String category;
+
+    private String examinationType;
+
+    private String academicYear;
+
+    private String examinationMode;
+
+    @NotNull
     @Min(1)
-    private int durationMinutes;
+    private Integer durationMinutes;
 
+    @NotNull
     @Min(1)
-    private int totalMarks;
+    private Integer totalMarks;
 
-    private boolean negativeMarkingEnabled;
+    private Boolean negativeMarkingEnabled;
 
-    private double negativeMarkingValue;
+    private Double negativeMarkingValue;
 
     @NotNull
     private NavigationPolicy navigationPolicy;
@@ -63,7 +77,7 @@ public class CreateExaminationRequest {
     @NotNull
     private CalculatorPolicy calculatorPolicy;
 
-    private boolean reviewFlagEnabled;
+    private Boolean reviewFlagEnabled;
 
     @NotEmpty
     private List<Section> sections;
