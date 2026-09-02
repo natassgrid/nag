@@ -1,0 +1,60 @@
+<!--
+  SPDX-License-Identifier: AGPL-3.0-only
+  National Assessment Grid (NAG) - Open Digital Public Infrastructure (DPI) Platform
+  Copyright (C) 2025 NAG Contributors
+-->
+
+<main id="main-content" class="auth-container" role="main" aria-labelledby="otp-heading">
+  <mat-card class="auth-card">
+    <mat-card-header>
+      <mat-card-title id="otp-heading">Verify OTP</mat-card-title>
+    </mat-card-header>
+    <mat-card-content>
+      <p id="otp-instructions">Enter the 6-digit OTP sent to your registered mobile number.</p>
+
+      <form [formGroup]="otpForm" (ngSubmit)="onSubmit()" aria-describedby="otp-instructions" aria-label="OTP verification form">
+        <mat-form-field appearance="outline" class="full-width">
+          <mat-label>OTP Code</mat-label>
+          <input matInput formControlName="otp"
+                 type="text"
+                 inputmode="numeric"
+                 maxlength="6"
+                 autocomplete="one-time-code"
+                 aria-required="true"
+                 aria-label="6-digit One Time Password">
+          <mat-error *ngIf="otpForm.get('otp')?.hasError('required')">OTP is required</mat-error>
+          <mat-error *ngIf="otpForm.get('otp')?.hasError('pattern')">Must be exactly 6 digits</mat-error>
+        </mat-form-field>
+
+        <div class="form-actions">
+          <button mat-raised-button color="primary" type="submit"
+                  [disabled]="isLoading"
+                  aria-label="Verify OTP code">
+            {{ isLoading ? 'Verifying...' : 'Verify' }}
+          </button>
+
+          <button mat-stroked-button type="button"
+                  (click)="resendOtp()"
+                  [disabled]="resendCooldown > 0"
+                  aria-label="Resend OTP code">
+            {{ resendCooldown > 0 ? 'Resend in ' + resendCooldown + 's' : 'Resend OTP' }}
+          </button>
+        </div>
+
+        <div *ngIf="errorMessage" class="error-message" role="alert" aria-live="assertive">
+          {{ errorMessage }}
+        </div>
+        <div *ngIf="successMessage" class="success-message" role="status" aria-live="polite">
+          {{ successMessage }}
+        </div>
+      </form>
+
+      <div class="accessibility-toggle">
+        <mat-checkbox (change)="toggleHighContrast($event.checked)"
+                      aria-label="Enable high contrast mode">
+          High Contrast Mode
+        </mat-checkbox>
+      </div>
+    </mat-card-content>
+  </mat-card>
+</main>

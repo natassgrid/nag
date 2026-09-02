@@ -89,6 +89,19 @@ export interface UpdateRoleRequest {
   permissionIds?: string[];
 }
 
+export interface AuditEventResponse {
+  id: string;
+  eventType: string;
+  principal: string;
+  ipAddress: string;
+  action: string;
+  resourceId?: string;
+  severity: 'INFO' | 'WARN' | 'ERROR' | 'CRITICAL';
+  status: 'SUCCESS' | 'FAILURE';
+  details?: Record<string, any>;
+  timestamp: string;
+}
+
 export interface PaginatedPage<T> {
   content: T[];
   totalElements: number;
@@ -107,6 +120,7 @@ interface ApiResponse<T> {
 @Injectable({ providedIn: 'root' })
 export class AdminService {
   private readonly baseUrl = '/api/v1/identity';
+  private readonly auditUrl = '/api/v1/audit';
 
   constructor(private http: HttpClient) {}
 
@@ -171,9 +185,9 @@ export class AdminService {
   }
 
   deleteRoleDefinition(roleId: string): Observable<void> {
-    return this.http.delete<ApiResponse<void>>(
-      `${this.baseUrl}/roles/definitions/${roleId}`
-    ).pipe(map(() => undefined));
+    return this.http.delete<ApiResponse<void>>(`${this.baseUrl}/roles/definitions/${roleId}`).pipe(
+      map(() => undefined)
+    );
   }
 
   getPermissions(page: number, size: number, search: string): Observable<PaginatedPage<PermissionResponse>> {
@@ -181,5 +195,23 @@ export class AdminService {
       `${this.baseUrl}/roles/permissions`,
       { params: { page: page.toString(), size: size.toString(), search } }
     ).pipe(map(response => response.data));
+  }
+
+  // ===================================================================
+  // Audit Logs
+  // ===================================================================
+
+  getAuditEvents(page = 0, size = 100, search = ''): Observable<AuditEventResponse[]> {
+    return this.http.get<ApiResponse<AuditEventResponse[]> | AuditEventResponse[]>(
+      `${this.auditUrl}/events`,
+      { params: { page: page.toString(), size: size.toString(), search } }
+    ).pipe(
+      map(response => {
+        if (Array.isArray(response)) {
+          return response;
+        }
+        return (response as ApiResponse<AuditEventResponse[]>).data || [];
+      })
+    );
   }
 }

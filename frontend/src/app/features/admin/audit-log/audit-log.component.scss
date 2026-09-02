@@ -1,11 +1,233 @@
-    .placeholder {
-      text-align: center;
-      padding: 48px;
-      color: #666;
+@use "app/styles/variables" as *;
+
+.metrics-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 16px;
+}
+
+.filter-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.filter-controls {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.filter-select {
+  width: 170px;
+}
+
+.virtual-table-card {
+  background: #FFFFFF;
+  border-radius: 12px;
+  border: 1px solid #E2E8F0;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.table-header-row {
+  display: grid;
+  grid-template-columns: 160px 220px 220px 140px 110px 110px 60px;
+  background-color: #F8FAFC;
+  border-bottom: 1px solid #E2E8F0;
+  padding: 0 16px;
+  height: 44px;
+  align-items: center;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: #475569;
+}
+
+.col-header, .col-cell {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  padding: 0 8px;
+}
+
+.virtual-scroll-viewport {
+  height: 480px;
+  width: 100%;
+}
+
+.virtual-row {
+  display: grid;
+  grid-template-columns: 160px 220px 220px 140px 110px 110px 60px;
+  height: 48px;
+  align-items: center;
+  padding: 0 16px;
+  border-bottom: 1px solid #F1F5F9;
+  font-size: 13px;
+  color: #1E293B;
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+
+  &:hover {
+    background-color: #F8FAFC;
+  }
+
+  &.selected {
+    background-color: #EEF2FF;
+  }
+}
+
+.font-mono {
+  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, Courier, monospace;
+  font-size: 12px;
+  color: #334155;
+}
+
+.view-btn {
+  width: 32px !important;
+  height: 32px !important;
+  line-height: 32px !important;
+  padding: 0 !important;
+}
+
+.table-footer {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  padding: 10px 20px;
+  background: #F8FAFC;
+  border-top: 1px solid #E2E8F0;
+  font-size: 12px;
+  color: #64748B;
+}
+
+.loading-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 60px 20px;
+  color: #64748B;
+}
+
+// Event Detail Modal Drawer
+.event-detail-backdrop {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(15, 23, 42, 0.4);
+  z-index: 1000;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.event-detail-drawer {
+  width: 450px;
+  max-width: 90vw;
+  background: #FFFFFF;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  box-shadow: -4px 0 24px rgba(0, 0, 0, 0.15);
+  animation: slideInRight 0.2s ease-out;
+}
+
+@keyframes slideInRight {
+  from {
+    transform: translateX(100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+
+.drawer-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  border-bottom: 1px solid #E2E8F0;
+
+  .drawer-title-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+
+    .drawer-icon {
+      color: #4F46E5;
     }
-    .placeholder-icon {
-      font-size: 48px;
-      width: 48px;
-      height: 48px;
-      color: #bbb;
+
+    .drawer-title {
+      font-size: 16px;
+      font-weight: 600;
+      color: #0F172A;
+      margin: 0;
     }
+  }
+}
+
+.drawer-body {
+  padding: 20px;
+  overflow-y: auto;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.detail-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-bottom: 8px;
+  border-bottom: 1px dashed #E2E8F0;
+
+  .detail-label {
+    font-size: 12.5px;
+    font-weight: 500;
+    color: #64748B;
+  }
+
+  .detail-val {
+    font-size: 13px;
+    font-weight: 500;
+    color: #0F172A;
+  }
+}
+
+.raw-payload-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 8px;
+
+  .detail-label {
+    font-size: 12.5px;
+    font-weight: 600;
+    color: #475569;
+  }
+
+  .json-payload {
+    background: #0F172A;
+    color: #38BDF8;
+    padding: 12px;
+    border-radius: 8px;
+    font-size: 12px;
+    overflow-x: auto;
+    max-height: 200px;
+    margin: 0;
+  }
+}
+
+.drawer-footer {
+  padding: 16px 20px;
+  border-top: 1px solid #E2E8F0;
+  display: flex;
+  justify-content: flex-end;
+}

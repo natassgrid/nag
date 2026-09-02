@@ -1,12 +1,183 @@
-    <div class="page-layout">
-      <app-page-header
-        title="Audit Log"
-        subtitle="View system audit trail and tamper-evident event log."
-        icon="security"
-      ></app-page-header>
+<div class="page-layout">
+  <app-page-header
+    title="Audit Log"
+    subtitle="Tamper-evident audit trails, security events, and compliance telemetry."
+    icon="security"
+  >
+    <div class="header-actions">
+      <button mat-stroked-button class="action-btn" (click)="loadLogs()" [disabled]="loading()">
+        <mat-icon>refresh</mat-icon>
+        Refresh Logs
+      </button>
+    </div>
+  </app-page-header>
 
-      <div class="placeholder">
-        <mat-icon class="placeholder-icon">security</mat-icon>
-        <p>Audit log functionality coming soon.</p>
+  <!-- Metric / KPI Stat Cards -->
+  <div class="metrics-grid">
+    <app-stat-card
+      label="Total Events"
+      [value]="totalCount()"
+      icon="history"
+      variant="primary"
+    ></app-stat-card>
+    <app-stat-card
+      label="Successful Actions"
+      [value]="successCount()"
+      icon="check_circle"
+      variant="success"
+    ></app-stat-card>
+    <app-stat-card
+      label="Security Alerts / Errors"
+      [value]="errorCount()"
+      icon="warning"
+      variant="warn"
+    ></app-stat-card>
+  </div>
+
+  <!-- Filters & Search Toolbar -->
+  <div class="filter-toolbar">
+    <app-search-input
+      placeholder="Search by principal, event, action, or IP..."
+      (searchChange)="onSearch($event)"
+    ></app-search-input>
+
+    <div class="filter-controls">
+      <mat-form-field appearance="outline" class="filter-select">
+        <mat-select [value]="selectedSeverity()" (selectionChange)="onSeverityChange($event.value)">
+          <mat-option value="ALL">All Severities</mat-option>
+          <mat-option value="INFO">Info</mat-option>
+          <mat-option value="WARN">Warning</mat-option>
+          <mat-option value="ERROR">Error / Critical</mat-option>
+        </mat-select>
+      </mat-form-field>
+
+      <mat-form-field appearance="outline" class="filter-select">
+        <mat-select [value]="selectedStatus()" (selectionChange)="onStatusChange($event.value)">
+          <mat-option value="ALL">All Statuses</mat-option>
+          <mat-option value="SUCCESS">Success</mat-option>
+          <mat-option value="FAILURE">Failure</mat-option>
+        </mat-select>
+      </mat-form-field>
+    </div>
+  </div>
+
+  <!-- Virtual Scroll Table Container -->
+  <div class="virtual-table-card">
+    <div class="table-header-row">
+      <span class="col-header col-timestamp">Timestamp</span>
+      <span class="col-header col-event">Event Type</span>
+      <span class="col-header col-principal">Principal</span>
+      <span class="col-header col-ip">IP Address</span>
+      <span class="col-header col-severity">Severity</span>
+      <span class="col-header col-status">Status</span>
+      <span class="col-header col-actions">Details</span>
+    </div>
+
+    @if (loading()) {
+      <div class="loading-container">
+        <mat-spinner diameter="36"></mat-spinner>
+        <span>Loading audit stream...</span>
+      </div>
+    } @else if (filteredEvents().length === 0) {
+      <app-empty-state
+        icon="search_off"
+        title="No audit events matched"
+        description="Try adjusting your search query or severity filters."
+      ></app-empty-state>
+    } @else {
+      <!-- CDK Virtual Scroll Viewport -->
+      <cdk-virtual-scroll-viewport itemSize="48" class="virtual-scroll-viewport">
+        <div
+          *cdkVirtualFor="let event of filteredEvents()"
+          class="virtual-row"
+          (click)="selectEvent(event)"
+          [class.selected]="selectedEvent()?.id === event.id"
+        >
+          <span class="col-cell col-timestamp">{{ event.timestamp | date:'yyyy-MM-dd HH:mm:ss' }}</span>
+          <span class="col-cell col-event font-mono">{{ event.eventType }}</span>
+          <span class="col-cell col-principal" [title]="event.principal">{{ event.principal }}</span>
+          <span class="col-cell col-ip font-mono">{{ event.ipAddress }}</span>
+          <span class="col-cell col-severity">
+            <app-status-badge [variant]="getSeverityVariant(event.severity)" [label]="event.severity"></app-status-badge>
+          </span>
+          <span class="col-cell col-status">
+            <app-status-badge
+              [variant]="event.status === 'SUCCESS' ? 'success' : 'error'"
+              [label]="event.status"
+            ></app-status-badge>
+          </span>
+          <span class="col-cell col-actions">
+            <button mat-icon-button class="view-btn" aria-label="View event detail" (click)="selectEvent(event); $event.stopPropagation()">
+              <mat-icon>chevron_right</mat-icon>
+            </button>
+          </span>
+        </div>
+      </cdk-virtual-scroll-viewport>
+
+      <div class="table-footer">
+        <span>Showing {{ filteredEvents().length }} of {{ totalCount() }} virtualized records</span>
+      </div>
+    }
+  </div>
+
+  <!-- Event Detail Modal / Panel -->
+  @if (selectedEvent()) {
+    <div class="event-detail-backdrop" (click)="closeDrawer()">
+      <div class="event-detail-drawer" (click)="$event.stopPropagation()">
+        <div class="drawer-header">
+          <div class="drawer-title-row">
+            <mat-icon class="drawer-icon">shield</mat-icon>
+            <h3 class="drawer-title">Audit Event Details</h3>
+          </div>
+          <button mat-icon-button (click)="closeDrawer()" aria-label="Close details">
+            <mat-icon>close</mat-icon>
+          </button>
+        </div>
+
+        <div class="drawer-body">
+          <div class="detail-row">
+            <span class="detail-label">Event ID</span>
+            <span class="detail-val font-mono">{{ selectedEvent()?.id }}</span>
+          </div>
+          <div class="detail-row">
+            <span class="detail-label">Event Type</span>
+            <span class="detail-val font-mono">{{ selectedEvent()?.eventType }}</span>
+          </div>
+          <div class="detail-row">
+            <span class="detail-label">Timestamp</span>
+            <span class="detail-val">{{ selectedEvent()?.timestamp | date:'medium' }}</span>
+          </div>
+          <div class="detail-row">
+            <span class="detail-label">Principal</span>
+            <span class="detail-val">{{ selectedEvent()?.principal }}</span>
+          </div>
+          <div class="detail-row">
+            <span class="detail-label">IP Address</span>
+            <span class="detail-val font-mono">{{ selectedEvent()?.ipAddress }}</span>
+          </div>
+          <div class="detail-row">
+            <span class="detail-label">Severity</span>
+            <span class="detail-val">
+              <app-status-badge [variant]="getSeverityVariant(selectedEvent()!.severity)" [label]="selectedEvent()!.severity"></app-status-badge>
+            </span>
+          </div>
+          <div class="detail-row">
+            <span class="detail-label">Status</span>
+            <span class="detail-val">
+              <app-status-badge [variant]="selectedEvent()!.status === 'SUCCESS' ? 'success' : 'error'" [label]="selectedEvent()!.status"></app-status-badge>
+            </span>
+          </div>
+
+          <div class="raw-payload-section">
+            <span class="detail-label">Metadata & Payload</span>
+            <pre class="json-payload">{{ selectedEvent()?.details | json }}</pre>
+          </div>
+        </div>
+
+        <div class="drawer-footer">
+          <button mat-stroked-button (click)="closeDrawer()">Close</button>
+        </div>
       </div>
     </div>
+  }
+</div>

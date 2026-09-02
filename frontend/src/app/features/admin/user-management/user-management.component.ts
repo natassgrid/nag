@@ -17,13 +17,12 @@
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
 
-import { Component, ViewChild } from '@angular/core';
+import { Component, OnInit, ViewChild, signal, computed, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatChipsModule } from '@angular/material/chips';
-import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { MatMenuModule } from '@angular/material/menu';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
@@ -31,7 +30,9 @@ import { MatSelectModule } from '@angular/material/select';
 import { MatCheckboxModule } from '@angular/material/checkbox';
 import { map } from 'rxjs/operators';
 import { AdminService, UserAccountResponse } from '../services/admin.service';
+import { NotificationService } from '../../../core/services/notification.service';
 import { PageHeaderComponent } from '../../../shared/components/page-header/page-header.component';
+import { StatusBadgeComponent } from '../../../shared/components/status-badge/status-badge.component';
 import {
   PaginatedTableComponent,
   ColumnDef,
@@ -49,7 +50,6 @@ import { RightDrawerComponent } from '../../../shared/components/right-drawer/ri
     MatButtonModule,
     MatIconModule,
     MatChipsModule,
-    MatSnackBarModule,
     MatMenuModule,
     MatFormFieldModule,
     MatInputModule,
@@ -57,43 +57,51 @@ import { RightDrawerComponent } from '../../../shared/components/right-drawer/ri
     MatCheckboxModule,
     PaginatedTableComponent,
     PageHeaderComponent,
-    RightDrawerComponent
+    RightDrawerComponent,
+    StatusBadgeComponent
   ],
+  changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './user-management.component.html',
   styleUrls: ['./user-management.component.scss']
 })
-export class UserManagementComponent {
+export class UserManagementComponent implements OnInit {
 
   @ViewChild('paginatedTable') paginatedTable!: PaginatedTableComponent<UserAccountResponse>;
+  @ViewChild('statusTmpl', { static: true }) statusTmpl!: any;
   @ViewChild('mfaTmpl', { static: true }) mfaTmpl!: any;
   @ViewChild('rolesTmpl', { static: true }) rolesTmpl!: any;
 
   columns: ColumnDef<UserAccountResponse>[] = [];
-  filters: Record<string, any> = {};
 
-  availableRoles = ['ADMIN', 'CANDIDATE', 'AUTHOR', 'REVIEWER', 'PROCTOR'];
+  readonly availableRoles = ['ADMIN', 'CANDIDATE', 'AUTHOR', 'REVIEWER', 'PROCTOR'];
 
-  // Drawer States
-  createDrawerOpen = false;
-  editDrawerOpen = false;
-  roleDrawerOpen = false;
-  saving = false;
+  // Signals for Local State Management
+  readonly filters = signal<Record<string, any>>({});
+  readonly createDrawerOpen = signal<boolean>(false);
+  readonly editDrawerOpen = signal<boolean>(false);
+  readonly roleDrawerOpen = signal<boolean>(false);
+  readonly saving = signal<boolean>(false);
 
-  // Create Form State
-  newFullName = '';
-  newEmail = '';
-  newPassword = '';
-  newRoles: string[] = ['CANDIDATE'];
+  // Form Signals
+  readonly newFullName = signal<string>('');
+  readonly newEmail = signal<string>('');
+  readonly newPassword = signal<string>('');
+  readonly newRoles = signal<string[]>(['CANDIDATE']);
 
-  // Edit Form State
-  editingUser: UserAccountResponse | null = null;
-  editStatus: 'ACTIVE' | 'DEACTIVATED' = 'ACTIVE';
-  editMfaEnabled = false;
+  readonly editingUser = signal<UserAccountResponse | null>(null);
+  readonly editStatus = signal<'ACTIVE' | 'DEACTIVATED'>('ACTIVE');
+  readonly editMfaEnabled = signal<boolean>(false);
 
-  // Role Form State
-  roleUser: UserAccountResponse | null = null;
-  selectedRole = 'CANDIDATE';
-  roleAction: 'ASSIGN' | 'REVOKE' = 'ASSIGN';
+  readonly roleUser = signal<UserAccountResponse | null>(null);
+  readonly selectedRole = signal<string>('CANDIDATE');
+  readonly roleAction = signal<'ASSIGN' | 'REVOKE'>('ASSIGN');
+
+  // Computed state
+  readonly isCreateValid = computed(() => {
+    return this.newFullName().trim().length > 0 &&
+           this.newEmail().trim().length > 0 &&
+           this.newPassword().trim().length > 0;
+  });
 
   filterCategories: FilterCategory[] = [
     {
@@ -169,7 +177,7 @@ export class UserManagementComponent {
 
   constructor(
     private adminService: AdminService,
-    private snackBar: MatSnackBar
+    private notificationService: NotificationService
   ) {}
 
   ngOnInit(): void {
@@ -178,8 +186,8 @@ export class UserManagementComponent {
       {
         key: 'accountStatus',
         header: 'Status',
-        type: 'chip',
-        chipClass: (val) => val === 'ACTIVE' ? 'active-status' : 'inactive-status',
+        type: 'custom',
+        template: this.statusTmpl,
         sortable: true
       },
       { key: 'mfaEnabled', header: 'MFA', type: 'custom', template: this.mfaTmpl, sortable: true },
@@ -190,7 +198,7 @@ export class UserManagementComponent {
   }
 
   onFilterChange(filters: Record<string, any>): void {
-    this.filters = { ...filters };
+    this.filters.set({ ...filters });
   }
 
   reload(): void {
@@ -198,83 +206,81 @@ export class UserManagementComponent {
   }
 
   openCreateDrawer(): void {
-    this.newFullName = '';
-    this.newEmail = '';
-    this.newPassword = '';
-    this.newRoles = ['ROLE_EXAM_ADMIN'];
-    this.createDrawerOpen = true;
+    this.newFullName.set('');
+    this.newEmail.set('');
+    this.newPassword.set('');
+    this.newRoles.set(['ROLE_EXAM_ADMIN']);
+    this.createDrawerOpen.set(true);
   }
 
   saveCreateUser(): void {
-    if (!this.newFullName.trim() || !this.newEmail.trim() || !this.newPassword.trim()) return;
-    this.saving = true;
+    if (!this.isCreateValid()) return;
+    this.saving.set(true);
     this.adminService.createUser({
-      fullName: this.newFullName.trim(),
-      email: this.newEmail.trim(),
-      password: this.newPassword,
-      roles: this.newRoles
+      fullName: this.newFullName().trim(),
+      email: this.newEmail().trim(),
+      password: this.newPassword(),
+      roles: this.newRoles()
     }).subscribe({
       next: () => {
-        this.snackBar.open('User created successfully', 'Close', { duration: 3000 });
-        this.createDrawerOpen = false;
-        this.saving = false;
+        this.notificationService.showSuccess('User created successfully');
+        this.createDrawerOpen.set(false);
+        this.saving.set(false);
         this.reload();
       },
-      error: (err) => {
-        this.snackBar.open(err.error?.message || 'Failed to create user', 'Close', { duration: 3000 });
-        this.saving = false;
+      error: () => {
+        this.saving.set(false);
       }
     });
   }
 
   openEditDrawer(user: UserAccountResponse): void {
-    this.editingUser = user;
-    this.editStatus = user.accountStatus as any;
-    this.editMfaEnabled = !!user.mfaEnabled;
-    this.editDrawerOpen = true;
+    this.editingUser.set(user);
+    this.editStatus.set(user.accountStatus as any);
+    this.editMfaEnabled.set(!!user.mfaEnabled);
+    this.editDrawerOpen.set(true);
   }
 
   saveEditUser(): void {
-    if (!this.editingUser) return;
-    this.saving = true;
-    this.adminService.updateUser(this.editingUser.id, {
-      accountStatus: this.editStatus,
-      mfaEnabled: this.editMfaEnabled
+    const user = this.editingUser();
+    if (!user) return;
+    this.saving.set(true);
+    this.adminService.updateUser(user.id, {
+      accountStatus: this.editStatus(),
+      mfaEnabled: this.editMfaEnabled()
     }).subscribe({
       next: () => {
-        this.snackBar.open('User updated successfully', 'OK', { duration: 3000 });
-        this.saving = false;
-        this.editDrawerOpen = false;
+        this.notificationService.showSuccess('User updated successfully');
+        this.saving.set(false);
+        this.editDrawerOpen.set(false);
         this.reload();
       },
-      error: (err) => {
-        this.saving = false;
-        const msg = err.error?.detail || err.error?.message || 'Failed to update user';
-        this.snackBar.open(msg, 'Dismiss', { duration: 5000 });
+      error: () => {
+        this.saving.set(false);
       }
     });
   }
 
   openRoleDrawer(user: UserAccountResponse): void {
-    this.roleUser = user;
-    this.selectedRole = 'CANDIDATE';
-    this.roleAction = 'ASSIGN';
-    this.roleDrawerOpen = true;
+    this.roleUser.set(user);
+    this.selectedRole.set('CANDIDATE');
+    this.roleAction.set('ASSIGN');
+    this.roleDrawerOpen.set(true);
   }
 
   saveRoleChange(): void {
-    if (!this.roleUser || !this.selectedRole) return;
-    this.saving = true;
-    this.adminService.assignRole(this.roleUser.id, this.selectedRole, this.roleAction).subscribe({
+    const user = this.roleUser();
+    if (!user) return;
+    this.saving.set(true);
+    this.adminService.assignRole(user.id, this.selectedRole(), this.roleAction()).subscribe({
       next: (res) => {
-        this.snackBar.open(res.message, 'OK', { duration: 3000 });
-        this.saving = false;
-        this.roleDrawerOpen = false;
+        this.notificationService.showSuccess(res.message || 'Role updated successfully');
+        this.saving.set(false);
+        this.roleDrawerOpen.set(false);
         this.reload();
       },
       error: () => {
-        this.saving = false;
-        this.snackBar.open('Role operation failed', 'Dismiss', { duration: 5000 });
+        this.saving.set(false);
       }
     });
   }
@@ -282,12 +288,10 @@ export class UserManagementComponent {
   deactivateUser(user: UserAccountResponse): void {
     this.adminService.deactivateUser(user.id).subscribe({
       next: () => {
-        this.snackBar.open('User deactivated', 'OK', { duration: 3000 });
+        this.notificationService.showSuccess('User deactivated successfully');
         this.reload();
       },
-      error: () => {
-        this.snackBar.open('Failed to deactivate user', 'Dismiss', { duration: 5000 });
-      }
+      error: () => {}
     });
   }
 }

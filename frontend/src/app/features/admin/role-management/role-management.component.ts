@@ -17,20 +17,19 @@
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
 
-import { Component, ViewChild } from '@angular/core';
+import { Component, OnInit, ViewChild, signal, computed, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatChipsModule } from '@angular/material/chips';
-import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { MatMenuModule } from '@angular/material/menu';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { MatSelectModule } from '@angular/material/select';
 import { MatSlideToggleModule } from '@angular/material/slide-toggle';
 import { MatDialog, MatDialogModule } from '@angular/material/dialog';
-import { Observable, map } from 'rxjs';
+import { map } from 'rxjs/operators';
 import {
   PaginatedTableComponent,
   PaginatedDataFetcher,
@@ -40,7 +39,9 @@ import {
 } from '../../../shared/components/paginated-table';
 import { PageHeaderComponent } from '../../../shared/components/page-header/page-header.component';
 import { RightDrawerComponent } from '../../../shared/components/right-drawer/right-drawer.component';
+import { StatusBadgeComponent } from '../../../shared/components/status-badge/status-badge.component';
 import { ConfirmDialogComponent, ConfirmDialogData } from '../../../shared/components/confirm-dialog/confirm-dialog.component';
+import { NotificationService } from '../../../core/services/notification.service';
 import {
   AdminService,
   RoleDefinitionResponse,
@@ -57,7 +58,6 @@ import {
     MatButtonModule,
     MatIconModule,
     MatChipsModule,
-    MatSnackBarModule,
     MatMenuModule,
     MatFormFieldModule,
     MatInputModule,
@@ -66,35 +66,40 @@ import {
     MatDialogModule,
     PaginatedTableComponent,
     PageHeaderComponent,
-    RightDrawerComponent
+    RightDrawerComponent,
+    StatusBadgeComponent
   ],
+  changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './role-management.component.html',
   styleUrls: ['./role-management.component.scss']
 })
-export class RoleManagementComponent {
+export class RoleManagementComponent implements OnInit {
 
   @ViewChild('paginatedTable') paginatedTable!: PaginatedTableComponent<RoleDefinitionResponse>;
   @ViewChild('statusTmpl', { static: true }) statusTmpl!: any;
   @ViewChild('permsTmpl', { static: true }) permsTmpl!: any;
 
   columns: ColumnDef<RoleDefinitionResponse>[] = [];
-  filters: Record<string, any> = {};
 
-  // Drawer States
-  createDrawerOpen = false;
-  editDrawerOpen = false;
-  saving = false;
+  // Signals for Local State
+  readonly filters = signal<Record<string, any>>({});
+  readonly createDrawerOpen = signal<boolean>(false);
+  readonly editDrawerOpen = signal<boolean>(false);
+  readonly saving = signal<boolean>(false);
 
-  // Create Form State
-  newName = '';
-  newCode = '';
-  newDescription = '';
+  // Form Signals
+  readonly newName = signal<string>('');
+  readonly newCode = signal<string>('');
+  readonly newDescription = signal<string>('');
 
-  // Edit Form State
-  editingRole: RoleDefinitionResponse | null = null;
-  editName = '';
-  editDescription = '';
-  editActive = true;
+  readonly editingRole = signal<RoleDefinitionResponse | null>(null);
+  readonly editName = signal<string>('');
+  readonly editDescription = signal<string>('');
+  readonly editActive = signal<boolean>(true);
+
+  readonly isCreateValid = computed(() => {
+    return this.newName().trim().length > 0 && this.newCode().trim().length > 0;
+  });
 
   filterCategories: FilterCategory[] = [
     {
@@ -131,7 +136,7 @@ export class RoleManagementComponent {
 
   constructor(
     private adminService: AdminService,
-    private snackBar: MatSnackBar,
+    private notificationService: NotificationService,
     private dialog: MatDialog
   ) {}
 
@@ -149,36 +154,36 @@ export class RoleManagementComponent {
   }
 
   onFilterChange(filters: Record<string, any>): void {
-    this.filters = filters;
+    this.filters.set({ ...filters });
   }
 
   // ── Create ──
 
   openCreateDrawer(): void {
-    this.newName = '';
-    this.newCode = '';
-    this.newDescription = '';
-    this.createDrawerOpen = true;
+    this.newName.set('');
+    this.newCode.set('');
+    this.newDescription.set('');
+    this.createDrawerOpen.set(true);
   }
 
   saveNewRole(): void {
-    this.saving = true;
+    if (!this.isCreateValid()) return;
+    this.saving.set(true);
     const request: CreateRoleRequest = {
-      name: this.newName.trim(),
-      code: this.newCode.trim().toUpperCase(),
-      description: this.newDescription.trim() || undefined
+      name: this.newName().trim(),
+      code: this.newCode().trim().toUpperCase(),
+      description: this.newDescription().trim() || undefined
     };
 
     this.adminService.createRoleDefinition(request).subscribe({
       next: () => {
-        this.snackBar.open('Role created successfully', 'OK', { duration: 3000 });
-        this.createDrawerOpen = false;
-        this.saving = false;
+        this.notificationService.showSuccess('Role created successfully');
+        this.createDrawerOpen.set(false);
+        this.saving.set(false);
         this.paginatedTable.reload();
       },
-      error: (err) => {
-        this.snackBar.open(err?.error?.message || 'Failed to create role', 'Dismiss', { duration: 4000 });
-        this.saving = false;
+      error: () => {
+        this.saving.set(false);
       }
     });
   }
@@ -186,33 +191,33 @@ export class RoleManagementComponent {
   // ── Edit ──
 
   openEditDrawer(role: RoleDefinitionResponse): void {
-    this.editingRole = role;
-    this.editName = role.name;
-    this.editDescription = role.description || '';
-    this.editActive = role.active;
-    this.editDrawerOpen = true;
+    this.editingRole.set(role);
+    this.editName.set(role.name);
+    this.editDescription.set(role.description || '');
+    this.editActive.set(role.active);
+    this.editDrawerOpen.set(true);
   }
 
   saveEditRole(): void {
-    if (!this.editingRole) return;
-    this.saving = true;
+    const role = this.editingRole();
+    if (!role) return;
+    this.saving.set(true);
 
     const request: UpdateRoleRequest = {
-      name: this.editName.trim(),
-      description: this.editDescription.trim(),
-      active: this.editActive
+      name: this.editName().trim(),
+      description: this.editDescription().trim(),
+      active: this.editActive()
     };
 
-    this.adminService.updateRoleDefinition(this.editingRole.id, request).subscribe({
+    this.adminService.updateRoleDefinition(role.id, request).subscribe({
       next: () => {
-        this.snackBar.open('Role updated successfully', 'OK', { duration: 3000 });
-        this.editDrawerOpen = false;
-        this.saving = false;
+        this.notificationService.showSuccess('Role updated successfully');
+        this.editDrawerOpen.set(false);
+        this.saving.set(false);
         this.paginatedTable.reload();
       },
-      error: (err) => {
-        this.snackBar.open(err?.error?.message || 'Failed to update role', 'Dismiss', { duration: 4000 });
-        this.saving = false;
+      error: () => {
+        this.saving.set(false);
       }
     });
   }
@@ -223,12 +228,10 @@ export class RoleManagementComponent {
     const newStatus = !role.active;
     this.adminService.updateRoleDefinition(role.id, { active: newStatus }).subscribe({
       next: () => {
-        this.snackBar.open(`Role ${newStatus ? 'activated' : 'deactivated'}`, 'OK', { duration: 3000 });
+        this.notificationService.showSuccess(`Role ${newStatus ? 'activated' : 'deactivated'}`);
         this.paginatedTable.reload();
       },
-      error: (err) => {
-        this.snackBar.open(err?.error?.message || 'Failed to update role status', 'Dismiss', { duration: 4000 });
-      }
+      error: () => {}
     });
   }
 
@@ -251,12 +254,10 @@ export class RoleManagementComponent {
 
       this.adminService.deleteRoleDefinition(role.id).subscribe({
         next: () => {
-          this.snackBar.open('Role deleted successfully', 'OK', { duration: 3000 });
+          this.notificationService.showSuccess('Role deleted successfully');
           this.paginatedTable.reload();
         },
-        error: (err) => {
-          this.snackBar.open(err?.error?.message || 'Failed to delete role', 'Dismiss', { duration: 4000 });
-        }
+        error: () => {}
       });
     });
   }
