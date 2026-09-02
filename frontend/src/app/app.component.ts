@@ -17,16 +17,16 @@
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
 
-import { Component, ViewChild } from '@angular/core';
+import { Component, ViewChild, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { RouterOutlet, RouterLink, RouterLinkActive, Router, NavigationEnd } from '@angular/router';
+import { RouterOutlet, RouterLink, Router, NavigationEnd } from '@angular/router';
 import { MatToolbarModule } from '@angular/material/toolbar';
 import { MatSidenavModule, MatSidenav } from '@angular/material/sidenav';
 import { MatListModule } from '@angular/material/list';
 import { MatIconModule } from '@angular/material/icon';
 import { MatButtonModule } from '@angular/material/button';
 import { BreakpointObserver, Breakpoints } from '@angular/cdk/layout';
-import { filter, map } from 'rxjs';
+import { filter } from 'rxjs';
 import { AuthService } from './core/services/auth.service';
 import { NotificationPanelComponent } from './shared/components/notification-panel/notification-panel.component';
 import { UserMenuComponent } from './shared/components/user-menu/user-menu.component';
@@ -52,7 +52,6 @@ export interface NavGroup {
     CommonModule,
     RouterOutlet,
     RouterLink,
-    RouterLinkActive,
     MatToolbarModule,
     MatSidenavModule,
     MatListModule,
@@ -68,6 +67,7 @@ export class AppComponent {
   title = 'Exam Platform';
   isMobile = false;
   isAuthRoute = false;
+  currentUrl = '';
 
   @ViewChild('sidenav') sidenav!: MatSidenav;
 
@@ -100,7 +100,6 @@ export class AppComponent {
         { label: 'Blueprint Rules', icon: 'rule', route: '/papers/blueprints', roles: ['EXAM_CONTROLLER', 'SUPER_ADMIN'] },
         { label: 'Schedules', icon: 'event', route: '/exam/scheduling', roles: ['EXAM_CONTROLLER', 'SUPER_ADMIN'] },
         { label: 'Exam Centres', icon: 'location_on', route: '/exam/scheduling/centres', roles: ['EXAM_CONTROLLER', 'SUPER_ADMIN'] },
-        { label: 'Centre Allocation', icon: 'group_work', route: '/exam/scheduling/allocation', roles: ['EXAM_CONTROLLER', 'SUPER_ADMIN'] },
       ]
     },
     {
@@ -139,7 +138,8 @@ export class AppComponent {
   constructor(
     public authService: AuthService,
     private breakpointObserver: BreakpointObserver,
-    private router: Router
+    private router: Router,
+    private cdr: ChangeDetectorRef
   ) {
     // All groups expanded by default
     this.navGroups.forEach(g => this.expandedGroups.add(g.label));
@@ -150,13 +150,15 @@ export class AppComponent {
         this.isMobile = result.matches;
       });
 
-    // Track whether current route is an auth page (login, register, etc.)
+    this.currentUrl = this.router.url;
     this.isAuthRoute = this.router.url.startsWith('/auth');
+
     this.router.events.pipe(
-      filter(event => event instanceof NavigationEnd),
-      map((event: NavigationEnd) => event.urlAfterRedirects.startsWith('/auth'))
-    ).subscribe(isAuth => {
-      this.isAuthRoute = isAuth;
+      filter(event => event instanceof NavigationEnd)
+    ).subscribe((event: NavigationEnd) => {
+      this.currentUrl = event.urlAfterRedirects;
+      this.isAuthRoute = this.currentUrl.startsWith('/auth');
+      this.cdr.markForCheck();
     });
   }
 
@@ -170,6 +172,52 @@ export class AppComponent {
 
   isGroupExpanded(label: string): boolean {
     return this.expandedGroups.has(label);
+  }
+
+  isRouteActive(itemRoute: string): boolean {
+    const url = (this.currentUrl || this.router.url || '').split('?')[0].split('#')[0];
+
+    // 1. Exact match always wins
+    if (url === itemRoute) {
+      return true;
+    }
+
+    // 2. Dashboard is strictly exact
+    if (itemRoute === '/dashboard') {
+      return url === '/dashboard';
+    }
+
+    // 3. Question Bank (/questions) - active for /questions and /questions/:id, but NOT /questions/subjects or /questions/review
+    if (itemRoute === '/questions') {
+      return url.startsWith('/questions') &&
+        !url.startsWith('/questions/subjects') &&
+        !url.startsWith('/questions/review');
+    }
+
+    // 4. Papers (/papers) - active for /papers and /papers/:id, but NOT /papers/blueprints
+    if (itemRoute === '/papers') {
+      return url.startsWith('/papers') &&
+        !url.startsWith('/papers/blueprints');
+    }
+
+    // 5. Schedules (/exam/scheduling) - active for /exam/scheduling and /exam/scheduling/:examId, but NOT /exam/scheduling/centres
+    if (itemRoute === '/exam/scheduling') {
+      return url.startsWith('/exam/scheduling') &&
+        !url.startsWith('/exam/scheduling/centres');
+    }
+
+    // 6. My Exams (/exam) - candidate view, should not match manage, scheduling, or delivery
+    if (itemRoute === '/exam') {
+      return url === '/exam' || (
+        url.startsWith('/exam/') &&
+        !url.startsWith('/exam/manage') &&
+        !url.startsWith('/exam/scheduling') &&
+        !url.startsWith('/exam/delivery')
+      );
+    }
+
+    // 7. General sub-path match for other routes (e.g. /exam/manage/:id, /admin/users/:id, /exam/scheduling/centres)
+    return url.startsWith(itemRoute + '/');
   }
 
   get visibleNavGroups(): NavGroup[] {

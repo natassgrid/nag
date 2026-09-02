@@ -101,11 +101,14 @@ export class CentreListComponent {
   }
 
   onDrawerClose(result: CreateCentreRequest | null): void {
-    this.drawerOpen = false;
-    if (!result) return;
+    if (!result) {
+      this.drawerOpen = false;
+      return;
+    }
 
     this.schedulingService.createCentre(result).subscribe({
       next: () => {
+        this.drawerOpen = false;
         this.snackBar.open('Centre created', 'OK', { duration: 3000 });
         this.reload();
       },
