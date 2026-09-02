@@ -197,6 +197,13 @@ export class AdminService {
     ).pipe(map(response => response.data));
   }
 
+  getAllPermissions(): Observable<PermissionResponse[]> {
+    return this.http.get<ApiResponse<PaginatedPage<PermissionResponse>>>(
+      `${this.baseUrl}/roles/permissions`,
+      { params: { page: '0', size: '200', search: '' } }
+    ).pipe(map(response => response.data?.content || []));
+  }
+
   // ===================================================================
   // Audit Logs
   // ===================================================================
