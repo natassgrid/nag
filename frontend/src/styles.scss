@@ -7,6 +7,7 @@
 @use '@angular/material' as mat;
 @use 'app/styles/variables' as *;
 @use 'app/styles/palettes' as *;
+@use 'app/styles/tokens' as *;
 @use 'app/styles/scrollbar' as *;
 @use 'app/styles/sidebar' as *;
 @use 'app/styles/header' as *;
@@ -39,6 +40,7 @@ $ama-theme: mat.m2-define-light-theme((
 
 // ---------- Component-level theme mixins ----------
 
+@include design-tokens();
 @include scrollbar();
 @include header();
 @include mat-card();
@@ -223,8 +225,6 @@ input[type="button"],
   }
 }
 
-
-
 // Toolbar override using theme color
 .mat-toolbar.mat-primary {
   background: $slate-900 !important;
@@ -242,6 +242,14 @@ input[type="button"],
     --mdc-snackbar-container-color: #{$green};
     --mdc-snackbar-supporting-text-color: white;
   }
+  &.warning-snackbar {
+    --mdc-snackbar-container-color: #{$yellow};
+    --mdc-snackbar-supporting-text-color: #0F172A;
+  }
+  &.info-snackbar {
+    --mdc-snackbar-container-color: #{$indigo};
+    --mdc-snackbar-supporting-text-color: white;
+  }
 }
 
 // Responsive baseline
@@ -250,4 +258,3 @@ input[type="button"],
     overflow-x: hidden;
   }
 }
-

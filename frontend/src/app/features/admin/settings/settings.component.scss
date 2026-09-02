@@ -1,11 +1,72 @@
-    .placeholder {
-      text-align: center;
-      padding: 48px;
-      color: #666;
-    }
-    .placeholder-icon {
-      font-size: 48px;
-      width: 48px;
-      height: 48px;
-      color: #bbb;
-    }
+.header-buttons {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.settings-card {
+  background: #FFFFFF;
+  border-radius: 12px;
+  border: 1px solid #E2E8F0;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  overflow: hidden;
+}
+
+.tab-icon {
+  font-size: 18px;
+  width: 18px;
+  height: 18px;
+  margin-right: 6px;
+  vertical-align: middle;
+}
+
+.tab-content {
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.setting-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px;
+  background: #F8FAFC;
+  border: 1px solid #E2E8F0;
+  border-radius: 8px;
+  gap: 20px;
+
+  &.vertical {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}
+
+.setting-text {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.setting-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: #0F172A;
+}
+
+.setting-desc {
+  font-size: 12.5px;
+  color: #64748B;
+  line-height: 1.4;
+}
+
+.inline-input {
+  width: 140px;
+  flex-shrink: 0;
+}
+
+.full-width-input {
+  width: 100%;
+  margin-top: 8px;
+}

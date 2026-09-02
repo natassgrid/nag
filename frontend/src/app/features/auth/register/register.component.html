@@ -1,0 +1,185 @@
+<!--
+  SPDX-License-Identifier: AGPL-3.0-only
+  National Assessment Grid (NAG) - Open Digital Public Infrastructure (DPI) Platform
+  Copyright (C) 2025 NAG Contributors
+-->
+
+<main class="register-container" role="main" aria-labelledby="register-heading">
+  <div class="register-wrapper">
+    <!-- Candidate-style NAG Logo -->
+    <div class="brand-header">
+      <div class="brand-badge-container">
+        <div class="brand-icon-box">
+          <mat-icon class="brand-icon" aria-hidden="true">menu_book</mat-icon>
+        </div>
+        <div class="brand-text">
+          <h1 class="brand-title">NAG</h1>
+          <p class="brand-subtitle">National Assessment Grid</p>
+        </div>
+      </div>
+      <p class="portal-tag">Administration Portal</p>
+    </div>
+
+    <div class="register-card">
+      <!-- Registration Step -->
+      <ng-container *ngIf="!showOtpStep">
+        <h2 id="register-heading" class="card-title">Create Account</h2>
+
+        <form [formGroup]="registerForm" (ngSubmit)="onRegister()" aria-label="Registration form" class="register-form">
+          <div class="form-group">
+            <label class="input-label" for="register-name-input">Full Name</label>
+            <input
+              id="register-name-input"
+              formControlName="name"
+              type="text"
+              placeholder="Jane Doe"
+              autocomplete="name"
+              aria-required="true"
+              class="candidate-input"
+              [class.has-error]="registerForm.get('name')?.invalid && registerForm.get('name')?.touched"
+            />
+            <p class="input-error" *ngIf="registerForm.get('name')?.invalid && registerForm.get('name')?.touched">
+              Full name is required
+            </p>
+          </div>
+
+          <div class="form-group">
+            <label class="input-label" for="register-email-input">Email Address</label>
+            <input
+              id="register-email-input"
+              formControlName="email"
+              type="email"
+              placeholder="you@example.com"
+              autocomplete="email"
+              aria-required="true"
+              class="candidate-input"
+              [class.has-error]="registerForm.get('email')?.invalid && registerForm.get('email')?.touched"
+            />
+            <p class="input-error" *ngIf="registerForm.get('email')?.invalid && registerForm.get('email')?.touched">
+              Enter a valid email address
+            </p>
+          </div>
+
+          <div class="form-group">
+            <label class="input-label" for="register-mobile-input">Mobile Number</label>
+            <input
+              id="register-mobile-input"
+              formControlName="mobile"
+              type="tel"
+              autocomplete="tel"
+              placeholder="+919876543210"
+              aria-required="true"
+              class="candidate-input"
+              [class.has-error]="registerForm.get('mobile')?.invalid && registerForm.get('mobile')?.touched"
+            />
+            <p class="input-error" *ngIf="registerForm.get('mobile')?.invalid && registerForm.get('mobile')?.touched">
+              Enter a valid Indian mobile number (+91XXXXXXXXXX)
+            </p>
+          </div>
+
+          <div class="form-group">
+            <label class="input-label" for="register-doc-type">Identity Document Type</label>
+            <select
+              id="register-doc-type"
+              formControlName="identityDocType"
+              aria-required="true"
+              class="candidate-input candidate-select"
+              [class.has-error]="registerForm.get('identityDocType')?.invalid && registerForm.get('identityDocType')?.touched"
+            >
+              <option value="" disabled selected>Select document</option>
+              <option value="AADHAAR">Aadhaar Card</option>
+              <option value="PAN">PAN Card</option>
+              <option value="VOTER_ID">Voter ID</option>
+              <option value="PASSPORT">Passport</option>
+            </select>
+            <p class="input-error" *ngIf="registerForm.get('identityDocType')?.invalid && registerForm.get('identityDocType')?.touched">
+              Document type is required
+            </p>
+          </div>
+
+          <div class="form-group">
+            <label class="input-label" for="register-doc-number">Identity Document Number</label>
+            <input
+              id="register-doc-number"
+              formControlName="identityDocNumber"
+              type="text"
+              placeholder="Enter document number"
+              aria-required="true"
+              class="candidate-input"
+              [class.has-error]="registerForm.get('identityDocNumber')?.invalid && registerForm.get('identityDocNumber')?.touched"
+            />
+            <p class="input-error" *ngIf="registerForm.get('identityDocNumber')?.invalid && registerForm.get('identityDocNumber')?.touched">
+              Document number is required
+            </p>
+          </div>
+
+          <button
+            mat-flat-button
+            color="primary"
+            type="submit"
+            class="submit-button"
+            [disabled]="isLoading"
+            aria-label="Submit registration"
+          >
+            <mat-spinner *ngIf="isLoading" diameter="20" class="button-spinner"></mat-spinner>
+            <span *ngIf="!isLoading">Register Account</span>
+          </button>
+        </form>
+
+        <div class="auth-links">
+          <span class="auth-hint">Already have an account?</span>
+          <a [routerLink]="['/auth/login']" class="login-link" aria-label="Already have an account? Sign in">
+            Sign In
+          </a>
+        </div>
+      </ng-container>
+
+      <!-- OTP Verification Step -->
+      <ng-container *ngIf="showOtpStep">
+        <h2 id="register-heading" class="card-title">Verify OTP</h2>
+        <p class="step-subtitle">Enter the 6-digit OTP sent to your registered mobile number</p>
+
+        <form [formGroup]="otpForm" (ngSubmit)="onVerifyOtp()" aria-label="OTP verification form" class="register-form">
+          <div class="form-group">
+            <label class="input-label" for="register-otp-input">OTP Code</label>
+            <input
+              id="register-otp-input"
+              formControlName="otp"
+              type="text"
+              inputmode="numeric"
+              maxlength="6"
+              placeholder="123456"
+              autocomplete="one-time-code"
+              aria-required="true"
+              aria-label="6-digit One Time Password"
+              class="candidate-input"
+              [class.has-error]="otpForm.get('otp')?.invalid && otpForm.get('otp')?.touched"
+            />
+            <p class="input-error" *ngIf="otpForm.get('otp')?.invalid && otpForm.get('otp')?.touched">
+              Must be exactly 6 digits
+            </p>
+          </div>
+
+          <button
+            mat-flat-button
+            color="primary"
+            type="submit"
+            class="submit-button"
+            [disabled]="isVerifying"
+            aria-label="Verify OTP code"
+          >
+            <mat-spinner *ngIf="isVerifying" diameter="20" class="button-spinner"></mat-spinner>
+            <span *ngIf="!isVerifying">Verify & Activate</span>
+          </button>
+        </form>
+
+        <div class="auth-links">
+          <a href="javascript:void(0)" (click)="backToRegister()" class="login-link"
+             aria-label="Go back to registration form">
+            ← Back to registration
+          </a>
+        </div>
+      </ng-container>
+    </div>
+  </div>
+</main>
