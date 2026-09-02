@@ -2,84 +2,36 @@
 inclusion: auto
 ---
 
-# WSL Build & Test Instructions
+# WSL & IntelliJ Build Instructions
 
-This project builds and tests exclusively through WSL (Windows Subsystem for Linux). The Windows filesystem is mounted at `/mnt/f/code/IdeaProjects/nag` inside WSL.
+This project builds and tests through WSL Ubuntu 24.04 (`/mnt/c/Users/sheel/IdeaProjects/nag`) and IntelliJ IDEA build integration.
 
-## Rules for Kiro
+## Build Rules
 
-1. **All build, test, and lint commands MUST be executed via WSL**, not native PowerShell.
-2. Prefix commands with `wsl` or use `wsl bash -c "..."` to run them in the default WSL distribution.
-3. The project root inside WSL is: `/mnt/f/code/IdeaProjects/nag`
+1. **Java / Backend Builds**:
+   - Primary: Use IntelliJ IDEA `build_project` tool for instant compilation diagnostics.
+   - CLI / Terminal: Run Gradle commands inside WSL Ubuntu 24.04 (`/mnt/c/Users/sheel/IdeaProjects/nag`).
+2. **Frontend Builds (`frontend` & `candidate-frontend`)**:
+   - All build, test, and lint commands MUST run via WSL Ubuntu 24.04.
 
-## Command Patterns
+## Command Reference
 
-### Gradle (Backend)
+### Backend (IntelliJ or WSL Gradle)
+- **IntelliJ**: Call `build_project` (MCP server `idea`).
+- **WSL Gradle**:
+  ```powershell
+  wsl -d Ubuntu-24.04 -e bash -lic "cd /mnt/c/Users/sheel/IdeaProjects/nag && ./gradlew build -x test --parallel --build-cache"
+  wsl -d Ubuntu-24.04 -e bash -lic "cd /mnt/c/Users/sheel/IdeaProjects/nag && ./gradlew :backend:<service-name>:compileJava"
+  ```
 
+### Angular (`frontend`)
 ```powershell
-# Build all services (skip tests)
-wsl bash -c "cd /mnt/f/code/IdeaProjects/nag && ./gradlew build -x test --parallel --build-cache"
-
-# Build a single service
-wsl bash -c "cd /mnt/f/code/IdeaProjects/nag && ./gradlew :backend:<service-name>:build --parallel --build-cache"
-
-# Run tests for a single service
-wsl bash -c "cd /mnt/f/code/IdeaProjects/nag && ./gradlew :backend:<service-name>:test --parallel"
-
-# Run all tests
-wsl bash -c "cd /mnt/f/code/IdeaProjects/nag && ./gradlew test --parallel"
-
-# Compile only (fast check)
-wsl bash -c "cd /mnt/f/code/IdeaProjects/nag && ./gradlew :backend:<service-name>:compileJava"
-
-# Clean build
-wsl bash -c "cd /mnt/f/code/IdeaProjects/nag && ./gradlew clean build --parallel --build-cache"
+wsl -d Ubuntu-24.04 -e bash -lic "cd /mnt/c/Users/sheel/IdeaProjects/nag/frontend && npm run build"
+wsl -d Ubuntu-24.04 -e bash -lic "cd /mnt/c/Users/sheel/IdeaProjects/nag/frontend && npm run lint"
 ```
 
-### Angular (Frontend)
-
+### React (`candidate-frontend`)
 ```powershell
-# Install dependencies
-wsl bash -c "cd /mnt/f/code/IdeaProjects/nag/frontend && npm install"
-
-# Build production
-wsl bash -c "cd /mnt/f/code/IdeaProjects/nag/frontend && npm run build"
-
-# Run lint
-wsl bash -c "cd /mnt/f/code/IdeaProjects/nag/frontend && npm run lint"
-
-# Run tests (single run, no watch)
-wsl bash -c "cd /mnt/f/code/IdeaProjects/nag/frontend && npx ng test --watch=false --browsers=ChromeHeadless"
+wsl -d Ubuntu-24.04 -e bash -lic "cd /mnt/c/Users/sheel/IdeaProjects/nag/candidate-frontend && npm run build"
+wsl -d Ubuntu-24.04 -e bash -lic "cd /mnt/c/Users/sheel/IdeaProjects/nag/candidate-frontend && npm run lint"
 ```
-
-### Using Existing Scripts
-
-```powershell
-# Full backend build via script
-wsl bash -c "cd /mnt/f/code/IdeaProjects/nag && bash scripts/build-backend.sh"
-
-# Backend build, skip tests
-wsl bash -c "cd /mnt/f/code/IdeaProjects/nag && bash scripts/build-backend.sh --skip-tests"
-
-# Build single service
-wsl bash -c "cd /mnt/f/code/IdeaProjects/nag && bash scripts/build-backend.sh --service question-bank-service"
-```
-
-## Verification After Code Changes
-
-After modifying Java files, verify by compiling the affected service:
-```powershell
-wsl bash -c "cd /mnt/f/code/IdeaProjects/nag && ./gradlew :backend:<service-name>:compileJava"
-```
-
-After modifying Angular/TypeScript files, verify by building the frontend:
-```powershell
-wsl bash -c "cd /mnt/f/code/IdeaProjects/nag/frontend && npm run build"
-```
-
-## Important Notes
-
-- Never use `./gradlew` directly in PowerShell — always route through `wsl`.
-- Never use `npm` or `ng` directly in PowerShell for this project — always route through `wsl`.
-- The WSL environment has Java 21, Node.js 22, and npm pre-installed (via `scripts/setup-wsl-dev.sh`).
-- Use `--no-daemon` flag if Gradle daemon issues arise in WSL.
