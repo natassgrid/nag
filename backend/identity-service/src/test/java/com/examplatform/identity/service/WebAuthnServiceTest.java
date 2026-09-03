@@ -13,7 +13,7 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
  * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU Affero General Public License
+ * You should have received a copy of the GNU标识 Affero General Public License
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
 
@@ -35,7 +35,8 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.test.util.ReflectionTestUtils;
+import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.data.redis.core.ValueOperations;
 
 import java.util.Base64;
 import java.util.Optional;
@@ -52,85 +53,91 @@ import static org.mockito.Mockito.when;
 
 /**
  * Unit tests for {@link WebAuthnService}.
- *
- * <p><strong>Validates: Requirements 2.3</strong>
  */
 @ExtendWith(MockitoExtension.class)
 @DisplayName("WebAuthnService")
 class WebAuthnServiceTest {
 
     @Mock
-    WebAuthnCredentialRepository webAuthnCredentialRepository;
+    private WebAuthnCredentialRepository webAuthnCredentialRepository;
+
     @Mock
-    UserAccountRepository userAccountRepository;
+    private UserAccountRepository userAccountRepository;
+
     @Mock
-    KeycloakService keycloakService;
+    private StringRedisTemplate redisTemplate;
+
     @Mock
-    AuditEventPublisher auditEventPublisher;
+    private ValueOperations<String, String> valueOperations;
+
+    @Mock
+    private KeycloakService keycloakService;
+
+    @Mock
+    private AuditEventPublisher auditEventPublisher;
 
     @InjectMocks
-    WebAuthnService webAuthnService;
+    private WebAuthnService webAuthnService;
 
-    private static final String TENANT_ID = "default";
-    private static final String IP = "192.168.1.10";
-    private static final UUID ACCOUNT_ID = UUID.fromString("22222222-2222-2222-2222-222222222222");
-    private static final UUID CREDENTIAL_UUID = UUID.fromString("33333333-3333-3333-3333-333333333333");
-    private static final String CREDENTIAL_ID = "test-credential-id-abc";
+    private static final String TENANT_ID = "test-tenant";
+    private static final String IP = "127.0.0.1";
+    private static final UUID ACCOUNT_ID = UUID.fromString("018f0000-0000-7000-8000-000000000001");
+    private static final String CREDENTIAL_ID = "test-cred-id-base64url";
 
-    // Authenticator data: 37 bytes minimum; bytes 33-36 hold the sign count (big-endian)
-    // Sign count = 5 → bytes [0,0,0,5] at positions 33-36
-    private static final byte[] AUTH_DATA_BYTES = buildAuthData(5);
-    private static final String AUTH_DATA_B64 = Base64.getUrlEncoder().withoutPadding().encodeToString(AUTH_DATA_BYTES);
-
-    private static final String CLIENT_DATA_JSON_B64 = Base64.getUrlEncoder().withoutPadding()
-            .encodeToString("{\"type\":\"webauthn.get\",\"challenge\":\"abc\"}".getBytes());
-
-    private static final String SIGNATURE_B64 = Base64.getUrlEncoder().withoutPadding()
-            .encodeToString(new byte[]{1, 2, 3, 4, 5, 6, 7, 8});
-
-    private static final byte[] PUBLIC_KEY_COSE = new byte[]{10, 20, 30, 40};
-
-    /**
-     * Build a minimal authenticator data byte array with the given sign count at bytes 33-36.
-     */
-    private static byte[] buildAuthData(long signCount) {
-        byte[] data = new byte[37];
-        data[33] = (byte) ((signCount >> 24) & 0xFF);
-        data[34] = (byte) ((signCount >> 16) & 0xFF);
-        data[35] = (byte) ((signCount >> 8) & 0xFF);
-        data[36] = (byte) (signCount & 0xFF);
-        return data;
+    // Valid Base64URL-encoded test data
+    // 37 bytes: 32 bytes rpIdHash + 1 byte flags + 4 bytes sign count (value = 5)
+    private static final byte[] AUTH_DATA_BYTES = new byte[37];
+    static {
+        // Set sign count to 5 (bytes 33..36 in big-endian)
+        AUTH_DATA_BYTES[33] = 0;
+        AUTH_DATA_BYTES[34] = 0;
+        AUTH_DATA_BYTES[35] = 0;
+        AUTH_DATA_BYTES[36] = 5;
     }
+    private static final String AUTH_DATA_B64 = Base64.getUrlEncoder().withoutPadding().encodeToString(AUTH_DATA_BYTES);
+    private static final String CLIENT_DATA_JSON_B64 = Base64.getUrlEncoder().withoutPadding()
+            .encodeToString("{\"type\":\"webauthn.get\",\"challenge\":\"test\"}".getBytes());
+    private static final String SIGNATURE_B64 = Base64.getUrlEncoder().withoutPadding()
+            .encodeToString("dummy-signature-bytes".getBytes());
+    private static final byte[] DUMMY_PUBLIC_KEY = "dummy-cose-key".getBytes();
 
-    private WebAuthnCredential credential(long signCount) {
-        WebAuthnCredential cred = WebAuthnCredential.builder()
-                .userId(ACCOUNT_ID)
-                .credentialId(CREDENTIAL_ID)
-                .publicKeyCose(PUBLIC_KEY_COSE)
-                .signCount(signCount)
-                .build();
-        cred.setTenantId(TENANT_ID);
-        ReflectionTestUtils.setField(cred, "id", CREDENTIAL_UUID);
-        return cred;
+    @BeforeEach
+    void setUp() {
+        // Default lenient stubs if needed
     }
 
     private UserAccount activeAccount() {
-        UserAccount account = UserAccount.builder()
-                .accountStatus(AccountStatus.ACTIVE)
+        UserAccount acc = UserAccount.builder()
                 .username("user@example.com")
-                .mfaEnabled(false)
-                .failedAttemptCount(0)
+                .accountStatus(AccountStatus.ACTIVE)
                 .build();
-        account.setTenantId(TENANT_ID);
-        ReflectionTestUtils.setField(account, "id", ACCOUNT_ID);
-        return account;
+        acc.setTenantId(TENANT_ID);
+        try {
+            var f = acc.getClass().getSuperclass().getDeclaredField("id");
+            f.setAccessible(true);
+            f.set(acc, ACCOUNT_ID);
+        } catch (Exception e) {
+            // ignore
+        }
+        return acc;
+    }
+
+    private WebAuthnCredential credential(long signCount) {
+        return WebAuthnCredential.builder()
+                .credentialId(CREDENTIAL_ID)
+                .userId(ACCOUNT_ID)
+                .publicKeyCose(DUMMY_PUBLIC_KEY)
+                .signCount(signCount)
+                .aaguid("00000000-0000-0000-0000-000000000000")
+                .build();
     }
 
     private AuthTokenResponse stubTokens() {
         return AuthTokenResponse.builder()
                 .accessToken("webauthn-access-token")
                 .refreshToken("webauthn-refresh-token")
-                .expiresIn(900L)
+                .tokenType("Bearer")
+                .expiresIn(900)
                 .build();
     }
 
@@ -159,7 +166,7 @@ class WebAuthnServiceTest {
                     .thenReturn(Optional.of(cred));
             when(userAccountRepository.findById(ACCOUNT_ID))
                     .thenReturn(Optional.of(activeAccount()));
-            when(keycloakService.getTokens(eq("user@example.com"), eq("")))
+            when(keycloakService.getTokens(eq("user@example.com"), eq(""), eq(ACCOUNT_ID.toString())))
                     .thenReturn(stubTokens());
 
             AuthTokenResponse result = webAuthnService.authenticate(validRequest(), TENANT_ID, IP);
@@ -253,7 +260,7 @@ class WebAuthnServiceTest {
                     .thenReturn(Optional.of(cred));
             when(userAccountRepository.findById(ACCOUNT_ID))
                     .thenReturn(Optional.of(activeAccount()));
-            when(keycloakService.getTokens(eq("user@example.com"), eq("")))
+            when(keycloakService.getTokens(eq("user@example.com"), eq(""), eq(ACCOUNT_ID.toString())))
                     .thenReturn(stubTokens());
 
             AuthTokenResponse result = webAuthnService.authenticate(validRequest(), TENANT_ID, IP);

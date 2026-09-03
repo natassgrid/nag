@@ -23,15 +23,20 @@ import com.examplatform.admin.domain.SystemConfig;
 import com.examplatform.admin.dto.SystemConfigResponse;
 import com.examplatform.admin.repository.SystemConfigRepository;
 import com.examplatform.shared.audit.AuditEventType;
+import com.examplatform.shared.config.DefaultPlatformConfigs;
+import com.examplatform.shared.config.DynamicConfigInvalidationListener;
+import com.examplatform.shared.config.DynamicConfigService;
+import com.examplatform.shared.config.SystemConfigChangeEvent;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -41,8 +46,8 @@ import java.util.UUID;
 import java.util.stream.Collectors;
 
 /**
- * Service responsible for managing system configuration changes with full audit trail.
- * Publishes audit events for every configuration change including old and new values.
+ * Service responsible for managing system configuration changes with full audit trail
+ * and multi-tier Near Cache synchronization (DB + Redis L2 + Kafka invalidation + L1 Near Cache).
  */
 @Slf4j
 @Service
@@ -50,50 +55,14 @@ import java.util.stream.Collectors;
 public class ConfigChangeService {
 
     private static final String AUDIT_TOPIC = "exam.audit.events";
+    private static final String REDIS_CONFIG_KEY_PREFIX = "nag:config:";
 
-    public static final Map<String, String> DEFAULT_CONFIGS;
-
-    static {
-        Map<String, String> m = new LinkedHashMap<>();
-        // Security & Authentication
-        m.put("auth.mfa.enforced", "false");
-        m.put("auth.session.timeout.minutes", "30");
-        m.put("auth.max.login.attempts", "5");
-        m.put("auth.password.expiry.days", "90");
-        m.put("auth.password.min.length", "12");
-        m.put("auth.lockout.duration.minutes", "15");
-
-        // Exam Delivery & Proctoring
-        m.put("delivery.tamper.detection.enabled", "true");
-        m.put("delivery.kiosk.mode.enforced", "true");
-        m.put("delivery.telemetry.heartbeat.seconds", "10");
-        m.put("delivery.autosave.interval.seconds", "15");
-        m.put("delivery.max.disconnect.grace.seconds", "180");
-        m.put("delivery.retest.authorization.required", "true");
-
-        // Assessment & Question Bank Governance
-        m.put("question.dual.review.required", "true");
-        m.put("question.ai.generation.enabled", "true");
-        m.put("evaluation.auto.grade.instant", "true");
-        m.put("evaluation.anonymize.candidate.sheets", "true");
-
-        // Alerts & Notification Operations
-        m.put("alert.failed.login.spikes.enabled", "true");
-        m.put("alert.exam.window.start.enabled", "true");
-        m.put("alert.email.recipients", "sec-ops@nag.gov.in, admin@nag.gov.in");
-        m.put("alert.critical.error.webhook", "");
-
-        // Platform Infrastructure & DPI Integration
-        m.put("dpi.digilocker.verification.enabled", "true");
-        m.put("dpi.face.verification.threshold", "85");
-        m.put("platform.maintenance.mode", "false");
-        m.put("platform.banner.message", "");
-
-        DEFAULT_CONFIGS = Collections.unmodifiableMap(m);
-    }
+    public static final Map<String, String> DEFAULT_CONFIGS = DefaultPlatformConfigs.DEFAULTS;
 
     private final SystemConfigRepository systemConfigRepository;
     private final KafkaTemplate<String, Object> kafkaTemplate;
+    private final ObjectProvider<StringRedisTemplate> redisTemplateProvider;
+    private final DynamicConfigService dynamicConfigService;
 
     /**
      * Retrieves all system configuration parameters for a tenant.
@@ -113,7 +82,10 @@ public class ConfigChangeService {
                         .updatedAtConfig(Instant.now())
                         .build();
                 sc.setTenantId(effectiveTenant);
-                initialized.add(systemConfigRepository.save(sc));
+                SystemConfig saved = systemConfigRepository.save(sc);
+                initialized.add(saved);
+                syncToRedis(effectiveTenant, param, val);
+                dynamicConfigService.updateLocalCache(effectiveTenant, param, val);
             });
             return initialized;
         }
@@ -136,7 +108,7 @@ public class ConfigChangeService {
     }
 
     /**
-     * Updates a single system configuration parameter and publishes an audit event.
+     * Updates a single system configuration parameter, syncs to Redis, and broadcasts invalidation.
      */
     @Transactional
     public SystemConfig updateConfig(String paramName, String newValue, UUID actorId, String tenantId) {
@@ -164,7 +136,15 @@ public class ConfigChangeService {
 
         SystemConfig saved = systemConfigRepository.save(config);
 
+        // 1. Sync to Redis L2 cache
+        syncToRedis(effectiveTenant, paramName, newValue);
+
+        // 2. Update local L1 Near Cache
+        dynamicConfigService.updateLocalCache(effectiveTenant, paramName, newValue);
+
+        // 3. Broadcast Kafka invalidation event & Audit event if changed
         if (!Objects.equals(oldValue, newValue)) {
+            broadcastConfigChangeEvent(paramName, oldValue, newValue, effectiveTenant);
             publishConfigChangeAuditEvent(paramName, oldValue, newValue, actorId, effectiveTenant);
         }
 
@@ -206,7 +186,12 @@ public class ConfigChangeService {
                 systemConfigRepository.save(config);
             }
 
+            // Sync to Redis and Near Cache
+            syncToRedis(effectiveTenant, paramName, newValue);
+            dynamicConfigService.updateLocalCache(effectiveTenant, paramName, newValue);
+
             if (!Objects.equals(oldValue, newValue)) {
+                broadcastConfigChangeEvent(paramName, oldValue, newValue, effectiveTenant);
                 publishConfigChangeAuditEvent(paramName, oldValue, newValue, actorId, effectiveTenant);
             }
         });
@@ -235,6 +220,28 @@ public class ConfigChangeService {
                 entity.getCreatedAt(),
                 entity.getUpdatedAt()
         );
+    }
+
+    private void syncToRedis(String tenantId, String paramName, String value) {
+        try {
+            StringRedisTemplate redis = redisTemplateProvider.getIfAvailable();
+            if (redis != null) {
+                String redisKey = REDIS_CONFIG_KEY_PREFIX + tenantId;
+                redis.opsForHash().put(redisKey, paramName, value);
+            }
+        } catch (Exception e) {
+            log.warn("Failed to sync config '{}' to Redis for tenant {}: {}", paramName, tenantId, e.getMessage());
+        }
+    }
+
+    private void broadcastConfigChangeEvent(String paramName, String oldValue, String newValue, String tenantId) {
+        try {
+            SystemConfigChangeEvent event = new SystemConfigChangeEvent(
+                    paramName, oldValue, newValue, tenantId, Instant.now());
+            kafkaTemplate.send(DynamicConfigInvalidationListener.CONFIG_EVENTS_TOPIC, tenantId, event);
+        } catch (Exception ex) {
+            log.warn("Failed to broadcast config invalidation event for '{}': {}", paramName, ex.getMessage());
+        }
     }
 
     private void publishConfigChangeAuditEvent(String paramName, String oldValue, String newValue,
