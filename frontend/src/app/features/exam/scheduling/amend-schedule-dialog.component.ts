@@ -17,7 +17,7 @@
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
 
-import { Component, Inject, OnInit } from '@angular/core';
+import { Component, Inject, OnInit, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { MAT_DIALOG_DATA, MatDialogModule, MatDialogRef } from '@angular/material/dialog';
@@ -42,6 +42,7 @@ export interface AmendScheduleDialogData {
     MatButtonModule, MatDatepickerModule, MatNativeDateModule,
   ],
   templateUrl: './amend-schedule-dialog.component.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrls: ['./amend-schedule-dialog.component.scss']
 })
 export class AmendScheduleDialogComponent implements OnInit {

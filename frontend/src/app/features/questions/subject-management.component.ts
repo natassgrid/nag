@@ -1,4 +1,4 @@
-import { Component, OnInit, ChangeDetectorRef } from '@angular/core';
+import { Component, OnInit, ChangeDetectorRef, ChangeDetectionStrategy } from '@angular/core';
 /*
  * SPDX-License-Identifier: AGPL-3.0-only
  *
@@ -55,6 +55,7 @@ import { PageHeaderComponent } from '../../shared/components/page-header/page-he
     PageHeaderComponent
   ],
   templateUrl: './subject-management.component.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrls: ['./subject-management.component.scss']
 })
 export class SubjectManagementComponent implements OnInit {

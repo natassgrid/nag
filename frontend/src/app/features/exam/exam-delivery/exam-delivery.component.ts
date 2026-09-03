@@ -17,7 +17,7 @@
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
 
-import { Component, OnDestroy } from '@angular/core';
+import { Component, OnDestroy, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { MatCardModule } from '@angular/material/card';
 import { MatButtonModule } from '@angular/material/button';
@@ -47,6 +47,7 @@ export type ExamState = 'PRE_EXAM' | 'IN_PROGRESS' | 'SUBMITTED';
     NavigationPaletteComponent
   ],
   templateUrl: './exam-delivery.component.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrls: ['./exam-delivery.component.scss']
 })
 export class ExamDeliveryComponent implements OnDestroy {

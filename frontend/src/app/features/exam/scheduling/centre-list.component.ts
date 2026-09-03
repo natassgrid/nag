@@ -1,4 +1,4 @@
-import { Component, ViewChild } from '@angular/core';
+import { Component, ViewChild, ChangeDetectionStrategy } from '@angular/core';
 /*
  * SPDX-License-Identifier: AGPL-3.0-only
  *
@@ -49,6 +49,7 @@ import { PageHeaderComponent } from '../../../shared/components/page-header/page
     CentreFormDialogComponent
   ],
   templateUrl: './centre-list.component.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrls: ['./centre-list.component.scss']
 })
 export class CentreListComponent {

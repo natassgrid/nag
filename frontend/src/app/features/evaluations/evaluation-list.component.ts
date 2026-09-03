@@ -17,7 +17,7 @@
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
 
-import { Component } from '@angular/core';
+import { Component, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { MatIconModule } from '@angular/material/icon';
 import { PageHeaderComponent } from '../../shared/components/page-header/page-header.component';
@@ -27,6 +27,7 @@ import { PageHeaderComponent } from '../../shared/components/page-header/page-he
   standalone: true,
   imports: [CommonModule, MatIconModule, PageHeaderComponent],
   templateUrl: './evaluation-list.component.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrls: ['./evaluation-list.component.scss']
 })
 export class EvaluationListComponent {}

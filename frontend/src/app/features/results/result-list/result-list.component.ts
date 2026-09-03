@@ -17,7 +17,7 @@
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
 
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule } from '@angular/router';
 import { MatCardModule } from '@angular/material/card';
@@ -39,6 +39,7 @@ import { PageHeaderComponent } from '../../../shared/components/page-header/page
     PageHeaderComponent
   ],
   templateUrl: './result-list.component.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrls: ['./result-list.component.scss']
 })
 export class ResultListComponent implements OnInit {

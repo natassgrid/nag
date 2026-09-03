@@ -145,7 +145,7 @@
           </div>
           <div class="detail-row">
             <span class="detail-label">Timestamp</span>
-            <span class="detail-val">{{ selectedEvent()?.timestamp | date:'medium' }}</span>
+            <span class="detail-val">{{ $safeNavigationMigration(selectedEvent()?.timestamp) | date:'medium' }}</span>
           </div>
           <div class="detail-row">
             <span class="detail-label">Principal</span>
@@ -170,7 +170,7 @@
 
           <div class="raw-payload-section">
             <span class="detail-label">Metadata & Payload</span>
-            <pre class="json-payload">{{ selectedEvent()?.details | json }}</pre>
+            <pre class="json-payload">{{ $safeNavigationMigration(selectedEvent()?.details) | json }}</pre>
           </div>
         </div>
 

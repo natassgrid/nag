@@ -17,7 +17,7 @@
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
 
-import { Component, ViewChild } from '@angular/core';
+import { Component, ViewChild, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
@@ -49,6 +49,7 @@ import { PageHeaderComponent } from '../../../shared/components/page-header/page
     ExamFormDialogComponent
   ],
   templateUrl: './exam-list.component.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrls: ['./exam-list.component.scss']
 })
 export class ExamListComponent {

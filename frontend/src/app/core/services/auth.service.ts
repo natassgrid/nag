@@ -14,7 +14,8 @@
  * GNU Affero General Public License for more details.
  *
  * You should have received a copy of the GNU Affero General Public License
- * along with this program. If not, see <https://www.gnu.org/licenses/>.\n */
+ * along with this program. If not, see <https://www.gnu.org/licenses/>.
+ */
 
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
@@ -70,12 +71,37 @@ export class AuthService {
 
   getUserName(): string | null {
     const user = localStorage.getItem(this.USER_KEY);
-    if (!user) return null;
-    try {
-      return JSON.parse(user).userName || null;
-    } catch {
-      return null;
+    if (user) {
+      try {
+        const parsed = JSON.parse(user);
+        if (parsed.userName && !this.isUuid(parsed.userName)) {
+          return parsed.userName;
+        }
+      } catch {
+        // ignore
+      }
     }
+    // Fallback: extract username/name/email from JWT payload
+    const token = this.getToken();
+    if (token) {
+      const payload = this.decodeJwtPayload(token);
+      const candidates = [
+        payload?.preferred_username,
+        payload?.name,
+        payload?.given_name,
+        payload?.email
+      ];
+      for (const c of candidates) {
+        if (c && typeof c === 'string' && !this.isUuid(c)) {
+          return c;
+        }
+      }
+    }
+    return null;
+  }
+
+  private isUuid(str: string): boolean {
+    return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(str.trim());
   }
 
   hasToken(): boolean {
@@ -104,16 +130,30 @@ export class AuthService {
     return roles.some(role => userRoles.includes(role));
   }
 
-  storeTokens(tokenData: UserToken): void {
+  storeTokens(tokenData: UserToken, fallbackUsername?: string): void {
     if (tokenData && tokenData.accessToken) {
       localStorage.setItem(this.TOKEN_KEY, tokenData.accessToken);
       localStorage.setItem(this.REFRESH_KEY, tokenData.refreshToken);
 
-      // Extract roles and userId from JWT payload
+      // Extract roles, userId, and readable username from JWT payload
       const payload = this.decodeJwtPayload(tokenData.accessToken);
       const roles = payload?.realm_access?.roles || tokenData.roles || [];
-      const userId = payload?.sub || payload?.preferred_username || tokenData.userId || '';
-      const userName = payload?.name || payload?.preferred_username || tokenData.userId || '';
+      const userId = payload?.sub || tokenData.userId || '';
+
+      let userName = '';
+      if (fallbackUsername && !this.isUuid(fallbackUsername)) {
+        userName = fallbackUsername;
+      } else if (payload?.preferred_username && !this.isUuid(payload.preferred_username)) {
+        userName = payload.preferred_username;
+      } else if (payload?.name && !this.isUuid(payload.name)) {
+        userName = payload.name;
+      } else if (payload?.given_name && !this.isUuid(payload.given_name)) {
+        userName = payload.given_name;
+      } else if (payload?.email) {
+        userName = payload.email.split('@')[0];
+      } else if (tokenData.userId && !this.isUuid(tokenData.userId)) {
+        userName = tokenData.userId;
+      }
 
       localStorage.setItem(this.USER_KEY, JSON.stringify({ roles, userId, userName }));
       this.isAuthenticatedSubject.next(true);
@@ -168,7 +208,7 @@ export class AuthService {
     return this.http.post<{ status: string; data: UserToken }>('/api/v1/identity/auth/token', payload)
       .pipe(
         map(response => response.data),
-        tap(token => this.storeTokens(token))
+        tap(token => this.storeTokens(token, credentials.username))
       );
   }
 
