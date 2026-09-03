@@ -133,10 +133,10 @@ public class AuthenticationService {
                 throw new AuthenticationException("Invalid MFA code.");
             }
         } else {
-            // Risk-based step-up evaluation when MFA is not globally mandated
-            boolean stepUpRequired = riskAssessmentService.isStepUpRequired(
-                    account, request.getDeviceFingerprint(), ipAddress, LocalDateTime.now());
-            if (stepUpRequired) {
+            // Risk-based step-up evaluation only when step-up is explicitly enabled in config
+            boolean stepUpEnabled = dynamicConfigService.getBoolean("auth.stepup.enforced", tenantId, false);
+            if (stepUpEnabled && riskAssessmentService.isStepUpRequired(
+                    account, request.getDeviceFingerprint(), ipAddress, LocalDateTime.now())) {
                 String otpCode = request.getOtpCode();
                 String mobileHash = account.getMobileHash() != null ? account.getMobileHash() : hashingService.sha256(request.getUsername().toLowerCase().trim());
                 if (otpCode == null || otpCode.isBlank()) {
