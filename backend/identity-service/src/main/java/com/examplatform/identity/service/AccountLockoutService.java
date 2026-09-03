@@ -24,6 +24,7 @@ import com.examplatform.identity.domain.UserAccount;
 import com.examplatform.identity.domain.enums.AccountStatus;
 import com.examplatform.identity.repository.UserAccountRepository;
 import com.examplatform.shared.audit.AuditEventType;
+import com.examplatform.shared.config.DynamicConfigService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.kafka.core.KafkaTemplate;
@@ -36,8 +37,8 @@ import java.util.Map;
  * Manages account lockout logic after consecutive failed authentication attempts.
  *
  * <p>An account is locked when the failed attempt count reaches the configured
- * threshold ({@code maxFailedAttempts}, default 5) and the most recent failure
- * occurred within the lockout window ({@code lockoutWindowSeconds}, default 600s).
+ * dynamic threshold ({@code auth.max.login.attempts}, fallback 5) and the most recent failure
+ * occurred within the lockout window ({@code auth.lockout.duration.minutes}, fallback 15m).
  *
  * <p>On lockout, a notification event is published to the
  * {@code exam.notifications.outbound} Kafka topic so downstream services can
@@ -54,6 +55,7 @@ public class AccountLockoutService {
     private final AuditEventPublisher auditEventPublisher;
     private final KafkaTemplate<String, Object> kafkaTemplate;
     private final AppSecurityProperties securityProperties;
+    private final DynamicConfigService dynamicConfigService;
 
     private static final String NOTIFICATIONS_TOPIC = "exam.notifications.outbound";
 
@@ -67,8 +69,11 @@ public class AccountLockoutService {
      * @return {@code true} if the account was locked by this call; {@code false} otherwise
      */
     public boolean checkAndLockIfNeeded(UserAccount account, String tenantId) {
-        int maxAttempts = securityProperties.getMaxFailedAttempts();
-        int windowSeconds = securityProperties.getLockoutWindowSeconds();
+        int maxAttempts = dynamicConfigService.getInt(
+                "auth.max.login.attempts", tenantId, securityProperties.getMaxFailedAttempts());
+        int lockoutMinutes = dynamicConfigService.getInt(
+                "auth.lockout.duration.minutes", tenantId, securityProperties.getLockoutWindowSeconds() / 60);
+        int windowSeconds = lockoutMinutes * 60;
 
         if (account.getFailedAttemptCount() >= maxAttempts) {
             LocalDateTime windowStart = LocalDateTime.now().minusSeconds(windowSeconds);
@@ -78,8 +83,8 @@ public class AccountLockoutService {
                 account.setLockedAt(LocalDateTime.now());
                 userAccountRepository.save(account);
 
-                log.warn("SECURITY: Account {} locked after {} failed attempts within {}s window",
-                        account.getId(), account.getFailedAttemptCount(), windowSeconds);
+                log.warn("SECURITY: Account {} locked after {} failed attempts within {}s window (tenant: {})",
+                        account.getId(), account.getFailedAttemptCount(), windowSeconds, tenantId);
 
                 // Publish audit event
                 auditEventPublisher.publish(
@@ -90,7 +95,9 @@ public class AccountLockoutService {
                         null,
                         Map.of(
                                 "tenantId", tenantId,
-                                "failedAttempts", account.getFailedAttemptCount()
+                                "failedAttempts", account.getFailedAttemptCount(),
+                                "maxAttempts", maxAttempts,
+                                "lockoutMinutes", lockoutMinutes
                         )
                 );
 
@@ -108,24 +115,5 @@ public class AccountLockoutService {
             }
         }
         return false;
-    }
-
-    /**
-     * Checks if the account is currently locked and the lockout is still
-     * within the active window.
-     *
-     * @param account the user account to check
-     * @return {@code true} if the account is locked and within the lockout window
-     */
-    public boolean isLockedAndWithinWindow(UserAccount account) {
-        if (account.getAccountStatus() != AccountStatus.LOCKED) {
-            return false;
-        }
-        if (account.getLockedAt() == null) {
-            return false;
-        }
-        int windowSeconds = securityProperties.getLockoutWindowSeconds();
-        LocalDateTime windowStart = LocalDateTime.now().minusSeconds(windowSeconds);
-        return account.getLockedAt().isAfter(windowStart);
     }
 }

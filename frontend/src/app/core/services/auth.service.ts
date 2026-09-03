@@ -14,8 +14,7 @@
  * GNU Affero General Public License for more details.
  *
  * You should have received a copy of the GNU Affero General Public License
- * along with this program. If not, see <https://www.gnu.org/licenses/>.
- */
+ * along with this program. If not, see <https://www.gnu.org/licenses/>.\n */
 
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
@@ -153,9 +152,20 @@ export class AuthService {
     this.isAuthenticatedSubject.next(false);
   }
 
-  login(credentials: { username: string; password: string; mfaCode?: string }): Observable<UserToken> {
+  login(credentials: { username: string; password: string; otpCode?: string; mfaCode?: string; deviceFingerprint?: string }): Observable<UserToken> {
     this.clearTokens();
-    return this.http.post<{ status: string; data: UserToken }>('/api/v1/identity/auth/token', credentials)
+    const payload: { username: string; password: string; otpCode?: string; deviceFingerprint?: string } = {
+      username: credentials.username,
+      password: credentials.password
+    };
+    const otp = credentials.otpCode || credentials.mfaCode;
+    if (otp) {
+      payload.otpCode = otp;
+    }
+    if (credentials.deviceFingerprint) {
+      payload.deviceFingerprint = credentials.deviceFingerprint;
+    }
+    return this.http.post<{ status: string; data: UserToken }>('/api/v1/identity/auth/token', payload)
       .pipe(
         map(response => response.data),
         tap(token => this.storeTokens(token))

@@ -4,29 +4,31 @@
   Copyright (C) 2025 NAG Contributors
 -->
 
+<!-- Loading Overlay -->
+<div *ngIf="isLoading" class="loading-overlay" aria-live="polite">
+  <mat-progress-bar mode="indeterminate"></mat-progress-bar>
+  <p>Loading exam session...</p>
+</div>
+
 <!-- PRE-EXAM Screen -->
 <div *ngIf="state === 'PRE_EXAM'" class="pre-exam-container">
   <mat-card class="pre-exam-card">
-    <h2>Online Examination</h2>
-    <p>You are about to start an examination. Please review the instructions below before proceeding.</p>
+    <h1 class="mat-headline-small">Exam Instructions</h1>
+    <ul class="instructions-list">
+      <li>Read each question carefully before answering.</li>
+      <li>You can navigate between questions using the question palette.</li>
+      <li>Mark questions for review if you wish to revisit them later.</li>
+      <li>Your responses are saved automatically upon clicking "Save & Next".</li>
+      <li>The exam will auto-submit when the timer reaches zero.</li>
+    </ul>
 
-    <div class="pre-exam-info">
-      <p><strong>Instructions:</strong></p>
-      <ul>
-        <li>Do not refresh or close the browser window during the exam.</li>
-        <li>Use "Save & Next" to save your answer and proceed.</li>
-        <li>You can navigate between questions using the palette on the right.</li>
-        <li>Use "Mark for Review" to flag questions for later review.</li>
-        <li>Click "Submit Exam" when you are finished.</li>
-      </ul>
-    </div>
-
-    <button mat-raised-button color="primary"
-            (click)="startExam()"
-            [disabled]="isLoading"
-            aria-label="Start the examination">
-      <mat-icon>play_arrow</mat-icon>
-      {{ isLoading ? 'Starting...' : 'Start Exam' }}
+    <button
+      mat-raised-button
+      color="primary"
+      class="start-btn"
+      [disabled]="isLoading"
+      (click)="startExam()">
+      Start Exam
     </button>
 
     <p *ngIf="errorMessage" class="error-msg" role="alert">{{ errorMessage }}</p>
@@ -40,7 +42,7 @@
     <h1 class="exam-name">{{ session?.examName }}</h1>
     <app-exam-timer
       *ngIf="session"
-      [durationSeconds]="session.durationMinutes * 60"
+      [durationSeconds]="(session.durationMinutes || 60) * 60"
       (timeUp)="onTimeUp()">
     </app-exam-timer>
   </header>
@@ -58,11 +60,52 @@
       </app-question-display>
 
       <p *ngIf="errorMessage" class="error-msg" role="alert">{{ errorMessage }}</p>
+
+      <!-- Action Bar -->
+      <footer class="action-bar">
+        <button
+          mat-button
+          color="warn"
+          (click)="clearResponse()">
+          Clear Response
+        </button>
+
+        <button
+          mat-button
+          (click)="markForReview()">
+          <mat-icon>{{ currentQuestion && markedQuestions.has(currentQuestion.sequenceNumber) ? 'bookmark' : 'bookmark_border' }}</mat-icon>
+          {{ currentQuestion && markedQuestions.has(currentQuestion.sequenceNumber) ? 'Unmark' : 'Mark for Review' }}
+        </button>
+
+        <div class="nav-buttons">
+          <button
+            mat-stroked-button
+            [disabled]="!currentQuestion || currentQuestion.sequenceNumber <= 1"
+            (click)="previousQuestion()">
+            Previous
+          </button>
+
+          <button
+            mat-stroked-button
+            [disabled]="!session || !currentQuestion || currentQuestion.sequenceNumber >= session.totalQuestions"
+            (click)="nextQuestion()">
+            Next
+          </button>
+
+          <button
+            mat-raised-button
+            color="primary"
+            (click)="saveAndNext()">
+            Save & Next
+          </button>
+        </div>
+      </footer>
     </div>
 
     <!-- Navigation Palette -->
-    <div class="palette-panel" *ngIf="session">
+    <aside class="palette-panel">
       <app-navigation-palette
+        *ngIf="session"
         [totalQuestions]="session.totalQuestions"
         [currentQuestion]="currentQuestion?.sequenceNumber || 1"
         [answeredSet]="answeredQuestions"
@@ -70,54 +113,23 @@
         [visitedSet]="visitedQuestions"
         (questionSelected)="navigateToQuestion($event)">
       </app-navigation-palette>
-    </div>
-  </div>
 
-  <!-- Footer Actions -->
-  <footer class="exam-footer">
-    <div class="footer-left">
-      <button mat-stroked-button (click)="clearResponse()" aria-label="Clear response">
-        Clear Response
-      </button>
-      <button mat-stroked-button (click)="markForReview()" aria-label="Mark for review">
-        <mat-icon>flag</mat-icon> Mark for Review
-      </button>
-    </div>
-
-    <div class="footer-right">
-      <button mat-raised-button
-              (click)="previousQuestion()"
-              [disabled]="currentQuestion?.sequenceNumber === 1"
-              aria-label="Previous question">
-        Previous
-      </button>
-      <button mat-raised-button color="primary"
-              (click)="saveAndNext()"
-              [disabled]="currentQuestion?.sequenceNumber === session?.totalQuestions"
-              aria-label="Save and go to next question">
-        Save & Next
-      </button>
-      <button mat-raised-button color="warn"
-              (click)="openSubmitDialog()"
-              aria-label="Submit examination">
+      <button
+        mat-raised-button
+        color="accent"
+        class="submit-btn"
+        (click)="openSubmitDialog()">
         Submit Exam
       </button>
-    </div>
-  </footer>
+    </aside>
+  </div>
 </div>
 
 <!-- SUBMITTED Screen -->
 <div *ngIf="state === 'SUBMITTED'" class="submitted-container">
   <mat-card class="submitted-card">
-    <mat-icon>check_circle</mat-icon>
-    <h2>Exam Submitted Successfully</h2>
-    <p>Your examination has been submitted. You may close this window.</p>
-
-    <div class="summary-info">
-      <p><strong>Summary</strong></p>
-      <p>Total Questions: {{ session?.totalQuestions }}</p>
-      <p>Questions Answered: {{ answeredQuestions.size }}</p>
-      <p>Marked for Review: {{ markedQuestions.size }}</p>
-    </div>
+    <mat-icon class="success-icon" color="primary">check_circle</mat-icon>
+    <h1 class="mat-headline-small">Exam Submitted Successfully</h1>
+    <p>Thank you for completing the examination. Your responses have been recorded.</p>
   </mat-card>
 </div>

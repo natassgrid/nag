@@ -21,6 +21,8 @@ package com.examplatform.admin.service;
 
 import com.examplatform.admin.domain.SystemConfig;
 import com.examplatform.admin.repository.SystemConfigRepository;
+import com.examplatform.shared.config.DynamicConfigInvalidationListener;
+import com.examplatform.shared.config.DynamicConfigService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -28,6 +30,8 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.kafka.core.KafkaTemplate;
 
 import java.time.Instant;
@@ -53,6 +57,12 @@ class ConfigChangeServiceTest {
     @Mock
     private KafkaTemplate<String, Object> kafkaTemplate;
 
+    @Mock
+    private ObjectProvider<StringRedisTemplate> redisTemplateProvider;
+
+    @Mock
+    private DynamicConfigService dynamicConfigService;
+
     private ConfigChangeService configChangeService;
 
     private static final String TENANT_ID = "test-tenant";
@@ -60,7 +70,8 @@ class ConfigChangeServiceTest {
 
     @BeforeEach
     void setUp() {
-        configChangeService = new ConfigChangeService(systemConfigRepository, kafkaTemplate);
+        configChangeService = new ConfigChangeService(
+                systemConfigRepository, kafkaTemplate, redisTemplateProvider, dynamicConfigService);
     }
 
     @Test
@@ -77,7 +88,7 @@ class ConfigChangeServiceTest {
     }
 
     @Test
-    @DisplayName("updateConfig updates existing param and publishes audit event")
+    @DisplayName("updateConfig updates existing param and publishes audit event and broadcast event")
     void updateConfig_updatesExistingAndPublishesAudit() {
         SystemConfig existing = SystemConfig.builder()
                 .paramName("auth.session.timeout.minutes")
@@ -95,13 +106,20 @@ class ConfigChangeServiceTest {
         assertThat(updated.getParamValue()).isEqualTo("45");
         assertThat(updated.getUpdatedBy()).isEqualTo(ACTOR_ID);
 
-        ArgumentCaptor<Map<String, Object>> captor = ArgumentCaptor.forClass(Map.class);
-        verify(kafkaTemplate).send(eq("exam.audit.events"), eq(TENANT_ID), captor.capture());
+        // Verify Kafka audit event
+        ArgumentCaptor<Map<String, Object>> auditCaptor = ArgumentCaptor.forClass(Map.class);
+        verify(kafkaTemplate).send(eq("exam.audit.events"), eq(TENANT_ID), auditCaptor.capture());
 
-        Map<String, Object> audit = captor.getValue();
+        Map<String, Object> audit = auditCaptor.getValue();
         assertThat(audit.get("paramName")).isEqualTo("auth.session.timeout.minutes");
         assertThat(audit.get("oldValue")).isEqualTo("30");
         assertThat(audit.get("newValue")).isEqualTo("45");
+
+        // Verify Kafka broadcast invalidation event
+        verify(kafkaTemplate).send(eq(DynamicConfigInvalidationListener.CONFIG_EVENTS_TOPIC), eq(TENANT_ID), any());
+
+        // Verify Near Cache local update
+        verify(dynamicConfigService).updateLocalCache(TENANT_ID, "auth.session.timeout.minutes", "45");
     }
 
     @Test

@@ -22,6 +22,7 @@ package com.examplatform.delivery.service;
 import com.examplatform.delivery.config.ProctoringProperties;
 import com.examplatform.delivery.domain.ExamSession;
 import com.examplatform.delivery.repository.ExamSessionRepository;
+import com.examplatform.shared.config.DynamicConfigService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.kafka.core.KafkaTemplate;
@@ -50,6 +51,7 @@ public class ProctoringService {
     private final ExamSessionRepository examSessionRepository;
     private final KafkaTemplate<String, Object> kafkaTemplate;
     private final ProctoringProperties proctoringProperties;
+    private final DynamicConfigService dynamicConfigService;
 
     /**
      * Captures a webcam snapshot reference for the given session.
@@ -62,11 +64,15 @@ public class ProctoringService {
      */
     @Transactional
     public void captureSnapshot(UUID sessionId, byte[] imageData, String tenantId) {
+        boolean tamperDetectionEnabled = dynamicConfigService.getBoolean(
+                "delivery.tamper.detection.enabled", tenantId, true);
+        if (!tamperDetectionEnabled) {
+            log.debug("Tamper detection / snapshot capture disabled for tenant={}", tenantId);
+            return;
+        }
+
         ExamSession session = examSessionRepository.findBySessionId(sessionId)
                 .orElseThrow(() -> new IllegalArgumentException("Session not found: " + sessionId));
-
-        // Consent must have been recorded before capturing biometric data
-        // (consent is tracked on the candidate profile; here we trust the session was created with consent)
 
         String snapshotRef = "snapshots/" + tenantId + "/" + sessionId + "/" + Instant.now().toEpochMilli();
 
@@ -104,7 +110,10 @@ public class ProctoringService {
 
         log.info("Full-screen exit recorded for session={}, count={}", sessionId, newCount);
 
-        if (newCount >= proctoringProperties.getMaxFullScreenExits()) {
+        boolean tamperDetectionEnabled = dynamicConfigService.getBoolean(
+                "delivery.tamper.detection.enabled", session.getTenantId(), true);
+
+        if (tamperDetectionEnabled && newCount >= proctoringProperties.getMaxFullScreenExits()) {
             log.warn("Session {} flagged: full-screen exits ({}) reached threshold ({})",
                     sessionId, newCount, proctoringProperties.getMaxFullScreenExits());
 
@@ -115,6 +124,7 @@ public class ProctoringService {
             alertEvent.put("fullScreenExitCount", newCount);
             alertEvent.put("threshold", proctoringProperties.getMaxFullScreenExits());
             alertEvent.put("occurredAt", Instant.now().toString());
+            alertEvent.put("tenantId", session.getTenantId());
 
             try {
                 kafkaTemplate.send(AUDIT_TOPIC, sessionId.toString(), alertEvent);

@@ -30,6 +30,7 @@ import com.examplatform.identity.exception.MfaRequiredException;
 import com.examplatform.identity.repository.ActiveSessionRepository;
 import com.examplatform.identity.repository.UserAccountRepository;
 import com.examplatform.shared.audit.AuditEventType;
+import com.examplatform.shared.config.DynamicConfigService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Async;
@@ -44,7 +45,7 @@ import java.util.UUID;
  * Handles password + MFA authentication with device binding and
  * single concurrent session enforcement.
  *
- * <p><strong>Validates: Requirements 2.1, 2.2, 2.5, 2.7</strong>
+ * <p><strong>Validates: Requirements 2.1, 2.2, 2.5, 2.7</strong></p>
  */
 @Slf4j
 @Service
@@ -61,6 +62,7 @@ public class AuthenticationService {
     private final AppSecurityProperties appSecurityProperties;
     private final AccountLockoutService accountLockoutService;
     private final RiskAssessmentService riskAssessmentService;
+    private final DynamicConfigService dynamicConfigService;
 
     /**
      * Authenticate a user with username/password and optional MFA OTP.
@@ -115,40 +117,37 @@ public class AuthenticationService {
         account.setFailedAttemptCount(0);
         account.setLastFailedAt(null);
 
-        // 3b. Step-up authentication on risk signal (new device / unusual time)
-        if (appSecurityProperties.isMfaEnabled() && !account.isMfaEnabled()) {
-            boolean stepUpRequired = riskAssessmentService.isStepUpRequired(
-                    account, request.getDeviceFingerprint(), ipAddress, LocalDateTime.now());
-            if (stepUpRequired) {
+        // 3b. Global MFA Enforcement or Step-up authentication on risk signal
+        boolean globalMfaEnforced = dynamicConfigService.getBoolean(
+                "auth.mfa.enforced", tenantId, appSecurityProperties.isMfaEnabled());
+
+        if (globalMfaEnforced || account.isMfaEnabled()) {
+            String otpCode = request.getOtpCode();
+            String mobileHash = account.getMobileHash() != null ? account.getMobileHash() : hashingService.sha256(request.getUsername().toLowerCase().trim());
+            if (otpCode == null || otpCode.isBlank()) {
+                otpService.sendOtp(account.getId(), mobileHash, null);
+                throw new MfaRequiredException("MFA required. Please provide OTP code.");
+            }
+            boolean otpValid = otpService.verifyOtp(mobileHash, otpCode);
+            if (!otpValid) {
+                throw new AuthenticationException("Invalid MFA code.");
+            }
+        } else {
+            // Risk-based step-up evaluation only when step-up is explicitly enabled in config
+            boolean stepUpEnabled = dynamicConfigService.getBoolean("auth.stepup.enforced", tenantId, false);
+            if (stepUpEnabled && riskAssessmentService.isStepUpRequired(
+                    account, request.getDeviceFingerprint(), ipAddress, LocalDateTime.now())) {
                 String otpCode = request.getOtpCode();
+                String mobileHash = account.getMobileHash() != null ? account.getMobileHash() : hashingService.sha256(request.getUsername().toLowerCase().trim());
                 if (otpCode == null || otpCode.isBlank()) {
-                    // Save reset of failed attempts before throwing
                     userAccountRepository.save(account);
+                    otpService.sendOtp(account.getId(), mobileHash, null);
                     throw new MfaRequiredException("Step-up authentication required. Please provide OTP code.");
                 }
-                // Verify the step-up OTP
-                String mobileHash = hashingService.sha256(request.getUsername().toLowerCase().trim());
                 boolean otpValid = otpService.verifyOtp(mobileHash, otpCode);
                 if (!otpValid) {
                     throw new AuthenticationException("Invalid MFA code.");
                 }
-            }
-        }
-
-        // 4. Per-account MFA enforcement.
-        // Enforced whenever the account has MFA enabled, regardless of the global
-        // appSecurityProperties.isMfaEnabled() flag. The global flag only controls
-        // whether the platform mandates MFA for all accounts (step-up, step 3b).
-        // An account that has voluntarily enrolled MFA must always present an OTP.
-        if (account.isMfaEnabled()) {
-            String otpCode = request.getOtpCode();
-            if (otpCode == null || otpCode.isBlank()) {
-                throw new MfaRequiredException("MFA required. Please provide OTP code.");
-            }
-            String mobileHash = hashingService.sha256(request.getUsername().toLowerCase().trim());
-            boolean otpValid = otpService.verifyOtp(mobileHash, otpCode);
-            if (!otpValid) {
-                throw new AuthenticationException("Invalid MFA code.");
             }
         }
 
@@ -183,10 +182,14 @@ public class AuthenticationService {
             activeSessionRepository.deleteByUserIdAndTenantId(account.getId(), tenantId);
         }
 
-        // 7. Create new session record
+        // 7. Create new session record with dynamic timeout
+        int timeoutMinutes = dynamicConfigService.getInt(
+                "auth.session.timeout.minutes",
+                tenantId,
+                Math.max(1, (int) (appSecurityProperties.getSessionIdleTimeoutSeconds() / 60))
+        );
         String sessionToken = UUID.randomUUID().toString();
-        LocalDateTime expiresAt = LocalDateTime.now()
-                .plusSeconds(appSecurityProperties.getSessionIdleTimeoutSeconds());
+        LocalDateTime expiresAt = LocalDateTime.now().plusMinutes(timeoutMinutes);
 
         ActiveSession session = ActiveSession.builder()
                 .userId(account.getId())
