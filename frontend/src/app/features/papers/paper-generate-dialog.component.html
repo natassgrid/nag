@@ -50,9 +50,20 @@
                 placeholder="Choose a blueprint template..."
               >
                 <mat-option [value]="''">-- Custom Rules / Manual --</mat-option>
-                <mat-option *ngFor="let t of templates" [value]="t.id">
-                  {{ t.name }} ({{ t.rules.length }} rules, {{ t.totalQuestions ?? 0 }} questions)
-                </mat-option>
+
+                <!-- Mapped Exam Rules -->
+                <mat-optgroup *ngIf="mappedTemplates.length > 0" label="Mapped Exam Blueprint Rules">
+                  <mat-option *ngFor="let t of mappedTemplates" [value]="t.id">
+                    {{ t.name }} ({{ t.rules.length }} rules, {{ t.totalQuestions ?? 0 }} Qs) &bull; Mapped
+                  </mat-option>
+                </mat-optgroup>
+
+                <!-- Universal Rules -->
+                <mat-optgroup *ngIf="universalTemplates.length > 0" label="Universal Blueprint Rules">
+                  <mat-option *ngFor="let t of universalTemplates" [value]="t.id">
+                    {{ t.name }} ({{ t.rules.length }} rules, {{ t.totalQuestions ?? 0 }} Qs) &bull; Universal
+                  </mat-option>
+                </mat-optgroup>
               </mat-select>
             </mat-form-field>
           </div>

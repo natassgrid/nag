@@ -19,30 +19,56 @@
 
 package com.examplatform.shared.config;
 
+import com.examplatform.shared.jackson.JacksonConfig;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.boot.autoconfigure.AutoConfiguration;
+import org.springframework.boot.autoconfigure.AutoConfigureAfter;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingClass;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.data.redis.core.StringRedisTemplate;
 
 /**
- * Spring configuration class that registers the Near Cache components.
+ * Spring configuration class that registers the Dynamic Config components.
+ * Supports both Redis-backed Near Cache (when Spring Data Redis is present)
+ * and pure in-memory fallback (when Spring Data Redis is not on the classpath).
  */
-@Configuration
+@AutoConfiguration
+@AutoConfigureAfter(JacksonConfig.class)
 public class DynamicConfigAutoConfiguration {
 
-    @Bean
-    @ConditionalOnMissingBean(DynamicConfigService.class)
-    public DynamicConfigService dynamicConfigService(ObjectProvider<StringRedisTemplate> redisTemplateProvider) {
-        return new NearCacheConfigService(redisTemplateProvider);
+    @Configuration(proxyBeanMethods = false)
+    @ConditionalOnClass(name = "org.springframework.data.redis.core.StringRedisTemplate")
+    static class RedisNearCacheConfiguration {
+
+        @Bean
+        @ConditionalOnMissingBean(DynamicConfigService.class)
+        public DynamicConfigService dynamicConfigService(ObjectProvider<StringRedisTemplate> redisTemplateProvider) {
+            return new NearCacheConfigService(redisTemplateProvider);
+        }
+    }
+
+    @Configuration(proxyBeanMethods = false)
+    @ConditionalOnMissingClass("org.springframework.data.redis.core.StringRedisTemplate")
+    static class StandaloneNearCacheConfiguration {
+
+        @Bean
+        @ConditionalOnMissingBean(DynamicConfigService.class)
+        public DynamicConfigService dynamicConfigService() {
+            return new InMemoryDynamicConfigService();
+        }
     }
 
     @Bean
+    @ConditionalOnClass(name = "org.springframework.kafka.annotation.KafkaListener")
     @ConditionalOnMissingBean(DynamicConfigInvalidationListener.class)
     public DynamicConfigInvalidationListener dynamicConfigInvalidationListener(
             DynamicConfigService dynamicConfigService,
-            ObjectMapper objectMapper) {
-        return new DynamicConfigInvalidationListener(dynamicConfigService, objectMapper);
+            ObjectProvider<ObjectMapper> objectMapperProvider) {
+        ObjectMapper mapper = objectMapperProvider.getIfAvailable(ObjectMapper::new);
+        return new DynamicConfigInvalidationListener(dynamicConfigService, mapper);
     }
 }

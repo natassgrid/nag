@@ -14,8 +14,7 @@
  * GNU Affero General Public License for more details.
  *
  * You should have received a copy of the GNU Affero General Public License
- * along with this program. If not, see <https://www.gnu.org/licenses/>.
- */
+ * along with this program. If not, see <https://www.gnu.org/licenses/>.\n */
 
 package com.examplatform.papergenerator.service;
 
@@ -49,7 +48,7 @@ public class BlueprintTemplateService {
     private final BlueprintTemplateRepository repository;
     private final ObjectMapper objectMapper;
 
-    // ── Create ────────────────────────────────────────────────────────────────
+    // ── Create ──────────────────────────────────────────────────
 
     public BlueprintTemplateResponse create(
             BlueprintTemplateRequest request,
@@ -76,7 +75,7 @@ public class BlueprintTemplateService {
         return toResponse(saved);
     }
 
-    // ── Read ──────────────────────────────────────────────────────────────────
+    // ── Read ────────────────────────────────────────────────────
 
     @Transactional(readOnly = true)
     public List<BlueprintTemplateResponse> listAll(String tenantId) {
@@ -88,7 +87,7 @@ public class BlueprintTemplateService {
 
     @Transactional(readOnly = true)
     public List<BlueprintTemplateResponse> listByExam(UUID examId, String tenantId) {
-        return repository.findByExamIdAndTenantIdOrderByCreatedAtDesc(examId, tenantId)
+        return repository.findByExamIdOrUniversal(examId, tenantId)
                 .stream()
                 .map(this::toResponse)
                 .toList();
@@ -99,7 +98,7 @@ public class BlueprintTemplateService {
         return toResponse(findOrThrow(id, tenantId));
     }
 
-    // ── Update ────────────────────────────────────────────────────────────────
+    // ── Update ──────────────────────────────────────────────────
 
     public BlueprintTemplateResponse update(
             UUID id,
@@ -126,7 +125,7 @@ public class BlueprintTemplateService {
         return toResponse(saved);
     }
 
-    // ── Delete ────────────────────────────────────────────────────────────────
+    // ── Delete ──────────────────────────────────────────────────
 
     public void delete(UUID id, String tenantId) {
         BlueprintTemplate template = findOrThrow(id, tenantId);
@@ -135,7 +134,7 @@ public class BlueprintTemplateService {
                 id, template.getName(), tenantId);
     }
 
-    // ── Helpers ───────────────────────────────────────────────────────────────
+    // ── Helpers ─────────────────────────────────────────────────
 
     private BlueprintTemplate findOrThrow(UUID id, String tenantId) {
         BlueprintTemplate template = repository.findById(id)
