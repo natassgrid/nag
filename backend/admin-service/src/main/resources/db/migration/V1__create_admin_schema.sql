@@ -24,3 +24,44 @@ CREATE TABLE admin_service.system_config (
 
 CREATE INDEX idx_system_config_tenant_id ON admin_service.system_config(tenant_id);
 CREATE INDEX idx_system_config_param_name ON admin_service.system_config(param_name);
+
+-- ============================================================
+-- Seed System Configurations for Default Tenant
+-- ============================================================
+
+INSERT INTO admin_service.system_config (id, tenant_id, param_name, param_value, updated_by, updated_at_config, created_at, updated_at, version)
+VALUES
+    -- Security & Authentication
+    ('018f4e2b-0010-7000-8000-000000000001', 'default', 'auth.mfa.enforced', 'false', NULL, NOW(), NOW(), NOW(), 0),
+    ('018f4e2b-0010-7000-8000-000000000002', 'default', 'auth.session.timeout.minutes', '30', NULL, NOW(), NOW(), NOW(), 0),
+    ('018f4e2b-0010-7000-8000-000000000003', 'default', 'auth.max.login.attempts', '5', NULL, NOW(), NOW(), NOW(), 0),
+    ('018f4e2b-0010-7000-8000-000000000004', 'default', 'auth.password.expiry.days', '90', NULL, NOW(), NOW(), NOW(), 0),
+    ('018f4e2b-0010-7000-8000-000000000005', 'default', 'auth.password.min.length', '12', NULL, NOW(), NOW(), NOW(), 0),
+    ('018f4e2b-0010-7000-8000-000000000006', 'default', 'auth.lockout.duration.minutes', '15', NULL, NOW(), NOW(), NOW(), 0),
+
+    -- Exam Delivery & Proctoring
+    ('018f4e2b-0020-7000-8000-000000000001', 'default', 'delivery.tamper.detection.enabled', 'true', NULL, NOW(), NOW(), NOW(), 0),
+    ('018f4e2b-0020-7000-8000-000000000002', 'default', 'delivery.kiosk.mode.enforced', 'true', NULL, NOW(), NOW(), NOW(), 0),
+    ('018f4e2b-0020-7000-8000-000000000003', 'default', 'delivery.telemetry.heartbeat.seconds', '10', NULL, NOW(), NOW(), NOW(), 0),
+    ('018f4e2b-0020-7000-8000-000000000004', 'default', 'delivery.autosave.interval.seconds', '15', NULL, NOW(), NOW(), NOW(), 0),
+    ('018f4e2b-0020-7000-8000-000000000005', 'default', 'delivery.max.disconnect.grace.seconds', '180', NULL, NOW(), NOW(), NOW(), 0),
+    ('018f4e2b-0020-7000-8000-000000000006', 'default', 'delivery.retest.authorization.required', 'true', NULL, NOW(), NOW(), NOW(), 0),
+
+    -- Assessment & Question Bank Governance
+    ('018f4e2b-0030-7000-8000-000000000001', 'default', 'question.dual.review.required', 'true', NULL, NOW(), NOW(), NOW(), 0),
+    ('018f4e2b-0030-7000-8000-000000000002', 'default', 'question.ai.generation.enabled', 'true', NULL, NOW(), NOW(), NOW(), 0),
+    ('018f4e2b-0030-7000-8000-000000000003', 'default', 'evaluation.auto.grade.instant', 'true', NULL, NOW(), NOW(), NOW(), 0),
+    ('018f4e2b-0030-7000-8000-000000000004', 'default', 'evaluation.anonymize.candidate.sheets', 'true', NULL, NOW(), NOW(), NOW(), 0),
+
+    -- Alerts & Notification Operations
+    ('018f4e2b-0040-7000-8000-000000000001', 'default', 'alert.failed.login.spikes.enabled', 'true', NULL, NOW(), NOW(), NOW(), 0),
+    ('018f4e2b-0040-7000-8000-000000000002', 'default', 'alert.exam.window.start.enabled', 'true', NULL, NOW(), NOW(), NOW(), 0),
+    ('018f4e2b-0040-7000-8000-000000000003', 'default', 'alert.email.recipients', 'sec-ops@nag.gov.in, admin@nag.gov.in', NULL, NOW(), NOW(), NOW(), 0),
+    ('018f4e2b-0040-7000-8000-000000000004', 'default', 'alert.critical.error.webhook', '', NULL, NOW(), NOW(), NOW(), 0),
+
+    -- Platform Infrastructure & DPI Integration
+    ('018f4e2b-0050-7000-8000-000000000001', 'default', 'dpi.digilocker.verification.enabled', 'true', NULL, NOW(), NOW(), NOW(), 0),
+    ('018f4e2b-0050-7000-8000-000000000002', 'default', 'dpi.face.verification.threshold', '85', NULL, NOW(), NOW(), NOW(), 0),
+    ('018f4e2b-0050-7000-8000-000000000003', 'default', 'platform.maintenance.mode', 'false', NULL, NOW(), NOW(), NOW(), 0),
+    ('018f4e2b-0050-7000-8000-000000000004', 'default', 'platform.banner.message', '', NULL, NOW(), NOW(), NOW(), 0)
+ON CONFLICT (id) DO NOTHING;
