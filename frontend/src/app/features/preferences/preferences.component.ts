@@ -17,7 +17,7 @@
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
 
-import { Component } from '@angular/core';
+import { Component, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { MatIconModule } from '@angular/material/icon';
 import { MatCardModule } from '@angular/material/card';
@@ -28,6 +28,7 @@ import { PageHeaderComponent } from '../../shared/components/page-header/page-he
   standalone: true,
   imports: [CommonModule, MatIconModule, MatCardModule, PageHeaderComponent],
   templateUrl: './preferences.component.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrls: ['./preferences.component.scss']
 })
 export class PreferencesComponent {}

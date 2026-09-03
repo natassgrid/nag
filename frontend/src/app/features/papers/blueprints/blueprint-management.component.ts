@@ -17,7 +17,7 @@
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
 
-import { Component, OnInit, ChangeDetectorRef } from '@angular/core';
+import { Component, OnInit, ChangeDetectorRef, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import {
   FormArray,
@@ -79,6 +79,7 @@ import { PaperGenerateDialogComponent } from '../paper-generate-dialog.component
     PaperGenerateDialogComponent
   ],
   templateUrl: './blueprint-management.component.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrls: ['./blueprint-management.component.scss']
 })
 export class BlueprintManagementComponent implements OnInit {

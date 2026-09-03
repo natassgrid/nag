@@ -17,7 +17,7 @@
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
 
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ReactiveFormsModule, FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { MatFormFieldModule } from '@angular/material/form-field';
@@ -41,6 +41,7 @@ import { AuthService } from '../../../core/services/auth.service';
     MatCheckboxModule
   ],
   templateUrl: './otp-verify.component.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrls: ['./otp-verify.component.scss']
 })
 export class OtpVerifyComponent implements OnInit {

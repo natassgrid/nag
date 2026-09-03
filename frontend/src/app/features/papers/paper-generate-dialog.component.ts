@@ -24,7 +24,8 @@ import {
   EventEmitter,
   OnInit,
   OnChanges,
-  SimpleChanges
+  SimpleChanges,
+  ChangeDetectionStrategy
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import {
@@ -78,6 +79,7 @@ import { RightDrawerComponent } from '../../shared/components/right-drawer/right
     RightDrawerComponent
   ],
   templateUrl: './paper-generate-dialog.component.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrls: ['./paper-generate-dialog.component.scss']
 })
 export class PaperGenerateDialogComponent implements OnInit, OnChanges {

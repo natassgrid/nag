@@ -17,7 +17,7 @@
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
 
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { MatIconModule } from '@angular/material/icon';
@@ -40,6 +40,7 @@ import { NotificationService, Notification } from '../../../features/notificatio
     MatDividerModule
   ],
   templateUrl: './notification-panel.component.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrls: ['./notification-panel.component.scss']
 })
 export class NotificationPanelComponent implements OnInit {

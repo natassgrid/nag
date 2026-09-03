@@ -17,7 +17,7 @@
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
 
-import { Component } from '@angular/core';
+import { Component, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { MatCardModule } from '@angular/material/card';
 import { MatButtonModule } from '@angular/material/button';
@@ -40,6 +40,7 @@ import { HttpClient } from '@angular/common/http';
     MatProgressSpinnerModule
   ],
   templateUrl: './report-export.component.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrls: ['./report-export.component.scss']
 })
 export class ReportExportComponent {

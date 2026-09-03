@@ -17,7 +17,7 @@
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
 
-import { Component, OnInit, ViewChild } from '@angular/core';
+import { Component, OnInit, ViewChild, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
@@ -60,6 +60,7 @@ import { PageHeaderComponent } from '../../shared/components/page-header/page-he
     PaperGenerateDialogComponent
   ],
   templateUrl: './paper-list.component.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrls: ['./paper-list.component.scss']
 })
 export class PaperListComponent implements OnInit {

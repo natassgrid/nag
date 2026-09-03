@@ -17,7 +17,7 @@
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
 
-import { Component, OnInit, ChangeDetectorRef, ViewChild } from '@angular/core';
+import { Component, OnInit, ChangeDetectorRef, ViewChild, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
@@ -57,6 +57,7 @@ import { PageHeaderComponent } from '../../shared/components/page-header/page-he
     PageHeaderComponent
   ],
   templateUrl: './question-review.component.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrls: ['./question-review.component.scss']
 })
 export class QuestionReviewComponent {

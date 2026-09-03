@@ -17,7 +17,7 @@
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
 
-import { Component, Input, OnChanges, SimpleChanges, ElementRef, SecurityContext } from '@angular/core';
+import { Component, Input, OnChanges, SimpleChanges, ElementRef, SecurityContext, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import katex from 'katex';
@@ -49,6 +49,7 @@ interface ContentSegment {
   standalone: true,
   imports: [CommonModule],
   templateUrl: './math-renderer.component.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrls: ['./math-renderer.component.scss']
 })
 export class MathRendererComponent implements OnChanges {
