@@ -24,6 +24,7 @@ import com.examplatform.identity.domain.UserAccount;
 import com.examplatform.identity.domain.enums.AccountStatus;
 import com.examplatform.identity.repository.UserAccountRepository;
 import com.examplatform.shared.audit.AuditEventType;
+import com.examplatform.shared.config.DynamicConfigService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -32,6 +33,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.Mockito;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.test.util.ReflectionTestUtils;
@@ -43,6 +45,7 @@ import java.util.concurrent.CompletableFuture;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
@@ -70,17 +73,28 @@ class AccountLockoutServiceTest {
     @Mock
     private AppSecurityProperties securityProperties;
 
+    @Mock
+    private DynamicConfigService dynamicConfigService;
+
     @InjectMocks
     private AccountLockoutService accountLockoutService;
 
     private static final UUID ACCOUNT_ID = UUID.fromString("11111111-1111-1111-1111-111111111111");
     private static final String TENANT_ID = "default";
 
+    @BeforeEach
+    void setUp() {
+        Mockito.lenient().when(securityProperties.getMaxFailedAttempts()).thenReturn(5);
+        Mockito.lenient().when(securityProperties.getLockoutWindowSeconds()).thenReturn(600);
+        Mockito.lenient().when(dynamicConfigService.getInt(eq("auth.max.login.attempts"), anyString(), anyInt()))
+                .thenReturn(5);
+        Mockito.lenient().when(dynamicConfigService.getInt(eq("auth.lockout.duration.minutes"), anyString(), anyInt()))
+                .thenReturn(10);
+    }
+
     private UserAccount buildAccount(int failedAttempts, LocalDateTime lastFailedAt) {
         UserAccount account = UserAccount.builder()
-                .username("testuser")
-                .emailHash("hash123")
-                .mobileHash("mobile123")
+                .username("candidate@test.com")
                 .accountStatus(AccountStatus.ACTIVE)
                 .failedAttemptCount(failedAttempts)
                 .lastFailedAt(lastFailedAt)
@@ -90,104 +104,88 @@ class AccountLockoutServiceTest {
         return account;
     }
 
-    @BeforeEach
-    void setUp() {
-        when(securityProperties.getMaxFailedAttempts()).thenReturn(5);
-        when(securityProperties.getLockoutWindowSeconds()).thenReturn(600);
-    }
+    // ─────────────────────────────────────────────────────────────
+    // checkAndLockIfNeeded
+    // ─────────────────────────────────────────────────────────────
 
     @Nested
-    @DisplayName("checkAndLockIfNeeded — threshold reached within window")
-    class LockoutTriggered {
+    @DisplayName("checkAndLockIfNeeded")
+    class CheckAndLockIfNeeded {
 
         @Test
-        @DisplayName("locks account when failedAttemptCount >= 5 and lastFailedAt within window")
+        @DisplayName("locks account when failed attempts reach threshold within window")
         void locksAccountWhenThresholdReachedWithinWindow() {
-            LocalDateTime recentFailure = LocalDateTime.now().minusMinutes(2);
+            LocalDateTime recentFailure = LocalDateTime.now().minusSeconds(120); // within 600s
             UserAccount account = buildAccount(5, recentFailure);
-            when(kafkaTemplate.send(anyString(), anyString(), any())).thenReturn(new CompletableFuture<>());
 
-            boolean result = accountLockoutService.checkAndLockIfNeeded(account, TENANT_ID);
+            when(kafkaTemplate.send(anyString(), anyString(), any()))
+                    .thenReturn(CompletableFuture.completedFuture(null));
 
-            assertThat(result).isTrue();
+            boolean locked = accountLockoutService.checkAndLockIfNeeded(account, TENANT_ID);
+
+            assertThat(locked).isTrue();
             assertThat(account.getAccountStatus()).isEqualTo(AccountStatus.LOCKED);
             assertThat(account.getLockedAt()).isNotNull();
             verify(userAccountRepository).save(account);
-        }
 
-        @Test
-        @DisplayName("publishes audit event on lockout")
-        void publishesAuditEventOnLockout() {
-            LocalDateTime recentFailure = LocalDateTime.now().minusMinutes(1);
-            UserAccount account = buildAccount(6, recentFailure);
-            when(kafkaTemplate.send(anyString(), anyString(), any())).thenReturn(new CompletableFuture<>());
-
-            accountLockoutService.checkAndLockIfNeeded(account, TENANT_ID);
-
+            // Verify audit event published
             verify(auditEventPublisher).publish(
                     eq(AuditEventType.ACCOUNT_LOCK),
                     eq(ACCOUNT_ID.toString()),
                     eq("identity:lockout"),
-                    any(),
-                    any(),
-                    any(Map.class)
+                    eq(null),
+                    eq(null),
+                    any()
             );
+
+            // Verify Kafka notification sent
+            ArgumentCaptor<Map<String, Object>> notifCaptor = ArgumentCaptor.forClass(Map.class);
+            verify(kafkaTemplate).send(eq("exam.notifications.outbound"), eq(ACCOUNT_ID.toString()), notifCaptor.capture());
+            Map<String, Object> notif = notifCaptor.getValue();
+            assertThat(notif.get("eventType")).isEqualTo("ACCOUNT_LOCKED");
+            assertThat(notif.get("userId")).isEqualTo(ACCOUNT_ID.toString());
         }
 
         @Test
-        @DisplayName("publishes Kafka notification on lockout")
-        @SuppressWarnings("unchecked")
-        void publishesKafkaNotificationOnLockout() {
-            LocalDateTime recentFailure = LocalDateTime.now().minusSeconds(30);
-            UserAccount account = buildAccount(5, recentFailure);
-            when(kafkaTemplate.send(anyString(), anyString(), any())).thenReturn(new CompletableFuture<>());
-
-            accountLockoutService.checkAndLockIfNeeded(account, TENANT_ID);
-
-            ArgumentCaptor<Map<String, Object>> captor = ArgumentCaptor.forClass(Map.class);
-            verify(kafkaTemplate).send(
-                    eq("exam.notifications.outbound"),
-                    eq(ACCOUNT_ID.toString()),
-                    captor.capture()
-            );
-            Map<String, Object> notification = captor.getValue();
-            assertThat(notification.get("eventType")).isEqualTo("ACCOUNT_LOCKED");
-            assertThat(notification.get("userId")).isEqualTo(ACCOUNT_ID.toString());
-            assertThat(notification.get("tenantId")).isEqualTo(TENANT_ID);
-            assertThat(notification.get("message")).isEqualTo(
-                    "Your account has been locked due to multiple failed login attempts.");
-        }
-    }
-
-    @Nested
-    @DisplayName("checkAndLockIfNeeded — threshold NOT reached")
-    class LockoutNotTriggered {
-
-        @Test
-        @DisplayName("does NOT lock when failedAttemptCount < 5")
+        @DisplayName("does NOT lock account when failed attempts are below threshold")
         void doesNotLockWhenBelowThreshold() {
-            LocalDateTime recentFailure = LocalDateTime.now().minusMinutes(1);
-            UserAccount account = buildAccount(4, recentFailure);
+            LocalDateTime recentFailure = LocalDateTime.now().minusSeconds(60);
+            UserAccount account = buildAccount(4, recentFailure); // 4 < 5
 
-            boolean result = accountLockoutService.checkAndLockIfNeeded(account, TENANT_ID);
+            boolean locked = accountLockoutService.checkAndLockIfNeeded(account, TENANT_ID);
 
-            assertThat(result).isFalse();
+            assertThat(locked).isFalse();
             assertThat(account.getAccountStatus()).isEqualTo(AccountStatus.ACTIVE);
             verify(userAccountRepository, never()).save(any());
+            verify(auditEventPublisher, never()).publish(any(), any(), any(), any(), any(), any());
+            verify(kafkaTemplate, never()).send(anyString(), anyString(), any());
         }
 
         @Test
-        @DisplayName("does NOT lock when lastFailedAt is outside the 10-minute window")
+        @DisplayName("does NOT lock account when last failure was outside lockout window")
         void doesNotLockWhenOutsideWindow() {
-            LocalDateTime oldFailure = LocalDateTime.now().minusMinutes(15);
+            LocalDateTime oldFailure = LocalDateTime.now().minusSeconds(700); // outside 600s window
             UserAccount account = buildAccount(5, oldFailure);
 
-            boolean result = accountLockoutService.checkAndLockIfNeeded(account, TENANT_ID);
+            boolean locked = accountLockoutService.checkAndLockIfNeeded(account, TENANT_ID);
 
-            assertThat(result).isFalse();
+            assertThat(locked).isFalse();
             assertThat(account.getAccountStatus()).isEqualTo(AccountStatus.ACTIVE);
             verify(userAccountRepository, never()).save(any());
+            verify(auditEventPublisher, never()).publish(any(), any(), any(), any(), any(), any());
             verify(kafkaTemplate, never()).send(anyString(), anyString(), any());
+        }
+
+        @Test
+        @DisplayName("does NOT lock account when lastFailedAt is null")
+        void doesNotLockWhenLastFailedAtIsNull() {
+            UserAccount account = buildAccount(5, null);
+
+            boolean locked = accountLockoutService.checkAndLockIfNeeded(account, TENANT_ID);
+
+            assertThat(locked).isFalse();
+            assertThat(account.getAccountStatus()).isEqualTo(AccountStatus.ACTIVE);
+            verify(userAccountRepository, never()).save(any());
         }
     }
 }

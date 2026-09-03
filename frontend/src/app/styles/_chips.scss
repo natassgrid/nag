@@ -1,0 +1,96 @@
+﻿/* SPDX-License-Identifier: AGPL-3.0-only
+ * National Assessment Grid (NAG) - Open Digital Public Infrastructure (DPI) Platform
+ * Copyright (C) 2025 NAG Contributors
+ */
+
+@mixin chips() {
+  // Difficulty Badges
+  .chip-easy {
+    background-color: #ECFDF5 !important;
+    color: #047857 !important;
+    border: 1px solid #A7F3D0 !important;
+  }
+  .chip-medium {
+    background-color: #FFFBEB !important;
+    color: #B45309 !important;
+    border: 1px solid #FDE68A !important;
+  }
+  .chip-hard {
+    background-color: #FFF1F2 !important;
+    color: #BE123C !important;
+    border: 1px solid #FECDD3 !important;
+  }
+
+  // Workflow State Badges
+  .chip-state-draft {
+    background-color: #F1F5F9 !important;
+    color: #475569 !important;
+    border: 1px solid #E2E8F0 !important;
+  }
+  .chip-state-review {
+    background-color: #EEF2FF !important;
+    color: #4338CA !important;
+    border: 1px solid #C7D2FE !important;
+  }
+  .chip-state-approved {
+    background-color: #ECFDF5 !important;
+    color: #047857 !important;
+    border: 1px solid #A7F3D0 !important;
+  }
+  .chip-state-published {
+    background-color: #EFF6FF !important;
+    color: #1D4ED8 !important;
+    border: 1px solid #BFDBFE !important;
+  }
+  .chip-state-archived {
+    background-color: #F8FAFC !important;
+    color: #94A3B8 !important;
+    border: 1px solid #E2E8F0 !important;
+  }
+
+  // AI & General Validation Badges
+  .validation-badge,
+  .duplicate-badge,
+  .saved-badge {
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 4px !important;
+    font-size: 12px !important;
+    padding: 2px 8px !important;
+    border-radius: 12px !important;
+    font-weight: 500 !important;
+
+    mat-icon {
+      font-size: 14px !important;
+      width: 14px !important;
+      height: 14px !important;
+    }
+  }
+
+  .validation-badge.valid,
+  .saved-badge {
+    color: #047857 !important;
+    background-color: #ECFDF5 !important;
+    border: 1px solid #A7F3D0 !important;
+  }
+
+  .validation-badge.invalid {
+    color: #EF4444 !important;
+    background-color: #FEF2F2 !important;
+    border: 1px solid #FECDD3 !important;
+  }
+
+  .duplicate-badge {
+    color: #B45309 !important;
+    background-color: #FFFBEB !important;
+    border: 1px solid #FDE68A !important;
+  }
+
+  // Job & Exam Status Badges
+  .status-pending { background-color: #FFFBEB !important; color: #B45309 !important; border: 1px solid #FDE68A !important; }
+  .status-processing { background-color: #EEF2FF !important; color: #4338CA !important; border: 1px solid #C7D2FE !important; }
+  .status-completed { background-color: #ECFDF5 !important; color: #047857 !important; border: 1px solid #A7F3D0 !important; }
+  .status-partially_completed { background-color: #FFFBEB !important; color: #B45309 !important; border: 1px solid #FDE68A !important; }
+  .status-failed { background-color: #FEF2F2 !important; color: #EF4444 !important; border: 1px solid #FECDD3 !important; }
+  .status-cancelled { background-color: #F1F5F9 !important; color: #64748B !important; border: 1px solid #E2E8F0 !important; }
+}

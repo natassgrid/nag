@@ -17,18 +17,25 @@
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
 
-import { Component } from '@angular/core';
+import { Component, OnInit, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { MatCardModule } from '@angular/material/card';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
+import { MatSelectModule } from '@angular/material/select';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatTableModule } from '@angular/material/table';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
+import { of } from 'rxjs';
+import { catchError } from 'rxjs/operators';
 import { AnalyticsService, ExamAnalytics } from './analytics.service';
+import {
+  ExamManagementService,
+  ExaminationResponse
+} from '../exam/exam-manage/exam-management.service';
 
 @Component({
   selector: 'app-analytics-dashboard',
@@ -40,6 +47,7 @@ import { AnalyticsService, ExamAnalytics } from './analytics.service';
     MatButtonModule,
     MatIconModule,
     MatInputModule,
+    MatSelectModule,
     MatFormFieldModule,
     MatTableModule,
     MatProgressSpinnerModule,
@@ -49,16 +57,26 @@ import { AnalyticsService, ExamAnalytics } from './analytics.service';
     <div class="analytics-container">
       <h1 class="page-title">Exam Analytics Dashboard</h1>
 
-      <!-- Exam ID Input -->
+      <!-- Exam Dropdown Selector -->
       <mat-card class="search-card">
         <mat-card-content>
           <form (ngSubmit)="loadAnalytics()" class="search-form">
             <mat-form-field appearance="outline" class="exam-input">
-              <mat-label>Exam ID</mat-label>
-              <input matInput [(ngModel)]="examId" name="examId"
-                     placeholder="Enter exam ID" required>
+              <mat-label>Select Examination</mat-label>
+              <mat-select
+                [(ngModel)]="examId"
+                name="examId"
+                (selectionChange)="loadAnalytics()"
+                placeholder="Choose examination..."
+                required
+              >
+                <mat-option *ngFor="let ex of exams" [value]="ex.id">
+                  {{ ex.name }} {{ ex.code ? '(' + ex.code + ')' : '' }}
+                </mat-option>
+              </mat-select>
+              <mat-error *ngIf="!examId">Examination is required</mat-error>
             </mat-form-field>
-            <button mat-raised-button color="primary" type="submit" [disabled]="!examId.trim() || isLoading">
+            <button mat-raised-button color="primary" type="submit" [disabled]="!examId || isLoading">
               <mat-icon>search</mat-icon>
               Load Analytics
             </button>
@@ -127,18 +145,18 @@ import { AnalyticsService, ExamAnalytics } from './analytics.service';
             <mat-card-title>Section Averages</mat-card-title>
           </mat-card-header>
           <mat-card-content>
-            <table mat-table [dataSource]="analytics.sectionAverages" class="section-table"
-                   aria-label="Section average scores">
-              <ng-container matColumnDef="sectionName">
+            <table mat-table [dataSource]=\"analytics.sectionAverages\" class=\"section-table\"
+                   aria-label=\"Section average scores\">
+              <ng-container matColumnDef=\"sectionName\">
                 <th mat-header-cell *matHeaderCellDef>Section</th>
-                <td mat-cell *matCellDef="let row">{{ row.sectionName }}</td>
+                <td mat-cell *matCellDef=\"let row\">{{ row.sectionName }}</td>
               </ng-container>
-              <ng-container matColumnDef="average">
+              <ng-container matColumnDef=\"average\">
                 <th mat-header-cell *matHeaderCellDef>Average Score</th>
-                <td mat-cell *matCellDef="let row">{{ row.average | number:'1.2-2' }}</td>
+                <td mat-cell *matCellDef=\"let row\">{{ row.average | number:'1.2-2' }}</td>
               </ng-container>
-              <tr mat-header-row *matHeaderRowDef="['sectionName', 'average']"></tr>
-              <tr mat-row *matRowDef="let row; columns: ['sectionName', 'average'];"></tr>
+              <tr mat-header-row *matHeaderRowDef=\"['sectionName', 'average']\"></tr>
+              <tr mat-row *matRowDef=\"let row; columns: ['sectionName', 'average'];\"></tr>
             </table>
           </mat-card-content>
         </mat-card>
@@ -178,6 +196,7 @@ import { AnalyticsService, ExamAnalytics } from './analytics.service';
       </ng-container>
     </div>
   `,
+  changeDetection: ChangeDetectionStrategy.Eager,
   styles: [`
     .analytics-container {
       padding: 24px;
@@ -200,7 +219,7 @@ import { AnalyticsService, ExamAnalytics } from './analytics.service';
     }
     .exam-input {
       flex: 1;
-      min-width: 200px;
+      min-width: 280px;
     }
     .loading-container {
       display: flex;
@@ -297,17 +316,34 @@ import { AnalyticsService, ExamAnalytics } from './analytics.service';
     }
   `]
 })
-export class AnalyticsDashboardComponent {
+export class AnalyticsDashboardComponent implements OnInit {
   examId = '';
+  exams: ExaminationResponse[] = [];
   analytics: ExamAnalytics | null = null;
   isLoading = false;
   errorMessage = '';
   private maxCount = 1;
 
-  constructor(private analyticsService: AnalyticsService) {}
+  constructor(
+    private analyticsService: AnalyticsService,
+    private examService: ExamManagementService
+  ) {}
+
+  ngOnInit(): void {
+    this.loadExams();
+  }
+
+  loadExams(): void {
+    this.examService
+      .getExams(0, 100)
+      .pipe(catchError(() => of([])))
+      .subscribe((res) => {
+        this.exams = res;
+      });
+  }
 
   loadAnalytics(): void {
-    if (!this.examId.trim()) return;
+    if (!this.examId) return;
 
     this.isLoading = true;
     this.errorMessage = '';

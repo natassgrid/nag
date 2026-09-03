@@ -17,7 +17,7 @@
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
 
-import { Component, Input, Output, EventEmitter } from '@angular/core';
+import { Component, Input, Output, EventEmitter, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { MatRadioModule } from '@angular/material/radio';
@@ -38,6 +38,7 @@ import { Question } from '../services/exam.service';
     MatInputModule
   ],
   templateUrl: './question-display.component.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrls: ['./question-display.component.scss']
 })
 export class QuestionDisplayComponent {

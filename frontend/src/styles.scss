@@ -7,11 +7,15 @@
 @use '@angular/material' as mat;
 @use 'app/styles/variables' as *;
 @use 'app/styles/palettes' as *;
+@use 'app/styles/tokens' as *;
 @use 'app/styles/scrollbar' as *;
 @use 'app/styles/sidebar' as *;
 @use 'app/styles/header' as *;
 @use 'app/styles/card' as *;
 @use 'app/styles/page-layout';
+@use 'app/styles/buttons' as *;
+@use 'app/styles/chips' as *;
+@use 'app/styles/auth' as *;
 
 // ---------- Material Theme (M2 compat layer) ----------
 
@@ -36,26 +40,30 @@ $ama-theme: mat.m2-define-light-theme((
 
 // ---------- Component-level theme mixins ----------
 
+@include design-tokens();
 @include scrollbar();
 @include header();
 @include mat-card();
 @include sidebar($blue);
+@include buttons();
+@include chips();
+@include auth-theme();
 
 // ---------- Global resets & WCAG baseline ----------
 
 :root {
-  --color-primary: #{$blue};
-  --color-primary-dark: #3d5afe;
+  --color-primary: #{$indigo};
+  --color-primary-dark: #{$indigo-dark};
   --color-accent: #{$yellow};
-  --color-text: #{$dark-grey};
-  --color-text-secondary: #{$grey};
+  --color-text: #{$slate-800};
+  --color-text-secondary: #{$slate-500};
   --color-background: #{$background-color};
   --color-surface: #{$white};
   --color-error: #{$pink};
   --color-success: #{$green};
   --color-warning: #{$yellow};
   --color-border: #{$default};
-  --focus-outline: 3px solid #{$blue};
+  --focus-outline: 2px solid #{$indigo};
   --focus-offset: 2px;
   --spacing-xs: 4px;
   --spacing-sm: 8px;
@@ -217,24 +225,11 @@ input[type="button"],
   }
 }
 
-.filter-toggle-btn,
-button.mat-mdc-raised-button,
-button.mat-mdc-stroked-button,
-button.mat-mdc-flat-button,
-button.mat-mdc-button:not(.mat-mdc-icon-button) {
-  height: 38px !important;
-  min-height: 38px !important;
-  max-height: 38px !important;
-  line-height: 38px !important;
-  display: inline-flex !important;
-  align-items: center !important;
-  justify-content: center !important;
-}
-
 // Toolbar override using theme color
 .mat-toolbar.mat-primary {
-  background: $blue !important;
+  background: $slate-900 !important;
   color: $white !important;
+  border-bottom: 1px solid $slate-800;
 }
 
 // Snackbar variants
@@ -247,6 +242,14 @@ button.mat-mdc-button:not(.mat-mdc-icon-button) {
     --mdc-snackbar-container-color: #{$green};
     --mdc-snackbar-supporting-text-color: white;
   }
+  &.warning-snackbar {
+    --mdc-snackbar-container-color: #{$yellow};
+    --mdc-snackbar-supporting-text-color: #0F172A;
+  }
+  &.info-snackbar {
+    --mdc-snackbar-container-color: #{$indigo};
+    --mdc-snackbar-supporting-text-color: white;
+  }
 }
 
 // Responsive baseline
@@ -255,4 +258,3 @@ button.mat-mdc-button:not(.mat-mdc-icon-button) {
     overflow-x: hidden;
   }
 }
-

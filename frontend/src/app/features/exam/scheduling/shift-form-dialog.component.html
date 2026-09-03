@@ -1,85 +1,125 @@
-    <h2 mat-dialog-title>{{ data.shift ? 'Edit Shift' : 'Add Shift' }}</h2>
-    <mat-dialog-content>
-      <form [formGroup]="form" class="dialog-form">
-        <div class="form-row">
-          <mat-form-field appearance="outline">
-            <mat-label>Shift Number</mat-label>
-            <input matInput type="number" formControlName="shiftNumber" min="1" />
-            <mat-error *ngIf="form.get('shiftNumber')?.hasError('required')">Required</mat-error>
-            <mat-error *ngIf="form.get('shiftNumber')?.hasError('min')">Min 1</mat-error>
-          </mat-form-field>
-          <mat-form-field appearance="outline">
-            <mat-label>Shift Name</mat-label>
-            <input matInput formControlName="shiftName" placeholder="Morning / Afternoon / Evening" />
-          </mat-form-field>
-        </div>
+<app-right-drawer
+  [isOpen]="isOpen"
+  [title]="shift ? 'Edit Shift' : 'Add Shift'"
+  [subtitle]="shift ? 'Modify timings, duration, and buffer periods for this shift.' : 'Configure reporting, gate closing, exam start/end times, and duration.'"
+  [width]="width"
+  (close)="cancel()"
+>
+  <div drawer-body>
+    <!-- Error banner if save fails -->
+    <div class="error-banner" *ngIf="saveError">
+      <mat-icon>error_outline</mat-icon>
+      <span>{{ saveError }}</span>
+    </div>
 
-        <div class="form-row">
-          <mat-form-field appearance="outline">
-            <mat-label>Reporting Time</mat-label>
-            <input matInput type="time" formControlName="reportingTime" />
-            <mat-error *ngIf="form.get('reportingTime')?.hasError('required')">Required</mat-error>
-          </mat-form-field>
-          <mat-form-field appearance="outline">
-            <mat-label>Gate Closing Time</mat-label>
-            <input matInput type="time" formControlName="gateClosingTime" />
-            <mat-error *ngIf="form.get('gateClosingTime')?.hasError('required')">Required</mat-error>
-          </mat-form-field>
-        </div>
+    <form [formGroup]="form" class="drawer-form" autocomplete="off">
+      <div class="section-title">Shift Identification</div>
 
-        <div class="form-row">
-          <mat-form-field appearance="outline">
-            <mat-label>Login Start Time</mat-label>
-            <input matInput type="time" formControlName="loginStartTime" />
-            <mat-error *ngIf="form.get('loginStartTime')?.hasError('required')">Required</mat-error>
-          </mat-form-field>
-          <mat-form-field appearance="outline">
-            <mat-label>Exam Start Time</mat-label>
-            <input matInput type="time" formControlName="examStartTime" />
-            <mat-error *ngIf="form.get('examStartTime')?.hasError('required')">Required</mat-error>
-          </mat-form-field>
-        </div>
+      <div class="form-row">
+        <mat-form-field appearance="outline" class="flex-1">
+          <mat-label>Shift Number</mat-label>
+          <input matInput type="number" formControlName="shiftNumber" min="1" placeholder="e.g. 1" />
+          <mat-error *ngIf="form.get('shiftNumber')?.hasError('required')">Shift number is required</mat-error>
+          <mat-error *ngIf="form.get('shiftNumber')?.hasError('min')">Minimum value is 1</mat-error>
+        </mat-form-field>
 
-        <div class="form-row">
-          <mat-form-field appearance="outline">
-            <mat-label>Exam End Time</mat-label>
-            <input matInput type="time" formControlName="examEndTime" />
-            <mat-error *ngIf="form.get('examEndTime')?.hasError('required')">Required</mat-error>
-          </mat-form-field>
-          <mat-form-field appearance="outline">
-            <mat-label>Exit Time</mat-label>
-            <input matInput type="time" formControlName="exitTime" />
-            <mat-hint>Optional</mat-hint>
-          </mat-form-field>
-        </div>
+        <mat-form-field appearance="outline" class="flex-2">
+          <mat-label>Shift Name (Optional)</mat-label>
+          <input matInput formControlName="shiftName" placeholder="Morning / Afternoon / Slot 1" />
+        </mat-form-field>
+      </div>
 
-        <div class="form-row">
-          <mat-form-field appearance="outline">
-            <mat-label>Duration (minutes)</mat-label>
-            <input matInput type="number" formControlName="durationMinutes" min="1" />
-            <mat-hint>Auto-computed from Start/End</mat-hint>
-            <mat-error *ngIf="form.get('durationMinutes')?.hasError('required')">Required</mat-error>
-          </mat-form-field>
-          <mat-form-field appearance="outline">
-            <mat-label>Buffer Minutes</mat-label>
-            <input matInput type="number" formControlName="bufferMinutes" min="0" />
-            <mat-hint>Gap before next shift</mat-hint>
-          </mat-form-field>
-        </div>
+      <mat-divider class="form-divider"></mat-divider>
+      <div class="section-title">Schedule Timings</div>
 
-        <!-- Timing validation errors -->
-        <div class="validation-errors" *ngIf="timingErrors.length > 0">
-          <div class="timing-error" *ngFor="let err of timingErrors">
-            <mat-icon>warning</mat-icon> {{ err }}
-          </div>
+      <div class="form-row">
+        <mat-form-field appearance="outline" class="flex-1">
+          <mat-label>Reporting Time</mat-label>
+          <input matInput type="time" formControlName="reportingTime" />
+          <mat-icon matSuffix>schedule</mat-icon>
+          <mat-error *ngIf="form.get('reportingTime')?.hasError('required')">Required</mat-error>
+        </mat-form-field>
+
+        <mat-form-field appearance="outline" class="flex-1">
+          <mat-label>Gate Closing Time</mat-label>
+          <input matInput type="time" formControlName="gateClosingTime" />
+          <mat-icon matSuffix>door_back</mat-icon>
+          <mat-error *ngIf="form.get('gateClosingTime')?.hasError('required')">Required</mat-error>
+        </mat-form-field>
+      </div>
+
+      <div class="form-row">
+        <mat-form-field appearance="outline" class="flex-1">
+          <mat-label>Login Start Time</mat-label>
+          <input matInput type="time" formControlName="loginStartTime" />
+          <mat-icon matSuffix>login</mat-icon>
+          <mat-error *ngIf="form.get('loginStartTime')?.hasError('required')">Required</mat-error>
+        </mat-form-field>
+
+        <mat-form-field appearance="outline" class="flex-1">
+          <mat-label>Exam Start Time</mat-label>
+          <input matInput type="time" formControlName="examStartTime" />
+          <mat-icon matSuffix>play_arrow</mat-icon>
+          <mat-error *ngIf="form.get('examStartTime')?.hasError('required')">Required</mat-error>
+        </mat-form-field>
+      </div>
+
+      <div class="form-row">
+        <mat-form-field appearance="outline" class="flex-1">
+          <mat-label>Exam End Time</mat-label>
+          <input matInput type="time" formControlName="examEndTime" />
+          <mat-icon matSuffix>stop</mat-icon>
+          <mat-error *ngIf="form.get('examEndTime')?.hasError('required')">Required</mat-error>
+        </mat-form-field>
+
+        <mat-form-field appearance="outline" class="flex-1">
+          <mat-label>Exit Time (Optional)</mat-label>
+          <input matInput type="time" formControlName="exitTime" />
+          <mat-icon matSuffix>logout</mat-icon>
+        </mat-form-field>
+      </div>
+
+      <mat-divider class="form-divider"></mat-divider>
+      <div class="section-title">Duration & Buffer</div>
+
+      <div class="form-row">
+        <mat-form-field appearance="outline" class="flex-1">
+          <mat-label>Duration (minutes)</mat-label>
+          <input matInput type="number" formControlName="durationMinutes" min="1" />
+          <mat-hint>Auto-computed from Start / End</mat-hint>
+          <mat-error *ngIf="form.get('durationMinutes')?.hasError('required')">Required</mat-error>
+        </mat-form-field>
+
+        <mat-form-field appearance="outline" class="flex-1">
+          <mat-label>Buffer Minutes</mat-label>
+          <input matInput type="number" formControlName="bufferMinutes" min="0" />
+          <mat-hint>Gap before next shift</mat-hint>
+        </mat-form-field>
+      </div>
+
+      <!-- Timing sequence validation errors -->
+      <div class="validation-errors" *ngIf="timingErrors.length > 0">
+        <div class="timing-error" *ngFor="let err of timingErrors">
+          <mat-icon>warning</mat-icon>
+          <span>{{ err }}</span>
         </div>
-      </form>
-    </mat-dialog-content>
-    <mat-dialog-actions align="end">
-      <button mat-button mat-dialog-close>Cancel</button>
-      <button mat-raised-button color="primary"
-              [disabled]="form.invalid || timingErrors.length > 0"
-              (click)="save()">
-        {{ data.shift ? 'Update' : 'Add' }}
-      </button>
-    </mat-dialog-actions>
+      </div>
+    </form>
+  </div>
+
+  <div drawer-footer class="drawer-footer-actions">
+    <button mat-button class="footer-btn btn-cancel" type="button" [disabled]="saving" (click)="cancel()">Cancel</button>
+    <button
+      mat-flat-button
+      color="primary"
+      type="button"
+      class="footer-btn btn-primary"
+      [disabled]="form.invalid || timingErrors.length > 0 || saving"
+      (click)="save()"
+    >
+      <mat-spinner diameter="18" *ngIf="saving"></mat-spinner>
+      <mat-icon class="footer-btn-icon" *ngIf="!saving">{{ shift ? 'save' : 'add' }}</mat-icon>
+      {{ shift ? 'Update Shift' : 'Add Shift' }}
+    </button>
+  </div>
+</app-right-drawer>

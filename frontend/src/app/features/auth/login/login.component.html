@@ -1,0 +1,138 @@
+<!--
+  SPDX-License-Identifier: AGPL-3.0-only
+  National Assessment Grid (NAG) - Open Digital Public Infrastructure (DPI) Platform
+  Copyright (C) 2025 NAG Contributors
+-->
+
+<main class="login-container" role="main" aria-labelledby="login-heading">
+  <div class="login-wrapper">
+    <!-- Candidate-style NAG Logo -->
+    <div class="brand-header">
+      <div class="brand-badge-container">
+        <div class="brand-icon-box">
+          <mat-icon class="brand-icon" aria-hidden="true">menu_book</mat-icon>
+        </div>
+        <div class="brand-text">
+          <h1 class="brand-title">NAG</h1>
+          <p class="brand-subtitle">National Assessment Grid</p>
+        </div>
+      </div>
+      <p class="portal-tag">Administration Portal</p>
+    </div>
+
+    <!-- Glassmorphic Card -->
+    <div class="login-card">
+      <h2 id="login-heading" class="card-title">{{ mfaRequired ? 'Multi-Factor Verification' : 'Sign in to your account' }}</h2>
+
+      <!-- Step-up / MFA Banner -->
+      <div *ngIf="mfaRequired" class="mfa-banner" style="background: rgba(30, 64, 175, 0.1); border: 1px solid rgba(59, 130, 246, 0.3); border-radius: 8px; padding: 12px 16px; margin-bottom: 20px; display: flex; align-items: center; gap: 12px;">
+        <mat-icon style="color: #3b82f6;">security</mat-icon>
+        <p style="margin: 0; font-size: 0.875rem; color: #1e3a8a; line-height: 1.4;">
+          {{ mfaPromptMessage || 'Enter the 6-digit OTP code to complete authentication.' }}
+        </p>
+      </div>
+
+      <form [formGroup]="loginForm" (ngSubmit)="onSubmit()" aria-label="Login form" class="login-form">
+        <div class="form-group" [style.display]="mfaRequired ? 'none' : 'block'">
+          <label class="input-label" for="username-input">Email or Mobile Number</label>
+          <input
+            id="username-input"
+            formControlName="username"
+            type="text"
+            autocomplete="username"
+            placeholder="you@example.com or 9876543210"
+            aria-required="true"
+            [attr.aria-invalid]="loginForm.get('username')?.invalid && loginForm.get('username')?.touched"
+            class="candidate-input"
+            [class.has-error]="loginForm.get('username')?.invalid && loginForm.get('username')?.touched"
+          />
+          <p class="input-error" *ngIf="loginForm.get('username')?.invalid && loginForm.get('username')?.touched">
+            Username or email is required
+          </p>
+        </div>
+
+        <div class="form-group" [style.display]="mfaRequired ? 'none' : 'block'">
+          <label class="input-label" for="password-input">Password</label>
+          <div class="password-input-wrapper">
+            <input
+              id="password-input"
+              formControlName="password"
+              [type]="hidePassword ? 'password' : 'text'"
+              autocomplete="current-password"
+              placeholder="••••••••"
+              aria-required="true"
+              [attr.aria-invalid]="loginForm.get('password')?.invalid && loginForm.get('password')?.touched"
+              class="candidate-input password-input"
+              [class.has-error]="loginForm.get('password')?.invalid && loginForm.get('password')?.touched"
+            />
+            <button
+              type="button"
+              (click)="hidePassword = !hidePassword"
+              class="password-toggle-btn"
+              [attr.aria-label]="hidePassword ? 'Show password' : 'Hide password'"
+            >
+              <mat-icon class="toggle-icon">{{ hidePassword ? 'visibility_off' : 'visibility' }}</mat-icon>
+            </button>
+          </div>
+          <p class="input-error" *ngIf="loginForm.get('password')?.invalid && loginForm.get('password')?.touched">
+            Password is required
+          </p>
+        </div>
+
+        <!-- OTP Input (shown when MFA or step-up authentication is triggered) -->
+        <div *ngIf="mfaRequired" class="form-group">
+          <label class="input-label" for="otp-input">6-Digit Verification Code (OTP)</label>
+          <input
+            id="otp-input"
+            formControlName="otpCode"
+            type="text"
+            inputmode="numeric"
+            maxlength="6"
+            autocomplete="one-time-code"
+            placeholder="e.g. 123456"
+            aria-required="true"
+            [attr.aria-invalid]="loginForm.get('otpCode')?.invalid && loginForm.get('otpCode')?.touched"
+            class="candidate-input"
+            style="letter-spacing: 4px; font-size: 1.25rem; font-weight: 600; text-align: center;"
+            [class.has-error]="loginForm.get('otpCode')?.invalid && loginForm.get('otpCode')?.touched"
+          />
+          <p class="input-error" *ngIf="loginForm.get('otpCode')?.invalid && loginForm.get('otpCode')?.touched">
+            Please enter a valid 6-digit numeric OTP
+          </p>
+        </div>
+
+        <button
+          mat-flat-button
+          color="primary"
+          type="submit"
+          class="login-button"
+          [disabled]="isLoading"
+          aria-label="Sign in to your account"
+        >
+          <mat-spinner *ngIf="isLoading" diameter="20" class="button-spinner"></mat-spinner>
+          <span *ngIf="!isLoading" class="btn-content">
+            <mat-icon class="btn-icon">{{ mfaRequired ? 'verified_user' : 'login' }}</mat-icon>
+            {{ mfaRequired ? 'Verify & Sign In' : 'Sign In' }}
+          </span>
+        </button>
+
+        <button
+          *ngIf="mfaRequired"
+          type="button"
+          (click)="resetMfa()"
+          mat-button
+          style="margin-top: 8px; width: 100%; color: #64748b;"
+        >
+          Back to Login
+        </button>
+      </form>
+
+      <div *ngIf="!mfaRequired" class="auth-links">
+        <span class="auth-hint">Don't have an account?</span>
+        <a [routerLink]="['/auth/register']" class="register-link" aria-label="Register here">
+          Register here
+        </a>
+      </div>
+    </div>
+  </div>
+</main>

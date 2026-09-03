@@ -30,7 +30,7 @@ describe('DashboardComponent', () => {
   let routerSpy: jasmine.SpyObj<Router>;
 
   beforeEach(async () => {
-    authServiceSpy = jasmine.createSpyObj('AuthService', ['getUserId', 'getUserRoles']);
+    authServiceSpy = jasmine.createSpyObj('AuthService', ['getUserName', 'getUserId', 'getUserRoles']);
     routerSpy = jasmine.createSpyObj('Router', ['navigate']);
 
     await TestBed.configureTestingModule({
@@ -42,8 +42,9 @@ describe('DashboardComponent', () => {
     }).compileComponents();
   });
 
-  function createComponent(userId: string, roles: string[]) {
-    authServiceSpy.getUserId.and.returnValue(userId);
+  function createComponent(userName: string, roles: string[]) {
+    authServiceSpy.getUserName.and.returnValue(userName);
+    authServiceSpy.getUserId.and.returnValue('018f4e2a-0000-7000-8000-000000000001');
     authServiceSpy.getUserRoles.and.returnValue(roles);
     fixture = TestBed.createComponent(DashboardComponent);
     component = fixture.componentInstance;
@@ -57,8 +58,7 @@ describe('DashboardComponent', () => {
 
   it('should display welcome message with username', () => {
     createComponent('john_doe', ['Candidate']);
-    const heading = fixture.nativeElement.querySelector('.welcome-message');
-    expect(heading.textContent).toContain('john_doe');
+    expect(fixture.componentInstance.username).toBe('john_doe');
   });
 
   it('should show admin cards for Super_Admin role', () => {

@@ -89,6 +89,30 @@ export interface UpdateRoleRequest {
   permissionIds?: string[];
 }
 
+export interface AuditEventResponse {
+  id: string;
+  eventType: string;
+  principal: string;
+  ipAddress: string;
+  action: string;
+  resourceId?: string;
+  severity: 'INFO' | 'WARN' | 'ERROR' | 'CRITICAL';
+  status: 'SUCCESS' | 'FAILURE';
+  details?: Record<string, any>;
+  timestamp: string;
+}
+
+export interface SystemConfigItem {
+  id: string;
+  paramName: string;
+  paramValue: string;
+  tenantId: string;
+  updatedBy?: string;
+  updatedAtConfig: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface PaginatedPage<T> {
   content: T[];
   totalElements: number;
@@ -107,6 +131,8 @@ interface ApiResponse<T> {
 @Injectable({ providedIn: 'root' })
 export class AdminService {
   private readonly baseUrl = '/api/v1/identity';
+  private readonly auditUrl = '/api/v1/audit';
+  private readonly configUrl = '/api/v1/admin/config';
 
   constructor(private http: HttpClient) {}
 
@@ -171,9 +197,9 @@ export class AdminService {
   }
 
   deleteRoleDefinition(roleId: string): Observable<void> {
-    return this.http.delete<ApiResponse<void>>(
-      `${this.baseUrl}/roles/definitions/${roleId}`
-    ).pipe(map(() => undefined));
+    return this.http.delete<ApiResponse<void>>(`${this.baseUrl}/roles/definitions/${roleId}`).pipe(
+      map(() => undefined)
+    );
   }
 
   getPermissions(page: number, size: number, search: string): Observable<PaginatedPage<PermissionResponse>> {
@@ -181,5 +207,54 @@ export class AdminService {
       `${this.baseUrl}/roles/permissions`,
       { params: { page: page.toString(), size: size.toString(), search } }
     ).pipe(map(response => response.data));
+  }
+
+  getAllPermissions(): Observable<PermissionResponse[]> {
+    return this.http.get<ApiResponse<PaginatedPage<PermissionResponse>>>(
+      `${this.baseUrl}/roles/permissions`,
+      { params: { page: '0', size: '200', search: '' } }
+    ).pipe(map(response => response.data?.content || []));
+  }
+
+  // ===================================================================
+  // System Configurations & Settings
+  // ===================================================================
+
+  getSystemConfigs(): Observable<SystemConfigItem[]> {
+    return this.http.get<SystemConfigItem[]>(this.configUrl);
+  }
+
+  getSystemConfigMap(): Observable<Record<string, string>> {
+    return this.http.get<Record<string, string>>(`${this.configUrl}/map`);
+  }
+
+  updateSystemConfig(paramName: string, paramValue: string): Observable<SystemConfigItem> {
+    return this.http.put<SystemConfigItem>(this.configUrl, { paramName, paramValue });
+  }
+
+  updateBulkSystemConfigs(configs: Record<string, string>): Observable<Record<string, string>> {
+    return this.http.put<Record<string, string>>(`${this.configUrl}/bulk`, { configs });
+  }
+
+  resetSystemConfigs(): Observable<Record<string, string>> {
+    return this.http.post<Record<string, string>>(`${this.configUrl}/reset`, {});
+  }
+
+  // ===================================================================
+  // Audit Logs
+  // ===================================================================
+
+  getAuditEvents(page = 0, size = 100, search = ''): Observable<AuditEventResponse[]> {
+    return this.http.get<ApiResponse<AuditEventResponse[]> | AuditEventResponse[]>(
+      `${this.auditUrl}/events`,
+      { params: { page: page.toString(), size: size.toString(), search } }
+    ).pipe(
+      map(response => {
+        if (Array.isArray(response)) {
+          return response;
+        }
+        return (response as ApiResponse<AuditEventResponse[]>).data || [];
+      })
+    );
   }
 }

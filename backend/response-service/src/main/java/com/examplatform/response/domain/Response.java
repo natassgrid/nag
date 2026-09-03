@@ -28,6 +28,8 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 import java.time.Instant;
 import java.util.UUID;
@@ -71,6 +73,7 @@ public class Response extends BaseEntity {
      * JSON array of selected option IDs (for MCQ/MRQ questions).
      * Stored as JSONB in PostgreSQL.
      */
+    @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "selected_option_ids", columnDefinition = "jsonb")
     private String selectedOptionIds;
 

@@ -1,141 +1,548 @@
-    <div class="page-layout" role="main" aria-labelledby="role-mgmt-heading">
-      <app-page-header
-        title="Role Management"
-        subtitle="Create, edit, and manage platform roles and their permissions."
-        icon="admin_panel_settings"
-      >
-        <button mat-raised-button color="primary" (click)="openCreateDrawer()" aria-label="Create a new role">
-          <mat-icon>add</mat-icon>
-          Create Role
-        </button>
-      </app-page-header>
+<!--
+  SPDX-License-Identifier: AGPL-3.0-only
+  National Assessment Grid (NAG) - Open Digital Public Infrastructure (DPI) Platform
+  Copyright (C) 2025 NAG Contributors
+-->
 
-      <!-- Reusable Paginated Table -->
-      <app-paginated-table
-        #paginatedTable
-        title="Roles"
-        [fetcher]="fetcher"
-        [columns]="columns"
-        [filterCategories]="filterCategories"
-        (filterChange)="onFilterChange($event)"
-        [actionsTemplate]="actionsTmpl"
-        searchPlaceholder="Search by name, code, or description..."
-      ></app-paginated-table>
+<div class="page-layout" role="main" aria-labelledby="role-mgmt-heading">
+  <app-page-header
+    title="Role & Permission Management"
+    subtitle="Configure platform roles, inspect granular permissions, and manage access control matrices."
+    icon="admin_panel_settings"
+  >
+    <button mat-raised-button color="primary" (click)="openCreateDrawer()" aria-label="Create a new role">
+      <mat-icon>add</mat-icon>
+      Create Custom Role
+    </button>
+  </app-page-header>
 
-      <!-- Status Column Custom Template -->
-      <ng-template #statusTmpl let-role>
-        <span class="status-badge" [class.active]="role?.active" [class.inactive]="!role?.active">
-          {{ role?.active ? 'Active' : 'Inactive' }}
-        </span>
+  <!-- Navigation Tabs: Roles / Permissions / Matrix -->
+  <mat-tab-group
+    [selectedIndex]="activeTab()"
+    (selectedIndexChange)="activeTab.set($event)"
+    class="role-tabs"
+    animationDuration="200ms"
+  >
+    <!-- ═══════════ TAB 1: ROLE DEFINITIONS ═══════════ -->
+    <mat-tab>
+      <ng-template mat-tab-label>
+        <mat-icon class="tab-icon">security</mat-icon>
+        <span>Role Definitions</span>
       </ng-template>
 
-      <!-- Permissions Column Custom Template -->
-      <ng-template #permsTmpl let-role>
-        <mat-chip-set aria-label="Role permissions">
-          <mat-chip *ngFor="let perm of (role?.permissions || []).slice(0, 3)" class="perm-chip">
-            {{ perm.name }}
-          </mat-chip>
-          <mat-chip *ngIf="(role?.permissions || []).length > 3" class="perm-chip more-chip">
-            +{{ role.permissions.length - 3 }} more
-          </mat-chip>
-        </mat-chip-set>
-        <span *ngIf="!role?.permissions?.length" class="no-perms">No permissions</span>
+      <div class="tab-content-area">
+        <app-paginated-table
+          #paginatedTable
+          title="Roles"
+          [fetcher]="fetcher"
+          [columns]="columns"
+          [filterCategories]="filterCategories"
+          (filterChange)="onFilterChange($event)"
+          [actionsTemplate]="actionsTmpl"
+          searchPlaceholder="Search by role name, code, or description..."
+        ></app-paginated-table>
+      </div>
+    </mat-tab>
+
+    <!-- ═══════════ TAB 2: PERMISSIONS REGISTRY ═══════════ -->
+    <mat-tab>
+      <ng-template mat-tab-label>
+        <mat-icon class="tab-icon">vpn_key</mat-icon>
+        <span>Permissions Registry</span>
       </ng-template>
 
-      <!-- Actions Column Template -->
-      <ng-template #actionsTmpl let-role>
-        <button mat-icon-button [matMenuTriggerFor]="actionMenu" aria-label="Role actions menu">
-          <mat-icon>more_vert</mat-icon>
-        </button>
-        <mat-menu #actionMenu="matMenu">
-          <button mat-menu-item (click)="openEditDrawer(role)">
-            <mat-icon>edit</mat-icon>
-            <span>Edit Role</span>
-          </button>
-          <button mat-menu-item (click)="toggleActive(role)" *ngIf="!role.systemRole">
-            <mat-icon>{{ role.active ? 'toggle_off' : 'toggle_on' }}</mat-icon>
-            <span>{{ role.active ? 'Deactivate' : 'Activate' }}</span>
-          </button>
-          <button mat-menu-item (click)="deleteRole(role)" [disabled]="role.systemRole">
-            <mat-icon color="warn">delete</mat-icon>
-            <span>Delete Role</span>
-          </button>
-        </mat-menu>
+      <div class="tab-content-area">
+        <app-paginated-table
+          #permTable
+          title="Platform Permissions"
+          [fetcher]="permFetcher"
+          [columns]="permColumns"
+          [filterCategories]="permFilterCategories"
+          searchPlaceholder="Search permissions by code, name, or description..."
+        ></app-paginated-table>
+      </div>
+    </mat-tab>
+
+    <!-- ═══════════ TAB 3: ROLE-PERMISSION MATRIX ═══════════ -->
+    <mat-tab>
+      <ng-template mat-tab-label>
+        <mat-icon class="tab-icon">grid_on</mat-icon>
+        <span>Access Matrix</span>
       </ng-template>
 
-      <!-- ── RIGHT COLLAPSIBLE DRAWER: CREATE ROLE ── -->
-      <app-right-drawer
-        [isOpen]="createDrawerOpen"
-        title="Create New Role"
-        subtitle="Define a new platform role with a unique code and description."
-        (close)="createDrawerOpen = false"
-      >
-        <div drawer-body class="drawer-form-container">
-          <mat-form-field appearance="outline" class="full-width">
-            <mat-label>Role Name</mat-label>
-            <input matInput [(ngModel)]="newName" placeholder="e.g. Regional Admin" required />
-          </mat-form-field>
+      <div class="tab-content-area">
+        <div class="matrix-card">
+          <div class="matrix-header">
+            <div>
+              <h3 class="matrix-title">Role-Permission Access Matrix</h3>
+              <p class="matrix-subtitle">Visual overview of all system and custom roles mapped against platform permissions.</p>
+            </div>
+            <div class="matrix-legend">
+              <span class="legend-item"><mat-icon class="legend-icon granted">check_circle</mat-icon> Granted</span>
+              <span class="legend-item"><mat-icon class="legend-icon not-granted">remove</mat-icon> Not Granted</span>
+            </div>
+          </div>
 
-          <mat-form-field appearance="outline" class="full-width">
-            <mat-label>Role Code</mat-label>
-            <input matInput [(ngModel)]="newCode" placeholder="e.g. REGIONAL_ADMIN" required />
-            <mat-hint>Uppercase letters, numbers, and underscores only</mat-hint>
-          </mat-form-field>
+          <div class="matrix-scroll-wrapper">
+            <table class="matrix-table" aria-label="Role Permission Matrix">
+              <thead>
+                <tr>
+                  <th class="perm-col-header">Module & Permission</th>
+                  <th *ngFor="let role of allRoles()" class="role-col-header" [class.system-header]="role.systemRole">
+                    <div class="role-header-content">
+                      <span class="role-header-name">{{ role.name }}</span>
+                      <span class="role-header-badge" [class.sys-badge]="role.systemRole">
+                        {{ role.systemRole ? 'System' : 'Custom' }}
+                      </span>
+                    </div>
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                <ng-container *ngFor="let group of groupedPermissions()">
+                  <!-- Module Group Header Row -->
+                  <tr class="module-group-row">
+                    <td [attr.colspan]="allRoles().length + 1">
+                      <div class="module-group-header">
+                        <mat-icon class="module-group-icon">{{ group.moduleIcon }}</mat-icon>
+                        <span class="module-group-title">{{ group.moduleLabel }}</span>
+                        <span class="module-perm-count">({{ group.permissions.length }} permissions)</span>
+                      </div>
+                    </td>
+                  </tr>
 
-          <mat-form-field appearance="outline" class="full-width">
-            <mat-label>Description</mat-label>
-            <textarea matInput [(ngModel)]="newDescription" rows="3"
-                      placeholder="Describe what this role can do..."></textarea>
-          </mat-form-field>
+                  <!-- Permission Row -->
+                  <tr *ngFor="let perm of group.permissions" class="perm-row">
+                    <td class="perm-name-cell">
+                      <div class="perm-info">
+                        <span class="perm-name-text">{{ perm.name }}</span>
+                        <code class="perm-code-text">{{ perm.code }}</code>
+                      </div>
+                      <span class="perm-desc-text" *ngIf="perm.description">{{ perm.description }}</span>
+                    </td>
+                    <td *ngFor="let role of allRoles()" class="matrix-cell">
+                      <mat-icon
+                        *ngIf="hasPermission(role, perm.code)"
+                        class="cell-icon granted"
+                        [matTooltip]="role.name + ' has permission ' + perm.code"
+                      >
+                        check_circle
+                      </mat-icon>
+                      <mat-icon
+                        *ngIf="!hasPermission(role, perm.code)"
+                        class="cell-icon not-granted"
+                      >
+                        remove
+                      </mat-icon>
+                    </td>
+                  </tr>
+                </ng-container>
+              </tbody>
+            </table>
+          </div>
         </div>
+      </div>
+    </mat-tab>
+  </mat-tab-group>
 
-        <div drawer-footer>
-          <button mat-button (click)="createDrawerOpen = false">Cancel</button>
-          <button mat-raised-button color="primary"
-                  [disabled]="!newName || !newCode || saving"
-                  (click)="saveNewRole()">
-            Create Role
-          </button>
-        </div>
-      </app-right-drawer>
+  <!-- ═══════════ TABLE COLUMN TEMPLATES ═══════════ -->
 
-      <!-- ── RIGHT COLLAPSIBLE DRAWER: EDIT ROLE ── -->
-      <app-right-drawer
-        [isOpen]="editDrawerOpen"
-        [title]="'Edit Role: ' + (editingRole?.name || '')"
-        subtitle="Update role name, description, or status."
-        (close)="editDrawerOpen = false"
-      >
-        <div drawer-body class="drawer-form-container">
-          <mat-form-field appearance="outline" class="full-width">
-            <mat-label>Role Code</mat-label>
-            <input matInput [value]="editingRole?.code || ''" disabled />
-            <mat-hint>Role code cannot be changed</mat-hint>
-          </mat-form-field>
+  <!-- Status Column Template -->
+  <ng-template #statusTmpl let-role>
+    <app-status-badge
+      [variant]="role?.active ? 'success' : 'neutral'"
+      [label]="role?.active ? 'Active' : 'Inactive'"
+    ></app-status-badge>
+  </ng-template>
 
-          <mat-form-field appearance="outline" class="full-width">
-            <mat-label>Role Name</mat-label>
-            <input matInput [(ngModel)]="editName" required />
-          </mat-form-field>
+  <!-- Permissions Column Template -->
+  <ng-template #permsTmpl let-role>
+    <div class="perms-summary-wrapper">
+      <mat-chip-set aria-label="Role permissions">
+        <mat-chip *ngFor="let perm of (role?.permissions || []).slice(0, 3)" class="perm-chip">
+          {{ perm.name }}
+        </mat-chip>
+        <mat-chip *ngIf="(role?.permissions || []).length > 3" class="perm-chip more-chip" (click)="openViewDrawer(role)">
+          +{{ role.permissions.length - 3 }} more
+        </mat-chip>
+      </mat-chip-set>
+      <span *ngIf="!role?.permissions?.length" class="no-perms">No permissions assigned</span>
+    </div>
+  </ng-template>
 
-          <mat-form-field appearance="outline" class="full-width">
-            <mat-label>Description</mat-label>
-            <textarea matInput [(ngModel)]="editDescription" rows="3"></textarea>
-          </mat-form-field>
+  <!-- Module Badge Column Template (Permissions Tab) -->
+  <ng-template #permModuleTmpl let-perm>
+    <span class="module-badge" [attr.data-module]="perm.module">
+      {{ formatModuleLabel(perm.module) }}
+    </span>
+  </ng-template>
 
-          <div class="toggle-field">
-            <mat-slide-toggle [(ngModel)]="editActive" color="primary">
-              Active
-            </mat-slide-toggle>
+  <!-- Actions Column Template -->
+  <ng-template #actionsTmpl let-role>
+    <button mat-icon-button [matMenuTriggerFor]="actionMenu" aria-label="Role actions menu">
+      <mat-icon>more_vert</mat-icon>
+    </button>
+    <mat-menu #actionMenu="matMenu">
+      <button mat-menu-item (click)="openViewDrawer(role)">
+        <mat-icon>visibility</mat-icon>
+        <span>View Details & Permissions</span>
+      </button>
+      <button mat-menu-item (click)="openEditDrawer(role)">
+        <mat-icon>edit</mat-icon>
+        <span>Edit Role & Permissions</span>
+      </button>
+      <button mat-menu-item (click)="toggleActive(role)" *ngIf="!role.systemRole">
+        <mat-icon>{{ role.active ? 'toggle_off' : 'toggle_on' }}</mat-icon>
+        <span>{{ role.active ? 'Deactivate' : 'Activate' }}</span>
+      </button>
+      <button mat-menu-item (click)="deleteRole(role)" [disabled]="role.systemRole">
+        <mat-icon color="warn">delete</mat-icon>
+        <span>Delete Role</span>
+      </button>
+    </mat-menu>
+  </ng-template>
+
+  <!-- ═══════════ RIGHT DRAWER: CREATE ROLE ═══════════ -->
+  <app-right-drawer
+    [isOpen]="createDrawerOpen()"
+    title="Create Custom Role"
+    subtitle="Define a custom role and assign module permissions."
+    width="580px"
+    (close)="createDrawerOpen.set(false)"
+  >
+    <div drawer-body class="drawer-form-container">
+      <div class="form-section">
+        <h4 class="section-heading">Role Details</h4>
+        <mat-form-field appearance="outline" class="full-width">
+          <mat-label>Role Name</mat-label>
+          <input matInput [ngModel]="newName()" (ngModelChange)="newName.set($event)" placeholder="e.g. Assessment Evaluator" required />
+        </mat-form-field>
+
+        <mat-form-field appearance="outline" class="full-width">
+          <mat-label>Role Code</mat-label>
+          <input matInput [ngModel]="newCode()" (ngModelChange)="newCode.set($event.toUpperCase())" placeholder="e.g. EVALUATOR_LEAD" required />
+          <mat-hint>Uppercase letters, numbers, and underscores only</mat-hint>
+        </mat-form-field>
+
+        <mat-form-field appearance="outline" class="full-width">
+          <mat-label>Description</mat-label>
+          <textarea matInput [ngModel]="newDescription()" (ngModelChange)="newDescription.set($event)" rows="2"
+                    placeholder="Describe the responsibilities and scope of this role..."></textarea>
+        </mat-form-field>
+      </div>
+
+      <mat-divider></mat-divider>
+
+      <!-- Permission Assignment Section -->
+      <div class="form-section">
+        <div class="section-header-with-badge">
+          <div class="section-header-left">
+            <h4 class="section-heading">Permissions</h4>
+            <span class="selected-count-badge">
+              {{ newSelectedPermIds().size }} of {{ allPermissions().length }} selected
+            </span>
+          </div>
+          <div class="bulk-action-btns">
+            <button mat-button class="bulk-btn" (click)="selectAllCreatePerms()">Select All</button>
+            <button mat-button class="bulk-btn" (click)="clearAllCreatePerms()" [disabled]="newSelectedPermIds().size === 0">Clear</button>
           </div>
         </div>
 
-        <div drawer-footer>
-          <button mat-button (click)="editDrawerOpen = false">Cancel</button>
-          <button mat-raised-button color="primary" [disabled]="!editName || saving" (click)="saveEditRole()">
-            Save Changes
+        <mat-form-field appearance="outline" class="full-width perm-search-field">
+          <mat-icon matPrefix class="search-prefix-icon">search</mat-icon>
+          <input
+            matInput
+            [ngModel]="permSearchQuery()"
+            (ngModelChange)="permSearchQuery.set($event)"
+            placeholder="Search permissions by name, code, or module..."
+          />
+          <button
+            mat-icon-button
+            matSuffix
+            *ngIf="permSearchQuery()"
+            (click)="permSearchQuery.set('')"
+            aria-label="Clear search"
+          >
+            <mat-icon>close</mat-icon>
           </button>
-        </div>
-      </app-right-drawer>
+        </mat-form-field>
 
+        <div class="perm-groups-container">
+          <div *ngIf="!groupedPermissions().length" class="empty-perms-state">
+            <mat-icon class="empty-state-icon">search_off</mat-icon>
+            <p>No permissions match your filter query.</p>
+          </div>
+
+          <div *ngFor="let group of groupedPermissions()" class="perm-group-box">
+            <div class="perm-group-header" (click)="toggleCreateGroup(group)">
+              <div class="group-header-left">
+                <mat-checkbox
+                  [checked]="isCreateGroupChecked(group)"
+                  [indeterminate]="isCreateGroupIndeterminate(group)"
+                  (change)="toggleCreateGroup(group)"
+                  (click)="$event.stopPropagation()"
+                  color="primary"
+                  class="group-checkbox"
+                ></mat-checkbox>
+                <mat-icon class="group-icon">{{ group.moduleIcon }}</mat-icon>
+                <span class="group-title">{{ group.moduleLabel }}</span>
+              </div>
+              <span class="group-count">
+                {{ getCreateGroupSelectedCount(group) }}/{{ group.permissions.length }}
+              </span>
+            </div>
+
+            <div class="perm-group-items">
+              <div
+                *ngFor="let perm of group.permissions"
+                class="perm-item-card"
+                [class.selected]="newSelectedPermIds().has(perm.id)"
+                (click)="toggleCreatePerm(perm.id)"
+              >
+                <mat-checkbox
+                  [checked]="newSelectedPermIds().has(perm.id)"
+                  (change)="toggleCreatePerm(perm.id)"
+                  (click)="$event.stopPropagation()"
+                  color="primary"
+                  class="perm-checkbox"
+                ></mat-checkbox>
+                <div class="perm-card-content">
+                  <div class="perm-card-top">
+                    <span class="perm-card-name">{{ perm.name }}</span>
+                    <code class="perm-card-code">{{ perm.code }}</code>
+                  </div>
+                  <p class="perm-card-desc" *ngIf="perm.description">{{ perm.description }}</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
+
+    <div drawer-footer>
+      <button mat-button (click)="createDrawerOpen.set(false)">Cancel</button>
+      <button
+        mat-raised-button
+        color="primary"
+        [disabled]="!isCreateValid() || saving()"
+        (click)="saveNewRole()"
+      >
+        Create Role
+      </button>
+    </div>
+  </app-right-drawer>
+
+  <!-- ═══════════ RIGHT DRAWER: EDIT ROLE ═══════════ -->
+  <app-right-drawer
+    [isOpen]="editDrawerOpen()"
+    [title]="'Edit Role: ' + (editingRole()?.name || '')"
+    subtitle="Update role details, active status, and assigned permissions."
+    width="580px"
+    (close)="editDrawerOpen.set(false)"
+  >
+    <div drawer-body class="drawer-form-container">
+      <div class="form-section">
+        <h4 class="section-heading">Role Details</h4>
+        <mat-form-field appearance="outline" class="full-width">
+          <mat-label>Role Code</mat-label>
+          <input matInput [value]="editingRole()?.code || ''" disabled />
+          <mat-hint>Role code cannot be changed</mat-hint>
+        </mat-form-field>
+
+        <mat-form-field appearance="outline" class="full-width">
+          <mat-label>Role Name</mat-label>
+          <input matInput [ngModel]="editName()" (ngModelChange)="editName.set($event)" required />
+        </mat-form-field>
+
+        <mat-form-field appearance="outline" class="full-width">
+          <mat-label>Description</mat-label>
+          <textarea matInput [ngModel]="editDescription()" (ngModelChange)="editDescription.set($event)" rows="2"></textarea>
+        </mat-form-field>
+
+        <div class="toggle-field" *ngIf="!editingRole()?.systemRole">
+          <mat-slide-toggle [ngModel]="editActive()" (ngModelChange)="editActive.set($event)" color="primary">
+            Active Status
+          </mat-slide-toggle>
+        </div>
+      </div>
+
+      <mat-divider></mat-divider>
+
+      <!-- Permission Assignment Section -->
+      <div class="form-section">
+        <div class="section-header-with-badge">
+          <div class="section-header-left">
+            <h4 class="section-heading">Permissions</h4>
+            <span class="selected-count-badge">
+              {{ editSelectedPermIds().size }} of {{ allPermissions().length }} selected
+            </span>
+          </div>
+          <div class="bulk-action-btns">
+            <button mat-button class="bulk-btn" (click)="selectAllEditPerms()">Select All</button>
+            <button mat-button class="bulk-btn" (click)="clearAllEditPerms()" [disabled]="editSelectedPermIds().size === 0">Clear</button>
+          </div>
+        </div>
+
+        <mat-form-field appearance="outline" class="full-width perm-search-field">
+          <mat-icon matPrefix class="search-prefix-icon">search</mat-icon>
+          <input
+            matInput
+            [ngModel]="permSearchQuery()"
+            (ngModelChange)="permSearchQuery.set($event)"
+            placeholder="Search permissions by name, code, or module..."
+          />
+          <button
+            mat-icon-button
+            matSuffix
+            *ngIf="permSearchQuery()"
+            (click)="permSearchQuery.set('')"
+            aria-label="Clear search"
+          >
+            <mat-icon>close</mat-icon>
+          </button>
+        </mat-form-field>
+
+        <div class="perm-groups-container">
+          <div *ngIf="!groupedPermissions().length" class="empty-perms-state">
+            <mat-icon class="empty-state-icon">search_off</mat-icon>
+            <p>No permissions match your filter query.</p>
+          </div>
+
+          <div *ngFor="let group of groupedPermissions()" class="perm-group-box">
+            <div class="perm-group-header" (click)="toggleEditGroup(group)">
+              <div class="group-header-left">
+                <mat-checkbox
+                  [checked]="isEditGroupChecked(group)"
+                  [indeterminate]="isEditGroupIndeterminate(group)"
+                  (change)="toggleEditGroup(group)"
+                  (click)="$event.stopPropagation()"
+                  color="primary"
+                  class="group-checkbox"
+                ></mat-checkbox>
+                <mat-icon class="group-icon">{{ group.moduleIcon }}</mat-icon>
+                <span class="group-title">{{ group.moduleLabel }}</span>
+              </div>
+              <span class="group-count">
+                {{ getEditGroupSelectedCount(group) }}/{{ group.permissions.length }}
+              </span>
+            </div>
+
+            <div class="perm-group-items">
+              <div
+                *ngFor="let perm of group.permissions"
+                class="perm-item-card"
+                [class.selected]="editSelectedPermIds().has(perm.id)"
+                (click)="toggleEditPerm(perm.id)"
+              >
+                <mat-checkbox
+                  [checked]="editSelectedPermIds().has(perm.id)"
+                  (change)="toggleEditPerm(perm.id)"
+                  (click)="$event.stopPropagation()"
+                  color="primary"
+                  class="perm-checkbox"
+                ></mat-checkbox>
+                <div class="perm-card-content">
+                  <div class="perm-card-top">
+                    <span class="perm-card-name">{{ perm.name }}</span>
+                    <code class="perm-card-code">{{ perm.code }}</code>
+                  </div>
+                  <p class="perm-card-desc" *ngIf="perm.description">{{ perm.description }}</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div drawer-footer>
+      <button mat-button (click)="editDrawerOpen.set(false)">Cancel</button>
+      <button
+        mat-raised-button
+        color="primary"
+        [disabled]="!editName().trim() || saving()"
+        (click)="saveEditRole()"
+      >
+        Save Changes
+      </button>
+    </div>
+  </app-right-drawer>
+
+  <!-- ═══════════ RIGHT DRAWER: VIEW ROLE DETAILS ═══════════ -->
+  <app-right-drawer
+    [isOpen]="viewDrawerOpen()"
+    [title]="viewingRole()?.name || 'Role Details'"
+    subtitle="Detailed role overview and assigned permissions."
+    width="540px"
+    (close)="viewDrawerOpen.set(false)"
+  >
+    <div drawer-body class="drawer-form-container" *ngIf="viewingRole() as role">
+      <div class="view-meta-card">
+        <div class="view-meta-item">
+          <span class="meta-label">Code</span>
+          <code class="meta-code">{{ role.code }}</code>
+        </div>
+        <div class="view-meta-item">
+          <span class="meta-label">Type</span>
+          <span class="role-type-badge" [class.sys]="role.systemRole">
+            {{ role.systemRole ? 'System Defined' : 'Custom Defined' }}
+          </span>
+        </div>
+        <div class="view-meta-item">
+          <span class="meta-label">Status</span>
+          <app-status-badge
+            [variant]="role.active ? 'success' : 'neutral'"
+            [label]="role.active ? 'Active' : 'Inactive'"
+          ></app-status-badge>
+        </div>
+      </div>
+
+      <div class="view-desc-box" *ngIf="role.description">
+        <span class="meta-label">Description</span>
+        <p class="view-desc-text">{{ role.description }}</p>
+      </div>
+
+      <mat-divider></mat-divider>
+
+      <div class="view-perms-section">
+        <div class="section-header-with-badge">
+          <h4 class="section-heading">Assigned Permissions</h4>
+          <span class="selected-count-badge">
+            {{ role.permissions.length }} total
+          </span>
+        </div>
+
+        <div *ngIf="!role.permissions.length" class="no-perms-view">
+          <mat-icon class="no-perms-icon">info</mat-icon>
+          <span>No specific permissions assigned to this role.</span>
+        </div>
+
+        <div class="view-perms-list" *ngIf="role.permissions.length">
+          <div *ngFor="let perm of role.permissions" class="view-perm-card">
+            <div class="view-perm-top">
+              <span class="view-perm-name">{{ perm.name }}</span>
+              <span class="module-chip">{{ perm.module }}</span>
+            </div>
+            <code class="view-perm-code">{{ perm.code }}</code>
+            <p class="view-perm-desc" *ngIf="perm.description">{{ perm.description }}</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div drawer-footer>
+      <button mat-button (click)="viewDrawerOpen.set(false)">Close</button>
+      <button
+        mat-stroked-button
+        color="primary"
+        (click)="viewDrawerOpen.set(false); openEditDrawer(viewingRole()!)"
+        *ngIf="viewingRole()"
+      >
+        <mat-icon>edit</mat-icon>
+        Edit Permissions
+      </button>
+    </div>
+  </app-right-drawer>
+
+</div>

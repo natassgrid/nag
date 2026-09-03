@@ -20,6 +20,7 @@
 package com.examplatform.questionbank.service;
 
 import com.examplatform.questionbank.domain.Question;
+import com.examplatform.shared.config.DynamicConfigService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.kafka.core.KafkaTemplate;
@@ -44,6 +45,7 @@ public class ReviewWorkflowService {
     private static final String TOPIC_NOTIFICATIONS = "exam.notifications.outbound";
 
     private final KafkaTemplate<String, Object> kafkaTemplate;
+    private final DynamicConfigService dynamicConfigService;
 
     /**
      * Processes a lifecycle transition event and triggers appropriate workflow actions.
@@ -67,12 +69,14 @@ public class ReviewWorkflowService {
     }
 
     /**
-     * DRAFT → REVIEW: Assign to available reviewer by subject specialization,
+     * DRAFT -> REVIEW: Assign to available reviewer by subject specialization,
      * publish lifecycle event.
      */
     private void handleSubmittedForReview(Question question, UUID actorId, String tenantId) {
         // Assign reviewer by subject specialization (simplified — production would query reviewer pool)
         UUID assignedReviewer = resolveReviewerBySubject(question.getSubject(), tenantId);
+        boolean dualReviewRequired = dynamicConfigService.getBoolean(
+                "question.dual.review.required", tenantId, true);
 
         Map<String, Object> lifecycleEvent = Map.of(
                 "eventType", "SUBMITTED_FOR_REVIEW",
@@ -80,6 +84,7 @@ public class ReviewWorkflowService {
                 "subject", question.getSubject(),
                 "authorId", question.getAuthorId(),
                 "assignedReviewer", assignedReviewer != null ? assignedReviewer.toString() : "UNASSIGNED",
+                "dualReviewRequired", dualReviewRequired,
                 "actorId", actorId,
                 "tenantId", tenantId,
                 "timestamp", Instant.now().toString()
@@ -87,12 +92,12 @@ public class ReviewWorkflowService {
 
         kafkaTemplate.send(TOPIC_LIFECYCLE, question.getId().toString(), lifecycleEvent);
 
-        log.info("Question submitted for review: questionId={}, subject={}, assignedReviewer={}, tenant={}",
-                question.getId(), question.getSubject(), assignedReviewer, tenantId);
+        log.info("Question submitted for review: questionId={}, subject={}, assignedReviewer={}, dualReviewRequired={}, tenant={}",
+                question.getId(), question.getSubject(), assignedReviewer, dualReviewRequired, tenantId);
     }
 
     /**
-     * REVIEW → APPROVED: Reviewer approved the question. Notify the author.
+     * REVIEW -> APPROVED: Reviewer approved the question. Notify the author.
      */
     private void handleApproved(Question question, String fromState, UUID actorId, String tenantId) {
         if (!"REVIEW".equals(fromState)) {
@@ -118,17 +123,17 @@ public class ReviewWorkflowService {
                 "reviewerId", actorId,
                 "subject", question.getSubject(),
                 "tenantId", tenantId,
-                "timestamp", Instant.now().toString()
+                "message", "Your question for subject '" + question.getSubject() + "' has been approved by the reviewer."
         );
 
         kafkaTemplate.send(TOPIC_NOTIFICATIONS, question.getAuthorId().toString(), notification);
 
-        log.info("Question approved by reviewer: questionId={}, reviewer={}, author notified={}",
-                question.getId(), actorId, question.getAuthorId());
+        log.info("Question approved by reviewer: questionId={}, reviewer={}, author={}, tenant={}",
+                question.getId(), actorId, question.getAuthorId(), tenantId);
     }
 
     /**
-     * REVIEW → DRAFT: Reviewer returned the question with comments. Notify the author.
+     * REVIEW -> DRAFT: Reviewer returned question with comments. Notify the author.
      */
     private void handleReturnedToDraft(Question question, String fromState, UUID actorId,
                                        String comments, String tenantId) {
@@ -148,65 +153,62 @@ public class ReviewWorkflowService {
 
         kafkaTemplate.send(TOPIC_LIFECYCLE, question.getId().toString(), lifecycleEvent);
 
-        // Notify author that their question was returned with comments
+        // Notify author that their question was returned for revision
         Map<String, Object> notification = Map.of(
-                "type", "QUESTION_RETURNED_BY_REVIEWER",
+                "type", "QUESTION_RETURNED_FOR_REVISION",
                 "recipientId", question.getAuthorId(),
                 "questionId", question.getId(),
                 "reviewerId", actorId,
                 "comments", comments != null ? comments : "",
-                "subject", question.getSubject(),
                 "tenantId", tenantId,
-                "timestamp", Instant.now().toString()
+                "message", "Your question for subject '" + question.getSubject() +
+                           "' was returned with comments: " + (comments != null ? comments : "No comments provided")
         );
 
         kafkaTemplate.send(TOPIC_NOTIFICATIONS, question.getAuthorId().toString(), notification);
 
-        log.info("Question returned to draft: questionId={}, reviewer={}, author notified={}, hasComments={}",
-                question.getId(), actorId, question.getAuthorId(), comments != null);
+        log.info("Question returned to draft: questionId={}, reviewer={}, author={}, tenant={}",
+                question.getId(), actorId, question.getAuthorId(), tenantId);
     }
 
     /**
-     * APPROVED → PUBLISHED: Approver published the question. Notify via notifications topic.
+     * APPROVED -> PUBLISHED: Final approval given. Question available in bank.
      */
     private void handlePublished(Question question, UUID actorId, String tenantId) {
         Map<String, Object> lifecycleEvent = Map.of(
                 "eventType", "QUESTION_PUBLISHED",
                 "questionId", question.getId(),
-                "approverId", actorId,
+                "publisherId", actorId,
                 "authorId", question.getAuthorId(),
+                "subject", question.getSubject(),
                 "tenantId", tenantId,
                 "timestamp", Instant.now().toString()
         );
 
         kafkaTemplate.send(TOPIC_LIFECYCLE, question.getId().toString(), lifecycleEvent);
 
-        // Notify author that their question was published
+        // Notify author that their question has been published
         Map<String, Object> notification = Map.of(
                 "type", "QUESTION_PUBLISHED",
                 "recipientId", question.getAuthorId(),
                 "questionId", question.getId(),
-                "approverId", actorId,
                 "subject", question.getSubject(),
                 "tenantId", tenantId,
-                "timestamp", Instant.now().toString()
+                "message", "Your question for subject '" + question.getSubject() + "' has been published to the question bank."
         );
 
         kafkaTemplate.send(TOPIC_NOTIFICATIONS, question.getAuthorId().toString(), notification);
 
-        log.info("Question published: questionId={}, approver={}, author notified={}",
-                question.getId(), actorId, question.getAuthorId());
+        log.info("Question published to bank: questionId={}, publisher={}, tenant={}",
+                question.getId(), actorId, tenantId);
     }
 
     /**
-     * Resolves a reviewer by subject specialization.
-     * In production, this would query a reviewer pool/assignment service.
-     * Returns null if no reviewer is available (will be marked as UNASSIGNED).
+     * Resolves a reviewer UUID for a given subject (stubbed for prototype).
      */
     private UUID resolveReviewerBySubject(String subject, String tenantId) {
-        // Placeholder: production implementation would query a reviewer registry
-        // filtered by subject specialization and tenant
-        log.debug("Resolving reviewer for subject={}, tenant={}", subject, tenantId);
-        return null;
+        // In full implementation, query keycloak/user roles for SUBJECT_MATTER_EXPERT + subject
+        // Stubbed: return deterministic UUID based on subject name
+        return UUID.nameUUIDFromBytes(("reviewer:" + tenantId + ":" + subject).getBytes());
     }
 }

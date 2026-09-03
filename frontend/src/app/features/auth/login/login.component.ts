@@ -17,7 +17,7 @@
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
 
-import { Component } from '@angular/core';
+import { Component, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ReactiveFormsModule, FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { MatFormFieldModule } from '@angular/material/form-field';
@@ -45,165 +45,16 @@ import { AuthService } from '../../../core/services/auth.service';
     MatSnackBarModule,
     RouterLink
   ],
-  template: `
-    <main class="login-container" role="main" aria-labelledby="login-heading">
-      <mat-card class="login-card" appearance="outlined">
-        <mat-card-header class="login-header">
-          <div class="app-branding">
-            <mat-icon class="app-logo" aria-hidden="true">school</mat-icon>
-            <h1 id="login-heading" class="app-title">Exam Platform</h1>
-          </div>
-          <p class="login-subtitle">Sign in to your account</p>
-        </mat-card-header>
-
-        <mat-card-content>
-          <form [formGroup]="loginForm" (ngSubmit)="onSubmit()" aria-label="Login form">
-            <mat-form-field appearance="outline" class="full-width">
-              <mat-label>Username</mat-label>
-              <input matInput formControlName="username"
-                     type="text"
-                     autocomplete="username"
-                     aria-required="true"
-                     [attr.aria-invalid]="loginForm.get('username')?.invalid && loginForm.get('username')?.touched">
-              <mat-icon matPrefix>person</mat-icon>
-              <mat-error *ngIf="loginForm.get('username')?.hasError('required')">
-                Username is required
-              </mat-error>
-            </mat-form-field>
-
-            <mat-form-field appearance="outline" class="full-width">
-              <mat-label>Password</mat-label>
-              <input matInput formControlName="password"
-                     [type]="hidePassword ? 'password' : 'text'"
-                     autocomplete="current-password"
-                     aria-required="true"
-                     [attr.aria-invalid]="loginForm.get('password')?.invalid && loginForm.get('password')?.touched">
-              <mat-icon matPrefix>lock</mat-icon>
-              <button mat-icon-button matSuffix type="button"
-                      (click)="hidePassword = !hidePassword"
-                      [attr.aria-label]="hidePassword ? 'Show password' : 'Hide password'">
-                <mat-icon>{{ hidePassword ? 'visibility_off' : 'visibility' }}</mat-icon>
-              </button>
-              <mat-error *ngIf="loginForm.get('password')?.hasError('required')">
-                Password is required
-              </mat-error>
-            </mat-form-field>
-
-            <button mat-raised-button color="primary" type="submit"
-                    class="login-button full-width"
-                    [disabled]="loginForm.invalid || isLoading"
-                    aria-label="Sign in to your account">
-              <mat-spinner *ngIf="isLoading" diameter="20" class="button-spinner"></mat-spinner>
-              <span *ngIf="!isLoading">Sign In</span>
-            </button>
-          </form>
-
-          <div class="auth-links">
-            <a [routerLink]="['/auth/register']" aria-label="Create a new account">
-              Don't have an account? Register
-            </a>
-          </div>
-        </mat-card-content>
-      </mat-card>
-    </main>
-  `,
-  styles: [`
-    .login-container {
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      min-height: 100vh;
-      padding: 16px;
-      background: linear-gradient(135deg, #e8eaf6 0%, #fafafa 100%);
-    }
-
-    .login-card {
-      max-width: 400px;
-      width: 100%;
-      padding: 32px 24px;
-      border-radius: 12px;
-      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.08), 0 2px 8px rgba(0, 0, 0, 0.04);
-    }
-
-    .login-header {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      margin-bottom: 24px;
-    }
-
-    .app-branding {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 8px;
-    }
-
-    .app-logo {
-      font-size: 48px;
-      width: 48px;
-      height: 48px;
-      color: #3f51b5;
-    }
-
-    .app-title {
-      margin: 0;
-      font-size: 24px;
-      font-weight: 600;
-      color: #3f51b5;
-      letter-spacing: -0.5px;
-    }
-
-    .login-subtitle {
-      margin: 8px 0 0;
-      font-size: 14px;
-      color: #666;
-    }
-
-    .full-width {
-      width: 100%;
-    }
-
-    mat-form-field.full-width {
-      margin-bottom: 8px;
-    }
-
-    .login-button {
-      height: 48px;
-      font-size: 16px;
-      font-weight: 500;
-      margin-top: 8px;
-      border-radius: 8px;
-    }
-
-    .button-spinner {
-      display: inline-block;
-    }
-
-    ::ng-deep .login-button .mat-mdc-button-persistent-ripple {
-      border-radius: 8px;
-    }
-
-    .auth-links {
-      margin-top: 24px;
-      text-align: center;
-    }
-
-    .auth-links a {
-      color: #3f51b5;
-      text-decoration: none;
-      font-size: 14px;
-    }
-
-    .auth-links a:hover {
-      text-decoration: underline;
-    }
-  `]
+  templateUrl: './login.component.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
+  styleUrls: ['./login.component.scss']
 })
 export class LoginComponent {
   loginForm: FormGroup;
   hidePassword = true;
   isLoading = false;
+  mfaRequired = false;
+  mfaPromptMessage = '';
 
   constructor(
     private fb: FormBuilder,
@@ -213,25 +64,60 @@ export class LoginComponent {
   ) {
     this.loginForm = this.fb.group({
       username: ['', [Validators.required]],
-      password: ['', [Validators.required]]
+      password: ['', [Validators.required]],
+      otpCode: ['']
     });
   }
 
+  resetMfa(): void {
+    this.mfaRequired = false;
+    this.mfaPromptMessage = '';
+    this.loginForm.get('otpCode')?.clearValidators();
+    this.loginForm.get('otpCode')?.reset();
+    this.loginForm.get('otpCode')?.updateValueAndValidity();
+  }
+
   onSubmit(): void {
-    if (this.loginForm.invalid) return;
+    if (this.loginForm.invalid) {
+      this.loginForm.markAllAsTouched();
+      return;
+    }
 
     this.isLoading = true;
 
-    const { username, password } = this.loginForm.value;
+    const { username, password, otpCode } = this.loginForm.value;
 
-    this.authService.login({ username, password }).subscribe({
+    this.authService.login({ username, password, otpCode: this.mfaRequired ? otpCode : undefined }).subscribe({
       next: () => {
         this.isLoading = false;
         this.router.navigate(['/dashboard']);
       },
       error: (err) => {
         this.isLoading = false;
-        const message = err.error?.message || 'Login failed. Please check your credentials.';
+
+        // Check if backend responded with MFA / Step-up authentication challenge (403 Forbidden)
+        const isMfa = err.status === 403 && (
+          err.error?.mfaRequired === true ||
+          err.error?.title === 'MFA Required' ||
+          (typeof err.error?.detail === 'string' && err.error?.detail.toLowerCase().includes('otp'))
+        );
+
+        if (isMfa) {
+          this.mfaRequired = true;
+          this.mfaPromptMessage = err.error?.detail || 'Step-up authentication required. Please provide the 6-digit OTP sent to your registered mobile.';
+          this.loginForm.get('otpCode')?.setValidators([Validators.required, Validators.pattern('^[0-9]{6}$')]);
+          this.loginForm.get('otpCode')?.updateValueAndValidity();
+
+          this.snackBar.open(this.mfaPromptMessage, 'OK', {
+            duration: 7000,
+            horizontalPosition: 'center',
+            verticalPosition: 'bottom',
+            panelClass: ['info-snackbar']
+          });
+          return;
+        }
+
+        const message = err.error?.detail || err.error?.message || 'Login failed. Please check your credentials.';
         this.snackBar.open(message, 'Dismiss', {
           duration: 5000,
           horizontalPosition: 'center',

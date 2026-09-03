@@ -17,7 +17,7 @@
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
 
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ReactiveFormsModule, FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { MatFormFieldModule } from '@angular/material/form-field';
@@ -40,77 +40,9 @@ import { AuthService } from '../../../core/services/auth.service';
     MatCardModule,
     MatCheckboxModule
   ],
-  template: `
-    <main id="main-content" class="auth-container" role="main" aria-labelledby="otp-heading">
-      <mat-card class="auth-card">
-        <mat-card-header>
-          <mat-card-title id="otp-heading">Verify OTP</mat-card-title>
-        </mat-card-header>
-        <mat-card-content>
-          <p id="otp-instructions">Enter the 6-digit OTP sent to your registered mobile number.</p>
-
-          <form [formGroup]="otpForm" (ngSubmit)="onSubmit()" aria-describedby="otp-instructions" aria-label="OTP verification form">
-            <mat-form-field appearance="outline" class="full-width">
-              <mat-label>OTP Code</mat-label>
-              <input matInput formControlName="otp"
-                     type="text"
-                     inputmode="numeric"
-                     maxlength="6"
-                     autocomplete="one-time-code"
-                     aria-required="true"
-                     aria-label="6-digit One Time Password">
-              <mat-error *ngIf="otpForm.get('otp')?.hasError('required')">OTP is required</mat-error>
-              <mat-error *ngIf="otpForm.get('otp')?.hasError('pattern')">Must be exactly 6 digits</mat-error>
-            </mat-form-field>
-
-            <div class="form-actions">
-              <button mat-raised-button color="primary" type="submit"
-                      [disabled]="otpForm.invalid || isLoading"
-                      aria-label="Verify OTP code">
-                {{ isLoading ? 'Verifying...' : 'Verify' }}
-              </button>
-
-              <button mat-stroked-button type="button"
-                      (click)="resendOtp()"
-                      [disabled]="resendCooldown > 0"
-                      aria-label="Resend OTP code">
-                {{ resendCooldown > 0 ? 'Resend in ' + resendCooldown + 's' : 'Resend OTP' }}
-              </button>
-            </div>
-
-            <div *ngIf="errorMessage" class="error-message" role="alert" aria-live="assertive">
-              {{ errorMessage }}
-            </div>
-            <div *ngIf="successMessage" class="success-message" role="status" aria-live="polite">
-              {{ successMessage }}
-            </div>
-          </form>
-
-          <div class="accessibility-toggle">
-            <mat-checkbox (change)="toggleHighContrast($event.checked)"
-                          aria-label="Enable high contrast mode">
-              High Contrast Mode
-            </mat-checkbox>
-          </div>
-        </mat-card-content>
-      </mat-card>
-    </main>
-  `,
-  styles: [`
-    .auth-container {
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      min-height: 100vh;
-      padding: var(--spacing-md);
-    }
-    .auth-card { max-width: 400px; width: 100%; padding: var(--spacing-lg); }
-    .full-width { width: 100%; margin-bottom: var(--spacing-sm); }
-    .form-actions { display: flex; gap: var(--spacing-md); margin-top: var(--spacing-md); flex-wrap: wrap; }
-    .error-message { color: var(--color-error); margin-top: var(--spacing-md); font-weight: 500; }
-    .success-message { color: var(--color-success); margin-top: var(--spacing-md); font-weight: 500; }
-    .accessibility-toggle { margin-top: var(--spacing-lg); }
-  `]
+  templateUrl: './otp-verify.component.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
+  styleUrls: ['./otp-verify.component.scss']
 })
 export class OtpVerifyComponent implements OnInit {
   otpForm: FormGroup;
@@ -139,7 +71,10 @@ export class OtpVerifyComponent implements OnInit {
   }
 
   onSubmit(): void {
-    if (this.otpForm.invalid) return;
+    if (this.otpForm.invalid) {
+      this.otpForm.markAllAsTouched();
+      return;
+    }
 
     this.isLoading = true;
     this.errorMessage = '';

@@ -17,7 +17,7 @@
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
 
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ReactiveFormsModule, FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { MatCardModule } from '@angular/material/card';
@@ -53,6 +53,7 @@ const DOC_TYPES = ['AADHAAR', 'PAN', 'PASSPORT', 'VOTER_ID', 'DRIVING_LICENSE'];
     MatSnackBarModule
   ],
   templateUrl: './profile.component.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrls: ['./profile.component.scss']
 })
 export class ProfileComponent implements OnInit {
@@ -175,7 +176,20 @@ export class ProfileComponent implements OnInit {
     try {
       const parts = token.split('.');
       if (parts.length !== 3) return null;
-      return JSON.parse(atob(parts[1].replace(/-/g, '+').replace(/_/g, '/')));
-    } catch { return null; }
+      let base64 = parts[1].replace(/-/g, '+').replace(/_/g, '/');
+      const pad = base64.length % 4;
+      if (pad === 2) base64 += '==';
+      else if (pad === 3) base64 += '=';
+      else if (pad === 1) return null;
+      const jsonStr = decodeURIComponent(
+        atob(base64)
+          .split('')
+          .map(c => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
+          .join('')
+      );
+      return JSON.parse(jsonStr);
+    } catch {
+      return null;
+    }
   }
 }

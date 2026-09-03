@@ -17,7 +17,7 @@
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
 
-import { Component, Input, Output, EventEmitter } from '@angular/core';
+import { Component, Input, Output, EventEmitter, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { MatButtonModule } from '@angular/material/button';
 
@@ -28,6 +28,7 @@ export type QuestionStatus = 'not-visited' | 'current' | 'answered' | 'marked-fo
   standalone: true,
   imports: [CommonModule, MatButtonModule],
   templateUrl: './navigation-palette.component.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrls: ['./navigation-palette.component.scss']
 })
 export class NavigationPaletteComponent {

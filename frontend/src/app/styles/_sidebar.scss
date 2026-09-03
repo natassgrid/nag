@@ -6,57 +6,56 @@
 @use "variables" as *;
 
 @mixin sidebar($color) {
-  $sidebar-font-color: $gray-08;
-  $sidebar-font-color-active: $dark-grey;
-  $sidebar-background-color-active: $blue-white;
-  $sidebar-background-color-hover: $blue-white;
-  $sidebar-icon-color-active: $color;
+  $sidebar-bg: $slate-900;
+  $sidebar-font-color: $slate-300;
+  $sidebar-font-color-hover: $white;
+  $sidebar-background-color-hover: $slate-800;
+  $sidebar-background-color-active: $indigo;
+  $sidebar-font-color-active: $white;
 
   mat-sidenav {
+    background-color: $sidebar-bg;
+    border-right: 1px solid $slate-800;
+
     .mat-mdc-list-item {
       color: $sidebar-font-color;
       --mat-list-list-item-label-text-color: #{$sidebar-font-color};
-      --mat-list-list-item-hover-label-text-color: #{$sidebar-font-color};
+      --mat-list-list-item-hover-label-text-color: #{$sidebar-font-color-hover};
+      --mat-list-list-item-leading-icon-color: #{$slate-400};
+      --mat-list-list-item-hover-leading-icon-color: #{$white};
       border-radius: 8px;
-      margin: 2px 8px;
+      margin: 3px 8px;
+      transition: background-color 0.15s ease, color 0.15s ease;
+
+      .mat-icon {
+        color: $slate-400;
+        transition: color 0.15s ease;
+      }
 
       &.active-link {
-        background-color: $sidebar-background-color-active;
-        color: $sidebar-font-color-active;
-        --mat-list-list-item-label-text-color: #{$sidebar-font-color-active};
+        background-color: $sidebar-background-color-active !important;
+        color: $sidebar-font-color-active !important;
+        box-shadow: 0 4px 6px -1px rgba(79, 70, 229, 0.3), 0 2px 4px -2px rgba(79, 70, 229, 0.3);
+        --mat-list-list-item-label-text-color: #{$sidebar-font-color-active} !important;
+        --mat-list-list-item-leading-icon-color: #{$sidebar-font-color-active} !important;
 
         .mat-icon {
-          color: $sidebar-icon-color-active;
+          color: $white !important;
         }
       }
 
-      &:hover {
+      &:hover:not(.active-link) {
         background-color: $sidebar-background-color-hover;
+        color: $sidebar-font-color-hover;
+
+        .mat-icon {
+          color: $white;
+        }
       }
     }
   }
 }
 
 @mixin sidebar-dark() {
-  $sidebar-bg: #23232D;
-  $sidebar-hover: #13131A;
-  $sidebar-active: #13131A;
-  $sidebar-color: #D6D6D6;
-
-  mat-sidenav {
-    background-color: $sidebar-bg;
-
-    .mat-mdc-list-item {
-      color: $sidebar-color;
-      --mat-list-list-item-label-text-color: #{$sidebar-color};
-
-      &.active-link {
-        background-color: $sidebar-active;
-      }
-
-      &:hover {
-        background-color: $sidebar-hover;
-      }
-    }
-  }
+  @include sidebar($indigo);
 }

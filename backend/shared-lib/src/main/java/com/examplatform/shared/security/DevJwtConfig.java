@@ -20,8 +20,10 @@
 package com.examplatform.shared.security;
 
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.autoconfigure.AutoConfiguration;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Primary;
 import org.springframework.context.annotation.Profile;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
@@ -34,7 +36,8 @@ import java.nio.charset.StandardCharsets;
  * Dev/Docker JWT decoder — validates HS256 tokens signed by DevKeycloakService.
  * Shared across all services. Active only in 'dev' or 'docker' profiles.
  */
-@Configuration
+@AutoConfiguration
+@ConditionalOnClass(JwtDecoder.class)
 @Profile({"dev", "docker"})
 public class DevJwtConfig {
 
@@ -43,6 +46,7 @@ public class DevJwtConfig {
 
     @Bean
     @Primary
+    @ConditionalOnMissingBean(JwtDecoder.class)
     public JwtDecoder jwtDecoder() {
         SecretKeySpec key = new SecretKeySpec(
                 jwtSecret.getBytes(StandardCharsets.UTF_8), "HmacSHA256");

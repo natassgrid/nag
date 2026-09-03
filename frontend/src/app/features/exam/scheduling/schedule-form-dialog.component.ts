@@ -17,70 +17,154 @@
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
 
-import { Component, Inject, OnInit } from '@angular/core';
+import { Component, Input, Output, EventEmitter, OnInit, OnChanges, SimpleChanges, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
-import { MAT_DIALOG_DATA, MatDialogModule, MatDialogRef } from '@angular/material/dialog';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { MatSelectModule } from '@angular/material/select';
 import { MatButtonModule } from '@angular/material/button';
+import { MatIconModule } from '@angular/material/icon';
+import { MatDividerModule } from '@angular/material/divider';
 import { MatDatepickerModule } from '@angular/material/datepicker';
 import { MatNativeDateModule } from '@angular/material/core';
-import { ScheduleResponse } from './scheduling.service';
-
-export interface ScheduleFormDialogData {
-  schedule?: ScheduleResponse;
-}
+import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
+import { SchedulingService, ScheduleResponse, CreateScheduleRequest } from './scheduling.service';
+import { RightDrawerComponent } from '../../../shared/components/right-drawer/right-drawer.component';
 
 @Component({
   selector: 'app-schedule-form-dialog',
   standalone: true,
   imports: [
-    CommonModule, ReactiveFormsModule, MatDialogModule,
-    MatFormFieldModule, MatInputModule, MatSelectModule,
-    MatButtonModule, MatDatepickerModule, MatNativeDateModule,
+    CommonModule,
+    ReactiveFormsModule,
+    MatFormFieldModule,
+    MatInputModule,
+    MatSelectModule,
+    MatButtonModule,
+    MatIconModule,
+    MatDividerModule,
+    MatDatepickerModule,
+    MatNativeDateModule,
+    MatProgressSpinnerModule,
+    RightDrawerComponent
   ],
   templateUrl: './schedule-form-dialog.component.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrls: ['./schedule-form-dialog.component.scss']
 })
-export class ScheduleFormDialogComponent implements OnInit {
+export class ScheduleFormDialogComponent implements OnInit, OnChanges {
+  @Input() isOpen = false;
+  @Input() schedule?: ScheduleResponse | null = null;
+  @Input() examId = '';
+  @Input() width = '540px';
+  @Output() close = new EventEmitter<void>();
+  @Output() saved = new EventEmitter<ScheduleResponse>();
+
   form!: FormGroup;
-  isEdit = false;
-  minDate = new Date(); // Only allow today and future dates
+  minDate = new Date();
+  saving = false;
+  saveError = '';
 
   constructor(
     private fb: FormBuilder,
-    private dialogRef: MatDialogRef<ScheduleFormDialogComponent>,
-    @Inject(MAT_DIALOG_DATA) public data: ScheduleFormDialogData
-  ) {}
+    private schedulingService: SchedulingService
+  ) {
+    this.initForm();
+  }
 
   ngOnInit(): void {
-    const s = this.data.schedule;
-    this.isEdit = !!s;
+    this.initForm();
+  }
 
+  ngOnChanges(changes: SimpleChanges): void {
+    if (changes['isOpen'] && this.isOpen) {
+      this.initForm();
+      this.saveError = '';
+    }
+    if (changes['schedule']) {
+      this.initForm();
+    }
+  }
+
+  initForm(): void {
+    const s = this.schedule;
     this.form = this.fb.group({
-      scheduleName: [s?.scheduleName || '', Validators.required],
-      notificationNumber: [s?.notificationNumber || ''],
-      examDate: [s?.examDate ? new Date(s.examDate) : null, Validators.required],
-      reserveDate: [s?.reserveDate ? new Date(s.reserveDate) : null],
+      scheduleName: [s?.scheduleName || '', [Validators.required, Validators.maxLength(100)]],
+      notificationNumber: [s?.notificationNumber || '', [Validators.maxLength(100)]],
+      examDate: [s?.examDate ? this.parseDate(s.examDate) : null, Validators.required],
+      reserveDate: [s?.reserveDate ? this.parseDate(s.reserveDate) : null],
       timeZone: [s?.timeZone || 'Asia/Kolkata', Validators.required],
     });
   }
 
+  private parseDate(val: string): Date | null {
+    if (!val) return null;
+    const parts = val.split('-');
+    if (parts.length === 3) {
+      return new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
+    }
+    return new Date(val);
+  }
+
+  cancel(): void {
+    this.saveError = '';
+    this.close.emit();
+  }
+
   save(): void {
-    if (this.form.invalid) return;
+    if (this.form.invalid) {
+      this.form.markAllAsTouched();
+      return;
+    }
+    if (!this.examId) {
+      this.saveError = 'Cannot save schedule: Examination ID is missing.';
+      return;
+    }
+
     const v = this.form.value;
-    this.dialogRef.close({
-      scheduleName: v.scheduleName,
-      notificationNumber: v.notificationNumber || undefined,
+    const req: CreateScheduleRequest = {
+      scheduleName: v.scheduleName.trim(),
+      notificationNumber: v.notificationNumber?.trim() || undefined,
       examDate: this.toIso(v.examDate),
       reserveDate: v.reserveDate ? this.toIso(v.reserveDate) : undefined,
       timeZone: v.timeZone,
+    };
+
+    this.saving = true;
+    this.saveError = '';
+
+    const call$ = this.schedule
+      ? this.schedulingService.amendSchedule(this.examId, this.schedule.id, {
+          ...req,
+          changeReason: 'Schedule updated (draft edit)'
+        })
+      : this.schedulingService.createSchedule(this.examId, req);
+
+    call$.subscribe({
+      next: (res) => {
+        this.saving = false;
+        this.saveError = '';
+        this.saved.emit(res);
+      },
+      error: (err) => {
+        this.saving = false;
+        this.saveError = err?.error?.message || err?.error?.error || 'Failed to save schedule. Please check the details and try again.';
+      }
     });
   }
 
   private toIso(d: any): string {
-    return d instanceof Date ? d.toISOString().split('T')[0] : d;
+    if (!d) return '';
+    if (d instanceof Date) {
+      const year = d.getFullYear();
+      const month = String(d.getMonth() + 1).padStart(2, '0');
+      const day = String(d.getDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`;
+    }
+    if (typeof d === 'string') {
+      return d.includes('T') ? d.split('T')[0] : d;
+    }
+    return String(d);
   }
 }

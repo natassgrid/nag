@@ -42,6 +42,12 @@ public class ExaminationResponse {
 
     private UUID id;
     private String name;
+    private String code;
+    private String conductingAuthority;
+    private String category;
+    private String examinationType;
+    private String academicYear;
+    private String examinationMode;
     private int durationMinutes;
     private int totalMarks;
     private boolean negativeMarkingEnabled;

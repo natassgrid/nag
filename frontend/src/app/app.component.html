@@ -37,8 +37,7 @@
         <a
           mat-list-item
           [routerLink]="dashboardItem.route"
-          routerLinkActive="active-link"
-          [routerLinkActiveOptions]="{exact: true}"
+          [class.active-link]="isRouteActive(dashboardItem.route)"
           (click)="closeSidenavIfMobile()"
           class="dashboard-item"
         >
@@ -72,8 +71,7 @@
                 <a
                   mat-list-item
                   [routerLink]="item.route"
-                  routerLinkActive="active-link"
-                  [routerLinkActiveOptions]="{exact: item.route === '/questions' || item.route === '/exam'}"
+                  [class.active-link]="isRouteActive(item.route)"
                   (click)="closeSidenavIfMobile()"
                   class="nav-group-item"
                 >

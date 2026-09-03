@@ -17,7 +17,7 @@
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
 
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { MatCardModule } from '@angular/material/card';
 import { MatListModule } from '@angular/material/list';
@@ -40,6 +40,7 @@ import { PageHeaderComponent } from '../../shared/components/page-header/page-he
     PageHeaderComponent
   ],
   templateUrl: './notification-list.component.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrls: ['./notification-list.component.scss']
 })
 export class NotificationListComponent implements OnInit {

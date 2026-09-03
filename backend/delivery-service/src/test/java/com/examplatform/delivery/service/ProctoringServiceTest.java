@@ -22,13 +22,16 @@ package com.examplatform.delivery.service;
 import com.examplatform.delivery.config.ProctoringProperties;
 import com.examplatform.delivery.domain.ExamSession;
 import com.examplatform.delivery.repository.ExamSessionRepository;
+import com.examplatform.shared.config.DynamicConfigService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.Mockito;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.kafka.core.KafkaTemplate;
 
@@ -41,6 +44,7 @@ import java.util.concurrent.CompletableFuture;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
@@ -65,6 +69,9 @@ class ProctoringServiceTest {
     @Mock
     ProctoringProperties proctoringProperties;
 
+    @Mock
+    DynamicConfigService dynamicConfigService;
+
     @InjectMocks
     ProctoringService proctoringService;
 
@@ -84,97 +91,112 @@ class ProctoringServiceTest {
                 .paperId(UUID.randomUUID())
                 .status(ExamSession.ExamSessionStatus.ACTIVE)
                 .startedAt(Instant.now())
-                .scheduledEndAt(Instant.now().plusSeconds(7200))
+                .scheduledEndAt(Instant.now().plusSeconds(3600))
                 .currentQuestionIndex(0)
                 .languageCode("en")
                 .fullScreenExitCount(0)
                 .build();
+        testSession.setTenantId(TENANT_ID);
+
+        Mockito.lenient().when(dynamicConfigService.getBoolean(eq("delivery.tamper.detection.enabled"), anyString(), anyBoolean()))
+                .thenReturn(true);
     }
 
-    @Test
-    @DisplayName("recordFullScreenExit increments exit count")
-    void incrementsExitCount() {
-        testSession.setFullScreenExitCount(1);
+    // ─────────────────────────────────────────────────────────────
+    // Requirement 11.1, 11.2: captureSnapshot
+    // ─────────────────────────────────────────────────────────────
 
-        when(examSessionRepository.findBySessionId(SESSION_ID)).thenReturn(Optional.of(testSession));
-        when(examSessionRepository.save(any(ExamSession.class))).thenAnswer(inv -> inv.getArgument(0));
-        when(proctoringProperties.getMaxFullScreenExits()).thenReturn(3);
+    @Nested
+    @DisplayName("captureSnapshot")
+    class CaptureSnapshot {
 
-        proctoringService.recordFullScreenExit(SESSION_ID);
+        @Test
+        @DisplayName("Publishes SNAPSHOT_CAPTURED event with reference to Kafka")
+        void capturesAndPublishesSnapshot() {
+            byte[] imageData = new byte[]{1, 2, 3, 4};
+            when(examSessionRepository.findBySessionId(SESSION_ID)).thenReturn(Optional.of(testSession));
+            when(kafkaTemplate.send(eq("exam.proctoring.alerts"), eq(SESSION_ID.toString()), any()))
+                    .thenReturn(CompletableFuture.completedFuture(null));
 
-        ArgumentCaptor<ExamSession> captor = ArgumentCaptor.forClass(ExamSession.class);
-        verify(examSessionRepository).save(captor.capture());
-        assertThat(captor.getValue().getFullScreenExitCount()).isEqualTo(2);
+            proctoringService.captureSnapshot(SESSION_ID, imageData, TENANT_ID);
+
+            ArgumentCaptor<Map<String, Object>> captor = ArgumentCaptor.forClass(Map.class);
+            verify(kafkaTemplate).send(eq("exam.proctoring.alerts"), eq(SESSION_ID.toString()), captor.capture());
+
+            Map<String, Object> event = captor.getValue();
+            assertThat(event.get("eventType")).isEqualTo("SNAPSHOT_CAPTURED");
+            assertThat(event.get("sessionId")).isEqualTo(SESSION_ID.toString());
+            assertThat(event.get("candidateId")).isEqualTo(CANDIDATE_ID.toString());
+            assertThat(event.get("snapshotRef")).asString().startsWith("snapshots/" + TENANT_ID + "/" + SESSION_ID + "/");
+            assertThat(event.get("tenantId")).isEqualTo(TENANT_ID);
+            assertThat(event.get("imageSize")).isEqualTo(4);
+        }
+
+        @Test
+        @DisplayName("Throws IllegalArgumentException for unknown session")
+        void throwsOnUnknownSession() {
+            when(examSessionRepository.findBySessionId(SESSION_ID)).thenReturn(Optional.empty());
+
+            assertThatThrownBy(() -> proctoringService.captureSnapshot(SESSION_ID, new byte[0], TENANT_ID))
+                    .isInstanceOf(IllegalArgumentException.class)
+                    .hasMessageContaining("Session not found");
+        }
     }
 
-    @Test
-    @DisplayName("recordFullScreenExit flags session after 3 exits")
-    @SuppressWarnings("unchecked")
-    void flagsSessionAfterThreeExits() {
-        testSession.setFullScreenExitCount(2); // Will become 3 after increment
+    // ─────────────────────────────────────────────────────────────
+    // Requirement 11.6, 11.7: recordFullScreenExit
+    // ─────────────────────────────────────────────────────────────
 
-        when(examSessionRepository.findBySessionId(SESSION_ID)).thenReturn(Optional.of(testSession));
-        when(examSessionRepository.save(any(ExamSession.class))).thenAnswer(inv -> inv.getArgument(0));
-        when(proctoringProperties.getMaxFullScreenExits()).thenReturn(3);
-        when(kafkaTemplate.send(anyString(), anyString(), any()))
-                .thenReturn(CompletableFuture.completedFuture(null));
+    @Nested
+    @DisplayName("recordFullScreenExit")
+    class RecordFullScreenExit {
 
-        proctoringService.recordFullScreenExit(SESSION_ID);
+        @Test
+        @DisplayName("Increments exit count and saves session")
+        void incrementsExitCount() {
+            when(examSessionRepository.findBySessionId(SESSION_ID)).thenReturn(Optional.of(testSession));
+            when(proctoringProperties.getMaxFullScreenExits()).thenReturn(3);
 
-        // Verify audit event is published when threshold is reached
-        ArgumentCaptor<Object> eventCaptor = ArgumentCaptor.forClass(Object.class);
-        verify(kafkaTemplate).send(eq("exam.audit.events"), eq(SESSION_ID.toString()), eventCaptor.capture());
+            proctoringService.recordFullScreenExit(SESSION_ID);
 
-        Map<String, Object> event = (Map<String, Object>) eventCaptor.getValue();
-        assertThat(event.get("eventType")).isEqualTo("SESSION_FLAGGED_FULLSCREEN_EXITS");
-        assertThat(event.get("sessionId")).isEqualTo(SESSION_ID.toString());
-        assertThat(event.get("fullScreenExitCount")).isEqualTo(3);
-    }
+            assertThat(testSession.getFullScreenExitCount()).isEqualTo(1);
+            verify(examSessionRepository).save(testSession);
+            verify(kafkaTemplate, never()).send(anyString(), anyString(), any());
+        }
 
-    @Test
-    @DisplayName("recordFullScreenExit does not flag below threshold")
-    void doesNotFlagBelowThreshold() {
-        testSession.setFullScreenExitCount(0); // Will become 1 after increment
+        @Test
+        @DisplayName("Publishes SESSION_FLAGGED_FULLSCREEN_EXITS audit event when threshold reached")
+        void flagsSessionWhenThresholdReached() {
+            testSession.setFullScreenExitCount(2); // will become 3 == threshold
+            when(examSessionRepository.findBySessionId(SESSION_ID)).thenReturn(Optional.of(testSession));
+            when(proctoringProperties.getMaxFullScreenExits()).thenReturn(3);
+            when(kafkaTemplate.send(eq("exam.audit.events"), eq(SESSION_ID.toString()), any()))
+                    .thenReturn(CompletableFuture.completedFuture(null));
 
-        when(examSessionRepository.findBySessionId(SESSION_ID)).thenReturn(Optional.of(testSession));
-        when(examSessionRepository.save(any(ExamSession.class))).thenAnswer(inv -> inv.getArgument(0));
-        when(proctoringProperties.getMaxFullScreenExits()).thenReturn(3);
+            proctoringService.recordFullScreenExit(SESSION_ID);
 
-        proctoringService.recordFullScreenExit(SESSION_ID);
+            assertThat(testSession.getFullScreenExitCount()).isEqualTo(3);
+            verify(examSessionRepository).save(testSession);
 
-        // No Kafka publish for audit since we're below threshold
-        verify(kafkaTemplate, never()).send(eq("exam.audit.events"), anyString(), any());
-    }
+            ArgumentCaptor<Map<String, Object>> captor = ArgumentCaptor.forClass(Map.class);
+            verify(kafkaTemplate).send(eq("exam.audit.events"), eq(SESSION_ID.toString()), captor.capture());
 
-    @Test
-    @DisplayName("recordFullScreenExit throws when session not found")
-    void throwsWhenSessionNotFound() {
-        when(examSessionRepository.findBySessionId(SESSION_ID)).thenReturn(Optional.empty());
+            Map<String, Object> event = captor.getValue();
+            assertThat(event.get("eventType")).isEqualTo("SESSION_FLAGGED_FULLSCREEN_EXITS");
+            assertThat(event.get("sessionId")).isEqualTo(SESSION_ID.toString());
+            assertThat(event.get("candidateId")).isEqualTo(CANDIDATE_ID.toString());
+            assertThat(event.get("fullScreenExitCount")).isEqualTo(3);
+            assertThat(event.get("threshold")).isEqualTo(3);
+        }
 
-        assertThatThrownBy(() -> proctoringService.recordFullScreenExit(SESSION_ID))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("Session not found");
-    }
+        @Test
+        @DisplayName("Throws IllegalArgumentException for unknown session")
+        void throwsOnUnknownSession() {
+            when(examSessionRepository.findBySessionId(SESSION_ID)).thenReturn(Optional.empty());
 
-    @Test
-    @DisplayName("captureSnapshot publishes event to proctoring topic")
-    @SuppressWarnings("unchecked")
-    void captureSnapshotPublishesEvent() {
-        byte[] imageData = new byte[]{1, 2, 3, 4, 5};
-
-        when(examSessionRepository.findBySessionId(SESSION_ID)).thenReturn(Optional.of(testSession));
-        when(kafkaTemplate.send(anyString(), anyString(), any()))
-                .thenReturn(CompletableFuture.completedFuture(null));
-
-        proctoringService.captureSnapshot(SESSION_ID, imageData, TENANT_ID);
-
-        ArgumentCaptor<Object> eventCaptor = ArgumentCaptor.forClass(Object.class);
-        verify(kafkaTemplate).send(eq("exam.proctoring.alerts"), eq(SESSION_ID.toString()), eventCaptor.capture());
-
-        Map<String, Object> event = (Map<String, Object>) eventCaptor.getValue();
-        assertThat(event.get("eventType")).isEqualTo("SNAPSHOT_CAPTURED");
-        assertThat(event.get("sessionId")).isEqualTo(SESSION_ID.toString());
-        assertThat(event.get("tenantId")).isEqualTo(TENANT_ID);
-        assertThat(event.get("imageSize")).isEqualTo(5);
+            assertThatThrownBy(() -> proctoringService.recordFullScreenExit(SESSION_ID))
+                    .isInstanceOf(IllegalArgumentException.class)
+                    .hasMessageContaining("Session not found");
+        }
     }
 }

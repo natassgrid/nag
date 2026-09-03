@@ -21,12 +21,18 @@ package com.examplatform.questionbank.service;
 
 import com.examplatform.questionbank.ai.embedding.EmbeddingService;
 import com.examplatform.questionbank.domain.Question;
+import com.examplatform.questionbank.domain.Subject;
+import com.examplatform.questionbank.domain.Topic;
 import com.examplatform.questionbank.domain.enums.CognitiveLevel;
 import com.examplatform.questionbank.domain.enums.DifficultyLevel;
 import com.examplatform.questionbank.domain.enums.QuestionType;
 import com.examplatform.questionbank.dto.CreateQuestionRequest;
 import com.examplatform.questionbank.dto.QuestionResponse;
 import com.examplatform.questionbank.repository.QuestionRepository;
+import com.examplatform.questionbank.repository.SubjectRepository;
+import com.examplatform.questionbank.repository.SubtopicRepository;
+import com.examplatform.questionbank.repository.TopicRepository;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -34,9 +40,12 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.Mockito;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.kafka.core.KafkaTemplate;
 
 import java.time.Instant;
+import java.util.Optional;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -58,23 +67,61 @@ class QuestionServiceTest {
     private QuestionRepository questionRepository;
 
     @Mock
+    private SubjectRepository subjectRepository;
+
+    @Mock
+    private TopicRepository topicRepository;
+
+    @Mock
+    private SubtopicRepository subtopicRepository;
+
+    @Mock
     private SimilarityDetectionService similarityDetectionService;
 
     @Mock
     private EmbeddingService embeddingService;
 
     @Mock
-    private org.springframework.kafka.core.KafkaTemplate<String, Object> kafkaTemplate;
+    private KafkaTemplate<String, Object> kafkaTemplate;
 
     @InjectMocks
     private QuestionService questionService;
 
-    @org.junit.jupiter.api.BeforeEach
+    private String currentTenantId = "tenant-abc";
+
+    @BeforeEach
     void setUp() {
-        org.mockito.Mockito.lenient()
-                .when(kafkaTemplate.send(org.mockito.ArgumentMatchers.anyString(),
-                        org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any()))
+        Mockito.lenient()
+                .when(kafkaTemplate.send(any(), any(), any()))
                 .thenReturn(java.util.concurrent.CompletableFuture.completedFuture(null));
+
+        Mockito.lenient()
+                .when(subjectRepository.findById(any()))
+                .thenAnswer(inv -> {
+                    Long id = inv.getArgument(0);
+                    Subject s = Subject.builder().name("Mathematics").code("MATH").build();
+                    s.setTenantId(currentTenantId);
+                    try {
+                        var idField = s.getClass().getSuperclass().getDeclaredField("id");
+                        idField.setAccessible(true);
+                        idField.set(s, id != null ? id : 1L);
+                    } catch (Exception e) {}
+                    return Optional.of(s);
+                });
+
+        Mockito.lenient()
+                .when(topicRepository.findById(any()))
+                .thenAnswer(inv -> {
+                    Long id = inv.getArgument(0);
+                    Topic t = Topic.builder().name("Calculus").subjectId(1L).build();
+                    t.setTenantId(currentTenantId);
+                    try {
+                        var idField = t.getClass().getSuperclass().getDeclaredField("id");
+                        idField.setAccessible(true);
+                        idField.set(t, id != null ? id : 10L);
+                    } catch (Exception e) {}
+                    return Optional.of(t);
+                });
 
         // Set @Value field that isn't injected by @InjectMocks
         try {
@@ -88,6 +135,8 @@ class QuestionServiceTest {
 
     private CreateQuestionRequest validRequest() {
         return CreateQuestionRequest.builder()
+                .subjectId(1L)
+                .topicId(10L)
                 .subject("Mathematics")
                 .topic("Calculus")
                 .subtopic("Differentiation")
@@ -112,6 +161,7 @@ class QuestionServiceTest {
             CreateQuestionRequest request = validRequest();
             UUID authorId = UUID.randomUUID();
             String tenantId = "tenant-abc";
+            currentTenantId = tenantId;
 
             when(questionRepository.save(any(Question.class))).thenAnswer(invocation -> {
                 Question q = invocation.getArgument(0);
@@ -156,6 +206,7 @@ class QuestionServiceTest {
             CreateQuestionRequest request = validRequest();
             UUID authorId = UUID.fromString("11111111-1111-1111-1111-111111111111");
             String tenantId = "tenant-xyz";
+            currentTenantId = tenantId;
 
             when(questionRepository.save(any(Question.class))).thenAnswer(invocation -> {
                 Question q = invocation.getArgument(0);
@@ -190,6 +241,7 @@ class QuestionServiceTest {
             CreateQuestionRequest request = validRequest();
             UUID authorId = UUID.randomUUID();
             String tenantId = "tenant-abc";
+            currentTenantId = tenantId;
 
             when(questionRepository.save(any(Question.class))).thenAnswer(invocation -> {
                 Question q = invocation.getArgument(0);
@@ -227,6 +279,7 @@ class QuestionServiceTest {
             CreateQuestionRequest request = validRequest();
             UUID authorId = UUID.randomUUID();
             String tenantId = "exam-authority-maharashtra";
+            currentTenantId = tenantId;
 
             when(questionRepository.save(any(Question.class))).thenAnswer(invocation -> {
                 Question q = invocation.getArgument(0);

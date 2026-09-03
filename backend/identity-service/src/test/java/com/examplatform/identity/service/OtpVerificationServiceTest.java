@@ -35,6 +35,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.util.Optional;
+import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -43,28 +44,31 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-/**
- * Unit tests for {@link OtpVerificationService}.
- *
- * <p><strong>Validates: Requirements 1.2</strong>
- */
 @ExtendWith(MockitoExtension.class)
 @DisplayName("OtpVerificationService")
 class OtpVerificationServiceTest {
 
     @Mock
-    UserAccountRepository userAccountRepository;
+    private UserAccountRepository userAccountRepository;
+
     @Mock
-    HashingService hashingService;
+    private HashingService hashingService;
+
     @Mock
-    OtpService otpService;
+    private OtpService otpService;
+
     @Mock
-    KeycloakService keycloakService;
+    private KeycloakService keycloakService;
+
     @Mock
-    AuditEventPublisher auditEventPublisher;
+    private AuditEventPublisher auditEventPublisher;
 
     @InjectMocks
-    OtpVerificationService otpVerificationService;
+    private OtpVerificationService otpVerificationService;
+
+    // ─────────────────────────────────────────────────────────────
+    // verifyOtpAndActivate
+    // ─────────────────────────────────────────────────────────────
 
     @Nested
     @DisplayName("verifyOtpAndActivate")
@@ -76,8 +80,17 @@ class OtpVerificationServiceTest {
             UserAccount account = UserAccount.builder()
                 .accountStatus(AccountStatus.PENDING_VERIFICATION)
                 .username("user@test.com")
+                .mobileHash("mobileHash")
+                .keycloakUserId("kc-user-123")
                 .build();
             account.setTenantId("default");
+            try {
+                var idField = account.getClass().getSuperclass().getDeclaredField("id");
+                idField.setAccessible(true);
+                idField.set(account, UUID.randomUUID());
+            } catch (Exception e) {
+                // fall through
+            }
 
             OtpVerifyRequest request = new OtpVerifyRequest("9876543210", "123456");
 
@@ -85,7 +98,7 @@ class OtpVerificationServiceTest {
             when(userAccountRepository.findByMobileHashAndTenantId("mobileHash", "default"))
                 .thenReturn(Optional.of(account));
             when(otpService.verifyOtp("mobileHash", "123456")).thenReturn(true);
-            when(keycloakService.getTokens(any(), any())).thenReturn(
+            when(keycloakService.getTokens(any(), any(), any())).thenReturn(
                 AuthTokenResponse.builder().accessToken("token").expiresIn(900).build());
 
             AuthTokenResponse result = otpVerificationService.verifyOtpAndActivate(request, "default");
@@ -93,7 +106,8 @@ class OtpVerificationServiceTest {
             assertAll(
                 () -> assertThat(result.getAccessToken()).isEqualTo("token"),
                 () -> assertThat(account.getAccountStatus()).isEqualTo(AccountStatus.ACTIVE),
-                () -> verify(userAccountRepository).save(account)
+                () -> verify(userAccountRepository).save(account),
+                () -> verify(keycloakService).activateUser("kc-user-123")
             );
         }
 
@@ -103,6 +117,7 @@ class OtpVerificationServiceTest {
             UserAccount account = UserAccount.builder()
                 .accountStatus(AccountStatus.PENDING_VERIFICATION)
                 .username("user@test.com")
+                .mobileHash("mobileHash")
                 .build();
             account.setTenantId("default");
 
@@ -130,11 +145,12 @@ class OtpVerificationServiceTest {
         }
 
         @Test
-        @DisplayName("throws InvalidOtpException when account already active")
+        @DisplayName("throws InvalidOtpException when account is already ACTIVE")
         void alreadyActive() {
             UserAccount account = UserAccount.builder()
                 .accountStatus(AccountStatus.ACTIVE)
                 .username("user@test.com")
+                .mobileHash("mobileHash")
                 .build();
             account.setTenantId("default");
 
@@ -144,7 +160,8 @@ class OtpVerificationServiceTest {
                 .thenReturn(Optional.of(account));
 
             assertThatThrownBy(() -> otpVerificationService.verifyOtpAndActivate(request, "default"))
-                .isInstanceOf(InvalidOtpException.class);
+                .isInstanceOf(InvalidOtpException.class)
+                .hasMessageContaining("already activated");
         }
     }
 }

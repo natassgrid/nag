@@ -1,6 +1,6 @@
 """
 IndicTrans2 Translation Service
-Model: ai4bharat/indictrans2-en-indic-dist-200M
+Model: ai4bharat/indictrans2-en-indic-dist-200M (or ungated mirror)
 Translates English to 22 Indian languages.
 
 API:
@@ -20,19 +20,67 @@ API:
 """
 
 import logging
+import os
+import sys
+import types
 from contextlib import asynccontextmanager
 from typing import Optional
 
 import torch
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel, Field
+
+# 1. Monkey-patch PreTrainedTokenizerBase into transformers.tokenization_utils
+# IndicTransToolkit's collator.py imports PreTrainedTokenizerBase from
+# transformers.tokenization_utils rather than tokenization_utils_base.
+import transformers
+import transformers.tokenization_utils as tokenization_utils
+import transformers.tokenization_utils_base as tokenization_utils_base
+
+if not hasattr(tokenization_utils, "PreTrainedTokenizerBase"):
+    tokenization_utils.PreTrainedTokenizerBase = tokenization_utils_base.PreTrainedTokenizerBase
+
+# 2. Monkey-patch transformers.onnx package and transformers.onnx.utils submodule
+# In transformers >= 4.40, transformers.onnx was removed. IndicTrans2's
+# configuration_indictrans.py imports OnnxConfig, OnnxSeq2SeqConfigWithPast,
+# and compute_effective_axis_dimension from transformers.onnx[.utils].
+if not hasattr(transformers, "onnx") or "transformers.onnx" not in sys.modules:
+    onnx_pkg = types.ModuleType("transformers.onnx")
+    onnx_pkg.__path__ = []  # Designates transformers.onnx as a package for submodules
+
+    class OnnxConfig:
+        default_fixed_batch = 2
+        default_fixed_sequence = 8
+
+    class OnnxSeq2SeqConfigWithPast(OnnxConfig):
+        pass
+
+    onnx_pkg.OnnxConfig = OnnxConfig
+    onnx_pkg.OnnxSeq2SeqConfigWithPast = OnnxSeq2SeqConfigWithPast
+    sys.modules["transformers.onnx"] = onnx_pkg
+    transformers.onnx = onnx_pkg
+
+if not hasattr(transformers.onnx, "utils") or "transformers.onnx.utils" not in sys.modules:
+    onnx_utils = types.ModuleType("transformers.onnx.utils")
+
+    def compute_effective_axis_dimension(axis_dim, fixed_dimension=None, num_token_to_add=0):
+        return fixed_dimension if axis_dim == -1 else axis_dim
+
+    onnx_utils.compute_effective_axis_dimension = compute_effective_axis_dimension
+    sys.modules["transformers.onnx.utils"] = onnx_utils
+    transformers.onnx.utils = onnx_utils
+
 from transformers import AutoModelForSeq2SeqLM, AutoTokenizer
 from IndicTransToolkit.processor import IndicProcessor
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-MODEL_NAME = "ai4bharat/indictrans2-en-indic-dist-200M"
+MODEL_NAME = os.environ.get("MODEL_NAME", "ai4bharat/indictrans2-en-indic-dist-200M")
+HF_TOKEN = os.environ.get("HF_TOKEN") or None
+if HF_TOKEN and not HF_TOKEN.strip():
+    HF_TOKEN = None
+
 SOURCE_LANG = "eng_Latn"
 
 SUPPORTED_LANGUAGES = {
@@ -76,8 +124,36 @@ async def lifespan(app: FastAPI):
 
     DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 
-    tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME, trust_remote_code=True)
-    model = AutoModelForSeq2SeqLM.from_pretrained(MODEL_NAME, trust_remote_code=True)
+    token_to_use = HF_TOKEN if HF_TOKEN else None
+    try:
+        tokenizer = AutoTokenizer.from_pretrained(
+            MODEL_NAME,
+            trust_remote_code=True,
+            token=token_to_use,
+        )
+        model = AutoModelForSeq2SeqLM.from_pretrained(
+            MODEL_NAME,
+            trust_remote_code=True,
+            token=token_to_use,
+        )
+    except Exception as e:
+        err_msg = str(e)
+        if "401" in err_msg or "gated" in err_msg.lower() or "restricted" in err_msg.lower():
+            logger.error(
+                "\n" + "=" * 76 + "\n"
+                f"ERROR: Model '{MODEL_NAME}' is a gated repository on Hugging Face.\n\n"
+                "To fix this, choose one of the following options:\n\n"
+                "Option 1 (Use your Hugging Face Token):\n"
+                f"  1. Go to https://huggingface.co/{MODEL_NAME} and accept terms.\n"
+                "  2. Create a Read token at https://huggingface.co/settings/tokens\n"
+                "  3. Add HF_TOKEN=hf_your_token in infrastructure/docker-compose/.env\n\n"
+                "Option 2 (Use an ungated mirror without needing HF login/token):\n"
+                "  Add to infrastructure/docker-compose/.env:\n"
+                "  INDICTRANS_MODEL=naklitechie/indictrans2-en-indic-dist-200M\n"
+                + "=" * 76 + "\n"
+            )
+        raise
+
     model = model.to(DEVICE)
     model.eval()
 
@@ -90,7 +166,7 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(
     title="IndicTrans2 Translation Service",
-    description="English to 22 Indian Languages (ai4bharat/indictrans2-en-indic-dist-200M)",
+    description=f"English to 22 Indian Languages ({MODEL_NAME})",
     version="1.0.0",
     lifespan=lifespan,
 )

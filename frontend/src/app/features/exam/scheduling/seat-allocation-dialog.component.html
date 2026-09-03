@@ -1,69 +1,105 @@
-    <h2 mat-dialog-title>{{ data.allocation ? 'Edit Seat Allocation' : 'Add Seat Allocation' }}</h2>
-    <mat-dialog-content>
-      <form [formGroup]="form" class="dialog-form">
+<app-right-drawer
+  [isOpen]="isOpen"
+  [title]="allocation ? 'Edit Seat Allocation' : 'Add Seat Allocation'"
+  [subtitle]="allocation ? 'Modify seat distribution and reservation quotas for this centre.' : 'Allocate candidate seats, reservations, and emergency buffers to a centre.'"
+  [width]="width"
+  (close)="cancel()"
+>
+  <div drawer-body>
+    <!-- Error banner if save fails -->
+    <div class="error-banner" *ngIf="saveError">
+      <mat-icon>error_outline</mat-icon>
+      <span>{{ saveError }}</span>
+    </div>
 
-        <!-- Centre selector (only for new allocations) -->
-        <mat-form-field appearance="outline" class="full-width" *ngIf="!data.allocation">
-          <mat-label>Centre</mat-label>
-          <mat-select formControlName="centreId">
-            <mat-option *ngFor="let c of centres" [value]="c.id">
-              {{ c.centreName }} — {{ c.cityName || c.city }}, {{ c.stateName || c.state }}
-            </mat-option>
-          </mat-select>
-          <mat-error *ngIf="form.get('centreId')?.hasError('required')">Select a centre</mat-error>
+    <form [formGroup]="form" class="drawer-form" autocomplete="off">
+      <div class="section-title">Examination Centre</div>
+
+      <mat-form-field appearance="outline" class="full-width" *ngIf="!allocation">
+        <mat-label>Select Centre</mat-label>
+        <mat-select formControlName="centreId">
+          <mat-option *ngFor="let c of centres" [value]="c.id">
+            {{ c.centreName }} ({{ c.city }}, {{ c.state }}) — Cap: {{ c.totalCapacity }}
+          </mat-option>
+        </mat-select>
+        <mat-icon matSuffix>location_on</mat-icon>
+        <mat-error *ngIf="form.get('centreId')?.hasError('required')">Centre is required</mat-error>
+      </mat-form-field>
+
+      <div class="readonly-info" *ngIf="allocation">
+        <span class="info-label">Centre ID:</span>
+        <span class="info-val">{{ allocation.centreId }}</span>
+      </div>
+
+      <mat-divider class="form-divider"></mat-divider>
+      <div class="section-title">Seat Capacities</div>
+
+      <div class="form-row">
+        <mat-form-field appearance="outline" class="flex-1">
+          <mat-label>Total Seats</mat-label>
+          <input matInput type="number" formControlName="totalSeats" min="0" />
+          <mat-error *ngIf="form.get('totalSeats')?.hasError('required')">Required</mat-error>
+          <mat-error *ngIf="form.get('totalSeats')?.hasError('min')">Must be &ge; 0</mat-error>
         </mat-form-field>
 
-        <!-- Read-only centre display when editing -->
-        <div class="readonly-field" *ngIf="data.allocation">
-          <mat-icon>location_on</mat-icon>
-          <span>Centre ID: {{ data.allocation.centreId | slice:0:8 }}…</span>
-        </div>
+        <mat-form-field appearance="outline" class="flex-1">
+          <mat-label>Available Seats</mat-label>
+          <input matInput type="number" formControlName="availableSeats" min="0" />
+          <mat-error *ngIf="form.get('availableSeats')?.hasError('required')">Required</mat-error>
+          <mat-error *ngIf="form.get('availableSeats')?.hasError('min')">Must be &ge; 0</mat-error>
+        </mat-form-field>
+      </div>
 
-        <div class="form-row">
-          <mat-form-field appearance="outline">
-            <mat-label>Total Seats</mat-label>
-            <input matInput type="number" formControlName="totalSeats" min="0" />
-          </mat-form-field>
-          <mat-form-field appearance="outline">
-            <mat-label>Available Seats</mat-label>
-            <input matInput type="number" formControlName="availableSeats" min="0" />
-            <mat-hint>Must not be negative</mat-hint>
-          </mat-form-field>
-        </div>
+      <mat-divider class="form-divider"></mat-divider>
+      <div class="section-title">Reservations & Buffers</div>
 
-        <div class="form-row">
-          <mat-form-field appearance="outline">
-            <mat-label>Reserved Seats</mat-label>
-            <input matInput type="number" formControlName="reservedSeats" min="0" />
-          </mat-form-field>
-          <mat-form-field appearance="outline">
-            <mat-label>PwD Seats</mat-label>
-            <input matInput type="number" formControlName="pwdSeats" min="0" />
-            <mat-hint>Persons with Disabilities</mat-hint>
-          </mat-form-field>
-        </div>
+      <div class="form-row">
+        <mat-form-field appearance="outline" class="flex-1">
+          <mat-label>Reserved Seats</mat-label>
+          <input matInput type="number" formControlName="reservedSeats" min="0" />
+        </mat-form-field>
 
-        <div class="form-row">
-          <mat-form-field appearance="outline">
-            <mat-label>Emergency Buffer</mat-label>
-            <input matInput type="number" formControlName="emergencyBufferSeats" min="0" />
-          </mat-form-field>
-          <mat-form-field appearance="outline">
-            <mat-label>Female Reserved</mat-label>
-            <input matInput type="number" formControlName="femaleReservedSeats" min="0" />
-          </mat-form-field>
-        </div>
+        <mat-form-field appearance="outline" class="flex-1">
+          <mat-label>PwD Reserved Seats</mat-label>
+          <input matInput type="number" formControlName="pwdSeats" min="0" />
+        </mat-form-field>
+      </div>
 
-        <mat-form-field appearance="outline" class="full-width">
+      <div class="form-row">
+        <mat-form-field appearance="outline" class="flex-1">
+          <mat-label>Emergency Buffer Seats</mat-label>
+          <input matInput type="number" formControlName="emergencyBufferSeats" min="0" />
+          <mat-hint>Spares for hardware failure</mat-hint>
+        </mat-form-field>
+
+        <mat-form-field appearance="outline" class="flex-1">
+          <mat-label>Female Reserved Seats</mat-label>
+          <input matInput type="number" formControlName="femaleReservedSeats" min="0" />
+        </mat-form-field>
+      </div>
+
+      <div class="form-row">
+        <mat-form-field appearance="outline" class="flex-1">
           <mat-label>Special Category Seats</mat-label>
           <input matInput type="number" formControlName="specialCategorySeats" min="0" />
-          <mat-hint>SC/ST/OBC/EWS etc.</mat-hint>
         </mat-form-field>
-      </form>
-    </mat-dialog-content>
-    <mat-dialog-actions align="end">
-      <button mat-button mat-dialog-close>Cancel</button>
-      <button mat-raised-button color="primary" [disabled]="form.invalid" (click)="save()">
-        {{ data.allocation ? 'Update' : 'Save' }}
-      </button>
-    </mat-dialog-actions>
+      </div>
+    </form>
+  </div>
+
+  <div drawer-footer class="drawer-footer-actions">
+    <button mat-button class="footer-btn btn-cancel" type="button" [disabled]="saving" (click)="cancel()">Cancel</button>
+    <button
+      mat-flat-button
+      color="primary"
+      type="button"
+      class="footer-btn btn-primary"
+      [disabled]="form.invalid || saving"
+      (click)="save()"
+    >
+      <mat-spinner diameter="18" *ngIf="saving"></mat-spinner>
+      <mat-icon class="footer-btn-icon" *ngIf="!saving">{{ allocation ? 'save' : 'add' }}</mat-icon>
+      {{ allocation ? 'Update Allocation' : 'Add Allocation' }}
+    </button>
+  </div>
+</app-right-drawer>

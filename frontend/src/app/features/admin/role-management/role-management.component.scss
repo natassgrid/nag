@@ -1,14 +1,675 @@
-    .status-badge {
-      padding: 4px 10px;
-      border-radius: 12px;
-      font-size: 12px;
-      font-weight: 500;
+/*
+ * SPDX-License-Identifier: AGPL-3.0-only
+ * National Assessment Grid (NAG) - Open Digital Public Infrastructure (DPI) Platform
+ * Copyright (C) 2025 NAG Contributors
+ */
+
+:host {
+  display: block;
+}
+
+.page-layout {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.role-tabs {
+  background: #ffffff;
+  border-radius: 12px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+  overflow: hidden;
+
+  ::ng-deep .mat-mdc-tab-header {
+    border-bottom: 1px solid #e2e8f0;
+    background: #ffffff;
+  }
+}
+
+.tab-icon {
+  font-size: 18px;
+  width: 18px;
+  height: 18px;
+  margin-right: 8px;
+  vertical-align: middle;
+}
+
+.tab-content-area {
+  padding: 20px 0;
+}
+
+/* ── Table Summary Chips ── */
+.perms-summary-wrapper {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.perm-chip {
+  font-size: 11px;
+  height: 24px;
+  padding: 0 8px;
+  background-color: #f1f5f9 !important;
+  color: #1e293b !important;
+}
+
+.more-chip {
+  background-color: #e0f2fe !important;
+  color: #0369a1 !important;
+  cursor: pointer;
+  font-weight: 600;
+
+  &:hover {
+    background-color: #bae6fd !important;
+  }
+}
+
+.no-perms {
+  color: #94a3b8;
+  font-style: italic;
+  font-size: 12px;
+}
+
+/* ── Module Badges ── */
+.module-badge {
+  display: inline-block;
+  padding: 3px 10px;
+  border-radius: 9999px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  background-color: #f1f5f9;
+  color: #475569;
+
+  &[data-module="IDENTITY"] { background: #eff6ff; color: #1d4ed8; }
+  &[data-module="QUESTION_BANK"] { background: #f0fdf4; color: #15803d; }
+  &[data-module="EXAM_MANAGEMENT"] { background: #fefce8; color: #a16207; }
+  &[data-module="EXAM_DELIVERY"] { background: #faf5ff; color: #7e22ce; }
+  &[data-module="ASSESSMENT_EVALUATION"] { background: #fff7ed; color: #c2410c; }
+  &[data-module="AUDIT_SECURITY"] { background: #fef2f2; color: #b91c1c; }
+  &[data-module="ANALYTICS_REPORTS"] { background: #f0fdfa; color: #0f766e; }
+}
+
+/* ── Access Matrix ── */
+.matrix-card {
+  background: #ffffff;
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
+  overflow: hidden;
+}
+
+.matrix-header {
+  padding: 16px 20px;
+  background: #f8fafc;
+  border-bottom: 1px solid #e2e8f0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.matrix-title {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: #0f172a;
+}
+
+.matrix-subtitle {
+  margin: 4px 0 0 0;
+  font-size: 13px;
+  color: #64748b;
+}
+
+.matrix-legend {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: #475569;
+  font-weight: 500;
+}
+
+.legend-icon {
+  font-size: 16px;
+  width: 16px;
+  height: 16px;
+  &.granted { color: #16a34a; }
+  &.not-granted { color: #cbd5e1; }
+}
+
+.matrix-scroll-wrapper {
+  overflow-x: auto;
+  max-height: 600px;
+}
+
+.matrix-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+
+  th, td {
+    padding: 10px 14px;
+    border-bottom: 1px solid #e2e8f0;
+    text-align: center;
+  }
+
+  th.perm-col-header {
+    text-align: left;
+    position: sticky;
+    left: 0;
+    background: #f8fafc;
+    z-index: 2;
+    min-width: 260px;
+    font-weight: 600;
+    color: #0f172a;
+  }
+
+  th.role-col-header {
+    min-width: 120px;
+    background: #f8fafc;
+    vertical-align: middle;
+    &.system-header { background: #f1f5f9; }
+  }
+
+  .role-header-content {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+  }
+
+  .role-header-name {
+    font-weight: 600;
+    font-size: 12px;
+    color: #0f172a;
+  }
+
+  .role-header-badge {
+    font-size: 10px;
+    padding: 1px 6px;
+    border-radius: 4px;
+    background: #e2e8f0;
+    color: #475569;
+    font-weight: 500;
+    &.sys-badge { background: #dbeafe; color: #1e40af; }
+  }
+
+  .module-group-row td {
+    background: #f8fafc;
+    text-align: left;
+    padding: 8px 16px;
+  }
+
+  .module-group-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .module-group-icon {
+    font-size: 16px;
+    width: 16px;
+    height: 16px;
+    color: #0284c7;
+  }
+
+  .module-group-title {
+    font-weight: 700;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: #0f172a;
+  }
+
+  .module-perm-count {
+    font-size: 11px;
+    color: #94a3b8;
+  }
+
+  .perm-row:hover {
+    background: #f8fafc;
+  }
+
+  .perm-name-cell {
+    text-align: left;
+    position: sticky;
+    left: 0;
+    background: #ffffff;
+    z-index: 1;
+
+    .perm-info {
+      display: flex;
+      align-items: baseline;
+      gap: 8px;
     }
-    .status-badge.active { background-color: #c8e6c9; color: #2e7d32; }
-    .status-badge.inactive { background-color: #ffcdd2; color: #c62828; }
-    .perm-chip { font-size: 11px; }
-    .more-chip { background-color: #e3f2fd !important; color: #1565c0 !important; }
-    .no-perms { color: #9e9e9e; font-style: italic; font-size: 13px; }
-    .drawer-form-container { display: flex; flex-direction: column; gap: 16px; padding-top: 8px; }
-    .full-width { width: 100%; }
-    .toggle-field { padding: 8px 0; }
+
+    .perm-name-text {
+      font-weight: 500;
+      color: #0f172a;
+    }
+
+    .perm-code-text {
+      font-size: 11px;
+      color: #0369a1;
+      background: #f0f9ff;
+      padding: 1px 6px;
+      border-radius: 4px;
+    }
+
+    .perm-desc-text {
+      display: block;
+      font-size: 11px;
+      color: #64748b;
+      margin-top: 2px;
+    }
+  }
+
+  .cell-icon {
+    font-size: 18px;
+    width: 18px;
+    height: 18px;
+    vertical-align: middle;
+    &.granted { color: #16a34a; }
+    &.not-granted { color: #cbd5e1; }
+  }
+}
+
+/* ── Drawers Form Layout ── */
+.drawer-form-container {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 4px 0 16px;
+}
+
+.form-section {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.section-heading {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: #0f172a;
+}
+
+.section-header-with-badge {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.section-header-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.selected-count-badge {
+  font-size: 12px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 9999px;
+  background-color: #e0f2fe;
+  color: #0369a1;
+}
+
+.bulk-action-btns {
+  display: flex;
+  gap: 4px;
+
+  .bulk-btn {
+    font-size: 12px;
+    font-weight: 600;
+    min-width: 60px;
+    height: 28px;
+    padding: 0 6px;
+    line-height: 28px;
+    color: #0284c7;
+  }
+}
+
+.perm-search-field {
+  margin-bottom: -4px;
+
+  .search-prefix-icon {
+    color: #94a3b8;
+    margin-right: 8px;
+  }
+}
+
+.perm-groups-container {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.empty-perms-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  color: #94a3b8;
+  font-size: 13px;
+  gap: 8px;
+
+  .empty-state-icon {
+    font-size: 32px;
+    width: 32px;
+    height: 32px;
+  }
+
+  p { margin: 0; }
+}
+
+.perm-group-box {
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  overflow: hidden;
+  background: #ffffff;
+}
+
+.perm-group-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 12px;
+  background: #f8fafc;
+  border-bottom: 1px solid #e2e8f0;
+  cursor: pointer;
+  user-select: none;
+  min-height: 40px;
+
+  &:hover { background: #f1f5f9; }
+
+  .group-header-left {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .group-icon {
+    font-size: 18px;
+    width: 18px;
+    height: 18px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #0284c7;
+  }
+
+  .group-title {
+    font-size: 13px;
+    font-weight: 600;
+    line-height: 1;
+    color: #0f172a;
+  }
+
+  .group-count {
+    font-size: 11px;
+    font-weight: 600;
+    color: #64748b;
+    background: #e2e8f0;
+    padding: 2px 8px;
+    border-radius: 10px;
+    line-height: 1.2;
+  }
+}
+
+.perm-group-items {
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.perm-item-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: 6px;
+  border: 1px solid #e2e8f0;
+  background: #ffffff;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  user-select: none;
+
+  &:hover {
+    background: #f8fafc;
+    border-color: #cbd5e1;
+  }
+
+  &.selected {
+    background: #f0fdf4;
+    border-color: #86efac;
+  }
+}
+
+/* ── Checkbox Alignment Resets ── */
+::ng-deep .group-checkbox,
+::ng-deep .perm-checkbox {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  height: 18px !important;
+  width: 18px !important;
+  flex-shrink: 0;
+
+  .mat-mdc-checkbox-touch-target,
+  .mdc-checkbox__ripple,
+  .mdc-label {
+    display: none !important;
+  }
+
+  .mdc-checkbox {
+    padding: 0 !important;
+    margin: 0 !important;
+    width: 18px !important;
+    height: 18px !important;
+  }
+
+  .mdc-checkbox__background {
+    top: 0 !important;
+    left: 0 !important;
+    width: 18px !important;
+    height: 18px !important;
+  }
+}
+
+::ng-deep .perm-checkbox {
+  margin-top: 2px !important;
+}
+
+.perm-card-content {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+  min-width: 0;
+}
+
+.perm-card-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.perm-card-name {
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1.3;
+  color: #0f172a;
+}
+
+.perm-card-code {
+  font-size: 10px;
+  color: #0369a1;
+  background: #e0f2fe;
+  padding: 1px 6px;
+  border-radius: 4px;
+  font-family: monospace;
+  white-space: nowrap;
+}
+
+.perm-card-desc {
+  margin: 0;
+  font-size: 11px;
+  color: #64748b;
+  line-height: 1.35;
+}
+
+.full-width {
+  width: 100%;
+}
+
+.toggle-field {
+  padding: 4px 0;
+}
+
+/* ── View Role Drawer ── */
+.view-meta-card {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  padding: 12px;
+  background: #f8fafc;
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+}
+
+.view-meta-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.meta-label {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #64748b;
+}
+
+.meta-code {
+  font-size: 12px;
+  font-weight: 600;
+  color: #0f172a;
+}
+
+.role-type-badge {
+  display: inline-block;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: #f1f5f9;
+  color: #475569;
+  &.sys { background: #dbeafe; color: #1e40af; }
+}
+
+.view-desc-box {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.view-desc-text {
+  margin: 0;
+  font-size: 13px;
+  color: #334155;
+}
+
+.view-perms-section {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.no-perms-view {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 16px;
+  background: #f8fafc;
+  border-radius: 8px;
+  color: #64748b;
+  font-size: 13px;
+
+  .no-perms-icon {
+    font-size: 18px;
+    width: 18px;
+    height: 18px;
+  }
+}
+
+.view-perms-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.view-perm-card {
+  padding: 10px 12px;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.view-perm-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.view-perm-name {
+  font-weight: 600;
+  font-size: 13px;
+  color: #0f172a;
+}
+
+.module-chip {
+  font-size: 10px;
+  font-weight: 600;
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: #f1f5f9;
+  color: #475569;
+}
+
+.view-perm-code {
+  font-size: 11px;
+  color: #0369a1;
+  background: #f0f9ff;
+  padding: 1px 6px;
+  border-radius: 4px;
+  width: fit-content;
+}
+
+.view-perm-desc {
+  margin: 0;
+  font-size: 12px;
+  color: #64748b;
+}

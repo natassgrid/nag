@@ -17,7 +17,7 @@
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
 
-import { Component, ViewChild } from '@angular/core';
+import { Component, ViewChild, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
 import { MatCardModule } from '@angular/material/card';
@@ -46,6 +46,7 @@ import { PageHeaderComponent } from '../../../shared/components/page-header/page
     PageHeaderComponent,
   ],
   templateUrl: './schedule-list.component.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrls: ['./schedule-list.component.scss']
 })
 export class ScheduleListComponent {

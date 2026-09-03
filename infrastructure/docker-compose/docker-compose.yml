@@ -418,6 +418,7 @@ services:
       - "${INDICTRANS_PORT:-7860}:7860"
     environment:
       HF_TOKEN: ${HF_TOKEN:-}
+      MODEL_NAME: ${INDICTRANS_MODEL:-ai4bharat/indictrans2-en-indic-dist-200M}
     volumes:
       - indictrans2_cache:/root/.cache/huggingface
     healthcheck:

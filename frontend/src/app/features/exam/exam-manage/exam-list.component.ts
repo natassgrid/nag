@@ -17,7 +17,7 @@
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
 
-import { Component, ViewChild } from '@angular/core';
+import { Component, ViewChild, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
@@ -49,6 +49,7 @@ import { PageHeaderComponent } from '../../../shared/components/page-header/page
     ExamFormDialogComponent
   ],
   templateUrl: './exam-list.component.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrls: ['./exam-list.component.scss']
 })
 export class ExamListComponent {
@@ -113,28 +114,32 @@ export class ExamListComponent {
   }
 
   onDrawerClose(result: CreateExamRequest | null): void {
-    this.drawerOpen = false;
-    if (!result) return;
+    if (!result) {
+      this.drawerOpen = false;
+      return;
+    }
 
     if (this.editingExam) {
       this.examService.updateExam(this.editingExam.id, result).subscribe({
         next: () => {
+          this.drawerOpen = false;
           this.snackBar.open('Examination updated successfully', 'OK', { duration: 3000 });
           this.reload();
         },
         error: (err) => {
-          this.snackBar.open('Failed to update examination', 'Dismiss', { duration: 3000 });
+          this.snackBar.open(err?.error?.message || 'Failed to update examination', 'Dismiss', { duration: 3000 });
           console.error('Error updating exam:', err);
         }
       });
     } else {
       this.examService.createExam(result).subscribe({
         next: () => {
+          this.drawerOpen = false;
           this.snackBar.open('Examination created successfully', 'OK', { duration: 3000 });
           this.reload();
         },
         error: (err) => {
-          this.snackBar.open('Failed to create examination', 'Dismiss', { duration: 3000 });
+          this.snackBar.open(err?.error?.message || 'Failed to create examination', 'Dismiss', { duration: 3000 });
           console.error('Error creating exam:', err);
         }
       });
@@ -148,7 +153,7 @@ export class ExamListComponent {
         this.reload();
       },
       error: (err) => {
-        this.snackBar.open('Failed to publish examination', 'Dismiss', { duration: 3000 });
+        this.snackBar.open(err?.error?.message || 'Failed to publish examination', 'Dismiss', { duration: 3000 });
         console.error('Error publishing exam:', err);
       }
     });

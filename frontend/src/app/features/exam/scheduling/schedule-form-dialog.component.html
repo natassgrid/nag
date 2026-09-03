@@ -1,49 +1,84 @@
-    <h2 mat-dialog-title>{{ isEdit ? 'Edit Schedule' : 'Create Schedule' }}</h2>
-    <mat-dialog-content>
-      <form [formGroup]="form" class="dialog-form">
-        <mat-form-field appearance="outline" class="full-width">
-          <mat-label>Schedule Name</mat-label>
-          <input matInput formControlName="scheduleName" placeholder="e.g. Phase 1" />
-          <mat-error *ngIf="form.get('scheduleName')?.hasError('required')">Required</mat-error>
+<app-right-drawer
+  [isOpen]="isOpen"
+  [title]="schedule ? 'Edit Schedule' : 'Create Schedule'"
+  [subtitle]="schedule ? 'Update schedule name, examination dates, and timezone configuration.' : 'Configure a new examination schedule version, dates, and notification reference.'"
+  [width]="width"
+  (close)="cancel()"
+>
+  <div drawer-body>
+    <!-- Error banner if save fails -->
+    <div class="error-banner" *ngIf="saveError">
+      <mat-icon>error_outline</mat-icon>
+      <span>{{ saveError }}</span>
+    </div>
+
+    <form [formGroup]="form" class="schedule-form" autocomplete="off">
+      <div class="section-title">Schedule Information</div>
+
+      <mat-form-field appearance="outline" class="full-width">
+        <mat-label>Schedule Name</mat-label>
+        <input matInput formControlName="scheduleName" placeholder="e.g. Phase 1 - Morning Batch" />
+        <mat-icon matSuffix>badge</mat-icon>
+        <mat-error *ngIf="form.get('scheduleName')?.hasError('required')">Schedule name is required</mat-error>
+      </mat-form-field>
+
+      <mat-form-field appearance="outline" class="full-width">
+        <mat-label>Notification Number (Optional)</mat-label>
+        <input matInput formControlName="notificationNumber" placeholder="e.g. NAG/2026/EX-042 or Gazette ref" />
+        <mat-icon matSuffix>tag</mat-icon>
+        <mat-hint>Official government notification or gazette reference</mat-hint>
+      </mat-form-field>
+
+      <mat-divider class="form-divider"></mat-divider>
+
+      <div class="section-title">Dates & Timezone</div>
+
+      <div class="form-row">
+        <mat-form-field appearance="outline" class="flex-1">
+          <mat-label>Exam Date</mat-label>
+          <input matInput [matDatepicker]="examDp" [min]="minDate" formControlName="examDate" placeholder="Choose exam date" />
+          <mat-datepicker-toggle matIconSuffix [for]="examDp"></mat-datepicker-toggle>
+          <mat-datepicker #examDp></mat-datepicker>
+          <mat-error *ngIf="form.get('examDate')?.hasError('required')">Exam date is required</mat-error>
         </mat-form-field>
 
-        <mat-form-field appearance="outline" class="full-width">
-          <mat-label>Notification Number</mat-label>
-          <input matInput formControlName="notificationNumber" placeholder="Government gazette reference" />
-          <mat-hint>Optional — official notification reference</mat-hint>
+        <mat-form-field appearance="outline" class="flex-1">
+          <mat-label>Reserve Date (Optional)</mat-label>
+          <input matInput [matDatepicker]="resDp" [min]="minDate" formControlName="reserveDate" placeholder="Choose backup date" />
+          <mat-datepicker-toggle matIconSuffix [for]="resDp"></mat-datepicker-toggle>
+          <mat-datepicker #resDp></mat-datepicker>
+          <mat-hint>Backup examination date</mat-hint>
         </mat-form-field>
+      </div>
 
-        <div class="form-row">
-          <mat-form-field appearance="outline">
-            <mat-label>Exam Date</mat-label>
-            <input matInput [matDatepicker]="examDp" [min]="minDate" formControlName="examDate" />
-            <mat-datepicker-toggle matIconSuffix [for]="examDp"></mat-datepicker-toggle>
-            <mat-datepicker #examDp></mat-datepicker>
-            <mat-error *ngIf="form.get('examDate')?.hasError('required')">Required</mat-error>
-          </mat-form-field>
+      <mat-form-field appearance="outline" class="full-width">
+        <mat-label>Time Zone</mat-label>
+        <mat-select formControlName="timeZone">
+          <mat-option value="Asia/Kolkata">Asia/Kolkata (IST - UTC+05:30)</mat-option>
+          <mat-option value="Asia/Colombo">Asia/Colombo (UTC+05:30)</mat-option>
+          <mat-option value="Asia/Dubai">Asia/Dubai (GST - UTC+04:00)</mat-option>
+          <mat-option value="UTC">UTC (Coordinated Universal Time)</mat-option>
+          <mat-option value="America/New_York">America/New_York (EST/EDT)</mat-option>
+          <mat-option value="Europe/London">Europe/London (GMT/BST)</mat-option>
+        </mat-select>
+        <mat-icon matSuffix>schedule</mat-icon>
+      </mat-form-field>
+    </form>
+  </div>
 
-          <mat-form-field appearance="outline">
-            <mat-label>Reserve Date</mat-label>
-            <input matInput [matDatepicker]="resDp" [min]="minDate" formControlName="reserveDate" />
-            <mat-datepicker-toggle matIconSuffix [for]="resDp"></mat-datepicker-toggle>
-            <mat-datepicker #resDp></mat-datepicker>
-            <mat-hint>Optional backup date</mat-hint>
-          </mat-form-field>
-        </div>
-
-        <mat-form-field appearance="outline" class="full-width">
-          <mat-label>Time Zone</mat-label>
-          <mat-select formControlName="timeZone">
-            <mat-option value="Asia/Kolkata">Asia/Kolkata (IST)</mat-option>
-            <mat-option value="Asia/Colombo">Asia/Colombo</mat-option>
-            <mat-option value="UTC">UTC</mat-option>
-          </mat-select>
-        </mat-form-field>
-      </form>
-    </mat-dialog-content>
-    <mat-dialog-actions align="end">
-      <button mat-button mat-dialog-close>Cancel</button>
-      <button mat-raised-button color="primary" [disabled]="form.invalid" (click)="save()">
-        {{ isEdit ? 'Update' : 'Create' }}
-      </button>
-    </mat-dialog-actions>
+  <div drawer-footer class="drawer-footer-actions">
+    <button mat-button class="footer-btn btn-cancel" type="button" [disabled]="saving" (click)="cancel()">Cancel</button>
+    <button
+      mat-flat-button
+      color="primary"
+      type="button"
+      class="footer-btn btn-primary"
+      [disabled]="form.invalid || saving"
+      (click)="save()"
+    >
+      <mat-spinner diameter="18" *ngIf="saving"></mat-spinner>
+      <mat-icon class="footer-btn-icon" *ngIf="!saving">{{ schedule ? 'save' : 'add' }}</mat-icon>
+      {{ schedule ? 'Update Schedule' : 'Create Schedule' }}
+    </button>
+  </div>
+</app-right-drawer>

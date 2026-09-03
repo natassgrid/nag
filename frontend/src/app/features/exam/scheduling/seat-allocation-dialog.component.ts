@@ -17,45 +17,78 @@
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
 
-import { Component, Inject, OnInit } from '@angular/core';
+import { Component, Input, Output, EventEmitter, OnInit, OnChanges, SimpleChanges, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
-import { MAT_DIALOG_DATA, MatDialogModule, MatDialogRef } from '@angular/material/dialog';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { MatSelectModule } from '@angular/material/select';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
-import { SchedulingService, CentreResponse, SeatAllocationResponse } from './scheduling.service';
-
-export interface SeatAllocationDialogData {
-  allocation?: SeatAllocationResponse;
-}
+import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
+import { MatDividerModule } from '@angular/material/divider';
+import { SchedulingService, CentreResponse, SeatAllocationResponse, SeatAllocationRequest } from './scheduling.service';
+import { RightDrawerComponent } from '../../../shared/components/right-drawer/right-drawer.component';
 
 @Component({
   selector: 'app-seat-allocation-dialog',
   standalone: true,
   imports: [
-    CommonModule, ReactiveFormsModule, MatDialogModule,
-    MatFormFieldModule, MatInputModule, MatSelectModule,
-    MatButtonModule, MatIconModule,
+    CommonModule,
+    ReactiveFormsModule,
+    MatFormFieldModule,
+    MatInputModule,
+    MatSelectModule,
+    MatButtonModule,
+    MatIconModule,
+    MatProgressSpinnerModule,
+    MatDividerModule,
+    RightDrawerComponent
   ],
   templateUrl: './seat-allocation-dialog.component.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrls: ['./seat-allocation-dialog.component.scss']
 })
-export class SeatAllocationDialogComponent implements OnInit {
+export class SeatAllocationDialogComponent implements OnInit, OnChanges {
+  @Input() isOpen = false;
+  @Input() allocation?: SeatAllocationResponse | null = null;
+  @Input() examId = '';
+  @Input() scheduleId = '';
+  @Input() shiftId = '';
+  @Input() width = '560px';
+  @Output() close = new EventEmitter<void>();
+  @Output() saved = new EventEmitter<SeatAllocationResponse>();
+
   form!: FormGroup;
   centres: CentreResponse[] = [];
+  loadingCentres = false;
+  saving = false;
+  saveError = '';
 
   constructor(
     private fb: FormBuilder,
-    private dialogRef: MatDialogRef<SeatAllocationDialogComponent>,
-    private schedulingService: SchedulingService,
-    @Inject(MAT_DIALOG_DATA) public data: SeatAllocationDialogData
-  ) {}
+    private schedulingService: SchedulingService
+  ) {
+    this.initForm();
+  }
 
   ngOnInit(): void {
-    const a = this.data.allocation;
+    this.initForm();
+  }
+
+  ngOnChanges(changes: SimpleChanges): void {
+    if (changes['isOpen'] && this.isOpen) {
+      this.initForm();
+      this.saveError = '';
+      this.loadCentres();
+    }
+    if (changes['allocation']) {
+      this.initForm();
+    }
+  }
+
+  initForm(): void {
+    const a = this.allocation;
     this.form = this.fb.group({
       centreId: [a?.centreId || '', a ? [] : [Validators.required]],
       totalSeats: [a?.totalSeats || 0, [Validators.required, Validators.min(0)]],
@@ -66,25 +99,62 @@ export class SeatAllocationDialogComponent implements OnInit {
       femaleReservedSeats: [a?.femaleReservedSeats || 0, Validators.min(0)],
       specialCategorySeats: [a?.specialCategorySeats || 0, Validators.min(0)],
     });
+  }
 
-    // Load centres for dropdown (only needed when creating)
-    if (!a) {
-      this.schedulingService.listCentres().subscribe(list => this.centres = list);
-    }
+  loadCentres(): void {
+    if (this.allocation) return;
+    this.loadingCentres = true;
+    this.schedulingService.listCentres().subscribe({
+      next: (list) => {
+        this.centres = list;
+        this.loadingCentres = false;
+      },
+      error: () => {
+        this.loadingCentres = false;
+      }
+    });
+  }
+
+  cancel(): void {
+    this.saveError = '';
+    this.close.emit();
   }
 
   save(): void {
-    if (this.form.invalid) return;
+    if (this.form.invalid) {
+      this.form.markAllAsTouched();
+      return;
+    }
+    if (!this.examId || !this.scheduleId || !this.shiftId) {
+      this.saveError = 'Cannot save allocation: Missing exam, schedule, or shift context.';
+      return;
+    }
+
     const v = this.form.value;
-    this.dialogRef.close({
-      centreId: this.data.allocation?.centreId || v.centreId,
+    const req: SeatAllocationRequest = {
+      centreId: this.allocation?.centreId || v.centreId,
       totalSeats: v.totalSeats,
       availableSeats: v.availableSeats,
-      reservedSeats: v.reservedSeats,
-      pwdSeats: v.pwdSeats,
-      emergencyBufferSeats: v.emergencyBufferSeats,
-      femaleReservedSeats: v.femaleReservedSeats,
-      specialCategorySeats: v.specialCategorySeats,
+      reservedSeats: v.reservedSeats || 0,
+      pwdSeats: v.pwdSeats || 0,
+      emergencyBufferSeats: v.emergencyBufferSeats || 0,
+      femaleReservedSeats: v.femaleReservedSeats || 0,
+      specialCategorySeats: v.specialCategorySeats || 0,
+    };
+
+    this.saving = true;
+    this.saveError = '';
+
+    this.schedulingService.upsertAllocation(this.examId, this.scheduleId, this.shiftId, req).subscribe({
+      next: (res) => {
+        this.saving = false;
+        this.saveError = '';
+        this.saved.emit(res);
+      },
+      error: (err) => {
+        this.saving = false;
+        this.saveError = err?.error?.message || err?.error?.error || 'Failed to save seat allocation. Please try again.';
+      }
     });
   }
 }

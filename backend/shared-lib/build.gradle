@@ -50,8 +50,11 @@ dependencies {
     // Validation
     api libs.jakarta.validation.api
 
-    // Spring Kafka (for shared producer configuration)
+    // Spring Kafka (for shared producer and consumer configuration)
     api libs.spring.kafka
+
+    // Spring Data Redis (optional shared Redis integration)
+    compileOnly libs.spring.boot.starter.data.redis
 
     // Spring Security (for shared security configs)
     api libs.spring.boot.starter.security
@@ -62,10 +65,12 @@ dependencies {
 
     // Test dependencies
     testImplementation libs.spring.boot.starter.test
+    testImplementation libs.spring.boot.starter.data.redis
     testImplementation libs.junit.jupiter
     testImplementation libs.junit.jupiter.params
     testRuntimeOnly libs.junit.platform.launcher
     testImplementation libs.assertj.core
+    testImplementation libs.spring.kafka.test
 }
 
 test {

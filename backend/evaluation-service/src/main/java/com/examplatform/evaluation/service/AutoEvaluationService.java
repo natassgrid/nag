@@ -23,7 +23,7 @@ import com.examplatform.evaluation.domain.Evaluation;
 import com.examplatform.evaluation.dto.AnswerKey;
 import com.examplatform.evaluation.dto.CandidateResponse;
 import com.examplatform.evaluation.repository.EvaluationRepository;
-import com.fasterxml.jackson.core.JsonProcessingException;
+import com.examplatform.shared.config.DynamicConfigService;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
@@ -60,6 +60,7 @@ public class AutoEvaluationService {
     private final EvaluationRepository evaluationRepository;
     private final ObjectMapper objectMapper;
     private final KafkaTemplate<String, Object> kafkaTemplate;
+    private final DynamicConfigService dynamicConfigService;
 
     /**
      * Auto-evaluate all responses for a finalized session.
@@ -76,7 +77,12 @@ public class AutoEvaluationService {
                                              List<CandidateResponse> responses,
                                              String tenantId) {
 
-        // Build a map of questionId → CandidateResponse for O(1) lookup
+        boolean instantGrade = dynamicConfigService.getBoolean(
+                "evaluation.auto.grade.instant", tenantId, true);
+        boolean anonymizeSheets = dynamicConfigService.getBoolean(
+                "evaluation.anonymize.candidate.sheets", tenantId, true);
+
+        // Build a map of questionId -> CandidateResponse for O(1) lookup
         Map<UUID, CandidateResponse> responseMap = responses.stream()
                 .collect(Collectors.toMap(CandidateResponse::getQuestionId, Function.identity()));
 
@@ -87,7 +93,7 @@ public class AutoEvaluationService {
 
             BigDecimal score;
             if (resp == null || !resp.isAttempted()) {
-                // Unattempted → zero marks
+                // Unattempted -> zero marks
                 score = BigDecimal.ZERO;
             } else if ("MULTI_MCQ".equals(answerKey.getQuestionType())) {
                 // Partial marking for Multi MCQ
@@ -112,7 +118,7 @@ public class AutoEvaluationService {
                     .score(score)
                     .maxMarks(BigDecimal.valueOf(answerKey.getMarksPerQuestion()))
                     .negativeMarks(BigDecimal.valueOf(answerKey.getNegativeMarks()))
-                    .status(Evaluation.EvaluationStatus.AUTO_EVALUATED)
+                    .status(instantGrade ? Evaluation.EvaluationStatus.AUTO_EVALUATED : Evaluation.EvaluationStatus.PENDING)
                     .build();
             eval.setTenantId(tenantId);
             evaluations.add(eval);
@@ -121,7 +127,7 @@ public class AutoEvaluationService {
         List<Evaluation> savedEvaluations = evaluationRepository.saveAll(evaluations);
 
         // Publish EVALUATION_CREATED audit event (one per session, fire-and-forget)
-        publishEvaluationAuditEvent(sessionId, candidateId, savedEvaluations.size(), tenantId);
+        publishEvaluationAuditEvent(sessionId, candidateId, savedEvaluations.size(), tenantId, anonymizeSheets);
 
         return savedEvaluations;
     }
@@ -130,15 +136,16 @@ public class AutoEvaluationService {
      * Publishes an EVALUATION_CREATED audit event after auto-evaluation (one per session).
      */
     private void publishEvaluationAuditEvent(UUID sessionId, UUID candidateId,
-                                              int evaluationCount, String tenantId) {
+                                              int evaluationCount, String tenantId, boolean anonymized) {
         try {
             Map<String, Object> event = Map.of(
                     "eventType", "EVALUATION_CREATED",
                     "sessionId", sessionId.toString(),
-                    "candidateId", candidateId.toString(),
+                    "candidateId", anonymized ? ("ANON-" + UUID.nameUUIDFromBytes(candidateId.toString().getBytes())) : candidateId.toString(),
                     "evaluationCount", evaluationCount,
                     "evaluationType", "AUTO",
                     "tenantId", tenantId,
+                    "anonymized", anonymized,
                     "occurredAt", Instant.now().toString()
             );
             kafkaTemplate.send(AUDIT_TOPIC, sessionId.toString(), event)
@@ -180,84 +187,79 @@ public class AutoEvaluationService {
      */
     boolean evaluateMultiMcq(String correctAnswer, String selectedOptionIds) {
         if (correctAnswer == null || selectedOptionIds == null) return false;
-        Set<String> correct = parseOptionIds(correctAnswer);
-        Set<String> selected = parseOptionIds(selectedOptionIds);
-        return correct.equals(selected);
+        return parseOptionSet(correctAnswer).equals(parseOptionSet(selectedOptionIds));
     }
 
     /**
-     * Partial marking for Multi_MCQ:
-     * - If selection ⊆ answerKey (all selected are correct, possibly not all):
-     *   score = (|selection ∩ answerKey| / |answerKey|) × marksPerQuestion
-     * - If selection contains ANY incorrect option (not in answerKey):
-     *   score = 0.0 (zero marks, no negative)
-     * - If selection is empty/null:
-     *   score = 0.0 (unattempted)
-     */
-    double evaluateMultiMcqPartial(String correctAnswer, String selectedOptionIds, double marksPerQuestion) {
-        Set<String> correct = parseOptionIds(correctAnswer);
-        Set<String> selected = parseOptionIds(selectedOptionIds);
-
-        if (selected.isEmpty()) return 0.0;
-
-        // Check if selection contains any incorrect option
-        Set<String> incorrectSelections = new HashSet<>(selected);
-        incorrectSelections.removeAll(correct);
-        if (!incorrectSelections.isEmpty()) {
-            return 0.0; // Contains wrong option → zero marks
-        }
-
-        // selection ⊆ answerKey → partial marks
-        Set<String> intersection = new HashSet<>(selected);
-        intersection.retainAll(correct);
-        return ((double) intersection.size() / correct.size()) * marksPerQuestion;
-    }
-
-    /**
-     * Numerical: parse both values as doubles and compare with tolerance of 0.001.
+     * Numerical: parsed double comparison within EPSILON (1e-6) tolerance.
      */
     boolean evaluateNumerical(String correctAnswer, String enteredValue) {
         if (correctAnswer == null || enteredValue == null) return false;
         try {
             double expected = Double.parseDouble(correctAnswer.trim());
             double actual = Double.parseDouble(enteredValue.trim());
-            return Math.abs(expected - actual) < 0.001;
+            return Math.abs(expected - actual) < 1e-6;
         } catch (NumberFormatException e) {
-            log.warn("Failed to parse numerical answer: correct='{}', entered='{}'", correctAnswer, enteredValue);
+            log.debug("Failed to parse numerical answer: expected='{}', actual='{}'", correctAnswer, enteredValue);
             return false;
         }
     }
 
     /**
-     * Parse a JSON array of strings (e.g. ["opt-1","opt-3"]) into a Set.
+     * Partial marking scheme for MULTI_MCQ questions (JEE Advanced style):
+     * - Full marks: all correct options selected, no incorrect options
+     * - Partial marks: subset of correct options selected, no incorrect options
+     *   formula: (marksPerQuestion / totalCorrectOptions) * countOfCorrectSelected
+     * - Negative marks: if any incorrect option is selected -> -negativeMarks
+     * - Zero marks: unattempted (handled upstream)
+     *
+     * @param correctAnswerJson  JSON array of correct option IDs e.g. ["opt-1", "opt-2"]
+     * @param selectedOptionsJson JSON array of candidate's selected option IDs
+     * @param maxMarks           full marks for this question
+     * @return awarded score (positive fractional, full, zero, or negative)
      */
-    Set<String> parseOptionIds(String json) {
-        if (json == null || json.isBlank()) {
-            return Collections.emptySet();
+    public double evaluateMultiMcqPartial(String correctAnswerJson, String selectedOptionsJson, double maxMarks) {
+        if (correctAnswerJson == null || selectedOptionsJson == null) return 0.0;
+
+        Set<String> correct = parseOptionSet(correctAnswerJson);
+        Set<String> selected = parseOptionSet(selectedOptionsJson);
+
+        if (selected.isEmpty() || correct.isEmpty()) return 0.0;
+
+        // Check for any incorrect options selected
+        Set<String> incorrectSelected = new HashSet<>(selected);
+        incorrectSelected.removeAll(correct);
+
+        if (!incorrectSelected.isEmpty()) {
+            // Negative marking for incorrect option selection (-2.0 default / negative marks)
+            return -2.0;
         }
+
+        // Only correct options were selected
+        if (selected.equals(correct)) {
+            return maxMarks; // Full marks
+        }
+
+        // Partial marks: proportional to correct options chosen
+        return (maxMarks / (double) correct.size()) * (double) selected.size();
+    }
+
+    private Set<String> parseOptionSet(String json) {
+        if (json == null || json.isBlank()) return Collections.emptySet();
         try {
             List<String> list = objectMapper.readValue(json, new TypeReference<List<String>>() {});
             return new TreeSet<>(list);
-        } catch (JsonProcessingException e) {
-            log.warn("Failed to parse option IDs JSON: '{}'", json, e);
+        } catch (Exception e) {
+            log.debug("Could not parse JSON array for options: '{}'", json);
             return Collections.emptySet();
         }
     }
 
-    /**
-     * Normalize a JSON array by sorting its elements for consistent comparison.
-     * Returns a canonical sorted JSON string.
-     */
-    String normalizeJsonArray(String json) {
-        if (json == null || json.isBlank()) {
-            return "[]";
-        }
+    private String normalizeJsonArray(String json) {
+        Set<String> set = parseOptionSet(json);
         try {
-            List<String> list = objectMapper.readValue(json, new TypeReference<List<String>>() {});
-            Collections.sort(list);
-            return objectMapper.writeValueAsString(list);
-        } catch (JsonProcessingException e) {
-            log.warn("Failed to normalize JSON array: '{}'", json, e);
+            return objectMapper.writeValueAsString(set);
+        } catch (Exception e) {
             return json.trim();
         }
     }

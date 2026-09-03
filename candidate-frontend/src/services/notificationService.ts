@@ -27,12 +27,12 @@ export const notificationService = {
    * Returns an EventSource instance — the caller must close it on unmount.
    *
    * Note: EventSource doesn't support custom headers, so the JWT is passed
-   * as a query parameter. The backend must support ?token= for SSE auth.
-   * Alternatively, use a BFF that forwards cookies.
+   * as a query parameter (?token=).
    */
-  openStream(onNotification: (notification: NotificationDto) => void): EventSource {
+  openStream(onNotification: (notification: NotificationDto) => void): EventSource | null {
     const token = tokenManager.getAccessToken();
-    const url = `${API_URL}${BASE}/stream${token ? `?token=${encodeURIComponent(token)}` : ''}`;
+    if (!token) return null;
+    const url = `${API_URL}${BASE}/stream?token=${encodeURIComponent(token)}`;
 
     const eventSource = new EventSource(url, { withCredentials: false });
 

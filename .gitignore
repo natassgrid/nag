@@ -1,4 +1,4 @@
-# ── Build outputs ────────────────────────────────────────────────────────────
+# ── Build outputs ────────────────────────────────────────────
 build/
 out/
 target/
@@ -10,14 +10,14 @@ bin/
 *.nar
 *.zip
 
-# ── Gradle ───────────────────────────────────────────────────────────────────
+# ── Gradle ───────────────────────────────────────────────────
 .gradle/
 gradle-app.setting
 !gradle-wrapper.jar
 !gradle-wrapper.properties
 .gradletasknamecache
 
-# ── Maven ────────────────────────────────────────────────────────────────────
+# ── Maven ────────────────────────────────────────────────────
 .mvn/
 pom.xml.tag
 pom.xml.releaseBackup
@@ -26,7 +26,7 @@ pom.xml.next
 release.properties
 dependency-reduced-pom.xml
 
-# ── IDEs — IntelliJ IDEA ─────────────────────────────────────────────────────
+# ── IDEs — IntelliJ IDEA ─────────────────────────────────────
 .idea/
 *.iml
 *.iws
@@ -34,25 +34,25 @@ dependency-reduced-pom.xml
 out/
 .idea_modules/
 
-# ── IDEs — Eclipse / STS ─────────────────────────────────────────────────────
+# ── IDEs — Eclipse / STS ─────────────────────────────────────
 .classpath
 .project
 .settings/
 .springBeans
 .sts4-cache
 
-# ── IDEs — VS Code ───────────────────────────────────────────────────────────
+# ── IDEs — VS Code ───────────────────────────────────────────
 .vscode/
 *.code-workspace
 
-# ── IDEs — NetBeans ──────────────────────────────────────────────────────────
+# ── IDEs — NetBeans ──────────────────────────────────────────
 /nbproject/private/
 /nbbuild/
 /dist/
 /nbdist/
 nbactions.xml
 
-# ── OS-generated files ────────────────────────────────────────────────────────
+# ── OS-generated files ───────────────────────────────────────
 .DS_Store
 .DS_Store?
 ._*
@@ -62,7 +62,7 @@ ehthumbs.db
 Thumbs.db
 desktop.ini
 
-# ── Environment & secrets ─────────────────────────────────────────────────────
+# ── Environment & secrets ────────────────────────────────────
 .env
 .env.*
 !.env.example
@@ -75,19 +75,27 @@ desktop.ini
 vault-token
 vault-agent.log
 
-# ── Logs ─────────────────────────────────────────────────────────────────────
+# ── Logs ─────────────────────────────────────────────────────
 *.log
 logs/
 log/
 
-# ── Test & coverage reports ──────────────────────────────────────────────────
+# ── Test & coverage reports ──────────────────────────────────
 .jacoco/
 jacoco.exec
 reports/
 test-results/
 coverage/
+.jqwik-database/
+.jqwik-database
 
-# ── Node / Frontend ──────────────────────────────────────────────────────────
+# ── Python / ML ─────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+
+# ── Node / Frontend ──────────────────────────────────────────
 node_modules/
 npm-debug.log*
 yarn-debug.log*
@@ -99,16 +107,16 @@ dist/
 .nx/
 frontend/.cache/
 
-# ── Docker ───────────────────────────────────────────────────────────────────
+# ── Docker ───────────────────────────────────────────────────
 .docker/
 
-# ── Kubernetes / Helm ────────────────────────────────────────────────────────
+# ── Kubernetes / Helm ────────────────────────────────────────
 *.kubeconfig
 kubeconfig
 charts/*/charts/
 charts/*/Chart.lock
 
-# ── Temporary files ──────────────────────────────────────────────────────────
+# ── Temporary files ──────────────────────────────────────────
 *.tmp
 *.temp
 *.swp
@@ -116,10 +124,10 @@ charts/*/Chart.lock
 *~
 .cache/
 
-# ── SonarQube / analysis ──────────────────────────────────────────────────────
+# ── SonarQube / analysis ─────────────────────────────────────
 .sonar/
 .scannerwork/
 
-# ── SpotBugs ─────────────────────────────────────────────────────────────────
+# ── SpotBugs ─────────────────────────────────────────────────
 spotbugs/
 /tmp/

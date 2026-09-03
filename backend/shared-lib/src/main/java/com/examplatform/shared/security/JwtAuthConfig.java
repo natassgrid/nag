@@ -19,8 +19,10 @@
 
 package com.examplatform.shared.security;
 
+import org.springframework.boot.autoconfigure.AutoConfiguration;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Configuration;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter;
@@ -33,10 +35,12 @@ import java.util.Map;
  * Shared JWT authentication converter that extracts roles from
  * the nested realm_access.roles claim in Keycloak/dev JWT tokens.
  */
-@Configuration
+@AutoConfiguration
+@ConditionalOnClass(JwtAuthenticationConverter.class)
 public class JwtAuthConfig {
 
     @Bean
+    @ConditionalOnMissingBean(JwtAuthenticationConverter.class)
     public JwtAuthenticationConverter jwtAuthenticationConverter() {
         JwtAuthenticationConverter converter = new JwtAuthenticationConverter();
         converter.setJwtGrantedAuthoritiesConverter(jwt -> {

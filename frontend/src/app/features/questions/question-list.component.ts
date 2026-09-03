@@ -1,4 +1,4 @@
-import { Component, OnInit, ViewChild } from '@angular/core';
+import { Component, OnInit, ViewChild, ChangeDetectionStrategy } from '@angular/core';
 /*
  * SPDX-License-Identifier: AGPL-3.0-only
  *
@@ -54,6 +54,7 @@ import { PageHeaderComponent } from '../../shared/components/page-header/page-he
     AiGenerateDialogComponent
   ],
   templateUrl: './question-list.component.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrls: ['./question-list.component.scss']
 })
 export class QuestionListComponent implements OnInit {

@@ -17,7 +17,7 @@
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
 
-import { Component, OnInit, ViewChild } from '@angular/core';
+import { Component, OnInit, ViewChild, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
@@ -60,6 +60,7 @@ import { PageHeaderComponent } from '../../shared/components/page-header/page-he
     AssetMetadataDialogComponent
   ],
   templateUrl: './asset-list.component.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrls: ['./asset-list.component.scss']
 })
 export class AssetListComponent implements OnInit {

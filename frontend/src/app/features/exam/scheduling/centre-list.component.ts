@@ -1,4 +1,4 @@
-import { Component, ViewChild } from '@angular/core';
+import { Component, ViewChild, ChangeDetectionStrategy } from '@angular/core';
 /*
  * SPDX-License-Identifier: AGPL-3.0-only
  *
@@ -49,6 +49,7 @@ import { PageHeaderComponent } from '../../../shared/components/page-header/page
     CentreFormDialogComponent
   ],
   templateUrl: './centre-list.component.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrls: ['./centre-list.component.scss']
 })
 export class CentreListComponent {
@@ -101,11 +102,14 @@ export class CentreListComponent {
   }
 
   onDrawerClose(result: CreateCentreRequest | null): void {
-    this.drawerOpen = false;
-    if (!result) return;
+    if (!result) {
+      this.drawerOpen = false;
+      return;
+    }
 
     this.schedulingService.createCentre(result).subscribe({
       next: () => {
+        this.drawerOpen = false;
         this.snackBar.open('Centre created', 'OK', { duration: 3000 });
         this.reload();
       },

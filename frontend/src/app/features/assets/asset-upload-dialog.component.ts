@@ -17,7 +17,7 @@
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
 
-import { Component, Input, Output, EventEmitter, OnChanges, SimpleChanges } from '@angular/core';
+import { Component, Input, Output, EventEmitter, OnChanges, SimpleChanges, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
@@ -32,6 +32,7 @@ import { RightDrawerComponent } from '../../shared/components/right-drawer/right
   standalone: true,
   imports: [CommonModule, MatButtonModule, MatIconModule, MatProgressBarModule, RightDrawerComponent],
   templateUrl: './asset-upload-dialog.component.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrls: ['./asset-upload-dialog.component.scss']
 })
 export class AssetUploadDialogComponent implements OnChanges {
