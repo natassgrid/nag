@@ -52,6 +52,8 @@ export class LoginComponent {
   loginForm: FormGroup;
   hidePassword = true;
   isLoading = false;
+  mfaRequired = false;
+  mfaPromptMessage = '';
 
   constructor(
     private fb: FormBuilder,
@@ -61,8 +63,17 @@ export class LoginComponent {
   ) {
     this.loginForm = this.fb.group({
       username: ['', [Validators.required]],
-      password: ['', [Validators.required]]
+      password: ['', [Validators.required]],
+      otpCode: ['']
     });
+  }
+
+  resetMfa(): void {
+    this.mfaRequired = false;
+    this.mfaPromptMessage = '';
+    this.loginForm.get('otpCode')?.clearValidators();
+    this.loginForm.get('otpCode')?.reset();
+    this.loginForm.get('otpCode')?.updateValueAndValidity();
   }
 
   onSubmit(): void {
@@ -73,16 +84,39 @@ export class LoginComponent {
 
     this.isLoading = true;
 
-    const { username, password } = this.loginForm.value;
+    const { username, password, otpCode } = this.loginForm.value;
 
-    this.authService.login({ username, password }).subscribe({
+    this.authService.login({ username, password, otpCode: this.mfaRequired ? otpCode : undefined }).subscribe({
       next: () => {
         this.isLoading = false;
         this.router.navigate(['/dashboard']);
       },
       error: (err) => {
         this.isLoading = false;
-        const message = err.error?.message || 'Login failed. Please check your credentials.';
+
+        // Check if backend responded with MFA / Step-up authentication challenge (403 Forbidden)
+        const isMfa = err.status === 403 && (
+          err.error?.mfaRequired === true ||
+          err.error?.title === 'MFA Required' ||
+          (typeof err.error?.detail === 'string' && err.error?.detail.toLowerCase().includes('otp'))
+        );
+
+        if (isMfa) {
+          this.mfaRequired = true;
+          this.mfaPromptMessage = err.error?.detail || 'Step-up authentication required. Please provide the 6-digit OTP sent to your registered mobile.';
+          this.loginForm.get('otpCode')?.setValidators([Validators.required, Validators.pattern('^[0-9]{6}$')]);
+          this.loginForm.get('otpCode')?.updateValueAndValidity();
+
+          this.snackBar.open(this.mfaPromptMessage, 'OK', {
+            duration: 7000,
+            horizontalPosition: 'center',
+            verticalPosition: 'bottom',
+            panelClass: ['info-snackbar']
+          });
+          return;
+        }
+
+        const message = err.error?.detail || err.error?.message || 'Login failed. Please check your credentials.';
         this.snackBar.open(message, 'Dismiss', {
           duration: 5000,
           horizontalPosition: 'center',

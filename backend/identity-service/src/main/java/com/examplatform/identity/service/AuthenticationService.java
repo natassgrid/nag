@@ -45,7 +45,7 @@ import java.util.UUID;
  * Handles password + MFA authentication with device binding and
  * single concurrent session enforcement.
  *
- * <p><strong>Validates: Requirements 2.1, 2.2, 2.5, 2.7</strong>
+ * <p><strong>Validates: Requirements 2.1, 2.2, 2.5, 2.7</strong></p>
  */
 @Slf4j
 @Service
@@ -123,10 +123,11 @@ public class AuthenticationService {
 
         if (globalMfaEnforced || account.isMfaEnabled()) {
             String otpCode = request.getOtpCode();
+            String mobileHash = account.getMobileHash() != null ? account.getMobileHash() : hashingService.sha256(request.getUsername().toLowerCase().trim());
             if (otpCode == null || otpCode.isBlank()) {
+                otpService.sendOtp(account.getId(), mobileHash, null);
                 throw new MfaRequiredException("MFA required. Please provide OTP code.");
             }
-            String mobileHash = hashingService.sha256(request.getUsername().toLowerCase().trim());
             boolean otpValid = otpService.verifyOtp(mobileHash, otpCode);
             if (!otpValid) {
                 throw new AuthenticationException("Invalid MFA code.");
@@ -137,11 +138,12 @@ public class AuthenticationService {
                     account, request.getDeviceFingerprint(), ipAddress, LocalDateTime.now());
             if (stepUpRequired) {
                 String otpCode = request.getOtpCode();
+                String mobileHash = account.getMobileHash() != null ? account.getMobileHash() : hashingService.sha256(request.getUsername().toLowerCase().trim());
                 if (otpCode == null || otpCode.isBlank()) {
                     userAccountRepository.save(account);
+                    otpService.sendOtp(account.getId(), mobileHash, null);
                     throw new MfaRequiredException("Step-up authentication required. Please provide OTP code.");
                 }
-                String mobileHash = hashingService.sha256(request.getUsername().toLowerCase().trim());
                 boolean otpValid = otpService.verifyOtp(mobileHash, otpCode);
                 if (!otpValid) {
                     throw new AuthenticationException("Invalid MFA code.");
