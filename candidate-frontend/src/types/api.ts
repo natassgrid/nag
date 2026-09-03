@@ -1,7 +1,7 @@
 // src/types/api.ts
 // TypeScript interfaces matching the backend Spring Boot DTOs
 
-// ─── Shared ─────────────────────────────────────────────────────────────────
+// ─── Shared ──────────────────────────────────────────────────────────────────
 
 export interface ApiResponse<T> {
   success: boolean;
@@ -20,7 +20,7 @@ export interface Page<T> {
   last: boolean;
 }
 
-// ─── Identity Service DTOs ──────────────────────────────────────────────────
+// ─── Identity Service DTOs ───────────────────────────────────────────────────
 
 export interface RegistrationRequest {
   fullName: string;
@@ -84,7 +84,7 @@ export interface OtpResendRequest {
   userId: string;
 }
 
-// ─── Candidate Service DTOs ─────────────────────────────────────────────────
+// ─── Candidate Service DTOs ──────────────────────────────────────────────────
 
 export type Gender = 'MALE' | 'FEMALE' | 'OTHER' | 'PREFER_NOT_TO_SAY';
 export type Category = 'GENERAL' | 'OBC' | 'SC' | 'ST' | 'EWS';
@@ -205,10 +205,18 @@ export interface ConsentRequest {
   consentVersion?: string;
 }
 
-// ─── Examination Service DTOs ───────────────────────────────────────────────
+// ─── Examination Service DTOs ────────────────────────────────────────────────
 
 export type ExamStatus = 'DRAFT' | 'PUBLISHED' | 'ACTIVE' | 'COMPLETED' | 'CANCELLED';
-export type ExamMode = 'ONLINE' | 'OFFLINE' | 'HYBRID';
+export type ExamMode = 'ONLINE' | 'OFFLINE' | 'HYBRID' | 'CBT' | 'OMR';
+
+export interface ExamSection {
+  name: string;
+  subject?: string;
+  questionCount?: number;
+  marksPerQuestion?: number;
+  negativeMarksPerQuestion?: number;
+}
 
 export interface ExaminationResponse {
   id: string;                   // UUID
@@ -218,19 +226,48 @@ export interface ExaminationResponse {
   mode: ExamMode;
   durationMinutes: number;
   totalMarks: number;
-  passingMarks: number;
-  applicationStartDate: string;
-  applicationEndDate: string;
-  examDate: string;
-  eligibilityCriteria: string;
+  passingMarks?: number;
+  applicationStartDate?: string;
+  applicationEndDate?: string;
+  examDate?: string;
+  eligibilityCriteria?: string;
   syllabus?: string;
-  applicationFee: number;
+  applicationFee?: number;
   tenantId: string;
   createdAt: string;
+  conductingAuthority?: string;
+  code?: string;
+  category?: string;
+  examinationType?: string;
+  academicYear?: string;
+  examinationMode?: string;
+  negativeMarkingEnabled?: boolean;
+  negativeMarkingValue?: number;
+  navigationPolicy?: string;
+  calculatorPolicy?: string;
+  reviewFlagEnabled?: boolean;
+  sections?: ExamSection[];
+}
+
+export interface PublicCentreResponse {
+  id: string;
+  centreName: string;
+  region?: string;
+  state: string;
+  district?: string;
+  city: string;
+  building?: string;
+  totalCapacity?: number;
 }
 
 export interface ExamApplicationRequest {
   examId: string;
+  firstChoiceCentreId?: string;
+  secondChoiceCentreId?: string;
+  thirdChoiceCentreId?: string;
+  preferredShiftId?: string;
+  pwdRequired?: boolean;
+  scribeRequired?: boolean;
 }
 
 export interface ExamApplicationResponse {
@@ -240,9 +277,54 @@ export interface ExamApplicationResponse {
   status: 'APPLIED' | 'CONFIRMED' | 'REJECTED';
   applicationDate: string;
   hallTicketNumber?: string;
+  examName?: string;
+  examCode?: string;
+  conductingAuthority?: string;
+  durationMinutes?: number;
+  totalMarks?: number;
+  allocatedCentreId?: string;
+  centreName?: string;
+  city?: string;
+  state?: string;
+  examDate?: string;
+  shiftName?: string;
 }
 
-// ─── Delivery Service DTOs ─────────────────────────────────────────────────
+export interface AdmitCardResponse {
+  applicationId: string;
+  hallTicketNumber: string;
+  candidateId: string;
+  candidateName: string;
+  examId: string;
+  examName: string;
+  examCode?: string;
+  conductingAuthority?: string;
+  examinationMode?: string;
+  durationMinutes: number;
+  totalMarks: number;
+  examDate: string;
+  shiftName: string;
+  shiftNumber: number;
+  reportingTime: string;
+  gateClosingTime: string;
+  loginStartTime: string;
+  examStartTime: string;
+  examEndTime: string;
+  centreId?: string;
+  centreName: string;
+  building?: string;
+  floor?: string;
+  city: string;
+  state: string;
+  laboratoryIdentifier?: string;
+  qrData: string;
+  verificationHash?: string;
+  pwdRequired?: boolean;
+  scribeRequired?: boolean;
+  instructions: string[];
+}
+
+// ─── Delivery Service DTOs ───────────────────────────────────────────────────
 
 export type NavigationMode = 'SEQUENTIAL' | 'FLEXIBLE' | 'RESTRICTED';
 
@@ -293,7 +375,7 @@ export interface NavigationResponse {
   allowedActions: string[];     // ['NEXT', 'PREVIOUS', 'JUMP', 'MARK_REVIEW']
 }
 
-// ─── Response Service DTOs ─────────────────────────────────────────────────
+// ─── Response Service DTOs ───────────────────────────────────────────────────
 
 export type ResponseType = 'MCQ' | 'INTEGER' | 'DESCRIPTIVE';
 
@@ -318,7 +400,7 @@ export interface BulkSaveRequest {
   responses: SaveResponseRequest[];
 }
 
-// ─── Result Service DTOs ───────────────────────────────────────────────────
+// ─── Result Service DTOs ─────────────────────────────────────────────────────
 
 export type ResultStatus = 'PENDING' | 'COMPUTED' | 'PUBLISHED' | 'WITHHELD';
 
@@ -354,7 +436,7 @@ export interface ResultDto {
   publishedAt?: string;
 }
 
-// ─── Asset Service DTOs ────────────────────────────────────────────────────
+// ─── Asset Service DTOs ──────────────────────────────────────────────────────
 
 export type AssetType = 'IMAGE' | 'DOCUMENT' | 'VIDEO' | 'AUDIO';
 
@@ -368,7 +450,7 @@ export interface AssetUploadResponse {
   createdAt: string;
 }
 
-// ─── Notification DTOs ─────────────────────────────────────────────────────
+// ─── Notification DTOs ───────────────────────────────────────────────────────
 
 export type NotificationType =
   | 'EXAM_APPLIED'

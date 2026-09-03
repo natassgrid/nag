@@ -23,10 +23,10 @@ import java.time.LocalDateTime;
 import java.util.UUID;
 
 /**
- * Tracks a candidate's application to an examination.
+ * Tracks a candidate's application to an examination with centre & shift preferences.
  *
  * One candidate can apply to many exams; one exam can have many candidates.
- * Unique constraint on (candidateId, examinationId) prevents double-apply.
+ * Unique constraint on (candidateId, examinationId, tenantId) prevents double-apply.
  */
 @Data
 @Builder
@@ -56,6 +56,33 @@ public class ExamApplication {
 
     @Column(name = "hall_ticket_number", length = 30)
     private String hallTicketNumber;
+
+    @Column(name = "first_choice_centre_id", columnDefinition = "uuid")
+    private UUID firstChoiceCentreId;
+
+    @Column(name = "second_choice_centre_id", columnDefinition = "uuid")
+    private UUID secondChoiceCentreId;
+
+    @Column(name = "third_choice_centre_id", columnDefinition = "uuid")
+    private UUID thirdChoiceCentreId;
+
+    @Column(name = "allocated_centre_id", columnDefinition = "uuid")
+    private UUID allocatedCentreId;
+
+    @Column(name = "allocated_shift_id", columnDefinition = "uuid")
+    private UUID allocatedShiftId;
+
+    @Column(name = "preferred_shift_id", columnDefinition = "uuid")
+    private UUID preferredShiftId;
+
+    @Column(name = "pwd_required")
+    private Boolean pwdRequired;
+
+    @Column(name = "scribe_required")
+    private Boolean scribeRequired;
+
+    @Column(name = "qr_verification_hash", length = 128)
+    private String qrVerificationHash;
 
     @CreationTimestamp
     @Column(name = "applied_at", updatable = false)
