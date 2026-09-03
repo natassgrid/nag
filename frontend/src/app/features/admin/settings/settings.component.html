@@ -1,157 +1,338 @@
+<!--
+  SPDX-License-Identifier: AGPL-3.0-only
+  National Assessment Grid (NAG) - Open Digital Public Infrastructure (DPI) Platform
+  Copyright (C) 2025 NAG Contributors
+-->
+
 <div class="page-layout">
   <app-page-header
     title="System Settings"
-    subtitle="Manage platform-wide security, proctoring policies, and alerting configurations."
+    subtitle="Configure platform security policies, exam proctoring guardrails, DPI integrations, and operational alerts."
     icon="settings"
   >
     <div class="header-buttons">
-      <button mat-stroked-button (click)="resetToDefaults()" [disabled]="isSaving()">
+      @if (isDirty()) {
+        <span class="unsaved-badge">
+          <mat-icon class="unsaved-icon">warning</mat-icon>
+          Unsaved Changes
+        </span>
+      }
+
+      <button
+        mat-stroked-button
+        (click)="resetToDefaults()"
+        [disabled]="isLoading() || isSaving() || isResetting()"
+      >
+        @if (isResetting()) {
+          <mat-spinner diameter="18" class="btn-spinner"></mat-spinner>
+        } @else {
+          <mat-icon>restart_alt</mat-icon>
+        }
         Reset Defaults
       </button>
-      <button mat-raised-button color="primary" (click)="saveSettings()" [disabled]="isSaving()">
-        <mat-icon>save</mat-icon>
+
+      <button
+        mat-raised-button
+        color="primary"
+        (click)="saveSettings()"
+        [disabled]="isLoading() || isSaving() || isResetting() || !isDirty()"
+      >
+        @if (isSaving()) {
+          <mat-spinner diameter="18" class="btn-spinner"></mat-spinner>
+        } @else {
+          <mat-icon>save</mat-icon>
+        }
         Save Changes
       </button>
     </div>
   </app-page-header>
 
-  <mat-card class="settings-card">
-    <mat-tab-group animationDuration="150ms">
-      <!-- Tab 1: Security Policies -->
-      <mat-tab>
-        <ng-template mat-tab-label>
-          <mat-icon class="tab-icon">security</mat-icon>
-          Security & Auth
-        </ng-template>
+  @if (isLoading()) {
+    <div class="loading-container">
+      <mat-spinner diameter="40"></mat-spinner>
+      <p class="loading-text">Loading platform configurations...</p>
+    </div>
+  } @else {
+    <mat-card class="settings-card">
+      <mat-tab-group animationDuration="150ms">
+        <!-- Tab 1: Security Policies -->
+        <mat-tab>
+          <ng-template mat-tab-label>
+            <mat-icon class="tab-icon">security</mat-icon>
+            Security & Auth
+          </ng-template>
 
-        <div class="tab-content">
-          <div class="setting-item">
-            <div class="setting-text">
-              <span class="setting-title">Mandatory Multi-Factor Authentication (MFA)</span>
-              <span class="setting-desc">Enforce TOTP / SMS MFA for all admin and author accounts.</span>
+          <div class="tab-content">
+            <div class="setting-item">
+              <div class="setting-text">
+                <span class="setting-title">Mandatory Multi-Factor Authentication (MFA)</span>
+                <span class="setting-desc">Enforce TOTP / SMS MFA for all examination controllers, authors, and evaluators.</span>
+              </div>
+              <mat-slide-toggle [ngModel]="authMfaEnforced()" (ngModelChange)="authMfaEnforced.set($event)" color="primary"></mat-slide-toggle>
             </div>
-            <mat-slide-toggle [ngModel]="enforceMfa()" (ngModelChange)="enforceMfa.set($event)" color="primary"></mat-slide-toggle>
-          </div>
 
-          <div class="setting-item">
-            <div class="setting-text">
-              <span class="setting-title">Session Inactivity Timeout</span>
-              <span class="setting-desc">Automatically invalidate inactive browser sessions after this duration.</span>
+            <div class="setting-item">
+              <div class="setting-text">
+                <span class="setting-title">Session Inactivity Timeout</span>
+                <span class="setting-desc">Automatically invalidate idle portal sessions after this duration.</span>
+              </div>
+              <mat-form-field appearance="outline" class="inline-input">
+                <mat-label>Minutes</mat-label>
+                <input matInput type="number" [ngModel]="authSessionTimeoutMinutes()" (ngModelChange)="authSessionTimeoutMinutes.set($event)" min="5" max="180" />
+              </mat-form-field>
             </div>
-            <mat-form-field appearance="outline" class="inline-input">
-              <mat-label>Minutes</mat-label>
-              <input matInput type="number" [ngModel]="sessionTimeoutMinutes()" (ngModelChange)="sessionTimeoutMinutes.set($event)" min="5" max="180" />
-            </mat-form-field>
-          </div>
 
-          <div class="setting-item">
-            <div class="setting-text">
-              <span class="setting-title">Max Consecutive Failed Login Attempts</span>
-              <span class="setting-desc">Temporarily lock candidate or staff accounts after repeated auth failures.</span>
+            <div class="setting-item">
+              <div class="setting-text">
+                <span class="setting-title">Max Consecutive Failed Login Attempts</span>
+                <span class="setting-desc">Temporarily lock accounts after repeated authentication failures.</span>
+              </div>
+              <mat-form-field appearance="outline" class="inline-input">
+                <mat-label>Max Attempts</mat-label>
+                <input matInput type="number" [ngModel]="authMaxLoginAttempts()" (ngModelChange)="authMaxLoginAttempts.set($event)" min="3" max="10" />
+              </mat-form-field>
             </div>
-            <mat-form-field appearance="outline" class="inline-input">
-              <mat-label>Max Attempts</mat-label>
-              <input matInput type="number" [ngModel]="maxLoginAttempts()" (ngModelChange)="maxLoginAttempts.set($event)" min="3" max="10" />
-            </mat-form-field>
-          </div>
 
-          <div class="setting-item">
-            <div class="setting-text">
-              <span class="setting-title">Staff Password Expiry</span>
-              <span class="setting-desc">Require administrative staff to rotate passwords periodically.</span>
+            <div class="setting-item">
+              <div class="setting-text">
+                <span class="setting-title">Account Lockout Duration</span>
+                <span class="setting-desc">Duration to keep accounts locked upon reaching maximum failed login attempts.</span>
+              </div>
+              <mat-form-field appearance="outline" class="inline-input">
+                <mat-label>Minutes</mat-label>
+                <input matInput type="number" [ngModel]="authLockoutDurationMinutes()" (ngModelChange)="authLockoutDurationMinutes.set($event)" min="5" max="120" />
+              </mat-form-field>
             </div>
-            <mat-form-field appearance="outline" class="inline-input">
-              <mat-label>Days</mat-label>
-              <input matInput type="number" [ngModel]="passwordExpiryDays()" (ngModelChange)="passwordExpiryDays.set($event)" min="30" max="365" />
-            </mat-form-field>
-          </div>
-        </div>
-      </mat-tab>
 
-      <!-- Tab 2: Delivery & Proctoring Policies -->
-      <mat-tab>
-        <ng-template mat-tab-label>
-          <mat-icon class="tab-icon">computer</mat-icon>
-          Exam Delivery & Proctoring
-        </ng-template>
-
-        <div class="tab-content">
-          <div class="setting-item">
-            <div class="setting-text">
-              <span class="setting-title">Active Tamper & Clipboard Detection</span>
-              <span class="setting-desc">Detect tab switches, window blur events, and clipboard copy/paste attempts.</span>
+            <div class="setting-item">
+              <div class="setting-text">
+                <span class="setting-title">Staff Password Rotation Cycle</span>
+                <span class="setting-desc">Require administrative and author staff to rotate credentials periodically.</span>
+              </div>
+              <mat-form-field appearance="outline" class="inline-input">
+                <mat-label>Days</mat-label>
+                <input matInput type="number" [ngModel]="authPasswordExpiryDays()" (ngModelChange)="authPasswordExpiryDays.set($event)" min="30" max="365" />
+              </mat-form-field>
             </div>
-            <mat-slide-toggle [ngModel]="enableTamperDetection()" (ngModelChange)="enableTamperDetection.set($event)" color="primary"></mat-slide-toggle>
-          </div>
 
-          <div class="setting-item">
-            <div class="setting-text">
-              <span class="setting-title">Lockdown Browser / Kiosk Enforcement</span>
-              <span class="setting-desc">Require candidate assessment clients to be running in verified kiosk full-screen mode.</span>
+            <div class="setting-item">
+              <div class="setting-text">
+                <span class="setting-title">Minimum Password Complexity Length</span>
+                <span class="setting-desc">Enforce minimum character length requirement on staff and candidate passwords.</span>
+              </div>
+              <mat-form-field appearance="outline" class="inline-input">
+                <mat-label>Min Characters</mat-label>
+                <input matInput type="number" [ngModel]="authPasswordMinLength()" (ngModelChange)="authPasswordMinLength.set($event)" min="8" max="32" />
+              </mat-form-field>
             </div>
-            <mat-slide-toggle [ngModel]="enforceKioskMode()" (ngModelChange)="enforceKioskMode.set($event)" color="primary"></mat-slide-toggle>
           </div>
+        </mat-tab>
 
-          <div class="setting-item">
-            <div class="setting-text">
-              <span class="setting-title">Telemetry Heartbeat Interval</span>
-              <span class="setting-desc">Frequency of candidate proctoring telemetry pings sent to delivery-service.</span>
+        <!-- Tab 2: Delivery & Proctoring Policies -->
+        <mat-tab>
+          <ng-template mat-tab-label>
+            <mat-icon class="tab-icon">computer</mat-icon>
+            Exam Delivery & Proctoring
+          </ng-template>
+
+          <div class="tab-content">
+            <div class="setting-item">
+              <div class="setting-text">
+                <span class="setting-title">Active Tamper & Clipboard Detection</span>
+                <span class="setting-desc">Detect tab switches, window blur events, and clipboard copy/paste actions during live exams.</span>
+              </div>
+              <mat-slide-toggle [ngModel]="deliveryTamperDetectionEnabled()" (ngModelChange)="deliveryTamperDetectionEnabled.set($event)" color="primary"></mat-slide-toggle>
             </div>
-            <mat-form-field appearance="outline" class="inline-input">
-              <mat-label>Seconds</mat-label>
-              <input matInput type="number" [ngModel]="heartBeatIntervalSec()" (ngModelChange)="heartBeatIntervalSec.set($event)" min="5" max="60" />
-            </mat-form-field>
-          </div>
 
-          <div class="setting-item">
-            <div class="setting-text">
-              <span class="setting-title">Candidate Response Auto-Save Interval</span>
-              <span class="setting-desc">Client-side offline sync and autosave frequency for candidate answers.</span>
+            <div class="setting-item">
+              <div class="setting-text">
+                <span class="setting-title">Lockdown Browser / Kiosk Enforcement</span>
+                <span class="setting-desc">Require candidate assessment clients to be running in verified kiosk full-screen mode.</span>
+              </div>
+              <mat-slide-toggle [ngModel]="deliveryKioskModeEnforced()" (ngModelChange)="deliveryKioskModeEnforced.set($event)" color="primary"></mat-slide-toggle>
             </div>
-            <mat-form-field appearance="outline" class="inline-input">
-              <mat-label>Seconds</mat-label>
-              <input matInput type="number" [ngModel]="autoSaveIntervalSec()" (ngModelChange)="autoSaveIntervalSec.set($event)" min="5" max="60" />
-            </mat-form-field>
-          </div>
-        </div>
-      </mat-tab>
 
-      <!-- Tab 3: Alerts & Notifications -->
-      <mat-tab>
-        <ng-template mat-tab-label>
-          <mat-icon class="tab-icon">notifications</mat-icon>
-          Alerts & Notifications
-        </ng-template>
-
-        <div class="tab-content">
-          <div class="setting-item">
-            <div class="setting-text">
-              <span class="setting-title">Alert on Suspicious Login Spikes</span>
-              <span class="setting-desc">Dispatch urgent security notices if brute-force thresholds are triggered.</span>
+            <div class="setting-item">
+              <div class="setting-text">
+                <span class="setting-title">Telemetry Heartbeat Interval</span>
+                <span class="setting-desc">Frequency of candidate proctoring and biometric telemetry pings sent to delivery service.</span>
+              </div>
+              <mat-form-field appearance="outline" class="inline-input">
+                <mat-label>Seconds</mat-label>
+                <input matInput type="number" [ngModel]="deliveryTelemetryHeartbeatSeconds()" (ngModelChange)="deliveryTelemetryHeartbeatSeconds.set($event)" min="5" max="60" />
+              </mat-form-field>
             </div>
-            <mat-slide-toggle [ngModel]="notifyOnFailedLogins()" (ngModelChange)="notifyOnFailedLogins.set($event)" color="primary"></mat-slide-toggle>
-          </div>
 
-          <div class="setting-item">
-            <div class="setting-text">
-              <span class="setting-title">Alert on National Exam Window Activation</span>
-              <span class="setting-desc">Broadcast notification to controllers when an examination slot opens.</span>
+            <div class="setting-item">
+              <div class="setting-text">
+                <span class="setting-title">Candidate Response Auto-Save Interval</span>
+                <span class="setting-desc">Client-side offline sync and autosave frequency for candidate answer payloads.</span>
+              </div>
+              <mat-form-field appearance="outline" class="inline-input">
+                <mat-label>Seconds</mat-label>
+                <input matInput type="number" [ngModel]="deliveryAutosaveIntervalSeconds()" (ngModelChange)="deliveryAutosaveIntervalSeconds.set($event)" min="5" max="60" />
+              </mat-form-field>
             </div>
-            <mat-slide-toggle [ngModel]="notifyOnExamStart()" (ngModelChange)="notifyOnExamStart.set($event)" color="primary"></mat-slide-toggle>
-          </div>
 
-          <div class="setting-item vertical">
-            <div class="setting-text">
-              <span class="setting-title">Emergency Alert Email Distribution</span>
-              <span class="setting-desc">Comma-separated email addresses to notify for critical platform alerts.</span>
+            <div class="setting-item">
+              <div class="setting-text">
+                <span class="setting-title">Offline Network Disconnect Grace Period</span>
+                <span class="setting-desc">Maximum offline duration allowed before candidate exam session is automatically paused.</span>
+              </div>
+              <mat-form-field appearance="outline" class="inline-input">
+                <mat-label>Seconds</mat-label>
+                <input matInput type="number" [ngModel]="deliveryMaxDisconnectGraceSeconds()" (ngModelChange)="deliveryMaxDisconnectGraceSeconds.set($event)" min="30" max="600" />
+              </mat-form-field>
             </div>
-            <mat-form-field appearance="outline" class="full-width-input">
-              <mat-label>Email Addresses</mat-label>
-              <input matInput [ngModel]="alertEmailRecipients()" (ngModelChange)="alertEmailRecipients.set($event)" />
-            </mat-form-field>
+
+            <div class="setting-item">
+              <div class="setting-text">
+                <span class="setting-title">Supervisor Authorization for Retest</span>
+                <span class="setting-desc">Require center superintendent digital signature to re-open interrupted exam sessions.</span>
+              </div>
+              <mat-slide-toggle [ngModel]="deliveryRetestAuthorizationRequired()" (ngModelChange)="deliveryRetestAuthorizationRequired.set($event)" color="primary"></mat-slide-toggle>
+            </div>
           </div>
-        </div>
-      </mat-tab>
-    </mat-tab-group>
-  </mat-card>
+        </mat-tab>
+
+        <!-- Tab 3: Assessment & Question Bank -->
+        <mat-tab>
+          <ng-template mat-tab-label>
+            <mat-icon class="tab-icon">quiz</mat-icon>
+            Assessment & Question Bank
+          </ng-template>
+
+          <div class="tab-content">
+            <div class="setting-item">
+              <div class="setting-text">
+                <span class="setting-title">Dual Peer Review for Question Approval</span>
+                <span class="setting-desc">Enforce two independent subject matter expert approvals before publishing questions to live blueprinted pools.</span>
+              </div>
+              <mat-slide-toggle [ngModel]="questionDualReviewRequired()" (ngModelChange)="questionDualReviewRequired.set($event)" color="primary"></mat-slide-toggle>
+            </div>
+
+            <div class="setting-item">
+              <div class="setting-text">
+                <span class="setting-title">AI Assisted Question Drafting & Rubrics</span>
+                <span class="setting-desc">Enable LLM question generator and automated evaluation rubrics in question authoring workbench.</span>
+              </div>
+              <mat-slide-toggle [ngModel]="questionAiGenerationEnabled()" (ngModelChange)="questionAiGenerationEnabled.set($event)" color="primary"></mat-slide-toggle>
+            </div>
+
+            <div class="setting-item">
+              <div class="setting-text">
+                <span class="setting-title">Instant Objective Auto-Grading</span>
+                <span class="setting-desc">Trigger automated scoring pipelines immediately when candidate submits response sheets.</span>
+              </div>
+              <mat-slide-toggle [ngModel]="evaluationAutoGradeInstant()" (ngModelChange)="evaluationAutoGradeInstant.set($event)" color="primary"></mat-slide-toggle>
+            </div>
+
+            <div class="setting-item">
+              <div class="setting-text">
+                <span class="setting-title">Mask Candidate PII During Subjective Grading</span>
+                <span class="setting-desc">Anonymize candidate names, registration IDs, and photos to ensure unbiased double-blind evaluation.</span>
+              </div>
+              <mat-slide-toggle [ngModel]="evaluationAnonymizeCandidateSheets()" (ngModelChange)="evaluationAnonymizeCandidateSheets.set($event)" color="primary"></mat-slide-toggle>
+            </div>
+          </div>
+        </mat-tab>
+
+        <!-- Tab 4: Alerts & Operations -->
+        <mat-tab>
+          <ng-template mat-tab-label>
+            <mat-icon class="tab-icon">notifications</mat-icon>
+            Alerts & Operations
+          </ng-template>
+
+          <div class="tab-content">
+            <div class="setting-item">
+              <div class="setting-text">
+                <span class="setting-title">Alert SecOps on Suspicious Login Spikes</span>
+                <span class="setting-desc">Dispatch urgent security notices if credential stuffing or brute-force thresholds are triggered.</span>
+              </div>
+              <mat-slide-toggle [ngModel]="alertFailedLoginSpikesEnabled()" (ngModelChange)="alertFailedLoginSpikesEnabled.set($event)" color="primary"></mat-slide-toggle>
+            </div>
+
+            <div class="setting-item">
+              <div class="setting-text">
+                <span class="setting-title">Alert Controllers on Examination Slot Activation</span>
+                <span class="setting-desc">Broadcast notification to controllers and center observers when an examination slot opens.</span>
+              </div>
+              <mat-slide-toggle [ngModel]="alertExamWindowStartEnabled()" (ngModelChange)="alertExamWindowStartEnabled.set($event)" color="primary"></mat-slide-toggle>
+            </div>
+
+            <div class="setting-item vertical">
+              <div class="setting-text">
+                <span class="setting-title">Emergency Alert Email Distribution</span>
+                <span class="setting-desc">Comma-separated email addresses to notify for critical platform and security alerts.</span>
+              </div>
+              <mat-form-field appearance="outline" class="full-width-input">
+                <mat-label>Email Addresses</mat-label>
+                <input matInput [ngModel]="alertEmailRecipients()" (ngModelChange)="alertEmailRecipients.set($event)" placeholder="secops@nag.gov.in, admin@nag.gov.in" />
+              </mat-form-field>
+            </div>
+
+            <div class="setting-item vertical">
+              <div class="setting-text">
+                <span class="setting-title">Critical Incident Webhook URL</span>
+                <span class="setting-desc">Webhook endpoint (Slack / Teams / SIEM) for real-time security incident streaming.</span>
+              </div>
+              <mat-form-field appearance="outline" class="full-width-input">
+                <mat-label>Webhook Endpoint URL</mat-label>
+                <input matInput [ngModel]="alertCriticalErrorWebhook()" (ngModelChange)="alertCriticalErrorWebhook.set($event)" placeholder="https://hooks.slack.com/services/..." />
+              </mat-form-field>
+            </div>
+          </div>
+        </mat-tab>
+
+        <!-- Tab 5: DPI Infrastructure & Governance -->
+        <mat-tab>
+          <ng-template mat-tab-label>
+            <mat-icon class="tab-icon">hub</mat-icon>
+            DPI & Platform
+          </ng-template>
+
+          <div class="tab-content">
+            <div class="setting-item">
+              <div class="setting-text">
+                <span class="setting-title">DigiLocker Candidate KYC Verification</span>
+                <span class="setting-desc">Verify candidate identity credentials directly with the National DigiLocker API ecosystem.</span>
+              </div>
+              <mat-slide-toggle [ngModel]="dpiDigilockerVerificationEnabled()" (ngModelChange)="dpiDigilockerVerificationEnabled.set($event)" color="primary"></mat-slide-toggle>
+            </div>
+
+            <div class="setting-item">
+              <div class="setting-text">
+                <span class="setting-title">Facial Recognition Confidence Threshold (%)</span>
+                <span class="setting-desc">Minimum AI facial match confidence score required to admit candidates into exam hall.</span>
+              </div>
+              <mat-form-field appearance="outline" class="inline-input">
+                <mat-label>Confidence %</mat-label>
+                <input matInput type="number" [ngModel]="dpiFaceVerificationThreshold()" (ngModelChange)="dpiFaceVerificationThreshold.set($event)" min="50" max="99" />
+              </mat-form-field>
+            </div>
+
+            <div class="setting-item">
+              <div class="setting-text">
+                <span class="setting-title">Platform Maintenance Mode</span>
+                <span class="setting-desc">Temporarily pause new exam starts and candidate logins for scheduled platform upgrades.</span>
+              </div>
+              <mat-slide-toggle [ngModel]="platformMaintenanceMode()" (ngModelChange)="platformMaintenanceMode.set($event)" color="warn"></mat-slide-toggle>
+            </div>
+
+            <div class="setting-item vertical">
+              <div class="setting-text">
+                <span class="setting-title">Global Platform Announcement Banner</span>
+                <span class="setting-desc">Broadcast text banner displayed at the top of candidate and administrative portals.</span>
+              </div>
+              <mat-form-field appearance="outline" class="full-width-input">
+                <mat-label>Banner Message (leave blank for none)</mat-label>
+                <input matInput [ngModel]="platformBannerMessage()" (ngModelChange)="platformBannerMessage.set($event)" placeholder="e.g. Scheduled system maintenance today at 23:00 IST." />
+              </mat-form-field>
+            </div>
+          </div>
+        </mat-tab>
+      </mat-tab-group>
+    </mat-card>
+  }
 </div>

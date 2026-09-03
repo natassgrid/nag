@@ -25,12 +25,13 @@ import org.springframework.security.config.annotation.method.configuration.Enabl
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
+import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter;
 import org.springframework.security.web.SecurityFilterChain;
 
 /**
  * Security configuration for admin-service.
  * OAuth2 Resource Server with JWT validation; permits actuator endpoints;
- * restricts all admin API endpoints to SUPER_ADMIN and SECURITY_ADMIN roles only.
+ * restricts all admin API endpoints to SUPER_ADMIN, SECURITY_ADMIN, and ADMIN roles.
  */
 @Configuration
 @EnableWebSecurity
@@ -38,17 +39,18 @@ import org.springframework.security.web.SecurityFilterChain;
 public class SecurityConfig {
 
     @Bean
-    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+    public SecurityFilterChain securityFilterChain(HttpSecurity http,
+                                                   JwtAuthenticationConverter jwtAuthenticationConverter) throws Exception {
         http
             .csrf(csrf -> csrf.disable())
             .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers("/actuator/health", "/actuator/info", "/actuator/prometheus").permitAll()
-                .requestMatchers("/api/v1/admin/**").hasAnyRole("SUPER_ADMIN", "SECURITY_ADMIN")
+                .requestMatchers("/api/v1/admin/**").hasAnyRole("SUPER_ADMIN", "SECURITY_ADMIN", "ADMIN")
                 .anyRequest().authenticated()
             )
             .oauth2ResourceServer(oauth2 -> oauth2
-                .jwt(jwt -> {})
+                .jwt(jwt -> jwt.jwtAuthenticationConverter(jwtAuthenticationConverter))
             );
         return http.build();
     }

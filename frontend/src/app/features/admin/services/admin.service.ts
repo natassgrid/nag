@@ -102,6 +102,17 @@ export interface AuditEventResponse {
   timestamp: string;
 }
 
+export interface SystemConfigItem {
+  id: string;
+  paramName: string;
+  paramValue: string;
+  tenantId: string;
+  updatedBy?: string;
+  updatedAtConfig: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface PaginatedPage<T> {
   content: T[];
   totalElements: number;
@@ -121,6 +132,7 @@ interface ApiResponse<T> {
 export class AdminService {
   private readonly baseUrl = '/api/v1/identity';
   private readonly auditUrl = '/api/v1/audit';
+  private readonly configUrl = '/api/v1/admin/config';
 
   constructor(private http: HttpClient) {}
 
@@ -202,6 +214,30 @@ export class AdminService {
       `${this.baseUrl}/roles/permissions`,
       { params: { page: '0', size: '200', search: '' } }
     ).pipe(map(response => response.data?.content || []));
+  }
+
+  // ===================================================================
+  // System Configurations & Settings
+  // ===================================================================
+
+  getSystemConfigs(): Observable<SystemConfigItem[]> {
+    return this.http.get<SystemConfigItem[]>(this.configUrl);
+  }
+
+  getSystemConfigMap(): Observable<Record<string, string>> {
+    return this.http.get<Record<string, string>>(`${this.configUrl}/map`);
+  }
+
+  updateSystemConfig(paramName: string, paramValue: string): Observable<SystemConfigItem> {
+    return this.http.put<SystemConfigItem>(this.configUrl, { paramName, paramValue });
+  }
+
+  updateBulkSystemConfigs(configs: Record<string, string>): Observable<Record<string, string>> {
+    return this.http.put<Record<string, string>>(`${this.configUrl}/bulk`, { configs });
+  }
+
+  resetSystemConfigs(): Observable<Record<string, string>> {
+    return this.http.post<Record<string, string>>(`${this.configUrl}/reset`, {});
   }
 
   // ===================================================================
