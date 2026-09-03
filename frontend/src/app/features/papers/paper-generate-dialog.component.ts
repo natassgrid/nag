@@ -89,6 +89,8 @@ export class PaperGenerateDialogComponent implements OnInit, OnChanges {
   form!: FormGroup;
   exams: ExaminationResponse[] = [];
   templates: BlueprintTemplateResponse[] = [];
+  mappedTemplates: BlueprintTemplateResponse[] = [];
+  universalTemplates: BlueprintTemplateResponse[] = [];
   selectedTemplate: BlueprintTemplateResponse | null = null;
   loadingTemplates = false;
   showCustomRules = false;
@@ -173,6 +175,7 @@ export class PaperGenerateDialogComponent implements OnInit, OnChanges {
       )
       .subscribe((list) => {
         this.templates = list;
+        this.categorizeTemplates();
         if (this.preselectedTemplate) {
           const match = list.find((t) => t.id === this.preselectedTemplate?.id);
           if (match) this.applyTemplate(match);
@@ -180,7 +183,23 @@ export class PaperGenerateDialogComponent implements OnInit, OnChanges {
       });
   }
 
+  categorizeTemplates(): void {
+    const currentExamId = this.form.get('examId')?.value?.trim();
+    if (currentExamId) {
+      this.mappedTemplates = this.templates.filter((t) => t.examId === currentExamId);
+      this.universalTemplates = this.templates.filter((t) => !t.examId);
+    } else {
+      this.mappedTemplates = this.templates.filter((t) => !!t.examId);
+      this.universalTemplates = this.templates.filter((t) => !t.examId);
+    }
+  }
+
   onExamSelectionChange(examId: string): void {
+    if (this.selectedTemplate && this.selectedTemplate.examId && this.selectedTemplate.examId !== examId) {
+      this.selectedTemplate = null;
+      this.form.get('templateId')?.setValue('');
+      this.clearRules();
+    }
     this.loadTemplates();
   }
 

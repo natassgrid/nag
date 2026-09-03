@@ -22,10 +22,10 @@ package com.examplatform.shared.kafka;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.common.serialization.StringSerializer;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Configuration;
 import org.springframework.kafka.core.DefaultKafkaProducerFactory;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.kafka.core.ProducerFactory;
@@ -46,7 +46,7 @@ import java.util.Map;
  * <p>
  * Service-specific topic declarations ({@code NewTopic} beans) remain in each service.
  */
-@Configuration
+@AutoConfiguration
 @ConditionalOnClass(KafkaTemplate.class)
 public class KafkaProducerConfig {
 

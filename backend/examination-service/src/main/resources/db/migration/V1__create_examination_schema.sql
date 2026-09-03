@@ -210,11 +210,35 @@ CREATE INDEX idx_allocation_shift_id  ON examination_service.shift_seat_allocati
 CREATE INDEX idx_allocation_centre_id ON examination_service.shift_seat_allocation(centre_id);
 
 -- ============================================================
+-- Table: exam_application
+-- Tracks candidate applications to examinations.
+-- ============================================================
+CREATE TABLE IF NOT EXISTS examination_service.exam_application
+(
+    id                  UUID         NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
+    candidate_id        UUID         NOT NULL,
+    examination_id      UUID         NOT NULL REFERENCES examination_service.examination (id) ON DELETE CASCADE,
+    tenant_id           VARCHAR(100) NOT NULL,
+    status              VARCHAR(20)  NOT NULL DEFAULT 'APPLIED',
+    hall_ticket_number  VARCHAR(30),
+    applied_at          TIMESTAMP    NOT NULL DEFAULT NOW(),
+
+    CONSTRAINT uq_candidate_exam_tenant UNIQUE (candidate_id, examination_id, tenant_id),
+    CONSTRAINT chk_application_status CHECK (status IN ('APPLIED', 'CONFIRMED', 'REJECTED'))
+);
+
+CREATE INDEX idx_exam_application_candidate ON examination_service.exam_application (candidate_id, tenant_id);
+CREATE INDEX idx_exam_application_exam ON examination_service.exam_application (examination_id, tenant_id);
+
+COMMENT ON TABLE examination_service.exam_application IS
+    'Tracks candidate applications to examinations. Unique per (candidate, exam, tenant).';
+
+-- ============================================================
 -- Geo-location lookup tables: country -> state -> city
 -- ============================================================
 -- These tables provide cascading dropdown data for the UI.
 
--- ── Country ─────────────────────────────────────────────────────────────────
+-- ── Country ───────────────────────────────────────────────────
 CREATE TABLE examination_service.geo_country (
     id          BIGINT       PRIMARY KEY,
     name        VARCHAR(100) NOT NULL,
@@ -230,7 +254,7 @@ CREATE TABLE examination_service.geo_country (
 
 CREATE INDEX idx_geo_country_name ON examination_service.geo_country(name);
 
--- ── State ───────────────────────────────────────────────────────────────────
+-- ── State ─────────────────────────────────────────────────────
 CREATE TABLE examination_service.geo_state (
     id           BIGINT       PRIMARY KEY,
     name         VARCHAR(255) NOT NULL,
@@ -243,7 +267,7 @@ CREATE TABLE examination_service.geo_state (
 CREATE INDEX idx_geo_state_country ON examination_service.geo_state(country_id);
 CREATE INDEX idx_geo_state_name    ON examination_service.geo_state(name);
 
--- ── City ────────────────────────────────────────────────────────────────────
+-- ── City ──────────────────────────────────────────────────────
 CREATE TABLE examination_service.geo_city (
     id           BIGINT       PRIMARY KEY,
     name         VARCHAR(255) NOT NULL,
@@ -258,19 +282,20 @@ CREATE INDEX idx_geo_city_state   ON examination_service.geo_city(state_id);
 CREATE INDEX idx_geo_city_country ON examination_service.geo_city(country_id);
 CREATE INDEX idx_geo_city_name    ON examination_service.geo_city(name);
 
--- ── Update examination_centre to use geo FK IDs ─────────────────────────────
+-- ── Update examination_centre to use geo FK IDs ───────────────
 ALTER TABLE examination_service.examination_centre
     ADD COLUMN country_id BIGINT REFERENCES examination_service.geo_country(id),
     ADD COLUMN state_id   BIGINT REFERENCES examination_service.geo_state(id),
     ADD COLUMN city_id    BIGINT REFERENCES examination_service.geo_city(id);
 
--- ════════════════════════════════════════════════════════════════════════════
+-- ════════════════════════════════════════════════════════════════
 -- SEED DATA: India + 28 states/8 UTs + major cities
--- ════════════════════════════════════════════════════════════════════════════
+-- ════════════════════════════════════════════════════════════════
 
 -- Country: India
 INSERT INTO examination_service.geo_country (id, name, iso2, iso3, phone_code, capital, currency, region, subregion)
-VALUES (101, 'India', 'IN', 'IND', '91', 'New Delhi', 'INR', 'Asia', 'Southern Asia');
+VALUES (101, 'India', 'IN', 'IND', '91', 'New Delhi', 'INR', 'Asia', 'Southern Asia')
+ON CONFLICT (id) DO NOTHING;
 
 -- States & Union Territories
 INSERT INTO examination_service.geo_state (id, name, country_id, state_code, type) VALUES
@@ -310,7 +335,8 @@ INSERT INTO examination_service.geo_state (id, name, country_id, state_code, typ
 (4055, 'Puducherry',                    101, 'PY', 'union territory'),
 (4056, 'Andaman and Nicobar Islands',   101, 'AN', 'union territory'),
 (4057, 'Dadra and Nagar Haveli and Daman and Diu', 101, 'DD', 'union territory'),
-(4058, 'Lakshadweep',                   101, 'LD', 'union territory');
+(4058, 'Lakshadweep',                   101, 'LD', 'union territory')
+ON CONFLICT (id) DO NOTHING;
 
 -- Cities (major cities for dev/testing)
 INSERT INTO examination_service.geo_city (id, name, state_id, country_id, latitude, longitude) VALUES
@@ -381,4 +407,992 @@ INSERT INTO examination_service.geo_city (id, name, state_id, country_id, latitu
 -- Uttarakhand
 (50046, 'Dehradun',        4049, 101, 30.31650000, 78.03220000),
 -- Goa
-(50047, 'Panaji',          4028, 101, 15.49900000, 73.82780000);
+(50047, 'Panaji',          4028, 101, 15.49900000, 73.82780000)
+ON CONFLICT (id) DO NOTHING;
+
+-- ════════════════════════════════════════════════════════════════
+-- SEED DATA: Initial Major Examination Centres across India
+-- ════════════════════════════════════════════════════════════════
+INSERT INTO examination_service.examination_centre (
+    id,
+    tenant_id,
+    region,
+    state,
+    district,
+    city,
+    centre_name,
+    building,
+    floor,
+    laboratory_identifier,
+    total_capacity,
+    active,
+    created_at,
+    updated_at,
+    version,
+    country_id,
+    state_id,
+    city_id
+) VALUES
+-- North Region (Delhi NCR, UP, Haryana, Punjab, Rajasthan)
+(
+    'c1000000-0000-0000-0000-000000000001',
+    'default',
+    'North',
+    'Uttar Pradesh',
+    'Gautam Buddha Nagar',
+    'Noida',
+    'iON Digital Zone iDZ 1 Sector 62',
+    'C-56/28, Institutional Area, Sector 62',
+    'Ground & 1st Floor',
+    'LAB-A, LAB-B, LAB-C',
+    600,
+    TRUE,
+    NOW(),
+    NOW(),
+    0,
+    101,
+    4048,
+    50023
+),
+(
+    'c1000000-0000-0000-0000-000000000002',
+    'default',
+    'North',
+    'Delhi',
+    'South West Delhi',
+    'New Delhi',
+    'National Assessment Centre Dwarka',
+    'Sector 8 Institutional Area, Dwarka',
+    '2nd Floor',
+    'LAB-01, LAB-02',
+    550,
+    TRUE,
+    NOW(),
+    NOW(),
+    0,
+    101,
+    4051,
+    50001
+),
+(
+    'c1000000-0000-0000-0000-000000000003',
+    'default',
+    'North',
+    'Delhi',
+    'North Delhi',
+    'New Delhi',
+    'iON Digital Zone iDZ GT Karnal Road',
+    'Industrial Area, Near Azadpur Metro',
+    '1st Floor',
+    'LAB-NORTH-1',
+    500,
+    TRUE,
+    NOW(),
+    NOW(),
+    0,
+    101,
+    4051,
+    50001
+),
+(
+    'c1000000-0000-0000-0000-000000000004',
+    'default',
+    'North',
+    'Haryana',
+    'Gurugram',
+    'Gurugram',
+    'Cyber City Testing Hub Sector 34',
+    'Plot 12, Info Technology Park, Sector 34',
+    '3rd Floor',
+    'CYBER-LAB-A',
+    450,
+    TRUE,
+    NOW(),
+    NOW(),
+    0,
+    101,
+    4030,
+    50036
+),
+(
+    'c1000000-0000-0000-0000-000000000005',
+    'default',
+    'North',
+    'Uttar Pradesh',
+    'Lucknow',
+    'Lucknow',
+    'iON Digital Zone iDZ Gomti Nagar Extension',
+    'CP-4, Sector 7, Gomti Nagar Extension',
+    'Ground Floor',
+    'LKO-LAB-1, LKO-LAB-2',
+    500,
+    TRUE,
+    NOW(),
+    NOW(),
+    0,
+    101,
+    4048,
+    50022
+),
+(
+    'c1000000-0000-0000-0000-000000000006',
+    'default',
+    'North',
+    'Rajasthan',
+    'Jaipur',
+    'Jaipur',
+    'iON Digital Zone iDZ Sitapura',
+    'RIICO Industrial Area, Sitapura',
+    '1st & 2nd Floor',
+    'JPR-LAB-A, JPR-LAB-B',
+    450,
+    TRUE,
+    NOW(),
+    NOW(),
+    0,
+    101,
+    4043,
+    50019
+),
+(
+    'c1000000-0000-0000-0000-000000000007',
+    'default',
+    'North',
+    'Chandigarh',
+    'Chandigarh',
+    'Chandigarh',
+    'Chandigarh Online Examination Centre',
+    'Plot 45, Industrial Area Phase 1',
+    'Ground Floor',
+    'CHD-CBT-1',
+    400,
+    TRUE,
+    NOW(),
+    NOW(),
+    0,
+    101,
+    4054,
+    50033
+),
+
+-- West Region (Maharashtra, Gujarat)
+(
+    'c1000000-0000-0000-0000-000000000008',
+    'default',
+    'West',
+    'Maharashtra',
+    'Mumbai Suburban',
+    'Mumbai',
+    'iON Digital Zone iDZ Powai',
+    'Saki Vihar Road, Powai',
+    '2nd Floor, Wing A',
+    'MUM-POWAI-1, MUM-POWAI-2',
+    650,
+    TRUE,
+    NOW(),
+    NOW(),
+    0,
+    101,
+    4036,
+    50002
+),
+(
+    'c1000000-0000-0000-0000-000000000009',
+    'default',
+    'West',
+    'Maharashtra',
+    'Pune',
+    'Pune',
+    'iON Digital Zone iDZ Hinjawadi Phase 1',
+    'Rajiv Gandhi Infotech Park, Hinjawadi Phase 1',
+    '1st Floor',
+    'PUN-HINJ-1, PUN-HINJ-2',
+    500,
+    TRUE,
+    NOW(),
+    NOW(),
+    0,
+    101,
+    4036,
+    50003
+),
+(
+    'c1000000-0000-0000-0000-000000000010',
+    'default',
+    'West',
+    'Maharashtra',
+    'Nagpur',
+    'Nagpur',
+    'Maharashtra Assessment Complex Ramdaspeth',
+    'Central Avenue, Ramdaspeth',
+    'Ground Floor',
+    'NGP-CBT-1',
+    400,
+    TRUE,
+    NOW(),
+    NOW(),
+    0,
+    101,
+    4036,
+    50004
+),
+(
+    'c1000000-0000-0000-0000-000000000011',
+    'default',
+    'West',
+    'Gujarat',
+    'Ahmedabad',
+    'Ahmedabad',
+    'iON Digital Zone iDZ SG Highway',
+    'Near Vaishnodevi Circle, SG Highway',
+    '1st & 2nd Floor',
+    'AMD-SGH-1, AMD-SGH-2',
+    500,
+    TRUE,
+    NOW(),
+    NOW(),
+    0,
+    101,
+    4029,
+    50016
+),
+
+-- South Region (Karnataka, Telangana, Tamil Nadu, Kerala, Andhra Pradesh)
+(
+    'c1000000-0000-0000-0000-000000000012',
+    'default',
+    'South',
+    'Karnataka',
+    'Bengaluru Urban',
+    'Bengaluru',
+    'iON Digital Zone iDZ Electronic City Phase 2',
+    'Tech Park Campus, Electronic City Phase 2',
+    'Ground, 1st & 2nd Floor',
+    'BLR-EC-01, BLR-EC-02, BLR-EC-03',
+    700,
+    TRUE,
+    NOW(),
+    NOW(),
+    0,
+    101,
+    4033,
+    50006
+),
+(
+    'c1000000-0000-0000-0000-000000000013',
+    'default',
+    'South',
+    'Telangana',
+    'Medchal-Malkajgiri',
+    'Hyderabad',
+    'iON Digital Zone iDZ Moula Ali',
+    'Industrial Development Area, Moula Ali',
+    '1st Floor',
+    'HYD-MA-1, HYD-MA-2',
+    600,
+    TRUE,
+    NOW(),
+    NOW(),
+    0,
+    101,
+    4046,
+    50012
+),
+(
+    'c1000000-0000-0000-0000-000000000014',
+    'default',
+    'South',
+    'Tamil Nadu',
+    'Chennai',
+    'Chennai',
+    'iON Digital Zone iDZ Ambattur',
+    'Ambattur Industrial Estate, South Phase',
+    'Ground & 1st Floor',
+    'CHE-AMB-1, CHE-AMB-2',
+    550,
+    TRUE,
+    NOW(),
+    NOW(),
+    0,
+    101,
+    4045,
+    50009
+),
+(
+    'c1000000-0000-0000-0000-000000000015',
+    'default',
+    'South',
+    'Tamil Nadu',
+    'Coimbatore',
+    'Coimbatore',
+    'National Assessment Facility Peelamedu',
+    'Avinashi Road, Peelamedu',
+    '2nd Floor',
+    'CBE-PEEL-1',
+    350,
+    TRUE,
+    NOW(),
+    NOW(),
+    0,
+    101,
+    4045,
+    50010
+),
+(
+    'c1000000-0000-0000-0000-000000000016',
+    'default',
+    'South',
+    'Andhra Pradesh',
+    'Tirupati',
+    'Tirupati',
+    'Tirupati Digital Assessment Complex',
+    'Renigunta Road, Industrial Corridor',
+    '1st Floor',
+    'TPT-CBT-1',
+    350,
+    TRUE,
+    NOW(),
+    NOW(),
+    0,
+    101,
+    4023,
+    50044
+),
+(
+    'c1000000-0000-0000-0000-000000000017',
+    'default',
+    'South',
+    'Kerala',
+    'Ernakulam',
+    'Kochi',
+    'iON Digital Zone iDZ Kalamassery',
+    'HMT Junction, Kalamassery',
+    '1st Floor',
+    'COK-KAL-1',
+    400,
+    TRUE,
+    NOW(),
+    NOW(),
+    0,
+    101,
+    4034,
+    50015
+),
+
+-- East & North-East Region (West Bengal, Odisha, Bihar, Jharkhand, Assam)
+(
+    'c1000000-0000-0000-0000-000000000018',
+    'default',
+    'East',
+    'West Bengal',
+    'North 24 Parganas',
+    'Kolkata',
+    'iON Digital Zone iDZ Salt Lake Sector V',
+    'Block EP & GP, Sector V, Salt Lake',
+    '3rd Floor, Tower B',
+    'CCU-SLV-1, CCU-SLV-2',
+    650,
+    TRUE,
+    NOW(),
+    NOW(),
+    0,
+    101,
+    4050,
+    50031
+),
+(
+    'c1000000-0000-0000-0000-000000000019',
+    'default',
+    'East',
+    'Odisha',
+    'Khordha',
+    'Bhubaneswar',
+    'Odisha Online Examination Complex Patia',
+    'Infocity Area, Patia',
+    'Ground & 1st Floor',
+    'BBI-PAT-1',
+    450,
+    TRUE,
+    NOW(),
+    NOW(),
+    0,
+    101,
+    4041,
+    50041
+),
+(
+    'c1000000-0000-0000-0000-000000000020',
+    'default',
+    'East',
+    'Bihar',
+    'Patna',
+    'Patna',
+    'iON Digital Zone iDZ Patliputra',
+    'Patliputra Industrial Area',
+    '1st Floor',
+    'PAT-CBT-1, PAT-CBT-2',
+    500,
+    TRUE,
+    NOW(),
+    NOW(),
+    0,
+    101,
+    4026,
+    50030
+),
+(
+    'c1000000-0000-0000-0000-000000000021',
+    'default',
+    'East',
+    'Jharkhand',
+    'Ranchi',
+    'Ranchi',
+    'Jharkhand Assessment Hub Namkum',
+    'Namkum Industrial Area',
+    'Ground Floor',
+    'RNC-LAB-1',
+    400,
+    TRUE,
+    NOW(),
+    NOW(),
+    0,
+    101,
+    4032,
+    50038
+),
+(
+    'c1000000-0000-0000-0000-000000000022',
+    'default',
+    'North-East',
+    'Assam',
+    'Kamrup Metropolitan',
+    'Guwahati',
+    'North East Regional Testing Centre Borjhar',
+    'VIP Road, Near Airport, Borjhar',
+    '1st Floor',
+    'GAU-CBT-1',
+    350,
+    TRUE,
+    NOW(),
+    NOW(),
+    0,
+    101,
+    4025,
+    50045
+),
+
+-- Central Region (Madhya Pradesh, Chhattisgarh)
+(
+    'c1000000-0000-0000-0000-000000000023',
+    'default',
+    'Central',
+    'Madhya Pradesh',
+    'Indore',
+    'Indore',
+    'iON Digital Zone iDZ Vijay Nagar',
+    'A.B. Road, Scheme No. 54, Vijay Nagar',
+    '2nd Floor',
+    'IDR-VJN-1',
+    450,
+    TRUE,
+    NOW(),
+    NOW(),
+    0,
+    101,
+    4035,
+    50029
+),
+(
+    'c1000000-0000-0000-0000-000000000024',
+    'default',
+    'Central',
+    'Madhya Pradesh',
+    'Bhopal',
+    'Bhopal',
+    'MP Online Examination Hub MP Nagar',
+    'Zone-II, Maharana Pratap Nagar',
+    '1st Floor',
+    'BPL-MPN-1',
+    400,
+    TRUE,
+    NOW(),
+    NOW(),
+    0,
+    101,
+    4035,
+    50028
+)
+ON CONFLICT (id) DO NOTHING;
+
+-- ════════════════════════════════════════════════════════════════
+-- SEED DATA: Examinations, Schedules, Shifts & Seat Allocations
+-- ════════════════════════════════════════════════════════════════
+
+-- Seed Examinations
+INSERT INTO examination_service.examination (
+    id,
+    tenant_id,
+    name,
+    code,
+    conducting_authority,
+    category,
+    examination_type,
+    academic_year,
+    examination_mode,
+    duration_minutes,
+    total_marks,
+    negative_marking_enabled,
+    negative_marking_value,
+    navigation_policy,
+    calculator_policy,
+    review_flag_enabled,
+    sections_json,
+    status,
+    created_by,
+    created_at,
+    updated_at,
+    version
+) VALUES
+(
+    'e1000000-0000-0000-0000-000000000001',
+    'default',
+    'Staff Selection Commission Combined Graduate Level (SSC CGL) Tier-1 Examination 2026',
+    'SSC-CGL-TIER1-2026',
+    'Staff Selection Commission (SSC)',
+    'RECRUITMENT',
+    'PRELIMINARY',
+    '2026-27',
+    'CBT',
+    60,
+    200,
+    TRUE,
+    0.50,
+    'FLEXIBLE',
+    'NONE',
+    TRUE,
+    '[
+        {"name":"General Intelligence and Reasoning","subject":"General Intelligence and Reasoning","questionCount":25,"marksPerQuestion":2.0,"negativeMarksPerQuestion":0.5},
+        {"name":"General Awareness","subject":"General Awareness","questionCount":25,"marksPerQuestion":2.0,"negativeMarksPerQuestion":0.5},
+        {"name":"Quantitative Aptitude","subject":"Quantitative Aptitude / Mathematical Abilities","questionCount":25,"marksPerQuestion":2.0,"negativeMarksPerQuestion":0.5},
+        {"name":"English Comprehension","subject":"English Language and Comprehension","questionCount":25,"marksPerQuestion":2.0,"negativeMarksPerQuestion":0.5}
+    ]'::jsonb,
+    'PUBLISHED',
+    NULL,
+    NOW(),
+    NOW(),
+    0
+),
+(
+    'e1000000-0000-0000-0000-000000000002',
+    'default',
+    'IBPS Probationary Officer (PO) Preliminary Examination 2026',
+    'IBPS-PO-PRE-2026',
+    'Institute of Banking Personnel Selection (IBPS)',
+    'RECRUITMENT',
+    'PRELIMINARY',
+    '2026-27',
+    'CBT',
+    60,
+    100,
+    TRUE,
+    0.25,
+    'RESTRICTED',
+    'NONE',
+    TRUE,
+    '[
+        {"name":"English Language","subject":"English Language and Comprehension","questionCount":30,"marksPerQuestion":1.0,"negativeMarksPerQuestion":0.25},
+        {"name":"Quantitative Aptitude","subject":"Quantitative Aptitude / Mathematical Abilities","questionCount":35,"marksPerQuestion":1.0,"negativeMarksPerQuestion":0.25},
+        {"name":"Reasoning Ability","subject":"General Intelligence and Reasoning","questionCount":35,"marksPerQuestion":1.0,"negativeMarksPerQuestion":0.25}
+    ]'::jsonb,
+    'PUBLISHED',
+    NULL,
+    NOW(),
+    NOW(),
+    0
+),
+(
+    'e1000000-0000-0000-0000-000000000003',
+    'default',
+    'UPSC Civil Services (Preliminary) Examination 2026 - Paper 1 (General Studies)',
+    'UPSC-CSE-PRE-GS1-2026',
+    'Union Public Service Commission (UPSC)',
+    'RECRUITMENT',
+    'PRELIMINARY',
+    '2026-27',
+    'CBT',
+    120,
+    200,
+    TRUE,
+    0.66,
+    'FLEXIBLE',
+    'NONE',
+    TRUE,
+    '[
+        {"name":"General Studies","subject":"General Studies","questionCount":100,"marksPerQuestion":2.0,"negativeMarksPerQuestion":0.66}
+    ]'::jsonb,
+    'PUBLISHED',
+    NULL,
+    NOW(),
+    NOW(),
+    0
+),
+(
+    'e1000000-0000-0000-0000-000000000004',
+    'default',
+    'Railway Recruitment Board Non-Technical Popular Categories (RRB NTPC) CBT-1 2026',
+    'RRB-NTPC-CBT1-2026',
+    'Railway Recruitment Board (RRB)',
+    'RECRUITMENT',
+    'PRELIMINARY',
+    '2026-27',
+    'CBT',
+    90,
+    100,
+    TRUE,
+    0.33,
+    'FLEXIBLE',
+    'NONE',
+    TRUE,
+    '[
+        {"name":"General Awareness","subject":"General Awareness","questionCount":40,"marksPerQuestion":1.0,"negativeMarksPerQuestion":0.33},
+        {"name":"Mathematics","subject":"Mathematics","questionCount":30,"marksPerQuestion":1.0,"negativeMarksPerQuestion":0.33},
+        {"name":"General Intelligence disciplined Reasoning","subject":"General Intelligence and Reasoning","questionCount":30,"marksPerQuestion":1.0,"negativeMarksPerQuestion":0.33}
+    ]'::jsonb,
+    'PUBLISHED',
+    NULL,
+    NOW(),
+    NOW(),
+    0
+),
+(
+    'e1000000-0000-0000-0000-000000000005',
+    'default',
+    'Central Teacher Eligibility Test (CTET) Paper-1 (Primary Teacher) 2026',
+    'CTET-PAPER1-2026',
+    'Central Board of Secondary Education (CBSE)',
+    'ENTRANCE',
+    'PRELIMINARY',
+    '2026-27',
+    'CBT',
+    150,
+    150,
+    FALSE,
+    0.0,
+    'FLEXIBLE',
+    'NONE',
+    TRUE,
+    '[
+        {"name":"Child Development and Pedagogy","subject":"Child Development and Pedagogy","questionCount":30,"marksPerQuestion":1.0,"negativeMarksPerQuestion":0.0},
+        {"name":"Mathematics","subject":"Mathematics","questionCount":30,"marksPerQuestion":1.0,"negativeMarksPerQuestion":0.0},
+        {"name":"Environmental Studies","subject":"General Studies","questionCount":30,"marksPerQuestion":1.0,"negativeMarksPerQuestion":0.0},
+        {"name":"Language I (Hindi)","subject":"General Hindi","questionCount":30,"marksPerQuestion":1.0,"negativeMarksPerQuestion":0.0},
+        {"name":"Language II (English)","subject":"English Language and Comprehension","questionCount":30,"marksPerQuestion":1.0,"negativeMarksPerQuestion":0.0}
+    ]'::jsonb,
+    'PUBLISHED',
+    NULL,
+    NOW(),
+    NOW(),
+    0
+)
+ON CONFLICT (id) DO NOTHING;
+
+-- Seed Schedules
+INSERT INTO examination_service.examination_schedule (
+    id,
+    tenant_id,
+    examination_id,
+    schedule_name,
+    schedule_version,
+    notification_number,
+    exam_date,
+    reserve_date,
+    time_zone,
+    status,
+    change_reason,
+    effective_from,
+    previous_version_id,
+    created_by,
+    modified_by,
+    approved_by,
+    approved_at,
+    created_at,
+    updated_at,
+    version
+) VALUES
+(
+    'b1000000-0000-0000-0000-000000000001',
+    'default',
+    'e1000000-0000-0000-0000-000000000001',
+    'SSC CGL Tier-1 Phase-1 Examination Schedule',
+    1,
+    'SSC/HQ/CGL/2026-01',
+    '2026-10-15',
+    '2026-10-18',
+    'Asia/Kolkata',
+    'PUBLISHED',
+    NULL,
+    '2026-10-15',
+    NULL,
+    NULL,
+    NULL,
+    NULL,
+    NOW(),
+    NOW(),
+    NOW(),
+    0
+),
+(
+    'b1000000-0000-0000-0000-000000000002',
+    'default',
+    'e1000000-0000-0000-0000-000000000002',
+    'IBPS PO Prelims All-India Schedule',
+    1,
+    'IBPS/CRP-PO/XIV/2026',
+    '2026-11-01',
+    '2026-11-03',
+    'Asia/Kolkata',
+    'PUBLISHED',
+    NULL,
+    '2026-11-01',
+    NULL,
+    NULL,
+    NULL,
+    NULL,
+    NOW(),
+    NOW(),
+    NOW(),
+    0
+),
+(
+    'b1000000-0000-0000-0000-000000000003',
+    'default',
+    'e1000000-0000-0000-0000-000000000004',
+    'RRB NTPC CBT-1 Stage-1 Examination Schedule',
+    1,
+    'RRB/CEN/01/2026',
+    '2026-11-20',
+    '2026-11-25',
+    'Asia/Kolkata',
+    'PUBLISHED',
+    NULL,
+    '2026-11-20',
+    NULL,
+    NULL,
+    NULL,
+    NULL,
+    NOW(),
+    NOW(),
+    NOW(),
+    0
+)
+ON CONFLICT (id) DO NOTHING;
+
+-- Seed Shifts
+INSERT INTO examination_service.exam_shift (
+    id,
+    tenant_id,
+    schedule_id,
+    shift_number,
+    shift_name,
+    reporting_time,
+    gate_closing_time,
+    login_start_time,
+    exam_start_time,
+    exam_end_time,
+    exit_time,
+    duration_minutes,
+    buffer_minutes,
+    created_at,
+    updated_at,
+    version
+) VALUES
+(
+    'f1000000-0000-0000-0000-000000000001',
+    'default',
+    'b1000000-0000-0000-0000-000000000001',
+    1,
+    'Shift 1 - Morning',
+    '07:30:00',
+    '08:30:00',
+    '08:45:00',
+    '09:00:00',
+    '10:00:00',
+    '10:15:00',
+    60,
+    15,
+    NOW(),
+    NOW(),
+    0
+),
+(
+    'f1000000-0000-0000-0000-000000000002',
+    'default',
+    'b1000000-0000-0000-0000-000000000001',
+    2,
+    'Shift 2 - Afternoon',
+    '11:00:00',
+    '12:00:00',
+    '12:15:00',
+    '12:30:00',
+    '13:30:00',
+    '13:45:00',
+    60,
+    15,
+    NOW(),
+    NOW(),
+    0
+),
+(
+    'f1000000-0000-0000-0000-000000000003',
+    'default',
+    'b1000000-0000-0000-0000-000000000001',
+    3,
+    'Shift 3 - Evening',
+    '14:30:00',
+    '15:30:00',
+    '15:45:00',
+    '16:00:00',
+    '17:00:00',
+    '17:15:00',
+    60,
+    15,
+    NOW(),
+    NOW(),
+    0
+),
+(
+    'f1000000-0000-0000-0000-000000000004',
+    'default',
+    'b1000000-0000-0000-0000-000000000002',
+    1,
+    'Shift 1 - Morning',
+    '07:30:00',
+    '08:30:00',
+    '08:45:00',
+    '09:00:00',
+    '10:00:00',
+    '10:15:00',
+    60,
+    15,
+    NOW(),
+    NOW(),
+    0
+),
+(
+    'f1000000-0000-0000-0000-000000000005',
+    'default',
+    'b1000000-0000-0000-0000-000000000003',
+    1,
+    'Shift 1 - Morning',
+    '08:00:00',
+    '09:00:00',
+    '09:15:00',
+    '09:30:00',
+    '11:00:00',
+    '11:15:00',
+    90,
+    15,
+    NOW(),
+    NOW(),
+    0
+)
+ON CONFLICT (id) DO NOTHING;
+
+-- Seed Shift Seat Allocations
+INSERT INTO examination_service.shift_seat_allocation (
+    id,
+    tenant_id,
+    shift_id,
+    centre_id,
+    total_seats,
+    available_seats,
+    reserved_seats,
+    pwd_seats,
+    emergency_buffer_seats,
+    female_reserved_seats,
+    special_category_seats,
+    created_at,
+    updated_at,
+    version
+) VALUES
+(
+    'a2000000-0000-0000-0000-000000000001',
+    'default',
+    'f1000000-0000-0000-0000-000000000001',
+    'c1000000-0000-0000-0000-000000000001',
+    600,
+    550,
+    50,
+    20,
+    10,
+    15,
+    5,
+    NOW(),
+    NOW(),
+    0
+),
+(
+    'a2000000-0000-0000-0000-000000000002',
+    'default',
+    'f1000000-0000-0000-0000-000000000001',
+    'c1000000-0000-0000-0000-000000000002',
+    550,
+    500,
+    50,
+    20,
+    10,
+    15,
+    5,
+    NOW(),
+    NOW(),
+    0
+),
+(
+    'a2000000-0000-0000-0000-000000000003',
+    'default',
+    'f1000000-0000-0000-0000-000000000001',
+    'c1000000-0000-0000-0000-000000000008',
+    650,
+    600,
+    50,
+    25,
+    10,
+    15,
+    0,
+    NOW(),
+    NOW(),
+    0
+),
+(
+    'a2000000-0000-0000-0000-000000000004',
+    'default',
+    'f1000000-0000-0000-0000-000000000001',
+    'c1000000-0000-0000-0000-000000000012',
+    700,
+    650,
+    50,
+    25,
+    10,
+    15,
+    0,
+    NOW(),
+    NOW(),
+    0
+),
+(
+    'a2000000-0000-0000-0000-000000000005',
+    'default',
+    'f1000000-0000-0000-0000-000000000001',
+    'c1000000-0000-0000-0000-000000000018',
+    650,
+    600,
+    50,
+    25,
+    10,
+    15,
+    0,
+    NOW(),
+    NOW(),
+    0
+)
+ON CONFLICT (id) DO NOTHING;
