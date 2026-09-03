@@ -27,6 +27,7 @@ import com.examplatform.delivery.dto.SessionStartResponse;
 import com.examplatform.delivery.dto.ShiftAssignment;
 import com.examplatform.delivery.exception.ConcurrentSessionException;
 import com.examplatform.delivery.repository.ExamSessionRepository;
+import com.examplatform.shared.config.DynamicConfigService;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -61,6 +62,7 @@ public class SessionStartService {
     private final RedisTemplate<String, Object> redisTemplate;
     private final KafkaTemplate<String, Object> kafkaTemplate;
     private final ObjectMapper objectMapper;
+    private final DynamicConfigService dynamicConfigService;
 
     private static final String SESSION_CACHE_PREFIX = "session:";
     private static final String TOPIC_SESSION_EVENTS = "exam.session.events";
@@ -147,7 +149,14 @@ public class SessionStartService {
             log.error("Unexpected error publishing SESSION_STARTED event: {}", e.getMessage());
         }
 
-        // 10. Return response with first question
+        // 10. Read dynamic delivery parameters
+        boolean kioskEnforced = dynamicConfigService.getBoolean("delivery.kiosk.mode.enforced", tenantId, true);
+        int heartbeatSec = dynamicConfigService.getInt("delivery.telemetry.heartbeat.seconds", tenantId, 10);
+        int autosaveSec = dynamicConfigService.getInt("delivery.autosave.interval.seconds", tenantId, 15);
+        int maxDisconnectGraceSec = dynamicConfigService.getInt("delivery.max.disconnect.grace.seconds", tenantId, 180);
+        boolean tamperEnabled = dynamicConfigService.getBoolean("delivery.tamper.detection.enabled", tenantId, true);
+
+        // 11. Return response with first question and dynamic parameters
         return SessionStartResponse.builder()
                 .sessionId(savedSession.getSessionId())
                 .examId(request.getExamId())
@@ -156,41 +165,37 @@ public class SessionStartService {
                 .scheduledEndAt(scheduledEnd)
                 .firstQuestionContent(firstQuestionContent)
                 .totalQuestions(totalQuestions)
+                .kioskModeEnforced(kioskEnforced)
+                .heartbeatIntervalSeconds(heartbeatSec)
+                .autosaveIntervalSeconds(autosaveSec)
+                .maxDisconnectGraceSeconds(maxDisconnectGraceSec)
+                .tamperDetectionEnabled(tamperEnabled)
                 .build();
     }
 
-    /**
-     * Extracts the first question content from the decrypted paper JSON.
-     * Expected structure: {"questions": [{"content": "...", ...}, ...]}
-     */
     private String extractFirstQuestion(String decryptedPaper) {
         try {
             JsonNode root = objectMapper.readTree(decryptedPaper);
             JsonNode questions = root.path("questions");
             if (questions.isArray() && !questions.isEmpty()) {
-                JsonNode firstQuestion = questions.get(0);
-                return firstQuestion.has("content")
-                        ? firstQuestion.get("content").asText()
-                        : firstQuestion.toString();
+                return objectMapper.writeValueAsString(questions.get(0));
             }
-            return "";
         } catch (JsonProcessingException e) {
-            log.error("Failed to parse decrypted paper content", e);
-            return "";
+            log.warn("Could not parse paper JSON to extract first question: {}", e.getMessage());
         }
+        return decryptedPaper;
     }
 
-    /**
-     * Counts total questions in the decrypted paper JSON.
-     */
     private int countQuestions(String decryptedPaper) {
         try {
             JsonNode root = objectMapper.readTree(decryptedPaper);
             JsonNode questions = root.path("questions");
-            return questions.isArray() ? questions.size() : 0;
+            if (questions.isArray()) {
+                return questions.size();
+            }
         } catch (JsonProcessingException e) {
-            log.error("Failed to count questions in decrypted paper", e);
-            return 0;
+            log.warn("Could not parse paper JSON to count questions: {}", e.getMessage());
         }
+        return 0;
     }
 }

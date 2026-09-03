@@ -20,6 +20,7 @@
 package com.examplatform.questionbank.service;
 
 import com.examplatform.questionbank.domain.Question;
+import com.examplatform.shared.config.DynamicConfigService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -27,6 +28,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Captor;
 import org.mockito.Mock;
+import org.mockito.Mockito;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.kafka.core.KafkaTemplate;
 
@@ -36,6 +38,8 @@ import java.util.concurrent.CompletableFuture;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -51,6 +55,9 @@ class ReviewWorkflowServiceTest {
 
     @Mock
     private KafkaTemplate<String, Object> kafkaTemplate;
+
+    @Mock
+    private DynamicConfigService dynamicConfigService;
 
     @Captor
     private ArgumentCaptor<String> topicCaptor;
@@ -71,12 +78,15 @@ class ReviewWorkflowServiceTest {
 
     @BeforeEach
     void setUp() {
-        reviewWorkflowService = new ReviewWorkflowService(kafkaTemplate);
+        reviewWorkflowService = new ReviewWorkflowService(kafkaTemplate, dynamicConfigService);
 
         questionId = UUID.randomUUID();
         authorId = UUID.randomUUID();
         actorId = UUID.randomUUID();
         tenantId = "tenant-exam-board";
+
+        Mockito.lenient().when(dynamicConfigService.getBoolean(anyString(), anyString(), anyBoolean()))
+                .thenAnswer(inv -> inv.getArgument(2));
 
         testQuestion = Question.builder()
                 .subject("Mathematics")
@@ -110,69 +120,105 @@ class ReviewWorkflowServiceTest {
         assertThat(keyCaptor.getValue()).isEqualTo(questionId.toString());
 
         @SuppressWarnings("unchecked")
-        Map<String, Object> event = (Map<String, Object>) valueCaptor.getValue();
-        assertThat(event.get("eventType")).isEqualTo("SUBMITTED_FOR_REVIEW");
-        assertThat(event.get("questionId")).isEqualTo(questionId);
-        assertThat(event.get("subject")).isEqualTo("Mathematics");
-        assertThat(event.get("authorId")).isEqualTo(authorId);
-        assertThat(event.get("tenantId")).isEqualTo(tenantId);
+        Map<String, Object> payload = (Map<String, Object>) valueCaptor.getValue();
+        assertThat(payload)
+                .containsEntry("eventType", "SUBMITTED_FOR_REVIEW")
+                .containsEntry("questionId", questionId)
+                .containsEntry("subject", "Mathematics")
+                .containsEntry("authorId", authorId)
+                .containsEntry("actorId", actorId)
+                .containsEntry("tenantId", tenantId)
+                .containsEntry("dualReviewRequired", true)
+                .containsKey("assignedReviewer")
+                .containsKey("timestamp");
     }
 
     @Test
-    @DisplayName("Approval (REVIEW→APPROVED) notifies author via notifications topic")
-    void approvalNotifiesAuthor() {
+    @DisplayName("Transition to APPROVED publishes REVIEWER_APPROVED event and sends notification")
+    void transitionToApproved_publishesEventAndNotification() {
         reviewWorkflowService.processTransition(testQuestion, "REVIEW", "APPROVED", actorId, null, tenantId);
 
-        // Should publish to both lifecycle and notifications topics
         verify(kafkaTemplate, times(2)).send(topicCaptor.capture(), keyCaptor.capture(), valueCaptor.capture());
 
         var topics = topicCaptor.getAllValues();
-        assertThat(topics).containsExactly("exam.question.lifecycle", "exam.notifications.outbound");
+        var keys = keyCaptor.getAllValues();
+        var values = valueCaptor.getAllValues();
 
-        // Check notification event
+        // First call: lifecycle topic
+        assertThat(topics.get(0)).isEqualTo("exam.question.lifecycle");
+        assertThat(keys.get(0)).isEqualTo(questionId.toString());
+
         @SuppressWarnings("unchecked")
-        Map<String, Object> notification = (Map<String, Object>) valueCaptor.getAllValues().get(1);
-        assertThat(notification.get("type")).isEqualTo("QUESTION_APPROVED_BY_REVIEWER");
-        assertThat(notification.get("recipientId")).isEqualTo(authorId);
-        assertThat(notification.get("questionId")).isEqualTo(questionId);
-        assertThat(notification.get("reviewerId")).isEqualTo(actorId);
+        Map<String, Object> lifecyclePayload = (Map<String, Object>) values.get(0);
+        assertThat(lifecyclePayload)
+                .containsEntry("eventType", "REVIEWER_APPROVED")
+                .containsEntry("questionId", questionId)
+                .containsEntry("reviewerId", actorId)
+                .containsEntry("authorId", authorId);
+
+        // Second call: notifications topic
+        assertThat(topics.get(1)).isEqualTo("exam.notifications.outbound");
+        assertThat(keys.get(1)).isEqualTo(authorId.toString());
+
+        @SuppressWarnings("unchecked")
+        Map<String, Object> notifPayload = (Map<String, Object>) values.get(1);
+        assertThat(notifPayload)
+                .containsEntry("type", "QUESTION_APPROVED_BY_REVIEWER")
+                .containsEntry("recipientId", authorId)
+                .containsEntry("questionId", questionId)
+                .containsEntry("reviewerId", actorId)
+                .containsEntry("subject", "Mathematics");
     }
 
     @Test
-    @DisplayName("Return to DRAFT (REVIEW→DRAFT) notifies author with comments")
-    void returnToDraftNotifiesAuthorWithComments() {
-        String comments = "Please clarify option C";
-
+    @DisplayName("Transition to DRAFT publishes RETURNED_TO_DRAFT event with comments and notifies author")
+    void transitionToDraft_publishesEventAndNotificationWithComments() {
+        String comments = "Please provide more detailed explanation in the answer key.";
         reviewWorkflowService.processTransition(testQuestion, "REVIEW", "DRAFT", actorId, comments, tenantId);
 
         verify(kafkaTemplate, times(2)).send(topicCaptor.capture(), keyCaptor.capture(), valueCaptor.capture());
 
         var topics = topicCaptor.getAllValues();
-        assertThat(topics).containsExactly("exam.question.lifecycle", "exam.notifications.outbound");
+        var values = valueCaptor.getAllValues();
 
+        assertThat(topics.get(0)).isEqualTo("exam.question.lifecycle");
         @SuppressWarnings("unchecked")
-        Map<String, Object> notification = (Map<String, Object>) valueCaptor.getAllValues().get(1);
-        assertThat(notification.get("type")).isEqualTo("QUESTION_RETURNED_BY_REVIEWER");
-        assertThat(notification.get("recipientId")).isEqualTo(authorId);
-        assertThat(notification.get("comments")).isEqualTo(comments);
+        Map<String, Object> lifecyclePayload = (Map<String, Object>) values.get(0);
+        assertThat(lifecyclePayload)
+                .containsEntry("eventType", "RETURNED_TO_DRAFT")
+                .containsEntry("comments", comments);
+
+        assertThat(topics.get(1)).isEqualTo("exam.notifications.outbound");
+        @SuppressWarnings("unchecked")
+        Map<String, Object> notifPayload = (Map<String, Object>) values.get(1);
+        assertThat(notifPayload)
+                .containsEntry("type", "QUESTION_RETURNED_FOR_REVISION")
+                .containsEntry("comments", comments);
     }
 
     @Test
-    @DisplayName("Publishing (APPROVED→PUBLISHED) notifies author via notifications topic")
-    void publishingNotifiesAuthor() {
-        testQuestion.setState("PUBLISHED");
-
+    @DisplayName("Transition to PUBLISHED publishes QUESTION_PUBLISHED event and notifies author")
+    void transitionToPublished_publishesEventAndNotification() {
         reviewWorkflowService.processTransition(testQuestion, "APPROVED", "PUBLISHED", actorId, null, tenantId);
 
         verify(kafkaTemplate, times(2)).send(topicCaptor.capture(), keyCaptor.capture(), valueCaptor.capture());
 
         var topics = topicCaptor.getAllValues();
-        assertThat(topics).containsExactly("exam.question.lifecycle", "exam.notifications.outbound");
+        var values = valueCaptor.getAllValues();
 
+        assertThat(topics.get(0)).isEqualTo("exam.question.lifecycle");
         @SuppressWarnings("unchecked")
-        Map<String, Object> notification = (Map<String, Object>) valueCaptor.getAllValues().get(1);
-        assertThat(notification.get("type")).isEqualTo("QUESTION_PUBLISHED");
-        assertThat(notification.get("recipientId")).isEqualTo(authorId);
-        assertThat(notification.get("approverId")).isEqualTo(actorId);
+        Map<String, Object> lifecyclePayload = (Map<String, Object>) values.get(0);
+        assertThat(lifecyclePayload)
+                .containsEntry("eventType", "QUESTION_PUBLISHED")
+                .containsEntry("publisherId", actorId)
+                .containsEntry("authorId", authorId);
+
+        assertThat(topics.get(1)).isEqualTo("exam.notifications.outbound");
+        @SuppressWarnings("unchecked")
+        Map<String, Object> notifPayload = (Map<String, Object>) values.get(1);
+        assertThat(notifPayload)
+                .containsEntry("type", "QUESTION_PUBLISHED")
+                .containsEntry("recipientId", authorId);
     }
 }

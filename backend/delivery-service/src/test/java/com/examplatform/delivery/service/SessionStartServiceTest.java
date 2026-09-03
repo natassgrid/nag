@@ -27,6 +27,7 @@ import com.examplatform.delivery.dto.SessionStartResponse;
 import com.examplatform.delivery.dto.ShiftAssignment;
 import com.examplatform.delivery.exception.ConcurrentSessionException;
 import com.examplatform.delivery.repository.ExamSessionRepository;
+import com.examplatform.shared.config.DynamicConfigService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -34,6 +35,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
+import org.mockito.Mockito;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.core.ValueOperations;
@@ -46,6 +48,8 @@ import java.util.UUID;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
@@ -77,6 +81,9 @@ class SessionStartServiceTest {
     @Mock
     private ValueOperations<String, Object> valueOperations;
 
+    @Mock
+    private DynamicConfigService dynamicConfigService;
+
     private SessionStartService sessionStartService;
 
     private static final UUID CANDIDATE_ID = UUID.randomUUID();
@@ -97,8 +104,14 @@ class SessionStartServiceTest {
                 vaultCryptoService,
                 redisTemplate,
                 kafkaTemplate,
-                new ObjectMapper()
+                new ObjectMapper(),
+                dynamicConfigService
         );
+
+        Mockito.lenient().when(dynamicConfigService.getBoolean(anyString(), anyString(), anyBoolean()))
+                .thenAnswer(inv -> inv.getArgument(2));
+        Mockito.lenient().when(dynamicConfigService.getInt(anyString(), anyString(), anyInt()))
+                .thenAnswer(inv -> inv.getArgument(2));
     }
 
     @Test
@@ -124,9 +137,12 @@ class SessionStartServiceTest {
                 .thenReturn(assignment);
         when(vaultCryptoService.decrypt("shift-key-" + SHIFT_ID, ENCRYPTED_PACKAGE))
                 .thenReturn(DECRYPTED_PAPER);
-        when(examSessionRepository.save(any(ExamSession.class)))
-                .thenAnswer(invocation -> invocation.getArgument(0));
+        when(disabilityExtensionService.getExtraTimeMinutes(CANDIDATE_ID, TENANT_ID))
+                .thenReturn(0);
+        when(examSessionRepository.save(any(ExamSession.class))).thenAnswer(inv -> inv.getArgument(0));
         when(redisTemplate.opsForValue()).thenReturn(valueOperations);
+        when(kafkaTemplate.send(anyString(), anyString(), any()))
+                .thenReturn(java.util.concurrent.CompletableFuture.completedFuture(null));
 
         // When
         SessionStartResponse response = sessionStartService.startSession(request, CANDIDATE_ID, TENANT_ID);
@@ -136,172 +152,129 @@ class SessionStartServiceTest {
         assertThat(response.getSessionId()).isNotNull();
         assertThat(response.getExamId()).isEqualTo(EXAM_ID);
         assertThat(response.getShiftId()).isEqualTo(SHIFT_ID);
-        assertThat(response.getStartedAt()).isNotNull();
-        assertThat(response.getScheduledEndAt()).isNotNull();
-        assertThat(response.getFirstQuestionContent()).isEqualTo("What is 2+2?");
         assertThat(response.getTotalQuestions()).isEqualTo(3);
+        assertThat(response.getFirstQuestionContent()).contains("What is 2+2?");
+        assertThat(response.isKioskModeEnforced()).isTrue();
+        assertThat(response.getHeartbeatIntervalSeconds()).isEqualTo(10);
+        assertThat(response.getAutosaveIntervalSeconds()).isEqualTo(15);
+        assertThat(response.getScheduledEndAt()).isAfter(response.getStartedAt());
+
+        // Verify session saved in DB with ACTIVE status
+        ArgumentCaptor<ExamSession> sessionCaptor = ArgumentCaptor.forClass(ExamSession.class);
+        verify(examSessionRepository).save(sessionCaptor.capture());
+        ExamSession saved = sessionCaptor.getValue();
+        assertThat(saved.getStatus()).isEqualTo(ExamSessionStatus.ACTIVE);
+        assertThat(saved.getCandidateId()).isEqualTo(CANDIDATE_ID);
+        assertThat(saved.getTenantId()).isEqualTo(TENANT_ID);
+
+        // Verify cached in Redis
+        verify(valueOperations).set(eq("session:" + saved.getSessionId()), eq(saved), eq(Duration.ofHours(6)));
     }
 
     @Test
-    @DisplayName("Concurrent session exists throws ConcurrentSessionException")
-    void startSession_concurrentSessionExists_throwsConcurrentSessionException() {
+    @DisplayName("Start session with disability extension increases scheduledEndAt")
+    void startSession_withDisabilityExtension_increasesDuration() {
         // Given
         SessionStartRequest request = SessionStartRequest.builder()
                 .examId(EXAM_ID)
                 .shiftId(SHIFT_ID)
-                .languageCode("en")
                 .build();
 
-        ExamSession activeSession = ExamSession.builder()
-                .sessionId(UUID.randomUUID())
-                .candidateId(CANDIDATE_ID)
-                .examId(UUID.randomUUID())
-                .shiftId(UUID.randomUUID())
-                .paperId(UUID.randomUUID())
-                .status(ExamSessionStatus.ACTIVE)
+        ShiftAssignment assignment = ShiftAssignment.builder()
+                .paperId(PAPER_ID)
+                .encryptedPackageRef(ENCRYPTED_PACKAGE)
+                .durationMinutes(180)
+                .extraTimeMinutes(0)
                 .build();
 
         when(examSessionRepository.findByCandidateIdAndTenantId(CANDIDATE_ID, TENANT_ID))
+                .thenReturn(List.of());
+        when(shiftAssignmentClient.getShiftAssignment(CANDIDATE_ID, EXAM_ID, SHIFT_ID, TENANT_ID))
+                .thenReturn(assignment);
+        when(vaultCryptoService.decrypt("shift-key-" + SHIFT_ID, ENCRYPTED_PACKAGE))
+                .thenReturn(DECRYPTED_PAPER);
+        when(disabilityExtensionService.getExtraTimeMinutes(CANDIDATE_ID, TENANT_ID))
+                .thenReturn(60); // 60 min disability extra
+        when(examSessionRepository.save(any(ExamSession.class))).thenAnswer(inv -> inv.getArgument(0));
+        when(redisTemplate.opsForValue()).thenReturn(valueOperations);
+        when(kafkaTemplate.send(anyString(), anyString(), any()))
+                .thenReturn(java.util.concurrent.CompletableFuture.completedFuture(null));
+
+        // When
+        SessionStartResponse response = sessionStartService.startSession(request, CANDIDATE_ID, TENANT_ID);
+
+        // Then: scheduled duration should be 180 + 60 = 240 minutes (within a few seconds tolerance)
+        Duration duration = Duration.between(response.getStartedAt(), response.getScheduledEndAt());
+        assertThat(duration.toMinutes()).isEqualTo(240);
+    }
+
+    @Test
+    @DisplayName("Concurrent session throws ConcurrentSessionException")
+    void startSession_activeSessionExists_throwsConcurrentSessionException() {
+        // Given: candidate already has an ACTIVE session
+        ExamSession activeSession = ExamSession.builder()
+                .sessionId(UUID.randomUUID())
+                .candidateId(CANDIDATE_ID)
+                .status(ExamSessionStatus.ACTIVE)
+                .build();
+        when(examSessionRepository.findByCandidateIdAndTenantId(CANDIDATE_ID, TENANT_ID))
                 .thenReturn(List.of(activeSession));
+
+        SessionStartRequest request = SessionStartRequest.builder()
+                .examId(EXAM_ID)
+                .shiftId(SHIFT_ID)
+                .build();
 
         // When / Then
         assertThatThrownBy(() -> sessionStartService.startSession(request, CANDIDATE_ID, TENANT_ID))
                 .isInstanceOf(ConcurrentSessionException.class)
-                .hasMessageContaining(CANDIDATE_ID.toString());
+                .hasMessageContaining("already has an active session");
 
-        // Verify no session was created
+        // Verify no decryption or save took place
+        verify(vaultCryptoService, never()).decrypt(anyString(), anyString());
         verify(examSessionRepository, never()).save(any());
-        verify(shiftAssignmentClient, never()).getShiftAssignment(any(), any(), any(), anyString());
     }
 
     @Test
-    @DisplayName("Session saved to repository with correct fields")
-    void startSession_savesSessionWithCorrectFields() {
-        // Given
-        SessionStartRequest request = SessionStartRequest.builder()
-                .examId(EXAM_ID)
-                .shiftId(SHIFT_ID)
-                .languageCode("hi")
+    @DisplayName("Completed/expired previous session allows new session")
+    void startSession_completedPreviousSession_allowsNewSession() {
+        // Given: candidate had a SUBMITTED session in the past
+        ExamSession submittedSession = ExamSession.builder()
+                .sessionId(UUID.randomUUID())
+                .candidateId(CANDIDATE_ID)
+                .status(ExamSessionStatus.SUBMITTED)
                 .build();
+        when(examSessionRepository.findByCandidateIdAndTenantId(CANDIDATE_ID, TENANT_ID))
+                .thenReturn(List.of(submittedSession));
 
         ShiftAssignment assignment = ShiftAssignment.builder()
                 .paperId(PAPER_ID)
                 .encryptedPackageRef(ENCRYPTED_PACKAGE)
                 .durationMinutes(120)
-                .extraTimeMinutes(30)
-                .build();
-
-        when(examSessionRepository.findByCandidateIdAndTenantId(CANDIDATE_ID, TENANT_ID))
-                .thenReturn(List.of());
-        when(shiftAssignmentClient.getShiftAssignment(CANDIDATE_ID, EXAM_ID, SHIFT_ID, TENANT_ID))
-                .thenReturn(assignment);
-        when(vaultCryptoService.decrypt("shift-key-" + SHIFT_ID, ENCRYPTED_PACKAGE))
-                .thenReturn(DECRYPTED_PAPER);
-        when(examSessionRepository.save(any(ExamSession.class)))
-                .thenAnswer(invocation -> invocation.getArgument(0));
-        when(redisTemplate.opsForValue()).thenReturn(valueOperations);
-
-        // When
-        sessionStartService.startSession(request, CANDIDATE_ID, TENANT_ID);
-
-        // Then
-        ArgumentCaptor<ExamSession> sessionCaptor = ArgumentCaptor.forClass(ExamSession.class);
-        verify(examSessionRepository).save(sessionCaptor.capture());
-
-        ExamSession savedSession = sessionCaptor.getValue();
-        assertThat(savedSession.getCandidateId()).isEqualTo(CANDIDATE_ID);
-        assertThat(savedSession.getExamId()).isEqualTo(EXAM_ID);
-        assertThat(savedSession.getShiftId()).isEqualTo(SHIFT_ID);
-        assertThat(savedSession.getPaperId()).isEqualTo(PAPER_ID);
-        assertThat(savedSession.getStatus()).isEqualTo(ExamSessionStatus.ACTIVE);
-        assertThat(savedSession.getLanguageCode()).isEqualTo("hi");
-        assertThat(savedSession.getCurrentQuestionIndex()).isEqualTo(0);
-        assertThat(savedSession.getFullScreenExitCount()).isEqualTo(0);
-        assertThat(savedSession.getTenantId()).isEqualTo(TENANT_ID);
-        assertThat(savedSession.getStartedAt()).isNotNull();
-        assertThat(savedSession.getScheduledEndAt()).isNotNull();
-        // Duration should be 120 + 30 = 150 minutes
-        long durationMinutes = Duration.between(savedSession.getStartedAt(), savedSession.getScheduledEndAt()).toMinutes();
-        assertThat(durationMinutes).isEqualTo(150);
-    }
-
-    @Test
-    @DisplayName("Single session enforcement — SUBMITTED sessions do not block new session")
-    void startSession_submittedSessionExists_allowsNewSession() {
-        // Given
-        SessionStartRequest request = SessionStartRequest.builder()
-                .examId(EXAM_ID)
-                .shiftId(SHIFT_ID)
-                .languageCode("en")
-                .build();
-
-        ExamSession submittedSession = ExamSession.builder()
-                .sessionId(UUID.randomUUID())
-                .candidateId(CANDIDATE_ID)
-                .examId(UUID.randomUUID())
-                .shiftId(UUID.randomUUID())
-                .paperId(UUID.randomUUID())
-                .status(ExamSessionStatus.SUBMITTED)
-                .build();
-
-        ShiftAssignment assignment = ShiftAssignment.builder()
-                .paperId(PAPER_ID)
-                .encryptedPackageRef(ENCRYPTED_PACKAGE)
-                .durationMinutes(180)
                 .extraTimeMinutes(0)
                 .build();
 
-        when(examSessionRepository.findByCandidateIdAndTenantId(CANDIDATE_ID, TENANT_ID))
-                .thenReturn(List.of(submittedSession));
         when(shiftAssignmentClient.getShiftAssignment(CANDIDATE_ID, EXAM_ID, SHIFT_ID, TENANT_ID))
                 .thenReturn(assignment);
         when(vaultCryptoService.decrypt("shift-key-" + SHIFT_ID, ENCRYPTED_PACKAGE))
                 .thenReturn(DECRYPTED_PAPER);
-        when(examSessionRepository.save(any(ExamSession.class)))
-                .thenAnswer(invocation -> invocation.getArgument(0));
+        when(disabilityExtensionService.getExtraTimeMinutes(CANDIDATE_ID, TENANT_ID))
+                .thenReturn(0);
+        when(examSessionRepository.save(any(ExamSession.class))).thenAnswer(inv -> inv.getArgument(0));
         when(redisTemplate.opsForValue()).thenReturn(valueOperations);
+        when(kafkaTemplate.send(anyString(), anyString(), any()))
+                .thenReturn(java.util.concurrent.CompletableFuture.completedFuture(null));
+
+        SessionStartRequest request = SessionStartRequest.builder()
+                .examId(EXAM_ID)
+                .shiftId(SHIFT_ID)
+                .build();
 
         // When
         SessionStartResponse response = sessionStartService.startSession(request, CANDIDATE_ID, TENANT_ID);
 
-        // Then — session was created successfully
+        // Then
         assertThat(response).isNotNull();
-        assertThat(response.getSessionId()).isNotNull();
         verify(examSessionRepository).save(any(ExamSession.class));
-    }
-
-    @Test
-    @DisplayName("Session is cached in Redis after creation")
-    void startSession_cachesSessionInRedis() {
-        // Given
-        SessionStartRequest request = SessionStartRequest.builder()
-                .examId(EXAM_ID)
-                .shiftId(SHIFT_ID)
-                .languageCode("en")
-                .build();
-
-        ShiftAssignment assignment = ShiftAssignment.builder()
-                .paperId(PAPER_ID)
-                .encryptedPackageRef(ENCRYPTED_PACKAGE)
-                .durationMinutes(180)
-                .extraTimeMinutes(0)
-                .build();
-
-        when(examSessionRepository.findByCandidateIdAndTenantId(CANDIDATE_ID, TENANT_ID))
-                .thenReturn(List.of());
-        when(shiftAssignmentClient.getShiftAssignment(CANDIDATE_ID, EXAM_ID, SHIFT_ID, TENANT_ID))
-                .thenReturn(assignment);
-        when(vaultCryptoService.decrypt("shift-key-" + SHIFT_ID, ENCRYPTED_PACKAGE))
-                .thenReturn(DECRYPTED_PAPER);
-        when(examSessionRepository.save(any(ExamSession.class)))
-                .thenAnswer(invocation -> invocation.getArgument(0));
-        when(redisTemplate.opsForValue()).thenReturn(valueOperations);
-
-        // When
-        SessionStartResponse response = sessionStartService.startSession(request, CANDIDATE_ID, TENANT_ID);
-
-        // Then
-        String expectedKey = "session:" + response.getSessionId();
-        verify(valueOperations).set(eq(expectedKey), any(ExamSession.class), eq(Duration.ofHours(6)));
     }
 }

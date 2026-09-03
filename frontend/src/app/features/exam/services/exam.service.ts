@@ -25,10 +25,18 @@ import { Observable, map } from 'rxjs';
 
 export interface ExamSession {
   sessionId: string;
-  examName: string;
+  examId?: string;
+  shiftId?: string;
+  examName?: string;
   totalQuestions: number;
-  durationMinutes: number;
+  durationMinutes?: number;
   startedAt: string;
+  scheduledEndAt?: string;
+  kioskModeEnforced?: boolean;
+  heartbeatIntervalSeconds?: number;
+  autosaveIntervalSeconds?: number;
+  maxDisconnectGraceSeconds?: number;
+  tamperDetectionEnabled?: boolean;
 }
 
 export interface Question {

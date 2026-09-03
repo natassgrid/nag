@@ -19,6 +19,8 @@
 
 package com.examplatform.evaluation.service;
 
+import com.examplatform.evaluation.repository.EvaluationRepository;
+import com.examplatform.shared.config.DynamicConfigService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -28,8 +30,6 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.kafka.core.KafkaTemplate;
-
-import com.examplatform.evaluation.repository.EvaluationRepository;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.within;
@@ -48,12 +48,15 @@ class PartialMarkingTest {
     @Mock
     private KafkaTemplate<String, Object> kafkaTemplate;
 
+    @Mock
+    private DynamicConfigService dynamicConfigService;
+
     private AutoEvaluationService service;
 
     @BeforeEach
     void setUp() {
         ObjectMapper objectMapper = new ObjectMapper();
-        service = new AutoEvaluationService(evaluationRepository, objectMapper, kafkaTemplate);
+        service = new AutoEvaluationService(evaluationRepository, objectMapper, kafkaTemplate, dynamicConfigService);
     }
 
     @Nested
@@ -61,103 +64,144 @@ class PartialMarkingTest {
     class FullMarksTests {
 
         @Test
-        @DisplayName("All correct options selected → full marks (4.0)")
+        @DisplayName("All correct options selected -> full marks (4.0)")
         void allCorrectOptionsSelected_awardsFullMarks() {
             double score = service.evaluateMultiMcqPartial(
                     "[\"opt-1\",\"opt-2\",\"opt-3\",\"opt-4\"]",
                     "[\"opt-1\",\"opt-2\",\"opt-3\",\"opt-4\"]",
                     4.0);
 
-            assertThat(score).isEqualTo(4.0);
+            assertThat(score).isCloseTo(4.0, within(1e-6));
+        }
+
+        @Test
+        @DisplayName("Two of two correct selected -> full marks (4.0)")
+        void twoOfTwoCorrectSelected_awardsFullMarks() {
+            double score = service.evaluateMultiMcqPartial(
+                    "[\"opt-a\",\"opt-c\"]",
+                    "[\"opt-a\",\"opt-c\"]",
+                    4.0);
+
+            assertThat(score).isCloseTo(4.0, within(1e-6));
         }
     }
 
     @Nested
-    @DisplayName("Partial marks scenarios (selection ⊆ answerKey)")
+    @DisplayName("Partial marks scenarios (JEE Advanced style)")
     class PartialMarksTests {
 
         @Test
-        @DisplayName("2 of 4 correct options selected → half marks (2.0)")
-        void twoOfFourCorrect_awardsHalfMarks() {
+        @DisplayName("3 out of 4 correct selected, no wrong options -> 3.0 marks")
+        void threeOutOfFourCorrectSelected_awardsPartialMarks() {
+            // (4.0 / 4) * 3 = 3.0
             double score = service.evaluateMultiMcqPartial(
                     "[\"opt-1\",\"opt-2\",\"opt-3\",\"opt-4\"]",
-                    "[\"opt-1\",\"opt-3\"]",
+                    "[\"opt-1\",\"opt-2\",\"opt-3\"]",
                     4.0);
 
-            assertThat(score).isEqualTo(2.0);
+            assertThat(score).isCloseTo(3.0, within(1e-6));
         }
 
         @Test
-        @DisplayName("1 of 3 correct options selected → 1/3 of marks (≈1.333)")
-        void oneOfThreeCorrect_awardsOneThirdMarks() {
+        @DisplayName("2 out of 4 correct selected, no wrong options -> 2.0 marks")
+        void twoOutOfFourCorrectSelected_awardsPartialMarks() {
+            // (4.0 / 4) * 2 = 2.0
             double score = service.evaluateMultiMcqPartial(
-                    "[\"opt-a\",\"opt-b\",\"opt-c\"]",
-                    "[\"opt-a\"]",
+                    "[\"opt-1\",\"opt-2\",\"opt-3\",\"opt-4\"]",
+                    "[\"opt-1\",\"opt-2\"]",
                     4.0);
 
-            assertThat(score).isCloseTo(4.0 / 3.0, within(0.001));
+            assertThat(score).isCloseTo(2.0, within(1e-6));
+        }
+
+        @Test
+        @DisplayName("1 out of 4 correct selected, no wrong options -> 1.0 mark")
+        void oneOutOfFourCorrectSelected_awardsPartialMarks() {
+            // (4.0 / 4) * 1 = 1.0
+            double score = service.evaluateMultiMcqPartial(
+                    "[\"opt-1\",\"opt-2\",\"opt-3\",\"opt-4\"]",
+                    "[\"opt-1\"]",
+                    4.0);
+
+            assertThat(score).isCloseTo(1.0, within(1e-6));
+        }
+
+        @Test
+        @DisplayName("1 out of 3 correct selected, no wrong options -> 4/3 = 1.333 marks")
+        void oneOutOfThreeCorrectSelected_awardsFractionalMarks() {
+            // (4.0 / 3) * 1 = 1.3333...
+            double score = service.evaluateMultiMcqPartial(
+                    "[\"opt-1\",\"opt-2\",\"opt-3\"]",
+                    "[\"opt-2\"]",
+                    4.0);
+
+            assertThat(score).isCloseTo(4.0 / 3.0, within(1e-4));
         }
     }
 
     @Nested
-    @DisplayName("Zero marks scenarios (incorrect options present)")
-    class ZeroMarksTests {
+    @DisplayName("Negative marks scenarios")
+    class NegativeMarksTests {
 
         @Test
-        @DisplayName("Selection contains one incorrect option → zero marks")
-        void selectionContainsOneIncorrectOption_awardsZero() {
+        @DisplayName("Any incorrect option selected -> -2.0 negative marks")
+        void incorrectOptionSelected_awardsNegativeMarks() {
+            // Correct: [1, 2, 3], Selected: [1, 2, 4] -> 4 is incorrect -> -2.0
             double score = service.evaluateMultiMcqPartial(
                     "[\"opt-1\",\"opt-2\",\"opt-3\"]",
-                    "[\"opt-4\"]",
+                    "[\"opt-1\",\"opt-2\",\"opt-4\"]",
                     4.0);
 
-            assertThat(score).isEqualTo(0.0);
+            assertThat(score).isCloseTo(-2.0, within(1e-6));
         }
 
         @Test
-        @DisplayName("Selection contains mix of correct and incorrect → zero marks")
-        void selectionContainsMixOfCorrectAndIncorrect_awardsZero() {
+        @DisplayName("All incorrect options selected -> -2.0 negative marks")
+        void allIncorrectOptionsSelected_awardsNegativeMarks() {
             double score = service.evaluateMultiMcqPartial(
-                    "[\"opt-1\",\"opt-2\",\"opt-3\"]",
-                    "[\"opt-1\",\"opt-4\"]",
+                    "[\"opt-1\",\"opt-2\"]",
+                    "[\"opt-3\",\"opt-4\"]",
                     4.0);
 
-            assertThat(score).isEqualTo(0.0);
+            assertThat(score).isCloseTo(-2.0, within(1e-6));
         }
+    }
+
+    @Nested
+    @DisplayName("Edge cases")
+    class EdgeCaseTests {
 
         @Test
-        @DisplayName("Empty selection → zero marks")
-        void emptySelection_awardsZero() {
+        @DisplayName("Empty candidate selection -> 0.0 marks")
+        void emptySelection_awardsZeroMarks() {
             double score = service.evaluateMultiMcqPartial(
-                    "[\"opt-1\",\"opt-2\",\"opt-3\"]",
+                    "[\"opt-1\",\"opt-2\"]",
                     "[]",
                     4.0);
 
-            assertThat(score).isEqualTo(0.0);
+            assertThat(score).isCloseTo(0.0, within(1e-6));
         }
 
         @Test
-        @DisplayName("Null selection → zero marks")
-        void nullSelection_awardsZero() {
+        @DisplayName("Null candidate selection -> 0.0 marks")
+        void nullSelection_awardsZeroMarks() {
             double score = service.evaluateMultiMcqPartial(
-                    "[\"opt-1\",\"opt-2\",\"opt-3\"]",
+                    "[\"opt-1\",\"opt-2\"]",
                     null,
                     4.0);
 
-            assertThat(score).isEqualTo(0.0);
+            assertThat(score).isCloseTo(0.0, within(1e-6));
         }
 
         @Test
-        @DisplayName("All options selected including wrong ones → zero marks")
-        void allOptionsIncludingWrongSelected_awardsZero() {
-            // Answer key has opt-1, opt-2, opt-3 as correct
-            // Candidate selects all including opt-4 (wrong)
+        @DisplayName("Whitespace-padded JSON arrays -> parsed correctly")
+        void whitespaceInJson_parsedCorrectly() {
             double score = service.evaluateMultiMcqPartial(
-                    "[\"opt-1\",\"opt-2\",\"opt-3\"]",
-                    "[\"opt-1\",\"opt-2\",\"opt-3\",\"opt-4\"]",
+                    " [ \"opt-1\" , \"opt-2\" ] ",
+                    " [ \"opt-1\" ] ",
                     4.0);
 
-            assertThat(score).isEqualTo(0.0);
+            assertThat(score).isCloseTo(2.0, within(1e-6));
         }
     }
 }

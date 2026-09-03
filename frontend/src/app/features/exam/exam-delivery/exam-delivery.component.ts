@@ -71,10 +71,11 @@ export class ExamDeliveryComponent implements OnDestroy {
   markedQuestions = new Set<number>();
   visitedQuestions = new Set<number>();
 
-  // Timing
+  // Timing & periodic sync
   private questionStartTime = Date.now();
   private cumulativeTimeMap = new Map<string, number>();
   private revisionMap = new Map<string, number>();
+  private autosaveTimer: any = null;
 
   constructor(
     private examService: ExamService,
@@ -82,7 +83,7 @@ export class ExamDeliveryComponent implements OnDestroy {
   ) {}
 
   ngOnDestroy(): void {
-    // Timer cleanup handled by ExamTimerComponent
+    this.stopAutosave();
   }
 
   // --- Pre-Exam ---
@@ -100,13 +101,47 @@ export class ExamDeliveryComponent implements OnDestroy {
         this.session = session;
         this.state = 'IN_PROGRESS';
         this.isLoading = false;
+
+        // Apply kiosk mode if enforced
+        if (session.kioskModeEnforced) {
+          this.requestFullScreen();
+        }
+
+        // Setup dynamic autosave interval
+        const intervalSec = session.autosaveIntervalSeconds || 15;
+        this.startAutosave(intervalSec);
+
         this.loadQuestion(1);
       },
-      error: (err) => {
+      error: () => {
         this.isLoading = false;
         this.errorMessage = 'Failed to start exam session. Please try again.';
       }
     });
+  }
+
+  private requestFullScreen(): void {
+    if (document.documentElement.requestFullscreen) {
+      document.documentElement.requestFullscreen().catch(err => {
+        console.warn('Fullscreen request failed:', err);
+      });
+    }
+  }
+
+  private startAutosave(seconds: number): void {
+    this.stopAutosave();
+    this.autosaveTimer = setInterval(() => {
+      if (this.state === 'IN_PROGRESS' && this.currentQuestion) {
+        this.saveCurrentResponse('AUTOSAVE');
+      }
+    }, seconds * 1000);
+  }
+
+  private stopAutosave(): void {
+    if (this.autosaveTimer) {
+      clearInterval(this.autosaveTimer);
+      this.autosaveTimer = null;
+    }
   }
 
   // --- In-Progress ---
@@ -210,6 +245,7 @@ export class ExamDeliveryComponent implements OnDestroy {
   }
 
   private submitExam(): void {
+    this.stopAutosave();
     this.state = 'SUBMITTED';
   }
 
@@ -230,7 +266,7 @@ export class ExamDeliveryComponent implements OnDestroy {
     this.revisionMap.set(questionId, revision);
 
     // Track answered state
-    if (this.selectedOptionIds.length > 0 || this.enteredValue.trim()) {
+    if (this.selectedOptionIds.length > 0 || (this.enteredValue && this.enteredValue.trim())) {
       this.answeredQuestions.add(this.currentQuestion.sequenceNumber);
     }
 
