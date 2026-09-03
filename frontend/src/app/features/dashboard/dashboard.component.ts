@@ -117,7 +117,7 @@ export class DashboardComponent implements OnInit {
   ) {}
 
   ngOnInit(): void {
-    this.username = this.authService.getUserId() || 'User';
+    this.username = this.authService.getUserName() || 'User';
     this.cards = this.getVisibleCards();
   }
 
