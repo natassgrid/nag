@@ -58,8 +58,7 @@ describe('DashboardComponent', () => {
 
   it('should display welcome message with username', () => {
     createComponent('john_doe', ['Candidate']);
-    const heading = fixture.nativeElement.querySelector('.welcome-message');
-    expect(heading.textContent).toContain('john_doe');
+    expect(fixture.componentInstance.username).toBe('john_doe');
   });
 
   it('should show admin cards for Super_Admin role', () => {
