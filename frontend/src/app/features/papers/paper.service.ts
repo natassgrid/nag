@@ -19,10 +19,10 @@
 
 import { Injectable } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
-import { Observable, of } from 'rxjs';
+import { Observable, map } from 'rxjs';
 import { PaginatedResponse } from '../../shared/components/paginated-table/pagination.model';
 
-// ── Domain models ────────────────────────────────────────────────────────────
+// ── Domain models ────────────────────────────────────────────
 
 export interface BlueprintRule {
   subject: string;
@@ -41,11 +41,44 @@ export interface PaperGenerationRequest {
 export interface PaperSummary {
   paperId: string;
   examId: string;
+  examName?: string;
   shiftId: string;
+  shiftName?: string;
   status: 'DRAFT' | 'APPROVED' | 'ENCRYPTED';
   difficultyScore: number;
   encryptionKeyId?: string;
   createdAt?: string;
+}
+
+export interface QuestionDetail {
+  questionId: string;
+  subject: string;
+  topic: string;
+  difficulty: string;
+  cognitiveLevel: string;
+  usageCount: number;
+  lastUsedAt?: string;
+  content?: string;
+}
+
+export interface PaperDetail {
+  id: string;
+  examId: string;
+  examName?: string;
+  shiftId: string;
+  shiftName?: string;
+  status: 'DRAFT' | 'APPROVED' | 'ENCRYPTED';
+  paperDefinitionJson?: string;
+  difficultyScore: number;
+  topicDistributionJson?: string;
+  encryptedPackageRef?: string;
+  encryptionKeyId?: string;
+  generatedBy?: string;
+  createdAt?: string;
+  updatedAt?: string;
+  totalQuestions?: number;
+  topicDistribution?: Record<string, number>;
+  questions?: QuestionDetail[];
 }
 
 export interface PaperGenerationResponse {
@@ -67,7 +100,7 @@ export interface SchemaValidationResponse {
   message?: string;
 }
 
-// ── Blueprint template models ─────────────────────────────────────────────────
+// ── Blueprint template models ───────────────────────────────
 
 export interface BlueprintTemplateRequest {
   name: string;
@@ -88,7 +121,7 @@ export interface BlueprintTemplateResponse {
   totalQuestions?: number;
 }
 
-// ── Service ──────────────────────────────────────────────────────────────────
+// ── Service ──────────────────────────────────────────────────
 
 @Injectable({ providedIn: 'root' })
 export class PaperService {
@@ -97,7 +130,7 @@ export class PaperService {
 
   constructor(private http: HttpClient) {}
 
-  // ── Paper generation ───────────────────────────────────────────────────────
+  // ── Paper generation ────────────────────────────────────────
 
   generatePaper(request: PaperGenerationRequest): Observable<PaperGenerationResponse> {
     return this.http.post<PaperGenerationResponse>(`${this.baseUrl}/generate`, request);
@@ -109,11 +142,56 @@ export class PaperService {
     examId?: string,
     status?: string
   ): Observable<PaginatedResponse<PaperSummary>> {
-    let params = new HttpParams().set('page', page).set('size', size);
+    let params = new HttpParams()
+      .set('page', String(page))
+      .set('size', String(size));
+
     if (examId) params = params.set('examId', examId);
     if (status) params = params.set('status', status);
-    // Stub until the backend exposes a list endpoint
-    return of({ content: [], totalElements: 0, totalPages: 0, size, number: page });
+
+    return this.http.get<any>(this.baseUrl, { params }).pipe(
+      map(res => {
+        const payload = res?.data ?? res;
+        if (Array.isArray(payload)) {
+          return { content: payload, totalElements: payload.length, totalPages: 1, size: payload.length, number: 0 };
+        }
+        if (payload && Array.isArray(payload.content)) {
+          return {
+            content: payload.content,
+            totalElements: payload.totalElements ?? payload.content.length,
+            totalPages: payload.totalPages ?? 1,
+            size: payload.size ?? payload.content.length,
+            number: payload.number ?? 0
+          };
+        }
+        return { content: [], totalElements: 0, totalPages: 0, size, number: page };
+      })
+    );
+  }
+
+  getPaper(paperId: string): Observable<PaperDetail> {
+    return this.http.get<any>(`${this.baseUrl}/${paperId}`).pipe(
+      map(res => {
+        const data = res?.data ?? res;
+        // Parse topicDistributionJson if topicDistribution map is not already populated
+        if (!data.topicDistribution && data.topicDistributionJson) {
+          try {
+            data.topicDistribution = JSON.parse(data.topicDistributionJson);
+          } catch {
+            data.topicDistribution = {};
+          }
+        }
+        if (!data.totalQuestions && data.paperDefinitionJson) {
+          try {
+            const def = JSON.parse(data.paperDefinitionJson);
+            if (Array.isArray(def?.questionIds)) {
+              data.totalQuestions = def.questionIds.length;
+            }
+          } catch {}
+        }
+        return data as PaperDetail;
+      })
+    );
   }
 
   approvePaper(paperId: string): Observable<PaperApprovalResponse> {
@@ -128,7 +206,7 @@ export class PaperService {
     );
   }
 
-  // ── Blueprint templates ────────────────────────────────────────────────────
+  // ── Blueprint templates ────────────────────────────────────
 
   /** List all templates for the current tenant, optionally filtered by exam. */
   getTemplates(examId?: string): Observable<BlueprintTemplateResponse[]> {

@@ -1,4 +1,4 @@
-    /* ── Status icons ───────────────────────────────────────────────── */
+    /* ── Status icons ─────────────────────────────────────────────── */
     .status-icon {
       font-size: 20px;
       height: 20px;
@@ -10,7 +10,7 @@
     .status-icon.approved { color: #f57c00; }
     .status-icon.encrypted { color: #388e3c; }
 
-    /* ── Result banner ──────────────────────────────────────────────── */
+    /* ── Result banner ─────────────────────────────────────────────── */
     .result-banner {
       display: flex;
       align-items: flex-start;
@@ -38,7 +38,7 @@
       flex: 1;
       display: flex;
       flex-direction: column;
-      gap: 2px;
+      gap: 4px;
       font-size: 14px;
     }
 
@@ -54,7 +54,27 @@
       border-radius: 3px;
     }
 
-    /* ── Status chip overrides ──────────────────────────────────────── */
+    .banner-actions {
+      margin-top: 8px;
+
+      .banner-summary-btn {
+        font-size: 13px;
+        line-height: 32px;
+        height: 32px;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+
+        mat-icon {
+          font-size: 16px;
+          width: 16px;
+          height: 16px;
+          margin: 0;
+        }
+      }
+    }
+
+    /* ── Status chip overrides ─────────────────────────────────────── */
     ::ng-deep .status-draft {
       background-color: #fff3e0 !important;
       color: #e65100 !important;

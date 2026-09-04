@@ -1,6 +1,6 @@
     <div class="page-layout">
 
-      <!-- ── Page header ─────────────────────────────────────────────── -->
+      <!-- ── Page header ────────────────────────────────────────────── -->
       <app-page-header
         title="Paper Generation"
         subtitle="Generate, review, and approve examination papers from blueprint rules."
@@ -25,7 +25,7 @@
         </button>
       </app-page-header>
 
-      <!-- ── Paper table ─────────────────────────────────────────────── -->
+      <!-- ── Paper table ────────────────────────────────────────────── -->
       <app-paginated-table
         #paperTable
         [fetcher]="fetcher"
@@ -34,19 +34,31 @@
         [filters]="activeFilters"
         [filterCategories]="filterCategories"
         (filterChange)="onFilterChange($event)"
+        (rowClick)="viewPaperSummary($event)"
         title="Generated Papers"
         searchPlaceholder="Search by shift ID or paper ID…"
       ></app-paginated-table>
 
       <!-- Actions template ───────────────────────────────────────────── -->
       <ng-template #actionsTmpl let-row>
+        <!-- View Paper Summary button -->
+        <button
+          mat-icon-button
+          color="accent"
+          matTooltip="View Paper Summary & Questions"
+          (click)="viewPaperSummary(row); $event.stopPropagation()"
+          aria-label="View paper summary"
+        >
+          <mat-icon>visibility</mat-icon>
+        </button>
+
         <!-- Approve: only DRAFT papers -->
         <button
           mat-icon-button
           color="primary"
           matTooltip="Approve & Encrypt"
           *ngIf="row.status === 'DRAFT'"
-          (click)="approvePaper(row)"
+          (click)="approvePaper(row); $event.stopPropagation()"
           [disabled]="approvingId === row.paperId"
           aria-label="Approve and encrypt paper"
         >
@@ -80,6 +92,16 @@
           <span class="result-id" *ngIf="lastResult.paperId">
             Paper ID: <code>{{ lastResult.paperId }}</code>
           </span>
+          <div *ngIf="lastResult.paperId && lastResult.status !== 'ERROR'" class="banner-actions">
+            <button
+              mat-stroked-button
+              class="banner-summary-btn"
+              (click)="openSummaryById(lastResult.paperId)"
+            >
+              <mat-icon>visibility</mat-icon>
+              View Paper Summary
+            </button>
+          </div>
         </div>
         <button mat-icon-button (click)="lastResult = null" aria-label="Dismiss">
           <mat-icon>close</mat-icon>
@@ -92,5 +114,13 @@
         [examId]="activeFilters['examId'] || undefined"
         (close)="onGenerateDrawerClose($event)"
       ></app-paper-generate-dialog>
+
+      <!-- ── RIGHT COLLAPSIBLE PAPER SUMMARY DRAWER ── -->
+      <app-paper-summary-drawer
+        [isOpen]="summaryDrawerOpen"
+        [paperId]="selectedPaperId"
+        (close)="onSummaryDrawerClose()"
+        (approved)="onPaperApprovedFromDrawer($event)"
+      ></app-paper-summary-drawer>
 
     </div>

@@ -17,7 +17,7 @@
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
 
-import { Component, Input, Output, EventEmitter, OnInit, OnChanges, SimpleChanges, ChangeDetectionStrategy } from '@angular/core';
+import { Component, Input, Output, EventEmitter, OnInit, OnChanges, SimpleChanges, ChangeDetectionStrategy, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule, ReactiveFormsModule, FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { MatFormFieldModule } from '@angular/material/form-field';
@@ -113,7 +113,8 @@ export class QuestionFormDialogComponent implements OnInit, OnChanges {
   constructor(
     private fb: FormBuilder,
     private subjectTopicService: SubjectTopicService,
-    private questionService: QuestionService
+    private questionService: QuestionService,
+    private cdr: ChangeDetectorRef
   ) {
     this.initForm();
   }
@@ -125,6 +126,10 @@ export class QuestionFormDialogComponent implements OnInit, OnChanges {
   ngOnChanges(changes: SimpleChanges): void {
     if (changes['isOpen'] && this.isOpen) {
       this.initForm();
+      this.syncHierarchyFromQuestion();
+    } else if (changes['question'] && this.isOpen) {
+      this.initForm();
+      this.syncHierarchyFromQuestion();
     }
   }
 
@@ -173,14 +178,87 @@ export class QuestionFormDialogComponent implements OnInit, OnChanges {
   loadSubjects(): void {
     this.subjectTopicService.getSubjects().subscribe(subjects => {
       this.subjects = subjects;
-      if (this.question?.subject) {
-        const match = subjects.find(s => s.name === this.question!.subject);
-        if (match) {
-          this.selectedSubject = match;
-          this.loadTopics(match);
-        }
+      if (this.question?.subject || this.question?.subjectId) {
+        this.syncHierarchyFromQuestion();
       }
+      this.cdr.markForCheck();
     });
+  }
+
+  syncHierarchyFromQuestion(): void {
+    if (!this.question) {
+      this.selectedSubject = null;
+      this.selectedTopic = null;
+      this.topics = [];
+      this.subtopics = [];
+      this.cdr.markForCheck();
+      return;
+    }
+
+    const syncWithSubjects = (subjects: Subject[]) => {
+      const qSubjectName = this.question?.subject;
+      const qSubjectId = this.question?.subjectId;
+      const matchSubject = subjects.find(s => (qSubjectId && s.id === qSubjectId) || (qSubjectName && s.name === qSubjectName));
+      if (!matchSubject) {
+        this.selectedSubject = null;
+        this.selectedTopic = null;
+        this.topics = [];
+        this.subtopics = [];
+        this.cdr.markForCheck();
+        return;
+      }
+
+      this.selectedSubject = matchSubject;
+      this.form.patchValue({ subject: matchSubject.name }, { emitEvent: false });
+
+      this.subjectTopicService.getTopics(matchSubject.id).subscribe({
+        next: (topics) => {
+          this.topics = topics;
+          const qTopicName = this.question?.topic;
+          const qTopicId = this.question?.topicId;
+          const matchTopic = topics.find(t => (qTopicId && t.id === qTopicId) || (qTopicName && t.name === qTopicName));
+          if (matchTopic) {
+            this.selectedTopic = matchTopic;
+            this.form.patchValue({ topic: matchTopic.name }, { emitEvent: false });
+            this.subjectTopicService.getSubtopics(matchTopic.id, matchSubject.id).subscribe({
+              next: (subtopics) => {
+                this.subtopics = subtopics;
+                const qSubtopicName = this.question?.subtopic;
+                const qSubtopicId = this.question?.subtopicId;
+                const matchSubtopic = subtopics.find(st => (qSubtopicId && st.id === qSubtopicId) || (qSubtopicName && st.name === qSubtopicName));
+                if (matchSubtopic) {
+                  this.form.patchValue({ subtopic: matchSubtopic.name }, { emitEvent: false });
+                }
+                this.cdr.markForCheck();
+              },
+              error: () => {
+                this.subtopics = [];
+                this.cdr.markForCheck();
+              }
+            });
+          } else {
+            this.selectedTopic = null;
+            this.subtopics = [];
+          }
+          this.cdr.markForCheck();
+        },
+        error: () => {
+          this.topics = [];
+          this.selectedTopic = null;
+          this.subtopics = [];
+          this.cdr.markForCheck();
+        }
+      });
+    };
+
+    if (this.subjects && this.subjects.length > 0) {
+      syncWithSubjects(this.subjects);
+    } else {
+      this.subjectTopicService.getSubjects().subscribe(subjects => {
+        this.subjects = subjects;
+        syncWithSubjects(subjects);
+      });
+    }
   }
 
   onSubjectChange(subjectName: string): void {
@@ -193,6 +271,7 @@ export class QuestionFormDialogComponent implements OnInit, OnChanges {
     if (match) {
       this.loadTopics(match);
     }
+    this.cdr.markForCheck();
   }
 
   loadTopics(subject: Subject): void {
@@ -205,6 +284,7 @@ export class QuestionFormDialogComponent implements OnInit, OnChanges {
           this.loadSubtopics(match);
         }
       }
+      this.cdr.markForCheck();
     });
   }
 
@@ -213,15 +293,17 @@ export class QuestionFormDialogComponent implements OnInit, OnChanges {
     this.selectedTopic = match || null;
     this.subtopics = [];
     this.form.patchValue({ subtopic: '' });
-    if (match) {
+    if (match && this.selectedSubject) {
       this.loadSubtopics(match);
     }
+    this.cdr.markForCheck();
   }
 
   loadSubtopics(topic: Topic): void {
     if (!this.selectedSubject) return;
     this.subjectTopicService.getSubtopics(topic.id, this.selectedSubject.id).subscribe(subtopics => {
       this.subtopics = subtopics;
+      this.cdr.markForCheck();
     });
   }
 
@@ -251,9 +333,11 @@ export class QuestionFormDialogComponent implements OnInit, OnChanges {
         this.showNewSubject = false;
         this.newSubjectName = '';
         this.creatingSubject = false;
+        this.cdr.markForCheck();
       },
       error: () => {
         this.creatingSubject = false;
+        this.cdr.markForCheck();
       }
     });
   }
@@ -269,9 +353,11 @@ export class QuestionFormDialogComponent implements OnInit, OnChanges {
         this.showNewTopic = false;
         this.newTopicName = '';
         this.creatingTopic = false;
+        this.cdr.markForCheck();
       },
       error: () => {
         this.creatingTopic = false;
+        this.cdr.markForCheck();
       }
     });
   }
@@ -290,9 +376,11 @@ export class QuestionFormDialogComponent implements OnInit, OnChanges {
         this.showNewSubtopic = false;
         this.newSubtopicName = '';
         this.creatingSubtopic = false;
+        this.cdr.markForCheck();
       },
       error: () => {
         this.creatingSubtopic = false;
+        this.cdr.markForCheck();
       }
     });
   }
@@ -344,6 +432,7 @@ export class QuestionFormDialogComponent implements OnInit, OnChanges {
       ];
     }
     this.optionError = '';
+    this.cdr.markForCheck();
   }
 
   isMcqOrMsq(): boolean {
@@ -357,11 +446,15 @@ export class QuestionFormDialogComponent implements OnInit, OnChanges {
   addOption(): void {
     if (this.options.length < 5) {
       this.options.push({ id: this.optionIds[this.options.length], text: '', isCorrect: false });
+      this.cdr.markForCheck();
     }
   }
 
   removeOption(i: number): void {
-    if (this.options.length > 2) this.options.splice(i, 1);
+    if (this.options.length > 2) {
+      this.options.splice(i, 1);
+      this.cdr.markForCheck();
+    }
   }
 
   onMcqCorrectChange(checkedIndex: number): void {
@@ -414,6 +507,7 @@ export class QuestionFormDialogComponent implements OnInit, OnChanges {
         error: (err) => {
           this.saving = false;
           this.saveError = err?.error?.message || err?.error?.error || 'Failed to save question. Please try again.';
+          this.cdr.markForCheck();
         }
       });
     }

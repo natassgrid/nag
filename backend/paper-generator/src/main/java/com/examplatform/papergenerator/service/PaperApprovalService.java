@@ -21,6 +21,7 @@ package com.examplatform.papergenerator.service;
 
 import com.examplatform.papergenerator.domain.Paper;
 import com.examplatform.papergenerator.repository.PaperRepository;
+import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.kafka.core.KafkaTemplate;
@@ -60,8 +61,11 @@ public class PaperApprovalService {
      * @return the updated Paper entity in ENCRYPTED status
      */
     public Paper approvePaper(UUID paperId, String tenantId) {
-        Paper paper = paperRepository.findById(paperId)
-                .orElseThrow(() -> new IllegalArgumentException("Paper not found: " + paperId));
+        String effectiveTenant = (tenantId != null && !tenantId.isBlank()) ? tenantId : "default";
+
+        Paper paper = paperRepository.findByIdAndTenantId(paperId, effectiveTenant)
+                .or(() -> paperRepository.findById(paperId))
+                .orElseThrow(() -> new EntityNotFoundException("Paper not found: " + paperId));
 
         // Validate current state is DRAFT
         if (!STATUS_DRAFT.equals(paper.getStatus())) {
@@ -90,7 +94,7 @@ public class PaperApprovalService {
         log.info("Paper {} encrypted with key [{}] and transitioned to ENCRYPTED", paperId, shiftKeyName);
 
         // Publish PAPER_APPROVED audit event
-        publishPaperApprovedEvent(savedPaper, tenantId);
+        publishPaperApprovedEvent(savedPaper, effectiveTenant);
 
         return savedPaper;
     }

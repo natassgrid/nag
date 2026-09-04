@@ -17,7 +17,7 @@
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
 
-import { Component, Input, Output, EventEmitter, ChangeDetectionStrategy } from '@angular/core';
+import { Component, Input, Output, EventEmitter, ChangeDetectionStrategy, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { MatIconModule } from '@angular/material/icon';
 import { MatButtonModule } from '@angular/material/button';
@@ -27,7 +27,7 @@ import { MatButtonModule } from '@angular/material/button';
   standalone: true,
   imports: [CommonModule, MatIconModule, MatButtonModule],
   templateUrl: './right-drawer.component.html',
-  changeDetection: ChangeDetectionStrategy.Eager,
+  changeDetection: ChangeDetectionStrategy.Default,
   styleUrls: ['./right-drawer.component.scss']
 })
 export class RightDrawerComponent {
@@ -38,6 +38,8 @@ export class RightDrawerComponent {
   @Input() showFooter = true;
   @Input() disableBackdropClose = true;
   @Output() close = new EventEmitter<void>();
+
+  constructor(public cdr: ChangeDetectorRef) {}
 
   onBackdropClick(event: MouseEvent): void {
     if (!this.disableBackdropClose && (event.target as HTMLElement).classList.contains('right-drawer-overlay')) {
