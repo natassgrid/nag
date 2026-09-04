@@ -14,7 +14,8 @@
  * GNU Affero General Public License for more details.
  *
  * You should have received a copy of the GNU Affero General Public License
- * along with this program. If not, see <https://www.gnu.org/licenses/>.\n */
+ * along with this program. If not, see <https://www.gnu.org/licenses/>.
+ */
 
 package com.examplatform.papergenerator.dto;
 
@@ -24,45 +25,36 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.time.Instant;
+import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 /**
- * Summary DTO representing a question retrieved from the Question Bank.
- * Used during paper assembly to evaluate reuse policies and compute
- * difficulty scores.
- *
- * Validates: Requirements 8.3, 8.4
+ * Detailed DTO for single paper response.
  */
 @Data
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class QuestionSummary {
+public class PaperResponse {
 
-    private UUID questionId;
+    private UUID id;
+    private UUID examId;
+    private String examName;
+    private String shiftId;
+    private String shiftName;
+    private String status;
+    private String paperDefinitionJson;
+    private double difficultyScore;
+    private String topicDistributionJson;
+    private String encryptedPackageRef;
+    private String encryptionKeyId;
+    private UUID generatedBy;
+    private Instant createdAt;
+    private Instant updatedAt;
 
-    private String subject;
-
-    private String topic;
-
-    /**
-     * Difficulty level: EASY, MEDIUM, or HARD.
-     */
-    private String difficulty;
-
-    private String cognitiveLevel;
-
-    private int usageCount;
-
-    private Instant lastUsedAt;
-
-    /**
-     * Reuse policy: NEVER, 1_YEAR, 2_YEARS, or CUSTOM.
-     */
-    private String reusePolicy;
-
-    /**
-     * Question text content or snippet for paper summary review.
-     */
-    private String content;
+    // Enriched paper summary fields
+    private Integer totalQuestions;
+    private Map<String, Integer> topicDistribution;
+    private List<QuestionSummary> questions;
 }

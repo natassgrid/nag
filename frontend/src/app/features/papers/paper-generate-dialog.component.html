@@ -24,9 +24,45 @@
               </mat-select>
               <mat-error *ngIf="form.get('examId')?.hasError('required')">Examination is required</mat-error>
             </mat-form-field>
-            <mat-form-field appearance="outline" class="flex-1">
+
+            <!-- Pre-populated Shift Dropdown when mapped shifts exist -->
+            <mat-form-field appearance="outline" class="flex-1" *ngIf="availableShifts.length > 0 && !isManualShift">
+              <mat-label>Shift</mat-label>
+              <mat-select
+                formControlName="shiftId"
+                (selectionChange)="onShiftSelectChange($event.value)"
+                placeholder="Select shift..."
+              >
+                <mat-option *ngFor="let sh of availableShifts" [value]="sh.id">
+                  {{ sh.label }}
+                </mat-option>
+                <mat-divider></mat-divider>
+                <mat-option value="__manual__">
+                  <em>+ Enter Custom Shift ID...</em>
+                </mat-option>
+              </mat-select>
+              <mat-hint *ngIf="loadingShifts">Loading shifts...</mat-hint>
+              <mat-hint *ngIf="!loadingShifts">Pre-populated from schedule</mat-hint>
+              <mat-error *ngIf="form.get('shiftId')?.hasError('required')">Shift is required</mat-error>
+            </mat-form-field>
+
+            <!-- Manual Shift Input when no shifts exist or manual mode is chosen -->
+            <mat-form-field appearance="outline" class="flex-1" *ngIf="availableShifts.length === 0 || isManualShift">
               <mat-label>Shift ID</mat-label>
-              <input matInput formControlName="shiftId" placeholder="e.g. SHIFT-A" />
+              <input matInput formControlName="shiftId" placeholder="e.g. SHIFT-1-MORNING" />
+              <button
+                *ngIf="availableShifts.length > 0"
+                matSuffix
+                mat-icon-button
+                type="button"
+                class="btn-suffix-switch"
+                matTooltip="Back to mapped shifts"
+                (click)="toggleManualShift()"
+              >
+                <mat-icon>list</mat-icon>
+              </button>
+              <mat-hint *ngIf="availableShifts.length === 0 && !loadingShifts">No shifts found; enter ID</mat-hint>
+              <mat-hint *ngIf="availableShifts.length > 0">Custom shift ID</mat-hint>
               <mat-error *ngIf="form.get('shiftId')?.hasError('required')">Shift ID is required</mat-error>
             </mat-form-field>
           </div>

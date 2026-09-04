@@ -37,7 +37,9 @@ spring:
     enabled: true
     schemas: question_service
     default-schema: question_service
-    locations: classpath:db/migration
+    locations:
+      - classpath:db/migration
+      - classpath:db/migration/seeds
     init-sqls:
       - SET search_path TO question_service, public
 

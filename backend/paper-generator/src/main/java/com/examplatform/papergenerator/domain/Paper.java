@@ -70,7 +70,7 @@ public class Paper extends BaseEntity {
     @Column(name = "topic_distribution_json", columnDefinition = "jsonb")
     private String topicDistributionJson;
 
-    @Column(name = "encrypted_package_ref")
+    @Column(name = "encrypted_package_ref", columnDefinition = "TEXT")
     private String encryptedPackageRef;
 
     @Column(name = "encryption_key_id")

@@ -21,7 +21,7 @@ CREATE TABLE paper_generator.paper (
     paper_definition_json   JSONB,
     difficulty_score        DOUBLE PRECISION,
     topic_distribution_json JSONB,
-    encrypted_package_ref   VARCHAR(255),
+    encrypted_package_ref   TEXT,
     encryption_key_id       VARCHAR(255),
     generated_by            UUID,
     created_at              TIMESTAMP    NOT NULL,

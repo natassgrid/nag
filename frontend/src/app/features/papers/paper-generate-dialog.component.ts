@@ -25,7 +25,8 @@ import {
   OnInit,
   OnChanges,
   SimpleChanges,
-  ChangeDetectionStrategy
+  ChangeDetectionStrategy,
+  ChangeDetectorRef
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import {
@@ -46,8 +47,8 @@ import { MatTooltipModule } from '@angular/material/tooltip';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatChipsModule } from '@angular/material/chips';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
-import { catchError, finalize } from 'rxjs/operators';
-import { of } from 'rxjs';
+import { catchError, finalize, switchMap, map } from 'rxjs/operators';
+import { forkJoin, of, Observable } from 'rxjs';
 import {
   PaperService,
   PaperGenerationRequest,
@@ -58,7 +59,17 @@ import {
   ExamManagementService,
   ExaminationResponse
 } from '../exam/exam-manage/exam-management.service';
+import { SchedulingService, ShiftResponse } from '../exam/scheduling/scheduling.service';
 import { RightDrawerComponent } from '../../shared/components/right-drawer/right-drawer.component';
+
+export interface ShiftOption {
+  id: string;
+  label: string;
+  scheduleName?: string;
+  shiftNumber: number;
+  shiftName?: string;
+  timing?: string;
+}
 
 @Component({
   selector: 'app-paper-generate-dialog',
@@ -79,7 +90,7 @@ import { RightDrawerComponent } from '../../shared/components/right-drawer/right
     RightDrawerComponent
   ],
   templateUrl: './paper-generate-dialog.component.html',
-  changeDetection: ChangeDetectionStrategy.Eager,
+  changeDetection: ChangeDetectionStrategy.Default,
   styleUrls: ['./paper-generate-dialog.component.scss']
 })
 export class PaperGenerateDialogComponent implements OnInit, OnChanges {
@@ -97,6 +108,11 @@ export class PaperGenerateDialogComponent implements OnInit, OnChanges {
   loadingTemplates = false;
   showCustomRules = false;
 
+  // Shift selection & pre-population
+  availableShifts: ShiftOption[] = [];
+  loadingShifts = false;
+  isManualShift = false;
+
   private readonly UUID_PATTERN =
     /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -104,8 +120,10 @@ export class PaperGenerateDialogComponent implements OnInit, OnChanges {
     private fb: FormBuilder,
     private paperService: PaperService,
     private examService: ExamManagementService,
+    private schedulingService: SchedulingService,
     private snackBar: MatSnackBar,
-    private router: Router
+    private router: Router,
+    private cdr: ChangeDetectorRef
   ) {
     this.initForm();
   }
@@ -132,13 +150,15 @@ export class PaperGenerateDialogComponent implements OnInit, OnChanges {
       .pipe(catchError(() => of([])))
       .subscribe((res) => {
         this.exams = res;
+        this.cdr.markForCheck();
       });
   }
 
   initForm(): void {
+    const initialExamId = this.examId ?? '';
     this.form = this.fb.group({
       examId: [
-        this.examId ?? '',
+        initialExamId,
         [Validators.required]
       ],
       shiftId: ['', [Validators.required, Validators.maxLength(50)]],
@@ -150,6 +170,10 @@ export class PaperGenerateDialogComponent implements OnInit, OnChanges {
       this.applyTemplate(this.preselectedTemplate);
     } else {
       this.showCustomRules = false;
+    }
+
+    if (initialExamId) {
+      this.loadShiftsForExam(initialExamId);
     }
   }
 
@@ -182,6 +206,7 @@ export class PaperGenerateDialogComponent implements OnInit, OnChanges {
           const match = list.find((t) => t.id === this.preselectedTemplate?.id);
           if (match) this.applyTemplate(match);
         }
+        this.cdr.markForCheck();
       });
   }
 
@@ -196,6 +221,66 @@ export class PaperGenerateDialogComponent implements OnInit, OnChanges {
     }
   }
 
+  loadShiftsForExam(examId: string): void {
+    if (!examId || !this.UUID_PATTERN.test(examId.trim())) {
+      this.availableShifts = [];
+      this.loadingShifts = false;
+      this.isManualShift = true;
+      this.cdr.markForCheck();
+      return;
+    }
+
+    this.loadingShifts = true;
+    this.schedulingService
+      .listSchedules(examId.trim())
+      .pipe(
+        switchMap((schedules) => {
+          if (!schedules || schedules.length === 0) {
+            return of([] as ShiftOption[]);
+          }
+          const shiftRequests: Observable<ShiftOption[]>[] = schedules.map((s) =>
+            this.schedulingService.listShifts(examId.trim(), s.id).pipe(
+              map((shifts: ShiftResponse[]) =>
+                (shifts || []).map((sh: ShiftResponse): ShiftOption => {
+                  const shiftName = sh.shiftName || `Shift ${sh.shiftNumber}`;
+                  const timing =
+                    sh.examStartTime && sh.examEndTime
+                      ? ` (${sh.examStartTime.substring(0, 5)} - ${sh.examEndTime.substring(0, 5)})`
+                      : '';
+                  return {
+                    id: sh.id,
+                    label: `#${sh.shiftNumber}: ${shiftName}${timing}`,
+                    scheduleName: s.scheduleName,
+                    shiftNumber: sh.shiftNumber,
+                    shiftName: sh.shiftName,
+                    timing
+                  };
+                })
+              ),
+              catchError(() => of([] as ShiftOption[]))
+            )
+          );
+          return forkJoin(shiftRequests).pipe(map((res: ShiftOption[][]) => res.flat()));
+        }),
+        catchError(() => of([] as ShiftOption[])),
+        finalize(() => {
+          this.loadingShifts = false;
+          this.cdr.markForCheck();
+        })
+      )
+      .subscribe((shifts: ShiftOption[]) => {
+        this.availableShifts = shifts;
+        if (shifts.length > 0) {
+          // Pre-populate shift with first available shift mapped to this exam
+          this.form.get('shiftId')?.setValue(shifts[0].id);
+          this.isManualShift = false;
+        } else {
+          this.isManualShift = true;
+        }
+        this.cdr.markForCheck();
+      });
+  }
+
   onExamSelectionChange(examId: string): void {
     if (this.selectedTemplate && this.selectedTemplate.examId && this.selectedTemplate.examId !== examId) {
       this.selectedTemplate = null;
@@ -203,6 +288,26 @@ export class PaperGenerateDialogComponent implements OnInit, OnChanges {
       this.clearRules();
     }
     this.loadTemplates();
+    this.loadShiftsForExam(examId);
+  }
+
+  onShiftSelectChange(val: string): void {
+    if (val === '__manual__') {
+      this.isManualShift = true;
+      this.form.get('shiftId')?.setValue('');
+    } else {
+      this.isManualShift = false;
+      this.form.get('shiftId')?.setValue(val);
+    }
+  }
+
+  toggleManualShift(): void {
+    this.isManualShift = !this.isManualShift;
+    if (!this.isManualShift && this.availableShifts.length > 0) {
+      this.form.get('shiftId')?.setValue(this.availableShifts[0].id);
+    } else if (this.isManualShift) {
+      this.form.get('shiftId')?.setValue('');
+    }
   }
 
   onTemplateSelectionChange(templateId: string): void {
@@ -222,6 +327,7 @@ export class PaperGenerateDialogComponent implements OnInit, OnChanges {
     this.form.get('templateId')?.setValue(tpl.id);
     if (tpl.examId && !this.form.get('examId')?.value) {
       this.form.get('examId')?.setValue(tpl.examId);
+      this.loadShiftsForExam(tpl.examId);
     }
     this.clearRules();
     (tpl.rules ?? []).forEach((r) => this.addRule(r));

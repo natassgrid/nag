@@ -39,6 +39,18 @@
 .flex-2 { flex: 2; min-width: 0; }
 .flex-shrink { flex: 0 0 100px; }
 
+.btn-suffix-switch {
+  width: 28px !important;
+  height: 28px !important;
+  line-height: 28px !important;
+  mat-icon {
+    font-size: 18px;
+    width: 18px;
+    height: 18px;
+    color: #6366f1;
+  }
+}
+
 /* Active Template Card */
 .active-template-card {
   background: #f8fafc;
