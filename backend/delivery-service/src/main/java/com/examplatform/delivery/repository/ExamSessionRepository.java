@@ -25,6 +25,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 /**
@@ -46,14 +47,18 @@ public interface ExamSessionRepository extends JpaRepository<ExamSession, UUID> 
 
     /**
      * Find all sessions with the given status across all tenants.
-     * Used by SessionTimerService for expiration checks.
-     */
+     * Used by SessionTimerService for expiration checks.\n     */
     List<ExamSession> findByStatus(ExamSessionStatus status);
 
     /**
      * Find a session by its unique session ID.
      */
-    java.util.Optional<ExamSession> findBySessionId(UUID sessionId);
+    Optional<ExamSession> findBySessionId(UUID sessionId);
+
+    /**
+     * Find a session by its unique session ID and tenant ID.
+     */
+    Optional<ExamSession> findBySessionIdAndTenantId(UUID sessionId, String tenantId);
 
     /**
      * Count sessions with a given status within a tenant.

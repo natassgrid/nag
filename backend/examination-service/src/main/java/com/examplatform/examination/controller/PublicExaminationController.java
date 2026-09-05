@@ -44,7 +44,7 @@ import java.util.UUID;
  *   <li>Public exam listing (no auth required)</li>
  *   <li>Public examination centre directory</li>
  *   <li>Candidate multi-step application with centre & shift preferences</li>
- *   <li>Candidate applications list</li>
+ *   <li>Candidate applications list and single exam application status</li>
  *   <li>Hall Ticket / Admit Card retrieval</li>
  * </ul>
  *
@@ -149,6 +149,25 @@ public class PublicExaminationController {
         List<ExamApplicationResponse> applications = examApplicationService.getMyApplications(candidateId, tenantId);
 
         return ResponseEntity.ok(ApiResponse.success(applications, "Applications retrieved successfully"));
+    }
+
+    /**
+     * Get the application status for a specific examination for the authenticated candidate.
+     */
+    @GetMapping("/{examId}/my-application")
+    @PreAuthorize("hasRole('CANDIDATE')")
+    public ResponseEntity<ApiResponse<ExamApplicationResponse>> getMyApplication(
+            @PathVariable UUID examId,
+            @AuthenticationPrincipal Jwt jwt) {
+
+        UUID candidateId = UUID.fromString(jwt.getSubject());
+        String tenantId = TenantContext.get() != null ? TenantContext.get() : "default";
+
+        log.debug("My application status request: candidate={}, exam={}, tenant={}", candidateId, examId, tenantId);
+
+        ExamApplicationResponse application = examApplicationService.getMyApplication(examId, candidateId, tenantId);
+
+        return ResponseEntity.ok(ApiResponse.success(application, "Application retrieved successfully"));
     }
 
     /**

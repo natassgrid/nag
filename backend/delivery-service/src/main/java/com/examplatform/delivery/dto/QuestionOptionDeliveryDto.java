@@ -19,29 +19,29 @@
 
 package com.examplatform.delivery.dto;
 
-import jakarta.validation.constraints.NotNull;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-import java.util.UUID;
-
 /**
- * Request payload for starting an exam session.
- * The candidate JWT provides the candidateId — this DTO carries the exam/shift selection.
+ * Question option payload delivered to the candidate delivery interface.
+ * Supports option randomization with original and display index tracking.
  */
 @Data
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class SessionStartRequest {
+public class QuestionOptionDeliveryDto {
+    private String id;
+    private int index;
+    private int originalIndex;
+    private String text;
 
-    @NotNull
-    private UUID examId;
-
-    private UUID shiftId;
-
-    @Builder.Default
-    private String languageCode = "en";
+    public QuestionOptionDeliveryDto(int index, String text) {
+        this.id = String.valueOf((char) ('A' + index));
+        this.index = index;
+        this.originalIndex = index;
+        this.text = text;
+    }
 }

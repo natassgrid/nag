@@ -19,29 +19,31 @@
 
 package com.examplatform.delivery.dto;
 
-import jakarta.validation.constraints.NotNull;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-import java.util.UUID;
+import java.util.List;
 
 /**
- * Request payload for starting an exam session.
- * The candidate JWT provides the candidateId — this DTO carries the exam/shift selection.
+ * Question payload delivered to the candidate delivery interface for CBT examination.
  */
 @Data
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class SessionStartRequest {
-
-    @NotNull
-    private UUID examId;
-
-    private UUID shiftId;
-
+public class QuestionDeliveryDto {
+    private String id;
+    private String text;
+    private List<QuestionOptionDeliveryDto> options;
     @Builder.Default
-    private String languageCode = "en";
+    private Double marks = 2.0;
+    @Builder.Default
+    private Double negativeMarks = 0.5;
+    private String sectionId;
+    private String sectionName;
+    private String topic;
+    private Integer correctOptionIndex;
+    private String explanation;
 }

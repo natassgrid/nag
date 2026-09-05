@@ -14,7 +14,8 @@
  * GNU Affero General Public License for more details.
  *
  * You should have received a copy of the GNU Affero General Public License
- * along with this program. If not, see <https://www.gnu.org/licenses/>.\n */
+ * along with this program. If not, see <https://www.gnu.org/licenses/>.
+ */
 
 package com.examplatform.delivery.dto;
 
@@ -24,12 +25,12 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.time.Instant;
+import java.util.List;
 import java.util.UUID;
 
 /**
  * Response returned after a session is successfully started.
- * Contains the first question content (decrypted in memory) to meet the 500ms SLA,
- * as well as dynamically configured delivery parameters.
+ * Contains session details, timing, navigation mode, exam title, and delivery questions.
  */
 @Data
 @Builder
@@ -39,11 +40,19 @@ public class SessionStartResponse {
 
     private UUID sessionId;
     private UUID examId;
+    private String examTitle;
     private UUID shiftId;
+    private UUID candidateId;
     private Instant startedAt;
     private Instant scheduledEndAt;
+    private Instant serverTime;
+    private Instant expiresAt;
+    private Integer durationSeconds;
+    @Builder.Default
+    private String navigationMode = "FLEXIBLE";
     private String firstQuestionContent;
     private int totalQuestions;
+    private List<QuestionDeliveryDto> questions;
 
     // Dynamically configured delivery parameters
     @Builder.Default
