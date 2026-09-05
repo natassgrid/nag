@@ -177,7 +177,7 @@ services:
       - IPC_LOCK
     command: server
     healthcheck:
-      test: ["CMD-SHELL", "vault status -address=http://127.0.0.1:8200 > /dev/null 2>&1 || [ $$? -eq 2 ]"]
+      test: ["CMD-SHELL", "vault status -address=http://127.0.0.1:8200 2>&1 | grep -q 'Seal Type' || exit 1"]
       interval: 5s
       timeout: 3s
       retries: 20
@@ -197,6 +197,8 @@ services:
     restart: on-failure
     depends_on:
       - vault
+    cap_add:
+      - IPC_LOCK
     environment:
       VAULT_ADDR: http://vault:8200
       VAULT_TOKEN: ${VAULT_ROOT_TOKEN:-vault_root_token}
@@ -330,25 +332,25 @@ services:
         echo "Checking models..."
         if ! curl -sf http://ollama:11434/api/tags | grep -q "all-minilm"; then
           echo "Pulling all-minilm..."
-          curl -sf http://ollama:11434/api/pull -d '{"name":"all-minilm"}'
+          curl -sf http://ollama:11434/api/pull -d '{\"name\":\"all-minilm\"}'
         else
           echo "all-minilm already present, skipping."
         fi
         if ! curl -sf http://ollama:11434/api/tags | grep -q "qwen2.5:1.5b"; then
           echo "Pulling qwen2.5:1.5b..."
-          curl -sf http://ollama:11434/api/pull -d '{"name":"qwen2.5:1.5b"}'
+          curl -sf http://ollama:11434/api/pull -d '{\"name\":\"qwen2.5:1.5b\"}'
         else
           echo "qwen2.5:1.5b already present, skipping."
         fi
         if ! curl -sf http://ollama:11434/api/tags | grep -q "qwen2-math"; then
           echo "Pulling qwen2-math:1.5b..."
-          curl -sf http://ollama:11434/api/pull -d '{"name":"qwen2-math:1.5b"}'
+          curl -sf http://ollama:11434/api/pull -d '{\"name\":\"qwen2-math:1.5b\"}'
         else
           echo "qwen2-math:1.5b already present, skipping."
         fi
         if ! curl -sf http://ollama:11434/api/tags | grep -q "llama3.2:1b"; then
           echo "Pulling llama3.2:1b..."
-          curl -sf http://ollama:11434/api/pull -d '{"name":"llama3.2:1b"}'
+          curl -sf http://ollama:11434/api/pull -d '{\"name\":\"llama3.2:1b\"}'
         else
           echo "llama3.2:1b already present, skipping."
         fi

@@ -18,12 +18,11 @@ export VAULT_ADDR="${VAULT_ADDR:-http://vault:8200}"
 TARGET_TOKEN="${VAULT_TOKEN:-vault_root_token}"
 KEYS_FILE="/vault/data/vault-keys.json"
 
+chmod 777 /vault/data 2>/dev/null || true
+
 echo "⏳ Waiting for Vault server to start at $VAULT_ADDR..."
 while true; do
-  STATUS_CODE=0
-  vault status -address="$VAULT_ADDR" > /dev/null 2>&1 || STATUS_CODE=$?
-  # vault status returns 0 (unsealed), 2 (sealed/uninitialized), or 1 (connection error)
-  if [ "$STATUS_CODE" -eq 0 ] || [ "$STATUS_CODE" -eq 2 ]; then
+  if vault status -address="$VAULT_ADDR" 2>&1 | grep -q "Seal Type"; then
     break
   fi
   sleep 1
@@ -39,7 +38,7 @@ if echo "$STATUS_OUTPUT" | grep -q "Initialized.*false"; then
   echo "🔧 Initializing Vault (1 key share)..."
   INIT_RESPONSE=$(vault operator init -address="$VAULT_ADDR" -key-shares=1 -key-threshold=1 -format=json)
   echo "$INIT_RESPONSE" > "$KEYS_FILE"
-  chmod 600 "$KEYS_FILE" 2>/dev/null || true
+  chmod 666 "$KEYS_FILE" 2>/dev/null || true
   echo "✅ Vault initialized. Keys stored in $KEYS_FILE."
 else
   echo "ℹ️   Vault is already initialized."
@@ -51,8 +50,8 @@ fi
 UNSEAL_KEY=""
 INIT_ROOT_TOKEN=""
 if [ -f "$KEYS_FILE" ]; then
-  UNSEAL_KEY=$(grep -o '"unseal_keys_b64": *\[ *"[^"]*"' "$KEYS_FILE" 2>/dev/null | awk -F'"' '{print $4}')
-  INIT_ROOT_TOKEN=$(grep -o '"root_token": *"[^"]*"' "$KEYS_FILE" 2>/dev/null | awk -F'"' '{print $4}')
+  UNSEAL_KEY=$(grep -A 1 "unseal_keys_b64" "$KEYS_FILE" 2>/dev/null | tail -n 1 | sed 's/[^a-zA-Z0-9+=/]//g')
+  INIT_ROOT_TOKEN=$(grep -o '"root_token": *"[^"]*"' "$KEYS_FILE" 2>/dev/null | sed 's/.*"root_token": *"//' | sed 's/"//g')
 fi
 
 # ---------------------------------------------------------------------------
