@@ -17,27 +17,25 @@
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
 
-import { Routes } from '@angular/router';
+package com.examplatform.questionbank.translation.dto;
 
-export const QUESTIONS_ROUTES: Routes = [
-  {
-    path: '',
-    loadComponent: () =>
-      import('./question-list.component').then(m => m.QuestionListComponent)
-  },
-  {
-    path: 'review',
-    loadComponent: () =>
-      import('./question-review.component').then(m => m.QuestionReviewComponent)
-  },
-  {
-    path: 'translations',
-    loadComponent: () =>
-      import('./translation/question-translation-list.component').then(m => m.QuestionTranslationListComponent)
-  },
-  {
-    path: 'subjects',
-    loadComponent: () =>
-      import('./subject-management.component').then(m => m.SubjectManagementComponent)
-  }
-];
+import jakarta.validation.constraints.NotBlank;
+
+/**
+ * DTO for a single translated answer option submitted by a translator.
+ *
+ * <p>The {@code id} must match one of the source question's option identifiers
+ * (A–F).  The {@code text} carries the translated wording.
+ * Correctness ({@code isCorrect}) is never submitted here — it is always
+ * derived from the source question.
+ */
+public record TranslatedOptionDto(
+
+        /** Must match source option id: A, B, C, D, E, or F. */
+        @NotBlank(message = "option id is required")
+        String id,
+
+        /** Translated option text. */
+        @NotBlank(message = "option text is required")
+        String text
+) {}

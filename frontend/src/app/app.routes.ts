@@ -61,7 +61,7 @@ export const routes: Routes = [
     path: 'questions',
     loadChildren: () => import('./features/questions/questions.routes').then(m => m.QUESTIONS_ROUTES),
     canActivate: [authGuard, roleGuard],
-    data: { roles: ['QUESTION_AUTHOR', 'REVIEWER', 'APPROVER', 'SUPER_ADMIN', 'EXAM_CONTROLLER'] }
+    data: { roles: ['QUESTION_AUTHOR', 'REVIEWER', 'APPROVER', 'SUPER_ADMIN', 'EXAM_CONTROLLER', 'TRANSLATOR'] }
   },
   {
     path: 'papers',

@@ -19,10 +19,8 @@
 
 package com.examplatform.questionbank.translation.domain;
 
-import com.examplatform.questionbank.crypto.EncryptedFieldConverter;
 import com.examplatform.shared.entity.BaseEntity;
 import jakarta.persistence.Column;
-import jakarta.persistence.Convert;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
@@ -37,8 +35,24 @@ import java.util.UUID;
 
 /**
  * Translation entity representing a translated version of a question
- * in one of the supported Eighth Schedule languages.
- * The translatedContent field is encrypted at rest via Vault Transit.
+ * in one of the 22 official Indian (Eighth Schedule) languages.
+ *
+ * <h3>Storage</h3>
+ * <p>The {@code translated_payload} column holds a JSON string
+ * ({@link TranslatedQuestionPayload}) serialized by
+ * {@link com.examplatform.questionbank.translation.service.TranslationPayloadService}.
+ * When {@code payloadEncrypted = true} the JSON is stored as a Vault
+ * ciphertext string; when {@code false} it is stored as plain JSON text.
+ * The flag is set by the service layer at write time based on the
+ * {@code app.translation.encryption.enabled} configuration property
+ * (default: {@code false}).
+ *
+ * <h3>Staleness</h3>
+ * <p>{@code sourceVersion} captures {@code question.version} at the time
+ * the translation is created.  When the source question is subsequently
+ * modified its version increments; the translation service compares stored
+ * {@code sourceVersion} against the current question version to detect
+ * staleness without a JOIN.
  */
 @Entity
 @Table(name = "translation", schema = "question_service")
@@ -56,12 +70,29 @@ public class Translation extends BaseEntity {
     private String languageCode;
 
     /**
-     * Encrypted content stored as Vault ciphertext (vault:v1:...).
-     * Decrypted at read-time via EncryptedFieldConverter.
+     * Structured translation payload serialized as JSON (plain or Vault-encrypted).
+     * Use {@link com.examplatform.questionbank.translation.service.TranslationPayloadService}
+     * to read and write this field — never access the raw string directly.
      */
-    @Column(name = "translated_content", columnDefinition = "TEXT")
-    @Convert(converter = EncryptedFieldConverter.class)
-    private String translatedContent;
+    @Column(name = "translated_payload", columnDefinition = "TEXT")
+    private String translatedPayload;
+
+    /**
+     * {@code true} when {@link #translatedPayload} is Vault-encrypted;
+     * {@code false} when it is plain JSON text.
+     */
+    @Column(name = "payload_encrypted", nullable = false)
+    @Builder.Default
+    private boolean payloadEncrypted = false;
+
+    /**
+     * The {@code question.version} at the time this translation was created.
+     * Used to detect staleness: if the source question's current version is
+     * greater than this value, the translation should be marked STALE.
+     */
+    @Column(name = "source_version", nullable = false)
+    @Builder.Default
+    private long sourceVersion = 0L;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false, length = 20)
@@ -78,6 +109,11 @@ public class Translation extends BaseEntity {
 
     /**
      * Translation lifecycle states.
+     * <ul>
+     *   <li>DRAFT   — submitted by translator, awaiting review</li>
+     *   <li>APPROVED — reviewed and approved; safe to serve to candidates</li>
+     *   <li>STALE   — source question changed after approval; must be re-translated</li>
+     * </ul>
      */
     public enum TranslationStatus {
         DRAFT,

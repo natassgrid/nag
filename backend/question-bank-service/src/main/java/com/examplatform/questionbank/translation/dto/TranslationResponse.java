@@ -19,53 +19,51 @@
 
 package com.examplatform.questionbank.translation.dto;
 
-import jakarta.validation.Valid;
-import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
+import com.examplatform.questionbank.translation.domain.Translation.TranslationStatus;
 import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 
 /**
- * DTO for submitting a new translation or resubmitting after rejection.
+ * Read-only response DTO for a translation, used both in admin views and
+ * by the delivery service to serve localized content to candidates.
  *
- * <p>The translator provides:
- * <ul>
- *   <li>{@code translatedContent} — the question stem/body in the target language</li>
- *   <li>{@code translatedOptions} — one entry per option in the source question,
- *       keyed by the same option id (A–F); required when the source has options</li>
- *   <li>{@code translatedExplanation} — optional explanation in the target language</li>
- * </ul>
+ * <p>The translated payload fields ({@link #translatedContent},
+ * {@link #translatedOptions}, {@link #translatedExplanation}) are already
+ * deserialized (and decrypted if necessary) before this DTO is returned.
  */
 @Data
+@Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class TranslationRequest {
+public class TranslationResponse {
 
-    @NotNull(message = "questionId is required")
+    private UUID translationId;
     private UUID questionId;
-
-    @NotBlank(message = "languageCode is required")
     private String languageCode;
 
-    @NotNull(message = "translatorId is required")
-    private UUID translatorId;
-
-    /** Translated question body (stem). */
-    @NotBlank(message = "translatedContent is required")
+    /** Translated question body. */
     private String translatedContent;
 
-    /**
-     * Translated answer options.  Each entry must supply the same {@code id} as
-     * the corresponding source option so correctness mapping is unambiguous.
-     * May be null/empty for question types that have no options (e.g. SHORT_ANSWER).
-     */
-    @Valid
+    /** Translated options (id + text). */
     private List<TranslatedOptionDto> translatedOptions;
 
-    /** Translated explanation. Optional. */
+    /** Translated explanation (may be null). */
     private String translatedExplanation;
+
+    /** Question version at the time this translation was created. */
+    private long sourceVersion;
+
+    private TranslationStatus status;
+    private UUID translatorId;
+    private UUID reviewerId;
+    private String reviewComments;
+
+    private Instant createdAt;
+    private Instant updatedAt;
 }

@@ -17,27 +17,30 @@
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
 
-import { Routes } from '@angular/router';
+package com.examplatform.questionbank.translation.dto;
 
-export const QUESTIONS_ROUTES: Routes = [
-  {
-    path: '',
-    loadComponent: () =>
-      import('./question-list.component').then(m => m.QuestionListComponent)
-  },
-  {
-    path: 'review',
-    loadComponent: () =>
-      import('./question-review.component').then(m => m.QuestionReviewComponent)
-  },
-  {
-    path: 'translations',
-    loadComponent: () =>
-      import('./translation/question-translation-list.component').then(m => m.QuestionTranslationListComponent)
-  },
-  {
-    path: 'subjects',
-    loadComponent: () =>
-      import('./subject-management.component').then(m => m.SubjectManagementComponent)
-  }
-];
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+
+import java.util.List;
+import java.util.UUID;
+
+/**
+ * Response DTO for automated AI translation powered by IndicTrans2.
+ */
+@Data
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
+public class AutoTranslateResponse {
+
+    private UUID questionId;
+    private String languageCode;
+    private String targetLangIndicTrans;
+    private String translatedContent;
+    private List<TranslatedOptionDto> translatedOptions;
+    private String translatedExplanation;
+    private String model;
+}

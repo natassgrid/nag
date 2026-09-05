@@ -1,0 +1,407 @@
+<!--
+  SPDX-License-Identifier: AGPL-3.0-only
+  National Assessment Grid (NAG) - Open Digital Public Infrastructure (DPI) Platform
+  Copyright (C) 2025 NAG Contributors
+-->
+
+<app-right-drawer
+  [isOpen]="isOpen"
+  [title]="'Question Translation & Localization'"
+  [subtitle]="(question?.subject || 'Subject') + ' • ' + (question?.topic || 'Topic')"
+  width="960px"
+  (close)="onClose()"
+>
+  <div class="translation-container" *ngIf="question">
+    <!-- Language Bar & Status -->
+    <div class="language-bar">
+      <div class="language-select-wrapper">
+        <mat-form-field appearance="outline" class="lang-form-field">
+          <mat-label>Target Language</mat-label>
+          <mat-select
+            [value]="selectedLanguageCode"
+            (selectionChange)="switchLanguage($event.value)"
+          >
+            <mat-option *ngFor="let lang of languages" [value]="lang.code">
+              <span class="lang-option-content">
+                <strong>{{ lang.nativeName }}</strong> ({{ lang.name }})
+                <span
+                  class="lang-badge"
+                  [ngClass]="'status-' + (getTranslationStatusForLang(lang.code) || 'none').toLowerCase()"
+                >
+                  {{ getTranslationStatusForLang(lang.code) || 'Not Translated' }}
+                </span>
+              </span>
+            </mat-option>
+          </mat-select>
+        </mat-form-field>
+      </div>
+
+      <div class="status-summary">
+        <span
+          class="status-pill"
+          [ngClass]="'pill-' + (activeTranslation?.status || 'none').toLowerCase()"
+        >
+          <mat-icon class="status-icon">
+            {{
+              activeTranslation?.status === 'APPROVED'
+                ? 'check_circle'
+                : activeTranslation?.status === 'DRAFT'
+                ? 'edit_note'
+                : activeTranslation?.status === 'STALE'
+                ? 'warning'
+                : 'translate'
+            }}
+          </mat-icon>
+          {{ activeTranslation?.status || 'NOT TRANSLATED' }}
+        </span>
+
+        <span class="version-info" *ngIf="activeTranslation">
+          v{{ activeTranslation.sourceVersion }}
+        </span>
+      </div>
+    </div>
+
+    <!-- Rejection Comments Banner (if rejected previously) -->
+    <div class="rejection-banner" *ngIf="hasRejectionComment()">
+      <div class="banner-header">
+        <mat-icon>feedback</mat-icon>
+        <strong>Reviewer Feedback (Changes Requested):</strong>
+      </div>
+      <p class="banner-comment">{{ activeTranslation?.reviewComments }}</p>
+    </div>
+
+    <!-- Stale Banner (if question source was modified) -->
+    <div class="stale-banner" *ngIf="isStale()">
+      <mat-icon>warning_amber</mat-icon>
+      <span>The source question was updated after this translation was approved. Please review and resubmit.</span>
+    </div>
+
+    <!-- Error message alert -->
+    <div class="error-banner" *ngIf="errorMessage">
+      <mat-icon>error_outline</mat-icon>
+      <span>{{ errorMessage }}</span>
+    </div>
+
+    <!-- Tab navigation: Editor vs Side-by-Side Preview -->
+    <div class="tab-strip">
+      <button
+        type="button"
+        class="tab-button"
+        [class.active]="activeTab === 0"
+        (click)="activeTab = 0"
+      >
+        <mat-icon>edit</mat-icon> Translation Editor
+      </button>
+      <button
+        type="button"
+        class="tab-button"
+        [class.active]="activeTab === 1"
+        (click)="activeTab = 1"
+      >
+        <mat-icon>preview</mat-icon> Live Side-by-Side Preview
+      </button>
+    </div>
+
+    <!-- ================================================================= -->
+    <!-- VIEW 0: SIDE-BY-SIDE EDITOR -->
+    <!-- ================================================================= -->
+    <div class="editor-grid" *ngIf="activeTab === 0">
+      <!-- LEFT COLUMN: Source Question (English / Master) -->
+      <div class="source-column">
+        <div class="column-header">
+          <div class="col-title">
+            <mat-icon>lock</mat-icon>
+            <span>Source Question (English)</span>
+          </div>
+          <span class="type-chip">{{ question.questionType }}</span>
+        </div>
+
+        <div class="source-content-card">
+          <label class="section-label">Question Stem</label>
+          <div class="source-text math-container">
+            <app-math-renderer [content]="question.content"></app-math-renderer>
+          </div>
+        </div>
+
+        <div class="source-options-card" *ngIf="question.options && question.options.length > 0">
+          <label class="section-label">Source Options</label>
+          <div
+            class="source-option-item"
+            *ngFor="let opt of question.options"
+            [class.correct-option]="opt.isCorrect"
+          >
+            <span class="option-badge">{{ opt.id }}</span>
+            <div class="option-text">
+              <app-math-renderer [content]="opt.text"></app-math-renderer>
+            </div>
+            <span class="correct-tag" *ngIf="opt.isCorrect">Correct</span>
+          </div>
+        </div>
+
+        <div class="source-explanation-card" *ngIf="question.explanation">
+          <label class="section-label">Explanation</label>
+          <div class="source-text math-container">
+            <app-math-renderer [content]="question.explanation"></app-math-renderer>
+          </div>
+        </div>
+      </div>
+
+      <!-- RIGHT COLUMN: Translated Question Form -->
+      <div class="target-column">
+        <div class="column-header">
+          <div class="col-title">
+            <mat-icon>translate</mat-icon>
+            <span>
+              Target Translation ({{ getSelectedLangObj()?.nativeName }} - {{ getSelectedLangObj()?.name }})
+            </span>
+          </div>
+          <div class="header-actions">
+            <button
+              mat-flat-button
+              type="button"
+              class="auto-translate-btn"
+              [disabled]="autoTranslating || isApproved()"
+              (click)="autoTranslateWithIndicTrans2()"
+              matTooltip="Auto-translate English text into {{ getSelectedLangObj()?.name }} using IndicTrans2 AI"
+            >
+              <mat-progress-spinner
+                *ngIf="autoTranslating"
+                mode="indeterminate"
+                diameter="16"
+                class="spinner-inline"
+              ></mat-progress-spinner>
+              <mat-icon *ngIf="!autoTranslating">auto_awesome</mat-icon>
+              <span>{{ autoTranslating ? 'Translating...' : 'Auto-Translate (IndicTrans2)' }}</span>
+            </button>
+            <span class="script-tag">Script: {{ getSelectedLangObj()?.script }}</span>
+          </div>
+        </div>
+
+        <form [formGroup]="form" class="translation-form">
+          <!-- Translated Question Stem -->
+          <div class="form-section">
+            <label class="section-label required">Translated Question Stem</label>
+            <mat-form-field appearance="outline" class="full-width">
+              <textarea
+                matInput
+                rows="4"
+                formControlName="translatedContent"
+                placeholder="Enter translated question content in {{ getSelectedLangObj()?.name }}..."
+              ></textarea>
+            </mat-form-field>
+          </div>
+
+          <!-- Translated Options -->
+          <div class="form-section" *ngIf="optionTranslations.length > 0">
+            <label class="section-label required">Translated Options</label>
+            <div class="option-trans-list">
+              <div
+                class="option-trans-row"
+                *ngFor="let opt of optionTranslations; let i = index"
+              >
+                <div class="option-id-badge">{{ opt.id }}</div>
+                <div class="option-inputs-group">
+                  <div class="source-ref-mini">
+                    <span class="source-ref-label">Original:</span>
+                    <app-math-renderer [content]="opt.sourceText"></app-math-renderer>
+                  </div>
+                  <mat-form-field appearance="outline" class="full-width opt-field">
+                    <input
+                      matInput
+                      [(ngModel)]="opt.text"
+                      [ngModelOptions]="{standalone: true}"
+                      placeholder="Translate option {{ opt.id }} text..."
+                    />
+                  </mat-form-field>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Translated Explanation -->
+          <div class="form-section">
+            <label class="section-label">Translated Explanation (Optional)</label>
+            <mat-form-field appearance="outline" class="full-width">
+              <textarea
+                matInput
+                rows="3"
+                formControlName="translatedExplanation"
+                placeholder="Enter translated explanation in {{ getSelectedLangObj()?.name }}..."
+              ></textarea>
+            </mat-form-field>
+          </div>
+        </form>
+
+        <!-- Inline Rejection Comments Panel (when reviewer clicks Reject) -->
+        <div class="reject-prompt-panel" *ngIf="showRejectInput">
+          <div class="reject-title">
+            <mat-icon color="warn">rate_review</mat-icon>
+            <strong>Rejection Reason / Feedback</strong>
+          </div>
+          <mat-form-field appearance="outline" class="full-width">
+            <textarea
+              matInput
+              rows="3"
+              [(ngModel)]="rejectComments"
+              placeholder="Explain why this translation is being rejected and what corrections are needed..."
+            ></textarea>
+          </mat-form-field>
+          <div class="reject-actions">
+            <button mat-button type="button" (click)="cancelReject()">Cancel</button>
+            <button
+              mat-flat-button
+              color="warn"
+              [disabled]="rejecting || !rejectComments.trim()"
+              (click)="confirmReject()"
+            >
+              <mat-progress-spinner
+                *ngIf="rejecting"
+                mode="indeterminate"
+                diameter="16"
+                class="spinner-inline"
+              ></mat-progress-spinner>
+              Confirm Rejection
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ================================================================= -->
+    <!-- VIEW 1: SIDE-BY-SIDE RENDERED PREVIEW -->
+    <!-- ================================================================= -->
+    <div class="preview-grid" *ngIf="activeTab === 1">
+      <div class="preview-panel">
+        <h4 class="preview-title">
+          <mat-icon>description</mat-icon> Original (English)
+        </h4>
+        <div class="preview-card">
+          <div class="preview-stem">
+            <app-math-renderer [content]="question.content"></app-math-renderer>
+          </div>
+          <div class="preview-options" *ngIf="question.options">
+            <div
+              class="preview-opt"
+              *ngFor="let opt of question.options"
+              [class.preview-opt-correct]="opt.isCorrect"
+            >
+              <span class="preview-opt-id">{{ opt.id }}.</span>
+              <app-math-renderer [content]="opt.text"></app-math-renderer>
+            </div>
+          </div>
+          <div class="preview-exp" *ngIf="question.explanation">
+            <div class="exp-title">Explanation:</div>
+            <app-math-renderer [content]="question.explanation"></app-math-renderer>
+          </div>
+        </div>
+      </div>
+
+      <div class="preview-panel">
+        <h4 class="preview-title">
+          <mat-icon>translate</mat-icon>
+          Translated ({{ getSelectedLangObj()?.nativeName }} - {{ getSelectedLangObj()?.name }})
+        </h4>
+        <div class="preview-card">
+          <div class="preview-stem" *ngIf="form.value.translatedContent">
+            <app-math-renderer [content]="form.value.translatedContent"></app-math-renderer>
+          </div>
+          <div class="empty-hint" *ngIf="!form.value.translatedContent">
+            <em>No translated content entered yet.</em>
+          </div>
+
+          <div class="preview-options" *ngIf="optionTranslations.length > 0">
+            <div
+              class="preview-opt"
+              *ngFor="let opt of optionTranslations"
+              [class.preview-opt-correct]="opt.isCorrect"
+            >
+              <span class="preview-opt-id">{{ opt.id }}.</span>
+              <app-math-renderer [content]="opt.text || '(empty)'"></app-math-renderer>
+            </div>
+          </div>
+
+          <div class="preview-exp" *ngIf="form.value.translatedExplanation">
+            <div class="exp-title">Explanation:</div>
+            <app-math-renderer [content]="form.value.translatedExplanation"></app-math-renderer>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Actions Footer -->
+    <div class="drawer-footer">
+      <div class="left-actions">
+        <button mat-stroked-button type="button" (click)="onClose()">Close</button>
+      </div>
+
+      <div class="right-actions">
+        <!-- IndicTrans2 trigger button in footer too -->
+        <button
+          *ngIf="canTranslate() && isDraft()"
+          mat-stroked-button
+          color="accent"
+          class="btn-indictrans-footer"
+          [disabled]="autoTranslating"
+          (click)="autoTranslateWithIndicTrans2()"
+          matTooltip="Auto-translate with IndicTrans2"
+        >
+          <mat-progress-spinner
+            *ngIf="autoTranslating"
+            mode="indeterminate"
+            diameter="16"
+            class="spinner-inline"
+          ></mat-progress-spinner>
+          <mat-icon *ngIf="!autoTranslating">auto_awesome</mat-icon>
+          Auto-Translate (IndicTrans2)
+        </button>
+
+        <!-- Translator action: Submit / Resubmit -->
+        <button
+          *ngIf="canTranslate() && isDraft()"
+          mat-flat-button
+          color="primary"
+          [disabled]="saving || autoTranslating"
+          (click)="saveTranslation()"
+        >
+          <mat-progress-spinner
+            *ngIf="saving"
+            mode="indeterminate"
+            diameter="16"
+            class="spinner-inline"
+          ></mat-progress-spinner>
+          <mat-icon *ngIf="!saving">send</mat-icon>
+          {{ activeTranslation ? 'Resubmit Translation' : 'Submit Translation' }}
+        </button>
+
+        <!-- Reviewer actions: Approve / Reject (available when translation is in DRAFT/submitted) -->
+        <ng-container *ngIf="canReview() && activeTranslation && isDraft() && !showRejectInput">
+          <button
+            mat-stroked-button
+            color="warn"
+            [disabled]="approving || rejecting || autoTranslating"
+            (click)="openRejectPrompt()"
+          >
+            <mat-icon>close</mat-icon>
+            Reject with Feedback
+          </button>
+          <button
+            mat-flat-button
+            color="accent"
+            class="btn-approve"
+            [disabled]="approving || rejecting || autoTranslating"
+            (click)="approveTranslation()"
+          >
+            <mat-progress-spinner
+              *ngIf="approving"
+              mode="indeterminate"
+              diameter="16"
+              class="spinner-inline"
+            ></mat-progress-spinner>
+            <mat-icon *ngIf="!approving">check</mat-icon>
+            Approve Translation
+          </button>
+        </ng-container>
+      </div>
+    </div>
+  </div>
+</app-right-drawer>
