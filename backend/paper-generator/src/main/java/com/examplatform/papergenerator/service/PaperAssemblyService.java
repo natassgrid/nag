@@ -29,9 +29,10 @@ import com.examplatform.papergenerator.exception.InsufficientQuestionsException;
 import com.examplatform.papergenerator.repository.PaperRepository;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.kafka.core.KafkaTemplate;
+import org.springframework.lang.Nullable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -54,7 +55,6 @@ import java.util.stream.Collectors;
  */
 @Slf4j
 @Service
-@RequiredArgsConstructor
 @Transactional
 public class PaperAssemblyService {
 
@@ -71,6 +71,20 @@ public class PaperAssemblyService {
     private final KafkaTemplate<String, Object> kafkaTemplate;
     private final ObjectMapper objectMapper;
     private final ExaminationLookupService examinationLookupService;
+
+    @Autowired
+    public PaperAssemblyService(
+            QuestionBankClient questionBankClient,
+            PaperRepository paperRepository,
+            KafkaTemplate<String, Object> kafkaTemplate,
+            ObjectMapper objectMapper,
+            @Nullable ExaminationLookupService examinationLookupService) {
+        this.questionBankClient = questionBankClient;
+        this.paperRepository = paperRepository;
+        this.kafkaTemplate = kafkaTemplate;
+        this.objectMapper = objectMapper;
+        this.examinationLookupService = examinationLookupService;
+    }
 
     public PaperAssemblyService(
             QuestionBankClient questionBankClient,
