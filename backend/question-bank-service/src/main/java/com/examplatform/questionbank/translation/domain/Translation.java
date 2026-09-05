@@ -17,8 +17,9 @@
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
 
-package com.examplatform.translation.domain;
+package com.examplatform.questionbank.translation.domain;
 
+import com.examplatform.questionbank.crypto.EncryptedFieldConverter;
 import com.examplatform.shared.entity.BaseEntity;
 import jakarta.persistence.Column;
 import jakarta.persistence.Convert;
@@ -40,7 +41,7 @@ import java.util.UUID;
  * The translatedContent field is encrypted at rest via Vault Transit.
  */
 @Entity
-@Table(name = "translation", schema = "translation_service")
+@Table(name = "translation", schema = "question_service")
 @Getter
 @Setter
 @NoArgsConstructor

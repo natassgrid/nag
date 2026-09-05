@@ -17,23 +17,30 @@
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
 
-package com.examplatform.translation.config;
+package com.examplatform.questionbank.translation.dto;
 
-import org.apache.kafka.clients.admin.NewTopic;
-import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Configuration;
-import org.springframework.kafka.config.TopicBuilder;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+
+import java.util.UUID;
 
 /**
- * Translation-service specific Kafka topic declarations.
- * ProducerFactory and KafkaTemplate are provided by shared-lib's KafkaProducerConfig.
+ * DTO for requesting a new translation.
  */
-@Configuration
-public class KafkaConfig {
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+public class TranslationRequest {
 
-    @Bean
-    public NewTopic translationEventsTopic() {
-        return TopicBuilder.name("exam.translation.events")
-                .partitions(3).replicas(1).build();
-    }
+    @NotNull(message = "questionId is required")
+    private UUID questionId;
+
+    @NotBlank(message = "languageCode is required")
+    private String languageCode;
+
+    @NotNull(message = "translatorId is required")
+    private UUID translatorId;
 }

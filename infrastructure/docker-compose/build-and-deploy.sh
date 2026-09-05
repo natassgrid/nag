@@ -11,8 +11,7 @@
 
 # =============================================================================
 # Build and Deploy all services using Docker Compose
-# Usage: ./build-and-deploy.sh [--no-cache] [--service <name>]
-# =============================================================================
+# Usage: ./build-and-deploy.sh [--no-cache] [--service <name>]\n# =============================================================================
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -56,7 +55,7 @@ if [ -n "$SERVICE" ]; then
 else
     echo "▶ Building all application services sequentially (shared Gradle cache)..."
     SERVICES=(
-        identity-service candidate-service question-bank-service translation-service
+        identity-service candidate-service question-bank-service
         examination-service paper-generator delivery-service response-service
         evaluation-service result-service audit-service notification-service
         admin-service analytics-service asset-service api-gateway
@@ -75,7 +74,7 @@ fi
 echo ""
 echo "▶ Pushing images to local registry (localhost:5000)..."
 SERVICES=(
-    identity-service candidate-service question-bank-service translation-service
+    identity-service candidate-service question-bank-service
     examination-service paper-generator delivery-service response-service
     evaluation-service result-service audit-service notification-service
     admin-service analytics-service asset-service api-gateway
@@ -100,7 +99,6 @@ echo "  Candidate UI:    http://localhost:4300"
 echo "  Identity:        http://localhost:8081"
 echo "  Candidate API:   http://localhost:8082"
 echo "  Question Bank:   http://localhost:8083"
-echo "  Translation:     http://localhost:8084"
 echo "  Examination:     http://localhost:8085"
 echo "  Paper Generator: http://localhost:8086"
 echo "  Delivery:        http://localhost:8087"

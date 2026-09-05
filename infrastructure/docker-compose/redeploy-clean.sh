@@ -46,7 +46,7 @@ done
 COMPOSE="docker compose -f docker-compose.yml -f docker-compose.services.yml"
 
 ALL_SERVICES=(
-    identity-service candidate-service question-bank-service translation-service
+    identity-service candidate-service question-bank-service
     examination-service paper-generator delivery-service response-service
     evaluation-service result-service audit-service notification-service
     admin-service analytics-service asset-service api-gateway
@@ -116,7 +116,6 @@ if [ "$HEALTH_CHECK" = true ]; then
         [identity-service]=8081
         [candidate-service]=8082
         [question-bank-service]=8083
-        [translation-service]=8084
         [examination-service]=8085
         [paper-generator]=8086
         [delivery-service]=8087
