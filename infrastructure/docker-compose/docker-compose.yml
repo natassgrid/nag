@@ -407,23 +407,21 @@ services:
   #     -d '{"text": "Photosynthesis is the process by which plants make food.", "source_lang": "eng_Latn", "target_lang": "hin_Deva"}'
   # ===========================================================================
   indictrans2:
-    image: python:3.11-slim
+    build:
+      context: ../indictrans2
+      dockerfile: Dockerfile
+    image: exam-indictrans2:latest
     container_name: exam-indictrans2
     restart: unless-stopped
     ports:
       - "${INDICTRANS2_PORT:-7860}:7860"
     environment:
-      MODEL_NAME: "ai4bharat/indictrans2-en-indic-dist-200M"
+      MODEL_NAME: "${INDICTRANS_MODEL:-ai4bharat/indictrans2-en-indic-dist-200M}"
       HF_HOME: "/root/.cache/huggingface"
+      HF_TOKEN: "${HF_TOKEN:-}"
       TORCH_NUM_THREADS: "4"
     volumes:
-      - ./indictrans2-server.py:/app/server.py:ro
       - indictrans2_cache:/root/.cache/huggingface
-    working_dir: /app
-    command: >
-      sh -c "pip install --no-cache-dir torch --index-url https://download.pytorch.org/whl/cpu &&
-             pip install --no-cache-dir transformers sentencepiece IndicTransTokenizer fastapi uvicorn &&
-             python server.py"
     healthcheck:
       test: ["CMD-SHELL", "python -c 'import urllib.request; urllib.request.urlopen(\"http://localhost:7860/health\")' || exit 1"]
       interval: 30s
