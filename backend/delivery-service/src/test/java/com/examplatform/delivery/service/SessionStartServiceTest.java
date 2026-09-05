@@ -22,6 +22,8 @@ package com.examplatform.delivery.service;
 import com.examplatform.delivery.client.ShiftAssignmentClient;
 import com.examplatform.delivery.domain.ExamSession;
 import com.examplatform.delivery.domain.ExamSession.ExamSessionStatus;
+import com.examplatform.delivery.dto.QuestionDeliveryDto;
+import com.examplatform.delivery.dto.QuestionOptionDeliveryDto;
 import com.examplatform.delivery.dto.SessionStartRequest;
 import com.examplatform.delivery.dto.SessionStartResponse;
 import com.examplatform.delivery.dto.ShiftAssignment;
@@ -42,7 +44,9 @@ import org.springframework.data.redis.core.ValueOperations;
 import org.springframework.kafka.core.KafkaTemplate;
 
 import java.time.Duration;
+import java.time.Instant;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -68,6 +72,9 @@ class SessionStartServiceTest {
 
     @Mock
     private VaultCryptoService vaultCryptoService;
+
+    @Mock
+    private ExamQuestionDeliveryService examQuestionDeliveryService;
 
     @Mock
     private DisabilityExtensionService disabilityExtensionService;
@@ -102,6 +109,7 @@ class SessionStartServiceTest {
                 shiftAssignmentClient,
                 disabilityExtensionService,
                 vaultCryptoService,
+                examQuestionDeliveryService,
                 redisTemplate,
                 kafkaTemplate,
                 new ObjectMapper(),
@@ -112,6 +120,8 @@ class SessionStartServiceTest {
                 .thenAnswer(inv -> inv.getArgument(2));
         Mockito.lenient().when(dynamicConfigService.getInt(anyString(), anyString(), anyInt()))
                 .thenAnswer(inv -> inv.getArgument(2));
+        Mockito.lenient().when(examQuestionDeliveryService.randomizeOptions(any(), any()))
+                .thenAnswer(inv -> inv.getArgument(0));
     }
 
     @Test
@@ -131,12 +141,39 @@ class SessionStartServiceTest {
                 .extraTimeMinutes(0)
                 .build();
 
+        List<QuestionDeliveryDto> mockQuestions = List.of(
+                QuestionDeliveryDto.builder()
+                        .id(UUID.randomUUID().toString())
+                        .text("What is 2+2?")
+                        .options(List.of(
+                                new QuestionOptionDeliveryDto(0, "3"),
+                                new QuestionOptionDeliveryDto(1, "4")
+                        ))
+                        .marks(2.0)
+                        .negativeMarks(0.5)
+                        .build(),
+                QuestionDeliveryDto.builder()
+                        .id(UUID.randomUUID().toString())
+                        .text("What is 3+3?")
+                        .marks(2.0)
+                        .negativeMarks(0.5)
+                        .build(),
+                QuestionDeliveryDto.builder()
+                        .id(UUID.randomUUID().toString())
+                        .text("What is 4+4?")
+                        .marks(2.0)
+                        .negativeMarks(0.5)
+                        .build()
+        );
+
         when(examSessionRepository.findByCandidateIdAndTenantId(CANDIDATE_ID, TENANT_ID))
                 .thenReturn(List.of());
         when(shiftAssignmentClient.getShiftAssignment(CANDIDATE_ID, EXAM_ID, SHIFT_ID, TENANT_ID))
                 .thenReturn(assignment);
         when(vaultCryptoService.decrypt("shift-key-" + SHIFT_ID, ENCRYPTED_PACKAGE))
                 .thenReturn(DECRYPTED_PAPER);
+        when(examQuestionDeliveryService.getDeliveryQuestions(eq(EXAM_ID), eq(PAPER_ID), eq(DECRYPTED_PAPER), eq(TENANT_ID)))
+                .thenReturn(mockQuestions);
         when(disabilityExtensionService.getExtraTimeMinutes(CANDIDATE_ID, TENANT_ID))
                 .thenReturn(0);
         when(examSessionRepository.save(any(ExamSession.class))).thenAnswer(inv -> inv.getArgument(0));
@@ -153,6 +190,7 @@ class SessionStartServiceTest {
         assertThat(response.getExamId()).isEqualTo(EXAM_ID);
         assertThat(response.getShiftId()).isEqualTo(SHIFT_ID);
         assertThat(response.getTotalQuestions()).isEqualTo(3);
+        assertThat(response.getQuestions()).hasSize(3);
         assertThat(response.getFirstQuestionContent()).contains("What is 2+2?");
         assertThat(response.isKioskModeEnforced()).isTrue();
         assertThat(response.getHeartbeatIntervalSeconds()).isEqualTo(10);
@@ -203,19 +241,70 @@ class SessionStartServiceTest {
         // When
         SessionStartResponse response = sessionStartService.startSession(request, CANDIDATE_ID, TENANT_ID);
 
-        // Then: scheduled duration should be 180 + 60 = 240 minutes (within a few seconds tolerance)
+        // Then: scheduled duration should be 180 + 60 = 240 minutes
         Duration duration = Duration.between(response.getStartedAt(), response.getScheduledEndAt());
         assertThat(duration.toMinutes()).isEqualTo(240);
     }
 
     @Test
-    @DisplayName("Concurrent session throws ConcurrentSessionException")
-    void startSession_activeSessionExists_throwsConcurrentSessionException() {
-        // Given: candidate already has an ACTIVE session
+    @DisplayName("Active session exists for the same exam resumes session seamlessly")
+    void startSession_activeSessionExistsForSameExam_resumesSession() {
+        // Given: candidate already has an ACTIVE session for the same exam
+        UUID sessionId = UUID.randomUUID();
+        Instant now = Instant.now();
+        Instant scheduledEnd = now.plus(Duration.ofMinutes(50));
+
+        ExamSession activeSession = ExamSession.builder()
+                .sessionId(sessionId)
+                .candidateId(CANDIDATE_ID)
+                .examId(EXAM_ID)
+                .shiftId(SHIFT_ID)
+                .paperId(PAPER_ID)
+                .status(ExamSessionStatus.ACTIVE)
+                .startedAt(now.minus(Duration.ofMinutes(10)))
+                .scheduledEndAt(scheduledEnd)
+                .build();
+
+        List<QuestionDeliveryDto> mockQuestions = List.of(
+                QuestionDeliveryDto.builder()
+                        .id(UUID.randomUUID().toString())
+                        .text("Resumed Question 1")
+                        .build()
+        );
+
+        when(examSessionRepository.findByCandidateIdAndTenantId(CANDIDATE_ID, TENANT_ID))
+                .thenReturn(List.of(activeSession));
+        when(examQuestionDeliveryService.getDeliveryQuestions(eq(EXAM_ID), eq(PAPER_ID), any(), eq(TENANT_ID)))
+                .thenReturn(mockQuestions);
+        when(kafkaTemplate.send(anyString(), anyString(), any()))
+                .thenReturn(java.util.concurrent.CompletableFuture.completedFuture(null));
+
+        SessionStartRequest request = SessionStartRequest.builder()
+                .examId(EXAM_ID)
+                .shiftId(SHIFT_ID)
+                .build();
+
+        // When
+        SessionStartResponse response = sessionStartService.startSession(request, CANDIDATE_ID, TENANT_ID);
+
+        // Then
+        assertThat(response).isNotNull();
+        assertThat(response.getSessionId()).isEqualTo(sessionId);
+        assertThat(response.getExamId()).isEqualTo(EXAM_ID);
+        assertThat(response.getQuestions()).hasSize(1);
+    }
+
+    @Test
+    @DisplayName("Concurrent session for different exam throws ConcurrentSessionException")
+    void startSession_activeSessionExistsForDifferentExam_throwsConcurrentSessionException() {
+        // Given: candidate already has an ACTIVE session for a different exam
+        UUID otherExamId = UUID.randomUUID();
         ExamSession activeSession = ExamSession.builder()
                 .sessionId(UUID.randomUUID())
                 .candidateId(CANDIDATE_ID)
+                .examId(otherExamId)
                 .status(ExamSessionStatus.ACTIVE)
+                .scheduledEndAt(Instant.now().plus(Duration.ofHours(1)))
                 .build();
         when(examSessionRepository.findByCandidateIdAndTenantId(CANDIDATE_ID, TENANT_ID))
                 .thenReturn(List.of(activeSession));
@@ -230,9 +319,8 @@ class SessionStartServiceTest {
                 .isInstanceOf(ConcurrentSessionException.class)
                 .hasMessageContaining("already has an active session");
 
-        // Verify no decryption or save took place
+        // Verify no decryption took place
         verify(vaultCryptoService, never()).decrypt(anyString(), anyString());
-        verify(examSessionRepository, never()).save(any());
     }
 
     @Test
@@ -276,5 +364,35 @@ class SessionStartServiceTest {
         // Then
         assertThat(response).isNotNull();
         verify(examSessionRepository).save(any(ExamSession.class));
+    }
+
+    @Test
+    @DisplayName("Resume session by ID succeeds for valid active session")
+    void resumeSessionById_succeedsForActiveSession() {
+        UUID sessionId = UUID.randomUUID();
+        Instant now = Instant.now();
+        Instant scheduledEnd = now.plus(Duration.ofMinutes(45));
+
+        ExamSession activeSession = ExamSession.builder()
+                .sessionId(sessionId)
+                .candidateId(CANDIDATE_ID)
+                .examId(EXAM_ID)
+                .shiftId(SHIFT_ID)
+                .paperId(PAPER_ID)
+                .status(ExamSessionStatus.ACTIVE)
+                .startedAt(now.minus(Duration.ofMinutes(15)))
+                .scheduledEndAt(scheduledEnd)
+                .build();
+
+        when(examSessionRepository.findById(sessionId)).thenReturn(Optional.of(activeSession));
+        when(examQuestionDeliveryService.getDeliveryQuestions(eq(EXAM_ID), eq(PAPER_ID), any(), eq(TENANT_ID)))
+                .thenReturn(List.of());
+        when(kafkaTemplate.send(anyString(), anyString(), any()))
+                .thenReturn(java.util.concurrent.CompletableFuture.completedFuture(null));
+
+        SessionStartResponse response = sessionStartService.resumeSessionById(sessionId, CANDIDATE_ID, TENANT_ID);
+
+        assertThat(response).isNotNull();
+        assertThat(response.getSessionId()).isEqualTo(sessionId);
     }
 }

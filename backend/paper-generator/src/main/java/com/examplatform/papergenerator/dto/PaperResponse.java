@@ -14,8 +14,7 @@
  * GNU Affero General Public License for more details.
  *
  * You should have received a copy of the GNU Affero General Public License
- * along with this program. If not, see <https://www.gnu.org/licenses/>.
- */
+ * along with this program. If not, see <https://www.gnu.org/licenses/>.\n */
 
 package com.examplatform.papergenerator.dto;
 
@@ -39,11 +38,13 @@ import java.util.UUID;
 public class PaperResponse {
 
     private UUID id;
+    private String name;
     private UUID examId;
     private String examName;
     private String shiftId;
     private String shiftName;
     private String status;
+    private boolean isPractice;
     private String paperDefinitionJson;
     private double difficultyScore;
     private String topicDistributionJson;

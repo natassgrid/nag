@@ -32,6 +32,7 @@ CREATE TABLE examination_service.examination (
     navigation_policy           VARCHAR(20)  NOT NULL,
     calculator_policy           VARCHAR(20)  NOT NULL,
     review_flag_enabled         BOOLEAN      NOT NULL DEFAULT FALSE,
+    is_practice                 BOOLEAN      NOT NULL DEFAULT FALSE,
     sections_json               JSONB,
 
     -- Status
@@ -247,7 +248,7 @@ COMMENT ON TABLE examination_service.exam_application IS
 -- ============================================================
 -- These tables provide cascading dropdown data for the UI.
 
--- ── Country ───────────────────────────────────────────────────
+-- ── Country ──────────────────────────────────────────────────
 CREATE TABLE examination_service.geo_country (
     id          BIGINT       PRIMARY KEY,
     name        VARCHAR(100) NOT NULL,
@@ -263,7 +264,7 @@ CREATE TABLE examination_service.geo_country (
 
 CREATE INDEX idx_geo_country_name ON examination_service.geo_country(name);
 
--- ── State ─────────────────────────────────────────────────────
+-- ── State ────────────────────────────────────────────────────
 CREATE TABLE examination_service.geo_state (
     id           BIGINT       PRIMARY KEY,
     name         VARCHAR(255) NOT NULL,
@@ -276,7 +277,7 @@ CREATE TABLE examination_service.geo_state (
 CREATE INDEX idx_geo_state_country ON examination_service.geo_state(country_id);
 CREATE INDEX idx_geo_state_name    ON examination_service.geo_state(name);
 
--- ── City ──────────────────────────────────────────────────────
+-- ── City ─────────────────────────────────────────────────────
 CREATE TABLE examination_service.geo_city (
     id           BIGINT       PRIMARY KEY,
     name         VARCHAR(255) NOT NULL,
@@ -297,9 +298,9 @@ ALTER TABLE examination_service.examination_centre
     ADD COLUMN state_id   BIGINT REFERENCES examination_service.geo_state(id),
     ADD COLUMN city_id    BIGINT REFERENCES examination_service.geo_city(id);
 
--- ════════════════════════════════════════════════════════════════
+-- ════════════════════════════════════════════════════════════
 -- SEED DATA: India + 28 states/8 UTs + major cities
--- ════════════════════════════════════════════════════════════════
+-- ════════════════════════════════════════════════════════════
 
 -- Country: India
 INSERT INTO examination_service.geo_country (id, name, iso2, iso3, phone_code, capital, currency, region, subregion)
@@ -419,9 +420,9 @@ INSERT INTO examination_service.geo_city (id, name, state_id, country_id, latitu
 (50047, 'Panaji',          4028, 101, 15.49900000, 73.82780000)
 ON CONFLICT (id) DO NOTHING;
 
--- ════════════════════════════════════════════════════════════════
+-- ════════════════════════════════════════════════════════════
 -- SEED DATA: Initial Major Examination Centres across India
--- ════════════════════════════════════════════════════════════════
+-- ════════════════════════════════════════════════════════════
 INSERT INTO examination_service.examination_centre (
     id,
     tenant_id,
@@ -933,9 +934,9 @@ INSERT INTO examination_service.examination_centre (
 )
 ON CONFLICT (id) DO NOTHING;
 
--- ════════════════════════════════════════════════════════════════
+-- ════════════════════════════════════════════════════════════
 -- SEED DATA: Examinations, Schedules, Shifts & Seat Allocations
--- ════════════════════════════════════════════════════════════════
+-- ════════════════════════════════════════════════════════════
 
 -- Seed Examinations
 INSERT INTO examination_service.examination (
@@ -955,6 +956,7 @@ INSERT INTO examination_service.examination (
     navigation_policy,
     calculator_policy,
     review_flag_enabled,
+    is_practice,
     sections_json,
     status,
     created_by,
@@ -979,6 +981,7 @@ INSERT INTO examination_service.examination (
     'FLEXIBLE',
     'NONE',
     TRUE,
+    FALSE,
     '[
         {"name":"General Intelligence and Reasoning","subject":"General Intelligence and Reasoning","questionCount":25,"marksPerQuestion":2.0,"negativeMarksPerQuestion":0.5},
         {"name":"General Awareness","subject":"General Awareness","questionCount":25,"marksPerQuestion":2.0,"negativeMarksPerQuestion":0.5},
@@ -1008,6 +1011,7 @@ INSERT INTO examination_service.examination (
     'RESTRICTED',
     'NONE',
     TRUE,
+    FALSE,
     '[
         {"name":"English Language","subject":"English Language and Comprehension","questionCount":30,"marksPerQuestion":1.0,"negativeMarksPerQuestion":0.25},
         {"name":"Quantitative Aptitude","subject":"Quantitative Aptitude / Mathematical Abilities","questionCount":35,"marksPerQuestion":1.0,"negativeMarksPerQuestion":0.25},
@@ -1036,6 +1040,7 @@ INSERT INTO examination_service.examination (
     'FLEXIBLE',
     'NONE',
     TRUE,
+    FALSE,
     '[
         {"name":"General Studies","subject":"General Studies","questionCount":100,"marksPerQuestion":2.0,"negativeMarksPerQuestion":0.66}
     ]'::jsonb,
@@ -1062,6 +1067,7 @@ INSERT INTO examination_service.examination (
     'FLEXIBLE',
     'NONE',
     TRUE,
+    FALSE,
     '[
         {"name":"General Awareness","subject":"General Awareness","questionCount":40,"marksPerQuestion":1.0,"negativeMarksPerQuestion":0.33},
         {"name":"Mathematics","subject":"Mathematics","questionCount":30,"marksPerQuestion":1.0,"negativeMarksPerQuestion":0.33},
@@ -1090,6 +1096,7 @@ INSERT INTO examination_service.examination (
     'FLEXIBLE',
     'NONE',
     TRUE,
+    FALSE,
     '[
         {"name":"Child Development and Pedagogy","subject":"Child Development and Pedagogy","questionCount":30,"marksPerQuestion":1.0,"negativeMarksPerQuestion":0.0},
         {"name":"Mathematics","subject":"Mathematics","questionCount":30,"marksPerQuestion":1.0,"negativeMarksPerQuestion":0.0},

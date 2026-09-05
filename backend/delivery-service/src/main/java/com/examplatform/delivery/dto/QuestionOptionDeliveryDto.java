@@ -17,43 +17,31 @@
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
 
-package com.examplatform.papergenerator.dto;
+package com.examplatform.delivery.dto;
 
-import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotEmpty;
-import jakarta.validation.constraints.NotNull;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-import java.util.List;
-import java.util.UUID;
-
 /**
- * Request DTO for blueprint-driven paper generation.
- * Submitted by an Exam Controller to generate a question paper
- * satisfying subject/topic/difficulty/cognitive ratios.
- *
- * Validates: Requirements 8.1, 8.2
+ * Question option payload delivered to the candidate delivery interface.
+ * Supports option randomization with original and display index tracking.
  */
 @Data
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class PaperGenerationRequest {
+public class QuestionOptionDeliveryDto {
+    private String id;
+    private int index;
+    private int originalIndex;
+    private String text;
 
-    /** Optional custom paper name/title. Auto-generated if omitted. */
-    private String name;
-
-    @NotNull
-    private UUID examId;
-
-    @NotBlank
-    private String shiftId;
-
-    private Boolean isPractice;
-
-    @NotEmpty
-    private List<BlueprintRule> blueprintRules;
+    public QuestionOptionDeliveryDto(int index, String text) {
+        this.id = String.valueOf((char) ('A' + index));
+        this.index = index;
+        this.originalIndex = index;
+        this.text = text;
+    }
 }

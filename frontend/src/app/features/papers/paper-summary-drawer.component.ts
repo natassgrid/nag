@@ -5,16 +5,17 @@
  * Copyright (C) 2025 NAG Contributors
  *
  * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU Affero General Public License as published
+ * it under the terms of the GNU General Public License as published
  * by the Free Software Foundation, version 3 of the License.
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU Affero General Public License for more details.
+ * GNU General Public License for more details.
  *
- * You should have received a copy of the GNU Affero General Public License
- * along with this program. If not, see <https://www.gnu.org/licenses/>.\n */
+ * You should have received a copy of the GNU General Public License
+ * along with this program. If not, see <https://www.gnu.org/licenses/>.
+ */
 
 import {
   Component,
@@ -30,14 +31,13 @@ import {
 import { CommonModule } from '@angular/common';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
-import { MatChipsModule } from '@angular/material/chips';
 import { MatTooltipModule } from '@angular/material/tooltip';
-import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { MatTabsModule } from '@angular/material/tabs';
 import { MatDividerModule } from '@angular/material/divider';
-import { of, catchError, finalize } from 'rxjs';
+import { catchError, finalize } from 'rxjs/operators';
+import { of } from 'rxjs';
 import { PaperService, PaperDetail } from './paper.service';
 import { RightDrawerComponent } from '../../shared/components/right-drawer/right-drawer.component';
 
@@ -54,9 +54,7 @@ export interface TopicStat {
     CommonModule,
     MatButtonModule,
     MatIconModule,
-    MatChipsModule,
     MatTooltipModule,
-    MatProgressBarModule,
     MatProgressSpinnerModule,
     MatSnackBarModule,
     MatTabsModule,
@@ -159,6 +157,10 @@ export class PaperSummaryDrawerComponent implements OnChanges {
     return 'diff-medium';
   }
 
+  approveAndEncrypt(): void {
+    this.onApprove();
+  }
+
   onApprove(): void {
     if (!this.paper?.id || this.approving) return;
 
@@ -198,6 +200,16 @@ export class PaperSummaryDrawerComponent implements OnChanges {
           this.cdr.detectChanges();
         });
       });
+  }
+
+  formatJson(raw?: string): string {
+    if (!raw) return '';
+    try {
+      const parsed = typeof raw === 'string' ? JSON.parse(raw) : raw;
+      return JSON.stringify(parsed, null, 2);
+    } catch {
+      return raw;
+    }
   }
 
   copyText(text?: string, label?: string): void {

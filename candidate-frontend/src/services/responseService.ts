@@ -1,5 +1,5 @@
 // src/services/responseService.ts
-// Wraps response-service REST calls for answer saving and session submission.
+// Wraps response-service REST calls for answer saving, session submission, and response history retrieval.
 
 import { api, unwrap } from './api';
 import { offlineQueue } from '../utils/offlineQueue';
@@ -10,6 +10,17 @@ import type {
 } from '../types/api';
 
 const BASE = '/api/v1/responses';
+
+export interface PersistedResponse {
+  responseId?: string;
+  sessionId?: string;
+  questionId: string;
+  selectedOptionIndex?: number;
+  markedForReview?: boolean;
+  revisionSequence?: number;
+  timeTakenSeconds?: number;
+  savedAt?: string;
+}
 
 export const responseService = {
   /**
@@ -63,5 +74,14 @@ export const responseService = {
   /** Finalize and submit the exam session — locks all responses. */
   async submitSession(sessionId: string): Promise<void> {
     await api.post(`${BASE}/${sessionId}/submit`);
+  },
+
+  /** Retrieve previously saved responses for an exam session (for session resumption). */
+  async getSessionResponses(sessionId: string): Promise<PersistedResponse[]> {
+    try {
+      return unwrap(await api.get(`${BASE}/${sessionId}/responses`));
+    } catch {
+      return [];
+    }
   },
 };

@@ -5,7 +5,7 @@
  * Copyright (C) 2025 NAG Contributors
  *
  * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU Affero General Public License as published
+ * it under the terms of the GNU General Public License as published
  * by the Free Software Foundation, version 3 of the License.
  *
  * This program is distributed in the hope that it will be useful,
@@ -13,7 +13,7 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
  * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU Affero General Public License
+ * You should have received a copy of the GNU General Public License
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
 
@@ -30,43 +30,39 @@ import {
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import {
-  FormArray,
   FormBuilder,
   FormGroup,
-  ReactiveFormsModule,
-  Validators
+  FormArray,
+  Validators,
+  ReactiveFormsModule
 } from '@angular/forms';
 import { Router } from '@angular/router';
+import { MatButtonModule } from '@angular/material/button';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { MatSelectModule } from '@angular/material/select';
-import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatDividerModule } from '@angular/material/divider';
 import { MatTooltipModule } from '@angular/material/tooltip';
-import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
-import { MatChipsModule } from '@angular/material/chips';
-import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
+import { MatSnackBar } from '@angular/material/snack-bar';
+import { MatSlideToggleModule } from '@angular/material/slide-toggle';
+import { of, forkJoin, Observable } from 'rxjs';
 import { catchError, finalize, switchMap, map } from 'rxjs/operators';
-import { forkJoin, of, Observable } from 'rxjs';
 import {
   PaperService,
   PaperGenerationRequest,
-  BlueprintTemplateResponse,
-  BlueprintRule
+  BlueprintRule,
+  BlueprintTemplateResponse
 } from './paper.service';
-import {
-  ExamManagementService,
-  ExaminationResponse
-} from '../exam/exam-manage/exam-management.service';
-import { SchedulingService, ShiftResponse } from '../exam/scheduling/scheduling.service';
+import { ExamManagementService, ExaminationResponse } from '../exam/exam-manage/exam-management.service';
+import { SchedulingService, ShiftResponse, ScheduleResponse } from '../exam/scheduling/scheduling.service';
 import { RightDrawerComponent } from '../../shared/components/right-drawer/right-drawer.component';
 
 export interface ShiftOption {
   id: string;
   label: string;
   scheduleName?: string;
-  shiftNumber: number;
+  shiftNumber?: number;
   shiftName?: string;
   timing?: string;
 }
@@ -77,20 +73,18 @@ export interface ShiftOption {
   imports: [
     CommonModule,
     ReactiveFormsModule,
+    MatButtonModule,
     MatFormFieldModule,
     MatInputModule,
     MatSelectModule,
-    MatButtonModule,
     MatIconModule,
     MatDividerModule,
     MatTooltipModule,
-    MatProgressSpinnerModule,
-    MatChipsModule,
-    MatSnackBarModule,
+    MatSlideToggleModule,
     RightDrawerComponent
   ],
   templateUrl: './paper-generate-dialog.component.html',
-  changeDetection: ChangeDetectionStrategy.Default,
+  changeDetection: ChangeDetectionStrategy.OnPush,
   styleUrls: ['./paper-generate-dialog.component.scss']
 })
 export class PaperGenerateDialogComponent implements OnInit, OnChanges {
@@ -148,7 +142,7 @@ export class PaperGenerateDialogComponent implements OnInit, OnChanges {
     this.examService
       .getExams(0, 100)
       .pipe(catchError(() => of([])))
-      .subscribe((res) => {
+      .subscribe((res: ExaminationResponse[]) => {
         this.exams = res;
         this.cdr.markForCheck();
       });
@@ -157,11 +151,13 @@ export class PaperGenerateDialogComponent implements OnInit, OnChanges {
   initForm(): void {
     const initialExamId = this.examId ?? '';
     this.form = this.fb.group({
+      name: [''],
       examId: [
         initialExamId,
         [Validators.required]
       ],
       shiftId: ['', [Validators.required, Validators.maxLength(50)]],
+      isPractice: [false],
       templateId: [''],
       blueprintRules: this.fb.array([])
     });
@@ -199,7 +195,7 @@ export class PaperGenerateDialogComponent implements OnInit, OnChanges {
         catchError(() => of([])),
         finalize(() => (this.loadingTemplates = false))
       )
-      .subscribe((list) => {
+      .subscribe((list: BlueprintTemplateResponse[]) => {
         this.templates = list;
         this.categorizeTemplates();
         if (this.preselectedTemplate) {
@@ -216,7 +212,7 @@ export class PaperGenerateDialogComponent implements OnInit, OnChanges {
       this.mappedTemplates = this.templates.filter((t) => t.examId === currentExamId);
       this.universalTemplates = this.templates.filter((t) => !t.examId);
     } else {
-      this.mappedTemplates = this.templates.filter((t) => !!t.examId);
+      this.mappedTemplates = this.templates.filter((t) => !t.examId);
       this.universalTemplates = this.templates.filter((t) => !t.examId);
     }
   }
@@ -234,11 +230,11 @@ export class PaperGenerateDialogComponent implements OnInit, OnChanges {
     this.schedulingService
       .listSchedules(examId.trim())
       .pipe(
-        switchMap((schedules) => {
+        switchMap((schedules: ScheduleResponse[]) => {
           if (!schedules || schedules.length === 0) {
             return of([] as ShiftOption[]);
           }
-          const shiftRequests: Observable<ShiftOption[]>[] = schedules.map((s) =>
+          const shiftRequests: Observable<ShiftOption[]>[] = schedules.map((s: ScheduleResponse) =>
             this.schedulingService.listShifts(examId.trim(), s.id).pipe(
               map((shifts: ShiftResponse[]) =>
                 (shifts || []).map((sh: ShiftResponse): ShiftOption => {
@@ -322,15 +318,18 @@ export class PaperGenerateDialogComponent implements OnInit, OnChanges {
     }
   }
 
-  applyTemplate(tpl: BlueprintTemplateResponse): void {
-    this.selectedTemplate = tpl;
-    this.form.get('templateId')?.setValue(tpl.id);
-    if (tpl.examId && !this.form.get('examId')?.value) {
-      this.form.get('examId')?.setValue(tpl.examId);
-      this.loadShiftsForExam(tpl.examId);
+  applyTemplate(template: BlueprintTemplateResponse): void {
+    this.selectedTemplate = template;
+    this.form.get('templateId')?.setValue(template.id);
+    if (template.examId && (!this.form.get('examId')?.value || !this.examId)) {
+      this.form.get('examId')?.setValue(template.examId);
+      this.loadShiftsForExam(template.examId);
     }
+
     this.clearRules();
-    (tpl.rules ?? []).forEach((r) => this.addRule(r));
+    (template.rules || []).forEach((r) => this.addRule(r));
+    this.showCustomRules = true;
+    this.cdr.markForCheck();
   }
 
   addRule(rule?: BlueprintRule): void {
@@ -342,7 +341,7 @@ export class PaperGenerateDialogComponent implements OnInit, OnChanges {
         cognitiveLevel: [rule?.cognitiveLevel ?? ''],
         questionCount: [
           rule?.questionCount ?? 5,
-          [Validators.required, Validators.min(1)]
+          [Validators.required, Validators.min(1), Validators.max(100)]
         ]
       })
     );
@@ -350,16 +349,14 @@ export class PaperGenerateDialogComponent implements OnInit, OnChanges {
 
   removeRule(index: number): void {
     this.rules.removeAt(index);
+    if (this.rules.length === 0) {
+      this.showCustomRules = false;
+    }
   }
 
-  private clearRules(): void {
-    while (this.rules.length) this.rules.removeAt(0);
-  }
-
-  toggleCustomRules(): void {
-    this.showCustomRules = !this.showCustomRules;
-    if (this.showCustomRules && this.rules.length === 0) {
-      this.addRule();
+  clearRules(): void {
+    while (this.rules.length !== 0) {
+      this.rules.removeAt(0);
     }
   }
 
@@ -368,12 +365,11 @@ export class PaperGenerateDialogComponent implements OnInit, OnChanges {
     this.router.navigate(['/papers/blueprints']);
   }
 
-  getDistinctSubjects(): string[] {
-    const raw = (this.rules.value as any[]).map((r) => r.subject).filter(Boolean);
-    return Array.from(new Set(raw));
-  }
-
   cancel(): void {
+    this.form.reset();
+    this.clearRules();
+    this.selectedTemplate = null;
+    this.showCustomRules = false;
     this.close.emit(null);
   }
 
@@ -385,8 +381,10 @@ export class PaperGenerateDialogComponent implements OnInit, OnChanges {
 
     const v = this.form.value;
     const request: PaperGenerationRequest = {
+      name: v.name?.trim() || undefined,
       examId: v.examId.trim(),
       shiftId: v.shiftId.trim(),
+      isPractice: Boolean(v.isPractice),
       blueprintRules: (this.rules.value as any[]).map((r) => ({
         subject: r.subject.trim(),
         topic: r.topic.trim(),

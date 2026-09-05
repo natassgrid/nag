@@ -40,7 +40,17 @@ const App: React.FC = () => {
                 }
               />
 
-              {/* Full-screen exam — no sidebar layout */}
+              {/* Full-screen exam — no sidebar layout (supports /take-exam/:examId and /take-exam/:examId/:shiftId) */}
+              <Route
+                path="/take-exam/:examId"
+                element={
+                  <ProtectedRoute>
+                    <ErrorBoundary>
+                      <TakeExam />
+                    </ErrorBoundary>
+                  </ProtectedRoute>
+                }
+              />
               <Route
                 path="/take-exam/:examId/:shiftId"
                 element={

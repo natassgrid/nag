@@ -163,6 +163,25 @@ public class ExamApplicationService {
     }
 
     /**
+     * Retrieve application details for the authenticated candidate for a specific examination.
+     */
+    @Transactional(readOnly = true)
+    public ExamApplicationResponse getMyApplication(UUID examId, UUID candidateId, String tenantId) {
+        ExamApplication app = applicationRepository
+                .findByCandidateIdAndExaminationIdAndTenantId(candidateId, examId, tenantId)
+                .orElseThrow(() -> new EntityNotFoundException("No application found for candidate " + candidateId + " and exam " + examId));
+
+        Examination exam = examinationRepository.findById(examId).orElse(null);
+        ExaminationSchedule schedule = null;
+        if (exam != null) {
+            schedule = scheduleRepository
+                    .findFirstByExaminationIdAndStatusAndTenantIdOrderByScheduleVersionDesc(exam.getId(), "PUBLISHED", tenantId)
+                    .orElse(null);
+        }
+        return toResponse(app, exam, app.getAllocatedCentreId(), schedule, app.getAllocatedShiftId());
+    }
+
+    /**
      * Retrieve full admit card / hall ticket by Examination ID and authenticated candidate.
      */
     @Transactional(readOnly = true)

@@ -104,9 +104,10 @@ export class PaperListComponent implements OnInit {
 
   columns: ColumnDef<PaperSummary>[] = [
     {
-      key: 'paperId',
-      header: 'Paper ID',
-      cell: (row) => row.paperId?.substring(0, 8) + '…'
+      key: 'name',
+      header: 'Paper Name',
+      cell: (row) => row.name || (row.examName ? `${row.isPractice ? 'Practice - ' : ''}${row.examName} (${row.shiftName || row.shiftId})` : (row.paperId ? `Paper #${row.paperId.substring(0, 8)}` : '—')),
+      sortable: true
     },
     {
       key: 'examName',
@@ -122,7 +123,7 @@ export class PaperListComponent implements OnInit {
     },
     {
       key: 'difficultyScore',
-      header: 'Difficulty Score',
+      header: 'Difficulty',
       cell: (row) => row.difficultyScore?.toFixed(2) ?? '—'
     },
     {
@@ -169,15 +170,12 @@ export class PaperListComponent implements OnInit {
     });
   }
 
-  navigateToBlueprints(): void {
-    this.router.navigate(['/papers/blueprints']);
-  }
-
   onFilterChange(filters: Record<string, any>): void {
     this.activeFilters = { ...filters };
+    this.paperTable?.reload();
   }
 
-  // ── Paper Summary Drawer ──────────────────────────────────────
+  // ── Paper Summary Drawer ──────────────────────────────────────────────
 
   viewPaperSummary(row: PaperSummary): void {
     this.selectedPaperId = row.paperId;
@@ -202,7 +200,7 @@ export class PaperListComponent implements OnInit {
     this.cdr.detectChanges();
   }
 
-  // ── Generate ──────────────────────────────────────────────────
+  // ── Generate ──────────────────────────────────────────────────────────
 
   openGenerateDrawer(): void {
     this.generateDrawerOpen = true;
@@ -248,31 +246,29 @@ export class PaperListComponent implements OnInit {
         this.lastResult = { ...res, status: res.status ?? 'DRAFT' };
         this.selectedPaperId = res.paperId;
         this.summaryDrawerOpen = true;
-        this.snackBar.open(
-          `Paper generated — ID: ${res.paperId.substring(0, 8)}…`,
-          'View',
-          { duration: 6000 }
-        ).onAction().subscribe(() => {
-          this.openSummaryById(res.paperId);
+        this.snackBar.open(`Paper generation initiated: ${res.name || res.paperId}`, 'Close', {
+          duration: 3500
         });
         this.paperTable?.reload();
         this.cdr.detectChanges();
       });
   }
 
-  // ── Approve ───────────────────────────────────────────────────
+  // ── Approve & Encrypt ─────────────────────────────────────────────────
 
-  approvePaper(paper: PaperSummary): void {
-    this.approvingId = paper.paperId;
+  approvePaper(row: PaperSummary): void {
+    this.approvingId = row.paperId;
     this.cdr.detectChanges();
 
     this.paperService
-      .approvePaper(paper.paperId)
+      .approvePaper(row.paperId)
       .pipe(
         catchError((err) => {
-          const msg =
-            err?.error?.detail ?? err?.error?.message ?? 'Approval failed';
-          this.snackBar.open(msg, 'Dismiss', { duration: 5000, panelClass: 'snack-error' });
+          const msg = err?.error?.message ?? err?.message ?? 'Approval failed';
+          this.snackBar.open('Approval failed: ' + msg, 'Dismiss', {
+            duration: 5000,
+            panelClass: 'snack-error'
+          });
           this.approvingId = null;
           this.cdr.detectChanges();
           return of(null);
@@ -282,12 +278,18 @@ export class PaperListComponent implements OnInit {
         this.approvingId = null;
         if (!res) return;
         this.snackBar.open(
-          `Paper ${res.paperId.substring(0, 8)}… is now ${res.status}`,
-          'OK',
+          `Paper approved and encrypted successfully (${res.name || res.paperId})`,
+          'Close',
           { duration: 4000 }
         );
         this.paperTable?.reload();
         this.cdr.detectChanges();
       });
+  }
+
+  // ── Navigation ────────────────────────────────────────────────────────
+
+  navigateToBlueprints(): void {
+    this.router.navigate(['/papers/blueprints']);
   }
 }

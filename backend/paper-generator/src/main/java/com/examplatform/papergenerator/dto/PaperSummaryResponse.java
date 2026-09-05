@@ -36,11 +36,13 @@ import java.util.UUID;
 @AllArgsConstructor
 public class PaperSummaryResponse {
     private UUID paperId;
+    private String name;
     private UUID examId;
     private String examName;
     private String shiftId;
     private String shiftName;
     private String status;
+    private boolean isPractice;
     private double difficultyScore;
     private String encryptionKeyId;
     private Instant createdAt;

@@ -13,11 +13,18 @@ const BASE = '/api/v1/sessions';
 
 export const sessionService = {
   /**
-   * Start an exam session for the authenticated candidate.
-   * Returns sessionId, all questions (without correct answers), and timing info.
+   * Start an exam session or resume an active session for the authenticated candidate.
+   * Returns sessionId, all questions (with randomized options), and timing info.
    */
   async startSession(request: SessionStartRequest): Promise<SessionStartResponse> {
     return (await api.post<SessionStartResponse>(`${BASE}/start`, request)).data;
+  },
+
+  /**
+   * Explicitly resume an active exam session by its session ID.
+   */
+  async resumeSession(sessionId: string): Promise<SessionStartResponse> {
+    return (await api.post<SessionStartResponse>(`${BASE}/${sessionId}/resume`)).data;
   },
 
   /**

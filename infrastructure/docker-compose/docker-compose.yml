@@ -49,11 +49,11 @@ services:
       - postgres_data:/var/lib/postgresql/data
       - ./init-db.sql:/docker-entrypoint-initdb.d/01-init-db.sql:ro
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-exam_admin} -d ${POSTGRES_DB:-exam_platform}"]
-      interval: 10s
+      test: ["CMD-SHELL", "pg_isready -h localhost -U ${POSTGRES_USER:-exam_admin} -d ${POSTGRES_DB:-exam_platform} || pg_isready -U ${POSTGRES_USER:-exam_admin} -d ${POSTGRES_DB:-exam_platform}"]
+      interval: 5s
       timeout: 5s
-      retries: 10
-      start_period: 30s
+      retries: 15
+      start_period: 10s
     networks:
       - exam-network
 
@@ -161,7 +161,7 @@ services:
       - keycloak_data:/opt/keycloak/data
 
   # ===========================================================================
-  # HashiCorp Vault — dev mode, Transit Engine for HSM-abstracted key management
+  # HashiCorp Vault — Persistent File Storage + Transit Engine
   # Port 8200 — UI at http://localhost:8200 (root token: vault_root_token)
   # ===========================================================================
   vault:
@@ -171,33 +171,34 @@ services:
     ports:
       - "${VAULT_PORT:-8200}:8200"
     environment:
-      VAULT_DEV_ROOT_TOKEN_ID: ${VAULT_ROOT_TOKEN:-vault_root_token}
-      VAULT_DEV_LISTEN_ADDRESS: 0.0.0.0:8200
-      VAULT_ADDR: http://0.0.0.0:8200
+      VAULT_ADDR: http://127.0.0.1:8200
+      VAULT_API_ADDR: http://0.0.0.0:8200
     cap_add:
       - IPC_LOCK
-    command: server -dev
+    command: server
     healthcheck:
-      test: ["CMD-SHELL", "vault status -address=http://localhost:8200 | grep -q 'Sealed.*false' || exit 1"]
-      interval: 10s
-      timeout: 5s
-      retries: 10
-      start_period: 15s
+      test: ["CMD-SHELL", "vault status -address=http://127.0.0.1:8200 2>&1 | grep -q 'Seal Type' || exit 1"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+      start_period: 5s
     volumes:
       - vault_data:/vault/data
+      - ./vault-config.hcl:/vault/config/vault.hcl:ro
     networks:
       - exam-network
 
   # ===========================================================================
-  # Vault Init — enables Transit engine and creates all required keys once
+  # Vault Init — Initializes, auto-unseals, enables Transit engine and keys
   # ===========================================================================
   vault-init:
     image: hashicorp/vault:latest
     container_name: exam-vault-init
-    restart: "no"
+    restart: on-failure
     depends_on:
-      vault:
-        condition: service_healthy
+      - vault
+    cap_add:
+      - IPC_LOCK
     environment:
       VAULT_ADDR: http://vault:8200
       VAULT_TOKEN: ${VAULT_ROOT_TOKEN:-vault_root_token}
@@ -331,25 +332,25 @@ services:
         echo "Checking models..."
         if ! curl -sf http://ollama:11434/api/tags | grep -q "all-minilm"; then
           echo "Pulling all-minilm..."
-          curl -sf http://ollama:11434/api/pull -d '{"name":"all-minilm"}'
+          curl -sf http://ollama:11434/api/pull -d '{\"name\":\"all-minilm\"}'
         else
           echo "all-minilm already present, skipping."
         fi
         if ! curl -sf http://ollama:11434/api/tags | grep -q "qwen2.5:1.5b"; then
           echo "Pulling qwen2.5:1.5b..."
-          curl -sf http://ollama:11434/api/pull -d '{"name":"qwen2.5:1.5b"}'
+          curl -sf http://ollama:11434/api/pull -d '{\"name\":\"qwen2.5:1.5b\"}'
         else
           echo "qwen2.5:1.5b already present, skipping."
         fi
         if ! curl -sf http://ollama:11434/api/tags | grep -q "qwen2-math"; then
           echo "Pulling qwen2-math:1.5b..."
-          curl -sf http://ollama:11434/api/pull -d '{"name":"qwen2-math:1.5b"}'
+          curl -sf http://ollama:11434/api/pull -d '{\"name\":\"qwen2-math:1.5b\"}'
         else
           echo "qwen2-math:1.5b already present, skipping."
         fi
         if ! curl -sf http://ollama:11434/api/tags | grep -q "llama3.2:1b"; then
           echo "Pulling llama3.2:1b..."
-          curl -sf http://ollama:11434/api/pull -d '{"name":"llama3.2:1b"}'
+          curl -sf http://ollama:11434/api/pull -d '{\"name\":\"llama3.2:1b\"}'
         else
           echo "llama3.2:1b already present, skipping."
         fi
@@ -400,32 +401,34 @@ services:
   # Model: ai4bharat/indictrans2-en-indic-dist-200M (~850MB)
   # Port 7860 — REST API at http://localhost:7860
   #
-  # Translate:
-  #   curl http://localhost:7860/translate \
+  # Test translation:
+  #   curl -X POST http://localhost:7860/translate \
   #     -H "Content-Type: application/json" \
-  #     -d '{"text": "What is the capital of India?", "target_lang": "hin_Deva"}'
-  #
-  # Supported: hin_Deva, ben_Beng, tam_Taml, tel_Telu, mar_Deva, guj_Gujr,
-  #            kan_Knda, mal_Mlym, pan_Guru, ory_Orya, urd_Arab + 13 more
+  #     -d '{"text": "Photosynthesis is the process by which plants make food.", "source_lang": "eng_Latn", "target_lang": "hin_Deva"}'
   # ===========================================================================
   indictrans2:
-    build:
-      context: ../indictrans2
-      dockerfile: Dockerfile
+    image: python:3.11-slim
     container_name: exam-indictrans2
     restart: unless-stopped
     ports:
-      - "${INDICTRANS_PORT:-7860}:7860"
+      - "${INDICTRANS2_PORT:-7860}:7860"
     environment:
-      HF_TOKEN: ${HF_TOKEN:-}
-      MODEL_NAME: ${INDICTRANS_MODEL:-ai4bharat/indictrans2-en-indic-dist-200M}
+      MODEL_NAME: "ai4bharat/indictrans2-en-indic-dist-200M"
+      HF_HOME: "/root/.cache/huggingface"
+      TORCH_NUM_THREADS: "4"
     volumes:
+      - ./indictrans2-server.py:/app/server.py:ro
       - indictrans2_cache:/root/.cache/huggingface
+    working_dir: /app
+    command: >
+      sh -c "pip install --no-cache-dir torch --index-url https://download.pytorch.org/whl/cpu &&
+             pip install --no-cache-dir transformers sentencepiece IndicTransTokenizer fastapi uvicorn &&
+             python server.py"
     healthcheck:
-      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:7860/health')\" || exit 1"]
+      test: ["CMD-SHELL", "python -c 'import urllib.request; urllib.request.urlopen(\"http://localhost:7860/health\")' || exit 1"]
       interval: 30s
       timeout: 10s
-      retries: 5
+      retries: 10
       start_period: 120s
     networks:
       - exam-network

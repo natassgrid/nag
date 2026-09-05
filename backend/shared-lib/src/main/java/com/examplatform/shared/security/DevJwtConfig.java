@@ -35,8 +35,9 @@ import java.nio.charset.StandardCharsets;
 /**
  * Dev/Docker JWT decoder — validates HS256 tokens signed by DevKeycloakService.
  * Shared across all services. Active only in 'dev' or 'docker' profiles.
+ * Executes before OAuth2ResourceServerAutoConfiguration to prevent network discovery hangs against Keycloak.
  */
-@AutoConfiguration
+@AutoConfiguration(beforeName = "org.springframework.boot.autoconfigure.security.oauth2.resource.servlet.OAuth2ResourceServerAutoConfiguration")
 @ConditionalOnClass(JwtDecoder.class)
 @Profile({"dev", "docker"})
 public class DevJwtConfig {

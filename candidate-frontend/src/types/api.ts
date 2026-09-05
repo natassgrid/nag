@@ -1,7 +1,7 @@
 // src/types/api.ts
 // TypeScript interfaces matching the backend Spring Boot DTOs
 
-// ─── Shared ──────────────────────────────────────────────────────────────────
+// ─── Shared ──────────────────────────────────────────────────────────────
 
 export interface ApiResponse<T> {
   success: boolean;
@@ -20,7 +20,7 @@ export interface Page<T> {
   last: boolean;
 }
 
-// ─── Identity Service DTOs ───────────────────────────────────────────────────
+// ─── Identity Service DTOs ───────────────────────────────────────────────
 
 export interface RegistrationRequest {
   fullName: string;
@@ -84,7 +84,7 @@ export interface OtpResendRequest {
   userId: string;
 }
 
-// ─── Candidate Service DTOs ──────────────────────────────────────────────────
+// ─── Candidate Service DTOs ─────────────────────────────────────────────
 
 export type Gender = 'MALE' | 'FEMALE' | 'OTHER' | 'PREFER_NOT_TO_SAY';
 export type Category = 'GENERAL' | 'OBC' | 'SC' | 'ST' | 'EWS';
@@ -205,7 +205,7 @@ export interface ConsentRequest {
   consentVersion?: string;
 }
 
-// ─── Examination Service DTOs ────────────────────────────────────────────────
+// ─── Examination Service DTOs ───────────────────────────────────────────
 
 export type ExamStatus = 'DRAFT' | 'PUBLISHED' | 'ACTIVE' | 'COMPLETED' | 'CANCELLED';
 export type ExamMode = 'ONLINE' | 'OFFLINE' | 'HYBRID' | 'CBT' | 'OMR';
@@ -288,6 +288,9 @@ export interface ExamApplicationResponse {
   state?: string;
   examDate?: string;
   shiftName?: string;
+  shiftId?: string;
+  allocatedShiftId?: string;
+  preferredShiftId?: string;
 }
 
 export interface AdmitCardResponse {
@@ -303,6 +306,7 @@ export interface AdmitCardResponse {
   durationMinutes: number;
   totalMarks: number;
   examDate: string;
+  shiftId?: string;
   shiftName: string;
   shiftNumber: number;
   reportingTime: string;
@@ -324,7 +328,7 @@ export interface AdmitCardResponse {
   instructions: string[];
 }
 
-// ─── Delivery Service DTOs ───────────────────────────────────────────────────
+// ─── Delivery Service DTOs ──────────────────────────────────────────────
 
 export type NavigationMode = 'SEQUENTIAL' | 'FLEXIBLE' | 'RESTRICTED';
 
@@ -332,10 +336,11 @@ export interface QuestionOption {
   index: number;
   text: string;
   imageUrl?: string;
+  isCorrect?: boolean;
 }
 
 export interface QuestionDto {
-  id: string;                   // UUID - never expose correctOptionIndex!
+  id: string;                   // UUID
   text: string;
   imageUrl?: string;
   options: QuestionOption[];
@@ -343,24 +348,37 @@ export interface QuestionDto {
   negativeMarks: number;
   sectionId: string;
   sectionName: string;
+  topic?: string;
+  explanation?: string;
+  correctOptionIndex?: number;  // Available in practice/learning mode
 }
 
 export interface SessionStartRequest {
   examId: string;
   shiftId?: string;
   candidateId?: string;
+  languageCode?: string;
 }
 
 export interface SessionStartResponse {
   sessionId: string;            // UUID
   examId: string;
+  examTitle?: string;
+  shiftId?: string;
   candidateId: string;
+  startedAt?: string;
+  scheduledEndAt?: string;
   durationSeconds: number;
   totalQuestions: number;
   navigationMode: NavigationMode;
   questions: QuestionDto[];     // all questions delivered at session start
   serverTime: string;           // ISO timestamp for clock sync
   expiresAt: string;            // ISO timestamp for session expiry
+  kioskModeEnforced?: boolean;
+  heartbeatIntervalSeconds?: number;
+  autosaveIntervalSeconds?: number;
+  maxDisconnectGraceSeconds?: number;
+  tamperDetectionEnabled?: boolean;
 }
 
 export interface NavigationRequest {
@@ -375,7 +393,7 @@ export interface NavigationResponse {
   allowedActions: string[];     // ['NEXT', 'PREVIOUS', 'JUMP', 'MARK_REVIEW']
 }
 
-// ─── Response Service DTOs ───────────────────────────────────────────────────
+// ─── Response Service DTOs ──────────────────────────────────────────────
 
 export type ResponseType = 'MCQ' | 'INTEGER' | 'DESCRIPTIVE';
 
@@ -400,7 +418,7 @@ export interface BulkSaveRequest {
   responses: SaveResponseRequest[];
 }
 
-// ─── Result Service DTOs ─────────────────────────────────────────────────────
+// ─── Result Service DTOs ────────────────────────────────────────────────
 
 export type ResultStatus = 'PENDING' | 'COMPUTED' | 'PUBLISHED' | 'WITHHELD';
 
@@ -436,7 +454,7 @@ export interface ResultDto {
   publishedAt?: string;
 }
 
-// ─── Asset Service DTOs ──────────────────────────────────────────────────────
+// ─── Asset Service DTOs ─────────────────────────────────────────────────
 
 export type AssetType = 'IMAGE' | 'DOCUMENT' | 'VIDEO' | 'AUDIO';
 
@@ -450,7 +468,7 @@ export interface AssetUploadResponse {
   createdAt: string;
 }
 
-// ─── Notification DTOs ───────────────────────────────────────────────────────
+// ─── Notification DTOs ──────────────────────────────────────────────────
 
 export type NotificationType =
   | 'EXAM_APPLIED'

@@ -55,6 +55,7 @@ public class ExaminationResponse {
     private String navigationPolicy;
     private String calculatorPolicy;
     private boolean reviewFlagEnabled;
+    private boolean isPractice;
     private List<Section> sections;
     private String status;
     private LocalDateTime createdAt;

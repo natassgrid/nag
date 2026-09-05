@@ -195,7 +195,33 @@
           </div>
         </mat-tab>
 
-        <!-- Tab 3: Assessment & Question Bank -->
+        <!-- Tab 3: Candidate Practice & Learning -->
+        <mat-tab>
+          <ng-template mat-tab-label>
+            <mat-icon class="tab-icon">school</mat-icon>
+            Practice & Learning
+          </ng-template>
+
+          <div class="tab-content">
+            <div class="setting-item">
+              <div class="setting-text">
+                <span class="setting-title">Candidate Practice Mode Flag</span>
+                <span class="setting-desc">Enable interactive self-study practice mode on candidate portal for learning and exam simulation.</span>
+              </div>
+              <mat-slide-toggle [ngModel]="practiceModeEnabled()" (ngModelChange)="practiceModeEnabled.set($event)" color="primary"></mat-slide-toggle>
+            </div>
+
+            <div class="setting-item">
+              <div class="setting-text">
+                <span class="setting-title">Instant Step-by-Step Explanations</span>
+                <span class="setting-desc">Show immediate correct options and pedagogical step-by-step explanations during practice sessions.</span>
+              </div>
+              <mat-slide-toggle [ngModel]="practiceSolutionsVisible()" (ngModelChange)="practiceSolutionsVisible.set($event)" color="primary"></mat-slide-toggle>
+            </div>
+          </div>
+        </mat-tab>
+
+        <!-- Tab 4: Assessment & Question Bank -->
         <mat-tab>
           <ng-template mat-tab-label>
             <mat-icon class="tab-icon">quiz</mat-icon>
@@ -237,7 +263,7 @@
           </div>
         </mat-tab>
 
-        <!-- Tab 4: Alerts & Operations -->
+        <!-- Tab 5: Alerts & Operations -->
         <mat-tab>
           <ng-template mat-tab-label>
             <mat-icon class="tab-icon">notifications</mat-icon>
@@ -285,7 +311,7 @@
           </div>
         </mat-tab>
 
-        <!-- Tab 5: DPI Infrastructure & Governance -->
+        <!-- Tab 6: DPI Infrastructure & Governance -->
         <mat-tab>
           <ng-template mat-tab-label>
             <mat-icon class="tab-icon">hub</mat-icon>

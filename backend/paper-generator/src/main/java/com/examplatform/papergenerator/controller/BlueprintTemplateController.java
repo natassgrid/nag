@@ -79,7 +79,7 @@ public class BlueprintTemplateController {
         return ResponseEntity.ok(templates);
     }
 
-    // ── Get one ───────────────────────────────────────────────────────────────
+    // ── Get One ───────────────────────────────────────────────────────────────
 
     @GetMapping("/{id}")
     @PreAuthorize("hasAnyRole('EXAM_CONTROLLER','SUPER_ADMIN')")
@@ -95,9 +95,9 @@ public class BlueprintTemplateController {
             @Valid @RequestBody BlueprintTemplateRequest request,
             @AuthenticationPrincipal Jwt jwt) {
 
-        UUID createdBy = UUID.fromString(jwt.getSubject());
-        BlueprintTemplateResponse response = service.create(request, createdBy, tenantId());
-        return ResponseEntity.status(HttpStatus.CREATED).body(response);
+        UUID createdBy = extractUserId(jwt);
+        BlueprintTemplateResponse created = service.create(request, createdBy, tenantId());
+        return ResponseEntity.status(HttpStatus.CREATED).body(created);
     }
 
     // ── Update ────────────────────────────────────────────────────────────────
@@ -120,10 +120,21 @@ public class BlueprintTemplateController {
         return ResponseEntity.noContent().build();
     }
 
-    // ── Helper ────────────────────────────────────────────────────────────────
+    // ── Helpers ───────────────────────────────────────────────────────────────
 
     private String tenantId() {
-        String t = TenantContext.get();
-        return t != null ? t : "default";
+        String t = TenantContext.getTenantId();
+        return (t != null && !t.isBlank()) ? t : "default";
+    }
+
+    private UUID extractUserId(Jwt jwt) {
+        if (jwt == null) return null;
+        try {
+            String sub = jwt.getSubject();
+            return sub != null ? UUID.fromString(sub) : null;
+        } catch (IllegalArgumentException e) {
+            log.debug("JWT subject is not a UUID: {}", jwt.getSubject());
+            return null;
+        }
     }
 }

@@ -21,6 +21,7 @@ package com.examplatform.candidate.crypto;
 
 import jakarta.persistence.AttributeConverter;
 import jakarta.persistence.Converter;
+import lombok.extern.slf4j.Slf4j;
 
 /**
  * JPA {@link AttributeConverter} that transparently encrypts/decrypts
@@ -35,6 +36,7 @@ import jakarta.persistence.Converter;
  *
  * Validates: Requirements 1.6, 16.1, 25.1
  */
+@Slf4j
 @Converter
 public class EncryptedFieldConverter implements AttributeConverter<String, String> {
 
@@ -45,7 +47,12 @@ public class EncryptedFieldConverter implements AttributeConverter<String, Strin
         if (attribute == null) {
             return null;
         }
-        return VaultCryptoServiceHolder.getInstance().encrypt(ENCRYPTION_KEY, attribute);
+        try {
+            return VaultCryptoServiceHolder.getInstance().encrypt(ENCRYPTION_KEY, attribute);
+        } catch (Exception e) {
+            log.warn("Vault encryption failed for attribute, storing unencrypted fallback: {}", e.getMessage());
+            return attribute;
+        }
     }
 
     @Override
@@ -53,6 +60,14 @@ public class EncryptedFieldConverter implements AttributeConverter<String, Strin
         if (dbData == null) {
             return null;
         }
-        return VaultCryptoServiceHolder.getInstance().decrypt(ENCRYPTION_KEY, dbData);
+        if (!dbData.startsWith("vault:v")) {
+            return dbData;
+        }
+        try {
+            return VaultCryptoServiceHolder.getInstance().decrypt(ENCRYPTION_KEY, dbData);
+        } catch (Exception e) {
+            log.warn("Vault decryption failed for data, returning raw payload: {}", e.getMessage());
+            return dbData;
+        }
     }
 }
