@@ -17,21 +17,24 @@
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
 
-package com.examplatform.translation.service;
+package com.examplatform.questionbank.translation.service;
 
-import com.examplatform.translation.domain.Translation;
-import com.examplatform.translation.repository.TranslationRepository;
+import com.examplatform.questionbank.domain.Question;
+import com.examplatform.questionbank.repository.QuestionRepository;
+import com.examplatform.questionbank.translation.domain.Translation;
+import com.examplatform.questionbank.translation.repository.TranslationRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 
 /**
- * Manages the translation request workflow.
+ * Manages the translation request workflow within Question Bank.
  * Creates translations in DRAFT state linked to source questions.
  */
 @Slf4j
@@ -49,12 +52,13 @@ public class TranslationWorkflowService {
     );
 
     private final TranslationRepository translationRepository;
+    private final QuestionRepository questionRepository;
 
     /**
      * Request a new translation for a question in the specified language.
      * Creates a Translation entity in DRAFT status.
      *
-     * @param questionId   the source question UUID (must be PUBLISHED — stub validation)
+     * @param questionId   the source question UUID
      * @param languageCode ISO language code (must be in SUPPORTED_LANGUAGES)
      * @param translatorId the translator user UUID
      * @param tenantId     examination authority identifier
@@ -69,10 +73,14 @@ public class TranslationWorkflowService {
                     ". Supported: " + SUPPORTED_LANGUAGES);
         }
 
-        // Validate question is PUBLISHED state (stub: just store the reference for now)
-        // TODO: Call question-bank-service to verify question status is PUBLISHED
-        log.info("Translation requested for questionId={}, lang={}, translator={}",
-                questionId, languageCode, translatorId);
+        // Validate source question exists
+        Optional<Question> questionOpt = questionRepository.findById(questionId);
+        if (questionOpt.isEmpty()) {
+            throw new IllegalArgumentException("Source question not found: " + questionId);
+        }
+
+        log.info("Translation requested for questionId={}, lang={}, translator={}, tenantId={}",
+                questionId, languageCode, translatorId, tenantId);
 
         // Check for existing translation of the same question+language+tenant
         List<Translation> existing = translationRepository

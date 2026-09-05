@@ -17,10 +17,10 @@
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
 
-package com.examplatform.translation.service;
+package com.examplatform.questionbank.translation.service;
 
-import com.examplatform.translation.domain.Translation;
-import com.examplatform.translation.repository.TranslationRepository;
+import com.examplatform.questionbank.translation.domain.Translation;
+import com.examplatform.questionbank.translation.repository.TranslationRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.kafka.core.KafkaTemplate;
@@ -47,7 +47,7 @@ public class TranslationReviewService {
     private final KafkaTemplate<String, Object> kafkaTemplate;
 
     /**
-     * Approve a translation, transitioning it from DRAFT → APPROVED.
+     * Approve a translation, transitioning it from DRAFT -> APPROVED.
      *
      * @param translationId the translation to approve
      * @param reviewerId    the reviewer performing approval
@@ -104,10 +104,11 @@ public class TranslationReviewService {
      * Publishes a Kafka event for downstream consumers.
      *
      * @param questionId the source question that was modified
+     * @param tenantId   the tenant identifier
      */
-    public void markStale(UUID questionId) {
+    public void markStale(UUID questionId, String tenantId) {
         List<Translation> approvedTranslations = translationRepository
-                .findByQuestionIdAndStatusAndTenantId(questionId, Translation.TranslationStatus.APPROVED, "default");
+                .findByQuestionIdAndStatusAndTenantId(questionId, Translation.TranslationStatus.APPROVED, tenantId);
 
         if (approvedTranslations.isEmpty()) {
             log.debug("No approved translations to mark stale for question {}", questionId);

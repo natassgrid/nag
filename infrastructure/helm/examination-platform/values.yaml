@@ -110,18 +110,6 @@ questionBankService:
     SPRING_PROFILES_ACTIVE: kubernetes
     OTEL_SERVICE_NAME: question-bank-service
 
-# --- Translation Service ---
-translationService:
-  enabled: true
-  replicas: 2
-  image:
-    name: translation-service
-  port: 8084
-  managementPort: 8084
-  env:
-    SPRING_PROFILES_ACTIVE: kubernetes
-    OTEL_SERVICE_NAME: translation-service
-
 # --- Examination Service ---
 examinationService:
   enabled: true

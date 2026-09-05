@@ -9,7 +9,7 @@
 
 # =============================================================================
 # Docker Compose — Backend Microservices
-# Builds and runs all 15 services alongside infrastructure (docker-compose.yml)
+# Builds and runs all services alongside infrastructure (docker-compose.yml)
 # Usage: docker compose -f docker-compose.yml -f docker-compose.services.yml up --build
 # =============================================================================
 
@@ -130,7 +130,7 @@ services:
       <<: *healthcheck-spring
 
   # ===========================================================================
-  # Question Bank Service — CRUD, versioning, similarity, search
+  # Question Bank Service — CRUD, versioning, similarity, search, translation
   # ===========================================================================
   question-bank-service:
     <<: *service-common
@@ -162,31 +162,6 @@ services:
       <<: *depends-base
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://localhost:${QUESTION_BANK_SERVICE_PORT:-8083}/actuator/health/readiness || wget -qO- http://localhost:${QUESTION_BANK_SERVICE_PORT:-8083}/actuator/health || exit 1"]
-      <<: *healthcheck-spring
-
-  # ===========================================================================
-  # Translation Service — 22 languages, review workflow
-  # ===========================================================================
-  translation-service:
-    <<: *service-common
-    build:
-      context: ../../
-      dockerfile: backend/Dockerfile
-      args:
-        SERVICE_NAME: translation-service
-    image: localhost:5000/exam/translation-service:latest
-    container_name: exam-translation-service
-    ports:
-      - "${TRANSLATION_SERVICE_PORT:-8084}:${TRANSLATION_SERVICE_PORT:-8084}"
-    environment:
-      <<: *spring-env
-      SERVER_PORT: ${TRANSLATION_SERVICE_PORT:-8084}
-      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-exam_platform}?currentSchema=translation_service
-      OTEL_SERVICE_NAME: translation-service
-    depends_on:
-      <<: *depends-base
-    healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://localhost:${TRANSLATION_SERVICE_PORT:-8084}/actuator/health/readiness || wget -qO- http://localhost:${TRANSLATION_SERVICE_PORT:-8084}/actuator/health || exit 1"]
       <<: *healthcheck-spring
 
   # ===========================================================================
@@ -498,7 +473,6 @@ services:
       IDENTITY_SERVICE_URI: http://identity-service:${IDENTITY_SERVICE_PORT:-8081}
       CANDIDATE_SERVICE_URI: http://candidate-service:${CANDIDATE_SERVICE_PORT:-8082}
       QUESTION_BANK_SERVICE_URI: http://question-bank-service:${QUESTION_BANK_SERVICE_PORT:-8083}
-      TRANSLATION_SERVICE_URI: http://translation-service:${TRANSLATION_SERVICE_PORT:-8084}
       EXAMINATION_SERVICE_URI: http://examination-service:${EXAMINATION_SERVICE_PORT:-8085}
       PAPER_GENERATOR_URI: http://paper-generator:${PAPER_GENERATOR_PORT:-8086}
       DELIVERY_SERVICE_URI: http://delivery-service:${DELIVERY_SERVICE_PORT:-8087}

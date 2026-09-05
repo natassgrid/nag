@@ -17,13 +17,13 @@
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
 
-package com.examplatform.translation.controller;
+package com.examplatform.questionbank.translation.controller;
 
-import com.examplatform.translation.domain.Translation;
-import com.examplatform.translation.dto.TranslationRequest;
-import com.examplatform.translation.dto.TranslationReviewRequest;
-import com.examplatform.translation.service.TranslationReviewService;
-import com.examplatform.translation.service.TranslationWorkflowService;
+import com.examplatform.questionbank.translation.domain.Translation;
+import com.examplatform.questionbank.translation.dto.TranslationRequest;
+import com.examplatform.questionbank.translation.dto.TranslationReviewRequest;
+import com.examplatform.questionbank.translation.service.TranslationReviewService;
+import com.examplatform.questionbank.translation.service.TranslationWorkflowService;
 import com.examplatform.shared.tenant.TenantContext;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -41,7 +41,7 @@ import java.util.Map;
 import java.util.UUID;
 
 /**
- * REST controller for translation workflow endpoints.
+ * REST controller for question translation workflow endpoints.
  */
 @Slf4j
 @RestController

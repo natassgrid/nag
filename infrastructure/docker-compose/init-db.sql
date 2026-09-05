@@ -13,7 +13,6 @@
 CREATE SCHEMA IF NOT EXISTS identity_service;
 CREATE SCHEMA IF NOT EXISTS candidate_service;
 CREATE SCHEMA IF NOT EXISTS question_service;
-CREATE SCHEMA IF NOT EXISTS translation_service;
 CREATE SCHEMA IF NOT EXISTS examination_service;
 CREATE SCHEMA IF NOT EXISTS paper_generator;
 CREATE SCHEMA IF NOT EXISTS delivery_service;
