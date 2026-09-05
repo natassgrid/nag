@@ -19,15 +19,14 @@ x-service-common: &service-common
     - exam-network
 
 # Spring Boot services on this stack (with Vault bootstrap + Hibernate init)
-# take 2–3 minutes to reach /actuator/health UP on a cold start.
-# start_period: 180s means the healthcheck doesn't count failures during that
-# window, so a slow-starting service won't be killed before it's ready.
-# retries: 8 × interval: 30s gives an additional 240s after start_period ends.
+# start_period: 30s means health check ignores early boot phase.
+# interval: 10s checks frequently so healthy state is recognized quickly.
+# retries: 15 gives plenty of headroom for heavy initialization.
 x-healthcheck-spring: &healthcheck-spring
-  interval: 30s
-  timeout: 10s
-  retries: 8
-  start_period: 180s
+  interval: 10s
+  timeout: 5s
+  retries: 15
+  start_period: 30s
 
 x-spring-env: &spring-env
   SPRING_PROFILES_ACTIVE: docker
