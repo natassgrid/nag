@@ -41,6 +41,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -69,6 +70,15 @@ public class PaperAssemblyService {
     private final PaperRepository paperRepository;
     private final KafkaTemplate<String, Object> kafkaTemplate;
     private final ObjectMapper objectMapper;
+    private final ExaminationLookupService examinationLookupService;
+
+    public PaperAssemblyService(
+            QuestionBankClient questionBankClient,
+            PaperRepository paperRepository,
+            KafkaTemplate<String, Object> kafkaTemplate,
+            ObjectMapper objectMapper) {
+        this(questionBankClient, paperRepository, kafkaTemplate, objectMapper, null);
+    }
 
     /**
      * Generates a paper from the given blueprint request.
@@ -79,7 +89,7 @@ public class PaperAssemblyService {
      *   <li>Computes difficulty score as average of selected questions' difficulty weights</li>
      *   <li>Builds topic distribution JSON</li>
      *   <li>Builds paper definition JSON (ordered list of question IDs)</li>
-     *   <li>Creates Paper entity in DRAFT status</li>
+     *   <li>Creates Paper entity in DRAFT status with meaningful name</li>
      *   <li>Publishes async job result to Kafka</li>
      * </ol>
      *
@@ -89,8 +99,8 @@ public class PaperAssemblyService {
      * @return the saved Paper entity
      */
     public Paper generatePaper(PaperGenerationRequest request, UUID generatedBy, String tenantId) {
-        log.info("Starting paper generation for examId={}, shiftId={}, tenantId={}",
-                request.getExamId(), request.getShiftId(), tenantId);
+        log.info("Starting paper generation for examId={}, shiftId={}, isPractice={}, tenantId={}",
+                request.getExamId(), request.getShiftId(), request.getIsPractice(), tenantId);
 
         List<UUID> selectedQuestionIds = new ArrayList<>();
         List<QuestionSummary> allSelectedQuestions = new ArrayList<>();
@@ -150,11 +160,16 @@ public class PaperAssemblyService {
         String paperDefinitionJson = toJson(Map.of("questionIds", selectedQuestionIds));
         String topicDistributionJson = toJson(topicDistribution);
 
+        // Resolve meaningful paper name
+        String paperName = resolvePaperName(request);
+
         // Create Paper entity in DRAFT status
         Paper paper = Paper.builder()
+                .name(paperName)
                 .examId(request.getExamId())
                 .shiftId(request.getShiftId())
                 .status(STATUS_DRAFT)
+                .isPractice(Boolean.TRUE.equals(request.getIsPractice()))
                 .paperDefinitionJson(paperDefinitionJson)
                 .difficultyScore(difficultyScore)
                 .topicDistributionJson(topicDistributionJson)
@@ -170,10 +185,44 @@ public class PaperAssemblyService {
         // Publish PAPER_GENERATED audit event (fire-and-forget)
         publishAuditEvent("PAPER_GENERATED", savedPaper, tenantId);
 
-        log.info("Paper generated successfully: paperId={}, questionCount={}, difficultyScore={}",
-                savedPaper.getId(), selectedQuestionIds.size(), difficultyScore);
+        log.info("Paper generated successfully: paperId={}, name='{}', isPractice={}, questionCount={}, difficultyScore={}",
+                savedPaper.getId(), savedPaper.getName(), savedPaper.isPractice(), selectedQuestionIds.size(), difficultyScore);
 
         return savedPaper;
+    }
+
+    private String resolvePaperName(PaperGenerationRequest request) {
+        if (request.getName() != null && !request.getName().isBlank()) {
+            return request.getName().trim();
+        }
+
+        String examName = null;
+        if (request.getExamId() != null && examinationLookupService != null) {
+            Map<UUID, String> examNames = examinationLookupService.findExamNames(Set.of(request.getExamId()));
+            examName = examNames.get(request.getExamId());
+        }
+        String shiftName = null;
+        if (request.getShiftId() != null && examinationLookupService != null) {
+            Map<String, String> shiftNames = examinationLookupService.findShiftNames(Set.of(request.getShiftId()));
+            shiftName = shiftNames.get(request.getShiftId());
+        }
+
+        StringBuilder sb = new StringBuilder();
+        if (Boolean.TRUE.equals(request.getIsPractice())) {
+            sb.append("Practice - ");
+        }
+        if (examName != null && !examName.isBlank()) {
+            sb.append(examName);
+        } else {
+            sb.append("Exam Paper");
+        }
+        if (shiftName != null && !shiftName.isBlank()) {
+            sb.append(" (").append(shiftName).append(")");
+        } else if (request.getShiftId() != null && !request.getShiftId().isBlank()) {
+            sb.append(" [Shift: ").append(request.getShiftId()).append("]");
+        }
+
+        return sb.toString();
     }
 
     /**
@@ -201,16 +250,18 @@ public class PaperAssemblyService {
     }
 
     /**
-     * Computes difficulty score as the average of selected questions' difficulty weights.
-     * EASY=1, MEDIUM=2, HARD=3.
+     * Computes the average difficulty score of the selected questions.
+     * Weights: EASY = 1.0, MEDIUM = 2.0, HARD = 3.0.
      */
     double computeDifficultyScore(List<QuestionSummary> questions) {
-        if (questions.isEmpty()) {
+        if (questions == null || questions.isEmpty()) {
             return 0.0;
         }
+
         double totalWeight = questions.stream()
                 .mapToDouble(q -> difficultyWeight(q.getDifficulty()))
                 .sum();
+
         return totalWeight / questions.size();
     }
 
@@ -229,14 +280,16 @@ public class PaperAssemblyService {
     private void publishPaperEvent(Paper paper) {
         Map<String, Object> event = new LinkedHashMap<>();
         event.put("eventType", "PAPER_GENERATED");
-        event.put("paperId", paper.getId().toString());
+        event.put("paperId", paper.getId() != null ? paper.getId().toString() : "");
+        event.put("name", paper.getName() != null ? paper.getName() : "");
         event.put("examId", paper.getExamId().toString());
         event.put("shiftId", paper.getShiftId());
         event.put("status", paper.getStatus());
+        event.put("isPractice", paper.isPractice());
         event.put("difficultyScore", paper.getDifficultyScore());
         event.put("timestamp", Instant.now().toString());
 
-        kafkaTemplate.send(PAPER_EVENTS_TOPIC, paper.getId().toString(), event);
+        kafkaTemplate.send(PAPER_EVENTS_TOPIC, paper.getId() != null ? paper.getId().toString() : "", event);
         log.debug("Published paper generation event to topic={}, paperId={}",
                 PAPER_EVENTS_TOPIC, paper.getId());
     }
@@ -248,30 +301,32 @@ public class PaperAssemblyService {
         try {
             Map<String, Object> event = new LinkedHashMap<>();
             event.put("eventType", eventType);
-            event.put("paperId", paper.getId().toString());
+            event.put("paperId", paper.getId() != null ? paper.getId().toString() : "");
+            event.put("name", paper.getName() != null ? paper.getName() : "");
             event.put("examId", paper.getExamId().toString());
             event.put("shiftId", paper.getShiftId());
+            event.put("isPractice", paper.isPractice());
             event.put("tenantId", tenantId);
             event.put("occurredAt", Instant.now().toString());
 
-            kafkaTemplate.send(AUDIT_TOPIC, paper.getId().toString(), event)
+            kafkaTemplate.send(AUDIT_TOPIC, paper.getId() != null ? paper.getId().toString() : "", event)
                     .whenComplete((result, ex) -> {
                         if (ex != null) {
                             log.error("Failed to publish audit event [{}] for paper [{}]: {}",
                                     eventType, paper.getId(), ex.getMessage());
                         }
                     });
-        } catch (Exception e) {
-            log.error("Unexpected error publishing paper audit event [{}]: {}", eventType, e.getMessage());
+        } catch (Exception ex) {
+            log.error("Error creating audit event [{}] for paper [{}]: {}",
+                    eventType, paper.getId(), ex.getMessage());
         }
     }
 
-    private String toJson(Object value) {
+    private String toJson(Object obj) {
         try {
-            return objectMapper.writeValueAsString(value);
+            return objectMapper.writeValueAsString(obj);
         } catch (JsonProcessingException e) {
-            log.error("Failed to serialize to JSON", e);
-            throw new RuntimeException("JSON serialization failed", e);
+            throw new RuntimeException("Failed to serialize to JSON", e);
         }
     }
 }

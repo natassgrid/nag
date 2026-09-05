@@ -43,11 +43,16 @@ import java.util.UUID;
 @AllArgsConstructor
 public class PaperGenerationRequest {
 
+    /** Optional custom paper name/title. Auto-generated if omitted. */
+    private String name;
+
     @NotNull
     private UUID examId;
 
     @NotBlank
     private String shiftId;
+
+    private Boolean isPractice;
 
     @NotEmpty
     private List<BlueprintRule> blueprintRules;

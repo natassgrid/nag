@@ -31,7 +31,6 @@ import com.examplatform.papergenerator.service.PaperApprovalService;
 import com.examplatform.papergenerator.service.PaperAssemblyService;
 import com.examplatform.papergenerator.service.PaperSerializer;
 import com.examplatform.shared.tenant.TenantContext;
-import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.persistence.EntityNotFoundException;
@@ -55,7 +54,8 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.LinkedHashMap;
+import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -118,17 +118,42 @@ public class PaperController {
         Map<UUID, String> examNames = examinationLookupService.findExamNames(examIds);
         Map<String, String> shiftNames = examinationLookupService.findShiftNames(shiftIds);
 
-        Page<PaperSummaryResponse> response = papers.map(p -> PaperSummaryResponse.builder()
-                .paperId(p.getId())
-                .examId(p.getExamId())
-                .examName(examNames.get(p.getExamId()))
-                .shiftId(p.getShiftId())
-                .shiftName(shiftNames.get(p.getShiftId()))
-                .status(p.getStatus())
-                .difficultyScore(p.getDifficultyScore())
-                .encryptionKeyId(p.getEncryptionKeyId())
-                .createdAt(p.getCreatedAt())
-                .build());
+        Page<PaperSummaryResponse> response = papers.map(p -> {
+            String examName = examNames.get(p.getExamId());
+            String shiftName = shiftNames.get(p.getShiftId());
+            String resolvedName = p.getName();
+            if (resolvedName == null || resolvedName.isBlank()) {
+                StringBuilder sb = new StringBuilder();
+                if (p.isPractice()) {
+                    sb.append("Practice - ");
+                }
+                if (examName != null && !examName.isBlank()) {
+                    sb.append(examName);
+                } else {
+                    sb.append("Exam Paper");
+                }
+                if (shiftName != null && !shiftName.isBlank()) {
+                    sb.append(" (").append(shiftName).append(")");
+                } else if (p.getShiftId() != null && !p.getShiftId().isBlank()) {
+                    sb.append(" [Shift: ").append(p.getShiftId()).append("]");
+                }
+                resolvedName = sb.toString();
+            }
+
+            return PaperSummaryResponse.builder()
+                    .paperId(p.getId())
+                    .name(resolvedName)
+                    .examId(p.getExamId())
+                    .examName(examName)
+                    .shiftId(p.getShiftId())
+                    .shiftName(shiftName)
+                    .status(p.getStatus())
+                    .isPractice(p.isPractice())
+                    .difficultyScore(p.getDifficultyScore())
+                    .encryptionKeyId(p.getEncryptionKeyId())
+                    .createdAt(p.getCreatedAt())
+                    .build();
+        });
 
         return ResponseEntity.ok(response);
     }
@@ -159,23 +184,24 @@ public class PaperController {
                     for (JsonNode qNode : qIdsNode) {
                         try {
                             questionIds.add(UUID.fromString(qNode.asText()));
-                        } catch (Exception ignored) {
-                        }
+                        } catch (IllegalArgumentException ignored) {}
                     }
+                    totalQuestions = questionIds.size();
                 }
-                totalQuestions = questionIds.size();
             } catch (Exception e) {
                 log.warn("Failed to parse paperDefinitionJson for paper {}: {}", paperId, e.getMessage());
             }
         }
 
-        Map<String, Integer> topicDistribution = new LinkedHashMap<>();
+        Map<String, Integer> topicDistribution = new HashMap<>();
         if (paper.getTopicDistributionJson() != null && !paper.getTopicDistributionJson().isBlank()) {
             try {
-                topicDistribution = objectMapper.readValue(
-                        paper.getTopicDistributionJson(),
-                        new TypeReference<LinkedHashMap<String, Integer>>() {}
-                );
+                JsonNode root = objectMapper.readTree(paper.getTopicDistributionJson());
+                Iterator<Map.Entry<String, JsonNode>> fields = root.fields();
+                while (fields.hasNext()) {
+                    Map.Entry<String, JsonNode> field = fields.next();
+                    topicDistribution.put(field.getKey(), field.getValue().asInt());
+                }
             } catch (Exception e) {
                 log.warn("Failed to parse topicDistributionJson for paper {}: {}", paperId, e.getMessage());
             }
@@ -197,13 +223,36 @@ public class PaperController {
                 ? examinationLookupService.findShiftNames(Set.of(paper.getShiftId()))
                 : Collections.emptyMap();
 
+        String examName = examNames.get(paper.getExamId());
+        String shiftName = shiftNames.get(paper.getShiftId());
+        String resolvedName = paper.getName();
+        if (resolvedName == null || resolvedName.isBlank()) {
+            StringBuilder sb = new StringBuilder();
+            if (paper.isPractice()) {
+                sb.append("Practice - ");
+            }
+            if (examName != null && !examName.isBlank()) {
+                sb.append(examName);
+            } else {
+                sb.append("Exam Paper");
+            }
+            if (shiftName != null && !shiftName.isBlank()) {
+                sb.append(" (").append(shiftName).append(")");
+            } else if (paper.getShiftId() != null && !paper.getShiftId().isBlank()) {
+                sb.append(" [Shift: ").append(paper.getShiftId()).append("]");
+            }
+            resolvedName = sb.toString();
+        }
+
         PaperResponse response = PaperResponse.builder()
                 .id(paper.getId())
+                .name(resolvedName)
                 .examId(paper.getExamId())
-                .examName(examNames.get(paper.getExamId()))
+                .examName(examName)
                 .shiftId(paper.getShiftId())
-                .shiftName(shiftNames.get(paper.getShiftId()))
+                .shiftName(shiftName)
                 .status(paper.getStatus())
+                .isPractice(paper.isPractice())
                 .paperDefinitionJson(paper.getPaperDefinitionJson())
                 .difficultyScore(paper.getDifficultyScore())
                 .topicDistributionJson(paper.getTopicDistributionJson())
@@ -226,7 +275,7 @@ public class PaperController {
      *
      * @param request the paper generation request with blueprint rules
      * @param jwt     the authenticated user's JWT
-     * @return 202 Accepted with the paper ID
+     * @return 202 Accepted with the paper ID and name
      */
     @PostMapping("/generate")
     @PreAuthorize("hasAnyRole('EXAM_CONTROLLER','SUPER_ADMIN')")
@@ -237,14 +286,16 @@ public class PaperController {
         UUID generatedBy = UUID.fromString(jwt.getSubject());
         String tenantId = getEffectiveTenantId();
 
-        log.info("Paper generation requested by user={}, examId={}, shiftId={}",
-                generatedBy, request.getExamId(), request.getShiftId());
+        log.info("Paper generation requested by user={}, examId={}, shiftId={}, isPractice={}",
+                generatedBy, request.getExamId(), request.getShiftId(), request.getIsPractice());
 
         Paper paper = paperAssemblyService.generatePaper(request, generatedBy, tenantId);
 
         Map<String, Object> response = Map.of(
                 "paperId", paper.getId(),
+                "name", paper.getName() != null ? paper.getName() : "",
                 "status", paper.getStatus(),
+                "isPractice", paper.isPractice(),
                 "message", "Paper generation submitted successfully"
         );
 
@@ -295,7 +346,9 @@ public class PaperController {
 
         return ResponseEntity.ok(Map.of(
                 "paperId", paper.getId(),
+                "name", paper.getName() != null ? paper.getName() : "",
                 "status", paper.getStatus(),
+                "isPractice", paper.isPractice(),
                 "encryptionKeyId", paper.getEncryptionKeyId() != null ? paper.getEncryptionKeyId() : "",
                 "message", "Paper approved and encrypted successfully"
         ));

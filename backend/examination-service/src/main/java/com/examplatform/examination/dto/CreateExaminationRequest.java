@@ -79,6 +79,8 @@ public class CreateExaminationRequest {
 
     private Boolean reviewFlagEnabled;
 
+    private Boolean isPractice;
+
     @NotEmpty
     private List<Section> sections;
 }

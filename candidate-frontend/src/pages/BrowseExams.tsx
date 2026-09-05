@@ -2,6 +2,7 @@
 // Connected exam listing with multi-step application modal and instant Admit Card download.
 
 import React, { useEffect, useState, useCallback } from 'react';
+import { Link } from 'react-router-dom';
 import {
   Search,
   BookOpen,
@@ -198,13 +199,13 @@ const BrowseExams: React.FC = () => {
                         <FileCheck2 className="h-4 w-4" />
                         <span>Admit Card</span>
                       </button>
-                      <a
-                        href={`/take-exam/${exam.id}`}
+                      <Link
+                        to={`/take-exam/${exam.id}`}
                         className="inline-flex items-center justify-center gap-1 rounded-xl bg-teal-700 px-3 py-2 text-xs font-bold text-white hover:bg-teal-800 transition"
                       >
                         <span>Start</span>
                         <ExternalLink className="h-3.5 w-3.5" />
-                      </a>
+                      </Link>
                     </div>
                   ) : (
                     <button

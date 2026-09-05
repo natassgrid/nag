@@ -12,7 +12,7 @@
 # =============================================================================
 # Smart redeploy — only rebuilds services whose code has changed
 # Usage:
-#   ./redeploy-clean.sh                  # Full clean: tear down ALL, rebuild ALL, start ALL
+#   ./redeploy-clean.sh                  # Full clean: tear down ALL, rebuild ALL, start ALL (preserves vault_data)
 #   ./redeploy-clean.sh --service <name> # Rebuild and restart ONE service (keeps others running)
 #   ./redeploy-clean.sh --smart          # Only rebuild services with code changes (uses git diff)
 #   ./redeploy-clean.sh --no-cache       # Force rebuild without Docker cache
@@ -276,8 +276,11 @@ fi
 
 # --- Full clean mode ---
 echo ""
-echo "▶ Stopping all containers and removing volumes..."
-$COMPOSE down -v --remove-orphans 2>/dev/null || true
+echo "▶ Stopping all containers..."
+$COMPOSE down --remove-orphans 2>/dev/null || true
+
+echo "▶ Removing ephemeral volumes (preserving vault_data and AI model caches)..."
+docker volume ls --format '{{.Name}}' | grep -E 'postgres_data|kafka_data|redis_data|keycloak_data|prometheus_data|grafana_data' | grep -v -E 'vault_data|ollama_data|indictrans2_cache' | xargs -r docker volume rm 2>/dev/null || true
 
 echo ""
 echo "▶ Pruning old images..."

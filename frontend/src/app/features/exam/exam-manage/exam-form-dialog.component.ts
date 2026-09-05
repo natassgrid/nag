@@ -82,7 +82,8 @@ export class ExamFormDialogComponent implements OnInit, OnChanges {
       negativeMarkingValue: [exam?.negativeMarkingValue || 0],
       navigationPolicy: [exam?.navigationPolicy || 'FLEXIBLE', Validators.required],
       calculatorPolicy: [exam?.calculatorPolicy || 'NONE', Validators.required],
-      reviewFlagEnabled: [exam?.reviewFlagEnabled || false]
+      reviewFlagEnabled: [exam?.reviewFlagEnabled || false],
+      isPractice: [exam?.isPractice || false]
     });
   }
 

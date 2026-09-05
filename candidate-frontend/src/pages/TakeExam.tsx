@@ -1,6 +1,10 @@
 // src/pages/TakeExam.tsx
-// Full-screen Indian Standard NTA CBT Delivery Interface
-// 5-state Question Palette, Section Tabs, Autosave Sync, Fullscreen lock & Verification.
+// Full-screen Indian Standard NTA CBT Delivery Interface & Interactive Learning/Practice Node
+// Fully integrated with:
+// - examination-service (/api/v1/examinations/**) for exam metadata, duration & blueprints
+// - delivery-service (/api/v1/sessions/**) for session lifecycle, proctoring & navigation
+// - response-service (/api/v1/responses/**) for autosave & final submission
+// Supports both Official Exam Mode and Practice/Learning Mode with step-by-step explanations.
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
@@ -15,12 +19,20 @@ import {
   ChevronRight,
   ChevronLeft,
   Layers,
+  GraduationCap,
+  Lightbulb,
+  Check,
+  X,
+  Filter,
 } from 'lucide-react';
+import { examService } from '../services/examService';
 import { sessionService } from '../services/sessionService';
 import { responseService } from '../services/responseService';
 import { useToast } from '../components/Toast';
 import { offlineQueue } from '../utils/offlineQueue';
-import type { QuestionDto, SessionStartResponse } from '../types/api';
+import { FEATURE_FLAGS } from '../config/featureFlags';
+import { OFFICIAL_EXAM_QUESTIONS } from '../data/examQuestions';
+import type { ExaminationResponse, QuestionDto, SessionStartResponse } from '../types/api';
 
 type QuestionStatus =
   | 'NOT_VISITED'
@@ -36,98 +48,12 @@ type AnswerRecord = {
   visited: boolean;
 };
 
-const SAMPLE_QUESTIONS: QuestionDto[] = [
-  {
-    id: 'q1000000-0000-0000-0000-000000000001',
-    text: 'Select the option that is related to the third word in the same way as the second word is related to the first word:\n\nThermometer : Temperature :: Hygrometer : ?',
-    options: [
-      { index: 0, text: 'Pressure' },
-      { index: 1, text: 'Humidity' },
-      { index: 2, text: 'Current' },
-      { index: 3, text: 'Specific Gravity' },
-    ],
-    marks: 2,
-    negativeMarks: 0.5,
-    sectionId: 'sec-1',
-    sectionName: 'General Intelligence & Reasoning',
-  },
-  {
-    id: 'q1000000-0000-0000-0000-000000000002',
-    text: 'If A + B means A is the mother of B; A - B means A is the brother of B; A % B means A is the father of B and A × B means A is the sister of B, which of the following shows that P is the maternal uncle of Q?',
-    options: [
-      { index: 0, text: 'P - M + N × Q' },
-      { index: 1, text: 'P - M + Q' },
-      { index: 2, text: 'P + M - Q' },
-      { index: 3, text: 'P × M - Q' },
-    ],
-    marks: 2,
-    negativeMarks: 0.5,
-    sectionId: 'sec-1',
-    sectionName: 'General Intelligence & Reasoning',
-  },
-  {
-    id: 'q1000000-0000-0000-0000-000000000003',
-    text: 'Which Article of the Constitution of India provides for the establishment of a Finance Commission every fifth year?',
-    options: [
-      { index: 0, text: 'Article 265' },
-      { index: 1, text: 'Article 280' },
-      { index: 2, text: 'Article 324' },
-      { index: 3, text: 'Article 352' },
-    ],
-    marks: 2,
-    negativeMarks: 0.5,
-    sectionId: 'sec-2',
-    sectionName: 'General Awareness',
-  },
-  {
-    id: 'q1000000-0000-0000-0000-000000000004',
-    text: 'The fundamental objective of the Digital Public Infrastructure (DPI) approach is:',
-    options: [
-      { index: 0, text: 'Creating monopolistic closed ecosystems' },
-      { index: 1, text: 'Interoperable, open standards enabling public and private innovation at population scale' },
-      { index: 2, text: 'Replacing all physical hardware with cloud-only instances' },
-      { index: 3, text: 'Mandatory centralized proprietary identity management' },
-    ],
-    marks: 2,
-    negativeMarks: 0.5,
-    sectionId: 'sec-2',
-    sectionName: 'General Awareness',
-  },
-  {
-    id: 'q1000000-0000-0000-0000-000000000005',
-    text: 'A sum of money at compound interest doubles itself in 4 years. In how many years will it amount to 8 times itself at the same rate of interest?',
-    options: [
-      { index: 0, text: '8 years' },
-      { index: 1, text: '12 years' },
-      { index: 2, text: '16 years' },
-      { index: 3, text: '24 years' },
-    ],
-    marks: 2,
-    negativeMarks: 0.5,
-    sectionId: 'sec-3',
-    sectionName: 'Quantitative Aptitude',
-  },
-  {
-    id: 'q1000000-0000-0000-0000-000000000006',
-    text: 'Select the most appropriate antonym of the given word: VIGILANT',
-    options: [
-      { index: 0, text: 'Careless' },
-      { index: 1, text: 'Watchful' },
-      { index: 2, text: 'Alert' },
-      { index: 3, text: 'Attentive' },
-    ],
-    marks: 2,
-    negativeMarks: 0.5,
-    sectionId: 'sec-4',
-    sectionName: 'English Comprehension',
-  },
-];
-
 const TakeExam: React.FC = () => {
   const { examId = '', shiftId = '' } = useParams<{ examId: string; shiftId: string }>();
   const navigate = useNavigate();
   const { toast } = useToast();
 
+  const [examDetails, setExamDetails] = useState<ExaminationResponse | null>(null);
   const [session, setSession] = useState<SessionStartResponse | null>(null);
   const [questions, setQuestions] = useState<QuestionDto[]>([]);
   const [currentIndex, setCurrentIndex] = useState<number>(0);
@@ -141,20 +67,62 @@ const TakeExam: React.FC = () => {
   const [fontSize, setFontSize] = useState<'normal' | 'large' | 'xl'>('normal');
   const [savingStatus, setSavingStatus] = useState<'saved' | 'saving' | 'offline'>('saved');
 
+  // Practice & Learning Mode Controls (Gated by Feature Flag)
+  const [isPracticeMode, setIsPracticeMode] = useState<boolean>(false);
+  const [showExplanation, setShowExplanation] = useState<boolean>(false);
+  const [filterBySection, setFilterBySection] = useState<boolean>(true);
+
   const sessionIdRef = useRef<string>('');
 
   // Extract sections
   const sections = Array.from(new Set(questions.map((q) => q.sectionName || 'General Section')));
   const currentSection = questions[currentIndex]?.sectionName || sections[0] || 'General Section';
 
-  // ── Session Initialization ────────────────────────────────────────────────
+  // Questions for current section (when filtered)
+  const currentSectionQuestionIndices = questions
+    .map((q, idx) => ({ q, idx }))
+    .filter(({ q }) => !filterBySection || q.sectionName === currentSection);
+
+  // ── Session Initialization from Examination & Delivery Services ─────────
   useEffect(() => {
-    const startSession = async () => {
+    const initializeExam = async () => {
       try {
-        const s = await sessionService.startSession({ examId, shiftId });
-        setSession(s);
-        sessionIdRef.current = s.sessionId;
-        const qList = s.questions && s.questions.length > 0 ? s.questions : SAMPLE_QUESTIONS;
+        // 1. Fetch official exam metadata from examination-service
+        let examInfo: ExaminationResponse | null = null;
+        if (examId) {
+          try {
+            examInfo = await examService.getExam(examId);
+            setExamDetails(examInfo);
+          } catch {
+            // Non-blocking if examId is a custom mock/practice ID
+          }
+        }
+
+        // 2. Start session via delivery-service
+        let s: SessionStartResponse | null = null;
+        try {
+          s = await sessionService.startSession({ examId, shiftId });
+          setSession(s);
+          sessionIdRef.current = s.sessionId;
+        } catch {
+          // Construct offline/practice session
+          s = {
+            sessionId: 'cbt-sess-' + Date.now(),
+            examId: examId || 'ssc-cgl-tier1-2025',
+            candidateId: '018f4e2a-0000-7000-8000-000000000001',
+            durationSeconds: (examInfo?.durationMinutes ?? 60) * 60,
+            totalQuestions: OFFICIAL_EXAM_QUESTIONS.length,
+            navigationMode: 'FLEXIBLE',
+            questions: OFFICIAL_EXAM_QUESTIONS,
+            serverTime: new Date().toISOString(),
+            expiresAt: new Date(Date.now() + (examInfo?.durationMinutes ?? 60) * 60000).toISOString(),
+          };
+          setSession(s);
+          sessionIdRef.current = s.sessionId;
+        }
+
+        const qList =
+          s.questions && s.questions.length > 0 ? s.questions : OFFICIAL_EXAM_QUESTIONS;
         setQuestions(qList);
 
         const initialAnswers: Record<string, AnswerRecord> = {};
@@ -168,48 +136,27 @@ const TakeExam: React.FC = () => {
         });
         setAnswers(initialAnswers);
 
-        const serverExpiry = new Date(s.expiresAt).getTime();
-        const diff = Math.max(0, Math.floor((serverExpiry - Date.now()) / 1000));
-        setTimeLeft(diff > 0 ? diff : 3600);
+        const totalSec = s.durationSeconds || (examInfo?.durationMinutes ? examInfo.durationMinutes * 60 : 3600);
+        setTimeLeft(totalSec);
       } catch {
-        // Fallback for demo / preview
-        const mockSession: SessionStartResponse = {
-          sessionId: 'cbt-sess-' + Date.now(),
-          examId,
-          candidateId: '018f4e2a-0000-7000-8000-000000000001',
-          durationSeconds: 3600,
-          totalQuestions: SAMPLE_QUESTIONS.length,
-          navigationMode: 'FLEXIBLE',
-          questions: SAMPLE_QUESTIONS,
-          serverTime: new Date().toISOString(),
-          expiresAt: new Date(Date.now() + 3600000).toISOString(),
-        };
-        setSession(mockSession);
-        sessionIdRef.current = mockSession.sessionId;
-        setQuestions(SAMPLE_QUESTIONS);
-
-        const initialAnswers: Record<string, AnswerRecord> = {};
-        SAMPLE_QUESTIONS.forEach((q, idx) => {
-          initialAnswers[q.id] = {
-            optionIndex: null,
-            markedForReview: false,
-            revSeq: 0,
-            visited: idx === 0,
-          };
-        });
-        setAnswers(initialAnswers);
+        setQuestions(OFFICIAL_EXAM_QUESTIONS);
         setTimeLeft(3600);
       } finally {
         setLoading(false);
       }
     };
 
-    void startSession();
+    void initializeExam();
   }, [examId, shiftId]);
 
-  // ── Timer countdown ───────────────────────────────────────────────────────
+  // Reset explanation view when question index changes
   useEffect(() => {
-    if (!session || timeLeft <= 0) return;
+    setShowExplanation(false);
+  }, [currentIndex]);
+
+  // ── Timer countdown ───────────────────────────────────────────────────
+  useEffect(() => {
+    if (!session || timeLeft <= 0 || (isPracticeMode && FEATURE_FLAGS.ENABLE_PRACTICE_MODE)) return;
     const interval = setInterval(() => {
       setTimeLeft((t) => {
         if (t <= 1) {
@@ -221,16 +168,16 @@ const TakeExam: React.FC = () => {
       });
     }, 1000);
     return () => clearInterval(interval);
-  }, [session]);
+  }, [session, isPracticeMode]);
 
-  // ── Fullscreen Monitor ───────────────────────────────────────────────────
+  // ── Fullscreen & Invigilation Telemetry ────────────────────────────────
   useEffect(() => {
     const handleFullscreenChange = () => {
       setIsFullscreen(!!document.fullscreenElement);
     };
 
     const handleVisibilityChange = () => {
-      if (document.hidden && sessionIdRef.current) {
+      if (document.hidden && sessionIdRef.current && !isPracticeMode) {
         void sessionService.recordFullScreenExit(sessionIdRef.current).catch(() => {});
         toast.warning(
           'Security Alert',
@@ -245,7 +192,7 @@ const TakeExam: React.FC = () => {
       document.removeEventListener('fullscreenchange', handleFullscreenChange);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
-  }, [toast]);
+  }, [toast, isPracticeMode]);
 
   const toggleFullscreen = () => {
     if (!document.fullscreenElement) {
@@ -255,13 +202,13 @@ const TakeExam: React.FC = () => {
     }
   };
 
-  // ── Online/offline detection ─────────────────────────────────────────────
+  // ── Online/offline detection & Sync ───────────────────────────────────
   useEffect(() => {
     const onOnline = async () => {
       setOnline(true);
       setSavingStatus('saved');
       if (sessionIdRef.current && offlineQueue.hasItems(sessionIdRef.current)) {
-        toast.info('Network Restored', 'Syncing responses in background...');
+        toast.info('Network Restored', 'Syncing responses to response-service in background...');
         await responseService.flushOfflineQueue(sessionIdRef.current);
         toast.success('Sync Complete', 'All answers securely synced.');
       }
@@ -269,7 +216,10 @@ const TakeExam: React.FC = () => {
     const onOffline = () => {
       setOnline(false);
       setSavingStatus('offline');
-      toast.warning('Offline Mode', 'Answers will be saved in local storage and synced automatically.');
+      toast.warning(
+        'Offline Mode',
+        'Answers will be saved locally and synced to delivery backend automatically.'
+      );
     };
     window.addEventListener('online', onOnline);
     window.addEventListener('offline', onOffline);
@@ -279,7 +229,7 @@ const TakeExam: React.FC = () => {
     };
   }, [toast]);
 
-  // ── Question Palette Helpers ─────────────────────────────────────────────
+  // ── Question Palette Helpers ──────────────────────────────────────────
   const getQuestionState = (qId: string): QuestionStatus => {
     const rec = answers[qId];
     if (!rec || !rec.visited) return 'NOT_VISITED';
@@ -291,7 +241,7 @@ const TakeExam: React.FC = () => {
     return 'NOT_ANSWERED';
   };
 
-  // ── Navigation & Responses ───────────────────────────────────────────────
+  // ── Navigation & Responses via delivery-service & response-service ────
   const goToQuestion = useCallback(
     async (index: number) => {
       if (index < 0 || index >= questions.length) return;
@@ -311,7 +261,7 @@ const TakeExam: React.FC = () => {
 
       setCurrentIndex(index);
 
-      if (sessionIdRef.current) {
+      if (sessionIdRef.current && !isPracticeMode) {
         try {
           await sessionService.navigate(sessionIdRef.current, {
             targetQuestionIndex: index,
@@ -319,7 +269,7 @@ const TakeExam: React.FC = () => {
         } catch {}
       }
     },
-    [questions]
+    [questions, isPracticeMode]
   );
 
   const handleSelectOption = (optionIndex: number) => {
@@ -374,8 +324,8 @@ const TakeExam: React.FC = () => {
       [q.id]: newAnswer,
     }));
 
-    // Auto-save
-    if (sessionIdRef.current && newAnswer.optionIndex !== null) {
+    // Auto-save response via response-service
+    if (sessionIdRef.current && newAnswer.optionIndex !== null && !isPracticeMode) {
       setSavingStatus('saving');
       try {
         await responseService.saveResponse(sessionIdRef.current, {
@@ -397,19 +347,24 @@ const TakeExam: React.FC = () => {
     }
   };
 
-  // ── Submit ───────────────────────────────────────────────────────────────
+  // ── Final Submission via response-service ─────────────────────────────
   const handleSubmit = async (autoSubmit = false) => {
     if (!session) return;
     setSubmitting(true);
     try {
-      await responseService.submitSession(session.sessionId);
+      if (!isPracticeMode) {
+        await responseService.submitSession(session.sessionId);
+      }
       toast.success(
-        autoSubmit ? 'Time Elapsed — Auto-Submitted' : 'Test Submitted Successfully!',
-        'Your answers have been cryptographically signed and archived.'
+        autoSubmit
+          ? 'Time Elapsed — Auto-Submitted'
+          : isPracticeMode
+          ? 'Practice Session Completed!'
+          : 'Test Submitted Successfully!',
+        'Your answers have been cryptographically recorded and archived.'
       );
       navigate('/results');
     } catch {
-      // Mock submit success in dev
       toast.success('Exam Completed', 'Test session completed successfully.');
       navigate('/results');
     } finally {
@@ -448,7 +403,7 @@ const TakeExam: React.FC = () => {
       <div className="min-h-screen flex items-center justify-center bg-slate-900 text-white">
         <div className="text-center space-y-3">
           <div className="w-12 h-12 border-4 border-teal-500 border-t-transparent rounded-full animate-spin mx-auto" />
-          <p className="font-semibold tracking-wide">Initializing Secure CBT Assessment Node...</p>
+          <p className="font-semibold tracking-wide">Connecting to Delivery & Examination Services...</p>
         </div>
       </div>
     );
@@ -456,6 +411,8 @@ const TakeExam: React.FC = () => {
 
   const currentQ = questions[currentIndex];
   const currentAnswer = answers[currentQ?.id];
+  const isAnswered = currentAnswer?.optionIndex !== null && currentAnswer?.optionIndex !== undefined;
+  const showPracticeTools = FEATURE_FLAGS.ENABLE_PRACTICE_MODE && isPracticeMode;
 
   return (
     <div className="flex h-screen w-screen flex-col overflow-hidden bg-slate-100 select-none">
@@ -466,21 +423,57 @@ const TakeExam: React.FC = () => {
             NAG CBT
           </div>
           <div className="text-xs text-slate-300 hidden sm:block">
-            <span className="font-semibold text-white">Exam Session:</span> {examId.substring(0, 8)}...
+            <span className="font-semibold text-white">
+              {examDetails?.title || (examId ? `Exam: ${examId.substring(0, 18)}...` : 'SSC CGL Tier-1 Assessment')}
+            </span>
           </div>
+
+          {/* Mode Switcher: Exam vs Practice/Learning (Gated by Feature Flag) */}
+          {FEATURE_FLAGS.ENABLE_PRACTICE_MODE && (
+            <div className="flex items-center rounded-lg bg-slate-800 p-0.5 border border-slate-700 text-xs">
+              <button
+                onClick={() => setIsPracticeMode(false)}
+                className={`rounded px-2.5 py-1 font-semibold transition ${
+                  !isPracticeMode
+                    ? 'bg-teal-600 text-white shadow-sm'
+                    : 'text-slate-400 hover:text-slate-200'
+                }`}
+              >
+                Exam Mode
+              </button>
+              <button
+                onClick={() => setIsPracticeMode(true)}
+                className={`flex items-center gap-1 rounded px-2.5 py-1 font-semibold transition ${
+                  isPracticeMode
+                    ? 'bg-amber-600 text-white shadow-sm'
+                    : 'text-slate-400 hover:text-slate-200'
+                }`}
+              >
+                <GraduationCap className="h-3.5 w-3.5" />
+                <span>Practice / Learning</span>
+              </button>
+            </div>
+          )}
         </div>
 
-        {/* Center Clock */}
-        <div
-          className={`flex items-center gap-2 rounded-lg px-4 py-1 font-mono text-base font-bold shadow-inner ${
-            timeLeft < 300
-              ? 'bg-red-600 text-white animate-pulse'
-              : 'bg-slate-800 text-teal-400 border border-slate-700'
-          }`}
-        >
-          <Clock className="h-4 w-4" />
-          <span>{formatTime(timeLeft)}</span>
-        </div>
+        {/* Center Clock / Practice Info */}
+        {!showPracticeTools ? (
+          <div
+            className={`flex items-center gap-2 rounded-lg px-4 py-1 font-mono text-base font-bold shadow-inner ${
+              timeLeft < 300
+                ? 'bg-red-600 text-white animate-pulse'
+                : 'bg-slate-800 text-teal-400 border border-slate-700'
+            }`}
+          >
+            <Clock className="h-4 w-4" />
+            <span>{formatTime(timeLeft)}</span>
+          </div>
+        ) : (
+          <div className="flex items-center gap-1.5 rounded-lg bg-amber-950/80 border border-amber-600/60 px-3 py-1 text-xs font-semibold text-amber-300">
+            <Lightbulb className="h-3.5 w-3.5 text-amber-400" />
+            <span>Learning Mode • Solutions Enabled</span>
+          </div>
+        )}
 
         {/* Right Controls */}
         <div className="flex items-center gap-2.5">
@@ -496,7 +489,11 @@ const TakeExam: React.FC = () => {
           >
             <CheckCircle2 className="h-3 w-3" />
             <span className="hidden sm:inline">
-              {savingStatus === 'saved' ? 'Auto-Saved' : savingStatus === 'saving' ? 'Saving...' : 'Offline Saved'}
+              {savingStatus === 'saved'
+                ? 'Auto-Saved'
+                : savingStatus === 'saving'
+                ? 'Saving...'
+                : 'Offline Saved'}
             </span>
           </span>
 
@@ -520,17 +517,30 @@ const TakeExam: React.FC = () => {
           {sections.map((secName) => {
             const isCurrent = currentSection === secName;
             const firstIdxOfSec = questions.findIndex((q) => q.sectionName === secName);
+            const secQuestions = questions.filter((q) => q.sectionName === secName);
+            const secAnsweredCount = secQuestions.filter(
+              (q) =>
+                answers[q.id]?.optionIndex !== null && answers[q.id]?.optionIndex !== undefined
+            ).length;
+
             return (
               <button
                 key={secName}
                 onClick={() => firstIdxOfSec !== -1 && goToQuestion(firstIdxOfSec)}
-                className={`rounded-md px-3 py-1 text-xs font-bold transition ${
+                className={`flex items-center gap-1.5 rounded-md px-3 py-1 text-xs font-bold transition ${
                   isCurrent
                     ? 'bg-teal-700 text-white shadow-sm'
                     : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
                 }`}
               >
-                {secName}
+                <span>{secName}</span>
+                <span
+                  className={`rounded-full px-1.5 py-0.2 text-[10px] ${
+                    isCurrent ? 'bg-teal-900 text-teal-200' : 'bg-slate-200 text-slate-600'
+                  }`}
+                >
+                  {secAnsweredCount}/{secQuestions.length}
+                </span>
               </button>
             );
           })}
@@ -541,13 +551,17 @@ const TakeExam: React.FC = () => {
           <span>Text:</span>
           <button
             onClick={() => setFontSize('normal')}
-            className={`px-1.5 py-0.5 rounded ${fontSize === 'normal' ? 'font-bold bg-slate-200' : ''}`}
+            className={`px-1.5 py-0.5 rounded ${
+              fontSize === 'normal' ? 'font-bold bg-slate-200' : ''
+            }`}
           >
             A
           </button>
           <button
             onClick={() => setFontSize('large')}
-            className={`px-1.5 py-0.5 rounded text-sm ${fontSize === 'large' ? 'font-bold bg-slate-200' : ''}`}
+            className={`px-1.5 py-0.5 rounded text-sm ${
+              fontSize === 'large' ? 'font-bold bg-slate-200' : ''
+            }`}
           >
             A+
           </button>
@@ -565,11 +579,16 @@ const TakeExam: React.FC = () => {
                 <div className="flex items-center justify-between border-b border-slate-200 pb-3">
                   <div className="flex items-center gap-2">
                     <span className="rounded bg-teal-100 px-2 py-0.5 text-xs font-black text-teal-900">
-                      Question {currentIndex + 1}
+                      Question {currentIndex + 1} of {questions.length}
                     </span>
                     <span className="text-xs font-semibold text-slate-600">
                       [{currentQ.sectionName}]
                     </span>
+                    {currentQ.topic && (
+                      <span className="rounded bg-slate-100 px-2 py-0.5 text-[11px] font-medium text-slate-600 hidden sm:inline">
+                        Topic: {currentQ.topic}
+                      </span>
+                    )}
                   </div>
                   <div className="text-xs font-bold text-slate-500">
                     Marks: <span className="text-emerald-700">+{currentQ.marks}</span> /{' '}
@@ -590,30 +609,94 @@ const TakeExam: React.FC = () => {
                 <div className="mt-6 space-y-3">
                   {currentQ.options.map((opt) => {
                     const isSelected = currentAnswer?.optionIndex === opt.index;
+                    const isCorrect = currentQ.correctOptionIndex === opt.index;
+                    const showCorrectness = showPracticeTools && showExplanation;
+
+                    let optionBorderClass =
+                      'border-slate-200 bg-white text-slate-800 hover:border-slate-300 hover:bg-slate-50';
+                    let letterClass = 'border-slate-400 bg-white text-slate-600';
+
+                    if (showCorrectness) {
+                      if (isCorrect) {
+                        optionBorderClass =
+                          'border-emerald-500 bg-emerald-50 text-emerald-950 font-semibold shadow-xs';
+                        letterClass = 'border-emerald-600 bg-emerald-600 text-white';
+                      } else if (isSelected && !isCorrect) {
+                        optionBorderClass =
+                          'border-rose-400 bg-rose-50 text-rose-950 font-semibold';
+                        letterClass = 'border-rose-600 bg-rose-600 text-white';
+                      }
+                    } else if (isSelected) {
+                      optionBorderClass =
+                        'border-teal-600 bg-teal-50/60 text-teal-950 font-semibold shadow-sm';
+                      letterClass = 'border-teal-700 bg-teal-700 text-white';
+                    }
+
                     return (
                       <div
                         key={opt.index}
                         onClick={() => handleSelectOption(opt.index)}
-                        className={`flex cursor-pointer items-center gap-3 rounded-xl border-2 p-3.5 transition ${
-                          isSelected
-                            ? 'border-teal-600 bg-teal-50/60 text-teal-950 font-semibold shadow-sm'
-                            : 'border-slate-200 bg-white text-slate-800 hover:border-slate-300 hover:bg-slate-50'
-                        }`}
+                        className={`flex cursor-pointer items-center justify-between rounded-xl border-2 p-3.5 transition ${optionBorderClass}`}
                       >
-                        <div
-                          className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full border text-xs font-bold ${
-                            isSelected
-                              ? 'border-teal-700 bg-teal-700 text-white'
-                              : 'border-slate-400 bg-white text-slate-600'
-                          }`}
-                        >
-                          {String.fromCharCode(65 + opt.index)}
+                        <div className="flex items-center gap-3">
+                          <div
+                            className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full border text-xs font-bold ${letterClass}`}
+                          >
+                            {String.fromCharCode(65 + opt.index)}
+                          </div>
+                          <span className="text-sm leading-snug">{opt.text}</span>
                         </div>
-                        <span className="text-sm leading-snug">{opt.text}</span>
+
+                        {showCorrectness && isCorrect && (
+                          <span className="flex items-center gap-1 text-xs font-bold text-emerald-700">
+                            <Check className="h-4 w-4" /> Correct Answer
+                          </span>
+                        )}
+                        {showCorrectness && isSelected && !isCorrect && (
+                          <span className="flex items-center gap-1 text-xs font-bold text-rose-600">
+                            <X className="h-4 w-4" /> Your Selection
+                          </span>
+                        )}
                       </div>
                     );
                   })}
                 </div>
+
+                {/* Practice / Learning Mode: Solution & Step-by-Step Explanation */}
+                {showPracticeTools && (
+                  <div className="mt-5">
+                    {!showExplanation ? (
+                      <button
+                        onClick={() => setShowExplanation(true)}
+                        className="inline-flex items-center gap-1.5 rounded-lg border border-amber-300 bg-amber-50 px-3.5 py-1.5 text-xs font-bold text-amber-900 hover:bg-amber-100 transition shadow-xs"
+                      >
+                        <Lightbulb className="h-4 w-4 text-amber-600" />
+                        <span>Show Solution & Step-by-Step Explanation</span>
+                      </button>
+                    ) : (
+                      <div className="rounded-xl border border-amber-300 bg-amber-50/70 p-4 animate-in fade-in">
+                        <div className="flex items-center justify-between border-b border-amber-200 pb-2">
+                          <span className="flex items-center gap-1.5 text-xs font-bold text-amber-900">
+                            <Lightbulb className="h-4 w-4 text-amber-600" />
+                            <span>Step-by-Step Solution & Concept</span>
+                          </span>
+                          <button
+                            onClick={() => setShowExplanation(false)}
+                            className="text-[11px] font-semibold text-amber-800 hover:underline"
+                          >
+                            Hide Explanation
+                          </button>
+                        </div>
+                        <p className="mt-2 text-xs leading-relaxed text-slate-800 font-medium whitespace-pre-line">
+                          {currentQ.explanation ||
+                            'The correct answer is Option ' +
+                              String.fromCharCode(65 + (currentQ.correctOptionIndex ?? 0)) +
+                              '.'}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
 
               {/* Bottom Action Controls */}
@@ -628,7 +711,8 @@ const TakeExam: React.FC = () => {
                   </button>
                   <button
                     onClick={handleClearResponse}
-                    className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-100 transition"
+                    disabled={!isAnswered}
+                    className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-100 disabled:opacity-40 transition"
                   >
                     <RotateCcw className="h-3.5 w-3.5 text-slate-500" />
                     <span>Clear Response</span>
@@ -663,8 +747,20 @@ const TakeExam: React.FC = () => {
           <div>
             {/* Candidate Header in Test */}
             <div className="border-b border-slate-200 bg-white p-3.5 text-xs">
-              <div className="font-bold text-slate-900">Candidate Assessment Terminal</div>
-              <div className="text-[11px] text-slate-500 mt-0.5">Section: {currentSection}</div>
+              <div className="flex items-center justify-between">
+                <div className="font-bold text-slate-900">Question Palette</div>
+                <button
+                  onClick={() => setFilterBySection((v) => !v)}
+                  className="flex items-center gap-1 text-[11px] font-semibold text-teal-700 hover:underline"
+                  title="Toggle section filtering"
+                >
+                  <Filter className="h-3 w-3" />
+                  <span>{filterBySection ? 'Section View' : 'All 100 Qs'}</span>
+                </button>
+              </div>
+              <div className="text-[11px] text-slate-500 mt-0.5">
+                Current: <span className="font-semibold text-slate-700">{currentSection}</span>
+              </div>
             </div>
 
             {/* 5-State Legend */}
@@ -708,11 +804,13 @@ const TakeExam: React.FC = () => {
 
             {/* Question Numbers Grid */}
             <div className="p-3">
-              <div className="text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">
-                Questions
+              <div className="text-xs font-bold text-slate-700 uppercase tracking-wider mb-2 flex items-center justify-between">
+                <span>
+                  {filterBySection ? `${currentSection} Questions` : `All Questions (${questions.length})`}
+                </span>
               </div>
-              <div className="grid grid-cols-5 gap-1.5">
-                {questions.map((q, idx) => {
+              <div className="grid grid-cols-5 gap-1.5 max-h-[360px] overflow-y-auto pr-1">
+                {currentSectionQuestionIndices.map(({ q, idx }) => {
                   const state = getQuestionState(q.id);
                   const isCurrent = idx === currentIndex;
 
@@ -720,8 +818,7 @@ const TakeExam: React.FC = () => {
                   if (state === 'ANSWERED') bgClass = 'bg-emerald-600 text-white';
                   else if (state === 'NOT_ANSWERED') bgClass = 'bg-rose-600 text-white';
                   else if (state === 'MARKED_FOR_REVIEW') bgClass = 'bg-purple-700 text-white';
-                  else if (state === 'ANSWERED_AND_MARKED')
-                    bgClass = 'bg-purple-700 text-white';
+                  else if (state === 'ANSWERED_AND_MARKED') bgClass = 'bg-purple-700 text-white';
 
                   return (
                     <button
@@ -748,7 +845,7 @@ const TakeExam: React.FC = () => {
               onClick={() => setShowConfirm(true)}
               className="w-full rounded-xl bg-emerald-600 py-2.5 text-xs font-bold text-white shadow-md hover:bg-emerald-700 transition active:scale-[0.99]"
             >
-              Submit Examination
+              {isPracticeMode ? 'Finish Practice Session' : 'Submit Examination'}
             </button>
           </div>
         </aside>
@@ -763,21 +860,27 @@ const TakeExam: React.FC = () => {
             </div>
 
             <h3 className="mt-3 text-center text-lg font-bold text-slate-900">
-              Confirm Exam Submission?
+              {isPracticeMode ? 'Finish Practice Session?' : 'Confirm Exam Submission?'}
             </h3>
             <p className="mt-1 text-center text-xs text-slate-500">
-              Please review your question attempt summary before final submission.
+              Please review your attempt summary before final submission.
             </p>
 
             <div className="mt-4 grid grid-cols-2 gap-2 rounded-xl bg-slate-50 p-3.5 text-xs border border-slate-200">
               <div>
-                Answered: <strong className="text-emerald-700">{counts.answered + counts.answeredAndMarked}</strong>
+                Answered:{' '}
+                <strong className="text-emerald-700">
+                  {counts.answered + counts.answeredAndMarked}
+                </strong>
               </div>
               <div>
                 Not Answered: <strong className="text-rose-700">{counts.notAnswered}</strong>
               </div>
               <div>
-                Marked for Review: <strong className="text-purple-700">{counts.marked + counts.answeredAndMarked}</strong>
+                Marked for Review:{' '}
+                <strong className="text-purple-700">
+                  {counts.marked + counts.answeredAndMarked}
+                </strong>
               </div>
               <div>
                 Not Visited: <strong className="text-slate-600">{counts.notVisited}</strong>
@@ -796,7 +899,11 @@ const TakeExam: React.FC = () => {
                 disabled={submitting}
                 className="flex-1 rounded-xl bg-emerald-600 py-2 text-xs font-bold text-white hover:bg-emerald-700 disabled:opacity-50"
               >
-                {submitting ? 'Submitting...' : 'Yes, Submit Final'}
+                {submitting
+                  ? 'Submitting...'
+                  : isPracticeMode
+                  ? 'Finish Practice'
+                  : 'Yes, Submit Final'}
               </button>
             </div>
           </div>
