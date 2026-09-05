@@ -6,7 +6,8 @@
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as published
- * by the Free Software Foundation, version 3 of the License.\n *
+ * by the Free Software Foundation, version 3 of the License.
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
@@ -23,6 +24,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 /**
@@ -33,9 +35,14 @@ public interface TranslationRepository extends JpaRepository<Translation, UUID> 
 
     List<Translation> findByQuestionIdAndTenantId(UUID questionId, String tenantId);
 
-    List<Translation> findByQuestionIdAndLanguageCodeAndTenantId(UUID questionId, String languageCode, String tenantId);
+    List<Translation> findByQuestionIdAndLanguageCodeAndTenantId(
+            UUID questionId, String languageCode, String tenantId);
 
-    List<Translation> findByQuestionIdAndStatusAndTenantId(UUID questionId, Translation.TranslationStatus status, String tenantId);
+    Optional<Translation> findByQuestionIdAndLanguageCodeAndStatusAndTenantId(
+            UUID questionId, String languageCode, Translation.TranslationStatus status, String tenantId);
+
+    List<Translation> findByQuestionIdAndStatusAndTenantId(
+            UUID questionId, Translation.TranslationStatus status, String tenantId);
 
     List<Translation> findByTranslatorIdAndTenantId(UUID translatorId, String tenantId);
 

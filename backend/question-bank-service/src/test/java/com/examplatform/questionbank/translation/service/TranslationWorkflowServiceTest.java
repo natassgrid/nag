@@ -20,8 +20,11 @@
 package com.examplatform.questionbank.translation.service;
 
 import com.examplatform.questionbank.domain.Question;
+import com.examplatform.questionbank.dto.QuestionOption;
 import com.examplatform.questionbank.repository.QuestionRepository;
 import com.examplatform.questionbank.translation.domain.Translation;
+import com.examplatform.questionbank.translation.dto.TranslatedOptionDto;
+import com.examplatform.questionbank.translation.dto.TranslationRequest;
 import com.examplatform.questionbank.translation.repository.TranslationRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -45,11 +48,9 @@ import static org.mockito.Mockito.when;
 @ExtendWith(MockitoExtension.class)
 class TranslationWorkflowServiceTest {
 
-    @Mock
-    private TranslationRepository translationRepository;
-
-    @Mock
-    private QuestionRepository questionRepository;
+    @Mock private TranslationRepository translationRepository;
+    @Mock private QuestionRepository questionRepository;
+    @Mock private TranslationPayloadService payloadService;
 
     @InjectMocks
     private TranslationWorkflowService translationWorkflowService;
@@ -65,16 +66,51 @@ class TranslationWorkflowServiceTest {
         tenantId = "tenant-test";
     }
 
+    // -------------------------------------------------------------------------
+    // Helpers
+    // -------------------------------------------------------------------------
+
+    private TranslationRequest buildRequest(String lang) {
+        TranslationRequest req = new TranslationRequest();
+        req.setQuestionId(questionId);
+        req.setLanguageCode(lang);
+        req.setTranslatorId(translatorId);
+        req.setTranslatedContent("नमस्ते दुनिया");
+        req.setTranslatedOptions(List.of(
+                new TranslatedOptionDto("A", "पहला विकल्प"),
+                new TranslatedOptionDto("B", "दूसरा विकल्प")
+        ));
+        req.setTranslatedExplanation("यह सही उत्तर है क्योंकि...");
+        return req;
+    }
+
+    private Question buildQuestion() {
+        return Question.builder()
+                .options(List.of(
+                        QuestionOption.builder().id("A").text("Option A").correct(true).build(),
+                        QuestionOption.builder().id("B").text("Option B").correct(false).build()
+                ))
+                .build();
+    }
+
+    // -------------------------------------------------------------------------
+    // Tests
+    // -------------------------------------------------------------------------
+
     @Test
-    @DisplayName("Should successfully request a translation when language is valid and question exists")
+    @DisplayName("Should successfully create a translation with structured payload")
     void shouldRequestTranslationSuccessfully() {
-        Question mockQuestion = Question.builder().build();
-        when(questionRepository.findById(questionId)).thenReturn(Optional.of(mockQuestion));
-        when(translationRepository.findByQuestionIdAndLanguageCodeAndTenantId(questionId, "hi", tenantId))
-                .thenReturn(Collections.emptyList());
+        TranslationRequest request = buildRequest("hi");
+        Question question = buildQuestion();
+
+        when(questionRepository.findById(questionId)).thenReturn(Optional.of(question));
+        when(translationRepository.findByQuestionIdAndLanguageCodeAndTenantId(
+                questionId, "hi", tenantId)).thenReturn(Collections.emptyList());
+        when(payloadService.serialize(any())).thenReturn("{\"content\":\"नमस्ते दुनिया\"}");
+        when(payloadService.isEncryptionEnabled()).thenReturn(false);
         when(translationRepository.save(any(Translation.class))).thenAnswer(i -> i.getArgument(0));
 
-        Translation result = translationWorkflowService.requestTranslation(questionId, "hi", translatorId, tenantId);
+        Translation result = translationWorkflowService.requestTranslation(request, tenantId);
 
         assertThat(result).isNotNull();
         assertThat(result.getQuestionId()).isEqualTo(questionId);
@@ -82,13 +118,18 @@ class TranslationWorkflowServiceTest {
         assertThat(result.getStatus()).isEqualTo(Translation.TranslationStatus.DRAFT);
         assertThat(result.getTranslatorId()).isEqualTo(translatorId);
         assertThat(result.getTenantId()).isEqualTo(tenantId);
+        assertThat(result.isPayloadEncrypted()).isFalse();
+        assertThat(result.getTranslatedPayload()).isNotBlank();
         verify(translationRepository).save(any(Translation.class));
+        verify(payloadService).serialize(any());
     }
 
     @Test
     @DisplayName("Should throw IllegalArgumentException when language is unsupported")
     void shouldThrowWhenLanguageUnsupported() {
-        assertThatThrownBy(() -> translationWorkflowService.requestTranslation(questionId, "invalid_lang", translatorId, tenantId))
+        TranslationRequest request = buildRequest("xx");
+
+        assertThatThrownBy(() -> translationWorkflowService.requestTranslation(request, tenantId))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("Unsupported language code");
     }
@@ -96,9 +137,10 @@ class TranslationWorkflowServiceTest {
     @Test
     @DisplayName("Should throw IllegalArgumentException when source question does not exist")
     void shouldThrowWhenQuestionNotFound() {
+        TranslationRequest request = buildRequest("hi");
         when(questionRepository.findById(questionId)).thenReturn(Optional.empty());
 
-        assertThatThrownBy(() -> translationWorkflowService.requestTranslation(questionId, "hi", translatorId, tenantId))
+        assertThatThrownBy(() -> translationWorkflowService.requestTranslation(request, tenantId))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("Source question not found");
     }
@@ -106,13 +148,54 @@ class TranslationWorkflowServiceTest {
     @Test
     @DisplayName("Should throw IllegalStateException when translation already exists")
     void shouldThrowWhenTranslationAlreadyExists() {
-        Question mockQuestion = Question.builder().build();
-        when(questionRepository.findById(questionId)).thenReturn(Optional.of(mockQuestion));
-        when(translationRepository.findByQuestionIdAndLanguageCodeAndTenantId(questionId, "hi", tenantId))
+        TranslationRequest request = buildRequest("hi");
+        Question question = buildQuestion();
+
+        when(questionRepository.findById(questionId)).thenReturn(Optional.of(question));
+        when(translationRepository.findByQuestionIdAndLanguageCodeAndTenantId(
+                questionId, "hi", tenantId))
                 .thenReturn(List.of(Translation.builder().build()));
 
-        assertThatThrownBy(() -> translationWorkflowService.requestTranslation(questionId, "hi", translatorId, tenantId))
+        assertThatThrownBy(() -> translationWorkflowService.requestTranslation(request, tenantId))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("Translation already exists");
+    }
+
+    @Test
+    @DisplayName("Should throw IllegalArgumentException when option IDs do not match source question")
+    void shouldThrowWhenOptionIdsMismatch() {
+        TranslationRequest request = buildRequest("hi");
+        // Add an option with ID "Z" that doesn't exist on the source question
+        request.setTranslatedOptions(List.of(
+                new TranslatedOptionDto("A", "पहला विकल्प"),
+                new TranslatedOptionDto("Z", "अज्ञात विकल्प") // invalid id
+        ));
+        Question question = buildQuestion();
+
+        when(questionRepository.findById(questionId)).thenReturn(Optional.of(question));
+        when(translationRepository.findByQuestionIdAndLanguageCodeAndTenantId(
+                questionId, "hi", tenantId)).thenReturn(Collections.emptyList());
+
+        assertThatThrownBy(() -> translationWorkflowService.requestTranslation(request, tenantId))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("Z");
+    }
+
+    @Test
+    @DisplayName("Should allow null/empty options for question types without choices")
+    void shouldAllowEmptyOptionsForNonMcqQuestions() {
+        TranslationRequest request = buildRequest("ta");
+        request.setTranslatedOptions(null); // SHORT_ANSWER — no options
+        Question question = Question.builder().options(null).build();
+
+        when(questionRepository.findById(questionId)).thenReturn(Optional.of(question));
+        when(translationRepository.findByQuestionIdAndLanguageCodeAndTenantId(
+                questionId, "ta", tenantId)).thenReturn(Collections.emptyList());
+        when(payloadService.serialize(any())).thenReturn("{\"content\":\"வணக்கம்\"}");
+        when(payloadService.isEncryptionEnabled()).thenReturn(false);
+        when(translationRepository.save(any(Translation.class))).thenAnswer(i -> i.getArgument(0));
+
+        Translation result = translationWorkflowService.requestTranslation(request, tenantId);
+        assertThat(result).isNotNull();
     }
 }

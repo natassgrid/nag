@@ -1,0 +1,114 @@
+<!--
+  SPDX-License-Identifier: AGPL-3.0-only
+  National Assessment Grid (NAG) - Open Digital Public Infrastructure (DPI) Platform
+  Copyright (C) 2025 NAG Contributors
+-->
+
+<div class="page-layout">
+  <app-page-header
+    title="Question Translations & Localization"
+    subtitle="Translate examination questions into 22 Eighth Schedule Indian languages with dual-pane review and approval workflow."
+    icon="translate"
+  >
+    <button
+      mat-stroked-button
+      class="header-btn"
+      (click)="reload()"
+    >
+      <mat-icon>refresh</mat-icon>
+      Refresh
+    </button>
+  </app-page-header>
+
+  <!-- Metric Badges Overview -->
+  <div class="metrics-grid">
+    <mat-card class="metric-card">
+      <div class="metric-icon-wrap icon-lang">
+        <mat-icon>language</mat-icon>
+      </div>
+      <div class="metric-content">
+        <span class="metric-num">22</span>
+        <span class="metric-lbl">Scheduled Indian Languages</span>
+      </div>
+    </mat-card>
+
+    <mat-card class="metric-card">
+      <div class="metric-icon-wrap icon-status">
+        <mat-icon>g_translate</mat-icon>
+      </div>
+      <div class="metric-content">
+        <span class="metric-num">IndicTrans2</span>
+        <span class="metric-lbl">Translation Engine Standard</span>
+      </div>
+    </mat-card>
+
+    <mat-card class="metric-card">
+      <div class="metric-icon-wrap icon-workflow">
+        <mat-icon>verified</mat-icon>
+      </div>
+      <div class="metric-content">
+        <span class="metric-num">Dual-Pane</span>
+        <span class="metric-lbl">Human SME Review & Approval</span>
+      </div>
+    </mat-card>
+  </div>
+
+  <!-- Reusable Paginated Table with Filter Drawer -->
+  <app-paginated-table
+    #paginatedTable
+    [fetcher]="fetcher"
+    [columns]="columns"
+    [filters]="filters"
+    [filterCategories]="filterCategories"
+    (filterChange)="onFilterChange($event)"
+    [actionsTemplate]="actionsTmpl"
+    title="Questions for Translation"
+    searchPlaceholder="Search questions to translate..."
+  ></app-paginated-table>
+
+  <!-- Custom Actions Column Template -->
+  <ng-template #actionsTmpl let-row>
+    <div class="table-actions-cell">
+      <button
+        mat-flat-button
+        color="primary"
+        class="translate-btn"
+        (click)="openTranslationDrawer(row, 'hi')"
+      >
+        <mat-icon>translate</mat-icon>
+        Translate / Review
+      </button>
+
+      <button
+        mat-icon-button
+        [matMenuTriggerFor]="langMenu"
+        [matMenuTriggerData]="{ question: row }"
+        matTooltip="Translate into specific language"
+      >
+        <mat-icon>arrow_drop_down</mat-icon>
+      </button>
+    </div>
+  </ng-template>
+
+  <!-- Context Menu for Direct Language Selection -->
+  <mat-menu #langMenu="matMenu">
+    <ng-template matMenuContent let-question="question">
+      <div class="menu-header">Select Language</div>
+      <button
+        mat-menu-item
+        *ngFor="let lang of languages"
+        (click)="openTranslationDrawer(question, lang.code)"
+      >
+        <strong>{{ lang.nativeName }}</strong> ({{ lang.name }})
+      </button>
+    </ng-template>
+  </mat-menu>
+
+  <!-- RIGHT COLLAPSIBLE TRANSLATION & REVIEW DRAWER -->
+  <app-question-translation-dialog
+    [isOpen]="drawerOpen"
+    [question]="selectedQuestion"
+    [initialLanguageCode]="selectedLanguageForDrawer"
+    (close)="onDrawerClose($event)"
+  ></app-question-translation-dialog>
+</div>

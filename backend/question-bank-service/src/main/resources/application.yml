@@ -106,6 +106,9 @@ spring:
     virtual:
       enabled: true
 
+indictrans2:
+  url: ${INDICTRANS2_URL:http://localhost:7860}
+
 server:
   port: ${QUESTION_BANK_SERVICE_PORT:8083}
   servlet:
@@ -150,6 +153,11 @@ app:
   # When false, content is stored as plaintext (default for local dev).
   encryption:
     enabled: ${QUESTION_ENCRYPTION_ENABLED:false}
+  # Feature flag: set to true to encrypt translated_payload via Vault Transit.
+  # When false, the JSON payload is stored as plain text (default).
+  translation:
+    encryption:
+      enabled: ${TRANSLATION_ENCRYPTION_ENABLED:false}
   # AI generation configuration
   ai:
     # Difficulty-based model routing (LiteLLM model names)
@@ -158,17 +166,3 @@ app:
       easy: ${AI_MODEL_EASY:nova-micro}
       medium: ${AI_MODEL_MEDIUM:nova-lite}
       hard: ${AI_MODEL_HARD:nova-lite}
-    # AWS Bedrock Batch Inference configuration
-    bedrock:
-      enabled: ${AI_BEDROCK_ENABLED:true}
-      aws-region: ${AWS_REGION_NAME:us-east-1}
-      aws-access-key-id: ${AWS_ACCESS_KEY_ID:}
-      aws-secret-access-key: ${AWS_SECRET_ACCESS_KEY:}
-      role-arn: ${AI_BEDROCK_ROLE_ARN:}
-      s3-bucket: ${AI_BEDROCK_S3_BUCKET:exam-bedrock-batch}
-      s3-input-prefix: ${AI_BEDROCK_S3_INPUT_PREFIX:batch-input/}
-      s3-output-prefix: ${AI_BEDROCK_S3_OUTPUT_PREFIX:batch-output/}
-
-logging:
-  pattern:
-    console: '{"timestamp":"%d{ISO8601}","level":"%p","service":"question-bank-service","traceId":"%X{traceId}","spanId":"%X{spanId}","message":"%m"}%n'

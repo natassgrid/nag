@@ -83,9 +83,10 @@ export class AppComponent {
     {
       label: 'Question Management',
       icon: 'quiz',
-      roles: ['QUESTION_AUTHOR', 'REVIEWER', 'APPROVER', 'CONTENT_MANAGER', 'SUPER_ADMIN', 'EXAM_CONTROLLER'],
+      roles: ['QUESTION_AUTHOR', 'REVIEWER', 'APPROVER', 'CONTENT_MANAGER', 'SUPER_ADMIN', 'EXAM_CONTROLLER', 'TRANSLATOR'],
       items: [
-        { label: 'Question Bank', icon: 'quiz', route: '/questions', roles: ['QUESTION_AUTHOR', 'REVIEWER'] },
+        { label: 'Question Bank', icon: 'quiz', route: '/questions', roles: ['QUESTION_AUTHOR', 'REVIEWER', 'TRANSLATOR'] },
+        { label: 'Translations', icon: 'translate', route: '/questions/translations', roles: ['TRANSLATOR', 'QUESTION_AUTHOR', 'REVIEWER', 'APPROVER', 'EXAM_CONTROLLER', 'SUPER_ADMIN'] },
         { label: 'Subjects', icon: 'category', route: '/questions/subjects', roles: ['QUESTION_AUTHOR', 'EXAM_CONTROLLER', 'SUPER_ADMIN'] },
         { label: 'Review Queue', icon: 'rate_review', route: '/questions/review', roles: ['REVIEWER', 'APPROVER'] },
         { label: 'Asset Library', icon: 'perm_media', route: '/assets', roles: ['QUESTION_AUTHOR', 'CONTENT_MANAGER', 'SUPER_ADMIN'] },
@@ -188,11 +189,12 @@ export class AppComponent {
       return url === '/dashboard';
     }
 
-    // 3. Question Bank (/questions) - active for /questions and /questions/:id, but NOT /questions/subjects or /questions/review
+    // 3. Question Bank (/questions) - active for /questions and /questions/:id, but NOT /questions/subjects, /questions/review, or /questions/translations
     if (itemRoute === '/questions') {
       return url.startsWith('/questions') &&
         !url.startsWith('/questions/subjects') &&
-        !url.startsWith('/questions/review');
+        !url.startsWith('/questions/review') &&
+        !url.startsWith('/questions/translations');
     }
 
     // 4. Papers (/papers) - active for /papers and /papers/:id, but NOT /papers/blueprints
@@ -247,6 +249,7 @@ export class AppComponent {
       'SECURITY_ADMIN': 'Security Admin',
       'EXAM_CONTROLLER': 'Exam Controller',
       'QUESTION_AUTHOR': 'Question Author',
+      'TRANSLATOR': 'Translator',
       'REVIEWER': 'Reviewer',
       'APPROVER': 'Approver',
       'EVALUATOR': 'Evaluator',
