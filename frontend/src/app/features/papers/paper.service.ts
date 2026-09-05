@@ -13,7 +13,7 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
  * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU Affero General Public License
+ * You should have received a copy of the GNU General Public License
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
 
@@ -130,7 +130,7 @@ export interface BlueprintTemplateResponse {
 @Injectable({ providedIn: 'root' })
 export class PaperService {
   private readonly baseUrl = '/api/v1/papers';
-  private readonly templateBaseUrl = '/api/v1/blueprint-templates';
+  private readonly templateBaseUrl = '/api/v1/papers/blueprint-templates';
 
   constructor(private http: HttpClient) {}
 
