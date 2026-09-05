@@ -11,7 +11,7 @@
 #  1. Initializing Vault on first deployment (saves unseal key & root token to /vault/data/vault-keys.json)
 #  2. Auto-unsealing Vault on every startup / restart / redeployment
 #  3. Creating static dev root token ($VAULT_TOKEN / vault_root_token)
-#  4. Enabling Transit secrets engine and creating required encryption keys
+#  4. Enabling KV-v2 and Transit engines and creating required encryption keys
 # =============================================================================
 
 export VAULT_ADDR="${VAULT_ADDR:-http://vault:8200}"
@@ -93,8 +93,15 @@ fi
 export VAULT_TOKEN="$TARGET_TOKEN"
 
 # ---------------------------------------------------------------------------
-# 5. Enable Transit secrets engine (idempotent)
+# 5. Enable KV-v2 and Transit secrets engines (idempotent)
 # ---------------------------------------------------------------------------
+if vault secrets list -address="$VAULT_ADDR" 2>/dev/null | grep -q "^secret/"; then
+  echo "ℹ️   KV secrets engine already enabled at secret/."
+else
+  vault secrets enable -address="$VAULT_ADDR" -path=secret kv-v2 || true
+  echo "✅ KV secrets engine enabled at secret/."
+fi
+
 if vault secrets list -address="$VAULT_ADDR" 2>/dev/null | grep -q "^transit/"; then
   echo "ℹ️   Transit engine already enabled."
 else
