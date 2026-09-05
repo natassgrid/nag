@@ -50,7 +50,7 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.POST, "/api/v1/identity/otp/verify").permitAll()
                 .requestMatchers(HttpMethod.POST, "/api/v1/identity/auth/token").permitAll()
                 .requestMatchers(HttpMethod.POST, "/api/v1/identity/auth/webauthn").permitAll()
-                .requestMatchers("/actuator/health", "/actuator/info").permitAll()
+                .requestMatchers("/actuator/health", "/actuator/health/**", "/actuator/info", "/actuator/prometheus").permitAll()
                 .anyRequest().authenticated()
             )
             .oauth2ResourceServer(oauth2 -> oauth2

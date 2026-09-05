@@ -41,6 +41,8 @@ x-spring-env: &spring-env
   KEYCLOAK_SERVER_URL: http://keycloak:8080
   VAULT_ADDR: http://vault:8200
   VAULT_ROOT_TOKEN: ${VAULT_ROOT_TOKEN:-vault_root_token}
+  MANAGEMENT_HEALTH_VAULT_ENABLED: "false"
+  MANAGEMENT_HEALTH_DISCOVERY_ENABLED: "false"
   OTEL_EXPORTER_OTLP_ENDPOINT: http://jaeger:4318
   # Shared JWT signing secret for dev mode (symmetric HS256)
   APP_JWT_SECRET: dev-jwt-secret-key-for-local-testing-minimum-32-chars
@@ -95,7 +97,7 @@ services:
       redis:
         condition: service_healthy
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://localhost:${IDENTITY_SERVICE_PORT:-8081}/actuator/health || exit 1"]
+      test: ["CMD-SHELL", "wget -qO- http://localhost:${IDENTITY_SERVICE_PORT:-8081}/actuator/health/readiness || wget -qO- http://localhost:${IDENTITY_SERVICE_PORT:-8081}/actuator/health || exit 1"]
       <<: *healthcheck-spring
 
   # ===========================================================================
@@ -124,7 +126,7 @@ services:
       vault:
         condition: service_healthy
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://localhost:${CANDIDATE_SERVICE_PORT:-8082}/actuator/health || exit 1"]
+      test: ["CMD-SHELL", "wget -qO- http://localhost:${CANDIDATE_SERVICE_PORT:-8082}/actuator/health/readiness || wget -qO- http://localhost:${CANDIDATE_SERVICE_PORT:-8082}/actuator/health || exit 1"]
       <<: *healthcheck-spring
 
   # ===========================================================================
@@ -159,7 +161,7 @@ services:
     depends_on:
       <<: *depends-base
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://localhost:${QUESTION_BANK_SERVICE_PORT:-8083}/actuator/health || exit 1"]
+      test: ["CMD-SHELL", "wget -qO- http://localhost:${QUESTION_BANK_SERVICE_PORT:-8083}/actuator/health/readiness || wget -qO- http://localhost:${QUESTION_BANK_SERVICE_PORT:-8083}/actuator/health || exit 1"]
       <<: *healthcheck-spring
 
   # ===========================================================================
@@ -184,7 +186,7 @@ services:
     depends_on:
       <<: *depends-base
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://localhost:${TRANSLATION_SERVICE_PORT:-8084}/actuator/health || exit 1"]
+      test: ["CMD-SHELL", "wget -qO- http://localhost:${TRANSLATION_SERVICE_PORT:-8084}/actuator/health/readiness || wget -qO- http://localhost:${TRANSLATION_SERVICE_PORT:-8084}/actuator/health || exit 1"]
       <<: *healthcheck-spring
 
   # ===========================================================================
@@ -209,7 +211,7 @@ services:
     depends_on:
       <<: *depends-base
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://localhost:${EXAMINATION_SERVICE_PORT:-8085}/actuator/health || exit 1"]
+      test: ["CMD-SHELL", "wget -qO- http://localhost:${EXAMINATION_SERVICE_PORT:-8085}/actuator/health/readiness || wget -qO- http://localhost:${EXAMINATION_SERVICE_PORT:-8085}/actuator/health || exit 1"]
       <<: *healthcheck-spring
 
   # ===========================================================================
@@ -234,7 +236,7 @@ services:
     depends_on:
       <<: *depends-base
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://localhost:${PAPER_GENERATOR_PORT:-8086}/actuator/health || exit 1"]
+      test: ["CMD-SHELL", "wget -qO- http://localhost:${PAPER_GENERATOR_PORT:-8086}/actuator/health/readiness || wget -qO- http://localhost:${PAPER_GENERATOR_PORT:-8086}/actuator/health || exit 1"]
       <<: *healthcheck-spring
 
   # ===========================================================================
@@ -261,7 +263,7 @@ services:
       redis:
         condition: service_healthy
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://localhost:${DELIVERY_SERVICE_PORT:-8087}/actuator/health || exit 1"]
+      test: ["CMD-SHELL", "wget -qO- http://localhost:${DELIVERY_SERVICE_PORT:-8087}/actuator/health/readiness || wget -qO- http://localhost:${DELIVERY_SERVICE_PORT:-8087}/actuator/health || exit 1"]
       <<: *healthcheck-spring
 
   # ===========================================================================
@@ -288,7 +290,7 @@ services:
       redis:
         condition: service_healthy
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://localhost:${RESPONSE_SERVICE_PORT:-8088}/actuator/health || exit 1"]
+      test: ["CMD-SHELL", "wget -qO- http://localhost:${RESPONSE_SERVICE_PORT:-8088}/actuator/health/readiness || wget -qO- http://localhost:${RESPONSE_SERVICE_PORT:-8088}/actuator/health || exit 1"]
       <<: *healthcheck-spring
 
   # ===========================================================================
@@ -313,7 +315,7 @@ services:
     depends_on:
       <<: *depends-base
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://localhost:${EVALUATION_SERVICE_PORT:-8089}/actuator/health || exit 1"]
+      test: ["CMD-SHELL", "wget -qO- http://localhost:${EVALUATION_SERVICE_PORT:-8089}/actuator/health/readiness || wget -qO- http://localhost:${EVALUATION_SERVICE_PORT:-8089}/actuator/health || exit 1"]
       <<: *healthcheck-spring
 
   # ===========================================================================
@@ -338,7 +340,7 @@ services:
     depends_on:
       <<: *depends-base
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://localhost:${RESULT_SERVICE_PORT:-8090}/actuator/health || exit 1"]
+      test: ["CMD-SHELL", "wget -qO- http://localhost:${RESULT_SERVICE_PORT:-8090}/actuator/health/readiness || wget -qO- http://localhost:${RESULT_SERVICE_PORT:-8090}/actuator/health || exit 1"]
       <<: *healthcheck-spring
 
   # ===========================================================================
@@ -367,7 +369,7 @@ services:
       vault:
         condition: service_healthy
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://localhost:${AUDIT_SERVICE_PORT:-8091}/actuator/health || exit 1"]
+      test: ["CMD-SHELL", "wget -qO- http://localhost:${AUDIT_SERVICE_PORT:-8091}/actuator/health/readiness || wget -qO- http://localhost:${AUDIT_SERVICE_PORT:-8091}/actuator/health || exit 1"]
       <<: *healthcheck-spring
 
   # ===========================================================================
@@ -392,7 +394,7 @@ services:
     depends_on:
       <<: *depends-base
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://localhost:${NOTIFICATION_SERVICE_PORT:-8092}/actuator/health || exit 1"]
+      test: ["CMD-SHELL", "wget -qO- http://localhost:${NOTIFICATION_SERVICE_PORT:-8092}/actuator/health/readiness || wget -qO- http://localhost:${NOTIFICATION_SERVICE_PORT:-8092}/actuator/health || exit 1"]
       <<: *healthcheck-spring
 
   # ===========================================================================
@@ -419,7 +421,7 @@ services:
       redis:
         condition: service_healthy
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://localhost:${ADMIN_SERVICE_PORT:-8093}/actuator/health || exit 1"]
+      test: ["CMD-SHELL", "wget -qO- http://localhost:${ADMIN_SERVICE_PORT:-8093}/actuator/health/readiness || wget -qO- http://localhost:${ADMIN_SERVICE_PORT:-8093}/actuator/health || exit 1"]
       <<: *healthcheck-spring
 
   # ===========================================================================
@@ -444,7 +446,7 @@ services:
     depends_on:
       <<: *depends-base
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://localhost:${ANALYTICS_SERVICE_PORT:-8094}/actuator/health || exit 1"]
+      test: ["CMD-SHELL", "wget -qO- http://localhost:${ANALYTICS_SERVICE_PORT:-8094}/actuator/health/readiness || wget -qO- http://localhost:${ANALYTICS_SERVICE_PORT:-8094}/actuator/health || exit 1"]
       <<: *healthcheck-spring
 
   # ===========================================================================
@@ -471,7 +473,7 @@ services:
     volumes:
       - asset_storage:/data/asset-storage
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://localhost:${ASSET_SERVICE_PORT:-8095}/actuator/health || exit 1"]
+      test: ["CMD-SHELL", "wget -qO- http://localhost:${ASSET_SERVICE_PORT:-8095}/actuator/health/readiness || wget -qO- http://localhost:${ASSET_SERVICE_PORT:-8095}/actuator/health || exit 1"]
       <<: *healthcheck-spring
 
   # ===========================================================================
@@ -514,7 +516,7 @@ services:
       kafka:
         condition: service_healthy
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://localhost:${GATEWAY_PORT:-9000}/actuator/health || exit 1"]
+      test: ["CMD-SHELL", "wget -qO- http://localhost:${GATEWAY_PORT:-9000}/actuator/health/readiness || wget -qO- http://localhost:${GATEWAY_PORT:-9000}/actuator/health || exit 1"]
       <<: *healthcheck-spring
 
   # ===========================================================================
