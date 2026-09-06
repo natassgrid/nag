@@ -13,7 +13,7 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
  * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU标识 Affero General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
 
@@ -40,7 +40,7 @@ public class SharedSecurityConfig {
 
     @Bean
     @Order(Ordered.LOWEST_PRECEDENCE)
-    @ConditionalOnMissingBean(name = "defaultFallbackSecurityFilterChain")
+    @ConditionalOnMissingBean(SecurityFilterChain.class)
     public SecurityFilterChain defaultFallbackSecurityFilterChain(
             HttpSecurity http,
             JwtAuthenticationConverter jwtAuthenticationConverter) throws Exception {
