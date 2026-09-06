@@ -1,0 +1,102 @@
+# SPDX-License-Identifier: AGPL-3.0-only
+# National Assessment Grid (NAG) - Macro-Service: Auth & Admin
+
+spring:
+  application:
+    name: auth-admin-app
+
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/exam_platform?currentSchema=identity_service,candidate_service,admin_service,notification_service,public}
+    username: ${SPRING_DATASOURCE_USERNAME:exam_admin}
+    password: ${SPRING_DATASOURCE_PASSWORD:exam_secret}
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: 20
+      minimum-idle: 5
+      connection-timeout: 30000
+
+  jpa:
+    hibernate:
+      ddl-auto: none
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        format_sql: false
+    show-sql: false
+
+  flyway:
+    enabled: false
+
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:redis_secret}
+      timeout: 2000ms
+
+  session:
+    store-type: redis
+    redis:
+      flush-mode: on-save
+      namespace: auth:session
+
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: ${KEYCLOAK_ISSUER_URI:http://localhost:8080/realms/exam-realm}
+          jwk-set-uri: ${KEYCLOAK_ISSUER_URI:http://localhost:8080/realms/exam-realm}/protocol/openid-connect/certs
+
+  rabbitmq:
+    host: ${SPRING_RABBITMQ_HOST:localhost}
+    port: ${SPRING_RABBITMQ_PORT:5672}
+    username: ${SPRING_RABBITMQ_USERNAME:exam_rabbit}
+    password: ${SPRING_RABBITMQ_PASSWORD:rabbit_secret}
+
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+
+  threads:
+    virtual:
+      enabled: true
+
+server:
+  port: ${AUTH_ADMIN_PORT:8081}
+  servlet:
+    context-path: /
+  shutdown: graceful
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus,metrics
+  endpoint:
+    health:
+      show-details: always
+      probes:
+        enabled: true
+  metrics:
+    tags:
+      service: auth-admin-app
+
+platform:
+  messaging:
+    broker: ${PLATFORM_MESSAGING_BROKER:rabbit}
+
+app:
+  security:
+    max-failed-attempts: ${AUTH_MAX_FAILED_ATTEMPTS:5}
+    lockout-window-seconds: ${AUTH_LOCKOUT_WINDOW_SECONDS:600}
+    rate-limit-auth-per-ip-per-minute: ${RATE_LIMIT_AUTH_PER_IP_PER_MINUTE:10}
+    jwt-access-token-lifetime-seconds: ${JWT_ACCESS_TOKEN_LIFETIME_SECONDS:900}
+    jwt-refresh-token-lifetime-seconds: ${JWT_REFRESH_TOKEN_LIFETIME_SECONDS:28800}
+    session-idle-timeout-seconds: ${SESSION_IDLE_TIMEOUT_SECONDS:1800}
+  keycloak:
+    realm: ${KEYCLOAK_REALM:exam-realm}
+    client-id: ${KEYCLOAK_CLIENT_ID:exam-backend}
+    client-secret: ${KEYCLOAK_CLIENT_SECRET:}
+    admin-client-id: ${KEYCLOAK_ADMIN_CLIENT_ID:admin-cli}
+    admin-username: ${KEYCLOAK_ADMIN_USER:admin}
+    admin-password: ${KEYCLOAK_ADMIN_PASSWORD:admin_secret}
+    server-url: ${KEYCLOAK_SERVER_URL:http://localhost:8080}

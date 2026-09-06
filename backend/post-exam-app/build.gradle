@@ -1,0 +1,67 @@
+/*
+ * SPDX-License-Identifier: AGPL-3.0-only
+ *
+ * Open Digital Public Infrastructure (DPI) Platform
+ * Copyright (C) 2025 Open Digital Public Infrastructure (DPI) Platform Contributors
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as published
+ * by the Free Software Foundation, version 3 of the License.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU Affero General Public License for more details.
+ */
+plugins {
+    id 'java'
+    alias(libs.plugins.spring.boot)
+    alias(libs.plugins.spring.dependency.management)
+    alias(libs.plugins.lombok)
+}
+
+version = '0.0.1-SNAPSHOT'
+
+dependencyManagement {
+    imports {
+        mavenBom "org.springframework.cloud:spring-cloud-dependencies:${libs.versions.spring.cloud.get()}"
+    }
+}
+
+dependencies {
+    implementation project(':backend:shared-lib')
+    implementation project(':backend:evaluation-service')
+    implementation project(':backend:result-service')
+    implementation project(':backend:analytics-service')
+
+    // Web & Boot
+    implementation libs.spring.boot.starter.web
+    implementation libs.spring.boot.starter.security
+    implementation libs.spring.boot.starter.oauth2.resource.server
+    implementation libs.spring.boot.starter.oauth2.client
+    implementation libs.spring.boot.starter.data.jpa
+    runtimeOnly libs.postgresql
+
+    // RabbitMQ for macro broker mode
+    implementation libs.spring.boot.starter.amqp
+
+    // PDFBox (scorecards & analytics reports)
+    implementation libs.pdfbox
+
+    // Actuator
+    implementation libs.spring.boot.starter.actuator
+    implementation libs.micrometer.registry.prometheus
+
+    // Testing
+    testImplementation libs.spring.boot.starter.test
+    testImplementation libs.junit.jupiter
+    testRuntimeOnly libs.junit.platform.launcher
+}
+
+springBoot {
+    mainClass = 'com.examplatform.app.PostExamApplication'
+}
+
+test {
+    useJUnitPlatform()
+}

@@ -1,0 +1,72 @@
+# SPDX-License-Identifier: AGPL-3.0-only
+# National Assessment Grid (NAG) - Macro-Service: Post-Exam (Evaluation, Result, Analytics)
+
+spring:
+  application:
+    name: post-exam-app
+
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/exam_platform?currentSchema=evaluation_service,result_service,analytics_service,public}
+    username: ${SPRING_DATASOURCE_USERNAME:exam_admin}
+    password: ${SPRING_DATASOURCE_PASSWORD:exam_secret}
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: 20
+      minimum-idle: 5
+      connection-timeout: 30000
+
+  jpa:
+    hibernate:
+      ddl-auto: none
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        format_sql: false
+    show-sql: false
+
+  flyway:
+    enabled: false
+
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: ${KEYCLOAK_ISSUER_URI:http://localhost:8080/realms/exam-realm}
+          jwk-set-uri: ${KEYCLOAK_ISSUER_URI:http://localhost:8080/realms/exam-realm}/protocol/openid-connect/certs
+
+  rabbitmq:
+    host: ${SPRING_RABBITMQ_HOST:localhost}
+    port: ${SPRING_RABBITMQ_PORT:5672}
+    username: ${SPRING_RABBITMQ_USERNAME:exam_rabbit}
+    password: ${SPRING_RABBITMQ_PASSWORD:rabbit_secret}
+
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+
+  threads:
+    virtual:
+      enabled: true
+
+server:
+  port: ${POST_EXAM_APP_PORT:8089}
+  servlet:
+    context-path: /
+  shutdown: graceful
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus,metrics
+  endpoint:
+    health:
+      show-details: always
+      probes:
+        enabled: true
+  metrics:
+    tags:
+      service: post-exam-app
+
+platform:
+  messaging:
+    broker: ${PLATFORM_MESSAGING_BROKER:rabbit}

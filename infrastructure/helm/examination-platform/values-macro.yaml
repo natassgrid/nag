@@ -1,0 +1,157 @@
+# SPDX-License-Identifier: AGPL-3.0-only
+#
+# National Assessment Grid (NAG) - Macro-Services Helm Values Overlay
+# Usage:
+#   helm upgrade --install exam-platform ./infrastructure/helm/examination-platform \
+#     -f values.yaml \
+#     -f values-macro.yaml
+# =============================================================================
+
+global:
+  environment: demo-macro
+
+# --- Disable 13 individual microservices ---
+identityService:
+  enabled: false
+
+candidateService:
+  enabled: false
+
+questionBankService:
+  enabled: false
+
+examinationService:
+  enabled: false
+
+paperGenerator:
+  enabled: false
+
+deliveryService:
+  enabled: false
+
+responseService:
+  enabled: false
+
+evaluationService:
+  enabled: false
+
+resultService:
+  enabled: false
+
+notificationService:
+  enabled: false
+
+adminService:
+  enabled: false
+
+analyticsService:
+  enabled: false
+
+assetService:
+  enabled: false
+
+# --- Standalone Audit Service (always enabled for compliance) ---
+auditService:
+  enabled: true
+  replicas: 1
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+
+# --- Macro Services (5 deployments) ---
+authAdminService:
+  enabled: true
+  replicas: 1
+  image:
+    name: auth-admin-app
+  port: 8081
+  managementPort: 8081
+  resources:
+    requests:
+      cpu: 250m
+      memory: 512Mi
+    limits:
+      cpu: 1000m
+      memory: 1Gi
+  env:
+    SPRING_PROFILES_ACTIVE: macro,kubernetes
+    PLATFORM_MESSAGING_BROKER: rabbit
+    OTEL_SERVICE_NAME: auth-admin-service
+
+contentService:
+  enabled: true
+  replicas: 1
+  image:
+    name: content-app
+  port: 8083
+  managementPort: 8083
+  resources:
+    requests:
+      cpu: 250m
+      memory: 512Mi
+    limits:
+      cpu: 1000m
+      memory: 1Gi
+  env:
+    SPRING_PROFILES_ACTIVE: macro,kubernetes
+    PLATFORM_MESSAGING_BROKER: rabbit
+    OTEL_SERVICE_NAME: content-service
+
+executionService:
+  enabled: true
+  replicas: 2
+  image:
+    name: execution-app
+  port: 8087
+  managementPort: 8087
+  resources:
+    requests:
+      cpu: 500m
+      memory: 768Mi
+    limits:
+      cpu: 2000m
+      memory: 1536Mi
+  hpa:
+    enabled: true
+    minReplicas: 2
+    maxReplicas: 8
+  env:
+    SPRING_PROFILES_ACTIVE: macro,kubernetes
+    PLATFORM_MESSAGING_BROKER: rabbit
+    OTEL_SERVICE_NAME: execution-service
+
+postExamService:
+  enabled: true
+  replicas: 1
+  image:
+    name: post-exam-app
+  port: 8089
+  managementPort: 8089
+  resources:
+    requests:
+      cpu: 250m
+      memory: 512Mi
+    limits:
+      cpu: 1000m
+      memory: 1Gi
+  env:
+    SPRING_PROFILES_ACTIVE: macro,kubernetes
+    PLATFORM_MESSAGING_BROKER: rabbit
+    OTEL_SERVICE_NAME: post-exam-service
+
+apiGateway:
+  enabled: true
+  replicas: 1
+  port: 8080
+  managementPort: 8080
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi

@@ -58,6 +58,10 @@ spring-session-data-redis = { module = "org.springframework.session:spring-sessi
 spring-kafka = { module = "org.springframework.kafka:spring-kafka" }
 spring-kafka-test = { module = "org.springframework.kafka:spring-kafka-test" }
 
+# ── Spring AMQP / RabbitMQ (version managed by Boot BOM) ──────────────────────
+spring-boot-starter-amqp = { module = "org.springframework.boot:spring-boot-starter-amqp" }
+spring-rabbit-test = { module = "org.springframework.amqp:spring-rabbit-test" }
+
 # ── Spring Cloud (version managed by Cloud BOM) ───────────────────────────────
 spring-cloud-starter-gateway = { module = "org.springframework.cloud:spring-cloud-starter-gateway-server-webflux" }
 spring-cloud-starter-vault-config = { module = "org.springframework.cloud:spring-cloud-starter-vault-config" }

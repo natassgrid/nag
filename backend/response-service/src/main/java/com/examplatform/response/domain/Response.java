@@ -43,7 +43,7 @@ import java.util.UUID;
  * supports final-response aggregation queries.
  */
 @Entity
-@Table(name = "response")
+@Table(name = "response", schema = "response_service")
 @Getter
 @Setter
 @NoArgsConstructor
