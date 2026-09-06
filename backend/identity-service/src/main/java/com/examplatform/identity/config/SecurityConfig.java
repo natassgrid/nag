@@ -21,9 +21,9 @@ package com.examplatform.identity.config;
 
 import com.examplatform.identity.filter.RateLimitFilter;
 import lombok.RequiredArgsConstructor;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.core.annotation.Order;
 import org.springframework.http.HttpMethod;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -32,8 +32,6 @@ import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
-
-import org.springframework.core.annotation.Order;
 
 @Configuration
 @EnableWebSecurity
@@ -48,7 +46,7 @@ public class SecurityConfig {
     public SecurityFilterChain identitySecurityFilterChain(HttpSecurity http,
                                                    JwtAuthenticationConverter jwtAuthenticationConverter) throws Exception {
         http
-            .securityMatcher("/api/v1/identity/**", "/actuator/**")
+            .securityMatcher("/api/v1/identity/**", "/api/v1/admin/roles/**", "/api/v1/admin/users/**", "/api/v1/admin/vault/**", "/actuator/**")
             .csrf(csrf -> csrf.disable())
             .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .addFilterBefore(rateLimitFilter, UsernamePasswordAuthenticationFilter.class)
