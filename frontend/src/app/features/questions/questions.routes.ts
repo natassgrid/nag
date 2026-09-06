@@ -31,6 +31,11 @@ export const QUESTIONS_ROUTES: Routes = [
       import('./question-review.component').then(m => m.QuestionReviewComponent)
   },
   {
+    path: 'translations',
+    loadComponent: () =>
+      import('./translation/question-translation-list.component').then(m => m.QuestionTranslationListComponent)
+  },
+  {
     path: 'subjects',
     loadComponent: () =>
       import('./subject-management.component').then(m => m.SubjectManagementComponent)

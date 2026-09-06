@@ -14,8 +14,7 @@
  * GNU Affero General Public License for more details.
  *
  * You should have received a copy of the GNU Affero General Public License
- * along with this program. If not, see <https://www.gnu.org/licenses/>.
- */
+ * along with this program. If not, see <https://www.gnu.org/licenses/>.\n */
 
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
@@ -37,6 +36,7 @@ export interface ExaminationResponse {
   navigationPolicy: string;
   calculatorPolicy: string;
   reviewFlagEnabled: boolean;
+  isPractice?: boolean;
   sections: Section[];
   status: string;
   createdAt: string;
@@ -63,6 +63,7 @@ export interface CreateExamRequest {
   navigationPolicy: string;
   calculatorPolicy: string;
   reviewFlagEnabled: boolean;
+  isPractice?: boolean;
   sections: Section[];
 }
 

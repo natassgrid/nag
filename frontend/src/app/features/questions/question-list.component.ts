@@ -1,4 +1,4 @@
-import { Component, OnInit, ViewChild, ChangeDetectionStrategy } from '@angular/core';
+import { Component, OnInit, ViewChild, ChangeDetectionStrategy, ChangeDetectorRef } from '@angular/core';
 /*
  * SPDX-License-Identifier: AGPL-3.0-only
  *
@@ -28,6 +28,7 @@ import { MatTooltipModule } from '@angular/material/tooltip';
 import { QuestionService, QuestionResponse } from './question.service';
 import { QuestionFormDialogComponent } from './question-form-dialog.component';
 import { AiGenerateDialogComponent } from './ai-generate-dialog/ai-generate-dialog.component';
+import { QuestionTranslationDialogComponent } from './translation/question-translation-dialog.component';
 import { SubjectTopicService, Subject } from './subject-topic.service';
 import {
   PaginatedTableComponent,
@@ -51,7 +52,8 @@ import { PageHeaderComponent } from '../../shared/components/page-header/page-he
     PaginatedTableComponent,
     PageHeaderComponent,
     QuestionFormDialogComponent,
-    AiGenerateDialogComponent
+    AiGenerateDialogComponent,
+    QuestionTranslationDialogComponent
   ],
   templateUrl: './question-list.component.html',
   changeDetection: ChangeDetectionStrategy.Eager,
@@ -64,6 +66,8 @@ export class QuestionListComponent implements OnInit {
   drawerOpen = false;
   editingQuestion?: QuestionResponse;
   aiDrawerOpen = false;
+  translationDrawerOpen = false;
+  translatingQuestion?: QuestionResponse;
 
   filters: Record<string, any> = {};
 
@@ -160,7 +164,8 @@ export class QuestionListComponent implements OnInit {
   constructor(
     private questionService: QuestionService,
     private snackBar: MatSnackBar,
-    private subjectTopicService: SubjectTopicService
+    private subjectTopicService: SubjectTopicService,
+    private cdr: ChangeDetectorRef
   ) {}
 
   ngOnInit(): void {
@@ -174,6 +179,7 @@ export class QuestionListComponent implements OnInit {
       if (subjectCat) {
         subjectCat.options = subjects.map(s => ({ label: s.name, value: s.name }));
       }
+      this.cdr.markForCheck();
     });
   }
 
@@ -204,6 +210,18 @@ export class QuestionListComponent implements OnInit {
   openEditDrawer(question: QuestionResponse): void {
     this.editingQuestion = question;
     this.drawerOpen = true;
+  }
+
+  openTranslationDrawer(question: QuestionResponse): void {
+    this.translatingQuestion = question;
+    this.translationDrawerOpen = true;
+  }
+
+  onTranslationDrawerClose(updated: boolean): void {
+    this.translationDrawerOpen = false;
+    if (updated) {
+      this.reload();
+    }
   }
 
   onDrawerClose(result: QuestionResponse | null): void {

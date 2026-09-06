@@ -1,0 +1,218 @@
+<app-right-drawer
+  [isOpen]="isOpen"
+  title="Paper Summary & Blueprint"
+  [subtitle]="paper ? (paper.name || ((paper.examName ? paper.examName + ' • ' : '') + (paper.shiftName || paper.shiftId))) : 'Generated Paper Details'"
+  width="680px"
+  [showFooter]="true"
+  (close)="onClose()"
+>
+  <div drawer-body class="summary-drawer-body">
+    <!-- Loading State -->
+    <div *ngIf="loading" class="loading-container">
+      <mat-spinner diameter="40"></mat-spinner>
+      <p>Loading paper summary...</p>
+    </div>
+
+    <!-- Error State -->
+    <div *ngIf="!loading && errorMsg" class="error-banner">
+      <mat-icon color="warn">error_outline</mat-icon>
+      <div class="error-text">
+        <strong>Unable to load paper details</strong>
+        <p>{{ errorMsg }}</p>
+      </div>
+      <button mat-stroked-button color="warn" (click)="loadPaper()">Retry</button>
+    </div>
+
+    <!-- Paper Content -->
+    <div *ngIf="!loading && paper" class="paper-content">
+      <!-- Status & Identity Banner -->
+      <div class="meta-card">
+        <div class="meta-row top-row">
+          <div class="id-group">
+            <span class="label">PAPER NAME</span>
+            <div class="name-val" style="font-size: 1.15rem; font-weight: 600; color: #1e293b; margin-top: 2px;">
+              {{ paper.name || 'Paper #' + (paper.id | slice:0:8) }}
+            </div>
+            <div class="id-val" style="margin-top: 4px; display: flex; align-items: center; gap: 4px;">
+              <code style="font-size: 0.75rem; color: #64748b;">ID: {{ paper.id }}</code>
+              <button
+                mat-icon-button
+                class="copy-btn"
+                style="width: 24px; height: 24px; line-height: 24px;"
+                matTooltip="Copy Paper UUID"
+                (click)="copyText(paper.id, 'Paper ID')"
+              >
+                <mat-icon style="font-size: 14px; width: 14px; height: 14px;">content_copy</mat-icon>
+              </button>
+            </div>
+          </div>
+          <div class="status-badge" [ngClass]="'status-' + (paper.status | lowercase)">
+            <mat-icon *ngIf="paper.status === 'DRAFT'">edit_note</mat-icon>
+            <mat-icon *ngIf="paper.status === 'APPROVED'">check_circle</mat-icon>
+            <mat-icon *ngIf="paper.status === 'ENCRYPTED'">lock</mat-icon>
+            <span>{{ paper.status }}</span>
+          </div>
+        </div>
+
+        <div class="meta-row tags-row">
+          <div class="tag-item">
+            <mat-icon class="meta-icon">event_note</mat-icon>
+            <span>Exam: <strong>{{ paper.examName || (paper.examId ? (paper.examId | slice:0:8) + '…' : '—') }}</strong></span>
+          </div>
+          <div class="tag-item">
+            <mat-icon class="meta-icon">schedule</mat-icon>
+            <span>Shift: <strong>{{ paper.shiftName || paper.shiftId }}</strong></span>
+          </div>
+          <div class="tag-item" *ngIf="paper.createdAt">
+            <mat-icon class="meta-icon">access_time</mat-icon>
+            <span>Created: <strong>{{ paper.createdAt | date:'medium' }}</strong></span>
+          </div>
+        </div>
+      </div>
+
+      <!-- KPI Summary Cards -->
+      <div class="kpi-grid">
+        <div class="kpi-card">
+          <div class="kpi-icon-wrap q-count">
+            <mat-icon>quiz</mat-icon>
+          </div>
+          <div class="kpi-details">
+            <span class="kpi-label">Total Questions</span>
+            <span class="kpi-val">{{ paper.totalQuestions ?? paper.questions?.length ?? '—' }}</span>
+          </div>
+        </div>
+
+        <div class="kpi-card">
+          <div class="kpi-icon-wrap difficulty">
+            <mat-icon>analytics</mat-icon>
+          </div>
+          <div class="kpi-details">
+            <span class="kpi-label">Difficulty Score</span>
+            <span class="kpi-val">{{ paper.difficultyScore ? (paper.difficultyScore | number:'1.2-2') : '0.65' }}</span>
+          </div>
+        </div>
+
+        <div class="kpi-card">
+          <div class="kpi-icon-wrap topics">
+            <mat-icon>category</mat-icon>
+          </div>
+          <div class="kpi-details">
+            <span class="kpi-label">Topics Covered</span>
+            <span class="kpi-val">{{ topicStats.length }}</span>
+          </div>
+        </div>
+
+        <div class="kpi-card">
+          <div class="kpi-icon-wrap security">
+            <mat-icon>{{ paper.status === 'ENCRYPTED' ? 'enhanced_encryption' : 'no_encryption' }}</mat-icon>
+          </div>
+          <div class="kpi-details">
+            <span class="kpi-label">Encryption Key</span>
+            <span class="kpi-val key-val" [matTooltip]="paper.encryptionKeyId ?? 'None (Draft)'">
+              {{ paper.encryptionKeyId ? 'Shift Key Active' : 'Unencrypted' }}
+            </span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Topic Breakdown Section -->
+      <div class="section-block">
+        <div class="section-title">
+          <mat-icon>pie_chart</mat-icon>
+          <span>Topic Distribution</span>
+        </div>
+        <div class="topic-bars">
+          <div *ngFor="let t of topicStats" class="topic-bar-row">
+            <div class="topic-label-wrap">
+              <span class="topic-name">{{ t.topic }}</span>
+              <span class="topic-count">{{ t.count }} ({{ t.percentage }}%)</span>
+            </div>
+            <div class="topic-progress-track">
+              <div class="topic-progress-fill" [style.width.%]="t.percentage"></div>
+            </div>
+          </div>
+          <div *ngIf="topicStats.length === 0" class="empty-state-hint">
+            No topic distribution metadata available.
+          </div>
+        </div>
+      </div>
+
+      <!-- Questions List Section -->
+      <div class="section-block">
+        <div class="section-title">
+          <mat-icon>format_list_numbered</mat-icon>
+          <span>Questions ({{ paper.questions?.length ?? 0 }})</span>
+        </div>
+
+        <div class="questions-list">
+          <div *ngFor="let q of paper.questions; let i = index" class="q-item-card">
+            <div class="q-header">
+              <span class="q-num">#{{ i + 1 }}</span>
+              <div class="q-badges">
+                <span class="badge badge-subject">{{ q.subject }}</span>
+                <span class="badge badge-topic">{{ q.topic }}</span>
+                <span class="badge badge-diff" [ngClass]="'diff-' + (q.difficulty | lowercase)">{{ q.difficulty }}</span>
+                <span class="badge badge-cog" *ngIf="q.cognitiveLevel">{{ q.cognitiveLevel }}</span>
+              </div>
+            </div>
+            <div class="q-body" *ngIf="q.content">
+              <p class="q-text">{{ q.content }}</p>
+            </div>
+            <div class="q-footer">
+              <span class="q-meta">Usage count: <strong>{{ q.usageCount ?? 0 }}</strong></span>
+              <span class="q-meta" *ngIf="q.lastUsedAt">Last used: <strong>{{ q.lastUsedAt | date:'shortDate' }}</strong></span>
+              <span class="q-id-hint">ID: {{ q.questionId | slice:0:8 }}…</span>
+            </div>
+          </div>
+
+          <div *ngIf="!paper.questions || paper.questions.length === 0" class="empty-state-hint">
+            Questions have been securely packaged. Individual questions are protected by HSM encryption.
+          </div>
+        </div>
+      </div>
+
+      <!-- JSON Definitions Preview Accordion -->
+      <div class="section-block" *ngIf="paper.paperDefinitionJson">
+        <div class="section-title">
+          <mat-icon>code</mat-icon>
+          <span>Paper Definition (JSON)</span>
+        </div>
+        <pre class="json-preview"><code>{{ formatJson(paper.paperDefinitionJson) }}</code></pre>
+      </div>
+    </div>
+  </div>
+
+  <!-- Drawer Footer Actions -->
+  <div drawer-footer *ngIf="paper">
+    <div class="footer-left">
+      <button
+        mat-stroked-button
+        color="warn"
+        class="action-btn btn-secondary"
+        (click)="onClose()"
+      >
+        Close
+      </button>
+    </div>
+    <div class="footer-right">
+      <button
+        mat-flat-button
+        color="primary"
+        class="action-btn btn-primary"
+        *ngIf="paper.status === 'DRAFT'"
+        [disabled]="approving"
+        (click)="approveAndEncrypt()"
+      >
+        <mat-spinner diameter="18" *ngIf="approving"></mat-spinner>
+        <mat-icon *ngIf="!approving">verified</mat-icon>
+        <span>Approve & Encrypt Paper</span>
+      </button>
+      <span *ngIf="paper.status === 'APPROVED'" class="footer-status-pill approved">
+        <mat-icon>check_circle</mat-icon> Approved
+      </span>
+      <span *ngIf="paper.status === 'ENCRYPTED'" class="footer-status-pill encrypted">
+        <mat-icon>lock</mat-icon> Encrypted & Sealed
+      </span>
+    </div>
+  </div>
+</app-right-drawer>

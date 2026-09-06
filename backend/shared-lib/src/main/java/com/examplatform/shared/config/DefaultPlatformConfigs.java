@@ -53,6 +53,10 @@ public final class DefaultPlatformConfigs {
         m.put("delivery.max.disconnect.grace.seconds", "180");
         m.put("delivery.retest.authorization.required", "true");
 
+        // Candidate Practice & Learning Governance
+        m.put("practice.mode.enabled", "true");
+        m.put("practice.solutions.visible", "true");
+
         // Assessment & Question Bank Governance
         m.put("question.dual.review.required", "true");
         m.put("question.ai.generation.enabled", "true");

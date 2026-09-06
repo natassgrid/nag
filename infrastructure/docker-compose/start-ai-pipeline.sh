@@ -12,7 +12,7 @@
 #   Infrastructure:
 #   - PostgreSQL (question storage + embeddings)
 #   - Redis (caching, rate limiting)
-#   - Vault (encryption keys — dev mode)
+#   - Vault (encryption keys — persistent storage)
 #   - Kafka (audit events)
 #   - Keycloak (IAM / auth)
 #   AI:
@@ -26,7 +26,7 @@
 #
 # Usage:
 #   ./start-ai-pipeline.sh          # Start full pipeline stack
-#   ./start-ai-pipeline.sh --clean  # Clean volumes and restart fresh
+#   ./start-ai-pipeline.sh --clean  # Clean ephemeral volumes and restart fresh (preserves vault_data)
 #   ./start-ai-pipeline.sh --stop   # Stop all pipeline services
 #   ./start-ai-pipeline.sh --status # Show status of pipeline services
 #   ./start-ai-pipeline.sh --logs   # Tail logs from Ollama and LiteLLM
@@ -95,9 +95,11 @@ case $ACTION in
     ;;
 
   clean)
-    echo "▶ Stopping and removing pipeline volumes..."
-    $COMPOSE_SERVICES down -v --remove-orphans 2>/dev/null || true
-    $COMPOSE down -v --remove-orphans 2>/dev/null || true
+    echo "▶ Stopping containers..."
+    $COMPOSE_SERVICES down --remove-orphans 2>/dev/null || true
+    $COMPOSE down --remove-orphans 2>/dev/null || true
+    echo "▶ Cleaning ephemeral volumes (preserving vault_data and AI models)..."
+    docker volume ls --format '{{.Name}}' | grep -E 'postgres_data|kafka_data|redis_data|keycloak_data|prometheus_data|grafana_data' | grep -v -E 'vault_data|ollama_data|indictrans2_cache' | xargs -r docker volume rm 2>/dev/null || true
     echo ""
     echo "▶ Starting fresh..."
     $COMPOSE up -d $INFRA_SERVICES

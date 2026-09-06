@@ -40,7 +40,6 @@ public class SessionStartRequest {
     @NotNull
     private UUID examId;
 
-    @NotNull
     private UUID shiftId;
 
     @Builder.Default

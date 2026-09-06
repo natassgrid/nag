@@ -21,6 +21,7 @@ package com.examplatform.papergenerator.service;
 
 import com.examplatform.papergenerator.domain.Paper;
 import com.examplatform.papergenerator.repository.PaperRepository;
+import jakarta.persistence.EntityNotFoundException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -39,7 +40,6 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -84,7 +84,7 @@ class PaperApprovalServiceTest {
     @Test
     @DisplayName("Should transition DRAFT paper to ENCRYPTED after approval")
     void approvePaper_draftPaper_transitionsToEncrypted() {
-        when(paperRepository.findById(paperId)).thenReturn(Optional.of(draftPaper));
+        when(paperRepository.findByIdAndTenantId(paperId, "tenant-1")).thenReturn(Optional.of(draftPaper));
         when(vaultCryptoService.encrypt(eq("paper-shift-shift-A"), anyString()))
                 .thenReturn("vault:v1:encrypted_content");
         when(paperRepository.save(any(Paper.class))).thenAnswer(i -> i.getArgument(0));
@@ -102,7 +102,7 @@ class PaperApprovalServiceTest {
     @DisplayName("Should reject approval of non-DRAFT paper")
     void approvePaper_approvedPaper_throwsException() {
         draftPaper.setStatus("APPROVED");
-        when(paperRepository.findById(paperId)).thenReturn(Optional.of(draftPaper));
+        when(paperRepository.findByIdAndTenantId(paperId, "tenant-1")).thenReturn(Optional.of(draftPaper));
 
         assertThatThrownBy(() -> paperApprovalService.approvePaper(paperId, "tenant-1"))
                 .isInstanceOf(IllegalStateException.class)
@@ -112,17 +112,18 @@ class PaperApprovalServiceTest {
     @Test
     @DisplayName("Should throw when paper not found")
     void approvePaper_paperNotFound_throwsException() {
+        when(paperRepository.findByIdAndTenantId(paperId, "tenant-1")).thenReturn(Optional.empty());
         when(paperRepository.findById(paperId)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> paperApprovalService.approvePaper(paperId, "tenant-1"))
-                .isInstanceOf(IllegalArgumentException.class)
+                .isInstanceOf(EntityNotFoundException.class)
                 .hasMessageContaining("Paper not found");
     }
 
     @Test
     @DisplayName("Should encrypt paper content with shift-specific key")
     void approvePaper_encryptsWithShiftKey() {
-        when(paperRepository.findById(paperId)).thenReturn(Optional.of(draftPaper));
+        when(paperRepository.findByIdAndTenantId(paperId, "tenant-1")).thenReturn(Optional.of(draftPaper));
         when(vaultCryptoService.encrypt(eq("paper-shift-shift-A"), eq("{\"questions\": []}")))
                 .thenReturn("vault:v1:abc123");
         when(paperRepository.save(any(Paper.class))).thenAnswer(i -> i.getArgument(0));
@@ -137,7 +138,7 @@ class PaperApprovalServiceTest {
     @Test
     @DisplayName("Should publish PAPER_APPROVED audit event")
     void approvePaper_publishesAuditEvent() {
-        when(paperRepository.findById(paperId)).thenReturn(Optional.of(draftPaper));
+        when(paperRepository.findByIdAndTenantId(paperId, "tenant-1")).thenReturn(Optional.of(draftPaper));
         when(vaultCryptoService.encrypt(anyString(), anyString())).thenReturn("vault:v1:enc");
         when(paperRepository.save(any(Paper.class))).thenAnswer(i -> i.getArgument(0));
         when(kafkaTemplate.send(anyString(), anyString(), any()))

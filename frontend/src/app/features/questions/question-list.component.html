@@ -47,6 +47,9 @@
 
       <!-- Custom Actions Column Template -->
       <ng-template #actionsTmpl let-row>
+        <button mat-icon-button matTooltip="Translate / Localize" (click)="openTranslationDrawer(row)">
+          <mat-icon>translate</mat-icon>
+        </button>
         <button mat-icon-button matTooltip="Edit" (click)="openEditDrawer(row)">
           <mat-icon>edit</mat-icon>
         </button>
@@ -66,6 +69,13 @@
         [question]="editingQuestion"
         (close)="onDrawerClose($event)"
       ></app-question-form-dialog>
+
+      <!-- ── TRANSLATION DRAWER ── -->
+      <app-question-translation-dialog
+        [isOpen]="translationDrawerOpen"
+        [question]="translatingQuestion"
+        (close)="onTranslationDrawerClose($event)"
+      ></app-question-translation-dialog>
 
       <!-- ── AI GENERATION DRAWER ── -->
       <app-ai-generate-dialog

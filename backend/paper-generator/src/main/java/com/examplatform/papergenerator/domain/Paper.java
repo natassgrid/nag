@@ -50,6 +50,10 @@ import java.util.UUID;
 @Table(name = "paper", schema = "paper_generator")
 public class Paper extends BaseEntity {
 
+    /** Meaningful human-readable name of the generated paper. */
+    @Column(name = "name", length = 255)
+    private String name;
+
     @Column(name = "exam_id", nullable = false, columnDefinition = "uuid")
     private UUID examId;
 
@@ -58,6 +62,10 @@ public class Paper extends BaseEntity {
 
     @Column(name = "status", nullable = false, length = 20)
     private String status;
+
+    /** Indicates whether this paper is generated specifically for candidate practice and learning. */
+    @Column(name = "is_practice", nullable = false)
+    private boolean isPractice;
 
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "paper_definition_json", columnDefinition = "jsonb")
@@ -70,7 +78,7 @@ public class Paper extends BaseEntity {
     @Column(name = "topic_distribution_json", columnDefinition = "jsonb")
     private String topicDistributionJson;
 
-    @Column(name = "encrypted_package_ref")
+    @Column(name = "encrypted_package_ref", columnDefinition = "TEXT")
     private String encryptedPackageRef;
 
     @Column(name = "encryption_key_id")

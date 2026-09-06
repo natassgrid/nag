@@ -50,6 +50,10 @@ interface SystemSettingsState {
   deliveryMaxDisconnectGraceSeconds: number;
   deliveryRetestAuthorizationRequired: boolean;
 
+  // Candidate Practice & Learning
+  practiceModeEnabled: boolean;
+  practiceSolutionsVisible: boolean;
+
   // Assessment & Question Bank
   questionDualReviewRequired: boolean;
   questionAiGenerationEnabled: boolean;
@@ -83,6 +87,9 @@ const DEFAULT_SETTINGS_STATE: SystemSettingsState = {
   deliveryAutosaveIntervalSeconds: 15,
   deliveryMaxDisconnectGraceSeconds: 180,
   deliveryRetestAuthorizationRequired: true,
+
+  practiceModeEnabled: true,
+  practiceSolutionsVisible: true,
 
   questionDualReviewRequired: true,
   questionAiGenerationEnabled: true,
@@ -144,6 +151,9 @@ export class SettingsComponent implements OnInit {
   readonly deliveryMaxDisconnectGraceSeconds = signal<number>(DEFAULT_SETTINGS_STATE.deliveryMaxDisconnectGraceSeconds);
   readonly deliveryRetestAuthorizationRequired = signal<boolean>(DEFAULT_SETTINGS_STATE.deliveryRetestAuthorizationRequired);
 
+  readonly practiceModeEnabled = signal<boolean>(DEFAULT_SETTINGS_STATE.practiceModeEnabled);
+  readonly practiceSolutionsVisible = signal<boolean>(DEFAULT_SETTINGS_STATE.practiceSolutionsVisible);
+
   readonly questionDualReviewRequired = signal<boolean>(DEFAULT_SETTINGS_STATE.questionDualReviewRequired);
   readonly questionAiGenerationEnabled = signal<boolean>(DEFAULT_SETTINGS_STATE.questionAiGenerationEnabled);
   readonly evaluationAutoGradeInstant = signal<boolean>(DEFAULT_SETTINGS_STATE.evaluationAutoGradeInstant);
@@ -177,6 +187,8 @@ export class SettingsComponent implements OnInit {
       this.deliveryAutosaveIntervalSeconds() !== base.deliveryAutosaveIntervalSeconds ||
       this.deliveryMaxDisconnectGraceSeconds() !== base.deliveryMaxDisconnectGraceSeconds ||
       this.deliveryRetestAuthorizationRequired() !== base.deliveryRetestAuthorizationRequired ||
+      this.practiceModeEnabled() !== base.practiceModeEnabled ||
+      this.practiceSolutionsVisible() !== base.practiceSolutionsVisible ||
       this.questionDualReviewRequired() !== base.questionDualReviewRequired ||
       this.questionAiGenerationEnabled() !== base.questionAiGenerationEnabled ||
       this.evaluationAutoGradeInstant() !== base.evaluationAutoGradeInstant ||
@@ -272,6 +284,9 @@ export class SettingsComponent implements OnInit {
       deliveryMaxDisconnectGraceSeconds: parseNum(map['delivery.max.disconnect.grace.seconds'], DEFAULT_SETTINGS_STATE.deliveryMaxDisconnectGraceSeconds),
       deliveryRetestAuthorizationRequired: parseBool(map['delivery.retest.authorization.required'], DEFAULT_SETTINGS_STATE.deliveryRetestAuthorizationRequired),
 
+      practiceModeEnabled: parseBool(map['practice.mode.enabled'], DEFAULT_SETTINGS_STATE.practiceModeEnabled),
+      practiceSolutionsVisible: parseBool(map['practice.solutions.visible'], DEFAULT_SETTINGS_STATE.practiceSolutionsVisible),
+
       questionDualReviewRequired: parseBool(map['question.dual.review.required'], DEFAULT_SETTINGS_STATE.questionDualReviewRequired),
       questionAiGenerationEnabled: parseBool(map['question.ai.generation.enabled'], DEFAULT_SETTINGS_STATE.questionAiGenerationEnabled),
       evaluationAutoGradeInstant: parseBool(map['evaluation.auto.grade.instant'], DEFAULT_SETTINGS_STATE.evaluationAutoGradeInstant),
@@ -302,6 +317,9 @@ export class SettingsComponent implements OnInit {
     this.deliveryAutosaveIntervalSeconds.set(s.deliveryAutosaveIntervalSeconds);
     this.deliveryMaxDisconnectGraceSeconds.set(s.deliveryMaxDisconnectGraceSeconds);
     this.deliveryRetestAuthorizationRequired.set(s.deliveryRetestAuthorizationRequired);
+
+    this.practiceModeEnabled.set(s.practiceModeEnabled);
+    this.practiceSolutionsVisible.set(s.practiceSolutionsVisible);
 
     this.questionDualReviewRequired.set(s.questionDualReviewRequired);
     this.questionAiGenerationEnabled.set(s.questionAiGenerationEnabled);
@@ -337,6 +355,9 @@ export class SettingsComponent implements OnInit {
       'delivery.autosave.interval.seconds': String(this.deliveryAutosaveIntervalSeconds()),
       'delivery.max.disconnect.grace.seconds': String(this.deliveryMaxDisconnectGraceSeconds()),
       'delivery.retest.authorization.required': String(this.deliveryRetestAuthorizationRequired()),
+
+      'practice.mode.enabled': String(this.practiceModeEnabled()),
+      'practice.solutions.visible': String(this.practiceSolutionsVisible()),
 
       'question.dual.review.required': String(this.questionDualReviewRequired()),
       'question.ai.generation.enabled': String(this.questionAiGenerationEnabled()),

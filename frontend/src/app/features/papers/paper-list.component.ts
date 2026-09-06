@@ -17,7 +17,7 @@
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
 
-import { Component, OnInit, ViewChild, ChangeDetectionStrategy } from '@angular/core';
+import { Component, OnInit, ViewChild, ChangeDetectionStrategy, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
@@ -32,9 +32,11 @@ import {
   PaperService,
   PaperGenerationRequest,
   PaperSummary,
-  PaperGenerationResponse
+  PaperGenerationResponse,
+  PaperDetail
 } from './paper.service';
 import { PaperGenerateDialogComponent } from './paper-generate-dialog.component';
+import { PaperSummaryDrawerComponent } from './paper-summary-drawer.component';
 import {
   PaginatedTableComponent,
   PaginatedDataFetcher,
@@ -42,6 +44,7 @@ import {
 } from '../../shared/components/paginated-table';
 import { ColumnDef } from '../../shared/components/paginated-table/pagination.model';
 import { PageHeaderComponent } from '../../shared/components/page-header/page-header.component';
+import { ExamManagementService } from '../exam/exam-manage/exam-management.service';
 
 @Component({
   selector: 'app-paper-list',
@@ -57,10 +60,11 @@ import { PageHeaderComponent } from '../../shared/components/page-header/page-he
     MatProgressSpinnerModule,
     PaginatedTableComponent,
     PageHeaderComponent,
-    PaperGenerateDialogComponent
+    PaperGenerateDialogComponent,
+    PaperSummaryDrawerComponent
   ],
   templateUrl: './paper-list.component.html',
-  changeDetection: ChangeDetectionStrategy.Eager,
+  changeDetection: ChangeDetectionStrategy.Default,
   styleUrls: ['./paper-list.component.scss']
 })
 export class PaperListComponent implements OnInit {
@@ -68,9 +72,12 @@ export class PaperListComponent implements OnInit {
   @ViewChild('paperTable') paperTable?: PaginatedTableComponent<PaperSummary>;
 
   generateDrawerOpen = false;
+  summaryDrawerOpen = false;
+  selectedPaperId: string | null = null;
   activeFilters: Record<string, any> = {};
   approvingId: string | null = null;
   lastResult: (PaperGenerationResponse & { status: string }) | null = null;
+  examMap = new Map<string, string>();
 
   filterCategories: FilterCategory[] = [
     {
@@ -97,15 +104,26 @@ export class PaperListComponent implements OnInit {
 
   columns: ColumnDef<PaperSummary>[] = [
     {
-      key: 'paperId',
-      header: 'Paper ID',
-      cell: (row) => row.paperId?.substring(0, 8) + '…'
+      key: 'name',
+      header: 'Paper Name',
+      cell: (row) => row.name || (row.examName ? `${row.isPractice ? 'Practice - ' : ''}${row.examName} (${row.shiftName || row.shiftId})` : (row.paperId ? `Paper #${row.paperId.substring(0, 8)}` : '—')),
+      sortable: true
     },
-    { key: 'examId', header: 'Exam ID', cell: (row) => row.examId?.substring(0, 8) + '…' },
-    { key: 'shiftId', header: 'Shift', sortable: true },
+    {
+      key: 'examName',
+      header: 'Examination',
+      cell: (row) => row.examName || this.examMap.get(row.examId) || (row.examId ? row.examId.substring(0, 8) + '…' : '—'),
+      sortable: true
+    },
+    {
+      key: 'shiftId',
+      header: 'Shift',
+      cell: (row) => row.shiftName || row.shiftId || '—',
+      sortable: true
+    },
     {
       key: 'difficultyScore',
-      header: 'Difficulty Score',
+      header: 'Difficulty',
       cell: (row) => row.difficultyScore?.toFixed(2) ?? '—'
     },
     {
@@ -134,28 +152,64 @@ export class PaperListComponent implements OnInit {
 
   constructor(
     private paperService: PaperService,
+    private examService: ExamManagementService,
     private snackBar: MatSnackBar,
-    private router: Router
+    private router: Router,
+    private cdr: ChangeDetectorRef
   ) {}
 
-  ngOnInit(): void {}
+  ngOnInit(): void {
+    this.loadExams();
+  }
 
-  navigateToBlueprints(): void {
-    this.router.navigate(['/papers/blueprints']);
+  loadExams(): void {
+    this.examService.getExams(0, 100).pipe(catchError(() => of([]))).subscribe((exams) => {
+      this.examMap.clear();
+      (exams || []).forEach((e) => this.examMap.set(e.id, e.name));
+      this.cdr.detectChanges();
+    });
   }
 
   onFilterChange(filters: Record<string, any>): void {
     this.activeFilters = { ...filters };
+    this.paperTable?.reload();
   }
 
-  // ── Generate ─────────────────────────────────────────────────────────
+  // ── Paper Summary Drawer ──────────────────────────────────────────────
+
+  viewPaperSummary(row: PaperSummary): void {
+    this.selectedPaperId = row.paperId;
+    this.summaryDrawerOpen = true;
+    this.cdr.detectChanges();
+  }
+
+  openSummaryById(paperId: string): void {
+    this.selectedPaperId = paperId;
+    this.summaryDrawerOpen = true;
+    this.cdr.detectChanges();
+  }
+
+  onSummaryDrawerClose(): void {
+    this.summaryDrawerOpen = false;
+    this.selectedPaperId = null;
+    this.cdr.detectChanges();
+  }
+
+  onPaperApprovedFromDrawer(paper: PaperDetail): void {
+    this.paperTable?.reload();
+    this.cdr.detectChanges();
+  }
+
+  // ── Generate ──────────────────────────────────────────────────────────
 
   openGenerateDrawer(): void {
     this.generateDrawerOpen = true;
+    this.cdr.detectChanges();
   }
 
   onGenerateDrawerClose(request: PaperGenerationRequest | null): void {
     this.generateDrawerOpen = false;
+    this.cdr.detectChanges();
     if (!request) return;
 
     this.paperService
@@ -183,34 +237,40 @@ export class PaperListComponent implements OnInit {
             duration: 6000,
             panelClass: 'snack-error'
           });
+          this.cdr.detectChanges();
           return of(null);
         })
       )
       .subscribe((res) => {
         if (!res) return;
         this.lastResult = { ...res, status: res.status ?? 'DRAFT' };
-        this.snackBar.open(
-          `Paper generated — ID: ${res.paperId.substring(0, 8)}…`,
-          'OK',
-          { duration: 5000 }
-        );
+        this.selectedPaperId = res.paperId;
+        this.summaryDrawerOpen = true;
+        this.snackBar.open(`Paper generation initiated: ${res.name || res.paperId}`, 'Close', {
+          duration: 3500
+        });
         this.paperTable?.reload();
+        this.cdr.detectChanges();
       });
   }
 
-  // ── Approve ──────────────────────────────────────────────────────────
+  // ── Approve & Encrypt ─────────────────────────────────────────────────
 
-  approvePaper(paper: PaperSummary): void {
-    this.approvingId = paper.paperId;
+  approvePaper(row: PaperSummary): void {
+    this.approvingId = row.paperId;
+    this.cdr.detectChanges();
 
     this.paperService
-      .approvePaper(paper.paperId)
+      .approvePaper(row.paperId)
       .pipe(
         catchError((err) => {
-          const msg =
-            err?.error?.detail ?? err?.error?.message ?? 'Approval failed';
-          this.snackBar.open(msg, 'Dismiss', { duration: 5000, panelClass: 'snack-error' });
+          const msg = err?.error?.message ?? err?.message ?? 'Approval failed';
+          this.snackBar.open('Approval failed: ' + msg, 'Dismiss', {
+            duration: 5000,
+            panelClass: 'snack-error'
+          });
           this.approvingId = null;
+          this.cdr.detectChanges();
           return of(null);
         })
       )
@@ -218,11 +278,18 @@ export class PaperListComponent implements OnInit {
         this.approvingId = null;
         if (!res) return;
         this.snackBar.open(
-          `Paper ${res.paperId.substring(0, 8)}… is now ${res.status}`,
-          'OK',
+          `Paper approved and encrypted successfully (${res.name || res.paperId})`,
+          'Close',
           { duration: 4000 }
         );
         this.paperTable?.reload();
+        this.cdr.detectChanges();
       });
+  }
+
+  // ── Navigation ────────────────────────────────────────────────────────
+
+  navigateToBlueprints(): void {
+    this.router.navigate(['/papers/blueprints']);
   }
 }

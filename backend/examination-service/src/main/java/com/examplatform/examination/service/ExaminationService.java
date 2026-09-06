@@ -6,9 +6,7 @@
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as published
- * by the Free Software Foundation, version 3 of the License.
- *
- * This program is distributed in the hope that it will be useful,
+ * by the Free Software Foundation, version 3 of the License.\n *\n * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
  * GNU Affero General Public License for more details.
@@ -157,6 +155,7 @@ public class ExaminationService {
                 .navigationPolicy(request.getNavigationPolicy() != null ? request.getNavigationPolicy().name() : NavigationPolicy.FLEXIBLE.name())
                 .calculatorPolicy(request.getCalculatorPolicy() != null ? request.getCalculatorPolicy().name() : CalculatorPolicy.NONE.name())
                 .reviewFlagEnabled(Boolean.TRUE.equals(request.getReviewFlagEnabled()))
+                .isPractice(Boolean.TRUE.equals(request.getIsPractice()))
                 .sectionsJson(sectionsJson)
                 .status("DRAFT")
                 .build();
@@ -204,6 +203,9 @@ public class ExaminationService {
         examination.setNavigationPolicy(request.getNavigationPolicy() != null ? request.getNavigationPolicy().name() : NavigationPolicy.FLEXIBLE.name());
         examination.setCalculatorPolicy(request.getCalculatorPolicy() != null ? request.getCalculatorPolicy().name() : CalculatorPolicy.NONE.name());
         examination.setReviewFlagEnabled(Boolean.TRUE.equals(request.getReviewFlagEnabled()));
+        if (request.getIsPractice() != null) {
+            examination.setPractice(request.getIsPractice());
+        }
         examination.setSectionsJson(sectionsJson);
 
         Examination saved = examinationRepository.save(examination);
@@ -267,7 +269,7 @@ public class ExaminationService {
         return toResponse(saved, sections);
     }
 
-    // ── Private helpers ──────────────────────────────────────────────────────────
+    // ── Private helpers ────────────────────────────────────────────────────────
 
     private void validateSectionMarks(CreateExaminationRequest request) {
         if (request.getSections() == null || request.getTotalMarks() == null) {
@@ -322,6 +324,7 @@ public class ExaminationService {
                 .navigationPolicy(examination.getNavigationPolicy())
                 .calculatorPolicy(examination.getCalculatorPolicy())
                 .reviewFlagEnabled(examination.isReviewFlagEnabled())
+                .isPractice(examination.isPractice())
                 .sections(sections)
                 .status(examination.getStatus())
                 .createdAt(examination.getCreatedAt() != null

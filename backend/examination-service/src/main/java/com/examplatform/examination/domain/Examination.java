@@ -14,8 +14,7 @@
  * GNU Affero General Public License for more details.
  *
  * You should have received a copy of the GNU Affero General Public License
- * along with this program. If not, see <https://www.gnu.org/licenses/>.
- */
+ * along with this program. If not, see <https://www.gnu.org/licenses/>.\n */
 
 package com.examplatform.examination.domain;
 
@@ -96,6 +95,10 @@ public class Examination extends BaseEntity {
 
     @Column(name = "review_flag_enabled", nullable = false)
     private boolean reviewFlagEnabled;
+
+    /** Indicates whether this examination is configured for candidate practice and learning. */
+    @Column(name = "is_practice", nullable = false)
+    private boolean isPractice;
 
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "sections_json", columnDefinition = "jsonb")

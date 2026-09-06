@@ -12,7 +12,7 @@
 # =============================================================================
 # Smart redeploy — only rebuilds services whose code has changed
 # Usage:
-#   ./redeploy-clean.sh                  # Full clean: tear down ALL, rebuild ALL, start ALL
+#   ./redeploy-clean.sh                  # Full clean: tear down ALL, rebuild ALL, start ALL (preserves vault_data)
 #   ./redeploy-clean.sh --service <name> # Rebuild and restart ONE service (keeps others running)
 #   ./redeploy-clean.sh --smart          # Only rebuild services with code changes (uses git diff)
 #   ./redeploy-clean.sh --no-cache       # Force rebuild without Docker cache
@@ -46,7 +46,7 @@ done
 COMPOSE="docker compose -f docker-compose.yml -f docker-compose.services.yml"
 
 ALL_SERVICES=(
-    identity-service candidate-service question-bank-service translation-service
+    identity-service candidate-service question-bank-service
     examination-service paper-generator delivery-service response-service
     evaluation-service result-service audit-service notification-service
     admin-service analytics-service asset-service api-gateway
@@ -116,7 +116,6 @@ if [ "$HEALTH_CHECK" = true ]; then
         [identity-service]=8081
         [candidate-service]=8082
         [question-bank-service]=8083
-        [translation-service]=8084
         [examination-service]=8085
         [paper-generator]=8086
         [delivery-service]=8087
@@ -276,8 +275,11 @@ fi
 
 # --- Full clean mode ---
 echo ""
-echo "▶ Stopping all containers and removing volumes..."
-$COMPOSE down -v --remove-orphans 2>/dev/null || true
+echo "▶ Stopping all containers..."
+$COMPOSE down --remove-orphans 2>/dev/null || true
+
+echo "▶ Removing ephemeral volumes (preserving vault_data and AI model caches)..."
+docker volume ls --format '{{.Name}}' | grep -E 'postgres_data|kafka_data|redis_data|keycloak_data|prometheus_data|grafana_data' | grep -v -E 'vault_data|ollama_data|indictrans2_cache' | xargs -r docker volume rm 2>/dev/null || true
 
 echo ""
 echo "▶ Pruning old images..."

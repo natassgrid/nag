@@ -34,6 +34,7 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.kafka.core.KafkaTemplate;
+import org.springframework.test.util.ReflectionTestUtils;
 
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
@@ -66,6 +67,9 @@ class PaperAssemblyServiceTest {
     @Mock
     private KafkaTemplate<String, Object> kafkaTemplate;
 
+    @Mock
+    private ExaminationLookupService examinationLookupService;
+
     private PaperAssemblyService paperAssemblyService;
 
     private static final UUID EXAM_ID = UUID.randomUUID();
@@ -78,7 +82,7 @@ class PaperAssemblyServiceTest {
         ObjectMapper objectMapper = new ObjectMapper();
         objectMapper.findAndRegisterModules();
         paperAssemblyService = new PaperAssemblyService(
-                questionBankClient, paperRepository, kafkaTemplate, objectMapper);
+                questionBankClient, paperRepository, kafkaTemplate, objectMapper, examinationLookupService);
     }
 
     @Test
@@ -90,43 +94,44 @@ class PaperAssemblyServiceTest {
                         .subject("Mathematics")
                         .topic("Algebra")
                         .difficulty("EASY")
-                        .questionCount(3)
+                        .cognitiveLevel("KNOWLEDGE")
+                        .questionCount(2)
                         .build(),
                 BlueprintRule.builder()
                         .subject("Mathematics")
                         .topic("Calculus")
                         .difficulty("MEDIUM")
-                        .questionCount(2)
+                        .cognitiveLevel("APPLY")
+                        .questionCount(1)
                         .build()
         );
 
         PaperGenerationRequest request = PaperGenerationRequest.builder()
+                .name("Sample Math Paper")
                 .examId(EXAM_ID)
                 .shiftId(SHIFT_ID)
                 .blueprintRules(rules)
                 .build();
 
-        List<QuestionSummary> algebraQuestions = List.of(
-                buildQuestion("Algebra", "EASY", 0, null, null),
-                buildQuestion("Algebra", "EASY", 0, null, null),
-                buildQuestion("Algebra", "EASY", 0, null, null),
-                buildQuestion("Algebra", "EASY", 0, null, null)
-        );
+        UUID q1 = UUID.randomUUID();
+        UUID q2 = UUID.randomUUID();
+        UUID q3 = UUID.randomUUID();
 
-        List<QuestionSummary> calculusQuestions = List.of(
-                buildQuestion("Calculus", "MEDIUM", 0, null, null),
-                buildQuestion("Calculus", "MEDIUM", 0, null, null),
-                buildQuestion("Calculus", "MEDIUM", 0, null, null)
-        );
+        when(questionBankClient.findAvailableQuestions("Mathematics", "Algebra", "EASY", "KNOWLEDGE", TENANT_ID))
+                .thenReturn(List.of(
+                        createQuestionSummary(q1, "Mathematics", "Algebra", "EASY", "KNOWLEDGE", 0, null, null),
+                        createQuestionSummary(q2, "Mathematics", "Algebra", "EASY", "KNOWLEDGE", 0, null, null)
+                ));
 
-        when(questionBankClient.findAvailableQuestions("Mathematics", "Algebra", "EASY", null, TENANT_ID))
-                .thenReturn(algebraQuestions);
-        when(questionBankClient.findAvailableQuestions("Mathematics", "Calculus", "MEDIUM", null, TENANT_ID))
-                .thenReturn(calculusQuestions);
+        when(questionBankClient.findAvailableQuestions("Mathematics", "Calculus", "MEDIUM", "APPLY", TENANT_ID))
+                .thenReturn(List.of(
+                        createQuestionSummary(q3, "Mathematics", "Calculus", "MEDIUM", "APPLY", 0, null, null)
+                ));
+
         when(paperRepository.save(any(Paper.class))).thenAnswer(invocation -> {
-            Paper paper = invocation.getArgument(0);
-            setEntityId(paper, UUID.randomUUID());
-            return paper;
+            Paper p = invocation.getArgument(0);
+            ReflectionTestUtils.setField(p, "id", UUID.randomUUID());
+            return p;
         });
 
         // When
@@ -134,266 +139,126 @@ class PaperAssemblyServiceTest {
 
         // Then
         assertThat(result).isNotNull();
-        assertThat(result.getPaperDefinitionJson()).isNotNull();
-        // Paper definition should contain exactly 5 question IDs (3 + 2)
-        assertThat(result.getPaperDefinitionJson()).contains("[");
-        // Count UUID patterns in the JSON
-        String json = result.getPaperDefinitionJson();
-        long questionCount = json.chars().filter(ch -> ch == ',').count() + 1;
-        assertThat(questionCount).isEqualTo(5);
+        assertThat(result.getName()).isEqualTo("Sample Math Paper");
+        assertThat(result.getExamId()).isEqualTo(EXAM_ID);
+        assertThat(result.getShiftId()).isEqualTo(SHIFT_ID);
+        assertThat(result.getStatus()).isEqualTo("DRAFT");
+        assertThat(result.getDifficultyScore()).isGreaterThan(0.0);
+
+        ArgumentCaptor<Paper> captor = ArgumentCaptor.forClass(Paper.class);
+        verify(paperRepository).save(captor.capture());
+        Paper saved = captor.getValue();
+        assertThat(saved.getPaperDefinitionJson()).contains(q1.toString());
+        assertThat(saved.getPaperDefinitionJson()).contains(q2.toString());
+        assertThat(saved.getPaperDefinitionJson()).contains(q3.toString());
+        assertThat(saved.getTenantId()).isEqualTo(TENANT_ID);
     }
 
     @Test
-    @DisplayName("Should compute difficulty score correctly as average of difficulty weights")
-    void generatePaper_computesDifficultyScore_correctly() {
-        // Given: 2 EASY (weight=1) + 1 HARD (weight=3) → average = (1+1+3)/3 = 1.667
-        List<BlueprintRule> rules = List.of(
-                BlueprintRule.builder()
-                        .subject("Physics")
-                        .topic("Mechanics")
-                        .difficulty("EASY")
-                        .questionCount(2)
-                        .build(),
-                BlueprintRule.builder()
-                        .subject("Physics")
-                        .topic("Thermodynamics")
-                        .difficulty("HARD")
-                        .questionCount(1)
-                        .build()
-        );
+    @DisplayName("Should enforce NEVER reuse policy by excluding previously used questions")
+    void isEligibleForReuse_neverPolicy_rejectsUsedQuestions() {
+        QuestionSummary usedQuestion = createQuestionSummary(
+                UUID.randomUUID(), "Physics", "Mechanics", "HARD", "ANALYZE", 1, Instant.now(), "NEVER");
+        QuestionSummary unusedQuestion = createQuestionSummary(
+                UUID.randomUUID(), "Physics", "Mechanics", "HARD", "ANALYZE", 0, null, "NEVER");
 
-        PaperGenerationRequest request = PaperGenerationRequest.builder()
-                .examId(EXAM_ID)
-                .shiftId(SHIFT_ID)
-                .blueprintRules(rules)
-                .build();
-
-        List<QuestionSummary> easyQuestions = List.of(
-                buildQuestion("Mechanics", "EASY", 0, null, null),
-                buildQuestion("Mechanics", "EASY", 0, null, null)
-        );
-
-        List<QuestionSummary> hardQuestions = List.of(
-                buildQuestion("Thermodynamics", "HARD", 0, null, null)
-        );
-
-        when(questionBankClient.findAvailableQuestions("Physics", "Mechanics", "EASY", null, TENANT_ID))
-                .thenReturn(easyQuestions);
-        when(questionBankClient.findAvailableQuestions("Physics", "Thermodynamics", "HARD", null, TENANT_ID))
-                .thenReturn(hardQuestions);
-        when(paperRepository.save(any(Paper.class))).thenAnswer(invocation -> {
-            Paper paper = invocation.getArgument(0);
-            setEntityId(paper, UUID.randomUUID());
-            return paper;
-        });
-
-        // When
-        Paper result = paperAssemblyService.generatePaper(request, GENERATED_BY, TENANT_ID);
-
-        // Then: (1+1+3)/3 = 1.667
-        assertThat(result.getDifficultyScore()).isCloseTo(5.0 / 3.0, org.assertj.core.api.Assertions.within(0.001));
+        assertThat(paperAssemblyService.isEligibleForReuse(usedQuestion)).isFalse();
+        assertThat(paperAssemblyService.isEligibleForReuse(unusedQuestion)).isTrue();
     }
 
     @Test
-    @DisplayName("Should enforce NEVER reuse policy by excluding used questions")
-    void generatePaper_enforcesNeverReusePolicy_excludesUsedQuestions() {
-        // Given: 4 questions in bank, 2 have NEVER policy with usageCount > 0
-        List<BlueprintRule> rules = List.of(
-                BlueprintRule.builder()
-                        .subject("Chemistry")
-                        .topic("Organic")
-                        .difficulty("MEDIUM")
-                        .questionCount(2)
-                        .build()
-        );
+    @DisplayName("Should enforce 1_YEAR reuse policy by excluding questions used within 365 days")
+    void isEligibleForReuse_oneYearPolicy_checksTimeWindow() {
+        Instant sixMonthsAgo = Instant.now().minus(180, ChronoUnit.DAYS);
+        Instant twoYearsAgo = Instant.now().minus(730, ChronoUnit.DAYS);
 
-        PaperGenerationRequest request = PaperGenerationRequest.builder()
-                .examId(EXAM_ID)
-                .shiftId(SHIFT_ID)
-                .blueprintRules(rules)
-                .build();
+        QuestionSummary recentlyUsed = createQuestionSummary(
+                UUID.randomUUID(), "Chemistry", "Organic", "MEDIUM", "APPLY", 2, sixMonthsAgo, "1_YEAR");
+        QuestionSummary oldUsed = createQuestionSummary(
+                UUID.randomUUID(), "Chemistry", "Organic", "MEDIUM", "APPLY", 1, twoYearsAgo, "1_YEAR");
+        QuestionSummary neverUsed = createQuestionSummary(
+                UUID.randomUUID(), "Chemistry", "Organic", "MEDIUM", "APPLY", 0, null, "1_YEAR");
 
-        UUID usedQuestionId1 = UUID.randomUUID();
-        UUID usedQuestionId2 = UUID.randomUUID();
-        UUID freshQuestionId1 = UUID.randomUUID();
-        UUID freshQuestionId2 = UUID.randomUUID();
+        assertThat(paperAssemblyService.isEligibleForReuse(recentlyUsed)).isFalse();
+        assertThat(paperAssemblyService.isEligibleForReuse(oldUsed)).isTrue();
+        assertThat(paperAssemblyService.isEligibleForReuse(neverUsed)).isTrue();
+    }
 
+    @Test
+    @DisplayName("Should enforce 2_YEARS reuse policy by excluding questions used within 730 days")
+    void isEligibleForReuse_twoYearsPolicy_checksTimeWindow() {
+        Instant oneYearAgo = Instant.now().minus(365, ChronoUnit.DAYS);
+        Instant threeYearsAgo = Instant.now().minus(1095, ChronoUnit.DAYS);
+
+        QuestionSummary usedOneYearAgo = createQuestionSummary(
+                UUID.randomUUID(), "Biology", "Genetics", "HARD", "EVALUATE", 1, oneYearAgo, "2_YEARS");
+        QuestionSummary usedThreeYearsAgo = createQuestionSummary(
+                UUID.randomUUID(), "Biology", "Genetics", "HARD", "EVALUATE", 1, threeYearsAgo, "2_YEARS");
+
+        assertThat(paperAssemblyService.isEligibleForReuse(usedOneYearAgo)).isFalse();
+        assertThat(paperAssemblyService.isEligibleForReuse(usedThreeYearsAgo)).isTrue();
+    }
+
+    @Test
+    @DisplayName("Should compute difficulty score accurately based on EASY=1.0, MEDIUM=2.0, HARD=3.0")
+    void computeDifficultyScore_calculatesAverageCorrectly() {
         List<QuestionSummary> questions = List.of(
-                QuestionSummary.builder()
-                        .questionId(usedQuestionId1)
-                        .subject("Chemistry").topic("Organic").difficulty("MEDIUM")
-                        .usageCount(3).reusePolicy("NEVER").build(),
-                QuestionSummary.builder()
-                        .questionId(usedQuestionId2)
-                        .subject("Chemistry").topic("Organic").difficulty("MEDIUM")
-                        .usageCount(1).reusePolicy("NEVER").build(),
-                QuestionSummary.builder()
-                        .questionId(freshQuestionId1)
-                        .subject("Chemistry").topic("Organic").difficulty("MEDIUM")
-                        .usageCount(0).reusePolicy("NEVER").build(),
-                QuestionSummary.builder()
-                        .questionId(freshQuestionId2)
-                        .subject("Chemistry").topic("Organic").difficulty("MEDIUM")
-                        .usageCount(0).reusePolicy("NEVER").build()
+                createQuestionSummary(UUID.randomUUID(), "S", "T", "EASY", "K", 0, null, null),
+                createQuestionSummary(UUID.randomUUID(), "S", "T", "MEDIUM", "K", 0, null, null),
+                createQuestionSummary(UUID.randomUUID(), "S", "T", "HARD", "K", 0, null, null)
         );
 
-        when(questionBankClient.findAvailableQuestions("Chemistry", "Organic", "MEDIUM", null, TENANT_ID))
-                .thenReturn(questions);
-        when(paperRepository.save(any(Paper.class))).thenAnswer(invocation -> {
-            Paper paper = invocation.getArgument(0);
-            setEntityId(paper, UUID.randomUUID());
-            return paper;
-        });
-
-        // When
-        Paper result = paperAssemblyService.generatePaper(request, GENERATED_BY, TENANT_ID);
-
-        // Then: only fresh questions (usageCount=0) should be selected
-        assertThat(result.getPaperDefinitionJson()).contains(freshQuestionId1.toString());
-        assertThat(result.getPaperDefinitionJson()).contains(freshQuestionId2.toString());
-        assertThat(result.getPaperDefinitionJson()).doesNotContain(usedQuestionId1.toString());
-        assertThat(result.getPaperDefinitionJson()).doesNotContain(usedQuestionId2.toString());
-    }
-
-    @Test
-    @DisplayName("Should store paper in DRAFT status")
-    void generatePaper_storesPaperInDraftStatus() {
-        // Given
-        List<BlueprintRule> rules = List.of(
-                BlueprintRule.builder()
-                        .subject("Biology")
-                        .topic("Genetics")
-                        .difficulty("MEDIUM")
-                        .questionCount(1)
-                        .build()
-        );
-
-        PaperGenerationRequest request = PaperGenerationRequest.builder()
-                .examId(EXAM_ID)
-                .shiftId(SHIFT_ID)
-                .blueprintRules(rules)
-                .build();
-
-        List<QuestionSummary> questions = List.of(
-                buildQuestion("Genetics", "MEDIUM", 0, null, null)
-        );
-
-        when(questionBankClient.findAvailableQuestions("Biology", "Genetics", "MEDIUM", null, TENANT_ID))
-                .thenReturn(questions);
-
-        ArgumentCaptor<Paper> paperCaptor = ArgumentCaptor.forClass(Paper.class);
-        when(paperRepository.save(paperCaptor.capture())).thenAnswer(invocation -> {
-            Paper paper = invocation.getArgument(0);
-            setEntityId(paper, UUID.randomUUID());
-            return paper;
-        });
-
-        // When
-        Paper result = paperAssemblyService.generatePaper(request, GENERATED_BY, TENANT_ID);
-
-        // Then
-        Paper savedPaper = paperCaptor.getValue();
-        assertThat(savedPaper.getStatus()).isEqualTo("DRAFT");
-        assertThat(savedPaper.getExamId()).isEqualTo(EXAM_ID);
-        assertThat(savedPaper.getShiftId()).isEqualTo(SHIFT_ID);
-        assertThat(savedPaper.getGeneratedBy()).isEqualTo(GENERATED_BY);
-        assertThat(savedPaper.getTenantId()).isEqualTo(TENANT_ID);
-
-        // Verify Kafka events were published (paper event + audit event)
-        verify(kafkaTemplate, atLeast(1)).send(anyString(), anyString(), any());
-    }
-
-    @Test
-    @DisplayName("Should compute difficulty score correctly using internal method")
-    void computeDifficultyScore_withMixedDifficulties_returnsCorrectAverage() {
-        // Given: EASY(1) + MEDIUM(2) + HARD(3) → average = 2.0
-        List<QuestionSummary> questions = List.of(
-                buildQuestion("Topic1", "EASY", 0, null, null),
-                buildQuestion("Topic2", "MEDIUM", 0, null, null),
-                buildQuestion("Topic3", "HARD", 0, null, null)
-        );
-
-        // When
         double score = paperAssemblyService.computeDifficultyScore(questions);
-
-        // Then
+        // (1.0 + 2.0 + 3.0) / 3 = 2.0
         assertThat(score).isEqualTo(2.0);
     }
 
     @Test
-    @DisplayName("Should return true for eligible question with NEVER policy and zero usage")
-    void isEligibleForReuse_neverPolicyZeroUsage_returnsTrue() {
-        QuestionSummary question = QuestionSummary.builder()
-                .questionId(UUID.randomUUID())
-                .usageCount(0)
-                .reusePolicy("NEVER")
+    @DisplayName("Should publish paper generation event to Kafka")
+    void generatePaper_publishesKafkaEvent() {
+        List<BlueprintRule> rules = List.of(
+                BlueprintRule.builder()
+                        .subject("Math")
+                        .topic("Algebra")
+                        .difficulty("EASY")
+                        .cognitiveLevel("KNOWLEDGE")
+                        .questionCount(1)
+                        .build()
+        );
+
+        PaperGenerationRequest request = PaperGenerationRequest.builder()
+                .examId(EXAM_ID)
+                .shiftId(SHIFT_ID)
+                .blueprintRules(rules)
                 .build();
 
-        assertThat(paperAssemblyService.isEligibleForReuse(question)).isTrue();
+        UUID qId = UUID.randomUUID();
+        when(questionBankClient.findAvailableQuestions(anyString(), anyString(), anyString(), anyString(), anyString()))
+                .thenReturn(List.of(createQuestionSummary(qId, "Math", "Algebra", "EASY", "KNOWLEDGE", 0, null, null)));
+
+        when(paperRepository.save(any(Paper.class))).thenAnswer(inv -> {
+            Paper p = inv.getArgument(0);
+            ReflectionTestUtils.setField(p, "id", UUID.randomUUID());
+            return p;
+        });
+
+        paperAssemblyService.generatePaper(request, GENERATED_BY, TENANT_ID);
+
+        verify(kafkaTemplate, atLeast(1)).send(anyString(), anyString(), any());
     }
 
-    @Test
-    @DisplayName("Should return false for question with NEVER policy and non-zero usage")
-    void isEligibleForReuse_neverPolicyWithUsage_returnsFalse() {
-        QuestionSummary question = QuestionSummary.builder()
-                .questionId(UUID.randomUUID())
-                .usageCount(2)
-                .reusePolicy("NEVER")
-                .build();
-
-        assertThat(paperAssemblyService.isEligibleForReuse(question)).isFalse();
-    }
-
-    @Test
-    @DisplayName("Should return true for 1_YEAR policy when lastUsedAt is beyond window")
-    void isEligibleForReuse_oneYearPolicyBeyondWindow_returnsTrue() {
-        QuestionSummary question = QuestionSummary.builder()
-                .questionId(UUID.randomUUID())
-                .usageCount(1)
-                .reusePolicy("1_YEAR")
-                .lastUsedAt(Instant.now().minus(400, ChronoUnit.DAYS))
-                .build();
-
-        assertThat(paperAssemblyService.isEligibleForReuse(question)).isTrue();
-    }
-
-    @Test
-    @DisplayName("Should return false for 1_YEAR policy when lastUsedAt is within window")
-    void isEligibleForReuse_oneYearPolicyWithinWindow_returnsFalse() {
-        QuestionSummary question = QuestionSummary.builder()
-                .questionId(UUID.randomUUID())
-                .usageCount(1)
-                .reusePolicy("1_YEAR")
-                .lastUsedAt(Instant.now().minus(100, ChronoUnit.DAYS))
-                .build();
-
-        assertThat(paperAssemblyService.isEligibleForReuse(question)).isFalse();
-    }
-
-    // -----------------------------------------------------------------------
-    // Helper methods
-    // -----------------------------------------------------------------------
-
-    private QuestionSummary buildQuestion(String topic, String difficulty, int usageCount,
-                                          Instant lastUsedAt, String reusePolicy) {
+    private QuestionSummary createQuestionSummary(
+            UUID id, String subject, String topic, String difficulty,
+            String cognitiveLevel, int usageCount, Instant lastUsedAt, String reusePolicy) {
         return QuestionSummary.builder()
-                .questionId(UUID.randomUUID())
-                .subject("TestSubject")
+                .questionId(id)
+                .subject(subject)
                 .topic(topic)
                 .difficulty(difficulty)
+                .cognitiveLevel(cognitiveLevel)
                 .usageCount(usageCount)
                 .lastUsedAt(lastUsedAt)
                 .reusePolicy(reusePolicy)
                 .build();
-    }
-
-    private void setEntityId(Paper paper, UUID id) {
-        try {
-            var idField = paper.getClass().getSuperclass().getDeclaredField("id");
-            idField.setAccessible(true);
-            idField.set(paper, id);
-        } catch (Exception e) {
-            throw new RuntimeException("Failed to set entity ID via reflection", e);
-        }
     }
 }

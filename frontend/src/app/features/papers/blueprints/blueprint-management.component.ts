@@ -79,7 +79,7 @@ import { PaperGenerateDialogComponent } from '../paper-generate-dialog.component
     PaperGenerateDialogComponent
   ],
   templateUrl: './blueprint-management.component.html',
-  changeDetection: ChangeDetectionStrategy.Eager,
+  changeDetection: ChangeDetectionStrategy.Default,
   styleUrls: ['./blueprint-management.component.scss']
 })
 export class BlueprintManagementComponent implements OnInit {

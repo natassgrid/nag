@@ -5,7 +5,7 @@
  * Copyright (C) 2025 NAG Contributors
  *
  * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU Affero General Public License as published
+ * it under the terms of the GNU General Public License as published
  * by the Free Software Foundation, version 3 of the License.
  *
  * This program is distributed in the hope that it will be useful,
@@ -13,16 +13,16 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
  * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU Affero General Public License
+ * You should have received a copy of the GNU General Public License
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
 
 import { Injectable } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
-import { Observable, of } from 'rxjs';
+import { Observable, map } from 'rxjs';
 import { PaginatedResponse } from '../../shared/components/paginated-table/pagination.model';
 
-// ── Domain models ────────────────────────────────────────────────────────────
+// ── Domain models ─────────────────────────────────────────────────────────────
 
 export interface BlueprintRule {
   subject: string;
@@ -33,41 +33,76 @@ export interface BlueprintRule {
 }
 
 export interface PaperGenerationRequest {
+  name?: string;
   examId: string;
   shiftId: string;
+  isPractice?: boolean;
   blueprintRules: BlueprintRule[];
 }
 
 export interface PaperSummary {
   paperId: string;
+  name?: string;
   examId: string;
+  examName?: string;
   shiftId: string;
+  shiftName?: string;
   status: 'DRAFT' | 'APPROVED' | 'ENCRYPTED';
+  isPractice?: boolean;
   difficultyScore: number;
   encryptionKeyId?: string;
   createdAt?: string;
 }
 
+export interface QuestionDetail {
+  questionId: string;
+  subject: string;
+  topic: string;
+  difficulty: string;
+  cognitiveLevel: string;
+  usageCount: number;
+  lastUsedAt?: string;
+  content?: string;
+}
+
+export interface PaperDetail {
+  id: string;
+  name?: string;
+  examId: string;
+  examName?: string;
+  shiftId: string;
+  shiftName?: string;
+  status: 'DRAFT' | 'APPROVED' | 'ENCRYPTED';
+  isPractice?: boolean;
+  paperDefinitionJson?: string;
+  difficultyScore: number;
+  topicDistributionJson?: string;
+  encryptedPackageRef?: string;
+  encryptionKeyId?: string;
+  generatedBy?: string;
+  createdAt?: string;
+  updatedAt?: string;
+  totalQuestions?: number;
+  topicDistribution?: Record<string, number>;
+  questions?: QuestionDetail[];
+}
+
 export interface PaperGenerationResponse {
   paperId: string;
+  name?: string;
   status: string;
+  isPractice?: boolean;
   message: string;
 }
 
 export interface PaperApprovalResponse {
   paperId: string;
+  name?: string;
   status: string;
-  encryptionKeyId: string;
+  isPractice?: boolean;
+  encryptionKeyId?: string;
   message: string;
 }
-
-export interface SchemaValidationResponse {
-  valid: boolean;
-  errors?: string[];
-  message?: string;
-}
-
-// ── Blueprint template models ─────────────────────────────────────────────────
 
 export interface BlueprintTemplateRequest {
   name: string;
@@ -81,75 +116,103 @@ export interface BlueprintTemplateResponse {
   name: string;
   description?: string;
   examId?: string;
+  examName?: string;
   rules: BlueprintRule[];
+  totalQuestions?: number;
   createdBy?: string;
   createdAt?: string;
   updatedAt?: string;
-  totalQuestions?: number;
+  version?: number;
 }
 
-// ── Service ──────────────────────────────────────────────────────────────────
+// ── Service ───────────────────────────────────────────────────────────────────
 
 @Injectable({ providedIn: 'root' })
 export class PaperService {
   private readonly baseUrl = '/api/v1/papers';
-  private readonly templateUrl = `${this.baseUrl}/blueprint-templates`;
+  private readonly templateBaseUrl = '/api/v1/papers/blueprint-templates';
 
   constructor(private http: HttpClient) {}
 
-  // ── Paper generation ───────────────────────────────────────────────────────
-
-  generatePaper(request: PaperGenerationRequest): Observable<PaperGenerationResponse> {
-    return this.http.post<PaperGenerationResponse>(`${this.baseUrl}/generate`, request);
-  }
-
   getPapers(
-    page: number,
-    size: number,
+    page: number = 0,
+    size: number = 20,
     examId?: string,
     status?: string
   ): Observable<PaginatedResponse<PaperSummary>> {
-    let params = new HttpParams().set('page', page).set('size', size);
-    if (examId) params = params.set('examId', examId);
-    if (status) params = params.set('status', status);
-    // Stub until the backend exposes a list endpoint
-    return of({ content: [], totalElements: 0, totalPages: 0, size, number: page });
+    let params = new HttpParams()
+      .set('page', page.toString())
+      .set('size', size.toString());
+
+    if (examId) {
+      params = params.set('examId', examId);
+    }
+    if (status) {
+      params = params.set('status', status);
+    }
+
+    return this.http.get<any>(this.baseUrl, { params }).pipe(
+      map((res) => ({
+        content: (res.content ?? []).map((p: any) => ({
+          paperId: p.paperId ?? p.id,
+          name: p.name,
+          examId: p.examId,
+          examName: p.examName,
+          shiftId: p.shiftId,
+          shiftName: p.shiftName,
+          status: p.status,
+          isPractice: Boolean(p.isPractice),
+          difficultyScore: p.difficultyScore ?? 0,
+          encryptionKeyId: p.encryptionKeyId,
+          createdAt: p.createdAt
+        })),
+        totalElements: res.totalElements ?? 0,
+        totalPages: res.totalPages ?? 0,
+        number: res.number ?? 0,
+        size: res.size ?? size
+      }))
+    );
+  }
+
+  getPaper(paperId: string): Observable<PaperDetail> {
+    return this.http.get<PaperDetail>(`${this.baseUrl}/${paperId}`);
+  }
+
+  generatePaper(request: PaperGenerationRequest): Observable<PaperGenerationResponse> {
+    return this.http.post<PaperGenerationResponse>(`${this.baseUrl}/generate`, request);
   }
 
   approvePaper(paperId: string): Observable<PaperApprovalResponse> {
     return this.http.post<PaperApprovalResponse>(`${this.baseUrl}/${paperId}/approve`, {});
   }
 
-  validatePaper(json: string): Observable<SchemaValidationResponse> {
-    return this.http.post<SchemaValidationResponse>(
-      `${this.baseUrl}/validate`,
-      json,
-      { headers: { 'Content-Type': 'application/json' } }
-    );
+  // ── Blueprint Template API ────────────────────────────────────────────────
+
+  listTemplates(examId?: string): Observable<BlueprintTemplateResponse[]> {
+    return this.getTemplates(examId);
   }
 
-  // ── Blueprint templates ────────────────────────────────────────────────────
-
-  /** List all templates for the current tenant, optionally filtered by exam. */
   getTemplates(examId?: string): Observable<BlueprintTemplateResponse[]> {
     let params = new HttpParams();
-    if (examId) params = params.set('examId', examId);
-    return this.http.get<BlueprintTemplateResponse[]>(this.templateUrl, { params });
+    if (examId) {
+      params = params.set('examId', examId);
+    }
+    return this.http.get<BlueprintTemplateResponse[]>(this.templateBaseUrl, { params });
   }
 
   getTemplate(id: string): Observable<BlueprintTemplateResponse> {
-    return this.http.get<BlueprintTemplateResponse>(`${this.templateUrl}/${id}`);
+    return this.http.get<BlueprintTemplateResponse>(`${this.templateBaseUrl}/${id}`);
   }
 
-  createTemplate(request: BlueprintTemplateRequest): Observable<BlueprintTemplateResponse> {
-    return this.http.post<BlueprintTemplateResponse>(this.templateUrl, request);
+  createTemplate(req: BlueprintTemplateRequest): Observable<BlueprintTemplateResponse> {
+    return this.http.post<BlueprintTemplateResponse>(this.templateBaseUrl, req);
   }
 
-  updateTemplate(id: string, request: BlueprintTemplateRequest): Observable<BlueprintTemplateResponse> {
-    return this.http.put<BlueprintTemplateResponse>(`${this.templateUrl}/${id}`, request);
+  updateTemplate(id: string, req: BlueprintTemplateRequest): Observable<BlueprintTemplateResponse> {
+    return this.http.put<BlueprintTemplateResponse>(`${this.templateBaseUrl}/${id}`, req);
   }
 
   deleteTemplate(id: string): Observable<void> {
-    return this.http.delete<void>(`${this.templateUrl}/${id}`);
+    return this.http.delete<void>(`${this.templateBaseUrl}/${id}`);
   }
 }

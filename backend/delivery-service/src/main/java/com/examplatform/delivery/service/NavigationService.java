@@ -105,16 +105,29 @@ public class NavigationService {
     }
 
     private ExamSession findSession(UUID sessionId, UUID candidateId, String tenantId) {
-        // Try Redis cache first
-        String cacheKey = SESSION_CACHE_PREFIX + sessionId;
-        Object cached = redisTemplate.opsForValue().get(cacheKey);
-        if (cached instanceof ExamSession cachedSession) {
-            if (cachedSession.getCandidateId().equals(candidateId)) {
-                return cachedSession;
+        // Look up in database first to get the managed JPA entity with current @Version
+        var dbSession = examSessionRepository.findBySessionId(sessionId);
+        if (dbSession.isPresent()) {
+            ExamSession session = dbSession.get();
+            if (session.getCandidateId().equals(candidateId) && session.getStatus() == ExamSession.ExamSessionStatus.ACTIVE) {
+                return session;
             }
         }
 
-        // Fall back to database
+        // Try Redis cache fallback (or test fixtures)
+        String cacheKey = SESSION_CACHE_PREFIX + sessionId;
+        try {
+            Object cached = redisTemplate.opsForValue().get(cacheKey);
+            if (cached instanceof ExamSession cachedSession) {
+                if (cachedSession.getCandidateId().equals(candidateId)) {
+                    return cachedSession;
+                }
+            }
+        } catch (Exception e) {
+            log.warn("Redis lookup failed for session {}: {}", sessionId, e.getMessage());
+        }
+
+        // Fall back to database candidate query
         return examSessionRepository.findByCandidateIdAndTenantId(candidateId, tenantId).stream()
                 .filter(s -> s.getSessionId().equals(sessionId))
                 .filter(s -> s.getStatus() == ExamSession.ExamSessionStatus.ACTIVE)

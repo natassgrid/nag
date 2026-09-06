@@ -70,6 +70,20 @@ if not hasattr(transformers.onnx, "utils") or "transformers.onnx.utils" not in s
     sys.modules["transformers.onnx.utils"] = onnx_utils
     transformers.onnx.utils = onnx_utils
 
+# 3. Monkey-patch PreTrainedTokenizerBase.__setattr__ to pre-initialize _special_tokens_map.
+# In transformers >= 4.51, __setattr__ for special-token attributes (e.g. unk_token)
+# reads self._special_tokens_map internally. The custom IndicTrans tokenizer sets
+# self.unk_token = ... *before* calling super().__init__(), so _special_tokens_map
+# doesn't exist yet and raises AttributeError. This patch lazily creates it on first write.
+_orig_tok_setattr = tokenization_utils_base.PreTrainedTokenizerBase.__setattr__
+
+def _safe_tok_setattr(self, name, value):
+    if "_special_tokens_map" not in self.__dict__:
+        object.__setattr__(self, "_special_tokens_map", {})
+    _orig_tok_setattr(self, name, value)
+
+tokenization_utils_base.PreTrainedTokenizerBase.__setattr__ = _safe_tok_setattr
+
 from transformers import AutoModelForSeq2SeqLM, AutoTokenizer
 from IndicTransToolkit.processor import IndicProcessor
 

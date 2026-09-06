@@ -22,6 +22,7 @@ package com.examplatform.papergenerator.client;
 import com.examplatform.papergenerator.dto.QuestionSummary;
 
 import java.util.List;
+import java.util.UUID;
 
 /**
  * Client interface for inter-service communication with the Question Bank Service.
@@ -43,4 +44,13 @@ public interface QuestionBankClient {
      */
     List<QuestionSummary> findAvailableQuestions(String subject, String topic,
                                                   String difficulty, String cognitiveLevel, String tenantId);
+
+    /**
+     * Finds question summaries by their identifiers for paper review and summary views.
+     *
+     * @param questionIds list of question UUIDs
+     * @param tenantId    the tenant identifier
+     * @return ordered list of question summaries
+     */
+    List<QuestionSummary> findQuestionsByIds(List<UUID> questionIds, String tenantId);
 }

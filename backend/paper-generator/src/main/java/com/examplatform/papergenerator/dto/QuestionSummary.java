@@ -14,8 +14,7 @@
  * GNU Affero General Public License for more details.
  *
  * You should have received a copy of the GNU Affero General Public License
- * along with this program. If not, see <https://www.gnu.org/licenses/>.
- */
+ * along with this program. If not, see <https://www.gnu.org/licenses/>.\n */
 
 package com.examplatform.papergenerator.dto;
 
@@ -61,4 +60,9 @@ public class QuestionSummary {
      * Reuse policy: NEVER, 1_YEAR, 2_YEARS, or CUSTOM.
      */
     private String reusePolicy;
+
+    /**
+     * Question text content or snippet for paper summary review.
+     */
+    private String content;
 }

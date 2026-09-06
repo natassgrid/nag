@@ -97,6 +97,19 @@ curl "http://localhost:9000/api/v1/questions?subject=Mathematics&state=DRAFT" \
   -H "Authorization: Bearer <JWT_TOKEN>"
 ```
 
+### Request Translation
+```bash
+curl -X POST http://localhost:9000/api/v1/translations \
+  -H "Content-Type: application/json" \
+  -H "X-Tenant-Id: default" \
+  -H "Authorization: Bearer <JWT_TOKEN>" \
+  -d '{
+    "questionId": "0194eb8a-789a-7b3a-92ab-123456789abc",
+    "languageCode": "hi",
+    "translatorId": "a0000007-0000-0000-0000-000000000007"
+  }'
+```
+
 ## Examination Service
 
 ### Create Examination
@@ -201,7 +214,6 @@ Tenant: `default`
 | Identity | http://localhost:8081 |
 | Candidate | http://localhost:8082 |
 | Question Bank | http://localhost:8083 |
-| Translation | http://localhost:8084 |
 | Examination | http://localhost:8085 |
 | Paper Generator | http://localhost:8086 |
 | Delivery | http://localhost:8087 |
@@ -212,6 +224,7 @@ Tenant: `default`
 | Notification | http://localhost:8092 |
 | Admin | http://localhost:8093 |
 | Analytics | http://localhost:8094 |
+| Asset | http://localhost:8095 |
 | Frontend | http://localhost:4200 |
 
 > Note: In `docker`/`dev` profile, password validation is bypassed (DevKeycloakService issues dev JWT). Any password works.

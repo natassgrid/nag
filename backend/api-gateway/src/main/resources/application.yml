@@ -61,6 +61,14 @@ spring:
               filters:
                 - StripPrefix=0
 
+            # Translations (served by Question Bank)
+            - id: translation-service
+              uri: ${QUESTION_BANK_SERVICE_URI:http://localhost:8083}
+              predicates:
+                - Path=/api/v1/translations/**
+              filters:
+                - StripPrefix=0
+
             # Subjects Service (part of Question Bank)
             - id: subjects-service
               uri: ${QUESTION_BANK_SERVICE_URI:http://localhost:8083}
@@ -77,7 +85,7 @@ spring:
               filters:
                 - StripPrefix=0
 
-            # Geo Location (served by Examination Service â€” public, no auth)
+            # Geo Location (served by Examination Service — public, no auth)
             - id: geo-location-service
               uri: ${EXAMINATION_SERVICE_URI:http://localhost:8085}
               predicates:

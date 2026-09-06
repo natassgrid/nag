@@ -4,7 +4,7 @@
  * National Assessment Grid (NAG) - Open Digital Public Infrastructure (DPI) Platform
  * Copyright (C) 2025 NAG Contributors
  *
- * This program is free software: you can redistribute it and/or modify
+ * This program is free software: you can redistribute it/modify
  * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, version 3 of the License.
  *
@@ -25,6 +25,7 @@ import org.springframework.security.config.annotation.method.configuration.Enabl
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
+import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter;
 import org.springframework.security.oauth2.server.resource.web.BearerTokenResolver;
 import org.springframework.security.web.SecurityFilterChain;
 
@@ -40,7 +41,8 @@ import org.springframework.security.web.SecurityFilterChain;
 public class SecurityConfig {
 
     @Bean
-    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+    public SecurityFilterChain securityFilterChain(HttpSecurity http,
+                                                   JwtAuthenticationConverter jwtAuthenticationConverter) throws Exception {
         http
             .csrf(csrf -> csrf.disable())
             .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
@@ -50,7 +52,7 @@ public class SecurityConfig {
             )
             .oauth2ResourceServer(oauth2 -> oauth2
                 .bearerTokenResolver(bearerTokenResolver())
-                .jwt(jwt -> {})
+                .jwt(jwt -> jwt.jwtAuthenticationConverter(jwtAuthenticationConverter))
             );
         return http.build();
     }

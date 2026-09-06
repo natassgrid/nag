@@ -19,6 +19,7 @@
 
 package com.examplatform.examination.exception;
 
+import jakarta.persistence.EntityNotFoundException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -27,6 +28,7 @@ import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 import java.time.Instant;
 import java.util.HashMap;
@@ -91,8 +93,9 @@ public class GlobalExceptionHandler {
     }
 
     @ExceptionHandler({ScheduleNotFoundException.class, ShiftNotFoundException.class,
-                        CentreNotFoundException.class, ExaminationNotFoundException.class})
-    public ResponseEntity<Map<String, Object>> handleNotFound(RuntimeException ex) {
+                        CentreNotFoundException.class, ExaminationNotFoundException.class,
+                        EntityNotFoundException.class, NoResourceFoundException.class})
+    public ResponseEntity<Map<String, Object>> handleNotFound(Exception ex) {
         log.warn("Resource not found: {}", ex.getMessage());
         return buildResponse(HttpStatus.NOT_FOUND, ex.getMessage());
     }

@@ -12,6 +12,7 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
@@ -34,4 +35,16 @@ public class ExamApplicationResponse {
     private LocalDateTime applicationDate;
     private String hallTicketNumber;
     private String examName;
+    private String examCode;
+    private String conductingAuthority;
+    private Integer durationMinutes;
+    private Integer totalMarks;
+
+    // Allocated Details
+    private UUID allocatedCentreId;
+    private String centreName;
+    private String city;
+    private String state;
+    private LocalDate examDate;
+    private String shiftName;
 }

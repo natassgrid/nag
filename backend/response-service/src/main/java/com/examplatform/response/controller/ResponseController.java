@@ -48,7 +48,7 @@ import java.util.UUID;
 
 /**
  * REST controller for candidate response operations.
- * Provides the save endpoint used by the exam delivery frontend.
+ * Provides the save and resume restoration endpoints used by the exam delivery frontend.
  *
  * Validates: Requirements 10.1, 20.3
  */
@@ -80,17 +80,18 @@ public class ResponseController {
             @PathVariable UUID sessionId,
             @Valid @RequestBody SaveResponseRequest request,
             @AuthenticationPrincipal Jwt jwt,
-            @RequestHeader("X-Tenant-Id") String tenantId) {
+            @RequestHeader(value = "X-Tenant-Id", required = false) String tenantId) {
 
         long startTime = System.currentTimeMillis();
 
         UUID candidateId = UUID.fromString(jwt.getSubject());
+        String effectiveTenant = (tenantId != null && !tenantId.isBlank()) ? tenantId : "default";
 
         log.debug("Saving response: sessionId={}, questionId={}, candidate={}, tenant={}",
-                sessionId, request.getQuestionId(), candidateId, tenantId);
+                sessionId, request.getQuestionId(), candidateId, effectiveTenant);
 
         SaveResponseResponse response = responseSaveService.saveResponse(
-                sessionId, request, candidateId, tenantId);
+                sessionId, request, candidateId, effectiveTenant);
 
         long elapsed = System.currentTimeMillis() - startTime;
         if (elapsed > 150) {
@@ -118,15 +119,16 @@ public class ResponseController {
             @PathVariable UUID sessionId,
             @Valid @RequestBody BulkSaveRequest request,
             @AuthenticationPrincipal Jwt jwt,
-            @RequestHeader("X-Tenant-Id") String tenantId) {
+            @RequestHeader(value = "X-Tenant-Id", required = false) String tenantId) {
 
         UUID candidateId = UUID.fromString(jwt.getSubject());
+        String effectiveTenant = (tenantId != null && !tenantId.isBlank()) ? tenantId : "default";
 
         log.debug("Bulk-saving responses: sessionId={}, candidate={}, count={}, tenant={}",
-                sessionId, candidateId, request.getResponses().size(), tenantId);
+                sessionId, candidateId, request.getResponses().size(), effectiveTenant);
 
         List<SaveResponseResponse> results = bulkSaveService.bulkSave(
-                sessionId, request, candidateId, tenantId);
+                sessionId, request, candidateId, effectiveTenant);
 
         return ResponseEntity.ok(ApiResponse.success(results, "Bulk save completed"));
     }
@@ -145,20 +147,22 @@ public class ResponseController {
     public ResponseEntity<ApiResponse<Void>> submitSession(
             @PathVariable UUID sessionId,
             @AuthenticationPrincipal Jwt jwt,
-            @RequestHeader("X-Tenant-Id") String tenantId) {
+            @RequestHeader(value = "X-Tenant-Id", required = false) String tenantId) {
 
         UUID candidateId = UUID.fromString(jwt.getSubject());
+        String effectiveTenant = (tenantId != null && !tenantId.isBlank()) ? tenantId : "default";
 
         log.debug("Submitting session: sessionId={}, candidate={}, tenant={}",
-                sessionId, candidateId, tenantId);
+                sessionId, candidateId, effectiveTenant);
 
-        sessionFinalizationService.submitSession(sessionId, candidateId, tenantId);
+        sessionFinalizationService.submitSession(sessionId, candidateId, effectiveTenant);
 
         return ResponseEntity.ok(ApiResponse.success(null, "Session submitted successfully"));
     }
 
     /**
      * Retrieves full revision history for all responses in an exam session.
+     * Accessible by candidates on session resume as well as evaluators and auditors.
      * Ordered by questionId + revisionSequence for audit/evaluation purposes.
      *
      * @param sessionId the exam session UUID
@@ -166,14 +170,15 @@ public class ResponseController {
      * @return 200 OK with all responses for the session
      */
     @GetMapping("/{sessionId}/responses")
-    @PreAuthorize("hasAnyRole('EVALUATOR', 'AUDITOR')")
+    @PreAuthorize("hasAnyRole('EVALUATOR', 'AUDITOR', 'CANDIDATE')")
     public ResponseEntity<ApiResponse<List<Response>>> getSessionResponses(
             @PathVariable UUID sessionId,
-            @RequestHeader("X-Tenant-Id") String tenantId) {
+            @RequestHeader(value = "X-Tenant-Id", required = false) String tenantId) {
 
-        log.debug("Retrieving session responses: sessionId={}, tenant={}", sessionId, tenantId);
+        String effectiveTenant = (tenantId != null && !tenantId.isBlank()) ? tenantId : "default";
+        log.debug("Retrieving session responses: sessionId={}, tenant={}", sessionId, effectiveTenant);
 
-        List<Response> responses = responseHistoryService.getSessionResponses(sessionId, tenantId);
+        List<Response> responses = responseHistoryService.getSessionResponses(sessionId, effectiveTenant);
 
         return ResponseEntity.ok(ApiResponse.success(responses, "Session responses retrieved"));
     }

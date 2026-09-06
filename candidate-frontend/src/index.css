@@ -1,3 +1,16 @@
+@import 'katex/dist/katex.min.css';
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+.math-rendered-content .katex-display {
+  margin: 0.5em 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+
+.math-rendered-content .katex {
+  font-size: 1.05em;
+  text-rendering: auto;
+}
