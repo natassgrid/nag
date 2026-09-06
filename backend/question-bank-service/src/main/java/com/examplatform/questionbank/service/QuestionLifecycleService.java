@@ -25,10 +25,10 @@ import com.examplatform.questionbank.dto.TransitionRequest;
 import com.examplatform.questionbank.exception.FourEyesPrincipleViolationException;
 import com.examplatform.questionbank.exception.InvalidTransitionException;
 import com.examplatform.questionbank.repository.QuestionRepository;
+import com.examplatform.shared.messaging.EventPublisher;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -70,7 +70,7 @@ public class QuestionLifecycleService {
 
     private final QuestionRepository questionRepository;
     private final ReviewWorkflowService reviewWorkflowService;
-    private final KafkaTemplate<String, Object> kafkaTemplate;
+    private final EventPublisher eventPublisher;
 
     /**
      * Transitions a question to the requested target state.
@@ -143,13 +143,7 @@ public class QuestionLifecycleService {
             event.put("toState", toState);
             event.put("occurredAt", Instant.now().toString());
 
-            kafkaTemplate.send(AUDIT_TOPIC, questionId.toString(), event)
-                    .whenComplete((result, ex) -> {
-                        if (ex != null) {
-                            log.error("Failed to publish audit event [QUESTION_STATE_TRANSITION] for question [{}]: {}",
-                                    questionId, ex.getMessage());
-                        }
-                    });
+            eventPublisher.publish(AUDIT_TOPIC, questionId.toString(), event);
         } catch (Exception e) {
             log.error("Unexpected error publishing state transition audit event: {}", e.getMessage());
         }

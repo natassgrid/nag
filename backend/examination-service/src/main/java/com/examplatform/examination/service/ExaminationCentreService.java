@@ -31,9 +31,9 @@ import com.examplatform.examination.exception.ShiftNotFoundException;
 import com.examplatform.examination.repository.ExaminationCentreRepository;
 import com.examplatform.examination.repository.ExamShiftRepository;
 import com.examplatform.examination.repository.ShiftSeatAllocationRepository;
+import com.examplatform.shared.messaging.EventPublisher;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -59,7 +59,7 @@ public class ExaminationCentreService {
     private final ExamShiftRepository shiftRepository;
     private final ShiftSeatAllocationRepository allocationRepository;
     private final GeoLocationService geoLocationService;
-    private final KafkaTemplate<String, Object> kafkaTemplate;
+    private final EventPublisher eventPublisher;
 
     // ── Centres ───────────────────────────────────────────────────────────────
 
@@ -258,10 +258,7 @@ public class ExaminationCentreService {
             event.put("actorId", actorId != null ? actorId.toString() : null);
             event.put("tenantId", tenantId);
             event.put("occurredAt", Instant.now().toString());
-            kafkaTemplate.send(AUDIT_TOPIC, a.getId().toString(), event)
-                    .whenComplete((r, ex) -> {
-                        if (ex != null) log.error("Failed to publish SEAT_ALLOCATION_UPDATED: {}", ex.getMessage());
-                    });
+            eventPublisher.publish(AUDIT_TOPIC, a.getId().toString(), event);
         } catch (Exception e) {
             log.error("Unexpected error publishing seat allocation audit: {}", e.getMessage());
         }

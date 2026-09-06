@@ -37,7 +37,7 @@ import com.examplatform.questionbank.util.EmbeddingUtils;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.kafka.core.KafkaTemplate;
+import com.examplatform.shared.messaging.EventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -69,7 +69,7 @@ public class QuestionService {
     private final SubtopicRepository subtopicRepository;
     private final SimilarityDetectionService similarityDetectionService;
     private final EmbeddingService embeddingService;
-    private final KafkaTemplate<String, Object> kafkaTemplate;
+    private final EventPublisher eventPublisher;
 
     @org.springframework.beans.factory.annotation.Value("${app.encryption.enabled:false}")
     private boolean encryptionEnabled;
@@ -390,13 +390,7 @@ public class QuestionService {
                 event.putAll(extra);
             }
 
-            kafkaTemplate.send(AUDIT_TOPIC, questionId.toString(), event)
-                    .whenComplete((result, ex) -> {
-                        if (ex != null) {
-                            log.error("Failed to publish audit event [type={}] for question [{}]: {}",
-                                    eventType, questionId, ex.getMessage());
-                        }
-                    });
+            eventPublisher.publish(AUDIT_TOPIC, questionId.toString(), event);
         } catch (Exception e) {
             log.error("Unexpected error publishing audit event [type={}]: {}", eventType, e.getMessage());
         }

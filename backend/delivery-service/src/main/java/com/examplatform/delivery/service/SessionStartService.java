@@ -29,13 +29,13 @@ import com.examplatform.delivery.dto.ShiftAssignment;
 import com.examplatform.delivery.exception.ConcurrentSessionException;
 import com.examplatform.delivery.repository.ExamSessionRepository;
 import com.examplatform.shared.config.DynamicConfigService;
+import com.examplatform.shared.messaging.EventPublisher;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.RedisTemplate;
-import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -66,7 +66,7 @@ public class SessionStartService {
     private final VaultCryptoService vaultCryptoService;
     private final ExamQuestionDeliveryService examQuestionDeliveryService;
     private final RedisTemplate<String, Object> redisTemplate;
-    private final KafkaTemplate<String, Object> kafkaTemplate;
+    private final EventPublisher eventPublisher;
     private final ObjectMapper objectMapper;
     private final DynamicConfigService dynamicConfigService;
 
@@ -197,7 +197,7 @@ public class SessionStartService {
             log.warn("Failed to cache session in Redis: {}", e.getMessage());
         }
 
-        // 10. Publish SESSION_STARTED event to Kafka (fire-and-forget)
+        // 10. Publish SESSION_STARTED event (fire-and-forget)
         try {
             Map<String, Object> event = Map.of(
                     "eventType", "SESSION_STARTED",
@@ -208,13 +208,7 @@ public class SessionStartService {
                     "startedAt", now.toString(),
                     "tenantId", effectiveTenant
             );
-            kafkaTemplate.send(TOPIC_SESSION_EVENTS, savedSession.getSessionId().toString(), event)
-                    .whenComplete((result, ex) -> {
-                        if (ex != null) {
-                            log.error("Failed to publish SESSION_STARTED event for session [{}]: {}",
-                                    savedSession.getSessionId(), ex.getMessage());
-                        }
-                    });
+            eventPublisher.publish(TOPIC_SESSION_EVENTS, savedSession.getSessionId().toString(), event);
         } catch (Exception e) {
             log.error("Unexpected error publishing SESSION_STARTED event: {}", e.getMessage());
         }
@@ -308,7 +302,7 @@ public class SessionStartService {
         }
         int totalQuestions = (questions != null && !questions.isEmpty()) ? questions.size() : countQuestions(decryptedPaper);
 
-        // 3. Publish SESSION_RESUMED telemetry event to Kafka
+        // 3. Publish SESSION_RESUMED telemetry event
         try {
             Map<String, Object> event = Map.of(
                     "eventType", "SESSION_RESUMED",
@@ -319,7 +313,7 @@ public class SessionStartService {
                     "resumedAt", now.toString(),
                     "tenantId", effectiveTenant
             );
-            kafkaTemplate.send(TOPIC_SESSION_EVENTS, session.getSessionId().toString(), event);
+            eventPublisher.publish(TOPIC_SESSION_EVENTS, session.getSessionId().toString(), event);
         } catch (Exception e) {
             log.warn("Failed to publish SESSION_RESUMED event: {}", e.getMessage());
         }

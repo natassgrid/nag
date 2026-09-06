@@ -37,12 +37,12 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import com.examplatform.shared.messaging.EventPublisher;
 import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.kafka.core.KafkaTemplate;
 
 import java.time.Instant;
 import java.util.Optional;
@@ -82,7 +82,7 @@ class QuestionServiceTest {
     private EmbeddingService embeddingService;
 
     @Mock
-    private KafkaTemplate<String, Object> kafkaTemplate;
+    private EventPublisher eventPublisher;
 
     @InjectMocks
     private QuestionService questionService;
@@ -91,9 +91,6 @@ class QuestionServiceTest {
 
     @BeforeEach
     void setUp() {
-        Mockito.lenient()
-                .when(kafkaTemplate.send(any(), any(), any()))
-                .thenReturn(java.util.concurrent.CompletableFuture.completedFuture(null));
 
         Mockito.lenient()
                 .when(subjectRepository.findById(any()))

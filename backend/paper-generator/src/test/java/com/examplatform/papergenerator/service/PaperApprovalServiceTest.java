@@ -21,6 +21,7 @@ package com.examplatform.papergenerator.service;
 
 import com.examplatform.papergenerator.domain.Paper;
 import com.examplatform.papergenerator.repository.PaperRepository;
+import com.examplatform.shared.messaging.EventPublisher;
 import jakarta.persistence.EntityNotFoundException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -29,11 +30,9 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.kafka.core.KafkaTemplate;
 
 import java.util.Optional;
 import java.util.UUID;
-import java.util.concurrent.CompletableFuture;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -53,7 +52,7 @@ class PaperApprovalServiceTest {
     private VaultCryptoService vaultCryptoService;
 
     @Mock
-    private KafkaTemplate<String, Object> kafkaTemplate;
+    private EventPublisher eventPublisher;
 
     @InjectMocks
     private PaperApprovalService paperApprovalService;
@@ -88,8 +87,6 @@ class PaperApprovalServiceTest {
         when(vaultCryptoService.encrypt(eq("paper-shift-shift-A"), anyString()))
                 .thenReturn("vault:v1:encrypted_content");
         when(paperRepository.save(any(Paper.class))).thenAnswer(i -> i.getArgument(0));
-        when(kafkaTemplate.send(anyString(), anyString(), any()))
-                .thenReturn(CompletableFuture.completedFuture(null));
 
         Paper result = paperApprovalService.approvePaper(paperId, "tenant-1");
 
@@ -127,8 +124,6 @@ class PaperApprovalServiceTest {
         when(vaultCryptoService.encrypt(eq("paper-shift-shift-A"), eq("{\"questions\": []}")))
                 .thenReturn("vault:v1:abc123");
         when(paperRepository.save(any(Paper.class))).thenAnswer(i -> i.getArgument(0));
-        when(kafkaTemplate.send(anyString(), anyString(), any()))
-                .thenReturn(CompletableFuture.completedFuture(null));
 
         paperApprovalService.approvePaper(paperId, "tenant-1");
 
@@ -141,11 +136,9 @@ class PaperApprovalServiceTest {
         when(paperRepository.findByIdAndTenantId(paperId, "tenant-1")).thenReturn(Optional.of(draftPaper));
         when(vaultCryptoService.encrypt(anyString(), anyString())).thenReturn("vault:v1:enc");
         when(paperRepository.save(any(Paper.class))).thenAnswer(i -> i.getArgument(0));
-        when(kafkaTemplate.send(anyString(), anyString(), any()))
-                .thenReturn(CompletableFuture.completedFuture(null));
 
         paperApprovalService.approvePaper(paperId, "tenant-1");
 
-        verify(kafkaTemplate).send(eq("exam.audit.events"), eq(paperId.toString()), any());
+        verify(eventPublisher).publish(eq("exam.audit.events"), eq(paperId.toString()), any());
     }
 }

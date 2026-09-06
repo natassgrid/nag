@@ -270,8 +270,8 @@ if [ "$SMART" = true ]; then
     echo "  Changed: ${CHANGED[*]}"
     echo ""
 
-    local total=${#CHANGED[@]}
-    local built=0
+    total=${#CHANGED[@]}
+    built=0
 
     for svc in "${CHANGED[@]}"; do
         built=$((built + 1))
@@ -311,6 +311,8 @@ fi
 echo ""
 echo "? Stopping all containers..."
 $COMPOSE down --remove-orphans 2>/dev/null || true
+docker stop exam-kafka 2>/dev/null || true
+docker rm exam-kafka 2>/dev/null || true
 
 echo "? Removing ephemeral volumes (preserving vault_data and AI model caches)..."
 docker volume ls --format '{{.Name}}' | grep -E 'postgres_data|rabbitmq_data|redis_data|keycloak_data|prometheus_data|grafana_data' | grep -v -E 'vault_data|ollama_data|indictrans2_cache' | xargs -r docker volume rm 2>/dev/null || true
@@ -321,10 +323,10 @@ docker image prune -f 2>/dev/null || true
 
 echo ""
 echo "? Starting core infrastructure (Postgres, Redis, Vault, Keycloak, RabbitMQ)..."
-docker compose -f docker-compose.yml up -d
+docker compose -f docker-compose.yml up -d postgres redis vault keycloak
 $COMPOSE up -d rabbitmq
 echo "  Waiting for infrastructure to be healthy..."
-docker compose -f docker-compose.yml up --wait -d postgres vault
+docker compose -f docker-compose.yml up --wait -d postgres vault redis
 $COMPOSE up --wait -d rabbitmq
 
 echo ""

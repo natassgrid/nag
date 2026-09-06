@@ -25,6 +25,7 @@ import com.examplatform.papergenerator.dto.BlueprintRule;
 import com.examplatform.papergenerator.dto.PaperGenerationRequest;
 import com.examplatform.papergenerator.dto.QuestionSummary;
 import com.examplatform.papergenerator.repository.PaperRepository;
+import com.examplatform.shared.messaging.EventPublisher;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -33,7 +34,6 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import java.time.Instant;
@@ -65,7 +65,7 @@ class PaperAssemblyServiceTest {
     private PaperRepository paperRepository;
 
     @Mock
-    private KafkaTemplate<String, Object> kafkaTemplate;
+    private EventPublisher eventPublisher;
 
     @Mock
     private ExaminationLookupService examinationLookupService;
@@ -82,7 +82,7 @@ class PaperAssemblyServiceTest {
         ObjectMapper objectMapper = new ObjectMapper();
         objectMapper.findAndRegisterModules();
         paperAssemblyService = new PaperAssemblyService(
-                questionBankClient, paperRepository, kafkaTemplate, objectMapper, examinationLookupService);
+                questionBankClient, paperRepository, eventPublisher, objectMapper, examinationLookupService);
     }
 
     @Test
@@ -214,7 +214,7 @@ class PaperAssemblyServiceTest {
     }
 
     @Test
-    @DisplayName("Should publish paper generation event to Kafka")
+    @DisplayName("Should publish paper generation event")
     void generatePaper_publishesKafkaEvent() {
         List<BlueprintRule> rules = List.of(
                 BlueprintRule.builder()
@@ -244,7 +244,7 @@ class PaperAssemblyServiceTest {
 
         paperAssemblyService.generatePaper(request, GENERATED_BY, TENANT_ID);
 
-        verify(kafkaTemplate, atLeast(1)).send(anyString(), anyString(), any());
+        verify(eventPublisher, atLeast(1)).publish(anyString(), anyString(), any());
     }
 
     private QuestionSummary createQuestionSummary(

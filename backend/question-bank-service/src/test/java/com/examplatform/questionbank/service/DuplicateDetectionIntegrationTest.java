@@ -31,6 +31,7 @@ import com.examplatform.questionbank.dto.QuestionResponse;
 import com.examplatform.questionbank.exception.SimilarQuestionException;
 import com.examplatform.questionbank.repository.QuestionRepository;
 import com.examplatform.questionbank.repository.SimilarityResult;
+import com.examplatform.shared.messaging.EventPublisher;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -39,7 +40,6 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.kafka.core.KafkaTemplate;
 
 import java.time.Instant;
 import java.util.Collections;
@@ -84,7 +84,7 @@ class DuplicateDetectionIntegrationTest {
     private com.examplatform.questionbank.repository.SubtopicRepository subtopicRepository;
 
     @Mock
-    private KafkaTemplate<String, Object> kafkaTemplate;
+    private EventPublisher eventPublisher;
 
     // Real SimilarityDetectionService with mocked dependencies
     private SimilarityDetectionService similarityDetectionService;
@@ -115,7 +115,7 @@ class DuplicateDetectionIntegrationTest {
                 subtopicRepository,
                 similarityDetectionService,
                 embeddingService,
-                kafkaTemplate
+                eventPublisher
         );
 
         // Set encryptionEnabled = false to avoid Vault dependency in tests
@@ -126,10 +126,6 @@ class DuplicateDetectionIntegrationTest {
         } catch (Exception e) {
             throw new RuntimeException("Failed to set encryptionEnabled field", e);
         }
-
-        // Lenient stub for Kafka — fire-and-forget audit events
-        lenient().when(kafkaTemplate.send(anyString(), any(), any()))
-                .thenReturn(CompletableFuture.completedFuture(null));
 
         // Lenient stub for the Subject -> Topic -> Subtopic hierarchy resolution
         stubHierarchy();

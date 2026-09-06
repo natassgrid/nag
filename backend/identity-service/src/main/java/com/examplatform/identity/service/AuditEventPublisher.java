@@ -20,9 +20,9 @@
 package com.examplatform.identity.service;
 
 import com.examplatform.shared.audit.AuditEventType;
+import com.examplatform.shared.messaging.EventPublisher;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 
 import java.time.Instant;
@@ -30,7 +30,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 /**
- * Publishes structured audit events to the {@code exam.audit.events} Kafka topic.
+ * Publishes structured audit events to the {@code exam.audit.events} destination.
  * Failures are logged but never propagate — audit writes must not block or
  * fail the originating business operation.
  */
@@ -41,7 +41,7 @@ public class AuditEventPublisher {
 
     private static final String AUDIT_TOPIC = "exam.audit.events";
 
-    private final KafkaTemplate<String, Object> kafkaTemplate;
+    private final EventPublisher eventPublisher;
 
     /**
      * Build and publish an audit event asynchronously.
@@ -73,16 +73,8 @@ public class AuditEventPublisher {
                 event.putAll(extra);
             }
 
-            kafkaTemplate.send(AUDIT_TOPIC, actorId, event)
-                .whenComplete((result, ex) -> {
-                    if (ex != null) {
-                        log.error("Failed to publish audit event [type={}] for actor [{}]: {}",
-                                type, actorId, ex.getMessage());
-                    } else {
-                        log.debug("Audit event published [type={}, actor={}, offset={}]",
-                                type, actorId, result.getRecordMetadata().offset());
-                    }
-                });
+            eventPublisher.publish(AUDIT_TOPIC, actorId, event);
+            log.debug("Audit event published [type={}, actor={}]", type, actorId);
         } catch (Exception e) {
             log.error("Unexpected error publishing audit event [type={}]: {}", type, e.getMessage(), e);
         }

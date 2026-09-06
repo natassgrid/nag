@@ -19,9 +19,9 @@
 
 package com.examplatform.evaluation.consumer;
 
+import com.examplatform.evaluation.domain.Evaluation;
 import com.examplatform.evaluation.dto.AnswerKey;
 import com.examplatform.evaluation.dto.CandidateResponse;
-import com.examplatform.evaluation.domain.Evaluation;
 import com.examplatform.evaluation.service.AutoEvaluationService;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -29,17 +29,24 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
+import org.springframework.amqp.core.ExchangeTypes;
+import org.springframework.amqp.rabbit.annotation.Exchange;
+import org.springframework.amqp.rabbit.annotation.Queue;
+import org.springframework.amqp.rabbit.annotation.QueueBinding;
+import org.springframework.amqp.rabbit.annotation.RabbitListener;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.stereotype.Component;
 
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 /**
- * Kafka consumer that listens for session-submitted events on the
- * {@code exam.session.events} topic. Triggers auto-evaluation workflow
+ * Consumer that listens for session-submitted events on the
+ * {@code exam.session.events} channel. Triggers auto-evaluation workflow
  * when a candidate submits their exam session.
+ * Supports both Kafka and RabbitMQ brokers.
  */
 @Slf4j
 @Component
@@ -50,17 +57,48 @@ public class SessionEventConsumer {
     private final ObjectMapper objectMapper;
 
     /**
-     * Handles session events from Kafka. When a SESSION_SUBMITTED event is received,
-     * triggers the auto-evaluation pipeline for objective questions.
-     *
-     * @param record the Kafka consumer record containing the event payload
+     * Handles session events from Kafka.
      */
     @KafkaListener(topics = "exam.session.events", groupId = "evaluation-service")
-    public void onSessionEvent(ConsumerRecord<String, String> record) {
-        log.info("Received session event: key={}, partition={}", record.key(), record.partition());
-
+    public void onKafkaSessionEvent(ConsumerRecord<String, String> record) {
+        log.info("Received Kafka session event: key={}, partition={}", record.key(), record.partition());
         try {
             JsonNode event = objectMapper.readTree(record.value());
+            processJsonEvent(event);
+        } catch (Exception e) {
+            log.error("Failed to process Kafka session event: {}", e.getMessage(), e);
+        }
+    }
+
+    /**
+     * Handles session events from RabbitMQ.
+     */
+    @RabbitListener(
+            bindings = @QueueBinding(
+                    value = @Queue(value = "evaluation.session.events.queue", durable = "true"),
+                    exchange = @Exchange(value = "exam.events", type = ExchangeTypes.TOPIC),
+                    key = "exam.session.events"
+            )
+    )
+    public void onRabbitSessionEvent(Object message) {
+        log.info("Received RabbitMQ session event: {}", message);
+        try {
+            JsonNode event;
+            if (message instanceof String s) {
+                event = objectMapper.readTree(s);
+            } else if (message instanceof JsonNode jn) {
+                event = jn;
+            } else {
+                event = objectMapper.valueToTree(message);
+            }
+            processJsonEvent(event);
+        } catch (Exception e) {
+            log.error("Failed to process RabbitMQ session event: {}", e.getMessage(), e);
+        }
+    }
+
+    public void processJsonEvent(JsonNode event) {
+        try {
             String eventType = event.has("eventType") ? event.get("eventType").asText() : "";
 
             if (!"SESSION_SUBMITTED".equals(eventType)) {

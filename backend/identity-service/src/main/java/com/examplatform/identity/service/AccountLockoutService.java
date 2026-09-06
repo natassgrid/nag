@@ -25,9 +25,9 @@ import com.examplatform.identity.domain.enums.AccountStatus;
 import com.examplatform.identity.repository.UserAccountRepository;
 import com.examplatform.shared.audit.AuditEventType;
 import com.examplatform.shared.config.DynamicConfigService;
+import com.examplatform.shared.messaging.EventPublisher;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
@@ -41,7 +41,7 @@ import java.util.Map;
  * occurred within the lockout window ({@code auth.lockout.duration.minutes}, fallback 15m).
  *
  * <p>On lockout, a notification event is published to the
- * {@code exam.notifications.outbound} Kafka topic so downstream services can
+ * {@code exam.notifications.outbound} topic so downstream services can
  * alert the user.
  *
  * <p><strong>Validates: Requirements 2.4, 2.6</strong>
@@ -53,7 +53,7 @@ public class AccountLockoutService {
 
     private final UserAccountRepository userAccountRepository;
     private final AuditEventPublisher auditEventPublisher;
-    private final KafkaTemplate<String, Object> kafkaTemplate;
+    private final EventPublisher eventPublisher;
     private final AppSecurityProperties securityProperties;
     private final DynamicConfigService dynamicConfigService;
 
@@ -109,7 +109,7 @@ public class AccountLockoutService {
                         "lockedAt", account.getLockedAt().toString(),
                         "message", "Your account has been locked due to multiple failed login attempts."
                 );
-                kafkaTemplate.send(NOTIFICATIONS_TOPIC, String.valueOf(account.getId()), notification);
+                eventPublisher.publish(NOTIFICATIONS_TOPIC, String.valueOf(account.getId()), notification);
 
                 return true;
             }

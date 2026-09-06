@@ -21,9 +21,9 @@ package com.examplatform.evaluation.service;
 
 import com.examplatform.evaluation.domain.Evaluation;
 import com.examplatform.evaluation.repository.EvaluationRepository;
+import com.examplatform.shared.messaging.EventPublisher;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -50,7 +50,7 @@ public class ScoreAggregationService {
     private static final String EVALUATION_EVENTS_TOPIC = "exam.evaluation.events";
 
     private final EvaluationRepository evaluationRepository;
-    private final KafkaTemplate<String, Object> kafkaTemplate;
+    private final EventPublisher eventPublisher;
 
     /**
      * Aggregate scores for a candidate's session.
@@ -128,7 +128,7 @@ public class ScoreAggregationService {
             event.put("occurredAt", Instant.now().toString());
 
             String key = aggregation.get("sessionId") + ":" + aggregation.get("candidateId");
-            kafkaTemplate.send(EVALUATION_EVENTS_TOPIC, key, event);
+            eventPublisher.publish(EVALUATION_EVENTS_TOPIC, key, event);
         } catch (Exception e) {
             log.error("Failed to publish SCORES_AGGREGATED event: {}", e.getMessage());
         }

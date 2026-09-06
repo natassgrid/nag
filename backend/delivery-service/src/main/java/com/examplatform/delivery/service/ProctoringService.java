@@ -23,9 +23,9 @@ import com.examplatform.delivery.config.ProctoringProperties;
 import com.examplatform.delivery.domain.ExamSession;
 import com.examplatform.delivery.repository.ExamSessionRepository;
 import com.examplatform.shared.config.DynamicConfigService;
+import com.examplatform.shared.messaging.EventPublisher;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -36,7 +36,7 @@ import java.util.UUID;
 
 /**
  * Handles proctoring operations: webcam snapshot capture and full-screen exit tracking.
- * Publishes alerts to Kafka for AI analysis and audit trail.
+ * Publishes alerts for AI analysis and audit trail.
  *
  * Validates: Requirements 11.1, 11.2, 11.6, 11.7
  */
@@ -49,7 +49,7 @@ public class ProctoringService {
     private static final String AUDIT_TOPIC = "exam.audit.events";
 
     private final ExamSessionRepository examSessionRepository;
-    private final KafkaTemplate<String, Object> kafkaTemplate;
+    private final EventPublisher eventPublisher;
     private final ProctoringProperties proctoringProperties;
     private final DynamicConfigService dynamicConfigService;
 
@@ -86,7 +86,7 @@ public class ProctoringService {
         event.put("imageSize", imageData != null ? imageData.length : 0);
 
         try {
-            kafkaTemplate.send(PROCTORING_TOPIC, sessionId.toString(), event);
+            eventPublisher.publish(PROCTORING_TOPIC, sessionId.toString(), event);
             log.debug("Proctoring snapshot published for session={}", sessionId);
         } catch (Exception e) {
             log.error("Failed to publish proctoring snapshot for session={}: {}", sessionId, e.getMessage());
@@ -127,7 +127,7 @@ public class ProctoringService {
             alertEvent.put("tenantId", session.getTenantId());
 
             try {
-                kafkaTemplate.send(AUDIT_TOPIC, sessionId.toString(), alertEvent);
+                eventPublisher.publish(AUDIT_TOPIC, sessionId.toString(), alertEvent);
             } catch (Exception e) {
                 log.error("Failed to publish fullscreen exit alert for session={}: {}",
                         sessionId, e.getMessage());

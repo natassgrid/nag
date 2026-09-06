@@ -21,10 +21,10 @@ package com.examplatform.papergenerator.service;
 
 import com.examplatform.papergenerator.domain.Paper;
 import com.examplatform.papergenerator.repository.PaperRepository;
+import com.examplatform.shared.messaging.EventPublisher;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -50,7 +50,7 @@ public class PaperApprovalService {
 
     private final PaperRepository paperRepository;
     private final VaultCryptoService vaultCryptoService;
-    private final KafkaTemplate<String, Object> kafkaTemplate;
+    private final EventPublisher eventPublisher;
 
     /**
      * Approve and encrypt a paper, transitioning:
@@ -110,13 +110,7 @@ public class PaperApprovalService {
                     "tenantId", tenantId,
                     "occurredAt", Instant.now().toString()
             );
-            kafkaTemplate.send(AUDIT_TOPIC, paper.getId().toString(), event)
-                    .whenComplete((result, ex) -> {
-                        if (ex != null) {
-                            log.error("Failed to publish PAPER_APPROVED audit event for paper [{}]: {}",
-                                    paper.getId(), ex.getMessage());
-                        }
-                    });
+            eventPublisher.publish(AUDIT_TOPIC, paper.getId().toString(), event);
         } catch (Exception e) {
             log.error("Unexpected error publishing PAPER_APPROVED audit event: {}", e.getMessage());
         }

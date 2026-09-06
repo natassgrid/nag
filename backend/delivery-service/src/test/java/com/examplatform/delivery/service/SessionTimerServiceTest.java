@@ -22,6 +22,7 @@ package com.examplatform.delivery.service;
 import com.examplatform.delivery.domain.ExamSession;
 import com.examplatform.delivery.domain.ExamSession.ExamSessionStatus;
 import com.examplatform.delivery.repository.ExamSessionRepository;
+import com.examplatform.shared.messaging.EventPublisher;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -31,7 +32,6 @@ import org.mockito.Captor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.kafka.core.KafkaTemplate;
 
 import java.time.Duration;
 import java.time.Instant;
@@ -39,7 +39,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
-import java.util.concurrent.CompletableFuture;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
@@ -60,7 +59,7 @@ class SessionTimerServiceTest {
     private ExamSessionRepository examSessionRepository;
 
     @Mock
-    private KafkaTemplate<String, Object> kafkaTemplate;
+    private EventPublisher eventPublisher;
 
     @InjectMocks
     private SessionTimerService sessionTimerService;
@@ -108,14 +107,12 @@ class SessionTimerServiceTest {
     }
 
     @Test
-    @DisplayName("Expired sessions get status=EXPIRED and Kafka event published")
+    @DisplayName("Expired sessions get status=EXPIRED and event published")
     void expireOverdueSessions_setsExpiredAndPublishesEvent() {
         when(examSessionRepository.findByStatus(ExamSessionStatus.ACTIVE))
                 .thenReturn(List.of(expiredSession));
         when(examSessionRepository.save(any(ExamSession.class)))
                 .thenAnswer(invocation -> invocation.getArgument(0));
-        when(kafkaTemplate.send(anyString(), anyString(), any()))
-                .thenReturn(CompletableFuture.completedFuture(null));
 
         sessionTimerService.expireOverdueSessions();
 
@@ -123,8 +120,8 @@ class SessionTimerServiceTest {
         verify(examSessionRepository).save(sessionCaptor.capture());
         assertThat(sessionCaptor.getValue().getStatus()).isEqualTo(ExamSessionStatus.EXPIRED);
 
-        // Verify Kafka event was published
-        verify(kafkaTemplate).send(eq("exam.session.events"),
+        // Verify event was published
+        verify(eventPublisher).publish(eq("exam.session.events"),
                 eq(expiredSession.getSessionId().toString()),
                 eventCaptor.capture());
         Map<String, Object> event = eventCaptor.getValue();
@@ -141,7 +138,7 @@ class SessionTimerServiceTest {
         sessionTimerService.expireOverdueSessions();
 
         verify(examSessionRepository, never()).save(any());
-        verify(kafkaTemplate, never()).send(anyString(), anyString(), any());
+        verify(eventPublisher, never()).publish(anyString(), anyString(), any());
     }
 
     @Test

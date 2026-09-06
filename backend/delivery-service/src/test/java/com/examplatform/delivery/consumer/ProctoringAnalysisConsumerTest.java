@@ -19,6 +19,7 @@
 
 package com.examplatform.delivery.consumer;
 
+import com.examplatform.shared.messaging.EventPublisher;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -26,13 +27,11 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.kafka.core.KafkaTemplate;
 
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
-import java.util.concurrent.CompletableFuture;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
@@ -40,7 +39,6 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
 
 /**
  * Unit tests for {@link ProctoringAnalysisConsumer}.
@@ -52,7 +50,7 @@ import static org.mockito.Mockito.when;
 class ProctoringAnalysisConsumerTest {
 
     @Mock
-    KafkaTemplate<String, Object> kafkaTemplate;
+    EventPublisher eventPublisher;
 
     @InjectMocks
     ProctoringAnalysisConsumer proctoringAnalysisConsumer;
@@ -69,9 +67,6 @@ class ProctoringAnalysisConsumerTest {
         event.put("candidateId", candidateId);
         event.put("snapshotRef", "snapshots/tenant/session/123456");
 
-        when(kafkaTemplate.send(anyString(), anyString(), any()))
-                .thenReturn(CompletableFuture.completedFuture(null));
-
         // Run analyze multiple times to trigger at least one detection (stub is random ~10%)
         // We call it enough times that statistically at least one detection triggers
         for (int i = 0; i < 50; i++) {
@@ -80,7 +75,7 @@ class ProctoringAnalysisConsumerTest {
 
         // Verify at least one audit event was published to the audit topic
         ArgumentCaptor<Object> eventCaptor = ArgumentCaptor.forClass(Object.class);
-        verify(kafkaTemplate, atLeastOnce()).send(eq("exam.audit.events"), eq(sessionId), eventCaptor.capture());
+        verify(eventPublisher, atLeastOnce()).publish(eq("exam.audit.events"), eq(sessionId), eventCaptor.capture());
 
         // Verify the event structure
         List<Object> allEvents = eventCaptor.getAllValues();

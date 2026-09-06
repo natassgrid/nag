@@ -53,8 +53,6 @@ x-depends-macro: &depends-macro
     condition: service_healthy
   rabbitmq:
     condition: service_healthy
-  kafka:
-    condition: service_healthy
 
 services:
 

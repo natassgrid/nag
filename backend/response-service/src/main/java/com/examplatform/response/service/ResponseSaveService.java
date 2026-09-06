@@ -26,8 +26,8 @@ import com.examplatform.response.dto.SaveResponseResponse;
 import com.examplatform.response.repository.ResponseRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import com.examplatform.shared.messaging.EventPublisher;
 import org.springframework.data.redis.core.RedisTemplate;
-import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -36,11 +36,9 @@ import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
-import java.util.concurrent.ExecutionException;
 
 /**
  * Service responsible for persisting candidate responses and publishing save events.
- * Enforces Kafka acks=all before acknowledging to the client (synchronous send).
  *
  * Validates: Requirements 10.1, 20.3
  */
@@ -56,7 +54,7 @@ public class ResponseSaveService {
     private static final Duration AUDIT_THROTTLE_TTL = Duration.ofSeconds(60);
 
     private final ResponseRepository responseRepository;
-    private final KafkaTemplate<String, Object> kafkaTemplate;
+    private final EventPublisher eventPublisher;
     private final RedisTemplate<String, Object> redisTemplate;
     private final MetricsConfig metricsConfig;
 
@@ -95,7 +93,7 @@ public class ResponseSaveService {
         // 3. Save to DB
         Response saved = responseRepository.save(response);
 
-        // 4. Publish save confirmation to Kafka with acks=all (blocking)
+        // 4. Publish save confirmation
         Map<String, Object> savedEvent = Map.of(
                 "responseId", saved.getId(),
                 "sessionId", sessionId,
@@ -107,15 +105,7 @@ public class ResponseSaveService {
                 "tenantId", tenantId
         );
 
-        try {
-            kafkaTemplate.send(TOPIC_RESPONSE_SAVED, sessionId.toString(), savedEvent)
-                    .get(); // BLOCKING — ensures acks=all before returning to client
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new RuntimeException("Kafka send interrupted", e);
-        } catch (ExecutionException e) {
-            throw new RuntimeException("Kafka send failed", e);
-        }
+        eventPublisher.publish(TOPIC_RESPONSE_SAVED, sessionId.toString(), savedEvent);
 
         // 5. Increment the response_save_rate counter
         metricsConfig.getResponseSaveCounter().increment();
@@ -138,7 +128,7 @@ public class ResponseSaveService {
     }
 
     /**
-     * Publishes a sampled RESPONSE_SAVED audit event to Kafka, throttled to max once
+     * Publishes a sampled RESPONSE_SAVED audit event, throttled to max once
      * per candidate per 60 seconds using a Redis key with TTL.
      */
     private void publishSampledAuditEvent(UUID sessionId, UUID candidateId, UUID questionId, String tenantId) {
@@ -156,13 +146,7 @@ public class ResponseSaveService {
                         "tenantId", tenantId,
                         "occurredAt", Instant.now().toString()
                 );
-                kafkaTemplate.send(AUDIT_TOPIC, candidateId.toString(), auditEvent)
-                        .whenComplete((result, ex) -> {
-                            if (ex != null) {
-                                log.error("Failed to publish sampled RESPONSE_SAVED audit event for candidate [{}]: {}",
-                                        candidateId, ex.getMessage());
-                            }
-                        });
+                eventPublisher.publish(AUDIT_TOPIC, candidateId.toString(), auditEvent);
             }
         } catch (Exception e) {
             // Never block main save operation for audit failures

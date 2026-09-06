@@ -26,12 +26,12 @@ import com.examplatform.examination.dto.ExaminationResponse;
 import com.examplatform.examination.exception.ExaminationNotFoundException;
 import com.examplatform.examination.exception.SectionMarksValidationException;
 import com.examplatform.examination.repository.ExaminationRepository;
+import com.examplatform.shared.messaging.EventPublisher;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -59,7 +59,7 @@ public class ExaminationService {
 
     private final ExaminationRepository examinationRepository;
     private final ObjectMapper objectMapper;
-    private final KafkaTemplate<String, Object> kafkaTemplate;
+    private final EventPublisher eventPublisher;
 
     /**
      * Lists all examinations belonging to the given tenant.
@@ -254,13 +254,7 @@ public class ExaminationService {
             event.put("tenantId", tenantId);
             event.put("occurredAt", Instant.now().toString());
 
-            kafkaTemplate.send(AUDIT_TOPIC, saved.getId().toString(), event)
-                    .whenComplete((result, ex) -> {
-                        if (ex != null) {
-                            log.error("Failed to publish EXAM_PUBLISHED audit event for exam [{}]: {}",
-                                    examId, ex.getMessage());
-                        }
-                    });
+            eventPublisher.publish(AUDIT_TOPIC, saved.getId().toString(), event);
         } catch (Exception e) {
             log.error("Unexpected error publishing EXAM_PUBLISHED audit event: {}", e.getMessage());
         }

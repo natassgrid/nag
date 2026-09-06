@@ -21,6 +21,7 @@ package com.examplatform.evaluation.service;
 
 import com.examplatform.evaluation.domain.Evaluation;
 import com.examplatform.evaluation.repository.EvaluationRepository;
+import com.examplatform.shared.messaging.EventPublisher;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -28,13 +29,11 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.kafka.core.KafkaTemplate;
 
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
-import java.util.concurrent.CompletableFuture;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -50,7 +49,7 @@ class ManualEvaluationServiceTest {
     private EvaluationRepository evaluationRepository;
 
     @Mock
-    private KafkaTemplate<String, Object> kafkaTemplate;
+    private EventPublisher eventPublisher;
 
     @InjectMocks
     private ManualEvaluationService manualEvaluationService;
@@ -97,8 +96,6 @@ class ManualEvaluationServiceTest {
         when(evaluationRepository.save(any(Evaluation.class))).thenAnswer(i -> i.getArgument(0));
         when(evaluationRepository.findBySessionIdAndTenantId(sessionId, "tenant-1"))
                 .thenReturn(List.of(pendingEvaluation));
-        when(kafkaTemplate.send(anyString(), anyString(), any()))
-                .thenReturn(CompletableFuture.completedFuture(null));
 
         Evaluation result = manualEvaluationService.recordScore(
                 evaluationId, evaluatorId, 7.5, "Good answer");
@@ -164,8 +161,6 @@ class ManualEvaluationServiceTest {
 
         when(evaluationRepository.findById(evaluationId)).thenReturn(Optional.of(pendingEvaluation));
         when(evaluationRepository.save(any(Evaluation.class))).thenAnswer(i -> i.getArgument(0));
-        when(kafkaTemplate.send(anyString(), anyString(), any()))
-                .thenReturn(CompletableFuture.completedFuture(null));
 
         // After scoring, the current eval becomes MANUAL_EVALUATED with score 8
         // Then findBySessionIdAndTenantId returns both evaluations
@@ -183,12 +178,9 @@ class ManualEvaluationServiceTest {
     @Test
     @DisplayName("Should publish evaluation notification event")
     void notifyEvaluators_publishesKafkaEvent() {
-        when(kafkaTemplate.send(anyString(), anyString(), any()))
-                .thenReturn(CompletableFuture.completedFuture(null));
-
         manualEvaluationService.notifyEvaluatorsForManualReview(
                 sessionId, candidateId, "tenant-1");
 
-        verify(kafkaTemplate).send(anyString(), anyString(), any());
+        verify(eventPublisher).publish(anyString(), anyString(), any());
     }
 }

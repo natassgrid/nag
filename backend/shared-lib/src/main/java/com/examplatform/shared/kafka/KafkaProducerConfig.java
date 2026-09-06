@@ -25,6 +25,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 import org.springframework.kafka.core.DefaultKafkaProducerFactory;
 import org.springframework.kafka.core.KafkaTemplate;
@@ -40,14 +41,16 @@ import java.util.Map;
  * Provides a {@link ProducerFactory} and {@link KafkaTemplate} with standardized
  * settings: idempotent delivery, acks=all, JSON value serialization.
  * <p>
- * This configuration is auto-activated when {@code spring-kafka} is on the classpath
- * and no custom {@link ProducerFactory} bean is already defined by the service.
+ * This configuration is auto-activated when {@code spring-kafka} is on the classpath,
+ * {@code platform.messaging.broker} is kafka (or missing), and no custom {@link ProducerFactory}
+ * bean is already defined by the service.
  * Services only need to set {@code spring.kafka.bootstrap-servers} in their YAML.
  * <p>
  * Service-specific topic declarations ({@code NewTopic} beans) remain in each service.
  */
 @AutoConfiguration
 @ConditionalOnClass(KafkaTemplate.class)
+@ConditionalOnProperty(name = "platform.messaging.broker", havingValue = "kafka", matchIfMissing = true)
 public class KafkaProducerConfig {
 
     @Value("${spring.kafka.bootstrap-servers:localhost:9092}")

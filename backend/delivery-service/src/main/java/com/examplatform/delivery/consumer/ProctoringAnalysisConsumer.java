@@ -16,13 +16,18 @@
  * You should have received a copy of the GNU Affero General Public License
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
-
 package com.examplatform.delivery.consumer;
 
+import com.examplatform.shared.messaging.EventPublisher;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.amqp.core.ExchangeTypes;
+import org.springframework.amqp.rabbit.annotation.Exchange;
+import org.springframework.amqp.rabbit.annotation.Queue;
+import org.springframework.amqp.rabbit.annotation.QueueBinding;
+import org.springframework.amqp.rabbit.annotation.RabbitListener;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.kafka.annotation.KafkaListener;
-import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Component;
 
 import java.time.Instant;
@@ -31,9 +36,9 @@ import java.util.Map;
 import java.util.Random;
 
 /**
- * Kafka consumer that processes proctoring frames/snapshots for AI analysis.
+ * Consumer that processes proctoring frames/snapshots for AI analysis.
+ * Supports both Kafka (microservices mode) and RabbitMQ (macro mode).
  * Stub implementation: randomly flags some frames to simulate ML model detection.
- * Production would use an actual ML model for face detection, object detection, etc.
  *
  * Publishes audit events for detected anomalies:
  * - no-face-detected
@@ -54,18 +59,32 @@ public class ProctoringAnalysisConsumer {
             "prohibited-object-detected"
     };
 
-    private final KafkaTemplate<String, Object> kafkaTemplate;
+    private final EventPublisher eventPublisher;
     private final Random random = new Random();
 
     /**
-     * Consumes proctoring snapshot events and performs stub AI analysis.
-     * In production, this would invoke an ML model for face/object detection.
-     *
-     * @param event the proctoring snapshot event from exam.proctoring.alerts
+     * Consumes proctoring snapshot events via Kafka and performs stub AI analysis.
      */
     @KafkaListener(topics = "exam.proctoring.alerts", groupId = "delivery-proctoring")
-    @SuppressWarnings("unchecked")
     public void analyze(Map<String, Object> event) {
+        processEvent(event);
+    }
+
+    /**
+     * Consumes proctoring snapshot events via RabbitMQ and performs stub AI analysis.
+     */
+    @RabbitListener(
+            bindings = @QueueBinding(
+                    value = @Queue(value = "proctoring.alerts.queue", durable = "true"),
+                    exchange = @Exchange(value = "exam.events", type = ExchangeTypes.TOPIC),
+                    key = "exam.proctoring.alerts"
+            )
+    )
+    public void analyzeRabbit(Map<String, Object> event) {
+        processEvent(event);
+    }
+
+    public void processEvent(Map<String, Object> event) {
         String sessionId = (String) event.get("sessionId");
         String candidateId = (String) event.get("candidateId");
         String snapshotRef = (String) event.get("snapshotRef");
@@ -92,7 +111,7 @@ public class ProctoringAnalysisConsumer {
             auditEvent.put("confidence", 0.85 + random.nextDouble() * 0.15); // Stub confidence: 0.85–1.0
             auditEvent.put("occurredAt", Instant.now().toString());
 
-            kafkaTemplate.send(AUDIT_TOPIC, sessionId, auditEvent);
+            eventPublisher.publish(AUDIT_TOPIC, sessionId, auditEvent);
             log.warn("AI proctoring alert: type={}, session={}, candidate={}",
                     detectionType, sessionId, candidateId);
         } catch (Exception e) {

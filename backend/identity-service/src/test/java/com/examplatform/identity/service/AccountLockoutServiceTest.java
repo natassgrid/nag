@@ -25,6 +25,7 @@ import com.examplatform.identity.domain.enums.AccountStatus;
 import com.examplatform.identity.repository.UserAccountRepository;
 import com.examplatform.shared.audit.AuditEventType;
 import com.examplatform.shared.config.DynamicConfigService;
+import com.examplatform.shared.messaging.EventPublisher;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -35,13 +36,11 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import java.time.LocalDateTime;
 import java.util.Map;
 import java.util.UUID;
-import java.util.concurrent.CompletableFuture;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
@@ -68,7 +67,7 @@ class AccountLockoutServiceTest {
     private AuditEventPublisher auditEventPublisher;
 
     @Mock
-    private KafkaTemplate<String, Object> kafkaTemplate;
+    private EventPublisher eventPublisher;
 
     @Mock
     private AppSecurityProperties securityProperties;
@@ -118,9 +117,6 @@ class AccountLockoutServiceTest {
             LocalDateTime recentFailure = LocalDateTime.now().minusSeconds(120); // within 600s
             UserAccount account = buildAccount(5, recentFailure);
 
-            when(kafkaTemplate.send(anyString(), anyString(), any()))
-                    .thenReturn(CompletableFuture.completedFuture(null));
-
             boolean locked = accountLockoutService.checkAndLockIfNeeded(account, TENANT_ID);
 
             assertThat(locked).isTrue();
@@ -138,9 +134,9 @@ class AccountLockoutServiceTest {
                     any()
             );
 
-            // Verify Kafka notification sent
+            // Verify notification sent
             ArgumentCaptor<Map<String, Object>> notifCaptor = ArgumentCaptor.forClass(Map.class);
-            verify(kafkaTemplate).send(eq("exam.notifications.outbound"), eq(ACCOUNT_ID.toString()), notifCaptor.capture());
+            verify(eventPublisher).publish(eq("exam.notifications.outbound"), eq(ACCOUNT_ID.toString()), notifCaptor.capture());
             Map<String, Object> notif = notifCaptor.getValue();
             assertThat(notif.get("eventType")).isEqualTo("ACCOUNT_LOCKED");
             assertThat(notif.get("userId")).isEqualTo(ACCOUNT_ID.toString());
@@ -158,7 +154,7 @@ class AccountLockoutServiceTest {
             assertThat(account.getAccountStatus()).isEqualTo(AccountStatus.ACTIVE);
             verify(userAccountRepository, never()).save(any());
             verify(auditEventPublisher, never()).publish(any(), any(), any(), any(), any(), any());
-            verify(kafkaTemplate, never()).send(anyString(), anyString(), any());
+            verify(eventPublisher, never()).publish(anyString(), anyString(), any());
         }
 
         @Test
@@ -173,7 +169,7 @@ class AccountLockoutServiceTest {
             assertThat(account.getAccountStatus()).isEqualTo(AccountStatus.ACTIVE);
             verify(userAccountRepository, never()).save(any());
             verify(auditEventPublisher, never()).publish(any(), any(), any(), any(), any(), any());
-            verify(kafkaTemplate, never()).send(anyString(), anyString(), any());
+            verify(eventPublisher, never()).publish(anyString(), anyString(), any());
         }
 
         @Test
