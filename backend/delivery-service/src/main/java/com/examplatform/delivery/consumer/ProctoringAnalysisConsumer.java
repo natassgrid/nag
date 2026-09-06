@@ -19,14 +19,13 @@
 package com.examplatform.delivery.consumer;
 
 import com.examplatform.shared.messaging.EventPublisher;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.amqp.core.ExchangeTypes;
 import org.springframework.amqp.rabbit.annotation.Exchange;
 import org.springframework.amqp.rabbit.annotation.Queue;
 import org.springframework.amqp.rabbit.annotation.QueueBinding;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.stereotype.Component;
 
@@ -49,7 +48,6 @@ import java.util.Random;
  */
 @Slf4j
 @Component
-@RequiredArgsConstructor
 public class ProctoringAnalysisConsumer {
 
     private static final String AUDIT_TOPIC = "exam.audit.events";
@@ -60,7 +58,17 @@ public class ProctoringAnalysisConsumer {
     };
 
     private final EventPublisher eventPublisher;
-    private final Random random = new Random();
+    private final Random random;
+
+    @Autowired
+    public ProctoringAnalysisConsumer(EventPublisher eventPublisher) {
+        this(eventPublisher, new Random());
+    }
+
+    public ProctoringAnalysisConsumer(EventPublisher eventPublisher, Random random) {
+        this.eventPublisher = eventPublisher;
+        this.random = random;
+    }
 
     /**
      * Consumes proctoring snapshot events via Kafka and performs stub AI analysis.

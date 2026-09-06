@@ -87,11 +87,6 @@ class DDosMitigationFilterTest {
         ddosProperties.setWindowSeconds(1);
         filter = new DDosMitigationFilter(reactiveRedisTemplate, kafkaTemplateProvider, ddosProperties);
         when(reactiveRedisTemplate.opsForValue()).thenReturn(valueOperations);
-        doAnswer(invocation -> {
-            Consumer<KafkaTemplate<String, Object>> consumer = invocation.getArgument(0);
-            consumer.accept(kafkaTemplate);
-            return null;
-        }).when(kafkaTemplateProvider).ifAvailable(any());
     }
 
     @Test
@@ -110,7 +105,7 @@ class DDosMitigationFilterTest {
 
         // Then: request passes through
         verify(chain).filter(exchange);
-        verify(kafkaTemplate, never()).send(anyString(), anyString(), any());
+        verify(kafkaTemplateProvider, never()).ifAvailable(any());
     }
 
     @Test
@@ -132,10 +127,17 @@ class DDosMitigationFilterTest {
         // Then: TTL is set and request passes through
         verify(reactiveRedisTemplate).expire("ddos:ip:10.0.0.1", Duration.ofSeconds(1));
         verify(chain).filter(exchange);
+        verify(kafkaTemplateProvider, never()).ifAvailable(any());
     }
 
     @Test
     void filter_aboveThreshold_returns429AndPublishesAlert() {
+        doAnswer(invocation -> {
+            Consumer<KafkaTemplate<String, Object>> consumer = invocation.getArgument(0);
+            consumer.accept(kafkaTemplate);
+            return null;
+        }).when(kafkaTemplateProvider).ifAvailable(any());
+
         // Given a request that exceeds the rate limit
         MockServerHttpRequest request = MockServerHttpRequest.get("/api/v1/test")
                 .remoteAddress(new InetSocketAddress("192.168.1.200", 8080))
