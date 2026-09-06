@@ -40,7 +40,7 @@ public class SharedSecurityConfig {
 
     @Bean
     @Order(Ordered.LOWEST_PRECEDENCE)
-    @ConditionalOnMissingBean(SecurityFilterChain.class)
+    @ConditionalOnMissingBean(name = "defaultFallbackSecurityFilterChain")
     public SecurityFilterChain defaultFallbackSecurityFilterChain(
             HttpSecurity http,
             JwtAuthenticationConverter jwtAuthenticationConverter) throws Exception {
@@ -49,7 +49,7 @@ public class SharedSecurityConfig {
             .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers("/actuator/health", "/actuator/health/**", "/actuator/info", "/actuator/prometheus").permitAll()
-                .requestMatchers("/api/v1/geo/**").permitAll()
+                .requestMatchers("/api/v1/geo/**", "/api/v1/public/**").permitAll()
                 .anyRequest().authenticated()
             )
             .oauth2ResourceServer(oauth2 -> oauth2

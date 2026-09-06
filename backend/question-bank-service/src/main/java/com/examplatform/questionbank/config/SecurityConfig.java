@@ -19,9 +19,9 @@
 
 package com.examplatform.questionbank.config;
 
-import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.core.annotation.Order;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
@@ -30,7 +30,7 @@ import org.springframework.security.oauth2.server.resource.authentication.JwtAut
 import org.springframework.security.web.SecurityFilterChain;
 
 /**
- * Minimal security configuration for question-bank-service.
+ * Security configuration for question-bank-service.
  * OAuth2 Resource Server with JWT validation; permit actuator health endpoint;
  * require authentication for all other requests.
  */
@@ -40,10 +40,11 @@ import org.springframework.security.web.SecurityFilterChain;
 public class SecurityConfig {
 
     @Bean
-    @ConditionalOnMissingBean(SecurityFilterChain.class)
+    @Order(5)
     public SecurityFilterChain questionBankSecurityFilterChain(HttpSecurity http,
                                                    JwtAuthenticationConverter jwtAuthenticationConverter) throws Exception {
         http
+            .securityMatcher("/api/v1/questions/**", "/api/v1/topics/**", "/api/v1/subjects/**", "/api/v1/batch-generate/**", "/api/v1/ai/questions/**", "/api/v1/translations/**")
             .csrf(csrf -> csrf.disable())
             .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
