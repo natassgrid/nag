@@ -19,8 +19,9 @@
 
 package com.examplatform.app;
 
-import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.boot.builder.SpringApplicationBuilder;
+import org.springframework.context.annotation.FullyQualifiedAnnotationBeanNameGenerator;
 import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
 import org.springframework.scheduling.annotation.EnableAsync;
 import org.springframework.scheduling.annotation.EnableScheduling;
@@ -31,6 +32,7 @@ import org.springframework.scheduling.annotation.EnableScheduling;
  * paper generation, and asset management in a single deployment unit.
  */
 @SpringBootApplication(
+        nameGenerator = FullyQualifiedAnnotationBeanNameGenerator.class,
         scanBasePackages = {
                 "com.examplatform.questionbank",
                 "com.examplatform.examination",
@@ -42,10 +44,10 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 )
 @EnableJpaRepositories(
         basePackages = {
-                "com.examplatform.questionbank.repository",
-                "com.examplatform.examination.repository",
-                "com.examplatform.papergenerator.repository",
-                "com.examplatform.asset.repository"
+                "com.examplatform.questionbank",
+                "com.examplatform.examination",
+                "com.examplatform.papergenerator",
+                "com.examplatform.asset"
         }
 )
 @EnableAsync
@@ -53,6 +55,8 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 public class ContentApplication {
 
     public static void main(String[] args) {
-        SpringApplication.run(ContentApplication.class, args);
+        new SpringApplicationBuilder(ContentApplication.class)
+                .beanNameGenerator(new FullyQualifiedAnnotationBeanNameGenerator())
+                .run(args);
     }
 }

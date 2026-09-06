@@ -37,13 +37,13 @@ import org.springframework.context.annotation.Configuration;
 @Configuration
 public class OpenSearchConfig {
 
-    @Value("${app.opensearch.host}")
+    @Value("${app.opensearch.host:localhost}")
     private String host;
 
-    @Value("${app.opensearch.port}")
+    @Value("${app.opensearch.port:9200}")
     private int port;
 
-    @Value("${app.opensearch.scheme}")
+    @Value("${app.opensearch.scheme:http}")
     private String scheme;
 
     @Bean

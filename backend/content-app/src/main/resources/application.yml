@@ -2,6 +2,8 @@
 # National Assessment Grid (NAG) - Macro-Service: Content (Question Bank, Examination, Paper Generator, Asset)
 
 spring:
+  main:
+    allow-bean-definition-overriding: true
   application:
     name: content-app
 
@@ -55,6 +57,15 @@ spring:
         options:
           model: text-embedding-3-small
 
+  cloud:
+    vault:
+      uri: ${VAULT_ADDR:http://localhost:8200}
+      token: ${VAULT_ROOT_TOKEN:vault_root_token}
+      scheme: http
+      kv:
+        enabled: true
+        backend: secret
+
   threads:
     virtual:
       enabled: true
@@ -89,9 +100,26 @@ indictrans2:
 
 asset:
   storage:
-    type: ${ASSET_STORAGE_TYPE:local}
-    local:
-      directory: ${ASSET_STORAGE_DIR:/data/asset-storage}
+    provider: ${ASSET_STORAGE_PROVIDER:filesystem}
+    filesystem:
+      base-path: ${ASSET_STORAGE_PATH:/data/asset-storage}
     s3:
       bucket: ${ASSET_S3_BUCKET:exam-platform-assets}
       region: ${AWS_REGION:us-east-1}
+
+app:
+  opensearch:
+    host: ${OPENSEARCH_HOST:opensearch}
+    port: ${OPENSEARCH_PORT:9200}
+    scheme: ${OPENSEARCH_SCHEME:http}
+  encryption:
+    enabled: ${QUESTION_ENCRYPTION_ENABLED:false}
+  translation:
+    encryption:
+      enabled: ${TRANSLATION_ENCRYPTION_ENABLED:false}
+  ai:
+    models:
+      easy: ${AI_MODEL_EASY:nova-micro}
+      medium: ${AI_MODEL_MEDIUM:nova-lite}
+      hard: ${AI_MODEL_HARD:nova-lite}
+

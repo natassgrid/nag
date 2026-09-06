@@ -2,6 +2,8 @@
 # National Assessment Grid (NAG) - Macro-Service: Post-Exam (Evaluation, Result, Analytics)
 
 spring:
+  main:
+    allow-bean-definition-overriding: true
   application:
     name: post-exam-app
 

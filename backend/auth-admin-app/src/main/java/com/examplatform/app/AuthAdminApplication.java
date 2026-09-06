@@ -19,8 +19,9 @@
 
 package com.examplatform.app;
 
-import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.boot.builder.SpringApplicationBuilder;
+import org.springframework.context.annotation.FullyQualifiedAnnotationBeanNameGenerator;
 import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
 import org.springframework.scheduling.annotation.EnableAsync;
 import org.springframework.scheduling.annotation.EnableScheduling;
@@ -31,6 +32,7 @@ import org.springframework.scheduling.annotation.EnableScheduling;
  * into a single unified deployment unit while preserving modular domain separation.
  */
 @SpringBootApplication(
+        nameGenerator = FullyQualifiedAnnotationBeanNameGenerator.class,
         exclude = {
                 org.springframework.boot.data.redis.autoconfigure.DataRedisRepositoriesAutoConfiguration.class
         },
@@ -45,10 +47,10 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 )
 @EnableJpaRepositories(
         basePackages = {
-                "com.examplatform.identity.repository",
-                "com.examplatform.candidate.repository",
-                "com.examplatform.admin.repository",
-                "com.examplatform.notification.repository"
+                "com.examplatform.identity",
+                "com.examplatform.candidate",
+                "com.examplatform.admin",
+                "com.examplatform.notification"
         }
 )
 @EnableAsync
@@ -56,6 +58,8 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 public class AuthAdminApplication {
 
     public static void main(String[] args) {
-        SpringApplication.run(AuthAdminApplication.class, args);
+        new SpringApplicationBuilder(AuthAdminApplication.class)
+                .beanNameGenerator(new FullyQualifiedAnnotationBeanNameGenerator())
+                .run(args);
     }
 }

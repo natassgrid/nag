@@ -19,8 +19,9 @@
 
 package com.examplatform.app;
 
-import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.boot.builder.SpringApplicationBuilder;
+import org.springframework.context.annotation.FullyQualifiedAnnotationBeanNameGenerator;
 import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
 import org.springframework.scheduling.annotation.EnableAsync;
 import org.springframework.scheduling.annotation.EnableScheduling;
@@ -31,6 +32,7 @@ import org.springframework.scheduling.annotation.EnableScheduling;
  * and high-throughput answer auto-save with Redis caching.
  */
 @SpringBootApplication(
+        nameGenerator = FullyQualifiedAnnotationBeanNameGenerator.class,
         exclude = {
                 org.springframework.boot.data.redis.autoconfigure.DataRedisRepositoriesAutoConfiguration.class
         },
@@ -43,8 +45,8 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 )
 @EnableJpaRepositories(
         basePackages = {
-                "com.examplatform.delivery.repository",
-                "com.examplatform.response.repository"
+                "com.examplatform.delivery",
+                "com.examplatform.response"
         }
 )
 @EnableAsync
@@ -52,6 +54,8 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 public class ExecutionApplication {
 
     public static void main(String[] args) {
-        SpringApplication.run(ExecutionApplication.class, args);
+        new SpringApplicationBuilder(ExecutionApplication.class)
+                .beanNameGenerator(new FullyQualifiedAnnotationBeanNameGenerator())
+                .run(args);
     }
 }

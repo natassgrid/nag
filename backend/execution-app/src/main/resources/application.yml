@@ -2,6 +2,8 @@
 # National Assessment Grid (NAG) - Macro-Service: Exam Execution (Delivery & Response)
 
 spring:
+  main:
+    allow-bean-definition-overriding: true
   application:
     name: execution-app
 
@@ -49,6 +51,19 @@ spring:
 
   kafka:
     bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+
+  cloud:
+    vault:
+      uri: ${VAULT_ADDR:http://localhost:8200}
+      token: ${VAULT_ROOT_TOKEN:vault_root_token}
+      scheme: http
+      kv:
+        enabled: true
+        backend: secret
+      transit:
+        enabled: true
+        backend: transit
+        default-context: delivery-service
 
   threads:
     virtual:

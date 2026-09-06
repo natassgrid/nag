@@ -19,8 +19,9 @@
 
 package com.examplatform.app;
 
-import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.boot.builder.SpringApplicationBuilder;
+import org.springframework.context.annotation.FullyQualifiedAnnotationBeanNameGenerator;
 import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
 import org.springframework.scheduling.annotation.EnableAsync;
 import org.springframework.scheduling.annotation.EnableScheduling;
@@ -31,6 +32,7 @@ import org.springframework.scheduling.annotation.EnableScheduling;
  * and reporting dashboards in a single deployment unit.
  */
 @SpringBootApplication(
+        nameGenerator = FullyQualifiedAnnotationBeanNameGenerator.class,
         scanBasePackages = {
                 "com.examplatform.evaluation",
                 "com.examplatform.result",
@@ -41,9 +43,9 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 )
 @EnableJpaRepositories(
         basePackages = {
-                "com.examplatform.evaluation.repository",
-                "com.examplatform.result.repository",
-                "com.examplatform.analytics.repository"
+                "com.examplatform.evaluation",
+                "com.examplatform.result",
+                "com.examplatform.analytics"
         }
 )
 @EnableAsync
@@ -51,6 +53,8 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 public class PostExamApplication {
 
     public static void main(String[] args) {
-        SpringApplication.run(PostExamApplication.class, args);
+        new SpringApplicationBuilder(PostExamApplication.class)
+                .beanNameGenerator(new FullyQualifiedAnnotationBeanNameGenerator())
+                .run(args);
     }
 }
