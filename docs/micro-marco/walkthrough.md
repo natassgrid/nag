@@ -1,125 +1,88 @@
-# Walkthrough: Dual-Mode Architecture (Microservices ↔ Macro-Services)
+# Walkthrough: Tri-Mode Architecture (Microservices ↔ Macro-Services ↔ Monolith)
 
-We have successfully implemented a **dual-mode deployment architecture** for the NAG Open Digital Public Infrastructure (DPI) Platform. From the **exact same codebase**, you can now deploy either as:
+NAG implements a **Tri-Mode Architecture** for the Open Digital Public Infrastructure (DPI) Platform. From the **exact same codebase**, you can compile and deploy in any of three topologies:
+
 1. **Full Microservices Mode**: 14 distinct microservices + API Gateway with Apache Kafka (for Kubernetes, large-scale multi-tenant production).
-2. **Consolidated Macro-Services Mode**: 5 deployable units + API Gateway with lightweight RabbitMQ (for EC2 single-instance, demo environments, and small tenants).
+2. **Consolidated Macro-Services Mode**: 5 deployable units + API Gateway with lightweight RabbitMQ (for single EC2 instances, demo environments, and state boards).
+3. **Single JVM Monolith Mode**: 1 consolidated Spring Boot application (`monolith-app`) embedding all 14 modules with zero external broker (for local development, CI/CD, and low-resource environments).
 
 ---
 
-## Architecture Overview
+## Topology Architecture Diagram
 
 ```
-                          ┌────────────────────────┐
-                          │   Frontend & React UI  │
-                          └───────────┬────────────┘
-                                      │
-                                      ▼
-                          ┌────────────────────────┐
-                          │   API Gateway (9000)   │
-                          └───────────┬────────────┘
-                                      │
-          ┌───────────────────────────┼───────────────────────────┐
-          │                           │                           │
-          ▼                           ▼                           ▼
-┌───────────────────┐       ┌───────────────────┐       ┌───────────────────┐
-│  AUTH & ADMIN     │       │     CONTENT       │       │    EXECUTION      │
-│  Port: 8081       │       │    Port: 8083     │       │    Port: 8087     │
-│ ───────────────── │       │ ───────────────── │       │ ───────────────── │
-│ identity-service  │       │ question-bank-svc │       │ delivery-service  │
-│ candidate-service │       │ exam-service      │       │ response-service  │
-│ admin-service     │       │ paper-generator   │       └───────────────────┘
-│ notif-service     │       │ asset-service     │                 │
-└───────────────────┘       └───────────────────┘                 │
-                                                                  ▼
-┌───────────────────┐                                   ┌───────────────────┐
-│  AUDIT SERVICE    │                                   │    POST-EXAM      │
-│  Port: 8091       │                                   │    Port: 8089     │
-│ ───────────────── │                                   │ ───────────────── │
-│ (Isolated for     │                                   │ evaluation-svc    │
-│ legal compliance) │                                   │ result-service    │
-└───────────────────┘                                   │ analytics-service │
-                                                        └───────────────────┘
+                                  ┌──────────────────────────────┐
+                                  │     Angular Frontends        │
+                                  │   Admin (4200) / User (4300) │
+                                  └──────────────┬───────────────┘
+                                                 │
+                  ┌──────────────────────────────┼──────────────────────────────┐
+                  ▼                              ▼                              ▼
+     ┌──────────────────────────┐   ┌──────────────────────────┐   ┌──────────────────────────┐
+     │ 1. MICROSERVICES (K8s)   │   │ 2. MACRO-SERVICES (VM)   │   │ 3. MONOLITH (Single JVM) │
+     ├──────────────────────────┤   ├──────────────────────────┤   ├──────────────────────────┤
+     │   API Gateway (9000)     │   │   API Gateway (9000)     │   │   monolith-app (9000)    │
+     │            │             │   │            │             │   │  (All 14 Modules inside) │
+     │  ┌─────────┼─────────┐   │   │  ┌─────────┼─────────┐   │   │                          │
+     │  ▼         ▼         ▼   │   │  ▼         ▼         ▼   │   │ • In-Memory Events       │
+     │ 14 Standalone Pods       │   │ 5 Consolidated Apps:     │   │ • Multi-Schema Flyway    │
+     │ (8081 .. 8095)           │   │ • auth-admin-app (8081)  │   │ • Single DB Pool         │
+     │            │             │   │ • content-app (8083)     │   │ • Zero External Broker   │
+     │            ▼             │   │ • execution-app (8087)   │   │                          │
+     │   Apache Kafka (9092)    │   │ • post-exam-app (8089)   │   │                          │
+     │   PostgreSQL (Multi-DB/S)│   │ • audit-service (8091)   │   │                          │
+     │   Redis (Cluster)        │   │            │             │   │                          │
+     │                          │   │            ▼             │   │                          │
+     │                          │   │   RabbitMQ Alpine (5672) │   │                          │
+     │                          │   │   PostgreSQL + Redis     │   │                          │
+     └──────────────────────────┘   └──────────────────────────┘   └──────────────────────────┘
 ```
 
 ---
 
-## Comparison: Micro vs Macro
+## Comparison Matrix
 
-| Dimension | Microservices Mode | Macro-Services Mode |
-|---|---|---|
-| **Deployable JARs** | 14 services + Gateway (15) | 5 services + Gateway (6) |
-| **Message Broker** | Apache Kafka (~512 MB RAM) | RabbitMQ Alpine (~80 MB RAM) |
-| **Min RAM Footprint** | ~7.0 GB | ~2.5 GB (runs on `t3.medium` / 4GB RAM) |
-| **Target Infrastructure**| Kubernetes (EKS/GKE) | Single EC2 VM / Docker / Small K8s |
-| **Scaling Granularity**| Scale each of 14 pods independently | Scale hot-path (`execution-app`) independently |
-| **Compliance Isolation**| `audit-service` standalone | `audit-service` standalone (preserved) |
+| Dimension | Microservices Mode | Macro-Services Mode | Monolith Mode |
+|---|---|---|---|
+| **Deployable JARs** | 14 services + Gateway (15) | 5 services + Gateway (6) | 1 single `monolith-app` |
+| **Message Broker** | Apache Kafka (~512 MB RAM) | RabbitMQ Alpine (~80 MB RAM) | In-memory Spring Events (0 MB broker) |
+| **Min RAM Footprint** | ~7.0 – 12.0 GB | ~2.5 – 4.0 GB | ~1.0 – 1.5 GB |
+| **Target Infrastructure**| Kubernetes (EKS/GKE/OCP) | Single EC2 VM / Docker Compose | Laptop / Local Dev / CI / Low-cost VM |
+| **Scaling Granularity**| Scale each of 14 pods independently | Scale hot-path (`execution-app`) independently | Scale the entire monolith instance |
+| **Audit Compliance**| `audit-service` standalone | `audit-service` standalone (preserved) | Embedded in monolith runtime |
 
 ---
 
-## Key Components Implemented
+## Core Components
 
 ### 1. Broker-Agnostic Messaging Abstraction (`backend/shared-lib`)
-- [`EventPublisher`](file:///C:/Users/sheel/IdeaProjects/nag/backend/shared-lib/src/main/java/com/examplatform/shared/messaging/EventPublisher.java): Universal publishing interface.
-- [`KafkaEventPublisher`](file:///C:/Users/sheel/IdeaProjects/nag/backend/shared-lib/src/main/java/com/examplatform/shared/messaging/KafkaEventPublisher.java): Active for `docker`, `kubernetes`, or `platform.messaging.broker=kafka`.
-- [`RabbitEventPublisher`](file:///C:/Users/sheel/IdeaProjects/nag/backend/shared-lib/src/main/java/com/examplatform/shared/messaging/RabbitEventPublisher.java): Active when `platform.messaging.broker=rabbit`.
-- [`SpringEventPublisher`](file:///C:/Users/sheel/IdeaProjects/nag/backend/shared-lib/src/main/java/com/examplatform/shared/messaging/SpringEventPublisher.java): In-process fallback for zero-broker embedded mode.
-- [`MessagingAutoConfiguration`](file:///C:/Users/sheel/IdeaProjects/nag/backend/shared-lib/src/main/java/com/examplatform/shared/messaging/MessagingAutoConfiguration.java): Auto-registers the proper publisher based on active environment.
+- [`EventPublisher`](file:///C:/Users/sheel/IdeaProjects/nag/backend/shared-lib/src/main/java/com/examplatform/shared/messaging/EventPublisher.java): Universal publishing interface implemented across all modes.
+- [`KafkaEventPublisher`](file:///C:/Users/sheel/IdeaProjects/nag/backend/shared-lib/src/main/java/com/examplatform/shared/messaging/KafkaEventPublisher.java): Active when `platform.messaging.broker=kafka` (Microservices mode).
+- [`RabbitEventPublisher`](file:///C:/Users/sheel/IdeaProjects/nag/backend/shared-lib/src/main/java/com/examplatform/shared/messaging/RabbitEventPublisher.java): Active when `platform.messaging.broker=rabbit` (Macro mode).
+- [`SpringEventPublisher`](file:///C:/Users/sheel/IdeaProjects/nag/backend/shared-lib/src/main/java/com/examplatform/shared/messaging/SpringEventPublisher.java): In-process asynchronous event bus active when `platform.messaging.broker=spring` or `in-memory` (Monolith mode).
+- [`MessagingAutoConfiguration`](file:///C:/Users/sheel/IdeaProjects/nag/backend/shared-lib/src/main/java/com/examplatform/shared/messaging/MessagingAutoConfiguration.java): Automatically configures the appropriate publisher bean.
 
-### 2. Macro-Service Aggregators
-1. **[`backend/auth-admin-app`](file:///C:/Users/sheel/IdeaProjects/nag/backend/auth-admin-app)**: Aggregates `identity-service`, `candidate-service`, `admin-service`, and `notification-service`. Port: `8081`.
-2. **[`backend/content-app`](file:///C:/Users/sheel/IdeaProjects/nag/backend/content-app)**: Aggregates `question-bank-service`, `examination-service`, `paper-generator`, and `asset-service`. Port: `8083`.
-3. **[`backend/execution-app`](file:///C:/Users/sheel/IdeaProjects/nag/backend/execution-app)**: Aggregates `delivery-service` and `response-service` (the exam delivery hot path). Port: `8087`.
-4. **[`backend/post-exam-app`](file:///C:/Users/sheel/IdeaProjects/nag/backend/post-exam-app)**: Aggregates `evaluation-service`, `result-service`, and `analytics-service`. Port: `8089`.
-5. **`audit-service`**: Preserved as an isolated standalone deployment unit (Port `8091`) to maintain legal audit immutability and compliance requirements.
+### 2. Multi-Schema Database Migration (`backend/monolith-app`)
+- [`MonolithFlywayConfig`](file:///C:/Users/sheel/IdeaProjects/nag/backend/monolith-app/src/main/java/com/examplatform/app/config/MonolithFlywayConfig.java): Executes Flyway migrations sequentially across all 14 schema paths (`classpath:db/migration/identity`, `classpath:db/migration/question`, etc.) at startup.
 
-### 3. Deployment Overlays
-- **Docker Compose**: [`infrastructure/docker-compose/docker-compose.macro.yml`](file:///C:/Users/sheel/IdeaProjects/nag/infrastructure/docker-compose/docker-compose.macro.yml) includes RabbitMQ 3.13 Alpine and wires all 5 macro-services with `api-gateway`.
-- **Helm Values**: [`infrastructure/helm/examination-platform/values-macro.yaml`](file:///C:/Users/sheel/IdeaProjects/nag/infrastructure/helm/examination-platform/values-macro.yaml) provides a Kubernetes overlay to disable the 13 individual services and run the 5 macro-services.
-- **Build Script**: [`scripts/build-macro.sh`](file:///C:/Users/sheel/IdeaProjects/nag/scripts/build-macro.sh) provides a unified CLI script to build and tag all macro Docker images.
+### 3. Unified Async Thread Pool (`backend/monolith-app`)
+- [`MonolithAsyncConfig`](file:///C:/Users/sheel/IdeaProjects/nag/backend/monolith-app/src/main/java/com/examplatform/app/config/MonolithAsyncConfig.java): Provides a unified thread pool for non-blocking in-memory event dispatch and asynchronous task processing.
 
 ---
 
-## How to Run
+## How to Deploy & Run
 
-### Option A: Run Macro Mode on EC2 / Local Docker (Lightweight)
-
+### 1. Monolith Mode (Ultralight / Dev / PoC)
 ```bash
-# 1. Start core infrastructure (Postgres, Redis, Vault, Keycloak)
-docker compose -f infrastructure/docker-compose/docker-compose.yml up -d
-
-# 2. Start Macro services (5 backend apps + RabbitMQ + Gateway + Frontends)
-docker compose -f infrastructure/docker-compose/docker-compose.yml \
-               -f infrastructure/docker-compose/docker-compose.macro.yml up --build
+./infrastructure/docker-compose/redeploy-monolith.sh
 ```
 
-### Option B: Run Full Microservices Mode on K8s / Local Docker (Production)
-
+### 2. Macro-Services Mode (EC2 / VM)
 ```bash
-# Docker Compose:
-docker compose -f infrastructure/docker-compose/docker-compose.yml \
-               -f infrastructure/docker-compose/docker-compose.services.yml up --build
-
-# Kubernetes (Helm):
-helm upgrade --install exam-platform ./infrastructure/helm/examination-platform \
-  -f infrastructure/helm/examination-platform/values.yaml \
-  -f infrastructure/helm/examination-platform/values-production.yaml
+./infrastructure/docker-compose/redeploy-macro.sh
 ```
 
-### Option C: Run Macro Mode on Kubernetes
-
+### 3. Microservices Mode (Kubernetes / Large Production)
 ```bash
-helm upgrade --install exam-platform ./infrastructure/helm/examination-platform \
-  -f infrastructure/helm/examination-platform/values.yaml \
-  -f infrastructure/helm/examination-platform/values-macro.yaml
+./infrastructure/docker-compose/redeploy-micro.sh
 ```
-
----
-
-## Verification & Build Results
-
-All 14 microservice bootJars, the 4 macro-service aggregator bootJars, and shared libraries built and assembled successfully:
-
-```bash
-./gradlew assemble -x test
-```
-Result: **`BUILD SUCCESSFUL in 38s (118 actionable tasks)`**

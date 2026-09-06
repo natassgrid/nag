@@ -1,90 +1,61 @@
-# Docker Containerization & Local Compose — National Assessment Grid
+# Docker Containerization & Compose Topologies — National Assessment Grid
 
-## 1. Multi-Stage Dockerfile Strategy
+## 1. Multi-Stage Docker Strategy
 
-All NAG services utilize optimized multi-stage Docker builds to produce lightweight, secure, non-root production images.
+NAG backend containers leverage optimized multi-stage Docker builds:
+- **Base Builder (`backend/Dockerfile.base`)**: Pre-populates the Gradle 8.14 wrapper, project build scripts, and shared dependencies to maximize build layer caching.
+- **Service Dockerfile (`backend/Dockerfile`)**: Builds individual microservices or the single `monolith-app` using the cached builder.
+- **Macro Dockerfile (`backend/Dockerfile.macro`)**: Builds the consolidated macro-service aggregators (`auth-admin-app`, `content-app`, `execution-app`, `post-exam-app`).
+- **Frontend Dockerfiles (`frontend/Dockerfile`, `candidate-frontend/Dockerfile`)**: Build Angular standalone applications and serve them through minimal Alpine NGINX images.
 
 ---
 
-## 2. Frontend Dockerfile (`frontend/Dockerfile`)
+## 2. Compose Configuration Files
 
-```dockerfile
-# Stage 1: Build Angular SPA
-FROM node:20-alpine AS build
-WORKDIR /app
-COPY package*.json ./
-RUN npm ci
-COPY . .
-RUN npm run build -- --configuration production
+The platform maintains composable Docker Compose definitions under `infrastructure/docker-compose/`:
 
-# Stage 2: Serve with NGINX Minimal
-FROM nginx:alpine
-COPY --from=build /app/dist/exam-platform /usr/share/nginx/html
-COPY nginx.conf /etc/nginx/conf.d/default.conf
-EXPOSE 80
-CMD ["nginx", "-g", "daemon off;"]
+| Compose File | Purpose | Key Services |
+|---|---|---|
+| `docker-compose.yml` | Base Infrastructure | PostgreSQL, Redis, Vault, Keycloak, Observability, AI |
+| `docker-compose.monolith.yml` | Monolith Mode | `monolith-app` (Port 9000), `frontend`, `candidate-frontend` |
+| `docker-compose.macro.yml` | Macro-Services Mode | 5 Macro apps, RabbitMQ (Alpine), `api-gateway`, frontends |
+| `docker-compose.services.yml` | Microservices Mode | 14 Microservices, Apache Kafka, `api-gateway`, frontends |
+
+---
+
+## 3. Running with Docker Compose
+
+### 1. Monolith Mode (Ultralight ~1GB RAM)
+```bash
+docker compose -f infrastructure/docker-compose/docker-compose.yml \
+               -f infrastructure/docker-compose/docker-compose.monolith.yml up --build -d
+```
+
+### 2. Macro Mode (Consolidated ~2.5GB RAM)
+```bash
+docker compose -f infrastructure/docker-compose/docker-compose.yml \
+               -f infrastructure/docker-compose/docker-compose.macro.yml up --build -d
+```
+
+### 3. Microservices Mode (Full Distributed ~8GB RAM)
+```bash
+docker compose -f infrastructure/docker-compose/docker-compose.yml \
+               -f infrastructure/docker-compose/docker-compose.services.yml up --build -d
 ```
 
 ---
 
-## 3. Backend Microservice Dockerfile (`backend/exam-service/Dockerfile`)
+## 4. Helper Shell Scripts
 
-```dockerfile
-# Stage 1: Build Java Jar
-FROM maven:3.9-eclipse-temurin-21 AS build
-WORKDIR /app
-COPY pom.xml .
-RUN mvn dependency:go-offline
-COPY src ./src
-RUN mvn package -DskipTests
+Automated redeployment scripts handle teardown, dependency health checks, Docker build caching, and service startup:
 
-# Stage 2: Runtime Container
-FROM eclipse-temurin:21-jr-alpine
-RUN addgroup -S nag && adduser -S naguser -G nag
-USER naguser:nag
-WORKDIR /app
-COPY --from=build /app/target/*.jar app.jar
-EXPOSE 8080
-ENTRYPOINT ["java", "-jar", "app.jar"]
-```
+```bash
+# Monolith
+./infrastructure/docker-compose/redeploy-monolith.sh [--observability] [--ai] [--no-cache]
 
----
+# Macro
+./infrastructure/docker-compose/redeploy-macro.sh [--observability] [--ai] [--no-cache]
 
-## 4. Local Development Docker Compose (`docker-compose.dev.yml`)
-
-```yaml
-version: '3.8'
-
-services:
-  postgres:
-    image: postgres:16-alpine
-    container_name: nag-postgres
-    environment:
-      POSTGRES_DB: nag_exam_db
-      POSTGRES_USER: nag_user
-      POSTGRES_PASSWORD: nag_password
-    ports:
-      - "5432:5432"
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-
-  kafka:
-    image: confluentinc/cp-kafka:7.6.0
-    container_name: nag-kafka
-    ports:
-      - "9092:9092"
-    environment:
-      KAFKA_NODE_ID: 1
-      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: 'CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT'
-      KAFKA_ADVERTISED_LISTENERS: 'PLAINTEXT://nag-kafka:29092,PLAINTEXT_HOST://localhost:9092'
-      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
-
-  redis:
-    image: redis:7-alpine
-    container_name: nag-redis
-    ports:
-      - "6379:6379"
-
-volumes:
-  postgres_data:
+# Micro
+./infrastructure/docker-compose/redeploy-micro.sh [--observability] [--ai] [--no-cache]
 ```
