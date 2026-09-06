@@ -35,7 +35,7 @@ spring:
   flyway:
     enabled: true
     schemas: identity_service
-    locations: classpath:db/migration
+    locations: classpath:db/migration/identity
 
   data:
     redis:

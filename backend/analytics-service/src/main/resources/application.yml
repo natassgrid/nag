@@ -35,7 +35,7 @@ spring:
   flyway:
     enabled: true
     schemas: analytics_service
-    locations: classpath:db/migration
+    locations: classpath:db/migration/analytics
 
   kafka:
     bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}

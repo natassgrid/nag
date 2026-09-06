@@ -35,7 +35,7 @@ spring:
   flyway:
     enabled: true
     schemas: candidate_service
-    locations: classpath:db/migration
+    locations: classpath:db/migration/candidate
 
   data:
     redis:

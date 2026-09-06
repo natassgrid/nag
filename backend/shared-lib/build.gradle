@@ -66,6 +66,9 @@ dependencies {
     // Hibernate (JPA provider — needed at compile time for @MappedSuperclass processing)
     compileOnly libs.hibernate.core
 
+    // Flyway (for multi-schema migration runner)
+    compileOnly libs.flyway.core
+
     // Test dependencies
     testImplementation libs.spring.boot.starter.test
     testImplementation libs.spring.boot.starter.data.redis
