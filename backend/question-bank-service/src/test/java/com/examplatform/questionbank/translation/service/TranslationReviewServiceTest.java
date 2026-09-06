@@ -21,6 +21,7 @@ package com.examplatform.questionbank.translation.service;
 
 import com.examplatform.questionbank.translation.domain.Translation;
 import com.examplatform.questionbank.translation.repository.TranslationRepository;
+import com.examplatform.shared.messaging.EventPublisher;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -28,7 +29,6 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.kafka.core.KafkaTemplate;
 
 import java.lang.reflect.Field;
 import java.util.Collections;
@@ -49,7 +49,7 @@ class TranslationReviewServiceTest {
     private TranslationRepository translationRepository;
 
     @Mock
-    private KafkaTemplate<String, Object> kafkaTemplate;
+    private EventPublisher eventPublisher;
 
     @InjectMocks
     private TranslationReviewService translationReviewService;
@@ -101,7 +101,7 @@ class TranslationReviewServiceTest {
     }
 
     @Test
-    @DisplayName("Should reject DRAFT translation and send Kafka notification")
+    @DisplayName("Should reject DRAFT translation and send notification")
     void shouldRejectDraftTranslation() {
         Translation draft = Translation.builder()
                 .questionId(questionId)
@@ -118,7 +118,7 @@ class TranslationReviewServiceTest {
 
         assertThat(draft.getReviewerId()).isEqualTo(reviewerId);
         assertThat(draft.getReviewComments()).isEqualTo("Needs correction in terminology");
-        verify(kafkaTemplate).send(eq("exam.translation.events"), eq(translationId.toString()), any());
+        verify(eventPublisher).publish(eq("exam.translation.events"), eq(translationId.toString()), any());
     }
 
     @Test
@@ -139,7 +139,7 @@ class TranslationReviewServiceTest {
 
         assertThat(approved.getStatus()).isEqualTo(Translation.TranslationStatus.STALE);
         verify(translationRepository).saveAll(any());
-        verify(kafkaTemplate).send(eq("exam.translation.events"), eq(questionId.toString()), any());
+        verify(eventPublisher).publish(eq("exam.translation.events"), eq(questionId.toString()), any());
     }
 
     @Test

@@ -24,6 +24,7 @@ import com.examplatform.evaluation.dto.AnswerKey;
 import com.examplatform.evaluation.dto.CandidateResponse;
 import com.examplatform.evaluation.repository.EvaluationRepository;
 import com.examplatform.shared.config.DynamicConfigService;
+import com.examplatform.shared.messaging.EventPublisher;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -35,7 +36,6 @@ import org.mockito.Captor;
 import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.kafka.core.KafkaTemplate;
 
 import java.math.BigDecimal;
 import java.util.List;
@@ -56,7 +56,7 @@ class AutoEvaluationServiceTest {
     private EvaluationRepository evaluationRepository;
 
     @Mock
-    private KafkaTemplate<String, Object> kafkaTemplate;
+    private EventPublisher eventPublisher;
 
     @Mock
     private DynamicConfigService dynamicConfigService;
@@ -73,7 +73,7 @@ class AutoEvaluationServiceTest {
     @BeforeEach
     void setUp() {
         ObjectMapper objectMapper = new ObjectMapper();
-        service = new AutoEvaluationService(evaluationRepository, objectMapper, kafkaTemplate, dynamicConfigService);
+        service = new AutoEvaluationService(evaluationRepository, objectMapper, eventPublisher, dynamicConfigService);
 
         Mockito.lenient().when(dynamicConfigService.getBoolean(anyString(), anyString(), anyBoolean()))
                 .thenAnswer(inv -> inv.getArgument(2));

@@ -20,8 +20,15 @@
 package com.examplatform.response.consumer;
 
 import com.examplatform.response.service.AutoSaveService;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.amqp.core.ExchangeTypes;
+import org.springframework.amqp.rabbit.annotation.Exchange;
+import org.springframework.amqp.rabbit.annotation.Queue;
+import org.springframework.amqp.rabbit.annotation.QueueBinding;
+import org.springframework.amqp.rabbit.annotation.RabbitListener;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.stereotype.Component;
 
@@ -29,9 +36,10 @@ import java.util.Map;
 import java.util.UUID;
 
 /**
- * Kafka consumer for session events.
+ * Consumer for session events.
  * Triggers auto-save on NAVIGATION events to ensure responses are persisted
  * when a candidate navigates between questions.
+ * Supports both Kafka and RabbitMQ.
  *
  * Validates: Requirements 10.2, 10.3
  */
@@ -43,18 +51,67 @@ public class SessionEventConsumer {
     private static final String EVENT_TYPE_NAVIGATION = "NAVIGATION";
 
     private final AutoSaveService autoSaveService;
+    private final ObjectMapper objectMapper;
 
     /**
-     * Listens to exam.session.events topic and triggers auto-save on navigation events.
+     * Listens to exam.session.events topic via Kafka.
      *
      * @param event the session event payload
      */
     @KafkaListener(topics = "exam.session.events", groupId = "response-service")
     public void handleSessionEvent(Map<String, Object> event) {
-        String eventType = (String) event.get("eventType");
+        processEventMap(event);
+    }
 
+    /**
+     * Listens to exam.session.events topic via RabbitMQ.
+     */
+    @RabbitListener(
+            bindings = @QueueBinding(
+                    value = @Queue(value = "response.session.events.queue", durable = "true"),
+                    exchange = @Exchange(value = "exam.events", type = ExchangeTypes.TOPIC),
+                    key = "exam.session.events"
+            )
+    )
+    public void handleRabbitSessionEvent(Object message) {
+        log.info("Received RabbitMQ session event: {}", message);
+        try {
+            if (message instanceof Map<?, ?> map) {
+                @SuppressWarnings("unchecked")
+                Map<String, Object> eventMap = (Map<String, Object>) map;
+                processEventMap(eventMap);
+            } else if (message instanceof String s) {
+                JsonNode node = objectMapper.readTree(s);
+                processJsonNode(node);
+            } else {
+                JsonNode node = objectMapper.valueToTree(message);
+                processJsonNode(node);
+            }
+        } catch (Exception e) {
+            log.error("Failed to process RabbitMQ session event: {}", e.getMessage(), e);
+        }
+    }
+
+    private void processEventMap(Map<String, Object> event) {
+        String eventType = (String) event.get("eventType");
         if (EVENT_TYPE_NAVIGATION.equals(eventType)) {
             String sessionIdStr = (String) event.get("sessionId");
+            if (sessionIdStr != null) {
+                try {
+                    UUID sessionId = UUID.fromString(sessionIdStr);
+                    log.info("Navigation event received for session: {}, triggering auto-save", sessionId);
+                    autoSaveService.triggerSaveForSession(sessionId);
+                } catch (IllegalArgumentException e) {
+                    log.warn("Invalid session ID in navigation event: {}", sessionIdStr);
+                }
+            }
+        }
+    }
+
+    private void processJsonNode(JsonNode node) {
+        String eventType = node.has("eventType") ? node.get("eventType").asText() : "";
+        if (EVENT_TYPE_NAVIGATION.equals(eventType)) {
+            String sessionIdStr = node.has("sessionId") ? node.get("sessionId").asText() : null;
             if (sessionIdStr != null) {
                 try {
                     UUID sessionId = UUID.fromString(sessionIdStr);

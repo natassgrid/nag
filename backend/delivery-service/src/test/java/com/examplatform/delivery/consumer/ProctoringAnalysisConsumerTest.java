@@ -19,26 +19,28 @@
 
 package com.examplatform.delivery.consumer;
 
+import com.examplatform.shared.messaging.EventPublisher;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.kafka.core.KafkaTemplate;
 
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Random;
 import java.util.UUID;
-import java.util.concurrent.CompletableFuture;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.atLeastOnce;
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -52,10 +54,17 @@ import static org.mockito.Mockito.when;
 class ProctoringAnalysisConsumerTest {
 
     @Mock
-    KafkaTemplate<String, Object> kafkaTemplate;
+    private EventPublisher eventPublisher;
 
-    @InjectMocks
-    ProctoringAnalysisConsumer proctoringAnalysisConsumer;
+    @Mock
+    private Random random;
+
+    private ProctoringAnalysisConsumer proctoringAnalysisConsumer;
+
+    @BeforeEach
+    void setUp() {
+        proctoringAnalysisConsumer = new ProctoringAnalysisConsumer(eventPublisher, random);
+    }
 
     @Test
     @DisplayName("analyze processes event and publishes audit events on detection")
@@ -69,31 +78,80 @@ class ProctoringAnalysisConsumerTest {
         event.put("candidateId", candidateId);
         event.put("snapshotRef", "snapshots/tenant/session/123456");
 
-        when(kafkaTemplate.send(anyString(), anyString(), any()))
-                .thenReturn(CompletableFuture.completedFuture(null));
+        // First call triggers detection (< 0.10), second is confidence (0.85 + x * 0.15), next 2 don't trigger
+        when(random.nextDouble()).thenReturn(0.05, 0.50, 0.50, 0.50);
 
-        // Run analyze multiple times to trigger at least one detection (stub is random ~10%)
-        // We call it enough times that statistically at least one detection triggers
-        for (int i = 0; i < 50; i++) {
-            proctoringAnalysisConsumer.analyze(event);
-        }
+        proctoringAnalysisConsumer.analyze(event);
 
-        // Verify at least one audit event was published to the audit topic
         ArgumentCaptor<Object> eventCaptor = ArgumentCaptor.forClass(Object.class);
-        verify(kafkaTemplate, atLeastOnce()).send(eq("exam.audit.events"), eq(sessionId), eventCaptor.capture());
+        verify(eventPublisher, times(1)).publish(eq("exam.audit.events"), eq(sessionId), eventCaptor.capture());
 
-        // Verify the event structure
         List<Object> allEvents = eventCaptor.getAllValues();
         assertThat(allEvents).isNotEmpty();
 
         Map<String, Object> publishedEvent = (Map<String, Object>) allEvents.get(0);
         assertThat(publishedEvent.get("sessionId")).isEqualTo(sessionId);
         assertThat(publishedEvent.get("candidateId")).isEqualTo(candidateId);
+        assertThat(publishedEvent.get("snapshotRef")).isEqualTo("snapshots/tenant/session/123456");
         assertThat(publishedEvent.get("source")).isEqualTo("ai-proctoring-analysis");
         assertThat(publishedEvent.get("occurredAt")).isNotNull();
+        assertThat(publishedEvent.get("eventType")).isEqualTo("no-face-detected");
+        assertThat((Double) publishedEvent.get("confidence")).isEqualTo(0.85 + 0.50 * 0.15);
+    }
 
-        // Verify event type is one of the expected detection types
-        String eventType = (String) publishedEvent.get("eventType");
-        assertThat(eventType).isIn("no-face-detected", "multiple-faces-detected", "prohibited-object-detected");
+    @Test
+    @DisplayName("analyze processes event and does not publish audit events when no detection")
+    void noAuditEventsWhenBelowThreshold() {
+        String sessionId = UUID.randomUUID().toString();
+        String candidateId = UUID.randomUUID().toString();
+
+        Map<String, Object> event = new HashMap<>();
+        event.put("sessionId", sessionId);
+        event.put("candidateId", candidateId);
+        event.put("snapshotRef", "snapshots/tenant/session/123456");
+
+        when(random.nextDouble()).thenReturn(0.50, 0.50, 0.50);
+
+        proctoringAnalysisConsumer.analyze(event);
+
+        verify(eventPublisher, never()).publish(anyString(), anyString(), any());
+    }
+
+    @Test
+    @DisplayName("analyzeRabbit processes event correctly")
+    void analyzeRabbitProcessesEvent() {
+        String sessionId = UUID.randomUUID().toString();
+        String candidateId = UUID.randomUUID().toString();
+
+        Map<String, Object> event = new HashMap<>();
+        event.put("sessionId", sessionId);
+        event.put("candidateId", candidateId);
+        event.put("snapshotRef", "snapshots/tenant/session/123456");
+
+        when(random.nextDouble()).thenReturn(0.05, 0.50, 0.50, 0.50);
+
+        proctoringAnalysisConsumer.analyzeRabbit(event);
+
+        verify(eventPublisher, times(1)).publish(eq("exam.audit.events"), eq(sessionId), any());
+    }
+
+    @Test
+    @DisplayName("analyze handles exception during publish gracefully")
+    void handlesPublishExceptionGracefully() {
+        String sessionId = UUID.randomUUID().toString();
+        String candidateId = UUID.randomUUID().toString();
+
+        Map<String, Object> event = new HashMap<>();
+        event.put("sessionId", sessionId);
+        event.put("candidateId", candidateId);
+        event.put("snapshotRef", "snapshots/tenant/session/123456");
+
+        when(random.nextDouble()).thenReturn(0.05, 0.50, 0.50, 0.50);
+        doThrow(new RuntimeException("Kafka error")).when(eventPublisher).publish(anyString(), anyString(), any());
+
+        // Should not throw exception
+        proctoringAnalysisConsumer.analyze(event);
+
+        verify(eventPublisher, times(1)).publish(eq("exam.audit.events"), eq(sessionId), any());
     }
 }

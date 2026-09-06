@@ -21,9 +21,9 @@ package com.examplatform.identity.service;
 
 import com.examplatform.identity.domain.OtpVerification;
 import com.examplatform.identity.repository.OtpVerificationRepository;
+import com.examplatform.shared.messaging.EventPublisher;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -43,11 +43,11 @@ public class OtpService {
 
     private final OtpVerificationRepository otpVerificationRepository;
     private final HashingService hashingService;
-    private final KafkaTemplate<String, Object> kafkaTemplate;
+    private final EventPublisher eventPublisher;
 
     /**
      * Generates a 6-digit OTP, hashes it, persists to DB with 10-minute expiry,
-     * and publishes send event to Kafka (production) or logs it (dev).
+     * and publishes send event (production) or logs it (dev).
      */
     @Transactional
     public void sendOtp(UUID userId, String mobileHash, String mobile) {
@@ -64,8 +64,8 @@ public class OtpService {
 
         otpVerificationRepository.save(verification);
 
-        // In production: publish to Kafka for SMS gateway to pick up
-        // OTP value is NOT included in the Kafka event to avoid leaking via logs
+        // In production: publish for SMS gateway / notification service to pick up
+        // OTP value is NOT included in the event to avoid leaking via logs
         var notificationEvent = Map.of(
             "eventType", "OTP_SEND",
             "userId", userId.toString(),
@@ -73,14 +73,12 @@ public class OtpService {
             "otpHash", otpHash,        // SMS gateway fetches OTP securely using this reference
             "expiresAt", verification.getExpiresAt().toString()
         );
-        kafkaTemplate.send(NOTIFICATIONS_TOPIC, userId.toString(), notificationEvent)
-            .whenComplete((result, ex) -> {
-                if (ex != null) {
-                    log.error("Failed to publish OTP notification for user {}", userId, ex);
-                } else {
-                    log.debug("OTP notification published for user {}", userId);
-                }
-            });
+        try {
+            eventPublisher.publish(NOTIFICATIONS_TOPIC, userId.toString(), notificationEvent);
+            log.debug("OTP notification published for user {}", userId);
+        } catch (Exception ex) {
+            log.error("Failed to publish OTP notification for user {}", userId, ex);
+        }
 
         // Dev: log OTP so local testing is possible (remove in production)
         log.info("DEV-ONLY OTP for user {}: {}", userId, otp);

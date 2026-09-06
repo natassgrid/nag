@@ -37,4 +37,10 @@ subprojects {
             options.compilerArgs.add('-parameters')
         }
     }
+
+    plugins.withId('org.springframework.boot') {
+        tasks.named('jar') {
+            enabled = true
+        }
+    }
 }

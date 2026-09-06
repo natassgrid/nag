@@ -25,8 +25,8 @@ import com.examplatform.result.repository.ResultRepository;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import com.examplatform.shared.messaging.EventPublisher;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -51,7 +51,7 @@ public class ResultPublicationService {
 
     private final ResultRepository resultRepository;
     private final DigiLockerClient digiLockerClient;
-    private final KafkaTemplate<String, Object> kafkaTemplate;
+    private final EventPublisher eventPublisher;
 
     @Value("${result.digilocker.enabled:false}")
     private boolean digiLockerEnabled;
@@ -98,7 +98,7 @@ public class ResultPublicationService {
     }
 
     /**
-     * Publishes a notification event to Kafka to inform the candidate
+     * Publishes a notification event to inform the candidate
      * that their result is available.
      */
     private void publishNotificationEvent(UUID candidateId, UUID examId, String tenantId) {
@@ -111,13 +111,7 @@ public class ResultPublicationService {
                     "message", "Your examination result is now available.",
                     "occurredAt", Instant.now().toString()
             );
-            kafkaTemplate.send(NOTIFICATION_TOPIC, candidateId.toString(), event)
-                    .whenComplete((sendResult, ex) -> {
-                        if (ex != null) {
-                            log.error("Failed to publish notification for candidate={}: {}",
-                                    candidateId, ex.getMessage());
-                        }
-                    });
+            eventPublisher.publish(NOTIFICATION_TOPIC, candidateId.toString(), event);
         } catch (Exception e) {
             log.error("Unexpected error publishing notification event: {}", e.getMessage());
         }

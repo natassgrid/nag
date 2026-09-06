@@ -24,11 +24,11 @@ import com.examplatform.evaluation.dto.AnswerKey;
 import com.examplatform.evaluation.dto.CandidateResponse;
 import com.examplatform.evaluation.repository.EvaluationRepository;
 import com.examplatform.shared.config.DynamicConfigService;
+import com.examplatform.shared.messaging.EventPublisher;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -59,7 +59,7 @@ public class AutoEvaluationService {
 
     private final EvaluationRepository evaluationRepository;
     private final ObjectMapper objectMapper;
-    private final KafkaTemplate<String, Object> kafkaTemplate;
+    private final EventPublisher eventPublisher;
     private final DynamicConfigService dynamicConfigService;
 
     /**
@@ -148,13 +148,7 @@ public class AutoEvaluationService {
                     "anonymized", anonymized,
                     "occurredAt", Instant.now().toString()
             );
-            kafkaTemplate.send(AUDIT_TOPIC, sessionId.toString(), event)
-                    .whenComplete((result, ex) -> {
-                        if (ex != null) {
-                            log.error("Failed to publish EVALUATION_CREATED audit event for session [{}]: {}",
-                                    sessionId, ex.getMessage());
-                        }
-                    });
+            eventPublisher.publish(AUDIT_TOPIC, sessionId.toString(), event);
         } catch (Exception e) {
             log.error("Unexpected error publishing EVALUATION_CREATED audit event: {}", e.getMessage());
         }

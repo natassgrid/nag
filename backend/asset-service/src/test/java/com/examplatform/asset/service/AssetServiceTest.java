@@ -35,6 +35,7 @@ import com.examplatform.asset.validation.AssetValidationException;
 import com.examplatform.asset.validation.SecurityValidationPipeline;
 import jakarta.persistence.EntityNotFoundException;
 import org.junit.jupiter.api.BeforeEach;
+import com.examplatform.shared.messaging.EventPublisher;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -44,7 +45,6 @@ import org.mockito.Captor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.ByteArrayInputStream;
@@ -91,7 +91,7 @@ class AssetServiceTest {
     private StorageProperties storageProperties;
 
     @Mock
-    private KafkaTemplate<String, Object> kafkaTemplate;
+    private EventPublisher eventPublisher;
 
     @InjectMocks
     private AssetService assetService;

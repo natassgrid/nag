@@ -108,7 +108,7 @@ class RoleControllerTest {
     private static final UUID TARGET_USER_ID = UUID.fromString("11111111-1111-1111-1111-111111111111");
 
     @Nested
-    @DisplayName("POST /api/v1/identity/roles/{userId}")
+    @DisplayName("POST /api/v1/identity/roles/assignments/{userId}")
     class ManageRole {
 
         @Test
@@ -132,7 +132,7 @@ class RoleControllerTest {
                     }
                     """;
 
-            mockMvc.perform(post("/api/v1/identity/roles/{userId}", TARGET_USER_ID)
+            mockMvc.perform(post("/api/v1/identity/roles/assignments/{userId}", TARGET_USER_ID)
                             .with(csrf())
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(requestBody))
@@ -154,7 +154,7 @@ class RoleControllerTest {
                     }
                     """;
 
-            mockMvc.perform(post("/api/v1/identity/roles/{userId}", TARGET_USER_ID)
+            mockMvc.perform(post("/api/v1/identity/roles/assignments/{userId}", TARGET_USER_ID)
                             .with(csrf())
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(requestBody))
@@ -171,7 +171,7 @@ class RoleControllerTest {
                     }
                     """;
 
-            mockMvc.perform(post("/api/v1/identity/roles/{userId}", TARGET_USER_ID)
+            mockMvc.perform(post("/api/v1/identity/roles/assignments/{userId}", TARGET_USER_ID)
                             .with(csrf())
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(requestBody))
@@ -180,7 +180,7 @@ class RoleControllerTest {
     }
 
     @Nested
-    @DisplayName("GET /api/v1/identity/roles/{userId}")
+    @DisplayName("GET /api/v1/identity/roles/assignments/{userId}")
     class GetRoles {
 
         @Test
@@ -190,7 +190,7 @@ class RoleControllerTest {
             when(roleManagementService.getRoles(TARGET_USER_ID, "default"))
                     .thenReturn(List.of(UserRole.CANDIDATE, UserRole.EVALUATOR));
 
-            mockMvc.perform(get("/api/v1/identity/roles/{userId}", TARGET_USER_ID))
+            mockMvc.perform(get("/api/v1/identity/roles/assignments/{userId}", TARGET_USER_ID))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.status").value("SUCCESS"))
                     .andExpect(jsonPath("$.data[0]").value("CANDIDATE"))
@@ -204,7 +204,7 @@ class RoleControllerTest {
             when(roleManagementService.getRoles(TARGET_USER_ID, "default"))
                     .thenReturn(List.of(UserRole.CANDIDATE));
 
-            mockMvc.perform(get("/api/v1/identity/roles/{userId}", TARGET_USER_ID))
+            mockMvc.perform(get("/api/v1/identity/roles/assignments/{userId}", TARGET_USER_ID))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.status").value("SUCCESS"))
                     .andExpect(jsonPath("$.data[0]").value("CANDIDATE"));

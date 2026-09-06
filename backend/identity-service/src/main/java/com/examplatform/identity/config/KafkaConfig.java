@@ -20,6 +20,7 @@
 package com.examplatform.identity.config;
 
 import org.apache.kafka.clients.admin.NewTopic;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.kafka.config.TopicBuilder;
@@ -29,6 +30,7 @@ import org.springframework.kafka.config.TopicBuilder;
  * ProducerFactory and KafkaTemplate are provided by shared-lib's KafkaProducerConfig.
  */
 @Configuration
+@ConditionalOnProperty(name = "platform.messaging.broker", havingValue = "kafka", matchIfMissing = true)
 public class KafkaConfig {
 
     @Bean

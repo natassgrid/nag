@@ -1,5 +1,6 @@
 com.examplatform.shared.config.DynamicConfigAutoConfiguration
 com.examplatform.shared.kafka.KafkaProducerConfig
+com.examplatform.shared.messaging.MessagingAutoConfiguration
 com.examplatform.shared.jackson.JacksonConfig
 com.examplatform.shared.security.JwtAuthConfig
 com.examplatform.shared.security.DevJwtConfig

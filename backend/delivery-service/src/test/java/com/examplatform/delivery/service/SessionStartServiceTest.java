@@ -30,6 +30,7 @@ import com.examplatform.delivery.dto.ShiftAssignment;
 import com.examplatform.delivery.exception.ConcurrentSessionException;
 import com.examplatform.delivery.repository.ExamSessionRepository;
 import com.examplatform.shared.config.DynamicConfigService;
+import com.examplatform.shared.messaging.EventPublisher;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -41,7 +42,6 @@ import org.mockito.Mockito;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.core.ValueOperations;
-import org.springframework.kafka.core.KafkaTemplate;
 
 import java.time.Duration;
 import java.time.Instant;
@@ -83,7 +83,7 @@ class SessionStartServiceTest {
     private RedisTemplate<String, Object> redisTemplate;
 
     @Mock
-    private KafkaTemplate<String, Object> kafkaTemplate;
+    private EventPublisher eventPublisher;
 
     @Mock
     private ValueOperations<String, Object> valueOperations;
@@ -111,7 +111,7 @@ class SessionStartServiceTest {
                 vaultCryptoService,
                 examQuestionDeliveryService,
                 redisTemplate,
-                kafkaTemplate,
+                eventPublisher,
                 new ObjectMapper(),
                 dynamicConfigService
         );
@@ -178,8 +178,6 @@ class SessionStartServiceTest {
                 .thenReturn(0);
         when(examSessionRepository.save(any(ExamSession.class))).thenAnswer(inv -> inv.getArgument(0));
         when(redisTemplate.opsForValue()).thenReturn(valueOperations);
-        when(kafkaTemplate.send(anyString(), anyString(), any()))
-                .thenReturn(java.util.concurrent.CompletableFuture.completedFuture(null));
 
         // When
         SessionStartResponse response = sessionStartService.startSession(request, CANDIDATE_ID, TENANT_ID);
@@ -235,8 +233,6 @@ class SessionStartServiceTest {
                 .thenReturn(60); // 60 min disability extra
         when(examSessionRepository.save(any(ExamSession.class))).thenAnswer(inv -> inv.getArgument(0));
         when(redisTemplate.opsForValue()).thenReturn(valueOperations);
-        when(kafkaTemplate.send(anyString(), anyString(), any()))
-                .thenReturn(java.util.concurrent.CompletableFuture.completedFuture(null));
 
         // When
         SessionStartResponse response = sessionStartService.startSession(request, CANDIDATE_ID, TENANT_ID);
@@ -276,8 +272,6 @@ class SessionStartServiceTest {
                 .thenReturn(List.of(activeSession));
         when(examQuestionDeliveryService.getDeliveryQuestions(eq(EXAM_ID), eq(PAPER_ID), any(), eq(TENANT_ID)))
                 .thenReturn(mockQuestions);
-        when(kafkaTemplate.send(anyString(), anyString(), any()))
-                .thenReturn(java.util.concurrent.CompletableFuture.completedFuture(null));
 
         SessionStartRequest request = SessionStartRequest.builder()
                 .examId(EXAM_ID)
@@ -350,8 +344,6 @@ class SessionStartServiceTest {
                 .thenReturn(0);
         when(examSessionRepository.save(any(ExamSession.class))).thenAnswer(inv -> inv.getArgument(0));
         when(redisTemplate.opsForValue()).thenReturn(valueOperations);
-        when(kafkaTemplate.send(anyString(), anyString(), any()))
-                .thenReturn(java.util.concurrent.CompletableFuture.completedFuture(null));
 
         SessionStartRequest request = SessionStartRequest.builder()
                 .examId(EXAM_ID)
@@ -387,8 +379,6 @@ class SessionStartServiceTest {
         when(examSessionRepository.findById(sessionId)).thenReturn(Optional.of(activeSession));
         when(examQuestionDeliveryService.getDeliveryQuestions(eq(EXAM_ID), eq(PAPER_ID), any(), eq(TENANT_ID)))
                 .thenReturn(List.of());
-        when(kafkaTemplate.send(anyString(), anyString(), any()))
-                .thenReturn(java.util.concurrent.CompletableFuture.completedFuture(null));
 
         SessionStartResponse response = sessionStartService.resumeSessionById(sessionId, CANDIDATE_ID, TENANT_ID);
 

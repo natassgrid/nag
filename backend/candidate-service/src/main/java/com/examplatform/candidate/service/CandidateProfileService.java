@@ -28,9 +28,9 @@ import com.examplatform.candidate.exception.ProfileNotFoundException;
 import com.examplatform.candidate.repository.CandidateEducationRepository;
 import com.examplatform.candidate.repository.CandidateProfileRepository;
 import com.examplatform.shared.audit.AuditEventType;
+import com.examplatform.shared.messaging.EventPublisher;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -59,7 +59,7 @@ public class CandidateProfileService {
     private final CandidateEducationRepository candidateEducationRepository;
     private final HashingService hashingService;
     private final VaultCryptoService vaultCryptoService;
-    private final KafkaTemplate<String, Object> kafkaTemplate;
+    private final EventPublisher eventPublisher;
 
     /**
      * Creates a new candidate profile with per-candidate DEK reference,
@@ -267,15 +267,8 @@ public class CandidateProfileService {
             event.put("tenantId", tenantId);
             event.put("occurredAt", Instant.now().toString());
 
-            kafkaTemplate.send(AUDIT_TOPIC, actorId, event)
-                    .whenComplete((result, ex) -> {
-                        if (ex != null) {
-                            log.error("Failed to publish audit event [type={}] for actor [{}]: {}",
-                                    type, actorId, ex.getMessage());
-                        } else {
-                            log.debug("Audit event published [type={}, actor={}]", type, actorId);
-                        }
-                    });
+            eventPublisher.publish(AUDIT_TOPIC, actorId, event);
+            log.debug("Audit event published [type={}, actor={}]", type, actorId);
         } catch (Exception e) {
             log.error("Unexpected error publishing audit event [type={}]: {}", type, e.getMessage(), e);
         }

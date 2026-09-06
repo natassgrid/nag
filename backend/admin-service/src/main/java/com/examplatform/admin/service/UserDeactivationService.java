@@ -21,10 +21,10 @@ package com.examplatform.admin.service;
 
 import com.examplatform.admin.client.KeycloakAdminClient;
 import com.examplatform.shared.audit.AuditEventType;
+import com.examplatform.shared.messaging.EventPublisher;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.StringRedisTemplate;
-import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 
 import java.time.Instant;
@@ -47,7 +47,7 @@ public class UserDeactivationService {
 
     private final StringRedisTemplate redisTemplate;
     private final KeycloakAdminClient keycloakAdminClient;
-    private final KafkaTemplate<String, Object> kafkaTemplate;
+    private final EventPublisher eventPublisher;
 
     /**
      * Deactivates a user account by invalidating all active sessions,
@@ -92,6 +92,10 @@ public class UserDeactivationService {
                 "action", "USER_DEACTIVATED",
                 "timestamp", Instant.now().toString()
         );
-        kafkaTemplate.send(AUDIT_TOPIC, tenantId, auditEvent);
+        try {
+            eventPublisher.publish(AUDIT_TOPIC, tenantId, auditEvent);
+        } catch (Exception ex) {
+            log.warn("Failed to publish audit event for user deactivation: {}", ex.getMessage());
+        }
     }
 }

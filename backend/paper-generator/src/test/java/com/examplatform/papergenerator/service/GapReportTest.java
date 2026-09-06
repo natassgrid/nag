@@ -26,6 +26,7 @@ import com.examplatform.papergenerator.dto.PaperGenerationRequest;
 import com.examplatform.papergenerator.dto.QuestionSummary;
 import com.examplatform.papergenerator.exception.InsufficientQuestionsException;
 import com.examplatform.papergenerator.repository.PaperRepository;
+import com.examplatform.shared.messaging.EventPublisher;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -33,7 +34,6 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.kafka.core.KafkaTemplate;
 
 import java.util.Collections;
 import java.util.List;
@@ -60,7 +60,7 @@ class GapReportTest {
     private PaperRepository paperRepository;
 
     @Mock
-    private KafkaTemplate<String, Object> kafkaTemplate;
+    private EventPublisher eventPublisher;
 
     private PaperAssemblyService paperAssemblyService;
 
@@ -74,7 +74,7 @@ class GapReportTest {
         ObjectMapper objectMapper = new ObjectMapper();
         objectMapper.findAndRegisterModules();
         paperAssemblyService = new PaperAssemblyService(
-                questionBankClient, paperRepository, kafkaTemplate, objectMapper);
+                questionBankClient, paperRepository, eventPublisher, objectMapper);
     }
 
     @Test

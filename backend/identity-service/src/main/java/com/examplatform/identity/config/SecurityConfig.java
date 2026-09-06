@@ -21,6 +21,7 @@ package com.examplatform.identity.config;
 
 import com.examplatform.identity.filter.RateLimitFilter;
 import lombok.RequiredArgsConstructor;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
@@ -32,6 +33,8 @@ import org.springframework.security.oauth2.server.resource.authentication.JwtAut
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
+import org.springframework.core.annotation.Order;
+
 @Configuration
 @EnableWebSecurity
 @EnableMethodSecurity
@@ -41,9 +44,11 @@ public class SecurityConfig {
     private final RateLimitFilter rateLimitFilter;
 
     @Bean
-    public SecurityFilterChain securityFilterChain(HttpSecurity http,
+    @Order(1)
+    public SecurityFilterChain identitySecurityFilterChain(HttpSecurity http,
                                                    JwtAuthenticationConverter jwtAuthenticationConverter) throws Exception {
         http
+            .securityMatcher("/api/v1/identity/**", "/actuator/**")
             .csrf(csrf -> csrf.disable())
             .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .addFilterBefore(rateLimitFilter, UsernamePasswordAuthenticationFilter.class)

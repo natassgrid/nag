@@ -64,11 +64,25 @@ public class DynamicConfigAutoConfiguration {
 
     @Bean
     @ConditionalOnClass(name = "org.springframework.kafka.annotation.KafkaListener")
+    @org.springframework.boot.autoconfigure.condition.ConditionalOnProperty(
+            name = "platform.messaging.broker", havingValue = "kafka", matchIfMissing = true)
     @ConditionalOnMissingBean(DynamicConfigInvalidationListener.class)
     public DynamicConfigInvalidationListener dynamicConfigInvalidationListener(
             DynamicConfigService dynamicConfigService,
             ObjectProvider<ObjectMapper> objectMapperProvider) {
         ObjectMapper mapper = objectMapperProvider.getIfAvailable(ObjectMapper::new);
         return new DynamicConfigInvalidationListener(dynamicConfigService, mapper);
+    }
+
+    @Bean
+    @ConditionalOnClass(name = "org.springframework.amqp.rabbit.annotation.RabbitListener")
+    @org.springframework.boot.autoconfigure.condition.ConditionalOnProperty(
+            name = "platform.messaging.broker", havingValue = "rabbit")
+    @ConditionalOnMissingBean(DynamicConfigRabbitInvalidationListener.class)
+    public DynamicConfigRabbitInvalidationListener dynamicConfigRabbitInvalidationListener(
+            DynamicConfigService dynamicConfigService,
+            ObjectProvider<ObjectMapper> objectMapperProvider) {
+        ObjectMapper mapper = objectMapperProvider.getIfAvailable(ObjectMapper::new);
+        return new DynamicConfigRabbitInvalidationListener(dynamicConfigService, mapper);
     }
 }

@@ -26,6 +26,7 @@ import com.examplatform.candidate.exception.DuplicateProfileException;
 import com.examplatform.candidate.exception.ProfileNotFoundException;
 import com.examplatform.candidate.repository.CandidateEducationRepository;
 import com.examplatform.candidate.repository.CandidateProfileRepository;
+import com.examplatform.shared.messaging.EventPublisher;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -34,12 +35,10 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.kafka.core.KafkaTemplate;
 
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
-import java.util.concurrent.CompletableFuture;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -72,7 +71,7 @@ class CandidateProfileServiceTest {
     VaultCryptoService vaultCryptoService;
 
     @Mock
-    KafkaTemplate<String, Object> kafkaTemplate;
+    EventPublisher eventPublisher;
 
     @InjectMocks
     CandidateProfileService candidateProfileService;
@@ -145,8 +144,6 @@ class CandidateProfileServiceTest {
                     .thenReturn(false);
             when(candidateProfileRepository.save(any(CandidateProfile.class)))
                     .thenAnswer(invocation -> invocation.getArgument(0));
-            when(kafkaTemplate.send(anyString(), anyString(), any()))
-                    .thenReturn(CompletableFuture.completedFuture(null));
 
             CandidateProfileResponse response = candidateProfileService.create(request, TENANT_ID);
 
@@ -181,13 +178,11 @@ class CandidateProfileServiceTest {
                     .thenReturn(false);
             when(candidateProfileRepository.save(any(CandidateProfile.class)))
                     .thenAnswer(invocation -> invocation.getArgument(0));
-            when(kafkaTemplate.send(anyString(), anyString(), any()))
-                    .thenReturn(CompletableFuture.completedFuture(null));
 
             candidateProfileService.create(request, TENANT_ID);
 
             ArgumentCaptor<Object> eventCaptor = ArgumentCaptor.forClass(Object.class);
-            verify(kafkaTemplate).send(eq("exam.audit.events"), eq(USER_ID.toString()), eventCaptor.capture());
+            verify(eventPublisher).publish(eq("exam.audit.events"), eq(USER_ID.toString()), eventCaptor.capture());
 
             Map<String, Object> event = (Map<String, Object>) eventCaptor.getValue();
             assertThat(event.get("eventType")).isEqualTo("CANDIDATE_PROFILE_CREATED");

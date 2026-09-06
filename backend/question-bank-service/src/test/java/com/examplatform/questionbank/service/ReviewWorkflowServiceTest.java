@@ -21,6 +21,7 @@ package com.examplatform.questionbank.service;
 
 import com.examplatform.questionbank.domain.Question;
 import com.examplatform.shared.config.DynamicConfigService;
+import com.examplatform.shared.messaging.EventPublisher;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -30,11 +31,9 @@ import org.mockito.Captor;
 import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.kafka.core.KafkaTemplate;
 
 import java.util.Map;
 import java.util.UUID;
-import java.util.concurrent.CompletableFuture;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
@@ -54,7 +53,7 @@ import static org.mockito.Mockito.when;
 class ReviewWorkflowServiceTest {
 
     @Mock
-    private KafkaTemplate<String, Object> kafkaTemplate;
+    private EventPublisher eventPublisher;
 
     @Mock
     private DynamicConfigService dynamicConfigService;
@@ -78,7 +77,7 @@ class ReviewWorkflowServiceTest {
 
     @BeforeEach
     void setUp() {
-        reviewWorkflowService = new ReviewWorkflowService(kafkaTemplate, dynamicConfigService);
+        reviewWorkflowService = new ReviewWorkflowService(eventPublisher, dynamicConfigService);
 
         questionId = UUID.randomUUID();
         authorId = UUID.randomUUID();
@@ -104,9 +103,6 @@ class ReviewWorkflowServiceTest {
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
-
-        when(kafkaTemplate.send(any(String.class), any(String.class), any()))
-                .thenReturn(CompletableFuture.completedFuture(null));
     }
 
     @Test
@@ -114,7 +110,7 @@ class ReviewWorkflowServiceTest {
     void transitionToReview_publishesLifecycleEvent() {
         reviewWorkflowService.processTransition(testQuestion, "DRAFT", "REVIEW", actorId, null, tenantId);
 
-        verify(kafkaTemplate).send(topicCaptor.capture(), keyCaptor.capture(), valueCaptor.capture());
+        verify(eventPublisher).publish(topicCaptor.capture(), keyCaptor.capture(), valueCaptor.capture());
 
         assertThat(topicCaptor.getValue()).isEqualTo("exam.question.lifecycle");
         assertThat(keyCaptor.getValue()).isEqualTo(questionId.toString());
@@ -138,7 +134,7 @@ class ReviewWorkflowServiceTest {
     void transitionToApproved_publishesEventAndNotification() {
         reviewWorkflowService.processTransition(testQuestion, "REVIEW", "APPROVED", actorId, null, tenantId);
 
-        verify(kafkaTemplate, times(2)).send(topicCaptor.capture(), keyCaptor.capture(), valueCaptor.capture());
+        verify(eventPublisher, times(2)).publish(topicCaptor.capture(), keyCaptor.capture(), valueCaptor.capture());
 
         var topics = topicCaptor.getAllValues();
         var keys = keyCaptor.getAllValues();
@@ -176,7 +172,7 @@ class ReviewWorkflowServiceTest {
         String comments = "Please provide more detailed explanation in the answer key.";
         reviewWorkflowService.processTransition(testQuestion, "REVIEW", "DRAFT", actorId, comments, tenantId);
 
-        verify(kafkaTemplate, times(2)).send(topicCaptor.capture(), keyCaptor.capture(), valueCaptor.capture());
+        verify(eventPublisher, times(2)).publish(topicCaptor.capture(), keyCaptor.capture(), valueCaptor.capture());
 
         var topics = topicCaptor.getAllValues();
         var values = valueCaptor.getAllValues();
@@ -201,7 +197,7 @@ class ReviewWorkflowServiceTest {
     void transitionToPublished_publishesEventAndNotification() {
         reviewWorkflowService.processTransition(testQuestion, "APPROVED", "PUBLISHED", actorId, null, tenantId);
 
-        verify(kafkaTemplate, times(2)).send(topicCaptor.capture(), keyCaptor.capture(), valueCaptor.capture());
+        verify(eventPublisher, times(2)).publish(topicCaptor.capture(), keyCaptor.capture(), valueCaptor.capture());
 
         var topics = topicCaptor.getAllValues();
         var values = valueCaptor.getAllValues();

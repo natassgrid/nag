@@ -42,7 +42,7 @@ spring:
   flyway:
     enabled: true
     schemas: admin_service
-    locations: classpath:db/migration
+    locations: classpath:db/migration/admin
 
   kafka:
     bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}

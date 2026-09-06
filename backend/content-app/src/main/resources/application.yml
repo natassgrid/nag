@@ -1,0 +1,125 @@
+# SPDX-License-Identifier: AGPL-3.0-only
+# National Assessment Grid (NAG) - Macro-Service: Content (Question Bank, Examination, Paper Generator, Asset)
+
+spring:
+  main:
+    allow-bean-definition-overriding: true
+  application:
+    name: content-app
+
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/exam_platform?currentSchema=question_service,examination_service,paper_generator,asset_service,public}
+    username: ${SPRING_DATASOURCE_USERNAME:exam_admin}
+    password: ${SPRING_DATASOURCE_PASSWORD:exam_secret}
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: 20
+      minimum-idle: 5
+      connection-timeout: 30000
+
+  jpa:
+    hibernate:
+      ddl-auto: none
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        format_sql: false
+    show-sql: false
+
+  flyway:
+    enabled: false
+
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: ${KEYCLOAK_ISSUER_URI:http://localhost:8080/realms/exam-realm}
+          jwk-set-uri: ${KEYCLOAK_ISSUER_URI:http://localhost:8080/realms/exam-realm}/protocol/openid-connect/certs
+
+  rabbitmq:
+    host: ${SPRING_RABBITMQ_HOST:localhost}
+    port: ${SPRING_RABBITMQ_PORT:5672}
+    username: ${SPRING_RABBITMQ_USERNAME:exam_rabbit}
+    password: ${SPRING_RABBITMQ_PASSWORD:rabbit_secret}
+
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+
+  ai:
+    openai:
+      base-url: ${LITELLM_BASE_URL:http://localhost:4000}
+      api-key: ${LITELLM_API_KEY:sk-dummy-key-for-litellm}
+      chat:
+        options:
+          model: ${AI_MODEL_EASY:bedrock-claude-3-haiku}
+          temperature: 0.3
+      embedding:
+        options:
+          model: text-embedding-3-small
+
+  cloud:
+    vault:
+      uri: ${VAULT_ADDR:http://localhost:8200}
+      token: ${VAULT_ROOT_TOKEN:vault_root_token}
+      scheme: http
+      kv:
+        enabled: true
+        backend: secret
+
+  threads:
+    virtual:
+      enabled: true
+
+server:
+  port: ${CONTENT_APP_PORT:8083}
+  servlet:
+    context-path: /
+  shutdown: graceful
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus,metrics
+  endpoint:
+    health:
+      show-details: always
+      probes:
+        enabled: true
+  metrics:
+    tags:
+      service: content-app
+
+platform:
+  messaging:
+    broker: ${PLATFORM_MESSAGING_BROKER:rabbit}
+
+indictrans2:
+  url: ${INDICTRANS2_URL:http://localhost:7860}
+  timeout-ms: 30000
+
+asset:
+  storage:
+    provider: ${ASSET_STORAGE_PROVIDER:filesystem}
+    filesystem:
+      base-path: ${ASSET_STORAGE_PATH:/data/asset-storage}
+    s3:
+      bucket: ${ASSET_S3_BUCKET:exam-platform-assets}
+      region: ${AWS_REGION:us-east-1}
+
+app:
+  opensearch:
+    host: ${OPENSEARCH_HOST:opensearch}
+    port: ${OPENSEARCH_PORT:9200}
+    scheme: ${OPENSEARCH_SCHEME:http}
+  encryption:
+    enabled: ${QUESTION_ENCRYPTION_ENABLED:false}
+  translation:
+    encryption:
+      enabled: ${TRANSLATION_ENCRYPTION_ENABLED:false}
+  ai:
+    models:
+      easy: ${AI_MODEL_EASY:nova-micro}
+      medium: ${AI_MODEL_MEDIUM:nova-lite}
+      hard: ${AI_MODEL_HARD:nova-lite}
+

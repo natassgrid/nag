@@ -21,9 +21,9 @@ package com.examplatform.evaluation.service;
 
 import com.examplatform.evaluation.domain.Evaluation;
 import com.examplatform.evaluation.repository.EvaluationRepository;
+import com.examplatform.shared.messaging.EventPublisher;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -48,7 +48,7 @@ public class ManualEvaluationService {
     private static final double DEFAULT_SCORE_TOLERANCE = 0.2; // 20% of max marks
 
     private final EvaluationRepository evaluationRepository;
-    private final KafkaTemplate<String, Object> kafkaTemplate;
+    private final EventPublisher eventPublisher;
 
     /**
      * Record an evaluator's score for a manual evaluation.
@@ -112,7 +112,7 @@ public class ManualEvaluationService {
                     "tenantId", tenantId,
                     "occurredAt", Instant.now().toString()
             );
-            kafkaTemplate.send(EVALUATION_EVENTS_TOPIC, sessionId.toString(), event);
+            eventPublisher.publish(EVALUATION_EVENTS_TOPIC, sessionId.toString(), event);
             log.info("Manual evaluation notification sent for session {}", sessionId);
         } catch (Exception e) {
             log.error("Failed to publish MANUAL_EVALUATION_REQUIRED event: {}", e.getMessage());
@@ -167,7 +167,7 @@ public class ManualEvaluationService {
                     "status", evaluation.getStatus().name(),
                     "occurredAt", Instant.now().toString()
             );
-            kafkaTemplate.send(EVALUATION_EVENTS_TOPIC, evaluation.getId().toString(), event);
+            eventPublisher.publish(EVALUATION_EVENTS_TOPIC, evaluation.getId().toString(), event);
         } catch (Exception e) {
             log.error("Failed to publish MANUAL_SCORE_RECORDED event: {}", e.getMessage());
         }

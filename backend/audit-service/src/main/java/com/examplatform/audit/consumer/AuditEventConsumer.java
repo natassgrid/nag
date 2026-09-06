@@ -24,14 +24,20 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.amqp.core.ExchangeTypes;
+import org.springframework.amqp.rabbit.annotation.Exchange;
+import org.springframework.amqp.rabbit.annotation.Queue;
+import org.springframework.amqp.rabbit.annotation.QueueBinding;
+import org.springframework.amqp.rabbit.annotation.RabbitListener;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.stereotype.Component;
 
 /**
- * Kafka consumer that listens for audit events on the
+ * Consumer that listens for audit events on the
  * {@code exam.audit.events} topic. Deserializes incoming JSON messages,
  * extracts audit fields, and delegates to {@link AuditIngestionService}
  * for SHA-256 hashing, HSM signing, and immutable persistence.
+ * Supports both Kafka and RabbitMQ.
  *
  * Validates: Requirements 15.1, 15.2
  */
@@ -44,14 +50,44 @@ public class AuditEventConsumer {
     private final ObjectMapper objectMapper;
 
     /**
-     * Listener for audit events. Deserializes the JSON payload, extracts
-     * event metadata fields, and invokes ingestion (hash + sign + persist).
+     * Listener for audit events via Kafka.
      *
      * @param message the raw event payload from Kafka
      */
     @KafkaListener(topics = "exam.audit.events", groupId = "audit-service")
-    public void onAuditEvent(String message) {
-        log.debug("Received audit event: {}", message);
+    public void onKafkaAuditEvent(String message) {
+        log.debug("Received Kafka audit event: {}", message);
+        processAuditEvent(message);
+    }
+
+    /**
+     * Listener for audit events via RabbitMQ.
+     *
+     * @param message the event payload from RabbitMQ
+     */
+    @RabbitListener(
+            bindings = @QueueBinding(
+                    value = @Queue(value = "audit.events.queue", durable = "true"),
+                    exchange = @Exchange(value = "exam.events", type = ExchangeTypes.TOPIC),
+                    key = "exam.audit.events"
+            )
+    )
+    public void onRabbitAuditEvent(Object message) {
+        log.debug("Received RabbitMQ audit event: {}", message);
+        try {
+            String payload;
+            if (message instanceof String s) {
+                payload = s;
+            } else {
+                payload = objectMapper.writeValueAsString(message);
+            }
+            processAuditEvent(payload);
+        } catch (Exception e) {
+            log.error("Failed to process RabbitMQ audit event: {}", e.getMessage(), e);
+        }
+    }
+
+    private void processAuditEvent(String message) {
         try {
             JsonNode root = objectMapper.readTree(message);
 

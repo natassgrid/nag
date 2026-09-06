@@ -32,3 +32,9 @@ include 'backend:admin-service'
 include 'backend:analytics-service'
 include 'backend:asset-service'
 include 'backend:api-gateway'
+
+// ── Macro-service aggregators (lightweight / EC2 / demo mode) ───────────────
+include 'backend:auth-admin-app'
+include 'backend:content-app'
+include 'backend:execution-app'
+include 'backend:post-exam-app'

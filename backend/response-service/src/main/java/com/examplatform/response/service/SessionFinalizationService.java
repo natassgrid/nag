@@ -21,9 +21,9 @@ package com.examplatform.response.service;
 
 import com.examplatform.response.domain.Response;
 import com.examplatform.response.repository.ResponseRepository;
+import com.examplatform.shared.messaging.EventPublisher;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -47,7 +47,7 @@ public class SessionFinalizationService {
     private static final String TOPIC_SESSION_EVENTS = "exam.session.events";
 
     private final ResponseRepository responseRepository;
-    private final KafkaTemplate<String, Object> kafkaTemplate;
+    private final EventPublisher eventPublisher;
 
     /**
      * Finalizes all responses for the given session: sets isFinal=true,
@@ -73,7 +73,7 @@ public class SessionFinalizationService {
         log.info("Session finalized: sessionId={}, candidateId={}, responseCount={}",
                 sessionId, candidateId, responses.size());
 
-        // Publish SESSION_SUBMITTED event to Kafka (fire-and-forget)
+        // Publish SESSION_SUBMITTED event (fire-and-forget)
         try {
             Map<String, Object> event = Map.of(
                     "eventType", "SESSION_SUBMITTED",
@@ -83,13 +83,7 @@ public class SessionFinalizationService {
                     "submittedAt", Instant.now().toString(),
                     "tenantId", tenantId
             );
-            kafkaTemplate.send(TOPIC_SESSION_EVENTS, sessionId.toString(), event)
-                    .whenComplete((result, ex) -> {
-                        if (ex != null) {
-                            log.error("Failed to publish SESSION_SUBMITTED event for session [{}]: {}",
-                                    sessionId, ex.getMessage());
-                        }
-                    });
+            eventPublisher.publish(TOPIC_SESSION_EVENTS, sessionId.toString(), event);
         } catch (Exception e) {
             log.error("Unexpected error publishing SESSION_SUBMITTED event: {}", e.getMessage());
         }
