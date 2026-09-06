@@ -38,3 +38,6 @@ include 'backend:auth-admin-app'
 include 'backend:content-app'
 include 'backend:execution-app'
 include 'backend:post-exam-app'
+
+// ── Single JVM Monolith (All modules in 1 process / zero-broker mode) ───────
+include 'backend:monolith-app'

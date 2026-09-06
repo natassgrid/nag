@@ -23,6 +23,7 @@ import com.examplatform.evaluation.domain.Evaluation;
 import com.examplatform.evaluation.dto.AnswerKey;
 import com.examplatform.evaluation.dto.CandidateResponse;
 import com.examplatform.evaluation.service.AutoEvaluationService;
+import com.examplatform.shared.messaging.GenericDomainEvent;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -34,24 +35,26 @@ import org.springframework.amqp.rabbit.annotation.Exchange;
 import org.springframework.amqp.rabbit.annotation.Queue;
 import org.springframework.amqp.rabbit.annotation.QueueBinding;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
+import org.springframework.context.event.EventListener;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.stereotype.Component;
 
 import java.util.Collections;
 import java.util.List;
-import java.util.Map;
 import java.util.UUID;
 
 /**
  * Consumer that listens for session-submitted events on the
  * {@code exam.session.events} channel. Triggers auto-evaluation workflow
  * when a candidate submits their exam session.
- * Supports both Kafka and RabbitMQ brokers.
+ * Supports Kafka, RabbitMQ, and in-memory Spring ApplicationEvents.
  */
 @Slf4j
 @Component
 @RequiredArgsConstructor
 public class SessionEventConsumer {
+
+    public static final String SESSION_EVENTS_TOPIC = "exam.session.events";
 
     private final AutoEvaluationService autoEvaluationService;
     private final ObjectMapper objectMapper;
@@ -59,7 +62,7 @@ public class SessionEventConsumer {
     /**
      * Handles session events from Kafka.
      */
-    @KafkaListener(topics = "exam.session.events", groupId = "evaluation-service")
+    @KafkaListener(topics = SESSION_EVENTS_TOPIC, groupId = "evaluation-service")
     public void onKafkaSessionEvent(ConsumerRecord<String, String> record) {
         log.info("Received Kafka session event: key={}, partition={}", record.key(), record.partition());
         try {
@@ -77,7 +80,7 @@ public class SessionEventConsumer {
             bindings = @QueueBinding(
                     value = @Queue(value = "evaluation.session.events.queue", durable = "true"),
                     exchange = @Exchange(value = "exam.events", type = ExchangeTypes.TOPIC),
-                    key = "exam.session.events"
+                    key = SESSION_EVENTS_TOPIC
             )
     )
     public void onRabbitSessionEvent(Object message) {
@@ -94,6 +97,31 @@ public class SessionEventConsumer {
             processJsonEvent(event);
         } catch (Exception e) {
             log.error("Failed to process RabbitMQ session event: {}", e.getMessage(), e);
+        }
+    }
+
+    /**
+     * Handles session events from in-memory Spring ApplicationEvents (monolith mode).
+     */
+    @EventListener
+    public void onSpringSessionEvent(GenericDomainEvent event) {
+        if (!SESSION_EVENTS_TOPIC.equals(event.topic())) {
+            return;
+        }
+        log.info("Received Spring in-memory session event: key={}", event.key());
+        try {
+            Object payload = event.payload();
+            JsonNode jsonNode;
+            if (payload instanceof String s) {
+                jsonNode = objectMapper.readTree(s);
+            } else if (payload instanceof JsonNode jn) {
+                jsonNode = jn;
+            } else {
+                jsonNode = objectMapper.valueToTree(payload);
+            }
+            processJsonEvent(jsonNode);
+        } catch (Exception e) {
+            log.error("Failed to process Spring in-memory session event: {}", e.getMessage(), e);
         }
     }
 
@@ -134,7 +162,6 @@ public class SessionEventConsumer {
 
     /**
      * Fetches answer keys for the submitted session.
-     * TODO: Replace with actual call to question-bank-service or paper definition lookup.
      */
     private List<AnswerKey> fetchAnswerKeys(JsonNode event) {
         if (event.has("answerKeys")) {
@@ -151,7 +178,6 @@ public class SessionEventConsumer {
 
     /**
      * Fetches candidate responses for the submitted session.
-     * TODO: Replace with actual call to response-service.
      */
     private List<CandidateResponse> fetchCandidateResponses(JsonNode event) {
         if (event.has("responses")) {

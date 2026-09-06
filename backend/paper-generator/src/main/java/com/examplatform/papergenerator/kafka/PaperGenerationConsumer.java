@@ -19,6 +19,7 @@
 
 package com.examplatform.papergenerator.kafka;
 
+import com.examplatform.shared.messaging.GenericDomainEvent;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
@@ -27,6 +28,7 @@ import org.springframework.amqp.rabbit.annotation.Exchange;
 import org.springframework.amqp.rabbit.annotation.Queue;
 import org.springframework.amqp.rabbit.annotation.QueueBinding;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
+import org.springframework.context.event.EventListener;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.stereotype.Component;
 
@@ -34,7 +36,7 @@ import org.springframework.stereotype.Component;
  * Async consumer for paper generation request jobs.
  * Listens on topic {@code exam.paper.events} and triggers paper generation
  * workflows when a request is received.
- * Supports both Kafka and RabbitMQ.
+ * Supports Kafka, RabbitMQ, and in-memory Spring events.
  *
  * Validates: Requirements 8.7
  */
@@ -43,7 +45,9 @@ import org.springframework.stereotype.Component;
 @RequiredArgsConstructor
 public class PaperGenerationConsumer {
 
-    @KafkaListener(topics = "exam.paper.events", groupId = "paper-generator")
+    public static final String PAPER_EVENTS_TOPIC = "exam.paper.events";
+
+    @KafkaListener(topics = PAPER_EVENTS_TOPIC, groupId = "paper-generator")
     public void onKafkaPaperGenerationRequest(ConsumerRecord<String, String> record) {
         log.info("Paper generation request received via Kafka: key={}", record.key());
         // Stub — full implementation in task 7.2
@@ -53,11 +57,19 @@ public class PaperGenerationConsumer {
             bindings = @QueueBinding(
                     value = @Queue(value = "paper.generation.queue", durable = "true"),
                     exchange = @Exchange(value = "exam.events", type = ExchangeTypes.TOPIC),
-                    key = "exam.paper.events"
+                    key = PAPER_EVENTS_TOPIC
             )
     )
     public void onRabbitPaperGenerationRequest(Object message) {
         log.info("Paper generation request received via RabbitMQ: {}", message);
         // Stub — full implementation in task 7.2
+    }
+
+    @EventListener
+    public void onSpringPaperGenerationRequest(GenericDomainEvent event) {
+        if (PAPER_EVENTS_TOPIC.equals(event.topic())) {
+            log.info("Paper generation request received via Spring in-memory event: key={}, payload={}",
+                    event.key(), event.payload());
+        }
     }
 }

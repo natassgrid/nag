@@ -20,6 +20,7 @@
 package com.examplatform.audit.consumer;
 
 import com.examplatform.audit.service.AuditIngestionService;
+import com.examplatform.shared.messaging.GenericDomainEvent;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
@@ -29,6 +30,7 @@ import org.springframework.amqp.rabbit.annotation.Exchange;
 import org.springframework.amqp.rabbit.annotation.Queue;
 import org.springframework.amqp.rabbit.annotation.QueueBinding;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
+import org.springframework.context.event.EventListener;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.stereotype.Component;
 
@@ -37,7 +39,7 @@ import org.springframework.stereotype.Component;
  * {@code exam.audit.events} topic. Deserializes incoming JSON messages,
  * extracts audit fields, and delegates to {@link AuditIngestionService}
  * for SHA-256 hashing, HSM signing, and immutable persistence.
- * Supports both Kafka and RabbitMQ.
+ * Supports Kafka, RabbitMQ, and in-memory Spring ApplicationEvents.
  *
  * Validates: Requirements 15.1, 15.2
  */
@@ -45,6 +47,8 @@ import org.springframework.stereotype.Component;
 @Component
 @RequiredArgsConstructor
 public class AuditEventConsumer {
+
+    public static final String AUDIT_TOPIC = "exam.audit.events";
 
     private final AuditIngestionService auditIngestionService;
     private final ObjectMapper objectMapper;
@@ -54,7 +58,7 @@ public class AuditEventConsumer {
      *
      * @param message the raw event payload from Kafka
      */
-    @KafkaListener(topics = "exam.audit.events", groupId = "audit-service")
+    @KafkaListener(topics = AUDIT_TOPIC, groupId = "audit-service")
     public void onKafkaAuditEvent(String message) {
         log.debug("Received Kafka audit event: {}", message);
         processAuditEvent(message);
@@ -69,7 +73,7 @@ public class AuditEventConsumer {
             bindings = @QueueBinding(
                     value = @Queue(value = "audit.events.queue", durable = "true"),
                     exchange = @Exchange(value = "exam.events", type = ExchangeTypes.TOPIC),
-                    key = "exam.audit.events"
+                    key = AUDIT_TOPIC
             )
     )
     public void onRabbitAuditEvent(Object message) {
@@ -84,6 +88,31 @@ public class AuditEventConsumer {
             processAuditEvent(payload);
         } catch (Exception e) {
             log.error("Failed to process RabbitMQ audit event: {}", e.getMessage(), e);
+        }
+    }
+
+    /**
+     * Listener for in-memory Spring events (monolith mode).
+     *
+     * @param event the in-process domain event
+     */
+    @EventListener
+    public void onSpringAuditEvent(GenericDomainEvent event) {
+        if (!AUDIT_TOPIC.equals(event.topic())) {
+            return;
+        }
+        log.debug("Received Spring in-memory audit event: key={}", event.key());
+        try {
+            Object payload = event.payload();
+            String message;
+            if (payload instanceof String s) {
+                message = s;
+            } else {
+                message = objectMapper.writeValueAsString(payload);
+            }
+            processAuditEvent(message);
+        } catch (Exception e) {
+            log.error("Failed to process in-memory audit event: {}", e.getMessage(), e);
         }
     }
 
