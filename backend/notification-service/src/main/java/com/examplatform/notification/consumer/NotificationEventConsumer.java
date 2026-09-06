@@ -20,6 +20,7 @@
 package com.examplatform.notification.consumer;
 
 import com.examplatform.notification.service.NotificationProcessingService;
+import com.examplatform.shared.messaging.GenericDomainEvent;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -28,6 +29,7 @@ import org.springframework.amqp.rabbit.annotation.Exchange;
 import org.springframework.amqp.rabbit.annotation.Queue;
 import org.springframework.amqp.rabbit.annotation.QueueBinding;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
+import org.springframework.context.event.EventListener;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.stereotype.Component;
 
@@ -36,12 +38,14 @@ import org.springframework.stereotype.Component;
  * {@code exam.notifications.outbound} topic. Delegates processing to
  * {@link NotificationProcessingService} which handles notification creation
  * and delivery dispatch.
- * Supports both Kafka and RabbitMQ.
+ * Supports Kafka, RabbitMQ, and in-memory Spring ApplicationEvents.
  */
 @Slf4j
 @Component
 @RequiredArgsConstructor
 public class NotificationEventConsumer {
+
+    public static final String NOTIFICATION_TOPIC = "exam.notifications.outbound";
 
     private final NotificationProcessingService notificationProcessingService;
     private final ObjectMapper objectMapper;
@@ -51,7 +55,7 @@ public class NotificationEventConsumer {
      *
      * @param message the raw event payload (JSON)
      */
-    @KafkaListener(topics = "exam.notifications.outbound", groupId = "notification-service")
+    @KafkaListener(topics = NOTIFICATION_TOPIC, groupId = "notification-service")
     public void onKafkaNotificationEvent(String message) {
         log.info("Received Kafka notification event: {}", message);
         notificationProcessingService.processEvent(message);
@@ -66,7 +70,7 @@ public class NotificationEventConsumer {
             bindings = @QueueBinding(
                     value = @Queue(value = "notification.events.queue", durable = "true"),
                     exchange = @Exchange(value = "exam.events", type = ExchangeTypes.TOPIC),
-                    key = "exam.notifications.outbound"
+                    key = NOTIFICATION_TOPIC
             )
     )
     public void onRabbitNotificationEvent(Object message) {
@@ -81,6 +85,31 @@ public class NotificationEventConsumer {
             notificationProcessingService.processEvent(payload);
         } catch (Exception e) {
             log.error("Failed to process RabbitMQ notification event: {}", e.getMessage(), e);
+        }
+    }
+
+    /**
+     * Consumes in-memory Spring notification events (monolith mode).
+     *
+     * @param event the domain event
+     */
+    @EventListener
+    public void onSpringNotificationEvent(GenericDomainEvent event) {
+        if (!NOTIFICATION_TOPIC.equals(event.topic())) {
+            return;
+        }
+        log.info("Received Spring in-memory notification event for key: {}", event.key());
+        try {
+            Object payload = event.payload();
+            String message;
+            if (payload instanceof String s) {
+                message = s;
+            } else {
+                message = objectMapper.writeValueAsString(payload);
+            }
+            notificationProcessingService.processEvent(message);
+        } catch (Exception e) {
+            log.error("Failed to process in-memory notification event: {}", e.getMessage(), e);
         }
     }
 }

@@ -1,0 +1,47 @@
+# SPDX-License-Identifier: AGPL-3.0-only
+# Docker Profile for Single JVM Monolith
+
+server:
+  port: ${SERVER_PORT:9000}
+
+spring:
+  datasource:
+    url: jdbc:postgresql://postgres:5432/${POSTGRES_DB:exam_platform}?currentSchema=identity_service,candidate_service,question_service,examination_service,paper_generator,delivery_service,response_service,evaluation_service,result_service,audit_service,notification_service,admin_service,analytics_service,asset_service,public
+    username: ${POSTGRES_USER:exam_admin}
+    password: ${POSTGRES_PASSWORD:exam_secret}
+
+  data:
+    redis:
+      host: redis
+      port: 6379
+      password: ${REDIS_PASSWORD:redis_secret}
+
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: http://keycloak:8080/realms/exam-realm
+          jwk-set-uri: http://keycloak:8080/realms/exam-realm/protocol/openid-connect/certs
+
+  cloud:
+    vault:
+      uri: http://vault:8200
+      token: ${VAULT_ROOT_TOKEN:vault_root_token}
+
+  ai:
+    openai:
+      base-url: ${LITELLM_BASE_URL:http://litellm:4000}
+      api-key: ${LITELLM_API_KEY:sk-litellm-dev-key}
+
+platform:
+  messaging:
+    broker: in-memory
+
+asset:
+  storage:
+    filesystem:
+      base-path: ${ASSET_STORAGE_PATH:/data/asset-storage}
+
+app:
+  keycloak:
+    server-url: http://keycloak:8080

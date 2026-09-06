@@ -87,6 +87,17 @@ public class MessagingAutoConfiguration {
     }
 
     @Configuration(proxyBeanMethods = false)
+    @ConditionalOnProperty(name = "platform.messaging.broker", havingValue = "in-memory")
+    static class InMemoryMessagingConfiguration {
+
+        @Bean
+        @ConditionalOnMissingBean(EventPublisher.class)
+        public EventPublisher inMemorySpringEventPublisher(ApplicationEventPublisher applicationEventPublisher) {
+            return new SpringEventPublisher(applicationEventPublisher);
+        }
+    }
+
+    @Configuration(proxyBeanMethods = false)
     static class FallbackMessagingConfiguration {
 
         @Bean

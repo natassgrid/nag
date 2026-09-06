@@ -1,0 +1,186 @@
+# SPDX-License-Identifier: AGPL-3.0-only
+# National Assessment Grid (NAG) - Single JVM Monolith Application
+# Combines all 14 domain services, embedded audit, and in-memory event bus.
+
+spring:
+  main:
+    allow-bean-definition-overriding: true
+  application:
+    name: nag-monolith
+
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/exam_platform?currentSchema=identity_service,candidate_service,question_service,examination_service,paper_generator,delivery_service,response_service,evaluation_service,result_service,audit_service,notification_service,admin_service,analytics_service,asset_service,public}
+    username: ${SPRING_DATASOURCE_USERNAME:exam_admin}
+    password: ${SPRING_DATASOURCE_PASSWORD:exam_secret}
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: ${HIKARI_MAX_POOL_SIZE:30}
+      minimum-idle: ${HIKARI_MIN_IDLE:5}
+      connection-timeout: 30000
+
+  jpa:
+    hibernate:
+      ddl-auto: none
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        format_sql: false
+    show-sql: false
+
+  flyway:
+    enabled: false # Handled sequentially via MonolithFlywayConfig
+
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:redis_secret}
+      timeout: 2000ms
+
+  session:
+    store-type: redis
+    redis:
+      flush-mode: on-save
+      namespace: auth:session
+
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: ${KEYCLOAK_ISSUER_URI:http://localhost:8080/realms/exam-realm}
+          jwk-set-uri: ${KEYCLOAK_ISSUER_URI:http://localhost:8080/realms/exam-realm}/protocol/openid-connect/certs
+
+  rabbitmq:
+    host: ${SPRING_RABBITMQ_HOST:localhost}
+    port: ${SPRING_RABBITMQ_PORT:5672}
+    username: ${SPRING_RABBITMQ_USERNAME:exam_rabbit}
+    password: ${SPRING_RABBITMQ_PASSWORD:rabbit_secret}
+    listener:
+      simple:
+        auto-startup: ${SPRING_RABBITMQ_LISTENER_AUTO_STARTUP:false}
+      direct:
+        auto-startup: ${SPRING_RABBITMQ_LISTENER_AUTO_STARTUP:false}
+
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    listener:
+      auto-startup: ${SPRING_KAFKA_LISTENER_AUTO_STARTUP:false}
+
+  mail:
+    host: ${SMTP_HOST:smtp.example.com}
+    port: ${SMTP_PORT:587}
+    username: ${SMTP_USERNAME:notifications@examplatform.com}
+    password: ${SMTP_PASSWORD:smtp_secret}
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enabled: true
+          connectiontimeout: 5000
+          timeout: 5000
+          writetimeout: 5000
+
+  cloud:
+    vault:
+      uri: ${VAULT_ADDR:http://localhost:8200}
+      token: ${VAULT_ROOT_TOKEN:vault_root_token}
+      scheme: http
+      kv:
+        enabled: true
+        backend: secret
+      transit:
+        enabled: true
+        backend: transit
+        default-context: identity-service
+
+  ai:
+    openai:
+      base-url: ${LITELLM_BASE_URL:http://localhost:4000}
+      api-key: ${LITELLM_API_KEY:sk-litellm-dev-key}
+      connect-timeout: 30s
+      read-timeout: 15m
+      chat:
+        options:
+          model: qwen2.5-1.5b
+          temperature: 0.7
+      embedding:
+        options:
+          model: all-minilm
+
+  threads:
+    virtual:
+      enabled: true
+
+server:
+  port: ${SERVER_PORT:9000}
+  servlet:
+    context-path: /
+  shutdown: graceful
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus,metrics
+  endpoint:
+    health:
+      show-details: always
+      probes:
+        enabled: true
+  health:
+    mail:
+      enabled: false
+    kafka:
+      enabled: false
+    rabbit:
+      enabled: false
+    vault:
+      enabled: ${MANAGEMENT_HEALTH_VAULT_ENABLED:false}
+  tracing:
+    enabled: ${ENABLE_OBSERVABILITY:false}
+  metrics:
+    tags:
+      service: nag-monolith
+
+# Observability (OpenTelemetry / Jaeger) - Optional in Monolith Mode
+otel:
+  sdk:
+    disabled: ${OTEL_SDK_DISABLED:true}
+  exporter:
+    otlp:
+      enabled: ${ENABLE_OBSERVABILITY:false}
+      endpoint: ${OTEL_EXPORTER_OTLP_ENDPOINT:http://localhost:4318}
+
+# Platform Messaging Strategy: Default to 'in-memory' for zero-broker monolith
+platform:
+  messaging:
+    broker: ${PLATFORM_MESSAGING_BROKER:in-memory}
+
+asset:
+  storage:
+    provider: filesystem
+    max-file-size: 104857600
+    filesystem:
+      base-path: ${ASSET_STORAGE_PATH:/data/asset-storage}
+
+app:
+  jwt:
+    secret: ${APP_JWT_SECRET:dev-jwt-secret-key-for-local-testing-minimum-32-chars}
+  security:
+    max-failed-attempts: ${AUTH_MAX_FAILED_ATTEMPTS:5}
+    lockout-window-seconds: ${AUTH_LOCKOUT_WINDOW_SECONDS:600}
+    rate-limit-auth-per-ip-per-minute: ${RATE_LIMIT_AUTH_PER_IP_PER_MINUTE:10}
+    jwt-access-token-lifetime-seconds: ${JWT_ACCESS_TOKEN_LIFETIME_SECONDS:900}
+    jwt-refresh-token-lifetime-seconds: ${JWT_REFRESH_TOKEN_LIFETIME_SECONDS:28800}
+    session-idle-timeout-seconds: ${SESSION_IDLE_TIMEOUT_SECONDS:1800}
+  keycloak:
+    realm: ${KEYCLOAK_REALM:exam-realm}
+    client-id: ${KEYCLOAK_CLIENT_ID:exam-backend}
+    client-secret: ${KEYCLOAK_CLIENT_SECRET:}
+    admin-client-id: ${KEYCLOAK_ADMIN_CLIENT_ID:admin-cli}
+    admin-username: ${KEYCLOAK_ADMIN_USER:admin}
+    admin-password: ${KEYCLOAK_ADMIN_PASSWORD:admin_secret}
+    server-url: ${KEYCLOAK_SERVER_URL:http://localhost:8080}
+  storage:
+    local-root: ${ASSET_STORAGE_ROOT:/data/asset-storage}

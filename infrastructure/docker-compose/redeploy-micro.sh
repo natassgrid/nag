@@ -10,15 +10,17 @@
 # by the Free Software Foundation, version 3 of the License.
 
 # =============================================================================
-# Smart redeploy — only rebuilds services whose code has changed
+# Smart redeploy script for NAG Microservices Mode
 # Usage:
-#   ./redeploy-clean.sh                  # Full clean: tear down ALL, rebuild ALL, start ALL (preserves vault_data)
-#   ./redeploy-clean.sh --service <name> # Rebuild and restart ONE service (keeps others running)
-#   ./redeploy-clean.sh --smart          # Only rebuild services with code changes (uses git diff)
-#   ./redeploy-clean.sh --no-cache       # Force rebuild without Docker cache
-#   ./redeploy-clean.sh --restart        # Restart ALL services without rebuilding (keeps images)
-#   ./redeploy-clean.sh --restart --service <name>  # Restart ONE service without rebuilding
-#   ./redeploy-clean.sh --health         # Check health status of all running services
+#   ./redeploy-micro.sh                  # Full clean: tear down ALL, rebuild ALL, start ALL (preserves vault_data)
+#   ./redeploy-micro.sh --observability  # Start with Prometheus, Grafana, and Jaeger
+#   ./redeploy-micro.sh --ai             # Start with Ollama, LiteLLM, IndicTrans2
+#   ./redeploy-micro.sh --service <name> # Rebuild and restart ONE service (keeps others running)
+#   ./redeploy-micro.sh --smart          # Only rebuild services with code changes (uses git diff)
+#   ./redeploy-micro.sh --no-cache       # Force rebuild without Docker cache
+#   ./redeploy-micro.sh --restart        # Restart ALL services without rebuilding (keeps images)
+#   ./redeploy-micro.sh --restart --service <name>  # Restart ONE service without rebuilding
+#   ./redeploy-micro.sh --health         # Check health status of all running services
 # =============================================================================
 set -e
 
@@ -31,6 +33,8 @@ SERVICE=""
 SMART=false
 RESTART_ONLY=false
 HEALTH_CHECK=false
+OBSERVABILITY=false
+AI=false
 
 while [[ $# -gt 0 ]]; do
     case $1 in
@@ -39,11 +43,21 @@ while [[ $# -gt 0 ]]; do
         --smart) SMART=true; shift ;;
         --restart) RESTART_ONLY=true; shift ;;
         --health) HEALTH_CHECK=true; shift ;;
+        --observability|--with-observability) OBSERVABILITY=true; shift ;;
+        --ai|--with-ai) AI=true; shift ;;
         *) echo "Unknown option: $1"; exit 1 ;;
     esac
 done
 
-COMPOSE="docker compose -f docker-compose.yml -f docker-compose.services.yml"
+PROFILES_ARGS=()
+if [ "$OBSERVABILITY" = true ]; then
+    PROFILES_ARGS+=(--profile observability)
+fi
+if [ "$AI" = true ]; then
+    PROFILES_ARGS+=(--profile ai)
+fi
+
+COMPOSE="docker compose ${PROFILES_ARGS[*]} -f docker-compose.yml -f docker-compose.services.yml"
 
 ALL_SERVICES=(
     identity-service candidate-service question-bank-service
@@ -89,7 +103,13 @@ mark_built() {
 }
 
 echo "============================================="
-echo "  Exam Platform — Redeploy"
+echo "  NAG Platform — Microservices Redeploy"
+if [ "$OBSERVABILITY" = true ]; then
+echo "  Observability: Enabled (Prometheus, Grafana, Jaeger)"
+fi
+if [ "$AI" = true ]; then
+echo "  AI Pipeline:   Enabled (Ollama, LiteLLM, IndicTrans2)"
+fi
 echo "============================================="
 
 # --- Ensure builder base image exists ---
@@ -286,8 +306,16 @@ echo "▶ Pruning old images..."
 docker image prune -f 2>/dev/null || true
 
 echo ""
-echo "▶ Starting infrastructure..."
-docker compose -f docker-compose.yml up -d
+INFRA_TARGETS="postgres kafka vault keycloak"
+if [ "$OBSERVABILITY" = true ]; then
+    INFRA_TARGETS="$INFRA_TARGETS prometheus grafana jaeger"
+fi
+if [ "$AI" = true ]; then
+    INFRA_TARGETS="$INFRA_TARGETS ollama litellm indictrans2"
+fi
+
+echo "▶ Starting infrastructure ($INFRA_TARGETS)..."
+docker compose "${PROFILES_ARGS[@]}" -f docker-compose.yml up -d $INFRA_TARGETS
 echo "  Waiting for infrastructure to be healthy..."
 docker compose -f docker-compose.yml up --wait -d postgres kafka vault
 
@@ -308,7 +336,7 @@ $COMPOSE up -d
 
 echo ""
 echo "============================================="
-echo "  ✓ Full clean redeploy complete!"
+echo "  ✓ Full clean micro redeploy complete!"
 echo "============================================="
 echo ""
 $COMPOSE ps --format "table {{.Name}}\t{{.Status}}\t{{.Ports}}" 2>/dev/null || $COMPOSE ps

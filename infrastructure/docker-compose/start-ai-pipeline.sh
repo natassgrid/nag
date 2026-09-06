@@ -36,8 +36,8 @@ set -e
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR"
 
-COMPOSE="docker compose -f docker-compose.yml"
-COMPOSE_SERVICES="docker compose -f docker-compose.yml -f docker-compose.services.yml"
+COMPOSE="docker compose --profile ai -f docker-compose.yml"
+COMPOSE_SERVICES="docker compose --profile ai -f docker-compose.yml -f docker-compose.services.yml"
 INFRA_SERVICES="postgres redis vault vault-init kafka keycloak ollama ollama-pull litellm indictrans2"
 APP_SERVICES="identity-service question-bank-service api-gateway frontend"
 
@@ -60,7 +60,7 @@ echo ""
 
 case $ACTION in
 
-  stop)
+  stop)\
     echo "▶ Stopping pipeline services..."
     $COMPOSE stop $INFRA_SERVICES
     $COMPOSE_SERVICES stop $APP_SERVICES 2>/dev/null || true
@@ -68,7 +68,7 @@ case $ACTION in
     echo "✓ Pipeline services stopped."
     ;;
 
-  status)
+  status)\
     echo "▶ Pipeline service status:"
     echo ""
     echo "--- Infrastructure ---"
@@ -88,13 +88,13 @@ case $ACTION in
     echo ""
     ;;
 
-  logs)
+  logs)\
     echo "▶ Tailing Ollama + LiteLLM + Question Bank logs (Ctrl+C to stop)..."
     echo ""
     $COMPOSE_SERVICES logs -f ollama litellm question-bank-service 2>/dev/null || $COMPOSE logs -f ollama litellm
     ;;
 
-  clean)
+  clean)\
     echo "▶ Stopping containers..."
     $COMPOSE_SERVICES down --remove-orphans 2>/dev/null || true
     $COMPOSE down --remove-orphans 2>/dev/null || true
@@ -119,7 +119,7 @@ case $ACTION in
     echo "  API Gateway: http://localhost:9000"
     ;;
 
-  start)
+  start)\
     echo "▶ Starting pipeline infrastructure..."
     echo "  Infra: postgres, redis, vault, kafka, keycloak, ollama, litellm, indictrans2"
     echo "  Apps:  identity-service, question-bank-service, api-gateway, frontend"

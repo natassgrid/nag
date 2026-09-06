@@ -1,75 +1,110 @@
 # Running Locally — National Assessment Grid
 
-## 1. Quick Start (Development Environment)
+## 1. Quick Start Options
 
-Follow these steps to run the complete NAG platform locally for development and testing.
+NAG supports **three local runtime modes** depending on your development workflow, testing goals, and machine resource capacity:
 
----
-
-## 2. Step 1: Start Infrastructure Services (Docker Compose)
-
-Spin up PostgreSQL, Apache Kafka, Keycloak, and Redis background services:
-
-```bash
-# Navigate to project root
-cd f:\code\IdeaProjects\nag
-
-# Start infrastructure dependencies in background
-docker compose -f docker-compose.dev.yml up -d
-```
-
-Verify that containers are healthy:
-```bash
-docker ps
-```
-Required services running: `nag-postgres`, `nag-kafka`, `nag-keycloak`, `nag-redis`.
+| Mode | Memory | External Broker | Best For | Start Command |
+|---|---|---|---|---|
+| **Monolith Mode** | ~1.0 - 1.5 GB | None (In-memory) | Rapid daily feature development, UI testing, debugging | `./infrastructure/docker-compose/redeploy-monolith.sh` |
+| **Macro Mode** | ~2.5 - 3.5 GB | RabbitMQ | Service boundary integration testing, low-memory staging | `./infrastructure/docker-compose/redeploy-macro.sh` |
+| **Micro Mode** | ~7.0 - 10 GB | Kafka | Full distributed architecture testing, distributed tracing | `./infrastructure/docker-compose/redeploy-micro.sh` |
 
 ---
 
-## 3. Step 2: Run Backend Microservices
+## 2. Option A: Running the Single JVM Monolith (Recommended for Developers)
 
-In your terminal or IDE (IntelliJ IDEA / Eclipse):
+The single JVM monolith combines all 14 domain modules in one Spring Boot process and runs directly with PostgreSQL and Redis.
 
+### Using Docker Compose
 ```bash
-# Run Spring Boot backend microservice
-cd backend/exam-service
-mvn spring-boot:run -Dspring-boot.run.profiles=dev
+./infrastructure/docker-compose/redeploy-monolith.sh
 ```
 
-The backend server will start on `http://localhost:8080` with API docs available at `http://localhost:8080/swagger-ui.html`.
-
----
-
-## 4. Step 3: Run Angular Frontend Application
-
-1. Install frontend NPM dependencies:
+### Running Directly from IDE / Gradle
+1. **Start Core Datastores**:
    ```bash
+   docker compose -f infrastructure/docker-compose/docker-compose.yml up -d postgres redis vault
+   ```
+
+2. **Run Monolith Application via Gradle**:
+   ```bash
+   ./gradlew :backend:monolith-app:bootRun
+   ```
+
+3. **Start Angular Frontends**:
+   ```bash
+   # Terminal 1: Admin Frontend
    cd frontend
-   npm install
-   ```
+   npm install && npm start
 
-2. Start Angular dev server:
-   ```bash
-   npm run start
-   # or
-   npx ng serve --open
+   # Terminal 2: Candidate Frontend
+   cd candidate-frontend
+   npm install && npm start
    ```
-
-3. Open your browser and navigate to `http://localhost:4200`.
 
 ---
 
-## 5. Development Proxy & CORS Configuration
+## 3. Option B: Running in Macro-Services Mode
 
-During local development, frontend HTTP requests sent to `/api/v1/...` are proxied to the backend at `http://localhost:8080` via `frontend/src/proxy.conf.json`:
+Runs 5 aggregated services (`auth-admin-app`, `content-app`, `execution-app`, `post-exam-app`, and `audit-service`) with RabbitMQ:
 
-```json
-{
-  "/api": {
-    "target": "http://localhost:8080",
-    "secure": false,
-    "changeOrigin": true,
-    "logLevel": "debug"
-  }
-}
+```bash
+./infrastructure/docker-compose/redeploy-macro.sh
 ```
+
+To run a specific macro-service in your IDE (e.g. `execution-app`):
+```bash
+./gradlew :backend:execution-app:bootRun
+```
+
+---
+
+## 4. Option C: Running in Full Microservices Mode
+
+Runs all 14 standalone microservices with Apache Kafka and Spring Cloud Gateway:
+
+```bash
+./infrastructure/docker-compose/redeploy-micro.sh
+```
+
+To run an individual microservice (e.g. `delivery-service`):
+```bash
+./gradlew :backend:delivery-service:bootRun
+```
+
+---
+
+## 5. Optional Feature Flags
+
+You can pass feature flags to any redeploy script:
+
+- **Observability (Prometheus, Grafana, Jaeger)**:
+  ```bash
+  ./infrastructure/docker-compose/redeploy-monolith.sh --observability
+  ```
+- **AI Subsystem (Ollama, LiteLLM, IndicTrans2)**:
+  ```bash
+  ./infrastructure/docker-compose/redeploy-monolith.sh --ai
+  ```
+- **Force Rebuild Without Cache**:
+  ```bash
+  ./infrastructure/docker-compose/redeploy-monolith.sh --no-cache
+  ```
+- **Health Verification**:
+  ```bash
+  ./infrastructure/docker-compose/redeploy-monolith.sh --health
+  ```
+
+---
+
+## 6. Accessing Local Service Endpoints
+
+- **Admin UI**: [http://localhost:4200](http://localhost:4200)
+- **Candidate Portal UI**: [http://localhost:4300](http://localhost:4300)
+- **API Gateway / Monolith Ingress**: [http://localhost:9000](http://localhost:9000)
+- **Keycloak IAM**: [http://localhost:8080](http://localhost:8080)
+- **Vault UI**: [http://localhost:8200](http://localhost:8200)
+- **Grafana Dashboard** *(when `--observability` is active)*: [http://localhost:3000](http://localhost:3000)
+- **Jaeger UI** *(when `--observability` is active)*: [http://localhost:16686](http://localhost:16686)
+- **RabbitMQ Management UI** *(in Macro mode)*: [http://localhost:15672](http://localhost:15672) (User: `guest`, Pass: `guest`)

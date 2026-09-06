@@ -1,0 +1,134 @@
+# SPDX-License-Identifier: AGPL-3.0-only
+#
+# National Assessment Grid (NAG) - Open Digital Public Infrastructure (DPI) Platform
+# Copyright (C) 2025 NAG Contributors
+#
+# =============================================================================
+# Docker Compose — NAG Single JVM Monolith Mode (Ultralight / Low-RAM / Standalone)
+# Consolidates all 14 domain microservices + audit into 1 JVM Spring Boot runtime.
+# Memory requirement: ~1 GB RAM (runs comfortably on 2 GB - 4 GB VMs).
+# Zero external message broker (Kafka/RabbitMQ not needed; uses in-memory Spring events).
+#
+# Usage:
+#   docker compose -f docker-compose.yml -f docker-compose.monolith.yml up --build
+# =============================================================================
+
+x-service-common: &service-common
+  restart: unless-stopped
+  networks:
+    - exam-network
+
+x-healthcheck-spring: &healthcheck-spring
+  interval: 10s
+  timeout: 5s
+  retries: 15
+  start_period: 30s
+
+services:
+
+  # ===========================================================================
+  # Single JVM Monolith Application (All 14 Modules + Audit Embedded)
+  # ===========================================================================
+  monolith-app:
+    restart: unless-stopped
+    build:
+      context: ../../
+      dockerfile: backend/Dockerfile
+      args:
+        SERVICE_NAME: monolith-app
+    image: localhost:5000/exam/monolith-app:latest
+    container_name: exam-monolith-app
+    ports:
+      - "${MONOLITH_PORT:-9000}:${MONOLITH_PORT:-9000}"
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      PLATFORM_MESSAGING_BROKER: in-memory
+      SERVER_PORT: ${MONOLITH_PORT:-9000}
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-exam_platform}?currentSchema=identity_service,candidate_service,question_service,examination_service,paper_generator,delivery_service,response_service,evaluation_service,result_service,audit_service,notification_service,admin_service,analytics_service,asset_service,public
+      SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:-exam_admin}
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-exam_secret}
+      REDIS_HOST: redis
+      REDIS_PORT: "6379"
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-redis_secret}
+      KEYCLOAK_ISSUER_URI: http://keycloak:8080/realms/exam-realm
+      KEYCLOAK_SERVER_URL: http://keycloak:8080
+      VAULT_ADDR: http://vault:8200
+      VAULT_ROOT_TOKEN: ${VAULT_ROOT_TOKEN:-vault_root_token}
+      MANAGEMENT_HEALTH_VAULT_ENABLED: "false"
+      MANAGEMENT_HEALTH_DISCOVERY_ENABLED: "false"
+      MANAGEMENT_HEALTH_KAFKA_ENABLED: "false"
+      MANAGEMENT_HEALTH_RABBIT_ENABLED: "false"
+      MANAGEMENT_HEALTH_MAIL_ENABLED: "false"
+      ASSET_STORAGE_PATH: /data/asset-storage
+      # Observability / OpenTelemetry - Optional (Disabled by default to minimize memory)
+      ENABLE_OBSERVABILITY: ${ENABLE_OBSERVABILITY:-false}
+      OTEL_SDK_DISABLED: ${OTEL_SDK_DISABLED:-true}
+      OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT:-http://jaeger:4318}
+      # Shared JWT signing secret for dev mode
+      APP_JWT_SECRET: dev-jwt-secret-key-for-local-testing-minimum-32-chars
+      INDICTRANS2_URL: ${INDICTRANS2_URL:-http://indictrans2:7860}
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:-}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-}
+      AWS_REGION_NAME: ${AWS_REGION_NAME:-us-east-1}
+    networks:
+      exam-network:
+        aliases:
+          - api-gateway
+          - monolith-app
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - asset_storage:/data/asset-storage
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:${MONOLITH_PORT:-9000}/actuator/health || exit 1"]
+      <<: *healthcheck-spring
+
+  # ===========================================================================
+  # Frontend — Admin SPA
+  # ===========================================================================
+  frontend:
+    <<: *service-common
+    build:
+      context: ../../frontend
+      dockerfile: Dockerfile
+    image: localhost:5000/exam/frontend:latest
+    container_name: exam-frontend
+    ports:
+      - "4200:80"
+    depends_on:
+      monolith-app:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:80/health || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+  # ===========================================================================
+  # Candidate Frontend — Candidate SPA
+  # ===========================================================================
+  candidate-frontend:
+    <<: *service-common
+    build:
+      context: ../../candidate-frontend
+      dockerfile: Dockerfile
+    image: localhost:5000/exam/candidate-frontend:latest
+    container_name: exam-candidate-frontend
+    ports:
+      - "4300:80"
+    depends_on:
+      monolith-app:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:80/health || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+volumes:
+  asset_storage:

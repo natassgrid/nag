@@ -4,3 +4,4 @@ com.examplatform.shared.messaging.MessagingAutoConfiguration
 com.examplatform.shared.jackson.JacksonConfig
 com.examplatform.shared.security.JwtAuthConfig
 com.examplatform.shared.security.DevJwtConfig
+com.examplatform.shared.security.SharedSecurityConfig

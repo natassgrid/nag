@@ -20,6 +20,7 @@
 package com.examplatform.response.consumer;
 
 import com.examplatform.response.service.AutoSaveService;
+import com.examplatform.shared.messaging.GenericDomainEvent;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
@@ -29,6 +30,7 @@ import org.springframework.amqp.rabbit.annotation.Exchange;
 import org.springframework.amqp.rabbit.annotation.Queue;
 import org.springframework.amqp.rabbit.annotation.QueueBinding;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
+import org.springframework.context.event.EventListener;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.stereotype.Component;
 
@@ -39,7 +41,7 @@ import java.util.UUID;
  * Consumer for session events.
  * Triggers auto-save on NAVIGATION events to ensure responses are persisted
  * when a candidate navigates between questions.
- * Supports both Kafka and RabbitMQ.
+ * Supports Kafka, RabbitMQ, and in-memory Spring ApplicationEvents.
  *
  * Validates: Requirements 10.2, 10.3
  */
@@ -48,6 +50,7 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class SessionEventConsumer {
 
+    public static final String SESSION_EVENTS_TOPIC = "exam.session.events";
     private static final String EVENT_TYPE_NAVIGATION = "NAVIGATION";
 
     private final AutoSaveService autoSaveService;
@@ -58,7 +61,7 @@ public class SessionEventConsumer {
      *
      * @param event the session event payload
      */
-    @KafkaListener(topics = "exam.session.events", groupId = "response-service")
+    @KafkaListener(topics = SESSION_EVENTS_TOPIC, groupId = "response-service")
     public void handleSessionEvent(Map<String, Object> event) {
         processEventMap(event);
     }
@@ -70,7 +73,7 @@ public class SessionEventConsumer {
             bindings = @QueueBinding(
                     value = @Queue(value = "response.session.events.queue", durable = "true"),
                     exchange = @Exchange(value = "exam.events", type = ExchangeTypes.TOPIC),
-                    key = "exam.session.events"
+                    key = SESSION_EVENTS_TOPIC
             )
     )
     public void handleRabbitSessionEvent(Object message) {
@@ -89,6 +92,33 @@ public class SessionEventConsumer {
             }
         } catch (Exception e) {
             log.error("Failed to process RabbitMQ session event: {}", e.getMessage(), e);
+        }
+    }
+
+    /**
+     * Listens to in-memory Spring session events (monolith mode).
+     */
+    @EventListener
+    public void onSpringSessionEvent(GenericDomainEvent event) {
+        if (!SESSION_EVENTS_TOPIC.equals(event.topic())) {
+            return;
+        }
+        log.info("Received Spring in-memory session event: key={}", event.key());
+        try {
+            Object payload = event.payload();
+            if (payload instanceof Map<?, ?> map) {
+                @SuppressWarnings("unchecked")
+                Map<String, Object> eventMap = (Map<String, Object>) map;
+                processEventMap(eventMap);
+            } else if (payload instanceof String s) {
+                JsonNode node = objectMapper.readTree(s);
+                processJsonNode(node);
+            } else {
+                JsonNode node = objectMapper.valueToTree(payload);
+                processJsonNode(node);
+            }
+        } catch (Exception e) {
+            log.error("Failed to process Spring in-memory session event: {}", e.getMessage(), e);
         }
     }
 

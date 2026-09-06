@@ -45,10 +45,11 @@ RUN addgroup -S appgroup && adduser -S appuser -G appgroup
 WORKDIR /app
 
 # Create asset storage directory writable by appuser (used by asset-service)
-RUN mkdir -p /data/asset-storage && chown appuser:appgroup /data/asset-storage
+RUN mkdir -p /data/asset-storage && chown -R appuser:appgroup /data /app
 
 # Copy the built jar
 COPY --from=builder /workspace/backend/${SERVICE_NAME}/build/libs/*.jar app.jar
+RUN chown appuser:appgroup /app/app.jar
 
 # Spring Boot Actuator health endpoint
 HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=5 \

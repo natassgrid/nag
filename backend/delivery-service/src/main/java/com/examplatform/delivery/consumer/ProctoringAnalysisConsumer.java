@@ -19,6 +19,7 @@
 package com.examplatform.delivery.consumer;
 
 import com.examplatform.shared.messaging.EventPublisher;
+import com.examplatform.shared.messaging.GenericDomainEvent;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.amqp.core.ExchangeTypes;
 import org.springframework.amqp.rabbit.annotation.Exchange;
@@ -26,6 +27,7 @@ import org.springframework.amqp.rabbit.annotation.Queue;
 import org.springframework.amqp.rabbit.annotation.QueueBinding;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.event.EventListener;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.stereotype.Component;
 
@@ -36,7 +38,7 @@ import java.util.Random;
 
 /**
  * Consumer that processes proctoring frames/snapshots for AI analysis.
- * Supports both Kafka (microservices mode) and RabbitMQ (macro mode).
+ * Supports Kafka (microservices mode), RabbitMQ (macro mode), and in-memory Spring events (monolith mode).
  * Stub implementation: randomly flags some frames to simulate ML model detection.
  *
  * Publishes audit events for detected anomalies:
@@ -50,6 +52,7 @@ import java.util.Random;
 @Component
 public class ProctoringAnalysisConsumer {
 
+    public static final String PROCTORING_TOPIC = "exam.proctoring.alerts";
     private static final String AUDIT_TOPIC = "exam.audit.events";
     private static final String[] DETECTION_TYPES = {
             "no-face-detected",
@@ -73,7 +76,7 @@ public class ProctoringAnalysisConsumer {
     /**
      * Consumes proctoring snapshot events via Kafka and performs stub AI analysis.
      */
-    @KafkaListener(topics = "exam.proctoring.alerts", groupId = "delivery-proctoring")
+    @KafkaListener(topics = PROCTORING_TOPIC, groupId = "delivery-proctoring")
     public void analyze(Map<String, Object> event) {
         processEvent(event);
     }
@@ -85,11 +88,26 @@ public class ProctoringAnalysisConsumer {
             bindings = @QueueBinding(
                     value = @Queue(value = "proctoring.alerts.queue", durable = "true"),
                     exchange = @Exchange(value = "exam.events", type = ExchangeTypes.TOPIC),
-                    key = "exam.proctoring.alerts"
+                    key = PROCTORING_TOPIC
             )
     )
     public void analyzeRabbit(Map<String, Object> event) {
         processEvent(event);
+    }
+
+    /**
+     * Consumes proctoring snapshot events via Spring in-memory events (monolith mode).
+     */
+    @EventListener
+    public void onSpringProctoringAlert(GenericDomainEvent event) {
+        if (PROCTORING_TOPIC.equals(event.topic())) {
+            Object payload = event.payload();
+            if (payload instanceof Map<?, ?> map) {
+                @SuppressWarnings("unchecked")
+                Map<String, Object> eventMap = (Map<String, Object>) map;
+                processEvent(eventMap);
+            }
+        }
     }
 
     public void processEvent(Map<String, Object> event) {
