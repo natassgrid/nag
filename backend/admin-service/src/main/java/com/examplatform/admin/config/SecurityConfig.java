@@ -29,6 +29,8 @@ import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter;
 import org.springframework.security.web.SecurityFilterChain;
 
+import org.springframework.core.annotation.Order;
+
 /**
  * Security configuration for admin-service.
  * OAuth2 Resource Server with JWT validation; permits actuator endpoints;
@@ -40,10 +42,11 @@ import org.springframework.security.web.SecurityFilterChain;
 public class SecurityConfig {
 
     @Bean
-    @ConditionalOnMissingBean(SecurityFilterChain.class)
+    @Order(3)
     public SecurityFilterChain adminSecurityFilterChain(HttpSecurity http,
                                                    JwtAuthenticationConverter jwtAuthenticationConverter) throws Exception {
         http
+            .securityMatcher("/api/v1/admin/**")
             .csrf(csrf -> csrf.disable())
             .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth

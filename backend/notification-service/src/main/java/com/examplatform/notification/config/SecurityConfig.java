@@ -30,6 +30,8 @@ import org.springframework.security.oauth2.server.resource.authentication.JwtAut
 import org.springframework.security.oauth2.server.resource.web.BearerTokenResolver;
 import org.springframework.security.web.SecurityFilterChain;
 
+import org.springframework.core.annotation.Order;
+
 /**
  * Security configuration for notification-service.
  * OAuth2 Resource Server with JWT validation; permit actuator endpoints;
@@ -42,10 +44,11 @@ import org.springframework.security.web.SecurityFilterChain;
 public class SecurityConfig {
 
     @Bean
-    @ConditionalOnMissingBean(SecurityFilterChain.class)
+    @Order(4)
     public SecurityFilterChain notificationSecurityFilterChain(HttpSecurity http,
                                                    JwtAuthenticationConverter jwtAuthenticationConverter) throws Exception {
         http
+            .securityMatcher("/api/v1/notifications/**", "/api/v1/notification/**")
             .csrf(csrf -> csrf.disable())
             .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth

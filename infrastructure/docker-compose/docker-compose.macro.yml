@@ -39,6 +39,8 @@ x-spring-macro-env: &spring-macro-env
   KEYCLOAK_SERVER_URL: http://keycloak:8080
   VAULT_ADDR: http://vault:8200
   VAULT_ROOT_TOKEN: ${VAULT_ROOT_TOKEN:-vault_root_token}
+  SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+  KAFKA_BOOTSTRAP_SERVERS: kafka:9092
   MANAGEMENT_HEALTH_VAULT_ENABLED: "false"
   MANAGEMENT_HEALTH_DISCOVERY_ENABLED: "false"
   MANAGEMENT_HEALTH_KAFKA_ENABLED: "false"
@@ -50,6 +52,8 @@ x-depends-macro: &depends-macro
   postgres:
     condition: service_healthy
   rabbitmq:
+    condition: service_healthy
+  kafka:
     condition: service_healthy
 
 services:
