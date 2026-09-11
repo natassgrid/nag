@@ -17,15 +17,13 @@
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
 
-package com.examplatform.delivery.exception;
+package com.examplatform.evaluation.exception;
 
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
-import org.springframework.web.bind.MissingRequestHeaderException;
-import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
@@ -34,32 +32,24 @@ import java.util.Map;
 import java.util.NoSuchElementException;
 
 /**
- * Global exception handler for the delivery-service REST API.
- * Maps domain exceptions to appropriate HTTP status codes and structured error responses.
+ * Global exception handler for the evaluation-service REST API.
  */
 @Slf4j
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
-    @ExceptionHandler(ConcurrentSessionException.class)
-    public ResponseEntity<Map<String, Object>> handleConcurrentSession(ConcurrentSessionException ex) {
-        log.warn("Concurrent session violation: {}", ex.getMessage());
-        return ResponseEntity.status(HttpStatus.CONFLICT)
-                .body(errorBody("CONCURRENT_SESSION", ex.getMessage(), HttpStatus.CONFLICT));
-    }
-
-    @ExceptionHandler(NavigationPolicyViolationException.class)
-    public ResponseEntity<Map<String, Object>> handleNavigationPolicyViolation(NavigationPolicyViolationException ex) {
-        log.warn("Navigation policy violation: {}", ex.getMessage());
-        return ResponseEntity.status(HttpStatus.UNPROCESSABLE_ENTITY)
-                .body(errorBody("NAVIGATION_POLICY_VIOLATION", ex.getMessage(), HttpStatus.UNPROCESSABLE_ENTITY));
-    }
-
-    @ExceptionHandler(NoSuchElementException.class)
-    public ResponseEntity<Map<String, Object>> handleNotFound(NoSuchElementException ex) {
+    @ExceptionHandler({IllegalArgumentException.class, NoSuchElementException.class})
+    public ResponseEntity<Map<String, Object>> handleNotFound(RuntimeException ex) {
         log.warn("Resource not found: {}", ex.getMessage());
         return ResponseEntity.status(HttpStatus.NOT_FOUND)
                 .body(errorBody("NOT_FOUND", ex.getMessage(), HttpStatus.NOT_FOUND));
+    }
+
+    @ExceptionHandler(IllegalStateException.class)
+    public ResponseEntity<Map<String, Object>> handleIllegalState(IllegalStateException ex) {
+        log.warn("Invalid state: {}", ex.getMessage());
+        return ResponseEntity.status(HttpStatus.CONFLICT)
+                .body(errorBody("INVALID_STATE", ex.getMessage(), HttpStatus.CONFLICT));
     }
 
     @ExceptionHandler(AccessDeniedException.class)
@@ -67,16 +57,6 @@ public class GlobalExceptionHandler {
         log.warn("Access denied: {}", ex.getMessage());
         return ResponseEntity.status(HttpStatus.FORBIDDEN)
                 .body(errorBody("ACCESS_DENIED", "Access denied", HttpStatus.FORBIDDEN));
-    }
-
-    @ExceptionHandler({
-            MissingServletRequestParameterException.class,
-            MissingRequestHeaderException.class
-    })
-    public ResponseEntity<Map<String, Object>> handleMissingRequestValues(Exception ex) {
-        log.warn("Missing required request parameter or header: {}", ex.getMessage());
-        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                .body(errorBody("BAD_REQUEST", ex.getMessage(), HttpStatus.BAD_REQUEST));
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
