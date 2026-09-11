@@ -67,9 +67,7 @@ dependencies {
     implementation libs.spring.boot.starter.validation
 
     // WebAuthn / FIDO2
-    // TODO: For production, add com.webauthn4j:webauthn4j-core for full COSE key parsing
-    // and cryptographic signature verification. The current scaffold uses simplified verification.
-    // implementation 'com.webauthn4j:webauthn4j-core:0.24.1.RELEASE'
+    implementation 'com.webauthn4j:webauthn4j-core:0.24.1.RELEASE'
 
     // Test
     testImplementation libs.spring.boot.starter.test

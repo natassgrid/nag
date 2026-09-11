@@ -13,7 +13,7 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
  * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU标识 Affero General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
 
@@ -27,6 +27,9 @@ import com.examplatform.identity.dto.WebAuthnAssertionRequest;
 import com.examplatform.identity.exception.AuthenticationException;
 import com.examplatform.identity.repository.UserAccountRepository;
 import com.examplatform.identity.repository.WebAuthnCredentialRepository;
+import com.webauthn4j.converter.util.ObjectConverter;
+import com.webauthn4j.data.attestation.authenticator.EC2COSEKey;
+import com.webauthn4j.data.attestation.statement.COSEAlgorithmIdentifier;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -38,6 +41,12 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.ValueOperations;
 
+import java.nio.charset.StandardCharsets;
+import java.security.KeyPair;
+import java.security.KeyPairGenerator;
+import java.security.MessageDigest;
+import java.security.Signature;
+import java.security.interfaces.ECPublicKey;
 import java.util.Base64;
 import java.util.Optional;
 import java.util.UUID;
@@ -53,6 +62,8 @@ import static org.mockito.Mockito.when;
 
 /**
  * Unit tests for {@link WebAuthnService}.
+ *
+ * <p><strong>Validates: Requirements 2.3</strong>
  */
 @ExtendWith(MockitoExtension.class)
 @DisplayName("WebAuthnService")
@@ -87,19 +98,48 @@ class WebAuthnServiceTest {
     // Valid Base64URL-encoded test data
     // 37 bytes: 32 bytes rpIdHash + 1 byte flags + 4 bytes sign count (value = 5)
     private static final byte[] AUTH_DATA_BYTES = new byte[37];
+    private static final String AUTH_DATA_B64;
+    private static final String CLIENT_DATA_JSON_B64;
+    private static final String SIGNATURE_B64;
+    private static final byte[] COSE_PUBLIC_KEY;
+
     static {
         // Set sign count to 5 (bytes 33..36 in big-endian)
         AUTH_DATA_BYTES[33] = 0;
         AUTH_DATA_BYTES[34] = 0;
         AUTH_DATA_BYTES[35] = 0;
         AUTH_DATA_BYTES[36] = 5;
+
+        AUTH_DATA_B64 = Base64.getUrlEncoder().withoutPadding().encodeToString(AUTH_DATA_BYTES);
+        CLIENT_DATA_JSON_B64 = Base64.getUrlEncoder().withoutPadding()
+                .encodeToString("{\"type\":\"webauthn.get\",\"challenge\":\"test\"}".getBytes(StandardCharsets.UTF_8));
+
+        try {
+            KeyPairGenerator kpg = KeyPairGenerator.getInstance("EC");
+            kpg.initialize(256);
+            KeyPair kp = kpg.generateKeyPair();
+            ECPublicKey ecPub = (ECPublicKey) kp.getPublic();
+
+            EC2COSEKey coseKey = EC2COSEKey.create(ecPub, COSEAlgorithmIdentifier.ES256);
+            ObjectConverter converter = new ObjectConverter();
+            COSE_PUBLIC_KEY = converter.getCborConverter().writeValueAsBytes(coseKey);
+
+            byte[] clientDataJSON = Base64.getUrlDecoder().decode(CLIENT_DATA_JSON_B64);
+            MessageDigest sha256 = MessageDigest.getInstance("SHA-256");
+            byte[] clientDataHash = sha256.digest(clientDataJSON);
+            byte[] signedData = new byte[AUTH_DATA_BYTES.length + clientDataHash.length];
+            System.arraycopy(AUTH_DATA_BYTES, 0, signedData, 0, AUTH_DATA_BYTES.length);
+            System.arraycopy(clientDataHash, 0, signedData, AUTH_DATA_BYTES.length, clientDataHash.length);
+
+            Signature signer = Signature.getInstance("SHA256withECDSA");
+            signer.initSign(kp.getPrivate());
+            signer.update(signedData);
+            byte[] sig = signer.sign();
+            SIGNATURE_B64 = Base64.getUrlEncoder().withoutPadding().encodeToString(sig);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
     }
-    private static final String AUTH_DATA_B64 = Base64.getUrlEncoder().withoutPadding().encodeToString(AUTH_DATA_BYTES);
-    private static final String CLIENT_DATA_JSON_B64 = Base64.getUrlEncoder().withoutPadding()
-            .encodeToString("{\"type\":\"webauthn.get\",\"challenge\":\"test\"}".getBytes());
-    private static final String SIGNATURE_B64 = Base64.getUrlEncoder().withoutPadding()
-            .encodeToString("dummy-signature-bytes".getBytes());
-    private static final byte[] DUMMY_PUBLIC_KEY = "dummy-cose-key".getBytes();
 
     @BeforeEach
     void setUp() {
@@ -126,7 +166,7 @@ class WebAuthnServiceTest {
         return WebAuthnCredential.builder()
                 .credentialId(CREDENTIAL_ID)
                 .userId(ACCOUNT_ID)
-                .publicKeyCose(DUMMY_PUBLIC_KEY)
+                .publicKeyCose(COSE_PUBLIC_KEY)
                 .signCount(signCount)
                 .aaguid("00000000-0000-0000-0000-000000000000")
                 .build();
@@ -239,6 +279,30 @@ class WebAuthnServiceTest {
                     .authenticatorData(Base64.getUrlEncoder().withoutPadding().encodeToString(new byte[0]))
                     .clientDataJSON(CLIENT_DATA_JSON_B64)
                     .signature(SIGNATURE_B64)
+                    .build();
+
+            assertThatThrownBy(() -> webAuthnService.authenticate(request, TENANT_ID, IP))
+                    .isInstanceOf(AuthenticationException.class)
+                    .hasMessageContaining("signature verification failed");
+        }
+
+        @Test
+        @DisplayName("throws AuthenticationException when cryptographic signature is tampered")
+        void throwsWhenSignatureTampered() {
+            WebAuthnCredential cred = credential(0L);
+            when(webAuthnCredentialRepository.findByCredentialIdAndTenantId(CREDENTIAL_ID, TENANT_ID))
+                    .thenReturn(Optional.of(cred));
+            when(userAccountRepository.findById(ACCOUNT_ID))
+                    .thenReturn(Optional.of(activeAccount()));
+
+            // Tamper signature
+            byte[] badSig = Base64.getUrlDecoder().decode(SIGNATURE_B64);
+            badSig[badSig.length - 1] ^= 0xFF;
+            WebAuthnAssertionRequest request = WebAuthnAssertionRequest.builder()
+                    .credentialId(CREDENTIAL_ID)
+                    .authenticatorData(AUTH_DATA_B64)
+                    .clientDataJSON(CLIENT_DATA_JSON_B64)
+                    .signature(Base64.getUrlEncoder().withoutPadding().encodeToString(badSig))
                     .build();
 
             assertThatThrownBy(() -> webAuthnService.authenticate(request, TENANT_ID, IP))
