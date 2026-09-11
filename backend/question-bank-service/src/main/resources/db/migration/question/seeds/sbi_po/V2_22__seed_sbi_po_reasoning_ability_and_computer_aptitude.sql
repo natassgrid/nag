@@ -8,8 +8,8 @@ SET search_path TO question_service, public;
 DO $$
 DECLARE
     v_tenant_id VARCHAR := 'default';
-    v_subj_id UUID;
-    v_top_id UUID;
+    v_subj_id BIGINT;
+    v_top_id BIGINT;
 BEGIN
     SELECT id INTO v_subj_id FROM question_service.subject WHERE name = 'Reasoning' AND tenant_id = v_tenant_id LIMIT 1;
     IF v_subj_id IS NULL THEN
