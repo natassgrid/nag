@@ -25,6 +25,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
@@ -85,11 +86,11 @@ public class GlobalExceptionHandler {
     }
 
     /**
-     * Handles illegal argument exceptions (400).
+     * Handles illegal argument and missing parameter exceptions (400).
      */
-    @ExceptionHandler(IllegalArgumentException.class)
-    public ProblemDetail handleIllegalArgument(IllegalArgumentException ex) {
-        log.warn("Illegal argument: {}", ex.getMessage());
+    @ExceptionHandler({IllegalArgumentException.class, MissingServletRequestParameterException.class})
+    public ProblemDetail handleIllegalArgument(Exception ex) {
+        log.warn("Illegal argument / missing parameter: {}", ex.getMessage());
         ProblemDetail problem = ProblemDetail.forStatusAndDetail(
                 HttpStatus.BAD_REQUEST, ex.getMessage());
         problem.setTitle("Bad Request");

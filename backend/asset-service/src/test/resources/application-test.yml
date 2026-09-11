@@ -32,9 +32,15 @@ spring:
           jwk-set-uri: http://localhost:19999/realms/test/protocol/openid-connect/certs
 
   kafka:
+    listener:
+      auto-startup: false
     producer:
       key-serializer: org.apache.kafka.common.serialization.StringSerializer
       value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+
+  autoconfigure:
+    exclude:
+      - org.springframework.boot.autoconfigure.kafka.KafkaAutoConfiguration
 
   servlet:
     multipart:
@@ -44,6 +50,10 @@ spring:
   threads:
     virtual:
       enabled: true
+
+platform:
+  messaging:
+    broker: in-memory
 
 server:
   port: 0

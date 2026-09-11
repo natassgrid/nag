@@ -14,7 +14,8 @@
  * GNU Affero General Public License for more details.
  *
  * You should have received a copy of the GNU Affero General Public License
- * along with this program. If not, see <https://www.gnu.org/licenses/>.\n */
+ * along with this program. If not, see <https://www.gnu.org/licenses/>.
+ */
 
 package com.examplatform.examination.config;
 
@@ -30,7 +31,8 @@ import org.springframework.security.web.SecurityFilterChain;
 
 /**
  * Minimal OAuth2 Resource Server security configuration for examination-service.
- * Permits actuator health/info endpoints; requires authentication for all other requests.
+ * Permits actuator health/info endpoints, public examination listings, centres, and geo endpoints;
+ * requires authentication for all other requests.
  */
 @Configuration
 @EnableWebSecurity
@@ -47,7 +49,12 @@ public class SecurityConfig {
             .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers("/actuator/health", "/actuator/health/**", "/actuator/info", "/actuator/prometheus").permitAll()
-                .requestMatchers("/api/v1/geo/**", "/api/v1/public/examinations/**").permitAll()
+                .requestMatchers(
+                        "/api/v1/geo/**",
+                        "/api/v1/public/examinations/**",
+                        "/api/v1/examinations/public/**",
+                        "/api/v1/examinations/centres/public/**"
+                ).permitAll()
                 .anyRequest().authenticated()
             )
             .oauth2ResourceServer(oauth2 -> oauth2

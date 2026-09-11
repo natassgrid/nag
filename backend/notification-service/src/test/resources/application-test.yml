@@ -1,0 +1,48 @@
+# SPDX-License-Identifier: AGPL-3.0-only
+#
+# National Assessment Grid (NAG) - Open Digital Public Infrastructure (DPI) Platform
+# Copyright (C) 2025 NAG Contributors
+
+spring:
+  application:
+    name: notification-service-test
+
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate:
+        default_schema: notification_service
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+    show-sql: false
+
+  flyway:
+    enabled: true
+    schemas: notification_service
+    locations: classpath:db/migration/notification
+
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: http://localhost:19999/realms/test
+          jwk-set-uri: http://localhost:19999/realms/test/protocol/openid-connect/certs
+
+  kafka:
+    listener:
+      auto-startup: false
+
+  autoconfigure:
+    exclude:
+      - org.springframework.boot.autoconfigure.kafka.KafkaAutoConfiguration
+      - org.springframework.boot.autoconfigure.mail.MailSenderAutoConfiguration
+
+platform:
+  messaging:
+    broker: in-memory
+
+logging:
+  level:
+    org.testcontainers: INFO
+    org.flywaydb: INFO
+    org.springframework.test: INFO
