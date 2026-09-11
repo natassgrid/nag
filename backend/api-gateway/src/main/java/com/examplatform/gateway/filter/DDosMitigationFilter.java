@@ -22,6 +22,7 @@ package com.examplatform.gateway.filter;
 import com.examplatform.gateway.config.DDoSProperties;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.cloud.gateway.filter.GatewayFilterChain;
 import org.springframework.cloud.gateway.filter.GlobalFilter;
 import org.springframework.core.Ordered;
@@ -55,7 +56,7 @@ public class DDosMitigationFilter implements GlobalFilter, Ordered {
     private static final String NOTIFICATION_TOPIC = "exam.notifications.outbound";
 
     private final ReactiveRedisTemplate<String, String> reactiveRedisTemplate;
-    private final KafkaTemplate<String, Object> kafkaTemplate;
+    private final ObjectProvider<KafkaTemplate<String, Object>> kafkaTemplateProvider;
     private final DDoSProperties ddosProperties;
 
     @Override
@@ -112,8 +113,10 @@ public class DDosMitigationFilter implements GlobalFilter, Ordered {
         );
 
         try {
-            kafkaTemplate.send(AUDIT_TOPIC, ipAddress, alert);
-            kafkaTemplate.send(NOTIFICATION_TOPIC, ipAddress, alert);
+            kafkaTemplateProvider.ifAvailable(template -> {
+                template.send(AUDIT_TOPIC, ipAddress, alert);
+                template.send(NOTIFICATION_TOPIC, ipAddress, alert);
+            });
         } catch (Exception e) {
             log.error("Failed to publish DDoS security alert for IP {}: {}", ipAddress, e.getMessage());
         }

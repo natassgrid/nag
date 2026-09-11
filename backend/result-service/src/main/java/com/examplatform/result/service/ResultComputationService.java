@@ -27,7 +27,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.kafka.core.KafkaTemplate;
+import com.examplatform.shared.messaging.EventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -58,7 +58,7 @@ public class ResultComputationService {
 
     private final ResultRepository resultRepository;
     private final ObjectMapper objectMapper;
-    private final KafkaTemplate<String, Object> kafkaTemplate;
+    private final EventPublisher eventPublisher;
 
     /**
      * Computes results for all candidates in an exam.
@@ -146,9 +146,9 @@ public class ResultComputationService {
     }
 
     /**
-     * Publishes a RESULT_PUBLISHED audit event to Kafka (fire-and-forget).
+     * Publishes a RESULT_PUBLISHED audit event (fire-and-forget).
      */
-    private void publishResultAuditEvent(UUID examId, int candidateCount, String tenantId) {
+     private void publishResultAuditEvent(UUID examId, int candidateCount, String tenantId) {
         try {
             Map<String, Object> event = Map.of(
                     "eventType", "RESULT_PUBLISHED",
@@ -157,13 +157,7 @@ public class ResultComputationService {
                     "tenantId", tenantId,
                     "occurredAt", Instant.now().toString()
             );
-            kafkaTemplate.send(AUDIT_TOPIC, examId.toString(), event)
-                    .whenComplete((result, ex) -> {
-                        if (ex != null) {
-                            log.error("Failed to publish RESULT_PUBLISHED audit event for exam [{}]: {}",
-                                    examId, ex.getMessage());
-                        }
-                    });
+            eventPublisher.publish(AUDIT_TOPIC, examId.toString(), event);
         } catch (Exception e) {
             log.error("Unexpected error publishing RESULT_PUBLISHED audit event: {}", e.getMessage());
         }

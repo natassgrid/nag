@@ -27,6 +27,7 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Captor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.cloud.gateway.filter.GatewayFilterChain;
 import org.springframework.data.redis.core.ReactiveRedisTemplate;
 import org.springframework.data.redis.core.ReactiveValueOperations;
@@ -39,11 +40,13 @@ import reactor.core.publisher.Mono;
 import java.net.InetSocketAddress;
 import java.time.Duration;
 import java.util.Map;
+import java.util.function.Consumer;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -66,6 +69,9 @@ class DDosMitigationFilterTest {
     private KafkaTemplate<String, Object> kafkaTemplate;
 
     @Mock
+    private ObjectProvider<KafkaTemplate<String, Object>> kafkaTemplateProvider;
+
+    @Mock
     private GatewayFilterChain chain;
 
     @Captor
@@ -79,7 +85,7 @@ class DDosMitigationFilterTest {
         ddosProperties = new DDoSProperties();
         ddosProperties.setThreshold(10000);
         ddosProperties.setWindowSeconds(1);
-        filter = new DDosMitigationFilter(reactiveRedisTemplate, kafkaTemplate, ddosProperties);
+        filter = new DDosMitigationFilter(reactiveRedisTemplate, kafkaTemplateProvider, ddosProperties);
         when(reactiveRedisTemplate.opsForValue()).thenReturn(valueOperations);
     }
 
@@ -99,7 +105,7 @@ class DDosMitigationFilterTest {
 
         // Then: request passes through
         verify(chain).filter(exchange);
-        verify(kafkaTemplate, never()).send(anyString(), anyString(), any());
+        verify(kafkaTemplateProvider, never()).ifAvailable(any());
     }
 
     @Test
@@ -121,10 +127,17 @@ class DDosMitigationFilterTest {
         // Then: TTL is set and request passes through
         verify(reactiveRedisTemplate).expire("ddos:ip:10.0.0.1", Duration.ofSeconds(1));
         verify(chain).filter(exchange);
+        verify(kafkaTemplateProvider, never()).ifAvailable(any());
     }
 
     @Test
     void filter_aboveThreshold_returns429AndPublishesAlert() {
+        doAnswer(invocation -> {
+            Consumer<KafkaTemplate<String, Object>> consumer = invocation.getArgument(0);
+            consumer.accept(kafkaTemplate);
+            return null;
+        }).when(kafkaTemplateProvider).ifAvailable(any());
+
         // Given a request that exceeds the rate limit
         MockServerHttpRequest request = MockServerHttpRequest.get("/api/v1/test")
                 .remoteAddress(new InetSocketAddress("192.168.1.200", 8080))

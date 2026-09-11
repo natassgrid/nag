@@ -1,0 +1,53 @@
+# SPDX-License-Identifier: AGPL-3.0-only
+#
+# National Assessment Grid (NAG) - Open Digital Public Infrastructure (DPI) Platform
+# Copyright (C) 2025 NAG Contributors
+
+spring:
+  application:
+    name: question-bank-service
+
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate:
+        default_schema: question_service
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        format_sql: false
+    show-sql: false
+
+  flyway:
+    enabled: true
+    schemas: question_service
+    locations: classpath:db/migration/question
+    clean-disabled: false
+
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: https://auth.example.com/realms/exam-realm
+          jwk-set-uri: https://auth.example.com/realms/exam-realm/protocol/openid-connect/certs
+
+  cloud:
+    vault:
+      enabled: false
+
+  autoconfigure:
+    exclude:
+      - org.springframework.boot.kafka.autoconfigure.KafkaAutoConfiguration
+      - org.springframework.cloud.vault.config.VaultAutoConfiguration
+      - org.springframework.ai.autoconfigure.openai.OpenAiAutoConfiguration
+
+management:
+  health:
+    db:
+      enabled: false
+    kafka:
+      enabled: false
+    vault:
+      enabled: false
+
+server:
+  port: 0

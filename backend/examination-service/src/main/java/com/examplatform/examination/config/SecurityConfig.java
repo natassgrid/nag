@@ -21,6 +21,7 @@ package com.examplatform.examination.config;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.core.annotation.Order;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
@@ -30,7 +31,8 @@ import org.springframework.security.web.SecurityFilterChain;
 
 /**
  * Minimal OAuth2 Resource Server security configuration for examination-service.
- * Permits actuator health/info endpoints; requires authentication for all other requests.
+ * Permits actuator health/info endpoints, public examination listings, centres, and geo endpoints;
+ * requires authentication for all other requests.
  */
 @Configuration
 @EnableWebSecurity
@@ -38,14 +40,21 @@ import org.springframework.security.web.SecurityFilterChain;
 public class SecurityConfig {
 
     @Bean
-    public SecurityFilterChain securityFilterChain(HttpSecurity http,
+    @Order(6)
+    public SecurityFilterChain examinationSecurityFilterChain(HttpSecurity http,
                                                    JwtAuthenticationConverter jwtAuthenticationConverter) throws Exception {
         http
+            .securityMatcher("/api/v1/examinations/**", "/api/v1/examination-schedules/**", "/api/v1/geo/**", "/api/v1/public/examinations/**")
             .csrf(csrf -> csrf.disable())
             .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers("/actuator/health", "/actuator/health/**", "/actuator/info", "/actuator/prometheus").permitAll()
-                .requestMatchers("/api/v1/geo/**").permitAll()
+                .requestMatchers(
+                        "/api/v1/geo/**",
+                        "/api/v1/public/examinations/**",
+                        "/api/v1/examinations/public/**",
+                        "/api/v1/examinations/centres/public/**"
+                ).permitAll()
                 .anyRequest().authenticated()
             )
             .oauth2ResourceServer(oauth2 -> oauth2

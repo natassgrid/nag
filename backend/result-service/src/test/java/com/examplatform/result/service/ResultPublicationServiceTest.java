@@ -30,14 +30,13 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.kafka.core.KafkaTemplate;
+import com.examplatform.shared.messaging.EventPublisher;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import java.math.BigDecimal;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
-import java.util.concurrent.CompletableFuture;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -62,7 +61,7 @@ class ResultPublicationServiceTest {
     private DigiLockerClient digiLockerClient;
 
     @Mock
-    private KafkaTemplate<String, Object> kafkaTemplate;
+    private EventPublisher eventPublisher;
 
     private ResultPublicationService publicationService;
 
@@ -73,7 +72,7 @@ class ResultPublicationServiceTest {
 
     @BeforeEach
     void setUp() {
-        publicationService = new ResultPublicationService(resultRepository, digiLockerClient, kafkaTemplate);
+        publicationService = new ResultPublicationService(resultRepository, digiLockerClient, eventPublisher);
 
         candidateId = UUID.randomUUID();
         examId = UUID.randomUUID();
@@ -92,20 +91,18 @@ class ResultPublicationServiceTest {
     }
 
     @Test
-    @DisplayName("publishResult sends notification event to Kafka")
+    @DisplayName("publishResult sends notification event to EventPublisher")
     void publishResult_sendsNotificationEvent() {
         ReflectionTestUtils.setField(publicationService, "digiLockerEnabled", false);
 
         when(resultRepository.findByCandidateIdAndExamIdAndTenantId(candidateId, examId, tenantId))
                 .thenReturn(Optional.of(sampleResult));
         when(resultRepository.save(any(Result.class))).thenReturn(sampleResult);
-        when(kafkaTemplate.send(anyString(), anyString(), any()))
-                .thenReturn(CompletableFuture.completedFuture(null));
 
         publicationService.publishResult(candidateId, examId, tenantId);
 
         ArgumentCaptor<Object> eventCaptor = ArgumentCaptor.forClass(Object.class);
-        verify(kafkaTemplate).send(eq("exam.notifications.outbound"), eq(candidateId.toString()), eventCaptor.capture());
+        verify(eventPublisher).publish(eq("exam.notifications.outbound"), eq(candidateId.toString()), eventCaptor.capture());
 
         @SuppressWarnings("unchecked")
         Map<String, Object> event = (Map<String, Object>) eventCaptor.getValue();
@@ -122,8 +119,6 @@ class ResultPublicationServiceTest {
         when(resultRepository.findByCandidateIdAndExamIdAndTenantId(candidateId, examId, tenantId))
                 .thenReturn(Optional.of(sampleResult));
         when(resultRepository.save(any(Result.class))).thenReturn(sampleResult);
-        when(kafkaTemplate.send(anyString(), anyString(), any()))
-                .thenReturn(CompletableFuture.completedFuture(null));
 
         Result result = publicationService.publishResult(candidateId, examId, tenantId);
 
@@ -139,8 +134,6 @@ class ResultPublicationServiceTest {
         when(resultRepository.findByCandidateIdAndExamIdAndTenantId(candidateId, examId, tenantId))
                 .thenReturn(Optional.of(sampleResult));
         when(resultRepository.save(any(Result.class))).thenReturn(sampleResult);
-        when(kafkaTemplate.send(anyString(), anyString(), any()))
-                .thenReturn(CompletableFuture.completedFuture(null));
 
         publicationService.publishResult(candidateId, examId, tenantId);
 

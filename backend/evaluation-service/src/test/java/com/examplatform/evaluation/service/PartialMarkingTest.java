@@ -21,6 +21,7 @@ package com.examplatform.evaluation.service;
 
 import com.examplatform.evaluation.repository.EvaluationRepository;
 import com.examplatform.shared.config.DynamicConfigService;
+import com.examplatform.shared.messaging.EventPublisher;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -29,7 +30,6 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.kafka.core.KafkaTemplate;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.within;
@@ -46,7 +46,7 @@ class PartialMarkingTest {
     private EvaluationRepository evaluationRepository;
 
     @Mock
-    private KafkaTemplate<String, Object> kafkaTemplate;
+    private EventPublisher eventPublisher;
 
     @Mock
     private DynamicConfigService dynamicConfigService;
@@ -56,7 +56,7 @@ class PartialMarkingTest {
     @BeforeEach
     void setUp() {
         ObjectMapper objectMapper = new ObjectMapper();
-        service = new AutoEvaluationService(evaluationRepository, objectMapper, kafkaTemplate, dynamicConfigService);
+        service = new AutoEvaluationService(evaluationRepository, objectMapper, eventPublisher, dynamicConfigService);
     }
 
     @Nested

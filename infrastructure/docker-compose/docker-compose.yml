@@ -4,7 +4,7 @@
 # Copyright (C) 2025 NAG Contributors
 #
 # This program is free software: you can redistribute it and/or modify
-# it under the terms of the GNU Affero General Public License as published
+# it under the terms of the GNU标识 Affero General Public License as published
 # by the Free Software Foundation, version 3 of the License.
 
 # =============================================================================
@@ -217,6 +217,8 @@ services:
     image: prom/prometheus:latest
     container_name: exam-prometheus
     restart: unless-stopped
+    profiles:
+      - observability
     ports:
       - "${PROMETHEUS_PORT:-9090}:9090"
     command:
@@ -245,6 +247,8 @@ services:
     image: grafana/grafana:latest
     container_name: exam-grafana
     restart: unless-stopped
+    profiles:
+      - observability
     ports:
       - "${GRAFANA_PORT:-3000}:3000"
     environment:
@@ -275,6 +279,8 @@ services:
     image: jaegertracing/all-in-one:latest
     container_name: exam-jaeger
     restart: unless-stopped
+    profiles:
+      - observability
     ports:
       - "${JAEGER_UI_PORT:-16686}:16686"       # Jaeger UI
       - "${JAEGER_OTLP_GRPC_PORT:-4317}:4317"  # OTLP gRPC
@@ -304,6 +310,8 @@ services:
     image: ollama/ollama:latest
     container_name: exam-ollama
     restart: unless-stopped
+    profiles:
+      - ai
     ports:
       - "${OLLAMA_PORT:-11434}:11434"
     volumes:
@@ -322,6 +330,8 @@ services:
     image: curlimages/curl:latest
     container_name: exam-ollama-pull
     restart: "no"
+    profiles:
+      - ai
     depends_on:
       ollama:
         condition: service_healthy
@@ -373,6 +383,8 @@ services:
     image: ghcr.io/berriai/litellm:main-latest
     container_name: exam-litellm
     restart: unless-stopped
+    profiles:
+      - ai
     ports:
       - "${LITELLM_PORT:-4000}:4000"
     environment:
@@ -413,6 +425,8 @@ services:
     image: exam-indictrans2:latest
     container_name: exam-indictrans2
     restart: unless-stopped
+    profiles:
+      - ai
     ports:
       - "${INDICTRANS2_PORT:-7860}:7860"
     environment:

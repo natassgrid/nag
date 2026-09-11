@@ -25,6 +25,7 @@ import com.examplatform.papergenerator.dto.BlueprintRule;
 import com.examplatform.papergenerator.dto.PaperGenerationRequest;
 import com.examplatform.papergenerator.dto.QuestionSummary;
 import com.examplatform.papergenerator.repository.PaperRepository;
+import com.examplatform.shared.messaging.EventPublisher;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import net.jqwik.api.Arbitraries;
@@ -35,7 +36,6 @@ import net.jqwik.api.Label;
 import net.jqwik.api.Property;
 import net.jqwik.api.Provide;
 import org.mockito.Mockito;
-import org.springframework.kafka.core.KafkaTemplate;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -132,14 +132,13 @@ class BlueprintConstraintPropertyTest {
         // Arrange: build mocks
         QuestionBankClient questionBankClient = Mockito.mock(QuestionBankClient.class);
         PaperRepository paperRepository = Mockito.mock(PaperRepository.class);
-        @SuppressWarnings("unchecked")
-        KafkaTemplate<String, Object> kafkaTemplate = Mockito.mock(KafkaTemplate.class);
+        EventPublisher eventPublisher = Mockito.mock(EventPublisher.class);
 
         ObjectMapper objectMapper = new ObjectMapper();
         objectMapper.findAndRegisterModules();
 
         PaperAssemblyService service = new PaperAssemblyService(
-                questionBankClient, paperRepository, kafkaTemplate, objectMapper);
+                questionBankClient, paperRepository, eventPublisher, objectMapper);
 
         // For each rule, provide at least (questionCount + 2) eligible questions
         for (BlueprintRule rule : blueprintRules) {
@@ -155,9 +154,6 @@ class BlueprintConstraintPropertyTest {
             setId(p, UUID.randomUUID());
             return p;
         });
-
-        Mockito.lenient().when(kafkaTemplate.send(anyString(), anyString(), any()))
-                .thenReturn(new java.util.concurrent.CompletableFuture<>());
 
         PaperGenerationRequest request = PaperGenerationRequest.builder()
                 .examId(UUID.randomUUID())
@@ -189,14 +185,13 @@ class BlueprintConstraintPropertyTest {
 
         QuestionBankClient questionBankClient = Mockito.mock(QuestionBankClient.class);
         PaperRepository paperRepository = Mockito.mock(PaperRepository.class);
-        @SuppressWarnings("unchecked")
-        KafkaTemplate<String, Object> kafkaTemplate = Mockito.mock(KafkaTemplate.class);
+        EventPublisher eventPublisher = Mockito.mock(EventPublisher.class);
 
         ObjectMapper objectMapper = new ObjectMapper();
         objectMapper.findAndRegisterModules();
 
         PaperAssemblyService service = new PaperAssemblyService(
-                questionBankClient, paperRepository, kafkaTemplate, objectMapper);
+                questionBankClient, paperRepository, eventPublisher, objectMapper);
 
         for (BlueprintRule rule : blueprintRules) {
             when(questionBankClient.findAvailableQuestions(
@@ -210,9 +205,6 @@ class BlueprintConstraintPropertyTest {
             setId(p, UUID.randomUUID());
             return p;
         });
-
-        Mockito.lenient().when(kafkaTemplate.send(anyString(), anyString(), any()))
-                .thenReturn(new java.util.concurrent.CompletableFuture<>());
 
         PaperGenerationRequest request = PaperGenerationRequest.builder()
                 .examId(UUID.randomUUID())
@@ -242,14 +234,13 @@ class BlueprintConstraintPropertyTest {
 
         QuestionBankClient questionBankClient = Mockito.mock(QuestionBankClient.class);
         PaperRepository paperRepository = Mockito.mock(PaperRepository.class);
-        @SuppressWarnings("unchecked")
-        KafkaTemplate<String, Object> kafkaTemplate = Mockito.mock(KafkaTemplate.class);
+        EventPublisher eventPublisher = Mockito.mock(EventPublisher.class);
 
         ObjectMapper objectMapper = new ObjectMapper();
         objectMapper.findAndRegisterModules();
 
         PaperAssemblyService service = new PaperAssemblyService(
-                questionBankClient, paperRepository, kafkaTemplate, objectMapper);
+                questionBankClient, paperRepository, eventPublisher, objectMapper);
 
         for (BlueprintRule rule : blueprintRules) {
             when(questionBankClient.findAvailableQuestions(
@@ -263,9 +254,6 @@ class BlueprintConstraintPropertyTest {
             setId(p, UUID.randomUUID());
             return p;
         });
-
-        Mockito.lenient().when(kafkaTemplate.send(anyString(), anyString(), any()))
-                .thenReturn(new java.util.concurrent.CompletableFuture<>());
 
         PaperGenerationRequest request = PaperGenerationRequest.builder()
                 .examId(UUID.randomUUID())

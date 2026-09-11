@@ -53,6 +53,9 @@ dependencies {
     // Spring Kafka (for shared producer and consumer configuration)
     api libs.spring.kafka
 
+    // Spring AMQP / RabbitMQ (shared RabbitMQ integration)
+    api libs.spring.boot.starter.amqp
+
     // Spring Data Redis (optional shared Redis integration)
     compileOnly libs.spring.boot.starter.data.redis
 
@@ -62,6 +65,9 @@ dependencies {
 
     // Hibernate (JPA provider — needed at compile time for @MappedSuperclass processing)
     compileOnly libs.hibernate.core
+
+    // Flyway (for multi-schema migration runner)
+    compileOnly libs.flyway.core
 
     // Test dependencies
     testImplementation libs.spring.boot.starter.test

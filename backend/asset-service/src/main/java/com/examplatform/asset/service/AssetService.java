@@ -34,6 +34,7 @@ import com.examplatform.asset.storage.StorageProvider;
 import com.examplatform.asset.storage.StorageProviderRegistry;
 import com.examplatform.asset.validation.AssetValidationException;
 import com.examplatform.asset.validation.SecurityValidationPipeline;
+import com.examplatform.shared.messaging.EventPublisher;
 import com.examplatform.shared.tenant.TenantContext;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
@@ -41,7 +42,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
-import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
@@ -68,7 +68,7 @@ public class AssetService {
     private final MetadataExtractionService metadataExtractionService;
     private final StorageProviderRegistry storageProviderRegistry;
     private final StorageProperties storageProperties;
-    private final KafkaTemplate<String, Object> kafkaTemplate;
+    private final EventPublisher eventPublisher;
 
     private static final String AUDIT_TOPIC = "exam.audit.events";
 
@@ -312,7 +312,7 @@ public class AssetService {
                     "tenantId", tenantId,
                     "timestamp", java.time.Instant.now().toString()
             );
-            kafkaTemplate.send(AUDIT_TOPIC, assetId.toString(), event);
+            eventPublisher.publish(AUDIT_TOPIC, assetId.toString(), event);
         } catch (Exception e) {
             log.warn("Failed to publish audit event: {}", e.getMessage());
         }

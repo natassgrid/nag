@@ -27,11 +27,11 @@ import com.examplatform.shared.config.DefaultPlatformConfigs;
 import com.examplatform.shared.config.DynamicConfigInvalidationListener;
 import com.examplatform.shared.config.DynamicConfigService;
 import com.examplatform.shared.config.SystemConfigChangeEvent;
+import com.examplatform.shared.messaging.EventPublisher;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.data.redis.core.StringRedisTemplate;
-import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -47,7 +47,7 @@ import java.util.stream.Collectors;
 
 /**
  * Service responsible for managing system configuration changes with full audit trail
- * and multi-tier Near Cache synchronization (DB + Redis L2 + Kafka invalidation + L1 Near Cache).
+ * and multi-tier Near Cache synchronization (DB + Redis L2 + Event invalidation + L1 Near Cache).
  */
 @Slf4j
 @Service
@@ -60,7 +60,7 @@ public class ConfigChangeService {
     public static final Map<String, String> DEFAULT_CONFIGS = DefaultPlatformConfigs.DEFAULTS;
 
     private final SystemConfigRepository systemConfigRepository;
-    private final KafkaTemplate<String, Object> kafkaTemplate;
+    private final EventPublisher eventPublisher;
     private final ObjectProvider<StringRedisTemplate> redisTemplateProvider;
     private final DynamicConfigService dynamicConfigService;
 
@@ -238,7 +238,7 @@ public class ConfigChangeService {
         try {
             SystemConfigChangeEvent event = new SystemConfigChangeEvent(
                     paramName, oldValue, newValue, tenantId, Instant.now());
-            kafkaTemplate.send(DynamicConfigInvalidationListener.CONFIG_EVENTS_TOPIC, tenantId, event);
+            eventPublisher.publish(DynamicConfigInvalidationListener.CONFIG_EVENTS_TOPIC, tenantId, event);
         } catch (Exception ex) {
             log.warn("Failed to broadcast config invalidation event for '{}': {}", paramName, ex.getMessage());
         }
@@ -256,7 +256,7 @@ public class ConfigChangeService {
                     "tenantId", tenantId,
                     "timestamp", Instant.now().toString()
             );
-            kafkaTemplate.send(AUDIT_TOPIC, tenantId, auditEvent);
+            eventPublisher.publish(AUDIT_TOPIC, tenantId, auditEvent);
         } catch (Exception ex) {
             log.warn("Failed to publish audit event for config change '{}': {}", paramName, ex.getMessage());
         }

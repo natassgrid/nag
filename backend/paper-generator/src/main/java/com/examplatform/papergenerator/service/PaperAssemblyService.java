@@ -27,11 +27,11 @@ import com.examplatform.papergenerator.dto.PaperGenerationRequest;
 import com.examplatform.papergenerator.dto.QuestionSummary;
 import com.examplatform.papergenerator.exception.InsufficientQuestionsException;
 import com.examplatform.papergenerator.repository.PaperRepository;
+import com.examplatform.shared.messaging.EventPublisher;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.lang.Nullable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -68,7 +68,7 @@ public class PaperAssemblyService {
 
     private final QuestionBankClient questionBankClient;
     private final PaperRepository paperRepository;
-    private final KafkaTemplate<String, Object> kafkaTemplate;
+    private final EventPublisher eventPublisher;
     private final ObjectMapper objectMapper;
     private final ExaminationLookupService examinationLookupService;
 
@@ -76,12 +76,12 @@ public class PaperAssemblyService {
     public PaperAssemblyService(
             QuestionBankClient questionBankClient,
             PaperRepository paperRepository,
-            KafkaTemplate<String, Object> kafkaTemplate,
+            EventPublisher eventPublisher,
             ObjectMapper objectMapper,
             @Nullable ExaminationLookupService examinationLookupService) {
         this.questionBankClient = questionBankClient;
         this.paperRepository = paperRepository;
-        this.kafkaTemplate = kafkaTemplate;
+        this.eventPublisher = eventPublisher;
         this.objectMapper = objectMapper;
         this.examinationLookupService = examinationLookupService;
     }
@@ -89,9 +89,9 @@ public class PaperAssemblyService {
     public PaperAssemblyService(
             QuestionBankClient questionBankClient,
             PaperRepository paperRepository,
-            KafkaTemplate<String, Object> kafkaTemplate,
+            EventPublisher eventPublisher,
             ObjectMapper objectMapper) {
-        this(questionBankClient, paperRepository, kafkaTemplate, objectMapper, null);
+        this(questionBankClient, paperRepository, eventPublisher, objectMapper, null);
     }
 
     /**
@@ -303,7 +303,7 @@ public class PaperAssemblyService {
         event.put("difficultyScore", paper.getDifficultyScore());
         event.put("timestamp", Instant.now().toString());
 
-        kafkaTemplate.send(PAPER_EVENTS_TOPIC, paper.getId() != null ? paper.getId().toString() : "", event);
+        eventPublisher.publish(PAPER_EVENTS_TOPIC, paper.getId() != null ? paper.getId().toString() : "", event);
         log.debug("Published paper generation event to topic={}, paperId={}",
                 PAPER_EVENTS_TOPIC, paper.getId());
     }
@@ -323,13 +323,7 @@ public class PaperAssemblyService {
             event.put("tenantId", tenantId);
             event.put("occurredAt", Instant.now().toString());
 
-            kafkaTemplate.send(AUDIT_TOPIC, paper.getId() != null ? paper.getId().toString() : "", event)
-                    .whenComplete((result, ex) -> {
-                        if (ex != null) {
-                            log.error("Failed to publish audit event [{}] for paper [{}]: {}",
-                                    eventType, paper.getId(), ex.getMessage());
-                        }
-                    });
+            eventPublisher.publish(AUDIT_TOPIC, paper.getId() != null ? paper.getId().toString() : "", event);
         } catch (Exception ex) {
             log.error("Error creating audit event [{}] for paper [{}]: {}",
                     eventType, paper.getId(), ex.getMessage());

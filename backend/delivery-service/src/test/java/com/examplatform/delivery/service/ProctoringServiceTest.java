@@ -23,6 +23,7 @@ import com.examplatform.delivery.config.ProctoringProperties;
 import com.examplatform.delivery.domain.ExamSession;
 import com.examplatform.delivery.repository.ExamSessionRepository;
 import com.examplatform.shared.config.DynamicConfigService;
+import com.examplatform.shared.messaging.EventPublisher;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -33,13 +34,11 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.kafka.core.KafkaTemplate;
 
 import java.time.Instant;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
-import java.util.concurrent.CompletableFuture;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -64,7 +63,7 @@ class ProctoringServiceTest {
     ExamSessionRepository examSessionRepository;
 
     @Mock
-    KafkaTemplate<String, Object> kafkaTemplate;
+    EventPublisher eventPublisher;
 
     @Mock
     ProctoringProperties proctoringProperties;
@@ -111,17 +110,15 @@ class ProctoringServiceTest {
     class CaptureSnapshot {
 
         @Test
-        @DisplayName("Publishes SNAPSHOT_CAPTURED event with reference to Kafka")
+        @DisplayName("Publishes SNAPSHOT_CAPTURED event with reference to event broker")
         void capturesAndPublishesSnapshot() {
             byte[] imageData = new byte[]{1, 2, 3, 4};
             when(examSessionRepository.findBySessionId(SESSION_ID)).thenReturn(Optional.of(testSession));
-            when(kafkaTemplate.send(eq("exam.proctoring.alerts"), eq(SESSION_ID.toString()), any()))
-                    .thenReturn(CompletableFuture.completedFuture(null));
 
             proctoringService.captureSnapshot(SESSION_ID, imageData, TENANT_ID);
 
             ArgumentCaptor<Map<String, Object>> captor = ArgumentCaptor.forClass(Map.class);
-            verify(kafkaTemplate).send(eq("exam.proctoring.alerts"), eq(SESSION_ID.toString()), captor.capture());
+            verify(eventPublisher).publish(eq("exam.proctoring.alerts"), eq(SESSION_ID.toString()), captor.capture());
 
             Map<String, Object> event = captor.getValue();
             assertThat(event.get("eventType")).isEqualTo("SNAPSHOT_CAPTURED");
@@ -161,7 +158,7 @@ class ProctoringServiceTest {
 
             assertThat(testSession.getFullScreenExitCount()).isEqualTo(1);
             verify(examSessionRepository).save(testSession);
-            verify(kafkaTemplate, never()).send(anyString(), anyString(), any());
+            verify(eventPublisher, never()).publish(anyString(), anyString(), any());
         }
 
         @Test
@@ -170,8 +167,6 @@ class ProctoringServiceTest {
             testSession.setFullScreenExitCount(2); // will become 3 == threshold
             when(examSessionRepository.findBySessionId(SESSION_ID)).thenReturn(Optional.of(testSession));
             when(proctoringProperties.getMaxFullScreenExits()).thenReturn(3);
-            when(kafkaTemplate.send(eq("exam.audit.events"), eq(SESSION_ID.toString()), any()))
-                    .thenReturn(CompletableFuture.completedFuture(null));
 
             proctoringService.recordFullScreenExit(SESSION_ID);
 
@@ -179,7 +174,7 @@ class ProctoringServiceTest {
             verify(examSessionRepository).save(testSession);
 
             ArgumentCaptor<Map<String, Object>> captor = ArgumentCaptor.forClass(Map.class);
-            verify(kafkaTemplate).send(eq("exam.audit.events"), eq(SESSION_ID.toString()), captor.capture());
+            verify(eventPublisher).publish(eq("exam.audit.events"), eq(SESSION_ID.toString()), captor.capture());
 
             Map<String, Object> event = captor.getValue();
             assertThat(event.get("eventType")).isEqualTo("SESSION_FLAGGED_FULLSCREEN_EXITS");

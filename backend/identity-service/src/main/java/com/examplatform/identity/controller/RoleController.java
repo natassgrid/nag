@@ -212,29 +212,4 @@ public class RoleController {
         List<UserRole> roles = roleManagementService.getRoles(userId, tenantId);
         return ResponseEntity.ok(ApiResponse.success(roles));
     }
-
-    // Keep legacy endpoint for backward compatibility
-    /**
-     * @deprecated Use POST /assignments/{userId} instead
-     */
-    @PostMapping("/{userId}")
-    @PreAuthorize("hasRole('SUPER_ADMIN')")
-    public ResponseEntity<ApiResponse<RoleAssignmentResponse>> manageRoleLegacy(
-            @PathVariable UUID userId,
-            @Valid @RequestBody RoleAssignmentRequest request,
-            @RequestHeader(value = "X-Tenant-Id", defaultValue = "default") String tenantId,
-            Authentication authentication) {
-        return manageRole(userId, request, tenantId, authentication);
-    }
-
-    /**
-     * @deprecated Use GET /assignments/{userId} instead
-     */
-    @GetMapping("/{userId}")
-    @PreAuthorize("hasRole('SUPER_ADMIN') or #userId.toString() == authentication.name")
-    public ResponseEntity<ApiResponse<List<UserRole>>> getRolesLegacy(
-            @PathVariable("userId") UUID userId,
-            @RequestHeader(value = "X-Tenant-Id", defaultValue = "default") String tenantId) {
-        return getUserRoles(userId, tenantId);
-    }
 }

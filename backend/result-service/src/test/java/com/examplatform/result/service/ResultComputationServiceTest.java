@@ -27,11 +27,11 @@ import jakarta.persistence.EntityNotFoundException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
+import com.examplatform.shared.messaging.EventPublisher;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.kafka.core.KafkaTemplate;
 
 import java.math.BigDecimal;
 import java.util.List;
@@ -56,7 +56,7 @@ class ResultComputationServiceTest {
     private ResultRepository resultRepository;
 
     @Mock
-    private KafkaTemplate<String, Object> kafkaTemplate;
+    private EventPublisher eventPublisher;
 
     private ResultComputationService service;
 
@@ -66,7 +66,7 @@ class ResultComputationServiceTest {
     @BeforeEach
     void setUp() {
         ObjectMapper objectMapper = new ObjectMapper();
-        service = new ResultComputationService(resultRepository, objectMapper, kafkaTemplate);
+        service = new ResultComputationService(resultRepository, objectMapper, eventPublisher);
     }
 
     @Nested

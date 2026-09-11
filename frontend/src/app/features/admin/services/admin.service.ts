@@ -162,7 +162,7 @@ export class AdminService {
 
   assignRole(userId: string, role: string, action: 'ASSIGN' | 'REVOKE'): Observable<RoleAssignmentResponse> {
     const body: RoleAssignmentRequest = { role, action };
-    return this.http.post<ApiResponse<RoleAssignmentResponse>>(`${this.baseUrl}/roles/${userId}`, body).pipe(
+    return this.http.post<ApiResponse<RoleAssignmentResponse>>(`${this.baseUrl}/roles/assignments/${userId}`, body).pipe(
       map(response => response.data)
     );
   }

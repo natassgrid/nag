@@ -22,6 +22,7 @@ package com.examplatform.identity.config;
 import com.examplatform.shared.redis.RedisSerializerUtils;
 import io.lettuce.core.ClientOptions;
 import io.lettuce.core.SocketOptions;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.data.redis.connection.RedisConnectionFactory;
@@ -48,6 +49,7 @@ public class RedisConfig {
      * existing one is lost during shutdown.
      */
     @Bean
+    @ConditionalOnMissingBean(LettuceClientConfiguration.class)
     public LettuceClientConfiguration lettuceClientConfiguration() {
         ClientOptions clientOptions = ClientOptions.builder()
                 .autoReconnect(false)
@@ -63,6 +65,7 @@ public class RedisConfig {
     }
 
     @Bean
+    @ConditionalOnMissingBean(name = "redisTemplate")
     public RedisTemplate<String, Object> redisTemplate(RedisConnectionFactory connectionFactory) {
         RedisSerializer<Object> jsonSerializer = RedisSerializerUtils.jsonSerializer();
 

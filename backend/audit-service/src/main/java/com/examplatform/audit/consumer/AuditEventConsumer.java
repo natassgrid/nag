@@ -20,18 +20,26 @@
 package com.examplatform.audit.consumer;
 
 import com.examplatform.audit.service.AuditIngestionService;
+import com.examplatform.shared.messaging.GenericDomainEvent;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.amqp.core.ExchangeTypes;
+import org.springframework.amqp.rabbit.annotation.Exchange;
+import org.springframework.amqp.rabbit.annotation.Queue;
+import org.springframework.amqp.rabbit.annotation.QueueBinding;
+import org.springframework.amqp.rabbit.annotation.RabbitListener;
+import org.springframework.context.event.EventListener;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.stereotype.Component;
 
 /**
- * Kafka consumer that listens for audit events on the
+ * Consumer that listens for audit events on the
  * {@code exam.audit.events} topic. Deserializes incoming JSON messages,
  * extracts audit fields, and delegates to {@link AuditIngestionService}
  * for SHA-256 hashing, HSM signing, and immutable persistence.
+ * Supports Kafka, RabbitMQ, and in-memory Spring ApplicationEvents.
  *
  * Validates: Requirements 15.1, 15.2
  */
@@ -40,18 +48,75 @@ import org.springframework.stereotype.Component;
 @RequiredArgsConstructor
 public class AuditEventConsumer {
 
+    public static final String AUDIT_TOPIC = "exam.audit.events";
+
     private final AuditIngestionService auditIngestionService;
     private final ObjectMapper objectMapper;
 
     /**
-     * Listener for audit events. Deserializes the JSON payload, extracts
-     * event metadata fields, and invokes ingestion (hash + sign + persist).
+     * Listener for audit events via Kafka.
      *
      * @param message the raw event payload from Kafka
      */
-    @KafkaListener(topics = "exam.audit.events", groupId = "audit-service")
-    public void onAuditEvent(String message) {
-        log.debug("Received audit event: {}", message);
+    @KafkaListener(topics = AUDIT_TOPIC, groupId = "audit-service")
+    public void onKafkaAuditEvent(String message) {
+        log.debug("Received Kafka audit event: {}", message);
+        processAuditEvent(message);
+    }
+
+    /**
+     * Listener for audit events via RabbitMQ.
+     *
+     * @param message the event payload from RabbitMQ
+     */
+    @RabbitListener(
+            bindings = @QueueBinding(
+                    value = @Queue(value = "audit.events.queue", durable = "true"),
+                    exchange = @Exchange(value = "exam.events", type = ExchangeTypes.TOPIC),
+                    key = AUDIT_TOPIC
+            )
+    )
+    public void onRabbitAuditEvent(Object message) {
+        log.debug("Received RabbitMQ audit event: {}", message);
+        try {
+            String payload;
+            if (message instanceof String s) {
+                payload = s;
+            } else {
+                payload = objectMapper.writeValueAsString(message);
+            }
+            processAuditEvent(payload);
+        } catch (Exception e) {
+            log.error("Failed to process RabbitMQ audit event: {}", e.getMessage(), e);
+        }
+    }
+
+    /**
+     * Listener for in-memory Spring events (monolith mode).
+     *
+     * @param event the in-process domain event
+     */
+    @EventListener
+    public void onSpringAuditEvent(GenericDomainEvent event) {
+        if (!AUDIT_TOPIC.equals(event.topic())) {
+            return;
+        }
+        log.debug("Received Spring in-memory audit event: key={}", event.key());
+        try {
+            Object payload = event.payload();
+            String message;
+            if (payload instanceof String s) {
+                message = s;
+            } else {
+                message = objectMapper.writeValueAsString(payload);
+            }
+            processAuditEvent(message);
+        } catch (Exception e) {
+            log.error("Failed to process in-memory audit event: {}", e.getMessage(), e);
+        }
+    }
+
+    private void processAuditEvent(String message) {
         try {
             JsonNode root = objectMapper.readTree(message);
 

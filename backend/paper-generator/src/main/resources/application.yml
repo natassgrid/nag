@@ -35,7 +35,7 @@ spring:
   flyway:
     enabled: true
     schemas: paper_generator
-    locations: classpath:db/migration
+    locations: classpath:db/migration/paper_generator
 
   security:
     oauth2:

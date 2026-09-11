@@ -38,8 +38,10 @@ spring:
     schemas: question_service
     default-schema: question_service
     locations:
-      - classpath:db/migration
-      - classpath:db/migration/seeds
+      - classpath:db/migration/question
+      - classpath:db/migration/question/seeds
+      - classpath:db/migration/question/seeds/rrb_ntpc
+      - classpath:db/migration/question/seeds/sbi_po
     init-sqls:
       - SET search_path TO question_service, public
 

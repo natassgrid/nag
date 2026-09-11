@@ -27,6 +27,7 @@ import org.springframework.boot.autoconfigure.AutoConfigureAfter;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingClass;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.data.redis.core.StringRedisTemplate;
@@ -64,11 +65,33 @@ public class DynamicConfigAutoConfiguration {
 
     @Bean
     @ConditionalOnClass(name = "org.springframework.kafka.annotation.KafkaListener")
+    @ConditionalOnProperty(name = "platform.messaging.broker", havingValue = "kafka", matchIfMissing = true)
     @ConditionalOnMissingBean(DynamicConfigInvalidationListener.class)
     public DynamicConfigInvalidationListener dynamicConfigInvalidationListener(
             DynamicConfigService dynamicConfigService,
             ObjectProvider<ObjectMapper> objectMapperProvider) {
         ObjectMapper mapper = objectMapperProvider.getIfAvailable(ObjectMapper::new);
         return new DynamicConfigInvalidationListener(dynamicConfigService, mapper);
+    }
+
+    @Bean
+    @ConditionalOnClass(name = "org.springframework.amqp.rabbit.annotation.RabbitListener")
+    @ConditionalOnProperty(name = "platform.messaging.broker", havingValue = "rabbit")
+    @ConditionalOnMissingBean(DynamicConfigRabbitInvalidationListener.class)
+    public DynamicConfigRabbitInvalidationListener dynamicConfigRabbitInvalidationListener(
+            DynamicConfigService dynamicConfigService,
+            ObjectProvider<ObjectMapper> objectMapperProvider) {
+        ObjectMapper mapper = objectMapperProvider.getIfAvailable(ObjectMapper::new);
+        return new DynamicConfigRabbitInvalidationListener(dynamicConfigService, mapper);
+    }
+
+    @Bean
+    @ConditionalOnProperty(name = "platform.messaging.broker", havingValue = "in-memory")
+    @ConditionalOnMissingBean(DynamicConfigSpringEventListener.class)
+    public DynamicConfigSpringEventListener dynamicConfigSpringEventListener(
+            DynamicConfigService dynamicConfigService,
+            ObjectProvider<ObjectMapper> objectMapperProvider) {
+        ObjectMapper mapper = objectMapperProvider.getIfAvailable(ObjectMapper::new);
+        return new DynamicConfigSpringEventListener(dynamicConfigService, mapper);
     }
 }

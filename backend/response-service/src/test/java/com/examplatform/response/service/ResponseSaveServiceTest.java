@@ -24,6 +24,7 @@ import com.examplatform.response.domain.Response;
 import com.examplatform.response.dto.SaveResponseRequest;
 import com.examplatform.response.dto.SaveResponseResponse;
 import com.examplatform.response.repository.ResponseRepository;
+import com.examplatform.shared.messaging.EventPublisher;
 import io.micrometer.core.instrument.Counter;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -34,7 +35,6 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import java.time.Instant;
@@ -42,7 +42,6 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
-import java.util.concurrent.CompletableFuture;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
@@ -63,7 +62,7 @@ class ResponseSaveServiceTest {
     private ResponseRepository responseRepository;
 
     @Mock
-    private KafkaTemplate<String, Object> kafkaTemplate;
+    private EventPublisher eventPublisher;
 
     @Mock
     private MetricsConfig metricsConfig;
@@ -115,8 +114,6 @@ class ResponseSaveServiceTest {
                 ReflectionTestUtils.setField(r, "createdAt", Instant.now());
                 return r;
             });
-            when(kafkaTemplate.send(any(String.class), any(String.class), any()))
-                    .thenReturn(CompletableFuture.completedFuture(null));
 
             // When
             SaveResponseResponse response = responseSaveService.saveResponse(sessionId, request, candidateId, tenantId);
@@ -143,8 +140,6 @@ class ResponseSaveServiceTest {
                 ReflectionTestUtils.setField(r, "createdAt", Instant.now());
                 return r;
             });
-            when(kafkaTemplate.send(any(String.class), any(String.class), any()))
-                    .thenReturn(CompletableFuture.completedFuture(null));
 
             // When
             SaveResponseResponse response = responseSaveService.saveResponse(sessionId, request, candidateId, tenantId);
@@ -155,12 +150,12 @@ class ResponseSaveServiceTest {
     }
 
     @Nested
-    @DisplayName("Kafka Integration")
-    class KafkaTests {
+    @DisplayName("Event Integration")
+    class EventIntegrationTests {
 
         @Test
-        @DisplayName("Kafka send is called with correct topic and key")
-        void kafkaSendCalledWithCorrectTopicAndKey() {
+        @DisplayName("Event publisher is called with correct topic and key")
+        void eventPublisherCalledWithCorrectTopicAndKey() {
             // Given
             when(responseRepository.findBySessionIdAndQuestionIdOrderByRevisionSequenceDesc(sessionId, questionId))
                     .thenReturn(Collections.emptyList());
@@ -170,8 +165,6 @@ class ResponseSaveServiceTest {
                 ReflectionTestUtils.setField(r, "createdAt", Instant.now());
                 return r;
             });
-            when(kafkaTemplate.send(any(String.class), any(String.class), any()))
-                    .thenReturn(CompletableFuture.completedFuture(null));
 
             // When
             responseSaveService.saveResponse(sessionId, request, candidateId, tenantId);
@@ -179,7 +172,7 @@ class ResponseSaveServiceTest {
             // Then
             ArgumentCaptor<String> topicCaptor = ArgumentCaptor.forClass(String.class);
             ArgumentCaptor<String> keyCaptor = ArgumentCaptor.forClass(String.class);
-            verify(kafkaTemplate).send(topicCaptor.capture(), keyCaptor.capture(), any());
+            verify(eventPublisher).publish(topicCaptor.capture(), keyCaptor.capture(), any());
 
             assertThat(topicCaptor.getValue()).isEqualTo("exam.response.saved");
             assertThat(keyCaptor.getValue()).isEqualTo(sessionId.toString());
@@ -202,8 +195,6 @@ class ResponseSaveServiceTest {
                 ReflectionTestUtils.setField(r, "createdAt", Instant.now());
                 return r;
             });
-            when(kafkaTemplate.send(any(String.class), any(String.class), any()))
-                    .thenReturn(CompletableFuture.completedFuture(null));
 
             // When
             responseSaveService.saveResponse(sessionId, request, candidateId, tenantId);
@@ -230,8 +221,6 @@ class ResponseSaveServiceTest {
                 ReflectionTestUtils.setField(r, "createdAt", Instant.now());
                 return r;
             });
-            when(kafkaTemplate.send(any(String.class), any(String.class), any()))
-                    .thenReturn(CompletableFuture.completedFuture(null));
 
             // When
             SaveResponseResponse response = responseSaveService.saveResponse(sessionId, request, candidateId, tenantId);
@@ -256,8 +245,6 @@ class ResponseSaveServiceTest {
                 ReflectionTestUtils.setField(r, "createdAt", Instant.now());
                 return r;
             });
-            when(kafkaTemplate.send(any(String.class), any(String.class), any()))
-                    .thenReturn(CompletableFuture.completedFuture(null));
 
             // When
             responseSaveService.saveResponse(sessionId, request, candidateId, tenantId);

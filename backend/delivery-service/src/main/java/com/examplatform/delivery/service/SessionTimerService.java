@@ -22,9 +22,9 @@ package com.examplatform.delivery.service;
 import com.examplatform.delivery.domain.ExamSession;
 import com.examplatform.delivery.domain.ExamSession.ExamSessionStatus;
 import com.examplatform.delivery.repository.ExamSessionRepository;
+import com.examplatform.shared.messaging.EventPublisher;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -49,7 +49,7 @@ public class SessionTimerService {
     private static final String TOPIC_SESSION_EVENTS = "exam.session.events";
 
     private final ExamSessionRepository examSessionRepository;
-    private final KafkaTemplate<String, Object> kafkaTemplate;
+    private final EventPublisher eventPublisher;
 
     /**
      * Scheduled task that runs every 10 seconds to find and expire ACTIVE sessions
@@ -76,7 +76,12 @@ public class SessionTimerService {
                         "tenantId", session.getTenantId()
                 );
 
-                kafkaTemplate.send(TOPIC_SESSION_EVENTS, session.getSessionId().toString(), event);
+                try {
+                    eventPublisher.publish(TOPIC_SESSION_EVENTS, session.getSessionId().toString(), event);
+                } catch (Exception e) {
+                    log.error("Failed to publish SESSION_EXPIRED event for session {}: {}",
+                            session.getSessionId(), e.getMessage());
+                }
 
                 log.info("Session expired: sessionId={}, candidateId={}, scheduledEndAt={}",
                         session.getSessionId(), session.getCandidateId(), session.getScheduledEndAt());

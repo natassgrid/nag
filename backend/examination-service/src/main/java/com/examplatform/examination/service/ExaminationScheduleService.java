@@ -36,9 +36,9 @@ import com.examplatform.examination.exception.ShiftTimingViolationException;
 import com.examplatform.examination.repository.ExaminationRepository;
 import com.examplatform.examination.repository.ExaminationScheduleRepository;
 import com.examplatform.examination.repository.ExamShiftRepository;
+import com.examplatform.shared.messaging.EventPublisher;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -95,7 +95,7 @@ public class ExaminationScheduleService {
     private final ExaminationRepository examinationRepository;
     private final ExaminationScheduleRepository scheduleRepository;
     private final ExamShiftRepository shiftRepository;
-    private final KafkaTemplate<String, Object> kafkaTemplate;
+    private final EventPublisher eventPublisher;
 
     // ── Schedules ─────────────────────────────────────────────────────────────
 
@@ -512,13 +512,7 @@ public class ExaminationScheduleService {
             if (newValue != null)      event.put("newValue", newValue);
             event.put("occurredAt", Instant.now().toString());
 
-            kafkaTemplate.send(AUDIT_TOPIC, schedule.getId().toString(), event)
-                    .whenComplete((r, ex) -> {
-                        if (ex != null) {
-                            log.error("Failed to publish audit event [{}] for schedule [{}]: {}",
-                                    eventType, schedule.getId(), ex.getMessage());
-                        }
-                    });
+            eventPublisher.publish(AUDIT_TOPIC, schedule.getId().toString(), event);
         } catch (Exception e) {
             log.error("Unexpected error publishing audit event [{}]: {}", eventType, e.getMessage());
         }
@@ -534,13 +528,7 @@ public class ExaminationScheduleService {
             event.put("actorId", actorId != null ? actorId.toString() : null);
             event.put("tenantId", tenantId);
             event.put("occurredAt", Instant.now().toString());
-            kafkaTemplate.send(AUDIT_TOPIC, shiftId.toString(), event)
-                    .whenComplete((r, ex) -> {
-                        if (ex != null) {
-                            log.error("Failed to publish audit event [{}] for shift [{}]: {}",
-                                    eventType, shiftId, ex.getMessage());
-                        }
-                    });
+            eventPublisher.publish(AUDIT_TOPIC, shiftId.toString(), event);
         } catch (Exception e) {
             log.error("Unexpected error publishing shift audit event: {}", e.getMessage());
         }
@@ -556,7 +544,7 @@ public class ExaminationScheduleService {
             event.put("scheduleVersion", schedule.getScheduleVersion());
             event.put("tenantId", tenantId);
             event.put("occurredAt", Instant.now().toString());
-            kafkaTemplate.send(NOTIF_TOPIC, schedule.getId().toString(), event);
+            eventPublisher.publish(NOTIF_TOPIC, schedule.getId().toString(), event);
         } catch (Exception e) {
             log.error("Failed to publish notification event [{}]: {}", eventType, e.getMessage());
         }

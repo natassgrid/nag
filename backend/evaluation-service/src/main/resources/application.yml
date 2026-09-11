@@ -35,7 +35,7 @@ spring:
   flyway:
     enabled: true
     schemas: evaluation_service
-    locations: classpath:db/migration
+    locations: classpath:db/migration/evaluation
 
   security:
     oauth2:

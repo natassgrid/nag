@@ -20,6 +20,7 @@
 package com.examplatform.admin.service;
 
 import com.examplatform.admin.client.KeycloakAdminClient;
+import com.examplatform.shared.messaging.EventPublisher;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -29,7 +30,6 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.redis.core.StringRedisTemplate;
-import org.springframework.kafka.core.KafkaTemplate;
 
 import java.util.Map;
 import java.util.Set;
@@ -55,7 +55,7 @@ class UserDeactivationServiceTest {
     private KeycloakAdminClient keycloakAdminClient;
 
     @Mock
-    private KafkaTemplate<String, Object> kafkaTemplate;
+    private EventPublisher eventPublisher;
 
     @InjectMocks
     private UserDeactivationService userDeactivationService;
@@ -96,7 +96,7 @@ class UserDeactivationServiceTest {
         verify(keycloakAdminClient).disableUser(userId, tenantId);
 
         // Then: audit event is published
-        verify(kafkaTemplate).send(eq("exam.audit.events"), eq(tenantId), auditEventCaptor.capture());
+        verify(eventPublisher).publish(eq("exam.audit.events"), eq(tenantId), auditEventCaptor.capture());
         Map<String, Object> auditEvent = auditEventCaptor.getValue();
         assertThat(auditEvent.get("eventType")).isEqualTo("ROLE_CHANGE");
         assertThat(auditEvent.get("userId")).isEqualTo(userId.toString());
@@ -119,6 +119,6 @@ class UserDeactivationServiceTest {
         verify(keycloakAdminClient).disableUser(userId, tenantId);
 
         // Then: audit event is still published
-        verify(kafkaTemplate).send(eq("exam.audit.events"), eq(tenantId), any());
+        verify(eventPublisher).publish(eq("exam.audit.events"), eq(tenantId), any());
     }
 }

@@ -1,0 +1,53 @@
+# SPDX-License-Identifier: AGPL-3.0-only
+#
+# National Assessment Grid (NAG) - Open Digital Public Infrastructure (DPI) Platform
+# Copyright (C) 2025 NAG Contributors
+
+spring:
+  application:
+    name: paper-generator-test
+
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate:
+        default_schema: paper_generator
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+    show-sql: false
+
+  flyway:
+    enabled: true
+    schemas: paper_generator
+    locations: classpath:db/migration/paper_generator
+
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: http://localhost:19999/realms/test
+          jwk-set-uri: http://localhost:19999/realms/test/protocol/openid-connect/certs
+
+  cloud:
+    vault:
+      enabled: false
+
+  kafka:
+    listener:
+      auto-startup: false
+
+  autoconfigure:
+    exclude:
+      - org.springframework.boot.autoconfigure.kafka.KafkaAutoConfiguration
+      - org.springframework.cloud.vault.config.VaultAutoConfiguration
+      - org.springframework.cloud.vault.config.VaultReactiveAutoConfiguration
+
+platform:
+  messaging:
+    broker: in-memory
+
+logging:
+  level:
+    org.testcontainers: INFO
+    org.flywaydb: INFO
+    org.springframework.test: INFO

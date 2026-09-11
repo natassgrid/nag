@@ -21,9 +21,9 @@ package com.examplatform.questionbank.service;
 
 import com.examplatform.questionbank.domain.Question;
 import com.examplatform.shared.config.DynamicConfigService;
+import com.examplatform.shared.messaging.EventPublisher;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 
 import java.time.Instant;
@@ -32,7 +32,7 @@ import java.util.UUID;
 
 /**
  * Orchestrates the review/approval workflow around question lifecycle transitions.
- * Publishes lifecycle events and notifications via Kafka topics.
+ * Publishes lifecycle events and notifications via messaging broker.
  *
  * Validates: Requirements 5.1, 5.2, 5.3, 5.4, 5.6
  */
@@ -44,7 +44,7 @@ public class ReviewWorkflowService {
     private static final String TOPIC_LIFECYCLE = "exam.question.lifecycle";
     private static final String TOPIC_NOTIFICATIONS = "exam.notifications.outbound";
 
-    private final KafkaTemplate<String, Object> kafkaTemplate;
+    private final EventPublisher eventPublisher;
     private final DynamicConfigService dynamicConfigService;
 
     /**
@@ -90,7 +90,7 @@ public class ReviewWorkflowService {
                 "timestamp", Instant.now().toString()
         );
 
-        kafkaTemplate.send(TOPIC_LIFECYCLE, question.getId().toString(), lifecycleEvent);
+        eventPublisher.publish(TOPIC_LIFECYCLE, question.getId().toString(), lifecycleEvent);
 
         log.info("Question submitted for review: questionId={}, subject={}, assignedReviewer={}, dualReviewRequired={}, tenant={}",
                 question.getId(), question.getSubject(), assignedReviewer, dualReviewRequired, tenantId);
@@ -113,7 +113,7 @@ public class ReviewWorkflowService {
                 "timestamp", Instant.now().toString()
         );
 
-        kafkaTemplate.send(TOPIC_LIFECYCLE, question.getId().toString(), lifecycleEvent);
+        eventPublisher.publish(TOPIC_LIFECYCLE, question.getId().toString(), lifecycleEvent);
 
         // Notify author that their question was approved by reviewer
         Map<String, Object> notification = Map.of(
@@ -126,7 +126,7 @@ public class ReviewWorkflowService {
                 "message", "Your question for subject '" + question.getSubject() + "' has been approved by the reviewer."
         );
 
-        kafkaTemplate.send(TOPIC_NOTIFICATIONS, question.getAuthorId().toString(), notification);
+        eventPublisher.publish(TOPIC_NOTIFICATIONS, question.getAuthorId().toString(), notification);
 
         log.info("Question approved by reviewer: questionId={}, reviewer={}, author={}, tenant={}",
                 question.getId(), actorId, question.getAuthorId(), tenantId);
@@ -151,7 +151,7 @@ public class ReviewWorkflowService {
                 "timestamp", Instant.now().toString()
         );
 
-        kafkaTemplate.send(TOPIC_LIFECYCLE, question.getId().toString(), lifecycleEvent);
+        eventPublisher.publish(TOPIC_LIFECYCLE, question.getId().toString(), lifecycleEvent);
 
         // Notify author that their question was returned for revision
         Map<String, Object> notification = Map.of(
@@ -165,7 +165,7 @@ public class ReviewWorkflowService {
                            "' was returned with comments: " + (comments != null ? comments : "No comments provided")
         );
 
-        kafkaTemplate.send(TOPIC_NOTIFICATIONS, question.getAuthorId().toString(), notification);
+        eventPublisher.publish(TOPIC_NOTIFICATIONS, question.getAuthorId().toString(), notification);
 
         log.info("Question returned to draft: questionId={}, reviewer={}, author={}, tenant={}",
                 question.getId(), actorId, question.getAuthorId(), tenantId);
@@ -185,7 +185,7 @@ public class ReviewWorkflowService {
                 "timestamp", Instant.now().toString()
         );
 
-        kafkaTemplate.send(TOPIC_LIFECYCLE, question.getId().toString(), lifecycleEvent);
+        eventPublisher.publish(TOPIC_LIFECYCLE, question.getId().toString(), lifecycleEvent);
 
         // Notify author that their question has been published
         Map<String, Object> notification = Map.of(
@@ -197,7 +197,7 @@ public class ReviewWorkflowService {
                 "message", "Your question for subject '" + question.getSubject() + "' has been published to the question bank."
         );
 
-        kafkaTemplate.send(TOPIC_NOTIFICATIONS, question.getAuthorId().toString(), notification);
+        eventPublisher.publish(TOPIC_NOTIFICATIONS, question.getAuthorId().toString(), notification);
 
         log.info("Question published to bank: questionId={}, publisher={}, tenant={}",
                 question.getId(), actorId, tenantId);

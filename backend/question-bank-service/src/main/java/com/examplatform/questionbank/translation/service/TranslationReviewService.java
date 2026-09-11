@@ -21,9 +21,9 @@ package com.examplatform.questionbank.translation.service;
 
 import com.examplatform.questionbank.translation.domain.Translation;
 import com.examplatform.questionbank.translation.repository.TranslationRepository;
+import com.examplatform.shared.messaging.EventPublisher;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -44,7 +44,7 @@ public class TranslationReviewService {
     private static final String TRANSLATION_EVENTS_TOPIC = "exam.translation.events";
 
     private final TranslationRepository translationRepository;
-    private final KafkaTemplate<String, Object> kafkaTemplate;
+    private final EventPublisher eventPublisher;
 
     /**
      * Approve a translation, transitioning it from DRAFT -> APPROVED.
@@ -138,7 +138,7 @@ public class TranslationReviewService {
                     "tenantId", tenantId,
                     "occurredAt", Instant.now().toString()
             );
-            kafkaTemplate.send(TRANSLATION_EVENTS_TOPIC, translation.getId().toString(), event);
+            eventPublisher.publish(TRANSLATION_EVENTS_TOPIC, translation.getId().toString(), event);
         } catch (Exception e) {
             log.error("Failed to publish TRANSLATION_REJECTED event: {}", e.getMessage());
         }
@@ -152,7 +152,7 @@ public class TranslationReviewService {
                     "affectedCount", count,
                     "occurredAt", Instant.now().toString()
             );
-            kafkaTemplate.send(TRANSLATION_EVENTS_TOPIC, questionId.toString(), event);
+            eventPublisher.publish(TRANSLATION_EVENTS_TOPIC, questionId.toString(), event);
         } catch (Exception e) {
             log.error("Failed to publish TRANSLATIONS_MARKED_STALE event: {}", e.getMessage());
         }
