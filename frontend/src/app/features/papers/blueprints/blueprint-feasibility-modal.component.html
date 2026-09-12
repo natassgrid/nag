@@ -1,0 +1,180 @@
+<app-right-drawer
+  [isOpen]="isOpen"
+  [title]="title"
+  [subtitle]="'Live inventory audit verifying Question Bank availability against specified blueprint rules.'"
+  width="680px"
+  (close)="onClose()"
+>
+  <div drawer-body class="feasibility-drawer-body">
+    <!-- Header Controls & Context -->
+    <div class="context-banner" *ngIf="template || examName || examId">
+      <div class="context-row">
+        <span class="context-label" *ngIf="template">Template: <strong>{{ template.name }}</strong></span>
+        <span class="context-pill" *ngIf="examName || examId">
+          <mat-icon>assignment</mat-icon> {{ examName || 'Exam: ' + (examId | slice:0:8) }}
+        </span>
+        <span class="context-pill shift-pill" *ngIf="shiftId">
+          <mat-icon>schedule</mat-icon> {{ shiftId }}
+        </span>
+      </div>
+    </div>
+
+    <!-- Loading State -->
+    <div class="loading-state" *ngIf="loading">
+      <mat-spinner diameter="44"></mat-spinner>
+      <p class="loading-title">Auditing Question Bank Sufficiency...</p>
+      <p class="loading-subtitle">Checking live question inventory, difficulty balance, and reuse expiration windows.</p>
+    </div>
+
+    <!-- Error State -->
+    <div class="error-banner" *ngIf="!loading && error">
+      <mat-icon class="error-icon">error_outline</mat-icon>
+      <div class="error-content">
+        <h4>Verification Failed</h4>
+        <p>{{ error }}</p>
+      </div>
+      <button mat-stroked-button color="warn" (click)="runAnalysis(false)">Retry</button>
+    </div>
+
+    <!-- Main Results Content -->
+    <div class="results-content" *ngIf="!loading && feasibility">
+      <!-- Feasibility Hero Status -->
+      <div class="status-hero" [ngClass]="feasibility.feasible ? 'hero-feasible' : 'hero-insufficient'">
+        <div class="hero-left">
+          <div class="hero-icon-wrap">
+            <mat-icon class="hero-icon">{{ feasibility.feasible ? 'check_circle' : 'warning' }}</mat-icon>
+          </div>
+          <div>
+            <div class="hero-badge">{{ feasibility.feasible ? 'FEASIBLE FOR GENERATION' : 'INSUFFICIENT QUESTIONS' }}</div>
+            <p class="hero-summary">{{ feasibility.summary }}</p>
+          </div>
+        </div>
+
+        <div class="hero-actions" *ngIf="!feasibility.feasible">
+          <button
+            mat-flat-button
+            color="warn"
+            class="notify-btn"
+            (click)="notifyAdmin()"
+            [disabled]="loading"
+            matTooltip="Dispatch instant deficiency alert to Admins & Event Bus"
+          >
+            <mat-icon>notification_important</mat-icon>
+            Notify Admin
+          </button>
+        </div>
+      </div>
+
+      <!-- Key Metrics Strip -->
+      <div class="metrics-grid">
+        <div class="metric-card">
+          <div class="metric-label">Required Questions</div>
+          <div class="metric-value">{{ feasibility.totalQuestionsNeeded }}</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-label">Available Questions</div>
+          <div class="metric-value highlight">{{ feasibility.totalQuestionsAvailable }}</div>
+        </div>
+        <div class="metric-card" [ngClass]="feasibility.deficitRuleCount > 0 ? 'card-warn' : 'card-success'">
+          <div class="metric-label">Starved Rules</div>
+          <div class="metric-value">{{ feasibility.deficitRuleCount }}</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-label">Audit Timestamp</div>
+          <div class="metric-value time-val">{{ feasibility.checkedAt | date:'shortTime' }}</div>
+        </div>
+      </div>
+
+      <!-- Shortage Warnings (if any) -->
+      <div class="shortage-section" *ngIf="feasibility.gaps && feasibility.gaps.length > 0">
+        <div class="section-heading">
+          <mat-icon class="section-icon warn-text">warning_amber</mat-icon>
+          <span>Question Bank Deficits Detected ({{ feasibility.gaps.length }})</span>
+        </div>
+
+        <div class="gap-cards-list">
+          <div class="gap-card" *ngFor="let gap of feasibility.gaps">
+            <div class="gap-main">
+              <div class="gap-subject-topic">
+                <strong>{{ gap.subject }}</strong>
+                <span class="gap-topic">/ {{ gap.topic }}</span>
+              </div>
+              <div class="gap-diff-badge" *ngIf="gap.difficulty">
+                {{ gap.difficulty }}
+              </div>
+            </div>
+            <div class="gap-numbers">
+              <span class="gap-pill needed">Needed: <strong>{{ gap.needed }}</strong></span>
+              <span class="gap-pill available">Available: <strong>{{ gap.available }}</strong></span>
+              <span class="gap-pill deficit">Deficit: <strong>-{{ gap.needed - gap.available }}</strong></span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Rule-by-Rule Breakdown Table -->
+      <div class="breakdown-section">
+        <div class="section-heading">
+          <mat-icon class="section-icon">table_chart</mat-icon>
+          <span>Rule Breakdown & Inventory Check</span>
+        </div>
+
+        <div class="rules-table-wrap">
+          <table class="rules-table">
+            <thead>
+              <tr>
+                <th>Subject / Topic</th>
+                <th>Difficulty</th>
+                <th>Cognitive</th>
+                <th class="num-col">Required</th>
+                <th class="num-col">Available</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let r of feasibility.ruleDetails" [ngClass]="{'row-deficit': r.status === 'DEFICIT'}">
+                <td class="cell-sub-top">
+                  <div class="tbl-subject">{{ r.subject }}</div>
+                  <div class="tbl-topic">{{ r.topic }}</div>
+                </td>
+                <td>
+                  <span class="diff-tag" [ngClass]="r.difficulty ? r.difficulty.toLowerCase() : 'any'">
+                    {{ r.difficulty || 'Any' }}
+                  </span>
+                </td>
+                <td>
+                  <span class="cog-tag" *ngIf="r.cognitiveLevel">{{ r.cognitiveLevel }}</span>
+                  <span class="muted-tag" *ngIf="!r.cognitiveLevel">Any</span>
+                </td>
+                <td class="num-col">
+                  <strong>{{ r.needed }}</strong>
+                </td>
+                <td class="num-col">
+                  <span [ngClass]="r.available < r.needed ? 'text-deficit' : 'text-satisfied'">
+                    {{ r.available }}
+                  </span>
+                </td>
+                <td>
+                  <span class="status-pill" [ngClass]="r.status === 'SATISFIED' ? 'pill-satisfied' : 'pill-deficit'">
+                    <mat-icon class="pill-icon">{{ r.status === 'SATISFIED' ? 'check' : 'close' }}</mat-icon>
+                    {{ r.status === 'SATISFIED' ? (r.surplus > 0 ? '+' + r.surplus + ' Surplus' : 'Exact') : '-' + r.deficit + ' Deficit' }}
+                  </span>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div drawer-footer class="feasibility-drawer-footer">
+    <button mat-stroked-button (click)="runAnalysis(false)" [disabled]="loading">
+      <mat-icon class="btn-icon">refresh</mat-icon>
+      Re-Audit
+    </button>
+    <button mat-flat-button color="primary" (click)="onClose()">
+      Done
+    </button>
+  </div>
+</app-right-drawer>

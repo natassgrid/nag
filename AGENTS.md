@@ -14,11 +14,22 @@
    - The `code_content` passed to `client_edit_file` MUST contain the 100% complete file text including all headers, license comments, seed data, imports, configuration keys, and trailing blocks.
    - Passing only the modified lines or snippet to `client_edit_file` is strictly forbidden as it destroys the rest of the file.
 
-3. **Mandatory Immediate `git diff` Verification**:
-   - After writing to any file, IMMEDIATELY run `git diff <path>` to review the line-by-line diff.
-   - If any unintended deletions, wiped sections, or missing seed records are detected, restore and correct them immediately before proceeding.
+3. **Frontend-Specific Preservation Rules**:
+   - **HTML Templates (`*.component.html`, `*.html`, `*.tsx`, `*.jsx`)**:
+     - NEVER output only the inner child elements, updated form rows, or newly added modal/drawer tags.
+     - ALWAYS preserve the full document structure: `<div class="page-layout">`, `<app-page-header>`, main table/cards container, `<app-paginated-table>`, action templates (`<ng-template #actionsTmpl>`), result banners, and all existing drawer/dialog components.
+   - **Styles (`*.scss`, `*.css`)**:
+     - NEVER output only the newly added class selectors.
+     - ALWAYS retain all existing class rules, layout styles, themes, and media queries.
+   - **TypeScript Logic (`*.ts`, `*.service.ts`, `*.component.ts`)**:
+     - NEVER replace a component with just the new methods.
+     - ALWAYS retain all existing imports, class properties, `@ViewChild` refs, lifecycle hooks (`ngOnInit`, `ngOnChanges`), constructor injections, and helper functions.
 
-4. **Verify Clean Git Status**:
+4. **Mandatory Immediate `git diff` Verification**:
+   - After writing to any file, IMMEDIATELY run `git diff <path>` to review the line-by-line diff.
+   - If any unintended deletions, wiped sections, or missing template blocks are detected, restore and correct them immediately before proceeding.
+
+5. **Verify Clean Git Status**:
    - Run `git status` prior to completing any task or reporting back to ensure no files were corrupted or accidentally overwritten.
 
 ---

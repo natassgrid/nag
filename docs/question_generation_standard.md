@@ -11,7 +11,7 @@
      - `answerKey` (if numerical/algebraic)
      - `explanation` (detailed solution derivation)
 3. **Escaping Inside JSON & SQL Literals**:
-   - When constructing JSON within SQL migration files or raw JSON payloads, LaTeX backslashes (`\`) MUST be escaped as `\\` (e.g. `$$\\frac{a}{b}$$`, `$$75(\\\\sqrt{3} - 1)\\\\text{ m}$$`).
+   - When constructing JSON within SQL migration files or raw JSON payloads, LaTeX backslashes (`\`) MUST be escaped as `\\` (e.g. `$$\frac{a}{b}$$`, `$$75(\\sqrt{3} - 1)\\text{ m}$$`).
 
 ---
 
@@ -65,3 +65,39 @@
 3. **State Management**:
    - Seed questions must default to `state = 'APPROVED'`.
    - LLM auto-generated questions default to `state = 'DRAFT'`.
+
+---
+
+## 5. Question Generation Context & Blueprint Assembly Reference
+
+### 5.1 Blueprint Constraint Matching (`PaperAssemblyService`)
+`PaperAssemblyService` queries the question bank by matching:
+- `subject` (Exact case-sensitive match against `question_service.subject.name`)
+- `topic` (Exact case-sensitive match against `question_service.topic.name`)
+- `difficulty` (`EASY`, `MEDIUM`, `HARD`)
+- `state = 'APPROVED'`
+
+If the active pool contains fewer available questions than the rule quota (`needed`), paper assembly fails immediately with `InsufficientQuestionsException` and generates a gap report.
+
+### 5.2 Context Reference: General Intelligence & Reasoning -> Statement and Conclusion (HARD)
+
+When generating or seeding questions for **`Statement and Conclusion`** under **`General Intelligence and Reasoning`** at **`HARD`** difficulty:
+
+1. **Logical Frameworks**:
+   - **Multi-Premise Categorical Syllogisms**: Minimum 3–4 complex premises involving universal affirmatives ($$\forall x (P(x) \implies Q(x))$$), negative universals ($$P \cap Q = \emptyset$$), and existential particular quantifiers ($$\exists x (P(x) \land Q(x))$$).
+   - **Conditional Reasoning & Contrapositives**: Strict implications ($$A \implies B$$), biconditionals ($$A \iff B$$), and disjunctive antecedents ($$(A \lor B) \implies C$$), testing candidate awareness of formal fallacies (Affirming the Consequent, Denying the Antecedent).
+   - **Causal Necessity vs Sufficiency**: Scenarios distinguishing necessary conditions ($$\text{Effect} \implies \text{Cause}$$) from sufficient conditions ($$\text{Cause} \implies \text{Effect}$$), controlling for confounding variables and ecological fallacies.
+   - **Modal & Quantified Logic**: "Only a few", "At least one", "None except", and boundary constraints.
+
+2. **Subtopic Taxonomy**:
+   - `Direct & Indirect Inferences`
+   - `Logical Fallacies & Conditional Deductions`
+   - `Cause, Effect and Assertion-Reasoning`
+   - `Multi-Statement Analytical Conclusions`
+
+3. **Cognitive Level Alignment**:
+   - `HARD` items must be mapped to `ANALYZE` or `EVALUATE`.
+   - Distractors must be plausible fallacies commonly made in unrigorous thinking (e.g. assuming correlation equals causation, fallacy of division/composition, or converses of one-way implications).
+
+4. **Minimum Seeding Threshold**:
+   - Each `(subject, topic, difficulty)` pool should maintain a minimum of **50 approved seed questions** in migrations (e.g., `V2_24__seed_statement_and_conclusion_hard.sql`) to prevent test/production assembly starvation under random sampling policies.

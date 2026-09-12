@@ -5,7 +5,7 @@
  * Copyright (C) 2025 NAG Contributors
  *
  * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU Affero General Public License as published
+ * it under the terms of the GNU General Public License as published
  * by the Free Software Foundation, version 3 of the License.
  *
  * This program is distributed in the hope that it will be useful,
@@ -13,7 +13,7 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
  * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU Affero General Public License
+ * You should have received a copy of the GNU General Public License
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
 
@@ -44,6 +44,7 @@ import { of } from 'rxjs';
 
 import {
   PaperService,
+  PaperGenerationResponse,
   BlueprintTemplateResponse,
   BlueprintTemplateRequest,
   BlueprintRule
@@ -55,6 +56,7 @@ import {
 import { PageHeaderComponent } from '../../../shared/components/page-header/page-header.component';
 import { RightDrawerComponent } from '../../../shared/components/right-drawer/right-drawer.component';
 import { PaperGenerateDialogComponent } from '../paper-generate-dialog.component';
+import { BlueprintFeasibilityModalComponent } from './blueprint-feasibility-modal.component';
 
 @Component({
   selector: 'app-blueprint-management',
@@ -76,7 +78,8 @@ import { PaperGenerateDialogComponent } from '../paper-generate-dialog.component
     MatSnackBarModule,
     PageHeaderComponent,
     RightDrawerComponent,
-    PaperGenerateDialogComponent
+    PaperGenerateDialogComponent,
+    BlueprintFeasibilityModalComponent
   ],
   templateUrl: './blueprint-management.component.html',
   changeDetection: ChangeDetectionStrategy.Default,
@@ -96,6 +99,12 @@ export class BlueprintManagementComponent implements OnInit {
   drawerOpen = false;
   editingTemplate: BlueprintTemplateResponse | null = null;
   form!: FormGroup;
+
+  // Feasibility Analysis Modal State
+  feasibilityModalOpen = false;
+  selectedTemplateForFeasibility?: BlueprintTemplateResponse;
+  customRulesForFeasibility?: BlueprintRule[];
+  feasibilityExamId?: string;
 
   // Quick Generate Modal
   generateModalOpen = false;
@@ -236,6 +245,41 @@ export class BlueprintManagementComponent implements OnInit {
     this.editingTemplate = null;
   }
 
+  // ── Feasibility Actions ───────────────────────────────────────────────────
+
+  openFeasibilityAnalysis(tpl: BlueprintTemplateResponse): void {
+    this.selectedTemplateForFeasibility = tpl;
+    this.customRulesForFeasibility = undefined;
+    this.feasibilityExamId = tpl.examId;
+    this.feasibilityModalOpen = true;
+  }
+
+  checkCurrentFormFeasibility(): void {
+    if (this.rules.length === 0) {
+      this.snackBar.open('Add at least one rule to check feasibility', 'OK', { duration: 2500 });
+      return;
+    }
+
+    const rules: BlueprintRule[] = (this.rules.value as any[]).map(r => ({
+      subject: (r.subject || '').trim(),
+      topic: (r.topic || '').trim(),
+      difficulty: r.difficulty || '',
+      cognitiveLevel: r.cognitiveLevel || '',
+      questionCount: Number(r.questionCount) || 1
+    }));
+
+    this.selectedTemplateForFeasibility = this.editingTemplate ?? undefined;
+    this.customRulesForFeasibility = rules;
+    this.feasibilityExamId = this.form.get('examId')?.value || undefined;
+    this.feasibilityModalOpen = true;
+  }
+
+  closeFeasibilityModal(): void {
+    this.feasibilityModalOpen = false;
+    this.selectedTemplateForFeasibility = undefined;
+    this.customRulesForFeasibility = undefined;
+  }
+
   saveBlueprint(): void {
     if (this.form.invalid || this.rules.length === 0) {
       this.form.markAllAsTouched();
@@ -344,49 +388,44 @@ export class BlueprintManagementComponent implements OnInit {
     this.generateModalOpen = true;
   }
 
-  onGenerateClose(req: any): void {
+  onPaperGenerated(res: PaperGenerationResponse): void {
     this.generateModalOpen = false;
     this.selectedTemplateForGeneration = undefined;
-    if (req) {
-      this.snackBar.open('Generating paper...', 'Close', { duration: 2500 });
-      this.paperService.generatePaper(req).subscribe({
-        next: res => {
-          this.snackBar.open(`Paper generation initiated: ${res.paperId}`, 'View Papers', {
-            duration: 5000
-          }).onAction().subscribe(() => {
-            this.router.navigate(['/papers']);
-          });
-        },
-        error: err => {
-          const msg = err?.error?.message ?? 'Paper generation failed';
-          this.snackBar.open(msg, 'Dismiss', { duration: 4000 });
-        }
-      });
-    }
+    this.router.navigate(['/papers']);
   }
 
-  getDistinctSubjects(tpl: BlueprintTemplateResponse): string[] {
-    if (!tpl.rules) return [];
-    return Array.from(new Set(tpl.rules.map(r => r.subject))).filter(Boolean);
-  }
-
-  getTotalQuestions(tpl: BlueprintTemplateResponse): number {
-    if (tpl.totalQuestions != null) return tpl.totalQuestions;
-    return (tpl.rules ?? []).reduce((sum, r) => sum + (r.questionCount ?? 0), 0);
-  }
-
-  getDifficultyBreakdown(tpl: BlueprintTemplateResponse): { easy: number; medium: number; hard: number } {
-    const res = { easy: 0, medium: 0, hard: 0 };
-    (tpl.rules ?? []).forEach(r => {
-      const c = r.questionCount || 0;
-      if (r.difficulty === 'EASY') res.easy += c;
-      else if (r.difficulty === 'MEDIUM') res.medium += c;
-      else if (r.difficulty === 'HARD') res.hard += c;
-    });
-    return res;
+  onGenerateClose(): void {
+    this.generateModalOpen = false;
+    this.selectedTemplateForGeneration = undefined;
   }
 
   navigateBackToPapers(): void {
     this.router.navigate(['/papers']);
+  }
+
+  getTotalQuestions(tpl: BlueprintTemplateResponse): number {
+    if (tpl.totalQuestions !== undefined && tpl.totalQuestions > 0) {
+      return tpl.totalQuestions;
+    }
+    return (tpl.rules || []).reduce((sum, r) => sum + (r.questionCount || 0), 0);
+  }
+
+  getDistinctSubjects(tpl: BlueprintTemplateResponse): string[] {
+    const subjects = (tpl.rules || []).map(r => r.subject).filter(Boolean);
+    return Array.from(new Set(subjects));
+  }
+
+  getDifficultyBreakdown(tpl: BlueprintTemplateResponse): { easy: number; medium: number; hard: number } {
+    let easy = 0;
+    let medium = 0;
+    let hard = 0;
+    for (const r of tpl.rules || []) {
+      const d = (r.difficulty || '').toUpperCase();
+      const count = r.questionCount || 0;
+      if (d === 'EASY') easy += count;
+      else if (d === 'MEDIUM') medium += count;
+      else if (d === 'HARD') hard += count;
+    }
+    return { easy, medium, hard };
   }
 }
