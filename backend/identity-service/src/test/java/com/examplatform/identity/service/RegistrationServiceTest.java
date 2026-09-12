@@ -21,10 +21,13 @@ package com.examplatform.identity.service;
 
 import com.examplatform.identity.config.AppSecurityProperties;
 import com.examplatform.identity.domain.UserAccount;
+import com.examplatform.identity.domain.enums.AccountStatus;
 import com.examplatform.identity.domain.enums.IdentityDocType;
 import com.examplatform.identity.dto.RegistrationRequest;
 import com.examplatform.identity.dto.RegistrationResponse;
+import com.examplatform.identity.exception.AccountNotFoundException;
 import com.examplatform.identity.exception.DuplicateIdentityException;
+import com.examplatform.identity.exception.InvalidOtpException;
 import com.examplatform.identity.repository.UserAccountRepository;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -35,6 +38,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.test.util.ReflectionTestUtils;
 
+import java.util.Optional;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -42,6 +46,8 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.jupiter.api.Assertions.assertAll;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -204,6 +210,79 @@ class RegistrationServiceTest {
                     () -> assertThat(response.getMessage()).contains("OTP"),
                     () -> verify(userAccountRepository).save(any())
             );
+        }
+    }
+
+    @Nested
+    @DisplayName("resendOtp")
+    class ResendOtp {
+
+        private final UUID userId = UUID.randomUUID();
+        private final String tenantId = "default";
+
+        @Test
+        @DisplayName("successfully resends OTP for pending verification account")
+        void resendOtpSuccess() {
+            UserAccount account = UserAccount.builder()
+                    .mobileHash("mobilehash123")
+                    .accountStatus(AccountStatus.PENDING_VERIFICATION)
+                    .build();
+            account.setTenantId(tenantId);
+            ReflectionTestUtils.setField(account, "id", userId);
+
+            when(userAccountRepository.findById(userId)).thenReturn(Optional.of(account));
+
+            registrationService.resendOtp(userId, tenantId);
+
+            verify(otpService).sendOtp(eq(userId), eq("mobilehash123"), eq(null));
+        }
+
+        @Test
+        @DisplayName("throws AccountNotFoundException when account does not exist")
+        void throwsWhenAccountNotFound() {
+            when(userAccountRepository.findById(userId)).thenReturn(Optional.empty());
+
+            assertThatThrownBy(() -> registrationService.resendOtp(userId, tenantId))
+                    .isInstanceOf(AccountNotFoundException.class)
+                    .hasMessageContaining("Account not found for user");
+
+            verify(otpService, never()).sendOtp(any(), any(), any());
+        }
+
+        @Test
+        @DisplayName("throws AccountNotFoundException on tenant mismatch")
+        void throwsOnTenantMismatch() {
+            UserAccount account = UserAccount.builder()
+                    .accountStatus(AccountStatus.PENDING_VERIFICATION)
+                    .build();
+            account.setTenantId("other-tenant");
+            ReflectionTestUtils.setField(account, "id", userId);
+
+            when(userAccountRepository.findById(userId)).thenReturn(Optional.of(account));
+
+            assertThatThrownBy(() -> registrationService.resendOtp(userId, tenantId))
+                    .isInstanceOf(AccountNotFoundException.class)
+                    .hasMessageContaining("No account found for user in this tenant");
+
+            verify(otpService, never()).sendOtp(any(), any(), any());
+        }
+
+        @Test
+        @DisplayName("throws InvalidOtpException when account is already active")
+        void throwsWhenAlreadyActive() {
+            UserAccount account = UserAccount.builder()
+                    .accountStatus(AccountStatus.ACTIVE)
+                    .build();
+            account.setTenantId(tenantId);
+            ReflectionTestUtils.setField(account, "id", userId);
+
+            when(userAccountRepository.findById(userId)).thenReturn(Optional.of(account));
+
+            assertThatThrownBy(() -> registrationService.resendOtp(userId, tenantId))
+                    .isInstanceOf(InvalidOtpException.class)
+                    .hasMessageContaining("Account is already verified");
+
+            verify(otpService, never()).sendOtp(any(), any(), any());
         }
     }
 }

@@ -25,6 +25,7 @@ import com.examplatform.identity.domain.UserAccount;
 import com.examplatform.identity.domain.enums.AccountStatus;
 import com.examplatform.identity.dto.AuthTokenRequest;
 import com.examplatform.identity.dto.AuthTokenResponse;
+import com.examplatform.identity.exception.AccountNotFoundException;
 import com.examplatform.identity.exception.AuthenticationException;
 import com.examplatform.identity.exception.MfaRequiredException;
 import com.examplatform.identity.repository.ActiveSessionRepository;
@@ -212,6 +213,87 @@ public class AuthenticationService {
 
         // 9. Return tokens obtained from Keycloak
         return tokens;
+    }
+
+    /**
+     * Changes password for an authenticated user after verifying current password.
+     *
+     * @param userIdOrSubject the user ID or username from JWT subject
+     * @param currentPassword the user's current password
+     * @param newPassword     the desired new password
+     * @param tenantId        the tenant identifier
+     */
+    public void changePassword(String userIdOrSubject, String currentPassword, String newPassword, String tenantId) {
+        UUID userId = null;
+        try {
+            userId = UUID.fromString(userIdOrSubject.trim());
+        } catch (IllegalArgumentException ignored) {}
+
+        UserAccount account;
+        if (userId != null) {
+            account = userAccountRepository.findById(userId)
+                    .orElseThrow(() -> new AccountNotFoundException("User account not found: " + userIdOrSubject));
+        } else {
+            account = userAccountRepository.findByUsernameIgnoreCaseAndTenantId(userIdOrSubject.trim(), tenantId)
+                    .orElseThrow(() -> new AccountNotFoundException("User account not found: " + userIdOrSubject));
+        }
+
+        if (!tenantId.equals(account.getTenantId())) {
+            throw new AccountNotFoundException("User not found in this tenant.");
+        }
+
+        if (account.getAccountStatus() != AccountStatus.ACTIVE) {
+            throw new AuthenticationException("Cannot change password for account in status: " + account.getAccountStatus());
+        }
+
+        // Delegate to Keycloak service to verify current password & set new password
+        keycloakService.changePassword(account.getUsername(), currentPassword, newPassword, account.getKeycloakUserId());
+
+        publishAuditEventAsync(
+                AuditEventType.CONFIG_CHANGED,
+                account.getId().toString(),
+                tenantId,
+                null,
+                null
+        );
+        log.info("Password changed successfully for user [{}] in tenant [{}]", account.getId(), tenantId);
+    }
+
+    /**
+     * Logs out an authenticated user by revoking active sessions and Keycloak tokens.
+     *
+     * @param userIdOrSubject the user ID or username from JWT subject
+     * @param tenantId        the tenant identifier
+     */
+    public void logout(String userIdOrSubject, String tenantId) {
+        UUID userId = null;
+        try {
+            userId = UUID.fromString(userIdOrSubject.trim());
+        } catch (IllegalArgumentException ignored) {}
+
+        if (userId != null) {
+            activeSessionRepository.deleteByUserIdAndTenantId(userId, tenantId);
+        }
+
+        UserAccount account = null;
+        if (userId != null) {
+            account = userAccountRepository.findById(userId).orElse(null);
+        } else {
+            account = userAccountRepository.findByUsernameIgnoreCaseAndTenantId(userIdOrSubject.trim(), tenantId).orElse(null);
+        }
+
+        if (account != null && account.getKeycloakUserId() != null) {
+            keycloakService.revokeUserSessions(account.getKeycloakUserId());
+        }
+
+        publishAuditEventAsync(
+                AuditEventType.LOGOUT,
+                account != null ? account.getId().toString() : userIdOrSubject,
+                tenantId,
+                null,
+                null
+        );
+        log.info("User [{}] logged out successfully from tenant [{}]", userIdOrSubject, tenantId);
     }
 
     @Async

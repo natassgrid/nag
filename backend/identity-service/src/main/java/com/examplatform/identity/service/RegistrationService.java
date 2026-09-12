@@ -24,7 +24,9 @@ import com.examplatform.identity.domain.UserAccount;
 import com.examplatform.identity.domain.enums.AccountStatus;
 import com.examplatform.identity.dto.RegistrationRequest;
 import com.examplatform.identity.dto.RegistrationResponse;
+import com.examplatform.identity.exception.AccountNotFoundException;
 import com.examplatform.identity.exception.DuplicateIdentityException;
+import com.examplatform.identity.exception.InvalidOtpException;
 import com.examplatform.identity.repository.UserAccountRepository;
 import com.examplatform.shared.audit.AuditEventType;
 import lombok.RequiredArgsConstructor;
@@ -34,6 +36,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Map;
+import java.util.UUID;
 
 @Slf4j
 @Service
@@ -105,6 +108,35 @@ public class RegistrationService {
             .message("Registration successful. OTP sent to registered mobile number.")
             .userId(saved.getId().toString())
             .build();
+    }
+
+    /**
+     * Resends an OTP to a candidate awaiting account verification.
+     *
+     * @param userId   the user account identifier
+     * @param tenantId the tenant identifier
+     */
+    @Transactional
+    public void resendOtp(UUID userId, String tenantId) {
+        UserAccount account = userAccountRepository.findById(userId)
+                .orElseThrow(() -> new AccountNotFoundException("Account not found for user: " + userId));
+
+        if (!tenantId.equals(account.getTenantId())) {
+            throw new AccountNotFoundException("No account found for user in this tenant.");
+        }
+
+        if (account.getAccountStatus() == AccountStatus.ACTIVE) {
+            throw new InvalidOtpException("Account is already verified. Please login instead.");
+        }
+
+        if (account.getAccountStatus() != AccountStatus.PENDING_VERIFICATION) {
+            throw new AccountNotFoundException(
+                    "Cannot resend OTP for account in status: " + account.getAccountStatus());
+        }
+
+        otpService.sendOtp(account.getId(), account.getMobileHash(), null);
+        publishAuditEventAsync(account.getId().toString(), tenantId);
+        log.info("OTP resent for user [{}] in tenant [{}]", userId, tenantId);
     }
 
     @Async
