@@ -21,11 +21,14 @@ package com.examplatform.identity.controller;
 
 import com.examplatform.identity.dto.AuthTokenRequest;
 import com.examplatform.identity.dto.AuthTokenResponse;
+import com.examplatform.identity.dto.ChangePasswordRequest;
+import com.examplatform.identity.dto.OtpResendRequest;
 import com.examplatform.identity.dto.OtpVerifyRequest;
 import com.examplatform.identity.dto.RegistrationRequest;
 import com.examplatform.identity.dto.RegistrationResponse;
 import com.examplatform.identity.dto.UserAccountResponse;
 import com.examplatform.identity.dto.WebAuthnAssertionRequest;
+import com.examplatform.identity.exception.AccountNotFoundException;
 import com.examplatform.identity.service.AuthenticationService;
 import com.examplatform.identity.service.OtpVerificationService;
 import com.examplatform.identity.service.RegistrationService;
@@ -40,18 +43,17 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
-import com.examplatform.identity.dto.ChangePasswordRequest;
-import com.examplatform.identity.dto.OtpResendRequest;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
+import java.util.UUID;
 
 /**
  * REST controller for the Identity Service.
@@ -165,13 +167,17 @@ public class IdentityController {
     /**
      * Change password for the authenticated candidate.
      * Requires the current password as verification before updating to the new one.
+     * Supports both POST and PUT methods at /auth/change-password.
      *
      * @param request  the change password request (currentPassword + newPassword)
      * @param jwt      the authenticated user's JWT
      * @param tenantId the tenant identifier
      * @return 200 OK on success
      */
-    @PostMapping("/auth/change-password")
+    @RequestMapping(
+            value = "/auth/change-password",
+            method = {RequestMethod.POST, RequestMethod.PUT}
+    )
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<ApiResponse<Void>> changePassword(
             @Valid @RequestBody ChangePasswordRequest request,
@@ -181,8 +187,7 @@ public class IdentityController {
         String userId = jwt.getSubject();
         log.info("Change password request for user [{}], tenant [{}]", userId, tenantId);
 
-        // Delegate to identity service — implementation stub for now
-        // TODO: registrationService.changePassword(userId, request.getCurrentPassword(), request.getNewPassword(), tenantId);
+        authenticationService.changePassword(userId, request.getCurrentPassword(), request.getNewPassword(), tenantId);
 
         return ResponseEntity.ok(ApiResponse.success(null, "Password changed successfully."));
     }
@@ -201,25 +206,35 @@ public class IdentityController {
 
         log.info("OTP resend request for userId [{}], tenant [{}]", request.getUserId(), tenantId);
 
-        // Delegate to registration service OTP resend
-        // TODO: registrationService.resendOtp(UUID.fromString(request.getUserId()), tenantId);
+        UUID userId;
+        try {
+            userId = UUID.fromString(request.getUserId().trim());
+        } catch (IllegalArgumentException e) {
+            throw new AccountNotFoundException("Invalid user ID format: " + request.getUserId());
+        }
+
+        registrationService.resendOtp(userId, tenantId);
 
         return ResponseEntity.ok(ApiResponse.success(null, "OTP resent successfully."));
     }
 
     /**
-     * Logout: revoke the refresh token.
+     * Logout: revoke active sessions and refresh tokens.
      *
      * @param jwt      the authenticated user's JWT
+     * @param tenantId the tenant identifier
      * @return 200 OK confirming logout
      */
     @DeleteMapping("/auth/logout")
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<ApiResponse<Void>> logout(
-            @AuthenticationPrincipal Jwt jwt) {
+            @AuthenticationPrincipal Jwt jwt,
+            @RequestHeader(value = "X-Tenant-Id", defaultValue = "default") String tenantId) {
 
-        log.info("Logout request for user [{}]", jwt.getSubject());
-        // TODO: tokenService.revokeRefreshToken(jwt.getSubject());
+        String userId = jwt.getSubject();
+        log.info("Logout request for user [{}], tenant [{}]", userId, tenantId);
+
+        authenticationService.logout(userId, tenantId);
 
         return ResponseEntity.ok(ApiResponse.success(null, "Logged out successfully."));
     }

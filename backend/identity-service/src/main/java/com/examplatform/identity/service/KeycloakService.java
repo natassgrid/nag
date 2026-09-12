@@ -121,6 +121,74 @@ public class KeycloakService {
     }
 
     /**
+     * Update user password in Keycloak.
+     * First verifies current password via token endpoint, then resets password via Admin API.
+     */
+    public void changePassword(String username, String currentPassword, String newPassword, String keycloakUserId) {
+        // 1. Verify current credentials against Keycloak token endpoint
+        getTokens(username, currentPassword);
+
+        // 2. Update password in Keycloak if keycloakUserId is available
+        if (keycloakUserId == null || keycloakUserId.isBlank()) {
+            log.warn("Skipping Keycloak password reset — keycloakUserId is null/blank for username {}", username);
+            return;
+        }
+
+        String adminToken = getAdminToken();
+        String resetPasswordUrl = keycloakProperties.getServerUrl()
+            + "/admin/realms/" + keycloakProperties.getRealm()
+            + "/users/" + keycloakUserId + "/reset-password";
+
+        Map<String, Object> body = Map.of(
+            "type", "password",
+            "value", newPassword,
+            "temporary", false
+        );
+
+        try {
+            restClient.put()
+                .uri(resetPasswordUrl)
+                .header("Authorization", "Bearer " + adminToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(body)
+                .retrieve()
+                .toBodilessEntity();
+            log.info("Keycloak password updated for user {}", keycloakUserId);
+        } catch (Exception e) {
+            log.error("Failed to update Keycloak password for user {}: {}", keycloakUserId, e.getMessage());
+            throw new RuntimeException("Failed to update password in identity provider: " + e.getMessage(), e);
+        }
+    }
+
+    /**
+     * Revoke all active sessions for a user in Keycloak.
+     * POST {serverUrl}/admin/realms/{realm}/users/{id}/logout
+     */
+    public void revokeUserSessions(String keycloakUserId) {
+        if (keycloakUserId == null || keycloakUserId.isBlank()) {
+            log.warn("Skipping Keycloak session revocation — keycloakUserId is null/blank");
+            return;
+        }
+
+        String adminToken = getAdminToken();
+        String logoutUrl = keycloakProperties.getServerUrl()
+            + "/admin/realms/" + keycloakProperties.getRealm()
+            + "/users/" + keycloakUserId + "/logout";
+
+        try {
+            restClient.post()
+                .uri(logoutUrl)
+                .header("Authorization", "Bearer " + adminToken)
+                .retrieve()
+                .toBodilessEntity();
+            log.info("Keycloak user {} sessions revoked", keycloakUserId);
+        } catch (Exception e) {
+            log.error("Failed to revoke Keycloak sessions for user {}: {}", keycloakUserId, e.getMessage());
+            // Non-fatal
+        }
+    }
+
+    /**
      * Obtain a short-lived admin access token using admin-cli credentials.
      */
     private String getAdminToken() {
