@@ -35,7 +35,12 @@ spring:
   flyway:
     enabled: true
     schemas: question_service
-    locations: classpath:db/migration/question
+    locations:
+      - classpath:db/migration/question
+      - classpath:db/migration/question/seeds
+      - classpath:db/migration/question/seeds/rrb_ntpc
+      - classpath:db/migration/question/seeds/sbi_po
+      - classpath:db/migration/question/seeds/statement_and_conclusion
 
   data:
     redis:
@@ -118,45 +123,3 @@ management:
     web:
       exposure:
         include: health,info,prometheus,metrics
-  endpoint:
-    health:
-      show-details: always
-      probes:
-        enabled: true
-  health:
-    db:
-      enabled: true
-    kafka:
-      enabled: true
-    vault:
-      enabled: true
-  metrics:
-    tags:
-      service: question-bank-service
-
-otel:
-  service:
-    name: question-bank-service
-  exporter:
-    otlp:
-      endpoint: ${OTEL_EXPORTER_OTLP_ENDPOINT:http://localhost:4317}
-      protocol: grpc
-
-app:
-  opensearch:
-    host: ${OPENSEARCH_HOST:localhost}
-    port: ${OPENSEARCH_PORT:9200}
-    scheme: ${OPENSEARCH_SCHEME:http}
-  # Feature flag: set to true to encrypt question content/answerKey via Vault Transit.
-  # When false, content is stored as plaintext (default for local dev).
-  encryption:
-    enabled: ${QUESTION_ENCRYPTION_ENABLED:false}
-  # Feature flag: set to true to encrypt translated_payload via Vault Transit.
-  # When false, the JSON payload is stored as plain text (default).
-  translation:
-    encryption:
-      enabled: ${TRANSLATION_ENCRYPTION_ENABLED:false}
-
-logging:
-  pattern:
-    console: '{"timestamp":"%d{ISO8601}","level":"%p","service":"question-bank-service","traceId":"%X{traceId}","spanId":"%X{spanId}","message":"%m"}%n'

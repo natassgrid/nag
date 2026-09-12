@@ -14,11 +14,13 @@
  * GNU Affero General Public License for more details.
  *
  * You should have received a copy of the GNU Affero General Public License
- * along with this program. If not, see <https://www.gnu.org/licenses/>.\n */
+ * along with this program. If not, see <https://www.gnu.org/licenses/>.
+ */
 
 package com.examplatform.papergenerator.service;
 
 import com.examplatform.papergenerator.domain.BlueprintTemplate;
+import com.examplatform.papergenerator.dto.BlueprintFeasibilityResponse;
 import com.examplatform.papergenerator.dto.BlueprintRule;
 import com.examplatform.papergenerator.dto.BlueprintTemplateRequest;
 import com.examplatform.papergenerator.dto.BlueprintTemplateResponse;
@@ -36,7 +38,7 @@ import java.util.List;
 import java.util.UUID;
 
 /**
- * CRUD service for named blueprint templates.
+ * CRUD service for named blueprint templates and feasibility auditing.
  * Rules are stored as JSONB and round-tripped via ObjectMapper.
  */
 @Slf4j
@@ -47,8 +49,9 @@ public class BlueprintTemplateService {
 
     private final BlueprintTemplateRepository repository;
     private final ObjectMapper objectMapper;
+    private final PaperAssemblyService paperAssemblyService;
 
-    // ── Create ──────────────────────────────────────────────────
+    // ── Create ──────────────────────────────────────────────────────────────
 
     public BlueprintTemplateResponse create(
             BlueprintTemplateRequest request,
@@ -75,7 +78,7 @@ public class BlueprintTemplateService {
         return toResponse(saved);
     }
 
-    // ── Read ────────────────────────────────────────────────────
+    // ── Read ────────────────────────────────────────────────────────────────
 
     @Transactional(readOnly = true)
     public List<BlueprintTemplateResponse> listAll(String tenantId) {
@@ -98,7 +101,22 @@ public class BlueprintTemplateService {
         return toResponse(findOrThrow(id, tenantId));
     }
 
-    // ── Update ──────────────────────────────────────────────────
+    /**
+     * Verifies whether all rules within a saved blueprint template can currently be satisfied
+     * by the Question Bank, and optionally dispatches an administrative alert if starving.
+     */
+    @Transactional(readOnly = true)
+    public BlueprintFeasibilityResponse checkTemplateSufficiency(
+            UUID id,
+            boolean notifyAdmin,
+            String tenantId) {
+        BlueprintTemplate template = findOrThrow(id, tenantId);
+        List<BlueprintRule> rules = fromJson(template.getRulesJson());
+        return paperAssemblyService.checkBlueprintSufficiency(
+                rules, template.getExamId(), null, tenantId, notifyAdmin);
+    }
+
+    // ── Update ──────────────────────────────────────────────────────────────
 
     public BlueprintTemplateResponse update(
             UUID id,
@@ -125,7 +143,7 @@ public class BlueprintTemplateService {
         return toResponse(saved);
     }
 
-    // ── Delete ──────────────────────────────────────────────────
+    // ── Delete ──────────────────────────────────────────────────────────────
 
     public void delete(UUID id, String tenantId) {
         BlueprintTemplate template = findOrThrow(id, tenantId);
@@ -134,7 +152,7 @@ public class BlueprintTemplateService {
                 id, template.getName(), tenantId);
     }
 
-    // ── Helpers ─────────────────────────────────────────────────
+    // ── Helpers ─────────────────────────────────────────────────────────────
 
     private BlueprintTemplate findOrThrow(UUID id, String tenantId) {
         BlueprintTemplate template = repository.findById(id)

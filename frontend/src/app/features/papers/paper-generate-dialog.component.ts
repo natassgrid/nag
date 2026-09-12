@@ -46,17 +46,21 @@ import { MatDividerModule } from '@angular/material/divider';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { MatSlideToggleModule } from '@angular/material/slide-toggle';
+import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { of, forkJoin, Observable } from 'rxjs';
 import { catchError, finalize, switchMap, map } from 'rxjs/operators';
 import {
   PaperService,
   PaperGenerationRequest,
+  PaperGenerationResponse,
   BlueprintRule,
-  BlueprintTemplateResponse
+  BlueprintTemplateResponse,
+  GapDetail
 } from './paper.service';
 import { ExamManagementService, ExaminationResponse } from '../exam/exam-manage/exam-management.service';
 import { SchedulingService, ShiftResponse, ScheduleResponse } from '../exam/scheduling/scheduling.service';
 import { RightDrawerComponent } from '../../shared/components/right-drawer/right-drawer.component';
+import { BlueprintFeasibilityModalComponent } from './blueprints/blueprint-feasibility-modal.component';
 
 export interface ShiftOption {
   id: string;
@@ -81,7 +85,9 @@ export interface ShiftOption {
     MatDividerModule,
     MatTooltipModule,
     MatSlideToggleModule,
-    RightDrawerComponent
+    MatProgressSpinnerModule,
+    RightDrawerComponent,
+    BlueprintFeasibilityModalComponent
   ],
   templateUrl: './paper-generate-dialog.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -91,7 +97,8 @@ export class PaperGenerateDialogComponent implements OnInit, OnChanges {
   @Input() isOpen = false;
   @Input() examId?: string;
   @Input() preselectedTemplate?: BlueprintTemplateResponse;
-  @Output() close = new EventEmitter<PaperGenerationRequest | null>();
+  @Output() paperGenerated = new EventEmitter<PaperGenerationResponse>();
+  @Output() close = new EventEmitter<void>();
 
   form!: FormGroup;
   exams: ExaminationResponse[] = [];
@@ -101,6 +108,14 @@ export class PaperGenerateDialogComponent implements OnInit, OnChanges {
   selectedTemplate: BlueprintTemplateResponse | null = null;
   loadingTemplates = false;
   showCustomRules = false;
+
+  // Generation state & Error retention
+  generating = false;
+  generationError: string | null = null;
+  generationGapDetails: GapDetail[] = [];
+
+  // Feasibility modal state
+  feasibilityModalOpen = false;
 
   // Shift selection & pre-population
   availableShifts: ShiftOption[] = [];
@@ -129,6 +144,8 @@ export class PaperGenerateDialogComponent implements OnInit, OnChanges {
 
   ngOnChanges(changes: SimpleChanges): void {
     if (changes['isOpen'] && this.isOpen) {
+      this.generationError = null;
+      this.generationGapDetails = [];
       this.initForm();
       this.loadExams();
       this.loadTemplates();
@@ -360,8 +377,30 @@ export class PaperGenerateDialogComponent implements OnInit, OnChanges {
     }
   }
 
+  get currentBlueprintRules(): BlueprintRule[] {
+    return (this.rules.value as any[]).map((r) => ({
+      subject: (r.subject || '').trim(),
+      topic: (r.topic || '').trim(),
+      difficulty: r.difficulty || '',
+      cognitiveLevel: r.cognitiveLevel || '',
+      questionCount: Number(r.questionCount) || 1
+    }));
+  }
+
+  auditFeasibility(): void {
+    if (this.rules.length === 0) {
+      this.snackBar.open('Add at least one rule or select a blueprint template', 'OK', { duration: 2500 });
+      return;
+    }
+    this.feasibilityModalOpen = true;
+  }
+
+  closeFeasibilityModal(): void {
+    this.feasibilityModalOpen = false;
+  }
+
   goToBlueprintManagement(): void {
-    this.close.emit(null);
+    this.cancel();
     this.router.navigate(['/papers/blueprints']);
   }
 
@@ -370,7 +409,9 @@ export class PaperGenerateDialogComponent implements OnInit, OnChanges {
     this.clearRules();
     this.selectedTemplate = null;
     this.showCustomRules = false;
-    this.close.emit(null);
+    this.generationError = null;
+    this.generationGapDetails = [];
+    this.close.emit();
   }
 
   submit(): void {
@@ -394,6 +435,37 @@ export class PaperGenerateDialogComponent implements OnInit, OnChanges {
       }))
     };
 
-    this.close.emit(request);
+    this.generating = true;
+    this.generationError = null;
+    this.generationGapDetails = [];
+    this.cdr.markForCheck();
+
+    this.paperService
+      .generatePaper(request)
+      .pipe(
+        catchError((err) => {
+          const detail =
+            err?.error?.detail ?? err?.error?.message ?? err?.message ?? 'Failed to generate paper';
+          const gaps: GapDetail[] = err?.error?.gapDetails ?? [];
+          this.generationError = detail;
+          this.generationGapDetails = gaps;
+          this.snackBar.open('Generation Failed: ' + detail, 'Dismiss', {
+            duration: 6000,
+            panelClass: 'snack-error'
+          });
+          // Do NOT close dialog on error — keep inputs intact
+          return of(null);
+        }),
+        finalize(() => {
+          this.generating = false;
+          this.cdr.markForCheck();
+        })
+      )
+      .subscribe((res) => {
+        if (!res) return;
+        this.snackBar.open(`Paper generation initiated successfully!`, 'OK', { duration: 3500 });
+        this.paperGenerated.emit(res);
+        this.cancel();
+      });
   }
 }

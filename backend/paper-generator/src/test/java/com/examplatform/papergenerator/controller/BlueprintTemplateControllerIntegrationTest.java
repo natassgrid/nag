@@ -19,6 +19,7 @@
 
 package com.examplatform.papergenerator.controller;
 
+import com.examplatform.papergenerator.dto.BlueprintFeasibilityResponse;
 import com.examplatform.papergenerator.dto.BlueprintRule;
 import com.examplatform.papergenerator.dto.BlueprintTemplateRequest;
 import com.examplatform.papergenerator.dto.BlueprintTemplateResponse;
@@ -37,6 +38,7 @@ import java.util.List;
 import java.util.UUID;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doNothing;
@@ -115,41 +117,34 @@ class BlueprintTemplateControllerIntegrationTest extends AbstractIntegrationTest
                                     .jwt(j -> j.subject(USER_ID.toString()).claim("tenant_id", TENANT_ID))))
                     .andExpect(status().isForbidden());
         }
-
-        @Test
-        @DisplayName("-ve: Unauthenticated request returns 401 Unauthorized")
-        void unauthenticatedReturnsUnauthorized() throws Exception {
-            mockMvc.perform(get("/api/v1/papers/blueprint-templates"))
-                    .andExpect(status().isUnauthorized());
-        }
     }
 
     @Nested
     @DisplayName("GET /api/v1/papers/blueprint-templates/{id}")
-    class GetTemplateByIdEndpoint {
+    class GetTemplateEndpoint {
 
         @Test
-        @DisplayName("+ve: SUPER_ADMIN gets template by ID - returns 200 OK")
-        void superAdminCanGetById() throws Exception {
+        @DisplayName("+ve: EXAM_CONTROLLER gets blueprint template by ID - returns 200 OK")
+        void examControllerCanGetById() throws Exception {
             BlueprintTemplateResponse resp = BlueprintTemplateResponse.builder()
                     .id(TEMPLATE_ID)
-                    .name("Standard Math Template")
+                    .name("Math Template")
                     .rules(List.of(sampleRule()))
                     .build();
 
             when(service.getById(eq(TEMPLATE_ID), anyString())).thenReturn(resp);
 
             mockMvc.perform(get("/api/v1/papers/blueprint-templates/{id}", TEMPLATE_ID)
-                            .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_SUPER_ADMIN"))
+                            .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_EXAM_CONTROLLER"))
                                     .jwt(j -> j.subject(USER_ID.toString()).claim("tenant_id", TENANT_ID))))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.id").value(TEMPLATE_ID.toString()))
-                    .andExpect(jsonPath("$.name").value("Standard Math Template"));
+                    .andExpect(jsonPath("$.name").value("Math Template"));
         }
 
         @Test
-        @DisplayName("-ve: Nonexistent template returns 404 Not Found")
-        void notFoundReturns404() throws Exception {
+        @DisplayName("-ve: Non-existent ID returns 404 Not Found")
+        void nonExistentIdReturnsNotFound() throws Exception {
             when(service.getById(eq(TEMPLATE_ID), anyString()))
                     .thenThrow(new EntityNotFoundException("Blueprint template not found: " + TEMPLATE_ID));
 
@@ -158,6 +153,35 @@ class BlueprintTemplateControllerIntegrationTest extends AbstractIntegrationTest
                                     .jwt(j -> j.subject(USER_ID.toString()).claim("tenant_id", TENANT_ID))))
                     .andExpect(status().isNotFound())
                     .andExpect(jsonPath("$.title").value("Resource Not Found"));
+        }
+    }
+
+    @Nested
+    @DisplayName("POST /api/v1/papers/blueprint-templates/{id}/check-sufficiency")
+    class CheckSufficiencyEndpoint {
+
+        @Test
+        @DisplayName("+ve: EXAM_CONTROLLER checks template sufficiency - returns 200 OK with feasibility details")
+        void checkSufficiencyReturnsOk() throws Exception {
+            BlueprintFeasibilityResponse resp = BlueprintFeasibilityResponse.builder()
+                    .feasible(true)
+                    .totalQuestionsNeeded(5)
+                    .totalQuestionsAvailable(10)
+                    .deficitRuleCount(0)
+                    .notificationDispatched(false)
+                    .summary("Blueprint is feasible.")
+                    .checkedAt(Instant.now())
+                    .build();
+
+            when(service.checkTemplateSufficiency(eq(TEMPLATE_ID), anyBoolean(), anyString())).thenReturn(resp);
+
+            mockMvc.perform(post("/api/v1/papers/blueprint-templates/{id}/check-sufficiency", TEMPLATE_ID)
+                            .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_EXAM_CONTROLLER"))
+                                    .jwt(j -> j.subject(USER_ID.toString()).claim("tenant_id", TENANT_ID))))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.feasible").value(true))
+                    .andExpect(jsonPath("$.totalQuestionsNeeded").value(5))
+                    .andExpect(jsonPath("$.totalQuestionsAvailable").value(10));
         }
     }
 

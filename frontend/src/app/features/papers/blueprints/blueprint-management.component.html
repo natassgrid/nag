@@ -152,6 +152,9 @@
           <mat-icon class="btn-icon" *ngIf="deletingId !== tpl.id">delete_outline</mat-icon>
           Delete
         </button>
+        <button mat-stroked-button class="action-btn btn-secondary btn-sm" (click)="openFeasibilityAnalysis(tpl)" matTooltip="Audit Question Bank Sufficiency">
+          <mat-icon class="btn-icon">fact_check</mat-icon> Audit Sufficiency
+        </button>
         <button mat-stroked-button class="action-btn btn-secondary btn-sm" (click)="openEditDrawer(tpl)">
           <mat-icon class="btn-icon">edit</mat-icon> Edit
         </button>
@@ -219,44 +222,41 @@
                 mat-icon-button
                 color="warn"
                 type="button"
-                class="btn-icon-sm"
                 (click)="removeRule(i)"
-                matTooltip="Remove this rule"
-                [disabled]="rules.length <= 1"
+                matTooltip="Remove rule"
+                class="remove-rule-btn"
               >
                 <mat-icon>delete_outline</mat-icon>
               </button>
             </div>
 
-            <div class="form-row">
+            <div class="rule-edit-fields">
               <mat-form-field appearance="outline" class="flex-1">
                 <mat-label>Subject</mat-label>
-                <input matInput formControlName="subject" placeholder="e.g. Physics" />
-                <mat-error *ngIf="rule.get('subject')?.hasError('required')">Required</mat-error>
+                <input matInput formControlName="subject" placeholder="e.g. Mathematics" />
+                <mat-error *ngIf="rule.get('subject')?.hasError('required')">Subject required</mat-error>
               </mat-form-field>
 
               <mat-form-field appearance="outline" class="flex-1">
                 <mat-label>Topic</mat-label>
-                <input matInput formControlName="topic" placeholder="e.g. Thermodynamics" />
-                <mat-error *ngIf="rule.get('topic')?.hasError('required')">Required</mat-error>
+                <input matInput formControlName="topic" placeholder="e.g. Algebra" />
+                <mat-error *ngIf="rule.get('topic')?.hasError('required')">Topic required</mat-error>
               </mat-form-field>
-            </div>
 
-            <div class="form-row">
-              <mat-form-field appearance="outline" class="flex-1">
+              <mat-form-field appearance="outline" class="flex-narrow">
                 <mat-label>Difficulty</mat-label>
                 <mat-select formControlName="difficulty">
-                  <mat-option value="">Any Difficulty</mat-option>
+                  <mat-option value="">Any</mat-option>
                   <mat-option value="EASY">Easy</mat-option>
                   <mat-option value="MEDIUM">Medium</mat-option>
                   <mat-option value="HARD">Hard</mat-option>
                 </mat-select>
               </mat-form-field>
 
-              <mat-form-field appearance="outline" class="flex-1">
+              <mat-form-field appearance="outline" class="flex-narrow">
                 <mat-label>Cognitive Level</mat-label>
                 <mat-select formControlName="cognitiveLevel">
-                  <mat-option value="">Any Level</mat-option>
+                  <mat-option value="">Any</mat-option>
                   <mat-option value="REMEMBER">Remember</mat-option>
                   <mat-option value="UNDERSTAND">Understand</mat-option>
                   <mat-option value="APPLY">Apply</mat-option>
@@ -286,6 +286,17 @@
     <div drawer-footer class="drawer-footer-actions">
       <button mat-button class="footer-btn btn-cancel" type="button" (click)="closeDrawer()">Cancel</button>
       <button
+        mat-stroked-button
+        type="button"
+        class="footer-btn btn-secondary"
+        (click)="checkCurrentFormFeasibility()"
+        [disabled]="rules.length === 0"
+        matTooltip="Check question inventory without saving"
+      >
+        <mat-icon class="footer-btn-icon">fact_check</mat-icon>
+        Audit Feasibility
+      </button>
+      <button
         mat-flat-button
         color="primary"
         type="button"
@@ -300,11 +311,22 @@
     </div>
   </app-right-drawer>
 
+  <!-- FEASIBILITY ANALYSIS DRAWER -->
+  <app-blueprint-feasibility-modal
+    [isOpen]="feasibilityModalOpen"
+    [template]="selectedTemplateForFeasibility"
+    [customRules]="customRulesForFeasibility"
+    [examId]="feasibilityExamId"
+    [examName]="getExamName(feasibilityExamId)"
+    (close)="closeFeasibilityModal()"
+  ></app-blueprint-feasibility-modal>
+
   <!-- QUICK GENERATE PAPER MODAL -->
   <app-paper-generate-dialog
     [isOpen]="generateModalOpen"
     [examId]="generateExamId"
     [preselectedTemplate]="selectedTemplateForGeneration"
-    (close)="onGenerateClose($event)"
+    (paperGenerated)="onPaperGenerated($event)"
+    (close)="onGenerateClose()"
   ></app-paper-generate-dialog>
 </div>

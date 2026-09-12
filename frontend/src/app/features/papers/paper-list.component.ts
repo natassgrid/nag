@@ -13,7 +13,7 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
  * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU Affero General Public License
+ * You should have received a copy of the GNU General Public License
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
 
@@ -30,7 +30,6 @@ import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { of, catchError } from 'rxjs';
 import {
   PaperService,
-  PaperGenerationRequest,
   PaperSummary,
   PaperGenerationResponse,
   PaperDetail
@@ -106,17 +105,17 @@ export class PaperListComponent implements OnInit {
     {
       key: 'name',
       header: 'Paper Name',
-      cell: (row) => row.name || (row.examName ? `${row.isPractice ? 'Practice - ' : ''}${row.examName} (${row.shiftName || row.shiftId})` : (row.paperId ? `Paper #${row.paperId.substring(0, 8)}` : '—')),
-      sortable: true
+      sortable: true,
+      cell: (row) => row.name || `Paper ${row.paperId.substring(0, 8)}…`
     },
     {
       key: 'examName',
       header: 'Examination',
-      cell: (row) => row.examName || this.examMap.get(row.examId) || (row.examId ? row.examId.substring(0, 8) + '…' : '—'),
+      cell: (row) => row.examName || this.examMap.get(row.examId) || row.examId.substring(0, 8) + '…',
       sortable: true
     },
     {
-      key: 'shiftId',
+      key: 'shiftName',
       header: 'Shift',
       cell: (row) => row.shiftName || row.shiftId || '—',
       sortable: true
@@ -175,7 +174,7 @@ export class PaperListComponent implements OnInit {
     this.paperTable?.reload();
   }
 
-  // ── Paper Summary Drawer ──────────────────────────────────────────────
+  // ── Paper Summary Drawer ──────────────────────────────────────────────────
 
   viewPaperSummary(row: PaperSummary): void {
     this.selectedPaperId = row.paperId;
@@ -200,94 +199,54 @@ export class PaperListComponent implements OnInit {
     this.cdr.detectChanges();
   }
 
-  // ── Generate ──────────────────────────────────────────────────────────
+  // ── Generate ──────────────────────────────────────────────────────────────
 
   openGenerateDrawer(): void {
     this.generateDrawerOpen = true;
     this.cdr.detectChanges();
   }
 
-  onGenerateDrawerClose(request: PaperGenerationRequest | null): void {
+  onGenerateDrawerClose(): void {
     this.generateDrawerOpen = false;
     this.cdr.detectChanges();
-    if (!request) return;
-
-    this.paperService
-      .generatePaper(request)
-      .pipe(
-        catchError((err) => {
-          const detail =
-            err?.error?.detail ?? err?.error?.message ?? err?.message ?? 'Unknown error';
-          const gapDetails: any[] = err?.error?.gapDetails ?? [];
-          const gapMsg = gapDetails.length
-            ? ' Gaps: ' +
-              gapDetails
-                .map(
-                  (g: any) =>
-                    `${g.subject}/${g.topic}/${g.difficulty} (need ${g.needed}, have ${g.available})`
-                )
-                .join('; ')
-            : '';
-          this.lastResult = {
-            paperId: '',
-            status: 'ERROR',
-            message: detail + gapMsg
-          };
-          this.snackBar.open('Paper generation failed: ' + detail, 'Dismiss', {
-            duration: 6000,
-            panelClass: 'snack-error'
-          });
-          this.cdr.detectChanges();
-          return of(null);
-        })
-      )
-      .subscribe((res) => {
-        if (!res) return;
-        this.lastResult = { ...res, status: res.status ?? 'DRAFT' };
-        this.selectedPaperId = res.paperId;
-        this.summaryDrawerOpen = true;
-        this.snackBar.open(`Paper generation initiated: ${res.name || res.paperId}`, 'Close', {
-          duration: 3500
-        });
-        this.paperTable?.reload();
-        this.cdr.detectChanges();
-      });
   }
 
-  // ── Approve & Encrypt ─────────────────────────────────────────────────
+  onPaperGenerated(res: PaperGenerationResponse): void {
+    this.generateDrawerOpen = false;
+    this.lastResult = { ...res, status: res.status ?? 'DRAFT' };
+    this.selectedPaperId = res.paperId;
+    this.summaryDrawerOpen = true;
+    this.paperTable?.reload();
+    this.cdr.detectChanges();
+  }
+
+  // ── Approve & Encrypt ─────────────────────────────────────────────────────
 
   approvePaper(row: PaperSummary): void {
     this.approvingId = row.paperId;
-    this.cdr.detectChanges();
-
     this.paperService
       .approvePaper(row.paperId)
       .pipe(
         catchError((err) => {
-          const msg = err?.error?.message ?? err?.message ?? 'Approval failed';
-          this.snackBar.open('Approval failed: ' + msg, 'Dismiss', {
-            duration: 5000,
-            panelClass: 'snack-error'
+          this.snackBar.open('Approval failed: ' + (err.error?.detail || err.message), 'Close', {
+            duration: 5000
           });
-          this.approvingId = null;
-          this.cdr.detectChanges();
           return of(null);
         })
       )
       .subscribe((res) => {
         this.approvingId = null;
-        if (!res) return;
-        this.snackBar.open(
-          `Paper approved and encrypted successfully (${res.name || res.paperId})`,
-          'Close',
-          { duration: 4000 }
-        );
-        this.paperTable?.reload();
+        if (res) {
+          this.snackBar.open(
+            `Paper approved and encrypted successfully. Key: ${res.encryptionKeyId ?? 'Generated'}`,
+            'Close',
+            { duration: 4000 }
+          );
+          this.paperTable?.reload();
+        }
         this.cdr.detectChanges();
       });
   }
-
-  // ── Navigation ────────────────────────────────────────────────────────
 
   navigateToBlueprints(): void {
     this.router.navigate(['/papers/blueprints']);

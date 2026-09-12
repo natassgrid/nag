@@ -20,7 +20,12 @@ spring:
   flyway:
     enabled: true
     schemas: question_service
-    locations: classpath:db/migration/question
+    locations:
+      - classpath:db/migration/question
+      - classpath:db/migration/question/seeds
+      - classpath:db/migration/question/seeds/rrb_ntpc
+      - classpath:db/migration/question/seeds/sbi_po
+      - classpath:db/migration/question/seeds/statement_and_conclusion
     clean-disabled: false
 
   security:
@@ -48,6 +53,3 @@ management:
       enabled: false
     vault:
       enabled: false
-
-server:
-  port: 0

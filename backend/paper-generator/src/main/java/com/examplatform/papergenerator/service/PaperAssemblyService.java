@@ -21,10 +21,12 @@ package com.examplatform.papergenerator.service;
 
 import com.examplatform.papergenerator.client.QuestionBankClient;
 import com.examplatform.papergenerator.domain.Paper;
+import com.examplatform.papergenerator.dto.BlueprintFeasibilityResponse;
 import com.examplatform.papergenerator.dto.BlueprintRule;
 import com.examplatform.papergenerator.dto.GapDetail;
 import com.examplatform.papergenerator.dto.PaperGenerationRequest;
 import com.examplatform.papergenerator.dto.QuestionSummary;
+import com.examplatform.papergenerator.dto.RuleFeasibilityDetail;
 import com.examplatform.papergenerator.exception.InsufficientQuestionsException;
 import com.examplatform.papergenerator.repository.PaperRepository;
 import com.examplatform.shared.messaging.EventPublisher;
@@ -47,11 +49,11 @@ import java.util.UUID;
 import java.util.stream.Collectors;
 
 /**
- * Service responsible for blueprint-driven paper assembly.
+ * Service responsible for blueprint-driven paper assembly and feasibility verification.
  * Selects questions satisfying subject/topic/difficulty/cognitive ratios,
- * enforces reuse policies, computes difficulty scores and topic distribution.
+ * enforces reuse policies, computes difficulty scores, and alerts admins on question deficits.
  *
- * Validates: Requirements 8.1, 8.2, 8.3, 8.4
+ * Validates: Requirements 8.1, 8.2, 8.3, 8.4, 8.5
  */
 @Slf4j
 @Service
@@ -60,6 +62,7 @@ public class PaperAssemblyService {
 
     private static final String PAPER_EVENTS_TOPIC = "exam.paper.events";
     private static final String AUDIT_TOPIC = "exam.audit.events";
+    private static final String NOTIFICATION_TOPIC = "exam.notifications.outbound";
     private static final String STATUS_DRAFT = "DRAFT";
 
     private static final String REUSE_POLICY_NEVER = "NEVER";
@@ -95,6 +98,135 @@ public class PaperAssemblyService {
     }
 
     /**
+     * Checks blueprint rules against current question bank availability without generating a paper.
+     * Evaluates question reuse policies, computes surpluses/deficits, and optionally alerts admins on deficit.
+     *
+     * @param rules       the list of blueprint rules to evaluate
+     * @param examId      optional exam UUID for context
+     * @param shiftId     optional shift ID for context
+     * @param tenantId    the tenant identifier
+     * @param notifyAdmin whether to publish an admin alert if any rule deficit is detected
+     * @return a comprehensive BlueprintFeasibilityResponse with rule-by-rule audit
+     */
+    @Transactional(readOnly = true)
+    public BlueprintFeasibilityResponse checkBlueprintSufficiency(
+            List<BlueprintRule> rules,
+            @Nullable UUID examId,
+            @Nullable String shiftId,
+            String tenantId,
+            boolean notifyAdmin) {
+
+        log.info("Checking blueprint sufficiency: rulesCount={}, examId={}, shiftId={}, tenant={}",
+                rules != null ? rules.size() : 0, examId, shiftId, tenantId);
+
+        if (rules == null || rules.isEmpty()) {
+            return BlueprintFeasibilityResponse.builder()
+                    .feasible(true)
+                    .examId(examId)
+                    .shiftId(shiftId)
+                    .totalQuestionsNeeded(0)
+                    .totalQuestionsAvailable(0)
+                    .deficitRuleCount(0)
+                    .ruleDetails(List.of())
+                    .gaps(List.of())
+                    .notificationDispatched(false)
+                    .summary("Blueprint contains no rules; trivially satisfied.")
+                    .checkedAt(Instant.now())
+                    .build();
+        }
+
+        List<RuleFeasibilityDetail> ruleDetails = new ArrayList<>();
+        List<GapDetail> gapDetails = new ArrayList<>();
+        int totalNeeded = 0;
+        int totalAvailable = 0;
+
+        for (BlueprintRule rule : rules) {
+            int needed = rule.getQuestionCount();
+            totalNeeded += needed;
+
+            List<QuestionSummary> candidates = questionBankClient.findAvailableQuestions(
+                    rule.getSubject(), rule.getTopic(),
+                    rule.getDifficulty(), rule.getCognitiveLevel(), tenantId);
+
+            List<QuestionSummary> eligible = candidates.stream()
+                    .filter(this::isEligibleForReuse)
+                    .toList();
+
+            int available = eligible.size();
+            totalAvailable += available;
+
+            if (available < needed) {
+                int deficit = needed - available;
+                log.warn("Blueprint rule deficit detected: subject={}, topic={}, difficulty={}, needed={}, available={}, deficit={}",
+                        rule.getSubject(), rule.getTopic(), rule.getDifficulty(), needed, available, deficit);
+
+                GapDetail gap = GapDetail.builder()
+                        .subject(rule.getSubject())
+                        .topic(rule.getTopic())
+                        .difficulty(rule.getDifficulty())
+                        .needed(needed)
+                        .available(available)
+                        .build();
+                gapDetails.add(gap);
+
+                ruleDetails.add(RuleFeasibilityDetail.builder()
+                        .subject(rule.getSubject())
+                        .topic(rule.getTopic())
+                        .difficulty(rule.getDifficulty())
+                        .cognitiveLevel(rule.getCognitiveLevel())
+                        .needed(needed)
+                        .available(available)
+                        .surplus(0)
+                        .deficit(deficit)
+                        .status("DEFICIT")
+                        .build());
+            } else {
+                int surplus = available - needed;
+                ruleDetails.add(RuleFeasibilityDetail.builder()
+                        .subject(rule.getSubject())
+                        .topic(rule.getTopic())
+                        .difficulty(rule.getDifficulty())
+                        .cognitiveLevel(rule.getCognitiveLevel())
+                        .needed(needed)
+                        .available(available)
+                        .surplus(surplus)
+                        .deficit(0)
+                        .status("SATISFIED")
+                        .build());
+            }
+        }
+
+        boolean feasible = gapDetails.isEmpty();
+        boolean notificationDispatched = false;
+
+        if (!feasible && notifyAdmin) {
+            publishInsufficientQuestionsAlert(gapDetails, examId, shiftId, tenantId);
+            publishInsufficientQuestionsAuditEvent(gapDetails, examId, shiftId, tenantId);
+            notificationDispatched = true;
+        }
+
+        String summary = feasible
+                ? String.format("Blueprint is feasible. All %d rule(s) satisfied with %d total questions needed (%d available).",
+                        rules.size(), totalNeeded, totalAvailable)
+                : String.format("Blueprint is INSUFFICIENT. %d of %d rule(s) have question deficits (%d needed, %d available).",
+                        gapDetails.size(), rules.size(), totalNeeded, totalAvailable);
+
+        return BlueprintFeasibilityResponse.builder()
+                .feasible(feasible)
+                .examId(examId)
+                .shiftId(shiftId)
+                .totalQuestionsNeeded(totalNeeded)
+                .totalQuestionsAvailable(totalAvailable)
+                .deficitRuleCount(gapDetails.size())
+                .ruleDetails(ruleDetails)
+                .gaps(gapDetails)
+                .notificationDispatched(notificationDispatched)
+                .summary(summary)
+                .checkedAt(Instant.now())
+                .build();
+    }
+
+    /**
      * Generates a paper from the given blueprint request.
      *
      * <ol>
@@ -127,7 +259,7 @@ public class PaperAssemblyService {
 
             // Enforce reuse policies
             List<QuestionSummary> eligible = candidates.stream()
-                    .filter(q -> isEligibleForReuse(q))
+                    .filter(this::isEligibleForReuse)
                     .toList();
 
             // Select required number of questions
@@ -136,8 +268,7 @@ public class PaperAssemblyService {
                     .toList();
 
             if (selected.size() < rule.getQuestionCount()) {
-                log.warn("Insufficient questions for rule: subject={}, topic={}, difficulty={}, " +
-                                "needed={}, available={}",
+                log.warn("Insufficient questions for rule: subject={}, topic={}, difficulty={}, needed={}, available={}",
                         rule.getSubject(), rule.getTopic(), rule.getDifficulty(),
                         rule.getQuestionCount(), selected.size());
                 gapDetails.add(GapDetail.builder()
@@ -155,8 +286,11 @@ public class PaperAssemblyService {
             allSelectedQuestions.addAll(selected);
         }
 
-        // If any rules cannot be satisfied, throw exception with gap report
+        // If any rules cannot be satisfied, notify admin and throw exception with gap report
         if (!gapDetails.isEmpty()) {
+            publishInsufficientQuestionsAlert(gapDetails, request.getExamId(), request.getShiftId(), tenantId);
+            publishInsufficientQuestionsAuditEvent(gapDetails, request.getExamId(), request.getShiftId(), tenantId);
+
             throw new InsufficientQuestionsException(
                     "Blueprint cannot be satisfied: insufficient questions for " + gapDetails.size() + " rule(s)",
                     gapDetails);
@@ -306,6 +440,64 @@ public class PaperAssemblyService {
         eventPublisher.publish(PAPER_EVENTS_TOPIC, paper.getId() != null ? paper.getId().toString() : "", event);
         log.debug("Published paper generation event to topic={}, paperId={}",
                 PAPER_EVENTS_TOPIC, paper.getId());
+    }
+
+    /**
+     * Publishes an administrative notification alert when blueprint rules cannot be satisfied.
+     */
+    private void publishInsufficientQuestionsAlert(
+            List<GapDetail> gapDetails,
+            @Nullable UUID examId,
+            @Nullable String shiftId,
+            String tenantId) {
+        try {
+            Map<String, Object> event = new LinkedHashMap<>();
+            event.put("eventType", "BLUEPRINT_INSUFFICIENT_QUESTIONS_ALERT");
+            event.put("recipientRole", "ADMIN");
+            event.put("severity", "HIGH");
+            event.put("examId", examId != null ? examId.toString() : "");
+            event.put("shiftId", shiftId != null ? shiftId : "");
+            event.put("tenantId", tenantId);
+            event.put("gapCount", gapDetails.size());
+            event.put("gapDetails", gapDetails);
+            event.put("message", String.format(
+                    "Blueprint generation deficit: %d rule(s) in Question Bank have insufficient approved questions.",
+                    gapDetails.size()));
+            event.put("timestamp", Instant.now().toString());
+
+            String eventKey = examId != null ? examId.toString() : tenantId;
+            eventPublisher.publish(NOTIFICATION_TOPIC, eventKey, event);
+            log.info("Dispatched administrative alert to topic={} for {} question gap(s)",
+                    NOTIFICATION_TOPIC, gapDetails.size());
+        } catch (Exception ex) {
+            log.error("Failed to publish insufficient questions alert notification: {}", ex.getMessage(), ex);
+        }
+    }
+
+    /**
+     * Publishes an audit event for blueprint question deficit.
+     */
+    private void publishInsufficientQuestionsAuditEvent(
+            List<GapDetail> gapDetails,
+            @Nullable UUID examId,
+            @Nullable String shiftId,
+            String tenantId) {
+        try {
+            Map<String, Object> event = new LinkedHashMap<>();
+            event.put("eventType", "BLUEPRINT_INSUFFICIENT_QUESTIONS_AUDIT");
+            event.put("examId", examId != null ? examId.toString() : "");
+            event.put("shiftId", shiftId != null ? shiftId : "");
+            event.put("tenantId", tenantId);
+            event.put("gapCount", gapDetails.size());
+            event.put("gapDetails", gapDetails);
+            event.put("occurredAt", Instant.now().toString());
+
+            String eventKey = examId != null ? examId.toString() : tenantId;
+            eventPublisher.publish(AUDIT_TOPIC, eventKey, event);
+            log.debug("Published blueprint gap audit event to topic={}", AUDIT_TOPIC);
+        } catch (Exception ex) {
+            log.error("Failed to publish insufficient questions audit event: {}", ex.getMessage(), ex);
+        }
     }
 
     /**

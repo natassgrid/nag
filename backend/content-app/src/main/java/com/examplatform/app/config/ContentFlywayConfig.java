@@ -45,7 +45,12 @@ public class ContentFlywayConfig {
     @PostConstruct
     public void migrate() {
         List<SchemaMigrationSpec> specs = List.of(
-                SchemaMigrationSpec.of("question_service", "classpath:db/migration/question", "classpath:db/migration/question/seeds"),
+                SchemaMigrationSpec.of("question_service",
+                        "classpath:db/migration/question",
+                        "classpath:db/migration/question/seeds",
+                        "classpath:db/migration/question/seeds/rrb_ntpc",
+                        "classpath:db/migration/question/seeds/sbi_po",
+                        "classpath:db/migration/question/seeds/statement_and_conclusion"),
                 SchemaMigrationSpec.of("examination_service", "classpath:db/migration/examination"),
                 SchemaMigrationSpec.of("paper_generator", "classpath:db/migration/paper_generator"),
                 SchemaMigrationSpec.of("asset_service", "classpath:db/migration/asset")

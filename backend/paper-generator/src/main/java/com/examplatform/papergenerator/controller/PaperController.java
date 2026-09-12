@@ -21,6 +21,8 @@ package com.examplatform.papergenerator.controller;
 
 import com.examplatform.papergenerator.client.QuestionBankClient;
 import com.examplatform.papergenerator.domain.Paper;
+import com.examplatform.papergenerator.dto.BlueprintFeasibilityRequest;
+import com.examplatform.papergenerator.dto.BlueprintFeasibilityResponse;
 import com.examplatform.papergenerator.dto.PaperGenerationRequest;
 import com.examplatform.papergenerator.dto.PaperResponse;
 import com.examplatform.papergenerator.dto.PaperSummaryResponse;
@@ -65,9 +67,9 @@ import java.util.stream.Collectors;
 
 /**
  * REST controller for paper generation endpoints.
- * Supports blueprint-driven paper generation, paper listing, approval, and validation.
+ * Supports blueprint-driven paper generation, blueprint feasibility checks, paper listing, approval, and validation.
  *
- * Validates: Requirements 8.1, 8.2, 8.3, 8.4, 28.1, 28.2, 28.3, 28.5
+ * Validates: Requirements 8.1, 8.2, 8.3, 8.4, 8.5, 28.1, 28.2, 28.3, 28.5
  */
 @Slf4j
 @RestController
@@ -265,6 +267,32 @@ public class PaperController {
                 .topicDistribution(topicDistribution)
                 .questions(questions)
                 .build();
+
+        return ResponseEntity.ok(response);
+    }
+
+    /**
+     * Checks blueprint feasibility against the current question bank without generating a paper.
+     * Optionally alerts administrators if any rule deficit is detected.
+     */
+    @PostMapping("/blueprints/check-sufficiency")
+    @PreAuthorize("hasAnyRole('EXAM_CONTROLLER','SUPER_ADMIN')")
+    public ResponseEntity<BlueprintFeasibilityResponse> checkBlueprintSufficiency(
+            @Valid @RequestBody BlueprintFeasibilityRequest request) {
+
+        String tenantId = getEffectiveTenantId();
+        boolean notifyAdmin = Boolean.TRUE.equals(request.getNotifyAdminOnDeficit());
+
+        log.info("Blueprint sufficiency check requested: rulesCount={}, examId={}, shiftId={}, notifyAdmin={}, tenant={}",
+                request.getBlueprintRules() != null ? request.getBlueprintRules().size() : 0,
+                request.getExamId(), request.getShiftId(), notifyAdmin, tenantId);
+
+        BlueprintFeasibilityResponse response = paperAssemblyService.checkBlueprintSufficiency(
+                request.getBlueprintRules(),
+                request.getExamId(),
+                request.getShiftId(),
+                tenantId,
+                notifyAdmin);
 
         return ResponseEntity.ok(response);
     }

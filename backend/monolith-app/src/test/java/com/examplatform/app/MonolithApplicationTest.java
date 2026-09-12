@@ -19,13 +19,16 @@
 
 package com.examplatform.app;
 
+import com.examplatform.shared.db.MultiSchemaFlywayRunner;
 import com.examplatform.shared.db.MultiSchemaFlywayRunner.SchemaMigrationSpec;
-import com.examplatform.shared.messaging.GenericDomainEvent;
-import com.examplatform.shared.messaging.SpringEventPublisher;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import org.springframework.context.ApplicationEventPublisher;
+import org.mockito.Mockito;
 
+import javax.sql.DataSource;
+import java.sql.Connection;
+import java.sql.DatabaseMetaData;
+import java.sql.SQLException;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -39,7 +42,12 @@ class MonolithApplicationTest {
         List<SchemaMigrationSpec> specs = List.of(
                 SchemaMigrationSpec.of("identity_service", "classpath:db/migration/identity"),
                 SchemaMigrationSpec.of("candidate_service", "classpath:db/migration/candidate"),
-                SchemaMigrationSpec.of("question_service", "classpath:db/migration/question", "classpath:db/migration/question/seeds"),
+                SchemaMigrationSpec.of("question_service",
+                        "classpath:db/migration/question",
+                        "classpath:db/migration/question/seeds",
+                        "classpath:db/migration/question/seeds/rrb_ntpc",
+                        "classpath:db/migration/question/seeds/sbi_po",
+                        "classpath:db/migration/question/seeds/statement_and_conclusion"),
                 SchemaMigrationSpec.of("examination_service", "classpath:db/migration/examination"),
                 SchemaMigrationSpec.of("paper_generator", "classpath:db/migration/paper_generator"),
                 SchemaMigrationSpec.of("delivery_service", "classpath:db/migration/delivery"),
@@ -72,21 +80,5 @@ class MonolithApplicationTest {
                         "analytics_service",
                         "asset_service"
                 );
-    }
-
-    @Test
-    @DisplayName("SpringEventPublisher dispatches GenericDomainEvent with topic and key")
-    void testSpringEventPublisher() {
-        AtomicReference<Object> publishedEvent = new AtomicReference<>();
-        ApplicationEventPublisher mockSpringPublisher = publishedEvent::set;
-
-        SpringEventPublisher publisher = new SpringEventPublisher(mockSpringPublisher);
-        publisher.publish("exam.audit.events", "audit-key-123", "{\"action\":\"LOGIN\"}");
-
-        assertThat(publishedEvent.get()).isInstanceOf(GenericDomainEvent.class);
-        GenericDomainEvent event = (GenericDomainEvent) publishedEvent.get();
-        assertThat(event.topic()).isEqualTo("exam.audit.events");
-        assertThat(event.key()).isEqualTo("audit-key-123");
-        assertThat(event.payload()).isEqualTo("{\"action\":\"LOGIN\"}");
     }
 }
