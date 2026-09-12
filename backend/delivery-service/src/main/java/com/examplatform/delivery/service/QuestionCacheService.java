@@ -7,45 +7,58 @@
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, version 3 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU Affero General Public License for more details.
- *
- * You should have received a copy of the GNU Affero General Public License
- * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
 
 package com.examplatform.delivery.service;
 
+import com.examplatform.questionbank.grpc.PaperQuestionsGrpcRequest;
+import com.examplatform.questionbank.grpc.PaperQuestionsGrpcResponse;
+import com.examplatform.questionbank.grpc.QuestionBankGrpcServiceGrpc;
+import com.examplatform.questionbank.grpc.QuestionSummaryGrpc;
+import com.examplatform.shared.grpc.GrpcChannelFactory;
 import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
-import lombok.RequiredArgsConstructor;
+import io.grpc.ManagedChannel;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 
+import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
 /**
- * Service for fetching questions from the Question Bank with circuit breaker protection.
+ * Service for fetching questions from the Question Bank via gRPC with circuit breaker protection.
  * Falls back to pre-cached Redis data when the Question Bank service is unavailable.
  *
  * Validates: design error-handling
  */
 @Slf4j
 @Service
-@RequiredArgsConstructor
 public class QuestionCacheService {
 
     private static final String CACHE_KEY_PREFIX = "question:cache:";
     private static final long CACHE_TTL_HOURS = 24;
 
     private final RedisTemplate<String, Object> redisTemplate;
+    private final String grpcHost;
+    private final int grpcPort;
+    private final long timeoutMs;
+
+    public QuestionCacheService(
+            RedisTemplate<String, Object> redisTemplate,
+            @Value("${grpc.client.questionbank.host:localhost}") String grpcHost,
+            @Value("${grpc.client.questionbank.port:9083}") int grpcPort,
+            @Value("${grpc.client.questionbank.timeout-ms:5000}") long timeoutMs) {
+        this.redisTemplate = redisTemplate;
+        this.grpcHost = grpcHost;
+        this.grpcPort = grpcPort;
+        this.timeoutMs = timeoutMs;
+    }
 
     /**
      * Fetches questions for an exam paper from the Question Bank service.
@@ -58,12 +71,10 @@ public class QuestionCacheService {
      */
     @CircuitBreaker(name = "questionBank", fallbackMethod = "getFromCache")
     public List<Map<String, Object>> getQuestionsForPaper(UUID paperId, String tenantId) {
-        log.debug("Fetching questions from Question Bank: paperId={}, tenant={}", paperId, tenantId);
+        log.debug("Fetching questions from Question Bank via gRPC: paperId={}, tenant={}", paperId, tenantId);
 
-        // In production, this would call the Question Bank service via REST/gRPC
         List<Map<String, Object>> questions = fetchFromQuestionBank(paperId, tenantId);
 
-        // Cache the fetched questions in Redis for fallback
         cacheQuestions(paperId, tenantId, questions);
 
         return questions;
@@ -96,14 +107,41 @@ public class QuestionCacheService {
     }
 
     /**
-     * Fetches questions from the Question Bank service.
-     * In production, this would use WebClient or RestClient for inter-service communication.
+     * Fetches questions from the Question Bank service via gRPC.
      */
     private List<Map<String, Object>> fetchFromQuestionBank(UUID paperId, String tenantId) {
-        // Placeholder for actual inter-service call
-        // Would be replaced with WebClient call to question-bank-service
-        throw new UnsupportedOperationException(
-                "Question Bank client not yet wired — replace with actual inter-service call");
+        try {
+            ManagedChannel channel = GrpcChannelFactory.getChannel(grpcHost, grpcPort);
+            QuestionBankGrpcServiceGrpc.QuestionBankGrpcServiceBlockingStub stub =
+                    QuestionBankGrpcServiceGrpc.newBlockingStub(channel)
+                            .withDeadlineAfter(timeoutMs, TimeUnit.MILLISECONDS);
+
+            PaperQuestionsGrpcRequest request = PaperQuestionsGrpcRequest.newBuilder()
+                    .setPaperId(paperId != null ? paperId.toString() : "")
+                    .setTenantId(tenantId != null ? tenantId : "")
+                    .build();
+
+            PaperQuestionsGrpcResponse response = stub.getQuestionsForPaper(request);
+            List<Map<String, Object>> result = new ArrayList<>();
+
+            for (QuestionSummaryGrpc q : response.getQuestionsList()) {
+                Map<String, Object> map = new HashMap<>();
+                map.put("id", q.getId());
+                map.put("content", q.getContent());
+                map.put("type", q.getQuestionType());
+                map.put("difficulty", q.getDifficulty());
+                map.put("marks", q.getMarks());
+                map.put("negativeMarks", q.getNegativeMarks());
+                map.put("optionsJson", q.getOptionsJson());
+                map.put("answerKey", q.getAnswerKey());
+                result.add(map);
+            }
+            return result;
+        } catch (Exception e) {
+            log.warn("Failed to fetch questions via gRPC from {}:{} ({}). Triggering circuit breaker fallback.",
+                    grpcHost, grpcPort, e.getMessage());
+            throw new RuntimeException("gRPC call to question-bank-service failed: " + e.getMessage(), e);
+        }
     }
 
     /**

@@ -72,6 +72,10 @@ server:
     context-path: /
   shutdown: graceful
 
+grpc:
+  server:
+    port: ${GRPC_EXAMINATION_PORT:9085}
+
 management:
   endpoints:
     web:

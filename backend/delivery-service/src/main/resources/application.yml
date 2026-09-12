@@ -92,6 +92,21 @@ server:
     context-path: /
   shutdown: graceful
 
+grpc:
+  client:
+    examination:
+      host: ${GRPC_EXAMINATION_HOST:localhost}
+      port: ${GRPC_EXAMINATION_PORT:9085}
+      timeout-ms: 5000
+    candidate:
+      host: ${GRPC_CANDIDATE_HOST:localhost}
+      port: ${GRPC_CANDIDATE_PORT:9082}
+      timeout-ms: 5000
+    questionbank:
+      host: ${GRPC_QUESTION_BANK_HOST:localhost}
+      port: ${GRPC_QUESTION_BANK_PORT:9083}
+      timeout-ms: 5000
+
 management:
   endpoints:
     web:
