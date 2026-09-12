@@ -31,7 +31,7 @@ import org.springframework.security.web.SecurityFilterChain;
 
 /**
  * Security configuration for question-bank-service.
- * OAuth2 Resource Server with JWT validation; permit actuator health endpoint;
+ * OAuth2 Resource Server with JWT validation; permit actuator health endpoint and inter-service endpoints;
  * require authentication for all other requests.
  */
 @Configuration
@@ -49,6 +49,7 @@ public class SecurityConfig {
             .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers("/actuator/health", "/actuator/health/**", "/actuator/info", "/actuator/prometheus").permitAll()
+                .requestMatchers("/api/v1/questions/blueprint-match", "/api/v1/questions/batch-find").permitAll()
                 .anyRequest().authenticated()
             )
             .oauth2ResourceServer(oauth2 -> oauth2

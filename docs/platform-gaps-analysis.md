@@ -1,7 +1,7 @@
 # Platform Gaps & Technical Debt Analysis
 
-> **Document Version:** 1.0.3  
-> **Last Updated:** 2026-09-11  
+> **Document Version:** 1.0.4  
+> **Last Updated:** 2026-09-12  
 > **Repository:** `natassgrid/nag`  
 > **Scope:** Entire platform (Backend microservices, Macroservices, Monolith, Frontend SPAs, Infrastructure, CI/CD, and Security)
 
@@ -23,12 +23,12 @@ However, key architectural and operational gaps exist that must be addressed pri
 
 | Category | Total Gaps | Critical | High | Medium | Low | Resolved |
 |---|:---:|:---:|:---:|:---:|:---:|:---:|
-| 1. Security & Authentication | 4 | 0 (was 1) | 1 (was 3) | 0 | 0 | 3 |
-| 2. Gateway & Microservice Decoupling | 3 | 0 | 1 | 2 | 0 | 0 |
+| 1. Security & Authentication | 4 | 0 (was 1) | 0 (was 3) | 0 | 0 | 4 |
+| 2. Gateway & Microservice Decoupling | 3 | 0 | 0 (was 1) | 1 (was 2) | 0 | 2 |
 | 3. Business Logic & Consumer Stubs | 6 | 0 | 0 | 5 | 1 | 0 |
 | 4. Frontend & Testing Automation | 3 | 0 | 2 | 0 | 1 | 0 |
 | 5. Infrastructure, CI/CD & Documentation | 4 | 0 | 1 | 2 | 1 | 0 |
-| **Total** | **20** | **0** | **5** | **9** | **3** | **3** |
+| **Total** | **20** | **0** | **3** | **8** | **3** | **6** |
 
 ---
 
@@ -77,47 +77,56 @@ However, key architectural and operational gaps exist that must be addressed pri
   - **Logout**: Implemented `AuthenticationService.logout(userIdOrSubject, tenantId)` and `KeycloakService.revokeUserSessions(keycloakUserId)`. Invalidates concurrent active sessions from `ActiveSessionRepository`, revokes active sessions in Keycloak via Admin API (`POST /admin/realms/{realm}/users/{id}/logout`), and publishes `AuditEventType.LOGOUT` audit events.
   - **Unit & Integration Tests**: Added comprehensive test suites in `RegistrationServiceTest.java`, `AuthenticationServiceTest.java`, and `IdentityControllerIntegrationTest.java` verifying both positive workflows and negative edge cases (account not found, tenant mismatch, locked/deactivated account, already verified account, wrong current password, invalid payloads). Verified 100% test pass rate across `identity-service` (141/141 tests passing).
 
-### 1.4 Stubbed Keycloak User Deactivation
+### 1.4 Stubbed Keycloak User Deactivation `[RESOLVED]`
 - **Severity:** `HIGH`
+- **Status:** **RESOLVED**
 - **Component:** `admin-service`
-- **File Reference:** [`KeycloakAdminClientImpl.java`](../backend/admin-service/src/main/java/com/examplatform/admin/client/KeycloakAdminClientImpl.java#L28-L41)
+- **File Reference:** [`KeycloakAdminClientImpl.java`](../backend/admin-service/src/main/java/com/examplatform/admin/client/KeycloakAdminClientImpl.java), [`KeycloakProperties.java`](../backend/admin-service/src/main/java/com/examplatform/admin/config/KeycloakProperties.java), [`KeycloakAdminClientImplTest.java`](../backend/admin-service/src/test/java/com/examplatform/admin/client/KeycloakAdminClientImplTest.java)
 - **Description:**  
-  `KeycloakAdminClientImpl.disableUser()` logs a stub message without invoking the Keycloak Admin REST API (`PUT /admin/realms/{realm}/users/{id}`).
-- **Impact:** Disabling or banning an administrator or tenant in `admin-service` does not prevent them from authenticating via Keycloak.
-- **Mitigation:**
-  - Implement Keycloak Admin Client with service account client-credentials grant.
+  `KeycloakAdminClientImpl.disableUser()` logged a stub message without invoking the Keycloak Admin REST API (`PUT /admin/realms/{realm}/users/{id}`), preventing administrative user deactivation from invalidating authentication or revoking active sessions.
+- **Remediation Completed:**
+  - Added `KeycloakProperties.java` mapping `app.keycloak.*` (server URL, realm, client ID, client secret).
+  - Implemented Keycloak Admin REST API client in `KeycloakAdminClientImpl.java` utilizing OAuth2 `client_credentials` grant with access token caching and expiration buffer.
+  - Invokes Keycloak Admin REST API `PUT /admin/realms/{realm}/users/{id}` to set `enabled: false`.
+  - Invokes Keycloak Admin REST API `POST /admin/realms/{realm}/users/{id}/logout` to immediately revoke all active refresh and session tokens.
+  - Added unit test suite in `KeycloakAdminClientImplTest.java` verifying successful deactivation, session revocation, token reuse, token refresh on expiry, and error handling for 404 / 500 responses.
 
 ---
 
 ## 2. Gateway & Microservice Decoupling Gaps
 
-### 2.1 API Gateway Port Configuration Offsets
+### 2.1 API Gateway Port Configuration Offsets `[RESOLVED]`
 - **Severity:** `HIGH`
+- **Status:** **RESOLVED**
 - **Component:** `api-gateway`
-- **File Reference:** [`application.yml`](../backend/api-gateway/src/main/resources/application.yml#L80-L165)
+- **File Reference:** [`application.yml`](../backend/api-gateway/src/main/resources/application.yml)
 - **Description:**  
-  In local development mode without Docker container DNS overrides, fallback service ports are offset by one starting from port 8085:
-  - `paper-generator` defaults to `http://localhost:8085` (actual port: `8086`)
-  - `delivery-service` defaults to `http://localhost:8086` (actual port: `8087`)
-  - `response-service` defaults to `http://localhost:8087` (actual port: `8088`)
-  - `evaluation-service` defaults to `http://localhost:8088` (actual port: `8089`)
-  - `result-service` defaults to `http://localhost:8089` (actual port: `8090`)
-  - `audit-service` defaults to `http://localhost:8090` (actual port: `8091`)
-  - `notification-service` defaults to `http://localhost:8091` (actual port: `8092`)
-- **Impact:** Running services standalone locally causes `api-gateway` to route requests to the wrong services or fail with connection refused.
-- **Mitigation:**
-  - Correct default fallback URLs in `api-gateway/src/main/resources/application.yml` to match the actual microservice ports defined in each service's `application.yml`.
+  In local development mode without Docker container DNS overrides, fallback service ports were offset by one starting from port 8085:
+  - `paper-generator` defaulted to `http://localhost:8085` (actual port: `8086`)
+  - `delivery-service` defaulted to `http://localhost:8086` (actual port: `8087`)
+  - `response-service` defaulted to `http://localhost:8087` (actual port: `8088`)
+  - `evaluation-service` defaulted to `http://localhost:8088` (actual port: `8089`)
+  - `result-service` defaulted to `http://localhost:8089` (actual port: `8090`)
+  - `audit-service` defaulted to `http://localhost:8090` (actual port: `8091`)
+  - `notification-service` defaulted to `http://localhost:8091` (actual port: `8092`)
+- **Remediation Completed:**
+  - Corrected default fallback URLs in `api-gateway/src/main/resources/application.yml` to precisely match each microservice's server port.
+  - Validated all gateway routes and tests passing cleanly.
 
-### 2.2 Direct Cross-Schema Database Coupling in Paper Generator
+### 2.2 Direct Cross-Schema Database Coupling in Paper Generator `[RESOLVED]`
 - **Severity:** `MEDIUM`
-- **Component:** `paper-generator`
-- **File Reference:** [`QuestionBankClientImpl.java`](../backend/paper-generator/src/main/java/com/examplatform/papergenerator/client/QuestionBankClientImpl.java#L52-L95)
+- **Status:** **RESOLVED**
+- **Component:** `paper-generator`, `question-bank-service`
+- **File Reference:** [`QuestionBankClientImpl.java`](../backend/paper-generator/src/main/java/com/examplatform/papergenerator/client/QuestionBankClientImpl.java), [`QuestionController.java`](../backend/question-bank-service/src/main/java/com/examplatform/questionbank/controller/QuestionController.java), [`QuestionService.java`](../backend/question-bank-service/src/main/java/com/examplatform/questionbank/service/QuestionService.java), [`QuestionRepository.java`](../backend/question-bank-service/src/main/java/com/examplatform/questionbank/repository/QuestionRepository.java)
 - **Description:**  
-  `paper-generator` directly executes SQL against the `question_service.question` table via `JdbcTemplate` instead of calling `question-bank-service` over REST or gRPC.
-- **Impact:** Violates database-per-service isolation; breaks if `question-bank-service` moves to an independent database instance or cluster.
-- **Mitigation:**
-  - Expose a batch search endpoint in `question-bank-service` (e.g. `POST /api/v1/questions/blueprint-match`).
-  - Update `paper-generator` to query this endpoint via `RestClient` / `WebClient`.
+  `paper-generator` directly executed SQL against the `question_service.question` table via `JdbcTemplate` instead of calling `question-bank-service` over REST, violating database-per-service isolation.
+- **Remediation Completed:**
+  - Exposed REST endpoints in `question-bank-service`:
+    - `POST /api/v1/questions/blueprint-match`: fetches approved questions matching subject, topic, difficulty, and cognitive level for automated paper generation.
+    - `POST /api/v1/questions/batch-find`: batch retrieves questions by UUID list for manual assembly and review.
+  - Configured Spring Security in `question-bank-service` to permit inter-service blueprint matching routes.
+  - Implemented `QuestionBankClientImpl.java` in `paper-generator` utilizing Spring `RestClient` to consume `question-bank-service` over HTTP, with fallback to local `JdbcTemplate` for legacy monolith execution.
+  - Added unit test suite `QuestionBankClientImplTest.java` verifying HTTP REST execution and fallback behavior.
 
 ### 2.3 Stubbed Inter-Service Clients in Delivery Service
 - **Severity:** `MEDIUM`
@@ -125,3 +134,8 @@ However, key architectural and operational gaps exist that must be addressed pri
 - **File References:**  
   - [`ShiftAssignmentClientImpl.java`](../backend/delivery-service/src/main/java/com/examplatform/delivery/client/ShiftAssignmentClientImpl.java)
   - [`CandidateProfileClientImpl.java`](../backend/delivery-service/src/main/java/com/examplatform/delivery/client/CandidateProfileClientImpl.java)
+- **Description:**  
+  Inter-service client implementations in `delivery-service` contain stub implementations returning mocked responses rather than querying `examination-service` or `candidate-service`.
+- **Impact:** Candidate shift verification and profile lookup do not communicate with the authoritative services.
+- **Mitigation:**
+  - Implement REST/gRPC client integrations with fallback or circuit breakers.
