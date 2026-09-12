@@ -1,0 +1,52 @@
+/*
+ * SPDX-License-Identifier: AGPL-3.0-only
+ *
+ * Open Digital Public Infrastructure (DPI) Platform
+ * Copyright (C) 2025 Open Digital Public Infrastructure (DPI) Platform Contributors
+ */
+
+syntax = "proto3";
+
+package com.examplatform.candidate.grpc;
+
+option java_multiple_files = true;
+option java_package = "com.examplatform.candidate.grpc";
+option java_outer_classname = "CandidateProto";
+
+service CandidateProfileGrpcService {
+  rpc GetCandidateExtension (CandidateExtensionGrpcRequest) returns (CandidateExtensionGrpcResponse);
+  rpc GetCandidateProfile (CandidateProfileGrpcRequest) returns (CandidateProfileGrpcResponse);
+}
+
+message CandidateExtensionGrpcRequest {
+  string candidate_id = 1;
+  string tenant_id = 2;
+}
+
+message CandidateExtensionGrpcResponse {
+  bool has_extension = 1;
+  string candidate_id = 2;
+  int32 extra_time_minutes = 3;
+  bool scribe_required = 4;
+  string special_accommodations = 5;
+}
+
+message CandidateProfileGrpcRequest {
+  string candidate_id = 1;
+  string tenant_id = 2;
+}
+
+message CandidateProfileGrpcResponse {
+  string candidate_id = 1;
+  string first_name = 2;
+  string last_name = 3;
+  string email = 4;
+  string phone = 5;
+  string date_of_birth = 6;
+  string gender = 7;
+  string category = 8;
+  bool is_pwd = 9;
+  string pwd_type = 10;
+  int32 pwd_percentage = 11;
+  bool scribe_required = 12;
+}

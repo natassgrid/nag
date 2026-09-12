@@ -1,0 +1,52 @@
+/*
+ * SPDX-License-Identifier: AGPL-3.0-only
+ *
+ * Open Digital Public Infrastructure (DPI) Platform
+ * Copyright (C) 2025 Open Digital Public Infrastructure (DPI) Platform Contributors
+ */
+
+syntax = "proto3";
+
+package com.examplatform.questionbank.grpc;
+
+option java_multiple_files = true;
+option java_package = "com.examplatform.questionbank.grpc";
+option java_outer_classname = "QuestionBankProto";
+
+service QuestionBankGrpcService {
+  rpc GetQuestionsForPaper (PaperQuestionsGrpcRequest) returns (PaperQuestionsGrpcResponse);
+  rpc BatchFindQuestions (BatchFindQuestionsGrpcRequest) returns (BatchFindQuestionsGrpcResponse);
+}
+
+message PaperQuestionsGrpcRequest {
+  string paper_id = 1;
+  string tenant_id = 2;
+}
+
+message BatchFindQuestionsGrpcRequest {
+  repeated string question_ids = 1;
+  string tenant_id = 2;
+}
+
+message QuestionSummaryGrpc {
+  string id = 1;
+  string content = 2;
+  string question_type = 3;
+  string difficulty = 4;
+  string cognitive_level = 5;
+  double marks = 6;
+  double negative_marks = 7;
+  string topic_id = 8;
+  string subject_id = 9;
+  string options_json = 10;
+  string answer_key = 11;
+  string explanation = 12;
+}
+
+message PaperQuestionsGrpcResponse {
+  repeated QuestionSummaryGrpc questions = 1;
+}
+
+message BatchFindQuestionsGrpcResponse {
+  repeated QuestionSummaryGrpc questions = 1;
+}

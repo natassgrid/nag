@@ -12,7 +12,7 @@ spring:
     name: question-bank-service
 
   datasource:
-    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/exam_platform?currentSchema=question_service,public}
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/exam_platform}
     username: ${SPRING_DATASOURCE_USERNAME:exam_admin}
     password: ${SPRING_DATASOURCE_PASSWORD:exam_secret}
     driver-class-name: org.postgresql.Driver
@@ -21,7 +21,6 @@ spring:
       minimum-idle: 5
       connection-timeout: 30000
       schema: question_service
-      connection-init-sql: SET search_path TO question_service, public
 
   jpa:
     hibernate:
@@ -36,14 +35,7 @@ spring:
   flyway:
     enabled: true
     schemas: question_service
-    default-schema: question_service
-    locations:
-      - classpath:db/migration/question
-      - classpath:db/migration/question/seeds
-      - classpath:db/migration/question/seeds/rrb_ntpc
-      - classpath:db/migration/question/seeds/sbi_po
-    init-sqls:
-      - SET search_path TO question_service, public
+    locations: classpath:db/migration/question
 
   data:
     redis:
@@ -117,6 +109,10 @@ server:
     context-path: /
   shutdown: graceful
 
+grpc:
+  server:
+    port: ${GRPC_QUESTION_BANK_PORT:9083}
+
 management:
   endpoints:
     web:
@@ -160,11 +156,7 @@ app:
   translation:
     encryption:
       enabled: ${TRANSLATION_ENCRYPTION_ENABLED:false}
-  # AI generation configuration
-  ai:
-    # Difficulty-based model routing (LiteLLM model names)
-    # These map to Bedrock models configured in litellm-config.yaml
-    models:
-      easy: ${AI_MODEL_EASY:nova-micro}
-      medium: ${AI_MODEL_MEDIUM:nova-lite}
-      hard: ${AI_MODEL_HARD:nova-lite}
+
+logging:
+  pattern:
+    console: '{"timestamp":"%d{ISO8601}","level":"%p","service":"question-bank-service","traceId":"%X{traceId}","spanId":"%X{spanId}","message":"%m"}%n'

@@ -37,13 +37,6 @@ spring:
     schemas: candidate_service
     locations: classpath:db/migration/candidate
 
-  data:
-    redis:
-      host: ${REDIS_HOST:localhost}
-      port: ${REDIS_PORT:6379}
-      password: ${REDIS_PASSWORD:redis_secret}
-      timeout: 2000ms
-
   security:
     oauth2:
       resourceserver:
@@ -91,6 +84,10 @@ server:
   servlet:
     context-path: /
   shutdown: graceful
+
+grpc:
+  server:
+    port: ${GRPC_CANDIDATE_PORT:9082}
 
 management:
   endpoints:
