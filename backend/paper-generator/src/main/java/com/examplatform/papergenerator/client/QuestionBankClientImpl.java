@@ -20,10 +20,18 @@
 package com.examplatform.papergenerator.client;
 
 import com.examplatform.papergenerator.dto.QuestionSummary;
-import lombok.RequiredArgsConstructor;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.NoArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.core.ParameterizedTypeReference;
+import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
+import org.springframework.web.client.RestClient;
 
 import java.sql.Timestamp;
 import java.time.Instant;
@@ -35,17 +43,28 @@ import java.util.Map;
 import java.util.UUID;
 
 /**
- * Implementation of QuestionBankClient querying the question_service schema.
+ * REST-first implementation of QuestionBankClient querying question-bank-service.
  * Selects approved questions matching blueprint criteria (subject, topic, difficulty, cognitive level).
+ * Gracefully falls back to direct database query if the remote service is unavailable.
  *
  * Validates: Requirements 8.1, 8.3
  */
 @Slf4j
 @Component
-@RequiredArgsConstructor
 public class QuestionBankClientImpl implements QuestionBankClient {
 
     private final JdbcTemplate jdbcTemplate;
+    private final RestClient restClient;
+    private final String questionBankServiceUrl;
+
+    @Autowired
+    public QuestionBankClientImpl(
+            @Autowired(required = false) JdbcTemplate jdbcTemplate,
+            @Value("${app.question-bank.service-url:http://localhost:8083}") String questionBankServiceUrl) {
+        this.jdbcTemplate = jdbcTemplate;
+        this.questionBankServiceUrl = questionBankServiceUrl;
+        this.restClient = RestClient.create();
+    }
 
     @Override
     public List<QuestionSummary> findAvailableQuestions(String subject, String topic,
@@ -56,8 +75,41 @@ public class QuestionBankClientImpl implements QuestionBankClient {
         String cleanDifficulty = (difficulty != null && !difficulty.isBlank()) ? difficulty.trim() : null;
         String cleanCognitiveLevel = (cognitiveLevel != null && !cognitiveLevel.isBlank()) ? cognitiveLevel.trim() : null;
 
-        log.debug("Finding questions: subject='{}', topic='{}', difficulty='{}', cognitiveLevel='{}', tenant='{}'",
+        log.debug("Finding questions via REST: subject='{}', topic='{}', difficulty='{}', cognitiveLevel='{}', tenant='{}'",
                 cleanSubject, cleanTopic, cleanDifficulty, cleanCognitiveLevel, effectiveTenant);
+
+        // 1. Try REST call to question-bank-service
+        try {
+            String url = questionBankServiceUrl + "/api/v1/questions/blueprint-match";
+            Map<String, String> requestBody = new HashMap<>();
+            requestBody.put("subject", cleanSubject);
+            requestBody.put("topic", cleanTopic);
+            if (cleanDifficulty != null) requestBody.put("difficulty", cleanDifficulty);
+            if (cleanCognitiveLevel != null) requestBody.put("cognitiveLevel", cleanCognitiveLevel);
+
+            ApiResponseDto<List<QuestionResponseDto>> apiResponse = restClient.post()
+                    .uri(url)
+                    .header("X-Tenant-Id", effectiveTenant)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .body(requestBody)
+                    .retrieve()
+                    .body(new ParameterizedTypeReference<ApiResponseDto<List<QuestionResponseDto>>>() {});
+
+            if (apiResponse != null && apiResponse.getData() != null && !apiResponse.getData().isEmpty()) {
+                log.info("Retrieved {} questions from question-bank-service via REST", apiResponse.getData().size());
+                return apiResponse.getData().stream()
+                        .map(this::toSummary)
+                        .toList();
+            }
+        } catch (Exception e) {
+            log.warn("REST call to question-bank-service failed ({}), falling back to direct DB query: {}",
+                    questionBankServiceUrl, e.getMessage());
+        }
+
+        // 2. Fallback to direct JDBC query if available
+        if (jdbcTemplate == null) {
+            return Collections.emptyList();
+        }
 
         try {
             // First attempt: exact match on subject, topic, difficulty, and cognitive level
@@ -68,8 +120,8 @@ public class QuestionBankClientImpl implements QuestionBankClient {
                   AND UPPER(TRIM(subject)) = UPPER(?)
                   AND UPPER(TRIM(topic)) = UPPER(?)
                   AND state = 'APPROVED'
-                  AND (? IS NULL OR UPPER(TRIM(difficulty)) = UPPER(?))
-                  AND (? IS NULL OR UPPER(TRIM(cognitive_level)) = UPPER(?))
+                  AND (? IS NULL OR UPPER(TRIM(difficulty)) = UPPER(?))\
+                  AND (? IS NULL OR UPPER(TRIM(cognitive_level)) = UPPER(?))\
                 ORDER BY RANDOM()
                 """;
 
@@ -90,7 +142,7 @@ public class QuestionBankClientImpl implements QuestionBankClient {
             }, effectiveTenant, cleanSubject, cleanTopic, cleanDifficulty, cleanDifficulty, cleanCognitiveLevel, cleanCognitiveLevel);
 
             if (!questions.isEmpty()) {
-                log.info("Found {} questions for subject='{}', topic='{}', difficulty='{}', cognitiveLevel='{}'",
+                log.info("Found {} questions via DB fallback for subject='{}', topic='{}', difficulty='{}', cognitiveLevel='{}'",
                         questions.size(), cleanSubject, cleanTopic, cleanDifficulty, cleanCognitiveLevel);
                 return questions;
             }
@@ -106,7 +158,7 @@ public class QuestionBankClientImpl implements QuestionBankClient {
                       AND UPPER(TRIM(subject)) = UPPER(?)
                       AND UPPER(TRIM(topic)) = UPPER(?)
                       AND state = 'APPROVED'
-                      AND (? IS NULL OR UPPER(TRIM(difficulty)) = UPPER(?))
+                      AND (? IS NULL OR UPPER(TRIM(difficulty)) = UPPER(?))\
                     ORDER BY RANDOM()
                     """;
 
@@ -143,6 +195,33 @@ public class QuestionBankClientImpl implements QuestionBankClient {
             return Collections.emptyList();
         }
         String effectiveTenant = (tenantId != null && !tenantId.isBlank()) ? tenantId : "default";
+
+        // 1. Try REST call to question-bank-service
+        try {
+            String url = questionBankServiceUrl + "/api/v1/questions/batch-find";
+            ApiResponseDto<List<QuestionResponseDto>> apiResponse = restClient.post()
+                    .uri(url)
+                    .header("X-Tenant-Id", effectiveTenant)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .body(questionIds)
+                    .retrieve()
+                    .body(new ParameterizedTypeReference<ApiResponseDto<List<QuestionResponseDto>>>() {});
+
+            if (apiResponse != null && apiResponse.getData() != null && !apiResponse.getData().isEmpty()) {
+                log.info("Retrieved {} questions by IDs from question-bank-service via REST", apiResponse.getData().size());
+                return apiResponse.getData().stream()
+                        .map(this::toSummary)
+                        .toList();
+            }
+        } catch (Exception e) {
+            log.warn("REST call for batch-find failed ({}), falling back to direct DB query: {}",
+                    questionBankServiceUrl, e.getMessage());
+        }
+
+        // 2. Fallback to JDBC query
+        if (jdbcTemplate == null) {
+            return Collections.emptyList();
+        }
 
         try {
             String inSql = String.join(",", Collections.nCopies(questionIds.size(), "?"));
@@ -189,5 +268,41 @@ public class QuestionBankClientImpl implements QuestionBankClient {
             log.error("Error finding questions by ids for paper review: {}", e.getMessage());
             return Collections.emptyList();
         }
+    }
+
+    private QuestionSummary toSummary(QuestionResponseDto dto) {
+        return QuestionSummary.builder()
+                .questionId(dto.getId())
+                .subject(dto.getSubject())
+                .topic(dto.getTopic())
+                .difficulty(dto.getDifficulty())
+                .cognitiveLevel(dto.getCognitiveLevel())
+                .usageCount(0)
+                .reusePolicy("1_YEAR")
+                .content(dto.getContent())
+                .build();
+    }
+
+    @Data
+    @NoArgsConstructor
+    @AllArgsConstructor
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    public static class ApiResponseDto<T> {
+        private boolean success;
+        private T data;
+        private String message;
+    }
+
+    @Data
+    @NoArgsConstructor
+    @AllArgsConstructor
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    public static class QuestionResponseDto {
+        private UUID id;
+        private String subject;
+        private String topic;
+        private String difficulty;
+        private String cognitiveLevel;
+        private String content;
     }
 }

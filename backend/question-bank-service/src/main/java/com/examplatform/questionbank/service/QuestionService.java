@@ -1,4 +1,3 @@
-package com.examplatform.questionbank.service;
 /*
  * SPDX-License-Identifier: AGPL-3.0-only
  *
@@ -18,6 +17,7 @@ package com.examplatform.questionbank.service;
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
 
+package com.examplatform.questionbank.service;
 
 import com.examplatform.questionbank.ai.embedding.EmbeddingService;
 import com.examplatform.questionbank.ai.similarity.SimilarityCheckResult;
@@ -375,6 +375,45 @@ public class QuestionService {
                 Map.of("fromState", "DRAFT", "toState", "REVIEW"));
 
         return toResponse(saved);
+    }
+
+    /**
+     * Finds approved questions matching blueprint criteria for Paper Generator.
+     */
+    @Transactional(readOnly = true)
+    public List<QuestionResponse> findBlueprintQuestions(String subject, String topic, String difficulty, String cognitiveLevel, String tenantId) {
+        String effectiveTenant = (tenantId != null && !tenantId.isBlank()) ? tenantId : "default";
+        List<Question> questions = questionRepository.findBlueprintQuestions(
+                subject != null ? subject.trim() : "",
+                topic != null ? topic.trim() : "",
+                (difficulty != null && !difficulty.isBlank()) ? difficulty.trim() : null,
+                (cognitiveLevel != null && !cognitiveLevel.isBlank()) ? cognitiveLevel.trim() : null,
+                effectiveTenant
+        );
+
+        if (questions.isEmpty() && cognitiveLevel != null && !cognitiveLevel.isBlank()) {
+            questions = questionRepository.findBlueprintQuestionsFallback(
+                    subject != null ? subject.trim() : "",
+                    topic != null ? topic.trim() : "",
+                    (difficulty != null && !difficulty.isBlank()) ? difficulty.trim() : null,
+                    effectiveTenant
+            );
+        }
+
+        return questions.stream().map(this::toResponse).toList();
+    }
+
+    /**
+     * Finds questions by their unique IDs for Paper Generator review.
+     */
+    @Transactional(readOnly = true)
+    public List<QuestionResponse> findQuestionsByIds(List<UUID> questionIds, String tenantId) {
+        if (questionIds == null || questionIds.isEmpty()) {
+            return List.of();
+        }
+        String effectiveTenant = (tenantId != null && !tenantId.isBlank()) ? tenantId : "default";
+        List<Question> questions = questionRepository.findQuestionsByIdsIn(questionIds, effectiveTenant);
+        return questions.stream().map(this::toResponse).toList();
     }
 
     private void publishAuditEvent(String eventType, UUID questionId, UUID actorId,

@@ -58,6 +58,15 @@ spring:
     virtual:
       enabled: true
 
+app:
+  keycloak:
+    server-url: ${KEYCLOAK_SERVER_URL:http://localhost:8080}
+    realm: ${KEYCLOAK_REALM:exam-realm}
+    admin-client-id: ${KEYCLOAK_ADMIN_CLIENT_ID:admin-cli}
+    admin-client-secret: ${KEYCLOAK_ADMIN_CLIENT_SECRET:}
+    admin-username: ${KEYCLOAK_ADMIN_USERNAME:admin}
+    admin-password: ${KEYCLOAK_ADMIN_PASSWORD:admin_secret}
+
 server:
   port: ${ADMIN_SERVICE_PORT:8093}
   servlet:
