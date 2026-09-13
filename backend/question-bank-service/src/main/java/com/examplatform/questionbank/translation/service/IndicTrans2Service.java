@@ -14,8 +14,7 @@
  * GNU Affero General Public License for more details.
  *
  * You should have received a copy of the GNU Affero General Public License
- * along with this program. If not, see <https://www.gnu.org/licenses/>.
- */
+ * along with this program. If not, see <https://www.gnu.org/licenses/>.\n */
 
 package com.examplatform.questionbank.translation.service;
 
@@ -33,6 +32,7 @@ import org.springframework.web.client.RestClient;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -141,32 +141,87 @@ public class IndicTrans2Service {
         return text;
     }
 
+    @SuppressWarnings("unchecked")
+    public List<String> translateBatch(List<String> texts, String targetLang) {
+        if (texts == null || texts.isEmpty()) {
+            return Collections.emptyList();
+        }
+        String indicLang = mapToIndicLang(targetLang);
+        try {
+            Map<String, Object> reqBody = Map.of(
+                    "texts", texts,
+                    "target_lang", indicLang
+            );
+            Map<String, Object> resp = restClient.post()
+                    .uri("/translate/batch")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .body(reqBody)
+                    .retrieve()
+                    .body(Map.class);
+
+            if (resp != null && resp.containsKey("translations")) {
+                Object transObj = resp.get("translations");
+                if (transObj instanceof List) {
+                    return (List<String>) transObj;
+                }
+            }
+        } catch (Exception e) {
+            log.warn("Batch translation endpoint failed, falling back to sequential: {}", e.getMessage());
+            List<String> fallbackResults = new ArrayList<>();
+            for (String t : texts) {
+                fallbackResults.add(translateSingleText(t, indicLang));
+            }
+            return fallbackResults;
+        }
+        return texts;
+    }
+
     public AutoTranslateResponse autoTranslateQuestion(UUID questionId, String languageCode) {
         Question question = questionRepository.findById(questionId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Question not found: " + questionId));
+        return autoTranslateQuestionEntity(question, languageCode);
+    }
 
+    public AutoTranslateResponse autoTranslateQuestionEntity(Question question, String languageCode) {
         String indicLang = mapToIndicLang(languageCode);
 
-        // 1. Translate question content
-        String translatedContent = translateSingleText(question.getContent(), indicLang);
+        List<String> textsToTranslate = new ArrayList<>();
+        textsToTranslate.add(question.getContent() != null ? question.getContent() : "");
 
-        // 2. Translate options
-        List<TranslatedOptionDto> translatedOptions = new ArrayList<>();
+        int optionCount = 0;
         if (question.getOptions() != null) {
             for (QuestionOption opt : question.getOptions()) {
-                String transOptText = translateSingleText(opt.getText(), indicLang);
-                translatedOptions.add(new TranslatedOptionDto(opt.getId(), transOptText));
+                textsToTranslate.add(opt.getText() != null ? opt.getText() : "");
+                optionCount++;
             }
         }
 
-        // 3. Translate explanation if present
+        boolean hasExplanation = question.getExplanation() != null && !question.getExplanation().isBlank();
+        if (hasExplanation) {
+            textsToTranslate.add(question.getExplanation());
+        }
+
+        List<String> translatedTexts = translateBatch(textsToTranslate, indicLang);
+
+        String translatedContent = !translatedTexts.isEmpty() ? translatedTexts.get(0) : "";
+        List<TranslatedOptionDto> translatedOptions = new ArrayList<>();
+
+        int textIndex = 1;
+        if (question.getOptions() != null) {
+            for (QuestionOption opt : question.getOptions()) {
+                String optTrans = (textIndex < translatedTexts.size()) ? translatedTexts.get(textIndex) : opt.getText();
+                translatedOptions.add(new TranslatedOptionDto(opt.getId(), optTrans));
+                textIndex++;
+            }
+        }
+
         String translatedExplanation = null;
-        if (question.getExplanation() != null && !question.getExplanation().isBlank()) {
-            translatedExplanation = translateSingleText(question.getExplanation(), indicLang);
+        if (hasExplanation && textIndex < translatedTexts.size()) {
+            translatedExplanation = translatedTexts.get(textIndex);
         }
 
         return AutoTranslateResponse.builder()
-                .questionId(questionId)
+                .questionId(question.getId())
                 .languageCode(languageCode)
                 .targetLangIndicTrans(indicLang)
                 .translatedContent(translatedContent)

@@ -5,7 +5,7 @@
  * Copyright (C) 2025 NAG Contributors
  *
  * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU Affero General Public License as published
+ * it under the terms of the GNU Public License as published
  * by the Free Software Foundation, version 3 of the License.
  *
  * This program is distributed in the hope that it will be useful,
@@ -20,12 +20,16 @@
 package com.examplatform.questionbank.translation.controller;
 
 import com.examplatform.questionbank.support.AbstractIntegrationTest;
+import com.examplatform.questionbank.translation.domain.BatchTranslationJobStatus;
 import com.examplatform.questionbank.translation.domain.Translation;
 import com.examplatform.questionbank.translation.dto.AutoTranslateResponse;
+import com.examplatform.questionbank.translation.dto.BatchTranslationJobResponse;
+import com.examplatform.questionbank.translation.dto.BatchTranslationRequest;
 import com.examplatform.questionbank.translation.dto.TranslatedOptionDto;
 import com.examplatform.questionbank.translation.dto.TranslationRequest;
 import com.examplatform.questionbank.translation.dto.TranslationResponse;
 import com.examplatform.questionbank.translation.dto.TranslationReviewRequest;
+import com.examplatform.questionbank.translation.service.BatchTranslationService;
 import com.examplatform.questionbank.translation.service.IndicTrans2Service;
 import com.examplatform.questionbank.translation.service.TranslationQueryService;
 import com.examplatform.questionbank.translation.service.TranslationReviewService;
@@ -64,10 +68,14 @@ class TranslationControllerIntegrationTest extends AbstractIntegrationTest {
     @MockitoBean
     private IndicTrans2Service indicTrans2Service;
 
+    @MockitoBean
+    private BatchTranslationService batchTranslationService;
+
     private static final UUID QUESTION_ID = UUID.fromString("11111111-1111-1111-1111-111111111111");
     private static final UUID TRANSLATION_ID = UUID.fromString("22222222-2222-2222-2222-222222222222");
     private static final UUID REVIEWER_ID = UUID.fromString("33333333-3333-3333-3333-333333333333");
     private static final UUID TRANSLATOR_ID = UUID.fromString("44444444-4444-4444-4444-444444444444");
+    private static final UUID JOB_ID = UUID.fromString("55555555-5555-5555-5555-555555555555");
 
     private TranslationRequest validTranslationRequest() {
         TranslationRequest request = new TranslationRequest();
@@ -120,18 +128,105 @@ class TranslationControllerIntegrationTest extends AbstractIntegrationTest {
     }
 
     @Nested
-    @DisplayName("Translation Workflow (Create, Resubmit, Approve, Reject)")
-    class WorkflowEndpoints {
+    @DisplayName("Batch Auto-Translation Endpoints")
+    class BatchAutoTranslateEndpoints {
 
         @Test
-        @DisplayName("+ve: TRANSLATOR submits new translation - returns 201 Created")
+        @DisplayName("+ve: ADMIN triggers batch auto-translate - returns 202 Accepted")
+        void adminCanTriggerBatchAutoTranslate() throws Exception {
+            BatchTranslationJobResponse jobResponse = BatchTranslationJobResponse.builder()
+                    .id(JOB_ID)
+                    .tenantId("default")
+                    .status(BatchTranslationJobStatus.PENDING)
+                    .sourceLanguage("en")
+                    .targetLanguage("hi")
+                    .targetStatus("PUBLISHED")
+                    .build();
+
+            when(batchTranslationService.startBatchJob(any(BatchTranslationRequest.class), any(), anyString()))
+                    .thenReturn(jobResponse);
+
+            BatchTranslationRequest request = BatchTranslationRequest.builder()
+                    .targetLanguage("hi")
+                    .targetStatus("PUBLISHED")
+                    .batchSize(20)
+                    .build();
+
+            mockMvc.perform(post("/api/v1/translations/batch/auto-translate")
+                            .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_ADMIN")))
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(request)))
+                    .andExpect(status().isAccepted())
+                    .andExpect(jsonPath("$.id").value(JOB_ID.toString()))
+                    .andExpect(jsonPath("$.status").value("PENDING"))
+                    .andExpect(jsonPath("$.targetLanguage").value("hi"));
+        }
+
+        @Test
+        @DisplayName("+ve: EXAM_CONTROLLER gets batch job status - returns 200 OK")
+        void examControllerCanGetBatchStatus() throws Exception {
+            BatchTranslationJobResponse jobResponse = BatchTranslationJobResponse.builder()
+                    .id(JOB_ID)
+                    .tenantId("default")
+                    .status(BatchTranslationJobStatus.IN_PROGRESS)
+                    .totalQuestions(100)
+                    .processedQuestions(50)
+                    .progressPercentage(50.0)
+                    .build();
+
+            when(batchTranslationService.getJobStatus(eq(JOB_ID), anyString()))
+                    .thenReturn(jobResponse);
+
+            mockMvc.perform(get("/api/v1/translations/batch/{jobId}", JOB_ID)
+                            .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_EXAM_CONTROLLER"))))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.id").value(JOB_ID.toString()))
+                    .andExpect(jsonPath("$.progressPercentage").value(50.0))
+                    .andExpect(jsonPath("$.processedQuestions").value(50));
+        }
+
+        @Test
+        @DisplayName("+ve: ADMIN cancels running batch job - returns 200 OK")
+        void adminCanCancelBatchJob() throws Exception {
+            BatchTranslationJobResponse jobResponse = BatchTranslationJobResponse.builder()
+                    .id(JOB_ID)
+                    .status(BatchTranslationJobStatus.CANCELLED)
+                    .build();
+
+            when(batchTranslationService.cancelJob(eq(JOB_ID), anyString()))
+                    .thenReturn(jobResponse);
+
+            mockMvc.perform(post("/api/v1/translations/batch/{jobId}/cancel", JOB_ID)
+                            .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_ADMIN"))))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.status").value("CANCELLED"));
+        }
+
+        @Test
+        @DisplayName("-ve: CANDIDATE role cannot trigger batch auto-translate - returns 403 Forbidden")
+        void candidateCannotTriggerBatch() throws Exception {
+            mockMvc.perform(post("/api/v1/translations/batch/auto-translate")
+                            .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_CANDIDATE")))
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content("{}"))
+                    .andExpect(status().isForbidden());
+        }
+    }
+
+    @Nested
+    @DisplayName("Translation Workflow Write Endpoints")
+    class WorkflowWriteEndpoints {
+
+        @Test
+        @DisplayName("+ve: TRANSLATOR submits translation request - returns 201 Created")
         void translatorCanSubmitTranslation() throws Exception {
-            TranslationRequest request = validTranslationRequest();
-            Translation translation = new Translation();
+            Translation translation = Translation.builder()
+                    .questionId(QUESTION_ID)
+                    .languageCode("hi")
+                    .status(Translation.TranslationStatus.DRAFT)
+                    .translatorId(TRANSLATOR_ID)
+                    .build();
             ReflectionTestUtils.setField(translation, "id", TRANSLATION_ID);
-            translation.setQuestionId(QUESTION_ID);
-            translation.setLanguageCode("hi");
-            translation.setStatus(Translation.TranslationStatus.DRAFT);
 
             when(translationWorkflowService.requestTranslation(any(TranslationRequest.class), anyString()))
                     .thenReturn(translation);
@@ -139,7 +234,7 @@ class TranslationControllerIntegrationTest extends AbstractIntegrationTest {
             mockMvc.perform(post("/api/v1/translations")
                             .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_TRANSLATOR")))
                             .contentType(MediaType.APPLICATION_JSON)
-                            .content(objectMapper.writeValueAsString(request)))
+                            .content(objectMapper.writeValueAsString(validTranslationRequest())))
                     .andExpect(status().isCreated())
                     .andExpect(jsonPath("$.translationId").value(TRANSLATION_ID.toString()))
                     .andExpect(jsonPath("$.status").value("DRAFT"));
@@ -148,11 +243,13 @@ class TranslationControllerIntegrationTest extends AbstractIntegrationTest {
         @Test
         @DisplayName("+ve: REVIEWER approves translation - returns 200 OK")
         void reviewerCanApproveTranslation() throws Exception {
-            Translation translation = new Translation();
+            Translation translation = Translation.builder()
+                    .questionId(QUESTION_ID)
+                    .languageCode("hi")
+                    .status(Translation.TranslationStatus.APPROVED)
+                    .reviewerId(REVIEWER_ID)
+                    .build();
             ReflectionTestUtils.setField(translation, "id", TRANSLATION_ID);
-            translation.setQuestionId(QUESTION_ID);
-            translation.setLanguageCode("hi");
-            translation.setStatus(Translation.TranslationStatus.APPROVED);
 
             when(translationReviewService.approve(eq(TRANSLATION_ID), eq(REVIEWER_ID), anyString()))
                     .thenReturn(translation);

@@ -53,6 +53,10 @@ public interface QuestionRepository extends JpaRepository<Question, UUID>, JpaSp
 
     List<Question> findByTenantId(String tenantId);
 
+    Page<Question> findByTenantId(String tenantId, Pageable pageable);
+
+    Page<Question> findBySubjectAndTenantId(String subject, String tenantId, Pageable pageable);
+
     /**
      * Finds a PUBLISHED question whose embedding vector has cosine similarity
      * above the given threshold compared to the provided embedding.
