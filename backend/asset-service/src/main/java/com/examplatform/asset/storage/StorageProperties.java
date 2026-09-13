@@ -14,8 +14,7 @@
  * GNU Affero General Public License for more details.
  *
  * You should have received a copy of the GNU Affero General Public License
- * along with this program. If not, see <https://www.gnu.org/licenses/>.
- */
+ * along with this program. If not, see <https://www.gnu.org/licenses/>.\n */
 
 package com.examplatform.asset.storage;
 
@@ -32,6 +31,11 @@ import org.springframework.stereotype.Component;
  *     provider: filesystem
  *     filesystem:
  *       base-path: ./asset-storage
+ *     s3:
+ *       bucket: exam-platform-assets
+ *       region: ap-south-1
+ *       endpoint: http://localhost:9000
+ *       path-style-access: true
  *     max-file-size: 104857600  # 100 MB
  * </pre>
  */
@@ -49,9 +53,30 @@ public class StorageProperties {
     /** Filesystem-specific configuration. */
     private FilesystemProperties filesystem = new FilesystemProperties();
 
+    /** S3/MinIO-specific configuration. */
+    private S3Properties s3 = new S3Properties();
+
     @Data
     public static class FilesystemProperties {
         /** Base directory for storing files. */
         private String basePath = "./asset-storage";
+    }
+
+    @Data
+    public static class S3Properties {
+        /** S3 bucket name. */
+        private String bucket = "exam-platform-assets";
+        /** AWS region (default: ap-south-1). */
+        private String region = "ap-south-1";
+        /** Optional custom endpoint URI (e.g. for MinIO or LocalStack). */
+        private String endpoint;
+        /** Optional access key for authentication. */
+        private String accessKey;
+        /** Optional secret key for authentication. */
+        private String secretKey;
+        /** Whether to use path-style access (recommended for MinIO/LocalStack). */
+        private boolean pathStyleAccess = true;
+        /** Optional public CDN or base URL for resolving direct download links. */
+        private String publicBaseUrl;
     }
 }

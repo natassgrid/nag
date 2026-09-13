@@ -62,6 +62,9 @@ public class QuestionResponse {
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 
+    /** Lightweight flag indicating this question contains image/SVG media */
+    private boolean hasImages;
+
     /** Parsed options for MCQ/MSQ questions */
     private List<QuestionOption> options;
 

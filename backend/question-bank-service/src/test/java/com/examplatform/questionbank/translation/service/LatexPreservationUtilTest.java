@@ -33,6 +33,50 @@ class LatexPreservationUtilTest {
     }
 
     @Test
+    @DisplayName("Preserves Markdown image syntax (![alt](url))")
+    void testPreserveMarkdownImage() {
+        String input = "Refer to the diagram ![Circuit Diagram](https://cdn.examplatform.org/diagrams/q123.svg) to find the equivalent resistance.";
+        LatexPreservationUtil.MaskResult result = LatexPreservationUtil.mask(input);
+
+        assertEquals("Refer to the diagram __NAG_MATH_0__ to find the equivalent resistance.", result.maskedText());
+        assertEquals(1, result.preservedTokens().size());
+        assertEquals("![Circuit Diagram](https://cdn.examplatform.org/diagrams/q123.svg)", result.preservedTokens().get(0));
+
+        String translatedMock = "समतुल्य प्रतिरोध ज्ञात करने के लिए आरेख __NAG_MATH_0__ देखें।";
+        String restored = LatexPreservationUtil.unmask(translatedMock, result.preservedTokens());
+        assertEquals("समतुल्य प्रतिरोध ज्ञात करने के लिए आरेख ![Circuit Diagram](https://cdn.examplatform.org/diagrams/q123.svg) देखें।", restored);
+    }
+
+    @Test
+    @DisplayName("Preserves HTML img tag syntax (<img ... />)")
+    void testPreserveHtmlImgTag() {
+        String input = "Observe the apparatus <img src=\"https://cdn.examplatform.org/img.png\" alt=\"titration\" /> carefully.";
+        LatexPreservationUtil.MaskResult result = LatexPreservationUtil.mask(input);
+
+        assertEquals("Observe the apparatus __NAG_MATH_0__ carefully.", result.maskedText());
+        assertEquals(1, result.preservedTokens().size());
+        assertEquals("<img src=\"https://cdn.examplatform.org/img.png\" alt=\"titration\" />", result.preservedTokens().get(0));
+
+        String translatedMock = "उपकरण __NAG_MATH_0__ को ध्यान से देखें।";
+        String restored = LatexPreservationUtil.unmask(translatedMock, result.preservedTokens());
+        assertEquals("उपकरण <img src=\"https://cdn.examplatform.org/img.png\" alt=\"titration\" /> को ध्यान से देखें।", restored);
+    }
+
+    @Test
+    @DisplayName("Preserves mixed LaTeX formulas and Markdown images")
+    void testPreserveMixedLatexAndMarkdownImages() {
+        String input = "Given ![Circuit](https://cdn.examplatform.org/c1.png), calculate $I = \\frac{V}{R}$ where $V = 10\\text{V}$.";
+        LatexPreservationUtil.MaskResult result = LatexPreservationUtil.mask(input);
+
+        assertTrue(result.preservedTokens().contains("![Circuit](https://cdn.examplatform.org/c1.png)"));
+        assertTrue(result.preservedTokens().contains("$I = \\frac{V}{R}$"));
+        assertTrue(result.preservedTokens().contains("$V = 10\\text{V}$"));
+
+        String restored = LatexPreservationUtil.unmask(result.maskedText(), result.preservedTokens());
+        assertEquals(input, restored);
+    }
+
+    @Test
     @DisplayName("Preserves LaTeX display \\[...\\] and inline \\(...\\) brackets")
     void testPreserveLatexBrackets() {
         String input = "Given \\[ E = mc^2 \\] where \\( c \\) is the speed of light.";
@@ -104,7 +148,7 @@ class LatexPreservationUtilTest {
                 "\\(x \\notin B\\)"
         );
 
-        String translatedFromIndicTrans2 = "(1), NAG MATH 0 (विच्छेद विभाजन) से. (2) और (3) से, NAG MATH 1 से. " +
+        String translatedFromIndicTrans2 = "(1), NAG MATH 0 (विच्छेद विभाजन) से। (2) और (3) से, NAG MATH 1 से। " +
                 "NAG MATH 2 से, NAG MATH 3 (निष्कर्ष मैं अनुसरण करता हूँ)। (4) के लिए, NAG MATH 4 । (2), NAG MATH 5 (निष्कर्ष II निम्नलिखित है) के विपरीत।";
 
         String restored = LatexPreservationUtil.unmask(translatedFromIndicTrans2, tokens);

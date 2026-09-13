@@ -84,6 +84,12 @@ public class QuestionUpdateService {
         existing.setQuestionType(request.getQuestionType().name());
         existing.setContent(request.getContent());
         existing.setAnswerKey(request.getAnswerKey());
+        existing.setExplanation(request.getExplanation());
+        existing.setReferences(request.getReferences());
+        existing.setOptions(request.getOptions());
+
+        boolean hasImages = QuestionService.detectHasImages(request.getContent(), request.getExplanation(), request.getOptions());
+        existing.setHasImages(hasImages);
 
         // Save updated question
         Question updated = questionRepository.save(existing);
@@ -125,6 +131,10 @@ public class QuestionUpdateService {
                 .questionType(source.getQuestionType())
                 .content(source.getContent())
                 .answerKey(source.getAnswerKey())
+                .explanation(source.getExplanation())
+                .references(source.getReferences())
+                .options(source.getOptions())
+                .hasImages(source.isHasImages())
                 .state(source.getState())
                 .authorId(source.getAuthorId())
                 .build();
@@ -154,6 +164,8 @@ public class QuestionUpdateService {
                 .state(question.getState())
                 .authorId(question.getAuthorId())
                 .createdAt(createdAt)
+                .options(question.getOptions())
+                .hasImages(question.isHasImages())
                 .build();
     }
 }

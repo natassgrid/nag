@@ -126,12 +126,19 @@
           <div class="editor-field">
             <div class="editor-header">
               <label class="editor-label">Content <span class="required">*</span></label>
-              <mat-slide-toggle
-                [(ngModel)]="showContentPreview"
-                [ngModelOptions]="{standalone: true}"
-                color="primary">
-                Preview
-              </mat-slide-toggle>
+              <div class="editor-header-actions">
+                <button mat-stroked-button type="button" class="btn-insert-image" (click)="openContentAssetPicker()"
+                        matTooltip="Insert diagram/image from Asset Library into content">
+                  <mat-icon>add_photo_alternate</mat-icon>
+                  <span>Insert Image</span>
+                </button>
+                <mat-slide-toggle
+                  [(ngModel)]="showContentPreview"
+                  [ngModelOptions]="{standalone: true}"
+                  color="primary">
+                  Preview
+                </mat-slide-toggle>
+              </div>
             </div>
             <exam-editor
               [value]="editorContent"
@@ -164,21 +171,57 @@
             <div *ngFor="let opt of options; let i = index" class="option-row-wrapper">
               <div class="option-row">
                 <span class="option-id">{{ optionIds[i] }}</span>
-                <mat-form-field appearance="outline" class="flex-field">
+
+                <!-- Option Thumbnail preview if imageUrl is present -->
+                <div *ngIf="opt.imageUrl" class="option-thumb-container" [matTooltip]="opt.imageAltText || 'Option image'">
+                  <img [src]="opt.imageUrl" [alt]="opt.imageAltText || 'Option ' + optionIds[i]" class="option-thumb" />
+                  <button mat-icon-button type="button" class="btn-clear-thumb" (click)="clearOptionImage(i)" matTooltip="Remove image">
+                    <mat-icon>cancel</mat-icon>
+                  </button>
+                </div>
+
+                <!-- Option Text input -->
+                <mat-form-field appearance="outline" class="flex-field" *ngIf="!opt.isImageOnly">
                   <input matInput [(ngModel)]="opt.text" [ngModelOptions]="{standalone: true}"
-                         placeholder="Option text (use $$...$$ for LaTeX)" />
+                         [placeholder]="opt.imageUrl ? 'Optional text label / description' : 'Option text (use $$...$$ for LaTeX)'" />
                 </mat-form-field>
+
+                <div *ngIf="opt.isImageOnly" class="image-only-placeholder flex-field">
+                  <mat-icon class="placeholder-icon">image</mat-icon>
+                  <span class="placeholder-text">{{ opt.imageUrl ? (opt.imageAltText || 'Image selected') : 'Image-only (click Add Image)' }}</span>
+                </div>
+
+                <!-- Add/Change Image Button -->
+                <button mat-icon-button type="button" [color]="opt.imageUrl ? 'accent' : 'primary'"
+                        (click)="openOptionAssetPicker(i)" [matTooltip]="opt.imageUrl ? 'Change image' : 'Add image to option'">
+                  <mat-icon>{{ opt.imageUrl ? 'image' : 'add_photo_alternate' }}</mat-icon>
+                </button>
+
+                <!-- Image-only Checkbox -->
+                <mat-checkbox [(ngModel)]="opt.isImageOnly" [ngModelOptions]="{standalone: true}"
+                              (change)="toggleImageOnly(i, $event.checked)"
+                              matTooltip="Mark as image-only option">
+                  <span class="image-only-label">Image-only</span>
+                </mat-checkbox>
+
+                <!-- Mark as correct checkbox -->
                 <mat-checkbox [(ngModel)]="opt.isCorrect" [ngModelOptions]="{standalone: true}"
                               (change)="isMcq() && onMcqCorrectChange(i)"
                               matTooltip="Mark as correct">
                 </mat-checkbox>
+
                 <button mat-icon-button type="button" color="warn" (click)="removeOption(i)"
                         [disabled]="options.length <= 2" matTooltip="Remove option">
                   <mat-icon>remove_circle</mat-icon>
                 </button>
               </div>
-              <div *ngIf="showOptionPreviews && opt.text" class="option-preview">
-                <app-math-renderer [content]="opt.text"></app-math-renderer>
+
+              <!-- Live KaTeX + Image Preview for Option -->
+              <div *ngIf="showOptionPreviews && (opt.text || opt.imageUrl)" class="option-preview">
+                <div *ngIf="opt.imageUrl" class="preview-thumb-row">
+                  <img [src]="opt.imageUrl" [alt]="opt.imageAltText || 'Option ' + optionIds[i]" class="preview-opt-img" />
+                </div>
+                <app-math-renderer *ngIf="opt.text" [content]="opt.text"></app-math-renderer>
               </div>
             </div>
             <mat-error *ngIf="optionError">{{ optionError }}</mat-error>
@@ -193,12 +236,19 @@
           <div class="editor-field">
             <div class="editor-header">
               <label class="editor-label">Explanation</label>
-              <mat-slide-toggle
-                [(ngModel)]="showExplanationPreview"
-                [ngModelOptions]="{standalone: true}"
-                color="primary">
-                Preview
-              </mat-slide-toggle>
+              <div class="editor-header-actions">
+                <button mat-stroked-button type="button" class="btn-insert-image" (click)="openExplanationAssetPicker()"
+                        matTooltip="Insert diagram/image from Asset Library into explanation">
+                  <mat-icon>add_photo_alternate</mat-icon>
+                  <span>Insert Image</span>
+                </button>
+                <mat-slide-toggle
+                  [(ngModel)]="showExplanationPreview"
+                  [ngModelOptions]="{standalone: true}"
+                  color="primary">
+                  Preview
+                </mat-slide-toggle>
+              </div>
             </div>
             <exam-editor
               [value]="explanationContent"

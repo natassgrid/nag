@@ -130,6 +130,8 @@ public class QuestionSearchService {
                 .state(question.getState())
                 .authorId(question.getAuthorId())
                 .createdAt(createdAt)
+                .options(question.getOptions())
+                .hasImages(question.isHasImages())
                 .build();
     }
 }

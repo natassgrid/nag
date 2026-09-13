@@ -93,7 +93,16 @@ export class QuestionTranslationDialogComponent implements OnInit, OnChanges {
   loadingTranslations = false;
 
   form!: FormGroup;
-  optionTranslations: { id: string; sourceText: string; text: string; isCorrect: boolean }[] = [];
+  optionTranslations: {
+    id: string;
+    sourceText: string;
+    text: string;
+    isCorrect: boolean;
+    imageUrl?: string;
+    imageAltText?: string;
+    sourceImageUrl?: string;
+    sourceImageAltText?: string;
+  }[] = [];
 
   saving = false;
   approving = false;
@@ -178,8 +187,12 @@ export class QuestionTranslationDialogComponent implements OnInit, OnChanges {
       return {
         id: so.id,
         sourceText: so.text,
-        text: matched ? matched.text : '',
-        isCorrect: so.isCorrect
+        text: matched ? (matched.text || '') : '',
+        isCorrect: so.isCorrect,
+        imageUrl: matched?.imageUrl || so.imageUrl,
+        imageAltText: matched?.imageAltText || so.imageAltText || '',
+        sourceImageUrl: so.imageUrl,
+        sourceImageAltText: so.imageAltText
       };
     });
 
@@ -221,7 +234,9 @@ export class QuestionTranslationDialogComponent implements OnInit, OnChanges {
           this.optionTranslations.forEach(opt => {
             const found = res.translatedOptions?.find(to => to.id === opt.id);
             if (found) {
-              opt.text = found.text;
+              opt.text = found.text || '';
+              if (found.imageAltText) opt.imageAltText = found.imageAltText;
+              if (found.imageUrl) opt.imageUrl = found.imageUrl;
             }
           });
         }
@@ -286,9 +301,9 @@ export class QuestionTranslationDialogComponent implements OnInit, OnChanges {
     }
 
     if (this.optionTranslations.length > 0) {
-      const emptyOpt = this.optionTranslations.find(o => !o.text || !o.text.trim());
-      if (emptyOpt) {
-        this.errorMessage = `Please provide translated text for Option ${emptyOpt.id}.`;
+      const invalidOpt = this.optionTranslations.find(o => (!o.text || !o.text.trim()) && (!o.imageUrl || !o.imageUrl.trim()));
+      if (invalidOpt) {
+        this.errorMessage = `Please provide translated text or image for Option ${invalidOpt.id}.`;
         return;
       }
     }
@@ -302,7 +317,12 @@ export class QuestionTranslationDialogComponent implements OnInit, OnChanges {
       translatedContent: this.form.value.translatedContent.trim(),
       translatedExplanation: this.form.value.translatedExplanation ? this.form.value.translatedExplanation.trim() : undefined,
       translatedOptions: this.optionTranslations.length > 0
-        ? this.optionTranslations.map(o => ({ id: o.id, text: o.text.trim() }))
+        ? this.optionTranslations.map(o => ({
+            id: o.id,
+            text: (o.text || '').trim(),
+            imageUrl: o.imageUrl,
+            imageAltText: (o.imageAltText || '').trim() || undefined
+          }))
         : undefined
     };
 
@@ -376,8 +396,7 @@ export class QuestionTranslationDialogComponent implements OnInit, OnChanges {
       next: () => {
         this.rejecting = false;
         this.showRejectInput = false;
-        this.rejectComments = '';
-        this.snackBar.open('Translation rejected with feedback comments', 'Close', { duration: 3000 });
+        this.snackBar.open('Translation marked as rejected with comments.', 'Close', { duration: 3000 });
         this.loadTranslations();
       },
       error: (err) => {

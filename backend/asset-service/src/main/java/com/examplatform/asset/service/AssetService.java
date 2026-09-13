@@ -83,7 +83,7 @@ public class AssetService {
 
         byte[] fileBytes = file.getBytes();
 
-        // 1. Run security validation pipeline
+        // 1. Run security validation pipeline (including SVG sanitization if applicable)
         SecurityValidationPipeline.ValidationResult validationResult = validationPipeline.validate(
                 file.getOriginalFilename(),
                 file.getContentType(),
@@ -282,6 +282,28 @@ public class AssetService {
     }
 
     /**
+     * Resolve the public or direct download URL for the given asset ID.
+     */
+    @Transactional(readOnly = true)
+    public String getPublicUrl(UUID assetId) {
+        MediaAsset asset = findAssetOrThrow(assetId);
+        return resolvePublicUrl(asset);
+    }
+
+    /**
+     * Resolves the accessible public/download URL for a given media asset.
+     */
+    public String resolvePublicUrl(MediaAsset asset) {
+        if ("s3".equalsIgnoreCase(asset.getStorageProvider())) {
+            Optional<StorageProvider> providerOpt = storageProviderRegistry.getProvider("s3");
+            if (providerOpt.isPresent()) {
+                return providerOpt.get().resolve(asset.getStorageLocation());
+            }
+        }
+        return "/api/v1/assets/" + asset.getId() + "/download";
+    }
+
+    /**
      * Get the MediaAsset entity (for content-type headers in controller).
      */
     @Transactional(readOnly = true)
@@ -289,7 +311,7 @@ public class AssetService {
         return findAssetOrThrow(assetId);
     }
 
-    // ────────────────────────────────────────────────────────────────────────
+    // ─────────────────────────────────────────────────────────────────────────
 
     private MediaAsset findAssetOrThrow(UUID assetId) {
         return assetRepository.findById(assetId)
@@ -328,6 +350,7 @@ public class AssetService {
                 .sha256Hash(asset.getSha256Hash())
                 .assetType(asset.getAssetType())
                 .status(asset.getStatus())
+                .publicUrl(resolvePublicUrl(asset))
                 .width(asset.getWidth())
                 .height(asset.getHeight())
                 .dpi(asset.getDpi())

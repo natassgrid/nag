@@ -73,6 +73,7 @@ const DEFAULT_SUBJECT_OPTIONS = [
 export class QuestionListComponent implements OnInit {
 
   @ViewChild('paginatedTable') paginatedTable!: PaginatedTableComponent<QuestionResponse>;
+  @ViewChild('visualsTmpl', { static: true }) visualsTmpl!: any;
 
   drawerOpen = false;
   editingQuestion?: QuestionResponse;
@@ -136,27 +137,7 @@ export class QuestionListComponent implements OnInit {
 
   subjects: Subject[] = [];
 
-  columns: ColumnDef<QuestionResponse>[] = [
-    { key: 'subject', header: 'Subject', sortable: true },
-    { key: 'topic', header: 'Topic', sortable: true },
-    {
-      key: 'difficulty',
-      header: 'Difficulty',
-      type: 'chip',
-      chipClass: (val) => 'chip-' + (val || '').toLowerCase(),
-      sortable: true
-    },
-    { key: 'questionType', header: 'Type', sortable: true },
-    {
-      key: 'state',
-      header: 'State',
-      type: 'chip',
-      chipClass: (val) => 'chip-state-' + (val || '').toLowerCase(),
-      sortable: true
-    },
-    { key: 'createdAt', header: 'Created', type: 'date', sortable: true },
-    { key: 'actions', header: 'Actions', type: 'actions' }
-  ];
+  columns: ColumnDef<QuestionResponse>[] = [];
 
   fetcher: PaginatedDataFetcher<QuestionResponse> = (req) => {
     const rawSubject = Array.isArray(this.filters['subject']) ? this.filters['subject'][0] : this.filters['subject'];
@@ -185,6 +166,28 @@ export class QuestionListComponent implements OnInit {
   ) {}
 
   ngOnInit(): void {
+    this.columns = [
+      { key: 'hasImages', header: 'Media', type: 'custom', template: this.visualsTmpl },
+      { key: 'subject', header: 'Subject', sortable: true },
+      { key: 'topic', header: 'Topic', sortable: true },
+      {
+        key: 'difficulty',
+        header: 'Difficulty',
+        type: 'chip',
+        chipClass: (val) => 'chip-' + (val || '').toLowerCase(),
+        sortable: true
+      },
+      { key: 'questionType', header: 'Type', sortable: true },
+      {
+        key: 'state',
+        header: 'State',
+        type: 'chip',
+        chipClass: (val) => 'chip-state-' + (val || '').toLowerCase(),
+        sortable: true
+      },
+      { key: 'createdAt', header: 'Created', type: 'date', sortable: true },
+      { key: 'actions', header: 'Actions', type: 'actions' }
+    ];
     this.loadSubjects();
   }
 
@@ -307,50 +310,50 @@ export class QuestionListComponent implements OnInit {
       difficulty: activeDifficulty || undefined,
       state: activeState || undefined
     }).subscribe({
-      next: (blob) => {
+      next: (blob: Blob) => {
         this.exporting = false;
-        this.triggerDownload(blob, `questions-export-${format}-${new Date().toISOString().slice(0, 10)}.zip`);
-        this.snackBar.open('Export ready', 'Close', { duration: 3000 });
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        const date = new Date().toISOString().slice(0, 10);
+        a.download = `question-bank-export-${date}.zip`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        window.URL.revokeObjectURL(url);
+        this.snackBar.open('Export downloaded successfully', 'Close', { duration: 3000 });
       },
-      error: () => {
+      error: (err: any) => {
         this.exporting = false;
-        this.snackBar.open('Export failed', 'Close', { duration: 4000 });
+        const msg = err.error?.message || 'Failed to export questions';
+        this.snackBar.open(msg, 'Close', { duration: 4000 });
       }
     });
   }
 
-  /** Handles the hidden file input change: uploads the selected ZIP for import. */
+  /** Triggers the bulk question import from a selected ZIP file. */
   onImportFileSelected(event: Event): void {
     const input = event.target as HTMLInputElement;
-    const file = input.files && input.files[0];
-    if (!file) {
-      return;
-    }
+    if (!input.files || input.files.length === 0) return;
+
+    const file = input.files[0];
+    input.value = ''; // reset so the same file can be chosen again if needed
+
     this.importing = true;
+    this.snackBar.open(`Importing ${file.name}…`, '', { duration: 0 });
+
     this.questionService.importQuestions(file).subscribe({
-      next: (result) => {
+      next: (res) => {
         this.importing = false;
-        input.value = '';
-        this.snackBar.open(
-          `Imported ${result.successfulCount} question(s), ${result.failedCount} failed`,
-          'Close',
-          { duration: 4000 });
+        const message = `Import complete: ${res.successfulCount} created/updated, ${res.failedCount} failed, ${res.duplicateCount} duplicates skipped.`;
+        this.snackBar.open(message, 'Close', { duration: 6000 });
         this.reload();
       },
-      error: (err) => {
+      error: (err: any) => {
         this.importing = false;
-        input.value = '';
-        this.snackBar.open(err?.error?.message || 'Import failed', 'Close', { duration: 4000 });
+        const msg = err.error?.message || 'Import failed. Ensure the ZIP contains valid batch files.';
+        this.snackBar.open(msg, 'Close', { duration: 5000 });
       }
     });
-  }
-
-  private triggerDownload(blob: Blob, fileName: string): void {
-    const url = window.URL.createObjectURL(blob);
-    const anchor = document.createElement('a');
-    anchor.href = url;
-    anchor.download = fileName;
-    anchor.click();
-    window.URL.revokeObjectURL(url);
   }
 }

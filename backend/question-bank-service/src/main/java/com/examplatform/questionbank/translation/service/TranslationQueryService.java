@@ -101,7 +101,7 @@ public class TranslationQueryService {
             explanation = payload.explanation();
             if (payload.options() != null) {
                 options = payload.options().stream()
-                        .map(opt -> new TranslatedOptionDto(opt.id(), opt.text()))
+                        .map(opt -> new TranslatedOptionDto(opt.id(), opt.text(), opt.imageUrl(), opt.imageAltText()))
                         .toList();
             }
         }

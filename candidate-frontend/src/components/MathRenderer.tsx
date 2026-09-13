@@ -1,4 +1,5 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState, useCallback } from 'react';
+import { ImageZoomModal } from './ImageZoomModal';
 import katex from 'katex';
 import { marked } from 'marked';
 // mhchem adds \ce{} (chemical equations) and \pu{} (physical units) to KaTeX.
@@ -398,6 +399,20 @@ function parseContentToHtml(raw: string, inline = false): string {
   }
 }
 
+/** Global CSS for responsive images inside rendered content */
+const IMAGE_STYLES = `
+.math-rendered-content img {
+  max-width: 100%;
+  height: auto;
+  cursor: zoom-in;
+  border-radius: 4px;
+  transition: opacity 0.15s;
+}
+.math-rendered-content img:hover {
+  opacity: 0.85;
+}
+`;
+
 /**
  * MathRenderer component for rendering questions, options, and explanations
  * containing standard Markdown and LaTeX math expressions.
@@ -407,6 +422,16 @@ export const MathRenderer: React.FC<MathRendererProps> = ({
   className = '',
   inline = false,
 }) => {
+  const [zoomImage, setZoomImage] = useState<{src: string; alt: string} | null>(null);
+
+  const handleImageClick = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+    const target = e.target as HTMLElement;
+    if (target.tagName === 'IMG') {
+      const img = target as HTMLImageElement;
+      setZoomImage({ src: img.src, alt: img.alt || 'Question figure' });
+    }
+  }, []);
+
   const htmlContent = useMemo(() => {
     if (!content) return '';
     return parseContentToHtml(content, inline);
@@ -426,10 +451,21 @@ export const MathRenderer: React.FC<MathRendererProps> = ({
   }
 
   return (
-    <div
-      className={`math-rendered-content ${className}`}
-      dangerouslySetInnerHTML={{ __html: htmlContent }}
-    />
+    <>
+      <style>{IMAGE_STYLES}</style>
+      <div
+        className={`math-rendered-content ${className}`}
+        dangerouslySetInnerHTML={{ __html: htmlContent }}
+        onClick={handleImageClick}
+        style={{ cursor: 'default' }}
+      />
+      <ImageZoomModal
+        src={zoomImage?.src || ''}
+        alt={zoomImage?.alt || ''}
+        isOpen={zoomImage !== null}
+        onClose={() => setZoomImage(null)}
+      />
+    </>
   );
 };
 

@@ -17,16 +17,18 @@
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
 
-package com.examplatform.asset.domain.enums;
+package com.examplatform.questionbank.dto;
 
-/**
- * Classification of media asset types supported by the platform.
- */
-public enum AssetType {
+import jakarta.validation.Constraint;
+import jakarta.validation.Payload;
+import java.lang.annotation.*;
 
-    IMAGE,
-    SVG,
-    AUDIO,
-    VIDEO,
-    DOCUMENT
+@Documented
+@Constraint(validatedBy = ValidOptionValidator.class)
+@Target({ElementType.TYPE})
+@Retention(RetentionPolicy.RUNTIME)
+public @interface ValidOption {
+    String message() default "Option must have either text or an image URL";
+    Class<?>[] groups() default {};
+    Class<? extends Payload>[] payload() default {};
 }

@@ -39,7 +39,8 @@ public class MimeValidator {
             Map.entry("image/png", AssetType.IMAGE),
             Map.entry("image/jpeg", AssetType.IMAGE),
             Map.entry("image/webp", AssetType.IMAGE),
-            Map.entry("image/svg+xml", AssetType.IMAGE),
+            // SVG vector diagrams
+            Map.entry("image/svg+xml", AssetType.SVG),
             // Audio
             Map.entry("audio/mpeg", AssetType.AUDIO),
             Map.entry("audio/mp3", AssetType.AUDIO),

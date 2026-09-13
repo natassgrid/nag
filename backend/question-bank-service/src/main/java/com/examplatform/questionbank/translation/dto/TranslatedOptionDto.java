@@ -25,7 +25,7 @@ import jakarta.validation.constraints.NotBlank;
  * DTO for a single translated answer option submitted by a translator.
  *
  * <p>The {@code id} must match one of the source question's option identifiers
- * (A–F).  The {@code text} carries the translated wording.
+ * (A–F). The {@code text} carries the translated wording.
  * Correctness ({@code isCorrect}) is never submitted here — it is always
  * derived from the source question.
  */
@@ -35,7 +35,19 @@ public record TranslatedOptionDto(
         @NotBlank(message = "option id is required")
         String id,
 
-        /** Translated option text. */
-        @NotBlank(message = "option text is required")
-        String text
-) {}
+        /** Translated option text (nullable for image-only options). */
+        String text,
+
+        /** Preserved image URL (verbatim, never translated). */
+        String imageUrl,
+
+        /** Translatable accessible alt text for the image. */
+        String imageAltText
+) {
+    /**
+     * Backward-compatible 2-argument constructor for text-only translated options.
+     */
+    public TranslatedOptionDto(String id, String text) {
+        this(id, text, null, null);
+    }
+}

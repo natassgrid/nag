@@ -39,6 +39,7 @@ import { MatCheckboxModule } from '@angular/material/checkbox';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { MatSlideToggleModule } from '@angular/material/slide-toggle';
+import { MatDialog, MatDialogModule } from '@angular/material/dialog';
 import {
   SubjectTopicService,
   Subject,
@@ -48,8 +49,11 @@ import {
 import {
   QuestionService,
   QuestionResponse,
-  CreateQuestionRequest
+  CreateQuestionRequest,
+  QuestionOptionDto
 } from './question.service';
+import { AssetPickerDialogComponent } from '../assets/asset-picker-dialog.component';
+import { AssetResponse } from '../assets/asset.model';
 import { RightDrawerComponent } from '../../shared/components/right-drawer/right-drawer.component';
 import { MathRendererComponent } from '../../shared/components/math-renderer/math-renderer.component';
 import { ExamEditorComponent } from '../../shared/components/exam-editor/exam-editor.component';
@@ -70,6 +74,7 @@ import { ExamEditorComponent } from '../../shared/components/exam-editor/exam-ed
     MatProgressSpinnerModule,
     MatTooltipModule,
     MatSlideToggleModule,
+    MatDialogModule,
     RightDrawerComponent,
     MathRendererComponent,
     ExamEditorComponent
@@ -111,7 +116,14 @@ export class QuestionFormDialogComponent implements OnInit, OnChanges {
   creatingTopic = false;
   creatingSubtopic = false;
 
-  options: { id: string; text: string; isCorrect: boolean }[] = [];
+  options: {
+    id: string;
+    text: string;
+    isCorrect: boolean;
+    imageUrl?: string;
+    imageAltText?: string;
+    isImageOnly?: boolean;
+  }[] = [];
   optionIds = ['A', 'B', 'C', 'D', 'E', 'F'];
   optionError = '';
   saving = false;
@@ -129,6 +141,7 @@ export class QuestionFormDialogComponent implements OnInit, OnChanges {
     private fb: FormBuilder,
     private subjectTopicService: SubjectTopicService,
     private questionService: QuestionService,
+    private dialog: MatDialog,
     private cdr: ChangeDetectorRef
   ) {
     this.initForm();
@@ -177,10 +190,13 @@ export class QuestionFormDialogComponent implements OnInit, OnChanges {
     this.explanationContent = explanation;
 
     if (q?.options && q.options.length > 0) {
-      this.options = q.options.map((o: any) => ({
+      this.options = q.options.map((o: QuestionOptionDto) => ({
         id: o.id,
         text: this.unescapeNewlines(o.text),
-        isCorrect: o.isCorrect
+        isCorrect: o.isCorrect,
+        imageUrl: o.imageUrl || '',
+        imageAltText: o.imageAltText || '',
+        isImageOnly: !!o.imageUrl && (!o.text || !o.text.trim())
       }));
     } else {
       this.options = [];
@@ -386,6 +402,74 @@ export class QuestionFormDialogComponent implements OnInit, OnChanges {
     this.form.get('explanation')?.markAsTouched();
   }
 
+  openContentAssetPicker(): void {
+    const ref = this.dialog.open(AssetPickerDialogComponent, {
+      width: '800px',
+      data: { assetType: 'IMAGE', title: 'Insert Image into Content' }
+    });
+    ref.afterClosed().subscribe((asset: AssetResponse) => {
+      if (asset) {
+        const alt = asset.altText || asset.title || asset.originalFilename || 'Diagram';
+        const url = `/api/v1/assets/${asset.id}/download`;
+        const mdImage = `\n![${alt}](${url})\n`;
+        this.editorContent = (this.editorContent || '') + mdImage;
+        this.onEditorChange(this.editorContent);
+        this.cdr.markForCheck();
+      }
+    });
+  }
+
+  openExplanationAssetPicker(): void {
+    const ref = this.dialog.open(AssetPickerDialogComponent, {
+      width: '800px',
+      data: { assetType: 'IMAGE', title: 'Insert Image into Explanation' }
+    });
+    ref.afterClosed().subscribe((asset: AssetResponse) => {
+      if (asset) {
+        const alt = asset.altText || asset.title || asset.originalFilename || 'Explanation Diagram';
+        const url = `/api/v1/assets/${asset.id}/download`;
+        const mdImage = `\n![${alt}](${url})\n`;
+        this.explanationContent = (this.explanationContent || '') + mdImage;
+        this.onExplanationChange(this.explanationContent);
+        this.cdr.markForCheck();
+      }
+    });
+  }
+
+  openOptionAssetPicker(index: number): void {
+    const ref = this.dialog.open(AssetPickerDialogComponent, {
+      width: '800px',
+      data: { assetType: 'IMAGE', title: `Select Image for Option ${this.options[index].id}` }
+    });
+    ref.afterClosed().subscribe((asset: AssetResponse) => {
+      if (asset) {
+        this.options[index].imageUrl = `/api/v1/assets/${asset.id}/download`;
+        if (!this.options[index].imageAltText) {
+          this.options[index].imageAltText = asset.altText || asset.title || `Option ${this.options[index].id}`;
+        }
+        this.cdr.markForCheck();
+      }
+    });
+  }
+
+  clearOptionImage(index: number): void {
+    this.options[index].imageUrl = '';
+    this.options[index].imageAltText = '';
+    this.options[index].isImageOnly = false;
+    this.cdr.markForCheck();
+  }
+
+  toggleImageOnly(index: number, isImageOnly: boolean): void {
+    this.options[index].isImageOnly = isImageOnly;
+    if (isImageOnly) {
+      this.options[index].text = '';
+      if (!this.options[index].imageUrl) {
+        this.openOptionAssetPicker(index);
+      }
+    }
+    this.cdr.markForCheck();
+  }
+
   formatLatex(text: string): string {
     if (!text) return '';
     let formatted = text;
@@ -414,8 +498,8 @@ export class QuestionFormDialogComponent implements OnInit, OnChanges {
       this.options = [];
     } else if (this.options.length === 0) {
       this.options = [
-        { id: 'A', text: '', isCorrect: false },
-        { id: 'B', text: '', isCorrect: false }
+        { id: 'A', text: '', isCorrect: false, imageUrl: '', imageAltText: '', isImageOnly: false },
+        { id: 'B', text: '', isCorrect: false, imageUrl: '', imageAltText: '', isImageOnly: false }
       ];
     }
     this.optionError = '';
@@ -432,7 +516,14 @@ export class QuestionFormDialogComponent implements OnInit, OnChanges {
 
   addOption(): void {
     if (this.options.length < 5) {
-      this.options.push({ id: this.optionIds[this.options.length], text: '', isCorrect: false });
+      this.options.push({
+        id: this.optionIds[this.options.length],
+        text: '',
+        isCorrect: false,
+        imageUrl: '',
+        imageAltText: '',
+        isImageOnly: false
+      });
       this.cdr.markForCheck();
     }
   }
@@ -470,10 +561,20 @@ export class QuestionFormDialogComponent implements OnInit, OnChanges {
         if (!this.isMcq() && correct < 1) {
           this.optionError = 'MSQ requires at least one correct option'; return;
         }
+        for (const opt of this.options) {
+          const hasText = opt.text && opt.text.trim().length > 0;
+          const hasImg = opt.imageUrl && opt.imageUrl.trim().length > 0;
+          if (!hasText && !hasImg) {
+            this.optionError = `Option ${opt.id} must have either text or an image.`;
+            return;
+          }
+        }
         value.options = this.options.map((o, i) => ({
           id: this.optionIds[i],
-          text: this.formatLatex(o.text),
-          isCorrect: o.isCorrect
+          text: this.formatLatex(o.text || ''),
+          isCorrect: o.isCorrect,
+          imageUrl: o.imageUrl?.trim() || undefined,
+          imageAltText: o.imageAltText?.trim() || undefined
         }));
       }
       this.optionError = '';

@@ -19,7 +19,6 @@
 
 package com.examplatform.questionbank.dto;
 
-import jakarta.validation.constraints.NotBlank;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -35,16 +34,29 @@ import lombok.NoArgsConstructor;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
+@ValidOption
 public class QuestionOption {
 
     /** Option identifier: A, B, C, D, E, or F */
     private String id;
 
     /** The visible text of this option */
-    @NotBlank(message = "Option text must not be blank")
     private String text;
 
     /** True if this option is part of the correct answer */
     @com.fasterxml.jackson.annotation.JsonProperty("isCorrect")
     private boolean correct;
+
+    /** CDN/storage URL of a raster image or SVG asset for this option */
+    private String imageUrl;
+
+    /** Accessible alt text for the image (for screen-readers and translation) */
+    private String imageAltText;
+
+    /**
+     * Backward-compatible 3-argument constructor for text-only options.
+     */
+    public QuestionOption(String id, String text, boolean correct) {
+        this(id, text, correct, null, null);
+    }
 }

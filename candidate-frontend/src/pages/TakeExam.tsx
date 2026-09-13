@@ -30,6 +30,7 @@ import { sessionService } from '../services/sessionService';
 import { responseService } from '../services/responseService';
 import { useToast } from '../components/Toast';
 import { MathRenderer } from '../components/MathRenderer';
+import { ImageZoomModal } from '../components/ImageZoomModal';
 import { offlineQueue } from '../utils/offlineQueue';
 import { FEATURE_FLAGS } from '../config/featureFlags';
 import { OFFICIAL_EXAM_QUESTIONS } from '../data/examQuestions';
@@ -80,6 +81,7 @@ const TakeExam: React.FC = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
 
+  const [zoomImage, setZoomImage] = useState<{src: string; alt: string} | null>(null);
   const [examDetails, setExamDetails] = useState<ExaminationResponse | null>(null);
   const [session, setSession] = useState<SessionStartResponse | null>(null);
   const [questions, setQuestions] = useState<QuestionDto[]>([]);
@@ -754,63 +756,83 @@ const TakeExam: React.FC = () => {
                 </div>
 
                 {/* Options List with Markdown & LaTeX Rendering */}
-                <div className="mt-6 space-y-3">
-                  {currentQ.options.map((opt) => {
-                    const isSelected = currentAnswer?.optionIndex === opt.index;
-                    const isCorrect = currentQ.correctOptionIndex === opt.index;
-                    const showCorrectness = showPracticeTools && showExplanation;
+                {(() => {
+                  const hasImageOptions = currentQ?.options?.some((opt: any) => opt.imageUrl);
+                  return (
+                    <div className={`mt-6 ${hasImageOptions ? 'grid grid-cols-2 gap-3' : 'space-y-3'}`}>
+                      {currentQ.options.map((opt) => {
+                        const isSelected = currentAnswer?.optionIndex === opt.index;
+                        const isCorrect = currentQ.correctOptionIndex === opt.index;
+                        const showCorrectness = showPracticeTools && showExplanation;
 
-                    let optionBorderClass =
-                      'border-slate-200 bg-white text-slate-800 hover:border-slate-300 hover:bg-slate-50';
-                    let letterClass = 'border-slate-400 bg-white text-slate-600';
+                        let optionBorderClass =
+                          'border-slate-200 bg-white text-slate-800 hover:border-slate-300 hover:bg-slate-50';
+                        let letterClass = 'border-slate-400 bg-white text-slate-600';
 
-                    if (showCorrectness) {
-                      if (isCorrect) {
-                        optionBorderClass =
-                          'border-emerald-500 bg-emerald-50 text-emerald-950 font-semibold shadow-xs';
-                        letterClass = 'border-emerald-600 bg-emerald-600 text-white';
-                      } else if (isSelected && !isCorrect) {
-                        optionBorderClass =
-                          'border-rose-400 bg-rose-50 text-rose-950 font-semibold';
-                        letterClass = 'border-rose-600 bg-rose-600 text-white';
-                      }
-                    } else if (isSelected) {
-                      optionBorderClass =
-                        'border-teal-600 bg-teal-50/60 text-teal-950 font-semibold shadow-sm';
-                      letterClass = 'border-teal-700 bg-teal-700 text-white';
-                    }
+                        if (showCorrectness) {
+                          if (isCorrect) {
+                            optionBorderClass =
+                              'border-emerald-500 bg-emerald-50 text-emerald-950 font-semibold shadow-xs';
+                            letterClass = 'border-emerald-600 bg-emerald-600 text-white';
+                          } else if (isSelected && !isCorrect) {
+                            optionBorderClass =
+                              'border-rose-400 bg-rose-50 text-rose-950 font-semibold';
+                            letterClass = 'border-rose-600 bg-rose-600 text-white';
+                          }
+                        } else if (isSelected) {
+                          optionBorderClass =
+                            'border-teal-600 bg-teal-50/60 text-teal-950 font-semibold shadow-sm';
+                          letterClass = 'border-teal-700 bg-teal-700 text-white';
+                        }
 
-                    return (
-                      <div
-                        key={opt.index}
-                        onClick={() => handleSelectOption(opt.index)}
-                        className={`flex cursor-pointer items-center justify-between rounded-xl border-2 p-3.5 transition ${optionBorderClass}`}
-                      >
-                        <div className="flex items-center gap-3">
+                        return (
                           <div
-                            className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full border text-xs font-bold ${letterClass}`}
+                            key={opt.index}
+                            onClick={() => handleSelectOption(opt.index)}
+                            className={`flex flex-col cursor-pointer justify-between rounded-xl border-2 p-3.5 transition ${optionBorderClass}`}
                           >
-                            {String.fromCharCode(65 + opt.index)}
-                          </div>
-                          <div className="text-sm leading-snug">
-                            <MathRenderer content={opt.text} inline />
-                          </div>
-                        </div>
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-3">
+                                <div
+                                  className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full border text-xs font-bold ${letterClass}`}
+                                >
+                                  {String.fromCharCode(65 + opt.index)}
+                                </div>
+                                <div className="text-sm leading-snug">
+                                  <MathRenderer content={opt.text} inline />
+                                </div>
+                              </div>
 
-                        {showCorrectness && isCorrect && (
-                          <span className="flex items-center gap-1 text-xs font-bold text-emerald-700">
-                            <Check className="h-4 w-4" /> Correct Answer
-                          </span>
-                        )}
-                        {showCorrectness && isSelected && !isCorrect && (
-                          <span className="flex items-center gap-1 text-xs font-bold text-rose-600">
-                            <X className="h-4 w-4" /> Your Selection
-                          </span>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
+                              {showCorrectness && isCorrect && (
+                                <span className="flex items-center gap-1 text-xs font-bold text-emerald-700">
+                                  <Check className="h-4 w-4" /> Correct Answer
+                                </span>
+                              )}
+                              {showCorrectness && isSelected && !isCorrect && (
+                                <span className="flex items-center gap-1 text-xs font-bold text-rose-600">
+                                  <X className="h-4 w-4" /> Your Selection
+                                </span>
+                              )}
+                            </div>
+                            {opt.imageUrl && (
+                              <div className="relative mt-3">
+                                <img
+                                  src={opt.imageUrl}
+                                  alt={opt.imageAltText || `Option ${opt.index}`}
+                                  className="w-full h-auto rounded border cursor-zoom-in max-h-48 object-contain bg-gray-50"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setZoomImage({ src: opt.imageUrl!, alt: opt.imageAltText || `Option ${opt.index}` });
+                                  }}
+                                />
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  );
+                })()}
 
                 {/* Practice / Learning Mode: Solution & Step-by-Step Explanation */}
                 {showPracticeTools && (
@@ -1048,6 +1070,13 @@ const TakeExam: React.FC = () => {
           </div>
         </div>
       )}
+
+      <ImageZoomModal
+        src={zoomImage?.src || ''}
+        alt={zoomImage?.alt || ''}
+        isOpen={zoomImage !== null}
+        onClose={() => setZoomImage(null)}
+      />
     </div>
   );
 };
