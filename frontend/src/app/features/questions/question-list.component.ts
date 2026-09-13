@@ -1,4 +1,3 @@
-import { Component, OnInit, ViewChild, ChangeDetectionStrategy, ChangeDetectorRef } from '@angular/core';
 /*
  * SPDX-License-Identifier: AGPL-3.0-only
  *
@@ -18,6 +17,7 @@ import { Component, OnInit, ViewChild, ChangeDetectionStrategy, ChangeDetectorRe
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
 
+import { Component, OnInit, ViewChild, ChangeDetectionStrategy, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
@@ -37,6 +37,17 @@ import {
   FilterCategory
 } from '../../shared/components/paginated-table';
 import { PageHeaderComponent } from '../../shared/components/page-header/page-header.component';
+
+const DEFAULT_SUBJECT_OPTIONS = [
+  { label: 'Quantitative Aptitude', value: 'Quantitative Aptitude' },
+  { label: 'General Intelligence and Reasoning', value: 'General Intelligence and Reasoning' },
+  { label: 'English Language', value: 'English Language' },
+  { label: 'General Awareness', value: 'General Awareness' },
+  { label: 'Computer Aptitude', value: 'Computer Aptitude' },
+  { label: 'Mathematics', value: 'Mathematics' },
+  { label: 'Physics', value: 'Physics' },
+  { label: 'Chemistry', value: 'Chemistry' }
+];
 
 @Component({
   selector: 'app-question-list',
@@ -99,7 +110,7 @@ export class QuestionListComponent implements OnInit {
       key: 'subject',
       label: 'Subject',
       expanded: false,
-      options: []
+      options: DEFAULT_SUBJECT_OPTIONS
     },
     {
       key: 'difficulty',
@@ -148,12 +159,17 @@ export class QuestionListComponent implements OnInit {
   ];
 
   fetcher: PaginatedDataFetcher<QuestionResponse> = (req) => {
-    const activeSubject = Array.isArray(this.filters['subject']) ? this.filters['subject'][0] : this.filters['subject'];
+    const rawSubject = Array.isArray(this.filters['subject']) ? this.filters['subject'][0] : this.filters['subject'];
     const activeDifficulty = Array.isArray(this.filters['difficulty']) ? this.filters['difficulty'][0] : this.filters['difficulty'];
     const activeState = Array.isArray(this.filters['state']) ? this.filters['state'][0] : this.filters['state'];
 
+    const isNumericSubject = rawSubject !== undefined && rawSubject !== null && rawSubject !== '' && !isNaN(Number(rawSubject));
+    const subjectId = isNumericSubject ? Number(rawSubject) : undefined;
+    const subject = !isNumericSubject && rawSubject ? String(rawSubject) : undefined;
+
     return this.questionService.getQuestions({
-      subject: activeSubject || undefined,
+      subject,
+      subjectId,
       difficulty: activeDifficulty || undefined,
       state: activeState || undefined,
       page: req.page,
@@ -173,13 +189,36 @@ export class QuestionListComponent implements OnInit {
   }
 
   loadSubjects(): void {
-    this.subjectTopicService.getSubjects().subscribe(subjects => {
-      this.subjects = subjects;
-      const subjectCat = this.filterCategories.find(c => c.key === 'subject');
-      if (subjectCat) {
-        subjectCat.options = subjects.map(s => ({ label: s.name, value: s.name }));
+    this.subjectTopicService.getSubjects().subscribe({
+      next: (subjects) => {
+        this.subjects = subjects || [];
+        const subjectOptions = this.subjects.length > 0
+          ? this.subjects.map(s => ({ label: s.name, value: s.id.toString() }))
+          : DEFAULT_SUBJECT_OPTIONS;
+        this.filterCategories = this.filterCategories.map(cat => {
+          if (cat.key === 'subject') {
+            return {
+              ...cat,
+              options: subjectOptions
+            };
+          }
+          return cat;
+        });
+        this.cdr.markForCheck();
+      },
+      error: (err) => {
+        console.warn('Failed to load subjects for filter:', err);
+        this.filterCategories = this.filterCategories.map(cat => {
+          if (cat.key === 'subject') {
+            return {
+              ...cat,
+              options: DEFAULT_SUBJECT_OPTIONS
+            };
+          }
+          return cat;
+        });
+        this.cdr.markForCheck();
       }
-      this.cdr.markForCheck();
     });
   }
 
@@ -217,8 +256,9 @@ export class QuestionListComponent implements OnInit {
     this.translationDrawerOpen = true;
   }
 
-  onTranslationDrawerClose(updated: boolean): void {
+  onTranslationDrawerClose(updated?: boolean): void {
     this.translationDrawerOpen = false;
+    this.translatingQuestion = undefined;
     if (updated) {
       this.reload();
     }
@@ -251,14 +291,19 @@ export class QuestionListComponent implements OnInit {
 
   /** Downloads a ZIP export of questions matching the active filters. */
   exportQuestions(format: 'json' | 'csv'): void {
-    const activeSubject = Array.isArray(this.filters['subject']) ? this.filters['subject'][0] : this.filters['subject'];
+    const rawSubject = Array.isArray(this.filters['subject']) ? this.filters['subject'][0] : this.filters['subject'];
     const activeDifficulty = Array.isArray(this.filters['difficulty']) ? this.filters['difficulty'][0] : this.filters['difficulty'];
     const activeState = Array.isArray(this.filters['state']) ? this.filters['state'][0] : this.filters['state'];
+
+    const isNumericSubject = rawSubject !== undefined && rawSubject !== null && rawSubject !== '' && !isNaN(Number(rawSubject));
+    const subjectId = isNumericSubject ? Number(rawSubject) : undefined;
+    const subject = !isNumericSubject && rawSubject ? String(rawSubject) : undefined;
 
     this.exporting = true;
     this.questionService.exportQuestions({
       format,
-      subject: activeSubject || undefined,
+      subject,
+      subjectId,
       difficulty: activeDifficulty || undefined,
       state: activeState || undefined
     }).subscribe({
@@ -287,7 +332,7 @@ export class QuestionListComponent implements OnInit {
         this.importing = false;
         input.value = '';
         this.snackBar.open(
-          `Imported ${result.imported} question(s), ${result.failed} failed`,
+          `Imported ${result.successfulCount} question(s), ${result.failedCount} failed`,
           'Close',
           { duration: 4000 });
         this.reload();

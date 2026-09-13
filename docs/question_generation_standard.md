@@ -10,12 +10,43 @@
      - `options[].text` (every single option)
      - `answerKey` (if numerical/algebraic)
      - `explanation` (detailed solution derivation)
-3. **Escaping Inside JSON & SQL Literals**:
-   - When constructing JSON within SQL migration files or raw JSON payloads, LaTeX backslashes (`\`) MUST be escaped as `\\` (e.g. `$$\frac{a}{b}$$`, `$$75(\\sqrt{3} - 1)\\text{ m}$$`).
+3. **Percentage Symbols in LaTeX**:
+   - `%` is a LaTeX comment delimiter. In LaTeX math mode, always write `\%` or `\text{%}` (e.g. `$$99.9\%$$`, `$$25\%$$`).
+4. **Escaping Inside JSON & SQL Literals**:
+   - When constructing JSON within SQL migration files or raw JSON payloads, LaTeX backslashes (`\`) MUST be escaped as `\\` (e.g. `"$$\\frac{a}{b}$$"`, `"$$75(\\sqrt{3} - 1)\\text{ m}$$"`, `"$$99.9\\%$$"`).
 
 ---
 
-## 2. Question Classification & Bloom's Taxonomy
+## 2. Markdown & Paragraph Formatting Rules
+1. **GFM Markdown**:
+   - Use standard GitHub Flavored Markdown for bold text (`**bold**`), italics (`*italic*`), code (` `code` `), fenced code blocks, and markdown tables.
+2. **Newline Handling (`\n` & `\n\n`)**:
+   - In JSON strings, literal newlines are encoded as `\n`.
+   - **Paragraph Separation**: Use double newlines (`\n\n`) between headings, statements, conclusions, tables, and paragraphs to create distinct blocks.
+   - **List Items**: Use single newlines (`\n`) between ordered list items (`1. `, `2. `) or roman numeral clauses (`I. `, `II. `).
+3. **Reasoning & Syllogism Structure (Statements & Conclusions)**:
+   ```text
+   **Statements:**
+   1. All quantum computers capable of Shor's algorithm ($$Q$$) require coherent qubits with fidelity exceeding $$99.9\%$$ ($$F$$).
+   2. No noisy intermediate-scale quantum ($$NISQ$$) system achieves coherent qubit fidelity exceeding $$99.9\%$$.
+   3. System $$Psi$$ is a $$NISQ$$ system.
+
+   **Conclusions:**
+   I. System $$Psi$$ does not have coherent qubit fidelity exceeding $$99.9\%$$.
+   II. System $$Psi$$ is not capable of executing Shor's algorithm for large integers.
+   ```
+4. **Data Interpretation Tables**:
+   Use standard Markdown pipe tables:
+   ```text
+   | Department | 2022 ($$\times 10^3$$) | 2023 ($$\times 10^3$$) | Growth ($$\%$$) |
+   |------------|------------------------|------------------------|-----------------|
+   | Physics    | 120                    | 150                    | $$+25\%$$       |
+   | Chemistry  | 90                     | 108                    | $$+20\%$$       |
+   ```
+
+---
+
+## 3. Question Classification & Bloom's Taxonomy
 
 ### Difficulty Levels
 - `EASY`: Direct recall, standard formulas, single-step operations.
@@ -32,7 +63,7 @@
 
 ---
 
-## 3. Option & Answer Key Integrity Rules
+## 4. Option & Answer Key Integrity Rules
 
 ### SINGLE_MCQ:
 - Exactly 4 options with IDs `"A"`, `"B"`, `"C"`, `"D"`.
@@ -54,7 +85,7 @@
 
 ---
 
-## 4. Primary Key & Database Rules
+## 5. Primary Key & Database Rules
 
 1. **UUID Syntax**:
    - Primary key `id` and foreign keys `tenant_id`, `author_id`, `reviewer_id` must use strictly valid hexadecimal UUIDs: `[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}`.
@@ -68,9 +99,9 @@
 
 ---
 
-## 5. Question Generation Context & Blueprint Assembly Reference
+## 6. Question Generation Context & Blueprint Assembly Reference
 
-### 5.1 Blueprint Constraint Matching (`PaperAssemblyService`)
+### 6.1 Blueprint Constraint Matching (`PaperAssemblyService`)
 `PaperAssemblyService` queries the question bank by matching:
 - `subject` (Exact case-sensitive match against `question_service.subject.name`)
 - `topic` (Exact case-sensitive match against `question_service.topic.name`)
@@ -79,7 +110,7 @@
 
 If the active pool contains fewer available questions than the rule quota (`needed`), paper assembly fails immediately with `InsufficientQuestionsException` and generates a gap report.
 
-### 5.2 Context Reference: General Intelligence & Reasoning -> Statement and Conclusion (HARD)
+### 6.2 Context Reference: General Intelligence & Reasoning -> Statement and Conclusion (HARD)
 
 When generating or seeding questions for **`Statement and Conclusion`** under **`General Intelligence and Reasoning`** at **`HARD`** difficulty:
 

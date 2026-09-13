@@ -279,11 +279,11 @@ public class QuestionService {
     }
 
     /**
-     * Lists questions for a tenant with optional filters and pagination.
+     * Lists questions for a tenant with optional filters and pagination (including subjectId / topicId).
      */
     @Transactional(readOnly = true)
     public org.springframework.data.domain.Page<QuestionResponse> listQuestions(
-            String subject, String topic, String difficulty, String state,
+            String subject, Long subjectId, String topic, Long topicId, String difficulty, String state,
             String search, int page, int size, String tenantId) {
 
         org.springframework.data.domain.Pageable pageable =
@@ -293,12 +293,28 @@ public class QuestionService {
         org.springframework.data.jpa.domain.Specification<Question> spec =
                 org.springframework.data.jpa.domain.Specification.where(tenantEquals(tenantId));
 
-        if (subject != null && !subject.isBlank()) {
-            spec = spec.and(fieldEquals("subject", subject));
+        if (subjectId != null) {
+            spec = spec.and((root, query, cb) -> cb.equal(root.get("subjectId"), subjectId));
+        } else if (subject != null && !subject.isBlank()) {
+            try {
+                Long parsedId = Long.parseLong(subject.trim());
+                spec = spec.and((root, query, cb) -> cb.equal(root.get("subjectId"), parsedId));
+            } catch (NumberFormatException e) {
+                spec = spec.and(fieldEquals("subject", subject));
+            }
         }
-        if (topic != null && !topic.isBlank()) {
-            spec = spec.and(fieldEquals("topic", topic));
+
+        if (topicId != null) {
+            spec = spec.and((root, query, cb) -> cb.equal(root.get("topicId"), topicId));
+        } else if (topic != null && !topic.isBlank()) {
+            try {
+                Long parsedTopicId = Long.parseLong(topic.trim());
+                spec = spec.and((root, query, cb) -> cb.equal(root.get("topicId"), parsedTopicId));
+            } catch (NumberFormatException e) {
+                spec = spec.and(fieldEquals("topic", topic));
+            }
         }
+
         if (difficulty != null && !difficulty.isBlank()) {
             spec = spec.and(fieldEquals("difficulty", difficulty));
         }
@@ -310,6 +326,16 @@ public class QuestionService {
         }
 
         return questionRepository.findAll(spec, pageable).map(this::toResponse);
+    }
+
+    /**
+     * Backward-compatible listQuestions method.
+     */
+    @Transactional(readOnly = true)
+    public org.springframework.data.domain.Page<QuestionResponse> listQuestions(
+            String subject, String topic, String difficulty, String state,
+            String search, int page, int size, String tenantId) {
+        return listQuestions(subject, null, topic, null, difficulty, state, search, page, size, tenantId);
     }
 
     private org.springframework.data.jpa.domain.Specification<Question> tenantEquals(String tenantId) {

@@ -6,7 +6,9 @@
       </div>
 
       <!-- Question Content -->
-      <div class="question-content" [innerHTML]="question.content" aria-label="Question content"></div>
+      <div class="question-content" aria-label="Question content">
+        <app-math-renderer [content]="question.content || ''"></app-math-renderer>
+      </div>
 
       <!-- MCQ Options (Radio) -->
       <div class="options-list" *ngIf="question.questionType === 'SINGLE_MCQ' && question.options?.length">
@@ -16,7 +18,9 @@
                             [value]="option.id"
                             class="option-item"
                             [attr.aria-label]="'Option ' + (i + 1) + ': ' + option.text">
-            <span class="option-text">{{ option.text }}</span>
+            <span class="option-text">
+              <app-math-renderer [content]="option.text" [inline]="true"></app-math-renderer>
+            </span>
           </mat-radio-button>
         </mat-radio-group>
       </div>
@@ -27,7 +31,9 @@
           <mat-checkbox [checked]="selectedOptionIds.includes(option.id)"
                         (change)="onCheckboxChange(option.id, $event.checked)"
                         [attr.aria-label]="'Option ' + (i + 1) + ': ' + option.text">
-            <span class="option-text">{{ option.text }}</span>
+            <span class="option-text">
+              <app-math-renderer [content]="option.text" [inline]="true"></app-math-renderer>
+            </span>
           </mat-checkbox>
         </div>
       </div>

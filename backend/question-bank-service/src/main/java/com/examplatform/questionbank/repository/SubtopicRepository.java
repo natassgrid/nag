@@ -29,6 +29,8 @@ import java.util.Optional;
 @Repository
 public interface SubtopicRepository extends JpaRepository<Subtopic, Long> {
 
+    Optional<Subtopic> findByIdAndTenantId(Long id, String tenantId);
+
     List<Subtopic> findByTopicIdAndTenantId(Long topicId, String tenantId);
 
     Optional<Subtopic> findByNameAndTopicIdAndTenantId(String name, Long topicId, String tenantId);

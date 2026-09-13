@@ -55,8 +55,12 @@ public class QuestionResponse {
     private String explanation;
     private String references;
     private String state;
+    private Long version;
     private UUID authorId;
+    private UUID reviewerId;
+    private String encryptionKeyId;
     private LocalDateTime createdAt;
+    private LocalDateTime updatedAt;
 
     /** Parsed options for MCQ/MSQ questions */
     private List<QuestionOption> options;

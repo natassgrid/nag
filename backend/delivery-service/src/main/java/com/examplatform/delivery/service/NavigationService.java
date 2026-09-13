@@ -24,10 +24,11 @@ import com.examplatform.delivery.dto.NavigationRequest;
 import com.examplatform.delivery.dto.NavigationResponse;
 import com.examplatform.delivery.dto.NavigationResponse.NavigationAction;
 import com.examplatform.delivery.dto.NavigationResponse.NavigationPolicy;
+import com.examplatform.delivery.dto.QuestionDeliveryDto;
 import com.examplatform.delivery.exception.NavigationPolicyViolationException;
 import com.examplatform.delivery.repository.ExamSessionRepository;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -47,13 +48,27 @@ import java.util.UUID;
  */
 @Slf4j
 @Service
-@RequiredArgsConstructor
 public class NavigationService {
 
     private static final String SESSION_CACHE_PREFIX = "session:";
 
     private final ExamSessionRepository examSessionRepository;
     private final RedisTemplate<String, Object> redisTemplate;
+    private final ExamQuestionDeliveryService examQuestionDeliveryService;
+
+    public NavigationService(ExamSessionRepository examSessionRepository,
+                             RedisTemplate<String, Object> redisTemplate) {
+        this(examSessionRepository, redisTemplate, null);
+    }
+
+    @Autowired
+    public NavigationService(ExamSessionRepository examSessionRepository,
+                             RedisTemplate<String, Object> redisTemplate,
+                             @Autowired(required = false) ExamQuestionDeliveryService examQuestionDeliveryService) {
+        this.examSessionRepository = examSessionRepository;
+        this.redisTemplate = redisTemplate;
+        this.examQuestionDeliveryService = examQuestionDeliveryService;
+    }
 
     /**
      * Navigate to a target question within an exam session.
@@ -144,7 +159,6 @@ public class NavigationService {
     NavigationPolicy determinePolicy(ExamSession session) {
         // Navigation policy is typically set per exam configuration
         // For now, derive from exam metadata or default to FLEXIBLE
-        // This can be extended to read from exam configuration
         return NavigationPolicy.FLEXIBLE;
     }
 
@@ -238,8 +252,28 @@ public class NavigationService {
     }
 
     private int getSectionForQuestion(int questionIndex, ExamSession session) {
+        if (examQuestionDeliveryService != null && session != null) {
+            try {
+                String tenant = session.getTenantId() != null ? session.getTenantId() : "default";
+                List<QuestionDeliveryDto> questions = examQuestionDeliveryService.getQuestionsForSession(
+                        session.getSessionId(), tenant);
+                if (questions != null && questionIndex >= 0 && questionIndex < questions.size()) {
+                    String sectionId = questions.get(questionIndex).getSectionId();
+                    if (sectionId != null && !sectionId.isBlank()) {
+                        if (sectionId.matches(".*\\d+.*")) {
+                            String digits = sectionId.replaceAll("\\D+", "");
+                            if (!digits.isEmpty()) {
+                                return Integer.parseInt(digits) - 1;
+                            }
+                        }
+                        return Math.abs(sectionId.hashCode() % 10);
+                    }
+                }
+            } catch (Exception e) {
+                log.debug("Could not resolve section from delivery service: {}", e.getMessage());
+            }
+        }
         // Default section calculation: every 10 questions is a section
-        // In a full implementation, this would be read from exam structure
         return questionIndex / 10;
     }
 
@@ -248,9 +282,22 @@ public class NavigationService {
     }
 
     private int getTotalQuestions(ExamSession session) {
-        // Default total questions — in full implementation, read from paper metadata
-        // A minimum of currentQuestionIndex + 1 to avoid bounds issues
-        return Math.max(session.getCurrentQuestionIndex() + 1, 50);
+        if (examQuestionDeliveryService != null && session != null) {
+            try {
+                String tenant = session.getTenantId() != null ? session.getTenantId() : "default";
+                List<QuestionDeliveryDto> questions = examQuestionDeliveryService.getQuestionsForSession(
+                        session.getSessionId(), tenant);
+                if (questions != null && !questions.isEmpty()) {
+                    return Math.max(questions.size(), session.getCurrentQuestionIndex() + 1);
+                }
+            } catch (Exception e) {
+                log.debug("Could not resolve questions from delivery service for session {}: {}",
+                        session.getSessionId(), e.getMessage());
+            }
+        }
+        // Fallback: Support standard competitive exam sizes up to 200 questions,
+        // and always at least current question index + 1 to prevent false out-of-bounds
+        return Math.max(session.getCurrentQuestionIndex() + 1, 200);
     }
 
     private void updateSessionCache(ExamSession session) {

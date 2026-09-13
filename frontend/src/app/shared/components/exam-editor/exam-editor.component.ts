@@ -65,8 +65,9 @@ export class ExamEditorComponent implements ControlValueAccessor {
 
   @Input()
   set value(val: any) {
-    if (val !== this.content) {
-      this.content = this.normalizeValue(val);
+    const normalized = this.normalizeValue(val);
+    if (normalized !== this.content) {
+      this.content = normalized;
       this.cdr.markForCheck();
     }
   }
@@ -131,7 +132,21 @@ export class ExamEditorComponent implements ControlValueAccessor {
 
   private normalizeValue(val: any): string {
     if (!val) return '';
-    if (typeof val === 'string') return val;
+    if (typeof val === 'string') {
+      let str = val
+        .replace(/\\r\\n/g, '\n')
+        .replace(/\\n/g, '\n')
+        .replace(/\\t/g, '\t');
+
+      // If string is plain text/markdown without wrapping HTML tags, convert newlines to paragraphs for Quill
+      if (str.includes('\n') && !/<(p|div|h[1-6]|ul|ol|table|blockquote)[^>]*>/i.test(str)) {
+        return str
+          .split('\n')
+          .map(line => `<p>${line.trim() || '<br>'}</p>`)
+          .join('');
+      }
+      return str;
+    }
     // If old ExamDocument array format is passed, convert to empty string
     if (Array.isArray(val)) return '';
     return '';
