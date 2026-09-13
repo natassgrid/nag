@@ -21,23 +21,26 @@ const NON_MATH_PATTERN =
  *
  * Problem: a naïve global `\n → newline` replacement corrupts LaTeX commands that begin
  * with the letters n, r, or t — e.g. `\neq`, `\neg`, `\rightarrow`, `\text`, `\tau`.
- * The string `\neq` in raw JSON is stored as the two characters `\` + `n` + `e` + `q`,
- * and a blanket replace turns it into newline + `eq`, which then renders as broken text.
+ * The string `\neq` in raw JSON is stored as `\` + `n` + `e` + `q`, and a blanket
+ * replace turns it into newline + `eq`, breaking the rendered output.
  *
- * Safe rule: a `\n` that is a JSON newline escape is ALWAYS followed by a non-letter
- * character (space, digit, punctuation, another backslash, or end-of-string).
- * A `\n` that starts a LaTeX command is followed by one or more ASCII letters.
- * Same logic applies to `\r`, `\t`.
+ * Safe rules:
+ * - All standard LaTeX command names are lowercase (e.g. \neq, \neg, \rightarrow).
+ *   Uppercase variants like \N, \I don't exist as common math commands.
+ * - Therefore `\n` followed by a LOWERCASE letter is a LaTeX command; block it.
+ * - `\n` followed by an uppercase letter (e.g. \nI., \nII.) is a list separator; allow it.
+ * - `\n` followed by a digit, space, or punctuation is always a JSON newline; allow it.
+ * - Same logic for `\t` (blocks \tau, \theta, \times, \to, \text).
  */
 function unescapeNewlines(text: string): string {
   if (!text) return '';
   return text
-    // \r\n only when the `r` is not the start of a LaTeX command (\r followed by \n)
+    // \r\n sequence — always a JSON line ending
     .replace(/\\r\\n/g, '\n')
-    // \n only when NOT immediately followed by an ASCII letter (would be a LaTeX command)
-    .replace(/\\n(?![a-zA-Z])/g, '\n')
-    // \t only when NOT immediately followed by an ASCII letter (e.g. \tau, \theta, \times)
-    .replace(/\\t(?![a-zA-Z])/g, '\t');
+    // \n only when NOT immediately followed by a lowercase ASCII letter (LaTeX command)
+    .replace(/\\n(?![a-z])/g, '\n')
+    // \t only when NOT immediately followed by a lowercase ASCII letter (e.g. \tau, \theta)
+    .replace(/\\t(?![a-z])/g, '\t');
 }
 
 /**

@@ -267,17 +267,23 @@ export class MathRendererComponent implements OnChanges {
    * The string `\neq` in raw JSON is stored as `\` + `n` + `e` + `q`, and a blanket
    * replace turns it into newline + `eq`, breaking the rendered output.
    *
-   * Safe rule: a JSON `\n` escape is ALWAYS followed by a non-letter character.
-   * A LaTeX command `\n...` is followed by ASCII letters.  Same applies to `\r`, `\t`.
+   * Safe rules:
+   * - All standard LaTeX command names are lowercase (e.g. \neq, \neg, \rightarrow).
+   *   Uppercase variants like \N, \I don't exist as common math commands.
+   * - Therefore `\n` followed by a LOWERCASE letter is a LaTeX command; block it.
+   * - `\n` followed by an uppercase letter (e.g. \nI., \nII.) is a list separator; allow it.
+   * - `\n` followed by a digit, space, or punctuation is always a JSON newline; allow it.
+   * - Same logic for `\t` (blocks \tau, \theta, \times, \to, \text).
    */
   private unescapeNewlines(text: string): string {
     if (typeof text !== 'string') return '';
     return text
+      // \r\n sequence — always a JSON line ending
       .replace(/\\r\\n/g, '\n')
-      // \n only when NOT immediately followed by an ASCII letter (would be a LaTeX command)
-      .replace(/\\n(?![a-zA-Z])/g, '\n')
-      // \t only when NOT immediately followed by an ASCII letter (e.g. \tau, \theta, \times)
-      .replace(/\\t(?![a-zA-Z])/g, '\t');
+      // \n only when NOT immediately followed by a lowercase ASCII letter (LaTeX command)
+      .replace(/\\n(?![a-z])/g, '\n')
+      // \t only when NOT immediately followed by a lowercase ASCII letter (e.g. \tau, \theta)
+      .replace(/\\t(?![a-z])/g, '\t');
   }
 
   private decodeHtmlEntities(text: string): string {
