@@ -66,9 +66,23 @@ public class AsyncBatchTranslationWorker {
         log.info("Starting asynchronous batch translation worker for jobId={}, tenant={}", jobId, tenantId);
         TenantContext.setTenantId(tenantId);
 
-        Optional<BatchTranslationJob> jobOpt = jobRepository.findById(jobId);
+        // Resilient retry loop to guarantee visibility across transaction boundaries / connection pools
+        Optional<BatchTranslationJob> jobOpt = Optional.empty();
+        for (int attempt = 0; attempt < 5; attempt++) {
+            jobOpt = jobRepository.findById(jobId);
+            if (jobOpt.isPresent()) {
+                break;
+            }
+            try {
+                Thread.sleep(100);
+            } catch (InterruptedException ignored) {
+                Thread.currentThread().interrupt();
+                break;
+            }
+        }
+
         if (jobOpt.isEmpty()) {
-            log.error("BatchTranslationJob {} not found", jobId);
+            log.error("BatchTranslationJob {} not found after retries", jobId);
             return;
         }
 

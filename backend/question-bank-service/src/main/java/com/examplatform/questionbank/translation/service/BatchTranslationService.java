@@ -43,7 +43,6 @@ public class BatchTranslationService {
     private final BatchTranslationJobRepository jobRepository;
     private final AsyncBatchTranslationWorker asyncWorker;
 
-    @Transactional
     public BatchTranslationJobResponse startBatchJob(BatchTranslationRequest request, UUID initiatedBy, String tenantId) {
         String targetLang = (request.getTargetLanguage() != null && !request.getTargetLanguage().isBlank())
                 ? request.getTargetLanguage().toLowerCase()
@@ -70,7 +69,7 @@ public class BatchTranslationService {
         BatchTranslationJob savedJob = jobRepository.save(job);
         log.info("Created batch translation job: id={}, targetLang={}, tenant={}", savedJob.getId(), targetLang, tenantId);
 
-        // Fire async background worker
+        // Fire async background worker (job is committed immediately)
         asyncWorker.processBatchTranslationJob(savedJob.getId(), tenantId);
 
         return toResponse(savedJob);
