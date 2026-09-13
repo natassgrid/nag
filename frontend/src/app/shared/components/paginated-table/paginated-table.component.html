@@ -7,13 +7,14 @@
         </div>
 
         <div class="toolbar-actions">
-          <mat-form-field appearance="outline" class="search-field" *ngIf="enableSearch">
-            <mat-label>{{ searchPlaceholder }}</mat-label>
-            <mat-icon matPrefix>search</mat-icon>
+          <mat-form-field appearance="outline" class="search-field" subscriptSizing="dynamic" *ngIf="enableSearch">
+            <mat-icon matPrefix class="search-icon">search</mat-icon>
             <input
               matInput
+              [placeholder]="searchPlaceholder"
               [(ngModel)]="searchQuery"
               (ngModelChange)="onSearchChange($event)"
+              [attr.aria-label]="searchPlaceholder"
             />
             <button
               *ngIf="searchQuery"
@@ -22,7 +23,7 @@
               (click)="clearSearch()"
               aria-label="Clear search"
             >
-              <mat-icon>close</mat-icon>
+              <mat-icon class="clear-icon">close</mat-icon>
             </button>
           </mat-form-field>
 
@@ -81,7 +82,12 @@
                 {{ col.header }}
               </th>
 
-              <td mat-cell *matCellDef="let row">
+              <td
+                mat-cell
+                *matCellDef="let row"
+                [class.clickable-row]="col.type !== 'actions'"
+                (click)="col.type !== 'actions' && onRowClick(row)"
+              >
 
                 <!-- Custom Template -->
                 <ng-container *ngIf="col.type === 'custom' && col.template">
@@ -123,8 +129,7 @@
             <tr
               mat-row
               *matRowDef="let row; columns: displayedColumnKeys;"
-              (click)="onRowClick(row)"
-              class="clickable-row"
+              class="table-data-row"
             ></tr>
 
             <!-- Empty State -->

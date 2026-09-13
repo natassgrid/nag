@@ -21,7 +21,7 @@ import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
 
-export type TranslationStatus = 'DRAFT' | 'APPROVED' | 'STALE';
+export type TranslationStatus = 'DRAFT' | 'APPROVED' | 'PUBLISHED' | 'STALE';
 
 export interface TranslatedOptionDto {
   id: string;
@@ -66,6 +66,45 @@ export interface AutoTranslateResponse {
   translatedOptions?: TranslatedOptionDto[];
   translatedExplanation?: string;
   model?: string;
+}
+
+export interface BatchTranslationRequest {
+  sourceLanguage?: string;
+  targetLanguage?: string;
+  targetStatus?: string;
+  subject?: string;
+  overwriteExisting?: boolean;
+  batchSize?: number;
+  throttleDelayMs?: number;
+  maxConcurrency?: number;
+}
+
+export type BatchJobStatus = 'PENDING' | 'IN_PROGRESS' | 'COMPLETED' | 'FAILED' | 'CANCELLED';
+
+export interface BatchTranslationJobResponse {
+  id: string;
+  tenantId: string;
+  status: BatchJobStatus;
+  sourceLanguage: string;
+  targetLanguage: string;
+  targetStatus: string;
+  subjectFilter?: string;
+  overwriteExisting: boolean;
+  totalQuestions: number;
+  processedQuestions: number;
+  successfulQuestions: number;
+  failedQuestions: number;
+  progressPercentage: number;
+  failedQuestionIds?: string[];
+  batchSize: number;
+  throttleDelayMs: number;
+  maxConcurrency: number;
+  initiatedBy: string;
+  startedAt?: string;
+  completedAt?: string;
+  errorMessage?: string;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface SupportedLanguage {
@@ -118,7 +157,7 @@ export class TranslationService {
   }
 
   /**
-   * Get approved translation for a question and language code.
+   * Get approved or published translation for a question and language code.
    */
   getApprovedTranslation(questionId: string, lang: string): Observable<TranslationResponse> {
     return this.http.get<TranslationResponse>(`${this.baseUrl}/question/${questionId}/language/${lang}`);
@@ -129,6 +168,34 @@ export class TranslationService {
    */
   autoTranslateQuestion(questionId: string, languageCode: string): Observable<AutoTranslateResponse> {
     return this.http.post<AutoTranslateResponse>(`${this.baseUrl}/question/${questionId}/auto-translate/${languageCode}`, {});
+  }
+
+  /**
+   * Submit an asynchronous batch auto-translation job (e.g. ENG to Hindi for all questions with upsert & published status).
+   */
+  startBatchTranslation(request?: BatchTranslationRequest): Observable<BatchTranslationJobResponse> {
+    return this.http.post<BatchTranslationJobResponse>(`${this.baseUrl}/batch/auto-translate`, request || {});
+  }
+
+  /**
+   * Get batch translation job status & progress.
+   */
+  getBatchJobStatus(jobId: string): Observable<BatchTranslationJobResponse> {
+    return this.http.get<BatchTranslationJobResponse>(`${this.baseUrl}/batch/${jobId}`);
+  }
+
+  /**
+   * List all batch translation jobs.
+   */
+  listBatchJobs(): Observable<BatchTranslationJobResponse[]> {
+    return this.http.get<BatchTranslationJobResponse[]>(`${this.baseUrl}/batch`);
+  }
+
+  /**
+   * Cancel an active batch translation job.
+   */
+  cancelBatchJob(jobId: string): Observable<BatchTranslationJobResponse> {
+    return this.http.post<BatchTranslationJobResponse>(`${this.baseUrl}/batch/${jobId}/cancel`, {});
   }
 
   /**

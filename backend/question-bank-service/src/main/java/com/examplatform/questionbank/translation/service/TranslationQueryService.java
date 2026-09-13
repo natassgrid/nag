@@ -51,8 +51,8 @@ public class TranslationQueryService {
     private final TranslationPayloadService payloadService;
 
     /**
-     * Fetch the approved translation for a specific question and language.
-     * Returns empty if no approved translation exists.
+     * Fetch the approved or published translation for a specific question and language.
+     * Returns empty if no approved/published translation exists.
      *
      * @param questionId   source question UUID
      * @param languageCode BCP-47 / ISO 639 language code (e.g. "hi", "ta")
@@ -64,6 +64,8 @@ public class TranslationQueryService {
         return translationRepository
                 .findByQuestionIdAndLanguageCodeAndStatusAndTenantId(
                         questionId, languageCode, Translation.TranslationStatus.APPROVED, tenantId)
+                .or(() -> translationRepository.findByQuestionIdAndLanguageCodeAndStatusAndTenantId(
+                        questionId, languageCode, Translation.TranslationStatus.PUBLISHED, tenantId))
                 .map(this::toResponse);
     }
 
@@ -99,7 +101,7 @@ public class TranslationQueryService {
             explanation = payload.explanation();
             if (payload.options() != null) {
                 options = payload.options().stream()
-                        .map(o -> new TranslatedOptionDto(o.id(), o.text()))
+                        .map(opt -> new TranslatedOptionDto(opt.id(), opt.text()))
                         .toList();
             }
         }
@@ -111,8 +113,8 @@ public class TranslationQueryService {
                 .translatedContent(content)
                 .translatedOptions(options)
                 .translatedExplanation(explanation)
-                .sourceVersion(t.getSourceVersion())
                 .status(t.getStatus())
+                .sourceVersion(t.getSourceVersion())
                 .translatorId(t.getTranslatorId())
                 .reviewerId(t.getReviewerId())
                 .reviewComments(t.getReviewComments())

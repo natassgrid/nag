@@ -49,7 +49,7 @@ import java.util.UUID;
  *
  * <h3>Staleness</h3>
  * <p>{@code sourceVersion} captures {@code question.version} at the time
- * the translation is created.  When the source question is subsequently
+ * the translation is created. When the source question is subsequently
  * modified its version increments; the translation service compares stored
  * {@code sourceVersion} against the current question version to detect
  * staleness without a JOIN.
@@ -110,14 +110,16 @@ public class Translation extends BaseEntity {
     /**
      * Translation lifecycle states.
      * <ul>
-     *   <li>DRAFT   — submitted by translator, awaiting review</li>
-     *   <li>APPROVED — reviewed and approved; safe to serve to candidates</li>
-     *   <li>STALE   — source question changed after approval; must be re-translated</li>
+     *   <li>DRAFT     — submitted by translator, awaiting review</li>
+     *   <li>APPROVED  — reviewed and approved; safe to serve to candidates</li>
+     *   <li>PUBLISHED — published and active; ready for exam paper delivery</li>
+     *   <li>STALE     — source question changed after approval; must be re-translated</li>
      * </ul>
      */
     public enum TranslationStatus {
         DRAFT,
         APPROVED,
+        PUBLISHED,
         STALE
     }
 }

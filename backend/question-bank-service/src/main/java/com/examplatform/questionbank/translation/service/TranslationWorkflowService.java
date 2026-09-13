@@ -24,6 +24,7 @@ import com.examplatform.questionbank.dto.QuestionOption;
 import com.examplatform.questionbank.repository.QuestionRepository;
 import com.examplatform.questionbank.translation.domain.Translation;
 import com.examplatform.questionbank.translation.domain.TranslatedQuestionPayload;
+import com.examplatform.questionbank.translation.dto.TranslatedOptionDto;
 import com.examplatform.questionbank.translation.dto.TranslationRequest;
 import com.examplatform.questionbank.translation.repository.TranslationRepository;
 import lombok.RequiredArgsConstructor;
@@ -40,7 +41,7 @@ import java.util.stream.Collectors;
 
 /**
  * Manages the translation request and resubmission workflow within Question Bank.
- * Creates and updates translations linked to source questions.
+ * Creates, updates, and upserts translations linked to source questions.
  */
 @Slf4j
 @Service
@@ -167,6 +168,75 @@ public class TranslationWorkflowService {
         return translationRepository.save(translation);
     }
 
+    /**
+     * Upsert a translation (creates if not existing, updates if already present)
+     * and sets status (e.g. PUBLISHED or APPROVED).
+     */
+    public Translation upsertTranslation(
+            UUID questionId,
+            String languageCode,
+            String content,
+            List<TranslatedOptionDto> options,
+            String explanation,
+            Translation.TranslationStatus targetStatus,
+            UUID translatorOrSystemId,
+            String reviewComments,
+            String tenantId) {
+
+        validateLanguageCode(languageCode);
+
+        Question question = questionRepository.findById(questionId)
+                .orElseThrow(() -> new IllegalArgumentException("Source question not found: " + questionId));
+
+        List<TranslatedQuestionPayload.TranslatedOption> payloadOptions = (options != null)
+                ? options.stream().map(dto -> new TranslatedQuestionPayload.TranslatedOption(dto.id(), dto.text())).toList()
+                : Collections.emptyList();
+
+        TranslatedQuestionPayload payload = new TranslatedQuestionPayload(content, payloadOptions, explanation);
+        String serialized = payloadService.serialize(payload);
+
+        List<Translation> existingList = translationRepository
+                .findByQuestionIdAndLanguageCodeAndTenantId(questionId, languageCode, tenantId);
+
+        Translation.TranslationStatus resolvedStatus = (targetStatus != null) ? targetStatus : Translation.TranslationStatus.PUBLISHED;
+
+        Translation translation;
+        if (!existingList.isEmpty()) {
+            translation = existingList.get(0);
+            translation.setTranslatedPayload(serialized);
+            translation.setPayloadEncrypted(payloadService.isEncryptionEnabled());
+            translation.setSourceVersion(question.getVersion() != null ? question.getVersion() : 0L);
+            translation.setStatus(resolvedStatus);
+            if (translatorOrSystemId != null) {
+                translation.setTranslatorId(translatorOrSystemId);
+            }
+            if (reviewComments != null) {
+                translation.setReviewComments(reviewComments);
+            }
+            if (resolvedStatus == Translation.TranslationStatus.APPROVED || resolvedStatus == Translation.TranslationStatus.PUBLISHED) {
+                translation.setReviewerId(translatorOrSystemId);
+            }
+        } else {
+            translation = Translation.builder()
+                    .questionId(questionId)
+                    .languageCode(languageCode)
+                    .translatedPayload(serialized)
+                    .payloadEncrypted(payloadService.isEncryptionEnabled())
+                    .sourceVersion(question.getVersion() != null ? question.getVersion() : 0L)
+                    .status(resolvedStatus)
+                    .translatorId(translatorOrSystemId != null ? translatorOrSystemId : UUID.fromString("00000000-0000-0000-0000-000000000001"))
+                    .reviewerId((resolvedStatus == Translation.TranslationStatus.APPROVED || resolvedStatus == Translation.TranslationStatus.PUBLISHED) ? translatorOrSystemId : null)
+                    .reviewComments(reviewComments)
+                    .build();
+            translation.setTenantId(tenantId);
+        }
+
+        log.info("Translation upserted: questionId={}, lang={}, status={}, tenant={}",
+                questionId, languageCode, resolvedStatus, tenantId);
+
+        return translationRepository.save(translation);
+    }
+
     // -------------------------------------------------------------------------
     // Internal helpers
     // -------------------------------------------------------------------------
@@ -205,7 +275,7 @@ public class TranslationWorkflowService {
                 .collect(Collectors.toSet());
 
         Set<String> translatedIds = request.getTranslatedOptions().stream()
-                .map(com.examplatform.questionbank.translation.dto.TranslatedOptionDto::id)
+                .map(TranslatedOptionDto::id)
                 .collect(Collectors.toSet());
 
         Set<String> unknown = translatedIds.stream()

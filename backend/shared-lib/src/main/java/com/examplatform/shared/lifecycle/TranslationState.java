@@ -24,9 +24,12 @@ package com.examplatform.shared.lifecycle;
  *
  * <p>Valid transitions:
  * <pre>
- *   DRAFT    → APPROVED   (reviewer approves)
- *   APPROVED → STALE      (source question modified after approval)
- *   STALE    → DRAFT      (translator picks up re-translation work)
+ *   DRAFT     → APPROVED    (reviewer approves)
+ *   APPROVED  → PUBLISHED   (published for delivery / auto-translated)
+ *   DRAFT     → PUBLISHED   (auto-translated & batch-published)
+ *   PUBLISHED → STALE       (source question modified after publication)
+ *   APPROVED  → STALE       (source question modified after approval)
+ *   STALE     → DRAFT       (translator picks up re-translation work)
  * </pre>
  */
 public enum TranslationState {
@@ -44,7 +47,12 @@ public enum TranslationState {
     APPROVED,
 
     /**
-     * The source question was modified after this translation was approved.
+     * Translation has been published and is actively live for candidate examination delivery.
+     */
+    PUBLISHED,
+
+    /**
+     * The source question was modified after this translation was approved or published.
      * The translation is no longer guaranteed to be accurate and must be
      * re-reviewed before it can be used in new papers.
      */

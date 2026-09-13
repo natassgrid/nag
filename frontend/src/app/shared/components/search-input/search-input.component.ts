@@ -14,7 +14,8 @@
  * GNU Affero General Public License for more details.
  *
  * You should have received a copy of the GNU Affero General Public License
- * along with this program. If not, see <https://www.gnu.org/licenses/>.\n */
+ * along with this program. If not, see <https://www.gnu.org/licenses/>.
+ */
 
 import { Component, ChangeDetectionStrategy, input, output, signal, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
@@ -40,7 +41,7 @@ import { debounceTime, distinctUntilChanged } from 'rxjs/operators';
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="search-input-wrapper">
-      <mat-form-field appearance="outline" class="search-field">
+      <mat-form-field appearance="outline" class="search-field" subscriptSizing="dynamic">
         <mat-icon matPrefix class="search-icon">search</mat-icon>
         <input
           matInput
@@ -74,6 +75,59 @@ import { debounceTime, distinctUntilChanged } from 'rxjs/operators';
 
     .search-field {
       width: 100%;
+      margin-bottom: 0;
+      display: inline-flex;
+
+      ::ng-deep .mat-mdc-text-field-wrapper {
+        height: 38px !important;
+        max-height: 38px !important;
+        padding: 0 8px 0 12px !important;
+        display: flex !important;
+        align-items: center !important;
+      }
+
+      ::ng-deep .mat-mdc-form-field-flex {
+        height: 38px !important;
+        align-items: center !important;
+      }
+
+      ::ng-deep .mat-mdc-form-field-infix {
+        padding-top: 0 !important;
+        padding-bottom: 0 !important;
+        min-height: 38px !important;
+        height: 38px !important;
+        display: flex !important;
+        align-items: center !important;
+      }
+
+      ::ng-deep .mat-mdc-form-field-icon-prefix {
+        padding: 0 4px 0 0 !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+      }
+
+      ::ng-deep .mat-mdc-form-field-icon-suffix {
+        padding: 0 !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+      }
+
+      ::ng-deep .mat-mdc-form-field-subscript-wrapper {
+        display: none !important;
+        height: 0 !important;
+        margin: 0 !important;
+        padding: 0 !important;
+      }
+
+      ::ng-deep input.mat-mdc-input-element {
+        font-size: 13.5px !important;
+        height: 24px !important;
+        line-height: 24px !important;
+        margin: 0 !important;
+        vertical-align: middle !important;
+      }
     }
 
     .search-icon {
@@ -81,6 +135,7 @@ import { debounceTime, distinctUntilChanged } from 'rxjs/operators';
       font-size: 20px;
       width: 20px;
       height: 20px;
+      line-height: 20px;
       margin-right: 4px;
     }
 

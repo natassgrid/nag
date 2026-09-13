@@ -152,7 +152,7 @@
           <div class="col-title">
             <mat-icon>translate</mat-icon>
             <span>
-              Target Translation ({{ getSelectedLangObj()?.nativeName }} - {{ getSelectedLangObj()?.name }})
+              Target Translation ({{ getSelectedLangObj()?.nativeName }} - {{ getSelectedLangName() }})
             </span>
           </div>
           <div class="header-actions">
@@ -162,7 +162,7 @@
               class="auto-translate-btn"
               [disabled]="autoTranslating || isApproved()"
               (click)="autoTranslateWithIndicTrans2()"
-              matTooltip="Auto-translate English text into {{ getSelectedLangObj()?.name }} using IndicTrans2 AI"
+              matTooltip="Auto-translate English text into {{ getSelectedLangName() }} using IndicTrans2 AI"
             >
               <mat-progress-spinner
                 *ngIf="autoTranslating"
@@ -171,7 +171,7 @@
                 class="spinner-inline"
               ></mat-progress-spinner>
               <mat-icon *ngIf="!autoTranslating">auto_awesome</mat-icon>
-              <span>{{ autoTranslating ? 'Translating...' : 'Auto-Translate (IndicTrans2)' }}</span>
+              <span>{{ autoTranslating ? 'Translating...' : ('Auto-Translate (' + getSelectedLangName() + ')') }}</span>
             </button>
             <span class="script-tag">Script: {{ getSelectedLangObj()?.script }}</span>
           </div>
@@ -186,7 +186,7 @@
                 matInput
                 rows="4"
                 formControlName="translatedContent"
-                placeholder="Enter translated question content in {{ getSelectedLangObj()?.name }}..."
+                placeholder="Enter translated question content in {{ getSelectedLangName() }}..."
               ></textarea>
             </mat-form-field>
           </div>
@@ -226,7 +226,7 @@
                 matInput
                 rows="3"
                 formControlName="translatedExplanation"
-                placeholder="Enter translated explanation in {{ getSelectedLangObj()?.name }}..."
+                placeholder="Enter translated explanation in {{ getSelectedLangName() }}..."
               ></textarea>
             </mat-form-field>
           </div>
@@ -299,7 +299,7 @@
       <div class="preview-panel">
         <h4 class="preview-title">
           <mat-icon>translate</mat-icon>
-          Translated ({{ getSelectedLangObj()?.nativeName }} - {{ getSelectedLangObj()?.name }})
+          Translated ({{ getSelectedLangObj()?.nativeName }} - {{ getSelectedLangName() }})
         </h4>
         <div class="preview-card">
           <div class="preview-stem" *ngIf="form.value.translatedContent">
@@ -352,7 +352,7 @@
             class="spinner-inline"
           ></mat-progress-spinner>
           <mat-icon *ngIf="!autoTranslating">auto_awesome</mat-icon>
-          Auto-Translate (IndicTrans2)
+          <span>{{ autoTranslating ? 'Translating...' : ('Auto-Translate (' + getSelectedLangName() + ')') }}</span>
         </button>
 
         <!-- Translator action: Submit / Resubmit -->

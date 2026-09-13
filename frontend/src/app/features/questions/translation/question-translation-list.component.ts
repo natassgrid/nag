@@ -14,7 +14,7 @@
  * GNU Affero General Public License for more details.
  */
 
-import { Component, OnInit, ViewChild, ChangeDetectionStrategy, ChangeDetectorRef } from '@angular/core';
+import { Component, OnInit, OnDestroy, ViewChild, ChangeDetectionStrategy, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
@@ -26,13 +26,18 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatSnackBarModule, MatSnackBar } from '@angular/material/snack-bar';
 import { MatMenuModule } from '@angular/material/menu';
 import { MatCardModule } from '@angular/material/card';
+import { MatProgressBarModule } from '@angular/material/progress-bar';
+import { MatSlideToggleModule } from '@angular/material/slide-toggle';
+import { Subscription, interval } from 'rxjs';
 
 import { QuestionService, QuestionResponse } from '../question.service';
 import { SubjectTopicService, Subject } from '../subject-topic.service';
 import {
   TranslationService,
   SUPPORTED_LANGUAGES,
-  SupportedLanguage
+  SupportedLanguage,
+  BatchTranslationJobResponse,
+  BatchTranslationRequest
 } from './translation.service';
 import { QuestionTranslationDialogComponent } from './question-translation-dialog.component';
 import {
@@ -69,6 +74,8 @@ const DEFAULT_SUBJECT_OPTIONS = [
     MatSnackBarModule,
     MatMenuModule,
     MatCardModule,
+    MatProgressBarModule,
+    MatSlideToggleModule,
     PaginatedTableComponent,
     PageHeaderComponent,
     QuestionTranslationDialogComponent
@@ -77,7 +84,7 @@ const DEFAULT_SUBJECT_OPTIONS = [
   changeDetection: ChangeDetectionStrategy.Eager,
   styleUrls: ['./question-translation-list.component.scss']
 })
-export class QuestionTranslationListComponent implements OnInit {
+export class QuestionTranslationListComponent implements OnInit, OnDestroy {
   @ViewChild('paginatedTable') paginatedTable!: PaginatedTableComponent<QuestionResponse>;
 
   languages: SupportedLanguage[] = SUPPORTED_LANGUAGES;
@@ -89,6 +96,16 @@ export class QuestionTranslationListComponent implements OnInit {
 
   filters: Record<string, any> = {};
   subjects: Subject[] = [];
+
+  // Batch Translation Modal & Tracker State
+  batchModalOpen = false;
+  batchTargetLanguage = 'hi';
+  batchOverwriteExisting = true;
+  batchTargetStatus = 'PUBLISHED';
+  batchSubjectFilter = '';
+  isSubmittingBatch = false;
+  activeBatchJob: BatchTranslationJobResponse | null = null;
+  private pollSub?: Subscription;
 
   filterCategories: FilterCategory[] = [
     {
@@ -172,6 +189,11 @@ export class QuestionTranslationListComponent implements OnInit {
 
   ngOnInit(): void {
     this.loadSubjects();
+    this.checkForActiveBatchJob();
+  }
+
+  ngOnDestroy(): void {
+    this.stopPolling();
   }
 
   loadSubjects(): void {
@@ -208,6 +230,22 @@ export class QuestionTranslationListComponent implements OnInit {
     });
   }
 
+  checkForActiveBatchJob(): void {
+    this.translationService.listBatchJobs().subscribe({
+      next: (jobs) => {
+        if (jobs && jobs.length > 0) {
+          const active = jobs.find(j => j.status === 'IN_PROGRESS' || j.status === 'PENDING');
+          if (active) {
+            this.activeBatchJob = active;
+            this.startPolling(active.id);
+            this.cdr.markForCheck();
+          }
+        }
+      },
+      error: (err) => console.warn('Could not fetch batch jobs:', err)
+    });
+  }
+
   onFilterChange(updatedFilters: Record<string, any>): void {
     this.filters = { ...updatedFilters };
   }
@@ -229,9 +267,110 @@ export class QuestionTranslationListComponent implements OnInit {
     }
   }
 
+  // ---------------------------------------------------------------------------
+  // Batch Translation Actions
+  // ---------------------------------------------------------------------------
+
+  openBatchModal(): void {
+    this.batchModalOpen = true;
+  }
+
+  closeBatchModal(): void {
+    this.batchModalOpen = false;
+  }
+
+  triggerBatchAutoTranslate(): void {
+    this.isSubmittingBatch = true;
+    const req: BatchTranslationRequest = {
+      sourceLanguage: 'en',
+      targetLanguage: this.batchTargetLanguage,
+      targetStatus: this.batchTargetStatus,
+      subject: this.batchSubjectFilter ? this.batchSubjectFilter : undefined,
+      overwriteExisting: this.batchOverwriteExisting,
+      batchSize: 50,
+      throttleDelayMs: 50,
+      maxConcurrency: 2
+    };
+
+    this.translationService.startBatchTranslation(req).subscribe({
+      next: (job) => {
+        this.isSubmittingBatch = false;
+        this.batchModalOpen = false;
+        this.activeBatchJob = job;
+        this.snackBar.open(
+          `Batch translation started for ${this.getLanguageName(this.batchTargetLanguage)} (Job ID: ${job.id.substring(0, 8)}...)`,
+          'Close',
+          { duration: 4000 }
+        );
+        this.startPolling(job.id);
+        this.cdr.markForCheck();
+      },
+      error: (err) => {
+        this.isSubmittingBatch = false;
+        this.snackBar.open(
+          `Failed to start batch translation: ${err?.error?.message || err.message || 'Unknown error'}`,
+          'Close',
+          { duration: 5000 }
+        );
+        this.cdr.markForCheck();
+      }
+    });
+  }
+
+  startPolling(jobId: string): void {
+    this.stopPolling();
+    this.pollSub = interval(2500).subscribe(() => {
+      this.translationService.getBatchJobStatus(jobId).subscribe({
+        next: (job) => {
+          this.activeBatchJob = job;
+          this.cdr.markForCheck();
+
+          if (job.status === 'COMPLETED' || job.status === 'FAILED' || job.status === 'CANCELLED') {
+            this.stopPolling();
+            if (job.status === 'COMPLETED') {
+              this.snackBar.open(
+                `Batch translation completed! ${job.successfulQuestions} questions translated and published.`,
+                'Refresh',
+                { duration: 6000 }
+              ).onAction().subscribe(() => this.reload());
+              this.reload();
+            }
+          }
+        },
+        error: (err) => console.warn('Failed to poll batch translation job:', err)
+      });
+    });
+  }
+
+  cancelActiveBatchJob(): void {
+    if (!this.activeBatchJob) return;
+    this.translationService.cancelBatchJob(this.activeBatchJob.id).subscribe({
+      next: (job) => {
+        this.activeBatchJob = job;
+        this.stopPolling();
+        this.snackBar.open('Batch translation job cancelled.', 'Close', { duration: 3000 });
+        this.cdr.markForCheck();
+      },
+      error: (err) => {
+        this.snackBar.open(`Failed to cancel job: ${err?.message || 'Error'}`, 'Close', { duration: 4000 });
+      }
+    });
+  }
+
+  dismissBatchCard(): void {
+    this.activeBatchJob = null;
+    this.stopPolling();
+  }
+
+  private stopPolling(): void {
+    if (this.pollSub) {
+      this.pollSub.unsubscribe();
+      this.pollSub = undefined;
+    }
+  }
+
   truncateContent(text: string): string {
     if (!text) return '';
-    // Strip HTML tags for table display
     const clean = text.replace(/<[^>]*>/g, '');
     return clean.length > 80 ? clean.substring(0, 80) + '...' : clean;
   }

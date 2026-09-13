@@ -198,4 +198,71 @@ class TranslationWorkflowServiceTest {
         Translation result = translationWorkflowService.requestTranslation(request, tenantId);
         assertThat(result).isNotNull();
     }
+
+    @Test
+    @DisplayName("Should cleanly upsert new translation with PUBLISHED status")
+    void shouldUpsertNewTranslationWithPublishedStatus() {
+        Question question = buildQuestion();
+        when(questionRepository.findById(questionId)).thenReturn(Optional.of(question));
+        when(translationRepository.findByQuestionIdAndLanguageCodeAndTenantId(questionId, "hi", tenantId))
+                .thenReturn(Collections.emptyList());
+        when(payloadService.serialize(any())).thenReturn("{\"content\":\"नमस्ते\"}");
+        when(payloadService.isEncryptionEnabled()).thenReturn(false);
+        when(translationRepository.save(any(Translation.class))).thenAnswer(i -> i.getArgument(0));
+
+        Translation result = translationWorkflowService.upsertTranslation(
+                questionId,
+                "hi",
+                "नमस्ते",
+                List.of(new TranslatedOptionDto("A", "विकल्प A")),
+                "व्याख्या",
+                Translation.TranslationStatus.PUBLISHED,
+                translatorId,
+                "Auto batch",
+                tenantId
+        );
+
+        assertThat(result).isNotNull();
+        assertThat(result.getStatus()).isEqualTo(Translation.TranslationStatus.PUBLISHED);
+        assertThat(result.getLanguageCode()).isEqualTo("hi");
+        assertThat(result.getReviewComments()).isEqualTo("Auto batch");
+        verify(translationRepository).save(any(Translation.class));
+    }
+
+    @Test
+    @DisplayName("Should cleanly update existing translation on upsert")
+    void shouldUpdateExistingTranslationOnUpsert() {
+        Question question = buildQuestion();
+        Translation existing = Translation.builder()
+                .questionId(questionId)
+                .languageCode("hi")
+                .status(Translation.TranslationStatus.DRAFT)
+                .translatedPayload("old payload")
+                .build();
+        existing.setTenantId(tenantId);
+
+        when(questionRepository.findById(questionId)).thenReturn(Optional.of(question));
+        when(translationRepository.findByQuestionIdAndLanguageCodeAndTenantId(questionId, "hi", tenantId))
+                .thenReturn(List.of(existing));
+        when(payloadService.serialize(any())).thenReturn("{\"content\":\"नया कंटेंट\"}");
+        when(payloadService.isEncryptionEnabled()).thenReturn(false);
+        when(translationRepository.save(any(Translation.class))).thenAnswer(i -> i.getArgument(0));
+
+        Translation result = translationWorkflowService.upsertTranslation(
+                questionId,
+                "hi",
+                "नया कंटेंट",
+                List.of(new TranslatedOptionDto("A", "अपडेटेड विकल्प")),
+                "अपडेटेड व्याख्या",
+                Translation.TranslationStatus.PUBLISHED,
+                translatorId,
+                "Updated via batch job",
+                tenantId
+        );
+
+        assertThat(result).isNotNull();
+        assertThat(result.getStatus()).isEqualTo(Translation.TranslationStatus.PUBLISHED);
+        assertThat(result.getReviewComments()).isEqualTo("Updated via batch job");
+        assertThat(result.getTranslatedPayload()).isEqualTo("{\"content\":\"नया कंटेंट\"}");
+    }
 }
