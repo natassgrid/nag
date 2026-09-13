@@ -115,21 +115,21 @@ export class QuestionTranslationDialogComponent implements OnInit, OnChanges {
   }
 
   ngOnInit(): void {
-    this.initForm();
+    if (this.initialLanguageCode) {
+      this.selectedLanguageCode = this.initialLanguageCode;
+    }
   }
 
   ngOnChanges(changes: SimpleChanges): void {
-    if (changes['isOpen'] && this.isOpen) {
+    if (changes['isOpen'] && this.isOpen && this.question) {
       if (this.initialLanguageCode) {
         this.selectedLanguageCode = this.initialLanguageCode;
       }
       this.loadTranslations();
-    } else if (changes['question'] && this.isOpen) {
-      this.loadTranslations();
     }
   }
 
-  initForm(): void {
+  private initForm(): void {
     this.form = this.fb.group({
       translatedContent: ['', Validators.required],
       translatedExplanation: ['']
@@ -139,14 +139,17 @@ export class QuestionTranslationDialogComponent implements OnInit, OnChanges {
   loadTranslations(): void {
     if (!this.question?.id) return;
     this.loadingTranslations = true;
-    this.errorMessage = '';
-    this.translationsMap.clear();
+    this.cdr.markForCheck();
 
     this.translationService.listTranslationsForQuestion(this.question.id).subscribe({
       next: (list) => {
+        this.translationsMap.clear();
+        (list || []).forEach(tr => {
+          this.translationsMap.set(tr.languageCode, tr);
+        });
         this.loadingTranslations = false;
-        if (Array.isArray(list)) {
-          list.forEach(t => this.translationsMap.set(t.languageCode, t));
+        if (this.initialLanguageCode && this.translationsMap.has(this.initialLanguageCode)) {
+          this.selectedLanguageCode = this.initialLanguageCode;
         }
         this.switchLanguage(this.selectedLanguageCode);
         this.cdr.markForCheck();
@@ -203,7 +206,7 @@ export class QuestionTranslationDialogComponent implements OnInit, OnChanges {
     this.autoTranslating = true;
     this.errorMessage = '';
 
-    const targetLangName = this.getSelectedLangObj()?.name || this.selectedLanguageCode;
+    const targetLangName = this.getSelectedLangName();
 
     this.translationService.autoTranslateQuestion(this.question.id, this.selectedLanguageCode).subscribe({
       next: (res) => {
@@ -242,6 +245,10 @@ export class QuestionTranslationDialogComponent implements OnInit, OnChanges {
 
   getSelectedLangObj(): SupportedLanguage | undefined {
     return this.translationService.getLanguage(this.selectedLanguageCode);
+  }
+
+  getSelectedLangName(): string {
+    return this.getSelectedLangObj()?.name || 'Hindi';
   }
 
   canReview(): boolean {
@@ -325,20 +332,19 @@ export class QuestionTranslationDialogComponent implements OnInit, OnChanges {
 
   approveTranslation(): void {
     if (!this.activeTranslation?.translationId) return;
-    const reviewerId = this.authService.getUserId() || '00000000-0000-0000-0000-000000000001';
-
+    const currentUserId = this.authService.getUserId() || '00000000-0000-0000-0000-000000000001';
     this.approving = true;
     this.errorMessage = '';
 
-    this.translationService.approveTranslation(this.activeTranslation.translationId, reviewerId).subscribe({
+    this.translationService.approveTranslation(this.activeTranslation.translationId, currentUserId).subscribe({
       next: () => {
         this.approving = false;
-        this.snackBar.open('Translation approved successfully', 'Close', { duration: 3000 });
+        this.snackBar.open('Translation approved successfully!', 'Close', { duration: 3000 });
         this.loadTranslations();
       },
       error: (err) => {
         this.approving = false;
-        this.errorMessage = err?.error?.message || 'Failed to approve translation';
+        this.errorMessage = err?.error?.message || err?.message || 'Failed to approve translation';
         this.cdr.markForCheck();
       }
     });
@@ -347,45 +353,42 @@ export class QuestionTranslationDialogComponent implements OnInit, OnChanges {
   openRejectPrompt(): void {
     this.showRejectInput = true;
     this.rejectComments = '';
+    this.cdr.markForCheck();
   }
 
   cancelReject(): void {
     this.showRejectInput = false;
     this.rejectComments = '';
+    this.cdr.markForCheck();
   }
 
   confirmReject(): void {
-    if (!this.activeTranslation?.translationId) return;
-    if (!this.rejectComments.trim()) {
-      this.errorMessage = 'Please provide comments explaining why this translation was rejected.';
-      return;
-    }
-
-    const reviewerId = this.authService.getUserId() || '00000000-0000-0000-0000-000000000001';
-
+    if (!this.activeTranslation?.translationId || !this.rejectComments.trim()) return;
+    const currentUserId = this.authService.getUserId() || '00000000-0000-0000-0000-000000000001';
     this.rejecting = true;
     this.errorMessage = '';
 
     this.translationService.rejectTranslation(
       this.activeTranslation.translationId,
-      reviewerId,
+      currentUserId,
       this.rejectComments.trim()
     ).subscribe({
       next: () => {
         this.rejecting = false;
         this.showRejectInput = false;
-        this.snackBar.open('Translation rejected and returned to translator with feedback.', 'Close', { duration: 3000 });
+        this.rejectComments = '';
+        this.snackBar.open('Translation rejected with feedback comments', 'Close', { duration: 3000 });
         this.loadTranslations();
       },
       error: (err) => {
         this.rejecting = false;
-        this.errorMessage = err?.error?.message || 'Failed to reject translation';
+        this.errorMessage = err?.error?.message || err?.message || 'Failed to reject translation';
         this.cdr.markForCheck();
       }
     });
   }
 
   onClose(): void {
-    this.close.emit(false);
+    this.close.emit(true);
   }
 }
