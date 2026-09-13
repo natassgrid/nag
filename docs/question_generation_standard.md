@@ -227,3 +227,44 @@ When writing statement-and-conclusion questions involving logic symbols, use the
 ```
 "1. A matrix $$A$$ is invertible if and only if its determinant is non-zero ($$\\det(A) \\neq 0$$)."
 ```
+
+---
+
+## 7. Chemistry Notation (mhchem)
+
+The MathRenderer in both `candidate-frontend` and `frontend` loads the KaTeX **mhchem** contrib extension, which adds `\ce{}` (chemical equations) and `\pu{}` (physical units) support. No additional npm package is required — mhchem ships inside the `katex` package.
+
+### 7.1 `\ce{}` — Chemical Equations
+
+Wrap any chemical expression inside `$$\ce{ ... }$$`:
+
+| What to write (JSON value) | Rendered output |
+|---|---|
+| `"$$\\ce{H2SO4}$$"` | Sulfuric acid — H₂SO₄ with correct subscripts |
+| `"$$\\ce{2H2 + O2 -> 2H2O}$$"` | Balanced equation with reaction arrow |
+| `"$$\\ce{Fe^{2+}}$$"` | Iron(II) ion with superscript charge |
+| `"$$\\ce{CaCO3 -> CaO + CO2}$$"` | Decomposition reaction |
+| `"$$\\ce{Na+ + Cl- -> NaCl}$$"` | Ionic equation |
+| `"$$\\ce{H2O_{(l)}}$$"` | With state symbol |
+| `"$$\\ce{^{235}_{92}U}$$"` | Isotope notation |
+
+### 7.2 `\pu{}` — Physical Units
+
+| What to write (JSON value) | Rendered output |
+|---|---|
+| `"$$\\pu{6.022e23 mol-1}$$"` | Avogadro's number |
+| `"$$\\pu{8.314 J mol-1 K-1}$$"` | Gas constant |
+| `"$$\\pu{1.6e-19 C}$$"` | Elementary charge |
+
+### 7.3 Escaping Rules for Chemistry
+
+Same rules as all other LaTeX — single backslash in human-readable text, double backslash in JSON/SQL:
+
+```json
+"The molar mass of $$\\ce{H2SO4}$$ is $$98 \\pu{g mol-1}$$."
+```
+
+### 7.4 What mhchem Does NOT Support
+
+- **2D structural diagrams** (benzene rings, skeletal formulas, Newman projections) — these require a separate library (SmilesDrawer, RDKit.js). Out of scope for this platform.
+- Use `\ce{}` for molecular formulae and reaction equations only.

@@ -89,15 +89,20 @@ The MathRenderer converts `\n` to a real newline **only when it is not immediate
 
 **Rule:** Never use `\n` as a separator immediately before a lowercase LaTeX command word. Keep math commands inside `$$ ... $$` delimiters where they belong.
 
-#### 1c. Percentage Symbols
+#### 1d. Chemistry Notation (`\ce{}` and `\pu{}`)
 
-- `%` is a LaTeX comment character. Always write `\%` inside math delimiters.
-- Human-readable: `$$99.9\%$$`
-- JSON/SQL: `"$$99.9\\%$$"`
+The MathRenderer loads the KaTeX **mhchem** contrib extension. Use `\ce{}` for chemical formulas and equations, `\pu{}` for physical units — both wrapped in `$$ ... $$`:
 
----
+| Concept | JSON value | Rendered |
+|---|---|---|
+| Molecular formula | `"$$\\ce{H2SO4}$$"` | H₂SO₄ |
+| Reaction equation | `"$$\\ce{2H2 + O2 -> 2H2O}$$"` | balanced equation with arrow |
+| Ion | `"$$\\ce{Fe^{2+}}$$"` | Fe²⁺ |
+| Physical unit | `"$$\\pu{6.022e23 mol-1}$$"` | Avogadro's number |
 
-### 2. Markdown & Paragraph Formatting
+No new npm dependency — mhchem ships inside the `katex` package. Does **not** support 2D structural diagrams (benzene rings etc.).
+
+
 
 - **Standard Markdown (GFM)**: Use `**bold**`, `*italic*`, `` `code` ``, fenced code blocks, and pipe tables.
 - **Paragraph separation**: Use `\n\n` between headings, statement groups, and conclusion groups.

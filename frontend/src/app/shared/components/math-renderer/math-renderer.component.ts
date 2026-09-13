@@ -30,6 +30,9 @@ import { CommonModule } from '@angular/common';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import katex from 'katex';
 import { marked } from 'marked';
+// mhchem adds \ce{} (chemical equations) and \pu{} (physical units) to KaTeX.
+// It ships inside the katex package — no extra npm dependency needed.
+import 'katex/dist/contrib/mhchem.js';
 
 @Component({
   selector: 'app-math-renderer',

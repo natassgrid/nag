@@ -1,6 +1,9 @@
 import React, { useMemo } from 'react';
 import katex from 'katex';
 import { marked } from 'marked';
+// mhchem adds \ce{} (chemical equations) and \pu{} (physical units) to KaTeX.
+// It ships inside the katex package — no extra npm dependency needed.
+import 'katex/dist/contrib/mhchem.js';
 
 interface MathRendererProps {
   /** Raw content string containing mixed Markdown text, HTML, $$LaTeX$$, $LaTeX$, \(...\), or \[...\] */
