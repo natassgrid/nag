@@ -30,6 +30,7 @@ import com.examplatform.questionbank.translation.repository.TranslationRepositor
 import com.examplatform.shared.tenant.TenantContext;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
@@ -37,7 +38,6 @@ import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
 import java.time.Instant;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -46,7 +46,8 @@ import java.util.concurrent.TimeUnit;
 
 /**
  * Worker to process large-scale asynchronous background translation jobs.
- * Supports pagination chunks, concurrency throttling, cancellation checks, and error recovery.
+ * Supports pagination chunks, concurrency throttling, cancellation checks, error recovery,
+ * and configurable development pause intervals (e.g. 1-minute interval after every 10-20 questions).
  */
 @Slf4j
 @Service
@@ -60,6 +61,12 @@ public class AsyncBatchTranslationWorker {
     private final TranslationRepository translationRepository;
     private final IndicTrans2Service indicTrans2Service;
     private final TranslationWorkflowService translationWorkflowService;
+
+    @Value("${translation.batch.chunk-pause-interval-questions:15}")
+    private int chunkPauseIntervalQuestions = 15;
+
+    @Value("${translation.batch.chunk-pause-duration-seconds:60}")
+    private int chunkPauseDurationSeconds = 60;
 
     @Async
     public void processBatchTranslationJob(UUID jobId, String tenantId) {
@@ -111,6 +118,7 @@ public class AsyncBatchTranslationWorker {
         try {
             int pageNumber = 0;
             Page<Question> page;
+            int questionsSinceLastPause = 0;
 
             do {
                 // Check if job was cancelled
@@ -137,7 +145,9 @@ public class AsyncBatchTranslationWorker {
                 }
 
                 List<Question> questions = page.getContent();
-                for (Question question : questions) {
+                for (int i = 0; i < questions.size(); i++) {
+                    Question question = questions.get(i);
+
                     // Check cancellation periodically
                     if (isJobCancelled(jobId)) {
                         log.info("Job {} cancelled mid-batch. Halting execution.", jobId);
@@ -155,6 +165,8 @@ public class AsyncBatchTranslationWorker {
                         concurrencyLimiter.release();
                     }
 
+                    questionsSinceLastPause++;
+
                     if (throttleDelayMs > 0) {
                         try {
                             TimeUnit.MILLISECONDS.sleep(throttleDelayMs);
@@ -162,6 +174,30 @@ public class AsyncBatchTranslationWorker {
                             Thread.currentThread().interrupt();
                             log.warn("Throttle sleep interrupted for job {}", jobId);
                             return;
+                        }
+                    }
+
+                    // Check if chunk pause interval reached (e.g. 10-20 questions, default 15) in dev environment
+                    boolean hasMoreQuestions = (i < questions.size() - 1) || page.hasNext();
+                    if (hasMoreQuestions && chunkPauseIntervalQuestions > 0 && chunkPauseDurationSeconds > 0
+                            && questionsSinceLastPause >= chunkPauseIntervalQuestions) {
+                        log.info("Batch translation job {}: Reached chunk interval of {} questions. Pausing for {}s to prevent local dev model overload...",
+                                jobId, questionsSinceLastPause, chunkPauseDurationSeconds);
+                        questionsSinceLastPause = 0;
+
+                        // Sleep in 1-second ticks to stay responsive to cancellation requests
+                        for (int s = 0; s < chunkPauseDurationSeconds; s++) {
+                            if (isJobCancelled(jobId)) {
+                                log.info("Job {} cancelled during chunk interval pause. Halting execution.", jobId);
+                                return;
+                            }
+                            try {
+                                TimeUnit.SECONDS.sleep(1);
+                            } catch (InterruptedException ie) {
+                                Thread.currentThread().interrupt();
+                                log.warn("Chunk interval pause interrupted for job {}", jobId);
+                                return;
+                            }
                         }
                     }
                 }
@@ -234,5 +270,13 @@ public class AsyncBatchTranslationWorker {
     private boolean isJobCancelled(UUID jobId) {
         Optional<BatchTranslationJob> current = jobRepository.findById(jobId);
         return current.isPresent() && current.get().getStatus() == BatchTranslationJobStatus.CANCELLED;
+    }
+
+    public void setChunkPauseIntervalQuestions(int chunkPauseIntervalQuestions) {
+        this.chunkPauseIntervalQuestions = chunkPauseIntervalQuestions;
+    }
+
+    public void setChunkPauseDurationSeconds(int chunkPauseDurationSeconds) {
+        this.chunkPauseDurationSeconds = chunkPauseDurationSeconds;
     }
 }

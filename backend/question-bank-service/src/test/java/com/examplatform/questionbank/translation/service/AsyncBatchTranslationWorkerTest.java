@@ -80,6 +80,8 @@ class AsyncBatchTranslationWorkerTest {
         tenantId = "default";
         questionId1 = UUID.randomUUID();
         questionId2 = UUID.randomUUID();
+        worker.setChunkPauseIntervalQuestions(0);
+        worker.setChunkPauseDurationSeconds(0);
     }
 
     @Test
@@ -198,5 +200,43 @@ class AsyncBatchTranslationWorkerTest {
         worker.processBatchTranslationJob(jobId, tenantId);
 
         verify(questionRepository, never()).findByTenantId(any(), any());
+    }
+
+    @Test
+    @DisplayName("Should support chunk pause interval in development configuration")
+    void shouldSupportChunkPauseInterval() {
+        worker.setChunkPauseIntervalQuestions(1);
+        worker.setChunkPauseDurationSeconds(1);
+
+        BatchTranslationJob job = BatchTranslationJob.builder()
+                .status(BatchTranslationJobStatus.PENDING)
+                .sourceLanguage("en")
+                .targetLanguage("hi")
+                .targetStatus("PUBLISHED")
+                .batchSize(10)
+                .throttleDelayMs(0)
+                .maxConcurrency(1)
+                .build();
+        ReflectionTestUtils.setField(job, "id", jobId);
+        job.setTenantId(tenantId);
+
+        Question q1 = Question.builder().content("Q1").build();
+        ReflectionTestUtils.setField(q1, "id", questionId1);
+        Question q2 = Question.builder().content("Q2").build();
+        ReflectionTestUtils.setField(q2, "id", questionId2);
+
+        Page<Question> page = new PageImpl<>(List.of(q1, q2), PageRequest.of(0, 10), 2);
+
+        when(jobRepository.findById(jobId)).thenReturn(Optional.of(job));
+        when(questionRepository.findByTenantId(eq(tenantId), any(PageRequest.class))).thenReturn(page);
+
+        when(indicTrans2Service.autoTranslateQuestionEntity(any(), eq("hi"))).thenReturn(
+                AutoTranslateResponse.builder().questionId(questionId1).languageCode("hi").translatedContent("Q").build()
+        );
+
+        worker.processBatchTranslationJob(jobId, tenantId);
+
+        assertThat(job.getStatus()).isEqualTo(BatchTranslationJobStatus.COMPLETED);
+        verify(jobRepository, times(2)).incrementSuccess(jobId);
     }
 }

@@ -108,6 +108,11 @@ spring:
 indictrans2:
   url: ${INDICTRANS2_URL:http://localhost:7860}
 
+translation:
+  batch:
+    chunk-pause-interval-questions: ${TRANSLATION_BATCH_CHUNK_INTERVAL:15}
+    chunk-pause-duration-seconds: ${TRANSLATION_BATCH_CHUNK_PAUSE_SECONDS:60}
+
 server:
   port: ${QUESTION_BANK_SERVICE_PORT:8083}
   servlet:
