@@ -10,8 +10,11 @@
   word-wrap: break-word;
   color: inherit;
 
+  // FIX #6: when the component renders inline (span), the host itself must
+  // also be inline so it doesn't introduce a block-level line break.
   &.inline-mode {
     display: inline;
+    line-height: inherit;
   }
 }
 
@@ -20,6 +23,7 @@
   line-height: inherit;
   color: inherit;
 
+  // Used on the <span> wrapper when inline=true
   &.inline-math-container {
     display: inline;
   }
@@ -115,9 +119,11 @@
   }
 
   // KaTeX inline math expressions
+  // FIX #5: vertical-align: middle ensures math symbols align properly with
+  // adjacent text, checkbox/radio labels, and option text in MCQ lists.
   .katex {
     display: inline-block;
-    vertical-align: baseline;
+    vertical-align: middle;
     font-size: 1.08em;
     line-height: 1.2;
     text-rendering: auto;

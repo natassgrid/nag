@@ -13,7 +13,7 @@ interface MathRendererProps {
 
 /** Non-math LaTeX commands that should be rendered as plain text/HTML */
 const NON_MATH_PATTERN =
-  /\\{1,2}(begin|end)\\{(enumerate|itemize|document|figure|table|center)\\}|\\{1,2}item|\\{1,2}section|\\{1,2}subsection/;
+  /\\{1,2}(begin|end)\{(enumerate|itemize|document|figure|table|center)\}|\\{1,2}item|\\{1,2}section|\\{1,2}subsection/;
 
 /**
  * Unescapes literal newline sequences (\n, \r\n, \t).
@@ -133,14 +133,27 @@ function escapeHtml(str: string): string {
 
 /**
  * Sanitizes LaTeX expression before passing to KaTeX.
+ *
+ * FIX #1 — Multi-escaped backslashes:
+ * Backend/LLM serialization sometimes emits 3–4 consecutive backslashes before LaTeX command
+ * words (e.g. \\\\det, \\\neg, \\\\frac).  A single replacement pass only collapses one level;
+ * we iterate until stable so every over-escaped chain is fully reduced to a single backslash.
  */
 function sanitizeLatex(latex: string): string {
   if (!latex || typeof latex !== 'string') return '';
   let s = latex.trim();
-  // Collapse over-escaped backslashes before LaTeX command words or special characters
-  // e.g. \\\\det -> \det, \\\\neq -> \neq, \\\\neg -> \neg, \\\\frac -> \frac, \\\\% -> \%
-  s = s.replace(/\\{2,}([a-zA-Z]+|[{}_#$%&])/g, '\\$1');
-  s = s.replace(/\\*%/g, '\\%');
+
+  // Iteratively collapse over-escaped backslash chains before LaTeX commands/special chars
+  // e.g. \\\\det -> \\det -> \det ; \\\neg -> \\neg -> \neg
+  let previous: string;
+  do {
+    previous = s;
+    s = s.replace(/\\{2,}([a-zA-Z]+|[{}_#$%&^~])/g, '\\$1');
+  } while (s !== previous);
+
+  // Ensure bare % is escaped for KaTeX (% is a LaTeX comment character)
+  s = s.replace(/(?<!\\)%/g, '\\%');
+
   return s;
 }
 
@@ -171,6 +184,11 @@ function renderKatexString(latex: string, displayMode = false): string {
 /**
  * Determines whether a math formula should be rendered in display mode (centered block)
  * vs inline mode (seamlessly inside text).
+ *
+ * FIX #3 — Numbered-list / inline context:
+ * A formula on a line that starts with a list marker (e.g. "1.", "I.", "-", "*")
+ * followed by other text should never become a display block — it must stay inline
+ * to avoid breaking the statement list flow.
  */
 function shouldDisplayBlock(
   math: string,
@@ -183,36 +201,63 @@ function shouldDisplayBlock(
 
   // Check if directly wrapped in parentheses or brackets e.g. ($$math$$)
   const charBefore = offset > 0 ? fullStr[offset - 1] : '';
-  const charAfter = offset + fullMatch.length < fullStr.length ? fullStr[offset + fullMatch.length] : '';
-  const isEnclosedInParens = (charBefore === '(' || charBefore === '[') && (charAfter === ')' || charAfter === ']');
-  if (isEnclosedInParens) {
-    return false;
-  }
-
-  // Check if it is a single variable token (e.g. "A", "L", "\neg L", "x") embedded in running text
-  const trimmedMath = math.trim();
-  const isSingleVariableToken = /^(\\neg\s+)?[a-zA-Z0-9_]{1,3}$/.test(trimmedMath);
+  const charAfter =
+    offset + fullMatch.length < fullStr.length ? fullStr[offset + fullMatch.length] : '';
+  const isEnclosedInParens =
+    (charBefore === '(' || charBefore === '[') && (charAfter === ')' || charAfter === ']');
+  if (isEnclosedInParens) return false;
 
   const textBefore = fullStr.slice(0, offset);
   const lastNewlineBefore = textBefore.lastIndexOf('\n');
-  const linePrefix = lastNewlineBefore === -1 ? textBefore : textBefore.slice(lastNewlineBefore + 1);
+  const linePrefix =
+    lastNewlineBefore === -1 ? textBefore : textBefore.slice(lastNewlineBefore + 1);
 
   const textAfter = fullStr.slice(offset + fullMatch.length);
   const nextNewlineAfter = textAfter.indexOf('\n');
   const lineSuffix = nextNewlineAfter === -1 ? textAfter : textAfter.slice(0, nextNewlineAfter);
 
+  // FIX #3: If the line starts with a numbered/lettered/bulleted list marker treat as inline
+  // Handles: "1.", "2.", "I.", "II.", "A.", "-", "*", "•"
+  const listItemPrefix = /^\s*(\d+\.|[IVXLC]+\.|[A-Za-z]\.|[-*•])\s/;
+  if (listItemPrefix.test(linePrefix)) return false;
+
+  // Check if it is a single variable token (e.g. "A", "L", "\neg L", "x") embedded in running text
+  const trimmedMath = math.trim();
+  const isSingleVariableToken = /^(\\[a-zA-Z]+\s+)?[a-zA-Z0-9_]{1,3}$/.test(trimmedMath);
+
   const hasSurroundingText = linePrefix.trim() !== '' || lineSuffix.trim() !== '';
 
-  if (isSingleVariableToken && hasSurroundingText) {
-    return false;
-  }
+  if (isSingleVariableToken && hasSurroundingText) return false;
 
   return true;
 }
 
 /**
+ * Extracts inline SVG blocks as opaque placeholders so that subsequent markdown
+ * and LaTeX processing steps cannot corrupt attribute values or `<path>` data.
+ *
+ * FIX #4 — SVG + Markdown + LaTeX integration
+ */
+function extractSvgBlocks(
+  text: string
+): { processedText: string; tokens: Map<string, string> } {
+  const tokens = new Map<string, string>();
+  let idx = 0;
+  const processedText = text.replace(/<svg[\s\S]*?<\/svg>/gi, (match) => {
+    const placeholder = `%%%NAG_SVG_BLOCK_${idx++}%%%`;
+    tokens.set(placeholder, match);
+    return placeholder;
+  });
+  return { processedText, tokens };
+}
+
+/**
  * Identifies all LaTeX math expressions (display, environments, bracketed, parenthesis, and inline dollars)
  * and renders them into KaTeX HTML, substituting placeholders to protect the formulas.
+ *
+ * FIX #2 — Delimiter variations:
+ * Upstream content may use 1–4 backslashes before ( ) [ ] delimiters.  The regex now
+ * accepts any run of 1–4 backslashes so \\(, \\\(, \\\\( all match correctly.
  */
 function extractAndRenderMath(
   text: string,
@@ -234,25 +279,26 @@ function extractAndRenderMath(
     return createPlaceholder(rendered);
   });
 
-  // 2. Math in \[ ... \] or \\[ ... \\] (MUST have backslash prefix)
-  text = text.replace(/\\{1,2}\[([\s\S]*?)\\{1,2}\]/g, (fullMatch, math, offset, fullStr) => {
+  // 2. Math in \[ ... \] — accept 1–4 leading/trailing backslashes (FIX #2)
+  text = text.replace(/\\{1,4}\[([\s\S]*?)\\{1,4}\]/g, (fullMatch, math, offset, fullStr) => {
     const isDisplay = shouldDisplayBlock(math, fullMatch, offset, fullStr, inline);
     const rendered = renderKatexString(math, isDisplay);
     return createPlaceholder(rendered);
   });
 
-  // 3. LaTeX environments: \begin{matrix|pmatrix|bmatrix|vmatrix|Vmatrix|cases|align|align*|aligned|equation|equation*|gather|gather*}...\end{...}
+  // 3. LaTeX environments: \begin{...}...\end{...}
   const envRegex =
-    /\\{1,2}begin\{(matrix|pmatrix|bmatrix|vmatrix|Vmatrix|cases|align|align\*|aligned|equation|equation\*|gather|gather\*)\}([\s\S]*?)\\{1,2}end\{\1\}/g;
+    /\\{1,4}begin\{(matrix|pmatrix|bmatrix|vmatrix|Vmatrix|cases|align|align\*|aligned|equation|equation\*|gather|gather\*)\}([\s\S]*?)\\{1,4}end\{\1\}/g;
   text = text.replace(envRegex, (fullMatch, _env, _inner, offset, fullStr) => {
-    const cleanMatch = fullMatch.replace(/\\\\/g, '\\');
+    // Normalize to single backslashes before handing to KaTeX
+    const cleanMatch = fullMatch.replace(/\\{2,}/g, '\\');
     const isDisplay = shouldDisplayBlock(cleanMatch, fullMatch, offset, fullStr, inline);
     const rendered = renderKatexString(cleanMatch, isDisplay);
     return createPlaceholder(rendered);
   });
 
-  // 4. Inline Math: \( ... \) or \\( ... \\) (MUST have backslash prefix, NOT plain parentheses)
-  text = text.replace(/\\{1,2}\(([\s\S]*?)\\{1,2}\)/g, (_, math) => {
+  // 4. Inline Math: \( ... \) — accept 1–4 leading/trailing backslashes (FIX #2)
+  text = text.replace(/\\{1,4}\(([\s\S]*?)\\{1,4}\)/g, (_, math) => {
     const rendered = renderKatexString(math, false);
     return createPlaceholder(rendered);
   });
@@ -279,23 +325,30 @@ function parseContentToHtml(raw: string, inline = false): string {
     // 2. Decode common HTML entities that might surround math
     text = decodeHtmlEntities(text);
 
-    // 3. Extract and render all LaTeX math expressions to placeholders FIRST
+    // 3. Extract SVG blocks as opaque placeholders FIRST (FIX #4)
+    const { processedText: textWithoutSvg, tokens: svgTokens } = extractSvgBlocks(text);
+    text = textWithoutSvg;
+
+    // 4. Extract and render all LaTeX math expressions to placeholders
     // This protects math formulas containing \\, _, *, &, etc. from being corrupted by Markdown or doc cleaners
-    const { processedText: textWithoutMath, tokens: mathTokens } = extractAndRenderMath(text, inline);
+    const { processedText: textWithoutMath, tokens: mathTokens } = extractAndRenderMath(
+      text,
+      inline
+    );
     text = textWithoutMath;
 
-    // 4. Normalize pipe tables
+    // 5. Normalize pipe tables
     if (!inline) {
       text = normalizeMarkdownTables(text);
     }
 
-    // 5. Clean LaTeX document-level commands outside math blocks
+    // 6. Clean LaTeX document-level commands outside math blocks
     text = cleanLatexDocCommands(text);
 
-    // 6. Pre-process inline markdown formatting
+    // 7. Pre-process inline markdown formatting
     text = parseInlineMarkdown(text);
 
-    // 7. Parse Markdown using marked
+    // 8. Parse Markdown using marked
     let htmlResult = '';
     if (inline) {
       const parsed = marked.parseInline(text, { gfm: true, breaks: true });
@@ -305,12 +358,17 @@ function parseContentToHtml(raw: string, inline = false): string {
       htmlResult = typeof parsed === 'string' ? parsed : '';
     }
 
-    // 8. Secondary pass for any inline markdown in HTML blocks passed through by marked
+    // 9. Secondary pass for any inline markdown in HTML blocks passed through by marked
     htmlResult = parseInlineMarkdown(htmlResult);
 
-    // 9. Reinsert KaTeX rendered HTML
+    // 10. Reinsert KaTeX rendered HTML
     for (const [placeholder, rendered] of mathTokens.entries()) {
       htmlResult = htmlResult.split(placeholder).join(rendered);
+    }
+
+    // 11. Reinsert SVG blocks (FIX #4)
+    for (const [placeholder, svgBlock] of svgTokens.entries()) {
+      htmlResult = htmlResult.split(placeholder).join(svgBlock);
     }
 
     return htmlResult;

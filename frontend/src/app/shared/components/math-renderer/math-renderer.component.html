@@ -4,4 +4,9 @@
   Copyright (C) 2025 NAG Contributors
 -->
 
-<div class="math-renderer" [ngClass]="{'inline-math-container': inline}" [innerHTML]="renderedHtml" aria-label="Rendered content with math expressions"></div>
+<ng-container *ngIf="inline; else blockTpl">
+  <span class="math-renderer inline-math-container" [innerHTML]="renderedHtml" aria-label="Rendered content with math expressions"></span>
+</ng-container>
+<ng-template #blockTpl>
+  <div class="math-renderer" [innerHTML]="renderedHtml" aria-label="Rendered content with math expressions"></div>
+</ng-template>
