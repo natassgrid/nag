@@ -14,7 +14,8 @@
  * GNU Affero General Public License for more details.
  *
  * You should have received a copy of the GNU Affero General Public License
- * along with this program. If not, see <https://www.gnu.org/licenses/>.\n */
+ * along with this program. If not, see <https://www.gnu.org/licenses/>.
+ */
 
 package com.examplatform.questionbank.translation.service;
 
@@ -40,6 +41,7 @@ import java.util.UUID;
 /**
  * Service to perform machine translation of questions and options using
  * the local IndicTrans2 AI model (supporting 22 Indian scheduled languages).
+ * Preserves all LaTeX, KaTeX formulas, symbols, and chemical/physical expressions.
  */
 @Slf4j
 @Service
@@ -118,9 +120,12 @@ public class IndicTrans2Service {
             return "";
         }
         String indicLang = mapToIndicLang(targetLang);
+        LatexPreservationUtil.MaskResult maskResult = LatexPreservationUtil.mask(text);
+        String textToTranslate = maskResult.maskedText();
+
         try {
             Map<String, Object> reqBody = Map.of(
-                    "text", text,
+                    "text", textToTranslate,
                     "source_lang", "eng_Latn",
                     "target_lang", indicLang
             );
@@ -132,7 +137,8 @@ public class IndicTrans2Service {
                     .body(Map.class);
 
             if (resp != null && resp.containsKey("translated_text")) {
-                return (String) resp.get("translated_text");
+                String rawTranslated = (String) resp.get("translated_text");
+                return LatexPreservationUtil.unmask(rawTranslated, maskResult.preservedTokens());
             }
         } catch (Exception e) {
             log.error("Failed to translate text via IndicTrans2: {}", e.getMessage());
@@ -147,9 +153,18 @@ public class IndicTrans2Service {
             return Collections.emptyList();
         }
         String indicLang = mapToIndicLang(targetLang);
+        List<LatexPreservationUtil.MaskResult> maskResults = new ArrayList<>(texts.size());
+        List<String> maskedTexts = new ArrayList<>(texts.size());
+
+        for (String t : texts) {
+            LatexPreservationUtil.MaskResult mr = LatexPreservationUtil.mask(t);
+            maskResults.add(mr);
+            maskedTexts.add(mr.maskedText());
+        }
+
         try {
             Map<String, Object> reqBody = Map.of(
-                    "texts", texts,
+                    "texts", maskedTexts,
                     "target_lang", indicLang
             );
             Map<String, Object> resp = restClient.post()
@@ -162,7 +177,14 @@ public class IndicTrans2Service {
             if (resp != null && resp.containsKey("translations")) {
                 Object transObj = resp.get("translations");
                 if (transObj instanceof List) {
-                    return (List<String>) transObj;
+                    List<String> rawList = (List<String>) transObj;
+                    List<String> unmaskedList = new ArrayList<>(rawList.size());
+                    for (int i = 0; i < rawList.size(); i++) {
+                        String raw = rawList.get(i);
+                        List<String> tokens = (i < maskResults.size()) ? maskResults.get(i).preservedTokens() : List.of();
+                        unmaskedList.add(LatexPreservationUtil.unmask(raw, tokens));
+                    }
+                    return unmaskedList;
                 }
             }
         } catch (Exception e) {
@@ -201,33 +223,36 @@ public class IndicTrans2Service {
             textsToTranslate.add(question.getExplanation());
         }
 
-        List<String> translatedTexts = translateBatch(textsToTranslate, indicLang);
+        List<String> translatedList = translateBatch(textsToTranslate, indicLang);
 
-        String translatedContent = !translatedTexts.isEmpty() ? translatedTexts.get(0) : "";
+        String translatedContent = translatedList.isEmpty() ? question.getContent() : translatedList.get(0);
+
         List<TranslatedOptionDto> translatedOptions = new ArrayList<>();
-
-        int textIndex = 1;
         if (question.getOptions() != null) {
-            for (QuestionOption opt : question.getOptions()) {
-                String optTrans = (textIndex < translatedTexts.size()) ? translatedTexts.get(textIndex) : opt.getText();
-                translatedOptions.add(new TranslatedOptionDto(opt.getId(), optTrans));
-                textIndex++;
+            for (int i = 0; i < optionCount; i++) {
+                QuestionOption originalOpt = question.getOptions().get(i);
+                String transOptText = (i + 1 < translatedList.size()) ? translatedList.get(i + 1) : originalOpt.getText();
+                translatedOptions.add(new TranslatedOptionDto(
+                        originalOpt.getId(),
+                        transOptText
+                ));
             }
         }
 
         String translatedExplanation = null;
-        if (hasExplanation && textIndex < translatedTexts.size()) {
-            translatedExplanation = translatedTexts.get(textIndex);
+        if (hasExplanation) {
+            int explIndex = 1 + optionCount;
+            if (explIndex < translatedList.size()) {
+                translatedExplanation = translatedList.get(explIndex);
+            }
         }
 
         return AutoTranslateResponse.builder()
                 .questionId(question.getId())
                 .languageCode(languageCode)
-                .targetLangIndicTrans(indicLang)
                 .translatedContent(translatedContent)
                 .translatedOptions(translatedOptions)
                 .translatedExplanation(translatedExplanation)
-                .model("ai4bharat/indictrans2-en-indic-dist-200M")
                 .build();
     }
 }

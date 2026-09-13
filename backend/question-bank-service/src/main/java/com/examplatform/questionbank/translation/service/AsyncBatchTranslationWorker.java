@@ -42,18 +42,18 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.Semaphore;
+import java.util.concurrent.TimeUnit;
 
 /**
- * Asynchronous worker for processing bulk translation of questions without
- * overloading or killing the system.
- *
- * Employs streaming pagination, bounded concurrency (Semaphore), inter-batch
- * throttle pacing, and per-question transaction & error isolation.
+ * Worker to process large-scale asynchronous background translation jobs.
+ * Supports pagination chunks, concurrency throttling, cancellation checks, and error recovery.
  */
 @Slf4j
 @Service
 @RequiredArgsConstructor
 public class AsyncBatchTranslationWorker {
+
+    private static final UUID SYSTEM_BATCH_UUID = UUID.fromString("00000000-0000-0000-0000-000000000001");
 
     private final BatchTranslationJobRepository jobRepository;
     private final QuestionRepository questionRepository;
@@ -73,6 +73,11 @@ public class AsyncBatchTranslationWorker {
         }
 
         BatchTranslationJob job = jobOpt.get();
+        if (job.getStatus() == BatchTranslationJobStatus.CANCELLED) {
+            log.info("Batch translation job {} is already CANCELLED. Exiting.", jobId);
+            return;
+        }
+
         job.setStatus(BatchTranslationJobStatus.IN_PROGRESS);
         job.setStartedAt(Instant.now());
         jobRepository.save(job);
@@ -87,6 +92,7 @@ public class AsyncBatchTranslationWorker {
         int throttleDelayMs = Math.max(0, job.getThrottleDelayMs());
         int maxConcurrency = Math.max(1, job.getMaxConcurrency());
         Semaphore concurrencyLimiter = new Semaphore(maxConcurrency);
+        boolean overwriteExisting = job.isOverwriteExisting();
 
         try {
             int pageNumber = 0;
@@ -120,87 +126,107 @@ public class AsyncBatchTranslationWorker {
                         return;
                     }
 
-                    boolean shouldTranslate = true;
-                    if (!job.isOverwriteExisting()) {
-                        List<Translation> existing = translationRepository.findByQuestionIdAndLanguageCodeAndTenantId(
-                                question.getId(), targetLang, tenantId);
-                        if (!existing.isEmpty() && (existing.get(0).getStatus() == Translation.TranslationStatus.PUBLISHED
-                                || existing.get(0).getStatus() == Translation.TranslationStatus.APPROVED)) {
-                            shouldTranslate = false;
-                        }
-                    }
-
-                    if (shouldTranslate) {
-                        try {
-                            concurrencyLimiter.acquire();
-                            try {
-                                AutoTranslateResponse translated = indicTrans2Service.autoTranslateQuestionEntity(question, targetLang);
-                                translationWorkflowService.upsertTranslation(
-                                        question.getId(),
-                                        targetLang,
-                                        translated.getTranslatedContent(),
-                                        translated.getTranslatedOptions(),
-                                        translated.getTranslatedExplanation(),
-                                        targetStatus,
-                                        job.getInitiatedBy(),
-                                        "Auto-translated asynchronously via IndicTrans2 (job: " + jobId + ")",
-                                        tenantId
-                                );
-                                job.setSuccessfulQuestions(job.getSuccessfulQuestions() + 1);
-                            } finally {
-                                concurrencyLimiter.release();
-                            }
-                        } catch (Exception e) {
-                            log.error("Failed to translate questionId={} in batchJobId={}: {}", question.getId(), jobId, e.getMessage());
-                            job.setFailedQuestions(job.getFailedQuestions() + 1);
-                            List<String> failedIds = job.getFailedQuestionIds() != null
-                                    ? new ArrayList<>(job.getFailedQuestionIds())
-                                    : new ArrayList<>();
-                            failedIds.add(question.getId().toString());
-                            job.setFailedQuestionIds(failedIds);
-                        }
-                    } else {
-                        job.setSuccessfulQuestions(job.getSuccessfulQuestions() + 1);
-                    }
-
-                    job.setProcessedQuestions(job.getProcessedQuestions() + 1);
-                }
-
-                jobRepository.save(job);
-
-                if (throttleDelayMs > 0 && page.hasNext()) {
                     try {
-                        Thread.sleep(throttleDelayMs);
+                        concurrencyLimiter.acquire();
+                        processSingleQuestion(question, targetLang, targetStatus, overwriteExisting, tenantId, job);
                     } catch (InterruptedException ie) {
                         Thread.currentThread().interrupt();
-                        log.warn("Worker thread interrupted during throttle delay for job {}", jobId);
-                        break;
+                        log.warn("Batch worker interrupted while acquiring semaphore for job {}", jobId);
+                        return;
+                    } finally {
+                        concurrencyLimiter.release();
+                    }
+
+                    if (throttleDelayMs > 0) {
+                        try {
+                            TimeUnit.MILLISECONDS.sleep(throttleDelayMs);
+                        } catch (InterruptedException ie) {
+                            Thread.currentThread().interrupt();
+                            log.warn("Throttle sleep interrupted for job {}", jobId);
+                            return;
+                        }
                     }
                 }
 
                 pageNumber++;
             } while (page.hasNext());
 
-            job.setStatus(BatchTranslationJobStatus.COMPLETED);
-            job.setCompletedAt(Instant.now());
-            jobRepository.save(job);
-            log.info("Batch translation job {} completed successfully. Processed: {}, Succeeded: {}, Failed: {}",
-                    jobId, job.getProcessedQuestions(), job.getSuccessfulQuestions(), job.getFailedQuestions());
+            // Mark job as completed
+            Optional<BatchTranslationJob> finalJobOpt = jobRepository.findById(jobId);
+            if (finalJobOpt.isPresent()) {
+                BatchTranslationJob finalJob = finalJobOpt.get();
+                if (finalJob.getStatus() != BatchTranslationJobStatus.CANCELLED) {
+                    finalJob.setStatus(BatchTranslationJobStatus.COMPLETED);
+                    finalJob.setCompletedAt(Instant.now());
+                    jobRepository.save(finalJob);
+                    log.info("Batch translation job {} finished successfully. Total processed={}", jobId, finalJob.getProcessedQuestions());
+                }
+            }
 
-        } catch (Exception fatalError) {
-            log.error("Fatal error during batch translation job {}: {}", jobId, fatalError.getMessage(), fatalError);
-            job.setStatus(BatchTranslationJobStatus.FAILED);
-            job.setErrorMessage(fatalError.getMessage());
-            job.setCompletedAt(Instant.now());
-            jobRepository.save(job);
+        } catch (Exception ex) {
+            log.error("Fatal error during batch translation execution for job {}: {}", jobId, ex.getMessage(), ex);
+            Optional<BatchTranslationJob> failedJobOpt = jobRepository.findById(jobId);
+            if (failedJobOpt.isPresent()) {
+                BatchTranslationJob failedJob = failedJobOpt.get();
+                failedJob.setStatus(BatchTranslationJobStatus.FAILED);
+                failedJob.setErrorMessage(ex.getMessage());
+                failedJob.setCompletedAt(Instant.now());
+                jobRepository.save(failedJob);
+            }
         } finally {
             TenantContext.clear();
         }
     }
 
+    private void processSingleQuestion(
+            Question question,
+            String targetLang,
+            Translation.TranslationStatus targetStatus,
+            boolean overwriteExisting,
+            String tenantId,
+            BatchTranslationJob job) {
+
+        UUID questionId = question.getId();
+        try {
+            // Translate question via AI model
+            AutoTranslateResponse translationResponse = indicTrans2Service.autoTranslateQuestionEntity(question, targetLang);
+
+            // Upsert into translation domain
+            translationWorkflowService.upsertTranslation(
+                    questionId,
+                    targetLang,
+                    translationResponse.getTranslatedContent(),
+                    translationResponse.getTranslatedOptions(),
+                    translationResponse.getTranslatedExplanation(),
+                    targetStatus,
+                    SYSTEM_BATCH_UUID,
+                    "Batch AI Auto-Translate (Hindi)",
+                    tenantId
+            );
+
+            // Update in-memory job counts & persist periodically
+            synchronized (job) {
+                job.setProcessedQuestions(job.getProcessedQuestions() + 1);
+                job.setSuccessfulQuestions(job.getSuccessfulQuestions() + 1);
+                jobRepository.save(job);
+            }
+
+        } catch (Exception ex) {
+            log.error("Failed to translate questionId={} in batch {}: {}", questionId, job.getId(), ex.getMessage());
+            synchronized (job) {
+                job.setProcessedQuestions(job.getProcessedQuestions() + 1);
+                job.setFailedQuestions(job.getFailedQuestions() + 1);
+                if (job.getFailedQuestionIds() == null) {
+                    job.setFailedQuestionIds(new ArrayList<>());
+                }
+                job.getFailedQuestionIds().add(questionId.toString());
+                jobRepository.save(job);
+            }
+        }
+    }
+
     private boolean isJobCancelled(UUID jobId) {
-        return jobRepository.findById(jobId)
-                .map(j -> j.getStatus() == BatchTranslationJobStatus.CANCELLED)
-                .orElse(false);
+        Optional<BatchTranslationJob> current = jobRepository.findById(jobId);
+        return current.isPresent() && current.get().getStatus() == BatchTranslationJobStatus.CANCELLED;
     }
 }
