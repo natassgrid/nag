@@ -210,23 +210,31 @@ export class MathRendererComponent implements OnChanges {
       .replace(/\\\\(\s)/g, '\n$1');
   }
 
+  private sanitizeLatex(latex: string): string {
+    let s = latex.trim();
+    s = s.replace(/\\*%/g, '\\%');
+    return s;
+  }
+
   private renderKatex(latex: string): string {
-    if (!latex || !latex.trim()) {
+    const trimmed = this.sanitizeLatex(latex);
+    if (!trimmed) {
       return '';
     }
 
-    if (MathRendererComponent.NON_MATH_PATTERN.test(latex)) {
-      return `<span class="math-as-text">${this.escapeHtml(latex)}</span>`;
+    if (MathRendererComponent.NON_MATH_PATTERN.test(trimmed)) {
+      return `<span class="math-as-text">${this.escapeHtml(trimmed)}</span>`;
     }
 
     try {
-      return katex.renderToString(latex.trim(), {
+      return katex.renderToString(trimmed, {
         throwOnError: false,
         displayMode: false,
-        output: 'htmlAndMathml'
+        output: 'htmlAndMathml',
+        strict: 'ignore'
       });
     } catch (e) {
-      return `<span class="math-render-error" title="Failed to render LaTeX">${this.escapeHtml(latex)}</span>`;
+      return `<span class="math-render-error" title="Failed to render LaTeX">${this.escapeHtml(trimmed)}</span>`;
     }
   }
 

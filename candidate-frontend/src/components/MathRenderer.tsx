@@ -16,6 +16,17 @@ const NON_MATH_PATTERN =
   /\\(begin|end)\{(enumerate|itemize|document|figure|table|center)\}|\\item|\\textbf|\\textit|\\section|\\subsection/;
 
 /**
+ * Unescapes literal newline sequences (\n, \r\n, \t).
+ */
+function unescapeNewlines(text: string): string {
+  if (!text) return '';
+  return text
+    .replace(/\\r\\n/g, '\n')
+    .replace(/\\n/g, '\n')
+    .replace(/\\t/g, '\t');
+}
+
+/**
  * Decodes HTML entities that rich text editors or JSON encodings introduce.
  */
 function decodeHtmlEntities(text: string): string {
@@ -79,7 +90,6 @@ function normalizeMarkdownTables(text: string): string {
         const colCount = line.split('|').length - 2;
         tableHeaderCols = colCount;
         newLines.push(line);
-        // If the next line isn't already a markdown delimiter row (|---|---|)
         const nextLine = (lines[i + 1] || '').trim();
         if (!nextLine.startsWith('|') || !nextLine.includes('-')) {
           newLines.push('|' + Array(Math.max(1, tableHeaderCols)).fill('---').join('|') + '|');
@@ -109,10 +119,19 @@ function escapeHtml(str: string): string {
 }
 
 /**
+ * Sanitizes LaTeX expression before passing to KaTeX.
+ */
+function sanitizeLatex(latex: string): string {
+  let s = latex.trim();
+  s = s.replace(/\\*%/g, '\\%');
+  return s;
+}
+
+/**
  * Renders a LaTeX string to HTML using KaTeX.
  */
 function renderKatexString(latex: string, displayMode = false): string {
-  const trimmed = latex.trim();
+  const trimmed = sanitizeLatex(latex);
   if (!trimmed) return '';
 
   if (NON_MATH_PATTERN.test(trimmed)) {
@@ -125,7 +144,7 @@ function renderKatexString(latex: string, displayMode = false): string {
       displayMode,
       output: 'htmlAndMathml',
       trust: false,
-      strict: false,
+      strict: 'ignore',
     });
   } catch {
     return `<span class="math-render-error text-amber-600 font-mono text-xs">${escapeHtml(trimmed)}</span>`;
@@ -138,13 +157,7 @@ function renderKatexString(latex: string, displayMode = false): string {
 function parseContentToHtml(raw: string, inline = false): string {
   if (!raw || !raw.trim()) return '';
 
-  let text = raw.trim();
-
-  // If text contains literal escaped newlines like '\n', unescape them
-  if (text.includes('\\n')) {
-    text = text.replace(/\\n/g, '\n');
-  }
-
+  const text = unescapeNewlines(raw.trim());
   const decoded = decodeHtmlEntities(text);
   const normalized = normalizeMathDelimiters(decoded);
   let cleaned = cleanLatexDocCommands(normalized);
@@ -168,7 +181,7 @@ function parseContentToHtml(raw: string, inline = false): string {
   }
 
   // Extract LaTeX segments and replace with placeholder tokens
-  const mathPlaceholders: { key: string; rendered: string }[] = [];
+  const mathPlaceholders: { placeholder: string; rendered: string }[] = [];
   const mathRegex = /\$\$([\s\S]*?)\$\$/g;
   const preprocessed = cleaned.replace(mathRegex, (_, latex) => {
     const key = `%%%NAG_MATH_BLOCK_${mathPlaceholders.length}%%%`;
@@ -180,7 +193,7 @@ function parseContentToHtml(raw: string, inline = false): string {
         latex.includes('\\xrightarrow') ||
         latex.includes('\n'));
     const rendered = renderKatexString(latex, isDisplayMode);
-    mathPlaceholders.push({ key, rendered });
+    mathPlaceholders.push({ placeholder: key, rendered });
     return key;
   });
 
@@ -198,36 +211,45 @@ function parseContentToHtml(raw: string, inline = false): string {
     htmlResult = preprocessed;
   }
 
-  // Restore KaTeX rendered math tokens
-  for (const ph of mathPlaceholders) {
-    htmlResult = htmlResult.split(ph.key).join(ph.rendered);
+  // Reinsert KaTeX rendered HTML
+  for (const token of mathPlaceholders) {
+    htmlResult = htmlResult.split(token.placeholder).join(token.rendered);
   }
 
   return htmlResult;
 }
 
-export const MathRenderer: React.FC<MathRendererProps> = React.memo(
-  ({ content, className = '', inline = false }) => {
-    const renderedHtml = useMemo(() => {
-      return parseContentToHtml(content || '', inline);
-    }, [content, inline]);
+/**
+ * MathRenderer component for rendering questions, options, and explanations
+ * containing standard Markdown and LaTeX math expressions.
+ */
+export const MathRenderer: React.FC<MathRendererProps> = ({
+  content,
+  className = '',
+  inline = false,
+}) => {
+  const htmlContent = useMemo(() => {
+    if (!content) return '';
+    return parseContentToHtml(content, inline);
+  }, [content, inline]);
 
-    if (!content) return null;
+  if (!htmlContent) return null;
 
-    if (inline) {
-      return (
-        <span
-          className={`math-rendered-inline inline-flex items-center flex-wrap gap-1 ${className}`}
-          dangerouslySetInnerHTML={{ __html: renderedHtml }}
-        />
-      );
-    }
-
+  if (inline) {
     return (
-      <div
-        className={`math-rendered-content ${className}`}
-        dangerouslySetInnerHTML={{ __html: renderedHtml }}
+      <span
+        className={`math-renderer inline-content ${className}`}
+        dangerouslySetInnerHTML={{ __html: htmlContent }}
       />
     );
   }
-);
+
+  return (
+    <div
+      className={`math-renderer block-content leading-relaxed text-slate-800 ${className}`}
+      dangerouslySetInnerHTML={{ __html: htmlContent }}
+    />
+  );
+};
+
+export default MathRenderer;
