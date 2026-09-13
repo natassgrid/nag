@@ -18,6 +18,19 @@
   gap: 6px;
 }
 
+.batch-trigger-btn {
+  background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+  color: #ffffff;
+  font-weight: 600;
+  box-shadow: 0 2px 8px rgba(79, 70, 229, 0.25);
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+
+  &:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(79, 70, 229, 0.35);
+  }
+}
+
 .metrics-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
@@ -77,6 +90,267 @@
       font-size: 12px;
       color: #64748b;
       font-weight: 500;
+    }
+  }
+}
+
+/* ------------------------------------------------------------------------- */
+/* Active Batch Job Progress Card                                            */
+/* ------------------------------------------------------------------------- */
+.batch-progress-card {
+  background: #f8fafc;
+  border: 1px solid #cbd5e1;
+  border-left: 5px solid #4f46e5;
+  border-radius: 12px;
+  padding: 16px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+
+  .batch-card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 10px;
+
+    .batch-title-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+
+      .batch-title {
+        font-weight: 700;
+        font-size: 14px;
+        color: #1e293b;
+      }
+
+      .status-chip {
+        font-size: 11px;
+        font-weight: 700;
+        padding: 3px 8px;
+        border-radius: 6px;
+        text-transform: uppercase;
+
+        &.status-pending {
+          background: #fef3c7;
+          color: #b45309;
+        }
+        &.status-in_progress {
+          background: #dbeafe;
+          color: #1e40af;
+        }
+        &.status-completed {
+          background: #dcfce7;
+          color: #15803d;
+        }
+        &.status-failed {
+          background: #fee2e2;
+          color: #b91c1c;
+        }
+        &.status-cancelled {
+          background: #f1f5f9;
+          color: #64748b;
+        }
+      }
+
+      .target-lang-tag {
+        font-size: 12px;
+        color: #475569;
+        font-weight: 500;
+      }
+    }
+
+    .batch-header-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+  }
+
+  .pulse-indicator {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: #64748b;
+
+    &.in_progress, &.pending {
+      background: #3b82f6;
+      animation: pulse 1.5s infinite;
+    }
+    &.completed {
+      background: #22c55e;
+    }
+    &.failed {
+      background: #ef4444;
+    }
+  }
+
+  .progress-bar-container {
+    width: 100%;
+    mat-progress-bar {
+      border-radius: 4px;
+      height: 8px;
+    }
+  }
+
+  .batch-stats-row {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    flex-wrap: wrap;
+    font-size: 13px;
+
+    .stat-item {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+
+      .stat-label {
+        color: #64748b;
+      }
+      .stat-val {
+        font-weight: 700;
+        color: #0f172a;
+      }
+
+      &.success .stat-val {
+        color: #16a34a;
+      }
+      &.error .stat-val {
+        color: #dc2626;
+      }
+    }
+  }
+}
+
+@keyframes pulse {
+  0% { transform: scale(0.95); opacity: 0.8; box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.7); }
+  70% { transform: scale(1.1); opacity: 1; box-shadow: 0 0 0 6px rgba(59, 130, 246, 0); }
+  100% { transform: scale(0.95); opacity: 0.8; box-shadow: 0 0 0 0 rgba(59, 130, 246, 0); }
+}
+
+/* ------------------------------------------------------------------------- */
+/* Modal Dialog for Batch Auto-Translation                                   */
+/* ------------------------------------------------------------------------- */
+.batch-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.6);
+  backdrop-filter: blur(4px);
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+
+.batch-modal-container {
+  background: #ffffff;
+  border-radius: 16px;
+  width: 100%;
+  max-width: 580px;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.2), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+
+  .modal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 18px 24px;
+    border-bottom: 1px solid #f1f5f9;
+
+    .modal-title-wrap {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+
+      .modal-icon {
+        color: #4f46e5;
+        font-size: 24px;
+        width: 24px;
+        height: 24px;
+      }
+
+      h3 {
+        margin: 0;
+        font-size: 18px;
+        font-weight: 700;
+        color: #0f172a;
+      }
+    }
+  }
+
+  .modal-body {
+    padding: 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+
+    .modal-desc {
+      font-size: 13.5px;
+      line-height: 1.5;
+      color: #475569;
+      margin: 0;
+    }
+
+    .form-grid {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+
+      .full-width {
+        width: 100%;
+      }
+
+      .toggle-row {
+        padding: 4px 0;
+      }
+    }
+
+    .nfr-guard-box {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      padding: 12px 14px;
+      background: #eff6ff;
+      border: 1px solid #bfdbfe;
+      border-radius: 8px;
+
+      mat-icon {
+        color: #2563eb;
+        font-size: 20px;
+        width: 20px;
+        height: 20px;
+        flex-shrink: 0;
+        margin-top: 2px;
+      }
+
+      .guard-text {
+        font-size: 12px;
+        line-height: 1.4;
+        color: #1e3a8a;
+      }
+    }
+  }
+
+  .modal-footer {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 12px;
+    padding: 16px 24px;
+    background: #f8fafc;
+    border-top: 1px solid #f1f5f9;
+
+    button {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
     }
   }
 }
