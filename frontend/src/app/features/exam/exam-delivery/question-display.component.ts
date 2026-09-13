@@ -25,6 +25,7 @@ import { MatCheckboxModule } from '@angular/material/checkbox';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { Question } from '../services/exam.service';
+import { MathRendererComponent } from '../../../shared/components/math-renderer/math-renderer.component';
 
 @Component({
   selector: 'app-question-display',
@@ -35,7 +36,8 @@ import { Question } from '../services/exam.service';
     MatRadioModule,
     MatCheckboxModule,
     MatFormFieldModule,
-    MatInputModule
+    MatInputModule,
+    MathRendererComponent
   ],
   templateUrl: './question-display.component.html',
   changeDetection: ChangeDetectionStrategy.Eager,
@@ -53,11 +55,13 @@ export class QuestionDisplayComponent {
   }
 
   onCheckboxChange(optionId: string, checked: boolean): void {
-    let updated: string[];
+    let updated = [...this.selectedOptionIds];
     if (checked) {
-      updated = [...this.selectedOptionIds, optionId];
+      if (!updated.includes(optionId)) {
+        updated.push(optionId);
+      }
     } else {
-      updated = this.selectedOptionIds.filter(id => id !== optionId);
+      updated = updated.filter(id => id !== optionId);
     }
     this.optionSelected.emit(updated);
   }
