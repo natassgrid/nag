@@ -1,20 +1,14 @@
 import React, { useMemo } from 'react';
 import katex from 'katex';
+import { marked } from 'marked';
 
 interface MathRendererProps {
-  /** Raw content string containing mixed text, HTML, $$LaTeX$$, $LaTeX$, \(...\), or \[...\] */
+  /** Raw content string containing mixed Markdown text, HTML, $$LaTeX$$, $LaTeX$, \(...\), or \[...\] */
   content?: string | null;
   /** Optional custom CSS classes for the container */
   className?: string;
   /** Force inline span vs block wrapper (default: false for block-capable container) */
   inline?: boolean;
-}
-
-interface ContentSegment {
-  type: 'html' | 'math';
-  content: string;
-  rendered?: string;
-  isDisplayMode?: boolean;
 }
 
 /** Non-math LaTeX commands that should be rendered as plain text/HTML */
@@ -51,7 +45,7 @@ function normalizeMathDelimiters(text: string): string {
 }
 
 /**
- * Converts LaTeX document-structure commands to readable HTML.
+ * Converts LaTeX document-structure commands to readable HTML / Markdown.
  */
 function cleanLatexDocCommands(text: string): string {
   if (!text) return '';
@@ -60,10 +54,58 @@ function cleanLatexDocCommands(text: string): string {
     .replace(/\\end\{enumerate\}/g, '')
     .replace(/\\begin\{itemize\}/g, '')
     .replace(/\\end\{itemize\}/g, '')
-    .replace(/\\item\s*/g, '<br>&bull; ')
-    .replace(/\\textbf\{([^}]*)\}/g, '<strong>$1</strong>')
-    .replace(/\\textit\{([^}]*)\}/g, '<em>$1</em>')
-    .replace(/\\\\(\s|$)/g, '<br>$1');
+    .replace(/\\item\s*/g, '\n- ')
+    .replace(/\\textbf\{([^}]*)\}/g, '**$1**')
+    .replace(/\\textit\{([^}]*)\}/g, '*$1*')
+    .replace(/\\\\(\s|$)/g, '\n$1');
+}
+
+/**
+ * Normalizes ASCII / pipe matrices and tables missing standard Markdown separator rows.
+ */
+function normalizeMarkdownTables(text: string): string {
+  if (!text.includes('|')) return text;
+
+  const lines = text.split('\n');
+  let inTable = false;
+  let tableHeaderCols = 0;
+  const newLines: string[] = [];
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i].trim();
+    if (line.startsWith('|') && line.endsWith('|') && line.length > 2) {
+      if (!inTable) {
+        inTable = true;
+        const colCount = line.split('|').length - 2;
+        tableHeaderCols = colCount;
+        newLines.push(line);
+        // If the next line isn't already a markdown delimiter row (|---|---|)
+        const nextLine = (lines[i + 1] || '').trim();
+        if (!nextLine.startsWith('|') || !nextLine.includes('-')) {
+          newLines.push('|' + Array(Math.max(1, tableHeaderCols)).fill('---').join('|') + '|');
+        }
+      } else {
+        newLines.push(line);
+      }
+    } else {
+      inTable = false;
+      newLines.push(lines[i]);
+    }
+  }
+
+  return newLines.join('\n');
+}
+
+/**
+ * Escapes HTML characters for safe plain text fallback.
+ */
+function escapeHtml(str: string): string {
+  return str
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
 }
 
 /**
@@ -91,26 +133,26 @@ function renderKatexString(latex: string, displayMode = false): string {
 }
 
 /**
- * Escapes HTML characters for safe plain text fallback.
+ * Parses mixed Markdown and LaTeX content into styled HTML.
  */
-function escapeHtml(str: string): string {
-  return str
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#039;');
-}
-
-/**
- * Parses mixed content into math and HTML segments.
- */
-function parseContentToHtml(raw: string): string {
+function parseContentToHtml(raw: string, inline = false): string {
   if (!raw || !raw.trim()) return '';
 
-  const decoded = decodeHtmlEntities(raw);
+  let text = raw.trim();
+
+  // If text contains literal escaped newlines like '\n', unescape them
+  if (text.includes('\\n')) {
+    text = text.replace(/\\n/g, '\n');
+  }
+
+  const decoded = decodeHtmlEntities(text);
   const normalized = normalizeMathDelimiters(decoded);
   let cleaned = cleanLatexDocCommands(normalized);
+
+  // Normalize pipe tables
+  if (!inline) {
+    cleaned = normalizeMarkdownTables(cleaned);
+  }
 
   // Convert single-dollar $math$ (not preceded or followed by another $) to $$math$$
   cleaned = cleaned.replace(/(^|[^\$])\$([^\$\n\r]+?)\$([^\$]|$)/g, '$1$$$$$2$$$$$3');
@@ -125,59 +167,67 @@ function parseContentToHtml(raw: string): string {
     }
   }
 
-  const segments: ContentSegment[] = [];
+  // Extract LaTeX segments and replace with placeholder tokens
+  const mathPlaceholders: { key: string; rendered: string }[] = [];
   const mathRegex = /\$\$([\s\S]*?)\$\$/g;
-  let lastIndex = 0;
-  let match: RegExpExecArray | null;
+  const preprocessed = cleaned.replace(mathRegex, (_, latex) => {
+    const key = `%%%NAG_MATH_BLOCK_${mathPlaceholders.length}%%%`;
+    const isDisplayMode =
+      !inline &&
+      (latex.includes('\\displaystyle') ||
+        latex.includes('\\begin{matrix}') ||
+        latex.includes('\\begin{aligned}') ||
+        latex.includes('\\xrightarrow') ||
+        latex.includes('\n'));
+    const rendered = renderKatexString(latex, isDisplayMode);
+    mathPlaceholders.push({ key, rendered });
+    return key;
+  });
 
-  while ((match = mathRegex.exec(cleaned)) !== null) {
-    if (match.index > lastIndex) {
-      const htmlSlice = cleaned.substring(lastIndex, match.index);
-      segments.push({ type: 'html', content: htmlSlice, rendered: htmlSlice });
+  // Parse Markdown using marked
+  let htmlResult = '';
+  try {
+    if (inline) {
+      const parsed = marked.parseInline(preprocessed, { gfm: true, breaks: true });
+      htmlResult = typeof parsed === 'string' ? parsed : '';
+    } else {
+      const parsed = marked.parse(preprocessed, { gfm: true, breaks: true, async: false });
+      htmlResult = typeof parsed === 'string' ? parsed : '';
     }
-
-    const latex = match[1];
-    // If the latex starts and ends on its own line or is lengthy/has \frac/\int/\sum, consider displayMode
-    const isDisplayMode = latex.includes('\\displaystyle') || latex.includes('\\begin{matrix}') || latex.includes('\\begin{aligned}');
-    segments.push({
-      type: 'math',
-      content: latex,
-      rendered: renderKatexString(latex, isDisplayMode),
-    });
-
-    lastIndex = match.index + match[0].length;
+  } catch {
+    htmlResult = preprocessed;
   }
 
-  if (lastIndex < cleaned.length) {
-    const trailingHtml = cleaned.substring(lastIndex);
-    segments.push({ type: 'html', content: trailingHtml, rendered: trailingHtml });
+  // Restore KaTeX rendered math tokens
+  for (const ph of mathPlaceholders) {
+    htmlResult = htmlResult.split(ph.key).join(ph.rendered);
   }
 
-  return segments.map((seg) => seg.rendered ?? seg.content).join('');
+  return htmlResult;
 }
 
-export const MathRenderer: React.FC<MathRendererProps> = React.memo(({ content, className = '', inline = false }) => {
-  const renderedHtml = useMemo(() => {
-    return parseContentToHtml(content || '');
-  }, [content]);
+export const MathRenderer: React.FC<MathRendererProps> = React.memo(
+  ({ content, className = '', inline = false }) => {
+    const renderedHtml = useMemo(() => {
+      return parseContentToHtml(content || '', inline);
+    }, [content, inline]);
 
-  if (!content) return null;
+    if (!content) return null;
 
-  if (inline) {
+    if (inline) {
+      return (
+        <span
+          className={`math-rendered-inline inline-flex items-center flex-wrap gap-1 ${className}`}
+          dangerouslySetInnerHTML={{ __html: renderedHtml }}
+        />
+      );
+    }
+
     return (
-      <span
-        className={`math-rendered-inline inline-flex items-center flex-wrap gap-1 ${className}`}
+      <div
+        className={`math-rendered-content ${className}`}
         dangerouslySetInnerHTML={{ __html: renderedHtml }}
       />
     );
   }
-
-  return (
-    <div
-      className={`math-rendered-content ${className}`}
-      dangerouslySetInnerHTML={{ __html: renderedHtml }}
-    />
-  );
-});
-
-MathRenderer.displayName = 'MathRenderer';
+);

@@ -262,7 +262,7 @@ const TakeExam: React.FC = () => {
     setShowExplanation(false);
   }, [currentIndex]);
 
-  // ─── Timer countdown ──────────────────────────────────────────────────
+  // ─── Timer countdown ──────────────────────────────────────────────────────
   useEffect(() => {
     if (!session || timeLeft <= 0 || (isPracticeMode && FEATURE_FLAGS.ENABLE_PRACTICE_MODE)) return;
     const interval = setInterval(() => {
@@ -278,7 +278,7 @@ const TakeExam: React.FC = () => {
     return () => clearInterval(interval);
   }, [session, isPracticeMode]);
 
-  // ─── Fullscreen & Invigilation Telemetry ──────────────────────────────
+  // ─── Fullscreen & Invigilation Telemetry ──────────────────────────────────
   useEffect(() => {
     const handleFullscreenChange = () => {
       setIsFullscreen(!!document.fullscreenElement);
@@ -317,7 +317,7 @@ const TakeExam: React.FC = () => {
     }
   };
 
-  // ─── Online/offline detection & Sync ──────────────────────────────────
+  // ─── Online/offline detection & Sync ──────────────────────────────────────
   useEffect(() => {
     const onOnline = async () => {
       setOnline(true);
@@ -348,7 +348,7 @@ const TakeExam: React.FC = () => {
     };
   }, [toast]);
 
-  // ─── Question Palette Helpers ─────────────────────────────────────────
+  // ─── Question Palette Helpers ─────────────────────────────────────────────
   const getQuestionState = (qId: string): QuestionStatus => {
     const rec = answers[qId];
     if (!rec || !rec.visited) return 'NOT_VISITED';
@@ -358,7 +358,7 @@ const TakeExam: React.FC = () => {
     return 'NOT_ANSWERED';
   };
 
-  // ─── Navigation & Responses via delivery-service & response-service ────
+  // ─── Navigation & Responses via delivery-service & response-service ───────
   const goToQuestion = useCallback(
     async (index: number) => {
       if (index < 0 || index >= questions.length) return;
@@ -486,7 +486,7 @@ const TakeExam: React.FC = () => {
     }
   };
 
-  // ─── Final Submission via response-service ─────────────────────────────
+  // ─── Final Submission via response-service ────────────────────────────────
   const handleSubmit = async (autoSubmit = false) => {
     if (!session) return;
     setSubmitting(true);
@@ -744,16 +744,16 @@ const TakeExam: React.FC = () => {
                   </div>
                 </div>
 
-                {/* Question Text with LaTeX Rendering */}
+                {/* Question Text with Markdown & LaTeX Rendering */}
                 <div
-                  className={`mt-4 text-slate-900 leading-relaxed font-medium whitespace-pre-line ${
+                  className={`mt-4 text-slate-900 leading-relaxed font-medium ${
                     fontSize === 'large' ? 'text-lg' : 'text-base'
                   }`}
                 >
                   <MathRenderer content={currentQ.text} />
                 </div>
 
-                {/* Options List with LaTeX Rendering */}
+                {/* Options List with Markdown & LaTeX Rendering */}
                 <div className="mt-6 space-y-3">
                   {currentQ.options.map((opt) => {
                     const isSelected = currentAnswer?.optionIndex === opt.index;
@@ -837,7 +837,7 @@ const TakeExam: React.FC = () => {
                             Hide Explanation
                           </button>
                         </div>
-                        <div className="mt-2 text-xs leading-relaxed text-slate-800 font-medium whitespace-pre-line">
+                        <div className="mt-2 text-xs leading-relaxed text-slate-800 font-medium">
                           <MathRenderer
                             content={
                               currentQ.explanation ||
