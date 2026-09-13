@@ -54,7 +54,7 @@ export class MathRendererComponent implements OnChanges {
   renderedHtml: SafeHtml = '';
 
   /** Non-math LaTeX commands that should be rendered as plain text/HTML. */
-  private static readonly NON_MATH_PATTERN = /\\(begin|end)\{(enumerate|itemize|document|figure|table|center)\}|\\item|\\textbf|\\textit|\\section|\\subsection/;
+  private static readonly NON_MATH_PATTERN = /\\(begin|end)\\{(enumerate|itemize|document|figure|table|center)\\}|\\item|\\textbf|\\textit|\\section|\\subsection/;
 
   constructor(private sanitizer: DomSanitizer) {}
 
@@ -87,7 +87,7 @@ export class MathRendererComponent implements OnChanges {
       text = this.cleanLatexDocCommands(text);
 
       // 6. Convert single-dollar $math$ into $$math$$
-      text = text.replace(/(^|[^$\\])\$([^$\n\r]+?)\$([^$]|$)/g, '$1$$$$$2$$$$$3');
+      text = text.replace(/(^|[^$\\\\])\$([^$\n\r]+?)\$([^$]|$)/g, '$1$$$$$2$$$$$3');
 
       // 7. Extract math blocks and replace with unique placeholders
       const mathTokens: { placeholder: string; rendered: string }[] = [];
@@ -101,7 +101,11 @@ export class MathRendererComponent implements OnChanges {
         return placeholder;
       });
 
-      // 8. Parse Markdown using marked
+      // 8. Transform inline Markdown constructs (bold, italic, strike, code)
+      // so they render properly even inside HTML block tags (<p>, <div>) produced by rich editors
+      text = this.parseInlineMarkdown(text);
+
+      // 9. Parse Markdown using marked
       let parsedHtml: string;
       if (this.inline) {
         parsedHtml = marked.parseInline(text, {
@@ -116,7 +120,10 @@ export class MathRendererComponent implements OnChanges {
         }) as string;
       }
 
-      // 9. Reinsert rendered KaTeX math blocks
+      // 10. Secondary pass for any inline markdown in HTML blocks passed through by marked
+      parsedHtml = this.parseInlineMarkdown(parsedHtml);
+
+      // 11. Reinsert rendered KaTeX math blocks
       for (const token of mathTokens) {
         parsedHtml = parsedHtml.split(token.placeholder).join(token.rendered);
       }
@@ -126,6 +133,25 @@ export class MathRendererComponent implements OnChanges {
       console.warn('Failed to parse Markdown / Math content:', e);
       this.renderedHtml = this.sanitizer.bypassSecurityTrustHtml(this.content);
     }
+  }
+
+  private parseInlineMarkdown(text: string): string {
+    if (!text) return '';
+    return text
+      // Bold + Italic: ***text*** or ___text___
+      .replace(/\*\*\*([^\*\n\r]+?)\*\*\*/g, '<strong><em>$1</em></strong>')
+      .replace(/___([^_\n\r]+?)___/g, '<strong><em>$1</em></strong>')
+      // Bold: **text** or __text__
+      .replace(/\*\*([^\*\n\r]+?)\*\*/g, '<strong>$1</strong>')
+      .replace(/__([^_\n\r]+?)__/g, '<strong>$1</strong>')
+      // Strikethrough: ~~text~~
+      .replace(/~~([^~\n\r]+?)~~/g, '<del>$1</del>')
+      // Inline code: `code`
+      .replace(/`([^`\n\r]+?)`/g, '<code>$1</code>')
+      // Italic: *text* (when not part of a math block or token)
+      .replace(/(^|[^*])\*([^*\n\r]+?)\*([^*]|$)/g, '$1<em>$2</em>$3')
+      // Italic: _text_ (when surrounded by non-alphanumeric boundaries)
+      .replace(/(^|[^a-zA-Z0-9_])_([^_\n\r]+?)_([^a-zA-Z0-9_]|$)/g, '$1<em>$2</em>$3');
   }
 
   private unescapeNewlines(text: string): string {
@@ -144,10 +170,10 @@ export class MathRendererComponent implements OnChanges {
       .replace(/&gt;/g, '>')
       .replace(/&quot;/g, '"')
       .replace(/&#39;/g, "'")
-      .replace(/&ldquo;/g, '“')
-      .replace(/&rdquo;/g, '”')
-      .replace(/&lsquo;/g, '‘')
-      .replace(/&rsquo;/g, '’')
+      .replace(/&ldquo;/g, '\u201c')
+      .replace(/&rdquo;/g, '\u201d')
+      .replace(/&lsquo;/g, '\u2018')
+      .replace(/&rsquo;/g, '\u2019')
       .trim();
   }
 
@@ -171,7 +197,7 @@ export class MathRendererComponent implements OnChanges {
         }
 
         if (tableBlock.length >= 1) {
-          const hasDelimiter = tableBlock.some(row => /^\|(\s*:?-+:?\s*\|)+$/.test(row.trim()));
+          const hasDelimiter = tableBlock.some(row => /^\s*\|(\s*:?-+:?\s*\|)+\s*$/.test(row.trim()));
           if (!hasDelimiter) {
             const colCount = tableBlock[0].trim().split('|').filter(c => c.trim().length > 0).length;
             if (colCount > 0) {
@@ -207,7 +233,7 @@ export class MathRendererComponent implements OnChanges {
       .replace(/\\item\s*/g, '\n- ')
       .replace(/\\textbf\{([^}]*)\}/g, '**$1**')
       .replace(/\\textit\{([^}]*)\}/g, '*$1*')
-      .replace(/\\\\(\s)/g, '\n$1');
+      .replace(/\\\\(\s|$)/g, '\n$1');
   }
 
   private sanitizeLatex(latex: string): string {

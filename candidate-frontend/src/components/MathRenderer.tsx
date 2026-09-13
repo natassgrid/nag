@@ -13,7 +13,7 @@ interface MathRendererProps {
 
 /** Non-math LaTeX commands that should be rendered as plain text/HTML */
 const NON_MATH_PATTERN =
-  /\\(begin|end)\{(enumerate|itemize|document|figure|table|center)\}|\\item|\\textbf|\\textit|\\section|\\subsection/;
+  /\\(begin|end)\\{(enumerate|itemize|document|figure|table|center)\\}|\\item|\\textbf|\\textit|\\section|\\subsection/;
 
 /**
  * Unescapes literal newline sequences (\n, \r\n, \t).
@@ -107,6 +107,29 @@ function normalizeMarkdownTables(text: string): string {
 }
 
 /**
+ * Transforms inline Markdown constructs (bold, italic, strike, code)
+ * so they render properly even inside HTML block tags (<p>, <div>).
+ */
+function parseInlineMarkdown(text: string): string {
+  if (!text) return '';
+  return text
+    // Bold + Italic: ***text*** or ___text___
+    .replace(/\*\*\*([^\*\n\r]+?)\*\*\*/g, '<strong><em>$1</em></strong>')
+    .replace(/___([^_\n\r]+?)___/g, '<strong><em>$1</em></strong>')
+    // Bold: **text** or __text__
+    .replace(/\*\*([^\*\n\r]+?)\*\*/g, '<strong>$1</strong>')
+    .replace(/__([^_\n\r]+?)__/g, '<strong>$1</strong>')
+    // Strikethrough: ~~text~~
+    .replace(/~~([^~\n\r]+?)~~/g, '<del>$1</del>')
+    // Inline code: `code`
+    .replace(/`([^`\n\r]+?)`/g, '<code>$1</code>')
+    // Italic: *text* (when not part of a math block or token)
+    .replace(/(^|[^*])\*([^*\n\r]+?)\*([^*]|$)/g, '$1<em>$2</em>$3')
+    // Italic: _text_ (when surrounded by non-alphanumeric boundaries)
+    .replace(/(^|[^a-zA-Z0-9_])_([^_\n\r]+?)_([^a-zA-Z0-9_]|$)/g, '$1<em>$2</em>$3');
+}
+
+/**
  * Escapes HTML characters for safe plain text fallback.
  */
 function escapeHtml(str: string): string {
@@ -168,7 +191,7 @@ function parseContentToHtml(raw: string, inline = false): string {
   }
 
   // Convert single-dollar $math$ (not preceded or followed by another $) to $$math$$
-  cleaned = cleaned.replace(/(^|[^\$])\$([^\$\n\r]+?)\$([^\$]|$)/g, '$1$$$$$2$$$$$3');
+  cleaned = cleaned.replace(/(^|[^\$])\$([^$\n\r]+?)\$([^$]|$)/g, '$1$$$$$2$$$$$3');
 
   // Handle unmatched odd count of $$
   const matches = cleaned.match(/\$\$/g);
@@ -183,7 +206,7 @@ function parseContentToHtml(raw: string, inline = false): string {
   // Extract LaTeX segments and replace with placeholder tokens
   const mathPlaceholders: { placeholder: string; rendered: string }[] = [];
   const mathRegex = /\$\$([\s\S]*?)\$\$/g;
-  const preprocessed = cleaned.replace(mathRegex, (_, latex) => {
+  let preprocessed = cleaned.replace(mathRegex, (_, latex) => {
     const key = `%%%NAG_MATH_BLOCK_${mathPlaceholders.length}%%%`;
     const isDisplayMode =
       !inline &&
@@ -196,6 +219,9 @@ function parseContentToHtml(raw: string, inline = false): string {
     mathPlaceholders.push({ placeholder: key, rendered });
     return key;
   });
+
+  // Pre-process inline markdown formatting (bold, italic, strike, code) inside HTML elements
+  preprocessed = parseInlineMarkdown(preprocessed);
 
   // Parse Markdown using marked
   let htmlResult = '';
@@ -210,6 +236,9 @@ function parseContentToHtml(raw: string, inline = false): string {
   } catch {
     htmlResult = preprocessed;
   }
+
+  // Secondary pass for any inline markdown in HTML blocks passed through by marked
+  htmlResult = parseInlineMarkdown(htmlResult);
 
   // Reinsert KaTeX rendered HTML
   for (const token of mathPlaceholders) {
