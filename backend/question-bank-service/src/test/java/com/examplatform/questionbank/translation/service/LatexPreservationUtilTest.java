@@ -93,6 +93,42 @@ class LatexPreservationUtilTest {
     }
 
     @Test
+    @DisplayName("Handles IndicTrans2 spaces removal (NAG MATH 0) in translated explanation")
+    void testIndicTrans2SpaceStrippedPlaceholderRestoration() {
+        List<String> tokens = List.of(
+                "\\(A \\subseteq B\\)",
+                "\\(B \\subseteq C\\)",
+                "\\(A \\subseteq C\\)",
+                "\\(x \\in A\\)",
+                "\\(x \\in C\\)",
+                "\\(x \\notin B\\)"
+        );
+
+        String translatedFromIndicTrans2 = "(1), NAG MATH 0 (विच्छेद विभाजन) से. (2) और (3) से, NAG MATH 1 से. " +
+                "NAG MATH 2 से, NAG MATH 3 (निष्कर्ष मैं अनुसरण करता हूँ)। (4) के लिए, NAG MATH 4 । (2), NAG MATH 5 (निष्कर्ष II निम्नलिखित है) के विपरीत।";
+
+        String restored = LatexPreservationUtil.unmask(translatedFromIndicTrans2, tokens);
+
+        assertFalse(restored.contains("NAG MATH"));
+        assertTrue(restored.contains("\\(A \\subseteq B\\)"));
+        assertTrue(restored.contains("\\(B \\subseteq C\\)"));
+        assertTrue(restored.contains("\\(A \\subseteq C\\)"));
+        assertTrue(restored.contains("\\(x \\in A\\)"));
+        assertTrue(restored.contains("\\(x \\in C\\)"));
+        assertTrue(restored.contains("\\(x \\notin B\\)"));
+    }
+
+    @Test
+    @DisplayName("Handles Devanagari numerals in translated placeholders")
+    void testDevanagariNumeralsInPlaceholder() {
+        List<String> tokens = List.of("$$x = 5$$", "$$y = 10$$");
+        String translatedWithDevanagari = "यहाँ NAG MATH ० और NAG MATH १ दिया गया है।";
+
+        String restored = LatexPreservationUtil.unmask(translatedWithDevanagari, tokens);
+        assertEquals("यहाँ $$x = 5$$ और $$y = 10$$ दिया गया है।", restored);
+    }
+
+    @Test
     @DisplayName("Handles whitespace tolerance in translated placeholders")
     void testPlaceholderToleranceWithWhitespace() {
         List<String> tokens = List.of("$$E = h\\nu$$", "$c = 3 \\times 10^8$");

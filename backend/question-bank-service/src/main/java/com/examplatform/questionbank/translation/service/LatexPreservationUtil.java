@@ -62,9 +62,15 @@ public final class LatexPreservationUtil {
             Pattern.CASE_INSENSITIVE
     );
 
-    // Pattern to match placeholders in translated text with tolerance for spacing or case variations
+    // Highly tolerant pattern to match placeholders in translated text across all neural MT modifications:
+    // Handles __NAG_MATH_0__, _NAG_MATH_0_, NAG_MATH_0, NAG MATH 0, NAG-MATH-0, NAG MATH0, NAGMATH0,
+    // MATH_0, MATH 0, Devanagari transliterations (एन ए जी मैथ ०, मैथ ०), etc.
     private static final Pattern RESTORATION_PATTERN = Pattern.compile(
-            "__\\s*NAG_MATH_(\\d+)\\s*__",
+            "(?:_{1,4}\\s*|«|<|\\[|\\()?" +
+            "(?:(?:NAG|एन\\s*ए\\s*जी)[\\s_\\-]*)*" +
+            "(?:MATH|मैथ|गणित)[\\s_\\-]*" +
+            "([0-9०-९]+)" +
+            "(?:\\s*_{1,4}|»|>|\\]|\\))?",
             Pattern.CASE_INSENSITIVE
     );
 
@@ -111,19 +117,34 @@ public final class LatexPreservationUtil {
 
         while (matcher.find()) {
             try {
-                int tokenIdx = Integer.parseInt(matcher.group(1));
+                int tokenIdx = parseIndex(matcher.group(1));
                 if (tokenIdx >= 0 && tokenIdx < preservedTokens.size()) {
                     String originalMath = preservedTokens.get(tokenIdx);
                     matcher.appendReplacement(sb, Matcher.quoteReplacement(originalMath));
                 } else {
                     matcher.appendReplacement(sb, Matcher.quoteReplacement(matcher.group(0)));
                 }
-            } catch (NumberFormatException e) {
+            } catch (Exception e) {
                 matcher.appendReplacement(sb, Matcher.quoteReplacement(matcher.group(0)));
             }
         }
         matcher.appendTail(sb);
 
         return sb.toString();
+    }
+
+    private static int parseIndex(String indexStr) {
+        if (indexStr == null || indexStr.isBlank()) {
+            return -1;
+        }
+        StringBuilder sb = new StringBuilder();
+        for (char c : indexStr.toCharArray()) {
+            if (c >= '0' && c <= '9') {
+                sb.append(c);
+            } else if (c >= '०' && c <= '९') {
+                sb.append((char) ('0' + (c - '०')));
+            }
+        }
+        return Integer.parseInt(sb.toString());
     }
 }
