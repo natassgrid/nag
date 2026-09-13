@@ -1,9 +1,9 @@
 -- ============================================================
--- Seed Questions: Banking PO / Clerk Prelims Blueprint Deficit Fulfillment (51 Questions)
+-- Seed Questions: Banking PO / Clerk Prelims Blueprint Deficit Fulfillment (52 Questions)
 -- Examination: IBPS / SBI Probationary Officer (PO) Preliminary Examination 2026
 -- Deficits Resolved:
 --   Rule 1: English Language and Comprehension > Comprehension Passage (HARD, ANALYZE) - 10 Qs
---   Rule 2: English Language and Comprehension > Cloze Passage (MEDIUM, UNDERSTAND) - 4 Qs
+--   Rule 2: English Language and Comprehension > Cloze Passage (MEDIUM, UNDERSTAND) - 5 Qs
 --   Rule 3: English Language and Comprehension > Sentence Shuffling (MEDIUM, APPLY) - 5 Qs
 --   Rule 4: English Language and Comprehension > Vocabulary (EASY, REMEMBER) - 5 Qs
 --   Rule 5: Quantitative Aptitude / Mathematical Abilities > Statistics and Probability (HARD, ANALYZE) - 9 Qs
@@ -11,7 +11,7 @@
 --   Rule 7: General Intelligence and Reasoning > Problem Solving (HARD, ANALYZE) - 9 Qs
 --   Rule 8: General Intelligence and Reasoning > Drawing Inferences (MEDIUM, ANALYZE) - 5 Qs
 -- Format Standard: Valid UUIDs, JSONB options, LaTeX math ($$..$$), state='APPROVED'
--- UUID Range: a1260000-0000-0000-0000-000000000001 to a1260000-0000-0000-0000-000000000051
+-- UUID Range: a1260000-0000-0000-0000-000000000001 to a1260000-0000-0000-0000-000000000052
 -- ============================================================
 
 -- Step 1: Ensure Subjects exist
@@ -55,7 +55,7 @@ CROSS JOIN (VALUES
 WHERE s.name = 'General Intelligence and Reasoning' AND s.tenant_id = 'default'
 ON CONFLICT (name, subject_id, tenant_id) DO NOTHING;
 
--- Step 3: Insert the 51 Assessment Questions
+-- Step 3: Insert the 52 Assessment Questions
 INSERT INTO question_service.question (
     id, tenant_id, subject_id, topic_id, subtopic_id,
     subject, topic, subtopic, difficulty, cognitive_level,
@@ -217,7 +217,7 @@ According to the passage, why do autonomous AI underwriting models experience "s
     ),
 
     -- =========================================================================
-    -- RULE 2: English Language and Comprehension > Cloze Passage (MEDIUM, UNDERSTAND) - 4 Qs
+    -- RULE 2: English Language and Comprehension > Cloze Passage (MEDIUM, UNDERSTAND) - 5 Qs
     -- =========================================================================
     (
         'a1260000-0000-0000-0000-000000000011'::uuid,
@@ -226,9 +226,9 @@ According to the passage, why do autonomous AI underwriting models experience "s
         'Banking Operations Cloze',
         'MEDIUM',
         'UNDERSTAND',
-        'In the following banking passage, there are blanks numbered (1) to (4). Choose the most appropriate word to fill blank (1):
+        'In the following banking passage, there are blanks numbered (1) to (5). Choose the most appropriate word to fill blank (1):
 
-"In an era defined by rapid digital transformation, banking institutions must proactively __(1)__ cyber vulnerabilities while delivering seamless customer experiences. Modern fraud detection architectures deploy behavioral biometrics to monitor transactional anomalies in real-time. By implementing automated risk controls, lenders can __(2)__ fraudulent transfers without introducing excessive friction into genuine user workflows. However, maintaining such resilient ecosystems demands continuous capital expenditure and rigorous __(3)__ audits to ensure complete compliance with sovereign regulatory standards. Ultimately, institutions that successfully balance security with operational agility will __(4)__ long-term trust across retail and corporate client segments."
+"In an era defined by rapid digital transformation, banking institutions must proactively __(1)__ cyber vulnerabilities while delivering seamless customer experiences. Modern fraud detection architectures deploy behavioral biometrics to monitor transactional anomalies in real-time. By implementing automated risk controls, lenders can __(2)__ fraudulent transfers without introducing excessive friction into genuine user workflows. However, maintaining such resilient ecosystems demands continuous capital expenditure and rigorous __(3)__ audits to ensure complete compliance with sovereign regulatory standards. Ultimately, institutions that successfully balance security with operational agility will __(4)__ long-term trust across retail and corporate client segments, thereby cementing their position as __(5)__ pillars of the modern financial economy."
 
 Which word best fits blank (1)?',
         '[{"id": "A", "text": "mitigate", "isCorrect": true}, {"id": "B", "text": "aggravate", "isCorrect": false}, {"id": "C", "text": "exacerbate", "isCorrect": false}, {"id": "D", "text": "procrastinate", "isCorrect": false}]',
@@ -271,12 +271,24 @@ Which word best fits blank (1)?',
         'A',
         '"Bolster" means to support, strengthen, or reinforce. Succeeding in balancing security and convenience strengthens ("bolsters") customer trust.'
     ),
+    (
+        'a1260000-0000-0000-0000-000000000015'::uuid,
+        'English Language and Comprehension',
+        'Cloze Passage',
+        'Banking Operations Cloze',
+        'MEDIUM',
+        'UNDERSTAND',
+        'Refer to the passage above. Which word best fits blank (5): "cementing their position as __(5)__ pillars of the modern financial economy"?',
+        '[{"id": "A", "text": "indispensable", "isCorrect": true}, {"id": "B", "text": "redundant", "isCorrect": false}, {"id": "C", "text": "ephemeral", "isCorrect": false}, {"id": "D", "text": "superfluous", "isCorrect": false}]',
+        'A',
+        '"Indispensable" means absolutely necessary or essential. Cementing a position as "indispensable pillars" reflects central, essential status in the financial economy, whereas redundant/ephemeral/superfluous indicate uselessness or impermanence.'
+    ),
 
     -- =========================================================================
     -- RULE 3: English Language and Comprehension > Sentence Shuffling (MEDIUM, APPLY) - 5 Qs
     -- =========================================================================
     (
-        'a1260000-0000-0000-0000-000000000015'::uuid,
+        'a1260000-0000-0000-0000-000000000016'::uuid,
         'English Language and Comprehension',
         'Sentence Shuffling',
         'Para Jumble Rearrangement',
@@ -296,7 +308,7 @@ Which of the following should be the FIRST sentence after rearrangement?',
         'Sentence (B) introduces the overarching subject—the digital payments revolution spearheaded by UPI—making it the ideal opening sentence of the paragraph.'
     ),
     (
-        'a1260000-0000-0000-0000-000000000016'::uuid,
+        'a1260000-0000-0000-0000-000000000017'::uuid,
         'English Language and Comprehension',
         'Sentence Shuffling',
         'Para Jumble Rearrangement',
@@ -308,7 +320,7 @@ Which of the following should be the FIRST sentence after rearrangement?',
         'Sentence (E) elaborates on how the digital revolution described in (B) expanded geographically into tier-2/3 regions and rural micro-transactions via QR settlements.'
     ),
     (
-        'a1260000-0000-0000-0000-000000000017'::uuid,
+        'a1260000-0000-0000-0000-000000000018'::uuid,
         'English Language and Comprehension',
         'Sentence Shuffling',
         'Para Jumble Rearrangement',
@@ -320,7 +332,7 @@ Which of the following should be the FIRST sentence after rearrangement?',
         'Sentence (A) connects directly with (E) through "This exponential surge in digital liquidity", highlighting the immediate efficiency dividend for commercial banks.'
     ),
     (
-        'a1260000-0000-0000-0000-000000000018'::uuid,
+        'a1260000-0000-0000-0000-000000000019'::uuid,
         'English Language and Comprehension',
         'Sentence Shuffling',
         'Para Jumble Rearrangement',
@@ -332,7 +344,7 @@ Which of the following should be the FIRST sentence after rearrangement?',
         'Sentence (D) transitions from bank efficiencies to merchant onboarding ("Furthermore, small merchants... are now integrated").'
     ),
     (
-        'a1260000-0000-0000-0000-000000000019'::uuid,
+        'a1260000-0000-0000-0000-000000000020'::uuid,
         'English Language and Comprehension',
         'Sentence Shuffling',
         'Para Jumble Rearrangement',
@@ -348,7 +360,7 @@ Which of the following should be the FIRST sentence after rearrangement?',
     -- RULE 4: English Language and Comprehension > Vocabulary (EASY, REMEMBER) - 5 Qs
     -- =========================================================================
     (
-        'a1260000-0000-0000-0000-000000000020'::uuid,
+        'a1260000-0000-0000-0000-000000000021'::uuid,
         'English Language and Comprehension',
         'Vocabulary',
         'Synonyms',
@@ -360,7 +372,7 @@ Which of the following should be the FIRST sentence after rearrangement?',
         '"Ameliorate" means to make something bad or unsatisfactory better; to improve.'
     ),
     (
-        'a1260000-0000-0000-0000-000000000021'::uuid,
+        'a1260000-0000-0000-0000-000000000022'::uuid,
         'English Language and Comprehension',
         'Vocabulary',
         'Antonyms',
@@ -372,7 +384,7 @@ Which of the following should be the FIRST sentence after rearrangement?',
         '"Stringent" means strict, precise, and exacting. Its opposite is "Lenient" (permissive, flexible).'
     ),
     (
-        'a1260000-0000-0000-0000-000000000022'::uuid,
+        'a1260000-0000-0000-0000-000000000023'::uuid,
         'English Language and Comprehension',
         'Vocabulary',
         'Contextual Financial Vocabulary',
@@ -384,7 +396,7 @@ Which of the following should be the FIRST sentence after rearrangement?',
         'Solvency refers to an organization''s capacity to meet its long-term debts and financial obligations as they mature.'
     ),
     (
-        'a1260000-0000-0000-0000-000000000023'::uuid,
+        'a1260000-0000-0000-0000-000000000024'::uuid,
         'English Language and Comprehension',
         'Vocabulary',
         'Antonyms',
@@ -396,7 +408,7 @@ Which of the following should be the FIRST sentence after rearrangement?',
         '"Perilous" means full of danger or risk. The direct antonym is "Safe" (secure, free from harm).'
     ),
     (
-        'a1260000-0000-0000-0000-000000000024'::uuid,
+        'a1260000-0000-0000-0000-000000000025'::uuid,
         'English Language and Comprehension',
         'Vocabulary',
         'Idioms and Phrases',
@@ -412,7 +424,7 @@ Which of the following should be the FIRST sentence after rearrangement?',
     -- RULE 5: Quantitative Aptitude / Mathematical Abilities > Statistics and Probability (HARD, ANALYZE) - 9 Qs
     -- =========================================================================
     (
-        'a1260000-0000-0000-0000-000000000025'::uuid,
+        'a1260000-0000-0000-0000-000000000026'::uuid,
         'Quantitative Aptitude / Mathematical Abilities',
         'Statistics and Probability',
         'Bayes Theorem & Conditional Probability',
@@ -424,7 +436,7 @@ Which of the following should be the FIRST sentence after rearrangement?',
         'By Bayes'' Theorem: $$P(F) = 0.01$$, $$P(L) = 0.99$$. $$P(\\text{Flag}|F) = 0.95$$, $$P(\\text{Flag}|L) = 0.02$$. Total probability of flag $$P(\\text{Flag}) = (0.01 \\times 0.95) + (0.99 \\times 0.02) = 0.0095 + 0.0198 = 0.0293$$. Posterior probability $$P(F|\\text{Flag}) = \\frac{0.0095}{0.0293} = \\frac{95}{293} \\approx 32.42\\%$$.'
     ),
     (
-        'a1260000-0000-0000-0000-000000000026'::uuid,
+        'a1260000-0000-0000-0000-000000000027'::uuid,
         'Quantitative Aptitude / Mathematical Abilities',
         'Statistics and Probability',
         'Multi-Urn Probability',
@@ -438,7 +450,7 @@ Case 2: Transferred token is Blue ($$P = 6/10 = 3/5$$). Urn B now has $$5$$ Red,
 Total probability $$= \\left(\\frac{2}{5} \\times \\frac{2}{3}\\right) + \\left(\\frac{3}{5} \\times \\frac{5}{9}\\right) = \\frac{4}{15} + \\frac{5}{15} = \\frac{9}{15} = \\frac{3}{5}$$.'
     ),
     (
-        'a1260000-0000-0000-0000-000000000027'::uuid,
+        'a1260000-0000-0000-0000-000000000028'::uuid,
         'Quantitative Aptitude / Mathematical Abilities',
         'Statistics and Probability',
         'Compound Probability & Dice',
@@ -455,7 +467,7 @@ Therefore, outcomes in $$A \\cap B = 15 - 4 = 13$$.
 Conditional probability $$P(A|B) = \\frac{|A \\cap B|}{|B|} = \\frac{13}{27}$$.'
     ),
     (
-        'a1260000-0000-0000-0000-000000000028'::uuid,
+        'a1260000-0000-0000-0000-000000000029'::uuid,
         'Quantitative Aptitude / Mathematical Abilities',
         'Statistics and Probability',
         'Combined Standard Deviation',
@@ -469,7 +481,7 @@ Combined variance $$\\sigma^2 = \\frac{n_1(\\sigma_1^2 + d_1^2) + n_2(\\sigma_2^
 Combined standard deviation $$= \\sqrt{37.5}$$.'
     ),
     (
-        'a1260000-0000-0000-0000-000000000029'::uuid,
+        'a1260000-0000-0000-0000-000000000030'::uuid,
         'Quantitative Aptitude / Mathematical Abilities',
         'Statistics and Probability',
         'Combinatorics in Risk Committees',
@@ -484,7 +496,7 @@ Case 1 CA: $$\\binom{4}{1} \\times \\binom{6}{4} = 4 \\times 15 = 60$$.
 Ways with at least 2 CAs $$= 252 - (6 + 60) = 252 - 66 = 186$$.'
     ),
     (
-        'a1260000-0000-0000-0000-000000000030'::uuid,
+        'a1260000-0000-0000-0000-000000000031'::uuid,
         'Quantitative Aptitude / Mathematical Abilities',
         'Statistics and Probability',
         'Geometric / Sequential Probability',
@@ -501,7 +513,7 @@ $$P(A'' \\cap B \\cap C) = \\frac{1}{3} \\times \\frac{3}{4} \\times \\frac{4}{5
 Total probability $$= \\frac{6 + 8 + 12}{60} = \\frac{26}{60} = \\frac{13}{30}$$.'
     ),
     (
-        'a1260000-0000-0000-0000-000000000031'::uuid,
+        'a1260000-0000-0000-0000-000000000032'::uuid,
         'Quantitative Aptitude / Mathematical Abilities',
         'Statistics and Probability',
         'Binomial Distribution',
@@ -517,7 +529,7 @@ $$P(X=0) + P(X=1) = 0.59049 + 0.32805 = 0.91854$$.
 $$P(X \\ge 2) = 1 - 0.91854 = 0.08146$$.'
     ),
     (
-        'a1260000-0000-0000-0000-000000000032'::uuid,
+        'a1260000-0000-0000-0000-000000000033'::uuid,
         'Quantitative Aptitude / Mathematical Abilities',
         'Statistics and Probability',
         'Coefficient of Variation & Moments',
@@ -532,7 +544,7 @@ Standard deviation $$\\sigma = \\sqrt{21} \\approx 4.582576$$.
 $$\\text{CV} = \\frac{\\sigma}{\\bar{x}} \\times 100 = \\frac{4.582576}{10} \\times 100 = 45.83\\%$$.'
     ),
     (
-        'a1260000-0000-0000-0000-000000000033'::uuid,
+        'a1260000-0000-0000-0000-000000000034'::uuid,
         'Quantitative Aptitude / Mathematical Abilities',
         'Statistics and Probability',
         'Poisson Arrival Rates',
@@ -550,7 +562,7 @@ For $$k = 3$$: $$P(X=3) = \\frac{4^3 e^{-4}}{3!} = \\frac{64 e^{-4}}{6} = \\frac
     -- RULE 6: General Intelligence and Reasoning > Coding and Decoding (EASY, APPLY) - 4 Qs
     -- =========================================================================
     (
-        'a1260000-0000-0000-0000-000000000034'::uuid,
+        'a1260000-0000-0000-0000-000000000035'::uuid,
         'General Intelligence and Reasoning',
         'Coding and Decoding',
         'Positional Shift Coding',
@@ -564,7 +576,7 @@ C(+3) = F, R(+3) = U, E(+3) = H, D(+3) = G, I(+3) = L, T(+3) = W.
 Thus, CREDIT becomes FUHGLW.'
     ),
     (
-        'a1260000-0000-0000-0000-000000000035'::uuid,
+        'a1260000-0000-0000-0000-000000000036'::uuid,
         'General Intelligence and Reasoning',
         'Coding and Decoding',
         'Opposite Letter Coding',
@@ -578,7 +590,7 @@ D(4) -> W(23), E(5) -> V(22), B(2) -> Y(25), T(20) -> G(7).
 Code: WVYG.'
     ),
     (
-        'a1260000-0000-0000-0000-000000000036'::uuid,
+        'a1260000-0000-0000-0000-000000000037'::uuid,
         'General Intelligence and Reasoning',
         'Coding and Decoding',
         'Alphabet Numerical Value Addition',
@@ -591,7 +603,7 @@ Code: WVYG.'
 I(9) + B(2) + P(16) + S(19) = 46 + 5 = 51 + 10 = 61.'
     ),
     (
-        'a1260000-0000-0000-0000-000000000037'::uuid,
+        'a1260000-0000-0000-0000-000000000038'::uuid,
         'General Intelligence and Reasoning',
         'Coding and Decoding',
         'Direct Substitution Coding',
@@ -612,9 +624,9 @@ From (1): "safe digital banking" = 7 3 9, hence "safe" = 7.'
     -- =========================================================================
     -- RULE 7: General Intelligence and Reasoning > Problem Solving (HARD, ANALYZE) - 9 Qs
     -- =========================================================================
-    -- Puzzle Set 1: Multi-variable 4-Floor 2-Flat Building with 8 Bank Executives (Q38 - Q41)
+    -- Puzzle Set 1: Multi-variable 4-Floor 2-Flat Building with 8 Bank Executives (Q39 - Q42)
     (
-        'a1260000-0000-0000-0000-000000000038'::uuid,
+        'a1260000-0000-0000-0000-000000000039'::uuid,
         'General Intelligence and Reasoning',
         'Problem Solving',
         'Floor and Flat Puzzle',
@@ -636,7 +648,7 @@ Who lives on Floor 3 in Flat 1, and which department does this person head?',
         'Since P is on Floor 2 Flat 1 (Treasury), the Risk manager immediately above P in Flat 1 is T on Floor 3 Flat 1.'
     ),
     (
-        'a1260000-0000-0000-0000-000000000039'::uuid,
+        'a1260000-0000-0000-0000-000000000040'::uuid,
         'General Intelligence and Reasoning',
         'Problem Solving',
         'Floor and Flat Puzzle',
@@ -648,7 +660,7 @@ Who lives on Floor 3 in Flat 1, and which department does this person head?',
         'W (Compliance) lives on Floor 2 Flat 2. On Floor 2 Flat 1 lives P (Treasury).'
     ),
     (
-        'a1260000-0000-0000-0000-000000000040'::uuid,
+        'a1260000-0000-0000-0000-000000000041'::uuid,
         'General Intelligence and Reasoning',
         'Problem Solving',
         'Floor and Flat Puzzle',
@@ -660,7 +672,7 @@ Who lives on Floor 3 in Flat 1, and which department does this person head?',
         'R lives on Floor 1 in Flat 2 and heads the HR department.'
     ),
     (
-        'a1260000-0000-0000-0000-000000000041'::uuid,
+        'a1260000-0000-0000-0000-000000000042'::uuid,
         'General Intelligence and Reasoning',
         'Problem Solving',
         'Floor and Flat Puzzle',
@@ -672,9 +684,9 @@ Who lives on Floor 3 in Flat 1, and which department does this person head?',
         'Statement A is false because V lives on Floor 1 (Flat 1), not Floor 2.'
     ),
 
-    -- Puzzle Set 2: Circular Seating Arrangement with Inward/Outward Facing (Q42 - Q46)
+    -- Puzzle Set 2: Circular Seating Arrangement with Inward/Outward Facing (Q43 - Q47)
     (
-        'a1260000-0000-0000-0000-000000000042'::uuid,
+        'a1260000-0000-0000-0000-000000000043'::uuid,
         'General Intelligence and Reasoning',
         'Problem Solving',
         'Circular Seating Puzzle',
@@ -695,7 +707,7 @@ Who sits exactly opposite to B in this circular seating arrangement?',
         'Tracing the 8 positions: B (Pos 1, Inward) -> Pos 4 is A (Outward). C sits 2nd left of A -> Pos 2 (C). D is 2nd right of C -> Pos 5 (D, Outward). Since Pos 1 is B and Pos 5 is D, D sits exactly diametrically opposite to B (4 positions away in an 8-person circle).'
     ),
     (
-        'a1260000-0000-0000-0000-000000000043'::uuid,
+        'a1260000-0000-0000-0000-000000000044'::uuid,
         'General Intelligence and Reasoning',
         'Problem Solving',
         'Circular Seating Puzzle',
@@ -707,7 +719,7 @@ Who sits exactly opposite to B in this circular seating arrangement?',
         'Four officers face outward (A, D, F, and H) and four officers face inward (B, C, E, and G).'
     ),
     (
-        'a1260000-0000-0000-0000-000000000044'::uuid,
+        'a1260000-0000-0000-0000-000000000045'::uuid,
         'General Intelligence and Reasoning',
         'Problem Solving',
         'Circular Seating Puzzle',
@@ -719,7 +731,7 @@ Who sits exactly opposite to B in this circular seating arrangement?',
         'D sits at Pos 5 and faces outward. Looking outward from Pos 5, immediate left is Pos 6, which is occupied by E.'
     ),
     (
-        'a1260000-0000-0000-0000-000000000045'::uuid,
+        'a1260000-0000-0000-0000-000000000046'::uuid,
         'General Intelligence and Reasoning',
         'Problem Solving',
         'Circular Seating Puzzle',
@@ -731,7 +743,7 @@ Who sits exactly opposite to B in this circular seating arrangement?',
         'G faces inward at Pos 7. Moving to the right of G (counter-clockwise): Pos 8 is H, Pos 1 is B, Pos 2 is C, Pos 3 is F, which is second to the right from Pos 1.'
     ),
     (
-        'a1260000-0000-0000-0000-000000000046'::uuid,
+        'a1260000-0000-0000-0000-000000000047'::uuid,
         'General Intelligence and Reasoning',
         'Problem Solving',
         'Circular Seating Puzzle',
@@ -747,7 +759,7 @@ Who sits exactly opposite to B in this circular seating arrangement?',
     -- RULE 8: General Intelligence and Reasoning > Drawing Inferences (MEDIUM, ANALYZE) - 5 Qs
     -- =========================================================================
     (
-        'a1260000-0000-0000-0000-000000000047'::uuid,
+        'a1260000-0000-0000-0000-000000000048'::uuid,
         'General Intelligence and Reasoning',
         'Drawing Inferences',
         'Critical Reasoning & Policy Inferences',
@@ -765,7 +777,7 @@ II. The central bank has completely eliminated all capital reserve requirements 
         'A 50-basis-point interest discount directly translates to lower borrowing costs for EV fleets (Inference I is valid). Inference II is contradicted by the statement which explicitly states "maintaining standard risk-weighted capital adequacy buffers".'
     ),
     (
-        'a1260000-0000-0000-0000-000000000048'::uuid,
+        'a1260000-0000-0000-0000-000000000049'::uuid,
         'General Intelligence and Reasoning',
         'Drawing Inferences',
         'Critical Reasoning & Policy Inferences',
@@ -783,7 +795,7 @@ II. Regulatory authorities prioritize technological resiliency and consumer prot
         'The directive specifically restricts onboarding NEW customers, not existing customers (making I invalid). Halting expansion until stability audits pass shows that the regulator prioritizes resiliency and consumer protection over aggressive growth (II follows).'
     ),
     (
-        'a1260000-0000-0000-0000-000000000049'::uuid,
+        'a1260000-0000-0000-0000-000000000050'::uuid,
         'General Intelligence and Reasoning',
         'Drawing Inferences',
         'Critical Reasoning & Policy Inferences',
@@ -801,7 +813,7 @@ II. Commercial banks refused to pass on the central bank''s repo rate hikes to r
         'Double-digit credit growth under high policy rates indicates strong underlying consumer demand (I follows). Inference II cannot be inferred because banks may have increased rates, yet consumer demand persisted.'
     ),
     (
-        'a1260000-0000-0000-0000-000000000050'::uuid,
+        'a1260000-0000-0000-0000-000000000051'::uuid,
         'General Intelligence and Reasoning',
         'Drawing Inferences',
         'Critical Reasoning & Policy Inferences',
@@ -819,7 +831,7 @@ II. All loan defaults in the microfinance sector are exclusively caused by mathe
         'The 40% drop in NPAs among trained groups directly demonstrates that financial literacy aids repayment discipline (I follows). Inference II makes an extreme and unfounded claim ("exclusively caused by mathematical calculation errors").'
     ),
     (
-        'a1260000-0000-0000-0000-000000000051'::uuid,
+        'a1260000-0000-0000-0000-000000000052'::uuid,
         'General Intelligence and Reasoning',
         'Drawing Inferences',
         'Critical Reasoning & Policy Inferences',
