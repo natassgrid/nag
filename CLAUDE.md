@@ -17,7 +17,8 @@
 3. **Frontend-Specific Preservation Rules**:
    - **HTML Templates (`*.component.html`, `*.html`, `*.tsx`, `*.jsx`)**:
      - NEVER output only the inner child elements, updated form rows, or newly added modal/drawer tags.
-     - ALWAYS preserve the full document structure: `<div class="page-layout">`, `<app-page-header>`, main table/cards container, `<app-paginated-table>`, action templates (`<ng-template #actionsTmpl>`), result banners, and all existing drawer/dialog components.\n   - **Styles (`*.scss`, `*.css`)**:
+     - ALWAYS preserve the full document structure: `<div class="page-layout">`, `<app-page-header>`, main table/cards container, `<app-paginated-table>`, action templates (`<ng-template #actionsTmpl>`), result banners, and all existing drawer/dialog components.
+   - **Styles (`*.scss`, `*.css`)**:
      - NEVER output only the newly added class selectors.
      - ALWAYS retain all existing class rules, layout styles, themes, and media queries.
    - **TypeScript Logic (`*.ts`, `*.service.ts`, `*.component.ts`)**:
@@ -25,7 +26,8 @@
      - ALWAYS retain all existing imports, class properties, `@ViewChild` refs, lifecycle hooks (`ngOnInit`, `ngOnChanges`), constructor injections, and helper functions.
 
 4. **Mandatory Immediate `git diff` Verification**:
-   - After writing to any file, IMMEDIATELY run `git diff <path>` to review the line-by-line diff.\n   - If any unintended deletions, wiped sections, or missing template blocks are detected, restore and correct them immediately before proceeding.
+   - After writing to any file, IMMEDIATELY run `git diff <path>` to review the line-by-line diff.
+   - If any unintended deletions, wiped sections, or missing template blocks are detected, restore and correct them immediately before proceeding.
 
 5. **Verify Clean Git Status**:
    - Run `git status` prior to completing any task or reporting back to ensure no files were corrupted or accidentally overwritten.
@@ -37,6 +39,7 @@
 All AI agents, prompt generators, seed script creators, and backend services generating or manipulating examination questions MUST adhere to these strict standards:
 
 ### 1. LaTeX Math Formatting
+
 - **Enclosing Delimiters**: Enclose ALL mathematical, chemical, and physical formulas, expressions, variables, powers, fractions, square roots, matrices, angles, and numbers with units in `$$ ... $$` delimiters.
 - **Strictly Prohibited Delimiters**: NEVER use single `$ ... $`, `\( ... \)`, or `\[ ... \]`.
 - **Field Ubiquity**: `$$ ... $$` MUST be applied in ALL text fields:
@@ -44,32 +47,93 @@ All AI agents, prompt generators, seed script creators, and backend services gen
   - `options[].text` (every single option)
   - `answerKey` (if formulaic/algebraic/numerical)
   - `explanation` (step-by-step solution derivation)
-- **Percentage Symbols in LaTeX**:
-  - `%` is a LaTeX comment character. In LaTeX math mode, write `\%` or `\text{%}` (e.g. `$$99.9\%$$`).
-- **JSON & SQL Escaping**:
-  - In raw JSON strings or SQL migration literals, LaTeX backslashes MUST be escaped (e.g., `"$$\\frac{a}{b}$$"`, `"$$\\sqrt{3}$$"`, `"$$99.9\\%$$"`).
+
+#### 1a. Backslash Escaping — Critical Rules
+
+> [!CAUTION]
+> Incorrect backslash escaping is the single most common cause of broken LaTeX rendering.
+> Follow these rules exactly depending on context.
+
+| Context | Required escaping | Example |
+|---|---|---|
+| Human-readable `.md` / display strings | Single backslash | `$$\frac{a}{b}$$`, `$$\neq 0$$`, `$$\neg L$$` |
+| JSON field value (API payload, seed script) | Double backslash (`\\`) | `"$$\\frac{a}{b}$$"`, `"$$\\neq 0$$"`, `"$$\\neg L$$"` |
+| SQL string literal inside a migration file | Double backslash (`\\`) | `'$$\\det(A) \\neq 0$$'` |
+| Java/Kotlin string literal | Double backslash (`\\`) | `"$$\\frac{a}{b}$$"` |
+
+**Why this matters for the renderer:** The MathRenderer receives the *parsed* JSON value (single backslash). It normalises over-escaped chains (e.g. `\\\\det` → `\det`) before passing to KaTeX. Never emit more than two consecutive backslashes (`\\`) before a LaTeX command in a JSON value — triple or quadruple escaping (`\\\\`) produces raw token output even after normalisation.
+
+#### 1b. Newline Sequences — Critical Rules
+
+> [!CAUTION]
+> `\n` followed by a lowercase letter is a LaTeX command, NOT a line break.
+> This is the second most common cause of broken rendering.
+
+The MathRenderer converts `\n` to a real newline **only when it is not immediately followed by a lowercase letter**. This prevents `\neq`, `\neg`, `\rightarrow`, `\text`, `\tau`, `\theta` from being split at the `\n`.
+
+**Safe separators in JSON strings:**
+
+```json
+"**Statements:**\n1. Statement one.\n2. Statement two.\n\n**Conclusions:**\nI. Conclusion one.\nII. Conclusion two."
+```
+
+| Sequence | Safe? | Why |
+|---|---|---|
+| `\n1.` | ✅ safe | digit follows |
+| `\nI.` | ✅ safe | uppercase letter follows |
+| `\nII.` | ✅ safe | uppercase letter follows |
+| `\n\n` | ✅ safe | another `\n` follows |
+| `\neq` | ❌ NOT a newline | `eq` is lowercase → LaTeX `\neq` command |
+| `\neg` | ❌ NOT a newline | `eg` is lowercase → LaTeX `\neg` command |
+| `\nrightarrow` | ❌ NOT a newline | `rightarrow` is lowercase → LaTeX command |
+
+**Rule:** Never use `\n` as a separator immediately before a lowercase LaTeX command word. Keep math commands inside `$$ ... $$` delimiters where they belong.
+
+#### 1c. Percentage Symbols
+
+- `%` is a LaTeX comment character. Always write `\%` inside math delimiters.
+- Human-readable: `$$99.9\%$$`
+- JSON/SQL: `"$$99.9\\%$$"`
+
+---
 
 ### 2. Markdown & Paragraph Formatting
-- **Standard Markdown (GFM)**: Use standard Markdown for headings (`**Statements:**`, `**Conclusions:**`), bold text (`**term**`), italic text (`*term*`), and tables (`| Header 1 | Header 2 |`).
-- **Newline & Line Break Conventions**:
-  - Use real newlines (`\n`) for line breaks. In JSON payloads, `\n` represents a newline character.
-  - Separate headings, statement groups, and conclusion groups with double newlines (`\n\n`) to create distinct paragraph blocks.
-  - Separate individual numbered statements or lettered items with single newlines (`\n1. ...\n2. ...`).
+
+- **Standard Markdown (GFM)**: Use `**bold**`, `*italic*`, `` `code` ``, fenced code blocks, and pipe tables.
+- **Paragraph separation**: Use `\n\n` between headings, statement groups, and conclusion groups.
+- **List items**: Use `\n` before each `1.`/`2.` or `I.`/`II.` marker — safe because digits and uppercase letters never start LaTeX command names.
+- **Inline vs display math**: Formulas on list-item lines render inline (no unwanted block breaks). A formula alone on its own line renders as a centred display block. Always keep math expressions on the same line as the surrounding item text.
+
+---
 
 ### 3. Reasoning & Syllogism Questions (Statements & Conclusions)
-Structure multi-premise reasoning questions with clear Markdown headings and numbered/roman lists:
-```text
+
+**Correct JSON string value (double-backslash escaped, ready for API/SQL):**
+```json
+"**Statements:**\n1. All quantum computers capable of Shor's algorithm ($$Q$$) require coherent qubits with fidelity exceeding $$99.9\\%$$ ($$F$$).\n2. No noisy intermediate-scale quantum ($$NISQ$$) system achieves coherent qubit fidelity exceeding $$99.9\\%$$.\n3. System $$\\Psi$$ is a $$NISQ$$ system.\n\n**Conclusions:**\nI. System $$\\Psi$$ does not have coherent qubit fidelity exceeding $$99.9\\%$$.\nII. System $$\\Psi$$ is not capable of executing Shor's algorithm for large integers."
+```
+
+**What this renders as:**
+```
 **Statements:**
 1. All quantum computers capable of Shor's algorithm ($$Q$$) require coherent qubits with fidelity exceeding $$99.9\%$$ ($$F$$).
 2. No noisy intermediate-scale quantum ($$NISQ$$) system achieves coherent qubit fidelity exceeding $$99.9\%$$.
-3. System $$Psi$$ is a $$NISQ$$ system.
+3. System $$\Psi$$ is a $$NISQ$$ system.
 
 **Conclusions:**
-I. System $$Psi$$ does not have coherent qubit fidelity exceeding $$99.9\%$$.
-II. System $$Psi$$ is not capable of executing Shor's algorithm for large integers.
+I. System $$\Psi$$ does not have coherent qubit fidelity exceeding $$99.9\%$$.
+II. System $$\Psi$$ is not capable of executing Shor's algorithm for large integers.
 ```
 
+**Key rules:**
+- Separate `**Statements:**` and `**Conclusions:**` blocks with `\n\n`.
+- Each numbered/roman item uses `\n` before the marker.
+- Math commands like `$$\neg L$$`, `$$\det(A)$$`, `$$\neq 0$$` stay inside `$$ ... $$` — they are never placed bare in the text where `\n` processing could split them.
+
+---
+
 ### 4. Option Structure & Integrity
+
 - **`SINGLE_MCQ`**: Exactly 4 options (`A`, `B`, `C`, `D`). Exactly ONE option with `isCorrect: true`, exactly THREE with `isCorrect: false`. `answerKey` MUST equal the correct option ID (`"A"`, `"B"`, `"C"`, or `"D"`).
 - **`MULTI_MCQ`**: Exactly 4 options (`A`, `B`, `C`, `D`) with 2 or more having `isCorrect: true`.
 - **`NUMERICAL`**: `options` is `null` or `[]`, `answerKey` contains the numeric string value.
