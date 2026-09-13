@@ -118,28 +118,26 @@ public class SpringAiGenerationService implements QuestionGenerationService {
             // Validate schema + answer
             QuestionGenerationResponse.ValidationResult validation = validateQuestion(raw, request.getQuestionType());
 
-            // Check duplicate against question bank
-            QuestionGenerationResponse.DuplicateResult duplicate = null;
-            if (validation.isValid()) {
-                duplicate = checkDuplicate(raw.content, request.getSubject(), tenantId);
+            // Duplicate detection
+            QuestionGenerationResponse.DuplicateResult duplicateResult = null;
+            if (validation.isValid() && request.isAvoidDuplicate()) {
+                duplicateResult = checkDuplicate(raw.content, request.getSubject(), tenantId);
+                if (duplicateResult != null) {
+                    totalDuplicates++;
+                }
             }
 
-            boolean isDuplicate = duplicate != null;
-            if (validation.isValid() && !isDuplicate) {
+            if (validation.isValid()) {
                 totalValid++;
             }
-            if (isDuplicate) {
-                totalDuplicates++;
-            }
 
-            // Auto-save valid, non-duplicate questions as DRAFT
+            // Auto-save if valid, not duplicate, and autoSave enabled
             UUID savedId = null;
-            if (validation.isValid() && !isDuplicate && Boolean.TRUE.equals(request.getAutoSave())) {
+            if (request.isAutoSave() && validation.isValid() && duplicateResult == null) {
                 savedId = persistAsDraft(raw, request, tenantId, authorId);
             }
 
             processedQuestions.add(QuestionGenerationResponse.GeneratedQuestion.builder()
-                    .id(savedId)
                     .content(raw.content)
                     .answerKey(raw.answerKey)
                     .explanation(raw.explanation)
@@ -148,44 +146,36 @@ public class SpringAiGenerationService implements QuestionGenerationService {
                     .cognitiveLevel(raw.cognitiveLevel != null ? raw.cognitiveLevel : request.getCognitiveLevel())
                     .questionType(raw.questionType != null ? raw.questionType : request.getQuestionType())
                     .validation(validation)
-                    .duplicate(duplicate)
+                    .duplicate(duplicateResult)
+                    .savedQuestionId(savedId)
                     .build());
         }
 
-        log.info("Question generation completed: total={}, valid={}, duplicates={}, model={}",
+        log.info("Generation complete: total={}, valid={}, duplicates={}, model={}",
                 totalGenerated, totalValid, totalDuplicates, modelName);
 
         return QuestionGenerationResponse.builder()
                 .questions(processedQuestions)
+                .modelUsed(modelName)
                 .totalGenerated(totalGenerated)
                 .totalValid(totalValid)
                 .totalDuplicates(totalDuplicates)
-                .modelUsed(modelName)
                 .build();
     }
 
     /**
-     * Retrieves top-K similar existing questions using pgvector embeddings.
+     * Retrieves top-K similar existing questions for RAG context.
+     * Generates an embedding of the topic/subtopic to query pgvector.
      */
     private List<SimilarityResult> retrieveRagContext(QuestionGenerationRequest request, String tenantId) {
         try {
-            // Generate query text from subject + topic + subtopic
-            StringBuilder queryBuilder = new StringBuilder();
-            queryBuilder.append(request.getSubject()).append(" ").append(request.getTopic());
-            if (request.getSubtopic() != null && !request.getSubtopic().isBlank()) {
-                queryBuilder.append(" ").append(request.getSubtopic());
-            }
+            String queryText = request.getTopic()
+                    + (request.getSubtopic() != null ? " " + request.getSubtopic() : "");
+            float[] queryEmbedding = embeddingService.embed(queryText);
+            String embeddingStr = EmbeddingUtils.embeddingToString(queryEmbedding);
 
-            float[] embedding = embeddingService.embed(queryBuilder.toString());
-            if (embedding == null || embedding.length == 0) {
-                log.warn("Empty embedding generated for RAG query, proceeding without context");
-                return List.of();
-            }
-
-            return questionRepository.findSimilarQuestions(
-                    EmbeddingUtils.embeddingToString(embedding),
-                    request.getSubject(),
-                    RAG_TOP_K);
+            return questionRepository.findTopSimilarQuestions(
+                    embeddingStr, request.getSubject(), tenantId, RAG_TOP_K);
         } catch (Exception e) {
             log.warn("Failed to retrieve RAG context, proceeding without it: {}", e.getMessage());
             return List.of();
@@ -316,7 +306,7 @@ public class SpringAiGenerationService implements QuestionGenerationService {
     /**
      * Normalizes LaTeX delimiters across all text-bearing fields so the frontend
      * renderer only ever sees {@code $$...$$}. LLMs frequently emit inline
-     * {@code \( ... \)} or display {@code \[ ... \]} delimiters (especially in the
+     * {@code \( ... \)} or display {@code \\[ ... \\]} delimiters (especially in the
      * explanation field) despite prompt instructions, so we convert them here.
      */
     private RawGeneratedQuestion normalizeLatexDelimiters(RawGeneratedQuestion raw) {
@@ -342,7 +332,7 @@ public class SpringAiGenerationService implements QuestionGenerationService {
     }
 
     /**
-     * Converts {@code \( ... \)} (inline) and {@code \[ ... \]} (display) LaTeX
+     * Converts {@code \( ... \)} (inline) and {@code \\[ ... \\]} (display) LaTeX
      * delimiters to {@code $$...$$}. Existing {@code $$...$$} spans are left untouched.
      */
     private String normalizeLatex(String text) {
@@ -350,8 +340,8 @@ public class SpringAiGenerationService implements QuestionGenerationService {
             return text;
         }
         return text
-                .replaceAll("(?s)\\\\\\\\((.*?)\\\\\\\\)", "\\$\\$$1\\$\\$")
-                .replaceAll("(?s)\\\\\\\\\\[(.*?)\\\\\\\\\\]", "\\$\\$$1\\$\\$");
+                .replaceAll("(?s)\\\\\\((.*?)\\\\\\)", "\\$\\$$1\\$\\$")
+                .replaceAll("(?s)\\\\\\[(.*?)\\\\\\]", "\\$\\$$1\\$\\$");
     }
 
     /**

@@ -52,7 +52,7 @@ import java.util.UUID;
  *
  * <p>Multiple generation items (each with subject/topic/difficulty/type/count) are combined
  * into a single JSONL file, uploaded to S3, and processed as one Bedrock batch job.
- * This minimizes cost by avoiding per-job overhead charges.</p>
+ * This minimizes cost by avoiding per-job overhead charges.
  */
 @Slf4j
 @Service
@@ -148,45 +148,49 @@ public class BedrockBatchService {
                             .build());
 
             saved.setStatus(BatchJobStatus.PROCESSING);
-            saved.setBedrockJobArn(bedrockResponse.jobArn());
-            saved.setS3InputUri(s3InputUri);
-            saved.setS3OutputUri(s3OutputUri);
             saved.setStartedAt(Instant.now());
+            saved.setBedrockJobArn(bedrockResponse.jobArn());
             jobRepository.save(saved);
 
-            log.info("Bedrock batch job submitted: id={}, arn={}, model={}, items={}",
-                    saved.getId(), bedrockResponse.jobArn(), modelId, itemsList.size());
-
-            return BatchJobResponse.from(saved);
+            log.info("Bedrock batch job created: id={}, items={}, totalQuestions={}, arn={}",
+                    saved.getId(), itemsList.size(), totalRequested, bedrockResponse.jobArn());
 
         } catch (Exception e) {
-            log.error("Failed to submit Bedrock batch job for job={}: {}", saved.getId(), e.getMessage(), e);
+            log.error("Failed to submit Bedrock batch job: {}", e.getMessage(), e);
             saved.setStatus(BatchJobStatus.FAILED);
-            saved.setErrorMessage(e.getMessage());
+            saved.setErrorMessage("Failed to submit: " + e.getMessage());
             saved.setCompletedAt(Instant.now());
             jobRepository.save(saved);
-            return BatchJobResponse.from(saved);
         }
+
+        return BatchJobResponse.from(saved);
     }
 
     /**
-     * Builds JSONL content for Bedrock Batch Inference.
-     * Each line is a JSON object with recordId and modelInput (Converse API format for Nova/Claude).
+     * Builds one JSONL file with one record per batch item.
+     * Each record has a unique recordId (REC-0000, REC-0001, ...) used to
+     * correlate results back to items.
      */
     private String buildJsonlInput(List<BatchGenerationRequest.BatchItem> items) {
         StringBuilder jsonl = new StringBuilder();
 
         for (int i = 0; i < items.size(); i++) {
             BatchGenerationRequest.BatchItem item = items.get(i);
-            String recordId = String.format("REC-%04d", i);
+            String recordId = "REC-" + String.format("%04d", i);
 
             String systemPrompt = buildSystemPrompt(item);
             String userPrompt = buildUserPrompt(item);
             String modelInput = buildModelInput(systemPrompt, userPrompt);
 
-            // Bedrock batch JSONL line format: {"recordId": "...", "modelInput": {...}}
-            jsonl.append("{\"recordId\": \"").append(recordId).append("\", ")
-                    .append("\"modelInput\": ").append(modelInput.strip()).append("}\n");
+            try {
+                JsonNode inputNode = objectMapper.readTree(modelInput);
+                var record = objectMapper.createObjectNode();
+                record.put("recordId", recordId);
+                record.set("modelInput", inputNode);
+                jsonl.append(objectMapper.writeValueAsString(record)).append("\n");
+            } catch (Exception e) {
+                log.error("Failed to build JSONL record {}: {}", recordId, e.getMessage());
+            }
         }
 
         return jsonl.toString();
@@ -251,7 +255,7 @@ public class BedrockBatchService {
         }
     }
 
-    // ─── Polling & Result Processing ──────────────────────────────────────────
+    // ─── Polling & Result Processing ─────────────────────────────────────────────
 
     @Scheduled(fixedDelay = 30000)
     @Transactional
