@@ -7,13 +7,14 @@
         </div>
 
         <div class="toolbar-actions">
-          <mat-form-field appearance="outline" class="search-field" *ngIf="enableSearch">
-            <mat-label>{{ searchPlaceholder }}</mat-label>
-            <mat-icon matPrefix>search</mat-icon>
+          <mat-form-field appearance="outline" class="search-field" subscriptSizing="dynamic" *ngIf="enableSearch">
+            <mat-icon matPrefix class="search-icon">search</mat-icon>
             <input
               matInput
+              [placeholder]="searchPlaceholder"
               [(ngModel)]="searchQuery"
               (ngModelChange)="onSearchChange($event)"
+              [attr.aria-label]="searchPlaceholder"
             />
             <button
               *ngIf="searchQuery"
@@ -22,7 +23,7 @@
               (click)="clearSearch()"
               aria-label="Clear search"
             >
-              <mat-icon>close</mat-icon>
+              <mat-icon class="clear-icon">close</mat-icon>
             </button>
           </mat-form-field>
 
@@ -69,9 +70,10 @@
             (matSortChange)="onSortChange($event)"
             class="custom-paginated-table"
           >
-
-            <!-- Render Configured Columns -->
+            <!-- Generic Column Generation -->
             <ng-container *ngFor="let col of columns" [matColumnDef]="col.key">
+              
+              <!-- Header Cell -->
               <th
                 mat-header-cell
                 *matHeaderCellDef
@@ -81,114 +83,121 @@
                 {{ col.header }}
               </th>
 
-              <td mat-cell *matCellDef="let row">
-
-                <!-- Custom Template -->
-                <ng-container *ngIf="col.type === 'custom' && col.template">
+              <!-- Data Cell -->
+              <td
+                mat-cell
+                *matCellDef="let row"
+                [class.clickable-row]="col.type !== 'actions'"
+                (click)="col.type !== 'actions' && onRowClick(row)"
+              >
+                <!-- Actions Column -->
+                <ng-container *ngIf="col.type === 'actions'">
                   <ng-container
-                    *ngTemplateOutlet="col.template; context: { $implicit: row, row: row, value: getCellValue(row, col) }"
+                    *ngIf="actionsTemplate"
+                    [ngTemplateOutlet]="actionsTemplate"
+                    [ngTemplateOutletContext]="{ $implicit: row }"
                   ></ng-container>
                 </ng-container>
 
-                <!-- Actions Template -->
-                <ng-container *ngIf="col.type === 'actions' && actionsTemplate">
-                  <ng-container
-                    *ngTemplateOutlet="actionsTemplate; context: { $implicit: row, row: row }"
-                  ></ng-container>
+                <!-- Status/Chip Column -->
+                <ng-container *ngIf="col.type === 'chip'">
+                  <span
+                    class="status-chip"
+                    [ngClass]="col.chipClass ? col.chipClass(getCellValue(row, col)) : ''"
+                  >
+                    {{ getCellValue(row, col) }}
+                  </span>
                 </ng-container>
 
-                <!-- Chip / Badge -->
-                <ng-container *ngIf="col.type === 'chip' || col.type === 'badge'">
-                  <mat-chip-set>
-                    <mat-chip [class]="col.chipClass ? col.chipClass(getCellValue(row, col), row) : ''">
-                      {{ getCellValue(row, col) }}
-                    </mat-chip>
-                  </mat-chip-set>
-                </ng-container>
-
-                <!-- Date -->
-                <ng-container *ngIf="col.type === 'date'">
-                  {{ getCellValue(row, col) | date:'short' }}
-                </ng-container>
-
-                <!-- Standard Text -->
-                <ng-container *ngIf="!col.type || col.type === 'text'">
+                <!-- Default/Text Column -->
+                <ng-container *ngIf="col.type !== 'actions' && col.type !== 'chip'">
                   {{ getCellValue(row, col) }}
                 </ng-container>
-
               </td>
             </ng-container>
 
+            <!-- Table Row Definitions -->
             <tr mat-header-row *matHeaderRowDef="displayedColumnKeys"></tr>
             <tr
               mat-row
-              *matRowDef="let row; columns: displayedColumnKeys;"
-              (click)="onRowClick(row)"
-              class="clickable-row"
+              *matRowDef="let row; columns: displayedColumnKeys"
+              class="table-data-row"
             ></tr>
 
-            <!-- Empty State -->
-            <tr class="mat-row" *matNoDataRow>
-              <td class="mat-cell no-data-cell" [attr.colspan]="displayedColumnKeys.length">
+            <!-- No Data Row -->
+            <tr class="mat-row empty-row" *matNoDataRow>
+              <td class="mat-cell empty-cell" [attr.colspan]="displayedColumnKeys.length">
                 <div class="empty-state">
                   <mat-icon>inbox</mat-icon>
-                  <p>No records found.</p>
+                  <p>No records found</p>
                 </div>
               </td>
             </tr>
-
           </table>
         </div>
 
-        <!-- Filter Drawer Overlay / Panel -->
-        <div class="filter-drawer" [class.open]="drawerOpen" *ngIf="enableFilter">
-          <div class="filter-drawer-header">
-            <span class="drawer-title">Filters</span>
-            <button mat-icon-button class="close-btn" (click)="toggleDrawer()" aria-label="Close filters">
+        <!-- Right Side Filter Drawer -->
+        <div class="filter-drawer" [class.drawer-open]="drawerOpen" *ngIf="enableFilter">
+          <div class="drawer-header">
+            <h4>Filters</h4>
+            <button mat-icon-button (click)="closeDrawer()" aria-label="Close filters">
               <mat-icon>close</mat-icon>
             </button>
           </div>
 
-          <div class="filter-drawer-body">
-            <div *ngFor="let cat of activeCategories" class="filter-section">
-              <div class="section-header" (click)="toggleCategory(cat)">
-                <span class="section-title">{{ cat.label }}</span>
-                <mat-icon class="expand-icon" [class.expanded]="cat.expanded">expand_more</mat-icon>
-              </div>
+          <div class="drawer-content">
+            <mat-accordion multi>
+              <mat-expansion-panel
+                *ngFor="let cat of filterCategories"
+                [expanded]="cat.expanded"
+              >
+                <mat-expansion-panel-header>
+                  <mat-panel-title>
+                    {{ cat.label }}
+                    <span
+                      class="category-badge"
+                      *ngIf="selectedFilters[cat.key]?.length"
+                    >
+                      ({{ selectedFilters[cat.key].length }})
+                    </span>
+                  </mat-panel-title>
+                </mat-expansion-panel-header>
 
-              <div class="section-content" *ngIf="cat.expanded">
-                <div *ngFor="let opt of cat.options" class="filter-option-row">
+                <div class="filter-options-list">
                   <mat-checkbox
-                    [(ngModel)]="opt.checked"
+                    *ngFor="let opt of cat.options"
+                    [checked]="isOptionSelected(cat.key, opt.value)"
+                    (change)="onOptionToggle(cat.key, opt.value)"
                     color="primary"
                   >
                     {{ opt.label }}
                   </mat-checkbox>
                 </div>
-                <div *ngIf="!cat.options || cat.options.length === 0" class="no-options">
-                  No options available
-                </div>
-              </div>
-            </div>
+              </mat-expansion-panel>
+            </mat-accordion>
           </div>
 
-          <div class="filter-drawer-footer">
-            <button mat-stroked-button class="btn-reset" (click)="resetDrawerFilters()">Reset</button>
-            <button mat-raised-button color="primary" class="btn-apply" (click)="applyDrawerFilters()">Apply</button>
+          <div class="drawer-footer">
+            <button mat-button (click)="clearAllFilters()" [disabled]="activeFilterCount === 0">
+              Clear All
+            </button>
+            <button mat-flat-button color="primary" (click)="closeDrawer()">
+              Done
+            </button>
           </div>
         </div>
 
       </div>
 
-      <!-- Paginator -->
+      <!-- Pagination Footer -->
       <mat-paginator
         [length]="totalElements"
         [pageSize]="pageSize"
-        [pageIndex]="pageIndex"
         [pageSizeOptions]="pageSizeOptions"
+        [pageIndex]="pageIndex"
         (page)="onPageChange($event)"
         showFirstLastButtons
-        aria-label="Select page"
+        aria-label="Select table page"
       ></mat-paginator>
 
     </div>
