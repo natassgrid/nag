@@ -17,7 +17,7 @@
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
 
-import { Component, Input, Output, EventEmitter, OnChanges, SimpleChanges, ChangeDetectionStrategy } from '@angular/core';
+import { Component, Input, Output, EventEmitter, OnChanges, SimpleChanges, ChangeDetectionStrategy, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
@@ -45,7 +45,10 @@ export class AssetUploadDialogComponent implements OnChanges {
   progress = 0;
   error = '';
 
-  constructor(private assetService: AssetService) {}
+  constructor(
+    private assetService: AssetService,
+    private cdr: ChangeDetectorRef
+  ) {}
 
   ngOnChanges(changes: SimpleChanges): void {
     if (changes['isOpen'] && this.isOpen) {
@@ -80,6 +83,25 @@ export class AssetUploadDialogComponent implements OnChanges {
     this.close.emit(null);
   }
 
+  private cleanErrorMessage(err: any): string {
+    if (err?.status === 413) {
+      return 'The uploaded file exceeds the maximum allowed size (100 MB). Please upload a smaller file.';
+    }
+    let msg = err?.error?.message || err?.error?.detail || err?.error?.error || (typeof err?.error === 'string' ? err.error : '') || err?.message || 'Upload failed. Please try again.';
+    if (typeof msg === 'string' && /<[a-z][\s\S]*>/i.test(msg)) {
+      const titleMatch = msg.match(/<title[^>]*>(.*?)<\/title>/i);
+      const h1Match = msg.match(/<h1[^>]*>(.*?)<\/h1>/i);
+      if (h1Match && h1Match[1] && !h1Match[1].toLowerCase().includes('error')) {
+        msg = h1Match[1].replace(/\s+/g, ' ').trim();
+      } else if (titleMatch && titleMatch[1]) {
+        msg = titleMatch[1].replace(/\s+/g, ' ').trim();
+      } else {
+        msg = msg.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+      }
+    }
+    return msg;
+  }
+
   upload(): void {
     if (!this.selectedFile) return;
     this.uploading = true;
@@ -90,14 +112,17 @@ export class AssetUploadDialogComponent implements OnChanges {
       next: (event) => {
         if (event.type === HttpEventType.UploadProgress && event.total) {
           this.progress = Math.round(100 * event.loaded / event.total);
+          this.cdr.markForCheck();
         } else if (event.type === HttpEventType.Response) {
           this.uploading = false;
           this.close.emit(event.body?.data || null);
+          this.cdr.markForCheck();
         }
       },
       error: (err) => {
         this.uploading = false;
-        this.error = err?.error?.message || 'Upload failed. Please try again.';
+        this.error = this.cleanErrorMessage(err);
+        this.cdr.markForCheck();
       }
     });
   }

@@ -14,7 +14,8 @@
  * GNU Affero General Public License for more details.
  *
  * You should have received a copy of the GNU Affero General Public License
- * along with this program. If not, see <https://www.gnu.org/licenses/>.\n */
+ * along with this program. If not, see <https://www.gnu.org/licenses/>.
+ */
 
 import { HttpInterceptorFn, HttpErrorResponse } from '@angular/common/http';
 import { inject } from '@angular/core';
@@ -33,26 +34,43 @@ export const errorInterceptor: HttpInterceptorFn = (req, next) => {
       if (!skipGlobalNotification && error.status !== 401) {
         let errorMessage = 'An unexpected error occurred. Please try again.';
 
-        if (error.error) {
-          if (typeof error.error === 'string') {
-            errorMessage = error.error;
-          } else if (error.error.message) {
-            errorMessage = error.error.message;
-          } else if (error.error.detail) {
-            errorMessage = error.error.detail;
-          } else if (error.error.error) {
-            errorMessage = error.error.error;
-          }
-        }
-
-        if (error.status === 0) {
+        if (error.status === 413) {
+          errorMessage = 'The uploaded file exceeds the maximum allowed size (100 MB). Please upload a smaller file.';
+        } else if (error.status === 415) {
+          errorMessage = 'The selected file type is not supported.';
+        } else if (error.status === 0) {
           errorMessage = 'Unable to connect to the server. Please check your network connection.';
         } else if (error.status === 403) {
           errorMessage = 'Access denied. You do not have permission to perform this action.';
         } else if (error.status === 404) {
-          errorMessage = error.error?.message || 'The requested resource was not found.';
+          errorMessage = (typeof error.error?.message === 'string' && error.error.message) || 'The requested resource was not found.';
         } else if (error.status >= 500) {
-          errorMessage = error.error?.message || 'Server error. Our team has been notified.';
+          errorMessage = (typeof error.error?.message === 'string' && error.error.message)
+            ? error.error.message
+            : 'Server error. Our team has been notified.';
+        } else if (error.error) {
+          if (typeof error.error === 'string') {
+            errorMessage = error.error;
+          } else if (error.error.message && typeof error.error.message === 'string') {
+            errorMessage = error.error.message;
+          } else if (error.error.detail && typeof error.error.detail === 'string') {
+            errorMessage = error.error.detail;
+          } else if (error.error.error && typeof error.error.error === 'string') {
+            errorMessage = error.error.error;
+          }
+        }
+
+        // Clean any HTML markup from error message
+        if (typeof errorMessage === 'string' && /<[a-z][\s\S]*>/i.test(errorMessage)) {
+          const titleMatch = errorMessage.match(/<title[^>]*>(.*?)<\/title>/i);
+          const h1Match = errorMessage.match(/<h1[^>]*>(.*?)<\/h1>/i);
+          if (h1Match && h1Match[1] && !h1Match[1].toLowerCase().includes('error')) {
+            errorMessage = h1Match[1].replace(/\s+/g, ' ').trim();
+          } else if (titleMatch && titleMatch[1]) {
+            errorMessage = titleMatch[1].replace(/\s+/g, ' ').trim();
+          } else {
+            errorMessage = errorMessage.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+          }
         }
 
         notificationService.showError(errorMessage);
