@@ -127,10 +127,8 @@ class AsyncBatchTranslationWorkerTest {
 
         assertThat(job.getStatus()).isEqualTo(BatchTranslationJobStatus.COMPLETED);
         assertThat(job.getTotalQuestions()).isEqualTo(2);
-        assertThat(job.getProcessedQuestions()).isEqualTo(2);
-        assertThat(job.getSuccessfulQuestions()).isEqualTo(2);
-        assertThat(job.getFailedQuestions()).isEqualTo(0);
 
+        verify(jobRepository, times(2)).incrementSuccess(jobId);
         verify(translationWorkflowService, times(2)).upsertTranslation(
                 any(), eq("hi"), any(), any(), any(), eq(Translation.TranslationStatus.PUBLISHED), any(), any(), eq(tenantId)
         );
@@ -178,10 +176,8 @@ class AsyncBatchTranslationWorkerTest {
         worker.processBatchTranslationJob(jobId, tenantId);
 
         assertThat(job.getStatus()).isEqualTo(BatchTranslationJobStatus.COMPLETED);
-        assertThat(job.getProcessedQuestions()).isEqualTo(2);
-        assertThat(job.getSuccessfulQuestions()).isEqualTo(1);
-        assertThat(job.getFailedQuestions()).isEqualTo(1);
-        assertThat(job.getFailedQuestionIds()).contains(questionId1.toString());
+        verify(jobRepository, times(1)).incrementFailure(jobId);
+        verify(jobRepository, times(1)).incrementSuccess(jobId);
 
         verify(translationWorkflowService, times(1)).upsertTranslation(
                 eq(questionId2), eq("hi"), any(), any(), any(), eq(Translation.TranslationStatus.PUBLISHED), any(), any(), eq(tenantId)

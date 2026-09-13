@@ -22,7 +22,11 @@ package com.examplatform.questionbank.translation.repository;
 import com.examplatform.questionbank.translation.domain.BatchTranslationJob;
 import com.examplatform.questionbank.translation.domain.BatchTranslationJobStatus;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.Optional;
@@ -36,4 +40,14 @@ public interface BatchTranslationJobRepository extends JpaRepository<BatchTransl
     List<BatchTranslationJob> findByTenantIdOrderByCreatedAtDesc(String tenantId);
 
     List<BatchTranslationJob> findByStatusAndTenantId(BatchTranslationJobStatus status, String tenantId);
+
+    @Modifying
+    @Transactional
+    @Query("UPDATE BatchTranslationJob j SET j.processedQuestions = j.processedQuestions + 1, j.successfulQuestions = j.successfulQuestions + 1 WHERE j.id = :jobId")
+    int incrementSuccess(@Param("jobId") UUID jobId);
+
+    @Modifying
+    @Transactional
+    @Query("UPDATE BatchTranslationJob j SET j.processedQuestions = j.processedQuestions + 1, j.failedQuestions = j.failedQuestions + 1 WHERE j.id = :jobId")
+    int incrementFailure(@Param("jobId") UUID jobId);
 }

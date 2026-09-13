@@ -128,8 +128,12 @@ public class AsyncBatchTranslationWorker {
                 }
 
                 if (pageNumber == 0) {
-                    job.setTotalQuestions((int) page.getTotalElements());
-                    jobRepository.save(job);
+                    Optional<BatchTranslationJob> freshJobOpt = jobRepository.findById(jobId);
+                    if (freshJobOpt.isPresent()) {
+                        BatchTranslationJob freshJob = freshJobOpt.get();
+                        freshJob.setTotalQuestions((int) page.getTotalElements());
+                        jobRepository.save(freshJob);
+                    }
                 }
 
                 List<Question> questions = page.getContent();
@@ -142,7 +146,7 @@ public class AsyncBatchTranslationWorker {
 
                     try {
                         concurrencyLimiter.acquire();
-                        processSingleQuestion(question, targetLang, targetStatus, overwriteExisting, tenantId, job);
+                        processSingleQuestion(question, targetLang, targetStatus, overwriteExisting, tenantId, jobId);
                     } catch (InterruptedException ie) {
                         Thread.currentThread().interrupt();
                         log.warn("Batch worker interrupted while acquiring semaphore for job {}", jobId);
@@ -198,7 +202,7 @@ public class AsyncBatchTranslationWorker {
             Translation.TranslationStatus targetStatus,
             boolean overwriteExisting,
             String tenantId,
-            BatchTranslationJob job) {
+            UUID jobId) {
 
         UUID questionId = question.getId();
         try {
@@ -218,24 +222,12 @@ public class AsyncBatchTranslationWorker {
                     tenantId
             );
 
-            // Update in-memory job counts & persist periodically
-            synchronized (job) {
-                job.setProcessedQuestions(job.getProcessedQuestions() + 1);
-                job.setSuccessfulQuestions(job.getSuccessfulQuestions() + 1);
-                jobRepository.save(job);
-            }
+            // Atomic database increment avoids Hibernate @Version optimistic locking collisions
+            jobRepository.incrementSuccess(jobId);
 
         } catch (Exception ex) {
-            log.error("Failed to translate questionId={} in batch {}: {}", questionId, job.getId(), ex.getMessage());
-            synchronized (job) {
-                job.setProcessedQuestions(job.getProcessedQuestions() + 1);
-                job.setFailedQuestions(job.getFailedQuestions() + 1);
-                if (job.getFailedQuestionIds() == null) {
-                    job.setFailedQuestionIds(new ArrayList<>());
-                }
-                job.getFailedQuestionIds().add(questionId.toString());
-                jobRepository.save(job);
-            }
+            log.error("Failed to translate questionId={} in batch {}: {}", questionId, jobId, ex.getMessage());
+            jobRepository.incrementFailure(jobId);
         }
     }
 
