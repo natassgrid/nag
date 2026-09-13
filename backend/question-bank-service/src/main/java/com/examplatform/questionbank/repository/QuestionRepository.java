@@ -57,6 +57,32 @@ public interface QuestionRepository extends JpaRepository<Question, UUID>, JpaSp
 
     Page<Question> findBySubjectAndTenantId(String subject, String tenantId, Pageable pageable);
 
+    @Query("""
+        SELECT q FROM Question q
+        WHERE (q.tenantId = :tenantId OR q.tenantId = 'default' OR :tenantId IS NULL)
+    """)
+    Page<Question> findAllQuestionsForBatch(@Param("tenantId") String tenantId, Pageable pageable);
+
+    @Query("""
+        SELECT q FROM Question q
+        WHERE (q.tenantId = :tenantId OR q.tenantId = 'default' OR :tenantId IS NULL)
+          AND (
+               LOWER(TRIM(q.subject)) = LOWER(TRIM(:subject))
+               OR LOWER(q.subject) LIKE LOWER(CONCAT('%', TRIM(:subject), '%'))
+               OR CAST(q.subjectId AS string) = TRIM(:subject)
+               OR EXISTS (
+                   SELECT s FROM Subject s
+                   WHERE s.id = q.subjectId
+                     AND (
+                         LOWER(TRIM(s.name)) = LOWER(TRIM(:subject))
+                         OR LOWER(s.name) LIKE LOWER(CONCAT('%', TRIM(:subject), '%'))
+                         OR LOWER(s.code) = LOWER(TRIM(:subject))
+                     )
+               )
+          )
+    """)
+    Page<Question> findBySubjectFilterAndTenantId(@Param("subject") String subject, @Param("tenantId") String tenantId, Pageable pageable);
+
     /**
      * Finds a PUBLISHED question whose embedding vector has cosine similarity
      * above the given threshold compared to the provided embedding.

@@ -129,10 +129,11 @@ public class AsyncBatchTranslationWorker {
                 }
 
                 PageRequest pageRequest = PageRequest.of(pageNumber, batchSize, Sort.by("createdAt").ascending());
-                if (job.getSubjectFilter() != null && !job.getSubjectFilter().isBlank()) {
-                    page = questionRepository.findBySubjectAndTenantId(job.getSubjectFilter(), tenantId, pageRequest);
+                boolean hasSubjectFilter = job.getSubjectFilter() != null && !job.getSubjectFilter().isBlank();
+                if (hasSubjectFilter) {
+                    page = questionRepository.findBySubjectFilterAndTenantId(job.getSubjectFilter().trim(), tenantId, pageRequest);
                 } else {
-                    page = questionRepository.findByTenantId(tenantId, pageRequest);
+                    page = questionRepository.findAllQuestionsForBatch(tenantId, pageRequest);
                 }
 
                 if (pageNumber == 0) {
@@ -141,6 +142,7 @@ public class AsyncBatchTranslationWorker {
                         BatchTranslationJob freshJob = freshJobOpt.get();
                         freshJob.setTotalQuestions((int) page.getTotalElements());
                         jobRepository.save(freshJob);
+                        log.info("Batch job {} matched totalQuestions={}", jobId, page.getTotalElements());
                     }
                 }
 

@@ -52,12 +52,14 @@ public class BatchTranslationService {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Unsupported target language code: " + targetLang);
         }
 
+        String normalizedSubject = normalizeSubject(request.getSubject());
+
         BatchTranslationJob job = BatchTranslationJob.builder()
                 .status(BatchTranslationJobStatus.PENDING)
                 .sourceLanguage(request.getSourceLanguage() != null ? request.getSourceLanguage() : "en")
                 .targetLanguage(targetLang)
                 .targetStatus(request.getTargetStatus() != null ? request.getTargetStatus() : "PUBLISHED")
-                .subjectFilter(request.getSubject())
+                .subjectFilter(normalizedSubject)
                 .overwriteExisting(request.getOverwriteExisting() == null || request.getOverwriteExisting())
                 .batchSize(request.getBatchSize() != null ? request.getBatchSize() : 50)
                 .throttleDelayMs(request.getThrottleDelayMs() != null ? request.getThrottleDelayMs() : 50)
@@ -67,12 +69,24 @@ public class BatchTranslationService {
         job.setTenantId(tenantId);
 
         BatchTranslationJob savedJob = jobRepository.save(job);
-        log.info("Created batch translation job: id={}, targetLang={}, tenant={}", savedJob.getId(), targetLang, tenantId);
+        log.info("Created batch translation job: id={}, targetLang={}, subjectFilter={}, tenant={}",
+                savedJob.getId(), targetLang, normalizedSubject, tenantId);
 
         // Fire async background worker (job is committed immediately)
         asyncWorker.processBatchTranslationJob(savedJob.getId(), tenantId);
 
         return toResponse(savedJob);
+    }
+
+    private String normalizeSubject(String subject) {
+        if (subject == null || subject.isBlank()) {
+            return null;
+        }
+        String trimmed = subject.trim();
+        if ("all".equalsIgnoreCase(trimmed) || "all subjects".equalsIgnoreCase(trimmed) || "all_subjects".equalsIgnoreCase(trimmed)) {
+            return null;
+        }
+        return trimmed;
     }
 
     @Transactional(readOnly = true)

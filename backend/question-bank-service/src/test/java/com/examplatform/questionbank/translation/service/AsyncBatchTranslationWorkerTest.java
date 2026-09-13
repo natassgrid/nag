@@ -1,7 +1,7 @@
 /*
  * SPDX-License-Identifier: AGPL-3.0-only
  *
- * National Assessment Grid (NAG) - Open Digital Public Infrastructure (DPI) Platform
+ * National Assessment Grid (NAG) - Open Digital Public Infrastructure - DPI Platform
  * Copyright (C) 2025 NAG Contributors
  *
  * This program is free software: you can redistribute it and/or modify
@@ -109,7 +109,7 @@ class AsyncBatchTranslationWorkerTest {
         Page<Question> page = new PageImpl<>(List.of(q1, q2), PageRequest.of(0, 10), 2);
 
         when(jobRepository.findById(jobId)).thenReturn(Optional.of(job));
-        when(questionRepository.findByTenantId(eq(tenantId), any(PageRequest.class))).thenReturn(page);
+        when(questionRepository.findAllQuestionsForBatch(eq(tenantId), any(PageRequest.class))).thenReturn(page);
 
         AutoTranslateResponse trans1 = AutoTranslateResponse.builder()
                 .questionId(questionId1)
@@ -161,7 +161,7 @@ class AsyncBatchTranslationWorkerTest {
         Page<Question> page = new PageImpl<>(List.of(q1, q2), PageRequest.of(0, 10), 2);
 
         when(jobRepository.findById(jobId)).thenReturn(Optional.of(job));
-        when(questionRepository.findByTenantId(eq(tenantId), any(PageRequest.class))).thenReturn(page);
+        when(questionRepository.findAllQuestionsForBatch(eq(tenantId), any(PageRequest.class))).thenReturn(page);
 
         // Q1 fails with network / AI error
         when(indicTrans2Service.autoTranslateQuestionEntity(q1, "hi"))
@@ -199,7 +199,43 @@ class AsyncBatchTranslationWorkerTest {
 
         worker.processBatchTranslationJob(jobId, tenantId);
 
-        verify(questionRepository, never()).findByTenantId(any(), any());
+        verify(questionRepository, never()).findAllQuestionsForBatch(any(), any());
+    }
+
+    @Test
+    @DisplayName("Should query by subject filter when subjectFilter is present on job")
+    void shouldQueryBySubjectFilterWhenPresent() {
+        BatchTranslationJob job = BatchTranslationJob.builder()
+                .status(BatchTranslationJobStatus.PENDING)
+                .sourceLanguage("en")
+                .targetLanguage("hi")
+                .targetStatus("PUBLISHED")
+                .subjectFilter("Quantitative Aptitude")
+                .batchSize(10)
+                .throttleDelayMs(0)
+                .maxConcurrency(1)
+                .build();
+        ReflectionTestUtils.setField(job, "id", jobId);
+        job.setTenantId(tenantId);
+
+        Question q1 = Question.builder().content("Math Q1").build();
+        ReflectionTestUtils.setField(q1, "id", questionId1);
+
+        Page<Question> page = new PageImpl<>(List.of(q1), PageRequest.of(0, 10), 1);
+
+        when(jobRepository.findById(jobId)).thenReturn(Optional.of(job));
+        when(questionRepository.findBySubjectFilterAndTenantId(eq("Quantitative Aptitude"), eq(tenantId), any(PageRequest.class)))
+                .thenReturn(page);
+
+        when(indicTrans2Service.autoTranslateQuestionEntity(any(), eq("hi"))).thenReturn(
+                AutoTranslateResponse.builder().questionId(questionId1).languageCode("hi").translatedContent("गणित").build()
+        );
+
+        worker.processBatchTranslationJob(jobId, tenantId);
+
+        assertThat(job.getStatus()).isEqualTo(BatchTranslationJobStatus.COMPLETED);
+        verify(questionRepository).findBySubjectFilterAndTenantId(eq("Quantitative Aptitude"), eq(tenantId), any(PageRequest.class));
+        verify(jobRepository, times(1)).incrementSuccess(jobId);
     }
 
     @Test
@@ -228,7 +264,7 @@ class AsyncBatchTranslationWorkerTest {
         Page<Question> page = new PageImpl<>(List.of(q1, q2), PageRequest.of(0, 10), 2);
 
         when(jobRepository.findById(jobId)).thenReturn(Optional.of(job));
-        when(questionRepository.findByTenantId(eq(tenantId), any(PageRequest.class))).thenReturn(page);
+        when(questionRepository.findAllQuestionsForBatch(eq(tenantId), any(PageRequest.class))).thenReturn(page);
 
         when(indicTrans2Service.autoTranslateQuestionEntity(any(), eq("hi"))).thenReturn(
                 AutoTranslateResponse.builder().questionId(questionId1).languageCode("hi").translatedContent("Q").build()
