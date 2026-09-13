@@ -258,12 +258,26 @@ export class MathRendererComponent implements OnChanges {
       .replace(/(^|[^a-zA-Z0-9_])_([^_\n\r]+?)_([^a-zA-Z0-9_]|$)/g, '$1<em>$2</em>$3');
   }
 
+  /**
+   * Unescapes literal JSON/escaped newline sequences (\n, \r\n, \t) into real whitespace,
+   * but ONLY when they are NOT part of a LaTeX command name.
+   *
+   * Problem: a naïve global `\n → newline` replacement corrupts LaTeX commands that begin
+   * with the letters n, r, or t — e.g. `\neq`, `\neg`, `\rightarrow`, `\text`, `\tau`.
+   * The string `\neq` in raw JSON is stored as `\` + `n` + `e` + `q`, and a blanket
+   * replace turns it into newline + `eq`, breaking the rendered output.
+   *
+   * Safe rule: a JSON `\n` escape is ALWAYS followed by a non-letter character.
+   * A LaTeX command `\n...` is followed by ASCII letters.  Same applies to `\r`, `\t`.
+   */
   private unescapeNewlines(text: string): string {
     if (typeof text !== 'string') return '';
     return text
       .replace(/\\r\\n/g, '\n')
-      .replace(/\\n/g, '\n')
-      .replace(/\\t/g, '\t');
+      // \n only when NOT immediately followed by an ASCII letter (would be a LaTeX command)
+      .replace(/\\n(?![a-zA-Z])/g, '\n')
+      // \t only when NOT immediately followed by an ASCII letter (e.g. \tau, \theta, \times)
+      .replace(/\\t(?![a-zA-Z])/g, '\t');
   }
 
   private decodeHtmlEntities(text: string): string {
