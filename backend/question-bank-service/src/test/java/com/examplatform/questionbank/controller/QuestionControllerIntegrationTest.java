@@ -204,7 +204,7 @@ class QuestionControllerIntegrationTest extends AbstractIntegrationTest {
         @Test
         @DisplayName("+ve: REVIEWER retrieves paginated list of questions - returns 200 OK")
         void reviewerCanListQuestions() throws Exception {
-            when(questionService.listQuestions(any(), any(), any(), any(), any(), anyInt(), anyInt(), eq(TENANT_ID)))
+            when(questionService.listQuestions(any(), any(), any(), any(), any(), any(), any(), anyInt(), anyInt(), eq(TENANT_ID)))
                     .thenReturn(new PageImpl<>(List.of(sampleQuestionResponse())));
 
             mockMvc.perform(get("/api/v1/questions")
@@ -317,7 +317,8 @@ class QuestionControllerIntegrationTest extends AbstractIntegrationTest {
             mockMvc.perform(put("/api/v1/questions/{id}/submit", QUESTION_ID)
                             .header("X-Tenant-Id", TENANT_ID)
                             .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_QUESTION_AUTHOR"))
-                                    .jwt(j -> j.subject(AUTHOR_ID.toString()))))
+                                    .jwt(j -> j.subject(AUTHOR_ID.toString())))
+                            .contentType(MediaType.APPLICATION_JSON))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.status").value("success"))
                     .andExpect(jsonPath("$.data.state").value("REVIEW"));

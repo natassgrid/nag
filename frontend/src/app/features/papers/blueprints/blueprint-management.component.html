@@ -13,7 +13,7 @@
       <mat-icon class="btn-icon">refresh</mat-icon>
       Refresh
     </button>
-    <button mat-flat-button color="primary" class="action-btn btn-create" (click)="openCreateDrawer()">
+    <button mat-flat-button color="primary" class="action-btn btn-primary" (click)="openCreateDrawer()">
       <mat-icon class="btn-icon">add</mat-icon>
       Create Blueprint
     </button>
@@ -58,7 +58,7 @@
           : 'Create your first blueprint rule template to streamline question paper generation.'
       }}
     </p>
-    <button mat-flat-button color="primary" class="btn-primary" (click)="openCreateDrawer()">
+    <button mat-flat-button color="primary" class="action-btn btn-primary" (click)="openCreateDrawer()">
       <mat-icon class="btn-icon">add</mat-icon>
       Create Blueprint Template
     </button>
@@ -144,23 +144,60 @@
 
       <!-- Card Action Buttons -->
       <div class="card-footer">
-        <button mat-button class="btn-ghost btn-sm" (click)="duplicateTemplate(tpl)" matTooltip="Clone this template">
-          <mat-icon class="btn-icon">content_copy</mat-icon> Clone
-        </button>
-        <button mat-button color="warn" class="btn-sm" (click)="deleteTemplate(tpl, $event)" [disabled]="deletingId === tpl.id" matTooltip="Delete template">
-          <mat-spinner diameter="16" *ngIf="deletingId === tpl.id"></mat-spinner>
-          <mat-icon class="btn-icon" *ngIf="deletingId !== tpl.id">delete_outline</mat-icon>
-          Delete
-        </button>
-        <button mat-stroked-button class="action-btn btn-secondary btn-sm" (click)="openFeasibilityAnalysis(tpl)" matTooltip="Audit Question Bank Sufficiency">
-          <mat-icon class="btn-icon">fact_check</mat-icon> Audit Sufficiency
-        </button>
-        <button mat-stroked-button class="action-btn btn-secondary btn-sm" (click)="openEditDrawer(tpl)">
-          <mat-icon class="btn-icon">edit</mat-icon> Edit
-        </button>
-        <button mat-flat-button color="primary" class="action-btn btn-primary btn-sm" (click)="useToGenerate(tpl)" matTooltip="Generate paper using this blueprint">
-          <mat-icon class="btn-icon">auto_awesome</mat-icon> Generate
-        </button>
+        <div class="card-actions-left">
+          <button
+            mat-icon-button
+            class="card-icon-btn"
+            (click)="openEditDrawer(tpl)"
+            matTooltip="Edit Blueprint"
+            aria-label="Edit Blueprint"
+          >
+            <mat-icon>edit</mat-icon>
+          </button>
+          <button
+            mat-icon-button
+            class="card-icon-btn"
+            (click)="duplicateTemplate(tpl)"
+            matTooltip="Clone Blueprint"
+            aria-label="Clone Blueprint"
+          >
+            <mat-icon>content_copy</mat-icon>
+          </button>
+          <button
+            mat-icon-button
+            color="warn"
+            class="card-icon-btn btn-delete"
+            (click)="deleteTemplate(tpl, $event)"
+            [disabled]="deletingId === tpl.id"
+            matTooltip="Delete Blueprint"
+            aria-label="Delete Blueprint"
+          >
+            <mat-spinner diameter="16" *ngIf="deletingId === tpl.id"></mat-spinner>
+            <mat-icon *ngIf="deletingId !== tpl.id">delete_outline</mat-icon>
+          </button>
+        </div>
+
+        <div class="card-actions-right">
+          <button
+            mat-stroked-button
+            class="action-btn btn-secondary btn-sm"
+            (click)="openFeasibilityAnalysis(tpl)"
+            matTooltip="Audit Question Bank Inventory"
+          >
+            <mat-icon class="btn-icon">fact_check</mat-icon>
+            Audit
+          </button>
+          <button
+            mat-flat-button
+            color="primary"
+            class="action-btn btn-primary btn-sm"
+            (click)="useToGenerate(tpl)"
+            matTooltip="Generate Paper from Blueprint"
+          >
+            <mat-icon class="btn-icon">auto_awesome</mat-icon>
+            Generate
+          </button>
+        </div>
       </div>
     </div>
   </div>

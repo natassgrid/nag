@@ -214,9 +214,9 @@ public class SpringAiGenerationService implements QuestionGenerationService {
                   "options": [{"id": "A", "text": "option text", "isCorrect": true}, {"id": "B", "text": "option text", "isCorrect": false}, {"id": "C", "text": "option text", "isCorrect": false}, {"id": "D", "text": "option text", "isCorrect": false}],
                   "difficulty": "EASY|MEDIUM|HARD",
                   "cognitiveLevel": "REMEMBER|UNDERSTAND|APPLY|ANALYZE|EVALUATE|CREATE",
-                  "questionType": "%s"
+                  "questionType": "{{QUESTION_TYPE}}"
                 }
-                """.formatted(request.getQuestionType());
+                """.replace("{{QUESTION_TYPE}}", String.valueOf(request.getQuestionType()));
     }
 
     /**
@@ -306,7 +306,7 @@ public class SpringAiGenerationService implements QuestionGenerationService {
     /**
      * Normalizes LaTeX delimiters across all text-bearing fields so the frontend
      * renderer only ever sees {@code $$...$$}. LLMs frequently emit inline
-     * {@code \( ... \)} or display {@code \\[ ... \\]} delimiters (especially in the
+     * {@code \( ... \)} or display {@code \[ ... \]} delimiters (especially in the
      * explanation field) despite prompt instructions, so we convert them here.
      */
     private RawGeneratedQuestion normalizeLatexDelimiters(RawGeneratedQuestion raw) {
@@ -332,7 +332,7 @@ public class SpringAiGenerationService implements QuestionGenerationService {
     }
 
     /**
-     * Converts {@code \( ... \)} (inline) and {@code \\[ ... \\]} (display) LaTeX
+     * Converts {@code \( ... \)} (inline) and {@code \[ ... \]} (display) LaTeX
      * delimiters to {@code $$...$$}. Existing {@code $$...$$} spans are left untouched.
      */
     private String normalizeLatex(String text) {
@@ -340,8 +340,8 @@ public class SpringAiGenerationService implements QuestionGenerationService {
             return text;
         }
         return text
-                .replaceAll("(?s)\\\\\\((.*?)\\\\\\)", "\\$\\$$1\\$\\$")
-                .replaceAll("(?s)\\\\\\[(.*?)\\\\\\]", "\\$\\$$1\\$\\$");
+                .replaceAll("(?s)\\\\\\\\((.*?)\\\\\\\\)", "\\$\\$$1\\$\\$")
+                .replaceAll("(?s)\\\\\\\\[(.*?)\\\\\\\\]", "\\$\\$$1\\$\\$");
     }
 
     /**

@@ -2,7 +2,7 @@
   [isOpen]="isOpen"
   [title]="title"
   [subtitle]="'Live inventory audit verifying Question Bank availability against specified blueprint rules.'"
-  width="680px"
+  width="720px"
   (close)="onClose()"
 >
   <div drawer-body class="feasibility-drawer-body">
@@ -44,7 +44,7 @@
           <div class="hero-icon-wrap">
             <mat-icon class="hero-icon">{{ feasibility.feasible ? 'check_circle' : 'warning' }}</mat-icon>
           </div>
-          <div>
+          <div class="hero-text-block">
             <div class="hero-badge">{{ feasibility.feasible ? 'FEASIBLE FOR GENERATION' : 'INSUFFICIENT QUESTIONS' }}</div>
             <p class="hero-summary">{{ feasibility.summary }}</p>
           </div>
@@ -57,11 +57,92 @@
             class="notify-btn"
             (click)="notifyAdmin()"
             [disabled]="loading"
-            matTooltip="Dispatch instant deficiency alert to Admins & Event Bus"
+            matTooltip="Dispatch deficiency alert to Admins & Event Bus"
           >
             <mat-icon>notification_important</mat-icon>
-            Notify Admin
+            <span>Notify Admin</span>
           </button>
+        </div>
+      </div>
+
+      <!-- AI Question Generation Export Card -->
+      <div class="ai-export-card" [ngClass]="{'has-deficits': hasDeficits}">
+        <div class="ai-card-header">
+          <div class="ai-header-info">
+            <div class="ai-card-badge">
+              <mat-icon class="ai-badge-icon">auto_awesome</mat-icon>
+              <span>AI Question Generation Feed</span>
+            </div>
+            <p class="ai-card-desc">
+              {{
+                hasDeficits
+                  ? 'Export tailored deficit prompts to generate missing questions using LLMs (GPT-4o, Claude 3.5, Gemini) or batch API.'
+                  : 'Export complete blueprint prompt to generate new question variations for question bank enrichment.'
+              }}
+            </p>
+          </div>
+
+          <div class="ai-header-buttons">
+            <button
+              mat-flat-button
+              color="primary"
+              class="ai-primary-btn"
+              (click)="copyAIPrompt()"
+              matTooltip="Copy structured AI generation prompt formatted for ChatGPT / Claude / Gemini"
+            >
+              <mat-icon>content_copy</mat-icon>
+              Copy AI Prompt
+            </button>
+
+            <button
+              mat-stroked-button
+              class="ai-menu-btn"
+              [matMenuTriggerFor]="aiExportMenu"
+              matTooltip="More AI Export Formats"
+            >
+              <mat-icon>download</mat-icon>
+              Export
+              <mat-icon class="menu-down-icon">arrow_drop_down</mat-icon>
+            </button>
+
+            <mat-menu #aiExportMenu="matMenu" xPosition="before">
+              <button mat-menu-item (click)="downloadAIPrompt()">
+                <mat-icon>description</mat-icon>
+                <span>Download AI Prompt (.md)</span>
+              </button>
+              <button mat-menu-item (click)="downloadAIBatchJson()">
+                <mat-icon>data_object</mat-icon>
+                <span>Download AI Batch Request (.json)</span>
+              </button>
+              <button mat-menu-item (click)="copyAIBatchJson()">
+                <mat-icon>content_paste</mat-icon>
+                <span>Copy AI Batch JSON</span>
+              </button>
+              <mat-divider></mat-divider>
+              <button mat-menu-item (click)="downloadAuditJson()">
+                <mat-icon>fact_check</mat-icon>
+                <span>Download Full Audit Report (.json)</span>
+              </button>
+            </mat-menu>
+          </div>
+        </div>
+
+        <div class="ai-preview-toggle-bar">
+          <button mat-button class="toggle-preview-btn" (click)="togglePromptPreview()">
+            <mat-icon>{{ showPromptPreview ? 'expand_less' : 'visibility' }}</mat-icon>
+            {{ showPromptPreview ? 'Hide Prompt Preview' : 'Preview Generated AI Prompt & Schema' }}
+          </button>
+        </div>
+
+        <!-- Collapsible Prompt Preview -->
+        <div class="prompt-preview-container" *ngIf="showPromptPreview">
+          <div class="preview-header">
+            <span>LLM Prompt & JSON Schema Preview</span>
+            <button mat-icon-button (click)="copyAIPrompt()" matTooltip="Copy to clipboard">
+              <mat-icon>content_copy</mat-icon>
+            </button>
+          </div>
+          <pre class="prompt-code-block">{{ generateAIPrompt() }}</pre>
         </div>
       </div>
 
@@ -169,12 +250,45 @@
   </div>
 
   <div drawer-footer class="feasibility-drawer-footer">
-    <button mat-stroked-button (click)="runAnalysis(false)" [disabled]="loading">
-      <mat-icon class="btn-icon">refresh</mat-icon>
-      Re-Audit
-    </button>
-    <button mat-flat-button color="primary" (click)="onClose()">
-      Done
-    </button>
+    <div class="footer-left" *ngIf="feasibility">
+      <button
+        mat-stroked-button
+        class="action-btn btn-secondary"
+        [matMenuTriggerFor]="footerAiExportMenu"
+      >
+        <mat-icon class="btn-icon">auto_awesome</mat-icon>
+        Export for AI
+        <mat-icon class="menu-down-icon">arrow_drop_down</mat-icon>
+      </button>
+
+      <mat-menu #footerAiExportMenu="matMenu">
+        <button mat-menu-item (click)="copyAIPrompt()">
+          <mat-icon>content_copy</mat-icon>
+          <span>Copy AI Prompt</span>
+        </button>
+        <button mat-menu-item (click)="downloadAIPrompt()">
+          <mat-icon>description</mat-icon>
+          <span>Download AI Prompt (.md)</span>
+        </button>
+        <button mat-menu-item (click)="downloadAIBatchJson()">
+          <mat-icon>data_object</mat-icon>
+          <span>Download AI Batch Request (.json)</span>
+        </button>
+        <button mat-menu-item (click)="downloadAuditJson()">
+          <mat-icon>fact_check</mat-icon>
+          <span>Download Feasibility Report (.json)</span>
+        </button>
+      </mat-menu>
+    </div>
+
+    <div class="footer-right">
+      <button mat-stroked-button class="action-btn btn-secondary" (click)="runAnalysis(false)" [disabled]="loading">
+        <mat-icon class="btn-icon">refresh</mat-icon>
+        Re-Audit
+      </button>
+      <button mat-flat-button color="primary" class="action-btn btn-primary" (click)="onClose()">
+        Done
+      </button>
+    </div>
   </div>
 </app-right-drawer>

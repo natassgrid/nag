@@ -6,133 +6,147 @@
 
 :host {
   display: block;
-}
-
-.math-renderer {
   line-height: 1.6;
   word-wrap: break-word;
   color: inherit;
 
-  :host ::ng-deep {
-    p {
-      margin: 0 0 0.75rem 0;
-      line-height: 1.6;
+  &.inline-mode {
+    display: inline;
+  }
+}
 
-      &:last-child {
-        margin-bottom: 0;
-      }
-    }
+.math-renderer {
+  display: block;
+  line-height: inherit;
+  color: inherit;
 
-    strong, b {
-      font-weight: 600;
-      color: inherit;
-    }
+  &.inline-math-container {
+    display: inline;
+  }
+}
 
-    em, i {
-      font-style: italic;
-    }
+:host ::ng-deep {
+  p {
+    margin: 0 0 0.75rem 0;
+    line-height: 1.6;
 
-    ul, ol {
-      margin: 0.5rem 0 0.75rem 1.25rem;
-      padding-left: 0.5rem;
+    &:last-child {
+      margin-bottom: 0;
     }
+  }
 
-    li {
-      margin-bottom: 0.25rem;
-      line-height: 1.5;
-    }
+  strong, b {
+    font-weight: 600;
+    color: inherit;
+  }
 
-    blockquote {
-      margin: 0.5rem 0;
-      padding: 0.5rem 1rem;
-      border-left: 3px solid #6366f1;
-      background-color: rgba(99, 102, 241, 0.05);
-      border-radius: 0 4px 4px 0;
-      color: inherit;
-    }
+  em, i {
+    font-style: italic;
+  }
+
+  ul, ol {
+    margin: 0.5rem 0 0.75rem 1.25rem;
+    padding-left: 0.5rem;
+  }
+
+  li {
+    margin-bottom: 0.25rem;
+    line-height: 1.5;
+  }
+
+  blockquote {
+    margin: 0.5rem 0;
+    padding: 0.5rem 1rem;
+    border-left: 3px solid #6366f1;
+    background-color: rgba(99, 102, 241, 0.05);
+    border-radius: 0 4px 4px 0;
+    color: inherit;
+  }
+
+  code {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    font-size: 0.875em;
+    padding: 0.15rem 0.35rem;
+    background-color: rgba(100, 116, 139, 0.12);
+    border-radius: 4px;
+    color: #0284c7;
+  }
+
+  pre {
+    margin: 0.75rem 0;
+    padding: 0.75rem 1rem;
+    background-color: #0f172a;
+    color: #e2e8f0;
+    border-radius: 6px;
+    overflow-x: auto;
+    font-size: 0.875rem;
 
     code {
-      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-      font-size: 0.875em;
-      padding: 0.15rem 0.35rem;
-      background-color: rgba(100, 116, 139, 0.12);
-      border-radius: 4px;
-      color: #0284c7;
+      background: transparent;
+      padding: 0;
+      color: inherit;
     }
+  }
 
-    pre {
-      margin: 0.75rem 0;
-      padding: 0.75rem 1rem;
-      background-color: #0f172a;
-      color: #e2e8f0;
-      border-radius: 6px;
-      overflow-x: auto;
-      font-size: 0.875rem;
+  table {
+    border-collapse: collapse;
+    width: auto;
+    max-width: 100%;
+    margin: 0.75rem 0;
+    border: 1px solid #cbd5e1;
+    border-radius: 4px;
+    overflow: hidden;
 
-      code {
-        background: transparent;
-        padding: 0;
-        color: inherit;
-      }
-    }
-
-    table {
-      border-collapse: collapse;
-      width: auto;
-      max-width: 100%;
-      margin: 0.75rem 0;
+    th, td {
       border: 1px solid #cbd5e1;
-      border-radius: 4px;
-      overflow: hidden;
-
-      th, td {
-        border: 1px solid #cbd5e1;
-        padding: 0.5rem 0.85rem;
-        text-align: left;
-        font-size: 0.9em;
-      }
-
-      th {
-        background-color: #f1f5f9;
-        font-weight: 600;
-      }
-
-      tr:nth-child(even) {
-        background-color: #f8fafc;
-      }
-    }
-
-    // KaTeX inline math expressions
-    .katex {
-      display: inline-block;
-      vertical-align: middle;
-      font-size: 1.05em;
-      line-height: 1.2;
-    }
-
-    // KaTeX display math blocks
-    .katex-display {
-      margin: 0.5em 0;
-      overflow-x: auto;
-      overflow-y: hidden;
-    }
-
-    // Inline SVG diagrams
-    svg {
-      display: inline-block;
-      vertical-align: middle;
-      max-width: 100%;
-      height: auto;
-    }
-
-    // Error fallback styling for failed LaTeX render
-    .math-render-error {
-      color: var(--color-error, #d32f2f);
-      font-family: monospace;
+      padding: 0.5rem 0.85rem;
+      text-align: left;
       font-size: 0.9em;
-      background-color: rgba(211, 47, 47, 0.08);
-      padding: 2px 4px;
-      border-radius: 3px;
     }
+
+    th {
+      background-color: #f1f5f9;
+      font-weight: 600;
+    }
+
+    tr:nth-child(even) {
+      background-color: #f8fafc;
+    }
+  }
+
+  // KaTeX inline math expressions
+  .katex {
+    display: inline-block;
+    vertical-align: baseline;
+    font-size: 1.08em;
+    line-height: 1.2;
+    text-rendering: auto;
+  }
+
+  // KaTeX display math blocks
+  .katex-display {
+    display: block;
+    margin: 0.65em 0;
+    text-align: center;
+    overflow-x: auto;
+    overflow-y: hidden;
+  }
+
+  // Inline SVG diagrams
+  svg {
+    display: inline-block;
+    vertical-align: middle;
+    max-width: 100%;
+    height: auto;
+  }
+
+  // Error fallback styling for failed LaTeX render
+  .math-render-error {
+    color: var(--color-error, #d32f2f);
+    font-family: monospace;
+    font-size: 0.9em;
+    background-color: rgba(211, 47, 47, 0.08);
+    padding: 2px 4px;
+    border-radius: 3px;
   }
 }

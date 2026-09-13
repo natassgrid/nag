@@ -43,6 +43,17 @@ import {
 } from '../../../shared/components/paginated-table';
 import { PageHeaderComponent } from '../../../shared/components/page-header/page-header.component';
 
+const DEFAULT_SUBJECT_OPTIONS = [
+  { label: 'Quantitative Aptitude', value: 'Quantitative Aptitude' },
+  { label: 'General Intelligence and Reasoning', value: 'General Intelligence and Reasoning' },
+  { label: 'English Language', value: 'English Language' },
+  { label: 'General Awareness', value: 'General Awareness' },
+  { label: 'Computer Aptitude', value: 'Computer Aptitude' },
+  { label: 'Mathematics', value: 'Mathematics' },
+  { label: 'Physics', value: 'Physics' },
+  { label: 'Chemistry', value: 'Chemistry' }
+];
+
 @Component({
   selector: 'app-question-translation-list',
   standalone: true,
@@ -84,7 +95,7 @@ export class QuestionTranslationListComponent implements OnInit {
       key: 'subject',
       label: 'Subject',
       expanded: true,
-      options: []
+      options: DEFAULT_SUBJECT_OPTIONS
     },
     {
       key: 'difficulty',
@@ -135,11 +146,16 @@ export class QuestionTranslationListComponent implements OnInit {
   ];
 
   fetcher: PaginatedDataFetcher<QuestionResponse> = (req) => {
-    const activeSubject = Array.isArray(this.filters['subject']) ? this.filters['subject'][0] : this.filters['subject'];
+    const rawSubject = Array.isArray(this.filters['subject']) ? this.filters['subject'][0] : this.filters['subject'];
     const activeDifficulty = Array.isArray(this.filters['difficulty']) ? this.filters['difficulty'][0] : this.filters['difficulty'];
 
+    const isNumericSubject = rawSubject !== undefined && rawSubject !== null && rawSubject !== '' && !isNaN(Number(rawSubject));
+    const subjectId = isNumericSubject ? Number(rawSubject) : undefined;
+    const subject = !isNumericSubject && rawSubject ? String(rawSubject) : undefined;
+
     return this.questionService.getQuestions({
-      subject: activeSubject || undefined,
+      subject,
+      subjectId,
       difficulty: activeDifficulty || undefined,
       page: req.page,
       size: req.size
@@ -159,13 +175,36 @@ export class QuestionTranslationListComponent implements OnInit {
   }
 
   loadSubjects(): void {
-    this.subjectTopicService.getSubjects().subscribe(subjects => {
-      this.subjects = subjects;
-      const subjectCat = this.filterCategories.find(c => c.key === 'subject');
-      if (subjectCat) {
-        subjectCat.options = subjects.map(s => ({ label: s.name, value: s.name }));
+    this.subjectTopicService.getSubjects().subscribe({
+      next: (subjects) => {
+        this.subjects = subjects || [];
+        const subjectOptions = this.subjects.length > 0
+          ? this.subjects.map(s => ({ label: s.name, value: s.id.toString() }))
+          : DEFAULT_SUBJECT_OPTIONS;
+        this.filterCategories = this.filterCategories.map(cat => {
+          if (cat.key === 'subject') {
+            return {
+              ...cat,
+              options: subjectOptions
+            };
+          }
+          return cat;
+        });
+        this.cdr.markForCheck();
+      },
+      error: (err) => {
+        console.warn('Failed to load subjects:', err);
+        this.filterCategories = this.filterCategories.map(cat => {
+          if (cat.key === 'subject') {
+            return {
+              ...cat,
+              options: DEFAULT_SUBJECT_OPTIONS
+            };
+          }
+          return cat;
+        });
+        this.cdr.markForCheck();
       }
-      this.cdr.markForCheck();
     });
   }
 

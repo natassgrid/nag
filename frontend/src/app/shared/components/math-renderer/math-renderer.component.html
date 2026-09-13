@@ -4,4 +4,4 @@
   Copyright (C) 2025 NAG Contributors
 -->
 
-<div class="math-renderer" [innerHTML]="renderedHtml" aria-label="Rendered content with math expressions"></div>
+<div class="math-renderer" [ngClass]="{'inline-math-container': inline}" [innerHTML]="renderedHtml" aria-label="Rendered content with math expressions"></div>

@@ -29,6 +29,8 @@ import java.util.Optional;
 @Repository
 public interface TopicRepository extends JpaRepository<Topic, Long> {
 
+    Optional<Topic> findByIdAndTenantId(Long id, String tenantId);
+
     List<Topic> findBySubjectIdAndTenantId(Long subjectId, String tenantId);
 
     Optional<Topic> findByNameAndSubjectIdAndTenantId(String name, Long subjectId, String tenantId);

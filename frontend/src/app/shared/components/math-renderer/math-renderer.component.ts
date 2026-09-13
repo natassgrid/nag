@@ -17,96 +17,77 @@
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
 
-import { Component, Input, OnChanges, SimpleChanges, ChangeDetectionStrategy } from '@angular/core';
+import {
+  Component,
+  Input,
+  OnChanges,
+  SimpleChanges,
+  ViewEncapsulation,
+  ChangeDetectionStrategy
+} from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import katex from 'katex';
 import { marked } from 'marked';
 
-/**
- * MathRendererComponent renders mixed content containing:
- * - Markdown text formatting (headings, lists, bold, italics, code, tables)
- * - LaTeX math expressions wrapped in $$...$$, $...$, \(...\), or \[...\]
- * - Newline representations including literal \n and GFM breaks
- * - ASCII/pipe matrices and tables
- * - Inline SVG elements
- *
- * Usage:
- *   <app-math-renderer [content]="questionContent"></app-math-renderer>
- *   <app-math-renderer [content]="optionText" [inline]="true"></app-math-renderer>
- */
 @Component({
   selector: 'app-math-renderer',
   standalone: true,
   imports: [CommonModule],
   templateUrl: './math-renderer.component.html',
-  changeDetection: ChangeDetectionStrategy.Eager,
-  styleUrls: ['./math-renderer.component.scss']
+  styleUrls: ['./math-renderer.component.scss'],
+  encapsulation: ViewEncapsulation.None,
+  changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class MathRendererComponent implements OnChanges {
-  /** The raw content string containing mixed text, Markdown, LaTeX, and SVG. */
-  @Input() content: string = '';
-
-  /** When true, renders inline without wrapping in <p> tags. */
+  @Input() content: string | null = '';
   @Input() inline: boolean = false;
+  @Input() className: string = '';
 
-  /** The fully rendered HTML output. */
   renderedHtml: SafeHtml = '';
 
-  /** Non-math LaTeX commands that should be rendered as plain text/HTML. */
-  private static readonly NON_MATH_PATTERN = /\\(begin|end)\\{(enumerate|itemize|document|figure|table|center)\\}|\\item|\\textbf|\\textit|\\section|\\subsection/;
+  // Non-math LaTeX commands that should be treated as text/HTML
+  private nonMathPattern = /\\{1,2}(begin|end)\\{(enumerate|itemize|document|figure|table|center)\\}|\\{1,2}item|\\{1,2}section|\\{1,2}subsection/;
 
   constructor(private sanitizer: DomSanitizer) {}
 
   ngOnChanges(changes: SimpleChanges): void {
     if (changes['content'] || changes['inline']) {
-      this.renderContent();
+      this.render();
     }
   }
 
-  private renderContent(): void {
-    if (!this.content) {
+  private render(): void {
+    if (!this.content || !this.content.trim()) {
       this.renderedHtml = '';
       return;
     }
 
     try {
-      // 1. Unescape literal \n or \r\n sequences if received as raw text
-      let text = this.unescapeNewlines(this.content);
+      // 1. Unescape literal \n, \r\n, \t sequences if received as raw text
+      let text = this.unescapeNewlines(this.content.trim());
 
-      // 2. Decode HTML entities
+      // 2. Decode common HTML entities that might surround math
       text = this.decodeHtmlEntities(text);
 
-      // 3. Format ASCII / pipe matrices and tables missing separator rows
-      text = this.formatMarkdownTables(text);
+      // 3. Extract and render all LaTeX math expressions to placeholders FIRST
+      // This protects math formulas containing \\, _, *, &, etc. from being corrupted by Markdown or doc cleaners
+      const { processedText: textWithoutMath, tokens: mathTokens } = this.extractAndRenderMath(text);
+      text = textWithoutMath;
 
-      // 4. Normalize alternate LaTeX math delimiters to $$...$$
-      text = this.normalizeMathDelimiters(text);
+      // 4. Normalize pipe tables
+      if (!this.inline) {
+        text = this.normalizeMarkdownTables(text);
+      }
 
-      // 5. Clean LaTeX document commands
+      // 5. Clean LaTeX document-level commands outside math blocks
       text = this.cleanLatexDocCommands(text);
 
-      // 6. Convert single-dollar $math$ into $$math$$
-      text = text.replace(/(^|[^$\\\\])\$([^$\n\r]+?)\$([^$]|$)/g, '$1$$$$$2$$$$$3');
-
-      // 7. Extract math blocks and replace with unique placeholders
-      const mathTokens: { placeholder: string; rendered: string }[] = [];
-      let tokenIndex = 0;
-
-      const mathRegex = /\$\$([\s\S]*?)\$\$/g;
-      text = text.replace(mathRegex, (_, latexContent) => {
-        const placeholder = `%%%NAG_MATH_BLOCK_${tokenIndex++}%%%`;
-        const rendered = this.renderKatex(latexContent);
-        mathTokens.push({ placeholder, rendered });
-        return placeholder;
-      });
-
-      // 8. Transform inline Markdown constructs (bold, italic, strike, code)
-      // so they render properly even inside HTML block tags (<p>, <div>) produced by rich editors
+      // 6. Pre-process inline markdown formatting
       text = this.parseInlineMarkdown(text);
 
-      // 9. Parse Markdown using marked
-      let parsedHtml: string;
+      // 7. Parse Markdown using marked
+      let parsedHtml = '';
       if (this.inline) {
         parsedHtml = marked.parseInline(text, {
           gfm: true,
@@ -120,12 +101,9 @@ export class MathRendererComponent implements OnChanges {
         }) as string;
       }
 
-      // 10. Secondary pass for any inline markdown in HTML blocks passed through by marked
-      parsedHtml = this.parseInlineMarkdown(parsedHtml);
-
-      // 11. Reinsert rendered KaTeX math blocks
-      for (const token of mathTokens) {
-        parsedHtml = parsedHtml.split(token.placeholder).join(token.rendered);
+      // 8. Reinsert rendered KaTeX math blocks
+      for (const [placeholder, rendered] of mathTokens.entries()) {
+        parsedHtml = parsedHtml.split(placeholder).join(rendered);
       }
 
       this.renderedHtml = this.sanitizer.bypassSecurityTrustHtml(parsedHtml);
@@ -133,6 +111,95 @@ export class MathRendererComponent implements OnChanges {
       console.warn('Failed to parse Markdown / Math content:', e);
       this.renderedHtml = this.sanitizer.bypassSecurityTrustHtml(this.content);
     }
+  }
+
+  private shouldDisplayBlock(
+    math: string,
+    fullMatch: string,
+    offset: number,
+    fullStr: string
+  ): boolean {
+    if (this.inline) return false;
+
+    // Check if directly wrapped in parentheses or brackets e.g. ($$math$$)
+    const charBefore = offset > 0 ? fullStr[offset - 1] : '';
+    const charAfter = offset + fullMatch.length < fullStr.length ? fullStr[offset + fullMatch.length] : '';
+    const isEnclosedInParens = (charBefore === '(' || charBefore === '[') && (charAfter === ')' || charAfter === ']');
+    if (isEnclosedInParens) {
+      return false;
+    }
+
+    // Check if it is a single variable token (e.g. "A", "L", "\neg L", "x") embedded in running text
+    const trimmedMath = math.trim();
+    const isSingleVariableToken = /^(\\neg\s+)?[a-zA-Z0-9_]{1,3}$/.test(trimmedMath);
+
+    const textBefore = fullStr.slice(0, offset);
+    const lastNewlineBefore = textBefore.lastIndexOf('\n');
+    const linePrefix = lastNewlineBefore === -1 ? textBefore : textBefore.slice(lastNewlineBefore + 1);
+
+    const textAfter = fullStr.slice(offset + fullMatch.length);
+    const nextNewlineAfter = textAfter.indexOf('\n');
+    const lineSuffix = nextNewlineAfter === -1 ? textAfter : textAfter.slice(0, nextNewlineAfter);
+
+    const hasSurroundingText = linePrefix.trim() !== '' || lineSuffix.trim() !== '';
+
+    if (isSingleVariableToken && hasSurroundingText) {
+      return false;
+    }
+
+    return true;
+  }
+
+  /**
+   * Identifies all LaTeX math expressions (display, environments, bracketed, parenthesis, and inline dollars)
+   * and renders them into KaTeX HTML, substituting placeholders to protect the formulas.
+   */
+  private extractAndRenderMath(text: string): { processedText: string; tokens: Map<string, string> } {
+    const tokens = new Map<string, string>();
+    let tokenIndex = 0;
+
+    const createPlaceholder = (rendered: string): string => {
+      const placeholder = `%%%NAG_MATH_BLOCK_${tokenIndex++}%%%`;
+      tokens.set(placeholder, rendered);
+      return placeholder;
+    };
+
+    // 1. Math in $$ ... $$ (display mode when standalone, inline mode when in running text)
+    text = text.replace(/\$\$([\s\S]*?)\$\$/g, (fullMatch, math, offset, fullStr) => {
+      const isDisplay = this.shouldDisplayBlock(math, fullMatch, offset, fullStr);
+      const rendered = this.renderKatex(math, isDisplay);
+      return createPlaceholder(rendered);
+    });
+
+    // 2. Math in \[ ... \] or \\[ ... \\] (MUST have backslash prefix)
+    text = text.replace(/\\{1,2}\[([\s\S]*?)\\{1,2}\]/g, (fullMatch, math, offset, fullStr) => {
+      const isDisplay = this.shouldDisplayBlock(math, fullMatch, offset, fullStr);
+      const rendered = this.renderKatex(math, isDisplay);
+      return createPlaceholder(rendered);
+    });
+
+    // 3. LaTeX environments: \begin{matrix|pmatrix|bmatrix|vmatrix|Vmatrix|cases|align|align*|aligned|equation|equation*|gather|gather*}...\end{...}
+    const envRegex = /\\{1,2}begin\{(matrix|pmatrix|bmatrix|vmatrix|Vmatrix|cases|align|align\*|aligned|equation|equation\*|gather|gather\*)\}([\s\S]*?)\\{1,2}end\{\1\}/g;
+    text = text.replace(envRegex, (fullMatch, _env, _inner, offset, fullStr) => {
+      const cleanMatch = fullMatch.replace(/\\\\/g, '\\');
+      const isDisplay = this.shouldDisplayBlock(cleanMatch, fullMatch, offset, fullStr);
+      const rendered = this.renderKatex(cleanMatch, isDisplay);
+      return createPlaceholder(rendered);
+    });
+
+    // 4. Inline Math: \( ... \) or \\( ... \\) (MUST have backslash prefix, NOT plain parentheses)
+    text = text.replace(/\\{1,2}\(([\s\S]*?)\\{1,2}\)/g, (_, math) => {
+      const rendered = this.renderKatex(math, false);
+      return createPlaceholder(rendered);
+    });
+
+    // 5. Inline Math: $ ... $ (avoid escaped \$ and ensure non-empty)
+    text = text.replace(/(^|[^\\])\$([^\$\n\r]+?)\$(?!\$)/g, (match, prefix, math) => {
+      const rendered = this.renderKatex(math, false);
+      return (prefix || '') + createPlaceholder(rendered);
+    });
+
+    return { processedText: text, tokens };
   }
 
   private parseInlineMarkdown(text: string): string {
@@ -148,9 +215,9 @@ export class MathRendererComponent implements OnChanges {
       .replace(/~~([^~\n\r]+?)~~/g, '<del>$1</del>')
       // Inline code: `code`
       .replace(/`([^`\n\r]+?)`/g, '<code>$1</code>')
-      // Italic: *text* (when not part of a math block or token)
-      .replace(/(^|[^*])\*([^*\n\r]+?)\*([^*]|$)/g, '$1<em>$2</em>$3')
-      // Italic: _text_ (when surrounded by non-alphanumeric boundaries)
+      // Italic: *text*
+      .replace(/(^|[^*])\*([^*\\n\r]+?)\*([^*]|$)/g, '$1<em>$2</em>$3')
+      // Italic: _text_
       .replace(/(^|[^a-zA-Z0-9_])_([^_\n\r]+?)_([^a-zA-Z0-9_]|$)/g, '$1<em>$2</em>$3');
   }
 
@@ -162,110 +229,98 @@ export class MathRendererComponent implements OnChanges {
       .replace(/\\t/g, '\t');
   }
 
-  private decodeHtmlEntities(content: string): string {
-    return content
+  private decodeHtmlEntities(text: string): string {
+    if (!text) return '';
+    return text
       .replace(/&nbsp;/g, ' ')
       .replace(/&amp;/g, '&')
       .replace(/&lt;/g, '<')
       .replace(/&gt;/g, '>')
       .replace(/&quot;/g, '"')
       .replace(/&#39;/g, "'")
-      .replace(/&ldquo;/g, '\u201c')
-      .replace(/&rdquo;/g, '\u201d')
-      .replace(/&lsquo;/g, '\u2018')
-      .replace(/&rsquo;/g, '\u2019')
+      .replace(/&rsquo;/g, "'")
+      .replace(/&lsquo;/g, "'")
+      .replace(/&rdquo;/g, '"')
+      .replace(/&ldquo;/g, '"')
       .trim();
   }
 
-  private formatMarkdownTables(text: string): string {
+  private normalizeMarkdownTables(text: string): string {
+    if (!text.includes('|')) return text;
+
     const lines = text.split('\n');
-    const resultLines: string[] = [];
-    let i = 0;
+    let inTable = false;
+    let tableHeaderCols = 0;
+    const newLines: string[] = [];
 
-    while (i < lines.length) {
-      const line = lines[i];
-      const trimmed = line.trim();
-
-      const isPipeRow = trimmed.startsWith('|') && trimmed.endsWith('|') && trimmed.length > 2;
-
-      if (isPipeRow) {
-        const tableBlock: string[] = [line];
-        let j = i + 1;
-        while (j < lines.length && lines[j].trim().startsWith('|') && lines[j].trim().endsWith('|')) {
-          tableBlock.push(lines[j]);
-          j++;
-        }
-
-        if (tableBlock.length >= 1) {
-          const hasDelimiter = tableBlock.some(row => /^\s*\|(\s*:?-+:?\s*\|)+\s*$/.test(row.trim()));
-          if (!hasDelimiter) {
-            const colCount = tableBlock[0].trim().split('|').filter(c => c.trim().length > 0).length;
-            if (colCount > 0) {
-              const delimiterRow = '|' + ' --- |'.repeat(colCount);
-              tableBlock.splice(1, 0, delimiterRow);
-            }
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i].trim();
+      if (line.startsWith('|') && line.endsWith('|') && line.length > 2) {
+        if (!inTable) {
+          inTable = true;
+          const colCount = line.split('|').length - 2;
+          tableHeaderCols = colCount;
+          newLines.push(line);
+          const nextLine = (lines[i + 1] || '').trim();
+          if (!nextLine.startsWith('|') || !nextLine.includes('-')) {
+            newLines.push('|' + Array(Math.max(1, tableHeaderCols)).fill('---').join('|') + '|');
           }
-          resultLines.push(...tableBlock);
-          i = j;
-          continue;
+        } else {
+          newLines.push(line);
         }
+      } else {
+        inTable = false;
+        newLines.push(lines[i]);
       }
-
-      resultLines.push(line);
-      i++;
     }
 
-    return resultLines.join('\n');
+    return newLines.join('\n');
   }
 
-  private normalizeMathDelimiters(content: string): string {
-    return content
-      .replace(/\\\(([\s\S]*?)\\\)/g, '$$$$$1$$$$')
-      .replace(/\\\[([\s\S]*?)\\\]/g, '$$$$$1$$$$');
-  }
-
-  private cleanLatexDocCommands(content: string): string {
-    return content
-      .replace(/\\begin\{enumerate\}/g, '')
-      .replace(/\\end\{enumerate\}/g, '')
-      .replace(/\\begin\{itemize\}/g, '')
-      .replace(/\\end\{itemize\}/g, '')
-      .replace(/\\item\s*/g, '\n- ')
-      .replace(/\\textbf\{([^}]*)\}/g, '**$1**')
-      .replace(/\\textit\{([^}]*)\}/g, '*$1*')
+  private cleanLatexDocCommands(text: string): string {
+    if (!text) return '';
+    return text
+      .replace(/\\{1,2}begin\{enumerate\}/gi, '')
+      .replace(/\\{1,2}end\{enumerate\}/gi, '')
+      .replace(/\\{1,2}begin\{itemize\}/gi, '')
+      .replace(/\\{1,2}end\{itemize\}/gi, '')
+      .replace(/\\{1,2}item\s*/gi, '\n- ')
+      .replace(/\\{1,2}textbf\{([^}]*)\}/gi, '**$1**')
+      .replace(/\\{1,2}textit\{([^}]*)\}/gi, '*$1*')
       .replace(/\\\\(\s|$)/g, '\n$1');
   }
 
   private sanitizeLatex(latex: string): string {
+    if (!latex || typeof latex !== 'string') return '';
     let s = latex.trim();
+    s = s.replace(/\\{2,}([a-zA-Z]+|[{}_#$%&])/g, '\\$1');
     s = s.replace(/\\*%/g, '\\%');
     return s;
   }
 
-  private renderKatex(latex: string): string {
+  private renderKatex(latex: string, displayMode = false): string {
     const trimmed = this.sanitizeLatex(latex);
-    if (!trimmed) {
-      return '';
-    }
+    if (!trimmed) return '';
 
-    if (MathRendererComponent.NON_MATH_PATTERN.test(trimmed)) {
-      return `<span class="math-as-text">${this.escapeHtml(trimmed)}</span>`;
+    if (this.nonMathPattern.test(trimmed)) {
+      return `<span>${this.escapeHtml(trimmed)}</span>`;
     }
 
     try {
       return katex.renderToString(trimmed, {
         throwOnError: false,
-        displayMode: false,
+        displayMode,
         output: 'htmlAndMathml',
+        trust: false,
         strict: 'ignore'
       });
-    } catch (e) {
-      return `<span class="math-render-error" title="Failed to render LaTeX">${this.escapeHtml(trimmed)}</span>`;
+    } catch {
+      return `<span class="math-render-error text-amber-600 font-mono text-xs">${this.escapeHtml(trimmed)}</span>`;
     }
   }
 
-  private escapeHtml(text: string): string {
-    return text
+  private escapeHtml(str: string): string {
+    return str
       .replace(/&/g, '&amp;')
       .replace(/</g, '&lt;')
       .replace(/>/g, '&gt;')

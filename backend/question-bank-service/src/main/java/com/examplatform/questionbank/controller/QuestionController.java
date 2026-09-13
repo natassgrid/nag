@@ -11,7 +11,7 @@
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU balance General Public License for more details.
+ * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU Affero General Public License
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
@@ -106,8 +106,10 @@ public class QuestionController {
      * List questions for a tenant with optional filtering and pagination.
      * Requires QUESTION_AUTHOR, REVIEWER, or APPROVER role.
      *
-     * @param subject    optional subject filter
-     * @param topic      optional topic filter
+     * @param subject    optional subject name filter
+     * @param subjectId  optional subject numeric ID filter (enables partition pruning)
+     * @param topic      optional topic name filter
+     * @param topicId    optional topic numeric ID filter
      * @param difficulty optional difficulty filter
      * @param state      optional state filter (DRAFT, REVIEW, APPROVED, etc.)
      * @param search     optional text search filter
@@ -120,7 +122,9 @@ public class QuestionController {
     @PreAuthorize("hasAnyRole('QUESTION_AUTHOR', 'REVIEWER', 'APPROVER')")
     public ResponseEntity<ApiResponse<Page<QuestionResponse>>> listQuestions(
             @RequestParam(required = false) String subject,
+            @RequestParam(required = false) Long subjectId,
             @RequestParam(required = false) String topic,
+            @RequestParam(required = false) Long topicId,
             @RequestParam(required = false) String difficulty,
             @RequestParam(required = false) String state,
             @RequestParam(required = false) String search,
@@ -128,11 +132,11 @@ public class QuestionController {
             @RequestParam(defaultValue = "20") int size,
             @RequestHeader("X-Tenant-Id") String tenantId) {
 
-        log.info("Listing questions: tenant={}, subject={}, topic={}, difficulty={}, state={}, page={}, size={}",
-                tenantId, subject, topic, difficulty, state, page, size);
+        log.info("Listing questions: tenant={}, subject={}, subjectId={}, topic={}, topicId={}, difficulty={}, state={}, page={}, size={}",
+                tenantId, subject, subjectId, topic, topicId, difficulty, state, page, size);
 
         Page<QuestionResponse> responses = questionService.listQuestions(
-                subject, topic, difficulty, state, search, page, size, tenantId);
+                subject, subjectId, topic, topicId, difficulty, state, search, page, size, tenantId);
         return ResponseEntity.ok(ApiResponse.success(responses, "Questions retrieved successfully"));
     }
 
