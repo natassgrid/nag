@@ -27,6 +27,7 @@ import com.examplatform.questionbank.domain.Subtopic;
 import com.examplatform.questionbank.domain.Topic;
 import com.examplatform.questionbank.domain.enums.QuestionType;
 import com.examplatform.questionbank.dto.CreateQuestionRequest;
+import com.examplatform.questionbank.dto.QuestionOption;
 import com.examplatform.questionbank.dto.QuestionResponse;
 import com.examplatform.questionbank.exception.SimilarQuestionException;
 import com.examplatform.questionbank.repository.QuestionRepository;
@@ -73,6 +74,34 @@ public class QuestionService {
 
     @org.springframework.beans.factory.annotation.Value("${app.encryption.enabled:false}")
     private boolean encryptionEnabled;
+
+    /**
+     * Detects whether question content, explanation, or options contain diagrams,
+     * SVGs, or images.
+     */
+    public static boolean detectHasImages(String content, String explanation, List<QuestionOption> options) {
+        if (containsImageMarkup(content) || containsImageMarkup(explanation)) {
+            return true;
+        }
+        if (options != null) {
+            for (QuestionOption opt : options) {
+                if (opt.getImageUrl() != null && !opt.getImageUrl().isBlank()) {
+                    return true;
+                }
+                if (containsImageMarkup(opt.getText())) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    private static boolean containsImageMarkup(String text) {
+        if (text == null || text.isBlank()) {
+            return false;
+        }
+        return text.contains("<img") || text.contains("<svg") || text.contains("![");
+    }
 
     /**
      * Result of resolving the Subject -> Topic -> Subtopic hierarchy for a
@@ -211,6 +240,8 @@ public class QuestionService {
             }
         }
 
+        boolean hasImages = detectHasImages(request.getContent(), request.getExplanation(), request.getOptions());
+
         // Build Question entity
         Question question = Question.builder()
                 .subjectId(hierarchy.subjectId())
@@ -228,6 +259,7 @@ public class QuestionService {
                 .options(request.getOptions())
                 .explanation(request.getExplanation())
                 .references(request.getReferences())
+                .hasImages(hasImages)
                 .state("DRAFT")
                 .encryptionKeyId(dekKeyName)
                 .authorId(authorId)
@@ -504,6 +536,7 @@ public class QuestionService {
                 .authorId(question.getAuthorId())
                 .createdAt(createdAt)
                 .options(options)
+                .hasImages(question.isHasImages())
                 .build();
     }
 }

@@ -34,6 +34,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
@@ -106,7 +107,7 @@ public class TranslationWorkflowService {
         ensureNoDuplicateTranslation(request.getQuestionId(), request.getLanguageCode(), tenantId);
         validateOptionIds(request, question);
 
-        TranslatedQuestionPayload payload = buildPayload(request);
+        TranslatedQuestionPayload payload = buildPayload(request, question);
         String stored = payloadService.serialize(payload);
 
         Translation translation = Translation.builder()
@@ -156,7 +157,7 @@ public class TranslationWorkflowService {
 
         validateOptionIds(request, question);
 
-        TranslatedQuestionPayload payload = buildPayload(request);
+        TranslatedQuestionPayload payload = buildPayload(request, question);
         translation.setTranslatedPayload(payloadService.serialize(payload));
         translation.setPayloadEncrypted(payloadService.isEncryptionEnabled());
         translation.setSourceVersion(question.getVersion() != null ? question.getVersion() : 0L);
@@ -188,8 +189,17 @@ public class TranslationWorkflowService {
         Question question = questionRepository.findById(questionId)
                 .orElseThrow(() -> new IllegalArgumentException("Source question not found: " + questionId));
 
+        Map<String, QuestionOption> sourceOptionMap = (question.getOptions() != null)
+                ? question.getOptions().stream().collect(Collectors.toMap(QuestionOption::getId, o -> o, (a, b) -> a))
+                : Collections.emptyMap();
+
         List<TranslatedQuestionPayload.TranslatedOption> payloadOptions = (options != null)
-                ? options.stream().map(dto -> new TranslatedQuestionPayload.TranslatedOption(dto.id(), dto.text())).toList()
+                ? options.stream().map(dto -> {
+                    QuestionOption src = sourceOptionMap.get(dto.id());
+                    String imgUrl = dto.imageUrl() != null ? dto.imageUrl() : (src != null ? src.getImageUrl() : null);
+                    String altText = dto.imageAltText() != null ? dto.imageAltText() : (src != null ? src.getImageAltText() : null);
+                    return new TranslatedQuestionPayload.TranslatedOption(dto.id(), dto.text(), imgUrl, altText);
+                }).toList()
                 : Collections.emptyList();
 
         TranslatedQuestionPayload payload = new TranslatedQuestionPayload(content, payloadOptions, explanation);
@@ -288,12 +298,21 @@ public class TranslationWorkflowService {
         }
     }
 
-    private TranslatedQuestionPayload buildPayload(TranslationRequest request) {
+    private TranslatedQuestionPayload buildPayload(TranslationRequest request, Question question) {
+        Map<String, QuestionOption> sourceOptionMap = (question != null && question.getOptions() != null)
+                ? question.getOptions().stream().collect(Collectors.toMap(QuestionOption::getId, o -> o, (a, b) -> a))
+                : Collections.emptyMap();
+
         List<TranslatedQuestionPayload.TranslatedOption> options = Optional
                 .ofNullable(request.getTranslatedOptions())
                 .orElse(Collections.emptyList())
                 .stream()
-                .map(dto -> new TranslatedQuestionPayload.TranslatedOption(dto.id(), dto.text()))
+                .map(dto -> {
+                    QuestionOption src = sourceOptionMap.get(dto.id());
+                    String imgUrl = dto.imageUrl() != null ? dto.imageUrl() : (src != null ? src.getImageUrl() : null);
+                    String altText = dto.imageAltText() != null ? dto.imageAltText() : (src != null ? src.getImageAltText() : null);
+                    return new TranslatedQuestionPayload.TranslatedOption(dto.id(), dto.text(), imgUrl, altText);
+                })
                 .toList();
 
         return new TranslatedQuestionPayload(

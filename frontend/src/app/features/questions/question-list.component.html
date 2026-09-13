@@ -45,6 +45,13 @@
         searchPlaceholder="Search questions..."
       ></app-paginated-table>
 
+      <!-- Custom Media Column Template -->
+      <ng-template #visualsTmpl let-row>
+        <span *ngIf="row.hasImages" matTooltip="Contains diagrams or images" class="media-indicator">
+          <mat-icon class="media-badge-icon">image</mat-icon>
+        </span>
+      </ng-template>
+
       <!-- Custom Actions Column Template -->
       <ng-template #actionsTmpl let-row>
         <button mat-icon-button matTooltip="Translate / Localize" (click)="openTranslationDrawer(row)">

@@ -121,8 +121,13 @@
                 {{ opt.isCorrect ? 'check_circle' : 'radio_button_unchecked' }}
               </mat-icon>
               <span class="option-id">{{ opt.id }}.</span>
-              <div class="option-text">
-                <app-math-renderer [content]="opt.text || '(empty)'" [inline]="true"></app-math-renderer>
+              <div class="option-content-block">
+                <div *ngIf="opt.imageUrl" class="option-image-preview">
+                  <img [src]="opt.imageUrl" [alt]="opt.imageAltText || opt.id" class="review-opt-thumb" />
+                </div>
+                <div class="option-text" *ngIf="opt.text">
+                  <app-math-renderer [content]="opt.text" [inline]="true"></app-math-renderer>
+                </div>
               </div>
               <mat-chip *ngIf="opt.isCorrect" class="correct-chip">Correct</mat-chip>
             </div>

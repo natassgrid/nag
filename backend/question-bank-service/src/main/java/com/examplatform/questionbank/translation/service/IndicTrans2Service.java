@@ -210,11 +210,15 @@ public class IndicTrans2Service {
         List<String> textsToTranslate = new ArrayList<>();
         textsToTranslate.add(question.getContent() != null ? question.getContent() : "");
 
-        int optionCount = 0;
+        List<Boolean> optionHasAlt = new ArrayList<>();
         if (question.getOptions() != null) {
             for (QuestionOption opt : question.getOptions()) {
                 textsToTranslate.add(opt.getText() != null ? opt.getText() : "");
-                optionCount++;
+                boolean hasAlt = opt.getImageAltText() != null && !opt.getImageAltText().isBlank();
+                optionHasAlt.add(hasAlt);
+                if (hasAlt) {
+                    textsToTranslate.add(opt.getImageAltText());
+                }
             }
         }
 
@@ -228,23 +232,33 @@ public class IndicTrans2Service {
         String translatedContent = translatedList.isEmpty() ? question.getContent() : translatedList.get(0);
 
         List<TranslatedOptionDto> translatedOptions = new ArrayList<>();
+        int currentIdx = 1;
         if (question.getOptions() != null) {
-            for (int i = 0; i < optionCount; i++) {
+            for (int i = 0; i < question.getOptions().size(); i++) {
                 QuestionOption originalOpt = question.getOptions().get(i);
-                String transOptText = (i + 1 < translatedList.size()) ? translatedList.get(i + 1) : originalOpt.getText();
+                String transOptText = (currentIdx < translatedList.size()) ? translatedList.get(currentIdx) : originalOpt.getText();
+                currentIdx++;
+
+                String transAltText = originalOpt.getImageAltText();
+                if (Boolean.TRUE.equals(optionHasAlt.get(i))) {
+                    if (currentIdx < translatedList.size()) {
+                        transAltText = translatedList.get(currentIdx);
+                    }
+                    currentIdx++;
+                }
+
                 translatedOptions.add(new TranslatedOptionDto(
                         originalOpt.getId(),
-                        transOptText
+                        transOptText,
+                        originalOpt.getImageUrl(),
+                        transAltText
                 ));
             }
         }
 
         String translatedExplanation = null;
-        if (hasExplanation) {
-            int explIndex = 1 + optionCount;
-            if (explIndex < translatedList.size()) {
-                translatedExplanation = translatedList.get(explIndex);
-            }
+        if (hasExplanation && currentIdx < translatedList.size()) {
+            translatedExplanation = translatedList.get(currentIdx);
         }
 
         return AutoTranslateResponse.builder()

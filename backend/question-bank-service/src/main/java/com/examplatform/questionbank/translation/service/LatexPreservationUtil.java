@@ -23,7 +23,8 @@ import java.util.regex.Pattern;
 
 /**
  * Utility to protect and preserve LaTeX / KaTeX mathematical expressions,
- * chemical equations (\ce{...}), physical units (\pu{...}), SVG graphics,
+ * chemical equations (\ce{...}), physical units (\pu{...}), Markdown images,
+ * HTML img tags, SVG graphics,
  * and scientific symbols during machine translation (e.g. IndicTrans2).
  *
  * It extracts all math/symbol structures into numbered placeholders before
@@ -49,6 +50,8 @@ public final class LatexPreservationUtil {
     // 11. Standalone LaTeX Greek / Math Symbols \alpha, \beta, \theta, \int, \infty, etc.
     private static final Pattern PRESERVED_PATTERN = Pattern.compile(
             "```[\\s\\S]*?```" +
+            "|!\\[[^\\]]*\\]\\([^)]*\\)" +
+            "|<img[^>]*>" +
             "|<svg[\\s\\S]*?</svg>" +
             "|<code>[\\s\\S]*?</code>" +
             "|\\$\\$[\\s\\S]*?\\$\\$" +

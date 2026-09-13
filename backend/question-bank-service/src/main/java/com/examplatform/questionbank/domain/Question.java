@@ -144,6 +144,11 @@ public class Question extends BaseEntity {
     @Transient
     private float[] embedding;
 
+    /** Lightweight flag indicating this question contains image/SVG media. */
+    @Column(name = "has_images", nullable = false)
+    @Builder.Default
+    private boolean hasImages = false;
+
     @Column(name = "state", nullable = false, length = 20)
     @Builder.Default
     private String state = "DRAFT";

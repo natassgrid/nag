@@ -23,6 +23,7 @@ import com.examplatform.questionbank.domain.Question;
 import com.examplatform.questionbank.dto.QuestionOption;
 import com.examplatform.questionbank.repository.QuestionRepository;
 import com.examplatform.questionbank.translation.domain.Translation;
+import com.examplatform.questionbank.translation.domain.TranslatedQuestionPayload;
 import com.examplatform.questionbank.translation.dto.TranslatedOptionDto;
 import com.examplatform.questionbank.translation.dto.TranslationRequest;
 import com.examplatform.questionbank.translation.repository.TranslationRepository;
@@ -30,6 +31,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -122,6 +124,57 @@ class TranslationWorkflowServiceTest {
         assertThat(result.getTranslatedPayload()).isNotBlank();
         verify(translationRepository).save(any(Translation.class));
         verify(payloadService).serialize(any());
+    }
+
+    @Test
+    @DisplayName("Should carry through imageUrl and imageAltText from source question when translating options")
+    void shouldPreserveImageUrlAndAltTextFromSourceQuestion() {
+        Question question = Question.builder()
+                .options(List.of(
+                        QuestionOption.builder()
+                                .id("A")
+                                .text("Option A")
+                                .correct(true)
+                                .imageUrl("https://cdn.examplatform.org/opt-a.svg")
+                                .imageAltText("Alt for A")
+                                .build(),
+                        QuestionOption.builder()
+                                .id("B")
+                                .text("Option B")
+                                .correct(false)
+                                .imageUrl("https://cdn.examplatform.org/opt-b.png")
+                                .imageAltText("Alt for B")
+                                .build()
+                ))
+                .build();
+
+        TranslationRequest request = new TranslationRequest();
+        request.setQuestionId(questionId);
+        request.setLanguageCode("hi");
+        request.setTranslatorId(translatorId);
+        request.setTranslatedContent("अनुवादित सामग्री");
+        request.setTranslatedOptions(List.of(
+                new TranslatedOptionDto("A", "विकल्प A"),
+                new TranslatedOptionDto("B", "विकल्प B")
+        ));
+
+        when(questionRepository.findById(questionId)).thenReturn(Optional.of(question));
+        when(translationRepository.findByQuestionIdAndLanguageCodeAndTenantId(questionId, "hi", tenantId))
+                .thenReturn(Collections.emptyList());
+        when(payloadService.serialize(any())).thenReturn("{}");
+        when(translationRepository.save(any(Translation.class))).thenAnswer(i -> i.getArgument(0));
+
+        translationWorkflowService.requestTranslation(request, tenantId);
+
+        ArgumentCaptor<TranslatedQuestionPayload> captor = ArgumentCaptor.forClass(TranslatedQuestionPayload.class);
+        verify(payloadService).serialize(captor.capture());
+        TranslatedQuestionPayload payload = captor.getValue();
+
+        assertThat(payload.options()).hasSize(2);
+        assertThat(payload.options().get(0).imageUrl()).isEqualTo("https://cdn.examplatform.org/opt-a.svg");
+        assertThat(payload.options().get(0).imageAltText()).isEqualTo("Alt for A");
+        assertThat(payload.options().get(1).imageUrl()).isEqualTo("https://cdn.examplatform.org/opt-b.png");
+        assertThat(payload.options().get(1).imageAltText()).isEqualTo("Alt for B");
     }
 
     @Test

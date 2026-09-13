@@ -1,24 +1,157 @@
-    <h2 mat-dialog-title>{{ data.title || 'Select Asset' }}</h2>
-    <mat-dialog-content>
-      <div class="picker-toolbar">
-        <button mat-stroked-button color="primary" (click)="uploadNew()">
-          <mat-icon>cloud_upload</mat-icon> Upload New
-        </button>
-      </div>
+    <h2 mat-dialog-title class="dialog-title">
+      <mat-icon class="title-icon">image</mat-icon>
+      <span>{{ data.title || 'Select Asset' }}</span>
+    </h2>
 
-      <app-paginated-table
-        #pickerTable
-        [fetcher]="fetcher"
-        [columns]="columns"
-        [actionsTemplate]="selectTmpl"
-        searchPlaceholder="Search assets..."
-        [defaultPageSize]="10"
-      ></app-paginated-table>
+    <mat-dialog-content class="picker-dialog-content">
+      <mat-tab-group
+        [(selectedIndex)]="selectedTabIndex"
+        (selectedIndexChange)="onTabChange($event)"
+        animationDuration="200ms"
+        class="picker-tab-group"
+      >
+        <!-- TAB 1: ASSET LIBRARY -->
+        <mat-tab>
+          <ng-template mat-tab-label>
+            <mat-icon class="tab-label-icon">photo_library</mat-icon>
+            Asset Library
+          </ng-template>
 
-      <ng-template #selectTmpl let-row>
-        <button mat-raised-button color="primary" (click)="select(row)">Select</button>
-      </ng-template>
+          <div class="tab-body">
+            <div class="picker-toolbar">
+              <button mat-stroked-button color="primary" type="button" (click)="uploadNew()">
+                <mat-icon>cloud_upload</mat-icon> Upload New Asset
+              </button>
+            </div>
+
+            <app-paginated-table
+              #pickerTable
+              [fetcher]="fetcher"
+              [columns]="columns"
+              [actionsTemplate]="selectTmpl"
+              searchPlaceholder="Search assets by filename..."
+              [defaultPageSize]="10"
+            ></app-paginated-table>
+
+            <ng-template #selectTmpl let-row>
+              <button mat-raised-button color="primary" size="small" (click)="select(row)">
+                <mat-icon>check</mat-icon> Select
+              </button>
+            </ng-template>
+          </div>
+        </mat-tab>
+
+        <!-- TAB 2: UPLOAD NOW -->
+        <mat-tab>
+          <ng-template mat-tab-label>
+            <mat-icon class="tab-label-icon">cloud_upload</mat-icon>
+            Upload Now
+          </ng-template>
+
+          <div class="tab-body upload-tab-content">
+            <!-- Drop Zone -->
+            <div
+              class="drop-zone"
+              [class.drag-over]="dragOver"
+              [class.has-file]="!!selectedFile"
+              (dragover)="onDragOver($event)"
+              (dragleave)="dragOver = false"
+              (drop)="onDrop($event)"
+              (click)="fileInput.click()"
+            >
+              <input
+                #fileInput
+                type="file"
+                hidden
+                (change)="onFileSelected($event)"
+                [accept]="acceptedTypes"
+              />
+
+              <!-- Preview when image file is selected -->
+              <div *ngIf="selectedFile && previewUrl" class="image-preview-wrapper" (click)="$event.stopPropagation()">
+                <img [src]="previewUrl" alt="Upload preview" class="preview-image" />
+              </div>
+
+              <mat-icon class="upload-icon">{{ selectedFile ? 'check_circle' : 'cloud_upload' }}</mat-icon>
+
+              <div *ngIf="!selectedFile" class="drop-text">
+                <p class="primary-text">Drag & drop a file here, or <span class="browse-link">browse</span></p>
+                <span class="hint">{{ acceptedHint }}</span>
+              </div>
+
+              <div *ngIf="selectedFile" class="file-details">
+                <p class="file-info">{{ selectedFile.name }} ({{ formatSize(selectedFile.size) }})</p>
+                <button
+                  mat-button
+                  color="warn"
+                  type="button"
+                  class="btn-remove-file"
+                  (click)="$event.stopPropagation(); clearSelectedFile()"
+                >
+                  <mat-icon>close</mat-icon> Remove File
+                </button>
+              </div>
+            </div>
+
+            <!-- Upload metadata fields -->
+            <div *ngIf="selectedFile" class="upload-metadata-form">
+              <mat-form-field appearance="outline" class="full-width">
+                <mat-label>Alt Text / Description (for accessibility)</mat-label>
+                <input
+                  matInput
+                  [(ngModel)]="customAltText"
+                  placeholder="e.g. Right angle triangle diagram with height h"
+                />
+              </mat-form-field>
+
+              <mat-form-field appearance="outline" class="full-width">
+                <mat-label>Title</mat-label>
+                <input
+                  matInput
+                  [(ngModel)]="customTitle"
+                  placeholder="Asset title"
+                />
+              </mat-form-field>
+            </div>
+
+            <!-- Progress & Error Feedback -->
+            <div *ngIf="uploading" class="upload-progress-container">
+              <mat-progress-bar mode="determinate" [value]="uploadProgress"></mat-progress-bar>
+              <span class="progress-label">Uploading... {{ uploadProgress }}%</span>
+            </div>
+
+            <p *ngIf="uploadError" class="error-msg">
+              <mat-icon>error_outline</mat-icon>
+              <span>{{ uploadError }}</span>
+            </p>
+
+            <!-- Upload Action Footer -->
+            <div class="upload-actions">
+              <button
+                mat-button
+                type="button"
+                (click)="selectedTabIndex = 0"
+                [disabled]="uploading"
+              >
+                Back to Library
+              </button>
+              <button
+                mat-raised-button
+                color="primary"
+                type="button"
+                [disabled]="!selectedFile || uploading"
+                (click)="uploadAndSelect()"
+              >
+                <mat-spinner *ngIf="uploading" diameter="18" class="btn-spinner"></mat-spinner>
+                <mat-icon *ngIf="!uploading">upload</mat-icon>
+                <span>{{ uploading ? 'Uploading...' : 'Upload & Insert' }}</span>
+              </button>
+            </div>
+          </div>
+        </mat-tab>
+      </mat-tab-group>
     </mat-dialog-content>
-    <mat-dialog-actions align="end">
-      <button mat-button (click)="dialogRef.close()">Cancel</button>
+
+    <mat-dialog-actions align="end" class="dialog-actions">
+      <button mat-button type="button" [disabled]="uploading" (click)="dialogRef.close()">Close</button>
     </mat-dialog-actions>

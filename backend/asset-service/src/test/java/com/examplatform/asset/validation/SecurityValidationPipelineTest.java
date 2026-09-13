@@ -59,6 +59,9 @@ class SecurityValidationPipelineTest {
     @Mock
     private MagicNumberValidator magicNumberValidator;
 
+    @Mock
+    private SvgSanitizer svgSanitizer;
+
     @InjectMocks
     private SecurityValidationPipeline pipeline;
 
@@ -96,6 +99,32 @@ class SecurityValidationPipelineTest {
             verify(fileSizeValidator).validate(size);
             verify(mimeValidator).validate(contentType);
             verify(magicNumberValidator).validateAndDetect(any(), eq(contentType), eq("test_photo.png"));
+        }
+
+        @Test
+        @DisplayName("runs SVG sanitizer for SVG assets")
+        void runsSvgSanitizerForSvg() {
+            // Given
+            String filename = "diagram.svg";
+            String contentType = "image/svg+xml";
+            long size = 512L;
+            InputStream content = new ByteArrayInputStream(new byte[10]);
+
+            when(filenameSanitizer.sanitize(filename)).thenReturn("diagram.svg");
+            when(filenameSanitizer.extractExtension("diagram.svg")).thenReturn("svg");
+            doNothing().when(fileSizeValidator).validate(size);
+            when(mimeValidator.validate(contentType)).thenReturn(AssetType.SVG);
+            when(magicNumberValidator.validateAndDetect(any(InputStream.class), eq(contentType), eq("diagram.svg")))
+                    .thenReturn("image/svg+xml");
+            doNothing().when(svgSanitizer).validate(content);
+
+            // When
+            SecurityValidationPipeline.ValidationResult result =
+                    pipeline.validate(filename, contentType, size, content);
+
+            // Then
+            assertThat(result.getAssetType()).isEqualTo(AssetType.SVG);
+            verify(svgSanitizer).validate(content);
         }
 
         @Test

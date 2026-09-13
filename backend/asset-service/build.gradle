@@ -47,6 +47,10 @@ dependencies {
     implementation libs.spring.boot.starter.flyway
     runtimeOnly libs.flyway.database.postgresql
 
+    // AWS SDK v2 (S3 Storage Provider)
+    implementation platform(libs.aws.bom)
+    implementation libs.aws.s3
+
     // Kafka (audit events)
     implementation libs.spring.kafka
 

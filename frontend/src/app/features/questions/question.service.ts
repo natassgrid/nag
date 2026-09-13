@@ -21,6 +21,14 @@ import { Injectable } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable, map } from 'rxjs';
 
+export interface QuestionOptionDto {
+  id: string;
+  text: string;
+  isCorrect: boolean;
+  imageUrl?: string;
+  imageAltText?: string;
+}
+
 export interface QuestionResponse {
   id: string;
   subjectId: number;
@@ -36,10 +44,11 @@ export interface QuestionResponse {
   content: string;
   answerKey: string;
   explanation?: string;
+  hasImages?: boolean;
   state: string;
   authorId: string;
   createdAt: string;
-  options?: { id: string; text: string; isCorrect: boolean }[];
+  options?: QuestionOptionDto[];
 }
 
 export interface CreateQuestionRequest {
@@ -57,7 +66,8 @@ export interface CreateQuestionRequest {
   content: string;
   answerKey?: string;
   explanation?: string;
-  options?: { id: string; text: string; isCorrect: boolean }[];
+  hasImages?: boolean;
+  options?: QuestionOptionDto[];
   references?: string;
   chapter?: string;
 }
@@ -116,7 +126,7 @@ export interface GeneratedQuestion {
   content: string;
   answerKey: string;
   explanation: string;
-  options?: { id: string; text: string; isCorrect: boolean }[];
+  options?: QuestionOptionDto[];
   difficulty: string;
   cognitiveLevel: string;
   questionType: string;

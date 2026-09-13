@@ -336,6 +336,7 @@ export interface QuestionOption {
   index: number;
   text: string;
   imageUrl?: string;
+  imageAltText?: string;
   isCorrect?: boolean;
 }
 
@@ -343,6 +344,7 @@ export interface QuestionDto {
   id: string;                   // UUID
   text: string;
   imageUrl?: string;
+  imageAltText?: string;
   options: QuestionOption[];
   marks: number;
   negativeMarks: number;

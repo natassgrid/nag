@@ -27,6 +27,7 @@ import com.examplatform.questionbank.domain.enums.CognitiveLevel;
 import com.examplatform.questionbank.domain.enums.DifficultyLevel;
 import com.examplatform.questionbank.domain.enums.QuestionType;
 import com.examplatform.questionbank.dto.CreateQuestionRequest;
+import com.examplatform.questionbank.dto.QuestionOption;
 import com.examplatform.questionbank.dto.QuestionResponse;
 import com.examplatform.questionbank.repository.QuestionRepository;
 import com.examplatform.questionbank.repository.SubjectRepository;
@@ -45,6 +46,7 @@ import org.mockito.Mockito;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.time.Instant;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -315,6 +317,62 @@ class QuestionServiceTest {
             assertThatThrownBy(() -> questionService.createQuestion(request, authorId, tenantId))
                     .isInstanceOf(IllegalArgumentException.class)
                     .hasMessageContaining("supported types");
+        }
+
+        @Test
+        @DisplayName("should set hasImages to false when content and options have no images")
+        void shouldSetHasImagesFalseWhenNoImages() {
+            CreateQuestionRequest request = validRequest();
+            when(questionRepository.save(any(Question.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+            QuestionResponse response = questionService.createQuestion(request, UUID.randomUUID(), "tenant-abc");
+
+            assertThat(response.isHasImages()).isFalse();
+            ArgumentCaptor<Question> captor = ArgumentCaptor.forClass(Question.class);
+            verify(questionRepository).save(captor.capture());
+            assertThat(captor.getValue().isHasImages()).isFalse();
+        }
+
+        @Test
+        @DisplayName("should set hasImages to true when content contains markdown image syntax")
+        void shouldSetHasImagesTrueWhenContentHasMarkdownImage() {
+            CreateQuestionRequest request = validRequest();
+            request.setContent("<p>Look at diagram: ![circuit](https://cdn.example.com/c1.svg)</p>");
+            when(questionRepository.save(any(Question.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+            QuestionResponse response = questionService.createQuestion(request, UUID.randomUUID(), "tenant-abc");
+
+            assertThat(response.isHasImages()).isTrue();
+            ArgumentCaptor<Question> captor = ArgumentCaptor.forClass(Question.class);
+            verify(questionRepository).save(captor.capture());
+            assertThat(captor.getValue().isHasImages()).isTrue();
+        }
+
+        @Test
+        @DisplayName("should set hasImages to true when content contains img tag")
+        void shouldSetHasImagesTrueWhenContentHasImgTag() {
+            CreateQuestionRequest request = validRequest();
+            request.setContent("<p><img src=\"https://cdn.example.com/photo.png\" alt=\"cell\" /></p>");
+            when(questionRepository.save(any(Question.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+            QuestionResponse response = questionService.createQuestion(request, UUID.randomUUID(), "tenant-abc");
+
+            assertThat(response.isHasImages()).isTrue();
+        }
+
+        @Test
+        @DisplayName("should set hasImages to true when an option has imageUrl")
+        void shouldSetHasImagesTrueWhenOptionHasImageUrl() {
+            CreateQuestionRequest request = validRequest();
+            request.setOptions(List.of(
+                    QuestionOption.builder().id("A").text("Option A").correct(true).build(),
+                    QuestionOption.builder().id("B").imageUrl("https://cdn.example.com/opt-b.svg").correct(false).build()
+            ));
+            when(questionRepository.save(any(Question.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+            QuestionResponse response = questionService.createQuestion(request, UUID.randomUUID(), "tenant-abc");
+
+            assertThat(response.isHasImages()).isTrue();
         }
     }
 }
