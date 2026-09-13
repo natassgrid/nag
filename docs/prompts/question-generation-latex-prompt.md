@@ -1,26 +1,41 @@
 # AI Question Generation Prompt & Knowledge Specification (LaTeX Math Standard)
 
-This document provides the standardized **System Prompt**, **User Prompt template**, **JSON Schema**, and **LaTeX `$$...$$` syntax rules** for generating high-quality examination questions for the National Assessment Grid (NAG).
+This document provides the standardized **System Prompt**, **User Prompt template**, **JSON Schema**, **LaTeX `$$...$$` syntax rules**, and **Markdown newline formatting guidelines** for generating high-quality examination questions for the National Assessment Grid (NAG).
 
 ---
 
-## 1. Core LaTeX Math Rule
+## 1. Core LaTeX Math & Percentage Rules
 
 > [!IMPORTANT]
 > **Strict Delimiter Syntax:**
-> - **ALL** mathematical formulas, equations, expressions, variables, fractions, square roots, matrices, exponents, and unit notations in **EVERY** field (`content`, `options[].text`, `answerKey`, and `explanation`) **MUST** use `$$ ... $$` delimiters.
+> - **ALL** mathematical formulas, equations, expressions, variables, fractions, square roots, matrices, exponents, percentages, and unit notations in **EVERY** field (`content`, `options[].text`, `answerKey`, and `explanation`) **MUST** use `$$ ... $$` delimiters.
 > - **NEVER** use `\( ... \)` or `\[ ... \]` or single `$ ... $`.
+> - **Percentage Signs in LaTeX**: Because `%` denotes a LaTeX comment, inside `$$ ... $$` you MUST write `\%` or `\text{%}` (e.g. `$$99.9\%$$`, `$$25\%$$`).
 >
 > **Examples:**
 > - Inline variable: `$$x$$`, `$$\theta$$`, `$$\alpha$$`
 > - Fraction: `$$\frac{-b \pm \sqrt{b^2 - 4ac}}{2a}$$`
 > - Exponent / Index: `$$x^3 + \frac{1}{x^3} = 110$$`
+> - Percentages: `$$99.9\%$$`, `$$75.5\%$$`
 > - Integral: `$$\int_{0}^{\frac{\pi}{2}} \sin^2(x)\, dx = \frac{\pi}{4}$$`
 > - Metric units with math: `$$75(\sqrt{3} - 1)\text{ m}$$`, `$$11.2\text{ km/s}$$`
 
 ---
 
-## 2. Reusable System Prompt Template
+## 2. Markdown, Tables & Newline Formatting Rules
+
+1. **Newlines**:
+   - In JSON strings, literal newlines are encoded as `\n`.
+   - Separate major sections (e.g. `**Statements:**` and `**Conclusions:**`) with double newlines (`\n\n`) for clean paragraph rendering.
+   - Separate individual numbered items with single newlines (`\n1. ...\n2. ...`).
+2. **Markdown Bold & Structure**:
+   - Use `**Statements:**` and `**Conclusions:**` for syllogisms and logical reasoning stems.
+3. **Data Interpretation Tables**:
+   - Format tabular data using Markdown pipe tables with double newline separation from the question prompt.
+
+---
+
+## 3. Reusable System Prompt Template
 
 ```markdown
 You are an expert examination question generator for national-level Indian competitive examinations (SSC CGL, IBPS PO, RRB NTPC, CTET, UPSC CSE, JEE/NEET).
@@ -28,18 +43,22 @@ You generate rigorous, high-quality questions formatted in strict JSON.
 
 ### Formatting & Syntax Rules:
 1. Content and formulas:
-   - For all mathematical, chemical, and physical formulas, expressions, numbers with units, and variables, you MUST enclose them in $$ ... $$ LaTeX syntax.
+   - For all mathematical, chemical, and physical formulas, expressions, numbers with units, percentages, and variables, you MUST enclose them in $$ ... $$ LaTeX syntax.
+   - For percentage symbols in LaTeX math mode, always use \% (e.g. $$99.9\%$$).
    - Example: "If $$x + \frac{1}{x} = 5$$, find the value of $$x^3 + \frac{1}{x^3}$$."
    - DO NOT use \( ... \) or \[ ... \] or single $.
-2. Option structure:
+2. Markdown & Newlines:
+   - Format multi-line prompts (such as statements and conclusions, passages, or tables) using standard GitHub Flavored Markdown.
+   - Use double newlines (\n\n) between headings and paragraphs, and single newlines (\n) between numbered list items.
+3. Option structure:
    - For SINGLE_MCQ: Exactly 4 options with ids "A", "B", "C", "D". Exactly ONE option has "isCorrect": true, and the other three have "isCorrect": false. The "answerKey" must be the matching option ID ("A", "B", "C", or "D").
    - For MULTI_MCQ: Exactly 4 options (A, B, C, D) where 2 or more options have "isCorrect": true.
    - For NUMERICAL: "options" is null or empty array, and "answerKey" contains the numeric string value.
    - For DESCRIPTIVE: "options" is null, and "answerKey" contains the comprehensive model solution.
-3. Language: English only.
-4. Explanations:
-   - Provide step-by-step mathematical or logical derivations in the "explanation" field using $$...$$ LaTeX syntax.
-5. Novelty:
+4. Language: English only.
+5. Explanations:
+   - Provide step-by-step mathematical or logical derivations in the "explanation" field using $$...$$ LaTeX syntax and clear line breaks.
+6. Novelty:
    - Generate unique and original questions; do not duplicate referenced context verbatim.
 
 ### Output Format:
@@ -48,14 +67,14 @@ Return ONLY a valid JSON array of question objects without markdown wrapping or 
 
 ---
 
-## 3. JSON Output Schema
+## 4. JSON Output Schema
 
 ```json
 [
   {
-    "content": "Question stem text with $$LaTeX$$ notation",
+    "content": "Question stem text with $$LaTeX$$ notation and \\n\\n markdown line breaks",
     "answerKey": "A",
-    "explanation": "Step-by-step solution with $$LaTeX$$ equations",
+    "explanation": "Step-by-step solution with $$LaTeX$$ equations and \\n derivations",
     "options": [
       {"id": "A", "text": "$$\\text{Option A value}$$", "isCorrect": true},
       {"id": "B", "text": "$$\\text{Option B value}$$", "isCorrect": false},
@@ -73,7 +92,7 @@ Return ONLY a valid JSON array of question objects without markdown wrapping or 
 
 ---
 
-## 4. Reusable User Prompt Template
+## 5. Reusable User Prompt Template
 
 ```markdown
 Generate {count} question(s) with the following specifications:
@@ -92,7 +111,7 @@ Generate the questions now as a valid JSON array:
 
 ---
 
-## 5. Exemplar JSON Questions
+## 6. Exemplar JSON Questions
 
 ### Example 1: Quantitative Aptitude (Algebra / Cubic Identity)
 ```json
@@ -114,7 +133,27 @@ Generate the questions now as a valid JSON array:
 }
 ```
 
-### Example 2: Trigonometry & Heights and Distances
+### Example 2: General Intelligence & Reasoning (Statements & Conclusions with LaTeX & Newlines)
+```json
+{
+  "content": "**Statements:**\\n1. All quantum computers capable of Shor's algorithm ($$Q$$) require coherent qubits with fidelity exceeding $$99.9\\%$$ ($$F$$).\\n2. No noisy intermediate-scale quantum ($$NISQ$$) system achieves coherent qubit fidelity exceeding $$99.9\\%$$.\\n3. System $$\\Psi$$ is a $$NISQ$$ system.\\n\\n**Conclusions:**\\nI. System $$\\Psi$$ does not have coherent qubit fidelity exceeding $$99.9\\%$$.\\nII. System $$\\Psi$$ is not capable of executing Shor's algorithm for large integers.",
+  "answerKey": "C",
+  "explanation": "1. From Statement 2 and Statement 3: Since $$\\Psi$$ is a $$NISQ$$ system, and no $$NISQ$$ system achieves fidelity $$> 99.9\\%$$, it follows directly that $$\\Psi$$ has fidelity $$\\le 99.9\\%$$. Thus Conclusion I holds.\\n2. From Statement 1, capability of Shor's algorithm ($$Q$$) requires fidelity $$> 99.9\\%$$ ($$F$$), i.e., $$Q \\implies F$$. By contrapositive, $$\\neg F \\implies \\neg Q$$. Since $$\\Psi$$ has $$\\neg F$$, it cannot be capable of Shor's algorithm ($$\\neg Q$$). Thus Conclusion II also holds.\\nBoth Conclusions I and II follow.",
+  "options": [
+    {"id": "A", "text": "Only Conclusion I follows", "isCorrect": false},
+    {"id": "B", "text": "Only Conclusion II follows", "isCorrect": false},
+    {"id": "C", "text": "Both Conclusion I and Conclusion II follow", "isCorrect": true},
+    {"id": "D", "text": "Neither Conclusion I nor Conclusion II follows", "isCorrect": false}
+  ],
+  "difficulty": "HARD",
+  "cognitiveLevel": "ANALYZE",
+  "questionType": "SINGLE_MCQ",
+  "chapter": "Logical Deductions and Syllogisms",
+  "references": "General Intelligence and Reasoning / SSC CGL Tier-1"
+}
+```
+
+### Example 3: Trigonometry & Heights and Distances
 ```json
 {
   "content": "From the top of a $$75\\text{ m}$$ high lighthouse above sea level, the angles of depression of two ships are $$30^\\circ$$ and $$45^\\circ$$. If one ship is directly behind the other on the same side of the lighthouse, what is the distance between the two ships?",
@@ -134,29 +173,9 @@ Generate the questions now as a valid JSON array:
 }
 ```
 
-### Example 3: Statistics & Empirical Relations
-```json
-{
-  "content": "In a moderately skewed frequency distribution, if the mean is $$28.4$$ and the median is $$27.2$$, what is the empirical mode of the distribution?",
-  "answerKey": "A",
-  "explanation": "Using Pearson's empirical formula relating measures of central tendency: $$\\text{Mode} = 3(\\text{Median}) - 2(\\text{Mean})$$. Substituting: $$\\text{Mode} = 3(27.2) - 2(28.4) = 81.6 - 56.8 = 24.8$$.",
-  "options": [
-    {"id": "A", "text": "$$24.8$$", "isCorrect": true},
-    {"id": "B", "text": "$$25.6$$", "isCorrect": false},
-    {"id": "C", "text": "$$26.4$$", "isCorrect": false},
-    {"id": "D", "text": "$$29.6$$", "isCorrect": false}
-  ],
-  "difficulty": "EASY",
-  "cognitiveLevel": "REMEMBER",
-  "questionType": "SINGLE_MCQ",
-  "chapter": "Measures of Central Tendency",
-  "references": "NCERT Class 10 Statistics"
-}
-```
-
 ---
 
-## 6. Seed Examination to Subject Mapping Matrix
+## 7. Seed Examination to Subject Mapping Matrix
 
 | Examination Name | Exam ID | Mapped Subject(s) | Key Mathematical Topics |
 |---|---|---|---|

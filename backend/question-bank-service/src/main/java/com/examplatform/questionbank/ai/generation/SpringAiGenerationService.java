@@ -118,26 +118,28 @@ public class SpringAiGenerationService implements QuestionGenerationService {
             // Validate schema + answer
             QuestionGenerationResponse.ValidationResult validation = validateQuestion(raw, request.getQuestionType());
 
-            // Duplicate detection
-            QuestionGenerationResponse.DuplicateResult duplicateResult = null;
-            if (validation.isValid() && request.isAvoidDuplicate()) {
-                duplicateResult = checkDuplicate(raw.content, request.getSubject(), tenantId);
-                if (duplicateResult != null) {
-                    totalDuplicates++;
-                }
+            // Check duplicate against question bank
+            QuestionGenerationResponse.DuplicateResult duplicate = null;
+            if (validation.isValid()) {
+                duplicate = checkDuplicate(raw.content, request.getSubject(), tenantId);
             }
 
-            if (validation.isValid()) {
+            boolean isDuplicate = duplicate != null;
+            if (validation.isValid() && !isDuplicate) {
                 totalValid++;
             }
+            if (isDuplicate) {
+                totalDuplicates++;
+            }
 
-            // Auto-save if valid, not duplicate, and autoSave enabled
+            // Auto-save valid, non-duplicate questions as DRAFT
             UUID savedId = null;
-            if (request.isAutoSave() && validation.isValid() && duplicateResult == null) {
+            if (validation.isValid() && !isDuplicate && Boolean.TRUE.equals(request.getAutoSave())) {
                 savedId = persistAsDraft(raw, request, tenantId, authorId);
             }
 
             processedQuestions.add(QuestionGenerationResponse.GeneratedQuestion.builder()
+                    .id(savedId)
                     .content(raw.content)
                     .answerKey(raw.answerKey)
                     .explanation(raw.explanation)
@@ -146,36 +148,44 @@ public class SpringAiGenerationService implements QuestionGenerationService {
                     .cognitiveLevel(raw.cognitiveLevel != null ? raw.cognitiveLevel : request.getCognitiveLevel())
                     .questionType(raw.questionType != null ? raw.questionType : request.getQuestionType())
                     .validation(validation)
-                    .duplicate(duplicateResult)
-                    .savedQuestionId(savedId)
+                    .duplicate(duplicate)
                     .build());
         }
 
-        log.info("Generation complete: total={}, valid={}, duplicates={}, model={}",
+        log.info("Question generation completed: total={}, valid={}, duplicates={}, model={}",
                 totalGenerated, totalValid, totalDuplicates, modelName);
 
         return QuestionGenerationResponse.builder()
                 .questions(processedQuestions)
-                .modelUsed(modelName)
                 .totalGenerated(totalGenerated)
                 .totalValid(totalValid)
                 .totalDuplicates(totalDuplicates)
+                .modelUsed(modelName)
                 .build();
     }
 
     /**
-     * Retrieves top-K similar existing questions for RAG context.
-     * Generates an embedding of the topic/subtopic to query pgvector.
+     * Retrieves top-K similar existing questions using pgvector embeddings.
      */
     private List<SimilarityResult> retrieveRagContext(QuestionGenerationRequest request, String tenantId) {
         try {
-            String queryText = request.getTopic()
-                    + (request.getSubtopic() != null ? " " + request.getSubtopic() : "");
-            float[] queryEmbedding = embeddingService.embed(queryText);
-            String embeddingStr = EmbeddingUtils.embeddingToString(queryEmbedding);
+            // Generate query text from subject + topic + subtopic
+            StringBuilder queryBuilder = new StringBuilder();
+            queryBuilder.append(request.getSubject()).append(" ").append(request.getTopic());
+            if (request.getSubtopic() != null && !request.getSubtopic().isBlank()) {
+                queryBuilder.append(" ").append(request.getSubtopic());
+            }
 
-            return questionRepository.findTopSimilarQuestions(
-                    embeddingStr, request.getSubject(), tenantId, RAG_TOP_K);
+            float[] embedding = embeddingService.embed(queryBuilder.toString());
+            if (embedding == null || embedding.length == 0) {
+                log.warn("Empty embedding generated for RAG query, proceeding without context");
+                return List.of();
+            }
+
+            return questionRepository.findSimilarQuestions(
+                    EmbeddingUtils.embeddingToString(embedding),
+                    request.getSubject(),
+                    RAG_TOP_K);
         } catch (Exception e) {
             log.warn("Failed to retrieve RAG context, proceeding without it: {}", e.getMessage());
             return List.of();
@@ -190,24 +200,27 @@ public class SpringAiGenerationService implements QuestionGenerationService {
                 You are an expert examination question generator for Indian competitive examinations.
                 You generate high-quality questions in structured JSON format.
                 
-                Rules:
+                Formatting & Syntax Rules:
                 - Generate questions strictly matching the specified type, difficulty, and cognitive level.
-                - Content may include plain text, LaTeX math ($$...$$), and inline SVG diagrams.
-                - ALL LaTeX math, in EVERY field (content, options, answerKey, and explanation), MUST be delimited with $$...$$. Never use \\( ... \\) or \\[ ... \\] delimiters.
+                - ALL mathematical, physical, and chemical formulas, expressions, variables, percentages, and unit notations in EVERY field (content, options, answerKey, and explanation) MUST be enclosed in $$...$$ LaTeX syntax.
+                - NEVER use \\( ... \\) or \\[ ... \\] or single $.
+                - In LaTeX math mode ($$...$$), always write percentage symbols as \\% (e.g. $$99.9\\%$$).
+                - Use standard Markdown for multi-line formatting (e.g. **Statements:**, **Conclusions:**, tables).
+                - Use double newlines (\\n\\n) to separate headings and paragraphs, and single newlines (\\n) between numbered statement items.
                 - For MCQ (SINGLE_MCQ): exactly 4 options with ids A, B, C, D. Set "isCorrect": true on EXACTLY ONE option and "isCorrect": false on the other three. The "answerKey" must be the id (A/B/C/D) of the correct option.
                 - For MSQ (MULTI_MCQ): exactly 4 options (A, B, C, D), 2 or more correct.
                 - For NUMERICAL: no options, answerKey is the numeric value.
                 - For DESCRIPTIVE: no options, answerKey contains the model answer.
                 - Always provide a clear explanation for the correct answer.
                 - Do NOT repeat questions from the provided context — generate novel questions.
-                - Use only english language
+                - Use only english language.
                 
                 Output ONLY a JSON array of question objects. No markdown, only English language, no explanation outside JSON.
                 Each question object must have these fields:
                 {
-                  "content": "question text (may include $$LaTeX$$ or <svg>)",
+                  "content": "question text (may include $$LaTeX$$ or <svg> and \\n line breaks)",
                   "answerKey": "correct answer key or value",
-                  "explanation": "explanation of the correct answer",
+                  "explanation": "explanation of the correct answer with $$LaTeX$$",
                   "options": [{"id": "A", "text": "option text", "isCorrect": true}, {"id": "B", "text": "option text", "isCorrect": false}, {"id": "C", "text": "option text", "isCorrect": false}, {"id": "D", "text": "option text", "isCorrect": false}],
                   "difficulty": "EASY|MEDIUM|HARD",
                   "cognitiveLevel": "REMEMBER|UNDERSTAND|APPLY|ANALYZE|EVALUATE|CREATE",
@@ -337,8 +350,8 @@ public class SpringAiGenerationService implements QuestionGenerationService {
             return text;
         }
         return text
-                .replaceAll("(?s)\\\\\\((.*?)\\\\\\)", "\\$\\$$1\\$\\$")
-                .replaceAll("(?s)\\\\\\[(.*?)\\\\\\]", "\\$\\$$1\\$\\$");
+                .replaceAll("(?s)\\\\\\\\((.*?)\\\\\\\\)", "\\$\\$$1\\$\\$")
+                .replaceAll("(?s)\\\\\\\\\\[(.*?)\\\\\\\\\\]", "\\$\\$$1\\$\\$");
     }
 
     /**

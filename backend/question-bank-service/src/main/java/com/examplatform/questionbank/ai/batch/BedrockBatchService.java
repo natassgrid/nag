@@ -52,7 +52,7 @@ import java.util.UUID;
  *
  * <p>Multiple generation items (each with subject/topic/difficulty/type/count) are combined
  * into a single JSONL file, uploaded to S3, and processed as one Bedrock batch job.
- * This minimizes cost by avoiding per-job overhead charges.
+ * This minimizes cost by avoiding per-job overhead charges.</p>
  */
 @Slf4j
 @Service
@@ -148,49 +148,45 @@ public class BedrockBatchService {
                             .build());
 
             saved.setStatus(BatchJobStatus.PROCESSING);
-            saved.setStartedAt(Instant.now());
             saved.setBedrockJobArn(bedrockResponse.jobArn());
+            saved.setS3InputUri(s3InputUri);
+            saved.setS3OutputUri(s3OutputUri);
+            saved.setStartedAt(Instant.now());
             jobRepository.save(saved);
 
-            log.info("Bedrock batch job created: id={}, items={}, totalQuestions={}, arn={}",
-                    saved.getId(), itemsList.size(), totalRequested, bedrockResponse.jobArn());
+            log.info("Bedrock batch job submitted: id={}, arn={}, model={}, items={}",
+                    saved.getId(), bedrockResponse.jobArn(), modelId, itemsList.size());
+
+            return BatchJobResponse.from(saved);
 
         } catch (Exception e) {
-            log.error("Failed to submit Bedrock batch job: {}", e.getMessage(), e);
+            log.error("Failed to submit Bedrock batch job for job={}: {}", saved.getId(), e.getMessage(), e);
             saved.setStatus(BatchJobStatus.FAILED);
-            saved.setErrorMessage("Failed to submit: " + e.getMessage());
+            saved.setErrorMessage(e.getMessage());
             saved.setCompletedAt(Instant.now());
             jobRepository.save(saved);
+            return BatchJobResponse.from(saved);
         }
-
-        return BatchJobResponse.from(saved);
     }
 
     /**
-     * Builds one JSONL file with one record per batch item.
-     * Each record has a unique recordId (REC-0000, REC-0001, ...) used to
-     * correlate results back to items.
+     * Builds JSONL content for Bedrock Batch Inference.
+     * Each line is a JSON object with recordId and modelInput (Converse API format for Nova/Claude).
      */
     private String buildJsonlInput(List<BatchGenerationRequest.BatchItem> items) {
         StringBuilder jsonl = new StringBuilder();
 
         for (int i = 0; i < items.size(); i++) {
             BatchGenerationRequest.BatchItem item = items.get(i);
-            String recordId = "REC-" + String.format("%04d", i);
+            String recordId = String.format("REC-%04d", i);
 
             String systemPrompt = buildSystemPrompt(item);
             String userPrompt = buildUserPrompt(item);
             String modelInput = buildModelInput(systemPrompt, userPrompt);
 
-            try {
-                JsonNode inputNode = objectMapper.readTree(modelInput);
-                var record = objectMapper.createObjectNode();
-                record.put("recordId", recordId);
-                record.set("modelInput", inputNode);
-                jsonl.append(objectMapper.writeValueAsString(record)).append("\n");
-            } catch (Exception e) {
-                log.error("Failed to build JSONL record {}: {}", recordId, e.getMessage());
-            }
+            // Bedrock batch JSONL line format: {"recordId": "...", "modelInput": {...}}
+            jsonl.append("{\"recordId\": \"").append(recordId).append("\", ")
+                    .append("\"modelInput\": ").append(modelInput.strip()).append("}\n");
         }
 
         return jsonl.toString();
@@ -215,13 +211,18 @@ public class BedrockBatchService {
     private String buildSystemPrompt(BatchGenerationRequest.BatchItem item) {
         return "You are an expert examination question generator for Indian competitive examinations. "
                 + "Generate high-quality questions in structured JSON format. "
-                + "Rules: "
+                + "Formatting & Syntax Rules: "
                 + "- Generate questions strictly matching the specified type, difficulty, and cognitive level. "
-                + "- For MCQ (SINGLE_MCQ): exactly 4 options with ids A, B, C, D. Set isCorrect:true on EXACTLY ONE. answerKey must be the correct option id. "
+                + "- ALL mathematical, physical, and chemical formulas, expressions, variables, percentages, and unit notations in EVERY field (content, options, answerKey, and explanation) MUST be enclosed in $$...$$ LaTeX syntax. "
+                + "- NEVER use \\( ... \\) or \\[ ... \\] or single $. "
+                + "- In LaTeX math mode ($$...$$), always write percentage symbols as \\% (e.g. $$99.9\\%$$). "
+                + "- Use standard Markdown for multi-line formatting (e.g. **Statements:**, **Conclusions:**, tables). "
+                + "- Use double newlines (\\n\\n) to separate headings and paragraphs, and single newlines (\\n) between numbered statement items. "
+                + "- For MCQ (SINGLE_MCQ): exactly 4 options with ids A, B, C, D. Set isCorrect:true on EXACTLY ONE option and isCorrect:false on the other three. answerKey must be the id (A/B/C/D) of the correct option. "
                 + "- For MSQ (MULTI_MCQ): exactly 4 options (A, B, C, D), 2 or more correct. "
                 + "- For NUMERICAL: no options, answerKey is the numeric value. "
                 + "- For DESCRIPTIVE: no options, answerKey contains the model answer. "
-                + "- Always provide a clear explanation. "
+                + "- Always provide a clear, step-by-step explanation. "
                 + "- Each question MUST be unique and test a DIFFERENT concept. "
                 + "- Use only English language. "
                 + "Output ONLY a JSON array of question objects with fields: content, answerKey, explanation, options (for MCQ), difficulty, cognitiveLevel, questionType.";
@@ -250,7 +251,7 @@ public class BedrockBatchService {
         }
     }
 
-    // ─── Polling & Result Processing ─────────────────────────────────────────────
+    // ─── Polling & Result Processing ──────────────────────────────────────────
 
     @Scheduled(fixedDelay = 30000)
     @Transactional
