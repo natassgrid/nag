@@ -58,4 +58,29 @@ public class QuestionAnalyticsResult {
      * value is the number of candidates who selected that option.
      */
     private Map<String, Integer> responseDistribution;
+
+    /**
+     * Average time spent on this question across all candidates (milliseconds).
+     */
+    private double avgTimeSpentMs;
+
+    /**
+     * Total number of candidates who attempted this question.
+     */
+    private int totalAttempted;
+
+    /**
+     * Total number of candidates who answered correctly.
+     */
+    private int totalCorrect;
+
+    /**
+     * LaTeX step-by-step solution explanation for this question.
+     */
+    private String solutionExplanation;
+
+    /**
+     * The correct answer (option IDs or numerical value).
+     */
+    private String correctAnswer;
 }

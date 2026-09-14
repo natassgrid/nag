@@ -114,4 +114,16 @@ public class Response extends BaseEntity {
      */
     @Column(name = "is_final", nullable = false)
     private boolean isFinal;
+
+    @Column(name = "client_ip", length = 45)
+    private String clientIp;
+
+    @Column(name = "user_agent", columnDefinition = "text")
+    private String userAgent;
+
+    @Column(name = "focus_loss_count", nullable = false)
+    private int focusLossCount;
+
+    @Column(name = "integrity_checksum", length = 64)
+    private String integrityChecksum;
 }

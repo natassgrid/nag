@@ -48,7 +48,9 @@ dependencies {
     runtimeOnly libs.flyway.database.postgresql
 
     // PDF generation (Apache PDFBox)
-    implementation libs.pdfbox
+    implementation 'org.apache.pdfbox:pdfbox:3.0.1'
+    implementation 'com.google.zxing:core:3.5.3'
+    implementation 'com.google.zxing:javase:3.5.3'
 
     // Kafka (result events)
     implementation libs.spring.kafka

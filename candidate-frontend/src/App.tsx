@@ -18,6 +18,7 @@ import PasswordMgmt from './pages/PasswordMgmt';
 import BrowseExams from './pages/BrowseExams';
 import TakeExam from './pages/TakeExam';
 import Results from './pages/Results';
+import ReviewExam from './pages/ReviewExam';
 
 const App: React.FC = () => {
   return (
@@ -57,6 +58,18 @@ const App: React.FC = () => {
                   <ProtectedRoute>
                     <ErrorBoundary>
                       <TakeExam />
+                    </ErrorBoundary>
+                  </ProtectedRoute>
+                }
+              />
+
+              {/* Post-exam review — full-screen, no sidebar */}
+              <Route
+                path="/results/:examId/review"
+                element={
+                  <ProtectedRoute>
+                    <ErrorBoundary>
+                      <ReviewExam />
                     </ErrorBoundary>
                   </ProtectedRoute>
                 }

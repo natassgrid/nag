@@ -22,6 +22,7 @@ package com.examplatform.evaluation.service;
 import com.examplatform.evaluation.domain.Evaluation;
 import com.examplatform.evaluation.dto.AnswerKey;
 import com.examplatform.evaluation.dto.CandidateResponse;
+import com.examplatform.evaluation.dto.MarkingScheme;
 import com.examplatform.evaluation.repository.EvaluationRepository;
 import com.examplatform.shared.config.DynamicConfigService;
 import com.examplatform.shared.messaging.EventPublisher;
@@ -45,6 +46,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -312,6 +314,109 @@ class AutoEvaluationServiceTest {
                     SESSION_ID, CANDIDATE_ID, List.of(key), List.of(resp), TENANT_ID);
 
             assertThat(results.get(0).getScore()).isEqualByComparingTo(BigDecimal.valueOf(-1.0));
+        }
+    }
+
+    @Nested
+    @DisplayName("SPEC-E1: Flexible Marking Scheme")
+    class MarkingSchemeTests {
+
+        @Test
+        @DisplayName("SPEC-E1-T2: STANDARD + wrong answer → -negativeMarks")
+        void standardScheme_wrongAnswer_appliesNegativeMarks() {
+            // Given
+            AnswerKey answerKey = AnswerKey.builder()
+                    .questionId(UUID.randomUUID())
+                    .questionType("SINGLE_MCQ")
+                    .correctAnswer("[\"opt-1\"]")
+                    .marksPerQuestion(4.0)
+                    .negativeMarks(1.0)
+                    .markingScheme(MarkingScheme.STANDARD)
+                    .build();
+            CandidateResponse wrongResp = CandidateResponse.builder()
+                    .questionId(answerKey.getQuestionId())
+                    .selectedOptionIds("[\"opt-2\"]")
+                    .attempted(true)
+                    .build();
+
+            when(evaluationRepository.saveAll(Mockito.any())).thenAnswer(inv -> inv.getArgument(0));
+            when(dynamicConfigService.getBoolean(Mockito.eq("evaluation.auto.grade.instant"), Mockito.any(), Mockito.eq(true))).thenReturn(true);
+            when(dynamicConfigService.getBoolean(Mockito.eq("evaluation.anonymize.candidate.sheets"), Mockito.any(), Mockito.eq(true))).thenReturn(false);
+            doNothing().when(eventPublisher).publish(anyString(), anyString(), Mockito.any());
+
+            // When
+            List<Evaluation> evals = service.evaluateSession(
+                    UUID.randomUUID(), UUID.randomUUID(),
+                    List.of(answerKey), List.of(wrongResp), "default");
+
+            // Then
+            assertThat(evals).hasSize(1);
+            assertThat(evals.get(0).getScore()).isEqualByComparingTo("-1.0");
+        }
+
+        @Test
+        @DisplayName("SPEC-E1-T3: ZERO_NEGATIVE + wrong answer → 0.0")
+        void zeroNegativeScheme_wrongAnswer_awardsZero() {
+            // Given
+            AnswerKey answerKey = AnswerKey.builder()
+                    .questionId(UUID.randomUUID())
+                    .questionType("SINGLE_MCQ")
+                    .correctAnswer("[\"opt-1\"]")
+                    .marksPerQuestion(4.0)
+                    .negativeMarks(1.0)
+                    .markingScheme(MarkingScheme.ZERO_NEGATIVE)
+                    .build();
+            CandidateResponse wrongResp = CandidateResponse.builder()
+                    .questionId(answerKey.getQuestionId())
+                    .selectedOptionIds("[\"opt-2\"]")
+                    .attempted(true)
+                    .build();
+
+            when(evaluationRepository.saveAll(Mockito.any())).thenAnswer(inv -> inv.getArgument(0));
+            when(dynamicConfigService.getBoolean(Mockito.eq("evaluation.auto.grade.instant"), Mockito.any(), Mockito.eq(true))).thenReturn(true);
+            when(dynamicConfigService.getBoolean(Mockito.eq("evaluation.anonymize.candidate.sheets"), Mockito.any(), Mockito.eq(true))).thenReturn(false);
+            doNothing().when(eventPublisher).publish(anyString(), anyString(), Mockito.any());
+
+            // When
+            List<Evaluation> evals = service.evaluateSession(
+                    UUID.randomUUID(), UUID.randomUUID(),
+                    List.of(answerKey), List.of(wrongResp), "default");
+
+            // Then
+            assertThat(evals).hasSize(1);
+            assertThat(evals.get(0).getScore()).isEqualByComparingTo("0.0");
+        }
+
+        @Test
+        @DisplayName("SPEC-E1-T4: Any scheme + unattempted → 0.0")
+        void anyScheme_unattempted_awardsZero() {
+            // Given
+            AnswerKey answerKey = AnswerKey.builder()
+                    .questionId(UUID.randomUUID())
+                    .questionType("SINGLE_MCQ")
+                    .correctAnswer("[\"opt-1\"]")
+                    .marksPerQuestion(4.0)
+                    .negativeMarks(1.0)
+                    .markingScheme(MarkingScheme.ZERO_NEGATIVE)
+                    .build();
+            CandidateResponse unattempted = CandidateResponse.builder()
+                    .questionId(answerKey.getQuestionId())
+                    .attempted(false)
+                    .build();
+
+            when(evaluationRepository.saveAll(Mockito.any())).thenAnswer(inv -> inv.getArgument(0));
+            when(dynamicConfigService.getBoolean(Mockito.eq("evaluation.auto.grade.instant"), Mockito.any(), Mockito.eq(true))).thenReturn(true);
+            when(dynamicConfigService.getBoolean(Mockito.eq("evaluation.anonymize.candidate.sheets"), Mockito.any(), Mockito.eq(true))).thenReturn(false);
+            doNothing().when(eventPublisher).publish(anyString(), anyString(), Mockito.any());
+
+            // When
+            List<Evaluation> evals = service.evaluateSession(
+                    UUID.randomUUID(), UUID.randomUUID(),
+                    List.of(answerKey), List.of(unattempted), "default");
+
+            // Then
+            assertThat(evals).hasSize(1);
+            assertThat(evals.get(0).getScore()).isEqualByComparingTo("0.0");
         }
     }
 }

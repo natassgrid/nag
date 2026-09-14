@@ -11,10 +11,20 @@ import { examService } from '../services/examService';
 import { tokenManager } from '../utils/tokenManager';
 import { useToast } from '../components/Toast';
 import type { ExamApplicationResponse, ResultDto } from '../types/api';
+import { useNavigate } from 'react-router-dom';
+import type { CognitiveBreakdown, TimeAnalysis, TopicScore } from '../types/api';
 
 const Results: React.FC = () => {
   const { toast } = useToast();
   const userId = tokenManager.getUserId();
+  const navigate = useNavigate();
+
+  const formatMs = (ms: number): string => {
+    const secs = Math.floor(ms / 1000);
+    const m = Math.floor(secs / 60);
+    const s = secs % 60;
+    return m > 0 ? `${m}m ${s}s` : `${s}s`;
+  };
 
   const [myExams, setMyExams] = useState<ExamApplicationResponse[]>([]);
   const [selectedExamId, setSelectedExamId] = useState<string>('');
@@ -182,6 +192,95 @@ const Results: React.FC = () => {
                   </div>
                 </div>
               )}
+
+              {/* Cognitive Level Breakdown */}
+              {result.cognitiveBreakdown && Object.keys(result.cognitiveBreakdown).length > 0 && (
+                <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+                  <h3 className="font-semibold text-gray-800 mb-4">Cognitive Level Breakdown</h3>
+                  <div className="space-y-3">
+                    {(Object.entries(result.cognitiveBreakdown) as [string, number][]).map(([level, pct]) => (
+                      <div key={level}>
+                        <div className="flex justify-between text-sm mb-1">
+                          <span className="font-medium text-gray-700 capitalize">{level.toLowerCase()}</span>
+                          <span className="text-gray-500">{pct}%</span>
+                        </div>
+                        <div className="w-full bg-gray-100 rounded-full h-2">
+                          <div
+                            className="h-2 rounded-full bg-purple-500 transition-all"
+                            style={{ width: `${Math.min(pct, 100)}%` }}
+                          />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Topic Breakdown */}
+              {result.topicBreakdown && Object.keys(result.topicBreakdown).length > 0 && (
+                <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+                  <h3 className="font-semibold text-gray-800 mb-4">Topic-wise Breakdown</h3>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="text-left text-gray-500 border-b border-gray-100">
+                          <th className="pb-2 font-medium">Topic</th>
+                          <th className="pb-2 font-medium text-right">Score</th>
+                          <th className="pb-2 font-medium text-right">Max</th>
+                          <th className="pb-2 font-medium text-right">Accuracy</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {Object.entries(result.topicBreakdown)
+                          .sort(([, a], [, b]) => (a.score / a.maxScore) - (b.score / b.maxScore))
+                          .map(([topic, data]) => {
+                            const acc = Math.round((data.score / data.maxScore) * 100);
+                            return (
+                              <tr key={topic} className="border-b border-gray-50 last:border-0">
+                                <td className="py-2 text-gray-700">{topic}</td>
+                                <td className="py-2 text-right text-gray-600">{data.score}</td>
+                                <td className="py-2 text-right text-gray-400">{data.maxScore}</td>
+                                <td className="py-2 text-right">
+                                  <span className={`font-medium ${
+                                    acc >= 70 ? 'text-green-600' : acc >= 40 ? 'text-yellow-600' : 'text-red-500'
+                                  }`}>{acc}%</span>
+                                </td>
+                              </tr>
+                            );
+                          })}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+
+              {/* Time Analysis */}
+              {result.timeAnalysis && (
+                <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+                  <h3 className="font-semibold text-gray-800 mb-4">Time Analysis</h3>
+                  <div className="grid grid-cols-3 gap-4">
+                    {[
+                      { label: 'Avg / Question', value: formatMs(result.timeAnalysis.avgTimePerQuestionMs) },
+                      { label: 'Time on Correct', value: formatMs(result.timeAnalysis.timeOnCorrectMs / (result.timeAnalysis.totalQuestions || 1)) },
+                      { label: 'Time on Incorrect', value: formatMs(result.timeAnalysis.timeOnIncorrectMs / (result.timeAnalysis.totalQuestions || 1)) },
+                    ].map((s) => (
+                      <div key={s.label} className="text-center bg-gray-50 rounded-xl p-3">
+                        <p className="text-lg font-bold text-gray-800">{s.value}</p>
+                        <p className="text-xs text-gray-500 mt-1">{s.label}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Review Answers */}
+              <button
+                onClick={() => navigate(`/results/${selectedExamId}/review`)}
+                className="flex items-center gap-2 bg-purple-600 hover:bg-purple-700 text-white px-6 py-3 rounded-xl font-medium transition"
+              >
+                <BarChart3 className="w-4 h-4" />
+                Review Answers
+              </button>
 
               {/* Download */}
               {result.scorecardPdfRef && (

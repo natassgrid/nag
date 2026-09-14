@@ -2,7 +2,7 @@
 // Wraps result-service REST calls for result retrieval and scorecard download.
 
 import { api } from './api';
-import type { ResultDto } from '../types/api';
+import type { ResultDto, ExamReviewResponse } from '../types/api';
 
 const BASE = '/api/v1/results';
 
@@ -36,5 +36,13 @@ export const resultService = {
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
+  },
+
+  /**
+   * Fetch the post-exam review data for a candidate in a specific exam.
+   * Returns all questions with candidate's selections, correct answers, and explanations.
+   */
+  async getReviewData(candidateId: string, examId: string): Promise<ExamReviewResponse> {
+    return (await api.get<ExamReviewResponse>(`${BASE}/${candidateId}/review`, { params: { examId } })).data;
   },
 };
