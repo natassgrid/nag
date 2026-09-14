@@ -14,9 +14,10 @@
  * GNU Affero General Public License for more details.
  *
  * You should have received a copy of the GNU Affero General Public License
- * along with this program. If not, see <https://www.gnu.org/licenses/>.\n */
+ * along with this program. If not, see <https://www.gnu.org/licenses/>.
+ */
 
-package com.examplatform.questionbank.translation.dto;
+package com.examplatform.papergenerator.dto;
 
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
@@ -25,14 +26,11 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-import java.util.List;
-import java.util.UUID;
-
 @Data
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class BatchTranslationRequest {
+public class PaperTranslateRequest {
 
     @Builder.Default
     private String sourceLanguage = "en";
@@ -42,12 +40,6 @@ public class BatchTranslationRequest {
 
     @Builder.Default
     private String targetStatus = "PUBLISHED";
-
-    private String subject;
-
-    private UUID paperId;
-
-    private List<UUID> questionIds;
 
     @Builder.Default
     private Boolean overwriteExisting = true;

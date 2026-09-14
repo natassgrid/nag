@@ -220,7 +220,8 @@ export interface ExamSection {
 
 export interface ExaminationResponse {
   id: string;                   // UUID
-  title: string;
+  name?: string;
+  title?: string;
   description: string;
   status: ExamStatus;
   mode: ExamMode;
@@ -350,20 +351,27 @@ export interface ExamLanguage {
 
 /** Per-language text for a single option. */
 export interface QuestionOptionTranslation {
-  index: number;
-  text: string;
+  id?: string;
+  index?: number;
+  text?: string;
+  content?: string;
 }
 
 /** Per-language content for an entire question. */
 export interface QuestionTranslation {
-  text: string;
-  options: QuestionOptionTranslation[];
+  id?: string;
+  languageCode?: string;
+  text?: string;
+  content?: string;
+  options?: QuestionOptionTranslation[];
   explanation?: string;
 }
 
 export interface QuestionOption {
+  id?: string;
   index: number;
-  text: string;                 // English master text
+  text?: string;                 // English master text
+  content?: string;
   imageUrl?: string;
   imageAltText?: string;
   isCorrect?: boolean;
@@ -371,15 +379,18 @@ export interface QuestionOption {
 
 export interface QuestionDto {
   id: string;                   // UUID
-  text: string;                 // English master text
+  text?: string;                // English master text
+  content?: string;
   imageUrl?: string;
   imageAltText?: string;
   options: QuestionOption[];    // English master options
   marks: number;
   negativeMarks: number;
-  sectionId: string;
-  sectionName: string;
+  sectionId?: string;
+  sectionName?: string;
   topic?: string;
+  questionType?: string;
+  sequenceNumber?: number;
   explanation?: string;         // English master explanation
   correctOptionIndex?: number;  // Available in practice/learning mode
   /**

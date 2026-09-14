@@ -14,56 +14,28 @@
  * GNU Affero General Public License for more details.
  *
  * You should have received a copy of the GNU Affero General Public License
- * along with this program. If not, see <https://www.gnu.org/licenses/>.\n */
+ * along with this program. If not, see <https://www.gnu.org/licenses/>.
+ */
 
-package com.examplatform.questionbank.translation.dto;
+package com.examplatform.delivery.dto;
 
-import jakarta.validation.constraints.Max;
-import jakarta.validation.constraints.Min;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.util.List;
-import java.util.UUID;
 
+/**
+ * Translated question payload in regional language (e.g. Hindi) for CBT exam delivery.
+ */
 @Data
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class BatchTranslationRequest {
-
-    @Builder.Default
-    private String sourceLanguage = "en";
-
-    @Builder.Default
-    private String targetLanguage = "hi";
-
-    @Builder.Default
-    private String targetStatus = "PUBLISHED";
-
-    private String subject;
-
-    private UUID paperId;
-
-    private List<UUID> questionIds;
-
-    @Builder.Default
-    private Boolean overwriteExisting = true;
-
-    @Min(1)
-    @Max(500)
-    @Builder.Default
-    private Integer batchSize = 50;
-
-    @Min(0)
-    @Max(5000)
-    @Builder.Default
-    private Integer throttleDelayMs = 50;
-
-    @Min(1)
-    @Max(10)
-    @Builder.Default
-    private Integer maxConcurrency = 2;
+public class TranslatedQuestionDeliveryDto {
+    private String languageCode;
+    private String content;
+    private List<QuestionOptionDeliveryDto> options;
+    private String explanation;
 }

@@ -25,6 +25,7 @@ import {
   X,
   Filter,
   Globe,
+  Languages,
 } from 'lucide-react';
 import { examService } from '../services/examService';
 import { sessionService } from '../services/sessionService';
@@ -38,7 +39,7 @@ import { offlineQueue } from '../utils/offlineQueue';
 import { saveLanguagePreference, loadLanguagePreference, clearLanguagePreference } from '../utils/languagePreference';
 import { FEATURE_FLAGS } from '../config/featureFlags';
 import { OFFICIAL_EXAM_QUESTIONS } from '../data/examQuestions';
-import type { ExaminationResponse, ExamLanguage, QuestionDto, SessionStartResponse } from '../types/api';
+import type { ExaminationResponse, ExamLanguage, QuestionDto, QuestionOption, SessionStartResponse } from '../types/api';
 
 type QuestionStatus =
   | 'NOT_VISITED'
@@ -59,6 +60,14 @@ const UUID_REGEX = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}
 const KNOWN_EXAM_TITLES: Record<string, string> = {
   'e1000000-0000-0000-0000-000000000001':
     'Staff Selection Commission Combined Graduate Level (SSC CGL) Tier-1 Examination 2026',
+  'e1000000-0000-0000-0000-000000000002':
+    'IBPS Probationary Officer (PO) Preliminary Examination 2026',
+  'e1000000-0000-0000-0000-000000000003':
+    'UPSC Civil Services (Preliminary) Examination 2026 - Paper 1 (General Studies)',
+  'e1000000-0000-0000-0000-000000000004':
+    'Railway Recruitment Board Non-Technical Popular Categories (RRB NTPC) CBT-1 2026',
+  'e1000000-0000-0000-0000-000000000005':
+    'Central Teacher Eligibility Test (CTET) Paper-1 (Primary Teacher) 2026',
   'e2000000-0000-0000-0000-000000000002':
     'Union Public Service Commission Civil Services Examination (Prelims) 2026',
   'e3000000-0000-0000-0000-000000000003':
@@ -112,11 +121,11 @@ const TakeExam: React.FC = () => {
   const [showLanguageSelector, setShowLanguageSelector] = useState<boolean>(
     FEATURE_FLAGS.ENABLE_MULTILINGUAL
   );
-  const [availableLanguages, setAvailableLanguages] = useState<ExamLanguage[]>([]);
+  const [availableLanguages, setAvailableLanguages] = useState<ExamLanguage[]>(ALL_EXAM_LANGUAGES);
   // activeLanguage: the language the candidate is currently viewing questions in.
   const [activeLanguage, setActiveLanguage] = useState<ExamLanguage>(ALL_EXAM_LANGUAGES[0]); // 'en'
   // splitView: show English and regional translation side-by-side (desktop only).
-  const [splitView, setSplitView] = useState<boolean>(false);
+  const [isBilingual, setIsBilingual] = useState<boolean>(true);
 
   const sessionIdRef = useRef<string>('');
   const isOfflineSessionRef = useRef<boolean>(false);
@@ -136,24 +145,64 @@ const TakeExam: React.FC = () => {
     }
   };
 
-  // ─── Per-question text resolver ──────────────────────────────────────────
-  // Returns the appropriate text for the active language, falling back to English.
-  const resolveText = (q: QuestionDto, field: 'text' | 'explanation'): string => {
-    if (activeLanguage.code === 'en' || !q.translations?.[activeLanguage.code]) {
-      return q[field] ?? '';
-    }
-    return q.translations[activeLanguage.code][field] ?? q[field] ?? '';
+  // ─── Multilingual Content Resolvers ────────────────────────────
+  const hasTranslation = useCallback(
+    (q?: QuestionDto, langCode?: string): boolean => {
+      if (!q || !q.translations) return false;
+      const code = langCode || activeLanguage.code;
+      if (code === 'en') return false;
+      const trans = q.translations[code];
+      if (!trans) return false;
+      return Boolean(trans.content || trans.text || (trans.options && trans.options.length > 0));
+    },
+    [activeLanguage.code]
+  );
+
+  const getEnglishContent = (q?: QuestionDto): string => {
+    if (!q) return '';
+    return q.content || q.text || '';
   };
 
-  const resolveOptionText = (q: QuestionDto, optIndex: number): string => {
-    if (activeLanguage.code === 'en' || !q.translations?.[activeLanguage.code]) {
-      return q.options[optIndex]?.text ?? '';
-    }
-    const translated = q.translations[activeLanguage.code].options.find(
-      (o) => o.index === optIndex
-    );
-    return translated?.text ?? q.options[optIndex]?.text ?? '';
+  const getTranslatedContent = useCallback(
+    (q?: QuestionDto, langCode?: string): string => {
+      if (!q || !q.translations) return '';
+      const code = langCode || activeLanguage.code;
+      const trans = q.translations[code];
+      return trans?.content || trans?.text || '';
+    },
+    [activeLanguage.code]
+  );
+
+  const getEnglishOptionText = (opt?: QuestionOption): string => {
+    if (!opt) return '';
+    return opt.text || opt.content || '';
   };
+
+  const getTranslatedOptionText = useCallback(
+    (q: QuestionDto, opt: QuestionOption, optIndex: number, langCode?: string): string => {
+      if (!q || !q.translations) return '';
+      const code = langCode || activeLanguage.code;
+      const trans = q.translations[code];
+      if (!trans || !trans.options) return '';
+
+      const optionId = opt.id || String.fromCharCode(65 + optIndex);
+      const match = trans.options.find(
+        (o, idx) => (o.id && o.id === optionId) || o.index === optIndex || idx === optIndex
+      );
+      return match?.content || match?.text || '';
+    },
+    [activeLanguage.code]
+  );
+
+  const resolveExplanation = useCallback(
+    (q: QuestionDto): string => {
+      if (activeLanguage.code !== 'en' && q.translations?.[activeLanguage.code]?.explanation) {
+        return q.translations[activeLanguage.code].explanation!;
+      }
+      return q.explanation || '';
+    },
+    [activeLanguage.code]
+  );
 
   // Extract sections
   const sections = Array.from(new Set(questions.map((q) => q.sectionName || 'General Section')));
@@ -179,8 +228,8 @@ const TakeExam: React.FC = () => {
           }
         }
 
-        // Determine effective shift ID
-        let effectiveShiftId = shiftId && UUID_REGEX.test(shiftId) ? shiftId : '';
+        // Determine effective shift ID from candidate application / admit card
+        let effectiveShiftId = shiftId && UUID_REGEX.test(shiftId) ? shiftId : undefined;
         if (!effectiveShiftId && examId && UUID_REGEX.test(examId)) {
           try {
             const app = await examService.getApplicationStatus(examId);
@@ -203,9 +252,6 @@ const TakeExam: React.FC = () => {
             // Non-blocking
           }
         }
-        if (!effectiveShiftId) {
-          effectiveShiftId = '00000000-0000-0000-0000-000000000001';
-        }
 
         // 2. Start session or resume existing active session via delivery-service
         let s: SessionStartResponse | null = null;
@@ -216,8 +262,18 @@ const TakeExam: React.FC = () => {
               : 'e1000000-0000-0000-0000-000000000001';
           s = await sessionService.startSession({
             examId: targetExamId,
-            shiftId: effectiveShiftId,
+            ...(effectiveShiftId ? { shiftId: effectiveShiftId } : {}),
+            languageCode: activeLanguage.code || 'en',
           });
+          const resolvedTitle =
+            examInfo?.name || examInfo?.title ||
+            (targetExamId && KNOWN_EXAM_TITLES[targetExamId]) ||
+            s.examTitle ||
+            'National Assessment Grid Examination';
+          s.examTitle = resolvedTitle;
+          if (examInfo?.durationMinutes) {
+            s.durationSeconds = examInfo.durationMinutes * 60;
+          }
           setSession(s);
           sessionIdRef.current = s.sessionId;
           setIsOfflineSession(false);
@@ -233,8 +289,9 @@ const TakeExam: React.FC = () => {
             sessionId: mockSessionId,
             examId: fallbackExamId,
             examTitle:
-              KNOWN_EXAM_TITLES[fallbackExamId] ||
-              'Staff Selection Commission Combined Graduate Level (SSC CGL) Tier-1 Examination 2026',
+              examInfo?.name || examInfo?.title ||
+              (fallbackExamId && KNOWN_EXAM_TITLES[fallbackExamId]) ||
+              'National Assessment Grid Examination',
             candidateId: '018f4e2a-0000-7000-8000-000000000001',
             durationSeconds: (examInfo?.durationMinutes ?? 60) * 60,
             totalQuestions: OFFICIAL_EXAM_QUESTIONS.length,
@@ -255,11 +312,10 @@ const TakeExam: React.FC = () => {
 
         // ── Multilingual: resolve available languages & restore persisted preference ──
         if (FEATURE_FLAGS.ENABLE_MULTILINGUAL) {
-          // Use languages returned by delivery service, or fall back to English-only
           const langs: ExamLanguage[] =
             s.availableLanguages && s.availableLanguages.length > 0
               ? s.availableLanguages
-              : [ALL_EXAM_LANGUAGES[0]]; // English only
+              : ALL_EXAM_LANGUAGES;
           setAvailableLanguages(langs);
 
           // Restore persisted language preference for this session (survives page reload)
@@ -272,15 +328,13 @@ const TakeExam: React.FC = () => {
           // If language was already persisted (session resumed), skip the selector
           if (persisted) {
             setShowLanguageSelector(false);
-          } else if (langs.length <= 1) {
-            // Only English available — no point showing selector
-            setShowLanguageSelector(false);
+          } else {
+            setShowLanguageSelector(true);
           }
-          // Otherwise showLanguageSelector stays true (set in useState initialiser)
         }
 
         // Initialize question state dictionary
-        const initialAnswers: Record<string, AnswerRecord> = {};
+                const initialAnswers: Record<string, AnswerRecord> = {};
         qList.forEach((q, idx) => {
           initialAnswers[q.id] = {
             optionIndex: null,
@@ -620,10 +674,11 @@ const TakeExam: React.FC = () => {
   });
 
   const displayExamTitle =
+    examDetails?.name ||
     examDetails?.title ||
-    session?.examTitle ||
     (examId && KNOWN_EXAM_TITLES[examId]) ||
-    'Staff Selection Commission Combined Graduate Level (SSC CGL) Tier-1 Examination 2026';
+    session?.examTitle ||
+    'National Assessment Grid Examination';
 
   if (loading) {
     return (
@@ -641,6 +696,8 @@ const TakeExam: React.FC = () => {
   const currentQ = questions[currentIndex];
   const currentAnswer = currentQ ? answers[currentQ.id] : null;
   const isAnswered = currentAnswer?.optionIndex !== null && currentAnswer?.optionIndex !== undefined;
+  const hasTrans = currentQ ? hasTranslation(currentQ) : false;
+  const isBilingualModeActive = isBilingual && activeLanguage.code !== 'en' && hasTrans;
 
   const showPracticeTools = FEATURE_FLAGS.ENABLE_PRACTICE_MODE && isPracticeMode;
 
@@ -683,42 +740,68 @@ const TakeExam: React.FC = () => {
             </button>
           )}
 
-          {/* Per-question Language Toggle (Multilingual Mode) */}
-          {FEATURE_FLAGS.ENABLE_MULTILINGUAL && availableLanguages.length > 1 && (
-            <div className="ml-2 flex items-center gap-1 rounded-full border border-slate-600 bg-slate-800 px-1 py-0.5 text-xs font-bold">
-              <Globe className="h-3.5 w-3.5 text-teal-400 ml-1" />
-              {availableLanguages.slice(0, 4).map((lang) => (
+          {/* Per-question Language Switcher & Bilingual Toggle */}
+          {FEATURE_FLAGS.ENABLE_MULTILINGUAL && (
+            <div className="ml-2 flex items-center gap-1.5">
+              {/* Language Pills with Quick Switcher */}
+              <div className="flex items-center gap-1 rounded-full border border-slate-600 bg-slate-800 px-1.5 py-0.5 text-xs font-bold">
                 <button
-                  key={lang.code}
-                  onClick={() => {
-                    setActiveLanguage(lang);
-                    setSplitView(false);
-                    if (sessionIdRef.current) {
-                      saveLanguagePreference(sessionIdRef.current, lang.code);
-                    }
-                  }}
-                  title={`View in ${lang.name}`}
-                  className={`rounded-full px-2 py-0.5 transition ${
-                    activeLanguage.code === lang.code
-                      ? 'bg-teal-600 text-white'
-                      : 'text-slate-300 hover:bg-slate-700'
-                  }`}
+                  onClick={() => setShowLanguageSelector(true)}
+                  title="Choose Examination Medium"
+                  className="flex items-center gap-1 text-teal-300 hover:text-white px-1 py-0.5"
                 >
-                  {lang.code === 'en' ? 'EN' : lang.nativeName.slice(0, 3)}
+                  <Globe className="h-3.5 w-3.5 text-teal-400" />
+                  <span className="hidden lg:inline text-[11px] font-semibold">Medium:</span>
                 </button>
-              ))}
-              {/* Split view toggle — desktop only */}
+                {/* Popular Language shortcuts */}
+                {(availableLanguages.length > 0 ? availableLanguages : ALL_EXAM_LANGUAGES)
+                  .filter((l) => ['en', 'hi', 'ta', 'te', 'mr', 'bn'].includes(l.code))
+                  .map((lang) => (
+                    <button
+                      key={lang.code}
+                      onClick={() => {
+                        setActiveLanguage(lang);
+                        if (sessionIdRef.current) {
+                          saveLanguagePreference(sessionIdRef.current, lang.code);
+                        }
+                      }}
+                      title={`View in ${lang.name} (${lang.nativeName})`}
+                      className={`rounded-full px-2 py-0.5 transition ${
+                        activeLanguage.code === lang.code
+                          ? 'bg-teal-600 text-white shadow-xs'
+                          : 'text-slate-300 hover:bg-slate-700'
+                      }`}
+                    >
+                      {lang.code === 'en' ? 'EN' : lang.nativeName.slice(0, 4)}
+                    </button>
+                  ))}
+                <button
+                  onClick={() => setShowLanguageSelector(true)}
+                  title="View all 22+ available languages"
+                  className="rounded-full px-1.5 py-0.5 text-[10px] text-teal-300 hover:bg-slate-700 transition"
+                >
+                  All...
+                </button>
+              </div>
+
+              {/* Bilingual Mode Toggle (English + Regional Medium) */}
               {activeLanguage.code !== 'en' && (
                 <button
-                  onClick={() => setSplitView((v) => !v)}
-                  title="Toggle side-by-side bilingual view"
-                  className={`hidden md:flex rounded-full px-2 py-0.5 transition items-center gap-1 ${
-                    splitView
-                      ? 'bg-indigo-600 text-white'
-                      : 'text-slate-400 hover:bg-slate-700'
+                  onClick={() => setIsBilingual((v) => !v)}
+                  title="Toggle Bilingual delivery (English Reference + Regional Language)"
+                  className={`flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-bold transition ${
+                    isBilingual
+                      ? 'border-teal-500/70 bg-teal-950/70 text-teal-300 shadow-xs'
+                      : 'border-slate-700 bg-slate-800 text-slate-400 hover:bg-slate-700'
                   }`}
                 >
-                  ⧉
+                  <Languages className="h-3.5 w-3.5 text-teal-400" />
+                  <span className="hidden md:inline">
+                    {isBilingual ? `Bilingual (EN + ${activeLanguage.code.toUpperCase()})` : `Single (${activeLanguage.code.toUpperCase()})`}
+                  </span>
+                  <span className="md:hidden">
+                    {isBilingual ? 'Bilingual' : 'Single'}
+                  </span>
                 </button>
               )}
             </div>
@@ -852,8 +935,7 @@ const TakeExam: React.FC = () => {
           activeLanguage={activeLanguage}
           onSwitchToEnglish={() => {
             setActiveLanguage(ALL_EXAM_LANGUAGES[0]);
-            setSplitView(false);
-            if (sessionIdRef.current) {
+                        if (sessionIdRef.current) {
               saveLanguagePreference(sessionIdRef.current, 'en');
             }
           }}
@@ -888,31 +970,62 @@ const TakeExam: React.FC = () => {
                   </div>
                 </div>
 
-                {/* Question Text with Markdown & LaTeX Rendering */}
-                <div
-                  className={`mt-4 text-slate-900 leading-relaxed font-medium ${
-                    fontSize === 'large' ? 'text-lg' : 'text-base'
-                  }`}
-                >
-                  {/* Split view: English + Regional side by side (desktop) */}
-                  {splitView && activeLanguage.code !== 'en' ? (
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <p className="mb-1 text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                {/* Question Text: Bilingual Mode (English Reference + Regional Card) vs Single Mode */}
+                <div className="mt-4">
+                  {isBilingualModeActive ? (
+                    <div className="space-y-4">
+                      {/* English Master Reference Card */}
+                      <div className="rounded-xl border border-sky-200 bg-sky-50/40 p-4 shadow-2xs">
+                        <div className="inline-block rounded-full bg-sky-100 border border-sky-300 px-2.5 py-0.5 text-[10px] font-bold text-sky-800 uppercase tracking-wider mb-2">
                           English (Master Reference)
-                        </p>
-                        <MathRenderer content={currentQ.text} />
+                        </div>
+                        <div
+                          className={`text-slate-900 leading-relaxed font-medium ${
+                            fontSize === 'large' ? 'text-lg' : 'text-base'
+                          }`}
+                        >
+                          <MathRenderer content={getEnglishContent(currentQ)} />
+                        </div>
                       </div>
-                      <div dir={activeLanguage.rtl ? 'rtl' : 'ltr'}>
-                        <p className="mb-1 text-[10px] font-bold uppercase tracking-wider text-teal-600">
+
+                      {/* Selected Regional Language Card */}
+                      <div
+                        className="rounded-xl border border-amber-200 bg-amber-50/40 p-4 shadow-2xs"
+                        dir={activeLanguage.rtl ? 'rtl' : 'ltr'}
+                      >
+                        <div className="inline-block rounded-full bg-amber-100 border border-amber-300 px-2.5 py-0.5 text-[10px] font-bold text-amber-900 uppercase tracking-wider mb-2">
                           {activeLanguage.name} ({activeLanguage.nativeName})
-                        </p>
-                        <MathRenderer content={resolveText(currentQ, 'text')} />
+                        </div>
+                        <div
+                          className={`text-slate-900 leading-relaxed font-medium ${
+                            fontSize === 'large' ? 'text-lg' : 'text-base'
+                          }`}
+                        >
+                          <MathRenderer content={getTranslatedContent(currentQ)} />
+                        </div>
                       </div>
                     </div>
                   ) : (
-                    <div dir={activeLanguage.rtl ? 'rtl' : 'ltr'}>
-                      <MathRenderer content={resolveText(currentQ, 'text')} />
+                    <div className="rounded-xl border border-slate-100 bg-white p-2">
+                      {activeLanguage.code !== 'en' && hasTrans && (
+                        <div className="inline-block rounded-full bg-amber-100 border border-amber-300 px-2.5 py-0.5 text-[10px] font-bold text-amber-900 uppercase tracking-wider mb-2">
+                          {activeLanguage.name} ({activeLanguage.nativeName})
+                        </div>
+                      )}
+                      <div
+                        className={`text-slate-900 leading-relaxed font-medium ${
+                          fontSize === 'large' ? 'text-lg' : 'text-base'
+                        }`}
+                        dir={activeLanguage.rtl ? 'rtl' : 'ltr'}
+                      >
+                        <MathRenderer
+                          content={
+                            activeLanguage.code !== 'en' && hasTrans
+                              ? getTranslatedContent(currentQ)
+                              : getEnglishContent(currentQ)
+                          }
+                        />
+                      </div>
                     </div>
                   )}
                 </div>
@@ -947,31 +1060,65 @@ const TakeExam: React.FC = () => {
                           letterClass = 'border-teal-700 bg-teal-700 text-white';
                         }
 
+                        const optTransText = getTranslatedOptionText(currentQ, opt, opt.index);
+
                         return (
                           <div
                             key={opt.index}
                             onClick={() => handleSelectOption(opt.index)}
                             className={`flex flex-col cursor-pointer justify-between rounded-xl border-2 p-3.5 transition ${optionBorderClass}`}
                           >
-                            <div className="flex items-center justify-between">
-                              <div className="flex items-center gap-3">
+                            <div className="flex items-start justify-between gap-3">
+                              <div className="flex items-start gap-3 flex-1">
                                 <div
-                                  className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full border text-xs font-bold ${letterClass}`}
+                                  className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full border text-xs font-bold mt-0.5 ${letterClass}`}
                                 >
-                                  {String.fromCharCode(65 + opt.index)}
+                                  {opt.id || String.fromCharCode(65 + opt.index)}
                                 </div>
-                                <div className="text-sm leading-snug" dir={activeLanguage.rtl ? 'rtl' : 'ltr'}>
-                                  <MathRenderer content={resolveOptionText(currentQ, opt.index)} inline />
-                                </div>
+
+                                {isBilingualModeActive ? (
+                                  <div className="flex-1 space-y-1.5">
+                                    {/* English Option Row */}
+                                    <div className="flex items-baseline gap-2 text-slate-800 text-sm font-medium">
+                                      <span className="text-[10px] font-bold text-sky-700 uppercase shrink-0 bg-sky-50 px-1 rounded border border-sky-200">
+                                        EN:
+                                      </span>
+                                      <MathRenderer content={getEnglishOptionText(opt)} inline />
+                                    </div>
+                                    {/* Regional Option Row */}
+                                    {optTransText && (
+                                      <div
+                                        className="flex items-baseline gap-2 text-slate-900 text-sm font-semibold border-t border-slate-100 pt-1.5"
+                                        dir={activeLanguage.rtl ? 'rtl' : 'ltr'}
+                                      >
+                                        <span className="text-[10px] font-bold text-amber-800 uppercase shrink-0 bg-amber-50 px-1 rounded border border-amber-200">
+                                          {activeLanguage.code.toUpperCase()}:
+                                        </span>
+                                        <MathRenderer content={optTransText} inline />
+                                      </div>
+                                    )}
+                                  </div>
+                                ) : (
+                                  <div className="text-sm leading-snug" dir={activeLanguage.rtl ? 'rtl' : 'ltr'}>
+                                    <MathRenderer
+                                      content={
+                                        activeLanguage.code !== 'en' && hasTrans && optTransText
+                                          ? optTransText
+                                          : getEnglishOptionText(opt)
+                                      }
+                                      inline
+                                    />
+                                  </div>
+                                )}
                               </div>
 
                               {showCorrectness && isCorrect && (
-                                <span className="flex items-center gap-1 text-xs font-bold text-emerald-700">
+                                <span className="flex items-center gap-1 text-xs font-bold text-emerald-700 shrink-0">
                                   <Check className="h-4 w-4" /> Correct Answer
                                 </span>
                               )}
                               {showCorrectness && isSelected && !isCorrect && (
-                                <span className="flex items-center gap-1 text-xs font-bold text-rose-600">
+                                <span className="flex items-center gap-1 text-xs font-bold text-rose-600 shrink-0">
                                   <X className="h-4 w-4" /> Your Selection
                                 </span>
                               )}
@@ -1024,7 +1171,7 @@ const TakeExam: React.FC = () => {
                         <div className="mt-2 text-xs leading-relaxed text-slate-800 font-medium">
                           <MathRenderer
                             content={
-                              resolveText(currentQ, 'explanation') ||
+                              resolveExplanation(currentQ) ||
                               'The correct answer is Option ' +
                                 String.fromCharCode(65 + (currentQ.correctOptionIndex ?? 0)) +
                                 '.'

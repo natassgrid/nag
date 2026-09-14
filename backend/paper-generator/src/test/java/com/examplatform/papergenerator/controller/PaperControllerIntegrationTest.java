@@ -25,12 +25,15 @@ import com.examplatform.papergenerator.dto.BlueprintFeasibilityRequest;
 import com.examplatform.papergenerator.dto.BlueprintFeasibilityResponse;
 import com.examplatform.papergenerator.dto.BlueprintRule;
 import com.examplatform.papergenerator.dto.PaperGenerationRequest;
+import com.examplatform.papergenerator.dto.PaperTranslateRequest;
+import com.examplatform.papergenerator.dto.PaperTranslateResponse;
 import com.examplatform.papergenerator.exception.InsufficientQuestionsException;
 import com.examplatform.papergenerator.repository.PaperRepository;
 import com.examplatform.papergenerator.service.ExaminationLookupService;
 import com.examplatform.papergenerator.service.PaperApprovalService;
 import com.examplatform.papergenerator.service.PaperAssemblyService;
 import com.examplatform.papergenerator.service.PaperSerializer;
+import com.examplatform.papergenerator.service.PaperTranslationService;
 import com.examplatform.papergenerator.support.AbstractIntegrationTest;
 import jakarta.persistence.EntityNotFoundException;
 import org.junit.jupiter.api.DisplayName;
@@ -73,6 +76,9 @@ class PaperControllerIntegrationTest extends AbstractIntegrationTest {
     private PaperApprovalService paperApprovalService;
 
     @MockitoBean
+    private PaperTranslationService paperTranslationService;
+
+    @MockitoBean
     private PaperRepository paperRepository;
 
     @MockitoBean
@@ -85,6 +91,7 @@ class PaperControllerIntegrationTest extends AbstractIntegrationTest {
     private static final UUID USER_ID = UUID.fromString("11111111-1111-1111-1111-111111111111");
     private static final UUID PAPER_ID = UUID.fromString("22222222-2222-2222-2222-222222222222");
     private static final UUID EXAM_ID = UUID.fromString("33333333-3333-3333-3333-333333333333");
+    private static final UUID JOB_ID = UUID.fromString("44444444-4444-4444-4444-444444444444");
 
     private BlueprintRule sampleRule() {
         return BlueprintRule.builder()
@@ -359,6 +366,75 @@ class PaperControllerIntegrationTest extends AbstractIntegrationTest {
                             .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_CANDIDATE"))
                                     .jwt(j -> j.subject(USER_ID.toString()).claim("tenant_id", TENANT_ID))))
                     .andExpect(status().isForbidden());
+        }
+    }
+
+    @Nested
+    @DisplayName("POST /api/v1/papers/{paperId}/translate (Paper Batch Translation)")
+    class TranslatePaperEndpoint {
+
+        @Test
+        @DisplayName("+ve: EXAM_CONTROLLER triggers paper translation - returns 202 Accepted")
+        void examControllerCanTriggerPaperTranslation() throws Exception {
+            PaperTranslateRequest request = PaperTranslateRequest.builder()
+                    .targetLanguage("hi")
+                    .targetStatus("PUBLISHED")
+                    .overwriteExisting(true)
+                    .build();
+
+            PaperTranslateResponse response = PaperTranslateResponse.builder()
+                    .jobId(JOB_ID)
+                    .paperId(PAPER_ID)
+                    .status("PENDING")
+                    .sourceLanguage("en")
+                    .targetLanguage("hi")
+                    .targetStatus("PUBLISHED")
+                    .overwriteExisting(true)
+                    .totalQuestions(10)
+                    .progressPercentage(0.0)
+                    .message("Batch translation job PENDING")
+                    .build();
+
+            when(paperTranslationService.translatePaper(eq(PAPER_ID), any(), eq(USER_ID), eq(TENANT_ID)))
+                    .thenReturn(response);
+
+            mockMvc.perform(post("/api/v1/papers/{paperId}/translate", PAPER_ID)
+                            .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_EXAM_CONTROLLER"))
+                                    .jwt(j -> j.subject(USER_ID.toString()).claim("tenant_id", TENANT_ID)))
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(request)))
+                    .andExpect(status().isAccepted())
+                    .andExpect(jsonPath("$.jobId").value(JOB_ID.toString()))
+                    .andExpect(jsonPath("$.paperId").value(PAPER_ID.toString()))
+                    .andExpect(jsonPath("$.targetLanguage").value("hi"))
+                    .andExpect(jsonPath("$.targetStatus").value("PUBLISHED"))
+                    .andExpect(jsonPath("$.overwriteExisting").value(true));
+        }
+
+        @Test
+        @DisplayName("+ve: Query paper translation status - returns 200 OK")
+        void queryPaperTranslationStatus() throws Exception {
+            PaperTranslateResponse response = PaperTranslateResponse.builder()
+                    .jobId(JOB_ID)
+                    .paperId(PAPER_ID)
+                    .status("IN_PROGRESS")
+                    .targetLanguage("hi")
+                    .totalQuestions(10)
+                    .processedQuestions(5)
+                    .successfulQuestions(5)
+                    .progressPercentage(50.0)
+                    .build();
+
+            when(paperTranslationService.getTranslationStatus(eq(PAPER_ID), eq(JOB_ID), eq(TENANT_ID)))
+                    .thenReturn(response);
+
+            mockMvc.perform(get("/api/v1/papers/{paperId}/translate/{jobId}", PAPER_ID, JOB_ID)
+                            .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_EXAM_CONTROLLER"))
+                                    .jwt(j -> j.subject(USER_ID.toString()).claim("tenant_id", TENANT_ID))))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.jobId").value(JOB_ID.toString()))
+                    .andExpect(jsonPath("$.status").value("IN_PROGRESS"))
+                    .andExpect(jsonPath("$.progressPercentage").value(50.0));
         }
     }
 }

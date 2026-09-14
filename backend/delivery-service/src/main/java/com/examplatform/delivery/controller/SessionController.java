@@ -14,7 +14,8 @@
  * GNU Affero General Public License for more details.
  *
  * You should have received a copy of the GNU Affero General Public License
- * along with this program. If not, see <https://www.gnu.org/licenses/>.\n */
+ * along with this program. If not, see <https://www.gnu.org/licenses/>.
+ */
 
 package com.examplatform.delivery.controller;
 
@@ -125,5 +126,30 @@ public class SessionController {
         List<QuestionDeliveryDto> questions = examQuestionDeliveryService.getQuestionsForSession(sessionId, tenantId);
 
         return ResponseEntity.ok(questions);
+    }
+
+    /**
+     * Retrieve a specific question by 1-based sequence number for an ongoing active exam session.
+     *
+     * @param sessionId      the session identifier
+     * @param sequenceNumber the 1-based sequence index
+     * @param jwt            the authenticated candidate's JWT
+     * @return 200 OK with the question
+     */
+    @GetMapping("/{sessionId}/questions/{sequenceNumber}")
+    @PreAuthorize("hasRole('CANDIDATE')")
+    public ResponseEntity<QuestionDeliveryDto> getSessionQuestion(
+            @PathVariable UUID sessionId,
+            @PathVariable int sequenceNumber,
+            @AuthenticationPrincipal Jwt jwt) {
+
+        String tenantId = jwt.getClaimAsString("tenant_id");
+        List<QuestionDeliveryDto> questions = examQuestionDeliveryService.getQuestionsForSession(sessionId, tenantId);
+
+        if (sequenceNumber >= 1 && sequenceNumber <= questions.size()) {
+            return ResponseEntity.ok(questions.get(sequenceNumber - 1));
+        }
+
+        return ResponseEntity.notFound().build();
     }
 }

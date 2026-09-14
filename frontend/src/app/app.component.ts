@@ -104,21 +104,13 @@ export class AppComponent {
         { label: 'Exam Centres', icon: 'location_on', route: '/exam/scheduling/centres', roles: ['EXAM_CONTROLLER', 'SUPER_ADMIN'] },
       ]
     },
-    {
-      label: 'Exam Delivery',
-      icon: 'school',
-      roles: ['CANDIDATE'],
-      items: [
-        { label: 'My Exams', icon: 'school', route: '/exam', roles: ['CANDIDATE'] },
-        { label: 'Live Exams', icon: 'cast_connected', route: '/exam/delivery', roles: ['CANDIDATE'] },
-      ]
-    },
+
     {
       label: 'Results & Reports',
       icon: 'assessment',
-      roles: ['CANDIDATE', 'EXAM_CONTROLLER', 'EVALUATOR', 'SUPER_ADMIN'],
+      roles: ['EXAM_CONTROLLER', 'EVALUATOR', 'SUPER_ADMIN'],
       items: [
-        { label: 'Results', icon: 'grade', route: '/results', roles: ['CANDIDATE'] },
+        { label: 'Results', icon: 'grade', route: '/results', roles: ['EXAM_CONTROLLER', 'SUPER_ADMIN'] },
         { label: 'Evaluations', icon: 'rate_review', route: '/evaluations', roles: ['EVALUATOR'] },
         { label: 'Reports', icon: 'bar_chart', route: '/admin/reports', roles: ['EXAM_CONTROLLER', 'SUPER_ADMIN'] },
         { label: 'Analytics', icon: 'insights', route: '/analytics', roles: ['EXAM_CONTROLLER'] },
@@ -209,14 +201,9 @@ export class AppComponent {
         !url.startsWith('/exam/scheduling/centres');
     }
 
-    // 6. My Exams (/exam) - candidate view, should not match manage, scheduling, or delivery
-    if (itemRoute === '/exam') {
-      return url === '/exam' || (
-        url.startsWith('/exam/') &&
-        !url.startsWith('/exam/manage') &&
-        !url.startsWith('/exam/scheduling') &&
-        !url.startsWith('/exam/delivery')
-      );
+    // 6. Exams (/exam/manage)
+    if (itemRoute === '/exam/manage') {
+      return url === '/exam' || url.startsWith('/exam/manage');
     }
 
     // 7. General sub-path match for other routes (e.g. /exam/manage/:id, /admin/users/:id, /exam/scheduling/centres)
@@ -253,7 +240,6 @@ export class AppComponent {
       'REVIEWER': 'Reviewer',
       'APPROVER': 'Approver',
       'EVALUATOR': 'Evaluator',
-      'CANDIDATE': 'Candidate',
       'AUDITOR': 'Auditor',
       'CONTENT_MANAGER': 'Content Manager',
     };

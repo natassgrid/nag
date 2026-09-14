@@ -28,6 +28,19 @@ export const OFFICIAL_EXAM_QUESTIONS: QuestionDto[] = [
     topic: 'Analogy (Number)',
     correctOptionIndex: 0,
     explanation: 'Pattern: n : (n² + 28). For 12, 12² + 28 = 144 + 28 = 172. For 8, 8² + 4 = 68 (or 8² + 4 = 68). Correct option is 68 (Option A).',
+    translations: {
+      hi: {
+        languageCode: 'hi',
+        text: 'उस विकल्प का चयन करें जो तीसरी संख्या से उसी प्रकार संबंधित है जैसे दूसरी संख्या पहली संख्या से संबंधित है:\n\n12 : 172 :: 8 : ?',
+        explanation: 'पैटर्न: n : (n² + 28)। 12 के लिए: 12² + 28 = 144 + 28 = 172। 8 के लिए: 8² + 4 = 68। अतः सही उत्तर 68 (विकल्प A) है।',
+        options: [
+          { index: 0, text: '68' },
+          { index: 1, text: '64' },
+          { index: 2, text: '72' },
+          { index: 3, text: '60' },
+        ],
+      },
+    },
   },
   {
     id: 'a1050000-0000-0000-0000-000000000002',
@@ -45,6 +58,19 @@ export const OFFICIAL_EXAM_QUESTIONS: QuestionDto[] = [
     topic: 'Semantic Analogy',
     correctOptionIndex: 0,
     explanation: 'A seismograph measures earthquake intensity, and an anemometer is the meteorological instrument used to measure wind speed and pressure.',
+    translations: {
+      hi: {
+        languageCode: 'hi',
+        text: 'संबंधित शब्द-युग्म का चयन करें:\n\nसिस्मोग्राफ : भूकंप :: एनीमोमीटर : ?',
+        explanation: 'सिस्मोग्राफ भूकंप की तीव्रता मापता है और एनीमोमीटर वायु की गति मापने का मौसम उपकरण है।',
+        options: [
+          { index: 0, text: 'हवा की गति (Wind Speed)' },
+          { index: 1, text: 'वायुमंडलीय दबाव (Atmospheric Pressure)' },
+          { index: 2, text: 'सापेक्ष आर्द्रता (Relative Humidity)' },
+          { index: 3, text: 'विद्युत धारा (Electric Current)' },
+        ],
+      },
+    },
   },
   {
     id: 'a1050000-0000-0000-0000-000000000003',
@@ -62,6 +88,19 @@ export const OFFICIAL_EXAM_QUESTIONS: QuestionDto[] = [
     topic: 'Letter Analogy',
     correctOptionIndex: 0,
     explanation: 'Each letter shifts forward by +8 places in the alphabet: A(+8)=I, C(+8)=K, E(+8)=M, G(+8)=O. Applying to QSUW: Q(+8)=Y, S(+8)=A, U(+8)=C, W(+8)=E. Hence YACE.',
+    translations: {
+      hi: {
+        languageCode: 'hi',
+        text: 'संबंधित अक्षर-समूह का चयन करें:\n\nACEG : IKMO :: QSUW : ?',
+        explanation: 'प्रत्येक अक्षर वर्णमाला में +8 स्थान आगे बढ़ता है: A(+8)=I, C(+8)=K, E(+8)=M, G(+8)=O। QSUW पर लागू करने पर: Q(+8)=Y, S(+8)=A, U(+8)=C, W(+8)=E। अतः YACE।',
+        options: [
+          { index: 0, text: 'YACE' },
+          { index: 1, text: 'XZBD' },
+          { index: 2, text: 'ZBDF' },
+          { index: 3, text: 'YACO' },
+        ],
+      },
+    },
   },
   {
     id: 'a1050000-0000-0000-0000-000000000004',

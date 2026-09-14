@@ -98,6 +98,11 @@ indictrans2:
   url: ${INDICTRANS2_URL:http://localhost:7860}
   timeout-ms: 30000
 
+translation:
+  batch:
+    chunk-pause-interval-questions: ${TRANSLATION_BATCH_CHUNK_INTERVAL:15}
+    chunk-pause-duration-seconds: ${TRANSLATION_BATCH_CHUNK_PAUSE_SECONDS:60}
+
 asset:
   storage:
     provider: ${ASSET_STORAGE_PROVIDER:filesystem}
@@ -122,4 +127,5 @@ app:
       easy: ${AI_MODEL_EASY:nova-micro}
       medium: ${AI_MODEL_MEDIUM:nova-lite}
       hard: ${AI_MODEL_HARD:nova-lite}
-
+  question-bank:
+    service-url: ${QUESTION_BANK_SERVICE_URI:http://localhost:8083}

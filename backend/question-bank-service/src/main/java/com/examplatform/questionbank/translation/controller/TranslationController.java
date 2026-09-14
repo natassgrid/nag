@@ -73,6 +73,7 @@ import java.util.UUID;
  *   <li>GET /api/v1/translations/question/{questionId}/language/{lang}           — approved/published translation for delivery</li>
  *   <li>GET /api/v1/translations/batch/{jobId}                                   — query batch translation job status & progress</li>
  *   <li>GET /api/v1/translations/batch                                           — list all batch translation jobs</li>
+ *   <li>GET /api/v1/translations/batch/paper/{paperId}                           — list batch translation jobs for specific paper</li>
  * </ul>
  */
 @Slf4j
@@ -111,7 +112,7 @@ public class TranslationController {
 
     /**
      * Start an asynchronous batch translation job from English to target language (e.g., Hindi)
-     * with automatic upsert and published status.
+     * with automatic upsert and published status. Supports whole-bank, subject filter, or paper questions.
      * POST /api/v1/translations/batch/auto-translate
      */
     @PostMapping("/batch/auto-translate")
@@ -149,6 +150,18 @@ public class TranslationController {
     @PreAuthorize("hasAnyRole('ADMIN', 'EXAM_CONTROLLER')")
     public ResponseEntity<List<BatchTranslationJobResponse>> listBatchJobs() {
         List<BatchTranslationJobResponse> jobs = batchTranslationService.listJobs(tenantId());
+        return ResponseEntity.ok(jobs);
+    }
+
+    /**
+     * List all batch translation jobs for a specific paper.
+     * GET /api/v1/translations/batch/paper/{paperId}
+     */
+    @GetMapping("/batch/paper/{paperId}")
+    @PreAuthorize("hasAnyRole('ADMIN', 'EXAM_CONTROLLER', 'TRANSLATOR', 'REVIEWER')")
+    public ResponseEntity<List<BatchTranslationJobResponse>> listBatchJobsByPaper(
+            @PathVariable UUID paperId) {
+        List<BatchTranslationJobResponse> jobs = batchTranslationService.listJobsByPaper(paperId, tenantId());
         return ResponseEntity.ok(jobs);
     }
 

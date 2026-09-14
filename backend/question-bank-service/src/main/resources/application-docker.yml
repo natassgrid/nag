@@ -24,3 +24,6 @@ spring:
   ai:
     openai:
       base-url: ${LITELLM_BASE_URL:http://litellm:4000}
+
+indictrans2:
+  url: ${INDICTRANS2_URL:http://indictrans2:7860}

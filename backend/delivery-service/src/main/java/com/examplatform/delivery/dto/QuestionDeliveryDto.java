@@ -24,7 +24,9 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Question payload delivered to the candidate delivery interface for CBT examination.
@@ -46,4 +48,6 @@ public class QuestionDeliveryDto {
     private String topic;
     private Integer correctOptionIndex;
     private String explanation;
+    @Builder.Default
+    private Map<String, TranslatedQuestionDeliveryDto> translations = new HashMap<>();
 }
