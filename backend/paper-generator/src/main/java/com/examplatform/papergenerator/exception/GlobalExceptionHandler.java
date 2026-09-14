@@ -38,7 +38,7 @@ import java.time.Instant;
  * Validates: Requirements 8.5
  */
 @Slf4j
-@RestControllerAdvice
+@RestControllerAdvice(basePackages = "com.examplatform.papergenerator")
 public class GlobalExceptionHandler {
 
     /**

@@ -38,7 +38,7 @@ import java.util.NoSuchElementException;
  * Maps domain exceptions to appropriate HTTP status codes and structured error responses.
  */
 @Slf4j
-@RestControllerAdvice
+@RestControllerAdvice(basePackages = "com.examplatform.delivery")
 public class GlobalExceptionHandler {
 
     @ExceptionHandler(ConcurrentSessionException.class)

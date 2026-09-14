@@ -34,7 +34,7 @@ import java.time.Instant;
  * Global exception handler for the Admin Service.
  */
 @Slf4j
-@RestControllerAdvice
+@RestControllerAdvice(basePackages = "com.examplatform.admin")
 public class GlobalExceptionHandler {
 
     @ExceptionHandler(AccessDeniedException.class)

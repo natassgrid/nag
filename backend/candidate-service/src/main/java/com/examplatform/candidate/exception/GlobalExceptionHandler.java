@@ -36,7 +36,7 @@ import java.util.Map;
  * Global exception handler for candidate-service REST endpoints.
  */
 @Slf4j
-@RestControllerAdvice
+@RestControllerAdvice(basePackages = "com.examplatform.candidate")
 public class GlobalExceptionHandler {
 
     @ExceptionHandler(DuplicateProfileException.class)
