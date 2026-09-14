@@ -352,18 +352,57 @@ const TakeExam: React.FC = () => {
       if (s.sessionId && UUID_REGEX.test(s.sessionId) && !isOfflineSessionRef.current) {
         try {
           const savedResponses = await responseService.getSessionResponses(s.sessionId);
-          if (savedResponses && savedResponses.length > 0) {
-            savedResponses.forEach((resp) => {
-              if (resp.questionId && initialAnswers[resp.questionId]) {
-                initialAnswers[resp.questionId] = {
-                  optionIndex: resp.selectedOptionIndex !== undefined ? resp.selectedOptionIndex : null,
+          if (savedResponses && Array.isArray(savedResponses) && savedResponses.length > 0) {
+            let restoredCount = 0;
+            savedResponses.forEach((resp: any) => {
+              const qId = resp.questionId;
+              if (qId && initialAnswers[qId]) {
+                let parsedOptionIndex: number | null = null;
+                if (resp.selectedOptionIndex !== undefined && resp.selectedOptionIndex !== null) {
+                  parsedOptionIndex = Number(resp.selectedOptionIndex);
+                } else if (resp.selectedOptionIds) {
+                  try {
+                    const raw =
+                      typeof resp.selectedOptionIds === 'string'
+                        ? JSON.parse(resp.selectedOptionIds)
+                        : resp.selectedOptionIds;
+                    if (Array.isArray(raw) && raw.length > 0) {
+                      const firstVal = raw[0];
+                      const parsedNum = Number(firstVal);
+                      if (!isNaN(parsedNum)) {
+                        parsedOptionIndex = parsedNum;
+                      } else if (typeof firstVal === 'string') {
+                        const targetQ = qList.find((q) => q.id === qId);
+                        const optIdx = targetQ?.options?.findIndex((o) => o.id === firstVal);
+                        if (optIdx !== undefined && optIdx >= 0) {
+                          parsedOptionIndex = optIdx;
+                        }
+                      }
+                    } else if (typeof raw === 'number') {
+                      parsedOptionIndex = raw;
+                    }
+                  } catch {
+                    const parsedNum = Number(resp.selectedOptionIds);
+                    if (!isNaN(parsedNum)) {
+                      parsedOptionIndex = parsedNum;
+                    }
+                  }
+                }
+
+                initialAnswers[qId] = {
+                  optionIndex: parsedOptionIndex,
                   markedForReview: !!resp.markedForReview,
                   revSeq: resp.revisionSequence || 1,
                   visited: true,
                 };
+                if (parsedOptionIndex !== null) {
+                  restoredCount++;
+                }
               }
             });
-            toast.info('Session Resumed', `Restored ${savedResponses.length} previously saved answer(s).`);
+            if (restoredCount > 0) {
+              toast.info('Session Resumed', `Restored ${restoredCount} previously saved answer(s).`);
+            }
           }
         } catch {
           // Non-blocking response restoration
