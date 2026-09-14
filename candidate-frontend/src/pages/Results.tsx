@@ -12,7 +12,6 @@ import { tokenManager } from '../utils/tokenManager';
 import { useToast } from '../components/Toast';
 import type { ExamApplicationResponse, ResultDto } from '../types/api';
 import { useNavigate } from 'react-router-dom';
-import type { CognitiveBreakdown, TimeAnalysis, TopicScore } from '../types/api';
 
 const Results: React.FC = () => {
   const { toast } = useToast();

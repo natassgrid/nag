@@ -19,12 +19,10 @@
 
 package com.examplatform.response.config;
 
-import org.springframework.boot.web.client.RestTemplateBuilder;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.web.client.RestTemplate;
-
-import java.time.Duration;
 
 /**
  * RestTemplate configuration for outbound calls to delivery-service.
@@ -38,10 +36,10 @@ public class RestTemplateConfig {
      * Connect timeout: 50ms, Read timeout: 100ms (circuit-breaker threshold).
      */
     @Bean(name = "deliveryRestTemplate")
-    public RestTemplate deliveryRestTemplate(RestTemplateBuilder builder) {
-        return builder
-                .connectTimeout(Duration.ofMillis(50))
-                .readTimeout(Duration.ofMillis(100))
-                .build();
+    public RestTemplate deliveryRestTemplate() {
+        SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
+        factory.setConnectTimeout(50);
+        factory.setReadTimeout(100);
+        return new RestTemplate(factory);
     }
 }
