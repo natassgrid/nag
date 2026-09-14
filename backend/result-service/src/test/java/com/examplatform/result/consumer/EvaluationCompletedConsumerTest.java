@@ -30,6 +30,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.math.BigDecimal;
@@ -60,7 +61,8 @@ class EvaluationCompletedConsumerTest {
     @Mock
     private ResultRepository resultRepository;
 
-    private final ObjectMapper objectMapper = new ObjectMapper();
+    @Spy
+    private ObjectMapper objectMapper = new ObjectMapper();
 
     @InjectMocks
     private EvaluationCompletedConsumer consumer;
@@ -102,7 +104,6 @@ class EvaluationCompletedConsumerTest {
                 .thenReturn(Optional.empty());
         when(resultComputationService.computeResults(eq(examId), any(), anyBoolean(), eq("default")))
                 .thenReturn(List.of(mockResult));
-        when(resultRepository.saveAll(any())).thenReturn(List.of(mockResult));
 
         consumer.onEvaluationCompleted(payload, sessionId.toString());
 

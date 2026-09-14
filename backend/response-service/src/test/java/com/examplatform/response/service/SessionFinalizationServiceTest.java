@@ -34,6 +34,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.core.ValueOperations;
 
+import java.time.Duration;
 import java.util.List;
 import java.util.UUID;
 
@@ -84,7 +85,7 @@ class SessionFinalizationServiceTest {
         @Test
         @DisplayName("SPEC-R3-T1: First submission → succeeds, Redis key set")
         void firstSubmission_succeeds() {
-            when(valueOperations.setIfAbsent(anyString(), anyString(), any())).thenReturn(true);
+            when(valueOperations.setIfAbsent(anyString(), anyString(), any(Duration.class))).thenReturn(true);
             Response r = Response.builder().sessionId(sessionId).questionId(UUID.randomUUID())
                     .candidateId(candidateId).revisionSequence(1).saveSource("MANUAL").build();
             r.setFinal(false);
@@ -99,12 +100,10 @@ class SessionFinalizationServiceTest {
         @Test
         @DisplayName("SPEC-R3-T2: Second submission (Redis lock exists) → AlreadySubmittedException")
         void secondSubmission_throwsAlreadySubmitted() {
-            when(valueOperations.setIfAbsent(anyString(), anyString(), any())).thenReturn(false);
+            when(valueOperations.setIfAbsent(anyString(), anyString(), any(Duration.class))).thenReturn(false);
             Response r = Response.builder().sessionId(sessionId).questionId(UUID.randomUUID())
                     .candidateId(candidateId).revisionSequence(1).saveSource("MANUAL").build();
             r.setFinal(false);
-            when(responseRepository.findBySessionIdAndTenantId(sessionId, "default")).thenReturn(List.of(r));
-
             assertThatThrownBy(() ->
                     sessionFinalizationService.submitSession(sessionId, candidateId, "default"))
                     .isInstanceOf(AlreadySubmittedException.class);

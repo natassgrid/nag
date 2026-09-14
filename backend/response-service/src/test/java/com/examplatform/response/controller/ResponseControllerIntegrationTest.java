@@ -98,7 +98,7 @@ class ResponseControllerIntegrationTest extends AbstractIntegrationTest {
                     .savedAt(Instant.now())
                     .build();
 
-            when(responseSaveService.saveResponse(eq(SESSION_ID), any(SaveResponseRequest.class), eq(CANDIDATE_ID), eq(TENANT_ID)))
+            when(responseSaveService.saveResponse(eq(SESSION_ID), any(SaveResponseRequest.class), eq(CANDIDATE_ID), eq(TENANT_ID), any(), any()))
                     .thenReturn(responseDto);
 
             mockMvc.perform(post("/api/v1/responses/{sessionId}/save", SESSION_ID)

@@ -234,7 +234,7 @@ class EvaluationControllerIntegrationTest extends AbstractIntegrationTest {
                     "allEvaluated", true
             );
 
-            when(scoreAggregationService.aggregateScores(eq(SESSION_ID), eq(CANDIDATE_ID), any()))
+            when(scoreAggregationService.aggregateScores(eq(SESSION_ID), eq(CANDIDATE_ID), any(), any()))
                     .thenReturn(aggregationResult);
 
             mockMvc.perform(post("/api/v1/evaluations/aggregate")
@@ -256,7 +256,7 @@ class EvaluationControllerIntegrationTest extends AbstractIntegrationTest {
                     "candidateId", CANDIDATE_ID.toString()
             );
 
-            when(scoreAggregationService.aggregateScores(eq(SESSION_ID), eq(CANDIDATE_ID), any()))
+            when(scoreAggregationService.aggregateScores(eq(SESSION_ID), eq(CANDIDATE_ID), any(), any()))
                     .thenReturn(Map.of("allEvaluated", true));
 
             mockMvc.perform(post("/api/v1/evaluations/aggregate")

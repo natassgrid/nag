@@ -69,6 +69,10 @@ public class ResponseSaveService {
      * @return the save confirmation response
      */
     public SaveResponseResponse saveResponse(UUID sessionId, SaveResponseRequest request,
+                                              UUID candidateId, String tenantId) {
+        return saveResponse(sessionId, request, candidateId, tenantId, null, null);
+    }
+    public SaveResponseResponse saveResponse(UUID sessionId, SaveResponseRequest request,
                                               UUID candidateId, String tenantId,
                                               String clientIp, String userAgent) {
         // 0. Validate response integrity against delivery-service

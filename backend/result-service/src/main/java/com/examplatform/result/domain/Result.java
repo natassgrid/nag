@@ -70,7 +70,7 @@ public class Result extends BaseEntity {
     @Column(name = "scorecard_pdf_ref", length = 500)
     private String scorecardPdfRef;
 
-    @Column(name = "digilocker_pushed", nullable = false)
+    @Column(name = "digi_locker_pushed", nullable = false)
     private boolean digiLockerPushed;
 
     @Column(name = "accuracy_rate", precision = 5, scale = 2)

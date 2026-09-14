@@ -339,10 +339,6 @@ class AutoEvaluationServiceTest {
                     .attempted(true)
                     .build();
 
-            when(evaluationRepository.saveAll(Mockito.any())).thenAnswer(inv -> inv.getArgument(0));
-            when(dynamicConfigService.getBoolean(Mockito.eq("evaluation.auto.grade.instant"), Mockito.any(), Mockito.eq(true))).thenReturn(true);
-            when(dynamicConfigService.getBoolean(Mockito.eq("evaluation.anonymize.candidate.sheets"), Mockito.any(), Mockito.eq(true))).thenReturn(false);
-            doNothing().when(eventPublisher).publish(anyString(), anyString(), Mockito.any());
 
             // When
             List<Evaluation> evals = service.evaluateSession(
@@ -372,10 +368,6 @@ class AutoEvaluationServiceTest {
                     .attempted(true)
                     .build();
 
-            when(evaluationRepository.saveAll(Mockito.any())).thenAnswer(inv -> inv.getArgument(0));
-            when(dynamicConfigService.getBoolean(Mockito.eq("evaluation.auto.grade.instant"), Mockito.any(), Mockito.eq(true))).thenReturn(true);
-            when(dynamicConfigService.getBoolean(Mockito.eq("evaluation.anonymize.candidate.sheets"), Mockito.any(), Mockito.eq(true))).thenReturn(false);
-            doNothing().when(eventPublisher).publish(anyString(), anyString(), Mockito.any());
 
             // When
             List<Evaluation> evals = service.evaluateSession(
@@ -404,10 +396,6 @@ class AutoEvaluationServiceTest {
                     .attempted(false)
                     .build();
 
-            when(evaluationRepository.saveAll(Mockito.any())).thenAnswer(inv -> inv.getArgument(0));
-            when(dynamicConfigService.getBoolean(Mockito.eq("evaluation.auto.grade.instant"), Mockito.any(), Mockito.eq(true))).thenReturn(true);
-            when(dynamicConfigService.getBoolean(Mockito.eq("evaluation.anonymize.candidate.sheets"), Mockito.any(), Mockito.eq(true))).thenReturn(false);
-            doNothing().when(eventPublisher).publish(anyString(), anyString(), Mockito.any());
 
             // When
             List<Evaluation> evals = service.evaluateSession(
