@@ -11,7 +11,7 @@
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU Affero General Public License for more details.
+ * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU Affero General Public License
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
@@ -20,6 +20,7 @@
 package com.examplatform.questionbank.controller;
 
 import com.examplatform.questionbank.domain.QuestionVersion;
+import com.examplatform.questionbank.dto.BlueprintMatchRequest;
 import com.examplatform.questionbank.dto.CreateQuestionRequest;
 import com.examplatform.questionbank.dto.QuestionAnalytics;
 import com.examplatform.questionbank.dto.QuestionResponse;
@@ -50,13 +51,14 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-import java.util.Map;
 import java.util.UUID;
 
 /**
- * REST controller for question CRUD operations.
+ * REST controller for question lifecycle management.
+ * Provides endpoints for creating, retrieving, updating, approving, rejecting,
+ * searching, and viewing version history of questions.
  *
- * Validates: Requirements 4.1, 4.2, 4.3, 4.4, 4.5, 4.6, 5.5
+ * Validates: Requirements 4.1, 4.4, 4.6, 5.1, 5.2, 5.3, 5.5, 19.3, 26.5
  */
 @Slf4j
 @RestController
@@ -66,18 +68,21 @@ public class QuestionController {
 
     private final QuestionService questionService;
     private final QuestionUpdateService questionUpdateService;
-    private final QuestionVersioningService questionVersioningService;
     private final QuestionLifecycleService questionLifecycleService;
+    private final QuestionVersioningService questionVersioningService;
     private final QuestionSearchService questionSearchService;
 
     /**
      * Create a new question in DRAFT state.
      * Requires QUESTION_AUTHOR role.
+     * Content and answerKey are encrypted using envelope encryption.
      *
-     * @param request   the question creation payload (validated)
-     * @param jwt       the authenticated JWT principal
-     * @param tenantId  tenant identifier from the X-Tenant-Id header
-     * @return 201 Created with the question response
+     * Validates: Requirements 4.1, 4.2, 4.3, 4.5
+     *
+     * @param request  the validated creation payload
+     * @param jwt      the authenticated JWT principal
+     * @param tenantId tenant identifier from the X-Tenant-Id header
+     * @return 201 Created with the created question response
      */
     @PostMapping
     @PreAuthorize("hasRole('QUESTION_AUTHOR')")
@@ -88,25 +93,38 @@ public class QuestionController {
 
         UUID authorId = UUID.fromString(jwt.getSubject());
 
-        log.info("Creating question: type={}, subject={}, author={}, tenant={}",
-                request.getQuestionType(), request.getSubject(), authorId, tenantId);
+        log.info("Creating question: author={}, tenant={}, subjectId={}, topicId={}",
+                authorId, tenantId, request.getSubjectId(), request.getTopicId());
 
         QuestionResponse response = questionService.createQuestion(request, authorId, tenantId);
 
-        return ResponseEntity
-                .status(HttpStatus.CREATED)
+        return ResponseEntity.status(HttpStatus.CREATED)
                 .body(ApiResponse.success(response, "Question created successfully"));
     }
 
     /**
-     * List questions with optional filters and pagination.
+     * List questions for a tenant with optional filtering and pagination.
      * Requires QUESTION_AUTHOR, REVIEWER, or APPROVER role.
+     *
+     * @param subject    optional subject name filter
+     * @param subjectId  optional subject numeric ID filter (enables partition pruning)
+     * @param topic      optional topic name filter
+     * @param topicId    optional topic numeric ID filter
+     * @param difficulty optional difficulty filter
+     * @param state      optional state filter (DRAFT, REVIEW, APPROVED, etc.)
+     * @param search     optional text search filter
+     * @param page       page number (0-based, default 0)
+     * @param size       page size (default 20)
+     * @param tenantId   tenant identifier from the X-Tenant-Id header
+     * @return 200 OK with paginated question responses
      */
     @GetMapping
     @PreAuthorize("hasAnyRole('QUESTION_AUTHOR', 'REVIEWER', 'APPROVER')")
     public ResponseEntity<ApiResponse<Page<QuestionResponse>>> listQuestions(
             @RequestParam(required = false) String subject,
+            @RequestParam(required = false) Long subjectId,
             @RequestParam(required = false) String topic,
+            @RequestParam(required = false) Long topicId,
             @RequestParam(required = false) String difficulty,
             @RequestParam(required = false) String state,
             @RequestParam(required = false) String search,
@@ -114,11 +132,11 @@ public class QuestionController {
             @RequestParam(defaultValue = "20") int size,
             @RequestHeader("X-Tenant-Id") String tenantId) {
 
-        log.info("Listing questions: subject={}, topic={}, difficulty={}, state={}, search={}, page={}, size={}, tenant={}",
-                subject, topic, difficulty, state, search, page, size, tenantId);
+        log.info("Listing questions: tenant={}, subject={}, subjectId={}, topic={}, topicId={}, difficulty={}, state={}, page={}, size={}",
+                tenantId, subject, subjectId, topic, topicId, difficulty, state, page, size);
 
         Page<QuestionResponse> responses = questionService.listQuestions(
-                subject, topic, difficulty, state, search, page, size, tenantId);
+                subject, subjectId, topic, topicId, difficulty, state, search, page, size, tenantId);
         return ResponseEntity.ok(ApiResponse.success(responses, "Questions retrieved successfully"));
     }
 
@@ -218,7 +236,7 @@ public class QuestionController {
      */
     @PostMapping("/{id}/transition")
     @PreAuthorize("hasAnyRole('REVIEWER', 'APPROVER')")
-    public ResponseEntity<ApiResponse<QuestionResponse>> transitionQuestion(
+    public ResponseEntity<ApiResponse<QuestionResponse>> transition(
             @PathVariable UUID id,
             @Valid @RequestBody TransitionRequest request,
             @AuthenticationPrincipal Jwt jwt,
@@ -231,7 +249,7 @@ public class QuestionController {
 
         QuestionResponse response = questionLifecycleService.transition(id, request, actorId, tenantId);
 
-        return ResponseEntity.ok(ApiResponse.success(response, "Question transitioned successfully"));
+        return ResponseEntity.ok(ApiResponse.success(response, "Question state transitioned"));
     }
 
     /**
@@ -248,7 +266,7 @@ public class QuestionController {
      */
     @PutMapping("/{id}/approve")
     @PreAuthorize("hasAnyRole('REVIEWER', 'APPROVER')")
-    public ResponseEntity<ApiResponse<QuestionResponse>> approveQuestion(
+    public ResponseEntity<ApiResponse<QuestionResponse>> approve(
             @PathVariable UUID id,
             @AuthenticationPrincipal Jwt jwt,
             @RequestHeader("X-Tenant-Id") String tenantId) {
@@ -277,14 +295,14 @@ public class QuestionController {
      */
     @PutMapping("/{id}/reject")
     @PreAuthorize("hasAnyRole('REVIEWER', 'APPROVER')")
-    public ResponseEntity<ApiResponse<QuestionResponse>> rejectQuestion(
+    public ResponseEntity<ApiResponse<QuestionResponse>> reject(
             @PathVariable UUID id,
-            @RequestBody Map<String, String> body,
+            @RequestBody(required = false) java.util.Map<String, String> body,
             @AuthenticationPrincipal Jwt jwt,
             @RequestHeader("X-Tenant-Id") String tenantId) {
 
         UUID reviewerId = UUID.fromString(jwt.getSubject());
-        String comments = body.getOrDefault("comments", "");
+        String comments = (body != null) ? body.get("comments") : null;
 
         log.info("Rejecting question: id={}, reviewer={}, tenant={}", id, reviewerId, tenantId);
 
@@ -342,5 +360,38 @@ public class QuestionController {
                 .build();
 
         return ResponseEntity.ok(ApiResponse.success(analytics, "Analytics retrieved successfully"));
+    }
+
+    /**
+     * Blueprint matching endpoint for Paper Generator.
+     */
+    @PostMapping("/blueprint-match")
+    public ResponseEntity<ApiResponse<List<QuestionResponse>>> findBlueprintQuestions(
+            @RequestBody BlueprintMatchRequest request,
+            @RequestHeader(value = "X-Tenant-Id", defaultValue = "default") String tenantId) {
+
+        log.info("Blueprint question match request: subject={}, topic={}, difficulty={}, cognitiveLevel={}, tenant={}",
+                request.getSubject(), request.getTopic(), request.getDifficulty(), request.getCognitiveLevel(), tenantId);
+
+        List<QuestionResponse> responses = questionService.findBlueprintQuestions(
+                request.getSubject(), request.getTopic(), request.getDifficulty(), request.getCognitiveLevel(), tenantId);
+
+        return ResponseEntity.ok(ApiResponse.success(responses, "Blueprint questions retrieved successfully"));
+    }
+
+    /**
+     * Batch lookup endpoint for Paper Generator review.
+     */
+    @PostMapping("/batch-find")
+    public ResponseEntity<ApiResponse<List<QuestionResponse>>> findQuestionsByIds(
+            @RequestBody List<UUID> questionIds,
+            @RequestHeader(value = "X-Tenant-Id", defaultValue = "default") String tenantId) {
+
+        log.info("Batch question lookup request: count={}, tenant={}",
+                questionIds != null ? questionIds.size() : 0, tenantId);
+
+        List<QuestionResponse> responses = questionService.findQuestionsByIds(questionIds, tenantId);
+
+        return ResponseEntity.ok(ApiResponse.success(responses, "Questions retrieved successfully"));
     }
 }

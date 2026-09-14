@@ -14,7 +14,8 @@
  * GNU Affero General Public License for more details.
  *
  * You should have received a copy of the GNU Affero General Public License
- * along with this program. If not, see <https://www.gnu.org/licenses/>.\n */
+ * along with this program. If not, see <https://www.gnu.org/licenses/>.
+ */
 
 package com.examplatform.delivery.controller;
 
@@ -41,6 +42,7 @@ import org.springframework.web.bind.annotation.RestController;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 /**
@@ -95,6 +97,25 @@ public class SessionController {
      * @param jwt       the authenticated candidate's JWT
      * @return 200 OK with session details and delivery questions
      */
+
+    /**
+     * Terminate all active exam sessions for the authenticated candidate.
+     * Allows candidate to clear stale or concurrent sessions when switching exams.
+     */
+    @PostMapping("/terminate-active")
+    @PreAuthorize("hasRole('CANDIDATE')")
+    public ResponseEntity<Map<String, Object>> terminateActiveSessions(
+            @AuthenticationPrincipal Jwt jwt) {
+        UUID candidateId = UUID.fromString(jwt.getSubject());
+        String tenantId = jwt.getClaimAsString("tenant_id");
+        int count = sessionStartService.terminateActiveSessionsForCandidate(candidateId, tenantId);
+        return ResponseEntity.ok(Map.of(
+                "status", "success",
+                "terminatedCount", count,
+                "message", "Active exam session(s) terminated successfully."
+        ));
+    }
+
     @PostMapping("/{sessionId}/resume")
     @PreAuthorize("hasRole('CANDIDATE')")
     public ResponseEntity<SessionStartResponse> resumeSession(
@@ -125,5 +146,30 @@ public class SessionController {
         List<QuestionDeliveryDto> questions = examQuestionDeliveryService.getQuestionsForSession(sessionId, tenantId);
 
         return ResponseEntity.ok(questions);
+    }
+
+    /**
+     * Retrieve a specific question by 1-based sequence number for an ongoing active exam session.
+     *
+     * @param sessionId      the session identifier
+     * @param sequenceNumber the 1-based sequence index
+     * @param jwt            the authenticated candidate's JWT
+     * @return 200 OK with the question
+     */
+    @GetMapping("/{sessionId}/questions/{sequenceNumber}")
+    @PreAuthorize("hasRole('CANDIDATE')")
+    public ResponseEntity<QuestionDeliveryDto> getSessionQuestion(
+            @PathVariable UUID sessionId,
+            @PathVariable int sequenceNumber,
+            @AuthenticationPrincipal Jwt jwt) {
+
+        String tenantId = jwt.getClaimAsString("tenant_id");
+        List<QuestionDeliveryDto> questions = examQuestionDeliveryService.getQuestionsForSession(sessionId, tenantId);
+
+        if (sequenceNumber >= 1 && sequenceNumber <= questions.size()) {
+            return ResponseEntity.ok(questions.get(sequenceNumber - 1));
+        }
+
+        return ResponseEntity.notFound().build();
     }
 }

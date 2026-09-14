@@ -41,7 +41,7 @@ import java.util.stream.Collectors;
  * Validates: Requirements 4.1, 4.2
  */
 @Slf4j
-@RestControllerAdvice
+@RestControllerAdvice(basePackages = "com.examplatform.questionbank")
 public class GlobalExceptionHandler {
 
     /**

@@ -53,6 +53,36 @@ public interface QuestionRepository extends JpaRepository<Question, UUID>, JpaSp
 
     List<Question> findByTenantId(String tenantId);
 
+    Page<Question> findByTenantId(String tenantId, Pageable pageable);
+
+    Page<Question> findBySubjectAndTenantId(String subject, String tenantId, Pageable pageable);
+
+    @Query("""
+        SELECT q FROM Question q
+        WHERE (q.tenantId = :tenantId OR q.tenantId = 'default' OR :tenantId IS NULL)
+    """)
+    Page<Question> findAllQuestionsForBatch(@Param("tenantId") String tenantId, Pageable pageable);
+
+    @Query("""
+        SELECT q FROM Question q
+        WHERE (q.tenantId = :tenantId OR q.tenantId = 'default' OR :tenantId IS NULL)
+          AND (
+               LOWER(TRIM(q.subject)) = LOWER(TRIM(:subject))
+               OR LOWER(q.subject) LIKE LOWER(CONCAT('%', TRIM(:subject), '%'))
+               OR CAST(q.subjectId AS string) = TRIM(:subject)
+               OR EXISTS (
+                   SELECT s FROM Subject s
+                   WHERE s.id = q.subjectId
+                     AND (
+                         LOWER(TRIM(s.name)) = LOWER(TRIM(:subject))
+                         OR LOWER(s.name) LIKE LOWER(CONCAT('%', TRIM(:subject), '%'))
+                         OR LOWER(s.code) = LOWER(TRIM(:subject))
+                     )
+               )
+          )
+    """)
+    Page<Question> findBySubjectFilterAndTenantId(@Param("subject") String subject, @Param("tenantId") String tenantId, Pageable pageable);
+
     /**
      * Finds a PUBLISHED question whose embedding vector has cosine similarity
      * above the given threshold compared to the provided embedding.
@@ -109,4 +139,54 @@ public interface QuestionRepository extends JpaRepository<Question, UUID>, JpaSp
     @org.springframework.data.jpa.repository.Modifying
     @Query(value = "UPDATE question_service.question SET embedding = cast(:embedding AS public.halfvec(384)) WHERE id = :id", nativeQuery = true)
     void updateEmbedding(@Param("id") UUID id, @Param("embedding") String embedding);
+
+    /**
+     * Finds approved questions matching blueprint criteria (subject, topic, difficulty, cognitive level).
+     */
+    @Query(value = """
+            SELECT * FROM question_service.question
+            WHERE (tenant_id = :tenantId OR tenant_id = 'default')
+              AND UPPER(TRIM(subject)) = UPPER(TRIM(:subject))
+              AND UPPER(TRIM(topic)) = UPPER(TRIM(:topic))
+              AND state = 'APPROVED'
+              AND (:difficulty IS NULL OR UPPER(TRIM(difficulty)) = UPPER(TRIM(:difficulty)))
+              AND (:cognitiveLevel IS NULL OR UPPER(TRIM(cognitive_level)) = UPPER(TRIM(:cognitiveLevel)))
+            ORDER BY RANDOM()
+            """, nativeQuery = true)
+    List<Question> findBlueprintQuestions(
+            @Param("subject") String subject,
+            @Param("topic") String topic,
+            @Param("difficulty") String difficulty,
+            @Param("cognitiveLevel") String cognitiveLevel,
+            @Param("tenantId") String tenantId);
+
+    /**
+     * Fallback lookup for blueprint questions ignoring cognitive level if exact match has no rows.
+     */
+    @Query(value = """
+            SELECT * FROM question_service.question
+            WHERE (tenant_id = :tenantId OR tenant_id = 'default')
+              AND UPPER(TRIM(subject)) = UPPER(TRIM(:subject))
+              AND UPPER(TRIM(topic)) = UPPER(TRIM(:topic))
+              AND state = 'APPROVED'
+              AND (:difficulty IS NULL OR UPPER(TRIM(difficulty)) = UPPER(TRIM(:difficulty)))
+            ORDER BY RANDOM()
+            """, nativeQuery = true)
+    List<Question> findBlueprintQuestionsFallback(
+            @Param("subject") String subject,
+            @Param("topic") String topic,
+            @Param("difficulty") String difficulty,
+            @Param("tenantId") String tenantId);
+
+    /**
+     * Batch lookup for questions by their UUIDs.
+     */
+    @Query(value = """
+            SELECT * FROM question_service.question
+            WHERE (tenant_id = :tenantId OR tenant_id = 'default')
+              AND id IN (:ids)
+            """, nativeQuery = true)
+    List<Question> findQuestionsByIdsIn(
+            @Param("ids") List<UUID> ids,
+            @Param("tenantId") String tenantId);
 }

@@ -98,7 +98,7 @@
 
 .blueprints-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
   gap: 16px;
 }
 
@@ -108,12 +108,13 @@
   border-radius: 8px;
   display: flex;
   flex-direction: column;
-  padding: 14px;
-  gap: 10px;
+  padding: 16px;
+  gap: 12px;
+  transition: all 0.2s ease-in-out;
 
   &:hover {
     border-color: #c7d2fe;
-    box-shadow: 0 4px 12px rgba(79, 70, 229, 0.08);
+    box-shadow: 0 4px 16px rgba(79, 70, 229, 0.08);
   }
 }
 
@@ -281,11 +282,74 @@
 .card-footer {
   display: flex;
   align-items: center;
-  justify-content: flex-end;
-  gap: 4px;
-  padding-top: 6px;
+  justify-content: space-between;
+  gap: 8px;
+  padding-top: 10px;
   border-top: 1px solid #f1f5f9;
   margin-top: auto;
+}
+
+.card-actions-left {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+
+  .card-icon-btn {
+    width: 32px !important;
+    height: 32px !important;
+    line-height: 32px !important;
+    padding: 0 !important;
+    color: #64748b;
+    border-radius: 6px;
+    transition: all 0.15s ease-in-out;
+
+    mat-icon {
+      font-size: 18px !important;
+      width: 18px !important;
+      height: 18px !important;
+      line-height: 18px !important;
+    }
+
+    &:hover {
+      background: #f1f5f9;
+      color: #1e293b;
+    }
+
+    &.btn-delete:hover {
+      background: #fee2e2;
+      color: #dc2626;
+    }
+  }
+}
+
+.card-actions-right {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+
+  button.action-btn {
+    height: 32px !important;
+    min-height: 32px !important;
+    max-height: 32px !important;
+    line-height: 30px !important;
+    padding: 0 12px !important;
+    box-sizing: border-box !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    border-radius: 6px !important;
+    font-size: 12px !important;
+    font-weight: 600 !important;
+    white-space: nowrap !important;
+
+    .btn-icon, mat-icon {
+      font-size: 16px !important;
+      width: 16px !important;
+      height: 16px !important;
+      line-height: 16px !important;
+      margin-right: 4px !important;
+    }
+  }
 }
 
 .blueprint-form {
@@ -339,4 +403,11 @@
   display: flex;
   justify-content: center;
   padding-top: 6px;
+}
+
+.drawer-footer-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
 }

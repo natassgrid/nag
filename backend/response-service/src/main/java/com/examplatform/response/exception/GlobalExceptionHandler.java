@@ -43,7 +43,7 @@ import java.util.stream.Collectors;
  * Validates: Requirements 10.1, 20.3
  */
 @Slf4j
-@RestControllerAdvice
+@RestControllerAdvice(basePackages = "com.examplatform.response")
 public class GlobalExceptionHandler {
 
     /**
@@ -126,6 +126,39 @@ public class GlobalExceptionHandler {
         return ResponseEntity
                 .status(HttpStatus.SERVICE_UNAVAILABLE)
                 .body(ApiResponse.error("Service temporarily unavailable — message broker error"));
+    }
+
+    /**
+     * Handles response integrity violations (422 Unprocessable Entity).
+     */
+    @ExceptionHandler(ResponseIntegrityException.class)
+    public ResponseEntity<ApiResponse<Void>> handleIntegrityViolation(ResponseIntegrityException ex) {
+        log.warn("Response integrity violation [{}]: {}", ex.getErrorCode(), ex.getMessage());
+        return ResponseEntity
+                .status(HttpStatus.UNPROCESSABLE_ENTITY)
+                .body(ApiResponse.error(ex.getErrorCode() + ": " + ex.getMessage()));
+    }
+
+    /**
+     * Handles duplicate session submissions (409 Conflict).
+     */
+    @ExceptionHandler(AlreadySubmittedException.class)
+    public ResponseEntity<ApiResponse<Void>> handleAlreadySubmitted(AlreadySubmittedException ex) {
+        log.warn("Duplicate submission detected: {}", ex.getMessage());
+        return ResponseEntity
+                .status(HttpStatus.CONFLICT)
+                .body(ApiResponse.error("ALREADY_SUBMITTED: " + ex.getMessage()));
+    }
+
+    /**
+     * Handles session expiry on submission (422 Unprocessable Entity).
+     */
+    @ExceptionHandler(SessionExpiredException.class)
+    public ResponseEntity<ApiResponse<Void>> handleSessionExpired(SessionExpiredException ex) {
+        log.warn("Session expired submission rejected: {}", ex.getMessage());
+        return ResponseEntity
+                .status(HttpStatus.UNPROCESSABLE_ENTITY)
+                .body(ApiResponse.error("SESSION_EXPIRED: " + ex.getMessage()));
     }
 
     /**

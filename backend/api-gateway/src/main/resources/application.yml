@@ -95,7 +95,7 @@ spring:
 
             # Paper Generator
             - id: paper-generator
-              uri: ${PAPER_GENERATOR_URI:http://localhost:8085}
+              uri: ${PAPER_GENERATOR_URI:http://localhost:8086}
               predicates:
                 - Path=/api/v1/papers/**
               filters:
@@ -103,7 +103,7 @@ spring:
 
             # Delivery Service
             - id: delivery-service
-              uri: ${DELIVERY_SERVICE_URI:http://localhost:8086}
+              uri: ${DELIVERY_SERVICE_URI:http://localhost:8087}
               predicates:
                 - Path=/api/v1/sessions/**,/api/v1/delivery/**
               filters:
@@ -111,7 +111,7 @@ spring:
 
             # Response Service
             - id: response-service
-              uri: ${RESPONSE_SERVICE_URI:http://localhost:8087}
+              uri: ${RESPONSE_SERVICE_URI:http://localhost:8088}
               predicates:
                 - Path=/api/v1/responses/**
               filters:
@@ -119,7 +119,7 @@ spring:
 
             # Evaluation Service
             - id: evaluation-service
-              uri: ${EVALUATION_SERVICE_URI:http://localhost:8088}
+              uri: ${EVALUATION_SERVICE_URI:http://localhost:8089}
               predicates:
                 - Path=/api/v1/evaluations/**
               filters:
@@ -127,7 +127,7 @@ spring:
 
             # Result Service
             - id: result-service
-              uri: ${RESULT_SERVICE_URI:http://localhost:8089}
+              uri: ${RESULT_SERVICE_URI:http://localhost:8090}
               predicates:
                 - Path=/api/v1/results/**
               filters:
@@ -135,7 +135,7 @@ spring:
 
             # Audit Service
             - id: audit-service
-              uri: ${AUDIT_SERVICE_URI:http://localhost:8090}
+              uri: ${AUDIT_SERVICE_URI:http://localhost:8091}
               predicates:
                 - Path=/api/v1/audit/**
               filters:
@@ -143,7 +143,7 @@ spring:
 
             # Notification Service
             - id: notification-service
-              uri: ${NOTIFICATION_SERVICE_URI:http://localhost:8091}
+              uri: ${NOTIFICATION_SERVICE_URI:http://localhost:8092}
               predicates:
                 - Path=/api/v1/notifications/**
               filters:

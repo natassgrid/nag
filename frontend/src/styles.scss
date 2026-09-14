@@ -17,6 +17,9 @@
 @use 'app/styles/chips' as *;
 @use 'app/styles/auth' as *;
 
+// KaTeX CSS
+@import 'katex/dist/katex.min.css';
+
 // ---------- Material Theme (M2 compat layer) ----------
 
 @function mat-palette($base-palette, $default: 500, $lighter: 100, $darker: 700, $text: $default) {
@@ -72,7 +75,7 @@ $ama-theme: mat.m2-define-light-theme((
   --spacing-xl: 32px;
 }
 
-*,
+* ,
 *::before,
 *::after {
   box-sizing: border-box;
@@ -101,9 +104,9 @@ html, body {
   top: -40px;
   left: 0;
   background: var(--color-primary);
-  color: #ffffff;
-  padding: var(--spacing-sm) var(--spacing-md);
-  z-index: 10000;
+  color: var(--color-surface);
+  padding: var(--spacing-sm);
+  z-index: 100;
   transition: top 0.2s;
 
   &:focus {
@@ -111,34 +114,23 @@ html, body {
   }
 }
 
-// Minimum touch target 44x44px — WCAG 2.5.8
-button:not(.ql-toolbar button),
-a,
-input[type="submit"],
-input[type="button"],
-[role="button"] {
-  min-height: 44px;
-  min-width: 44px;
-}
-
-// Layout utilities
-.page-container {
-  max-width: 1200px;
-  margin: 0 auto;
-  padding-top: 12px;
-  padding-left: 12px;
-  padding-right: var(--spacing-lg);
-  padding-bottom: var(--spacing-lg);
-}
-
-// Search Field & Form Field 38px height and label alignment fix
-// Exclude form fields that contain a textarea — they need auto height
+// ---------- Global Compact Search Form Field Baseline ----------
 .search-field,
-.mat-mdc-form-field:not(:has(textarea)) {
-  --mdc-outlined-text-field-container-height: 38px;
+.perm-search-field,
+.table-search-field,
+.compact-search-field {
+  &.mat-mdc-form-field {
+    height: 38px;
+    display: inline-flex;
+    vertical-align: middle;
 
-  .mat-mdc-text-field-wrapper.mdc-text-field--outlined {
-    height: 38px !important;
+    .mat-mdc-text-field-wrapper {
+      height: 38px !important;
+      max-height: 38px !important;
+      padding: 0 8px 0 12px !important;
+      display: flex !important;
+      align-items: center !important;
+    }
 
     .mat-mdc-form-field-flex {
       height: 38px !important;
@@ -146,115 +138,42 @@ input[type="button"],
     }
 
     .mat-mdc-form-field-infix {
+      padding-top: 0 !important;
+      padding-bottom: 0 !important;
       min-height: 38px !important;
       height: 38px !important;
-      padding-top: 6px !important;
-      padding-bottom: 6px !important;
       display: flex !important;
       align-items: center !important;
-      box-sizing: border-box !important;
-    }
-
-    /* Unfocused label vertical centering */
-    .mdc-floating-label:not(.mdc-floating-label--float-above) {
-      top: 19px !important;
-      transform: translateY(-50%) !important;
-    }
-
-    /* Offset unfocused label past the search prefix icon */
-    &.mdc-text-field--with-leading-icon .mdc-floating-label:not(.mdc-floating-label--float-above) {
-      left: 36px !important;
-    }
-
-    /* Floated label positioning above notch */
-    .mdc-floating-label--float-above {
-      top: 17px !important;
-      left: 12px !important;
-      transform: translateY(-100%) scale(0.75) !important;
-    }
-
-    input.mat-mdc-input-element {
-      margin-top: 0 !important;
-      vertical-align: middle !important;
-      height: 24px !important;
-      line-height: 24px !important;
     }
 
     .mat-mdc-form-field-icon-prefix,
     .mat-mdc-form-field-icon-suffix {
-      padding: 0 !important;
-      align-self: center !important;
+      padding: 0 2px !important;
       display: flex !important;
       align-items: center !important;
+      justify-content: center !important;
+
+      .mat-icon {
+        font-size: 20px !important;
+        width: 20px !important;
+        height: 20px !important;
+        line-height: 20px !important;
+      }
     }
 
     .mat-mdc-form-field-subscript-wrapper {
       display: none !important;
-    }
-  }
-}
-
-// Fix label offset for form fields with icon prefix (search fields)
-.search-field .mat-mdc-text-field-wrapper .mdc-floating-label:not(.mdc-floating-label--float-above),
-.mat-mdc-form-field:has(.mat-mdc-form-field-icon-prefix) .mat-mdc-text-field-wrapper .mdc-floating-label:not(.mdc-floating-label--float-above) {
-  left: 36px !important;
-}
-
-// Textarea form fields — allow natural height
-.mat-mdc-form-field:has(textarea) {
-  .mat-mdc-text-field-wrapper.mdc-text-field--outlined {
-    height: auto !important;
-
-    .mat-mdc-form-field-flex {
-      height: auto !important;
-      align-items: flex-start !important;
+      height: 0 !important;
+      margin: 0 !important;
+      padding: 0 !important;
     }
 
-    .mat-mdc-form-field-infix {
-      min-height: unset !important;
-      height: auto !important;
-      padding-top: 12px !important;
-      padding-bottom: 12px !important;
-      display: block !important;
+    input.mat-mdc-input-element {
+      font-size: 13.5px !important;
+      height: 24px !important;
+      line-height: 24px !important;
+      margin: 0 !important;
+      vertical-align: middle !important;
     }
-
-    textarea.mat-mdc-input-element {
-      width: 100% !important;
-      box-sizing: border-box !important;
-    }
-  }
-}
-
-// Toolbar override using theme color
-.mat-toolbar.mat-primary {
-  background: $slate-900 !important;
-  color: $white !important;
-  border-bottom: 1px solid $slate-800;
-}
-
-// Snackbar variants
-.mat-mdc-snack-bar-container {
-  &.error-snackbar {
-    --mdc-snackbar-container-color: #{$pink};
-    --mdc-snackbar-supporting-text-color: white;
-  }
-  &.success-snackbar {
-    --mdc-snackbar-container-color: #{$green};
-    --mdc-snackbar-supporting-text-color: white;
-  }
-  &.warning-snackbar {
-    --mdc-snackbar-container-color: #{$yellow};
-    --mdc-snackbar-supporting-text-color: #0F172A;
-  }
-  &.info-snackbar {
-    --mdc-snackbar-container-color: #{$indigo};
-    --mdc-snackbar-supporting-text-color: white;
-  }
-}
-
-// Responsive baseline
-@media (max-width: 320px) {
-  body {
-    overflow-x: hidden;
   }
 }

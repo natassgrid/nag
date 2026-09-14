@@ -6,8 +6,7 @@
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as published
- * by the Free Software Foundation, version 3 of the License.
- *
+ * by the Free Software Foundation, version 3 of the License.\n *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
@@ -91,6 +90,16 @@ public class DevKeycloakService extends KeycloakService {
     @Override
     public void activateUser(String keycloakUserId) {
         log.info("[DEV] Skipping Keycloak user activation for: {}", keycloakUserId);
+    }
+
+    @Override
+    public void changePassword(String username, String currentPassword, String newPassword, String keycloakUserId) {
+        log.info("[DEV] Password changed for user: {}", username);
+    }
+
+    @Override
+    public void revokeUserSessions(String keycloakUserId) {
+        log.info("[DEV] User sessions revoked for: {}", keycloakUserId);
     }
 
     private String base64Url(String input) {

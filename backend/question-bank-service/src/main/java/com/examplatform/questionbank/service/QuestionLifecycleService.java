@@ -42,14 +42,14 @@ import java.util.UUID;
 
 /**
  * Service implementing the question lifecycle finite state machine (FSM).
- * Enforces valid transitions and the four-eyes principle (reviewer ≠ approver).
+ * Enforces valid transitions and the four-eyes principle (reviewer != approver).
  *
  * Valid transitions:
- *   DRAFT → REVIEW
- *   REVIEW → APPROVED
- *   REVIEW → DRAFT
- *   APPROVED → PUBLISHED
- *   PUBLISHED → ARCHIVED
+ *   DRAFT -> REVIEW
+ *   REVIEW -> APPROVED
+ *   REVIEW -> DRAFT
+ *   APPROVED -> PUBLISHED
+ *   PUBLISHED -> ARCHIVED
  *
  * Validates: Requirements 4.6, 5.5
  */
@@ -85,7 +85,7 @@ public class QuestionLifecycleService {
      * @throws FourEyesPrincipleViolationException   if the approver is the same as the reviewer
      */
     public QuestionResponse transition(UUID questionId, TransitionRequest request, UUID actorId, String tenantId) {
-        // 1. Find question → 404 if not found
+        // 1. Find question -> 404 if not found
         Question question = questionRepository.findById(questionId)
                 .orElseThrow(() -> new EntityNotFoundException("Question not found: " + questionId));
 
@@ -106,7 +106,7 @@ public class QuestionLifecycleService {
             }
         }
 
-        // Store reviewer when transitioning REVIEW → APPROVED
+        // Store reviewer when transitioning REVIEW -> APPROVED
         if ("REVIEW".equals(currentState) && "APPROVED".equals(targetState)) {
             question.setReviewerId(actorId);
         }
@@ -234,6 +234,8 @@ public class QuestionLifecycleService {
                 .state(question.getState())
                 .authorId(question.getAuthorId())
                 .createdAt(createdAt)
+                .options(question.getOptions())
+                .hasImages(question.isHasImages())
                 .build();
     }
 }

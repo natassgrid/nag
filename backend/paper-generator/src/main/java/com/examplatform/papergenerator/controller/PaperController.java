@@ -21,15 +21,20 @@ package com.examplatform.papergenerator.controller;
 
 import com.examplatform.papergenerator.client.QuestionBankClient;
 import com.examplatform.papergenerator.domain.Paper;
+import com.examplatform.papergenerator.dto.BlueprintFeasibilityRequest;
+import com.examplatform.papergenerator.dto.BlueprintFeasibilityResponse;
 import com.examplatform.papergenerator.dto.PaperGenerationRequest;
 import com.examplatform.papergenerator.dto.PaperResponse;
 import com.examplatform.papergenerator.dto.PaperSummaryResponse;
+import com.examplatform.papergenerator.dto.PaperTranslateRequest;
+import com.examplatform.papergenerator.dto.PaperTranslateResponse;
 import com.examplatform.papergenerator.dto.QuestionSummary;
 import com.examplatform.papergenerator.repository.PaperRepository;
 import com.examplatform.papergenerator.service.ExaminationLookupService;
 import com.examplatform.papergenerator.service.PaperApprovalService;
 import com.examplatform.papergenerator.service.PaperAssemblyService;
 import com.examplatform.papergenerator.service.PaperSerializer;
+import com.examplatform.papergenerator.service.PaperTranslationService;
 import com.examplatform.shared.tenant.TenantContext;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -65,9 +70,10 @@ import java.util.stream.Collectors;
 
 /**
  * REST controller for paper generation endpoints.
- * Supports blueprint-driven paper generation, paper listing, approval, and validation.
+ * Supports blueprint-driven paper generation, blueprint feasibility checks, paper listing,
+ * approval, validation, and paper-scoped batch auto-translation.
  *
- * Validates: Requirements 8.1, 8.2, 8.3, 8.4, 28.1, 28.2, 28.3, 28.5
+ * Validates: Requirements 8.1, 8.2, 8.3, 8.4, 8.5, 28.1, 28.2, 28.3, 28.5
  */
 @Slf4j
 @RestController
@@ -78,6 +84,7 @@ public class PaperController {
     private final PaperAssemblyService paperAssemblyService;
     private final PaperSerializer paperSerializer;
     private final PaperApprovalService paperApprovalService;
+    private final PaperTranslationService paperTranslationService;
     private final PaperRepository paperRepository;
     private final QuestionBankClient questionBankClient;
     private final ObjectMapper objectMapper;
@@ -270,6 +277,32 @@ public class PaperController {
     }
 
     /**
+     * Checks blueprint feasibility against the current question bank without generating a paper.
+     * Optionally alerts administrators if any rule deficit is detected.
+     */
+    @PostMapping("/blueprints/check-sufficiency")
+    @PreAuthorize("hasAnyRole('EXAM_CONTROLLER','SUPER_ADMIN')")
+    public ResponseEntity<BlueprintFeasibilityResponse> checkBlueprintSufficiency(
+            @Valid @RequestBody BlueprintFeasibilityRequest request) {
+
+        String tenantId = getEffectiveTenantId();
+        boolean notifyAdmin = Boolean.TRUE.equals(request.getNotifyAdminOnDeficit());
+
+        log.info("Blueprint sufficiency check requested: rulesCount={}, examId={}, shiftId={}, notifyAdmin={}, tenant={}",
+                request.getBlueprintRules() != null ? request.getBlueprintRules().size() : 0,
+                request.getExamId(), request.getShiftId(), notifyAdmin, tenantId);
+
+        BlueprintFeasibilityResponse response = paperAssemblyService.checkBlueprintSufficiency(
+                request.getBlueprintRules(),
+                request.getExamId(),
+                request.getShiftId(),
+                tenantId,
+                notifyAdmin);
+
+        return ResponseEntity.ok(response);
+    }
+
+    /**
      * Submits an async paper generation job.
      * Requires the EXAM_CONTROLLER role.
      *
@@ -354,8 +387,62 @@ public class PaperController {
         ));
     }
 
+    /**
+     * Triggers asynchronous batch translation for all questions in an examination paper.
+     * Accepts overwrite configuration and publishes translated questions directly for exam delivery.
+     *
+     * @param paperId the paper UUID whose questions should be translated
+     * @param request translation parameters (targetLanguage, overwriteExisting, etc.)
+     * @param jwt     authenticated user's JWT
+     * @return 202 Accepted with batch translation job details
+     */
+    @PostMapping("/{paperId}/translate")
+    @PreAuthorize("hasAnyRole('EXAM_CONTROLLER','SUPER_ADMIN','ADMIN')")
+    public ResponseEntity<PaperTranslateResponse> translatePaper(
+            @PathVariable UUID paperId,
+            @Valid @RequestBody(required = false) PaperTranslateRequest request,
+            @AuthenticationPrincipal Jwt jwt) {
+
+        UUID initiatedBy = extractUserId(jwt);
+        String tenantId = getEffectiveTenantId();
+        log.info("Paper batch translation requested for paperId={}, user={}, tenant={}", paperId, initiatedBy, tenantId);
+
+        PaperTranslateResponse response = paperTranslationService.translatePaper(
+                paperId, request, initiatedBy, tenantId);
+
+        return ResponseEntity.status(HttpStatus.ACCEPTED).body(response);
+    }
+
+    /**
+     * Retrieves the current status and progress of a paper translation job.
+     *
+     * @param paperId the paper UUID
+     * @param jobId   the batch translation job UUID
+     * @return 200 OK with current progress statistics
+     */
+    @GetMapping("/{paperId}/translate/{jobId}")
+    @PreAuthorize("hasAnyRole('EXAM_CONTROLLER','SUPER_ADMIN','ADMIN')")
+    public ResponseEntity<PaperTranslateResponse> getPaperTranslationStatus(
+            @PathVariable UUID paperId,
+            @PathVariable UUID jobId) {
+
+        String tenantId = getEffectiveTenantId();
+        PaperTranslateResponse response = paperTranslationService.getTranslationStatus(paperId, jobId, tenantId);
+        return ResponseEntity.ok(response);
+    }
+
     private String getEffectiveTenantId() {
         String tenantId = TenantContext.get();
         return (tenantId != null && !tenantId.isBlank()) ? tenantId : "default";
+    }
+
+    private UUID extractUserId(Jwt jwt) {
+        if (jwt != null && jwt.getSubject() != null) {
+            try {
+                return UUID.fromString(jwt.getSubject());
+            } catch (IllegalArgumentException ignored) {
+            }
+        }
+        return UUID.fromString("00000000-0000-0000-0000-000000000001");
     }
 }

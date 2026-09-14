@@ -48,10 +48,16 @@ class MimeValidatorTest {
     class AllowedTypes {
 
         @ParameterizedTest
-        @ValueSource(strings = {"image/png", "image/jpeg", "image/webp", "image/svg+xml"})
+        @ValueSource(strings = {"image/png", "image/jpeg", "image/webp"})
         @DisplayName("accepts image MIME types and returns IMAGE")
         void acceptsImageTypes(String mimeType) {
             assertThat(validator.validate(mimeType)).isEqualTo(AssetType.IMAGE);
+        }
+
+        @Test
+        @DisplayName("accepts SVG MIME type and returns SVG")
+        void acceptsSvgType() {
+            assertThat(validator.validate("image/svg+xml")).isEqualTo(AssetType.SVG);
         }
 
         @ParameterizedTest
@@ -68,15 +74,17 @@ class MimeValidatorTest {
         }
 
         @Test
-        @DisplayName("handles content type with charset parameter")
-        void handlesContentTypeWithCharset() {
+        @DisplayName("ignores MIME parameters like charset")
+        void ignoresMimeParameters() {
             assertThat(validator.validate("image/png; charset=utf-8")).isEqualTo(AssetType.IMAGE);
+            assertThat(validator.validate("image/svg+xml; charset=utf-8")).isEqualTo(AssetType.SVG);
         }
 
         @Test
-        @DisplayName("is case insensitive")
-        void isCaseInsensitive() {
-            assertThat(validator.validate("Image/PNG")).isEqualTo(AssetType.IMAGE);
+        @DisplayName("is case-insensitive")
+        void caseInsensitive() {
+            assertThat(validator.validate("IMAGE/PNG")).isEqualTo(AssetType.IMAGE);
+            assertThat(validator.validate("Image/Svg+Xml")).isEqualTo(AssetType.SVG);
         }
     }
 
@@ -87,16 +95,19 @@ class MimeValidatorTest {
         @ParameterizedTest
         @ValueSource(strings = {
                 "application/x-executable",
+                "application/x-msdos-program",
                 "application/x-msdownload",
                 "application/x-sh",
+                "application/x-shellscript",
                 "application/java-archive",
+                "application/x-java-class",
                 "application/javascript"
         })
-        @DisplayName("rejects blocked executable MIME types")
+        @DisplayName("rejects dangerous/executable MIME types")
         void rejectsBlockedTypes(String mimeType) {
             assertThatThrownBy(() -> validator.validate(mimeType))
                     .isInstanceOf(AssetValidationException.class)
-                    .hasMessageContaining("Blocked");
+                    .hasMessageContaining("Blocked MIME type");
         }
     }
 
@@ -105,28 +116,41 @@ class MimeValidatorTest {
     class UnsupportedTypes {
 
         @ParameterizedTest
-        @ValueSource(strings = {"application/pdf", "text/plain", "application/zip"})
-        @DisplayName("rejects unsupported but non-blocked types")
+        @ValueSource(strings = {
+                "text/html",
+                "application/pdf",
+                "application/zip",
+                "image/gif",
+                "image/bmp",
+                "video/quicktime",
+                "application/octet-stream"
+        })
+        @DisplayName("rejects types not in allowed list")
         void rejectsUnsupportedTypes(String mimeType) {
             assertThatThrownBy(() -> validator.validate(mimeType))
                     .isInstanceOf(AssetValidationException.class)
-                    .hasMessageContaining("Unsupported");
+                    .hasMessageContaining("Unsupported MIME type");
         }
+    }
+
+    @Nested
+    @DisplayName("validate - null or blank")
+    class NullOrBlank {
 
         @Test
         @DisplayName("rejects null content type")
         void rejectsNull() {
             assertThatThrownBy(() -> validator.validate(null))
                     .isInstanceOf(AssetValidationException.class)
-                    .hasMessageContaining("required");
+                    .hasMessageContaining("Content type is required");
         }
 
         @Test
         @DisplayName("rejects blank content type")
         void rejectsBlank() {
-            assertThatThrownBy(() -> validator.validate("  "))
+            assertThatThrownBy(() -> validator.validate("   "))
                     .isInstanceOf(AssetValidationException.class)
-                    .hasMessageContaining("required");
+                    .hasMessageContaining("Content type is required");
         }
     }
 
@@ -135,20 +159,17 @@ class MimeValidatorTest {
     class IsSupported {
 
         @Test
-        @DisplayName("returns true for supported type")
-        void returnsTrueForSupported() {
+        @DisplayName("returns true for allowed types")
+        void returnsTrueForAllowed() {
             assertThat(validator.isSupported("image/png")).isTrue();
+            assertThat(validator.isSupported("image/svg+xml")).isTrue();
+            assertThat(validator.isSupported("video/mp4")).isTrue();
         }
 
         @Test
-        @DisplayName("returns false for unsupported type")
+        @DisplayName("returns false for unsupported types")
         void returnsFalseForUnsupported() {
-            assertThat(validator.isSupported("application/pdf")).isFalse();
-        }
-
-        @Test
-        @DisplayName("returns false for null")
-        void returnsFalseForNull() {
+            assertThat(validator.isSupported("text/html")).isFalse();
             assertThat(validator.isSupported(null)).isFalse();
         }
     }

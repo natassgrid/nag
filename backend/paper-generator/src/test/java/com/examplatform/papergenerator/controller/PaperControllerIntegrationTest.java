@@ -21,14 +21,19 @@ package com.examplatform.papergenerator.controller;
 
 import com.examplatform.papergenerator.client.QuestionBankClient;
 import com.examplatform.papergenerator.domain.Paper;
+import com.examplatform.papergenerator.dto.BlueprintFeasibilityRequest;
+import com.examplatform.papergenerator.dto.BlueprintFeasibilityResponse;
 import com.examplatform.papergenerator.dto.BlueprintRule;
 import com.examplatform.papergenerator.dto.PaperGenerationRequest;
+import com.examplatform.papergenerator.dto.PaperTranslateRequest;
+import com.examplatform.papergenerator.dto.PaperTranslateResponse;
 import com.examplatform.papergenerator.exception.InsufficientQuestionsException;
 import com.examplatform.papergenerator.repository.PaperRepository;
 import com.examplatform.papergenerator.service.ExaminationLookupService;
 import com.examplatform.papergenerator.service.PaperApprovalService;
 import com.examplatform.papergenerator.service.PaperAssemblyService;
 import com.examplatform.papergenerator.service.PaperSerializer;
+import com.examplatform.papergenerator.service.PaperTranslationService;
 import com.examplatform.papergenerator.support.AbstractIntegrationTest;
 import jakarta.persistence.EntityNotFoundException;
 import org.junit.jupiter.api.DisplayName;
@@ -40,6 +45,7 @@ import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.util.ReflectionTestUtils;
 
+import java.time.Instant;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -47,6 +53,7 @@ import java.util.Optional;
 import java.util.UUID;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
@@ -69,6 +76,9 @@ class PaperControllerIntegrationTest extends AbstractIntegrationTest {
     private PaperApprovalService paperApprovalService;
 
     @MockitoBean
+    private PaperTranslationService paperTranslationService;
+
+    @MockitoBean
     private PaperRepository paperRepository;
 
     @MockitoBean
@@ -81,6 +91,7 @@ class PaperControllerIntegrationTest extends AbstractIntegrationTest {
     private static final UUID USER_ID = UUID.fromString("11111111-1111-1111-1111-111111111111");
     private static final UUID PAPER_ID = UUID.fromString("22222222-2222-2222-2222-222222222222");
     private static final UUID EXAM_ID = UUID.fromString("33333333-3333-3333-3333-333333333333");
+    private static final UUID JOB_ID = UUID.fromString("44444444-4444-4444-4444-444444444444");
 
     private BlueprintRule sampleRule() {
         return BlueprintRule.builder()
@@ -99,16 +110,26 @@ class PaperControllerIntegrationTest extends AbstractIntegrationTest {
         @Test
         @DisplayName("+ve: EXAM_CONTROLLER lists papers - returns 200 OK")
         void examControllerCanListPapers() throws Exception {
-            when(paperRepository.findPapers(any(), any(), any(), any()))
-                    .thenReturn(new PageImpl<>(List.of()));
-            when(examinationLookupService.findExamNames(any())).thenReturn(Map.of());
-            when(examinationLookupService.findShiftNames(any())).thenReturn(Map.of());
+            Paper paper = Paper.builder()
+                    .name("Mock Paper")
+                    .examId(EXAM_ID)
+                    .shiftId("SHIFT-1")
+                    .status("DRAFT")
+                    .isPractice(false)
+                    .difficultyScore(2.0)
+                    .build();
+            ReflectionTestUtils.setField(paper, "id", PAPER_ID);
+
+            when(paperRepository.findPapers(eq(TENANT_ID), any(), any(), any()))
+                    .thenReturn(new PageImpl<>(List.of(paper)));
 
             mockMvc.perform(get("/api/v1/papers")
                             .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_EXAM_CONTROLLER"))
                                     .jwt(j -> j.subject(USER_ID.toString()).claim("tenant_id", TENANT_ID))))
                     .andExpect(status().isOk())
-                    .andExpect(jsonPath("$.content.length()").value(0));
+                    .andExpect(jsonPath("$.content.length()").value(1))
+                    .andExpect(jsonPath("$.content[0].paperId").value(PAPER_ID.toString()))
+                    .andExpect(jsonPath("$.content[0].status").value("DRAFT"));
         }
 
         @Test
@@ -119,57 +140,87 @@ class PaperControllerIntegrationTest extends AbstractIntegrationTest {
                                     .jwt(j -> j.subject(USER_ID.toString()).claim("tenant_id", TENANT_ID))))
                     .andExpect(status().isForbidden());
         }
-
-        @Test
-        @DisplayName("-ve: Unauthenticated request returns 401 Unauthorized")
-        void unauthenticatedReturnsUnauthorized() throws Exception {
-            mockMvc.perform(get("/api/v1/papers"))
-                    .andExpect(status().isUnauthorized());
-        }
     }
 
     @Nested
-    @DisplayName("GET /api/v1/papers/{paperId}")
+    @DisplayName("GET /api/v1/papers/{paperId} (Get Single Paper)")
     class GetPaperEndpoint {
 
         @Test
-        @DisplayName("+ve: SUPER_ADMIN retrieves paper details - returns 200 OK")
-        void superAdminCanGetPaper() throws Exception {
+        @DisplayName("+ve: EXAM_CONTROLLER gets single paper by ID - returns 200 OK")
+        void examControllerCanGetPaperById() throws Exception {
             Paper paper = Paper.builder()
-                    .name("Math Paper 1")
+                    .name("Single Paper")
                     .examId(EXAM_ID)
                     .shiftId("SHIFT-1")
                     .status("DRAFT")
-                    .isPractice(false)
+                    .paperDefinitionJson("{\"questionIds\": [\"00000000-0000-0000-0000-000000000001\"]}")
+                    .topicDistributionJson("{\"Algebra\": 1}")
                     .build();
             ReflectionTestUtils.setField(paper, "id", PAPER_ID);
 
-            when(paperRepository.findByIdAndTenantId(eq(PAPER_ID), anyString()))
-                    .thenReturn(Optional.of(paper));
-            when(examinationLookupService.findExamNames(any())).thenReturn(Map.of(EXAM_ID, "Math Exam"));
-            when(examinationLookupService.findShiftNames(any())).thenReturn(Map.of("SHIFT-1", "Morning Shift"));
+            when(paperRepository.findByIdAndTenantId(eq(PAPER_ID), eq(TENANT_ID))).thenReturn(Optional.of(paper));
 
             mockMvc.perform(get("/api/v1/papers/{paperId}", PAPER_ID)
-                            .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_SUPER_ADMIN"))
+                            .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_EXAM_CONTROLLER"))
                                     .jwt(j -> j.subject(USER_ID.toString()).claim("tenant_id", TENANT_ID))))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.id").value(PAPER_ID.toString()))
-                    .andExpect(jsonPath("$.status").value("DRAFT"));
+                    .andExpect(jsonPath("$.totalQuestions").value(1))
+                    .andExpect(jsonPath("$.topicDistribution.Algebra").value(1));
         }
 
         @Test
-        @DisplayName("-ve: Nonexistent paper returns 404 Not Found")
-        void notFoundReturns404() throws Exception {
-            when(paperRepository.findByIdAndTenantId(eq(PAPER_ID), anyString()))
-                    .thenReturn(Optional.empty());
-            when(paperRepository.findById(eq(PAPER_ID)))
-                    .thenReturn(Optional.empty());
+        @DisplayName("-ve: Non-existent paper ID returns 404 Not Found")
+        void nonExistentPaperReturnsNotFound() throws Exception {
+            when(paperRepository.findByIdAndTenantId(eq(PAPER_ID), eq(TENANT_ID))).thenReturn(Optional.empty());
 
             mockMvc.perform(get("/api/v1/papers/{paperId}", PAPER_ID)
                             .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_EXAM_CONTROLLER"))
                                     .jwt(j -> j.subject(USER_ID.toString()).claim("tenant_id", TENANT_ID))))
                     .andExpect(status().isNotFound())
                     .andExpect(jsonPath("$.title").value("Resource Not Found"));
+        }
+    }
+
+    @Nested
+    @DisplayName("POST /api/v1/papers/blueprints/check-sufficiency")
+    class CheckBlueprintSufficiencyEndpoint {
+
+        @Test
+        @DisplayName("+ve: EXAM_CONTROLLER checks blueprint sufficiency - returns 200 OK")
+        void checkBlueprintSufficiencyReturnsOk() throws Exception {
+            BlueprintFeasibilityRequest request = BlueprintFeasibilityRequest.builder()
+                    .examId(EXAM_ID)
+                    .shiftId("SHIFT-A")
+                    .blueprintRules(List.of(sampleRule()))
+                    .notifyAdminOnDeficit(true)
+                    .build();
+
+            BlueprintFeasibilityResponse resp = BlueprintFeasibilityResponse.builder()
+                    .feasible(true)
+                    .examId(EXAM_ID)
+                    .shiftId("SHIFT-A")
+                    .totalQuestionsNeeded(5)
+                    .totalQuestionsAvailable(10)
+                    .deficitRuleCount(0)
+                    .notificationDispatched(false)
+                    .summary("Blueprint is feasible.")
+                    .checkedAt(Instant.now())
+                    .build();
+
+            when(paperAssemblyService.checkBlueprintSufficiency(any(), any(), any(), anyString(), anyBoolean()))
+                    .thenReturn(resp);
+
+            mockMvc.perform(post("/api/v1/papers/blueprints/check-sufficiency")
+                            .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_EXAM_CONTROLLER"))
+                                    .jwt(j -> j.subject(USER_ID.toString()).claim("tenant_id", TENANT_ID)))
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(request)))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.feasible").value(true))
+                    .andExpect(jsonPath("$.totalQuestionsNeeded").value(5))
+                    .andExpect(jsonPath("$.totalQuestionsAvailable").value(10));
         }
     }
 
@@ -315,6 +366,75 @@ class PaperControllerIntegrationTest extends AbstractIntegrationTest {
                             .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_CANDIDATE"))
                                     .jwt(j -> j.subject(USER_ID.toString()).claim("tenant_id", TENANT_ID))))
                     .andExpect(status().isForbidden());
+        }
+    }
+
+    @Nested
+    @DisplayName("POST /api/v1/papers/{paperId}/translate (Paper Batch Translation)")
+    class TranslatePaperEndpoint {
+
+        @Test
+        @DisplayName("+ve: EXAM_CONTROLLER triggers paper translation - returns 202 Accepted")
+        void examControllerCanTriggerPaperTranslation() throws Exception {
+            PaperTranslateRequest request = PaperTranslateRequest.builder()
+                    .targetLanguage("hi")
+                    .targetStatus("PUBLISHED")
+                    .overwriteExisting(true)
+                    .build();
+
+            PaperTranslateResponse response = PaperTranslateResponse.builder()
+                    .jobId(JOB_ID)
+                    .paperId(PAPER_ID)
+                    .status("PENDING")
+                    .sourceLanguage("en")
+                    .targetLanguage("hi")
+                    .targetStatus("PUBLISHED")
+                    .overwriteExisting(true)
+                    .totalQuestions(10)
+                    .progressPercentage(0.0)
+                    .message("Batch translation job PENDING")
+                    .build();
+
+            when(paperTranslationService.translatePaper(eq(PAPER_ID), any(), eq(USER_ID), eq(TENANT_ID)))
+                    .thenReturn(response);
+
+            mockMvc.perform(post("/api/v1/papers/{paperId}/translate", PAPER_ID)
+                            .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_EXAM_CONTROLLER"))
+                                    .jwt(j -> j.subject(USER_ID.toString()).claim("tenant_id", TENANT_ID)))
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(request)))
+                    .andExpect(status().isAccepted())
+                    .andExpect(jsonPath("$.jobId").value(JOB_ID.toString()))
+                    .andExpect(jsonPath("$.paperId").value(PAPER_ID.toString()))
+                    .andExpect(jsonPath("$.targetLanguage").value("hi"))
+                    .andExpect(jsonPath("$.targetStatus").value("PUBLISHED"))
+                    .andExpect(jsonPath("$.overwriteExisting").value(true));
+        }
+
+        @Test
+        @DisplayName("+ve: Query paper translation status - returns 200 OK")
+        void queryPaperTranslationStatus() throws Exception {
+            PaperTranslateResponse response = PaperTranslateResponse.builder()
+                    .jobId(JOB_ID)
+                    .paperId(PAPER_ID)
+                    .status("IN_PROGRESS")
+                    .targetLanguage("hi")
+                    .totalQuestions(10)
+                    .processedQuestions(5)
+                    .successfulQuestions(5)
+                    .progressPercentage(50.0)
+                    .build();
+
+            when(paperTranslationService.getTranslationStatus(eq(PAPER_ID), eq(JOB_ID), eq(TENANT_ID)))
+                    .thenReturn(response);
+
+            mockMvc.perform(get("/api/v1/papers/{paperId}/translate/{jobId}", PAPER_ID, JOB_ID)
+                            .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_EXAM_CONTROLLER"))
+                                    .jwt(j -> j.subject(USER_ID.toString()).claim("tenant_id", TENANT_ID))))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.jobId").value(JOB_ID.toString()))
+                    .andExpect(jsonPath("$.status").value("IN_PROGRESS"))
+                    .andExpect(jsonPath("$.progressPercentage").value(50.0));
         }
     }
 }

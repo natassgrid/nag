@@ -21,12 +21,14 @@ package com.examplatform.identity.controller;
 
 import com.examplatform.identity.domain.enums.IdentityDocType;
 import com.examplatform.identity.dto.*;
+import com.examplatform.identity.exception.AccountNotFoundException;
 import com.examplatform.identity.exception.AuthenticationException;
 import com.examplatform.identity.exception.DuplicateIdentityException;
 import com.examplatform.identity.exception.InvalidOtpException;
 import com.examplatform.identity.exception.MfaRequiredException;
 import com.examplatform.identity.service.*;
 import com.examplatform.identity.support.AbstractIntegrationTest;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -39,7 +41,10 @@ import java.util.List;
 import java.util.UUID;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
@@ -63,8 +68,16 @@ class IdentityControllerIntegrationTest extends AbstractIntegrationTest {
     @MockitoBean
     private RoleManagementService roleManagementService;
 
+    @MockitoBean
+    private RateLimiterService rateLimiterService;
+
     private static final String TENANT_ID = "default";
     private static final UUID TEST_USER_ID = UUID.fromString("11111111-1111-1111-1111-111111111111");
+
+    @BeforeEach
+    void setUpRateLimiting() {
+        when(rateLimiterService.isAllowed(any(), anyInt())).thenReturn(true);
+    }
 
     // =========================================================================
     // 1. GET /api/v1/identity/users (Admin user listing)
@@ -383,15 +396,15 @@ class IdentityControllerIntegrationTest extends AbstractIntegrationTest {
     }
 
     // =========================================================================
-    // 5. POST /api/v1/identity/auth/change-password
+    // 5. POST & PUT /api/v1/identity/auth/change-password
     // =========================================================================
     @Nested
-    @DisplayName("POST /api/v1/identity/auth/change-password")
+    @DisplayName("POST & PUT change-password")
     class ChangePasswordEndpoint {
 
         @Test
-        @DisplayName("+ve: Authenticated user with valid payload returns 200 OK")
-        void authenticatedUserCanChangePassword() throws Exception {
+        @DisplayName("+ve: Authenticated user with valid payload returns 200 OK via POST")
+        void authenticatedUserCanChangePasswordPost() throws Exception {
             ChangePasswordRequest request = new ChangePasswordRequest();
             request.setCurrentPassword("OldSecurePassword123#");
             request.setNewPassword("NewSecurePassword123#");
@@ -404,6 +417,47 @@ class IdentityControllerIntegrationTest extends AbstractIntegrationTest {
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.status").value("SUCCESS"))
                     .andExpect(jsonPath("$.message").value("Password changed successfully."));
+
+            verify(authenticationService).changePassword(
+                    eq(TEST_USER_ID.toString()), eq("OldSecurePassword123#"), eq("NewSecurePassword123#"), eq(TENANT_ID));
+        }
+
+        @Test
+        @DisplayName("+ve: Authenticated user with valid payload returns 200 OK via PUT")
+        void authenticatedUserCanChangePasswordPut() throws Exception {
+            ChangePasswordRequest request = new ChangePasswordRequest();
+            request.setCurrentPassword("OldSecurePassword123#");
+            request.setNewPassword("NewSecurePassword123#");
+
+            mockMvc.perform(put("/api/v1/identity/auth/change-password")
+                            .header("X-Tenant-Id", TENANT_ID)
+                            .with(jwt().jwt(builder -> builder.subject(TEST_USER_ID.toString())))
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(request)))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.status").value("SUCCESS"))
+                    .andExpect(jsonPath("$.message").value("Password changed successfully."));
+
+            verify(authenticationService).changePassword(
+                    eq(TEST_USER_ID.toString()), eq("OldSecurePassword123#"), eq("NewSecurePassword123#"), eq(TENANT_ID));
+        }
+
+        @Test
+        @DisplayName("-ve: Invalid current password returns 401 Unauthorized")
+        void invalidCurrentPasswordReturnsUnauthorized() throws Exception {
+            ChangePasswordRequest request = new ChangePasswordRequest();
+            request.setCurrentPassword("WrongPassword");
+            request.setNewPassword("NewSecurePassword123#");
+
+            doThrow(new AuthenticationException("Current password is incorrect."))
+                    .when(authenticationService).changePassword(any(), any(), any(), any());
+
+            mockMvc.perform(post("/api/v1/identity/auth/change-password")
+                            .header("X-Tenant-Id", TENANT_ID)
+                            .with(jwt().jwt(builder -> builder.subject(TEST_USER_ID.toString())))
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(request)))
+                    .andExpect(status().isUnauthorized());
         }
 
         @Test
@@ -457,6 +511,40 @@ class IdentityControllerIntegrationTest extends AbstractIntegrationTest {
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.status").value("SUCCESS"))
                     .andExpect(jsonPath("$.message").value("OTP resent successfully."));
+
+            verify(registrationService).resendOtp(eq(TEST_USER_ID), eq(TENANT_ID));
+        }
+
+        @Test
+        @DisplayName("-ve: Account not found returns 404 Not Found")
+        void accountNotFoundReturnsNotFound() throws Exception {
+            OtpResendRequest request = new OtpResendRequest();
+            request.setUserId(TEST_USER_ID.toString());
+
+            doThrow(new AccountNotFoundException("Account not found for user: " + TEST_USER_ID))
+                    .when(registrationService).resendOtp(any(), any());
+
+            mockMvc.perform(post("/api/v1/identity/otp/resend")
+                            .header("X-Tenant-Id", TENANT_ID)
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(request)))
+                    .andExpect(status().isNotFound());
+        }
+
+        @Test
+        @DisplayName("-ve: Already active account returns 422 Unprocessable Entity")
+        void alreadyActiveReturnsUnprocessableEntity() throws Exception {
+            OtpResendRequest request = new OtpResendRequest();
+            request.setUserId(TEST_USER_ID.toString());
+
+            doThrow(new InvalidOtpException("Account is already verified. Please login instead."))
+                    .when(registrationService).resendOtp(any(), any());
+
+            mockMvc.perform(post("/api/v1/identity/otp/resend")
+                            .header("X-Tenant-Id", TENANT_ID)
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(request)))
+                    .andExpect(status().isUnprocessableEntity());
         }
 
         @Test
@@ -485,10 +573,13 @@ class IdentityControllerIntegrationTest extends AbstractIntegrationTest {
         @DisplayName("+ve: Authenticated logout returns 200 OK")
         void authenticatedUserCanLogout() throws Exception {
             mockMvc.perform(delete("/api/v1/identity/auth/logout")
+                            .header("X-Tenant-Id", TENANT_ID)
                             .with(jwt().jwt(builder -> builder.subject(TEST_USER_ID.toString()))))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.status").value("SUCCESS"))
                     .andExpect(jsonPath("$.message").value("Logged out successfully."));
+
+            verify(authenticationService).logout(eq(TEST_USER_ID.toString()), eq(TENANT_ID));
         }
 
         @Test

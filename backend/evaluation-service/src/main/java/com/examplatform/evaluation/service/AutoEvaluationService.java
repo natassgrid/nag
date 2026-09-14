@@ -22,6 +22,7 @@ package com.examplatform.evaluation.service;
 import com.examplatform.evaluation.domain.Evaluation;
 import com.examplatform.evaluation.dto.AnswerKey;
 import com.examplatform.evaluation.dto.CandidateResponse;
+import com.examplatform.evaluation.dto.MarkingScheme;
 import com.examplatform.evaluation.repository.EvaluationRepository;
 import com.examplatform.shared.config.DynamicConfigService;
 import com.examplatform.shared.messaging.EventPublisher;
@@ -105,9 +106,16 @@ public class AutoEvaluationService {
             } else {
                 // Evaluate based on question type (Single MCQ, Numerical, etc.)
                 boolean correct = evaluateAnswer(answerKey, resp);
-                score = correct
-                        ? BigDecimal.valueOf(answerKey.getMarksPerQuestion())
-                        : BigDecimal.valueOf(-answerKey.getNegativeMarks());
+                if (correct) {
+                    score = BigDecimal.valueOf(answerKey.getMarksPerQuestion());
+                } else {
+                    MarkingScheme scheme = answerKey.getMarkingScheme() != null
+                            ? answerKey.getMarkingScheme() : MarkingScheme.STANDARD;
+                    score = switch (scheme) {
+                        case ZERO_NEGATIVE -> BigDecimal.ZERO;
+                        default -> BigDecimal.valueOf(-answerKey.getNegativeMarks());
+                    };
+                }
             }
 
             Evaluation eval = Evaluation.builder()

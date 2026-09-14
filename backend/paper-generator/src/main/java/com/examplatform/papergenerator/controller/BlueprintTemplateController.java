@@ -19,6 +19,7 @@
 
 package com.examplatform.papergenerator.controller;
 
+import com.examplatform.papergenerator.dto.BlueprintFeasibilityResponse;
 import com.examplatform.papergenerator.dto.BlueprintTemplateRequest;
 import com.examplatform.papergenerator.dto.BlueprintTemplateResponse;
 import com.examplatform.papergenerator.service.BlueprintTemplateService;
@@ -48,12 +49,13 @@ import java.util.UUID;
  * REST API for managing reusable blueprint templates.
  *
  * <pre>
- *   GET    /api/v1/papers/blueprint-templates            list all (tenant-scoped)
- *   GET    /api/v1/papers/blueprint-templates?examId=... list pinned to an exam
- *   GET    /api/v1/papers/blueprint-templates/{id}       get one
- *   POST   /api/v1/papers/blueprint-templates            create
- *   PUT    /api/v1/papers/blueprint-templates/{id}       update
- *   DELETE /api/v1/papers/blueprint-templates/{id}       delete
+ *   GET    /api/v1/papers/blueprint-templates                    list all (tenant-scoped)
+ *   GET    /api/v1/papers/blueprint-templates?examId=...         list pinned to an exam
+ *   GET    /api/v1/papers/blueprint-templates/{id}               get one
+ *   POST   /api/v1/papers/blueprint-templates/{id}/check-sufficiency  audit sufficiency against question bank
+ *   POST   /api/v1/papers/blueprint-templates                    create
+ *   PUT    /api/v1/papers/blueprint-templates/{id}               update
+ *   DELETE /api/v1/papers/blueprint-templates/{id}               delete
  * </pre>
  */
 @Slf4j
@@ -64,7 +66,7 @@ public class BlueprintTemplateController {
 
     private final BlueprintTemplateService service;
 
-    // ── List ──────────────────────────────────────────────────────────────────
+    // ── List ────────────────────────────────────────────────────────────────
 
     @GetMapping
     @PreAuthorize("hasAnyRole('EXAM_CONTROLLER','SUPER_ADMIN')")
@@ -79,7 +81,7 @@ public class BlueprintTemplateController {
         return ResponseEntity.ok(templates);
     }
 
-    // ── Get One ───────────────────────────────────────────────────────────────
+    // ── Get One ─────────────────────────────────────────────────────────────
 
     @GetMapping("/{id}")
     @PreAuthorize("hasAnyRole('EXAM_CONTROLLER','SUPER_ADMIN')")
@@ -87,7 +89,21 @@ public class BlueprintTemplateController {
         return ResponseEntity.ok(service.getById(id, tenantId()));
     }
 
-    // ── Create ────────────────────────────────────────────────────────────────
+    /**
+     * Real-time feasibility check: audits a blueprint template against the live question bank.
+     */
+    @PostMapping("/{id}/check-sufficiency")
+    @PreAuthorize("hasAnyRole('EXAM_CONTROLLER','SUPER_ADMIN')")
+    public ResponseEntity<BlueprintFeasibilityResponse> checkSufficiency(
+            @PathVariable UUID id,
+            @RequestParam(defaultValue = "true") boolean notifyAdmin) {
+
+        String tenantId = tenantId();
+        BlueprintFeasibilityResponse response = service.checkTemplateSufficiency(id, notifyAdmin, tenantId);
+        return ResponseEntity.ok(response);
+    }
+
+    // ── Create ──────────────────────────────────────────────────────────────
 
     @PostMapping
     @PreAuthorize("hasAnyRole('EXAM_CONTROLLER','SUPER_ADMIN')")
@@ -100,7 +116,7 @@ public class BlueprintTemplateController {
         return ResponseEntity.status(HttpStatus.CREATED).body(created);
     }
 
-    // ── Update ────────────────────────────────────────────────────────────────
+    // ── Update ──────────────────────────────────────────────────────────────
 
     @PutMapping("/{id}")
     @PreAuthorize("hasAnyRole('EXAM_CONTROLLER','SUPER_ADMIN')")
@@ -111,7 +127,7 @@ public class BlueprintTemplateController {
         return ResponseEntity.ok(service.update(id, request, tenantId()));
     }
 
-    // ── Delete ────────────────────────────────────────────────────────────────
+    // ── Delete ──────────────────────────────────────────────────────────────
 
     @DeleteMapping("/{id}")
     @PreAuthorize("hasAnyRole('EXAM_CONTROLLER','SUPER_ADMIN')")
@@ -120,7 +136,7 @@ public class BlueprintTemplateController {
         return ResponseEntity.noContent().build();
     }
 
-    // ── Helpers ───────────────────────────────────────────────────────────────
+    // ── Helpers ─────────────────────────────────────────────────────────────
 
     private String tenantId() {
         String t = TenantContext.getTenantId();

@@ -1,0 +1,9 @@
+# SPDX-License-Identifier: AGPL-3.0-only
+# Docker Profile for Content Macro-App (Question Bank, Examination, Paper Generator, Asset)
+
+indictrans2:
+  url: ${INDICTRANS2_URL:http://indictrans2:7860}
+
+app:
+  question-bank:
+    service-url: ${QUESTION_BANK_SERVICE_URI:http://localhost:8083}

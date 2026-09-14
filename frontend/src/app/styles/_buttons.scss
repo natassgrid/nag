@@ -36,6 +36,19 @@
       display: none !important;
     }
 
+    .mat-mdc-button-persistent-ripple {
+      border-radius: inherit !important;
+    }
+
+    .mdc-button__label {
+      display: inline-flex !important;
+      align-items: center !important;
+      justify-content: center !important;
+      line-height: inherit !important;
+      height: 100% !important;
+      white-space: nowrap !important;
+    }
+
     .btn-icon,
     .footer-btn-icon,
     mat-icon:not(.mat-icon-no-color) {
@@ -74,7 +87,11 @@
   }
 
   // Small button variant
-  .btn-sm {
+  .btn-sm,
+  button.mat-mdc-button.btn-sm,
+  button.mat-mdc-stroked-button.btn-sm,
+  button.mat-mdc-flat-button.btn-sm,
+  button.mat-mdc-raised-button.btn-sm {
     height: 32px !important;
     min-height: 32px !important;
     max-height: 32px !important;
@@ -82,6 +99,7 @@
     font-size: 12px !important;
     padding: 0 12px !important;
     border-radius: 6px !important;
+    box-sizing: border-box !important;
 
     .btn-icon,
     mat-icon {
@@ -130,7 +148,7 @@
     color: #FFFFFF !important;
     font-weight: 600 !important;
     box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05) !important;
-    border: none !important;
+    border: 1px solid transparent !important;
 
     &:hover:not([disabled]):not(.mat-mdc-button-disabled) {
       background-color: #4338CA !important;
@@ -159,7 +177,7 @@
     background-color: #F59E0B !important;
     color: #FFFFFF !important;
     font-weight: 600 !important;
-    border: none !important;
+    border: 1px solid transparent !important;
 
     &:hover:not([disabled]):not(.mat-mdc-button-disabled) {
       background-color: #D97706 !important;
@@ -181,7 +199,7 @@
     background-color: #EF4444 !important;
     color: #FFFFFF !important;
     font-weight: 600 !important;
-    border: none !important;
+    border: 1px solid transparent !important;
 
     &:hover:not([disabled]):not(.mat-mdc-button-disabled) {
       background-color: #DC2626 !important;
@@ -248,11 +266,10 @@
   .btn-add-batch {
     background-color: #EEF2FF !important;
     border: 1px solid #C7D2FE !important;
-    color: #4338CA !important;
+    color: #4F46E5 !important;
     font-weight: 600 !important;
 
     .btn-icon,
-    .footer-btn-icon,
     mat-icon {
       color: #4F46E5 !important;
     }
@@ -262,60 +279,19 @@
       border-color: #818CF8 !important;
       color: #3730A3 !important;
     }
-
-    &[disabled],
-    &.mat-mdc-button-disabled {
-      opacity: 0.5 !important;
-      cursor: not-allowed !important;
-    }
   }
 
-  // Gradient Buttons (Indigo-Violet AI theme)
-  .btn-gradient,
-  .btn-ai {
-    background: linear-gradient(135deg, #6366F1 0%, #8B5CF6 100%) !important;
-    color: #FFFFFF !important;
-    border: none !important;
-    font-weight: 600 !important;
-    box-shadow: 0 2px 8px rgba(99, 102, 241, 0.35) !important;
-
-    .btn-icon,
-    mat-icon {
-      color: #FFFFFF !important;
-    }
-
-    &:hover:not([disabled]):not(.mat-mdc-button-disabled) {
-      background: linear-gradient(135deg, #4F46E5 0%, #7C3AED 100%) !important;
-      box-shadow: 0 4px 14px rgba(99, 102, 241, 0.45) !important;
-    }
-  }
-
-  // Text / Ghost Buttons
-  button.mat-mdc-button:not(.mat-mdc-icon-button):not(.mat-mdc-stroked-button):not(.mat-mdc-raised-button):not(.mat-mdc-unelevated-button),
+  // Ghost / Text Buttons
   .btn-ghost,
-  .btn-cancel {
-    font-weight: 500 !important;
+  .btn-cancel,
+  button.mat-mdc-button:not(.action-btn):not(.footer-btn):not(.mat-mdc-icon-button) {
+    background-color: transparent !important;
     color: #64748B !important;
+    border: 1px solid transparent !important;
 
     &:hover:not([disabled]):not(.mat-mdc-button-disabled) {
-      color: #0F172A !important;
       background-color: #F1F5F9 !important;
-    }
-
-    &.mat-primary {
-      color: #4F46E5 !important;
-
-      &:hover:not([disabled]):not(.mat-mdc-button-disabled) {
-        background-color: #EEF2FF !important;
-      }
-    }
-
-    &.mat-warn {
-      color: #EF4444 !important;
-
-      &:hover:not([disabled]):not(.mat-mdc-button-disabled) {
-        background-color: #FEF2F2 !important;
-      }
+      color: #1E293B !important;
     }
   }
 }

@@ -52,8 +52,8 @@ class TranslationPayloadServiceTest {
         TranslatedQuestionPayload original = new TranslatedQuestionPayload(
                 "प्रकाश संश्लेषण क्या है?",
                 List.of(
-                        new TranslatedOption("A", "पौधों द्वारा भोजन बनाने की प्रक्रिया"),
-                        new TranslatedOption("B", "श्वसन की प्रक्रिया")
+                        new TranslatedOption("A", "पौधों द्वारा भोजन बनाने की प्रक्रिया", null, null),
+                        new TranslatedOption("B", "श्वसन की प्रक्रिया", null, null)
                 ),
                 "प्रकाश संश्लेषण एक जैविक प्रक्रिया है।"
         );
@@ -103,7 +103,7 @@ class TranslationPayloadServiceTest {
     @DisplayName("When payloadEncrypted=true but value has no vault prefix, reads as plain JSON (backward-compat)")
     void shouldReadAsPlainWhenNoVaultPrefix() {
         TranslatedQuestionPayload original = new TranslatedQuestionPayload(
-                "Tamil content", List.of(new TranslatedOption("A", "விடை A")), null
+                "Tamil content", List.of(new TranslatedOption("A", "விடை A", null, null)), null
         );
         String stored = payloadService.serialize(original);  // plain JSON, no vault prefix
 

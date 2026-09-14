@@ -37,7 +37,7 @@ import java.util.Map;
  * Translates exceptions into RFC 7807 {@link ProblemDetail} responses.
  */
 @Slf4j
-@RestControllerAdvice
+@RestControllerAdvice(basePackages = "com.examplatform.identity")
 public class GlobalExceptionHandler {
 
     /**

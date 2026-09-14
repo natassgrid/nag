@@ -10,12 +10,12 @@
       display: flex;
       justify-content: space-between;
       align-items: center;
-      height: 56px;
       min-height: 56px;
-      padding: 0 16px;
+      height: auto;
+      padding: 8px 16px;
       border-bottom: 1px solid #e0e0e0;
       flex-wrap: wrap;
-      gap: 16px;
+      gap: 12px;
       box-sizing: border-box;
     }
 
@@ -28,6 +28,7 @@
       margin: 0;
       font-size: 18px;
       font-weight: 600;
+      color: #0f172a;
     }
 
     .count-badge {
@@ -43,12 +44,83 @@
       display: flex;
       align-items: center;
       gap: 12px;
+      flex-wrap: wrap;
     }
 
     .search-field {
       min-width: 260px;
-      height: 38px;
+      width: 280px;
+      max-width: 100%;
       margin-bottom: 0;
+      display: inline-flex;
+      vertical-align: middle;
+
+      ::ng-deep .mat-mdc-text-field-wrapper {
+        height: 38px !important;
+        max-height: 38px !important;
+        padding: 0 8px 0 12px !important;
+        display: flex !important;
+        align-items: center !important;
+      }
+
+      ::ng-deep .mat-mdc-form-field-flex {
+        height: 38px !important;
+        align-items: center !important;
+      }
+
+      ::ng-deep .mat-mdc-form-field-infix {
+        padding-top: 0 !important;
+        padding-bottom: 0 !important;
+        min-height: 38px !important;
+        height: 38px !important;
+        display: flex !important;
+        align-items: center !important;
+      }
+
+      ::ng-deep .mat-mdc-form-field-icon-prefix {
+        padding: 0 4px 0 0 !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+      }
+
+      ::ng-deep .mat-mdc-form-field-icon-suffix {
+        padding: 0 !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+      }
+
+      ::ng-deep .mat-mdc-form-field-subscript-wrapper {
+        display: none !important;
+        height: 0 !important;
+        margin: 0 !important;
+        padding: 0 !important;
+      }
+
+      ::ng-deep input.mat-mdc-input-element {
+        font-size: 13.5px !important;
+        height: 24px !important;
+        line-height: 24px !important;
+        margin: 0 !important;
+        vertical-align: middle !important;
+      }
+
+      .search-icon {
+        color: #94a3b8;
+        font-size: 20px;
+        width: 20px;
+        height: 20px;
+        line-height: 20px;
+      }
+
+      .clear-icon {
+        font-size: 18px;
+        width: 18px;
+        height: 18px;
+        line-height: 18px;
+        color: #94a3b8;
+      }
     }
 
     .filter-toggle-btn {
@@ -58,7 +130,10 @@
       gap: 6px;
       height: 38px;
       min-height: 38px;
+      padding: 0 14px;
       box-sizing: border-box;
+      font-size: 13.5px;
+      font-weight: 500;
     }
     .filter-toggle-btn.active-filter {
       background-color: #e3f2fd;
@@ -118,10 +193,9 @@
 
     .clickable-row {
       cursor: pointer;
-      transition: background 0.15s;
     }
     .clickable-row:hover {
-      background-color: #f5f5f5;
+      background-color: #f8fafc;
     }
 
     .no-data-cell {
@@ -133,14 +207,19 @@
       display: flex;
       flex-direction: column;
       align-items: center;
+      justify-content: center;
+      padding: 48px 0;
       color: #9e9e9e;
     }
-
     .empty-state mat-icon {
       font-size: 48px;
-      height: 48px;
       width: 48px;
+      height: 48px;
       margin-bottom: 8px;
+    }
+    .empty-state p {
+      margin: 0;
+      font-size: 14px;
     }
 
     /* ── FILTER DRAWER SIDEBAR ───────────────────────────────────────── */
@@ -157,7 +236,8 @@
       z-index: 15;
     }
 
-    .filter-drawer.open {
+    .filter-drawer.open,
+    .filter-drawer.drawer-open {
       width: 300px;
     }
 
@@ -265,4 +345,13 @@
 
     .btn-apply {
       flex: 1;
+    }
+
+    .status-chip {
+      display: inline-block;
+      padding: 4px 8px;
+      border-radius: 4px;
+      font-size: 12px;
+      font-weight: 500;
+      text-transform: capitalize;
     }

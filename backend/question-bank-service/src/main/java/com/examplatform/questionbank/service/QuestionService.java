@@ -1,4 +1,3 @@
-package com.examplatform.questionbank.service;
 /*
  * SPDX-License-Identifier: AGPL-3.0-only
  *
@@ -18,6 +17,7 @@ package com.examplatform.questionbank.service;
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
 
+package com.examplatform.questionbank.service;
 
 import com.examplatform.questionbank.ai.embedding.EmbeddingService;
 import com.examplatform.questionbank.ai.similarity.SimilarityCheckResult;
@@ -27,6 +27,7 @@ import com.examplatform.questionbank.domain.Subtopic;
 import com.examplatform.questionbank.domain.Topic;
 import com.examplatform.questionbank.domain.enums.QuestionType;
 import com.examplatform.questionbank.dto.CreateQuestionRequest;
+import com.examplatform.questionbank.dto.QuestionOption;
 import com.examplatform.questionbank.dto.QuestionResponse;
 import com.examplatform.questionbank.exception.SimilarQuestionException;
 import com.examplatform.questionbank.repository.QuestionRepository;
@@ -73,6 +74,34 @@ public class QuestionService {
 
     @org.springframework.beans.factory.annotation.Value("${app.encryption.enabled:false}")
     private boolean encryptionEnabled;
+
+    /**
+     * Detects whether question content, explanation, or options contain diagrams,
+     * SVGs, or images.
+     */
+    public static boolean detectHasImages(String content, String explanation, List<QuestionOption> options) {
+        if (containsImageMarkup(content) || containsImageMarkup(explanation)) {
+            return true;
+        }
+        if (options != null) {
+            for (QuestionOption opt : options) {
+                if (opt.getImageUrl() != null && !opt.getImageUrl().isBlank()) {
+                    return true;
+                }
+                if (containsImageMarkup(opt.getText())) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    private static boolean containsImageMarkup(String text) {
+        if (text == null || text.isBlank()) {
+            return false;
+        }
+        return text.contains("<img") || text.contains("<svg") || text.contains("![");
+    }
 
     /**
      * Result of resolving the Subject -> Topic -> Subtopic hierarchy for a
@@ -211,6 +240,8 @@ public class QuestionService {
             }
         }
 
+        boolean hasImages = detectHasImages(request.getContent(), request.getExplanation(), request.getOptions());
+
         // Build Question entity
         Question question = Question.builder()
                 .subjectId(hierarchy.subjectId())
@@ -228,6 +259,7 @@ public class QuestionService {
                 .options(request.getOptions())
                 .explanation(request.getExplanation())
                 .references(request.getReferences())
+                .hasImages(hasImages)
                 .state("DRAFT")
                 .encryptionKeyId(dekKeyName)
                 .authorId(authorId)
@@ -279,11 +311,11 @@ public class QuestionService {
     }
 
     /**
-     * Lists questions for a tenant with optional filters and pagination.
+     * Lists questions for a tenant with optional filters and pagination (including subjectId / topicId).
      */
     @Transactional(readOnly = true)
     public org.springframework.data.domain.Page<QuestionResponse> listQuestions(
-            String subject, String topic, String difficulty, String state,
+            String subject, Long subjectId, String topic, Long topicId, String difficulty, String state,
             String search, int page, int size, String tenantId) {
 
         org.springframework.data.domain.Pageable pageable =
@@ -293,12 +325,28 @@ public class QuestionService {
         org.springframework.data.jpa.domain.Specification<Question> spec =
                 org.springframework.data.jpa.domain.Specification.where(tenantEquals(tenantId));
 
-        if (subject != null && !subject.isBlank()) {
-            spec = spec.and(fieldEquals("subject", subject));
+        if (subjectId != null) {
+            spec = spec.and((root, query, cb) -> cb.equal(root.get("subjectId"), subjectId));
+        } else if (subject != null && !subject.isBlank()) {
+            try {
+                Long parsedId = Long.parseLong(subject.trim());
+                spec = spec.and((root, query, cb) -> cb.equal(root.get("subjectId"), parsedId));
+            } catch (NumberFormatException e) {
+                spec = spec.and(fieldEquals("subject", subject));
+            }
         }
-        if (topic != null && !topic.isBlank()) {
-            spec = spec.and(fieldEquals("topic", topic));
+
+        if (topicId != null) {
+            spec = spec.and((root, query, cb) -> cb.equal(root.get("topicId"), topicId));
+        } else if (topic != null && !topic.isBlank()) {
+            try {
+                Long parsedTopicId = Long.parseLong(topic.trim());
+                spec = spec.and((root, query, cb) -> cb.equal(root.get("topicId"), parsedTopicId));
+            } catch (NumberFormatException e) {
+                spec = spec.and(fieldEquals("topic", topic));
+            }
         }
+
         if (difficulty != null && !difficulty.isBlank()) {
             spec = spec.and(fieldEquals("difficulty", difficulty));
         }
@@ -310,6 +358,16 @@ public class QuestionService {
         }
 
         return questionRepository.findAll(spec, pageable).map(this::toResponse);
+    }
+
+    /**
+     * Backward-compatible listQuestions method.
+     */
+    @Transactional(readOnly = true)
+    public org.springframework.data.domain.Page<QuestionResponse> listQuestions(
+            String subject, String topic, String difficulty, String state,
+            String search, int page, int size, String tenantId) {
+        return listQuestions(subject, null, topic, null, difficulty, state, search, page, size, tenantId);
     }
 
     private org.springframework.data.jpa.domain.Specification<Question> tenantEquals(String tenantId) {
@@ -377,6 +435,45 @@ public class QuestionService {
         return toResponse(saved);
     }
 
+    /**
+     * Finds approved questions matching blueprint criteria for Paper Generator.
+     */
+    @Transactional(readOnly = true)
+    public List<QuestionResponse> findBlueprintQuestions(String subject, String topic, String difficulty, String cognitiveLevel, String tenantId) {
+        String effectiveTenant = (tenantId != null && !tenantId.isBlank()) ? tenantId : "default";
+        List<Question> questions = questionRepository.findBlueprintQuestions(
+                subject != null ? subject.trim() : "",
+                topic != null ? topic.trim() : "",
+                (difficulty != null && !difficulty.isBlank()) ? difficulty.trim() : null,
+                (cognitiveLevel != null && !cognitiveLevel.isBlank()) ? cognitiveLevel.trim() : null,
+                effectiveTenant
+        );
+
+        if (questions.isEmpty() && cognitiveLevel != null && !cognitiveLevel.isBlank()) {
+            questions = questionRepository.findBlueprintQuestionsFallback(
+                    subject != null ? subject.trim() : "",
+                    topic != null ? topic.trim() : "",
+                    (difficulty != null && !difficulty.isBlank()) ? difficulty.trim() : null,
+                    effectiveTenant
+            );
+        }
+
+        return questions.stream().map(this::toResponse).toList();
+    }
+
+    /**
+     * Finds questions by their unique IDs for Paper Generator review.
+     */
+    @Transactional(readOnly = true)
+    public List<QuestionResponse> findQuestionsByIds(List<UUID> questionIds, String tenantId) {
+        if (questionIds == null || questionIds.isEmpty()) {
+            return List.of();
+        }
+        String effectiveTenant = (tenantId != null && !tenantId.isBlank()) ? tenantId : "default";
+        List<Question> questions = questionRepository.findQuestionsByIdsIn(questionIds, effectiveTenant);
+        return questions.stream().map(this::toResponse).toList();
+    }
+
     private void publishAuditEvent(String eventType, UUID questionId, UUID actorId,
                                     String tenantId, Map<String, Object> extra) {
         try {
@@ -439,6 +536,7 @@ public class QuestionService {
                 .authorId(question.getAuthorId())
                 .createdAt(createdAt)
                 .options(options)
+                .hasImages(question.isHasImages())
                 .build();
     }
 }

@@ -19,11 +19,14 @@
 
 package com.examplatform.questionbank.translation.controller;
 
+import com.examplatform.questionbank.translation.domain.Translation;
 import com.examplatform.questionbank.translation.dto.AutoTranslateResponse;
+import com.examplatform.questionbank.translation.dto.BatchTranslationJobResponse;
+import com.examplatform.questionbank.translation.dto.BatchTranslationRequest;
 import com.examplatform.questionbank.translation.dto.TranslationRequest;
 import com.examplatform.questionbank.translation.dto.TranslationResponse;
 import com.examplatform.questionbank.translation.dto.TranslationReviewRequest;
-import com.examplatform.questionbank.translation.domain.Translation;
+import com.examplatform.questionbank.translation.service.BatchTranslationService;
 import com.examplatform.questionbank.translation.service.IndicTrans2Service;
 import com.examplatform.questionbank.translation.service.TranslationQueryService;
 import com.examplatform.questionbank.translation.service.TranslationReviewService;
@@ -35,6 +38,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -49,7 +54,7 @@ import java.util.Map;
 import java.util.UUID;
 
 /**
- * REST controller for question translation workflow and retrieval endpoints.
+ * REST controller for question translation workflow, retrieval, and async batch auto-translation endpoints.
  *
  * <h3>Write endpoints</h3>
  * <ul>
@@ -58,12 +63,17 @@ import java.util.UUID;
  *   <li>POST   /api/v1/translations/{id}/approve                                 — approve</li>
  *   <li>POST   /api/v1/translations/{id}/reject                                  — reject with comments</li>
  *   <li>POST   /api/v1/translations/question/{questionId}/auto-translate/{lang}  — auto-translate using IndicTrans2</li>
+ *   <li>POST   /api/v1/translations/batch/auto-translate                         — submit async batch translation job</li>
+ *   <li>POST   /api/v1/translations/batch/{jobId}/cancel                         — cancel async batch translation job</li>
  * </ul>
  *
  * <h3>Read endpoints</h3>
  * <ul>
  *   <li>GET /api/v1/translations/question/{questionId}                           — all translations (admin)</li>
- *   <li>GET /api/v1/translations/question/{questionId}/language/{lang}           — approved translation for delivery</li>
+ *   <li>GET /api/v1/translations/question/{questionId}/language/{lang}           — approved/published translation for delivery</li>
+ *   <li>GET /api/v1/translations/batch/{jobId}                                   — query batch translation job status & progress</li>
+ *   <li>GET /api/v1/translations/batch                                           — list all batch translation jobs</li>
+ *   <li>GET /api/v1/translations/batch/paper/{paperId}                           — list batch translation jobs for specific paper</li>
  * </ul>
  */
 @Slf4j
@@ -76,13 +86,14 @@ public class TranslationController {
     private final TranslationReviewService translationReviewService;
     private final TranslationQueryService translationQueryService;
     private final IndicTrans2Service indicTrans2Service;
+    private final BatchTranslationService batchTranslationService;
 
     // -------------------------------------------------------------------------
     // Auto-Translate via IndicTrans2
     // -------------------------------------------------------------------------
 
     /**
-     * Auto-translate a question into the specified target language using IndicTrans2.
+     * Auto-translate a single question into the specified target language using IndicTrans2.
      * POST /api/v1/translations/question/{questionId}/auto-translate/{lang}
      */
     @PostMapping("/question/{questionId}/auto-translate/{lang}")
@@ -92,6 +103,78 @@ public class TranslationController {
             @PathVariable String lang) {
 
         AutoTranslateResponse response = indicTrans2Service.autoTranslateQuestion(questionId, lang);
+        return ResponseEntity.ok(response);
+    }
+
+    // -------------------------------------------------------------------------
+    // Batch Auto-Translation Endpoints
+    // -------------------------------------------------------------------------
+
+    /**
+     * Start an asynchronous batch translation job from English to target language (e.g., Hindi)
+     * with automatic upsert and published status. Supports whole-bank, subject filter, or paper questions.
+     * POST /api/v1/translations/batch/auto-translate
+     */
+    @PostMapping("/batch/auto-translate")
+    @PreAuthorize("hasAnyRole('ADMIN', 'EXAM_CONTROLLER')")
+    public ResponseEntity<BatchTranslationJobResponse> startBatchAutoTranslate(
+            @Valid @RequestBody(required = false) BatchTranslationRequest request,
+            @AuthenticationPrincipal Jwt jwt) {
+
+        BatchTranslationRequest req = (request != null) ? request : new BatchTranslationRequest();
+        UUID initiatedBy = extractUserId(jwt);
+        String tenantId = tenantId();
+
+        BatchTranslationJobResponse response = batchTranslationService.startBatchJob(req, initiatedBy, tenantId);
+        return ResponseEntity.status(HttpStatus.ACCEPTED).body(response);
+    }
+
+    /**
+     * Get the status, progress percentage, and statistics of a batch translation job.
+     * GET /api/v1/translations/batch/{jobId}
+     */
+    @GetMapping("/batch/{jobId}")
+    @PreAuthorize("hasAnyRole('ADMIN', 'EXAM_CONTROLLER', 'TRANSLATOR', 'REVIEWER')")
+    public ResponseEntity<BatchTranslationJobResponse> getBatchJobStatus(
+            @PathVariable UUID jobId) {
+
+        BatchTranslationJobResponse response = batchTranslationService.getJobStatus(jobId, tenantId());
+        return ResponseEntity.ok(response);
+    }
+
+    /**
+     * List all batch translation jobs for the current tenant.
+     * GET /api/v1/translations/batch
+     */
+    @GetMapping("/batch")
+    @PreAuthorize("hasAnyRole('ADMIN', 'EXAM_CONTROLLER')")
+    public ResponseEntity<List<BatchTranslationJobResponse>> listBatchJobs() {
+        List<BatchTranslationJobResponse> jobs = batchTranslationService.listJobs(tenantId());
+        return ResponseEntity.ok(jobs);
+    }
+
+    /**
+     * List all batch translation jobs for a specific paper.
+     * GET /api/v1/translations/batch/paper/{paperId}
+     */
+    @GetMapping("/batch/paper/{paperId}")
+    @PreAuthorize("hasAnyRole('ADMIN', 'EXAM_CONTROLLER', 'TRANSLATOR', 'REVIEWER')")
+    public ResponseEntity<List<BatchTranslationJobResponse>> listBatchJobsByPaper(
+            @PathVariable UUID paperId) {
+        List<BatchTranslationJobResponse> jobs = batchTranslationService.listJobsByPaper(paperId, tenantId());
+        return ResponseEntity.ok(jobs);
+    }
+
+    /**
+     * Cancel an ongoing batch translation job.
+     * POST /api/v1/translations/batch/{jobId}/cancel
+     */
+    @PostMapping("/batch/{jobId}/cancel")
+    @PreAuthorize("hasAnyRole('ADMIN', 'EXAM_CONTROLLER')")
+    public ResponseEntity<BatchTranslationJobResponse> cancelBatchJob(
+            @PathVariable UUID jobId) {
+
+        BatchTranslationJobResponse response = batchTranslationService.cancelJob(jobId, tenantId());
         return ResponseEntity.ok(response);
     }
 
@@ -197,9 +280,9 @@ public class TranslationController {
     }
 
     /**
-     * Fetch the approved translation for a specific question and language.
+     * Fetch the approved or published translation for a specific question and language.
      * Used by the delivery service when serving a localized exam to a candidate.
-     * Returns 404 if no approved translation exists yet.
+     * Returns 404 if no approved/published translation exists yet.
      * GET /api/v1/translations/question/{questionId}/language/{lang}
      */
     @GetMapping("/question/{questionId}/language/{lang}")
@@ -224,5 +307,15 @@ public class TranslationController {
     private String tenantId() {
         String t = TenantContext.get();
         return t != null ? t : "default";
+    }
+
+    private UUID extractUserId(Jwt jwt) {
+        if (jwt != null && jwt.getSubject() != null) {
+            try {
+                return UUID.fromString(jwt.getSubject());
+            } catch (IllegalArgumentException ignored) {
+            }
+        }
+        return UUID.fromString("00000000-0000-0000-0000-000000000001");
     }
 }

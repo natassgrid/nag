@@ -71,5 +71,30 @@ public class Result extends BaseEntity {
     private String scorecardPdfRef;
 
     @Column(name = "digi_locker_pushed", nullable = false)
-    private Boolean digiLockerPushed;
+    private boolean digiLockerPushed;
+
+    @Column(name = "accuracy_rate", precision = 5, scale = 2)
+    private BigDecimal accuracyRate;
+
+    @Column(name = "category_rank")
+    private Integer categoryRank;
+
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "sectional_status_json", columnDefinition = "jsonb")
+    private String sectionalStatusJson;
+
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "cognitive_breakdown_json", columnDefinition = "jsonb")
+    private String cognitiveBreakdownJson;
+
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "topic_breakdown_json", columnDefinition = "jsonb")
+    private String topicBreakdownJson;
+
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "time_analysis_json", columnDefinition = "jsonb")
+    private String timeAnalysisJson;
+
+    @Column(name = "qr_verification_code", length = 255)
+    private String qrVerificationCode;
 }

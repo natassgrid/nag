@@ -37,6 +37,7 @@ import {
   PaginatedDataFetcher
 } from '../../shared/components/paginated-table';
 import { PageHeaderComponent } from '../../shared/components/page-header/page-header.component';
+import { MathRendererComponent } from '../../shared/components/math-renderer/math-renderer.component';
 
 @Component({
   selector: 'app-question-review',
@@ -54,7 +55,8 @@ import { PageHeaderComponent } from '../../shared/components/page-header/page-he
     MatFormFieldModule,
     MatInputModule,
     PaginatedTableComponent,
-    PageHeaderComponent
+    PageHeaderComponent,
+    MathRendererComponent
   ],
   templateUrl: './question-review.component.html',
   changeDetection: ChangeDetectionStrategy.Eager,
@@ -119,7 +121,6 @@ export class QuestionReviewComponent {
   select(question: QuestionResponse): void {
     this.selected = question;
     this.rejectComment = '';
-    this.cdr.detectChanges();
   }
 
   approve(): void {
@@ -127,14 +128,13 @@ export class QuestionReviewComponent {
     this.acting = true;
     this.questionService.approveQuestion(this.selected.id).subscribe({
       next: () => {
-        this.snackBar.open('Question approved', 'Close', { duration: 3000 });
         this.acting = false;
+        this.snackBar.open('Question approved', 'Close', { duration: 3000 });
         this.reload();
       },
-      error: (err) => {
-        this.snackBar.open(err.error?.message || 'Failed to approve question', 'Close', { duration: 3000 });
+      error: () => {
         this.acting = false;
-        this.cdr.detectChanges();
+        this.snackBar.open('Failed to approve question', 'Close', { duration: 4000 });
       }
     });
   }
@@ -144,39 +144,27 @@ export class QuestionReviewComponent {
     this.acting = true;
     this.questionService.rejectQuestion(this.selected.id, this.rejectComment.trim()).subscribe({
       next: () => {
-        this.snackBar.open('Question rejected and returned to author', 'Close', { duration: 3000 });
         this.acting = false;
+        this.snackBar.open('Question rejected', 'Close', { duration: 3000 });
+        this.rejectComment = '';
         this.reload();
       },
-      error: (err) => {
-        this.snackBar.open(err.error?.message || 'Failed to reject question', 'Close', { duration: 3000 });
+      error: () => {
         this.acting = false;
-        this.cdr.detectChanges();
+        this.snackBar.open('Failed to reject question', 'Close', { duration: 4000 });
       }
     });
   }
 
   isMcq(q: QuestionResponse): boolean {
-    return q?.questionType === 'SINGLE_MCQ' || q?.questionType === 'MULTI_MCQ';
+    return q.questionType === 'SINGLE_MCQ' || q.questionType === 'MULTI_MCQ';
   }
 
-  getDiffClass(difficulty?: string): string {
-    if (!difficulty) return 'chip-medium';
-    return 'chip-' + difficulty.toLowerCase();
+  getDiffClass(diff?: string): string {
+    return 'chip-' + (diff || 'medium').toLowerCase();
   }
 
   formatType(type?: string): string {
-    if (!type) return '';
-    const map: Record<string, string> = {
-      SINGLE_MCQ: 'MCQ',
-      MULTI_MCQ: 'MSQ',
-      NUMERICAL: 'Numerical',
-      DESCRIPTIVE: 'Descriptive',
-      MATRIX_MATCH: 'Matrix',
-      ASSERTION_REASON: 'A&R',
-      CODING: 'Coding',
-      CASE_STUDY: 'Case Study'
-    };
-    return map[type] || type;
+    return (type || '').replace(/_/g, ' ');
   }
 }

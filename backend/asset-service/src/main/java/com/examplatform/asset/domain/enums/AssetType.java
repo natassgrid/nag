@@ -25,6 +25,7 @@ package com.examplatform.asset.domain.enums;
 public enum AssetType {
 
     IMAGE,
+    SVG,
     AUDIO,
     VIDEO,
     DOCUMENT

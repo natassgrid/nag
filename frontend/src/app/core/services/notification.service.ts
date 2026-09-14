@@ -34,8 +34,23 @@ export class NotificationService {
     verticalPosition: 'bottom'
   };
 
+  private sanitizeMessage(message: string): string {
+    if (!message || typeof message !== 'string') return 'An error occurred';
+    if (/<[a-z][\s\S]*>/i.test(message)) {
+      const titleMatch = message.match(/<title[^>]*>(.*?)<\/title>/i);
+      const h1Match = message.match(/<h1[^>]*>(.*?)<\/h1>/i);
+      if (h1Match && h1Match[1] && !h1Match[1].toLowerCase().includes('error')) {
+        return h1Match[1].replace(/\s+/g, ' ').trim();
+      } else if (titleMatch && titleMatch[1]) {
+        return titleMatch[1].replace(/\s+/g, ' ').trim();
+      }
+      return message.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim() || 'An error occurred';
+    }
+    return message;
+  }
+
   showSuccess(message: string, action = 'OK', duration = 3000): void {
-    this.snackBar.open(message, action, {
+    this.snackBar.open(this.sanitizeMessage(message), action, {
       ...this.defaultConfig,
       duration,
       panelClass: ['success-snackbar']
@@ -43,7 +58,7 @@ export class NotificationService {
   }
 
   showError(message: string, action = 'Dismiss', duration = 5000): void {
-    this.snackBar.open(message, action, {
+    this.snackBar.open(this.sanitizeMessage(message), action, {
       ...this.defaultConfig,
       duration,
       panelClass: ['error-snackbar']
@@ -51,7 +66,7 @@ export class NotificationService {
   }
 
   showWarning(message: string, action = 'Dismiss', duration = 4000): void {
-    this.snackBar.open(message, action, {
+    this.snackBar.open(this.sanitizeMessage(message), action, {
       ...this.defaultConfig,
       duration,
       panelClass: ['warning-snackbar']
@@ -59,7 +74,7 @@ export class NotificationService {
   }
 
   showInfo(message: string, action = 'Close', duration = 3000): void {
-    this.snackBar.open(message, action, {
+    this.snackBar.open(this.sanitizeMessage(message), action, {
       ...this.defaultConfig,
       duration,
       panelClass: ['info-snackbar']

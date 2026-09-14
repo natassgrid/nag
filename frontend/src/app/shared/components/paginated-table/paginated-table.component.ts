@@ -1,22 +1,23 @@
+/*
+ * SPDX-License-Identifier: AGPL-3.0-only
+ *
+ * National Assessment Grid (NAG) - Open Digital Public Infrastructure (DPI) Platform
+ * Copyright (C) 2025 NAG Contributors
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as published
+ * by the Free Software Foundation, version 3 of the License.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program. If not, see <https://www.gnu.org/licenses/>.
+ */
+
 import {
-  /*
-   * SPDX-License-Identifier: AGPL-3.0-only
-   *
-   * National Assessment Grid (NAG) - Open Digital Public Infrastructure (DPI) Platform
-   * Copyright (C) 2025 NAG Contributors
-   *
-   * This program is free software: you can redistribute it and/or modify
-   * it under the terms of the GNU Affero General Public License as published
-   * by the Free Software Foundation, version 3 of the License.
-   *
-   * This program is distributed in the hope that it will be useful,
-   * but WITHOUT ANY WARRANTY; without even the implied warranty of
-   * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-   * GNU Affero General Public License for more details.
-   *
-   * You should have received a copy of the GNU Affero General Public License
-   * along with this program. If not, see <https://www.gnu.org/licenses/>.
-   */
   Component,
   Input,
   Output,
@@ -144,8 +145,19 @@ export class PaginatedTableComponent<T = any> implements OnInit, OnDestroy, OnCh
     return this.columns.map(col => col.key);
   }
 
+  getCellValue(row: T, col: ColumnDef<T>): any {
+    if (col.cell) {
+      return col.cell(row);
+    }
+    return (row as any)?.[col.key];
+  }
+
   toggleDrawer(): void {
     this.drawerOpen = !this.drawerOpen;
+  }
+
+  closeDrawer(): void {
+    this.drawerOpen = false;
   }
 
   toggleCategory(targetCat: FilterCategory): void {
@@ -156,15 +168,31 @@ export class PaginatedTableComponent<T = any> implements OnInit, OnDestroy, OnCh
 
   initFilterCategories(): void {
     if (this.filterCategories && this.filterCategories.length > 0) {
-      this.activeCategories = this.filterCategories.map((c, idx) => ({
-        ...c,
-        expanded: idx === 0,
-        options: (c.options || []).map(o => ({ ...o, checked: !!o.checked }))
-      }));
+      const prevExpandedMap = new Map<string, boolean>();
+      const prevCheckedMap = new Map<string, Set<any>>();
+      (this.activeCategories || []).forEach(c => {
+        prevExpandedMap.set(c.key, !!c.expanded);
+        const checkedVals = new Set((c.options || []).filter(o => o.checked).map(o => o.value));
+        prevCheckedMap.set(c.key, checkedVals);
+      });
+
+      this.activeCategories = this.filterCategories.map((c, idx) => {
+        const wasExpanded = prevExpandedMap.has(c.key) ? prevExpandedMap.get(c.key) : (c.expanded ?? (idx === 0));
+        const prevChecked = prevCheckedMap.get(c.key);
+        return {
+          ...c,
+          expanded: wasExpanded,
+          options: (c.options || []).map(o => ({
+            ...o,
+            checked: prevChecked ? prevChecked.has(o.value) : !!o.checked
+          }))
+        };
+      });
     } else {
       this.activeCategories = this.generateDefaultCategories();
     }
     this.syncCategoriesWithFilters();
+    this.cdr.markForCheck();
   }
 
   generateDefaultCategories(): FilterCategory[] {
@@ -239,96 +267,26 @@ export class PaginatedTableComponent<T = any> implements OnInit, OnDestroy, OnCh
   }
 
   syncCategoriesWithFilters(): void {
-    let activeCount = 0;
+    let count = 0;
     this.activeCategories.forEach(cat => {
-      const currentVal = this.filters[cat.key];
-      if (!currentVal) {
-        cat.options?.forEach(o => o.checked = false);
-      } else {
-        const valArr = Array.isArray(currentVal) ? currentVal : [currentVal];
-        cat.options?.forEach(o => {
-          o.checked = valArr.includes(o.value) || valArr.includes(o.label);
-        });
-        if (cat.options?.some(o => o.checked)) {
-          activeCount++;
+      const activeVals = this.filters[cat.key];
+      (cat.options || []).forEach(opt => {
+        if (Array.isArray(activeVals)) {
+          opt.checked = activeVals.includes(opt.value);
+        } else if (activeVals !== undefined && activeVals !== null && activeVals !== '') {
+          opt.checked = opt.value === activeVals;
+        } else {
+          opt.checked = false;
         }
-      }
+        if (opt.checked) count++;
+      });
     });
-    this.activeFilterCount = activeCount;
+    this.activeFilterCount = count;
   }
 
-  applyDrawerFilters(): void {
-    const updatedFilters: Record<string, any> = { ...this.filters };
-    let activeCount = 0;
-
-    this.activeCategories.forEach(cat => {
-      const selectedOpts = cat.options?.filter(o => o.checked) || [];
-      if (selectedOpts.length > 0) {
-        updatedFilters[cat.key] = selectedOpts.length === 1 ? selectedOpts[0].value : selectedOpts.map(o => o.value);
-        activeCount++;
-      } else {
-        delete updatedFilters[cat.key];
-      }
-    });
-
-    this.filters = updatedFilters;
-    this.activeFilterCount = activeCount;
-    this.filterChange.emit(this.filters);
-    this.pageIndex = 0;
-    this.loadData();
-  }
-
-  resetDrawerFilters(): void {
-    this.activeCategories.forEach(cat => {
-      cat.options?.forEach(o => o.checked = false);
-    });
-
-    this.filters = {};
-    this.activeFilterCount = 0;
-    this.filterChange.emit(this.filters);
-    this.pageIndex = 0;
-    this.loadData();
-  }
-
-  loadData(): void {
-    if (!this.fetcher) return;
-
-    this.loading = true;
-    this.cdr.detectChanges();
-
-    const request: PaginatedRequest = {
-      page: this.pageIndex,
-      size: this.pageSize,
-      search: this.searchQuery.trim() || undefined,
-      sort: this.sortColumn || undefined,
-      order: this.sortColumn ? this.sortDirection : undefined,
-      filters: Object.keys(this.filters).length > 0 ? this.filters : undefined
-    };
-
-    this.fetcher(request).subscribe({
-      next: (response: PaginatedResponse<T>) => {
-        const content = response?.content ?? (Array.isArray(response) ? response : []);
-        this.dataSource.data = [...content];
-        this.totalElements = response?.totalElements ?? content.length;
-        this.loading = false;
-        this.cdr.detectChanges();
-      },
-      error: (err) => {
-        console.error('[PaginatedTableComponent] Error fetching data:', err);
-        this.dataSource.data = [];
-        this.totalElements = 0;
-        this.loading = false;
-        this.cdr.detectChanges();
-      }
-    });
-  }
-
-  reload(): void {
-    this.loadData();
-  }
-
-  onSearchChange(value: string): void {
-    this.searchSubject.next(value);
+  onSearchChange(query: string): void {
+    this.searchQuery = query;
+    this.searchSubject.next(query);
   }
 
   clearSearch(): void {
@@ -349,15 +307,72 @@ export class PaginatedTableComponent<T = any> implements OnInit, OnDestroy, OnCh
     this.loadData();
   }
 
+  applyDrawerFilters(): void {
+    const newFilters: Record<string, any> = {};
+    let count = 0;
+
+    this.activeCategories.forEach(cat => {
+      const checkedOpts = (cat.options || []).filter(o => o.checked);
+      if (checkedOpts.length > 0) {
+        newFilters[cat.key] = checkedOpts.map(o => o.value);
+        count += checkedOpts.length;
+      }
+    });
+
+    this.activeFilterCount = count;
+    this.filters = newFilters;
+    this.filterChange.emit(newFilters);
+    this.pageIndex = 0;
+    this.loadData();
+  }
+
+  resetDrawerFilters(): void {
+    this.activeCategories.forEach(cat => {
+      (cat.options || []).forEach(opt => opt.checked = false);
+    });
+    this.activeFilterCount = 0;
+    this.filters = {};
+    this.filterChange.emit({});
+    this.pageIndex = 0;
+    this.loadData();
+  }
+
+  loadData(): void {
+    if (!this.fetcher) return;
+
+    this.loading = true;
+    this.cdr.markForCheck();
+
+    const request: PaginatedRequest = {
+      page: this.pageIndex,
+      size: this.pageSize,
+      sort: this.sortColumn || undefined,
+      order: this.sortDirection,
+      search: this.searchQuery || undefined,
+      filters: this.filters
+    };
+
+    this.fetcher(request).subscribe({
+      next: (response: PaginatedResponse<T>) => {
+        this.dataSource.data = response.content;
+        this.totalElements = response.totalElements;
+        this.loading = false;
+        this.cdr.markForCheck();
+      },
+      error: () => {
+        this.dataSource.data = [];
+        this.totalElements = 0;
+        this.loading = false;
+        this.cdr.markForCheck();
+      }
+    });
+  }
+
+  reload(): void {
+    this.loadData();
+  }
+
   onRowClick(row: T): void {
     this.rowClick.emit(row);
   }
-
-  getCellValue(row: T, col: ColumnDef<T>): any {
-    if (col.cell) {
-      return col.cell(row);
-    }
-    return (row as any)[col.key];
-  }
 }
-

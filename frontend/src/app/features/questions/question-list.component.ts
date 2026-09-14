@@ -1,4 +1,3 @@
-import { Component, OnInit, ViewChild, ChangeDetectionStrategy, ChangeDetectorRef } from '@angular/core';
 /*
  * SPDX-License-Identifier: AGPL-3.0-only
  *
@@ -18,6 +17,7 @@ import { Component, OnInit, ViewChild, ChangeDetectionStrategy, ChangeDetectorRe
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
 
+import { Component, OnInit, ViewChild, ChangeDetectionStrategy, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
@@ -37,6 +37,17 @@ import {
   FilterCategory
 } from '../../shared/components/paginated-table';
 import { PageHeaderComponent } from '../../shared/components/page-header/page-header.component';
+
+const DEFAULT_SUBJECT_OPTIONS = [
+  { label: 'Quantitative Aptitude', value: 'Quantitative Aptitude' },
+  { label: 'General Intelligence and Reasoning', value: 'General Intelligence and Reasoning' },
+  { label: 'English Language', value: 'English Language' },
+  { label: 'General Awareness', value: 'General Awareness' },
+  { label: 'Computer Aptitude', value: 'Computer Aptitude' },
+  { label: 'Mathematics', value: 'Mathematics' },
+  { label: 'Physics', value: 'Physics' },
+  { label: 'Chemistry', value: 'Chemistry' }
+];
 
 @Component({
   selector: 'app-question-list',
@@ -62,6 +73,7 @@ import { PageHeaderComponent } from '../../shared/components/page-header/page-he
 export class QuestionListComponent implements OnInit {
 
   @ViewChild('paginatedTable') paginatedTable!: PaginatedTableComponent<QuestionResponse>;
+  @ViewChild('visualsTmpl', { static: true }) visualsTmpl!: any;
 
   drawerOpen = false;
   editingQuestion?: QuestionResponse;
@@ -99,7 +111,7 @@ export class QuestionListComponent implements OnInit {
       key: 'subject',
       label: 'Subject',
       expanded: false,
-      options: []
+      options: DEFAULT_SUBJECT_OPTIONS
     },
     {
       key: 'difficulty',
@@ -125,35 +137,20 @@ export class QuestionListComponent implements OnInit {
 
   subjects: Subject[] = [];
 
-  columns: ColumnDef<QuestionResponse>[] = [
-    { key: 'subject', header: 'Subject', sortable: true },
-    { key: 'topic', header: 'Topic', sortable: true },
-    {
-      key: 'difficulty',
-      header: 'Difficulty',
-      type: 'chip',
-      chipClass: (val) => 'chip-' + (val || '').toLowerCase(),
-      sortable: true
-    },
-    { key: 'questionType', header: 'Type', sortable: true },
-    {
-      key: 'state',
-      header: 'State',
-      type: 'chip',
-      chipClass: (val) => 'chip-state-' + (val || '').toLowerCase(),
-      sortable: true
-    },
-    { key: 'createdAt', header: 'Created', type: 'date', sortable: true },
-    { key: 'actions', header: 'Actions', type: 'actions' }
-  ];
+  columns: ColumnDef<QuestionResponse>[] = [];
 
   fetcher: PaginatedDataFetcher<QuestionResponse> = (req) => {
-    const activeSubject = Array.isArray(this.filters['subject']) ? this.filters['subject'][0] : this.filters['subject'];
+    const rawSubject = Array.isArray(this.filters['subject']) ? this.filters['subject'][0] : this.filters['subject'];
     const activeDifficulty = Array.isArray(this.filters['difficulty']) ? this.filters['difficulty'][0] : this.filters['difficulty'];
     const activeState = Array.isArray(this.filters['state']) ? this.filters['state'][0] : this.filters['state'];
 
+    const isNumericSubject = rawSubject !== undefined && rawSubject !== null && rawSubject !== '' && !isNaN(Number(rawSubject));
+    const subjectId = isNumericSubject ? Number(rawSubject) : undefined;
+    const subject = !isNumericSubject && rawSubject ? String(rawSubject) : undefined;
+
     return this.questionService.getQuestions({
-      subject: activeSubject || undefined,
+      subject,
+      subjectId,
       difficulty: activeDifficulty || undefined,
       state: activeState || undefined,
       page: req.page,
@@ -169,17 +166,62 @@ export class QuestionListComponent implements OnInit {
   ) {}
 
   ngOnInit(): void {
+    this.columns = [
+      { key: 'hasImages', header: 'Media', type: 'custom', template: this.visualsTmpl },
+      { key: 'subject', header: 'Subject', sortable: true },
+      { key: 'topic', header: 'Topic', sortable: true },
+      {
+        key: 'difficulty',
+        header: 'Difficulty',
+        type: 'chip',
+        chipClass: (val) => 'chip-' + (val || '').toLowerCase(),
+        sortable: true
+      },
+      { key: 'questionType', header: 'Type', sortable: true },
+      {
+        key: 'state',
+        header: 'State',
+        type: 'chip',
+        chipClass: (val) => 'chip-state-' + (val || '').toLowerCase(),
+        sortable: true
+      },
+      { key: 'createdAt', header: 'Created', type: 'date', sortable: true },
+      { key: 'actions', header: 'Actions', type: 'actions' }
+    ];
     this.loadSubjects();
   }
 
   loadSubjects(): void {
-    this.subjectTopicService.getSubjects().subscribe(subjects => {
-      this.subjects = subjects;
-      const subjectCat = this.filterCategories.find(c => c.key === 'subject');
-      if (subjectCat) {
-        subjectCat.options = subjects.map(s => ({ label: s.name, value: s.name }));
+    this.subjectTopicService.getSubjects().subscribe({
+      next: (subjects) => {
+        this.subjects = subjects || [];
+        const subjectOptions = this.subjects.length > 0
+          ? this.subjects.map(s => ({ label: s.name, value: s.id.toString() }))
+          : DEFAULT_SUBJECT_OPTIONS;
+        this.filterCategories = this.filterCategories.map(cat => {
+          if (cat.key === 'subject') {
+            return {
+              ...cat,
+              options: subjectOptions
+            };
+          }
+          return cat;
+        });
+        this.cdr.markForCheck();
+      },
+      error: (err) => {
+        console.warn('Failed to load subjects for filter:', err);
+        this.filterCategories = this.filterCategories.map(cat => {
+          if (cat.key === 'subject') {
+            return {
+              ...cat,
+              options: DEFAULT_SUBJECT_OPTIONS
+            };
+          }
+          return cat;
+        });
+        this.cdr.markForCheck();
       }
-      this.cdr.markForCheck();
     });
   }
 
@@ -217,8 +259,9 @@ export class QuestionListComponent implements OnInit {
     this.translationDrawerOpen = true;
   }
 
-  onTranslationDrawerClose(updated: boolean): void {
+  onTranslationDrawerClose(updated?: boolean): void {
     this.translationDrawerOpen = false;
+    this.translatingQuestion = undefined;
     if (updated) {
       this.reload();
     }
@@ -251,61 +294,66 @@ export class QuestionListComponent implements OnInit {
 
   /** Downloads a ZIP export of questions matching the active filters. */
   exportQuestions(format: 'json' | 'csv'): void {
-    const activeSubject = Array.isArray(this.filters['subject']) ? this.filters['subject'][0] : this.filters['subject'];
+    const rawSubject = Array.isArray(this.filters['subject']) ? this.filters['subject'][0] : this.filters['subject'];
     const activeDifficulty = Array.isArray(this.filters['difficulty']) ? this.filters['difficulty'][0] : this.filters['difficulty'];
     const activeState = Array.isArray(this.filters['state']) ? this.filters['state'][0] : this.filters['state'];
+
+    const isNumericSubject = rawSubject !== undefined && rawSubject !== null && rawSubject !== '' && !isNaN(Number(rawSubject));
+    const subjectId = isNumericSubject ? Number(rawSubject) : undefined;
+    const subject = !isNumericSubject && rawSubject ? String(rawSubject) : undefined;
 
     this.exporting = true;
     this.questionService.exportQuestions({
       format,
-      subject: activeSubject || undefined,
+      subject,
+      subjectId,
       difficulty: activeDifficulty || undefined,
       state: activeState || undefined
     }).subscribe({
-      next: (blob) => {
+      next: (blob: Blob) => {
         this.exporting = false;
-        this.triggerDownload(blob, `questions-export-${format}-${new Date().toISOString().slice(0, 10)}.zip`);
-        this.snackBar.open('Export ready', 'Close', { duration: 3000 });
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        const date = new Date().toISOString().slice(0, 10);
+        a.download = `question-bank-export-${date}.zip`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        window.URL.revokeObjectURL(url);
+        this.snackBar.open('Export downloaded successfully', 'Close', { duration: 3000 });
       },
-      error: () => {
+      error: (err: any) => {
         this.exporting = false;
-        this.snackBar.open('Export failed', 'Close', { duration: 4000 });
+        const msg = err.error?.message || 'Failed to export questions';
+        this.snackBar.open(msg, 'Close', { duration: 4000 });
       }
     });
   }
 
-  /** Handles the hidden file input change: uploads the selected ZIP for import. */
+  /** Triggers the bulk question import from a selected ZIP file. */
   onImportFileSelected(event: Event): void {
     const input = event.target as HTMLInputElement;
-    const file = input.files && input.files[0];
-    if (!file) {
-      return;
-    }
+    if (!input.files || input.files.length === 0) return;
+
+    const file = input.files[0];
+    input.value = ''; // reset so the same file can be chosen again if needed
+
     this.importing = true;
+    this.snackBar.open(`Importing ${file.name}…`, '', { duration: 0 });
+
     this.questionService.importQuestions(file).subscribe({
-      next: (result) => {
+      next: (res) => {
         this.importing = false;
-        input.value = '';
-        this.snackBar.open(
-          `Imported ${result.imported} question(s), ${result.failed} failed`,
-          'Close',
-          { duration: 4000 });
+        const message = `Import complete: ${res.successfulCount} created/updated, ${res.failedCount} failed, ${res.duplicateCount} duplicates skipped.`;
+        this.snackBar.open(message, 'Close', { duration: 6000 });
         this.reload();
       },
-      error: (err) => {
+      error: (err: any) => {
         this.importing = false;
-        input.value = '';
-        this.snackBar.open(err?.error?.message || 'Import failed', 'Close', { duration: 4000 });
+        const msg = err.error?.message || 'Import failed. Ensure the ZIP contains valid batch files.';
+        this.snackBar.open(msg, 'Close', { duration: 5000 });
       }
     });
-  }
-
-  private triggerDownload(blob: Blob, fileName: string): void {
-    const url = window.URL.createObjectURL(blob);
-    const anchor = document.createElement('a');
-    anchor.href = url;
-    anchor.download = fileName;
-    anchor.click();
-    window.URL.revokeObjectURL(url);
   }
 }

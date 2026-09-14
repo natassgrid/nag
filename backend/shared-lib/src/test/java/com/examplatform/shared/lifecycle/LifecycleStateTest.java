@@ -47,8 +47,9 @@ class LifecycleStateTest {
     void translationState_hasAllRequiredValues() {
         assertDoesNotThrow(() -> TranslationState.valueOf("DRAFT"));
         assertDoesNotThrow(() -> TranslationState.valueOf("APPROVED"));
+        assertDoesNotThrow(() -> TranslationState.valueOf("PUBLISHED"));
         assertDoesNotThrow(() -> TranslationState.valueOf("STALE"));
-        assertEquals(3, TranslationState.values().length);
+        assertEquals(4, TranslationState.values().length);
     }
 
     // -----------------------------------------------------------------------

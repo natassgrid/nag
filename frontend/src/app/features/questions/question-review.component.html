@@ -104,7 +104,9 @@
           <!-- Question content -->
           <div class="detail-section">
             <div class="section-label">Question</div>
-            <div class="question-content" [innerHTML]="selected.content || ''"></div>
+            <div class="question-content">
+              <app-math-renderer [content]="selected.content || ''"></app-math-renderer>
+            </div>
           </div>
 
           <!-- Options for MCQ/MSQ -->
@@ -119,7 +121,14 @@
                 {{ opt.isCorrect ? 'check_circle' : 'radio_button_unchecked' }}
               </mat-icon>
               <span class="option-id">{{ opt.id }}.</span>
-              <span class="option-text">{{ opt.text || '(empty)' }}</span>
+              <div class="option-content-block">
+                <div *ngIf="opt.imageUrl" class="option-image-preview">
+                  <img [src]="opt.imageUrl" [alt]="opt.imageAltText || opt.id" class="review-opt-thumb" />
+                </div>
+                <div class="option-text" *ngIf="opt.text">
+                  <app-math-renderer [content]="opt.text" [inline]="true"></app-math-renderer>
+                </div>
+              </div>
               <mat-chip *ngIf="opt.isCorrect" class="correct-chip">Correct</mat-chip>
             </div>
           </div>
@@ -128,6 +137,14 @@
           <div class="detail-section" *ngIf="!isMcq(selected) && selected.answerKey">
             <div class="section-label">Answer Key</div>
             <div class="answer-key">{{ selected.answerKey }}</div>
+          </div>
+
+          <!-- Explanation -->
+          <div class="detail-section" *ngIf="selected.explanation">
+            <div class="section-label">Explanation</div>
+            <div class="question-explanation">
+              <app-math-renderer [content]="selected.explanation"></app-math-renderer>
+            </div>
           </div>
 
           <mat-divider></mat-divider>
@@ -180,11 +197,10 @@
 
         </div>
 
-        <!-- No selection placeholder -->
         <ng-template #noSelection>
-          <div class="no-selection" *ngIf="questions.length > 0">
+          <div class="no-selection">
             <mat-icon>touch_app</mat-icon>
-            <p>Select a question from the table/list to review it.</p>
+            <p>Select a question from the list or table to review its details.</p>
           </div>
         </ng-template>
 

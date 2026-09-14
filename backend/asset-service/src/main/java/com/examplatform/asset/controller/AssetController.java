@@ -74,6 +74,7 @@ import java.util.UUID;
  *   DELETE /api/v1/assets/{id}         — Soft-delete asset
  *   GET    /api/v1/assets/search       — Search with filters
  *   GET    /api/v1/assets/{id}/download— Download binary content
+ *   GET    /api/v1/assets/{id}/url     — Get public/direct URL
  *   PUT    /api/v1/assets/{id}/archive — Archive asset
  *   PUT    /api/v1/assets/{id}/restore — Restore archived asset
  *   POST   /api/v1/assets/references   — Add reference
@@ -101,19 +102,14 @@ public class AssetController {
             @RequestHeader("X-Tenant-Id") String tenantId) throws IOException {
 
         UUID userId = UUID.fromString(jwt.getSubject());
-
-        log.info("Upload request: filename={}, size={}, contentType={}, user={}, tenant={}",
-                file.getOriginalFilename(), file.getSize(), file.getContentType(), userId, tenantId);
-
         AssetUploadResponse response = assetService.upload(file, userId, tenantId);
-
         return ResponseEntity
                 .status(HttpStatus.CREATED)
                 .body(ApiResponse.success(response, "Asset uploaded successfully"));
     }
 
     /**
-     * Retrieve asset metadata by ID.
+     * Get asset metadata by ID.
      */
     @GetMapping("/{id}")
     @PreAuthorize("hasAnyRole('QUESTION_AUTHOR', 'REVIEWER', 'APPROVER', 'ADMIN', 'CONTENT_MANAGER', 'CANDIDATE')")
@@ -123,7 +119,7 @@ public class AssetController {
     }
 
     /**
-     * List assets with pagination.
+     * List assets for tenant (paginated).
      */
     @GetMapping
     @PreAuthorize("hasAnyRole('QUESTION_AUTHOR', 'REVIEWER', 'APPROVER', 'ADMIN', 'CONTENT_MANAGER')")
@@ -137,7 +133,7 @@ public class AssetController {
     }
 
     /**
-     * Search assets with optional filters.
+     * Search assets with filters.
      */
     @GetMapping("/search")
     @PreAuthorize("hasAnyRole('QUESTION_AUTHOR', 'REVIEWER', 'APPROVER', 'ADMIN', 'CONTENT_MANAGER')")
@@ -146,7 +142,7 @@ public class AssetController {
             @RequestParam(required = false) AssetType assetType,
             @RequestParam(required = false) String contentType,
             @RequestParam(required = false) String tags,
-            @RequestParam(required = false) String createdBy,
+            @RequestParam(required = false) UUID createdBy,
             @RequestParam(required = false) Instant uploadDateFrom,
             @RequestParam(required = false) Instant uploadDateTo,
             @RequestParam(required = false) AssetStatus status,
@@ -161,7 +157,7 @@ public class AssetController {
                 .assetType(assetType)
                 .contentType(contentType)
                 .tags(tags)
-                .createdBy(createdBy)
+                .createdBy(createdBy != null ? createdBy.toString() : null)
                 .uploadDateFrom(uploadDateFrom)
                 .uploadDateTo(uploadDateTo)
                 .status(status)
@@ -225,6 +221,16 @@ public class AssetController {
     }
 
     /**
+     * Get accessible public or direct URL for an asset.
+     */
+    @GetMapping("/{id}/url")
+    @PreAuthorize("hasAnyRole('QUESTION_AUTHOR', 'REVIEWER', 'APPROVER', 'ADMIN', 'CONTENT_MANAGER', 'CANDIDATE')")
+    public ResponseEntity<ApiResponse<String>> getPublicUrl(@PathVariable UUID id) {
+        String publicUrl = assetService.getPublicUrl(id);
+        return ResponseEntity.ok(ApiResponse.success(publicUrl, "Asset URL resolved successfully"));
+    }
+
+    /**
      * Archive an active asset.
      */
     @PutMapping("/{id}/archive")
@@ -254,7 +260,7 @@ public class AssetController {
         return ResponseEntity.ok(ApiResponse.success(response, "Asset restored successfully"));
     }
 
-    // ── Reference Management ─────────────────────────────────────────────────
+    // ── Reference Management ──────────────────────────────────────────────────
 
     /**
      * Create a reference between an asset and a platform entity.

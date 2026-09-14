@@ -20,6 +20,8 @@
 package com.examplatform.asset.validation;
 
 import com.examplatform.asset.domain.enums.AssetType;
+import lombok.Builder;
+import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -37,6 +39,7 @@ import java.security.NoSuchAlgorithmException;
  *   <li>File size validation</li>
  *   <li>MIME type validation (against allowed list)</li>
  *   <li>Magic number validation (content vs declared type)</li>
+ *   <li>SVG security sanitization (if SVG)</li>
  * </ol>
  *
  * <p>All validations run before the file is persisted to storage.
@@ -50,6 +53,7 @@ public class SecurityValidationPipeline {
     private final FileSizeValidator fileSizeValidator;
     private final MimeValidator mimeValidator;
     private final MagicNumberValidator magicNumberValidator;
+    private final SvgSanitizer svgSanitizer;
 
     /**
      * Run the full validation pipeline.
@@ -76,6 +80,11 @@ public class SecurityValidationPipeline {
         // 4. Validate magic numbers match declared type
         String detectedMimeType = magicNumberValidator.validateAndDetect(content, contentType, sanitizedFilename);
 
+        // 5. SVG Sanitization: check for scripts, event handlers, and XXE
+        if (assetType == AssetType.SVG || "svg".equalsIgnoreCase(extension) || detectedMimeType.contains("svg")) {
+            svgSanitizer.validate(content);
+        }
+
         log.info("Validation passed: file='{}', type={}, detectedMime={}, size={}",
                 sanitizedFilename, assetType, detectedMimeType, size);
 
@@ -99,7 +108,7 @@ public class SecurityValidationPipeline {
             byte[] hashBytes = digest.digest(data);
             return bytesToHex(hashBytes);
         } catch (NoSuchAlgorithmException e) {
-            throw new IllegalStateException("SHA-256 algorithm not available", e);
+            throw new RuntimeException("SHA-256 algorithm not available", e);
         }
     }
 
@@ -111,17 +120,12 @@ public class SecurityValidationPipeline {
         return sb.toString();
     }
 
-    /**
-     * Result of the security validation pipeline.
-     */
-    @lombok.Data
-    @lombok.NoArgsConstructor
-    @lombok.AllArgsConstructor
-    @lombok.Builder
+    @Getter
+    @Builder
     public static class ValidationResult {
-        private String sanitizedFilename;
-        private String extension;
-        private AssetType assetType;
-        private String detectedContentType;
+        private final String sanitizedFilename;
+        private final String extension;
+        private final AssetType assetType;
+        private final String detectedContentType;
     }
 }

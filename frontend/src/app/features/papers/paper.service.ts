@@ -11,7 +11,7 @@
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU Affero General Public License for more details.
+ * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
@@ -22,7 +22,7 @@ import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable, map } from 'rxjs';
 import { PaginatedResponse } from '../../shared/components/paginated-table/pagination.model';
 
-// ── Domain models ─────────────────────────────────────────────────────────────
+// ── Domain models ────────────────────────────────────────────────────────────
 
 export interface BlueprintRule {
   subject: string;
@@ -104,6 +104,34 @@ export interface PaperApprovalResponse {
   message: string;
 }
 
+export interface PaperTranslateRequest {
+  targetLanguage?: string;
+  sourceLanguage?: string;
+  targetStatus?: string;
+  overwriteExisting?: boolean;
+  maxConcurrency?: number;
+  throttleDelayMs?: number;
+}
+
+export interface PaperTranslateResponse {
+  jobId: string;
+  paperId: string;
+  status: string;
+  sourceLanguage: string;
+  targetLanguage: string;
+  targetStatus: string;
+  overwriteExisting: boolean;
+  totalQuestions: number;
+  processedQuestions: number;
+  successfulQuestions: number;
+  failedQuestions: number;
+  progressPercentage: number;
+  errorMessage?: string;
+  message?: string;
+  createdAt?: string;
+  completedAt?: string;
+}
+
 export interface BlueprintTemplateRequest {
   name: string;
   description?: string;
@@ -125,7 +153,48 @@ export interface BlueprintTemplateResponse {
   version?: number;
 }
 
-// ── Service ───────────────────────────────────────────────────────────────────
+export interface GapDetail {
+  subject: string;
+  topic: string;
+  difficulty?: string;
+  needed: number;
+  available: number;
+}
+
+export interface RuleFeasibilityDetail {
+  subject: string;
+  topic: string;
+  difficulty?: string;
+  cognitiveLevel?: string;
+  needed: number;
+  available: number;
+  surplus: number;
+  deficit: number;
+  status: 'SATISFIED' | 'DEFICIT';
+}
+
+export interface BlueprintFeasibilityRequest {
+  examId?: string;
+  shiftId?: string;
+  blueprintRules: BlueprintRule[];
+  notifyAdminOnDeficit?: boolean;
+}
+
+export interface BlueprintFeasibilityResponse {
+  feasible: boolean;
+  examId?: string;
+  shiftId?: string;
+  totalQuestionsNeeded: number;
+  totalQuestionsAvailable: number;
+  deficitRuleCount: number;
+  ruleDetails: RuleFeasibilityDetail[];
+  gaps: GapDetail[];
+  notificationDispatched: boolean;
+  summary: string;
+  checkedAt: string;
+}
+
+// ── Service ──────────────────────────────────────────────────────────────────
 
 @Injectable({ providedIn: 'root' })
 export class PaperService {
@@ -186,7 +255,28 @@ export class PaperService {
     return this.http.post<PaperApprovalResponse>(`${this.baseUrl}/${paperId}/approve`, {});
   }
 
-  // ── Blueprint Template API ────────────────────────────────────────────────
+  /**
+   * Triggers asynchronous batch translation for all questions in an examination paper.
+   */
+  translatePaper(paperId: string, request?: PaperTranslateRequest): Observable<PaperTranslateResponse> {
+    return this.http.post<PaperTranslateResponse>(`${this.baseUrl}/${paperId}/translate`, request ?? {});
+  }
+
+  /**
+   * Retrieves the latest progress and status of a paper translation job.
+   */
+  getPaperTranslationStatus(paperId: string, jobId: string): Observable<PaperTranslateResponse> {
+    return this.http.get<PaperTranslateResponse>(`${this.baseUrl}/${paperId}/translate/${jobId}`);
+  }
+
+  /**
+   * Evaluates blueprint rules against current question bank availability without generating a paper.
+   */
+  checkBlueprintSufficiency(request: BlueprintFeasibilityRequest): Observable<BlueprintFeasibilityResponse> {
+    return this.http.post<BlueprintFeasibilityResponse>(`${this.baseUrl}/blueprints/check-sufficiency`, request);
+  }
+
+  // ── Blueprint Template API ───────────────────────────────────────────────────
 
   listTemplates(examId?: string): Observable<BlueprintTemplateResponse[]> {
     return this.getTemplates(examId);
@@ -214,5 +304,17 @@ export class PaperService {
 
   deleteTemplate(id: string): Observable<void> {
     return this.http.delete<void>(`${this.templateBaseUrl}/${id}`);
+  }
+
+  /**
+   * Audits a stored blueprint template's sufficiency against live question bank inventory.
+   */
+  checkTemplateSufficiency(templateId: string, notifyAdmin: boolean = true): Observable<BlueprintFeasibilityResponse> {
+    const params = new HttpParams().set('notifyAdmin', notifyAdmin.toString());
+    return this.http.post<BlueprintFeasibilityResponse>(
+      `${this.templateBaseUrl}/${templateId}/check-sufficiency`,
+      {},
+      { params }
+    );
   }
 }

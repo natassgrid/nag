@@ -35,7 +35,7 @@ import java.util.NoSuchElementException;
  * Global exception handler for the evaluation-service REST API.
  */
 @Slf4j
-@RestControllerAdvice
+@RestControllerAdvice(basePackages = "com.examplatform.evaluation")
 public class GlobalExceptionHandler {
 
     @ExceptionHandler({IllegalArgumentException.class, NoSuchElementException.class})

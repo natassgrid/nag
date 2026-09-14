@@ -34,7 +34,7 @@ import java.time.Instant;
  * Global exception handler for the Notification Service.
  */
 @Slf4j
-@RestControllerAdvice
+@RestControllerAdvice(basePackages = "com.examplatform.notification")
 public class GlobalExceptionHandler {
 
     @ExceptionHandler(IllegalArgumentException.class)

@@ -35,6 +35,12 @@ import { tokenManager } from '../utils/tokenManager';
 import { useToast } from '../components/Toast';
 import { CandidateAvatar } from '../components/CandidateAvatar';
 import { DOC_TYPES, DOC_VALIDATION, type IdentityDocType } from './Register';
+import { ALL_EXAM_LANGUAGES } from '../components/LanguageSelector';
+import {
+  getCandidatePreferredRegionalLanguage,
+  setCandidatePreferredRegionalLanguage,
+} from '../utils/languagePreference';
+import { Globe } from 'lucide-react';
 import type {
   CandidateEducation,
   CandidateEducationRequest,
@@ -145,6 +151,9 @@ const Profile: React.FC = () => {
   const [educationList, setEducationList] = useState<CandidateEducation[]>([]);
   const [educationLoading, setEducationLoading] = useState(false);
   const [showEducationModal, setShowEducationModal] = useState(false);
+  const [preferredLanguage, setPreferredLanguage] = useState<string>(() =>
+    getCandidatePreferredRegionalLanguage()
+  );
   const [editingEducation, setEditingEducation] = useState<CandidateEducation | null>(null);
   const [educationCertUploading, setEducationCertUploading] = useState(false);
   const [selectedCertAssetId, setSelectedCertAssetId] = useState<string | null>(null);
@@ -311,6 +320,7 @@ const Profile: React.FC = () => {
       localStorage.setItem('nag_candidate_name', data.fullName);
       localStorage.setItem('nag_candidate_doc_type', data.identityDocType);
       localStorage.setItem('nag_candidate_doc_num', data.identityDocNumber);
+      setCandidatePreferredRegionalLanguage(preferredLanguage);
 
       setCurrentProfile(updated);
       await refreshProfile();
@@ -899,6 +909,34 @@ const Profile: React.FC = () => {
                     {activePersonalDocConfig?.hint || 'Official ID number'}
                   </p>
                 )}
+              </div>
+
+              {/* Preferred Regional Language (Examination Medium) */}
+              <div className="sm:col-span-2 bg-indigo-50/50 border border-indigo-100 rounded-xl p-4">
+                <label className={labelCls}>
+                  <span className="flex items-center gap-1.5 font-semibold text-gray-900">
+                    <Globe className="w-4 h-4 text-indigo-600" />
+                    Preferred Regional Language (CBT Examination Medium) *
+                  </span>
+                </label>
+                <select
+                  value={preferredLanguage}
+                  onChange={(e) => {
+                    const code = e.target.value;
+                    setPreferredLanguage(code);
+                    setCandidatePreferredRegionalLanguage(code);
+                  }}
+                  className={inputCls}
+                >
+                  {ALL_EXAM_LANGUAGES.filter((l) => l.code !== 'en').map((lang) => (
+                    <option key={lang.code} value={lang.code}>
+                      {lang.name} ({lang.nativeName})
+                    </option>
+                  ))}
+                </select>
+                <p className="text-xs text-indigo-800/80 mt-1.5 leading-relaxed">
+                  During CBT examinations, questions will be delivered in <strong>English + your chosen regional medium</strong> ({ALL_EXAM_LANGUAGES.find((l) => l.code === preferredLanguage)?.name || 'Hindi'}). You will be able to switch smoothly between English and this medium.
+                </p>
               </div>
             </div>
 

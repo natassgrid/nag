@@ -1,4 +1,4 @@
-# ── Build outputs ────────────────────────────────────────────
+# ── Build outputs ──────────────────────────────────────────────
 build/
 out/
 target/
@@ -62,10 +62,16 @@ ehthumbs.db
 Thumbs.db
 desktop.ini
 
-# ── Environment & secrets ────────────────────────────────────
+# ── Environment & secrets ───────────────────────────────────
 .env
 .env.*
+.env.local
+*.env
+**/.env
+**/.env.*
+**/*.env
 !.env.example
+!**/.env.example
 *.pem
 *.key
 *.p12
@@ -89,7 +95,7 @@ coverage/
 .jqwik-database/
 .jqwik-database
 
-# ── Python / ML ─────────────────────────────────────────────
+# ── Python / ML ──────────────────────────────────────────────
 __pycache__/
 *.py[cod]
 *$py.class

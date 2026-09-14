@@ -57,7 +57,7 @@ class QuestionCacheServiceTest {
 
     @BeforeEach
     void setUp() {
-        questionCacheService = new QuestionCacheService(redisTemplate);
+        questionCacheService = new QuestionCacheService(redisTemplate, "localhost", 9083, 5000);
         paperId = UUID.randomUUID();
         tenantId = "tenant-board-1";
     }

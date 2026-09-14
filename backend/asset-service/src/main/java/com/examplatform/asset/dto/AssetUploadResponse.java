@@ -47,6 +47,9 @@ public class AssetUploadResponse {
     private AssetType assetType;
     private AssetStatus status;
 
+    /** Accessible public or direct download URL for embedding media in questions/options. */
+    private String publicUrl;
+
     // Media metadata
     private Integer width;
     private Integer height;

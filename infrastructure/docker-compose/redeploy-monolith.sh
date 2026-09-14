@@ -10,7 +10,8 @@
 # Consolidates all 14 microservices + audit into 1 JVM Spring Boot runtime + Postgres + Redis.
 #
 # Usage:
-#   ./redeploy-monolith.sh                  # Full clean: tear down ALL, rebuild ALL, start ALL
+#   ./redeploy-monolith.sh                  # Rebuild and start monolith (preserves DB volumes)
+#   ./redeploy-monolith.sh --clean-db       # Rebuild & restart, explicitly deleting DB volumes
 #   ./redeploy-monolith.sh --observability  # Start with Prometheus, Grafana, and Jaeger
 #   ./redeploy-monolith.sh --ai             # Start with Ollama, LiteLLM, IndicTrans2
 #   ./redeploy-monolith.sh --no-cache       # Force rebuild without Docker cache
@@ -28,12 +29,14 @@ RESTART_ONLY=false
 HEALTH_CHECK=false
 OBSERVABILITY=false
 AI=false
+CLEAN_DB=false
 
 while [[ $# -gt 0 ]]; do
     case $1 in
         --no-cache) NO_CACHE="--no-cache"; shift ;;
         --restart) RESTART_ONLY=true; shift ;;
         --health) HEALTH_CHECK=true; shift ;;
+        --clean-db|--clean-volumes|--delete-db-volume|--reset-db|--drop-db) CLEAN_DB=true; shift ;;
         --observability|--with-observability) OBSERVABILITY=true; shift ;;
         --ai|--with-ai) AI=true; shift ;;
         *) echo "Unknown option: $1"; exit 1 ;;
@@ -53,6 +56,11 @@ COMPOSE="docker compose ${PROFILES_ARGS[*]} -f docker-compose.yml -f docker-comp
 echo "============================================="
 echo "  NAG Platform — Single JVM Monolith Mode"
 echo "  Architecture: 1 JVM Monolith + Postgres + Redis"
+if [ "$CLEAN_DB" = true ]; then
+echo "  Database:     Reset (Volumes will be deleted)"
+else
+echo "  Database:     Preserved (Use --clean-db to reset)"
+fi
 if [ "$OBSERVABILITY" = true ]; then
 echo "  Observability: Enabled (Prometheus, Grafana, Jaeger)"
 fi
@@ -112,13 +120,18 @@ if [ "$RESTART_ONLY" = true ]; then
     exit 0
 fi
 
-# --- Full clean mode ---
+# --- Full deploy mode ---
 echo ""
 echo "🛑 Stopping all containers..."
 $COMPOSE down --remove-orphans 2>/dev/null || true
 
-echo "🧹 Removing ephemeral volumes..."
-docker volume ls --format '{{.Name}}' | grep -E 'postgres_data|redis_data|keycloak_data' | grep -v -E 'vault_data|ollama_data|indictrans2_cache' | xargs -r docker volume rm 2>/dev/null || true
+# --- Volume deletion based on explicit option ---
+if [ "$CLEAN_DB" = true ]; then
+    echo "🧹 Explicit option provided: Removing DB & ephemeral volumes (postgres_data, redis_data, keycloak_data)..."
+    docker volume ls --format '{{.Name}}' | grep -E 'postgres_data|redis_data|keycloak_data' | grep -v -E 'vault_data|ollama_data|indictrans2_cache' | xargs -r docker volume rm 2>/dev/null || true
+else
+    echo "💾 Preserving DB and data volumes (pass --clean-db or --delete-db-volume to remove)..."
+fi
 
 echo ""
 INFRA_TARGETS="postgres redis vault keycloak"

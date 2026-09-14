@@ -85,4 +85,9 @@ public class SaveResponseRequest {
      * Optional for regular saves (server auto-increments), required for bulk-save reconciliation.
      */
     private Integer revisionSequence;
+
+    @Min(value = 0, message = "focusLossCount must be >= 0")
+    private int focusLossCount;
+
+    private String integrityChecksum;
 }

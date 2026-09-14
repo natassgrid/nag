@@ -47,8 +47,15 @@ public record TranslatedQuestionPayload(
     /**
      * A single translated answer option.
      *
-     * @param id   must match the source question's option id (A, B, C, D, E, or F)
-     * @param text the translated option text
+     * @param id           must match the source question's option id (A, B, C, D, E, or F)
+     * @param text         the translated option text
+     * @param imageUrl     preserved verbatim (not translated)
+     * @param imageAltText translatable
      */
-    public record TranslatedOption(String id, String text) {}
+    public record TranslatedOption(
+        String id,
+        String text,
+        String imageUrl,        // preserved verbatim (not translated)
+        String imageAltText     // translatable
+    ) {}
 }

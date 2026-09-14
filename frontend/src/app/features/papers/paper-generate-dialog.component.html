@@ -1,178 +1,192 @@
     <app-right-drawer
       [isOpen]="isOpen"
-      title="Generate Question Paper"
-      subtitle="Select a blueprint template and shift parameters to generate a balanced question paper."
+      title="Generate Paper"
+      subtitle="Automated blueprint-driven question paper generation"
       width="580px"
       (close)="cancel()"
     >
       <div drawer-body>
-        <form [formGroup]="form" class="generate-form" autocomplete="off">
+        <!-- Generation Error Diagnostic Banner (shown on error without closing dialog) -->
+        <div class="generation-error-card" *ngIf="generationError">
+          <div class="error-header">
+            <mat-icon class="error-icon">error_outline</mat-icon>
+            <div class="error-meta">
+              <h4>Paper Generation Failed</h4>
+              <p class="error-msg">{{ generationError }}</p>
+            </div>
+            <button mat-icon-button (click)="generationError = null" class="dismiss-err-btn" matTooltip="Dismiss">
+              <mat-icon>close</mat-icon>
+            </button>
+          </div>
 
-          <!-- Paper Identity Section -->
-          <div class="section-heading">1. Paper Identity</div>
+          <!-- Gaps Breakdown inside the Dialog -->
+          <div class="error-gaps-list" *ngIf="generationGapDetails && generationGapDetails.length > 0">
+            <div class="gaps-title">Question Shortages:</div>
+            <div class="gap-row" *ngFor="let gap of generationGapDetails">
+              <div class="gap-rule-info">
+                <strong>{{ gap.subject }}</strong> - <span>{{ gap.topic }}</span>
+                <span class="gap-diff" *ngIf="gap.difficulty">[{{ gap.difficulty }}]</span>
+              </div>
+              <div class="gap-counts">
+                <span class="count-pill needed">Need: {{ gap.needed }}</span>
+                <span class="count-pill available">Have: {{ gap.available }}</span>
+                <span class="count-pill short">Deficit: -{{ gap.needed - gap.available }}</span>
+              </div>
+            </div>
+          </div>
 
-          <mat-form-field appearance="outline" class="full-width" style="margin-bottom: 8px;">
-            <mat-label>Paper Name / Title</mat-label>
-            <input matInput formControlName="name" placeholder="e.g. JEE Main 2026 - Shift 1 Paper A" />
-            <mat-hint>Optional: Leave blank to auto-generate a meaningful name from Exam and Shift</mat-hint>
+          <div class="error-actions">
+            <button mat-stroked-button color="warn" type="button" class="btn-sm" (click)="auditFeasibility()">
+              <mat-icon class="btn-icon">fact_check</mat-icon>
+              Audit Live Feasibility
+            </button>
+          </div>
+        </div>
+
+        <form [formGroup]="form" class="generate-form">
+
+          <!-- Paper Name (Optional) -->
+          <mat-form-field appearance="outline" class="dense-field full-width">
+            <mat-label>Paper Name (Optional)</mat-label>
+            <input matInput formControlName="name" placeholder="e.g. Shift 1 Final Assessment" />
+            <mat-hint>Auto-generated from exam and shift if left blank</mat-hint>
           </mat-form-field>
 
-          <div class="form-row">
-            <mat-form-field appearance="outline" class="flex-2">
-              <mat-label>Examination</mat-label>
-              <mat-select
-                formControlName="examId"
-                (selectionChange)="onExamSelectionChange($event.value)"
-                placeholder="Select examination..."
-              >
-                <mat-option *ngFor="let ex of exams" [value]="ex.id">
-                  {{ ex.name }} {{ ex.code ? '(' + ex.code + ')' : '' }}
-                </mat-option>
-              </mat-select>
-              <mat-error *ngIf="form.get('examId')?.hasError('required')">Examination is required</mat-error>
-            </mat-form-field>
+          <!-- Exam Selection -->
+          <mat-form-field appearance="outline" class="dense-field full-width">
+            <mat-label>Examination</mat-label>
+            <mat-select formControlName="examId" (selectionChange)="onExamSelectionChange($event.value)">
+              <mat-option *ngFor="let ex of exams" [value]="ex.id">
+                {{ ex.name }} {{ ex.code ? '(' + ex.code + ')' : '' }}
+              </mat-option>
+            </mat-select>
+            <mat-error *ngIf="form.get('examId')?.hasError('required')">Exam is required</mat-error>
+          </mat-form-field>
 
-            <!-- Pre-populated Shift Dropdown when mapped shifts exist -->
-            <mat-form-field appearance="outline" class="flex-1" *ngIf="availableShifts.length > 0 && !isManualShift">
-              <mat-label>Shift</mat-label>
-              <mat-select
-                formControlName="shiftId"
-                (selectionChange)="onShiftSelectChange($event.value)"
-                placeholder="Select shift..."
-              >
+          <!-- Shift Selection (Dynamic with Schedule pre-population) -->
+          <div class="shift-selection-group">
+            <!-- Dropdown Mode (mapped shifts exist) -->
+            <mat-form-field appearance="outline" class="dense-field full-width" *ngIf="!isManualShift && availableShifts.length > 0">
+              <mat-label>Examination Shift</mat-label>
+              <mat-select [value]="form.get('shiftId')?.value" (selectionChange)="onShiftSelectChange($event.value)">
                 <mat-option *ngFor="let sh of availableShifts" [value]="sh.id">
                   {{ sh.label }}
                 </mat-option>
                 <mat-divider></mat-divider>
                 <mat-option value="__manual__">
-                  <em>+ Enter Custom Shift ID...</em>
+                  <em>-- Enter Custom Shift ID manually --</em>
                 </mat-option>
               </mat-select>
-              <mat-hint *ngIf="loadingShifts">Loading shifts...</mat-hint>
-              <mat-hint *ngIf="!loadingShifts">Pre-populated from schedule</mat-hint>
+              <mat-hint *ngIf="availableShifts.length > 0">
+                Pre-populated from exam schedule shifts
+              </mat-hint>
               <mat-error *ngIf="form.get('shiftId')?.hasError('required')">Shift is required</mat-error>
             </mat-form-field>
 
-            <!-- Manual Shift Input when no shifts exist or manual mode is chosen -->
-            <mat-form-field appearance="outline" class="flex-1" *ngIf="availableShifts.length === 0 || isManualShift">
-              <mat-label>Shift ID</mat-label>
-              <input matInput formControlName="shiftId" placeholder="e.g. SHIFT-1-MORNING" />
+            <!-- Manual Input Mode -->
+            <mat-form-field appearance="outline" class="dense-field full-width" *ngIf="isManualShift || availableShifts.length === 0">
+              <mat-label>Shift Identifier</mat-label>
+              <input matInput formControlName="shiftId" placeholder="e.g. SHIFT-1 or UUID" />
               <button
-                *ngIf="availableShifts.length > 0"
-                matSuffix
                 mat-icon-button
-                type="button"
-                class="btn-suffix-switch"
-                matTooltip="Back to mapped shifts"
+                matSuffix
+                *ngIf="availableShifts.length > 0"
                 (click)="toggleManualShift()"
+                type="button"
+                matTooltip="Switch to scheduled shift dropdown"
               >
                 <mat-icon>list</mat-icon>
               </button>
-              <mat-hint *ngIf="availableShifts.length === 0 && !loadingShifts">No shifts found; enter ID</mat-hint>
-              <mat-hint *ngIf="availableShifts.length > 0">Custom shift ID</mat-hint>
-              <mat-error *ngIf="form.get('shiftId')?.hasError('required')">Shift ID is required</mat-error>
+              <mat-hint *ngIf="loadingShifts">Loading available scheduled shifts...</mat-hint>
+              <mat-hint *ngIf="!loadingShifts && availableShifts.length === 0 && form.get('examId')?.value">
+                No active schedules found for this exam; enter shift ID manually.
+              </mat-hint>
+              <mat-error *ngIf="form.get('shiftId')?.hasError('required')">Shift is required</mat-error>
+              <mat-error *ngIf="form.get('shiftId')?.hasError('maxlength')">Max 50 characters</mat-error>
             </mat-form-field>
           </div>
 
-          <div style="margin-bottom: 16px;">
+          <!-- Practice Paper Toggle -->
+          <div class="toggle-row">
             <mat-slide-toggle formControlName="isPractice" color="primary">
-              Practice & Candidate Learning Paper
+              Generate as Mock / Practice Paper
             </mat-slide-toggle>
           </div>
 
           <mat-divider class="section-divider"></mat-divider>
 
-          <!-- Blueprint Selection Section -->
-          <div class="section-header">
-            <div class="section-heading">2. Blueprint Ruleset</div>
-            <button mat-button type="button" class="btn-ghost btn-sm link-action" (click)="goToBlueprintManagement()">
-              <mat-icon class="btn-icon">open_in_new</mat-icon> Manage Templates
-            </button>
-          </div>
-
-          <div class="template-picker-row">
-            <mat-form-field appearance="outline" class="full-width">
-              <mat-label>Select Blueprint Template</mat-label>
-              <mat-select
-                formControlName="templateId"
-                (selectionChange)="onTemplateSelectionChange($event.value)"
-                placeholder="Choose template..."
-              >
-                <mat-option value=""><em>-- Custom / No Template --</em></mat-option>
-                <mat-optgroup *ngIf="mappedTemplates.length > 0" label="Exam-Specific Templates">
-                  <mat-option *ngFor="let tpl of mappedTemplates" [value]="tpl.id">
-                    {{ tpl.name }} ({{ tpl.rules?.length || 0 }} rules)
-                  </mat-option>
-                </mat-optgroup>
-                <mat-optgroup *ngIf="universalTemplates.length > 0" label="Universal / Shared Templates">
-                  <mat-option *ngFor="let tpl of universalTemplates" [value]="tpl.id">
-                    {{ tpl.name }} ({{ tpl.rules?.length || 0 }} rules)
-                  </mat-option>
-                </mat-optgroup>
-              </mat-select>
-              <mat-hint *ngIf="loadingTemplates">Loading templates...</mat-hint>
-            </mat-form-field>
-          </div>
-
-          <!-- Template Description Banner -->
-          <div class="selected-tpl-card" *ngIf="selectedTemplate">
-            <div class="tpl-card-header">
-              <mat-icon color="primary">auto_stories</mat-icon>
-              <div class="tpl-card-title">
-                <strong>{{ selectedTemplate.name }}</strong>
-                <span class="tpl-desc">{{ selectedTemplate.description || 'No description provided' }}</span>
-              </div>
-            </div>
-            <div class="tpl-stats">
-              <span class="stat-badge">{{ selectedTemplate.rules.length }} Rules</span>
-              <span class="stat-badge">{{ totalQuestions }} Questions Total</span>
-            </div>
-          </div>
-
-          <!-- Section 3: Blueprint Rules Preview / Customizer -->
-          <div class="rules-section-header" *ngIf="rules.length > 0 || showCustomRules">
-            <div class="section-heading">3. Blueprint Rules ({{ rules.length }})</div>
+          <!-- Blueprint Template Selection & Management Shortcut -->
+          <div class="template-header-row">
+            <span class="section-heading">Blueprint Specification</span>
             <button
-              mat-stroked-button
-              type="button"
-              class="action-btn btn-secondary btn-sm"
-              (click)="addRule()"
-            >
-              <mat-icon class="btn-icon">add</mat-icon> Add Rule
-            </button>
-          </div>
-
-          <!-- Custom Rule Builder Button when no template selected -->
-          <div class="empty-rules-prompt" *ngIf="!selectedTemplate && !showCustomRules && rules.length === 0">
-            <p>Select a pre-configured template above or build custom rules for this paper.</p>
-            <button
-              mat-stroked-button
+              mat-button
               color="primary"
               type="button"
-              class="action-btn btn-secondary"
-              (click)="showCustomRules = true; addRule()"
+              class="manage-tpl-btn"
+              (click)="goToBlueprintManagement()"
             >
-              <mat-icon class="btn-icon">playlist_add</mat-icon> Build Custom Blueprint
+              <mat-icon class="btn-icon-sm">settings</mat-icon>
+              Manage Blueprints
             </button>
           </div>
 
-          <!-- Dynamic Rules Form Array -->
+          <mat-form-field appearance="outline" class="dense-field full-width">
+            <mat-label>Load from Blueprint Template</mat-label>
+            <mat-select
+              formControlName="templateId"
+              (selectionChange)="onTemplateSelectionChange($event.value)"
+              [disabled]="loadingTemplates"
+            >
+              <mat-option value="">-- Custom Blueprint Rules --</mat-option>
+
+              <mat-optgroup label="Exam-Specific Templates" *ngIf="mappedTemplates.length > 0">
+                <mat-option *ngFor="let tpl of mappedTemplates" [value]="tpl.id">
+                  {{ tpl.name }} ({{ tpl.rules ? tpl.rules.length : 0 }} rules)
+                </mat-option>
+              </mat-optgroup>
+
+              <mat-optgroup label="Universal Templates" *ngIf="universalTemplates.length > 0">
+                <mat-option *ngFor="let tpl of universalTemplates" [value]="tpl.id">
+                  {{ tpl.name }} ({{ tpl.rules ? tpl.rules.length : 0 }} rules)
+                </mat-option>
+              </mat-optgroup>
+            </mat-select>
+            <mat-hint *ngIf="selectedTemplate?.description">{{ selectedTemplate?.description }}</mat-hint>
+          </mat-form-field>
+
+          <!-- Rule Editor Header -->
+          <div class="rules-bar">
+            <span class="rules-title">Distribution Rules ({{ rules.length }})</span>
+            <button
+              mat-stroked-button
+              type="button"
+              class="add-rule-btn"
+              (click)="addRule()"
+              [disabled]="rules.length >= 20"
+            >
+              <mat-icon>add</mat-icon>
+              Add Rule
+            </button>
+          </div>
+
+          <!-- Rule Rows FormArray -->
           <div formArrayName="blueprintRules" class="rules-container">
             <div
               *ngFor="let rule of rules.controls; let i = index"
               [formGroupName]="i"
               class="rule-row-card"
             >
-              <div class="rule-row-num">#{{ i + 1 }}</div>
-              <div class="rule-inputs-grid">
+              <div class="rule-index">{{ i + 1 }}</div>
+
+              <div class="rule-fields">
                 <mat-form-field appearance="outline" class="dense-field">
                   <mat-label>Subject</mat-label>
-                  <input matInput formControlName="subject" placeholder="e.g. Physics" />
+                  <input matInput formControlName="subject" placeholder="e.g. Mathematics" />
                 </mat-form-field>
 
                 <mat-form-field appearance="outline" class="dense-field">
                   <mat-label>Topic</mat-label>
-                  <input matInput formControlName="topic" placeholder="e.g. Mechanics" />
+                  <input matInput formControlName="topic" placeholder="e.g. Algebra" />
                 </mat-form-field>
 
                 <mat-form-field appearance="outline" class="dense-field">
@@ -225,17 +239,39 @@
         </form>
       </div>
 
-      <div drawer-footer>
-        <button mat-button class="action-btn btn-secondary" (click)="cancel()">Cancel</button>
+      <div drawer-footer class="generate-drawer-footer">
+        <button mat-button class="action-btn btn-secondary" (click)="cancel()" [disabled]="generating">Cancel</button>
+        <button
+          mat-stroked-button
+          type="button"
+          class="action-btn btn-secondary"
+          (click)="auditFeasibility()"
+          [disabled]="rules.length === 0 || generating"
+          matTooltip="Audit Question Bank inventory without generating"
+        >
+          <mat-icon class="btn-icon">fact_check</mat-icon>
+          Audit Sufficiency
+        </button>
         <button
           mat-raised-button
           color="primary"
           class="action-btn btn-primary"
-          [disabled]="form.invalid || rules.length === 0"
+          [disabled]="form.invalid || rules.length === 0 || generating"
           (click)="submit()"
         >
-          <mat-icon class="btn-icon">auto_awesome</mat-icon>
-          Generate Paper
+          <mat-spinner diameter="18" *ngIf="generating" style="display:inline-block;margin-right:6px;vertical-align:middle;"></mat-spinner>
+          <mat-icon class="btn-icon" *ngIf="!generating">auto_awesome</mat-icon>
+          {{ generating ? 'Generating Paper...' : 'Generate Paper' }}
         </button>
       </div>
     </app-right-drawer>
+
+    <!-- FEASIBILITY AUDIT MODAL -->
+    <app-blueprint-feasibility-modal
+      [isOpen]="feasibilityModalOpen"
+      [template]="selectedTemplate || undefined"
+      [customRules]="currentBlueprintRules"
+      [examId]="form.get('examId')?.value || undefined"
+      [shiftId]="form.get('shiftId')?.value || undefined"
+      (close)="closeFeasibilityModal()"
+    ></app-blueprint-feasibility-modal>

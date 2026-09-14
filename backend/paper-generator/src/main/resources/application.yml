@@ -20,22 +20,22 @@ spring:
       maximum-pool-size: 20
       minimum-idle: 5
       connection-timeout: 30000
-      schema: paper_generator
+      schema: paper_service
 
   jpa:
     hibernate:
       ddl-auto: validate
     properties:
       hibernate:
-        default_schema: paper_generator
+        default_schema: paper_service
         dialect: org.hibernate.dialect.PostgreSQLDialect
         format_sql: false
     show-sql: false
 
   flyway:
     enabled: true
-    schemas: paper_generator
-    locations: classpath:db/migration/paper_generator
+    schemas: paper_service
+    locations: classpath:db/migration/paper
 
   security:
     oauth2:
@@ -46,7 +46,8 @@ spring:
 
   cloud:
     vault:
-      uri: ${VAULT_ADDR:http://localhost:8200}
+      host: ${VAULT_HOST:localhost}
+      port: ${VAULT_PORT:8200}
       token: ${VAULT_ROOT_TOKEN:vault_root_token}
       scheme: http
       kv:
@@ -78,6 +79,10 @@ spring:
   threads:
     virtual:
       enabled: true
+
+app:
+  question-bank:
+    service-url: ${QUESTION_BANK_SERVICE_URI:http://localhost:8083}
 
 server:
   port: ${PAPER_GENERATOR_PORT:8086}

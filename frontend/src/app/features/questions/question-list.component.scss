@@ -3,3 +3,19 @@
   position: relative;
 }
 
+.media-indicator {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: #e3f2fd;
+  color: #1976d2;
+  border-radius: 4px;
+  padding: 3px 6px;
+  box-sizing: border-box;
+
+  .media-badge-icon {
+    font-size: 18px;
+    width: 18px;
+    height: 18px;
+  }
+}

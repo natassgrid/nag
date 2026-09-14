@@ -70,6 +70,9 @@ class ResponseSaveServiceTest {
     @Mock
     private Counter responseSaveCounter;
 
+    @Mock
+    private IntegrityValidationService integrityValidationService;
+
     @InjectMocks
     private ResponseSaveService responseSaveService;
 

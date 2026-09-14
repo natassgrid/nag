@@ -14,8 +14,7 @@
  * GNU Affero General Public License for more details.
  *
  * You should have received a copy of the GNU Affero General Public License
- * along with this program. If not, see <https://www.gnu.org/licenses/>.
- */
+ * along with this program. If not, see <https://www.gnu.org/licenses/>.\n */
 
 package com.examplatform.identity.service;
 
@@ -28,12 +27,17 @@ import com.examplatform.identity.exception.AuthenticationException;
 import com.examplatform.identity.repository.UserAccountRepository;
 import com.examplatform.identity.repository.WebAuthnCredentialRepository;
 import com.examplatform.shared.audit.AuditEventType;
+import com.webauthn4j.converter.util.ObjectConverter;
+import com.webauthn4j.data.attestation.authenticator.COSEKey;
+import com.webauthn4j.data.attestation.statement.COSEAlgorithmIdentifier;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.security.MessageDigest;
+import java.security.PublicKey;
+import java.security.Signature;
 import java.util.Base64;
 import java.util.Map;
 
@@ -42,10 +46,8 @@ import java.util.Map;
  *
  * <p><strong>Validates: Requirements 2.3</strong>
  *
- * <p><strong>Production note:</strong> The signature verification in this scaffold
- * validates input format only. For production deployments, integrate a full
- * WebAuthn library such as {@code com.webauthn4j:webauthn4j-core} for COSE key
- * parsing and cryptographic signature verification (ECDSA / RSA).
+ * <p>Parses COSE public keys via {@link WebAuthn4J} and performs cryptographic
+ * assertion signature verification (e.g. ECDSA, RSA, EdDSA).
  */
 @Slf4j
 @Service
@@ -57,6 +59,8 @@ public class WebAuthnService {
     private final UserAccountRepository userAccountRepository;
     private final KeycloakService keycloakService;
     private final AuditEventPublisher auditEventPublisher;
+
+    private final ObjectConverter objectConverter = new ObjectConverter();
 
     /**
      * Authenticate a user via WebAuthn assertion.
@@ -119,17 +123,24 @@ public class WebAuthnService {
      * Verify the WebAuthn assertion signature.
      *
      * <p>Signed data = authenticatorData || SHA-256(clientDataJSON).
-     *
-     * <p><strong>TODO:</strong> Full COSE key parsing and signature verification.
-     * For now, validates that all inputs are non-empty and properly Base64URL-encoded.
-     * Production must use a WebAuthn library (e.g., webauthn4j) for cryptographic verification.
+     * <p>Parses the COSE public key, resolves the cryptographic algorithm (e.g. ES256, RS256, EdDSA),
+     * and validates the client assertion signature.
      */
     boolean verifyAssertionSignature(String authenticatorDataB64, String clientDataJSONB64,
                                      String signatureB64, byte[] publicKeyCose) {
+        if (authenticatorDataB64 == null || clientDataJSONB64 == null || signatureB64 == null || publicKeyCose == null) {
+            log.warn("WebAuthn signature verification failed: Missing required assertion parameters");
+            return false;
+        }
+
         try {
             byte[] authData = Base64.getUrlDecoder().decode(authenticatorDataB64);
             byte[] clientDataJSON = Base64.getUrlDecoder().decode(clientDataJSONB64);
             byte[] signature = Base64.getUrlDecoder().decode(signatureB64);
+
+            if (authData.length == 0 || clientDataJSON.length == 0 || signature.length == 0 || publicKeyCose.length == 0) {
+                return false;
+            }
 
             // Signed data = authenticatorData || SHA-256(clientDataJSON)
             MessageDigest sha256 = MessageDigest.getInstance("SHA-256");
@@ -138,10 +149,23 @@ public class WebAuthnService {
             System.arraycopy(authData, 0, signedData, 0, authData.length);
             System.arraycopy(clientDataHash, 0, signedData, authData.length, clientDataHash.length);
 
-            // TODO: Full COSE key parsing and signature verification
-            // For now, verify that all inputs are non-empty and properly Base64-encoded
-            // This is a placeholder — production must use a WebAuthn library (e.g., webauthn4j)
-            return authData.length > 0 && signature.length > 0 && clientDataJSON.length > 0;
+            // Parse COSE public key
+            COSEKey coseKey = objectConverter.getCborConverter().readValue(publicKeyCose, COSEKey.class);
+            PublicKey publicKey = coseKey.getPublicKey();
+            if (publicKey == null) {
+                log.error("WebAuthn verification failed: Unable to extract PublicKey from COSEKey");
+                return false;
+            }
+
+            COSEAlgorithmIdentifier alg = coseKey.getAlgorithm();
+            String jcaName = (alg != null && alg.toSignatureAlgorithm() != null)
+                    ? alg.toSignatureAlgorithm().getJcaName()
+                    : "SHA256withECDSA";
+
+            Signature verifier = Signature.getInstance(jcaName);
+            verifier.initVerify(publicKey);
+            verifier.update(signedData);
+            return verifier.verify(signature);
         } catch (Exception e) {
             log.error("WebAuthn signature verification failed: {}", e.getMessage());
             return false;

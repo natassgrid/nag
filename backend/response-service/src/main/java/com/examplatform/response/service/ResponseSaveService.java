@@ -57,6 +57,7 @@ public class ResponseSaveService {
     private final EventPublisher eventPublisher;
     private final RedisTemplate<String, Object> redisTemplate;
     private final MetricsConfig metricsConfig;
+    private final IntegrityValidationService integrityValidationService;
 
     /**
      * Saves a candidate response, publishes a Kafka event with acks=all, and returns the result.
@@ -69,6 +70,14 @@ public class ResponseSaveService {
      */
     public SaveResponseResponse saveResponse(UUID sessionId, SaveResponseRequest request,
                                               UUID candidateId, String tenantId) {
+        return saveResponse(sessionId, request, candidateId, tenantId, null, null);
+    }
+    public SaveResponseResponse saveResponse(UUID sessionId, SaveResponseRequest request,
+                                              UUID candidateId, String tenantId,
+                                              String clientIp, String userAgent) {
+        // 0. Validate response integrity against delivery-service
+        integrityValidationService.validateResponse(sessionId, candidateId, request.getQuestionId(), tenantId);
+
         // 1. Determine revision sequence
         List<Response> previousResponses = responseRepository
                 .findBySessionIdAndQuestionIdOrderByRevisionSequenceDesc(sessionId, request.getQuestionId());
@@ -87,6 +96,10 @@ public class ResponseSaveService {
                 .revisionSequence(newRevision)
                 .saveSource(request.getSaveSource())
                 .isFinal(false)
+                .clientIp(clientIp)
+                .userAgent(userAgent)
+                .focusLossCount(request.getFocusLossCount())
+                .integrityChecksum(request.getIntegrityChecksum())
                 .build();
         response.setTenantId(tenantId);
 

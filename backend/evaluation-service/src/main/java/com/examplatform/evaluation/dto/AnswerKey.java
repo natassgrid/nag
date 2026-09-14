@@ -55,4 +55,10 @@ public class AnswerKey {
      * Negative marks to deduct for a wrong answer. 0 if no negative marking.
      */
     private double negativeMarks;
+
+    /**
+     * Marking scheme to apply. Defaults to STANDARD if not specified.
+     */
+    @Builder.Default
+    private MarkingScheme markingScheme = MarkingScheme.STANDARD;
 }

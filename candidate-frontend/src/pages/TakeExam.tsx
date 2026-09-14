@@ -24,16 +24,26 @@ import {
   Check,
   X,
   Filter,
+  Languages,
 } from 'lucide-react';
 import { examService } from '../services/examService';
 import { sessionService } from '../services/sessionService';
 import { responseService } from '../services/responseService';
 import { useToast } from '../components/Toast';
 import { MathRenderer } from '../components/MathRenderer';
+import { ImageZoomModal } from '../components/ImageZoomModal';
+import { ALL_EXAM_LANGUAGES } from '../components/LanguageSelector';
+import { ExamLanguageBanner } from '../components/ExamLanguageBanner';
 import { offlineQueue } from '../utils/offlineQueue';
+import {
+  saveLanguagePreference,
+  loadLanguagePreference,
+  clearLanguagePreference,
+  getCandidatePreferredRegionalLanguage,
+} from '../utils/languagePreference';
 import { FEATURE_FLAGS } from '../config/featureFlags';
 import { OFFICIAL_EXAM_QUESTIONS } from '../data/examQuestions';
-import type { ExaminationResponse, QuestionDto, SessionStartResponse } from '../types/api';
+import type { ExaminationResponse, ExamLanguage, QuestionDto, QuestionOption, SessionStartResponse } from '../types/api';
 
 type QuestionStatus =
   | 'NOT_VISITED'
@@ -54,6 +64,14 @@ const UUID_REGEX = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}
 const KNOWN_EXAM_TITLES: Record<string, string> = {
   'e1000000-0000-0000-0000-000000000001':
     'Staff Selection Commission Combined Graduate Level (SSC CGL) Tier-1 Examination 2026',
+  'e1000000-0000-0000-0000-000000000002':
+    'IBPS Probationary Officer (PO) Preliminary Examination 2026',
+  'e1000000-0000-0000-0000-000000000003':
+    'UPSC Civil Services (Preliminary) Examination 2026 - Paper 1 (General Studies)',
+  'e1000000-0000-0000-0000-000000000004':
+    'Railway Recruitment Board Non-Technical Popular Categories (RRB NTPC) CBT-1 2026',
+  'e1000000-0000-0000-0000-000000000005':
+    'Central Teacher Eligibility Test (CTET) Paper-1 (Primary Teacher) 2026',
   'e2000000-0000-0000-0000-000000000002':
     'Union Public Service Commission Civil Services Examination (Prelims) 2026',
   'e3000000-0000-0000-0000-000000000003':
@@ -80,6 +98,7 @@ const TakeExam: React.FC = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
 
+  const [zoomImage, setZoomImage] = useState<{src: string; alt: string} | null>(null);
   const [examDetails, setExamDetails] = useState<ExaminationResponse | null>(null);
   const [session, setSession] = useState<SessionStartResponse | null>(null);
   const [questions, setQuestions] = useState<QuestionDto[]>([]);
@@ -99,9 +118,88 @@ const TakeExam: React.FC = () => {
   const [isPracticeMode, setIsPracticeMode] = useState<boolean>(false);
   const [showExplanation, setShowExplanation] = useState<boolean>(false);
   const [filterBySection, setFilterBySection] = useState<boolean>(true);
+  // --- Candidate Language Medium State (English + 1 Preferred Indian Language) ---
+  const [preferredRegionalCode] = useState<string>(() =>
+    getCandidatePreferredRegionalLanguage()
+  );
+
+  const preferredRegionalLang =
+    ALL_EXAM_LANGUAGES.find((l) => l.code === preferredRegionalCode) ??
+    ALL_EXAM_LANGUAGES.find((l) => l.code === 'hi') ??
+    ALL_EXAM_LANGUAGES[1];
+
+  // activeLanguage: current language view ('en' or preferredRegionalLang)
+  const [activeLanguage, setActiveLanguage] = useState<ExamLanguage>(preferredRegionalLang);
+  // isBilingual: show English master reference + regional translation
+  const [isBilingual, setIsBilingual] = useState<boolean>(true);
+
+  // --- Concurrent Active Session Conflict State ---
+  const [concurrentConflict, setConcurrentConflict] = useState<boolean>(false);
+  const [activeExistingExamId, setActiveExistingExamId] = useState<string | null>(null);
+  const [conflictLoading, setConflictLoading] = useState<boolean>(false);
 
   const sessionIdRef = useRef<string>('');
   const isOfflineSessionRef = useRef<boolean>(false);
+
+
+  // ─── Multilingual Content Resolvers ────────────────────────────
+  const hasTranslation = useCallback(
+    (q?: QuestionDto, langCode?: string): boolean => {
+      if (!q || !q.translations) return false;
+      const code = langCode || activeLanguage.code;
+      if (code === 'en') return false;
+      const trans = q.translations[code];
+      if (!trans) return false;
+      return Boolean(trans.content || trans.text || (trans.options && trans.options.length > 0));
+    },
+    [activeLanguage.code]
+  );
+
+  const getEnglishContent = (q?: QuestionDto): string => {
+    if (!q) return '';
+    return q.content || q.text || '';
+  };
+
+  const getTranslatedContent = useCallback(
+    (q?: QuestionDto, langCode?: string): string => {
+      if (!q || !q.translations) return '';
+      const code = langCode || activeLanguage.code;
+      const trans = q.translations[code];
+      return trans?.content || trans?.text || '';
+    },
+    [activeLanguage.code]
+  );
+
+  const getEnglishOptionText = (opt?: QuestionOption): string => {
+    if (!opt) return '';
+    return opt.text || opt.content || '';
+  };
+
+  const getTranslatedOptionText = useCallback(
+    (q: QuestionDto, opt: QuestionOption, optIndex: number, langCode?: string): string => {
+      if (!q || !q.translations) return '';
+      const code = langCode || activeLanguage.code;
+      const trans = q.translations[code];
+      if (!trans || !trans.options) return '';
+
+      const optionId = opt.id || String.fromCharCode(65 + optIndex);
+      const match = trans.options.find(
+        (o, idx) => (o.id && o.id === optionId) || o.index === optIndex || idx === optIndex
+      );
+      return match?.content || match?.text || '';
+    },
+    [activeLanguage.code]
+  );
+
+  const resolveExplanation = useCallback(
+    (q: QuestionDto): string => {
+      if (activeLanguage.code !== 'en' && q.translations?.[activeLanguage.code]?.explanation) {
+        return q.translations[activeLanguage.code].explanation!;
+      }
+      return q.explanation || '';
+    },
+    [activeLanguage.code]
+  );
 
   // Extract sections
   const sections = Array.from(new Set(questions.map((q) => q.sectionName || 'General Section')));
@@ -113,156 +211,234 @@ const TakeExam: React.FC = () => {
     .filter(({ q }) => !filterBySection || q.sectionName === currentSection);
 
   // ─── Session Initialization from Examination & Delivery Services ─────────
-  useEffect(() => {
-    const initializeExam = async () => {
-      try {
-        // 1. Fetch official exam metadata from examination-service
-        let examInfo: ExaminationResponse | null = null;
-        if (examId && UUID_REGEX.test(examId)) {
-          try {
-            examInfo = await examService.getExam(examId);
-            setExamDetails(examInfo);
-          } catch {
-            // Non-blocking if examId is a custom mock/practice ID
-          }
-        }
-
-        // Determine effective shift ID
-        let effectiveShiftId = shiftId && UUID_REGEX.test(shiftId) ? shiftId : '';
-        if (!effectiveShiftId && examId && UUID_REGEX.test(examId)) {
-          try {
-            const app = await examService.getApplicationStatus(examId);
-            if (app.allocatedShiftId && UUID_REGEX.test(app.allocatedShiftId)) {
-              effectiveShiftId = app.allocatedShiftId;
-            } else if (app.preferredShiftId && UUID_REGEX.test(app.preferredShiftId)) {
-              effectiveShiftId = app.preferredShiftId;
-            }
-          } catch {
-            // Non-blocking
-          }
-        }
-        if (!effectiveShiftId && examId && UUID_REGEX.test(examId)) {
-          try {
-            const card = await examService.getAdmitCard(examId);
-            if (card?.shiftId && UUID_REGEX.test(card.shiftId)) {
-              effectiveShiftId = card.shiftId;
-            }
-          } catch {
-            // Non-blocking
-          }
-        }
-        if (!effectiveShiftId) {
-          effectiveShiftId = '00000000-0000-0000-0000-000000000001';
-        }
-
-        // 2. Start session or resume existing active session via delivery-service
-        let s: SessionStartResponse | null = null;
+  const initializeExamSession = useCallback(async (forceNew = false) => {
+    try {
+      setLoading(true);
+      // 1. Fetch official exam metadata from examination-service
+      let examInfo: ExaminationResponse | null = null;
+      if (examId && UUID_REGEX.test(examId)) {
         try {
-          const targetExamId =
-            examId && UUID_REGEX.test(examId)
-              ? examId
-              : 'e1000000-0000-0000-0000-000000000001';
-          s = await sessionService.startSession({
-            examId: targetExamId,
-            shiftId: effectiveShiftId,
-          });
-          setSession(s);
-          sessionIdRef.current = s.sessionId;
-          setIsOfflineSession(false);
-          isOfflineSessionRef.current = false;
+          examInfo = await examService.getExam(examId);
+          setExamDetails(examInfo);
         } catch {
-          // Construct offline/practice session with a valid UUID
-          const fallbackExamId =
-            examId && UUID_REGEX.test(examId)
-              ? examId
-              : 'e1000000-0000-0000-0000-000000000001';
-          const mockSessionId = generateUUID();
-          s = {
-            sessionId: mockSessionId,
-            examId: fallbackExamId,
-            examTitle:
-              KNOWN_EXAM_TITLES[fallbackExamId] ||
-              'Staff Selection Commission Combined Graduate Level (SSC CGL) Tier-1 Examination 2026',
-            candidateId: '018f4e2a-0000-7000-8000-000000000001',
-            durationSeconds: (examInfo?.durationMinutes ?? 60) * 60,
-            totalQuestions: OFFICIAL_EXAM_QUESTIONS.length,
-            navigationMode: 'FLEXIBLE',
-            questions: OFFICIAL_EXAM_QUESTIONS,
-            serverTime: new Date().toISOString(),
-            expiresAt: new Date(Date.now() + (examInfo?.durationMinutes ?? 60) * 60000).toISOString(),
-          };
-          setSession(s);
-          sessionIdRef.current = mockSessionId;
-          setIsOfflineSession(true);
-          isOfflineSessionRef.current = true;
+          // Non-blocking if examId is a custom mock/practice ID
         }
-
-        const qList =
-          s.questions && s.questions.length > 0 ? s.questions : OFFICIAL_EXAM_QUESTIONS;
-        setQuestions(qList);
-
-        // Initialize question state dictionary
-        const initialAnswers: Record<string, AnswerRecord> = {};
-        qList.forEach((q, idx) => {
-          initialAnswers[q.id] = {
-            optionIndex: null,
-            markedForReview: false,
-            revSeq: 0,
-            visited: idx === 0,
-          };
-        });
-
-        // 3. Restore previously saved answers if resuming an existing active session
-        if (s.sessionId && UUID_REGEX.test(s.sessionId) && !isOfflineSessionRef.current) {
-          try {
-            const savedResponses = await responseService.getSessionResponses(s.sessionId);
-            if (savedResponses && savedResponses.length > 0) {
-              savedResponses.forEach((resp) => {
-                if (resp.questionId && initialAnswers[resp.questionId]) {
-                  initialAnswers[resp.questionId] = {
-                    optionIndex: resp.selectedOptionIndex !== undefined ? resp.selectedOptionIndex : null,
-                    markedForReview: !!resp.markedForReview,
-                    revSeq: resp.revisionSequence || 1,
-                    visited: true,
-                  };
-                }
-              });
-              toast.info('Session Resumed', `Restored ${savedResponses.length} previously saved answer(s).`);
-            }
-          } catch {
-            // Non-blocking response restoration
-          }
-        }
-
-        setAnswers(initialAnswers);
-
-        // Compute remaining duration accurately based on scheduledEndAt
-        let totalSec = s.durationSeconds || (examInfo?.durationMinutes ? examInfo.durationMinutes * 60 : 3600);
-        if (s.scheduledEndAt) {
-          const endMs = new Date(s.scheduledEndAt).getTime();
-          const serverMs = s.serverTime ? new Date(s.serverTime).getTime() : Date.now();
-          const diffSec = Math.floor((endMs - serverMs) / 1000);
-          if (diffSec > 0 && diffSec < totalSec) {
-            totalSec = diffSec;
-          }
-        }
-        setTimeLeft(totalSec);
-      } catch {
-        setQuestions(OFFICIAL_EXAM_QUESTIONS);
-      } finally {
-        setLoading(false);
       }
-    };
 
-    void initializeExam();
-  }, [examId, shiftId, toast]);
+      // Determine effective shift ID from candidate application / admit card
+      let effectiveShiftId = shiftId && UUID_REGEX.test(shiftId) ? shiftId : undefined;
+      if (!effectiveShiftId && examId && UUID_REGEX.test(examId)) {
+        try {
+          const app = await examService.getApplicationStatus(examId);
+          if (app.allocatedShiftId && UUID_REGEX.test(app.allocatedShiftId)) {
+            effectiveShiftId = app.allocatedShiftId;
+          } else if (app.preferredShiftId && UUID_REGEX.test(app.preferredShiftId)) {
+            effectiveShiftId = app.preferredShiftId;
+          }
+        } catch {
+          // Non-blocking
+        }
+      }
+      if (!effectiveShiftId && examId && UUID_REGEX.test(examId)) {
+        try {
+          const card = await examService.getAdmitCard(examId);
+          if (card?.shiftId && UUID_REGEX.test(card.shiftId)) {
+            effectiveShiftId = card.shiftId;
+          }
+        } catch {
+          // Non-blocking
+        }
+      }
+
+      // 2. Start session or resume existing active session via delivery-service
+      let s: SessionStartResponse | null = null;
+      try {
+        const targetExamId =
+          examId && UUID_REGEX.test(examId)
+            ? examId
+            : 'e1000000-0000-0000-0000-000000000001';
+        s = await sessionService.startSession({
+          examId: targetExamId,
+          ...(effectiveShiftId ? { shiftId: effectiveShiftId } : {}),
+          languageCode: activeLanguage.code || 'en',
+          ...(forceNew ? { forceNewSession: true, terminateExisting: true } : {}),
+        });
+        const resolvedTitle =
+          examInfo?.name || examInfo?.title ||
+          (targetExamId && KNOWN_EXAM_TITLES[targetExamId]) ||
+          s.examTitle ||
+          'National Assessment Grid Examination';
+        s.examTitle = resolvedTitle;
+        if (examInfo?.durationMinutes) {
+          s.durationSeconds = examInfo.durationMinutes * 60;
+        }
+        setSession(s);
+        sessionIdRef.current = s.sessionId;
+        setIsOfflineSession(false);
+        isOfflineSessionRef.current = false;
+        setConcurrentConflict(false);
+      } catch (err: any) {
+        const errMsg = err?.response?.data?.error?.message || err?.response?.data?.detail || err?.message || '';
+        const activeExamIdFromBackend =
+          err?.response?.data?.error?.activeExamId ||
+          err?.response?.data?.activeExamId ||
+          (errMsg.match(/exam\s+([0-9a-fA-F-]{36})/i)?.[1] ?? null);
+        const status = err?.response?.status;
+        if (
+          status === 409 ||
+          errMsg.includes('already has an active session') ||
+          errMsg.includes('ConcurrentSessionException') ||
+          errMsg.includes('CONCURRENT_SESSION')
+        ) {
+          setActiveExistingExamId(activeExamIdFromBackend);
+          setConcurrentConflict(true);
+          setLoading(false);
+          return;
+        }
+
+        // Construct offline/practice session with a valid UUID
+        const fallbackExamId =
+          examId && UUID_REGEX.test(examId)
+            ? examId
+            : 'e1000000-0000-0000-0000-000000000001';
+        const mockSessionId = generateUUID();
+        s = {
+          sessionId: mockSessionId,
+          examId: fallbackExamId,
+          examTitle:
+            examInfo?.name || examInfo?.title ||
+            (fallbackExamId && KNOWN_EXAM_TITLES[fallbackExamId]) ||
+            'National Assessment Grid Examination',
+          candidateId: '018f4e2a-0000-7000-8000-000000000001',
+          durationSeconds: (examInfo?.durationMinutes ?? 60) * 60,
+          totalQuestions: OFFICIAL_EXAM_QUESTIONS.length,
+          navigationMode: 'FLEXIBLE',
+          questions: OFFICIAL_EXAM_QUESTIONS,
+          serverTime: new Date().toISOString(),
+          expiresAt: new Date(Date.now() + (examInfo?.durationMinutes ?? 60) * 60000).toISOString(),
+        };
+        setSession(s);
+        sessionIdRef.current = mockSessionId;
+        setIsOfflineSession(true);
+        isOfflineSessionRef.current = true;
+      }
+
+      const qList =
+        s.questions && s.questions.length > 0 ? s.questions : OFFICIAL_EXAM_QUESTIONS;
+      setQuestions(qList);
+
+      // ── Multilingual: resolve candidate preferred language ──
+      if (FEATURE_FLAGS.ENABLE_MULTILINGUAL) {
+        const persisted = loadLanguagePreference(s.sessionId);
+        const candidatePref = getCandidatePreferredRegionalLanguage();
+        const defaultCode = persisted ?? (s.defaultLanguageCode && s.defaultLanguageCode !== 'en' ? s.defaultLanguageCode : candidatePref) ?? 'hi';
+        const resolvedLang =
+          ALL_EXAM_LANGUAGES.find((l) => l.code === defaultCode) ?? ALL_EXAM_LANGUAGES[0];
+        setActiveLanguage(resolvedLang);
+      }
+
+      // Initialize question state dictionary
+      const initialAnswers: Record<string, AnswerRecord> = {};
+      qList.forEach((q, idx) => {
+        initialAnswers[q.id] = {
+          optionIndex: null,
+          markedForReview: false,
+          revSeq: 0,
+          visited: idx === 0,
+        };
+      });
+
+      // 3. Restore previously saved answers if resuming an existing active session
+      if (s.sessionId && UUID_REGEX.test(s.sessionId) && !isOfflineSessionRef.current) {
+        try {
+          const savedResponses = await responseService.getSessionResponses(s.sessionId);
+          if (savedResponses && Array.isArray(savedResponses) && savedResponses.length > 0) {
+            let restoredCount = 0;
+            savedResponses.forEach((resp: any) => {
+              const qId = resp.questionId;
+              if (qId && initialAnswers[qId]) {
+                let parsedOptionIndex: number | null = null;
+                if (resp.selectedOptionIndex !== undefined && resp.selectedOptionIndex !== null) {
+                  parsedOptionIndex = Number(resp.selectedOptionIndex);
+                } else if (resp.selectedOptionIds) {
+                  try {
+                    const raw =
+                      typeof resp.selectedOptionIds === 'string'
+                        ? JSON.parse(resp.selectedOptionIds)
+                        : resp.selectedOptionIds;
+                    if (Array.isArray(raw) && raw.length > 0) {
+                      const firstVal = raw[0];
+                      const parsedNum = Number(firstVal);
+                      if (!isNaN(parsedNum)) {
+                        parsedOptionIndex = parsedNum;
+                      } else if (typeof firstVal === 'string') {
+                        const targetQ = qList.find((q) => q.id === qId);
+                        const optIdx = targetQ?.options?.findIndex((o) => o.id === firstVal);
+                        if (optIdx !== undefined && optIdx >= 0) {
+                          parsedOptionIndex = optIdx;
+                        }
+                      }
+                    } else if (typeof raw === 'number') {
+                      parsedOptionIndex = raw;
+                    }
+                  } catch {
+                    const parsedNum = Number(resp.selectedOptionIds);
+                    if (!isNaN(parsedNum)) {
+                      parsedOptionIndex = parsedNum;
+                    }
+                  }
+                }
+
+                initialAnswers[qId] = {
+                  optionIndex: parsedOptionIndex,
+                  markedForReview: !!resp.markedForReview,
+                  revSeq: resp.revisionSequence || 1,
+                  visited: true,
+                };
+                if (parsedOptionIndex !== null) {
+                  restoredCount++;
+                }
+              }
+            });
+            if (restoredCount > 0) {
+              toast.info('Session Resumed', `Restored ${restoredCount} previously saved answer(s).`);
+            }
+          }
+        } catch {
+          // Non-blocking response restoration
+        }
+      }
+
+      setAnswers(initialAnswers);
+
+      // Compute remaining duration accurately based on scheduledEndAt
+      let totalSec = s.durationSeconds || (examInfo?.durationMinutes ? examInfo.durationMinutes * 60 : 3600);
+      if (s.scheduledEndAt) {
+        const endMs = new Date(s.scheduledEndAt).getTime();
+        const serverMs = s.serverTime ? new Date(s.serverTime).getTime() : Date.now();
+        const diffSec = Math.floor((endMs - serverMs) / 1000);
+        if (diffSec > 0 && diffSec < totalSec) {
+          totalSec = diffSec;
+        }
+      }
+      setTimeLeft(totalSec);
+    } catch {
+      setQuestions(OFFICIAL_EXAM_QUESTIONS);
+    } finally {
+      setLoading(false);
+    }
+  }, [examId, shiftId, activeLanguage.code, toast]);
+
+  useEffect(() => {
+    void initializeExamSession(false);
+  }, [initializeExamSession]);
 
   // Reset explanation view when question index changes
   useEffect(() => {
     setShowExplanation(false);
   }, [currentIndex]);
 
-  // ─── Timer countdown ──────────────────────────────────────────────────
+  // ─── Timer countdown ──────────────────────────────────────────────────────
   useEffect(() => {
     if (!session || timeLeft <= 0 || (isPracticeMode && FEATURE_FLAGS.ENABLE_PRACTICE_MODE)) return;
     const interval = setInterval(() => {
@@ -278,7 +454,7 @@ const TakeExam: React.FC = () => {
     return () => clearInterval(interval);
   }, [session, isPracticeMode]);
 
-  // ─── Fullscreen & Invigilation Telemetry ──────────────────────────────
+  // ─── Fullscreen & Invigilation Telemetry ──────────────────────────────────
   useEffect(() => {
     const handleFullscreenChange = () => {
       setIsFullscreen(!!document.fullscreenElement);
@@ -317,7 +493,7 @@ const TakeExam: React.FC = () => {
     }
   };
 
-  // ─── Online/offline detection & Sync ──────────────────────────────────
+  // ─── Online/offline detection & Sync ──────────────────────────────────────
   useEffect(() => {
     const onOnline = async () => {
       setOnline(true);
@@ -348,7 +524,7 @@ const TakeExam: React.FC = () => {
     };
   }, [toast]);
 
-  // ─── Question Palette Helpers ─────────────────────────────────────────
+  // ─── Question Palette Helpers ─────────────────────────────────────────────
   const getQuestionState = (qId: string): QuestionStatus => {
     const rec = answers[qId];
     if (!rec || !rec.visited) return 'NOT_VISITED';
@@ -358,7 +534,7 @@ const TakeExam: React.FC = () => {
     return 'NOT_ANSWERED';
   };
 
-  // ─── Navigation & Responses via delivery-service & response-service ────
+  // ─── Navigation & Responses via delivery-service & response-service ───────
   const goToQuestion = useCallback(
     async (index: number) => {
       if (index < 0 || index >= questions.length) return;
@@ -486,7 +662,7 @@ const TakeExam: React.FC = () => {
     }
   };
 
-  // ─── Final Submission via response-service ─────────────────────────────
+  // ─── Final Submission via response-service ────────────────────────────────
   const handleSubmit = async (autoSubmit = false) => {
     if (!session) return;
     setSubmitting(true);
@@ -498,6 +674,8 @@ const TakeExam: React.FC = () => {
       ) {
         await responseService.submitSession(session.sessionId);
       }
+      // Clear persisted language preference after submission
+      clearLanguagePreference(session.sessionId);
       toast.success(
         autoSubmit ? 'Time Expired - Exam Auto-Submitted' : 'Exam Submitted Successfully',
         'Your responses have been sealed and transmitted to evaluation-service.'
@@ -540,10 +718,11 @@ const TakeExam: React.FC = () => {
   });
 
   const displayExamTitle =
+    examDetails?.name ||
     examDetails?.title ||
-    session?.examTitle ||
     (examId && KNOWN_EXAM_TITLES[examId]) ||
-    'Staff Selection Commission Combined Graduate Level (SSC CGL) Tier-1 Examination 2026';
+    session?.examTitle ||
+    'National Assessment Grid Examination';
 
   if (loading) {
     return (
@@ -561,11 +740,84 @@ const TakeExam: React.FC = () => {
   const currentQ = questions[currentIndex];
   const currentAnswer = currentQ ? answers[currentQ.id] : null;
   const isAnswered = currentAnswer?.optionIndex !== null && currentAnswer?.optionIndex !== undefined;
+  const regionalLangForDisplay =
+    activeLanguage.code !== 'en' ? activeLanguage : preferredRegionalLang;
+  const hasTrans = currentQ ? hasTranslation(currentQ, regionalLangForDisplay.code) : false;
+  const isBilingualModeActive = isBilingual && hasTrans;
 
   const showPracticeTools = FEATURE_FLAGS.ENABLE_PRACTICE_MODE && isPracticeMode;
 
   return (
     <div className="flex h-screen flex-col bg-slate-100 font-sans select-none">
+      {/* Concurrent Active Session Conflict Modal */}
+      {concurrentConflict && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/80 backdrop-blur-sm p-4">
+          <div className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-2xl border border-amber-200 animate-in fade-in zoom-in duration-200">
+            <div className="flex items-center gap-3 text-amber-600 mb-4">
+              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-amber-100 shrink-0">
+                <AlertTriangle className="h-6 w-6 text-amber-600" />
+              </div>
+              <div>
+                <h2 className="text-lg font-bold text-gray-900">Active Exam Session Conflict</h2>
+                <p className="text-xs text-amber-700 font-medium">सक्रिय परीक्षा सत्र संघर्ष (Concurrent Session)</p>
+              </div>
+            </div>
+
+            <div className="space-y-3 text-sm text-gray-600">
+              <p>
+                You already have an active exam session in progress for another examination. Under official examination rules, only one active examination session is permitted at a time.
+              </p>
+              <div className="rounded-lg bg-amber-50 p-3 text-xs text-amber-900 border border-amber-200">
+                <strong>Action Required:</strong> You can terminate your old ongoing session to start this exam, or return to the candidate dashboard.
+              </div>
+            </div>
+
+            <div className="mt-6 flex flex-col-reverse sm:flex-row sm:justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => navigate('/candidate/exams')}
+                className="w-full sm:w-auto rounded-xl border border-gray-300 bg-white px-4 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-50 transition cursor-pointer"
+              >
+                Return to Dashboard
+              </button>
+
+              {activeExistingExamId && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setConcurrentConflict(false);
+                    navigate(`/take-exam/${activeExistingExamId}`);
+                  }}
+                  className="w-full sm:w-auto rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-emerald-700 transition flex items-center justify-center gap-2 cursor-pointer"
+                >
+                  <ChevronRight className="h-4 w-4" />
+                  <span>Resume Existing Exam</span>
+                </button>
+              )}
+
+              <button
+                type="button"
+                disabled={conflictLoading}
+                onClick={async () => {
+                  setConflictLoading(true);
+                  try {
+                    await initializeExamSession(true);
+                  } catch (e: any) {
+                    toast.error('Session Error', e?.message || 'Failed to start session');
+                  } finally {
+                    setConflictLoading(false);
+                  }
+                }}
+                className="w-full sm:w-auto rounded-xl bg-red-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-red-700 transition flex items-center justify-center gap-2 cursor-pointer"
+              >
+                <RotateCcw className={`h-4 w-4 ${conflictLoading ? 'animate-spin' : ''}`} />
+                <span>{conflictLoading ? 'Ending Old...' : 'End Old & Start New'}</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Top Bar Header */}
       <header className="flex h-14 items-center justify-between border-b border-slate-700 bg-slate-900 px-4 text-white shadow-md">
         <div className="flex items-center gap-3">
@@ -592,6 +844,62 @@ const TakeExam: React.FC = () => {
               <GraduationCap className="h-3.5 w-3.5" />
               <span>{isPracticeMode ? 'Practice Mode (Active)' : 'Official Exam Mode'}</span>
             </button>
+          )}
+
+          {/* Candidate Medium: English + 1 Selected Regional Language */}
+          {FEATURE_FLAGS.ENABLE_MULTILINGUAL && (
+            <div className="ml-2 flex items-center gap-2">
+              {/* English vs Preferred Regional Medium Toggle */}
+              <div className="flex items-center gap-1 rounded-full border border-slate-600 bg-slate-800 p-0.5 text-xs font-bold shadow-xs">
+                <button
+                  onClick={() => {
+                    setActiveLanguage(ALL_EXAM_LANGUAGES[0]);
+                    if (sessionIdRef.current) saveLanguagePreference(sessionIdRef.current, 'en');
+                  }}
+                  title="View in English (Master Reference)"
+                  className={`rounded-full px-3 py-1 transition cursor-pointer ${
+                    activeLanguage.code === 'en'
+                      ? 'bg-teal-600 text-white shadow-xs'
+                      : 'text-slate-300 hover:bg-slate-700'
+                  }`}
+                >
+                  English
+                </button>
+
+                <button
+                  onClick={() => {
+                    setActiveLanguage(preferredRegionalLang);
+                    if (sessionIdRef.current) saveLanguagePreference(sessionIdRef.current, preferredRegionalLang.code);
+                  }}
+                  title={`View in ${preferredRegionalLang.name} (${preferredRegionalLang.nativeName})`}
+                  className={`rounded-full px-3 py-1 transition cursor-pointer ${
+                    activeLanguage.code === preferredRegionalLang.code
+                      ? 'bg-teal-600 text-white shadow-xs'
+                      : 'text-slate-300 hover:bg-slate-700'
+                  }`}
+                >
+                  {preferredRegionalLang.nativeName} ({preferredRegionalLang.name})
+                </button>
+
+
+              </div>
+
+              {/* Bilingual Mode Toggle (English Master Reference + Candidate's Regional Medium) */}
+              <button
+                onClick={() => setIsBilingual((v) => !v)}
+                title={`Toggle Bilingual delivery (English Reference + ${preferredRegionalLang.name})`}
+                className={`flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-bold transition cursor-pointer ${
+                  isBilingual
+                    ? 'border-teal-500/70 bg-teal-950/70 text-teal-300 shadow-xs'
+                    : 'border-slate-700 bg-slate-800 text-slate-400 hover:bg-slate-700'
+                }`}
+              >
+                <Languages className="h-3.5 w-3.5 text-teal-400" />
+                <span>
+                  {isBilingual ? `Bilingual (EN + ${preferredRegionalLang.code.toUpperCase()})` : `Single (${activeLanguage.code.toUpperCase()})`}
+                </span>
+              </button>
+            </div>
           )}
         </div>
 
@@ -716,6 +1024,19 @@ const TakeExam: React.FC = () => {
         </div>
       </div>
 
+      {/* Regulatory Disclaimer Banner — shown when viewing regional language */}
+      {FEATURE_FLAGS.ENABLE_MULTILINGUAL && (
+        <ExamLanguageBanner
+          activeLanguage={activeLanguage}
+          onSwitchToEnglish={() => {
+            setActiveLanguage(ALL_EXAM_LANGUAGES[0]);
+                        if (sessionIdRef.current) {
+              saveLanguagePreference(sessionIdRef.current, 'en');
+            }
+          }}
+        />
+      )}
+
       {/* Main Delivery Body */}
       <div className="flex flex-1 overflow-hidden">
         {/* Left / Center: Question & Options Panel */}
@@ -744,73 +1065,183 @@ const TakeExam: React.FC = () => {
                   </div>
                 </div>
 
-                {/* Question Text with LaTeX Rendering */}
-                <div
-                  className={`mt-4 text-slate-900 leading-relaxed font-medium whitespace-pre-line ${
-                    fontSize === 'large' ? 'text-lg' : 'text-base'
-                  }`}
-                >
-                  <MathRenderer content={currentQ.text} />
-                </div>
-
-                {/* Options List with LaTeX Rendering */}
-                <div className="mt-6 space-y-3">
-                  {currentQ.options.map((opt) => {
-                    const isSelected = currentAnswer?.optionIndex === opt.index;
-                    const isCorrect = currentQ.correctOptionIndex === opt.index;
-                    const showCorrectness = showPracticeTools && showExplanation;
-
-                    let optionBorderClass =
-                      'border-slate-200 bg-white text-slate-800 hover:border-slate-300 hover:bg-slate-50';
-                    let letterClass = 'border-slate-400 bg-white text-slate-600';
-
-                    if (showCorrectness) {
-                      if (isCorrect) {
-                        optionBorderClass =
-                          'border-emerald-500 bg-emerald-50 text-emerald-950 font-semibold shadow-xs';
-                        letterClass = 'border-emerald-600 bg-emerald-600 text-white';
-                      } else if (isSelected && !isCorrect) {
-                        optionBorderClass =
-                          'border-rose-400 bg-rose-50 text-rose-950 font-semibold';
-                        letterClass = 'border-rose-600 bg-rose-600 text-white';
-                      }
-                    } else if (isSelected) {
-                      optionBorderClass =
-                        'border-teal-600 bg-teal-50/60 text-teal-950 font-semibold shadow-sm';
-                      letterClass = 'border-teal-700 bg-teal-700 text-white';
-                    }
-
-                    return (
-                      <div
-                        key={opt.index}
-                        onClick={() => handleSelectOption(opt.index)}
-                        className={`flex cursor-pointer items-center justify-between rounded-xl border-2 p-3.5 transition ${optionBorderClass}`}
-                      >
-                        <div className="flex items-center gap-3">
-                          <div
-                            className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full border text-xs font-bold ${letterClass}`}
-                          >
-                            {String.fromCharCode(65 + opt.index)}
-                          </div>
-                          <div className="text-sm leading-snug">
-                            <MathRenderer content={opt.text} inline />
-                          </div>
+                {/* Question Text: Bilingual Mode (English Reference + Regional Card) vs Single Mode */}
+                <div className="mt-4">
+                  {isBilingualModeActive ? (
+                    <div className="space-y-4">
+                      {/* English Master Reference Card */}
+                      <div className="rounded-xl border border-sky-200 bg-sky-50/40 p-4 shadow-2xs">
+                        <div className="inline-block rounded-full bg-sky-100 border border-sky-300 px-2.5 py-0.5 text-[10px] font-bold text-sky-800 uppercase tracking-wider mb-2">
+                          English (Master Reference)
                         </div>
-
-                        {showCorrectness && isCorrect && (
-                          <span className="flex items-center gap-1 text-xs font-bold text-emerald-700">
-                            <Check className="h-4 w-4" /> Correct Answer
-                          </span>
-                        )}
-                        {showCorrectness && isSelected && !isCorrect && (
-                          <span className="flex items-center gap-1 text-xs font-bold text-rose-600">
-                            <X className="h-4 w-4" /> Your Selection
-                          </span>
-                        )}
+                        <div
+                          className={`text-slate-900 leading-relaxed font-medium ${
+                            fontSize === 'large' ? 'text-lg' : 'text-base'
+                          }`}
+                        >
+                          <MathRenderer content={getEnglishContent(currentQ)} />
+                        </div>
                       </div>
-                    );
-                  })}
+
+                      {/* Selected Regional Language Card */}
+                      <div
+                        className="rounded-xl border border-amber-200 bg-amber-50/40 p-4 shadow-2xs"
+                        dir={regionalLangForDisplay.rtl ? 'rtl' : 'ltr'}
+                      >
+                        <div className="inline-block rounded-full bg-amber-100 border border-amber-300 px-2.5 py-0.5 text-[10px] font-bold text-amber-900 uppercase tracking-wider mb-2">
+                          {regionalLangForDisplay.name} ({regionalLangForDisplay.nativeName})
+                        </div>
+                        <div
+                          className={`text-slate-900 leading-relaxed font-medium ${
+                            fontSize === 'large' ? 'text-lg' : 'text-base'
+                          }`}
+                        >
+                          <MathRenderer content={getTranslatedContent(currentQ, regionalLangForDisplay.code)} />
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="rounded-xl border border-slate-100 bg-white p-2">
+                      {activeLanguage.code !== 'en' && hasTrans && (
+                        <div className="inline-block rounded-full bg-amber-100 border border-amber-300 px-2.5 py-0.5 text-[10px] font-bold text-amber-900 uppercase tracking-wider mb-2">
+                          {activeLanguage.name} ({activeLanguage.nativeName})
+                        </div>
+                      )}
+                      <div
+                        className={`text-slate-900 leading-relaxed font-medium ${
+                          fontSize === 'large' ? 'text-lg' : 'text-base'
+                        }`}
+                        dir={activeLanguage.rtl ? 'rtl' : 'ltr'}
+                      >
+                        <MathRenderer
+                          content={
+                            activeLanguage.code !== 'en' && hasTrans
+                              ? getTranslatedContent(currentQ)
+                              : getEnglishContent(currentQ)
+                          }
+                        />
+                      </div>
+                    </div>
+                  )}
                 </div>
+
+                {/* Options List with Markdown & LaTeX Rendering */}
+                {(() => {
+                  const hasImageOptions = currentQ?.options?.some((opt: any) => opt.imageUrl);
+                  return (
+                    <div className={`mt-6 ${hasImageOptions ? 'grid grid-cols-2 gap-3' : 'space-y-3'}`}>
+                      {currentQ.options.map((opt) => {
+                        const isSelected = currentAnswer?.optionIndex === opt.index;
+                        const isCorrect = currentQ.correctOptionIndex === opt.index;
+                        const showCorrectness = showPracticeTools && showExplanation;
+
+                        let optionBorderClass =
+                          'border-slate-200 bg-white text-slate-800 hover:border-slate-300 hover:bg-slate-50';
+                        let letterClass = 'border-slate-400 bg-white text-slate-600';
+
+                        if (showCorrectness) {
+                          if (isCorrect) {
+                            optionBorderClass =
+                              'border-emerald-500 bg-emerald-50 text-emerald-950 font-semibold shadow-xs';
+                            letterClass = 'border-emerald-600 bg-emerald-600 text-white';
+                          } else if (isSelected && !isCorrect) {
+                            optionBorderClass =
+                              'border-rose-400 bg-rose-50 text-rose-950 font-semibold';
+                            letterClass = 'border-rose-600 bg-rose-600 text-white';
+                          }
+                        } else if (isSelected) {
+                          optionBorderClass =
+                            'border-teal-600 bg-teal-50/60 text-teal-950 font-semibold shadow-sm';
+                          letterClass = 'border-teal-700 bg-teal-700 text-white';
+                        }
+
+                        const optTransText = getTranslatedOptionText(
+                          currentQ,
+                          opt,
+                          opt.index,
+                          regionalLangForDisplay.code
+                        );
+
+                        return (
+                          <div
+                            key={opt.index}
+                            onClick={() => handleSelectOption(opt.index)}
+                            className={`flex flex-col cursor-pointer justify-between rounded-xl border-2 p-3.5 transition ${optionBorderClass}`}
+                          >
+                            <div className="flex items-start justify-between gap-3">
+                              <div className="flex items-start gap-3 flex-1">
+                                <div
+                                  className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full border text-xs font-bold mt-0.5 ${letterClass}`}
+                                >
+                                  {opt.id || String.fromCharCode(65 + opt.index)}
+                                </div>
+
+                                {isBilingualModeActive ? (
+                                  <div className="flex-1 space-y-1.5">
+                                    {/* English Option Row */}
+                                    <div className="flex items-baseline gap-2 text-slate-800 text-sm font-medium">
+                                      <span className="text-[10px] font-bold text-sky-700 uppercase shrink-0 bg-sky-50 px-1 rounded border border-sky-200">
+                                        EN:
+                                      </span>
+                                      <MathRenderer content={getEnglishOptionText(opt)} inline />
+                                    </div>
+                                    {/* Regional Option Row */}
+                                    {optTransText && (
+                                      <div
+                                        className="flex items-baseline gap-2 text-slate-900 text-sm font-semibold border-t border-slate-100 pt-1.5"
+                                        dir={activeLanguage.rtl ? 'rtl' : 'ltr'}
+                                      >
+                                        <span className="text-[10px] font-bold text-amber-800 uppercase shrink-0 bg-amber-50 px-1 rounded border border-amber-200">
+                                          {activeLanguage.code.toUpperCase()}:
+                                        </span>
+                                        <MathRenderer content={optTransText} inline />
+                                      </div>
+                                    )}
+                                  </div>
+                                ) : (
+                                  <div className="text-sm leading-snug" dir={activeLanguage.rtl ? 'rtl' : 'ltr'}>
+                                    <MathRenderer
+                                      content={
+                                        activeLanguage.code !== 'en' && hasTrans && optTransText
+                                          ? optTransText
+                                          : getEnglishOptionText(opt)
+                                      }
+                                      inline
+                                    />
+                                  </div>
+                                )}
+                              </div>
+
+                              {showCorrectness && isCorrect && (
+                                <span className="flex items-center gap-1 text-xs font-bold text-emerald-700 shrink-0">
+                                  <Check className="h-4 w-4" /> Correct Answer
+                                </span>
+                              )}
+                              {showCorrectness && isSelected && !isCorrect && (
+                                <span className="flex items-center gap-1 text-xs font-bold text-rose-600 shrink-0">
+                                  <X className="h-4 w-4" /> Your Selection
+                                </span>
+                              )}
+                            </div>
+                            {opt.imageUrl && (
+                              <div className="relative mt-3">
+                                <img
+                                  src={opt.imageUrl}
+                                  alt={opt.imageAltText || `Option ${opt.index}`}
+                                  className="w-full h-auto rounded border cursor-zoom-in max-h-48 object-contain bg-gray-50"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setZoomImage({ src: opt.imageUrl!, alt: opt.imageAltText || `Option ${opt.index}` });
+                                  }}
+                                />
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  );
+                })()}
 
                 {/* Practice / Learning Mode: Solution & Step-by-Step Explanation */}
                 {showPracticeTools && (
@@ -837,10 +1268,10 @@ const TakeExam: React.FC = () => {
                             Hide Explanation
                           </button>
                         </div>
-                        <div className="mt-2 text-xs leading-relaxed text-slate-800 font-medium whitespace-pre-line">
+                        <div className="mt-2 text-xs leading-relaxed text-slate-800 font-medium">
                           <MathRenderer
                             content={
-                              currentQ.explanation ||
+                              resolveExplanation(currentQ) ||
                               'The correct answer is Option ' +
                                 String.fromCharCode(65 + (currentQ.correctOptionIndex ?? 0)) +
                                 '.'
@@ -1048,6 +1479,13 @@ const TakeExam: React.FC = () => {
           </div>
         </div>
       )}
+
+      <ImageZoomModal
+        src={zoomImage?.src || ''}
+        alt={zoomImage?.alt || ''}
+        isOpen={zoomImage !== null}
+        onClose={() => setZoomImage(null)}
+      />
     </div>
   );
 };

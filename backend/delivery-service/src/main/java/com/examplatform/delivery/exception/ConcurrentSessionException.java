@@ -19,18 +19,33 @@
 
 package com.examplatform.delivery.exception;
 
+import lombok.Getter;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.ResponseStatus;
+
+import java.util.UUID;
 
 /**
  * Thrown when a candidate attempts to start a new exam session while
  * already having an ACTIVE session within the same tenant.
  * Enforces the single concurrent session invariant.
  */
+@Getter
 @ResponseStatus(HttpStatus.CONFLICT)
 public class ConcurrentSessionException extends RuntimeException {
 
+    private final UUID activeExamId;
+    private final UUID activeSessionId;
+
     public ConcurrentSessionException(String message) {
         super(message);
+        this.activeExamId = null;
+        this.activeSessionId = null;
+    }
+
+    public ConcurrentSessionException(String message, UUID activeExamId, UUID activeSessionId) {
+        super(message);
+        this.activeExamId = activeExamId;
+        this.activeSessionId = activeSessionId;
     }
 }

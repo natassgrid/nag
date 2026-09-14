@@ -25,6 +25,7 @@ package com.examplatform.asset.domain.enums;
 public enum ReferenceType {
 
     QUESTION,
+    QUESTION_OPTION,
     PASSAGE,
     EXPLANATION,
     INSTRUCTION

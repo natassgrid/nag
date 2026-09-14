@@ -12,7 +12,7 @@ spring:
     name: question-bank-service
 
   datasource:
-    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/exam_platform?currentSchema=question_service,public}
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/exam_platform}
     username: ${SPRING_DATASOURCE_USERNAME:exam_admin}
     password: ${SPRING_DATASOURCE_PASSWORD:exam_secret}
     driver-class-name: org.postgresql.Driver
@@ -21,7 +21,6 @@ spring:
       minimum-idle: 5
       connection-timeout: 30000
       schema: question_service
-      connection-init-sql: SET search_path TO question_service, public
 
   jpa:
     hibernate:
@@ -36,14 +35,12 @@ spring:
   flyway:
     enabled: true
     schemas: question_service
-    default-schema: question_service
     locations:
       - classpath:db/migration/question
       - classpath:db/migration/question/seeds
       - classpath:db/migration/question/seeds/rrb_ntpc
       - classpath:db/migration/question/seeds/sbi_po
-    init-sqls:
-      - SET search_path TO question_service, public
+      - classpath:db/migration/question/seeds/statement_and_conclusion
 
   data:
     redis:
@@ -111,60 +108,23 @@ spring:
 indictrans2:
   url: ${INDICTRANS2_URL:http://localhost:7860}
 
+translation:
+  batch:
+    chunk-pause-interval-questions: ${TRANSLATION_BATCH_CHUNK_INTERVAL:15}
+    chunk-pause-duration-seconds: ${TRANSLATION_BATCH_CHUNK_PAUSE_SECONDS:60}
+
 server:
   port: ${QUESTION_BANK_SERVICE_PORT:8083}
   servlet:
     context-path: /
   shutdown: graceful
 
+grpc:
+  server:
+    port: ${GRPC_QUESTION_BANK_PORT:9083}
+
 management:
   endpoints:
     web:
       exposure:
         include: health,info,prometheus,metrics
-  endpoint:
-    health:
-      show-details: always
-      probes:
-        enabled: true
-  health:
-    db:
-      enabled: true
-    kafka:
-      enabled: true
-    vault:
-      enabled: true
-  metrics:
-    tags:
-      service: question-bank-service
-
-otel:
-  service:
-    name: question-bank-service
-  exporter:
-    otlp:
-      endpoint: ${OTEL_EXPORTER_OTLP_ENDPOINT:http://localhost:4317}
-      protocol: grpc
-
-app:
-  opensearch:
-    host: ${OPENSEARCH_HOST:localhost}
-    port: ${OPENSEARCH_PORT:9200}
-    scheme: ${OPENSEARCH_SCHEME:http}
-  # Feature flag: set to true to encrypt question content/answerKey via Vault Transit.
-  # When false, content is stored as plaintext (default for local dev).
-  encryption:
-    enabled: ${QUESTION_ENCRYPTION_ENABLED:false}
-  # Feature flag: set to true to encrypt translated_payload via Vault Transit.
-  # When false, the JSON payload is stored as plain text (default).
-  translation:
-    encryption:
-      enabled: ${TRANSLATION_ENCRYPTION_ENABLED:false}
-  # AI generation configuration
-  ai:
-    # Difficulty-based model routing (LiteLLM model names)
-    # These map to Bedrock models configured in litellm-config.yaml
-    models:
-      easy: ${AI_MODEL_EASY:nova-micro}
-      medium: ${AI_MODEL_MEDIUM:nova-lite}
-      hard: ${AI_MODEL_HARD:nova-lite}

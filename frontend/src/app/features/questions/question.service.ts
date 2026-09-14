@@ -21,6 +21,14 @@ import { Injectable } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable, map } from 'rxjs';
 
+export interface QuestionOptionDto {
+  id: string;
+  text: string;
+  isCorrect: boolean;
+  imageUrl?: string;
+  imageAltText?: string;
+}
+
 export interface QuestionResponse {
   id: string;
   subjectId: number;
@@ -36,10 +44,11 @@ export interface QuestionResponse {
   content: string;
   answerKey: string;
   explanation?: string;
+  hasImages?: boolean;
   state: string;
   authorId: string;
   createdAt: string;
-  options?: { id: string; text: string; isCorrect: boolean }[];
+  options?: QuestionOptionDto[];
 }
 
 export interface CreateQuestionRequest {
@@ -57,18 +66,13 @@ export interface CreateQuestionRequest {
   content: string;
   answerKey?: string;
   explanation?: string;
-  options?: { id: string; text: string; isCorrect: boolean }[];
+  hasImages?: boolean;
+  options?: QuestionOptionDto[];
+  references?: string;
+  chapter?: string;
 }
 
-export interface ImportResult {
-  filesProcessed: number;
-  totalRecords: number;
-  imported: number;
-  failed: number;
-  failures: { file: string; recordIndex: number; error: string }[];
-}
-
-export interface QuestionGenerationRequest {
+export interface GenerateQuestionsRequest {
   subject: string;
   topic: string;
   subtopic?: string;
@@ -76,9 +80,10 @@ export interface QuestionGenerationRequest {
   cognitiveLevel: string;
   questionType: string;
   count: number;
-  avoidDuplicate: boolean;
   autoSave: boolean;
 }
+
+export type QuestionGenerationRequest = GenerateQuestionsRequest;
 
 export interface BatchGenerationRequest {
   items: BatchItem[];
@@ -121,7 +126,7 @@ export interface GeneratedQuestion {
   content: string;
   answerKey: string;
   explanation: string;
-  options?: { id: string; text: string; isCorrect: boolean }[];
+  options?: QuestionOptionDto[];
   difficulty: string;
   cognitiveLevel: string;
   questionType: string;
@@ -136,6 +141,17 @@ export interface QuestionGenerationResponse {
   totalGenerated: number;
   totalValid: number;
   totalDuplicates: number;
+}
+
+export interface ImportResult {
+  importId: string;
+  status: string;
+  totalQuestions: number;
+  successfulCount: number;
+  failedCount: number;
+  duplicateCount: number;
+  errorReportUrl?: string;
+  errors?: { row: number; code: string; message: string }[];
 }
 
 export interface PagedResponse<T> {
@@ -161,7 +177,9 @@ export class QuestionService {
 
   getQuestions(filters?: {
     subject?: string;
+    subjectId?: number | string;
     topic?: string;
+    topicId?: number | string;
     difficulty?: string;
     state?: string;
     page?: number;
@@ -169,8 +187,16 @@ export class QuestionService {
   }): Observable<PagedResponse<QuestionResponse>> {
     let params = new HttpParams();
     if (filters) {
-      if (filters.subject)    params = params.set('subject', filters.subject);
-      if (filters.topic)      params = params.set('topic', filters.topic);
+      if (filters.subjectId !== undefined && filters.subjectId !== null && filters.subjectId !== '') {
+        params = params.set('subjectId', String(filters.subjectId));
+      } else if (filters.subject) {
+        params = params.set('subject', filters.subject);
+      }
+      if (filters.topicId !== undefined && filters.topicId !== null && filters.topicId !== '') {
+        params = params.set('topicId', String(filters.topicId));
+      } else if (filters.topic) {
+        params = params.set('topic', filters.topic);
+      }
       if (filters.difficulty) params = params.set('difficulty', filters.difficulty);
       if (filters.state)      params = params.set('state', filters.state);
       params = params.set('page', String(filters.page ?? 0));
@@ -238,14 +264,24 @@ export class QuestionService {
   exportQuestions(filters?: {
     format?: 'json' | 'csv';
     subject?: string;
+    subjectId?: number | string;
     topic?: string;
+    topicId?: number | string;
     difficulty?: string;
     state?: string;
     search?: string;
   }): Observable<Blob> {
     let params = new HttpParams().set('format', filters?.format ?? 'json');
-    if (filters?.subject)    params = params.set('subject', filters.subject);
-    if (filters?.topic)      params = params.set('topic', filters.topic);
+    if (filters?.subjectId !== undefined && filters?.subjectId !== null && filters?.subjectId !== '') {
+      params = params.set('subjectId', String(filters?.subjectId));
+    } else if (filters?.subject) {
+      params = params.set('subject', filters.subject);
+    }
+    if (filters?.topicId !== undefined && filters?.topicId !== null && filters?.topicId !== '') {
+      params = params.set('topicId', String(filters?.topicId));
+    } else if (filters?.topic) {
+      params = params.set('topic', filters.topic);
+    }
     if (filters?.difficulty) params = params.set('difficulty', filters.difficulty);
     if (filters?.state)      params = params.set('state', filters.state);
     if (filters?.search)     params = params.set('search', filters.search);
@@ -263,27 +299,31 @@ export class QuestionService {
       .pipe(map(res => res.data));
   }
 
-  generateQuestions(request: QuestionGenerationRequest): Observable<QuestionGenerationResponse> {
+  generateQuestions(req: GenerateQuestionsRequest): Observable<QuestionGenerationResponse> {
     return this.http
-      .post<ApiResponse<QuestionGenerationResponse>>(`${this.baseUrl}/generate`, request)
+      .post<ApiResponse<QuestionGenerationResponse>>('/api/v1/questions/ai-generate', req)
       .pipe(map(res => res.data));
   }
 
-  submitBatchJob(request: BatchGenerationRequest): Observable<BatchJobResponse> {
+  generateBatch(req: BatchGenerationRequest): Observable<BatchJobResponse> {
     return this.http
-      .post<ApiResponse<BatchJobResponse>>(`${this.baseUrl}/batch`, request)
+      .post<ApiResponse<BatchJobResponse>>('/api/v1/questions/batch-generate', req)
       .pipe(map(res => res.data));
+  }
+
+  submitBatchJob(req: BatchGenerationRequest): Observable<BatchJobResponse> {
+    return this.generateBatch(req);
   }
 
   getBatchJobStatus(jobId: string): Observable<BatchJobResponse> {
     return this.http
-      .get<ApiResponse<BatchJobResponse>>(`${this.baseUrl}/batch/${jobId}`)
+      .get<ApiResponse<BatchJobResponse>>(`/api/v1/questions/batch-generate/${jobId}`)
       .pipe(map(res => res.data));
   }
 
   cancelBatchJob(jobId: string): Observable<BatchJobResponse> {
     return this.http
-      .post<ApiResponse<BatchJobResponse>>(`${this.baseUrl}/batch/${jobId}/cancel`, {})
+      .post<ApiResponse<BatchJobResponse>>(`/api/v1/questions/batch-generate/${jobId}/cancel`, {})
       .pipe(map(res => res.data));
   }
 }
