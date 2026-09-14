@@ -38,14 +38,28 @@ import java.util.NoSuchElementException;
  * Maps domain exceptions to appropriate HTTP status codes and structured error responses.
  */
 @Slf4j
-@RestControllerAdvice
+@RestControllerAdvice(basePackages = "com.examplatform.delivery")
 public class GlobalExceptionHandler {
 
     @ExceptionHandler(ConcurrentSessionException.class)
     public ResponseEntity<Map<String, Object>> handleConcurrentSession(ConcurrentSessionException ex) {
         log.warn("Concurrent session violation: {}", ex.getMessage());
+        java.util.Map<String, Object> err = new java.util.LinkedHashMap<>();
+        err.put("code", "CONCURRENT_SESSION");
+        err.put("message", ex.getMessage());
+        err.put("timestamp", Instant.now().toString());
+        if (ex.getActiveExamId() != null) {
+            err.put("activeExamId", ex.getActiveExamId().toString());
+        }
+        if (ex.getActiveSessionId() != null) {
+            err.put("activeSessionId", ex.getActiveSessionId().toString());
+        }
         return ResponseEntity.status(HttpStatus.CONFLICT)
-                .body(errorBody("CONCURRENT_SESSION", ex.getMessage(), HttpStatus.CONFLICT));
+                .body(Map.of(
+                        "status", "error",
+                        "error", err,
+                        "httpStatus", HttpStatus.CONFLICT.value()
+                ));
     }
 
     @ExceptionHandler(NavigationPolicyViolationException.class)

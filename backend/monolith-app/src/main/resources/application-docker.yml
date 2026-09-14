@@ -37,6 +37,9 @@ platform:
   messaging:
     broker: in-memory
 
+indictrans2:
+  url: ${INDICTRANS2_URL:http://indictrans2:7860}
+
 asset:
   storage:
     filesystem:
@@ -45,3 +48,5 @@ asset:
 app:
   keycloak:
     server-url: http://keycloak:8080
+  question-bank:
+    service-url: ${QUESTION_BANK_SERVICE_URI:http://localhost:9000}

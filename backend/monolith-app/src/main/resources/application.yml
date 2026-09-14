@@ -157,6 +157,14 @@ platform:
   messaging:
     broker: ${PLATFORM_MESSAGING_BROKER:in-memory}
 
+indictrans2:
+  url: ${INDICTRANS2_URL:http://localhost:7860}
+
+translation:
+  batch:
+    chunk-pause-interval-questions: ${TRANSLATION_BATCH_CHUNK_INTERVAL:15}
+    chunk-pause-duration-seconds: ${TRANSLATION_BATCH_CHUNK_PAUSE_SECONDS:60}
+
 asset:
   storage:
     provider: filesystem
@@ -184,3 +192,5 @@ app:
     server-url: ${KEYCLOAK_SERVER_URL:http://localhost:8080}
   storage:
     local-root: ${ASSET_STORAGE_ROOT:/data/asset-storage}
+  question-bank:
+    service-url: ${QUESTION_BANK_SERVICE_URI:http://localhost:9000}

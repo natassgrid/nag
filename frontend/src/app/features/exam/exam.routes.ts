@@ -1,4 +1,4 @@
-/*
+﻿/*
  * SPDX-License-Identifier: AGPL-3.0-only
  *
  * National Assessment Grid (NAG) - Open Digital Public Infrastructure (DPI) Platform
@@ -22,12 +22,8 @@ import { Routes } from '@angular/router';
 export const EXAM_ROUTES: Routes = [
   {
     path: '',
-    redirectTo: 'delivery',
+    redirectTo: 'manage',
     pathMatch: 'full'
-  },
-  {
-    path: 'delivery',
-    loadComponent: () => import('./exam-delivery/exam-delivery.component').then(m => m.ExamDeliveryComponent)
   },
   {
     path: 'manage',

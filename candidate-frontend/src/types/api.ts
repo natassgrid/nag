@@ -220,7 +220,8 @@ export interface ExamSection {
 
 export interface ExaminationResponse {
   id: string;                   // UUID
-  title: string;
+  name?: string;
+  title?: string;
   description: string;
   status: ExamStatus;
   mode: ExamMode;
@@ -332,9 +333,45 @@ export interface AdmitCardResponse {
 
 export type NavigationMode = 'SEQUENTIAL' | 'FLEXIBLE' | 'RESTRICTED';
 
+// ─── Multilingual support ────────────────────────────────────────────────
+// The delivery service packages both the English master and any approved
+// regional translation in the session bundle.  Client-side language switching
+// is zero-latency (no additional network requests).
+
+/** BCP-47 language code, e.g. "en", "hi", "ta", "te", "mr", "bn", "gu", "kn" */
+export type LanguageCode = string;
+
+/** Display metadata for a supported examination language. */
+export interface ExamLanguage {
+  code: LanguageCode;           // BCP-47 code
+  name: string;                 // English name, e.g. "Hindi"
+  nativeName: string;           // Script name, e.g. "हिन्दी"
+  rtl?: boolean;                // right-to-left script (Arabic, Urdu etc.)
+}
+
+/** Per-language text for a single option. */
+export interface QuestionOptionTranslation {
+  id?: string;
+  index?: number;
+  text?: string;
+  content?: string;
+}
+
+/** Per-language content for an entire question. */
+export interface QuestionTranslation {
+  id?: string;
+  languageCode?: string;
+  text?: string;
+  content?: string;
+  options?: QuestionOptionTranslation[];
+  explanation?: string;
+}
+
 export interface QuestionOption {
+  id?: string;
   index: number;
-  text: string;
+  text?: string;                 // English master text
+  content?: string;
   imageUrl?: string;
   imageAltText?: string;
   isCorrect?: boolean;
@@ -342,24 +379,37 @@ export interface QuestionOption {
 
 export interface QuestionDto {
   id: string;                   // UUID
-  text: string;
+  text?: string;                // English master text
+  content?: string;
   imageUrl?: string;
   imageAltText?: string;
-  options: QuestionOption[];
+  options: QuestionOption[];    // English master options
   marks: number;
   negativeMarks: number;
-  sectionId: string;
-  sectionName: string;
+  sectionId?: string;
+  sectionName?: string;
   topic?: string;
-  explanation?: string;
+  questionType?: string;
+  sequenceNumber?: number;
+  explanation?: string;         // English master explanation
   correctOptionIndex?: number;  // Available in practice/learning mode
+  /**
+   * Regional translations keyed by BCP-47 language code.
+   * Only languages enabled for this assessment are included.
+   * The "en" key is absent — use the top-level fields for English.
+   * Example: { "hi": { text: "...", options: [...] }, "ta": { ... } }
+   */
+  translations?: Record<LanguageCode, QuestionTranslation>;
 }
 
 export interface SessionStartRequest {
   examId: string;
   shiftId?: string;
   candidateId?: string;
-  languageCode?: string;
+  /** BCP-47 code for the candidate's chosen examination medium. */
+  languageCode?: LanguageCode;
+  forceNewSession?: boolean;
+  terminateExisting?: boolean;
 }
 
 export interface SessionStartResponse {
@@ -373,7 +423,7 @@ export interface SessionStartResponse {
   durationSeconds: number;
   totalQuestions: number;
   navigationMode: NavigationMode;
-  questions: QuestionDto[];     // all questions delivered at session start
+  questions: QuestionDto[];     // all questions delivered at session start (bilingual payload)
   serverTime: string;           // ISO timestamp for clock sync
   expiresAt: string;            // ISO timestamp for session expiry
   kioskModeEnforced?: boolean;
@@ -381,6 +431,10 @@ export interface SessionStartResponse {
   autosaveIntervalSeconds?: number;
   maxDisconnectGraceSeconds?: number;
   tamperDetectionEnabled?: boolean;
+  /** Languages available for this assessment package. Always includes "en". */
+  availableLanguages?: ExamLanguage[];
+  /** Default language selected during registration/application. */
+  defaultLanguageCode?: LanguageCode;
 }
 
 export interface NavigationRequest {

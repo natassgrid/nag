@@ -39,15 +39,23 @@ import org.springframework.stereotype.Service;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 
 /**
  * Worker to process large-scale asynchronous background translation jobs.
- * Supports pagination chunks, concurrency throttling, cancellation checks, error recovery,
- * and configurable development pause intervals (e.g. 1-minute interval after every 10-20 questions).
+ * Supports whole-bank, subject-filtered, or paper-scoped batch translations with:
+ * - Direct question ID batch chunking (for Paper Generation translations)
+ * - Pagination streaming (for full-bank or subject-filtered translations)
+ * - Concurrency throttling via Semaphore
+ * - Overwrite toggle support (clean upsert vs. reuse existing)
+ * - Target status assignment (PUBLISHED default)
+ * - Cancellation checks and error recovery
+ * - Configurable development pause intervals
  */
 @Slf4j
 @Service
@@ -115,97 +123,182 @@ public class AsyncBatchTranslationWorker {
         Semaphore concurrencyLimiter = new Semaphore(maxConcurrency);
         boolean overwriteExisting = job.isOverwriteExisting();
 
+        List<UUID> explicitQuestionIds = job.getQuestionIds();
+        boolean hasExplicitQuestions = (explicitQuestionIds != null && !explicitQuestionIds.isEmpty());
+
         try {
-            int pageNumber = 0;
-            Page<Question> page;
             int questionsSinceLastPause = 0;
 
-            do {
-                // Check if job was cancelled
-                Optional<BatchTranslationJob> currentJobOpt = jobRepository.findById(jobId);
-                if (currentJobOpt.isPresent() && currentJobOpt.get().getStatus() == BatchTranslationJobStatus.CANCELLED) {
-                    log.info("Batch translation job {} was cancelled by user. Terminating worker loop.", jobId);
-                    return;
+            if (hasExplicitQuestions) {
+                // Paper generation batch: translate exact list of questions for the paper
+                int total = explicitQuestionIds.size();
+                Optional<BatchTranslationJob> freshJobOpt = jobRepository.findById(jobId);
+                if (freshJobOpt.isPresent()) {
+                    BatchTranslationJob freshJob = freshJobOpt.get();
+                    freshJob.setTotalQuestions(total);
+                    jobRepository.save(freshJob);
+                    log.info("Batch job {} for paper {} matched explicit question count={}", jobId, job.getPaperId(), total);
                 }
 
-                PageRequest pageRequest = PageRequest.of(pageNumber, batchSize, Sort.by("createdAt").ascending());
-                boolean hasSubjectFilter = job.getSubjectFilter() != null && !job.getSubjectFilter().isBlank();
-                if (hasSubjectFilter) {
-                    page = questionRepository.findBySubjectFilterAndTenantId(job.getSubjectFilter().trim(), tenantId, pageRequest);
-                } else {
-                    page = questionRepository.findAllQuestionsForBatch(tenantId, pageRequest);
-                }
-
-                if (pageNumber == 0) {
-                    Optional<BatchTranslationJob> freshJobOpt = jobRepository.findById(jobId);
-                    if (freshJobOpt.isPresent()) {
-                        BatchTranslationJob freshJob = freshJobOpt.get();
-                        freshJob.setTotalQuestions((int) page.getTotalElements());
-                        jobRepository.save(freshJob);
-                        log.info("Batch job {} matched totalQuestions={}", jobId, page.getTotalElements());
-                    }
-                }
-
-                List<Question> questions = page.getContent();
-                for (int i = 0; i < questions.size(); i++) {
-                    Question question = questions.get(i);
-
-                    // Check cancellation periodically
+                for (int fromIndex = 0; fromIndex < total; fromIndex += batchSize) {
                     if (isJobCancelled(jobId)) {
                         log.info("Job {} cancelled mid-batch. Halting execution.", jobId);
                         return;
                     }
 
-                    try {
-                        concurrencyLimiter.acquire();
-                        processSingleQuestion(question, targetLang, targetStatus, overwriteExisting, tenantId, jobId);
-                    } catch (InterruptedException ie) {
-                        Thread.currentThread().interrupt();
-                        log.warn("Batch worker interrupted while acquiring semaphore for job {}", jobId);
-                        return;
-                    } finally {
-                        concurrencyLimiter.release();
-                    }
+                    int toIndex = Math.min(fromIndex + batchSize, total);
+                    List<UUID> chunkIds = explicitQuestionIds.subList(fromIndex, toIndex);
+                    List<Question> questions = questionRepository.findQuestionsByIdsIn(chunkIds, tenantId);
 
-                    questionsSinceLastPause++;
+                    Map<UUID, Question> questionMap = questions.stream()
+                            .collect(Collectors.toMap(Question::getId, q -> q, (a, b) -> a));
 
-                    if (throttleDelayMs > 0) {
-                        try {
-                            TimeUnit.MILLISECONDS.sleep(throttleDelayMs);
-                        } catch (InterruptedException ie) {
-                            Thread.currentThread().interrupt();
-                            log.warn("Throttle sleep interrupted for job {}", jobId);
+                    for (UUID qId : chunkIds) {
+                        if (isJobCancelled(jobId)) {
+                            log.info("Job {} cancelled mid-batch. Halting execution.", jobId);
                             return;
                         }
-                    }
 
-                    // Check if chunk pause interval reached (e.g. 10-20 questions, default 15) in dev environment
-                    boolean hasMoreQuestions = (i < questions.size() - 1) || page.hasNext();
-                    if (hasMoreQuestions && chunkPauseIntervalQuestions > 0 && chunkPauseDurationSeconds > 0
-                            && questionsSinceLastPause >= chunkPauseIntervalQuestions) {
-                        log.info("Batch translation job {}: Reached chunk interval of {} questions. Pausing for {}s to prevent local dev model overload...",
-                                jobId, questionsSinceLastPause, chunkPauseDurationSeconds);
-                        questionsSinceLastPause = 0;
+                        Question question = questionMap.get(qId);
+                        if (question == null) {
+                            log.warn("Question ID {} from paper list not found in repository. Recording failure.", qId);
+                            jobRepository.incrementFailure(jobId);
+                            continue;
+                        }
 
-                        // Sleep in 1-second ticks to stay responsive to cancellation requests
-                        for (int s = 0; s < chunkPauseDurationSeconds; s++) {
-                            if (isJobCancelled(jobId)) {
-                                log.info("Job {} cancelled during chunk interval pause. Halting execution.", jobId);
-                                return;
-                            }
+                        try {
+                            concurrencyLimiter.acquire();
+                            processSingleQuestion(question, targetLang, targetStatus, overwriteExisting, tenantId, jobId);
+                        } catch (InterruptedException ie) {
+                            Thread.currentThread().interrupt();
+                            log.warn("Batch worker interrupted while acquiring semaphore for job {}", jobId);
+                            return;
+                        } finally {
+                            concurrencyLimiter.release();
+                        }
+
+                        questionsSinceLastPause++;
+
+                        if (throttleDelayMs > 0) {
                             try {
-                                TimeUnit.SECONDS.sleep(1);
+                                TimeUnit.MILLISECONDS.sleep(throttleDelayMs);
                             } catch (InterruptedException ie) {
                                 Thread.currentThread().interrupt();
-                                log.warn("Chunk interval pause interrupted for job {}", jobId);
+                                log.warn("Throttle sleep interrupted for job {}", jobId);
                                 return;
+                            }
+                        }
+
+                        // Check if chunk pause interval reached in dev environment
+                        boolean hasMore = (toIndex < total);
+                        if (hasMore && chunkPauseIntervalQuestions > 0 && chunkPauseDurationSeconds > 0
+                                && questionsSinceLastPause >= chunkPauseIntervalQuestions) {
+                            log.info("Batch translation job {}: Reached chunk interval of {} questions. Pausing for {}s...",
+                                    jobId, questionsSinceLastPause, chunkPauseDurationSeconds);
+                            questionsSinceLastPause = 0;
+
+                            for (int s = 0; s < chunkPauseDurationSeconds; s++) {
+                                if (isJobCancelled(jobId)) {
+                                    log.info("Job {} cancelled during chunk interval pause. Halting execution.", jobId);
+                                    return;
+                                }
+                                try {
+                                    TimeUnit.SECONDS.sleep(1);
+                                } catch (InterruptedException ie) {
+                                    Thread.currentThread().interrupt();
+                                    return;
+                                }
                             }
                         }
                     }
                 }
+            } else {
+                // Paginate by subject filter or all questions
+                int pageNumber = 0;
+                Page<Question> page;
 
-                pageNumber++;
-            } while (page.hasNext());
+                do {
+                    if (isJobCancelled(jobId)) {
+                        log.info("Batch translation job {} was cancelled by user. Terminating worker loop.", jobId);
+                        return;
+                    }
+
+                    PageRequest pageRequest = PageRequest.of(pageNumber, batchSize, Sort.by("createdAt").ascending());
+                    boolean hasSubjectFilter = job.getSubjectFilter() != null && !job.getSubjectFilter().isBlank();
+                    if (hasSubjectFilter) {
+                        page = questionRepository.findBySubjectFilterAndTenantId(job.getSubjectFilter().trim(), tenantId, pageRequest);
+                    } else {
+                        page = questionRepository.findAllQuestionsForBatch(tenantId, pageRequest);
+                    }
+
+                    if (pageNumber == 0) {
+                        Optional<BatchTranslationJob> freshJobOpt = jobRepository.findById(jobId);
+                        if (freshJobOpt.isPresent()) {
+                            BatchTranslationJob freshJob = freshJobOpt.get();
+                            freshJob.setTotalQuestions((int) page.getTotalElements());
+                            jobRepository.save(freshJob);
+                            log.info("Batch job {} matched totalQuestions={}", jobId, page.getTotalElements());
+                        }
+                    }
+
+                    List<Question> questions = page.getContent();
+                    for (int i = 0; i < questions.size(); i++) {
+                        Question question = questions.get(i);
+
+                        if (isJobCancelled(jobId)) {
+                            log.info("Job {} cancelled mid-batch. Halting execution.", jobId);
+                            return;
+                        }
+
+                        try {
+                            concurrencyLimiter.acquire();
+                            processSingleQuestion(question, targetLang, targetStatus, overwriteExisting, tenantId, jobId);
+                        } catch (InterruptedException ie) {
+                            Thread.currentThread().interrupt();
+                            log.warn("Batch worker interrupted while acquiring semaphore for job {}", jobId);
+                            return;
+                        } finally {
+                            concurrencyLimiter.release();
+                        }
+
+                        questionsSinceLastPause++;
+
+                        if (throttleDelayMs > 0) {
+                            try {
+                                TimeUnit.MILLISECONDS.sleep(throttleDelayMs);
+                            } catch (InterruptedException ie) {
+                                Thread.currentThread().interrupt();
+                                log.warn("Throttle sleep interrupted for job {}", jobId);
+                                return;
+                            }
+                        }
+
+                        boolean hasMoreQuestions = (i < questions.size() - 1) || page.hasNext();
+                        if (hasMoreQuestions && chunkPauseIntervalQuestions > 0 && chunkPauseDurationSeconds > 0
+                                && questionsSinceLastPause >= chunkPauseIntervalQuestions) {
+                            log.info("Batch translation job {}: Reached chunk interval of {} questions. Pausing for {}s to prevent local dev model overload...",
+                                    jobId, questionsSinceLastPause, chunkPauseDurationSeconds);
+                            questionsSinceLastPause = 0;
+
+                            for (int s = 0; s < chunkPauseDurationSeconds; s++) {
+                                if (isJobCancelled(jobId)) {
+                                    log.info("Job {} cancelled during chunk interval pause. Halting execution.", jobId);
+                                    return;
+                                }
+                                try {
+                                    TimeUnit.SECONDS.sleep(1);
+                                } catch (InterruptedException ie) {
+                                    Thread.currentThread().interrupt();
+                                    log.warn("Chunk interval pause interrupted for job {}", jobId);
+                                    return;
+                                }
+                            }
+                        }
+                    }
+
+                    pageNumber++;
+                } while (page.hasNext());
+            }
 
             // Mark job as completed
             Optional<BatchTranslationJob> finalJobOpt = jobRepository.findById(jobId);
@@ -244,6 +337,16 @@ public class AsyncBatchTranslationWorker {
 
         UUID questionId = question.getId();
         try {
+            if (!overwriteExisting) {
+                List<Translation> existing = translationRepository
+                        .findByQuestionIdAndLanguageCodeAndTenantId(questionId, targetLang, tenantId);
+                if (!existing.isEmpty()) {
+                    log.info("Translation for questionId={} and lang={} already exists and overwriteExisting=false. Skipping translation call.", questionId, targetLang);
+                    jobRepository.incrementSuccess(jobId);
+                    return;
+                }
+            }
+
             // Translate question via AI model
             AutoTranslateResponse translationResponse = indicTrans2Service.autoTranslateQuestionEntity(question, targetLang);
 
@@ -256,7 +359,7 @@ public class AsyncBatchTranslationWorker {
                     translationResponse.getTranslatedExplanation(),
                     targetStatus,
                     SYSTEM_BATCH_UUID,
-                    "Batch AI Auto-Translate (Hindi)",
+                    "Batch AI Auto-Translate (Paper Generation)",
                     tenantId
             );
 

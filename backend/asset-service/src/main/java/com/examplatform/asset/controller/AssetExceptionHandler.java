@@ -35,7 +35,7 @@ import org.springframework.web.multipart.MaxUploadSizeExceededException;
  * Global exception handler for the Asset Service REST layer.
  */
 @Slf4j
-@RestControllerAdvice
+@RestControllerAdvice(basePackages = "com.examplatform.asset")
 public class AssetExceptionHandler {
 
     @ExceptionHandler(AccessDeniedException.class)

@@ -36,6 +36,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -70,13 +72,18 @@ public class SessionStartService {
     private final ObjectMapper objectMapper;
     private final DynamicConfigService dynamicConfigService;
 
+    @Autowired(required = false)
+    private JdbcTemplate jdbcTemplate;
+
     private static final String SESSION_CACHE_PREFIX = "session:";
     private static final String TOPIC_SESSION_EVENTS = "exam.session.events";
 
     private static final Map<String, String> STANDARD_EXAM_TITLES = Map.of(
             "e1000000-0000-0000-0000-000000000001", "Staff Selection Commission Combined Graduate Level (SSC CGL) Tier-1 Examination 2026",
-            "e2000000-0000-0000-0000-000000000002", "Union Public Service Commission Civil Services Examination (Prelims) 2026",
-            "e3000000-0000-0000-0000-000000000003", "Railway Recruitment Board Non-Technical Popular Categories (RRB NTPC) 2026"
+            "e1000000-0000-0000-0000-000000000002", "IBPS Probationary Officer (PO) Preliminary Examination 2026",
+            "e1000000-0000-0000-0000-000000000003", "UPSC Civil Services (Preliminary) Examination 2026 - Paper 1 (General Studies)",
+            "e1000000-0000-0000-0000-000000000004", "Railway Recruitment Board Non-Technical Popular Categories (RRB NTPC) CBT-1 2026",
+            "e1000000-0000-0000-0000-000000000005", "Central Teacher Eligibility Test (CTET) Paper-1 (Primary Teacher) 2026"
     );
 
     /**
@@ -106,6 +113,11 @@ public class SessionStartService {
                         activeSession.getSessionId(), candidateId, activeSession.getScheduledEndAt());
                 activeSession.setStatus(ExamSessionStatus.EXPIRED);
                 examSessionRepository.save(activeSession);
+            } else if (Boolean.TRUE.equals(request.getForceNewSession()) || Boolean.TRUE.equals(request.getTerminateExisting())) {
+                log.info("Terminating existing active session [{}] on exam [{}] for candidate [{}] to start exam [{}] (forceNewSession=true).",
+                        activeSession.getSessionId(), activeSession.getExamId(), candidateId, request.getExamId());
+                activeSession.setStatus(ExamSessionStatus.EXPIRED);
+                examSessionRepository.save(activeSession);
             } else if (activeSession.getExamId() != null && activeSession.getExamId().equals(request.getExamId())) {
                 // RESUME FEATURE: Candidate reconnected or refreshed exam page
                 log.info("Resuming active session [{}] for candidate [{}] on exam [{}]",
@@ -114,7 +126,9 @@ public class SessionStartService {
             } else {
                 // Active session belongs to a different exam
                 throw new ConcurrentSessionException(
-                        "Candidate " + candidateId + " already has an active session for exam " + activeSession.getExamId() + " in tenant " + effectiveTenant);
+                        "Candidate " + candidateId + " already has an active session for exam " + activeSession.getExamId() + " in tenant " + effectiveTenant,
+                        activeSession.getExamId(),
+                        activeSession.getSessionId());
             }
         }
 
@@ -166,7 +180,7 @@ public class SessionStartService {
         int disabilityExtension = disabilityExtensionService.getExtraTimeMinutes(candidateId, effectiveTenant);
 
         // 7. Create exam session entity
-        int baseDuration = assignment != null ? assignment.getDurationMinutes() : 60;
+        int baseDuration = resolveExamDurationMinutes(request.getExamId(), assignment);
         int extraTime = assignment != null ? assignment.getExtraTimeMinutes() : 0;
         int totalDuration = baseDuration + extraTime + disabilityExtension;
         Instant scheduledEnd = now.plus(Duration.ofMinutes(totalDuration));
@@ -220,10 +234,7 @@ public class SessionStartService {
         int maxDisconnectGraceSec = dynamicConfigService.getInt("delivery.max.disconnect.grace.seconds", effectiveTenant, 180);
         boolean tamperEnabled = dynamicConfigService.getBoolean("delivery.tamper.detection.enabled", effectiveTenant, true);
 
-        String examTitle = STANDARD_EXAM_TITLES.getOrDefault(
-                request.getExamId().toString(),
-                "Staff Selection Commission Combined Graduate Level (SSC CGL) Tier-1 Examination 2026"
-        );
+        String examTitle = resolveExamTitle(request.getExamId());
 
         // 12. Return response with first question, full questions list and dynamic parameters
         return SessionStartResponse.builder()
@@ -325,10 +336,7 @@ public class SessionStartService {
         int maxDisconnectGraceSec = dynamicConfigService.getInt("delivery.max.disconnect.grace.seconds", effectiveTenant, 180);
         boolean tamperEnabled = dynamicConfigService.getBoolean("delivery.tamper.detection.enabled", effectiveTenant, true);
 
-        String examTitle = STANDARD_EXAM_TITLES.getOrDefault(
-                session.getExamId().toString(),
-                "Staff Selection Commission Combined Graduate Level (SSC CGL) Tier-1 Examination 2026"
-        );
+        String examTitle = resolveExamTitle(session.getExamId());
 
         int remainingSeconds = session.getScheduledEndAt() != null
                 ? (int) Math.max(0, Duration.between(now, session.getScheduledEndAt()).toSeconds())
@@ -369,6 +377,26 @@ public class SessionStartService {
      * @param tenantId    the tenant identifier
      * @return the session start/resume response
      */
+
+    /**
+     * Terminate candidate's current active exam session(s).
+     */
+    @Transactional
+    public int terminateActiveSessionsForCandidate(UUID candidateId, String tenantId) {
+        String effectiveTenant = (tenantId != null && !tenantId.isBlank()) ? tenantId : "default";
+        List<ExamSession> existingSessions = examSessionRepository.findByCandidateIdAndTenantId(candidateId, effectiveTenant);
+        Instant now = Instant.now();
+        int count = 0;
+        for (ExamSession s : existingSessions) {
+            if (s.getStatus() == ExamSessionStatus.ACTIVE) {
+                s.setStatus(ExamSessionStatus.EXPIRED);
+                examSessionRepository.save(s);
+                count++;
+            }
+        }
+        return count;
+    }
+
     public SessionStartResponse resumeSessionById(UUID sessionId, UUID candidateId, String tenantId) {
         String effectiveTenant = (tenantId != null && !tenantId.isBlank()) ? tenantId : "default";
         ExamSession session = examSessionRepository.findById(sessionId)
@@ -414,5 +442,49 @@ public class SessionStartService {
             log.warn("Could not parse paper JSON to count questions: {}", e.getMessage());
         }
         return 0;
+    }
+
+    private String resolveExamTitle(UUID examId) {
+        if (examId == null) {
+            return "National Assessment Grid Examination";
+        }
+        String examIdStr = examId.toString();
+        if (STANDARD_EXAM_TITLES.containsKey(examIdStr)) {
+            return STANDARD_EXAM_TITLES.get(examIdStr);
+        }
+        if (jdbcTemplate != null) {
+            try {
+                String title = jdbcTemplate.queryForObject(
+                        "SELECT name FROM examination_service.examination WHERE id = ?",
+                        String.class,
+                        examId
+                );
+                if (title != null && !title.isBlank()) {
+                    return title;
+                }
+            } catch (Exception ignored) {
+            }
+        }
+        return "National Assessment Grid Examination (" + examIdStr.substring(0, 8) + ")";
+    }
+
+    private int resolveExamDurationMinutes(UUID examId, ShiftAssignment assignment) {
+        if (assignment != null && assignment.getDurationMinutes() > 0) {
+            return assignment.getDurationMinutes();
+        }
+        if (jdbcTemplate != null && examId != null) {
+            try {
+                Integer duration = jdbcTemplate.queryForObject(
+                        "SELECT duration_minutes FROM examination_service.examination WHERE id = ?",
+                        Integer.class,
+                        examId
+                );
+                if (duration != null && duration > 0) {
+                    return duration;
+                }
+            } catch (Exception ignored) {
+            }
+        }
+        return 60;
     }
 }

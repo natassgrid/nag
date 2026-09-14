@@ -12,14 +12,38 @@ import type {
 const BASE = '/api/v1/responses';
 
 export interface PersistedResponse {
+  id?: string;
   responseId?: string;
   sessionId?: string;
   questionId: string;
+  selectedOptionIds?: string | number[] | string[];
   selectedOptionIndex?: number;
+  enteredValue?: string | null;
   markedForReview?: boolean;
   revisionSequence?: number;
   timeTakenSeconds?: number;
+  cumulativeTimeSpentMs?: number;
+  saveSource?: string;
   savedAt?: string;
+  timestamp?: string;
+  isFinal?: boolean;
+}
+
+function formatBackendPayload(request: SaveResponseRequest) {
+  const selectedOptionIds =
+    request.selectedOptionIndex !== null && request.selectedOptionIndex !== undefined
+      ? JSON.stringify([request.selectedOptionIndex])
+      : null;
+
+  return {
+    questionId: request.questionId,
+    selectedOptionIds,
+    enteredValue: request.integerAnswer !== undefined ? String(request.integerAnswer) : null,
+    timestamp: new Date().toISOString(),
+    cumulativeTimeSpentMs: request.timeTakenSeconds ? request.timeTakenSeconds * 1000 : 5000,
+    saveSource: 'MANUAL',
+    revisionSequence: request.revisionSequence || 1,
+  };
 }
 
 export const responseService = {
@@ -31,8 +55,9 @@ export const responseService = {
     sessionId: string,
     request: SaveResponseRequest,
   ): Promise<SaveResponseResponse> {
+    const payload = formatBackendPayload(request);
     try {
-      return unwrap(await api.post(`${BASE}/${sessionId}/save`, request));
+      return unwrap(await api.post(`${BASE}/${sessionId}/save`, payload));
     } catch (error: unknown) {
       // Network offline — queue for later
       const axiosError = error as { code?: string };
@@ -68,7 +93,10 @@ export const responseService = {
 
   /** Bulk-save for offline-buffered responses with server-side deduplication. */
   async bulkSave(sessionId: string, request: BulkSaveRequest): Promise<SaveResponseResponse[]> {
-    return unwrap(await api.post(`${BASE}/${sessionId}/bulk-save`, request));
+    const payload = {
+      responses: (request.responses || []).map(formatBackendPayload),
+    };
+    return unwrap(await api.post(`${BASE}/${sessionId}/bulk-save`, payload));
   },
 
   /** Finalize and submit the exam session — locks all responses. */

@@ -1,6 +1,6 @@
 <div class="page-layout">
 
-  <!-- ── Page header ────────────────────────────────────────────── -->
+  <!-- ── Page header ──────────────────────────────────────── -->
   <app-page-header
     title="Paper Generation"
     subtitle="Generate, review, and approve examination papers from blueprint rules."
@@ -25,7 +25,7 @@
     </button>
   </app-page-header>
 
-  <!-- ── Paper table ────────────────────────────────────────────── -->
+  <!-- ── Paper table ──────────────────────────────────────── -->
   <app-paginated-table
     #paperTable
     [fetcher]="fetcher"
@@ -39,17 +39,28 @@
     searchPlaceholder="Search by shift ID or paper ID…"
   ></app-paginated-table>
 
-  <!-- Actions template ───────────────────────────────────────────── -->
+  <!-- Actions template ───────────────────────────────────── -->
   <ng-template #actionsTmpl let-row>
-    <!-- View Paper Summary button -->
+    <!-- View Paper Summary & Translation button -->
     <button
       mat-icon-button
       color="accent"
-      matTooltip="View Paper Summary & Questions"
+      matTooltip="View Paper Summary, Blueprint & Translations"
       (click)="viewPaperSummary(row); $event.stopPropagation()"
       aria-label="View paper summary"
     >
       <mat-icon>visibility</mat-icon>
+    </button>
+
+    <!-- Translate Paper button -->
+    <button
+      mat-icon-button
+      style="color: #4f46e5;"
+      matTooltip="Batch Translate Questions (IndicTrans2)"
+      (click)="viewPaperSummary(row); $event.stopPropagation()"
+      aria-label="Batch translate paper"
+    >
+      <mat-icon>g_translate</mat-icon>
     </button>
 
     <!-- Approve: only DRAFT papers -->

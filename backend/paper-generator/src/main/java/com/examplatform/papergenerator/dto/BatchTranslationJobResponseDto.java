@@ -6,11 +6,20 @@
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as published
- * by the Free Software Foundation, version 3 of the License.\n *\n * This program is distributed in the hope that it will be useful,\n * but WITHOUT ANY WARRANTY; without even the implied warranty of\n * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the\n * GNU Affero General Public License for more details.\n *\n * You should have received a copy of the GNU Affero General Public License\n * along with this program. If not, see <https://www.gnu.org/licenses/>.\n */
+ * by the Free Software Foundation, version 3 of the License.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program. If not, see <https://www.gnu.org/licenses/>.
+ */
 
-package com.examplatform.questionbank.translation.dto;
+package com.examplatform.papergenerator.dto;
 
-import com.examplatform.questionbank.translation.domain.BatchTranslationJobStatus;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -24,11 +33,12 @@ import java.util.UUID;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class BatchTranslationJobResponse {
+@JsonIgnoreProperties(ignoreUnknown = true)
+public class BatchTranslationJobResponseDto {
 
     private UUID id;
     private String tenantId;
-    private BatchTranslationJobStatus status;
+    private String status;
     private String sourceLanguage;
     private String targetLanguage;
     private String targetStatus;

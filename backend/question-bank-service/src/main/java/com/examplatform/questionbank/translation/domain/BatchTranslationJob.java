@@ -40,6 +40,7 @@ import java.util.UUID;
 
 /**
  * Entity tracking asynchronous batch translation jobs.
+ * Supports whole-bank, subject-filtered, or paper-scoped batch translations.
  */
 @Data
 @Builder
@@ -69,6 +70,14 @@ public class BatchTranslationJob extends BaseEntity {
 
     @Column(name = "subject_filter", length = 100)
     private String subjectFilter;
+
+    @Column(name = "paper_id")
+    private UUID paperId;
+
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "question_ids", columnDefinition = "jsonb")
+    @Builder.Default
+    private List<UUID> questionIds = new ArrayList<>();
 
     @Column(name = "overwrite_existing", nullable = false)
     @Builder.Default

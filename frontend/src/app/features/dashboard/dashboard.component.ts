@@ -82,19 +82,13 @@ export class DashboardComponent implements OnInit {
       route: '/analytics',
       roles: ['EXAM_CONTROLLER']
     },
-    {
-      icon: 'school',
-      title: 'My Exams',
-      description: 'Start or continue exams',
-      route: '/exam/delivery',
-      roles: ['CANDIDATE']
-    },
+
     {
       icon: 'grade',
       title: 'Results',
-      description: 'View your results',
+      description: 'View published exam results',
       route: '/results',
-      roles: ['CANDIDATE']
+      roles: ['EXAM_CONTROLLER', 'SUPER_ADMIN']
     },
     {
       icon: 'rate_review',

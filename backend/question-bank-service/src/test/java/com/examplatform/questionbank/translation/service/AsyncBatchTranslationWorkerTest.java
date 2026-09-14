@@ -39,6 +39,7 @@ import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.test.util.ReflectionTestUtils;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -134,6 +135,97 @@ class AsyncBatchTranslationWorkerTest {
         verify(translationWorkflowService, times(2)).upsertTranslation(
                 any(), eq("hi"), any(), any(), any(), eq(Translation.TranslationStatus.PUBLISHED), any(), any(), eq(tenantId)
         );
+    }
+
+    @Test
+    @DisplayName("Should successfully process explicit questionIds for paper generation batch")
+    void shouldProcessExplicitQuestionIdsForPaperBatch() {
+        UUID paperId = UUID.randomUUID();
+        BatchTranslationJob job = BatchTranslationJob.builder()
+                .status(BatchTranslationJobStatus.PENDING)
+                .sourceLanguage("en")
+                .targetLanguage("hi")
+                .targetStatus("PUBLISHED")
+                .paperId(paperId)
+                .questionIds(List.of(questionId1, questionId2))
+                .batchSize(10)
+                .throttleDelayMs(0)
+                .maxConcurrency(2)
+                .overwriteExisting(true)
+                .initiatedBy(UUID.randomUUID())
+                .build();
+        ReflectionTestUtils.setField(job, "id", jobId);
+        job.setTenantId(tenantId);
+
+        Question q1 = Question.builder().content("Paper Q1").build();
+        ReflectionTestUtils.setField(q1, "id", questionId1);
+        Question q2 = Question.builder().content("Paper Q2").build();
+        ReflectionTestUtils.setField(q2, "id", questionId2);
+
+        when(jobRepository.findById(jobId)).thenReturn(Optional.of(job));
+        when(questionRepository.findQuestionsByIdsIn(eq(List.of(questionId1, questionId2)), eq(tenantId)))
+                .thenReturn(List.of(q1, q2));
+
+        AutoTranslateResponse trans1 = AutoTranslateResponse.builder()
+                .questionId(questionId1)
+                .languageCode("hi")
+                .translatedContent("पेपर प्रश्न 1")
+                .build();
+        AutoTranslateResponse trans2 = AutoTranslateResponse.builder()
+                .questionId(questionId2)
+                .languageCode("hi")
+                .translatedContent("पेपर प्रश्न 2")
+                .build();
+
+        when(indicTrans2Service.autoTranslateQuestionEntity(q1, "hi")).thenReturn(trans1);
+        when(indicTrans2Service.autoTranslateQuestionEntity(q2, "hi")).thenReturn(trans2);
+
+        worker.processBatchTranslationJob(jobId, tenantId);
+
+        assertThat(job.getStatus()).isEqualTo(BatchTranslationJobStatus.COMPLETED);
+        assertThat(job.getTotalQuestions()).isEqualTo(2);
+
+        verify(questionRepository).findQuestionsByIdsIn(eq(List.of(questionId1, questionId2)), eq(tenantId));
+        verify(jobRepository, times(2)).incrementSuccess(jobId);
+        verify(translationWorkflowService, times(2)).upsertTranslation(
+                any(), eq("hi"), any(), any(), any(), eq(Translation.TranslationStatus.PUBLISHED), any(), any(), eq(tenantId)
+        );
+    }
+
+    @Test
+    @DisplayName("Should skip translation when overwriteExisting is false and translation already exists")
+    void shouldSkipTranslationWhenOverwriteFalseAndExists() {
+        BatchTranslationJob job = BatchTranslationJob.builder()
+                .status(BatchTranslationJobStatus.PENDING)
+                .sourceLanguage("en")
+                .targetLanguage("hi")
+                .targetStatus("PUBLISHED")
+                .questionIds(List.of(questionId1))
+                .batchSize(10)
+                .throttleDelayMs(0)
+                .maxConcurrency(2)
+                .overwriteExisting(false)
+                .initiatedBy(UUID.randomUUID())
+                .build();
+        ReflectionTestUtils.setField(job, "id", jobId);
+        job.setTenantId(tenantId);
+
+        Question q1 = Question.builder().content("Paper Q1").build();
+        ReflectionTestUtils.setField(q1, "id", questionId1);
+
+        Translation existing = Translation.builder().questionId(questionId1).languageCode("hi").build();
+
+        when(jobRepository.findById(jobId)).thenReturn(Optional.of(job));
+        when(questionRepository.findQuestionsByIdsIn(eq(List.of(questionId1)), eq(tenantId)))
+                .thenReturn(List.of(q1));
+        when(translationRepository.findByQuestionIdAndLanguageCodeAndTenantId(questionId1, "hi", tenantId))
+                .thenReturn(List.of(existing));
+
+        worker.processBatchTranslationJob(jobId, tenantId);
+
+        assertThat(job.getStatus()).isEqualTo(BatchTranslationJobStatus.COMPLETED);
+        verify(indicTrans2Service, never()).autoTranslateQuestionEntity(any(), any());
+        verify(jobRepository, times(1)).incrementSuccess(jobId);
     }
 
     @Test

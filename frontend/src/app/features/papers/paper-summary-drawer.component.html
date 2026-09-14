@@ -2,7 +2,7 @@
   [isOpen]="isOpen"
   title="Paper Summary & Blueprint"
   [subtitle]="paper ? (paper.name || ((paper.examName ? paper.examName + ' • ' : '') + (paper.shiftName || paper.shiftId))) : 'Generated Paper Details'"
-  width="680px"
+  width="720px"
   [showFooter]="true"
   (close)="onClose()"
 >
@@ -115,6 +115,96 @@
         </div>
       </div>
 
+      <!-- Multilingual Batch Translation Section -->
+      <div class="section-block translation-block">
+        <div class="section-title">
+          <mat-icon class="lang-icon">translate</mat-icon>
+          <span>Batch Paper Translation (IndicTrans2)</span>
+          <span class="status-chip-state" *ngIf="activeTranslationJob" [ngClass]="'job-' + (activeTranslationJob.status | lowercase)">
+            {{ activeTranslationJob.status }}
+          </span>
+        </div>
+        <p class="section-desc">
+          Automatically translate all questions in this paper into any of the 22 Indian scheduled languages with AI model precision and auto-publish for delivery.
+        </p>
+
+        <div class="translation-controls-grid">
+          <div class="control-item">
+            <label class="control-label">Target Language</label>
+            <mat-select [(ngModel)]="targetLanguage" class="custom-select" [disabled]="translating || activeTranslationJob?.status === 'IN_PROGRESS'">
+              <mat-option *ngFor="let lang of supportedLanguages" [value]="lang.code">
+                {{ lang.name }} ({{ lang.nativeName }}) - {{ lang.script }}
+              </mat-option>
+            </mat-select>
+          </div>
+
+          <div class="control-item">
+            <label class="control-label">Target Status</label>
+            <mat-select [(ngModel)]="targetStatus" class="custom-select" [disabled]="translating || activeTranslationJob?.status === 'IN_PROGRESS'">
+              <mat-option value="PUBLISHED">PUBLISHED (Exam Delivery Ready)</mat-option>
+              <mat-option value="APPROVED">APPROVED (Reviewed)</mat-option>
+              <mat-option value="DRAFT">DRAFT</mat-option>
+            </mat-select>
+          </div>
+        </div>
+
+        <div class="translation-options-row">
+          <mat-checkbox [(ngModel)]="overwriteExisting" [disabled]="translating || activeTranslationJob?.status === 'IN_PROGRESS'" color="primary">
+            Overwrite existing translations for questions in this paper
+          </mat-checkbox>
+        </div>
+
+        <div class="translation-action-row">
+          <button
+            mat-flat-button
+            color="accent"
+            class="translate-trigger-btn"
+            [disabled]="translating || activeTranslationJob?.status === 'IN_PROGRESS' || !paper.totalQuestions && !paper.questions?.length"
+            (click)="onTranslatePaper()"
+          >
+            <mat-spinner diameter="18" *ngIf="translating"></mat-spinner>
+            <mat-icon *ngIf="!translating">g_translate</mat-icon>
+            <span>Translate All Questions ({{ paper.totalQuestions ?? paper.questions?.length ?? 0 }})</span>
+          </button>
+        </div>
+
+        <!-- Live Translation Progress Tracker -->
+        <div *ngIf="activeTranslationJob" class="translation-job-card">
+          <div class="job-progress-header">
+            <div class="job-target-info">
+              <strong>Target:</strong> {{ getLanguageName(activeTranslationJob.targetLanguage) }}
+              <span class="job-badge" [ngClass]="'badge-' + (activeTranslationJob.status | lowercase)">
+                {{ activeTranslationJob.status }}
+              </span>
+            </div>
+            <div class="job-stats-counts">
+              <span><strong>{{ activeTranslationJob.processedQuestions }}</strong> / {{ activeTranslationJob.totalQuestions }} Processed</span>
+              <span class="count-success" *ngIf="activeTranslationJob.successfulQuestions > 0">
+                <mat-icon>check</mat-icon> {{ activeTranslationJob.successfulQuestions }}
+              </span>
+              <span class="count-fail" *ngIf="activeTranslationJob.failedQuestions > 0">
+                <mat-icon>close</mat-icon> {{ activeTranslationJob.failedQuestions }}
+              </span>
+            </div>
+          </div>
+
+          <mat-progress-bar
+            [mode]="activeTranslationJob.status === 'PENDING' ? 'indeterminate' : 'determinate'"
+            [value]="activeTranslationJob.progressPercentage"
+            class="custom-job-progress"
+          ></mat-progress-bar>
+          <div class="job-progress-sub">
+            <span>{{ activeTranslationJob.progressPercentage | number:'1.0-1' }}% Completed</span>
+            <span *ngIf="activeTranslationJob.status === 'IN_PROGRESS'" class="live-pulse">
+              <span class="pulse-dot"></span> Translating questions in background...
+            </span>
+            <span *ngIf="activeTranslationJob.status === 'COMPLETED'" class="completed-msg">
+              ✓ All translations published and available for exam delivery.
+            </span>
+          </div>
+        </div>
+      </div>
+
       <!-- Topic Breakdown Section -->
       <div class="section-block">
         <div class="section-title">
@@ -195,6 +285,17 @@
       </button>
     </div>
     <div class="footer-right">
+      <button
+        mat-stroked-button
+        color="accent"
+        class="action-btn"
+        (click)="onTranslatePaper()"
+        [disabled]="translating || activeTranslationJob?.status === 'IN_PROGRESS'"
+      >
+        <mat-icon>translate</mat-icon>
+        <span>Translate to Hindi</span>
+      </button>
+
       <button
         mat-flat-button
         color="primary"

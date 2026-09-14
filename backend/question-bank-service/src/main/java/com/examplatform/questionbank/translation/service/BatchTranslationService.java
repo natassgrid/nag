@@ -6,16 +6,7 @@
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as published
- * by the Free Software Foundation, version 3 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU Affero General Public License for more details.
- *
- * You should have received a copy of the GNU Affero General Public License
- * along with this program. If not, see <https://www.gnu.org/licenses/>.
- */
+ * by the Free Software Foundation, version 3 of the License.\n *\n * This program is distributed in the hope that it will be useful,\n * but WITHOUT ANY WARRANTY; without even the implied warranty of\n * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the\n * GNU Affero General Public License for more details.\n *\n * You should have received a copy of the GNU Affero General Public License\n * along with this program. If not, see <https://www.gnu.org/licenses/>.\n */
 
 package com.examplatform.questionbank.translation.service;
 
@@ -32,6 +23,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
@@ -53,6 +45,7 @@ public class BatchTranslationService {
         }
 
         String normalizedSubject = normalizeSubject(request.getSubject());
+        List<UUID> questionIds = request.getQuestionIds() != null ? new ArrayList<>(request.getQuestionIds()) : new ArrayList<>();
 
         BatchTranslationJob job = BatchTranslationJob.builder()
                 .status(BatchTranslationJobStatus.PENDING)
@@ -60,6 +53,8 @@ public class BatchTranslationService {
                 .targetLanguage(targetLang)
                 .targetStatus(request.getTargetStatus() != null ? request.getTargetStatus() : "PUBLISHED")
                 .subjectFilter(normalizedSubject)
+                .paperId(request.getPaperId())
+                .questionIds(questionIds)
                 .overwriteExisting(request.getOverwriteExisting() == null || request.getOverwriteExisting())
                 .batchSize(request.getBatchSize() != null ? request.getBatchSize() : 50)
                 .throttleDelayMs(request.getThrottleDelayMs() != null ? request.getThrottleDelayMs() : 50)
@@ -69,8 +64,8 @@ public class BatchTranslationService {
         job.setTenantId(tenantId);
 
         BatchTranslationJob savedJob = jobRepository.save(job);
-        log.info("Created batch translation job: id={}, targetLang={}, subjectFilter={}, tenant={}",
-                savedJob.getId(), targetLang, normalizedSubject, tenantId);
+        log.info("Created batch translation job: id={}, targetLang={}, subjectFilter={}, paperId={}, questionCount={}, tenant={}",
+                savedJob.getId(), targetLang, normalizedSubject, savedJob.getPaperId(), questionIds.size(), tenantId);
 
         // Fire async background worker (job is committed immediately)
         asyncWorker.processBatchTranslationJob(savedJob.getId(), tenantId);
@@ -99,6 +94,14 @@ public class BatchTranslationService {
     @Transactional(readOnly = true)
     public List<BatchTranslationJobResponse> listJobs(String tenantId) {
         return jobRepository.findByTenantIdOrderByCreatedAtDesc(tenantId)
+                .stream()
+                .map(this::toResponse)
+                .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public List<BatchTranslationJobResponse> listJobsByPaper(UUID paperId, String tenantId) {
+        return jobRepository.findByPaperIdAndTenantIdOrderByCreatedAtDesc(paperId, tenantId)
                 .stream()
                 .map(this::toResponse)
                 .toList();
@@ -135,6 +138,8 @@ public class BatchTranslationService {
                 .targetLanguage(job.getTargetLanguage())
                 .targetStatus(job.getTargetStatus())
                 .subjectFilter(job.getSubjectFilter())
+                .paperId(job.getPaperId())
+                .questionIds(job.getQuestionIds())
                 .overwriteExisting(job.isOverwriteExisting())
                 .totalQuestions(job.getTotalQuestions())
                 .processedQuestions(job.getProcessedQuestions())

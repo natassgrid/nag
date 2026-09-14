@@ -35,7 +35,7 @@ import java.time.Instant;
  * Global exception handler for the Audit Service.
  */
 @Slf4j
-@RestControllerAdvice
+@RestControllerAdvice(basePackages = "com.examplatform.audit")
 public class GlobalExceptionHandler {
 
     @ExceptionHandler(AccessDeniedException.class)

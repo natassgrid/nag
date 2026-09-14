@@ -22,4 +22,21 @@ export const FEATURE_FLAGS = {
     import.meta.env.VITE_ALLOW_EXIT_FULLSCREEN !== undefined
       ? import.meta.env.VITE_ALLOW_EXIT_FULLSCREEN === 'true'
       : false,
+
+  /**
+   * Enables multi-language examination delivery.
+   * When enabled, candidates can select their preferred regional medium before starting
+   * the exam and toggle between English (master reference) and their chosen language
+   * on a per-question basis with zero latency (purely client-side switching).
+   *
+   * In accordance with NTA/SSC/RRB standards: the English version prevails in case
+   * of any discrepancy with a regional translation.
+   *
+   * Configurable via VITE_ENABLE_MULTILINGUAL environment variable.
+   * Defaults to true so regional language delivery is available in all environments.
+   */
+  ENABLE_MULTILINGUAL:
+    import.meta.env.VITE_ENABLE_MULTILINGUAL !== undefined
+      ? import.meta.env.VITE_ENABLE_MULTILINGUAL === 'true'
+      : true,
 };

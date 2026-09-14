@@ -14,8 +14,7 @@
  * GNU Affero General Public License for more details.
  *
  * You should have received a copy of the GNU Affero General Public License
- * along with this program. If not, see <https://www.gnu.org/licenses/>.
- */
+ * along with this program. If not, see <https://www.gnu.org/licenses/>.\n */
 
 package com.examplatform.questionbank.translation.repository;
 
@@ -38,6 +37,8 @@ public interface BatchTranslationJobRepository extends JpaRepository<BatchTransl
     Optional<BatchTranslationJob> findByIdAndTenantId(UUID id, String tenantId);
 
     List<BatchTranslationJob> findByTenantIdOrderByCreatedAtDesc(String tenantId);
+
+    List<BatchTranslationJob> findByPaperIdAndTenantIdOrderByCreatedAtDesc(UUID paperId, String tenantId);
 
     List<BatchTranslationJob> findByStatusAndTenantId(BatchTranslationJobStatus status, String tenantId);
 

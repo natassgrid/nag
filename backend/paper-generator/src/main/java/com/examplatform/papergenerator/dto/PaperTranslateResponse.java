@@ -17,35 +17,35 @@
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
 
-package com.examplatform.delivery.dto;
+package com.examplatform.papergenerator.dto;
 
-import jakarta.validation.constraints.NotNull;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.time.Instant;
 import java.util.UUID;
 
-/**
- * Request payload for starting an exam session.
- * The candidate JWT provides the candidateId — this DTO carries the exam/shift selection.
- */
 @Data
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class SessionStartRequest {
+public class PaperTranslateResponse {
 
-    @NotNull
-    private UUID examId;
-
-    private UUID shiftId;
-
-    @Builder.Default
-    private String languageCode = "en";
-
-    private Boolean forceNewSession;
-
-    private Boolean terminateExisting;
+    private UUID jobId;
+    private UUID paperId;
+    private String status;
+    private String sourceLanguage;
+    private String targetLanguage;
+    private String targetStatus;
+    private boolean overwriteExisting;
+    private int totalQuestions;
+    private int processedQuestions;
+    private int successfulQuestions;
+    private int failedQuestions;
+    private double progressPercentage;
+    private String message;
+    private Instant startedAt;
+    private Instant completedAt;
 }

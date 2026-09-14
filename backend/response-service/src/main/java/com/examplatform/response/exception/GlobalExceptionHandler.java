@@ -43,7 +43,7 @@ import java.util.stream.Collectors;
  * Validates: Requirements 10.1, 20.3
  */
 @Slf4j
-@RestControllerAdvice
+@RestControllerAdvice(basePackages = "com.examplatform.response")
 public class GlobalExceptionHandler {
 
     /**

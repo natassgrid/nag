@@ -37,7 +37,7 @@ import java.time.Instant;
  * Returns RFC 7807 Problem Detail responses for all error conditions.
  */
 @Slf4j
-@RestControllerAdvice
+@RestControllerAdvice(basePackages = "com.examplatform.result")
 public class GlobalExceptionHandler {
 
     /**

@@ -34,7 +34,7 @@ import java.time.Instant;
  * Global exception handler for the Analytics Service.
  */
 @Slf4j
-@RestControllerAdvice
+@RestControllerAdvice(basePackages = "com.examplatform.analytics")
 public class GlobalExceptionHandler {
 
     @ExceptionHandler(AccessDeniedException.class)

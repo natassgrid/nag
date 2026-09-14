@@ -19,6 +19,8 @@
 
 package com.examplatform.papergenerator.client;
 
+import com.examplatform.papergenerator.dto.BatchTranslationJobResponseDto;
+import com.examplatform.papergenerator.dto.PaperTranslateRequest;
 import com.examplatform.papergenerator.dto.QuestionSummary;
 
 import java.util.List;
@@ -53,4 +55,30 @@ public interface QuestionBankClient {
      * @return ordered list of question summaries
      */
     List<QuestionSummary> findQuestionsByIds(List<UUID> questionIds, String tenantId);
+
+    /**
+     * Triggers asynchronous batch translation for questions of a paper.
+     *
+     * @param paperId     the paper ID
+     * @param questionIds list of question UUIDs in the paper
+     * @param request     translation parameters (targetLanguage, overwriteExisting, etc.)
+     * @param initiatedBy user UUID
+     * @param tenantId    tenant identifier
+     * @return batch translation job status
+     */
+    BatchTranslationJobResponseDto triggerBatchTranslation(
+            UUID paperId,
+            List<UUID> questionIds,
+            PaperTranslateRequest request,
+            UUID initiatedBy,
+            String tenantId);
+
+    /**
+     * Retrieves the current status of a batch translation job.
+     *
+     * @param jobId    batch translation job UUID
+     * @param tenantId tenant identifier
+     * @return batch translation job status
+     */
+    BatchTranslationJobResponseDto getBatchTranslationStatus(UUID jobId, String tenantId);
 }
