@@ -271,7 +271,15 @@ public class ExamQuestionDeliveryService {
             params.addAll(questionUuids);
 
             jdbcTemplate.query(sql, rs -> {
-                UUID qId = rs.getObject("question_id", UUID.class);
+                UUID qId = null;
+                Object obj = rs.getObject("question_id");
+                if (obj instanceof UUID) {
+                    qId = (UUID) obj;
+                } else if (obj != null) {
+                    try {
+                        qId = UUID.fromString(obj.toString());
+                    } catch (Exception ignored) {}
+                }
                 String langCode = rs.getString("language_code");
                 String payload = rs.getString("translated_payload");
 
@@ -472,13 +480,14 @@ public class ExamQuestionDeliveryService {
     ) {
         String keyword = "%" + (subject != null && !subject.isBlank() ? subject.trim() : "") + "%";
         String sql = """
-            SELECT id, subject, topic, subtopic, difficulty, cognitive_level, question_type,
-                   content, options, answer_key, explanation
-            FROM question_service.question
-            WHERE (tenant_id = ? OR tenant_id = 'default')
-              AND state = 'APPROVED'
-              AND (subject ILIKE ? OR topic ILIKE ? OR subtopic ILIKE ?)
-            ORDER BY id
+            SELECT q.id, q.subject, q.topic, q.subtopic, q.difficulty, q.cognitive_level, q.question_type,
+                   q.content, q.options, q.answer_key, q.explanation
+            FROM question_service.question q
+            LEFT JOIN question_service.translation t ON q.id = t.question_id AND t.language_code = 'hi' AND t.status IN ('PUBLISHED', 'APPROVED')
+            WHERE (q.tenant_id = ? OR q.tenant_id = 'default')
+              AND q.state = 'APPROVED'
+              AND (q.subject ILIKE ? OR q.topic ILIKE ? OR q.subtopic ILIKE ?)
+            ORDER BY (t.id IS NOT NULL) DESC, q.id
             LIMIT ?
             """;
 
@@ -500,12 +509,13 @@ public class ExamQuestionDeliveryService {
 
         if (filtered.size() < limit) {
             String fallbackSql = """
-                SELECT id, subject, topic, subtopic, difficulty, cognitive_level, question_type,
-                       content, options, answer_key, explanation
-                FROM question_service.question
-                WHERE (tenant_id = ? OR tenant_id = 'default')
-                  AND state = 'APPROVED'
-                ORDER BY id
+                SELECT q.id, q.subject, q.topic, q.subtopic, q.difficulty, q.cognitive_level, q.question_type,
+                       q.content, q.options, q.answer_key, q.explanation
+                FROM question_service.question q
+                LEFT JOIN question_service.translation t ON q.id = t.question_id AND t.language_code = 'hi' AND t.status IN ('PUBLISHED', 'APPROVED')
+                WHERE (q.tenant_id = ? OR q.tenant_id = 'default')
+                  AND q.state = 'APPROVED'
+                ORDER BY (t.id IS NOT NULL) DESC, q.id
                 LIMIT 200
                 """;
             List<QuestionDeliveryDto> extra = queryQuestions(fallbackSql, new Object[]{tenantId}, secId, secName, marks, negMarks);
@@ -528,17 +538,18 @@ public class ExamQuestionDeliveryService {
 
     private List<QuestionDeliveryDto> fetchDefaultApprovedQuestions(String tenantId) {
         String sql = """
-            SELECT id, subject, topic, subtopic, difficulty, cognitive_level, question_type,
-                   content, options, answer_key, explanation
-            FROM question_service.question
-            WHERE (tenant_id = ? OR tenant_id = 'default')
-              AND state = 'APPROVED'
-            ORDER BY CASE 
-              WHEN subject ILIKE '%Reasoning%' OR subject ILIKE '%Intelligence%' THEN 1
-              WHEN subject ILIKE '%Awareness%' OR subject ILIKE '%General Studies%' THEN 2
-              WHEN subject ILIKE '%Quantitative%' OR subject ILIKE '%Math%' THEN 3
-              WHEN subject ILIKE '%English%' THEN 4
-              ELSE 5 END, id
+            SELECT q.id, q.subject, q.topic, q.subtopic, q.difficulty, q.cognitive_level, q.question_type,
+                   q.content, q.options, q.answer_key, q.explanation
+            FROM question_service.question q
+            LEFT JOIN question_service.translation t ON q.id = t.question_id AND t.language_code = 'hi' AND t.status IN ('PUBLISHED', 'APPROVED')
+            WHERE (q.tenant_id = ? OR q.tenant_id = 'default')
+              AND q.state = 'APPROVED'
+            ORDER BY (t.id IS NOT NULL) DESC, CASE 
+              WHEN q.subject ILIKE '%Reasoning%' OR q.subject ILIKE '%Intelligence%' THEN 1
+              WHEN q.subject ILIKE '%Awareness%' OR q.subject ILIKE '%General Studies%' THEN 2
+              WHEN q.subject ILIKE '%Quantitative%' OR q.subject ILIKE '%Math%' THEN 3
+              WHEN q.subject ILIKE '%English%' THEN 4
+              ELSE 5 END, q.id
             LIMIT 100
             """;
         return queryQuestions(sql, new Object[]{tenantId}, null, null, 2.0, 0.5);
