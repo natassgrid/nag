@@ -24,6 +24,7 @@ import {
   Check,
   X,
   Filter,
+  Globe,
 } from 'lucide-react';
 import { examService } from '../services/examService';
 import { sessionService } from '../services/sessionService';
@@ -31,10 +32,13 @@ import { responseService } from '../services/responseService';
 import { useToast } from '../components/Toast';
 import { MathRenderer } from '../components/MathRenderer';
 import { ImageZoomModal } from '../components/ImageZoomModal';
+import { LanguageSelector, ALL_EXAM_LANGUAGES } from '../components/LanguageSelector';
+import { ExamLanguageBanner } from '../components/ExamLanguageBanner';
 import { offlineQueue } from '../utils/offlineQueue';
+import { saveLanguagePreference, loadLanguagePreference, clearLanguagePreference } from '../utils/languagePreference';
 import { FEATURE_FLAGS } from '../config/featureFlags';
 import { OFFICIAL_EXAM_QUESTIONS } from '../data/examQuestions';
-import type { ExaminationResponse, QuestionDto, SessionStartResponse } from '../types/api';
+import type { ExaminationResponse, ExamLanguage, QuestionDto, SessionStartResponse } from '../types/api';
 
 type QuestionStatus =
   | 'NOT_VISITED'
@@ -102,8 +106,54 @@ const TakeExam: React.FC = () => {
   const [showExplanation, setShowExplanation] = useState<boolean>(false);
   const [filterBySection, setFilterBySection] = useState<boolean>(true);
 
+  // ─── Multi-Language Delivery State (Issue #103) ───────────────────────────
+  // showLanguageSelector: true while the pre-exam language modal is visible.
+  // Exam initialisation is deferred until the candidate confirms a language choice.
+  const [showLanguageSelector, setShowLanguageSelector] = useState<boolean>(
+    FEATURE_FLAGS.ENABLE_MULTILINGUAL
+  );
+  const [availableLanguages, setAvailableLanguages] = useState<ExamLanguage[]>([]);
+  // activeLanguage: the language the candidate is currently viewing questions in.
+  const [activeLanguage, setActiveLanguage] = useState<ExamLanguage>(ALL_EXAM_LANGUAGES[0]); // 'en'
+  // splitView: show English and regional translation side-by-side (desktop only).
+  const [splitView, setSplitView] = useState<boolean>(false);
+
   const sessionIdRef = useRef<string>('');
   const isOfflineSessionRef = useRef<boolean>(false);
+
+  // ─── Language confirmation handler ───────────────────────────────────────
+  // Called when candidate clicks "Proceed to Exam" in the LanguageSelector modal.
+  const handleLanguageConfirmed = (languageCode: string) => {
+    const lang =
+      (availableLanguages.length > 0 ? availableLanguages : ALL_EXAM_LANGUAGES).find(
+        (l) => l.code === languageCode
+      ) ?? ALL_EXAM_LANGUAGES[0];
+    setActiveLanguage(lang);
+    setShowLanguageSelector(false);
+    // Persist for session resumption / page reload recovery
+    if (sessionIdRef.current) {
+      saveLanguagePreference(sessionIdRef.current, languageCode);
+    }
+  };
+
+  // ─── Per-question text resolver ──────────────────────────────────────────
+  // Returns the appropriate text for the active language, falling back to English.
+  const resolveText = (q: QuestionDto, field: 'text' | 'explanation'): string => {
+    if (activeLanguage.code === 'en' || !q.translations?.[activeLanguage.code]) {
+      return q[field] ?? '';
+    }
+    return q.translations[activeLanguage.code][field] ?? q[field] ?? '';
+  };
+
+  const resolveOptionText = (q: QuestionDto, optIndex: number): string => {
+    if (activeLanguage.code === 'en' || !q.translations?.[activeLanguage.code]) {
+      return q.options[optIndex]?.text ?? '';
+    }
+    const translated = q.translations[activeLanguage.code].options.find(
+      (o) => o.index === optIndex
+    );
+    return translated?.text ?? q.options[optIndex]?.text ?? '';
+  };
 
   // Extract sections
   const sections = Array.from(new Set(questions.map((q) => q.sectionName || 'General Section')));
@@ -202,6 +252,32 @@ const TakeExam: React.FC = () => {
         const qList =
           s.questions && s.questions.length > 0 ? s.questions : OFFICIAL_EXAM_QUESTIONS;
         setQuestions(qList);
+
+        // ── Multilingual: resolve available languages & restore persisted preference ──
+        if (FEATURE_FLAGS.ENABLE_MULTILINGUAL) {
+          // Use languages returned by delivery service, or fall back to English-only
+          const langs: ExamLanguage[] =
+            s.availableLanguages && s.availableLanguages.length > 0
+              ? s.availableLanguages
+              : [ALL_EXAM_LANGUAGES[0]]; // English only
+          setAvailableLanguages(langs);
+
+          // Restore persisted language preference for this session (survives page reload)
+          const persisted = loadLanguagePreference(s.sessionId);
+          const defaultCode = persisted ?? s.defaultLanguageCode ?? 'en';
+          const resolvedLang =
+            langs.find((l) => l.code === defaultCode) ?? ALL_EXAM_LANGUAGES[0];
+          setActiveLanguage(resolvedLang);
+
+          // If language was already persisted (session resumed), skip the selector
+          if (persisted) {
+            setShowLanguageSelector(false);
+          } else if (langs.length <= 1) {
+            // Only English available — no point showing selector
+            setShowLanguageSelector(false);
+          }
+          // Otherwise showLanguageSelector stays true (set in useState initialiser)
+        }
 
         // Initialize question state dictionary
         const initialAnswers: Record<string, AnswerRecord> = {};
@@ -500,6 +576,8 @@ const TakeExam: React.FC = () => {
       ) {
         await responseService.submitSession(session.sessionId);
       }
+      // Clear persisted language preference after submission
+      clearLanguagePreference(session.sessionId);
       toast.success(
         autoSubmit ? 'Time Expired - Exam Auto-Submitted' : 'Exam Submitted Successfully',
         'Your responses have been sealed and transmitted to evaluation-service.'
@@ -568,6 +646,15 @@ const TakeExam: React.FC = () => {
 
   return (
     <div className="flex h-screen flex-col bg-slate-100 font-sans select-none">
+      {/* Pre-exam Language Selection Modal */}
+      {FEATURE_FLAGS.ENABLE_MULTILINGUAL && showLanguageSelector && (
+        <LanguageSelector
+          availableLanguages={availableLanguages.length > 0 ? availableLanguages : ALL_EXAM_LANGUAGES}
+          defaultLanguageCode={activeLanguage.code}
+          examTitle={displayExamTitle}
+          onConfirm={handleLanguageConfirmed}
+        />
+      )}
       {/* Top Bar Header */}
       <header className="flex h-14 items-center justify-between border-b border-slate-700 bg-slate-900 px-4 text-white shadow-md">
         <div className="flex items-center gap-3">
@@ -594,6 +681,47 @@ const TakeExam: React.FC = () => {
               <GraduationCap className="h-3.5 w-3.5" />
               <span>{isPracticeMode ? 'Practice Mode (Active)' : 'Official Exam Mode'}</span>
             </button>
+          )}
+
+          {/* Per-question Language Toggle (Multilingual Mode) */}
+          {FEATURE_FLAGS.ENABLE_MULTILINGUAL && availableLanguages.length > 1 && (
+            <div className="ml-2 flex items-center gap-1 rounded-full border border-slate-600 bg-slate-800 px-1 py-0.5 text-xs font-bold">
+              <Globe className="h-3.5 w-3.5 text-teal-400 ml-1" />
+              {availableLanguages.slice(0, 4).map((lang) => (
+                <button
+                  key={lang.code}
+                  onClick={() => {
+                    setActiveLanguage(lang);
+                    setSplitView(false);
+                    if (sessionIdRef.current) {
+                      saveLanguagePreference(sessionIdRef.current, lang.code);
+                    }
+                  }}
+                  title={`View in ${lang.name}`}
+                  className={`rounded-full px-2 py-0.5 transition ${
+                    activeLanguage.code === lang.code
+                      ? 'bg-teal-600 text-white'
+                      : 'text-slate-300 hover:bg-slate-700'
+                  }`}
+                >
+                  {lang.code === 'en' ? 'EN' : lang.nativeName.slice(0, 3)}
+                </button>
+              ))}
+              {/* Split view toggle — desktop only */}
+              {activeLanguage.code !== 'en' && (
+                <button
+                  onClick={() => setSplitView((v) => !v)}
+                  title="Toggle side-by-side bilingual view"
+                  className={`hidden md:flex rounded-full px-2 py-0.5 transition items-center gap-1 ${
+                    splitView
+                      ? 'bg-indigo-600 text-white'
+                      : 'text-slate-400 hover:bg-slate-700'
+                  }`}
+                >
+                  ⧉
+                </button>
+              )}
+            </div>
           )}
         </div>
 
@@ -718,6 +846,20 @@ const TakeExam: React.FC = () => {
         </div>
       </div>
 
+      {/* Regulatory Disclaimer Banner — shown when viewing regional language */}
+      {FEATURE_FLAGS.ENABLE_MULTILINGUAL && (
+        <ExamLanguageBanner
+          activeLanguage={activeLanguage}
+          onSwitchToEnglish={() => {
+            setActiveLanguage(ALL_EXAM_LANGUAGES[0]);
+            setSplitView(false);
+            if (sessionIdRef.current) {
+              saveLanguagePreference(sessionIdRef.current, 'en');
+            }
+          }}
+        />
+      )}
+
       {/* Main Delivery Body */}
       <div className="flex flex-1 overflow-hidden">
         {/* Left / Center: Question & Options Panel */}
@@ -752,7 +894,27 @@ const TakeExam: React.FC = () => {
                     fontSize === 'large' ? 'text-lg' : 'text-base'
                   }`}
                 >
-                  <MathRenderer content={currentQ.text} />
+                  {/* Split view: English + Regional side by side (desktop) */}
+                  {splitView && activeLanguage.code !== 'en' ? (
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <p className="mb-1 text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                          English (Master Reference)
+                        </p>
+                        <MathRenderer content={currentQ.text} />
+                      </div>
+                      <div dir={activeLanguage.rtl ? 'rtl' : 'ltr'}>
+                        <p className="mb-1 text-[10px] font-bold uppercase tracking-wider text-teal-600">
+                          {activeLanguage.name} ({activeLanguage.nativeName})
+                        </p>
+                        <MathRenderer content={resolveText(currentQ, 'text')} />
+                      </div>
+                    </div>
+                  ) : (
+                    <div dir={activeLanguage.rtl ? 'rtl' : 'ltr'}>
+                      <MathRenderer content={resolveText(currentQ, 'text')} />
+                    </div>
+                  )}
                 </div>
 
                 {/* Options List with Markdown & LaTeX Rendering */}
@@ -798,8 +960,8 @@ const TakeExam: React.FC = () => {
                                 >
                                   {String.fromCharCode(65 + opt.index)}
                                 </div>
-                                <div className="text-sm leading-snug">
-                                  <MathRenderer content={opt.text} inline />
+                                <div className="text-sm leading-snug" dir={activeLanguage.rtl ? 'rtl' : 'ltr'}>
+                                  <MathRenderer content={resolveOptionText(currentQ, opt.index)} inline />
                                 </div>
                               </div>
 
@@ -862,7 +1024,7 @@ const TakeExam: React.FC = () => {
                         <div className="mt-2 text-xs leading-relaxed text-slate-800 font-medium">
                           <MathRenderer
                             content={
-                              currentQ.explanation ||
+                              resolveText(currentQ, 'explanation') ||
                               'The correct answer is Option ' +
                                 String.fromCharCode(65 + (currentQ.correctOptionIndex ?? 0)) +
                                 '.'
