@@ -80,18 +80,24 @@ public class ResponseController {
             @PathVariable UUID sessionId,
             @Valid @RequestBody SaveResponseRequest request,
             @AuthenticationPrincipal Jwt jwt,
-            @RequestHeader(value = "X-Tenant-Id", required = false) String tenantId) {
+            @RequestHeader(value = "X-Tenant-Id", required = false) String tenantId,
+            @RequestHeader(value = "X-Forwarded-For", required = false) String xForwardedFor,
+            @RequestHeader(value = "User-Agent", required = false) String userAgent) {
 
         long startTime = System.currentTimeMillis();
 
         UUID candidateId = UUID.fromString(jwt.getSubject());
         String effectiveTenant = (tenantId != null && !tenantId.isBlank()) ? tenantId : "default";
 
+        String clientIp = (xForwardedFor != null && !xForwardedFor.isBlank())
+            ? xForwardedFor.split(",")[0].trim()
+            : "unknown";
+
         log.debug("Saving response: sessionId={}, questionId={}, candidate={}, tenant={}",
                 sessionId, request.getQuestionId(), candidateId, effectiveTenant);
 
         SaveResponseResponse response = responseSaveService.saveResponse(
-                sessionId, request, candidateId, effectiveTenant);
+                sessionId, request, candidateId, effectiveTenant, clientIp, userAgent);
 
         long elapsed = System.currentTimeMillis() - startTime;
         if (elapsed > 150) {

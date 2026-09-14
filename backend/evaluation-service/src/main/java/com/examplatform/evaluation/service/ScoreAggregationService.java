@@ -48,6 +48,7 @@ import java.util.stream.Collectors;
 public class ScoreAggregationService {
 
     private static final String EVALUATION_EVENTS_TOPIC = "exam.evaluation.events";
+    private static final String EVALUATION_COMPLETED_TOPIC = "exam.evaluation.completed";
 
     private final EvaluationRepository evaluationRepository;
     private final EventPublisher eventPublisher;
@@ -62,7 +63,7 @@ public class ScoreAggregationService {
      * @param tenantId    examination authority
      * @return aggregation result map with total and section-wise scores
      */
-    public Map<String, Object> aggregateScores(UUID sessionId, UUID candidateId, String tenantId) {
+    public Map<String, Object> aggregateScores(UUID sessionId, UUID candidateId, UUID examId, String tenantId) {
         List<Evaluation> evaluations = evaluationRepository
                 .findBySessionIdAndTenantId(sessionId, tenantId)
                 .stream()
@@ -109,6 +110,8 @@ public class ScoreAggregationService {
 
         // Publish aggregation event
         publishAggregationEvent(result);
+        
+        publishEvaluationCompletedEvent(result, sessionId, candidateId, examId, tenantId, evaluations);
 
         log.info("Score aggregation complete for session={}, candidate={}: total={}",
                 sessionId, candidateId, totalRawScore);
@@ -131,6 +134,45 @@ public class ScoreAggregationService {
             eventPublisher.publish(EVALUATION_EVENTS_TOPIC, key, event);
         } catch (Exception e) {
             log.error("Failed to publish SCORES_AGGREGATED event: {}", e.getMessage());
+        }
+    }
+
+    /**
+     * Publishes EVALUATION_COMPLETED event to trigger result-service computation.
+     * Includes question-level scores with timeSpentMs for diagnostic analytics.
+     * Validates: SPEC-E2
+     */
+    private void publishEvaluationCompletedEvent(Map<String, Object> aggregation,
+                                                  UUID sessionId, UUID candidateId,
+                                                  UUID examId, String tenantId,
+                                                  List<Evaluation> evaluations) {
+        try {
+            // Build question-level score entries
+            List<Map<String, Object>> questionLevelScores = evaluations.stream()
+                    .map(e -> Map.<String, Object>of(
+                            "questionId", e.getQuestionId().toString(),
+                            "score", e.getScore(),
+                            "maxMarks", e.getMaxMarks()
+                    ))
+                    .toList();
+
+            Map<String, Object> event = new java.util.HashMap<>();
+            event.put("eventType", "EVALUATION_COMPLETED");
+            event.put("sessionId", sessionId.toString());
+            event.put("candidateId", candidateId.toString());
+            event.put("examId", examId != null ? examId.toString() : "");
+            event.put("totalRawScore", aggregation.get("totalRawScore"));
+            event.put("sectionScores", aggregation.getOrDefault("sectionScores", java.util.Map.of()));
+            event.put("questionLevelScores", questionLevelScores);
+            event.put("tenantId", tenantId);
+            event.put("evaluatedAt", java.time.Instant.now().toString());
+
+            eventPublisher.publish(EVALUATION_COMPLETED_TOPIC, sessionId.toString(), event);
+            log.info("EVALUATION_COMPLETED event published: session={}, candidate={}, examId={}, questionCount={}",
+                    sessionId, candidateId, examId, questionLevelScores.size());
+        } catch (Exception e) {
+            log.error("Failed to publish EVALUATION_COMPLETED event for session={}: {}", sessionId, e.getMessage());
+            // Never block the aggregation for event failures
         }
     }
 }

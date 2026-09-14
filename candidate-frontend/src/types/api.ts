@@ -508,6 +508,10 @@ export interface ResultDto {
   scorecardPdfRef?: string;
   computedAt?: string;
   publishedAt?: string;
+  cognitiveBreakdown?: CognitiveBreakdown;
+  topicBreakdown?: Record<string, TopicScore>;
+  timeAnalysis?: TimeAnalysis;
+  categoryRank?: number;
 }
 
 // ─── Asset Service DTOs ─────────────────────────────────────────────────
@@ -543,4 +547,58 @@ export interface NotificationDto {
   isRead: boolean;
   createdAt: string;
   actionUrl?: string;
+}
+
+// ─── Post-Exam Review Types (Issue #101) ───────────────────────────────────
+
+export interface ReviewOption {
+  id: string;
+  text: string;
+  isCorrect: boolean;
+}
+
+export interface ReviewQuestion {
+  questionId: string;
+  questionNumber: number;
+  content: string;
+  subject: string;
+  topic: string;
+  difficulty: 'EASY' | 'MEDIUM' | 'HARD';
+  bloomsLevel: 'REMEMBER' | 'UNDERSTAND' | 'APPLY' | 'ANALYZE' | 'EVALUATE' | 'CREATE';
+  options: ReviewOption[];
+  candidateSelectedOptionIds: string[];
+  isCorrect: boolean;
+  marksAwarded: number;
+  timeSpentMs: number;
+  peerAccuracyPct: number;
+  explanation: string;
+}
+
+export interface ExamReviewResponse {
+  examId: string;
+  candidateId: string;
+  questions: ReviewQuestion[];
+}
+
+// ─── Extended ResultDto fields (Issue #101 diagnostics) ─────────────────────
+
+export interface CognitiveBreakdown {
+  REMEMBER?: number;
+  UNDERSTAND?: number;
+  APPLY?: number;
+  ANALYZE?: number;
+  EVALUATE?: number;
+  CREATE?: number;
+}
+
+export interface TopicScore {
+  score: number;
+  maxScore: number;
+}
+
+export interface TimeAnalysis {
+  avgTimePerQuestionMs: number;
+  timeOnCorrectMs: number;
+  timeOnIncorrectMs: number;
+  totalQuestions: number;
 }

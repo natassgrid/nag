@@ -86,12 +86,13 @@ public class EvaluationController {
 
         UUID sessionId = UUID.fromString(body.get("sessionId"));
         UUID candidateId = UUID.fromString(body.get("candidateId"));
+        UUID examId = body.containsKey("examId") && body.get("examId") != null ? UUID.fromString(body.get("examId")) : null;
         String tenantId = TenantContext.get() != null ? TenantContext.get() : "default";
 
-        log.info("Score aggregation requested for session={}, candidate={}", sessionId, candidateId);
+        log.info("Score aggregation requested for session={}, candidate={}, exam={}", sessionId, candidateId, examId);
 
         Map<String, Object> result = scoreAggregationService.aggregateScores(
-                sessionId, candidateId, tenantId);
+                sessionId, candidateId, examId, tenantId);
 
         return ResponseEntity.ok(result);
     }

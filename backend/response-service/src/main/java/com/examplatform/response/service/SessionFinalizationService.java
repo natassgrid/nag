@@ -24,6 +24,7 @@ import com.examplatform.response.repository.ResponseRepository;
 import com.examplatform.shared.messaging.EventPublisher;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -31,6 +32,7 @@ import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+
 
 /**
  * Handles session finalization (submission): marks all responses as final
@@ -48,6 +50,7 @@ public class SessionFinalizationService {
 
     private final ResponseRepository responseRepository;
     private final EventPublisher eventPublisher;
+    private final RedisTemplate<String, Object> redisTemplate;
 
     /**
      * Finalizes all responses for the given session: sets isFinal=true,
@@ -58,7 +61,28 @@ public class SessionFinalizationService {
      * @param tenantId    the tenant identifier
      */
     public void submitSession(UUID sessionId, UUID candidateId, String tenantId) {
+        // Check for double-submission using Redis idempotency lock
+        String lockKey = "submit:lock:" + sessionId;
+        try {
+            Boolean wasAbsent = redisTemplate.opsForValue().setIfAbsent(
+                lockKey, candidateId.toString(), java.time.Duration.ofSeconds(30));
+            if (Boolean.FALSE.equals(wasAbsent)) {
+                log.warn("Double-submission detected for session={}", sessionId);
+                throw new com.examplatform.response.exception.AlreadySubmittedException(sessionId.toString());
+            }
+        } catch (com.examplatform.response.exception.AlreadySubmittedException e) {
+            throw e;
+        } catch (Exception e) {
+            log.warn("Redis unavailable for submit lock (fail-open): session={}, error={}", sessionId, e.getMessage());
+            // fail-open: proceed with submission
+        }
+
         List<Response> responses = responseRepository.findBySessionIdAndTenantId(sessionId, tenantId);
+
+        // Also check if already finalized in DB
+        if (!responses.isEmpty() && responses.stream().allMatch(Response::isFinal)) {
+            throw new com.examplatform.response.exception.AlreadySubmittedException(sessionId.toString());
+        }
 
         if (responses.isEmpty()) {
             log.warn("No responses found for session={} in tenant={}", sessionId, tenantId);

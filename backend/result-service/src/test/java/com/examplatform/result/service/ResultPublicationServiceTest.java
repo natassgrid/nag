@@ -123,7 +123,7 @@ class ResultPublicationServiceTest {
         Result result = publicationService.publishResult(candidateId, examId, tenantId);
 
         verify(digiLockerClient).pushScorecard(candidateId, sampleResult.getScorecardPdfRef());
-        assertThat(result.getDigiLockerPushed()).isTrue();
+        assertThat(result.isDigiLockerPushed()).isTrue();
     }
 
     @Test

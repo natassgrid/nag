@@ -83,6 +83,24 @@ public class ScorecardPdfService {
 
                 writeScorecardContent(document, page, result, candidateId);
 
+                // Store the QR code on the result if not already set
+                if (result.getQrVerificationCode() == null) {
+                    result.setQrVerificationCode(generateVerificationCode());
+                }
+
+                // Embed QR code in the PDF
+                try {
+                    String qrContent = "https://nag.gov.in/verify?code=" + result.getQrVerificationCode();
+                    java.awt.image.BufferedImage qrImage = generateQrCode(qrContent);
+                    embedQrCode(document, page, qrImage);
+                } catch (Exception qrEx) {
+                    log.warn("QR code embedding failed (non-fatal): {}", qrEx.getMessage());
+                }
+
+                // Save to stream
+                java.io.ByteArrayOutputStream baos = new java.io.ByteArrayOutputStream();
+                document.save(baos);
+
                 // Apply password protection
                 AccessPermission permissions = new AccessPermission();
                 permissions.setCanPrint(true);
@@ -243,5 +261,47 @@ public class ScorecardPdfService {
         }
 
         return yPosition;
+    }
+
+    /**
+     * Generates a QR code image for the given content string.
+     *
+     * @param content the URL or text to encode in the QR code
+     * @return BufferedImage containing the QR code
+     * @throws Exception if QR code generation fails
+     */
+    private java.awt.image.BufferedImage generateQrCode(String content) throws Exception {
+        com.google.zxing.qrcode.QRCodeWriter qrCodeWriter = new com.google.zxing.qrcode.QRCodeWriter();
+        com.google.zxing.common.BitMatrix bitMatrix = qrCodeWriter.encode(
+                content,
+                com.google.zxing.BarcodeFormat.QR_CODE,
+                150, 150
+        );
+        return com.google.zxing.client.j2se.MatrixToImageWriter.toBufferedImage(bitMatrix);
+    }
+
+    /**
+     * Generates a unique QR verification code (UUID-based token).
+     */
+    public String generateVerificationCode() {
+        return UUID.randomUUID().toString();
+    }
+
+    /**
+     * Embeds a QR code BufferedImage into the PDF at the bottom-right corner.
+     */
+    private void embedQrCode(PDDocument document, PDPage page, java.awt.image.BufferedImage qrImage) throws IOException {
+        try (java.io.ByteArrayOutputStream baos = new java.io.ByteArrayOutputStream()) {
+            javax.imageio.ImageIO.write(qrImage, "PNG", baos);
+            try (java.io.InputStream is = new java.io.ByteArrayInputStream(baos.toByteArray())) {
+                org.apache.pdfbox.pdmodel.graphics.image.PDImageXObject pdImage =
+                        org.apache.pdfbox.pdmodel.graphics.image.PDImageXObject.createFromByteArray(document, baos.toByteArray(), "qr");
+                try (PDPageContentStream qrStream = new PDPageContentStream(
+                        document, page, PDPageContentStream.AppendMode.APPEND, true)) {
+                    float pageWidth = page.getMediaBox().getWidth();
+                    qrStream.drawImage(pdImage, pageWidth - 170, 20, 150, 150);
+                }
+            }
+        }
     }
 }
