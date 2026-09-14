@@ -135,6 +135,7 @@ const TakeExam: React.FC = () => {
 
   // --- Concurrent Active Session Conflict State ---
   const [concurrentConflict, setConcurrentConflict] = useState<boolean>(false);
+  const [activeExistingExamId, setActiveExistingExamId] = useState<string | null>(null);
   const [conflictLoading, setConflictLoading] = useState<boolean>(false);
 
   const sessionIdRef = useRef<string>('');
@@ -278,6 +279,10 @@ const TakeExam: React.FC = () => {
         setConcurrentConflict(false);
       } catch (err: any) {
         const errMsg = err?.response?.data?.error?.message || err?.response?.data?.detail || err?.message || '';
+        const activeExamIdFromBackend =
+          err?.response?.data?.error?.activeExamId ||
+          err?.response?.data?.activeExamId ||
+          (errMsg.match(/exam\s+([0-9a-fA-F-]{36})/i)?.[1] ?? null);
         const status = err?.response?.status;
         if (
           status === 409 ||
@@ -285,6 +290,7 @@ const TakeExam: React.FC = () => {
           errMsg.includes('ConcurrentSessionException') ||
           errMsg.includes('CONCURRENT_SESSION')
         ) {
+          setActiveExistingExamId(activeExamIdFromBackend);
           setConcurrentConflict(true);
           setLoading(false);
           return;
@@ -736,6 +742,20 @@ const TakeExam: React.FC = () => {
                 Return to Dashboard
               </button>
 
+              {activeExistingExamId && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setConcurrentConflict(false);
+                    navigate(`/take-exam/${activeExistingExamId}`);
+                  }}
+                  className="w-full sm:w-auto rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-emerald-700 transition flex items-center justify-center gap-2 cursor-pointer"
+                >
+                  <ChevronRight className="h-4 w-4" />
+                  <span>Resume Existing Exam</span>
+                </button>
+              )}
+
               <button
                 type="button"
                 disabled={conflictLoading}
@@ -749,10 +769,10 @@ const TakeExam: React.FC = () => {
                     setConflictLoading(false);
                   }
                 }}
-                className="w-full sm:w-auto rounded-xl bg-red-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-red-700 transition flex items-center justify-center gap-2 cursor-pointer"
+                className="w-full sm:w-auto rounded-xl bg-red-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-red-700 transition flex items-center justify-center gap-2 cursor-pointer"
               >
                 <RotateCcw className={`h-4 w-4 ${conflictLoading ? 'animate-spin' : ''}`} />
-                <span>{conflictLoading ? 'Terminating & Starting...' : 'End Old Session & Start New'}</span>
+                <span>{conflictLoading ? 'Ending Old...' : 'End Old & Start New'}</span>
               </button>
             </div>
           </div>

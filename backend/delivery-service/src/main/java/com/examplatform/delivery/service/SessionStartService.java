@@ -126,7 +126,9 @@ public class SessionStartService {
             } else {
                 // Active session belongs to a different exam
                 throw new ConcurrentSessionException(
-                        "Candidate " + candidateId + " already has an active session for exam " + activeSession.getExamId() + " in tenant " + effectiveTenant);
+                        "Candidate " + candidateId + " already has an active session for exam " + activeSession.getExamId() + " in tenant " + effectiveTenant,
+                        activeSession.getExamId(),
+                        activeSession.getSessionId());
             }
         }
 
