@@ -1,9 +1,35 @@
 // src/utils/languagePreference.ts
-// Persists the candidate's chosen examination medium to localStorage so that
-// the preference survives page refreshes during an exam session (e.g. after
-// a network interruption that triggers a browser reload).
+// Persists candidate examination language preferences to localStorage and handles
+// candidate profile preferred language resolution (English + 1 chosen Indian scheduled language).
 
-const KEY_PREFIX = 'nag_exam_lang_';
+const SESSION_KEY_PREFIX = 'nag_exam_lang_';
+export const CANDIDATE_PREFERRED_LANG_KEY = 'nag_candidate_preferred_language';
+
+/**
+ * Retrieve the candidate's global preferred regional language (e.g. from candidate profile).
+ * Defaults to 'hi' (Hindi) if not previously chosen.
+ */
+export function getCandidatePreferredRegionalLanguage(): string {
+  try {
+    const saved = localStorage.getItem(CANDIDATE_PREFERRED_LANG_KEY);
+    return saved && saved !== 'en' ? saved : 'hi';
+  } catch {
+    return 'hi';
+  }
+}
+
+/**
+ * Persist the candidate's preferred regional language chosen in profile or exam setup.
+ */
+export function setCandidatePreferredRegionalLanguage(languageCode: string): void {
+  try {
+    if (languageCode) {
+      localStorage.setItem(CANDIDATE_PREFERRED_LANG_KEY, languageCode);
+    }
+  } catch {
+    // ignore
+  }
+}
 
 /**
  * Persist the candidate's language choice for a specific exam session.
@@ -11,7 +37,7 @@ const KEY_PREFIX = 'nag_exam_lang_';
  */
 export function saveLanguagePreference(sessionId: string, languageCode: string): void {
   try {
-    localStorage.setItem(`${KEY_PREFIX}${sessionId}`, languageCode);
+    localStorage.setItem(`${SESSION_KEY_PREFIX}${sessionId}`, languageCode);
   } catch {
     // localStorage may be unavailable (private browsing quota exceeded) — silently ignore
   }
@@ -23,7 +49,7 @@ export function saveLanguagePreference(sessionId: string, languageCode: string):
  */
 export function loadLanguagePreference(sessionId: string): string | null {
   try {
-    return localStorage.getItem(`${KEY_PREFIX}${sessionId}`);
+    return localStorage.getItem(`${SESSION_KEY_PREFIX}${sessionId}`);
   } catch {
     return null;
   }
@@ -34,7 +60,7 @@ export function loadLanguagePreference(sessionId: string): string | null {
  */
 export function clearLanguagePreference(sessionId: string): void {
   try {
-    localStorage.removeItem(`${KEY_PREFIX}${sessionId}`);
+    localStorage.removeItem(`${SESSION_KEY_PREFIX}${sessionId}`);
   } catch {
     // ignore
   }

@@ -36,7 +36,13 @@ import { ImageZoomModal } from '../components/ImageZoomModal';
 import { LanguageSelector, ALL_EXAM_LANGUAGES } from '../components/LanguageSelector';
 import { ExamLanguageBanner } from '../components/ExamLanguageBanner';
 import { offlineQueue } from '../utils/offlineQueue';
-import { saveLanguagePreference, loadLanguagePreference, clearLanguagePreference } from '../utils/languagePreference';
+import {
+  saveLanguagePreference,
+  loadLanguagePreference,
+  clearLanguagePreference,
+  getCandidatePreferredRegionalLanguage,
+  setCandidatePreferredRegionalLanguage,
+} from '../utils/languagePreference';
 import { FEATURE_FLAGS } from '../config/featureFlags';
 import { OFFICIAL_EXAM_QUESTIONS } from '../data/examQuestions';
 import type { ExaminationResponse, ExamLanguage, QuestionDto, QuestionOption, SessionStartResponse } from '../types/api';
@@ -114,36 +120,43 @@ const TakeExam: React.FC = () => {
   const [isPracticeMode, setIsPracticeMode] = useState<boolean>(false);
   const [showExplanation, setShowExplanation] = useState<boolean>(false);
   const [filterBySection, setFilterBySection] = useState<boolean>(true);
-
-  // ─── Multi-Language Delivery State (Issue #103) ───────────────────────────
-  // showLanguageSelector: true while the pre-exam language modal is visible.
-  // Exam initialisation is deferred until the candidate confirms a language choice.
-  const [showLanguageSelector, setShowLanguageSelector] = useState<boolean>(
-    FEATURE_FLAGS.ENABLE_MULTILINGUAL
+  // --- Candidate Language Medium State (English + 1 Preferred Indian Language) ---
+  const [preferredRegionalCode, setPreferredRegionalCode] = useState<string>(() =>
+    getCandidatePreferredRegionalLanguage()
   );
-  const [availableLanguages, setAvailableLanguages] = useState<ExamLanguage[]>(ALL_EXAM_LANGUAGES);
-  // activeLanguage: the language the candidate is currently viewing questions in.
-  const [activeLanguage, setActiveLanguage] = useState<ExamLanguage>(ALL_EXAM_LANGUAGES[0]); // 'en'
-  // splitView: show English and regional translation side-by-side (desktop only).
+
+  const preferredRegionalLang =
+    ALL_EXAM_LANGUAGES.find((l) => l.code === preferredRegionalCode) ??
+    ALL_EXAM_LANGUAGES.find((l) => l.code === 'hi') ??
+    ALL_EXAM_LANGUAGES[1];
+
+  const [showLanguageSelector, setShowLanguageSelector] = useState<boolean>(false);
+  const [availableLanguages, setAvailableLanguages] = useState<ExamLanguage[]>([
+    ALL_EXAM_LANGUAGES[0],
+    preferredRegionalLang,
+  ]);
+  // activeLanguage: current language view ('en' or preferredRegionalLang)
+  const [activeLanguage, setActiveLanguage] = useState<ExamLanguage>(preferredRegionalLang);
+  // isBilingual: show English master reference + regional translation
   const [isBilingual, setIsBilingual] = useState<boolean>(true);
 
   const sessionIdRef = useRef<string>('');
   const isOfflineSessionRef = useRef<boolean>(false);
 
-  // ─── Language confirmation handler ───────────────────────────────────────
-  // Called when candidate clicks "Proceed to Exam" in the LanguageSelector modal.
+  // --- Language confirmation handler -----------------------------------------
   const handleLanguageConfirmed = (languageCode: string) => {
-    const lang =
-      (availableLanguages.length > 0 ? availableLanguages : ALL_EXAM_LANGUAGES).find(
-        (l) => l.code === languageCode
-      ) ?? ALL_EXAM_LANGUAGES[0];
+    if (languageCode !== 'en') {
+      setPreferredRegionalCode(languageCode);
+      setCandidatePreferredRegionalLanguage(languageCode);
+    }
+    const lang = ALL_EXAM_LANGUAGES.find((l) => l.code === languageCode) ?? ALL_EXAM_LANGUAGES[0];
     setActiveLanguage(lang);
     setShowLanguageSelector(false);
-    // Persist for session resumption / page reload recovery
     if (sessionIdRef.current) {
       saveLanguagePreference(sessionIdRef.current, languageCode);
     }
   };
+
 
   // ─── Multilingual Content Resolvers ────────────────────────────
   const hasTranslation = useCallback(
@@ -696,8 +709,10 @@ const TakeExam: React.FC = () => {
   const currentQ = questions[currentIndex];
   const currentAnswer = currentQ ? answers[currentQ.id] : null;
   const isAnswered = currentAnswer?.optionIndex !== null && currentAnswer?.optionIndex !== undefined;
-  const hasTrans = currentQ ? hasTranslation(currentQ) : false;
-  const isBilingualModeActive = isBilingual && activeLanguage.code !== 'en' && hasTrans;
+  const regionalLangForDisplay =
+    activeLanguage.code !== 'en' ? activeLanguage : preferredRegionalLang;
+  const hasTrans = currentQ ? hasTranslation(currentQ, regionalLangForDisplay.code) : false;
+  const isBilingualModeActive = isBilingual && hasTrans;
 
   const showPracticeTools = FEATURE_FLAGS.ENABLE_PRACTICE_MODE && isPracticeMode;
 
@@ -740,70 +755,65 @@ const TakeExam: React.FC = () => {
             </button>
           )}
 
-          {/* Per-question Language Switcher & Bilingual Toggle */}
+          {/* Candidate Medium: English + 1 Selected Regional Language */}
           {FEATURE_FLAGS.ENABLE_MULTILINGUAL && (
-            <div className="ml-2 flex items-center gap-1.5">
-              {/* Language Pills with Quick Switcher */}
-              <div className="flex items-center gap-1 rounded-full border border-slate-600 bg-slate-800 px-1.5 py-0.5 text-xs font-bold">
+            <div className="ml-2 flex items-center gap-2">
+              {/* English vs Preferred Regional Medium Toggle */}
+              <div className="flex items-center gap-1 rounded-full border border-slate-600 bg-slate-800 p-0.5 text-xs font-bold shadow-xs">
                 <button
-                  onClick={() => setShowLanguageSelector(true)}
-                  title="Choose Examination Medium"
-                  className="flex items-center gap-1 text-teal-300 hover:text-white px-1 py-0.5"
+                  onClick={() => {
+                    setActiveLanguage(ALL_EXAM_LANGUAGES[0]);
+                    if (sessionIdRef.current) saveLanguagePreference(sessionIdRef.current, 'en');
+                  }}
+                  title="View in English (Master Reference)"
+                  className={`rounded-full px-3 py-1 transition cursor-pointer ${
+                    activeLanguage.code === 'en'
+                      ? 'bg-teal-600 text-white shadow-xs'
+                      : 'text-slate-300 hover:bg-slate-700'
+                  }`}
                 >
-                  <Globe className="h-3.5 w-3.5 text-teal-400" />
-                  <span className="hidden lg:inline text-[11px] font-semibold">Medium:</span>
+                  English
                 </button>
-                {/* Popular Language shortcuts */}
-                {(availableLanguages.length > 0 ? availableLanguages : ALL_EXAM_LANGUAGES)
-                  .filter((l) => ['en', 'hi', 'ta', 'te', 'mr', 'bn'].includes(l.code))
-                  .map((lang) => (
-                    <button
-                      key={lang.code}
-                      onClick={() => {
-                        setActiveLanguage(lang);
-                        if (sessionIdRef.current) {
-                          saveLanguagePreference(sessionIdRef.current, lang.code);
-                        }
-                      }}
-                      title={`View in ${lang.name} (${lang.nativeName})`}
-                      className={`rounded-full px-2 py-0.5 transition ${
-                        activeLanguage.code === lang.code
-                          ? 'bg-teal-600 text-white shadow-xs'
-                          : 'text-slate-300 hover:bg-slate-700'
-                      }`}
-                    >
-                      {lang.code === 'en' ? 'EN' : lang.nativeName.slice(0, 4)}
-                    </button>
-                  ))}
+
+                <button
+                  onClick={() => {
+                    setActiveLanguage(preferredRegionalLang);
+                    if (sessionIdRef.current) saveLanguagePreference(sessionIdRef.current, preferredRegionalLang.code);
+                  }}
+                  title={`View in ${preferredRegionalLang.name} (${preferredRegionalLang.nativeName})`}
+                  className={`rounded-full px-3 py-1 transition cursor-pointer ${
+                    activeLanguage.code === preferredRegionalLang.code
+                      ? 'bg-teal-600 text-white shadow-xs'
+                      : 'text-slate-300 hover:bg-slate-700'
+                  }`}
+                >
+                  {preferredRegionalLang.nativeName} ({preferredRegionalLang.name})
+                </button>
+
                 <button
                   onClick={() => setShowLanguageSelector(true)}
-                  title="View all 22+ available languages"
-                  className="rounded-full px-1.5 py-0.5 text-[10px] text-teal-300 hover:bg-slate-700 transition"
+                  title="Change your regional language medium (choose from 22 Indian languages)"
+                  className="rounded-full p-1 text-teal-300 hover:text-white hover:bg-slate-700 transition cursor-pointer"
                 >
-                  All...
+                  <Globe className="h-3.5 w-3.5" />
                 </button>
               </div>
 
-              {/* Bilingual Mode Toggle (English + Regional Medium) */}
-              {activeLanguage.code !== 'en' && (
-                <button
-                  onClick={() => setIsBilingual((v) => !v)}
-                  title="Toggle Bilingual delivery (English Reference + Regional Language)"
-                  className={`flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-bold transition ${
-                    isBilingual
-                      ? 'border-teal-500/70 bg-teal-950/70 text-teal-300 shadow-xs'
-                      : 'border-slate-700 bg-slate-800 text-slate-400 hover:bg-slate-700'
-                  }`}
-                >
-                  <Languages className="h-3.5 w-3.5 text-teal-400" />
-                  <span className="hidden md:inline">
-                    {isBilingual ? `Bilingual (EN + ${activeLanguage.code.toUpperCase()})` : `Single (${activeLanguage.code.toUpperCase()})`}
-                  </span>
-                  <span className="md:hidden">
-                    {isBilingual ? 'Bilingual' : 'Single'}
-                  </span>
-                </button>
-              )}
+              {/* Bilingual Mode Toggle (English Master Reference + Candidate's Regional Medium) */}
+              <button
+                onClick={() => setIsBilingual((v) => !v)}
+                title={`Toggle Bilingual delivery (English Reference + ${preferredRegionalLang.name})`}
+                className={`flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-bold transition cursor-pointer ${
+                  isBilingual
+                    ? 'border-teal-500/70 bg-teal-950/70 text-teal-300 shadow-xs'
+                    : 'border-slate-700 bg-slate-800 text-slate-400 hover:bg-slate-700'
+                }`}
+              >
+                <Languages className="h-3.5 w-3.5 text-teal-400" />
+                <span>
+                  {isBilingual ? `Bilingual (EN + ${preferredRegionalLang.code.toUpperCase()})` : `Single (${activeLanguage.code.toUpperCase()})`}
+                </span>
+              </button>
             </div>
           )}
         </div>
@@ -991,17 +1001,17 @@ const TakeExam: React.FC = () => {
                       {/* Selected Regional Language Card */}
                       <div
                         className="rounded-xl border border-amber-200 bg-amber-50/40 p-4 shadow-2xs"
-                        dir={activeLanguage.rtl ? 'rtl' : 'ltr'}
+                        dir={regionalLangForDisplay.rtl ? 'rtl' : 'ltr'}
                       >
                         <div className="inline-block rounded-full bg-amber-100 border border-amber-300 px-2.5 py-0.5 text-[10px] font-bold text-amber-900 uppercase tracking-wider mb-2">
-                          {activeLanguage.name} ({activeLanguage.nativeName})
+                          {regionalLangForDisplay.name} ({regionalLangForDisplay.nativeName})
                         </div>
                         <div
                           className={`text-slate-900 leading-relaxed font-medium ${
                             fontSize === 'large' ? 'text-lg' : 'text-base'
                           }`}
                         >
-                          <MathRenderer content={getTranslatedContent(currentQ)} />
+                          <MathRenderer content={getTranslatedContent(currentQ, regionalLangForDisplay.code)} />
                         </div>
                       </div>
                     </div>
@@ -1060,7 +1070,12 @@ const TakeExam: React.FC = () => {
                           letterClass = 'border-teal-700 bg-teal-700 text-white';
                         }
 
-                        const optTransText = getTranslatedOptionText(currentQ, opt, opt.index);
+                        const optTransText = getTranslatedOptionText(
+                          currentQ,
+                          opt,
+                          opt.index,
+                          regionalLangForDisplay.code
+                        );
 
                         return (
                           <div
