@@ -24,7 +24,6 @@ import {
   Check,
   X,
   Filter,
-  Globe,
   Languages,
 } from 'lucide-react';
 import { examService } from '../services/examService';
@@ -33,7 +32,7 @@ import { responseService } from '../services/responseService';
 import { useToast } from '../components/Toast';
 import { MathRenderer } from '../components/MathRenderer';
 import { ImageZoomModal } from '../components/ImageZoomModal';
-import { LanguageSelector, ALL_EXAM_LANGUAGES } from '../components/LanguageSelector';
+import { ALL_EXAM_LANGUAGES } from '../components/LanguageSelector';
 import { ExamLanguageBanner } from '../components/ExamLanguageBanner';
 import { offlineQueue } from '../utils/offlineQueue';
 import {
@@ -41,7 +40,6 @@ import {
   loadLanguagePreference,
   clearLanguagePreference,
   getCandidatePreferredRegionalLanguage,
-  setCandidatePreferredRegionalLanguage,
 } from '../utils/languagePreference';
 import { FEATURE_FLAGS } from '../config/featureFlags';
 import { OFFICIAL_EXAM_QUESTIONS } from '../data/examQuestions';
@@ -121,7 +119,7 @@ const TakeExam: React.FC = () => {
   const [showExplanation, setShowExplanation] = useState<boolean>(false);
   const [filterBySection, setFilterBySection] = useState<boolean>(true);
   // --- Candidate Language Medium State (English + 1 Preferred Indian Language) ---
-  const [preferredRegionalCode, setPreferredRegionalCode] = useState<string>(() =>
+  const [preferredRegionalCode] = useState<string>(() =>
     getCandidatePreferredRegionalLanguage()
   );
 
@@ -130,11 +128,6 @@ const TakeExam: React.FC = () => {
     ALL_EXAM_LANGUAGES.find((l) => l.code === 'hi') ??
     ALL_EXAM_LANGUAGES[1];
 
-  const [showLanguageSelector, setShowLanguageSelector] = useState<boolean>(false);
-  const [availableLanguages, setAvailableLanguages] = useState<ExamLanguage[]>([
-    ALL_EXAM_LANGUAGES[0],
-    preferredRegionalLang,
-  ]);
   // activeLanguage: current language view ('en' or preferredRegionalLang)
   const [activeLanguage, setActiveLanguage] = useState<ExamLanguage>(preferredRegionalLang);
   // isBilingual: show English master reference + regional translation
@@ -142,20 +135,6 @@ const TakeExam: React.FC = () => {
 
   const sessionIdRef = useRef<string>('');
   const isOfflineSessionRef = useRef<boolean>(false);
-
-  // --- Language confirmation handler -----------------------------------------
-  const handleLanguageConfirmed = (languageCode: string) => {
-    if (languageCode !== 'en') {
-      setPreferredRegionalCode(languageCode);
-      setCandidatePreferredRegionalLanguage(languageCode);
-    }
-    const lang = ALL_EXAM_LANGUAGES.find((l) => l.code === languageCode) ?? ALL_EXAM_LANGUAGES[0];
-    setActiveLanguage(lang);
-    setShowLanguageSelector(false);
-    if (sessionIdRef.current) {
-      saveLanguagePreference(sessionIdRef.current, languageCode);
-    }
-  };
 
 
   // ─── Multilingual Content Resolvers ────────────────────────────
@@ -323,27 +302,14 @@ const TakeExam: React.FC = () => {
           s.questions && s.questions.length > 0 ? s.questions : OFFICIAL_EXAM_QUESTIONS;
         setQuestions(qList);
 
-        // ── Multilingual: resolve available languages & restore persisted preference ──
+        // ── Multilingual: resolve candidate preferred language ──
         if (FEATURE_FLAGS.ENABLE_MULTILINGUAL) {
-          const langs: ExamLanguage[] =
-            s.availableLanguages && s.availableLanguages.length > 0
-              ? s.availableLanguages
-              : ALL_EXAM_LANGUAGES;
-          setAvailableLanguages(langs);
-
-          // Restore persisted language preference for this session (survives page reload)
           const persisted = loadLanguagePreference(s.sessionId);
-          const defaultCode = persisted ?? s.defaultLanguageCode ?? 'en';
+          const candidatePref = getCandidatePreferredRegionalLanguage();
+          const defaultCode = persisted ?? (s.defaultLanguageCode && s.defaultLanguageCode !== 'en' ? s.defaultLanguageCode : candidatePref) ?? 'hi';
           const resolvedLang =
-            langs.find((l) => l.code === defaultCode) ?? ALL_EXAM_LANGUAGES[0];
+            ALL_EXAM_LANGUAGES.find((l) => l.code === defaultCode) ?? ALL_EXAM_LANGUAGES[0];
           setActiveLanguage(resolvedLang);
-
-          // If language was already persisted (session resumed), skip the selector
-          if (persisted) {
-            setShowLanguageSelector(false);
-          } else {
-            setShowLanguageSelector(true);
-          }
         }
 
         // Initialize question state dictionary
@@ -718,15 +684,7 @@ const TakeExam: React.FC = () => {
 
   return (
     <div className="flex h-screen flex-col bg-slate-100 font-sans select-none">
-      {/* Pre-exam Language Selection Modal */}
-      {FEATURE_FLAGS.ENABLE_MULTILINGUAL && showLanguageSelector && (
-        <LanguageSelector
-          availableLanguages={availableLanguages.length > 0 ? availableLanguages : ALL_EXAM_LANGUAGES}
-          defaultLanguageCode={activeLanguage.code}
-          examTitle={displayExamTitle}
-          onConfirm={handleLanguageConfirmed}
-        />
-      )}
+
       {/* Top Bar Header */}
       <header className="flex h-14 items-center justify-between border-b border-slate-700 bg-slate-900 px-4 text-white shadow-md">
         <div className="flex items-center gap-3">
@@ -790,13 +748,7 @@ const TakeExam: React.FC = () => {
                   {preferredRegionalLang.nativeName} ({preferredRegionalLang.name})
                 </button>
 
-                <button
-                  onClick={() => setShowLanguageSelector(true)}
-                  title="Change your regional language medium (choose from 22 Indian languages)"
-                  className="rounded-full p-1 text-teal-300 hover:text-white hover:bg-slate-700 transition cursor-pointer"
-                >
-                  <Globe className="h-3.5 w-3.5" />
-                </button>
+
               </div>
 
               {/* Bilingual Mode Toggle (English Master Reference + Candidate's Regional Medium) */}
