@@ -44,4 +44,8 @@ public class SessionStartRequest {
 
     @Builder.Default
     private String languageCode = "en";
+
+    private Boolean forceNewSession;
+
+    private Boolean terminateExisting;
 }

@@ -28,6 +28,13 @@ export const sessionService = {
   },
 
   /**
+   * Terminate any active sessions for this candidate.
+   */
+  async terminateActiveSessions(): Promise<void> {
+    await api.post(`${BASE}/terminate-active`);
+  },
+
+  /**
    * Navigate within an active session.
    * The backend enforces navigation policy (sequential / flexible / restricted).
    */

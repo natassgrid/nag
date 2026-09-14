@@ -408,6 +408,8 @@ export interface SessionStartRequest {
   candidateId?: string;
   /** BCP-47 code for the candidate's chosen examination medium. */
   languageCode?: LanguageCode;
+  forceNewSession?: boolean;
+  terminateExisting?: boolean;
 }
 
 export interface SessionStartResponse {

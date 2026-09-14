@@ -113,6 +113,11 @@ public class SessionStartService {
                         activeSession.getSessionId(), candidateId, activeSession.getScheduledEndAt());
                 activeSession.setStatus(ExamSessionStatus.EXPIRED);
                 examSessionRepository.save(activeSession);
+            } else if (Boolean.TRUE.equals(request.getForceNewSession()) || Boolean.TRUE.equals(request.getTerminateExisting())) {
+                log.info("Terminating existing active session [{}] on exam [{}] for candidate [{}] to start exam [{}] (forceNewSession=true).",
+                        activeSession.getSessionId(), activeSession.getExamId(), candidateId, request.getExamId());
+                activeSession.setStatus(ExamSessionStatus.EXPIRED);
+                examSessionRepository.save(activeSession);
             } else if (activeSession.getExamId() != null && activeSession.getExamId().equals(request.getExamId())) {
                 // RESUME FEATURE: Candidate reconnected or refreshed exam page
                 log.info("Resuming active session [{}] for candidate [{}] on exam [{}]",
@@ -370,6 +375,26 @@ public class SessionStartService {
      * @param tenantId    the tenant identifier
      * @return the session start/resume response
      */
+
+    /**
+     * Terminate candidate's current active exam session(s).
+     */
+    @Transactional
+    public int terminateActiveSessionsForCandidate(UUID candidateId, String tenantId) {
+        String effectiveTenant = (tenantId != null && !tenantId.isBlank()) ? tenantId : "default";
+        List<ExamSession> existingSessions = examSessionRepository.findByCandidateIdAndTenantId(candidateId, effectiveTenant);
+        Instant now = Instant.now();
+        int count = 0;
+        for (ExamSession s : existingSessions) {
+            if (s.getStatus() == ExamSessionStatus.ACTIVE) {
+                s.setStatus(ExamSessionStatus.EXPIRED);
+                examSessionRepository.save(s);
+                count++;
+            }
+        }
+        return count;
+    }
+
     public SessionStartResponse resumeSessionById(UUID sessionId, UUID candidateId, String tenantId) {
         String effectiveTenant = (tenantId != null && !tenantId.isBlank()) ? tenantId : "default";
         ExamSession session = examSessionRepository.findById(sessionId)

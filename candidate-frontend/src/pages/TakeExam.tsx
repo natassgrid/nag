@@ -133,6 +133,10 @@ const TakeExam: React.FC = () => {
   // isBilingual: show English master reference + regional translation
   const [isBilingual, setIsBilingual] = useState<boolean>(true);
 
+  // --- Concurrent Active Session Conflict State ---
+  const [concurrentConflict, setConcurrentConflict] = useState<boolean>(false);
+  const [conflictLoading, setConflictLoading] = useState<boolean>(false);
+
   const sessionIdRef = useRef<string>('');
   const isOfflineSessionRef = useRef<boolean>(false);
 
@@ -206,167 +210,183 @@ const TakeExam: React.FC = () => {
     .filter(({ q }) => !filterBySection || q.sectionName === currentSection);
 
   // ─── Session Initialization from Examination & Delivery Services ─────────
-  useEffect(() => {
-    const initializeExam = async () => {
-      try {
-        // 1. Fetch official exam metadata from examination-service
-        let examInfo: ExaminationResponse | null = null;
-        if (examId && UUID_REGEX.test(examId)) {
-          try {
-            examInfo = await examService.getExam(examId);
-            setExamDetails(examInfo);
-          } catch {
-            // Non-blocking if examId is a custom mock/practice ID
-          }
-        }
-
-        // Determine effective shift ID from candidate application / admit card
-        let effectiveShiftId = shiftId && UUID_REGEX.test(shiftId) ? shiftId : undefined;
-        if (!effectiveShiftId && examId && UUID_REGEX.test(examId)) {
-          try {
-            const app = await examService.getApplicationStatus(examId);
-            if (app.allocatedShiftId && UUID_REGEX.test(app.allocatedShiftId)) {
-              effectiveShiftId = app.allocatedShiftId;
-            } else if (app.preferredShiftId && UUID_REGEX.test(app.preferredShiftId)) {
-              effectiveShiftId = app.preferredShiftId;
-            }
-          } catch {
-            // Non-blocking
-          }
-        }
-        if (!effectiveShiftId && examId && UUID_REGEX.test(examId)) {
-          try {
-            const card = await examService.getAdmitCard(examId);
-            if (card?.shiftId && UUID_REGEX.test(card.shiftId)) {
-              effectiveShiftId = card.shiftId;
-            }
-          } catch {
-            // Non-blocking
-          }
-        }
-
-        // 2. Start session or resume existing active session via delivery-service
-        let s: SessionStartResponse | null = null;
+  const initializeExamSession = useCallback(async (forceNew = false) => {
+    try {
+      setLoading(true);
+      // 1. Fetch official exam metadata from examination-service
+      let examInfo: ExaminationResponse | null = null;
+      if (examId && UUID_REGEX.test(examId)) {
         try {
-          const targetExamId =
-            examId && UUID_REGEX.test(examId)
-              ? examId
-              : 'e1000000-0000-0000-0000-000000000001';
-          s = await sessionService.startSession({
-            examId: targetExamId,
-            ...(effectiveShiftId ? { shiftId: effectiveShiftId } : {}),
-            languageCode: activeLanguage.code || 'en',
-          });
-          const resolvedTitle =
-            examInfo?.name || examInfo?.title ||
-            (targetExamId && KNOWN_EXAM_TITLES[targetExamId]) ||
-            s.examTitle ||
-            'National Assessment Grid Examination';
-          s.examTitle = resolvedTitle;
-          if (examInfo?.durationMinutes) {
-            s.durationSeconds = examInfo.durationMinutes * 60;
-          }
-          setSession(s);
-          sessionIdRef.current = s.sessionId;
-          setIsOfflineSession(false);
-          isOfflineSessionRef.current = false;
+          examInfo = await examService.getExam(examId);
+          setExamDetails(examInfo);
         } catch {
-          // Construct offline/practice session with a valid UUID
-          const fallbackExamId =
-            examId && UUID_REGEX.test(examId)
-              ? examId
-              : 'e1000000-0000-0000-0000-000000000001';
-          const mockSessionId = generateUUID();
-          s = {
-            sessionId: mockSessionId,
-            examId: fallbackExamId,
-            examTitle:
-              examInfo?.name || examInfo?.title ||
-              (fallbackExamId && KNOWN_EXAM_TITLES[fallbackExamId]) ||
-              'National Assessment Grid Examination',
-            candidateId: '018f4e2a-0000-7000-8000-000000000001',
-            durationSeconds: (examInfo?.durationMinutes ?? 60) * 60,
-            totalQuestions: OFFICIAL_EXAM_QUESTIONS.length,
-            navigationMode: 'FLEXIBLE',
-            questions: OFFICIAL_EXAM_QUESTIONS,
-            serverTime: new Date().toISOString(),
-            expiresAt: new Date(Date.now() + (examInfo?.durationMinutes ?? 60) * 60000).toISOString(),
-          };
-          setSession(s);
-          sessionIdRef.current = mockSessionId;
-          setIsOfflineSession(true);
-          isOfflineSessionRef.current = true;
+          // Non-blocking if examId is a custom mock/practice ID
         }
-
-        const qList =
-          s.questions && s.questions.length > 0 ? s.questions : OFFICIAL_EXAM_QUESTIONS;
-        setQuestions(qList);
-
-        // ── Multilingual: resolve candidate preferred language ──
-        if (FEATURE_FLAGS.ENABLE_MULTILINGUAL) {
-          const persisted = loadLanguagePreference(s.sessionId);
-          const candidatePref = getCandidatePreferredRegionalLanguage();
-          const defaultCode = persisted ?? (s.defaultLanguageCode && s.defaultLanguageCode !== 'en' ? s.defaultLanguageCode : candidatePref) ?? 'hi';
-          const resolvedLang =
-            ALL_EXAM_LANGUAGES.find((l) => l.code === defaultCode) ?? ALL_EXAM_LANGUAGES[0];
-          setActiveLanguage(resolvedLang);
-        }
-
-        // Initialize question state dictionary
-                const initialAnswers: Record<string, AnswerRecord> = {};
-        qList.forEach((q, idx) => {
-          initialAnswers[q.id] = {
-            optionIndex: null,
-            markedForReview: false,
-            revSeq: 0,
-            visited: idx === 0,
-          };
-        });
-
-        // 3. Restore previously saved answers if resuming an existing active session
-        if (s.sessionId && UUID_REGEX.test(s.sessionId) && !isOfflineSessionRef.current) {
-          try {
-            const savedResponses = await responseService.getSessionResponses(s.sessionId);
-            if (savedResponses && savedResponses.length > 0) {
-              savedResponses.forEach((resp) => {
-                if (resp.questionId && initialAnswers[resp.questionId]) {
-                  initialAnswers[resp.questionId] = {
-                    optionIndex: resp.selectedOptionIndex !== undefined ? resp.selectedOptionIndex : null,
-                    markedForReview: !!resp.markedForReview,
-                    revSeq: resp.revisionSequence || 1,
-                    visited: true,
-                  };
-                }
-              });
-              toast.info('Session Resumed', `Restored ${savedResponses.length} previously saved answer(s).`);
-            }
-          } catch {
-            // Non-blocking response restoration
-          }
-        }
-
-        setAnswers(initialAnswers);
-
-        // Compute remaining duration accurately based on scheduledEndAt
-        let totalSec = s.durationSeconds || (examInfo?.durationMinutes ? examInfo.durationMinutes * 60 : 3600);
-        if (s.scheduledEndAt) {
-          const endMs = new Date(s.scheduledEndAt).getTime();
-          const serverMs = s.serverTime ? new Date(s.serverTime).getTime() : Date.now();
-          const diffSec = Math.floor((endMs - serverMs) / 1000);
-          if (diffSec > 0 && diffSec < totalSec) {
-            totalSec = diffSec;
-          }
-        }
-        setTimeLeft(totalSec);
-      } catch {
-        setQuestions(OFFICIAL_EXAM_QUESTIONS);
-      } finally {
-        setLoading(false);
       }
-    };
 
-    void initializeExam();
-  }, [examId, shiftId, toast]);
+      // Determine effective shift ID from candidate application / admit card
+      let effectiveShiftId = shiftId && UUID_REGEX.test(shiftId) ? shiftId : undefined;
+      if (!effectiveShiftId && examId && UUID_REGEX.test(examId)) {
+        try {
+          const app = await examService.getApplicationStatus(examId);
+          if (app.allocatedShiftId && UUID_REGEX.test(app.allocatedShiftId)) {
+            effectiveShiftId = app.allocatedShiftId;
+          } else if (app.preferredShiftId && UUID_REGEX.test(app.preferredShiftId)) {
+            effectiveShiftId = app.preferredShiftId;
+          }
+        } catch {
+          // Non-blocking
+        }
+      }
+      if (!effectiveShiftId && examId && UUID_REGEX.test(examId)) {
+        try {
+          const card = await examService.getAdmitCard(examId);
+          if (card?.shiftId && UUID_REGEX.test(card.shiftId)) {
+            effectiveShiftId = card.shiftId;
+          }
+        } catch {
+          // Non-blocking
+        }
+      }
+
+      // 2. Start session or resume existing active session via delivery-service
+      let s: SessionStartResponse | null = null;
+      try {
+        const targetExamId =
+          examId && UUID_REGEX.test(examId)
+            ? examId
+            : 'e1000000-0000-0000-0000-000000000001';
+        s = await sessionService.startSession({
+          examId: targetExamId,
+          ...(effectiveShiftId ? { shiftId: effectiveShiftId } : {}),
+          languageCode: activeLanguage.code || 'en',
+          ...(forceNew ? { forceNewSession: true, terminateExisting: true } : {}),
+        });
+        const resolvedTitle =
+          examInfo?.name || examInfo?.title ||
+          (targetExamId && KNOWN_EXAM_TITLES[targetExamId]) ||
+          s.examTitle ||
+          'National Assessment Grid Examination';
+        s.examTitle = resolvedTitle;
+        if (examInfo?.durationMinutes) {
+          s.durationSeconds = examInfo.durationMinutes * 60;
+        }
+        setSession(s);
+        sessionIdRef.current = s.sessionId;
+        setIsOfflineSession(false);
+        isOfflineSessionRef.current = false;
+        setConcurrentConflict(false);
+      } catch (err: any) {
+        const errMsg = err?.response?.data?.error?.message || err?.response?.data?.detail || err?.message || '';
+        const status = err?.response?.status;
+        if (
+          status === 409 ||
+          errMsg.includes('already has an active session') ||
+          errMsg.includes('ConcurrentSessionException') ||
+          errMsg.includes('CONCURRENT_SESSION')
+        ) {
+          setConcurrentConflict(true);
+          setLoading(false);
+          return;
+        }
+
+        // Construct offline/practice session with a valid UUID
+        const fallbackExamId =
+          examId && UUID_REGEX.test(examId)
+            ? examId
+            : 'e1000000-0000-0000-0000-000000000001';
+        const mockSessionId = generateUUID();
+        s = {
+          sessionId: mockSessionId,
+          examId: fallbackExamId,
+          examTitle:
+            examInfo?.name || examInfo?.title ||
+            (fallbackExamId && KNOWN_EXAM_TITLES[fallbackExamId]) ||
+            'National Assessment Grid Examination',
+          candidateId: '018f4e2a-0000-7000-8000-000000000001',
+          durationSeconds: (examInfo?.durationMinutes ?? 60) * 60,
+          totalQuestions: OFFICIAL_EXAM_QUESTIONS.length,
+          navigationMode: 'FLEXIBLE',
+          questions: OFFICIAL_EXAM_QUESTIONS,
+          serverTime: new Date().toISOString(),
+          expiresAt: new Date(Date.now() + (examInfo?.durationMinutes ?? 60) * 60000).toISOString(),
+        };
+        setSession(s);
+        sessionIdRef.current = mockSessionId;
+        setIsOfflineSession(true);
+        isOfflineSessionRef.current = true;
+      }
+
+      const qList =
+        s.questions && s.questions.length > 0 ? s.questions : OFFICIAL_EXAM_QUESTIONS;
+      setQuestions(qList);
+
+      // ── Multilingual: resolve candidate preferred language ──
+      if (FEATURE_FLAGS.ENABLE_MULTILINGUAL) {
+        const persisted = loadLanguagePreference(s.sessionId);
+        const candidatePref = getCandidatePreferredRegionalLanguage();
+        const defaultCode = persisted ?? (s.defaultLanguageCode && s.defaultLanguageCode !== 'en' ? s.defaultLanguageCode : candidatePref) ?? 'hi';
+        const resolvedLang =
+          ALL_EXAM_LANGUAGES.find((l) => l.code === defaultCode) ?? ALL_EXAM_LANGUAGES[0];
+        setActiveLanguage(resolvedLang);
+      }
+
+      // Initialize question state dictionary
+      const initialAnswers: Record<string, AnswerRecord> = {};
+      qList.forEach((q, idx) => {
+        initialAnswers[q.id] = {
+          optionIndex: null,
+          markedForReview: false,
+          revSeq: 0,
+          visited: idx === 0,
+        };
+      });
+
+      // 3. Restore previously saved answers if resuming an existing active session
+      if (s.sessionId && UUID_REGEX.test(s.sessionId) && !isOfflineSessionRef.current) {
+        try {
+          const savedResponses = await responseService.getSessionResponses(s.sessionId);
+          if (savedResponses && savedResponses.length > 0) {
+            savedResponses.forEach((resp) => {
+              if (resp.questionId && initialAnswers[resp.questionId]) {
+                initialAnswers[resp.questionId] = {
+                  optionIndex: resp.selectedOptionIndex !== undefined ? resp.selectedOptionIndex : null,
+                  markedForReview: !!resp.markedForReview,
+                  revSeq: resp.revisionSequence || 1,
+                  visited: true,
+                };
+              }
+            });
+            toast.info('Session Resumed', `Restored ${savedResponses.length} previously saved answer(s).`);
+          }
+        } catch {
+          // Non-blocking response restoration
+        }
+      }
+
+      setAnswers(initialAnswers);
+
+      // Compute remaining duration accurately based on scheduledEndAt
+      let totalSec = s.durationSeconds || (examInfo?.durationMinutes ? examInfo.durationMinutes * 60 : 3600);
+      if (s.scheduledEndAt) {
+        const endMs = new Date(s.scheduledEndAt).getTime();
+        const serverMs = s.serverTime ? new Date(s.serverTime).getTime() : Date.now();
+        const diffSec = Math.floor((endMs - serverMs) / 1000);
+        if (diffSec > 0 && diffSec < totalSec) {
+          totalSec = diffSec;
+        }
+      }
+      setTimeLeft(totalSec);
+    } catch {
+      setQuestions(OFFICIAL_EXAM_QUESTIONS);
+    } finally {
+      setLoading(false);
+    }
+  }, [examId, shiftId, activeLanguage.code, toast]);
+
+  useEffect(() => {
+    void initializeExamSession(false);
+  }, [initializeExamSession]);
 
   // Reset explanation view when question index changes
   useEffect(() => {
@@ -684,6 +704,60 @@ const TakeExam: React.FC = () => {
 
   return (
     <div className="flex h-screen flex-col bg-slate-100 font-sans select-none">
+      {/* Concurrent Active Session Conflict Modal */}
+      {concurrentConflict && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/80 backdrop-blur-sm p-4">
+          <div className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-2xl border border-amber-200 animate-in fade-in zoom-in duration-200">
+            <div className="flex items-center gap-3 text-amber-600 mb-4">
+              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-amber-100 shrink-0">
+                <AlertTriangle className="h-6 w-6 text-amber-600" />
+              </div>
+              <div>
+                <h2 className="text-lg font-bold text-gray-900">Active Exam Session Conflict</h2>
+                <p className="text-xs text-amber-700 font-medium">सक्रिय परीक्षा सत्र संघर्ष (Concurrent Session)</p>
+              </div>
+            </div>
+
+            <div className="space-y-3 text-sm text-gray-600">
+              <p>
+                You already have an active exam session in progress for another examination. Under official examination rules, only one active examination session is permitted at a time.
+              </p>
+              <div className="rounded-lg bg-amber-50 p-3 text-xs text-amber-900 border border-amber-200">
+                <strong>Action Required:</strong> You can terminate your old ongoing session to start this exam, or return to the candidate dashboard.
+              </div>
+            </div>
+
+            <div className="mt-6 flex flex-col-reverse sm:flex-row sm:justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => navigate('/candidate/exams')}
+                className="w-full sm:w-auto rounded-xl border border-gray-300 bg-white px-4 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-50 transition cursor-pointer"
+              >
+                Return to Dashboard
+              </button>
+
+              <button
+                type="button"
+                disabled={conflictLoading}
+                onClick={async () => {
+                  setConflictLoading(true);
+                  try {
+                    await initializeExamSession(true);
+                  } catch (e: any) {
+                    toast.error('Session Error', e?.message || 'Failed to start session');
+                  } finally {
+                    setConflictLoading(false);
+                  }
+                }}
+                className="w-full sm:w-auto rounded-xl bg-red-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-red-700 transition flex items-center justify-center gap-2 cursor-pointer"
+              >
+                <RotateCcw className={`h-4 w-4 ${conflictLoading ? 'animate-spin' : ''}`} />
+                <span>{conflictLoading ? 'Terminating & Starting...' : 'End Old Session & Start New'}</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Top Bar Header */}
       <header className="flex h-14 items-center justify-between border-b border-slate-700 bg-slate-900 px-4 text-white shadow-md">

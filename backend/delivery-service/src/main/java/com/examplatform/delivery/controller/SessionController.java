@@ -42,6 +42,7 @@ import org.springframework.web.bind.annotation.RestController;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 /**
@@ -96,6 +97,25 @@ public class SessionController {
      * @param jwt       the authenticated candidate's JWT
      * @return 200 OK with session details and delivery questions
      */
+
+    /**
+     * Terminate all active exam sessions for the authenticated candidate.
+     * Allows candidate to clear stale or concurrent sessions when switching exams.
+     */
+    @PostMapping("/terminate-active")
+    @PreAuthorize("hasRole('CANDIDATE')")
+    public ResponseEntity<Map<String, Object>> terminateActiveSessions(
+            @AuthenticationPrincipal Jwt jwt) {
+        UUID candidateId = UUID.fromString(jwt.getSubject());
+        String tenantId = jwt.getClaimAsString("tenant_id");
+        int count = sessionStartService.terminateActiveSessionsForCandidate(candidateId, tenantId);
+        return ResponseEntity.ok(Map.of(
+                "status", "success",
+                "terminatedCount", count,
+                "message", "Active exam session(s) terminated successfully."
+        ));
+    }
+
     @PostMapping("/{sessionId}/resume")
     @PreAuthorize("hasRole('CANDIDATE')")
     public ResponseEntity<SessionStartResponse> resumeSession(
