@@ -100,7 +100,7 @@ export class QuestionTranslationListComponent implements OnInit, OnDestroy {
   // Batch Translation Modal & Tracker State
   batchModalOpen = false;
   batchTargetLanguage = 'hi';
-  batchOverwriteExisting = true;
+  batchOverwriteExisting = false;
   batchTargetStatus = 'PUBLISHED';
   batchSubjectFilter = '';
   isSubmittingBatch = false;

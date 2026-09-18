@@ -410,7 +410,7 @@ services:
 
   # ===========================================================================
   # IndicTrans2 — English to 22 Indian Languages Translation
-  # Model: ai4bharat/indictrans2-en-indic-dist-200M (~850MB)
+  # Model: naklitechie/indictrans2-en-indic-dist-200M (~850MB)
   # Port 7860 — REST API at http://localhost:7860
   #
   # Test translation:
@@ -430,7 +430,7 @@ services:
     ports:
       - "${INDICTRANS2_PORT:-7860}:7860"
     environment:
-      MODEL_NAME: "${INDICTRANS_MODEL:-ai4bharat/indictrans2-en-indic-dist-200M}"
+      MODEL_NAME: "${INDICTRANS_MODEL:-naklitechie/indictrans2-en-indic-dist-200M}"
       HF_HOME: "/root/.cache/huggingface"
       HF_TOKEN: "${HF_TOKEN:-}"
       TORCH_NUM_THREADS: "4"
