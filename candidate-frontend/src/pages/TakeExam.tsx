@@ -43,7 +43,14 @@ import {
 } from '../utils/languagePreference';
 import { FEATURE_FLAGS } from '../config/featureFlags';
 import { OFFICIAL_EXAM_QUESTIONS } from '../data/examQuestions';
-import type { ExaminationResponse, ExamLanguage, QuestionDto, QuestionOption, SessionStartResponse } from '../types/api';
+import type {
+  ExaminationResponse,
+  ExamLanguage,
+  QuestionDto,
+  QuestionOption,
+  QuestionOptionTranslation,
+  SessionStartResponse,
+} from '../types/api';
 
 type QuestionStatus =
   | 'NOT_VISITED'
@@ -142,7 +149,7 @@ const TakeExam: React.FC = () => {
   const isOfflineSessionRef = useRef<boolean>(false);
 
 
-  // ─── Multilingual Content Resolvers ────────────────────────────
+  // ─── Multilingual Content Resolvers ────────────────────────
   const hasTranslation = useCallback(
     (q?: QuestionDto, langCode?: string): boolean => {
       if (!q || !q.translations) return false;
@@ -175,18 +182,23 @@ const TakeExam: React.FC = () => {
     return opt.text || opt.content || '';
   };
 
-  const getTranslatedOptionText = useCallback(
-    (q: QuestionDto, opt: QuestionOption, optIndex: number, langCode?: string): string => {
-      if (!q || !q.translations) return '';
+  const getTranslatedOption = useCallback(
+    (
+      q?: QuestionDto,
+      opt?: QuestionOption,
+      optIndex?: number,
+      langCode?: string
+    ): QuestionOptionTranslation | undefined => {
+      if (!q || !q.translations || !opt) return undefined;
       const code = langCode || activeLanguage.code;
       const trans = q.translations[code];
-      if (!trans || !trans.options) return '';
+      if (!trans || !trans.options) return undefined;
 
-      const optionId = opt.id || String.fromCharCode(65 + optIndex);
-      const match = trans.options.find(
-        (o, idx) => (o.id && o.id === optionId) || o.index === optIndex || idx === optIndex
+      const idx = optIndex !== undefined ? optIndex : opt.index;
+      const optionId = opt.id || String.fromCharCode(65 + idx);
+      return trans.options.find(
+        (o, i) => (o.id && o.id === optionId) || o.index === idx || i === idx
       );
-      return match?.content || match?.text || '';
     },
     [activeLanguage.code]
   );
@@ -327,7 +339,7 @@ const TakeExam: React.FC = () => {
         s.questions && s.questions.length > 0 ? s.questions : OFFICIAL_EXAM_QUESTIONS;
       setQuestions(qList);
 
-      // ── Multilingual: resolve candidate preferred language ──
+      // ─── Multilingual: resolve candidate preferred language ───
       if (FEATURE_FLAGS.ENABLE_MULTILINGUAL) {
         const persisted = loadLanguagePreference(s.sessionId);
         const candidatePref = getCandidatePreferredRegionalLanguage();
@@ -348,116 +360,120 @@ const TakeExam: React.FC = () => {
         };
       });
 
-      // 3. Restore previously saved answers if resuming an existing active session
-      if (s.sessionId && UUID_REGEX.test(s.sessionId) && !isOfflineSessionRef.current) {
-        try {
-          const savedResponses = await responseService.getSessionResponses(s.sessionId);
-          if (savedResponses && Array.isArray(savedResponses) && savedResponses.length > 0) {
-            let restoredCount = 0;
-            savedResponses.forEach((resp: any) => {
-              const qId = resp.questionId;
-              if (qId && initialAnswers[qId]) {
-                let parsedOptionIndex: number | null = null;
-                if (resp.selectedOptionIndex !== undefined && resp.selectedOptionIndex !== null) {
-                  parsedOptionIndex = Number(resp.selectedOptionIndex);
-                } else if (resp.selectedOptionIds) {
-                  try {
-                    const raw =
-                      typeof resp.selectedOptionIds === 'string'
-                        ? JSON.parse(resp.selectedOptionIds)
-                        : resp.selectedOptionIds;
-                    if (Array.isArray(raw) && raw.length > 0) {
-                      const firstVal = raw[0];
-                      const parsedNum = Number(firstVal);
-                      if (!isNaN(parsedNum)) {
-                        parsedOptionIndex = parsedNum;
-                      } else if (typeof firstVal === 'string') {
-                        const targetQ = qList.find((q) => q.id === qId);
-                        const optIdx = targetQ?.options?.findIndex((o) => o.id === firstVal);
-                        if (optIdx !== undefined && optIdx >= 0) {
-                          parsedOptionIndex = optIdx;
-                        }
-                      }
-                    } else if (typeof raw === 'number') {
-                      parsedOptionIndex = raw;
-                    }
-                  } catch {
-                    const parsedNum = Number(resp.selectedOptionIds);
-                    if (!isNaN(parsedNum)) {
-                      parsedOptionIndex = parsedNum;
-                    }
-                  }
-                }
-
-                initialAnswers[qId] = {
-                  optionIndex: parsedOptionIndex,
-                  markedForReview: !!resp.markedForReview,
-                  revSeq: resp.revisionSequence || 1,
+      // Populate any existing responses
+      try {
+        if (s.sessionId && !isOfflineSessionRef.current && UUID_REGEX.test(s.sessionId)) {
+          const respList = await responseService.getSessionResponses(s.sessionId);
+          if (Array.isArray(respList)) {
+            respList.forEach((r: any) => {
+              if (initialAnswers[r.questionId]) {
+                initialAnswers[r.questionId] = {
+                  optionIndex: r.selectedOptionIndex ?? null,
+                  markedForReview: Boolean(r.markedForReview),
+                  revSeq: r.revisionSequence ?? 1,
                   visited: true,
                 };
-                if (parsedOptionIndex !== null) {
-                  restoredCount++;
-                }
               }
             });
-            if (restoredCount > 0) {
-              toast.info('Session Resumed', `Restored ${restoredCount} previously saved answer(s).`);
-            }
           }
-        } catch {
-          // Non-blocking response restoration
         }
+      } catch {
+        // Safe to ignore if first session start
       }
 
       setAnswers(initialAnswers);
 
-      // Compute remaining duration accurately based on scheduledEndAt
-      let totalSec = s.durationSeconds || (examInfo?.durationMinutes ? examInfo.durationMinutes * 60 : 3600);
-      if (s.scheduledEndAt) {
-        const endMs = new Date(s.scheduledEndAt).getTime();
-        const serverMs = s.serverTime ? new Date(s.serverTime).getTime() : Date.now();
-        const diffSec = Math.floor((endMs - serverMs) / 1000);
-        if (diffSec > 0 && diffSec < totalSec) {
-          totalSec = diffSec;
-        }
+      // 3. Initialize countdown timer
+      if (s.expiresAt) {
+        const remaining = Math.max(
+          0,
+          Math.floor((new Date(s.expiresAt).getTime() - Date.now()) / 1000)
+        );
+        setTimeLeft(remaining > 0 ? remaining : s.durationSeconds || 3600);
+      } else {
+        setTimeLeft(s.durationSeconds || 3600);
       }
-      setTimeLeft(totalSec);
-    } catch {
-      setQuestions(OFFICIAL_EXAM_QUESTIONS);
+    } catch (err: any) {
+      toast.error('Session Error', err.message || 'Failed to initialize CBT delivery session.');
     } finally {
       setLoading(false);
     }
-  }, [examId, shiftId, activeLanguage.code, toast]);
+  }, [examId, shiftId, toast]);
 
   useEffect(() => {
-    void initializeExamSession(false);
+    void initializeExamSession();
   }, [initializeExamSession]);
 
-  // Reset explanation view when question index changes
-  useEffect(() => {
-    setShowExplanation(false);
-  }, [currentIndex]);
+  // ─── Force-terminate active session and switch to this exam ────────────────
+  const handleForceStartSession = async () => {
+    setConflictLoading(true);
+    try {
+      await initializeExamSession(true);
+      toast.success(
+        'Session Reset',
+        'Previous examination session closed. Initializing your new session now.'
+      );
+    } catch (err: any) {
+      toast.error(
+        'Failed to Switch Session',
+        err?.message || 'Could not close the previous active session. Please contact the invigilator.'
+      );
+    } finally {
+      setConflictLoading(false);
+    }
+  };
 
-  // ─── Timer countdown ──────────────────────────────────────────────────────
+  // ─── Countdown Timer ──────────────────────────────────────────
   useEffect(() => {
-    if (!session || timeLeft <= 0 || (isPracticeMode && FEATURE_FLAGS.ENABLE_PRACTICE_MODE)) return;
-    const interval = setInterval(() => {
+    if (loading || timeLeft <= 0) return;
+
+    const timer = setInterval(() => {
       setTimeLeft((prev) => {
         if (prev <= 1) {
-          clearInterval(interval);
-          void handleSubmit(true);
+          clearInterval(timer);
+          void handleSubmit(true); // Auto-submit when time expires
           return 0;
         }
         return prev - 1;
       });
     }, 1000);
-    return () => clearInterval(interval);
-  }, [session, isPracticeMode]);
 
-  // ─── Fullscreen & Invigilation Telemetry ──────────────────────────────────
+    return () => clearInterval(timer);
+  }, [loading, timeLeft]);
+
+  // ─── Periodic Heartbeat & Auto-Save ───────────────────────────
+  useEffect(() => {
+    if (!session || isOfflineSession || !UUID_REGEX.test(session.sessionId)) return;
+
+    const interval = setInterval(async () => {
+      try {
+        await sessionService.sendHeartbeat(session.sessionId);
+      } catch {
+        // Non-blocking proctoring heartbeat
+      }
+    }, 30000);
+
+    return () => clearInterval(interval);
+  }, [session, isOfflineSession]);
+
+  // ─── Security Proctoring & Fullscreen Detection ──────────────
   useEffect(() => {
     const handleFullscreenChange = () => {
-      setIsFullscreen(!!document.fullscreenElement);
+      const isFull = !!document.fullscreenElement;
+      setIsFullscreen(isFull);
+      if (
+        !isFull &&
+        sessionIdRef.current &&
+        !isPracticeMode &&
+        !isOfflineSessionRef.current &&
+        UUID_REGEX.test(sessionIdRef.current)
+      ) {
+        void sessionService.recordFullScreenExit(sessionIdRef.current).catch(() => {});
+        toast.warning(
+          'Security Alert',
+          'Fullscreen mode was exited. An event has been logged to proctoring audit.'
+        );
+      }
     };
 
     const handleVisibilityChange = () => {
@@ -493,7 +509,7 @@ const TakeExam: React.FC = () => {
     }
   };
 
-  // ─── Online/offline detection & Sync ──────────────────────────────────────
+  // ─── Online/offline detection & Sync ──────────────────────────
   useEffect(() => {
     const onOnline = async () => {
       setOnline(true);
@@ -524,9 +540,9 @@ const TakeExam: React.FC = () => {
     };
   }, [toast]);
 
-  // ─── Question Palette Helpers ─────────────────────────────────────────────
-  const getQuestionState = (qId: string): QuestionStatus => {
-    const rec = answers[qId];
+  // ─── Question Status Calculator ──────────────────────────────
+  const getQuestionState = (questionId: string): QuestionStatus => {
+    const rec = answers[questionId];
     if (!rec || !rec.visited) return 'NOT_VISITED';
     if (rec.optionIndex !== null && rec.markedForReview) return 'ANSWERED_AND_MARKED';
     if (rec.markedForReview) return 'MARKED_FOR_REVIEW';
@@ -584,15 +600,17 @@ const TakeExam: React.FC = () => {
       visited: true,
     };
 
-    const newIndex = currentRecord.optionIndex === optionIndex ? null : optionIndex;
+    const newOption = currentRecord.optionIndex === optionIndex ? null : optionIndex;
+    const newAnswer: AnswerRecord = {
+      ...currentRecord,
+      optionIndex: newOption,
+      revSeq: currentRecord.revSeq + 1,
+      visited: true,
+    };
 
     setAnswers((prev) => ({
       ...prev,
-      [q.id]: {
-        ...currentRecord,
-        optionIndex: newIndex,
-        visited: true,
-      },
+      [q.id]: newAnswer,
     }));
   };
 
@@ -748,205 +766,88 @@ const TakeExam: React.FC = () => {
   const showPracticeTools = FEATURE_FLAGS.ENABLE_PRACTICE_MODE && isPracticeMode;
 
   return (
-    <div className="flex h-screen flex-col bg-slate-100 font-sans select-none">
-      {/* Concurrent Active Session Conflict Modal */}
-      {concurrentConflict && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/80 backdrop-blur-sm p-4">
-          <div className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-2xl border border-amber-200 animate-in fade-in zoom-in duration-200">
-            <div className="flex items-center gap-3 text-amber-600 mb-4">
-              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-amber-100 shrink-0">
-                <AlertTriangle className="h-6 w-6 text-amber-600" />
-              </div>
-              <div>
-                <h2 className="text-lg font-bold text-gray-900">Active Exam Session Conflict</h2>
-                <p className="text-xs text-amber-700 font-medium">सक्रिय परीक्षा सत्र संघर्ष (Concurrent Session)</p>
-              </div>
-            </div>
-
-            <div className="space-y-3 text-sm text-gray-600">
-              <p>
-                You already have an active exam session in progress for another examination. Under official examination rules, only one active examination session is permitted at a time.
-              </p>
-              <div className="rounded-lg bg-amber-50 p-3 text-xs text-amber-900 border border-amber-200">
-                <strong>Action Required:</strong> You can terminate your old ongoing session to start this exam, or return to the candidate dashboard.
-              </div>
-            </div>
-
-            <div className="mt-6 flex flex-col-reverse sm:flex-row sm:justify-end gap-3">
-              <button
-                type="button"
-                onClick={() => navigate('/candidate/exams')}
-                className="w-full sm:w-auto rounded-xl border border-gray-300 bg-white px-4 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-50 transition cursor-pointer"
-              >
-                Return to Dashboard
-              </button>
-
-              {activeExistingExamId && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setConcurrentConflict(false);
-                    navigate(`/take-exam/${activeExistingExamId}`);
-                  }}
-                  className="w-full sm:w-auto rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-emerald-700 transition flex items-center justify-center gap-2 cursor-pointer"
-                >
-                  <ChevronRight className="h-4 w-4" />
-                  <span>Resume Existing Exam</span>
-                </button>
-              )}
-
-              <button
-                type="button"
-                disabled={conflictLoading}
-                onClick={async () => {
-                  setConflictLoading(true);
-                  try {
-                    await initializeExamSession(true);
-                  } catch (e: any) {
-                    toast.error('Session Error', e?.message || 'Failed to start session');
-                  } finally {
-                    setConflictLoading(false);
-                  }
-                }}
-                className="w-full sm:w-auto rounded-xl bg-red-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-red-700 transition flex items-center justify-center gap-2 cursor-pointer"
-              >
-                <RotateCcw className={`h-4 w-4 ${conflictLoading ? 'animate-spin' : ''}`} />
-                <span>{conflictLoading ? 'Ending Old...' : 'End Old & Start New'}</span>
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Top Bar Header */}
-      <header className="flex h-14 items-center justify-between border-b border-slate-700 bg-slate-900 px-4 text-white shadow-md">
+    <div className="flex h-screen flex-col bg-slate-100 select-none overflow-hidden font-sans">
+      {/* Top Header & Proctoring Status Bar */}
+      <header className="flex h-14 shrink-0 items-center justify-between border-b border-slate-700 bg-slate-900 px-4 text-white">
         <div className="flex items-center gap-3">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-teal-600 font-bold text-white shadow">
+          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-teal-600 font-black text-sm">
             NAG
           </div>
-          <div className="text-xs text-slate-300 hidden sm:block">
-            <span className="font-semibold text-white">
+          <div>
+            <h1 className="text-sm font-bold text-slate-100 leading-tight truncate max-w-xs md:max-w-lg">
               {displayExamTitle}
-            </span>
+            </h1>
+            <p className="text-[11px] text-teal-400 font-mono">
+              Session ID: {session?.sessionId.slice(0, 8)}... &bull; Mode: NTA CBT Standard
+            </p>
           </div>
+        </div>
 
-          {/* Interactive Mode Toggle Badge */}
+        <div className="flex items-center gap-3">
+          {/* Practice Mode Indicator / Toggle */}
           {FEATURE_FLAGS.ENABLE_PRACTICE_MODE && (
             <button
               onClick={() => setIsPracticeMode(!isPracticeMode)}
-              className={`ml-2 flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-bold transition ${
+              className={`flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-xs font-bold transition ${
                 isPracticeMode
-                  ? 'bg-amber-400 text-amber-950 shadow-sm ring-1 ring-amber-300'
-                  : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
+                  ? 'bg-amber-400/20 text-amber-300 border border-amber-400/40'
+                  : 'bg-slate-800 text-slate-400 hover:text-slate-200'
               }`}
-              title="Toggle between Strict Official Exam Mode and Interactive Practice / Learning Mode"
+              title="Toggle Practice/Learning Mode"
             >
               <GraduationCap className="h-3.5 w-3.5" />
-              <span>{isPracticeMode ? 'Practice Mode (Active)' : 'Official Exam Mode'}</span>
+              <span className="hidden sm:inline">
+                {isPracticeMode ? 'Learning Mode' : 'Standard CBT'}
+              </span>
             </button>
           )}
 
-          {/* Candidate Medium: English + 1 Selected Regional Language */}
-          {FEATURE_FLAGS.ENABLE_MULTILINGUAL && (
-            <div className="ml-2 flex items-center gap-2">
-              {/* English vs Preferred Regional Medium Toggle */}
-              <div className="flex items-center gap-1 rounded-full border border-slate-600 bg-slate-800 p-0.5 text-xs font-bold shadow-xs">
-                <button
-                  onClick={() => {
-                    setActiveLanguage(ALL_EXAM_LANGUAGES[0]);
-                    if (sessionIdRef.current) saveLanguagePreference(sessionIdRef.current, 'en');
-                  }}
-                  title="View in English (Master Reference)"
-                  className={`rounded-full px-3 py-1 transition cursor-pointer ${
-                    activeLanguage.code === 'en'
-                      ? 'bg-teal-600 text-white shadow-xs'
-                      : 'text-slate-300 hover:bg-slate-700'
-                  }`}
-                >
-                  English
-                </button>
-
-                <button
-                  onClick={() => {
-                    setActiveLanguage(preferredRegionalLang);
-                    if (sessionIdRef.current) saveLanguagePreference(sessionIdRef.current, preferredRegionalLang.code);
-                  }}
-                  title={`View in ${preferredRegionalLang.name} (${preferredRegionalLang.nativeName})`}
-                  className={`rounded-full px-3 py-1 transition cursor-pointer ${
-                    activeLanguage.code === preferredRegionalLang.code
-                      ? 'bg-teal-600 text-white shadow-xs'
-                      : 'text-slate-300 hover:bg-slate-700'
-                  }`}
-                >
-                  {preferredRegionalLang.nativeName} ({preferredRegionalLang.name})
-                </button>
-
-
-              </div>
-
-              {/* Bilingual Mode Toggle (English Master Reference + Candidate's Regional Medium) */}
-              <button
-                onClick={() => setIsBilingual((v) => !v)}
-                title={`Toggle Bilingual delivery (English Reference + ${preferredRegionalLang.name})`}
-                className={`flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-bold transition cursor-pointer ${
-                  isBilingual
-                    ? 'border-teal-500/70 bg-teal-950/70 text-teal-300 shadow-xs'
-                    : 'border-slate-700 bg-slate-800 text-slate-400 hover:bg-slate-700'
-                }`}
-              >
-                <Languages className="h-3.5 w-3.5 text-teal-400" />
-                <span>
-                  {isBilingual ? `Bilingual (EN + ${preferredRegionalLang.code.toUpperCase()})` : `Single (${activeLanguage.code.toUpperCase()})`}
-                </span>
-              </button>
-            </div>
+          {/* Bilingual Toggle Button */}
+          {FEATURE_FLAGS.ENABLE_MULTILINGUAL && hasTrans && (
+            <button
+              onClick={() => setIsBilingual((prev) => !prev)}
+              className={`flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-bold transition border ${
+                isBilingual
+                  ? 'bg-teal-500/20 text-teal-300 border-teal-500/50'
+                  : 'bg-slate-800 text-slate-400 border-slate-700 hover:text-slate-200'
+              }`}
+              title="Toggle Bilingual View"
+            >
+              <Languages className="h-3.5 w-3.5" />
+              <span className="hidden md:inline">
+                {isBilingual ? 'Bilingual (EN + ' + regionalLangForDisplay.name + ')' : 'Single Lang'}
+              </span>
+            </button>
           )}
-        </div>
 
-        {/* Center / Right: Invigilation Timer & Statuses */}
-        <div className="flex items-center gap-3">
-          {/* Real-time countdown */}
+          {/* Live Countdown Timer */}
           <div
-            className={`flex items-center gap-2 rounded-lg px-3 py-1 font-mono text-sm font-bold shadow-xs ${
+            className={`flex items-center gap-1.5 rounded-lg px-3 py-1 font-mono text-sm font-black shadow-xs ${
               timeLeft < 300
-                ? 'bg-rose-600 text-white animate-pulse'
-                : 'bg-slate-800 text-teal-300 border border-slate-700'
+                ? 'bg-rose-950/80 text-rose-300 border border-rose-600 animate-pulse'
+                : 'bg-slate-800 text-teal-400 border border-slate-700'
             }`}
           >
             <Clock className="h-4 w-4" />
             <span>{formatTimer(timeLeft)}</span>
           </div>
 
-          {/* Connectivity Status */}
+          {/* Connection status */}
           <span
-            className={`flex items-center gap-1 rounded px-2 py-0.5 text-[10px] font-semibold ${
-              online
-                ? 'bg-emerald-950 text-emerald-300 border border-emerald-800'
-                : 'bg-rose-950 text-rose-300 border border-rose-800'
+            className={`flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full ${
+              online ? 'bg-emerald-950 text-emerald-400' : 'bg-amber-950 text-amber-400'
             }`}
           >
             <span
-              className={`h-1.5 w-1.5 rounded-full ${online ? 'bg-emerald-400' : 'bg-rose-400 animate-ping'}`}
+              className={`h-2 w-2 rounded-full ${online ? 'bg-emerald-400' : 'bg-amber-400 animate-ping'}`}
             />
-            <span>{online ? 'Online' : 'Offline'}</span>
-          </span>
-
-          {/* Autosave Status */}
-          <span
-            className={`flex items-center gap-1 rounded px-2 py-0.5 text-[10px] font-medium ${
-              savingStatus === 'saved'
-                ? 'bg-emerald-950 text-emerald-300 border border-emerald-800'
-                : savingStatus === 'saving'
-                ? 'bg-amber-950 text-amber-300'
-                : 'bg-rose-950 text-rose-300'
-            }`}
-          >
-            <CheckCircle2 className="h-3 w-3" />
             <span className="hidden sm:inline">
-              {isOfflineSession
-                ? 'Practice Ready'
-                : savingStatus === 'saved'
-                ? 'Auto-Saved'
+              {online
+                ? savingStatus === 'saved'
+                  ? 'Connected'
+                  : savingStatus === 'saving'
+                  ? 'Saving...'
+                  : 'Offline Saved'
                 : savingStatus === 'saving'
                 ? 'Saving...'
                 : 'Offline Saved'}
@@ -1030,7 +931,7 @@ const TakeExam: React.FC = () => {
           activeLanguage={activeLanguage}
           onSwitchToEnglish={() => {
             setActiveLanguage(ALL_EXAM_LANGUAGES[0]);
-                        if (sessionIdRef.current) {
+            if (sessionIdRef.current) {
               saveLanguagePreference(sessionIdRef.current, 'en');
             }
           }}
@@ -1081,6 +982,21 @@ const TakeExam: React.FC = () => {
                         >
                           <MathRenderer content={getEnglishContent(currentQ)} />
                         </div>
+                        {currentQ.imageUrl && (
+                          <div className="mt-3">
+                            <img
+                              src={currentQ.imageUrl}
+                              alt={currentQ.imageAltText || `Question ${currentIndex + 1} Figure`}
+                              className="max-h-64 w-auto rounded-lg border bg-white object-contain cursor-zoom-in"
+                              onClick={() =>
+                                setZoomImage({
+                                  src: currentQ.imageUrl!,
+                                  alt: currentQ.imageAltText || `Question ${currentIndex + 1} Figure`,
+                                })
+                              }
+                            />
+                          </div>
+                        )}
                       </div>
 
                       {/* Selected Regional Language Card */}
@@ -1098,6 +1014,26 @@ const TakeExam: React.FC = () => {
                         >
                           <MathRenderer content={getTranslatedContent(currentQ, regionalLangForDisplay.code)} />
                         </div>
+                        {(() => {
+                          const trans = currentQ.translations?.[regionalLangForDisplay.code];
+                          const regionalImg = trans?.imageUrl || currentQ.imageUrl;
+                          const regionalAlt = trans?.imageAltText || currentQ.imageAltText;
+                          return regionalImg ? (
+                            <div className="mt-3">
+                              <img
+                                src={regionalImg}
+                                alt={regionalAlt || `Question ${currentIndex + 1} Figure`}
+                                className="max-h-64 w-auto rounded-lg border bg-white object-contain cursor-zoom-in"
+                                onClick={() =>
+                                  setZoomImage({
+                                    src: regionalImg,
+                                    alt: regionalAlt || `Question ${currentIndex + 1} Figure`,
+                                  })
+                                }
+                              />
+                            </div>
+                          ) : null;
+                        })()}
                       </div>
                     </div>
                   ) : (
@@ -1121,13 +1057,37 @@ const TakeExam: React.FC = () => {
                           }
                         />
                       </div>
+                      {(() => {
+                        const isTrans = activeLanguage.code !== 'en' && hasTrans;
+                        const transObj = isTrans ? currentQ.translations?.[activeLanguage.code] : undefined;
+                        const qImg = transObj?.imageUrl || currentQ.imageUrl;
+                        const qAlt = transObj?.imageAltText || currentQ.imageAltText;
+                        return qImg ? (
+                          <div className="mt-3">
+                            <img
+                              src={qImg}
+                              alt={qAlt || `Question ${currentIndex + 1} Figure`}
+                              className="max-h-64 w-auto rounded-lg border bg-white object-contain cursor-zoom-in"
+                              onClick={() =>
+                                setZoomImage({
+                                  src: qImg,
+                                  alt: qAlt || `Question ${currentIndex + 1} Figure`,
+                                })
+                              }
+                            />
+                          </div>
+                        ) : null;
+                      })()}
                     </div>
                   )}
                 </div>
 
                 {/* Options List with Markdown & LaTeX Rendering */}
                 {(() => {
-                  const hasImageOptions = currentQ?.options?.some((opt: any) => opt.imageUrl);
+                  const hasImageOptions = currentQ?.options?.some((opt: any) => {
+                    const tOpt = getTranslatedOption(currentQ, opt, opt.index, regionalLangForDisplay.code);
+                    return Boolean(opt.imageUrl || tOpt?.imageUrl);
+                  });
                   return (
                     <div className={`mt-6 ${hasImageOptions ? 'grid grid-cols-2 gap-3' : 'space-y-3'}`}>
                       {currentQ.options.map((opt, optDisplayIdx) => {
@@ -1155,12 +1115,15 @@ const TakeExam: React.FC = () => {
                           letterClass = 'border-teal-700 bg-teal-700 text-white';
                         }
 
-                        const optTransText = getTranslatedOptionText(
+                        const transOpt = getTranslatedOption(
                           currentQ,
                           opt,
                           opt.index,
                           regionalLangForDisplay.code
                         );
+                        const optTransText = transOpt?.content || transOpt?.text || '';
+                        const effectiveOptImageUrl = transOpt?.imageUrl || opt.imageUrl;
+                        const effectiveOptImageAlt = transOpt?.imageAltText || opt.imageAltText;
 
                         return (
                           <div
@@ -1223,15 +1186,18 @@ const TakeExam: React.FC = () => {
                                 </span>
                               )}
                             </div>
-                            {opt.imageUrl && (
+                            {effectiveOptImageUrl && (
                               <div className="relative mt-3">
                                 <img
-                                  src={opt.imageUrl}
-                                  alt={opt.imageAltText || `Option ${opt.index}`}
+                                  src={effectiveOptImageUrl}
+                                  alt={effectiveOptImageAlt || `Option ${String.fromCharCode(65 + optDisplayIdx)}`}
                                   className="w-full h-auto rounded border cursor-zoom-in max-h-48 object-contain bg-gray-50"
                                   onClick={(e) => {
                                     e.stopPropagation();
-                                    setZoomImage({ src: opt.imageUrl!, alt: opt.imageAltText || `Option ${opt.index}` });
+                                    setZoomImage({
+                                      src: effectiveOptImageUrl,
+                                      alt: effectiveOptImageAlt || `Option ${String.fromCharCode(65 + optDisplayIdx)}`,
+                                    });
                                   }}
                                 />
                               </div>
@@ -1474,6 +1440,65 @@ const TakeExam: React.FC = () => {
                 className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-700 px-4 py-2 text-xs font-bold text-white hover:bg-emerald-800 disabled:opacity-50"
               >
                 {submitting ? 'Sealing Responses...' : 'Yes, Submit Now'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Concurrent Active Session Conflict Modal */}
+      {concurrentConflict && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-sm p-4 animate-in fade-in">
+          <div className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-2xl border border-rose-200">
+            <div className="flex items-start gap-4">
+              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-amber-100 text-amber-700 border border-amber-300">
+                <AlertTriangle className="h-6 w-6" />
+              </div>
+              <div className="flex-1">
+                <h3 className="text-base font-bold text-slate-900">
+                  Active Examination Session Already in Progress
+                </h3>
+                <p className="mt-1 text-xs text-slate-600 leading-relaxed">
+                  Our security system detected that you already have an active CBT examination session in progress. Per strict regulatory testing rules, multiple concurrent examination sessions are not permitted.
+                </p>
+              </div>
+            </div>
+
+            <div className="mt-4 rounded-xl bg-amber-50 p-3.5 text-xs text-amber-900 border border-amber-200 space-y-1">
+              <p className="font-bold">Would you like to resume your existing exam or switch to this one?</p>
+              <p className="text-amber-800 text-[11px]">
+                Switching to this examination will permanently seal and close your previous active session.
+              </p>
+            </div>
+
+            <div className="mt-6 flex flex-wrap items-center justify-end gap-2.5">
+              <button
+                onClick={() => navigate('/dashboard')}
+                className="rounded-xl border border-slate-300 px-4 py-2.5 text-xs font-semibold text-slate-700 hover:bg-slate-100 transition"
+              >
+                Go to Dashboard
+              </button>
+              {activeExistingExamId && (
+                <button
+                  onClick={() => navigate(`/exams/${activeExistingExamId}/take`)}
+                  className="rounded-xl bg-teal-700 px-4 py-2.5 text-xs font-bold text-white hover:bg-teal-800 transition shadow-xs"
+                >
+                  Resume Existing Exam
+                </button>
+              )}
+              <button
+                onClick={handleForceStartSession}
+                disabled={conflictLoading}
+                className="inline-flex items-center gap-1.5 rounded-xl bg-rose-700 px-4 py-2.5 text-xs font-bold text-white hover:bg-rose-800 disabled:opacity-50 transition shadow-xs"
+              >
+                {conflictLoading ? (
+                  <>
+                    <div className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                    <span>Resetting Session...</span>
+                  </>
+                ) : (
+                  <span>Close Previous & Start This Exam</span>
+                )}
               </button>
             </div>
           </div>

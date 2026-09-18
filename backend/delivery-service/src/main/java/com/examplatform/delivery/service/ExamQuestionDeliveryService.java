@@ -49,6 +49,7 @@ import java.util.UUID;
  * Resolves questions from decrypted exam packages, cached question packages, or the approved question bank.
  * Enriches questions with approved/published multi-language translations (e.g. Hindi).
  * Supports option randomization per candidate session across English and regional translations.
+ * Preserves question and option images / SVGs across translations and randomizations.
  */
 @Slf4j
 @Service
@@ -129,8 +130,8 @@ public class ExamQuestionDeliveryService {
 
     /**
      * Randomizes option order for each question deterministically using a session seed.
-     * Preserves originalIndex and option ID while updating the display index and correctOptionIndex.
-     * Also synchronizes the option ordering in any attached regional language translations.
+     * Preserves originalIndex, option ID, imageUrl, and imageAltText while updating the display index and correctOptionIndex.
+     * Also synchronizes the option ordering and image preservation in any attached regional language translations.
      *
      * @param questions original list of questions
      * @param seedId    UUID used as randomization seed (e.g. sessionId or candidateId)
@@ -175,10 +176,12 @@ public class ExamQuestionDeliveryService {
                         .index(i)
                         .originalIndex(original.getOriginalIndex())
                         .text(original.getText())
+                        .imageUrl(original.getImageUrl())
+                        .imageAltText(original.getImageAltText())
                         .build());
             }
 
-            // Also re-index translations to match the exact option IDs
+            // Also re-index translations to match the exact option IDs and preserve image assets
             Map<String, TranslatedQuestionDeliveryDto> randomizedTranslations = new HashMap<>();
             if (q.getTranslations() != null) {
                 for (Map.Entry<String, TranslatedQuestionDeliveryDto> entry : q.getTranslations().entrySet()) {
@@ -194,11 +197,29 @@ public class ExamQuestionDeliveryService {
                             QuestionOptionDeliveryDto baseOpt = reindexedOptions.get(i);
                             QuestionOptionDeliveryDto transOpt = transOptMap.get(baseOpt.getId());
                             if (transOpt != null) {
+                                String optImg = (transOpt.getImageUrl() != null && !transOpt.getImageUrl().isBlank())
+                                        ? transOpt.getImageUrl()
+                                        : baseOpt.getImageUrl();
+                                String optAlt = (transOpt.getImageAltText() != null && !transOpt.getImageAltText().isBlank())
+                                        ? transOpt.getImageAltText()
+                                        : baseOpt.getImageAltText();
+
                                 transOptions.add(QuestionOptionDeliveryDto.builder()
                                         .id(baseOpt.getId())
                                         .index(i)
                                         .originalIndex(transOpt.getOriginalIndex())
                                         .text(transOpt.getText())
+                                        .imageUrl(optImg)
+                                        .imageAltText(optAlt)
+                                        .build());
+                            } else {
+                                transOptions.add(QuestionOptionDeliveryDto.builder()
+                                        .id(baseOpt.getId())
+                                        .index(i)
+                                        .originalIndex(baseOpt.getOriginalIndex())
+                                        .text(baseOpt.getText())
+                                        .imageUrl(baseOpt.getImageUrl())
+                                        .imageAltText(baseOpt.getImageAltText())
                                         .build());
                             }
                         }
@@ -207,6 +228,8 @@ public class ExamQuestionDeliveryService {
                     randomizedTranslations.put(entry.getKey(), TranslatedQuestionDeliveryDto.builder()
                             .languageCode(trans.getLanguageCode())
                             .content(trans.getContent())
+                            .imageUrl(trans.getImageUrl() != null ? trans.getImageUrl() : q.getImageUrl())
+                            .imageAltText(trans.getImageAltText() != null ? trans.getImageAltText() : q.getImageAltText())
                             .options(transOptions)
                             .explanation(trans.getExplanation())
                             .build());
@@ -216,6 +239,9 @@ public class ExamQuestionDeliveryService {
             randomizedList.add(QuestionDeliveryDto.builder()
                     .id(q.getId())
                     .text(q.getText())
+                    .imageUrl(q.getImageUrl())
+                    .imageAltText(q.getImageAltText())
+                    .hasImages(q.isHasImages())
                     .options(reindexedOptions)
                     .marks(q.getMarks())
                     .negativeMarks(q.getNegativeMarks())
@@ -233,6 +259,7 @@ public class ExamQuestionDeliveryService {
 
     /**
      * Enriches delivered questions with published and approved regional language translations.
+     * Preserves and falls back to question stem images and option images when present.
      */
     public void enrichWithTranslations(List<QuestionDeliveryDto> questions, String tenantId) {
         if (questions == null || questions.isEmpty() || jdbcTemplate == null) {
@@ -289,6 +316,13 @@ public class ExamQuestionDeliveryService {
                         JsonNode node = objectMapper.readTree(payload);
                         String transContent = node.path("content").asText(null);
                         String transExplanation = node.path("explanation").asText(null);
+                        String transImageUrl = node.has("imageUrl") && !node.get("imageUrl").isNull()
+                                ? node.get("imageUrl").asText(null)
+                                : qDto.getImageUrl();
+                        String transImageAltText = node.has("imageAltText") && !node.get("imageAltText").isNull()
+                                ? node.get("imageAltText").asText(null)
+                                : qDto.getImageAltText();
+
                         List<QuestionOptionDeliveryDto> transOptions = new ArrayList<>();
 
                         JsonNode optionsNode = node.path("options");
@@ -297,11 +331,33 @@ public class ExamQuestionDeliveryService {
                                 JsonNode optNode = optionsNode.get(i);
                                 String optText = optNode.path("text").asText("");
                                 String optId = optNode.path("id").asText(String.valueOf((char) ('A' + i)));
+                                String optImg = optNode.has("imageUrl") && !optNode.get("imageUrl").isNull()
+                                        ? optNode.get("imageUrl").asText(null)
+                                        : null;
+                                String optAlt = optNode.has("imageAltText") && !optNode.get("imageAltText").isNull()
+                                        ? optNode.get("imageAltText").asText(null)
+                                        : null;
+
+                                // Fallback to base question option if translation payload doesn't specify image
+                                if ((optImg == null || optImg.isBlank()) && qDto.getOptions() != null) {
+                                    for (QuestionOptionDeliveryDto baseOpt : qDto.getOptions()) {
+                                        if (optId.equalsIgnoreCase(baseOpt.getId())) {
+                                            optImg = baseOpt.getImageUrl();
+                                            if (optAlt == null || optAlt.isBlank()) {
+                                                optAlt = baseOpt.getImageAltText();
+                                            }
+                                            break;
+                                        }
+                                    }
+                                }
+
                                 transOptions.add(QuestionOptionDeliveryDto.builder()
                                         .id(optId)
                                         .index(i)
                                         .originalIndex(i)
                                         .text(optText)
+                                        .imageUrl(optImg)
+                                        .imageAltText(optAlt)
                                         .build());
                             }
                         }
@@ -313,6 +369,8 @@ public class ExamQuestionDeliveryService {
                             qDto.getTranslations().put(langCode, TranslatedQuestionDeliveryDto.builder()
                                     .languageCode(langCode)
                                     .content(transContent)
+                                    .imageUrl(transImageUrl)
+                                    .imageAltText(transImageAltText)
                                     .options(transOptions)
                                     .explanation(transExplanation)
                                     .build());
@@ -357,6 +415,9 @@ public class ExamQuestionDeliveryService {
             String explanation = qNode.has("explanation") ? qNode.get("explanation").asText() : null;
             String answerKey = qNode.has("answerKey") ? qNode.get("answerKey").asText() :
                     (qNode.has("answer_key") ? qNode.get("answer_key").asText() : null);
+            String imageUrl = qNode.has("imageUrl") && !qNode.get("imageUrl").isNull() ? qNode.get("imageUrl").asText(null) : null;
+            String imageAltText = qNode.has("imageAltText") && !qNode.get("imageAltText").isNull() ? qNode.get("imageAltText").asText(null) : null;
+            boolean hasImages = qNode.has("hasImages") ? qNode.get("hasImages").asBoolean() : false;
 
             List<QuestionOptionDeliveryDto> options = new ArrayList<>();
             Integer correctOptionIndex = null;
@@ -367,15 +428,23 @@ public class ExamQuestionDeliveryService {
                     JsonNode optNode = optionsNode.get(i);
                     String optText;
                     String optId = "";
+                    String optImageUrl = null;
+                    String optImageAltText = null;
                     boolean isCorrect = false;
 
                     if (optNode.isObject()) {
                         optText = optNode.has("text") ? optNode.get("text").asText() : optNode.asText();
                         optId = optNode.has("id") ? optNode.get("id").asText() : String.valueOf((char) ('A' + i));
                         isCorrect = optNode.has("isCorrect") && optNode.get("isCorrect").asBoolean();
+                        optImageUrl = optNode.has("imageUrl") && !optNode.get("imageUrl").isNull() ? optNode.get("imageUrl").asText(null) : null;
+                        optImageAltText = optNode.has("imageAltText") && !optNode.get("imageAltText").isNull() ? optNode.get("imageAltText").asText(null) : null;
                     } else {
                         optText = optNode.asText();
                         optId = String.valueOf((char) ('A' + i));
+                    }
+
+                    if (optImageUrl != null && !optImageUrl.isBlank()) {
+                        hasImages = true;
                     }
 
                     if (isCorrect || (answerKey != null && (answerKey.equalsIgnoreCase(optId) || answerKey.equalsIgnoreCase(optText)))) {
@@ -387,6 +456,8 @@ public class ExamQuestionDeliveryService {
                             .index(i)
                             .originalIndex(i)
                             .text(optText)
+                            .imageUrl(optImageUrl)
+                            .imageAltText(optImageAltText)
                             .build());
                 }
             }
@@ -401,6 +472,9 @@ public class ExamQuestionDeliveryService {
             return QuestionDeliveryDto.builder()
                     .id(id)
                     .text(content)
+                    .imageUrl(imageUrl)
+                    .imageAltText(imageAltText)
+                    .hasImages(hasImages)
                     .options(options)
                     .marks(qNode.has("marks") ? qNode.get("marks").asDouble() : 2.0)
                     .negativeMarks(qNode.has("negativeMarks") ? qNode.get("negativeMarks").asDouble() : 0.5)
@@ -481,7 +555,7 @@ public class ExamQuestionDeliveryService {
         String keyword = "%" + (subject != null && !subject.isBlank() ? subject.trim() : "") + "%";
         String sql = """
             SELECT q.id, q.subject, q.topic, q.subtopic, q.difficulty, q.cognitive_level, q.question_type,
-                   q.content, q.options, q.answer_key, q.explanation
+                   q.content, q.options, q.answer_key, q.explanation, q.has_images
             FROM question_service.question q
             LEFT JOIN question_service.translation t ON q.id = t.question_id AND t.language_code = 'hi' AND t.status IN ('PUBLISHED', 'APPROVED')
             WHERE (q.tenant_id = ? OR q.tenant_id = 'default')
@@ -510,7 +584,7 @@ public class ExamQuestionDeliveryService {
         if (filtered.size() < limit) {
             String fallbackSql = """
                 SELECT q.id, q.subject, q.topic, q.subtopic, q.difficulty, q.cognitive_level, q.question_type,
-                       q.content, q.options, q.answer_key, q.explanation
+                       q.content, q.options, q.answer_key, q.explanation, q.has_images
                 FROM question_service.question q
                 LEFT JOIN question_service.translation t ON q.id = t.question_id AND t.language_code = 'hi' AND t.status IN ('PUBLISHED', 'APPROVED')
                 WHERE (q.tenant_id = ? OR q.tenant_id = 'default')
@@ -539,7 +613,7 @@ public class ExamQuestionDeliveryService {
     private List<QuestionDeliveryDto> fetchDefaultApprovedQuestions(String tenantId) {
         String sql = """
             SELECT q.id, q.subject, q.topic, q.subtopic, q.difficulty, q.cognitive_level, q.question_type,
-                   q.content, q.options, q.answer_key, q.explanation
+                   q.content, q.options, q.answer_key, q.explanation, q.has_images
             FROM question_service.question q
             LEFT JOIN question_service.translation t ON q.id = t.question_id AND t.language_code = 'hi' AND t.status IN ('PUBLISHED', 'APPROVED')
             WHERE (q.tenant_id = ? OR q.tenant_id = 'default')
@@ -565,6 +639,7 @@ public class ExamQuestionDeliveryService {
                 String optionsJson = rs.getString("options");
                 String answerKey = rs.getString("answer_key");
                 String explanation = rs.getString("explanation");
+                boolean hasImages = rs.getBoolean("has_images");
 
                 List<QuestionOptionDeliveryDto> options = new ArrayList<>();
                 Integer correctOptionIndex = null;
@@ -577,15 +652,23 @@ public class ExamQuestionDeliveryService {
                                 JsonNode optNode = optArr.get(i);
                                 String optText;
                                 String optId = "";
+                                String optImageUrl = null;
+                                String optImageAltText = null;
                                 boolean isCorrect = false;
 
                                 if (optNode.isObject()) {
                                     optText = optNode.has("text") ? optNode.get("text").asText() : optNode.asText();
                                     optId = optNode.has("id") ? optNode.get("id").asText() : String.valueOf((char) ('A' + i));
                                     isCorrect = optNode.has("isCorrect") && optNode.get("isCorrect").asBoolean();
+                                    optImageUrl = optNode.has("imageUrl") && !optNode.get("imageUrl").isNull() ? optNode.get("imageUrl").asText(null) : null;
+                                    optImageAltText = optNode.has("imageAltText") && !optNode.get("imageAltText").isNull() ? optNode.get("imageAltText").asText(null) : null;
                                 } else {
                                     optText = optNode.asText();
                                     optId = String.valueOf((char) ('A' + i));
+                                }
+
+                                if (optImageUrl != null && !optImageUrl.isBlank()) {
+                                    hasImages = true;
                                 }
 
                                 if (isCorrect || (answerKey != null && (answerKey.equalsIgnoreCase(optId) || answerKey.equalsIgnoreCase(optText)))) {
@@ -597,6 +680,8 @@ public class ExamQuestionDeliveryService {
                                         .index(i)
                                         .originalIndex(i)
                                         .text(optText)
+                                        .imageUrl(optImageUrl)
+                                        .imageAltText(optImageAltText)
                                         .build());
                             }
                         }
@@ -611,6 +696,7 @@ public class ExamQuestionDeliveryService {
                 return QuestionDeliveryDto.builder()
                         .id(id != null ? id.toString() : UUID.randomUUID().toString())
                         .text(content)
+                        .hasImages(hasImages)
                         .options(options)
                         .marks(marks)
                         .negativeMarks(negMarks)

@@ -1,7 +1,7 @@
 // src/types/api.ts
 // TypeScript interfaces matching the backend Spring Boot DTOs
 
-// ─── Shared ──────────────────────────────────────────────────────────────
+// ─── Shared ──────────────────────────────────────────────────
 
 export interface ApiResponse<T> {
   success: boolean;
@@ -20,7 +20,7 @@ export interface Page<T> {
   last: boolean;
 }
 
-// ─── Identity Service DTOs ───────────────────────────────────────────────
+// ─── Identity Service DTOs ───────────────────────────────────
 
 export interface RegistrationRequest {
   fullName: string;
@@ -84,7 +84,7 @@ export interface OtpResendRequest {
   userId: string;
 }
 
-// ─── Candidate Service DTOs ─────────────────────────────────────────────
+// ─── Candidate Service DTOs ──────────────────────────────────
 
 export type Gender = 'MALE' | 'FEMALE' | 'OTHER' | 'PREFER_NOT_TO_SAY';
 export type Category = 'GENERAL' | 'OBC' | 'SC' | 'ST' | 'EWS';
@@ -205,7 +205,7 @@ export interface ConsentRequest {
   consentVersion?: string;
 }
 
-// ─── Examination Service DTOs ───────────────────────────────────────────
+// ─── Examination Service DTOs ────────────────────────────────
 
 export type ExamStatus = 'DRAFT' | 'PUBLISHED' | 'ACTIVE' | 'COMPLETED' | 'CANCELLED';
 export type ExamMode = 'ONLINE' | 'OFFLINE' | 'HYBRID' | 'CBT' | 'OMR';
@@ -329,11 +329,11 @@ export interface AdmitCardResponse {
   instructions: string[];
 }
 
-// ─── Delivery Service DTOs ──────────────────────────────────────────────
+// ─── Delivery Service DTOs ───────────────────────────────────
 
 export type NavigationMode = 'SEQUENTIAL' | 'FLEXIBLE' | 'RESTRICTED';
 
-// ─── Multilingual support ────────────────────────────────────────────────
+// ─── Multilingual support ─────────────────────────────────────
 // The delivery service packages both the English master and any approved
 // regional translation in the session bundle.  Client-side language switching
 // is zero-latency (no additional network requests).
@@ -355,6 +355,8 @@ export interface QuestionOptionTranslation {
   index?: number;
   text?: string;
   content?: string;
+  imageUrl?: string;
+  imageAltText?: string;
 }
 
 /** Per-language content for an entire question. */
@@ -363,6 +365,8 @@ export interface QuestionTranslation {
   languageCode?: string;
   text?: string;
   content?: string;
+  imageUrl?: string;
+  imageAltText?: string;
   options?: QuestionOptionTranslation[];
   explanation?: string;
 }
@@ -383,6 +387,7 @@ export interface QuestionDto {
   content?: string;
   imageUrl?: string;
   imageAltText?: string;
+  hasImages?: boolean;
   options: QuestionOption[];    // English master options
   marks: number;
   negativeMarks: number;
@@ -449,7 +454,7 @@ export interface NavigationResponse {
   allowedActions: string[];     // ['NEXT', 'PREVIOUS', 'JUMP', 'MARK_REVIEW']
 }
 
-// ─── Response Service DTOs ──────────────────────────────────────────────
+// ─── Response Service DTOs ───────────────────────────────────
 
 export type ResponseType = 'MCQ' | 'INTEGER' | 'DESCRIPTIVE';
 
@@ -474,7 +479,7 @@ export interface BulkSaveRequest {
   responses: SaveResponseRequest[];
 }
 
-// ─── Result Service DTOs ────────────────────────────────────────────────
+// ─── Result Service DTOs ─────────────────────────────────────
 
 export type ResultStatus = 'PENDING' | 'COMPUTED' | 'PUBLISHED' | 'WITHHELD';
 
@@ -514,7 +519,7 @@ export interface ResultDto {
   categoryRank?: number;
 }
 
-// ─── Asset Service DTOs ─────────────────────────────────────────────────
+// ─── Asset Service DTOs ──────────────────────────────────────
 
 export type AssetType = 'IMAGE' | 'DOCUMENT' | 'VIDEO' | 'AUDIO';
 
@@ -528,7 +533,7 @@ export interface AssetUploadResponse {
   createdAt: string;
 }
 
-// ─── Notification DTOs ──────────────────────────────────────────────────
+// ─── Notification DTOs ───────────────────────────────────────
 
 export type NotificationType =
   | 'EXAM_APPLIED'
@@ -549,11 +554,13 @@ export interface NotificationDto {
   actionUrl?: string;
 }
 
-// ─── Post-Exam Review Types (Issue #101) ───────────────────────────────────
+// ─── Post-Exam Review Types (Issue #101) ───────────────────────
 
 export interface ReviewOption {
   id: string;
   text: string;
+  imageUrl?: string;
+  imageAltText?: string;
   isCorrect: boolean;
 }
 
@@ -561,6 +568,8 @@ export interface ReviewQuestion {
   questionId: string;
   questionNumber: number;
   content: string;
+  imageUrl?: string;
+  imageAltText?: string;
   subject: string;
   topic: string;
   difficulty: 'EASY' | 'MEDIUM' | 'HARD';
@@ -580,7 +589,7 @@ export interface ExamReviewResponse {
   questions: ReviewQuestion[];
 }
 
-// ─── Extended ResultDto fields (Issue #101 diagnostics) ─────────────────────
+// ─── Extended ResultDto fields (Issue #101 diagnostics) ────────
 
 export interface CognitiveBreakdown {
   REMEMBER?: number;
