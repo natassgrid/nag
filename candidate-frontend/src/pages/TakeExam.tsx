@@ -1130,7 +1130,7 @@ const TakeExam: React.FC = () => {
                   const hasImageOptions = currentQ?.options?.some((opt: any) => opt.imageUrl);
                   return (
                     <div className={`mt-6 ${hasImageOptions ? 'grid grid-cols-2 gap-3' : 'space-y-3'}`}>
-                      {currentQ.options.map((opt) => {
+                      {currentQ.options.map((opt, optDisplayIdx) => {
                         const isSelected = currentAnswer?.optionIndex === opt.index;
                         const isCorrect = currentQ.correctOptionIndex === opt.index;
                         const showCorrectness = showPracticeTools && showExplanation;
@@ -1173,7 +1173,7 @@ const TakeExam: React.FC = () => {
                                 <div
                                   className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full border text-xs font-bold mt-0.5 ${letterClass}`}
                                 >
-                                  {opt.id || String.fromCharCode(65 + opt.index)}
+                                  {String.fromCharCode(65 + optDisplayIdx)}
                                 </div>
 
                                 {isBilingualModeActive ? (

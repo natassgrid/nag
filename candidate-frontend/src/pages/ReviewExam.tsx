@@ -167,7 +167,7 @@ const ReviewExam: React.FC = () => {
 
                 {/* Options */}
                 <div className="space-y-2">
-                  {currentQuestion.options.map((opt) => {
+                  {currentQuestion.options.map((opt, optDisplayIdx) => {
                     const wasSelected = currentQuestion.candidateSelectedOptionIds.includes(opt.id);
                     const isCorrectOpt = opt.isCorrect;
 
@@ -187,7 +187,7 @@ const ReviewExam: React.FC = () => {
                         className={`flex items-start gap-3 px-4 py-3 rounded-xl border ${bg} transition`}
                       >
                         <span className="text-xs font-bold text-gray-500 mt-0.5 w-4 flex-shrink-0">
-                          {opt.id.toUpperCase().slice(-1)}
+                          {String.fromCharCode(65 + optDisplayIdx)}
                         </span>
                         <div className="flex-1 text-sm text-gray-800">
                           <MathRenderer content={opt.text} />
