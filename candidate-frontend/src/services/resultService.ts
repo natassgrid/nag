@@ -45,4 +45,11 @@ export const resultService = {
   async getReviewData(candidateId: string, examId: string): Promise<ExamReviewResponse> {
     return (await api.get<ExamReviewResponse>(`${BASE}/${candidateId}/review`, { params: { examId } })).data;
   },
+
+  /**
+   * Helper to get exam review for current candidate or specified candidate ID.
+   */
+  async getExamReview(examId: string, candidateId: string = 'me'): Promise<ExamReviewResponse> {
+    return (await api.get<ExamReviewResponse>(`${BASE}/${candidateId}/review`, { params: { examId } })).data;
+  },
 };

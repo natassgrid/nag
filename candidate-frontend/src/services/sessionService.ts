@@ -62,4 +62,9 @@ export const sessionService = {
   async recordFullScreenExit(sessionId: string): Promise<void> {
     await api.post(`${BASE}/${sessionId}/proctoring/fullscreen-exit`);
   },
+
+  /** Send a periodic heartbeat to indicate active session. */
+  async sendHeartbeat(sessionId: string): Promise<void> {
+    await api.post(`${BASE}/${sessionId}/heartbeat`);
+  },
 };

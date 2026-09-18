@@ -108,12 +108,12 @@ public class TranslationWorkflowService {
         validateOptionIds(request, question);
 
         TranslatedQuestionPayload payload = buildPayload(request, question);
-        String stored = payloadService.serialize(payload);
+        String serialized = payloadService.serialize(payload);
 
         Translation translation = Translation.builder()
                 .questionId(request.getQuestionId())
                 .languageCode(request.getLanguageCode())
-                .translatedPayload(stored)
+                .translatedPayload(serialized)
                 .payloadEncrypted(payloadService.isEncryptionEnabled())
                 .sourceVersion(question.getVersion() != null ? question.getVersion() : 0L)
                 .status(Translation.TranslationStatus.DRAFT)
@@ -121,33 +121,32 @@ public class TranslationWorkflowService {
                 .build();
         translation.setTenantId(tenantId);
 
-        log.info("Translation requested: questionId={}, lang={}, translator={}, tenant={}, encrypted={}",
-                request.getQuestionId(), request.getLanguageCode(),
-                request.getTranslatorId(), tenantId, payloadService.isEncryptionEnabled());
+        log.info("Translation requested: questionId={}, lang={}, translatorId={}, tenant={}",
+                request.getQuestionId(), request.getLanguageCode(), request.getTranslatorId(), tenantId);
 
         return translationRepository.save(translation);
     }
 
     /**
      * Resubmit a rejected translation with updated content.
-     * The translation must currently be in {@code DRAFT} status (rejected translations
-     * remain DRAFT with review comments set).
+     * Transitions status from {@code REJECTED} back to {@code DRAFT}.
      *
-     * @param translationId the translation to update
+     * @param translationId existing translation UUID
      * @param request       the updated translation payload
      * @param tenantId      examination authority identifier
-     * @return the updated Translation entity
+     * @return updated Translation entity
+     * @throws IllegalStateException if translation is not in REJECTED status
      */
-    public Translation resubmitTranslation(UUID translationId,
-                                            TranslationRequest request,
-                                            String tenantId) {
+    public Translation resubmitTranslation(
+            UUID translationId, TranslationRequest request, String tenantId) {
+
         Translation translation = translationRepository.findById(translationId)
                 .orElseThrow(() -> new IllegalArgumentException(
                         "Translation not found: " + translationId));
 
-        if (translation.getStatus() != Translation.TranslationStatus.DRAFT) {
+        if (translation.getStatus() != Translation.TranslationStatus.REJECTED) {
             throw new IllegalStateException(
-                    "Only DRAFT translations can be resubmitted. Current status: "
+                    "Only REJECTED translations can be resubmitted. Current status: "
                             + translation.getStatus());
         }
 
@@ -158,20 +157,26 @@ public class TranslationWorkflowService {
         validateOptionIds(request, question);
 
         TranslatedQuestionPayload payload = buildPayload(request, question);
-        translation.setTranslatedPayload(payloadService.serialize(payload));
+        String serialized = payloadService.serialize(payload);
+
+        translation.setTranslatedPayload(serialized);
         translation.setPayloadEncrypted(payloadService.isEncryptionEnabled());
         translation.setSourceVersion(question.getVersion() != null ? question.getVersion() : 0L);
-        // Clear previous review comments on resubmission
-        translation.setReviewComments(null);
+        translation.setStatus(Translation.TranslationStatus.DRAFT);
+        translation.setTranslatorId(request.getTranslatorId());
         translation.setReviewerId(null);
+        translation.setReviewComments(null);
 
-        log.info("Translation resubmitted: translationId={}, translator={}", translationId, request.getTranslatorId());
+        log.info("Translation resubmitted: translationId={}, lang={}, tenant={}",
+                translationId, translation.getLanguageCode(), tenantId);
+
         return translationRepository.save(translation);
     }
 
     /**
-     * Upsert a translation (creates if not existing, updates if already present)
-     * and sets status (e.g. PUBLISHED or APPROVED).
+     * Upsert a translation (e.g. from automated IndicTrans2 background pipeline).
+     * If existing translation exists, updates payload and sets to target status (e.g. PUBLISHED).
+     * If not, inserts new translation directly.
      */
     public Translation upsertTranslation(
             UUID questionId,
@@ -193,14 +198,30 @@ public class TranslationWorkflowService {
                 ? question.getOptions().stream().collect(Collectors.toMap(QuestionOption::getId, o -> o, (a, b) -> a))
                 : Collections.emptyMap();
 
-        List<TranslatedQuestionPayload.TranslatedOption> payloadOptions = (options != null)
-                ? options.stream().map(dto -> {
-                    QuestionOption src = sourceOptionMap.get(dto.id());
-                    String imgUrl = dto.imageUrl() != null ? dto.imageUrl() : (src != null ? src.getImageUrl() : null);
-                    String altText = dto.imageAltText() != null ? dto.imageAltText() : (src != null ? src.getImageAltText() : null);
-                    return new TranslatedQuestionPayload.TranslatedOption(dto.id(), dto.text(), imgUrl, altText);
-                }).toList()
-                : Collections.emptyList();
+        List<TranslatedQuestionPayload.TranslatedOption> payloadOptions;
+        if (options != null && !options.isEmpty()) {
+            payloadOptions = options.stream().map(dto -> {
+                QuestionOption src = sourceOptionMap.get(dto.id());
+                String imgUrl = (dto.imageUrl() != null && !dto.imageUrl().isBlank())
+                        ? dto.imageUrl()
+                        : (src != null ? src.getImageUrl() : null);
+                String altText = (dto.imageAltText() != null && !dto.imageAltText().isBlank())
+                        ? dto.imageAltText()
+                        : (src != null ? src.getImageAltText() : null);
+                return new TranslatedQuestionPayload.TranslatedOption(dto.id(), dto.text(), imgUrl, altText);
+            }).toList();
+        } else if (question.getOptions() != null && !question.getOptions().isEmpty()) {
+            payloadOptions = question.getOptions().stream().map(src ->
+                    new TranslatedQuestionPayload.TranslatedOption(
+                            src.getId(),
+                            src.getText(),
+                            src.getImageUrl(),
+                            src.getImageAltText()
+                    )
+            ).toList();
+        } else {
+            payloadOptions = Collections.emptyList();
+        }
 
         TranslatedQuestionPayload payload = new TranslatedQuestionPayload(content, payloadOptions, explanation);
         String serialized = payloadService.serialize(payload);
@@ -303,17 +324,32 @@ public class TranslationWorkflowService {
                 ? question.getOptions().stream().collect(Collectors.toMap(QuestionOption::getId, o -> o, (a, b) -> a))
                 : Collections.emptyMap();
 
-        List<TranslatedQuestionPayload.TranslatedOption> options = Optional
-                .ofNullable(request.getTranslatedOptions())
-                .orElse(Collections.emptyList())
-                .stream()
-                .map(dto -> {
-                    QuestionOption src = sourceOptionMap.get(dto.id());
-                    String imgUrl = dto.imageUrl() != null ? dto.imageUrl() : (src != null ? src.getImageUrl() : null);
-                    String altText = dto.imageAltText() != null ? dto.imageAltText() : (src != null ? src.getImageAltText() : null);
-                    return new TranslatedQuestionPayload.TranslatedOption(dto.id(), dto.text(), imgUrl, altText);
-                })
-                .toList();
+        List<TranslatedQuestionPayload.TranslatedOption> options;
+        if (request.getTranslatedOptions() != null && !request.getTranslatedOptions().isEmpty()) {
+            options = request.getTranslatedOptions().stream()
+                    .map(dto -> {
+                        QuestionOption src = sourceOptionMap.get(dto.id());
+                        String imgUrl = (dto.imageUrl() != null && !dto.imageUrl().isBlank())
+                                ? dto.imageUrl()
+                                : (src != null ? src.getImageUrl() : null);
+                        String altText = (dto.imageAltText() != null && !dto.imageAltText().isBlank())
+                                ? dto.imageAltText()
+                                : (src != null ? src.getImageAltText() : null);
+                        return new TranslatedQuestionPayload.TranslatedOption(dto.id(), dto.text(), imgUrl, altText);
+                    })
+                    .toList();
+        } else if (question != null && question.getOptions() != null && !question.getOptions().isEmpty()) {
+            options = question.getOptions().stream().map(src ->
+                    new TranslatedQuestionPayload.TranslatedOption(
+                            src.getId(),
+                            src.getText(),
+                            src.getImageUrl(),
+                            src.getImageAltText()
+                    )
+            ).toList();
+        } else {
+            options = Collections.emptyList();
+        }
 
         return new TranslatedQuestionPayload(
                 request.getTranslatedContent(),

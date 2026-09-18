@@ -38,6 +38,9 @@ import java.util.Map;
 public class QuestionDeliveryDto {
     private String id;
     private String text;
+    private String imageUrl;
+    private String imageAltText;
+    private boolean hasImages;
     private List<QuestionOptionDeliveryDto> options;
     @Builder.Default
     private Double marks = 2.0;
