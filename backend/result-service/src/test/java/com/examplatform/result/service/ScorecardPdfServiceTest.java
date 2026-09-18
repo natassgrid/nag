@@ -20,6 +20,9 @@
 package com.examplatform.result.service;
 
 import com.examplatform.result.domain.Result;
+import com.examplatform.result.storage.LocalFileScorecardStorageProvider;
+import com.examplatform.result.storage.ScorecardStorageProperties;
+import com.examplatform.result.storage.ScorecardStorageProvider;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.pdfbox.Loader;
 import org.apache.pdfbox.pdmodel.PDDocument;
@@ -29,11 +32,12 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
-import java.io.File;
 import java.io.IOException;
+import java.io.InputStream;
 import java.lang.reflect.Field;
 import java.math.BigDecimal;
 import java.nio.file.Path;
+import java.util.Optional;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -41,11 +45,12 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
  * Unit tests for ScorecardPdfService.
- * Validates: Requirements 13.3, 13.4
+ * Validates: Requirements 13.3, 13.4, Issue #118
  */
 class ScorecardPdfServiceTest {
 
     private ScorecardPdfService scorecardPdfService;
+    private ScorecardStorageProvider storageProvider;
 
     @TempDir
     Path tempDir;
@@ -55,12 +60,12 @@ class ScorecardPdfServiceTest {
     @BeforeEach
     void setUp() throws Exception {
         ObjectMapper objectMapper = new ObjectMapper();
-        scorecardPdfService = new ScorecardPdfService(objectMapper);
+        ScorecardStorageProperties properties = new ScorecardStorageProperties();
+        properties.setMode("local");
+        properties.getLocal().setPath(tempDir.toString());
+        storageProvider = new LocalFileScorecardStorageProvider(properties);
 
-        // Set the storage path using reflection since @Value won't be available in unit test
-        Field storagePathField = ScorecardPdfService.class.getDeclaredField("storagePath");
-        storagePathField.setAccessible(true);
-        storagePathField.set(scorecardPdfService, tempDir.toString());
+        scorecardPdfService = new ScorecardPdfService(storageProvider, objectMapper);
 
         testResult = Result.builder()
                 .candidateId(UUID.randomUUID())
@@ -85,13 +90,17 @@ class ScorecardPdfServiceTest {
         String candidateId = "CAND-12345";
         String password = dateOfBirth + candidateId;
 
-        String pdfPath = scorecardPdfService.generateScorecard(testResult, dateOfBirth, candidateId);
+        String storageKey = scorecardPdfService.generateScorecard(testResult, dateOfBirth, candidateId);
 
-        File pdfFile = new File(pdfPath);
-        assertThat(pdfFile).exists();
+        assertThat(storageKey).isEqualTo("scorecards/scorecard-" + testResult.getId() + ".pdf");
+        assertThat(storageProvider.exists(storageKey)).isTrue();
+        assertThat(testResult.getScorecardPdfRef()).isEqualTo(storageKey);
 
-        // Verify that PDF is encrypted and requires password
-        try (PDDocument doc = Loader.loadPDF(pdfFile, password)) {
+        Optional<InputStream> is = storageProvider.download(storageKey);
+        assertThat(is).isPresent();
+
+        byte[] pdfBytes = is.get().readAllBytes();
+        try (PDDocument doc = Loader.loadPDF(pdfBytes, password)) {
             assertThat(doc.getNumberOfPages()).isGreaterThan(0);
         }
     }
@@ -103,9 +112,13 @@ class ScorecardPdfServiceTest {
         String candidateId = "CAND-12345";
         String password = dateOfBirth + candidateId;
 
-        String pdfPath = scorecardPdfService.generateScorecard(testResult, dateOfBirth, candidateId);
+        String storageKey = scorecardPdfService.generateScorecard(testResult, dateOfBirth, candidateId);
 
-        try (PDDocument doc = Loader.loadPDF(new File(pdfPath), password)) {
+        Optional<InputStream> is = storageProvider.download(storageKey);
+        assertThat(is).isPresent();
+
+        byte[] pdfBytes = is.get().readAllBytes();
+        try (PDDocument doc = Loader.loadPDF(pdfBytes, password)) {
             PDFTextStripper stripper = new PDFTextStripper();
             String text = stripper.getText(doc);
 
@@ -126,14 +139,16 @@ class ScorecardPdfServiceTest {
         String dateOfBirth = "1995-01-15";
         String candidateId = "CAND-12345";
 
-        String pdfPath = scorecardPdfService.generateScorecard(testResult, dateOfBirth, candidateId);
+        String storageKey = scorecardPdfService.generateScorecard(testResult, dateOfBirth, candidateId);
 
-        File pdfFile = new File(pdfPath);
-        assertThat(pdfFile).exists();
+        Optional<InputStream> is = storageProvider.download(storageKey);
+        assertThat(is).isPresent();
+
+        byte[] pdfBytes = is.get().readAllBytes();
 
         // Trying with wrong password should fail
         assertThatThrownBy(() -> {
-            try (PDDocument doc = Loader.loadPDF(pdfFile, "wrong-password")) {
+            try (PDDocument doc = Loader.loadPDF(pdfBytes, "wrong-password")) {
                 PDFTextStripper stripper = new PDFTextStripper();
                 stripper.getText(doc);
             }
@@ -149,12 +164,13 @@ class ScorecardPdfServiceTest {
         String candidateId = "CAND-99999";
         String password = dateOfBirth + candidateId;
 
-        String pdfPath = scorecardPdfService.generateScorecard(testResult, dateOfBirth, candidateId);
+        String storageKey = scorecardPdfService.generateScorecard(testResult, dateOfBirth, candidateId);
 
-        File pdfFile = new File(pdfPath);
-        assertThat(pdfFile).exists();
+        Optional<InputStream> is = storageProvider.download(storageKey);
+        assertThat(is).isPresent();
 
-        try (PDDocument doc = Loader.loadPDF(pdfFile, password)) {
+        byte[] pdfBytes = is.get().readAllBytes();
+        try (PDDocument doc = Loader.loadPDF(pdfBytes, password)) {
             PDFTextStripper stripper = new PDFTextStripper();
             String text = stripper.getText(doc);
             assertThat(text).contains("No section data available");
@@ -162,12 +178,12 @@ class ScorecardPdfServiceTest {
     }
 
     @Test
-    @DisplayName("Returns valid file path reference")
-    void generateScorecard_returnsValidPath() {
-        String pdfPath = scorecardPdfService.generateScorecard(testResult, "1990-01-01", "CAND-001");
+    @DisplayName("Returns valid storage key reference")
+    void generateScorecard_returnsValidStorageKey() {
+        String storageKey = scorecardPdfService.generateScorecard(testResult, "1990-01-01", "CAND-001");
 
-        assertThat(pdfPath).contains("scorecard-");
-        assertThat(pdfPath).endsWith(".pdf");
-        assertThat(new File(pdfPath)).exists();
+        assertThat(storageKey).contains("scorecard-");
+        assertThat(storageKey).endsWith(".pdf");
+        assertThat(storageProvider.exists(storageKey)).isTrue();
     }
 }
