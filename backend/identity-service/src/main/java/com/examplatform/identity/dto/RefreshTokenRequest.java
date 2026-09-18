@@ -17,19 +17,25 @@
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
 
-package com.examplatform.identity.exception;
+package com.examplatform.identity.dto;
 
-import org.springframework.http.HttpStatus;
-import org.springframework.web.bind.annotation.ResponseStatus;
+import jakarta.validation.constraints.NotBlank;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
 
-@ResponseStatus(HttpStatus.UNAUTHORIZED)
-public class AuthenticationException extends RuntimeException {
+/**
+ * Payload for refreshing an expired JWT access token using a valid refresh token.
+ */
+@Data
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
+public class RefreshTokenRequest {
 
-    public AuthenticationException(String message) {
-        super(message);
-    }
+    @NotBlank(message = "Refresh token is required")
+    private String refreshToken;
 
-    public AuthenticationException(String message, Throwable cause) {
-        super(message, cause);
-    }
+    private String deviceFingerprint;
 }

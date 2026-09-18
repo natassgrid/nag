@@ -1,5 +1,4 @@
 #!/bin/bash
-
 # SPDX-License-Identifier: AGPL-3.0-only
 #
 # National Assessment Grid (NAG) - Open Digital Public Infrastructure (DPI) Platform

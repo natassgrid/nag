@@ -25,6 +25,7 @@ import com.examplatform.identity.domain.UserAccount;
 import com.examplatform.identity.domain.enums.AccountStatus;
 import com.examplatform.identity.dto.AuthTokenRequest;
 import com.examplatform.identity.dto.AuthTokenResponse;
+import com.examplatform.identity.dto.RefreshTokenRequest;
 import com.examplatform.identity.exception.AccountNotFoundException;
 import com.examplatform.identity.exception.AuthenticationException;
 import com.examplatform.identity.exception.MfaRequiredException;
@@ -40,6 +41,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 
 /**
@@ -212,6 +214,109 @@ public class AuthenticationService {
         );
 
         // 9. Return tokens obtained from Keycloak
+        return tokens;
+    }
+
+    /**
+     * Refresh an expired JWT access token using a valid refresh token.
+     * Extends the active session lifetime and validates account state and device binding.
+     *
+     * @param request   refresh token payload
+     * @param tenantId  tenant identifier
+     * @param ipAddress client IP address
+     * @return rotated JWT tokens
+     */
+    public AuthTokenResponse refreshToken(RefreshTokenRequest request, String tenantId, String ipAddress) {
+        if (request.getRefreshToken() == null || request.getRefreshToken().isBlank()) {
+            throw new AuthenticationException("Refresh token is required");
+        }
+
+        // 1. Delegate token refresh to Keycloak / DevKeycloak
+        AuthTokenResponse tokens = keycloakService.refreshToken(request.getRefreshToken());
+        if (tokens == null || tokens.getAccessToken() == null) {
+            throw new AuthenticationException("Failed to refresh token");
+        }
+
+        // 2. Identify the user account
+        UserAccount account = null;
+        if (tokens.getUserId() != null && !tokens.getUserId().isBlank()) {
+            try {
+                UUID parsedUserId = UUID.fromString(tokens.getUserId().trim());
+                account = userAccountRepository.findById(parsedUserId).orElse(null);
+            } catch (IllegalArgumentException ignored) {
+                // Not a UUID, try username
+            }
+            if (account == null) {
+                account = userAccountRepository.findByUsernameIgnoreCaseAndTenantId(tokens.getUserId().trim(), tenantId).orElse(null);
+            }
+        }
+
+        if (account == null) {
+            log.warn("User account not found during token refresh for subject: {}", tokens.getUserId());
+            throw new AuthenticationException("Invalid or expired session");
+        }
+
+        // 3. Verify tenant match & account status
+        if (!tenantId.equals(account.getTenantId())) {
+            throw new AuthenticationException("Invalid tenant");
+        }
+
+        if (account.getAccountStatus() != AccountStatus.ACTIVE) {
+            throw new AuthenticationException("Account is not active: " + account.getAccountStatus());
+        }
+
+        // 4. Validate device fingerprint (Requirement 2.5)
+        String requestedFingerprint = request.getDeviceFingerprint();
+        String storedFingerprint = account.getDeviceFingerprint();
+        if (storedFingerprint != null && !storedFingerprint.isBlank()) {
+            if (requestedFingerprint != null && !requestedFingerprint.equals(storedFingerprint)) {
+                log.warn("Device fingerprint mismatch during token refresh for user [{}] tenant [{}] ip [{}]",
+                        account.getId(), tenantId, ipAddress);
+                publishAuditEventAsync(
+                        AuditEventType.DENIED_ACCESS,
+                        account.getId().toString(),
+                        tenantId,
+                        ipAddress,
+                        requestedFingerprint
+                );
+                throw new AuthenticationException("Device not recognised.");
+            }
+        } else if (requestedFingerprint != null && !requestedFingerprint.isBlank()) {
+            account.setDeviceFingerprint(requestedFingerprint);
+            userAccountRepository.save(account);
+        }
+
+        // 5. Update / extend active session lifetime (Sliding session)
+        final UUID userId = account.getId();
+        int timeoutMinutes = dynamicConfigService.getInt(
+                "auth.session.timeout.minutes",
+                tenantId,
+                Math.max(1, (int) (appSecurityProperties.getSessionIdleTimeoutSeconds() / 60))
+        );
+        LocalDateTime newExpiresAt = LocalDateTime.now().plusMinutes(timeoutMinutes);
+
+        ActiveSession session = activeSessionRepository.findByUserIdAndTenantId(userId, tenantId)
+                .orElseGet(() -> {
+                    ActiveSession newSession = ActiveSession.builder()
+                            .userId(userId)
+                            .sessionToken(UUID.randomUUID().toString())
+                            .build();
+                    newSession.setTenantId(tenantId);
+                    return newSession;
+                });
+
+        session.setExpiresAt(newExpiresAt);
+        if (ipAddress != null && !ipAddress.isBlank()) {
+            session.setIpAddress(ipAddress);
+        }
+        if (requestedFingerprint != null && !requestedFingerprint.isBlank()) {
+            session.setDeviceFp(requestedFingerprint);
+        }
+        activeSessionRepository.save(session);
+
+        tokens.setUserId(userId.toString());
+        log.debug("Token refreshed and session extended for user [{}] tenant [{}]", userId, tenantId);
+
         return tokens;
     }
 

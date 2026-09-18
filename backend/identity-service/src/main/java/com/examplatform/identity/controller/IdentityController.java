@@ -24,6 +24,7 @@ import com.examplatform.identity.dto.AuthTokenResponse;
 import com.examplatform.identity.dto.ChangePasswordRequest;
 import com.examplatform.identity.dto.OtpResendRequest;
 import com.examplatform.identity.dto.OtpVerifyRequest;
+import com.examplatform.identity.dto.RefreshTokenRequest;
 import com.examplatform.identity.dto.RegistrationRequest;
 import com.examplatform.identity.dto.RegistrationResponse;
 import com.examplatform.identity.dto.UserAccountResponse;
@@ -141,6 +142,26 @@ public class IdentityController {
         String ipAddress = servletRequest.getRemoteAddr();
         AuthTokenResponse response = authenticationService.authenticate(request, tenantId, ipAddress);
         return ResponseEntity.ok(ApiResponse.success(response, "Authentication successful."));
+    }
+
+    /**
+     * Refresh JWT access token using a valid refresh token.
+     * Extends active session lifetime and rotates refresh token.
+     *
+     * @param request        refresh token payload
+     * @param tenantId       tenant identifier from request header
+     * @param servletRequest raw HTTP request used to extract client IP address
+     * @return 200 OK with refreshed JWT tokens
+     */
+    @PostMapping({"/auth/token/refresh", "/auth/refresh"})
+    public ResponseEntity<ApiResponse<AuthTokenResponse>> refreshToken(
+            @Valid @RequestBody RefreshTokenRequest request,
+            @RequestHeader(value = "X-Tenant-Id", defaultValue = "default") String tenantId,
+            HttpServletRequest servletRequest) {
+        log.debug("Token refresh request received, tenant [{}]", tenantId);
+        String ipAddress = servletRequest.getRemoteAddr();
+        AuthTokenResponse response = authenticationService.refreshToken(request, tenantId, ipAddress);
+        return ResponseEntity.ok(ApiResponse.success(response, "Token refreshed successfully."));
     }
 
     /**

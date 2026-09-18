@@ -115,12 +115,13 @@ api.interceptors.response.use(
 
       try {
         const { data } = await axios.post(
-          `${BASE_URL}/api/v1/identity/auth/refresh` as string,
+          `${BASE_URL}/api/v1/identity/auth/token/refresh` as string,
           { refreshToken },
           { headers: { 'X-Tenant-Id': TENANT_ID } },
         );
 
-        const { accessToken, refreshToken: newRefresh, expiresIn, userId } = data.data;
+        const tokenData = data.data || data;
+        const { accessToken, refreshToken: newRefresh, expiresIn, userId } = tokenData;
         tokenManager.setTokens(accessToken, newRefresh, expiresIn, userId);
         processQueue(null, accessToken);
 
@@ -132,7 +133,7 @@ api.interceptors.response.use(
       } catch (refreshError) {
         processQueue(refreshError, null);
         tokenManager.clearTokens();
-        if (window.location.pathname !== '/login') {
+        if (window.location.pathname !== '/login' && window.location.pathname !== '/register') {
           window.location.href = '/login';
         }
         return Promise.reject(refreshError);
