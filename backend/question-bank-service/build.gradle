@@ -43,6 +43,9 @@ dependencies {
     implementation libs.spring.boot.starter.data.jpa
     runtimeOnly libs.postgresql
 
+    // Redis
+    implementation libs.spring.boot.starter.data.redis
+
     // Flyway database migrations
     // Spring Boot 4.x requires the starter + database-specific module
     implementation libs.spring.boot.starter.flyway

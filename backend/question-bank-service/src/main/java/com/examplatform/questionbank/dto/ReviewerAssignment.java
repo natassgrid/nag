@@ -17,29 +17,25 @@
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
 
-package com.examplatform.identity.dto;
+package com.examplatform.questionbank.dto;
 
-import com.examplatform.identity.domain.enums.AccountStatus;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-/**
- * Request DTO for admin-initiated user update.
- * All fields are optional — only non-null fields are applied.
- */
+import java.util.ArrayList;
+import java.util.List;
+import java.util.UUID;
+
 @Data
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class AdminUpdateUserRequest {
-
-    private String fullName;
-
-    private AccountStatus accountStatus;
-
-    private String specialization;
-
-    private Boolean mfaEnabled;
+public class ReviewerAssignment {
+    private UUID primaryReviewerId;
+    private UUID secondaryReviewerId;
+    @Builder.Default
+    private List<UUID> assignedReviewerIds = new ArrayList<>();
+    private boolean escalatedToController;
 }

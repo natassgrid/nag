@@ -5,7 +5,7 @@
  * Copyright (C) 2025 NAG Contributors
  *
  * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU Affero General Public License as published
+ * it under the terms of the GNU标识 Affero General Public License as published
  * by the Free Software Foundation, version 3 of the License.
  *
  * This program is distributed in the hope that it will be useful,
@@ -67,6 +67,9 @@ public class UserAccount extends BaseEntity {
     @Builder.Default
     @Column(name = "account_status")
     private AccountStatus accountStatus = AccountStatus.PENDING_VERIFICATION;
+
+    @Column(name = "specialization")
+    private String specialization;
 
     @Builder.Default
     @Column(name = "mfa_enabled")

@@ -78,6 +78,7 @@ public class UserManagementService {
                 .emailHash(emailHash)
                 .mobileHash(hashingService.sha256("admin-created-" + UUID.randomUUID()))
                 .accountStatus(AccountStatus.ACTIVE)
+                .specialization(request.getSpecialization())
                 .mfaEnabled(false)
                 .failedAttemptCount(0)
                 .build();
@@ -116,6 +117,7 @@ public class UserManagementService {
                 .id(saved.getId())
                 .username(saved.getUsername())
                 .accountStatus(saved.getAccountStatus().name())
+                .specialization(saved.getSpecialization())
                 .mfaEnabled(saved.isMfaEnabled())
                 .roles(assignedRoles)
                 .createdAt(saved.getCreatedAt())
@@ -141,6 +143,9 @@ public class UserManagementService {
         }
         if (request.getAccountStatus() != null) {
             account.setAccountStatus(request.getAccountStatus());
+        }
+        if (request.getSpecialization() != null) {
+            account.setSpecialization(request.getSpecialization());
         }
         if (request.getMfaEnabled() != null) {
             account.setMfaEnabled(request.getMfaEnabled());
@@ -168,6 +173,7 @@ public class UserManagementService {
                 .id(account.getId())
                 .username(account.getUsername())
                 .accountStatus(account.getAccountStatus().name())
+                .specialization(account.getSpecialization())
                 .mfaEnabled(account.isMfaEnabled())
                 .roles(roles)
                 .createdAt(account.getCreatedAt())

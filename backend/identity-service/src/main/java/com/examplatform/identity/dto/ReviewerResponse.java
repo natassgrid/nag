@@ -19,27 +19,22 @@
 
 package com.examplatform.identity.dto;
 
-import com.examplatform.identity.domain.enums.AccountStatus;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-/**
- * Request DTO for admin-initiated user update.
- * All fields are optional — only non-null fields are applied.
- */
+import java.util.List;
+import java.util.UUID;
+
 @Data
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class AdminUpdateUserRequest {
-
-    private String fullName;
-
-    private AccountStatus accountStatus;
-
+public class ReviewerResponse {
+    private UUID id;
+    private String username;
     private String specialization;
-
-    private Boolean mfaEnabled;
+    private String accountStatus;
+    private List<String> roles;
 }
