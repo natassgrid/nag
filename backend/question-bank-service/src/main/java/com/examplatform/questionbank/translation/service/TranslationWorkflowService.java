@@ -129,24 +129,24 @@ public class TranslationWorkflowService {
 
     /**
      * Resubmit a rejected translation with updated content.
-     * Transitions status from {@code REJECTED} back to {@code DRAFT}.
+     * The translation must currently be in {@code DRAFT} status (rejected translations
+     * remain DRAFT with review comments set).
      *
-     * @param translationId existing translation UUID
+     * @param translationId the translation to update
      * @param request       the updated translation payload
      * @param tenantId      examination authority identifier
-     * @return updated Translation entity
-     * @throws IllegalStateException if translation is not in REJECTED status
+     * @return the updated Translation entity
      */
-    public Translation resubmitTranslation(
-            UUID translationId, TranslationRequest request, String tenantId) {
-
+    public Translation resubmitTranslation(UUID translationId,
+                                            TranslationRequest request,
+                                            String tenantId) {
         Translation translation = translationRepository.findById(translationId)
                 .orElseThrow(() -> new IllegalArgumentException(
                         "Translation not found: " + translationId));
 
-        if (translation.getStatus() != Translation.TranslationStatus.REJECTED) {
+        if (translation.getStatus() != Translation.TranslationStatus.DRAFT) {
             throw new IllegalStateException(
-                    "Only REJECTED translations can be resubmitted. Current status: "
+                    "Only DRAFT translations can be resubmitted. Current status: "
                             + translation.getStatus());
         }
 
@@ -157,19 +157,14 @@ public class TranslationWorkflowService {
         validateOptionIds(request, question);
 
         TranslatedQuestionPayload payload = buildPayload(request, question);
-        String serialized = payloadService.serialize(payload);
-
-        translation.setTranslatedPayload(serialized);
+        translation.setTranslatedPayload(payloadService.serialize(payload));
         translation.setPayloadEncrypted(payloadService.isEncryptionEnabled());
         translation.setSourceVersion(question.getVersion() != null ? question.getVersion() : 0L);
-        translation.setStatus(Translation.TranslationStatus.DRAFT);
-        translation.setTranslatorId(request.getTranslatorId());
-        translation.setReviewerId(null);
+        // Clear previous review comments on resubmission
         translation.setReviewComments(null);
+        translation.setReviewerId(null);
 
-        log.info("Translation resubmitted: translationId={}, lang={}, tenant={}",
-                translationId, translation.getLanguageCode(), tenantId);
-
+        log.info("Translation resubmitted: translationId={}, translator={}", translationId, request.getTranslatorId());
         return translationRepository.save(translation);
     }
 
@@ -189,10 +184,9 @@ public class TranslationWorkflowService {
             String reviewComments,
             String tenantId) {
 
-        validateLanguageCode(languageCode);
-
         Question question = questionRepository.findById(questionId)
-                .orElseThrow(() -> new IllegalArgumentException("Source question not found: " + questionId));
+                .orElseThrow(() -> new IllegalArgumentException(
+                        "Source question not found: " + questionId));
 
         Map<String, QuestionOption> sourceOptionMap = (question.getOptions() != null)
                 ? question.getOptions().stream().collect(Collectors.toMap(QuestionOption::getId, o -> o, (a, b) -> a))
@@ -289,33 +283,25 @@ public class TranslationWorkflowService {
         }
     }
 
-    /**
-     * Validates that every option ID in the translated options matches an option
-     * ID present in the source question, and that no source option is missing.
-     */
     private void validateOptionIds(TranslationRequest request, Question question) {
-        if (request.getTranslatedOptions() == null || request.getTranslatedOptions().isEmpty()) {
-            return; // No options to validate (SHORT_ANSWER etc.)
+        if (question.getOptions() == null || question.getOptions().isEmpty()) {
+            return;
         }
 
-        List<QuestionOption> sourceOptions =
-                question.getOptions() != null ? question.getOptions() : Collections.emptyList();
-
-        Set<String> sourceIds = sourceOptions.stream()
+        Set<String> sourceOptionIds = question.getOptions().stream()
                 .map(QuestionOption::getId)
                 .collect(Collectors.toSet());
 
-        Set<String> translatedIds = request.getTranslatedOptions().stream()
+        Set<String> requestOptionIds = Optional.ofNullable(request.getTranslatedOptions())
+                .orElse(Collections.emptyList())
+                .stream()
                 .map(TranslatedOptionDto::id)
                 .collect(Collectors.toSet());
 
-        Set<String> unknown = translatedIds.stream()
-                .filter(id -> !sourceIds.contains(id))
-                .collect(Collectors.toSet());
-
-        if (!unknown.isEmpty()) {
+        if (!sourceOptionIds.equals(requestOptionIds)) {
             throw new IllegalArgumentException(
-                    "Translated options contain IDs not present in source question: " + unknown);
+                    "Translated option IDs do not match source question options. Source: "
+                            + sourceOptionIds + ", provided: " + requestOptionIds);
         }
     }
 
