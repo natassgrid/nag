@@ -47,6 +47,10 @@ dependencies {
     implementation libs.spring.boot.starter.flyway
     runtimeOnly libs.flyway.database.postgresql
 
+    // AWS SDK v2 (S3 Scorecard Storage Provider & Presigner)
+    implementation platform(libs.aws.bom)
+    implementation libs.aws.s3
+
     // PDF generation (Apache PDFBox)
     implementation 'org.apache.pdfbox:pdfbox:3.0.1'
     implementation 'com.google.zxing:core:3.5.3'

@@ -60,6 +60,9 @@ services:
       MANAGEMENT_HEALTH_RABBIT_ENABLED: "false"
       MANAGEMENT_HEALTH_MAIL_ENABLED: "false"
       ASSET_STORAGE_PATH: /data/asset-storage
+      SCORECARD_STORAGE_MODE: ${SCORECARD_STORAGE_MODE:-local}
+      SCORECARD_STORAGE_PATH: ${SCORECARD_STORAGE_PATH:-/data/scorecards}
+      SCORECARD_STORAGE_BUCKET: ${SCORECARD_STORAGE_BUCKET:-exam-platform-scorecards}
       # Observability / OpenTelemetry - Optional (Disabled by default to minimize memory)
       ENABLE_OBSERVABILITY: ${ENABLE_OBSERVABILITY:-false}
       OTEL_SDK_DISABLED: ${OTEL_SDK_DISABLED:-true}
@@ -70,6 +73,7 @@ services:
       AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:-}
       AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-}
       AWS_REGION_NAME: ${AWS_REGION_NAME:-us-east-1}
+      AWS_S3_ENDPOINT: ${AWS_S3_ENDPOINT:-}
     networks:
       exam-network:
         aliases:
@@ -82,6 +86,7 @@ services:
         condition: service_healthy
     volumes:
       - asset_storage:/data/asset-storage
+      - scorecard_storage:/data/scorecards
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://localhost:${MONOLITH_PORT:-9000}/actuator/health || exit 1"]
       <<: *healthcheck-spring
@@ -132,3 +137,4 @@ services:
 
 volumes:
   asset_storage:
+  scorecard_storage:

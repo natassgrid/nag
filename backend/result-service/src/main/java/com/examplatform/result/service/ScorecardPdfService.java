@@ -20,6 +20,7 @@
 package com.examplatform.result.service;
 
 import com.examplatform.result.domain.Result;
+import com.examplatform.result.storage.ScorecardStorageProvider;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
@@ -31,19 +32,22 @@ import org.apache.pdfbox.pdmodel.encryption.AccessPermission;
 import org.apache.pdfbox.pdmodel.encryption.StandardProtectionPolicy;
 import org.apache.pdfbox.pdmodel.font.PDType1Font;
 import org.apache.pdfbox.pdmodel.font.Standard14Fonts;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
+import java.io.InputStream;
+import java.time.Duration;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 
 /**
- * Generates password-protected PDF scorecards for candidates.
+ * Generates password-protected PDF scorecards for candidates and uploads them
+ * to cloud object storage (S3/MinIO) or local storage via {@link ScorecardStorageProvider}.
+ *
  * Password is composed of dateOfBirth + candidateId (e.g., "1995-01-15CAND-12345").
  *
  * Content includes: candidate identifier (no PII), exam name, total score,
@@ -56,27 +60,22 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class ScorecardPdfService {
 
-    @Value("${scorecard.storage.path:./scorecards}")
-    private String storagePath;
-
+    private final ScorecardStorageProvider storageProvider;
     private final ObjectMapper objectMapper;
 
     /**
-     * Generates a password-protected PDF scorecard for the given result.
+     * Generates a password-protected PDF scorecard for the given result and uploads it to storage.
      *
      * @param result       the candidate's exam result
      * @param dateOfBirth  candidate's date of birth (format: yyyy-MM-dd)
      * @param candidateId  candidate's identifier (e.g., "CAND-12345")
-     * @return the PDF reference/path stored in the filesystem
+     * @return the storage key / object reference in object storage
      */
     public String generateScorecard(Result result, String dateOfBirth, String candidateId) {
         String password = dateOfBirth + candidateId;
-        String filename = "scorecard-" + result.getId() + ".pdf";
-        Path outputPath = Paths.get(storagePath, filename);
+        String objectKey = "scorecards/scorecard-" + result.getId() + ".pdf";
 
         try {
-            Files.createDirectories(outputPath.getParent());
-
             try (PDDocument document = new PDDocument()) {
                 PDPage page = new PDPage();
                 document.addPage(page);
@@ -97,10 +96,6 @@ public class ScorecardPdfService {
                     log.warn("QR code embedding failed (non-fatal): {}", qrEx.getMessage());
                 }
 
-                // Save to stream
-                java.io.ByteArrayOutputStream baos = new java.io.ByteArrayOutputStream();
-                document.save(baos);
-
                 // Apply password protection
                 AccessPermission permissions = new AccessPermission();
                 permissions.setCanPrint(true);
@@ -112,18 +107,59 @@ public class ScorecardPdfService {
                 policy.setEncryptionKeyLength(128);
                 document.protect(policy);
 
-                document.save(outputPath.toFile());
+                // Save to in-memory byte array
+                ByteArrayOutputStream baos = new ByteArrayOutputStream();
+                document.save(baos);
+                byte[] pdfBytes = baos.toByteArray();
+
+                // Upload to object storage provider
+                storageProvider.upload(
+                        objectKey,
+                        new ByteArrayInputStream(pdfBytes),
+                        "application/pdf",
+                        pdfBytes.length
+                );
+
+                result.setScorecardPdfRef(objectKey);
             }
 
-            log.info("Scorecard PDF generated: path={}, candidateId={}, resultId={}",
-                    outputPath, candidateId, result.getId());
+            log.info("Scorecard PDF generated and stored: key={}, candidateId={}, resultId={}, provider={}",
+                    objectKey, candidateId, result.getId(), storageProvider.name());
 
-            return outputPath.toString();
+            return objectKey;
 
         } catch (IOException e) {
             log.error("Failed to generate scorecard PDF for result: {}", result.getId(), e);
             throw new RuntimeException("Failed to generate scorecard PDF", e);
         }
+    }
+
+    /**
+     * Generates a time-limited presigned URL for downloading the scorecard PDF.
+     *
+     * @param storageLocation the object key or storage location
+     * @param duration        expiration duration (e.g. 15 minutes)
+     * @return time-limited download URL
+     */
+    public String generatePresignedUrl(String storageLocation, Duration duration) {
+        return storageProvider.generatePresignedUrl(storageLocation, duration);
+    }
+
+    /**
+     * Downloads scorecard binary stream from storage.
+     *
+     * @param storageLocation the object key or storage location
+     * @return optional binary stream
+     */
+    public Optional<InputStream> downloadScorecard(String storageLocation) {
+        return storageProvider.download(storageLocation);
+    }
+
+    /**
+     * Returns the active storage provider.
+     */
+    public ScorecardStorageProvider getStorageProvider() {
+        return storageProvider;
     }
 
     /**
