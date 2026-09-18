@@ -41,60 +41,66 @@
 
   <!-- Actions template ───────────────────────────────────── -->
   <ng-template #actionsTmpl let-row>
-    <!-- View Paper Summary & Translation button -->
-    <button
-      mat-icon-button
-      color="accent"
-      matTooltip="View Paper Summary, Blueprint & Translations"
-      (click)="viewPaperSummary(row); $event.stopPropagation()"
-      aria-label="View paper summary"
-    >
-      <mat-icon>visibility</mat-icon>
-    </button>
+    <div class="paper-actions-wrapper">
+      <!-- View Paper Summary & Translation button -->
+      <button
+        mat-icon-button
+        color="accent"
+        matTooltip="View Paper Summary, Blueprint & Translations"
+        (click)="viewPaperSummary(row); $event.stopPropagation()"
+        aria-label="View paper summary"
+      >
+        <mat-icon>visibility</mat-icon>
+      </button>
 
-    <!-- Translate Paper button -->
-    <button
-      mat-icon-button
-      style="color: #4f46e5;"
-      matTooltip="Batch Translate Questions (IndicTrans2)"
-      (click)="viewPaperSummary(row); $event.stopPropagation()"
-      aria-label="Batch translate paper"
-    >
-      <mat-icon>g_translate</mat-icon>
-    </button>
+      <!-- Translate Paper button -->
+      <button
+        mat-icon-button
+        class="translate-action-btn"
+        matTooltip="Batch Translate Questions (IndicTrans2)"
+        (click)="viewPaperSummary(row); $event.stopPropagation()"
+        aria-label="Batch translate paper"
+      >
+        <mat-icon>g_translate</mat-icon>
+      </button>
 
-    <!-- Approve: only DRAFT papers -->
-    <button
-      mat-icon-button
-      color="primary"
-      matTooltip="Approve & Encrypt"
-      *ngIf="row.status === 'DRAFT'"
-      (click)="approvePaper(row); $event.stopPropagation()"
-      [disabled]="approvingId === row.paperId"
-      aria-label="Approve and encrypt paper"
-    >
-      <mat-spinner
-        diameter="20"
-        *ngIf="approvingId === row.paperId"
-      ></mat-spinner>
-      <mat-icon *ngIf="approvingId !== row.paperId">verified</mat-icon>
-    </button>
+      <!-- Approve: only DRAFT papers -->
+      <button
+        mat-icon-button
+        color="primary"
+        matTooltip="Approve & Encrypt"
+        *ngIf="row.status === 'DRAFT'"
+        (click)="approvePaper(row); $event.stopPropagation()"
+        [disabled]="approvingId === row.paperId"
+        aria-label="Approve and encrypt paper"
+      >
+        <mat-spinner
+          diameter="20"
+          *ngIf="approvingId === row.paperId"
+        ></mat-spinner>
+        <mat-icon *ngIf="approvingId !== row.paperId">verified</mat-icon>
+      </button>
 
-    <!-- Already approved / encrypted: show lock icon, no action -->
-    <mat-icon
-      *ngIf="row.status === 'APPROVED'"
-      class="status-icon approved"
-      matTooltip="Approved — awaiting encryption"
-    >check_circle_outline</mat-icon>
+      <!-- Already approved / encrypted: show lock icon, no action -->
+      <span
+        *ngIf="row.status === 'APPROVED'"
+        class="status-icon-wrapper"
+        matTooltip="Approved — awaiting encryption"
+      >
+        <mat-icon class="status-icon approved">check_circle_outline</mat-icon>
+      </span>
 
-    <mat-icon
-      *ngIf="row.status === 'ENCRYPTED'"
-      class="status-icon encrypted"
-      matTooltip="Encrypted and sealed"
-    >lock</mat-icon>
+      <span
+        *ngIf="row.status === 'ENCRYPTED'"
+        class="status-icon-wrapper"
+        matTooltip="Encrypted and sealed"
+      >
+        <mat-icon class="status-icon encrypted">lock</mat-icon>
+      </span>
+    </div>
   </ng-template>
 
-  <!-- ── Last generation result banner ───────────────────────────── -->
+  <!-- ── Last generation result banner ───────────────────── -->
   <div class="result-banner" *ngIf="lastResult" [class.result-banner--success]="lastResult.status !== 'ERROR'">
     <mat-icon>{{ lastResult.status !== 'ERROR' ? 'check_circle' : 'error' }}</mat-icon>
     <div class="result-text">
