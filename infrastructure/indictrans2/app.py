@@ -1,6 +1,6 @@
 """
 IndicTrans2 Translation Service
-Model: ai4bharat/indictrans2-en-indic-dist-200M (or ungated mirror)
+Model: naklitechie/indictrans2-en-indic-dist-200M (or ungated mirror)
 Translates English to 22 Indian languages.
 
 API:
@@ -90,7 +90,7 @@ from IndicTransToolkit.processor import IndicProcessor
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-MODEL_NAME = os.environ.get("MODEL_NAME", "ai4bharat/indictrans2-en-indic-dist-200M")
+MODEL_NAME = os.environ.get("MODEL_NAME", "naklitechie/indictrans2-en-indic-dist-200M")
 HF_TOKEN = os.environ.get("HF_TOKEN") or None
 if HF_TOKEN and not HF_TOKEN.strip():
     HF_TOKEN = None

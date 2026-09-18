@@ -91,7 +91,7 @@ export class PaperSummaryDrawerComponent implements OnChanges, OnDestroy {
 
   // Translation configuration state
   targetLanguage = 'hi';
-  overwriteExisting = true;
+  overwriteExisting = false;
   targetStatus = 'PUBLISHED';
   supportedLanguages: SupportedLanguage[] = SUPPORTED_LANGUAGES;
   activeTranslationJob: PaperTranslateResponse | null = null;

@@ -1,16 +1,40 @@
-    /* ── Status icons ─────────────────────────────────────────────── */
+    /* ── Paper Actions cell & Status icons ───────────────────────────────── */
+    .paper-actions-wrapper {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      white-space: nowrap;
+      vertical-align: middle;
+    }
+
+    .translate-action-btn {
+      color: #4f46e5;
+    }
+
+    .status-icon-wrapper {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 40px;
+      height: 40px;
+      vertical-align: middle;
+    }
+
     .status-icon {
       font-size: 20px;
       height: 20px;
       width: 20px;
-      vertical-align: middle;
-      margin: 0 8px;
+      line-height: 20px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0;
     }
 
     .status-icon.approved { color: #f57c00; }
     .status-icon.encrypted { color: #388e3c; }
 
-    /* ── Result banner ─────────────────────────────────────────────── */
+    /* ── Result banner ───────────────────────────────────────────────────── */
     .result-banner {
       display: flex;
       align-items: flex-start;
@@ -74,7 +98,7 @@
       }
     }
 
-    /* ── Status chip overrides ─────────────────────────────────────── */
+    /* ── Status chip overrides ───────────────────────────────────────────── */
     ::ng-deep .status-draft {
       background-color: #fff3e0 !important;
       color: #e65100 !important;
