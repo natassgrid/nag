@@ -17,29 +17,23 @@
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
 
-package com.examplatform.identity.dto;
+package com.examplatform.questionbank.client;
 
-import com.examplatform.identity.domain.enums.AccountStatus;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+import com.examplatform.questionbank.dto.ReviewerDto;
+
+import java.util.List;
 
 /**
- * Request DTO for admin-initiated user update.
- * All fields are optional — only non-null fields are applied.
+ * Client for fetching available reviewers and subject matter experts from Identity Service.
  */
-@Data
-@Builder
-@NoArgsConstructor
-@AllArgsConstructor
-public class AdminUpdateUserRequest {
+public interface ReviewerPoolClient {
 
-    private String fullName;
-
-    private AccountStatus accountStatus;
-
-    private String specialization;
-
-    private Boolean mfaEnabled;
+    /**
+     * Retrieve active reviewers for a given subject and tenant.
+     *
+     * @param subject  target subject domain (optional)
+     * @param tenantId tenant identifier
+     * @return list of reviewer DTOs
+     */
+    List<ReviewerDto> getReviewers(String subject, String tenantId);
 }

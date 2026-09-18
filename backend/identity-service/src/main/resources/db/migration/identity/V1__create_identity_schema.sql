@@ -20,6 +20,7 @@ CREATE TABLE identity_service.user_account (
     identity_doc_hash   VARCHAR(255),
     identity_doc_hmac   VARCHAR(255),
     account_status      VARCHAR(50),
+    specialization      VARCHAR(255),
     mfa_enabled         BOOLEAN NOT NULL DEFAULT FALSE,
     mfa_secret_ref      VARCHAR(255),
     device_fingerprint  VARCHAR(255),
@@ -36,6 +37,7 @@ CREATE INDEX idx_user_account_tenant_id ON identity_service.user_account(tenant_
 CREATE INDEX idx_user_account_email_hash ON identity_service.user_account(email_hash);
 CREATE INDEX idx_user_account_mobile_hash ON identity_service.user_account(mobile_hash);
 CREATE INDEX idx_user_account_keycloak_user_id ON identity_service.user_account(keycloak_user_id);
+CREATE INDEX idx_user_account_specialization ON identity_service.user_account(specialization);
 
 -- ============================================================
 -- Table: otp_verification
@@ -191,6 +193,7 @@ VALUES
     (gen_random_uuid(), 'default', 'Security Admin', 'SECURITY_ADMIN', 'Manages security policies and user access', TRUE, TRUE),
     (gen_random_uuid(), 'default', 'Question Author', 'QUESTION_AUTHOR', 'Creates and edits examination questions', TRUE, TRUE),
     (gen_random_uuid(), 'default', 'Reviewer', 'REVIEWER', 'Reviews and validates questions', TRUE, TRUE),
+    (gen_random_uuid(), 'default', 'Subject Matter Expert', 'SUBJECT_MATTER_EXPERT', 'Subject matter expert for authoring, reviewing, and validating subject questions', TRUE, TRUE),
     (gen_random_uuid(), 'default', 'Approver', 'APPROVER', 'Approves questions and papers for publication', TRUE, TRUE),
     (gen_random_uuid(), 'default', 'Exam Controller', 'EXAM_CONTROLLER', 'Manages examination scheduling and delivery', TRUE, TRUE),
     (gen_random_uuid(), 'default', 'Translator', 'TRANSLATOR', 'Translates questions to regional languages', TRUE, TRUE),
@@ -302,6 +305,18 @@ JOIN identity_service.permission p ON p.code IN ('QUESTION:READ', 'QUESTION:REVI
 WHERE r.code = 'REVIEWER'
 ON CONFLICT (role_id, permission_id, tenant_id) DO NOTHING;
 
+-- SUBJECT_MATTER_EXPERT: Question read, create, edit, review, approve, translate
+INSERT INTO identity_service.role_permission (id, tenant_id, role_id, permission_id)
+SELECT
+    gen_random_uuid(),
+    'default',
+    r.id,
+    p.id
+FROM identity_service.role_definition r
+JOIN identity_service.permission p ON p.code IN ('QUESTION:READ', 'QUESTION:CREATE', 'QUESTION:EDIT', 'QUESTION:REVIEW', 'QUESTION:APPROVE', 'QUESTION:TRANSLATE')
+WHERE r.code = 'SUBJECT_MATTER_EXPERT'
+ON CONFLICT (role_id, permission_id, tenant_id) DO NOTHING;
+
 -- APPROVER: Question read, approve, Exam read
 INSERT INTO identity_service.role_permission (id, tenant_id, role_id, permission_id)
 SELECT
@@ -380,49 +395,73 @@ ON CONFLICT (role_id, permission_id, tenant_id) DO NOTHING;
 -- =============================================================================
 INSERT INTO identity_service.user_account (
     id, tenant_id, username, email_hash, mobile_hash,
-    account_status, mfa_enabled, failed_attempt_count,
+    account_status, specialization, mfa_enabled, failed_attempt_count,
     created_at, updated_at, version
 ) VALUES
 ('018f4e2a-0000-7000-8000-000000000001', 'default', 'superadmin',
  '186cf774c97b60a1c106ef718d10970a6a06e06bef89553d9ae65d938a886eae',
  'a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2',
- 'ACTIVE', false, 0, NOW(), NOW(), 0),
+ 'ACTIVE', NULL, false, 0, NOW(), NOW(), 0),
 ('018f4e2a-0000-7000-8000-000000000002', 'default', 'secadmin',
  '429143a61064c974ed58080b7d7ea39cf806571abf7ec5f9f79f0faba5f1ec0b',
  'b1c2d3e4f5a6b1c2d3e4f5a6b1c2d3e4f5a6b1c2d3e4f5a6b1c2d3e4f5a6b1c2',
- 'ACTIVE', false, 0, NOW(), NOW(), 0),
+ 'ACTIVE', NULL, false, 0, NOW(), NOW(), 0),
 ('018f4e2a-0000-7000-8000-000000000003', 'default', 'author1',
  '1d0e1b1bd678143a050f6cb90e6ebdfd2927c81b1321e1fc01f2e2490f1459c7',
  'c2d3e4f5a6b1c2d3e4f5a6b1c2d3e4f5a6b1c2d3e4f5a6b1c2d3e4f5a6b1c2d3',
- 'ACTIVE', false, 0, NOW(), NOW(), 0),
+ 'ACTIVE', 'Mathematics', false, 0, NOW(), NOW(), 0),
 ('018f4e2a-0000-7000-8000-000000000004', 'default', 'reviewer1',
  '674ea6de0c758c87a3a9156288164e9781ae2d5cf765824c4e2ee7ed0756b73a',
  'd3e4f5a6b1c2d3e4f5a6b1c2d3e4f5a6b1c2d3e4f5a6b1c2d3e4f5a6b1c2d3e4',
- 'ACTIVE', false, 0, NOW(), NOW(), 0),
+ 'ACTIVE', 'Mathematics', false, 0, NOW(), NOW(), 0),
 ('018f4e2a-0000-7000-8000-000000000005', 'default', 'controller1',
  '3bf7bd3a4c57518cb4d1622284d6b4b6769b6a1c3b5973ae770226f7b5ba839b',
  'e4f5a6b1c2d3e4f5a6b1c2d3e4f5a6b1c2d3e4f5a6b1c2d3e4f5a6b1c2d3e4f5',
- 'ACTIVE', false, 0, NOW(), NOW(), 0),
+ 'ACTIVE', NULL, false, 0, NOW(), NOW(), 0),
 ('018f4e2a-0000-7000-8000-000000000006', 'default', 'candidate1',
  'e75c44736ae122cf1ec886b703515008e1be7dd934cdf94239d7edb202eb52df',
  'f5a6b1c2d3e4f5a6b1c2d3e4f5a6b1c2d3e4f5a6b1c2d3e4f5a6b1c2d3e4f5a6',
- 'ACTIVE', false, 0, NOW(), NOW(), 0),
+ 'ACTIVE', NULL, false, 0, NOW(), NOW(), 0),
 ('018f4e2a-0000-7000-8000-000000000007', 'default', 'translator1',
  '24d1de25d350ae44f9ac21ca873d279f37b05c5cb59b8e71b6c136f8d1ff7df6',
  'a6b1c2d3e4f5a6b1c2d3e4f5a6b1c2d3e4f5a6b1c2d3e4f5a6b1c2d3e4f5a6b1',
- 'ACTIVE', false, 0, NOW(), NOW(), 0),
+ 'ACTIVE', 'Hindi', false, 0, NOW(), NOW(), 0),
 ('018f4e2a-0000-7000-8000-000000000008', 'default', 'evaluator1',
  'baec845d9fd8d0728a11a32c237f79edec6bc30d416b01f97ba255998746ab79',
  'b1c2d3e4f5a6b1c2d3e4f5a6b1c2d3e4f5a6b1c2d3e4f5a6b1c2d3e4f5a6b100',
- 'ACTIVE', false, 0, NOW(), NOW(), 0),
+ 'ACTIVE', 'Mathematics', false, 0, NOW(), NOW(), 0),
 ('018f4e2a-0000-7000-8000-000000000009', 'default', 'auditor1',
  'a8e7654aed6072f7d449a51607c5164bfdc3bb0f96b2d83f978f526ce9d2b576',
  'c2d3e4f5a6b1c2d3e4f5a6b1c2d3e4f5a6b1c2d3e4f5a6b1c2d3e4f5a6b1c200',
- 'ACTIVE', false, 0, NOW(), NOW(), 0),
+ 'ACTIVE', NULL, false, 0, NOW(), NOW(), 0),
 ('018f4e2a-0000-7000-8000-00000000000a', 'default', 'approver1',
  'e973de4808e055b3238a774fbfba4bea8f563b24ff0d60fdb84023588251786f',
  'd3e4f5a6b1c2d3e4f5a6b1c2d3e4f5a6b1c2d3e4f5a6b1c2d3e4f5a6b1c2d300',
- 'ACTIVE', false, 0, NOW(), NOW(), 0)
+ 'ACTIVE', NULL, false, 0, NOW(), NOW(), 0),
+('018f4e2a-0000-7000-8000-00000000000b', 'default', 'reviewer_physics',
+ 'b1e2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6b1e2',
+ 'd3e4f5a6b1c2d3e4f5a6b1c2d3e4f5a6b1c2d3e4f5a6b1c2d3e4f5a6b1c2d301',
+ 'ACTIVE', 'Physics', false, 0, NOW(), NOW(), 0),
+('018f4e2a-0000-7000-8000-00000000000c', 'default', 'reviewer_general_awareness',
+ 'c1e2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6c1e2',
+ 'd3e4f5a6b1c2d3e4f5a6b1c2d3e4f5a6b1c2d3e4f5a6b1c2d3e4f5a6b1c2d302',
+ 'ACTIVE', 'General Awareness', false, 0, NOW(), NOW(), 0),
+('018f4e2a-0000-7000-8000-00000000000d', 'default', 'reviewer_quant',
+ 'd1e2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6d1e2',
+ 'd3e4f5a6b1c2d3e4f5a6b1c2d3e4f5a6b1c2d3e4f5a6b1c2d3e4f5a6b1c2d303',
+ 'ACTIVE', 'Quantitative Aptitude', false, 0, NOW(), NOW(), 0),
+('018f4e2a-0000-7000-8000-00000000000e', 'default', 'reviewer_reasoning',
+ 'e1e2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6e1e2',
+ 'd3e4f5a6b1c2d3e4f5a6b1c2d3e4f5a6b1c2d3e4f5a6b1c2d3e4f5a6b1c2d304',
+ 'ACTIVE', 'General Intelligence & Reasoning', false, 0, NOW(), NOW(), 0),
+('018f4e2a-0000-7000-8000-00000000000f', 'default', 'reviewer_english',
+ 'f1e2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6f1e2',
+ 'd3e4f5a6b1c2d3e4f5a6b1c2d3e4f5a6b1c2d3e4f5a6b1c2d3e4f5a6b1c2d305',
+ 'ACTIVE', 'English Comprehension', false, 0, NOW(), NOW(), 0),
+('018f4e2a-0000-7000-8000-000000000010', 'default', 'sme_math2',
+ '11e2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f611e2',
+ 'd3e4f5a6b1c2d3e4f5a6b1c2d3e4f5a6b1c2d3e4f5a6b1c2d3e4f5a6b1c2d306',
+ 'ACTIVE', 'Mathematics', false, 0, NOW(), NOW(), 0)
 ON CONFLICT (id) DO NOTHING;
 
 INSERT INTO identity_service.user_role_assignment (
@@ -457,5 +496,23 @@ INSERT INTO identity_service.user_role_assignment (
  '018f4e2a-0000-7000-8000-000000000001', NOW(), NOW(), NOW(), 0),
 ('018f4e2a-0000-7001-8000-00000000000a', 'default',
  '018f4e2a-0000-7000-8000-00000000000a', 'APPROVER',
+ '018f4e2a-0000-7000-8000-000000000001', NOW(), NOW(), NOW(), 0),
+('018f4e2a-0000-7001-8000-00000000000b', 'default',
+ '018f4e2a-0000-7000-8000-00000000000b', 'SUBJECT_MATTER_EXPERT',
+ '018f4e2a-0000-7000-8000-000000000001', NOW(), NOW(), NOW(), 0),
+('018f4e2a-0000-7001-8000-00000000000c', 'default',
+ '018f4e2a-0000-7000-8000-00000000000c', 'SUBJECT_MATTER_EXPERT',
+ '018f4e2a-0000-7000-8000-000000000001', NOW(), NOW(), NOW(), 0),
+('018f4e2a-0000-7001-8000-00000000000d', 'default',
+ '018f4e2a-0000-7000-8000-00000000000d', 'SUBJECT_MATTER_EXPERT',
+ '018f4e2a-0000-7000-8000-000000000001', NOW(), NOW(), NOW(), 0),
+('018f4e2a-0000-7001-8000-00000000000e', 'default',
+ '018f4e2a-0000-7000-8000-00000000000e', 'SUBJECT_MATTER_EXPERT',
+ '018f4e2a-0000-7000-8000-000000000001', NOW(), NOW(), NOW(), 0),
+('018f4e2a-0000-7001-8000-00000000000f', 'default',
+ '018f4e2a-0000-7000-8000-00000000000f', 'SUBJECT_MATTER_EXPERT',
+ '018f4e2a-0000-7000-8000-000000000001', NOW(), NOW(), NOW(), 0),
+('018f4e2a-0000-7001-8000-000000000010', 'default',
+ '018f4e2a-0000-7000-8000-000000000010', 'SUBJECT_MATTER_EXPERT',
  '018f4e2a-0000-7000-8000-000000000001', NOW(), NOW(), NOW(), 0)
 ON CONFLICT (id) DO NOTHING;
