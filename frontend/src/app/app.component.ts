@@ -17,7 +17,7 @@
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
 
-import { Component, ViewChild, ChangeDetectorRef, ChangeDetectionStrategy } from '@angular/core';
+import { Component, ViewChild, ChangeDetectorRef, ChangeDetectionStrategy, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterOutlet, RouterLink, Router, NavigationEnd } from '@angular/router';
 import { MatToolbarModule } from '@angular/material/toolbar';
@@ -28,6 +28,7 @@ import { MatButtonModule } from '@angular/material/button';
 import { BreakpointObserver, Breakpoints } from '@angular/cdk/layout';
 import { filter } from 'rxjs';
 import { AuthService } from './core/services/auth.service';
+import { UserActivityService } from './core/services/user-activity.service';
 import { NotificationPanelComponent } from './shared/components/notification-panel/notification-panel.component';
 import { UserMenuComponent } from './shared/components/user-menu/user-menu.component';
 
@@ -64,7 +65,7 @@ export interface NavGroup {
   changeDetection: ChangeDetectionStrategy.Eager,
   styleUrls: ['./app.component.scss'],
 })
-export class AppComponent {
+export class AppComponent implements OnInit {
   title = 'Exam Platform';
   isMobile = false;
   isAuthRoute = false;
@@ -131,6 +132,7 @@ export class AppComponent {
 
   constructor(
     public authService: AuthService,
+    private userActivityService: UserActivityService,
     private breakpointObserver: BreakpointObserver,
     private router: Router,
     private cdr: ChangeDetectorRef
@@ -154,6 +156,10 @@ export class AppComponent {
       this.isAuthRoute = this.currentUrl.startsWith('/auth');
       this.cdr.markForCheck();
     });
+  }
+
+  ngOnInit(): void {
+    this.userActivityService.init();
   }
 
   toggleGroup(label: string): void {

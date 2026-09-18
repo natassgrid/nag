@@ -6,19 +6,20 @@
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as published
- * by the Free Software Foundation, version 3 of the License.\n *
+ * by the Free Software Foundation, version 3 of the License.
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
  * GNU Affero General Public License for more details.
  *
  * You should have received a copy of the GNU Affero General Public License
- * along with this program. If not, see <https://www.gnu.org/licenses/>.
- */
+ * along with this program. If not, see <https://www.gnu.org/licenses/>.\n */
 
 package com.examplatform.identity.service;
 
 import com.examplatform.identity.dto.AuthTokenResponse;
+import com.examplatform.identity.exception.AuthenticationException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Primary;
@@ -29,7 +30,9 @@ import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
 import java.nio.charset.StandardCharsets;
 import java.util.Base64;
+import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Dev-mode service that issues properly signed JWT tokens using a shared HMAC secret.
@@ -43,6 +46,9 @@ import java.util.UUID;
 public class DevKeycloakService extends KeycloakService {
 
     private final String jwtSecret;
+    private final Map<String, DevSessionData> devRefreshTokenStore = new ConcurrentHashMap<>();
+
+    private record DevSessionData(String username, String userId) {}
 
     public DevKeycloakService(@Value("${app.jwt.secret:dev-jwt-secret-key-for-local-testing-minimum-32-chars}") String jwtSecret) {
         super(null);
@@ -77,14 +83,33 @@ public class DevKeycloakService extends KeycloakService {
         String signingInput = header + "." + payload;
         String signature = hmacSha256(signingInput);
         String accessToken = signingInput + "." + signature;
+        String refreshToken = "dev-rt-" + UUID.randomUUID();
+
+        devRefreshTokenStore.put(refreshToken, new DevSessionData(username, sub));
 
         return AuthTokenResponse.builder()
                 .accessToken(accessToken)
-                .refreshToken(UUID.randomUUID().toString())
+                .refreshToken(refreshToken)
                 .expiresIn(3600L)
                 .tokenType("Bearer")
                 .userId(sub)
                 .build();
+    }
+
+    @Override
+    public AuthTokenResponse refreshToken(String refreshToken) {
+        if (refreshToken == null || refreshToken.isBlank()) {
+            throw new AuthenticationException("Refresh token is required");
+        }
+
+        DevSessionData sessionData = devRefreshTokenStore.remove(refreshToken);
+        if (sessionData == null) {
+            log.warn("[DEV] Invalid or expired refresh token: {}", refreshToken);
+            throw new AuthenticationException("Invalid or expired refresh token");
+        }
+
+        log.info("[DEV] Refreshing token for user: {} (id: {})", sessionData.username(), sessionData.userId());
+        return getTokens(sessionData.username(), null, sessionData.userId());
     }
 
     @Override
@@ -100,6 +125,7 @@ public class DevKeycloakService extends KeycloakService {
     @Override
     public void revokeUserSessions(String keycloakUserId) {
         log.info("[DEV] User sessions revoked for: {}", keycloakUserId);
+        devRefreshTokenStore.entrySet().removeIf(entry -> entry.getValue().userId().equals(keycloakUserId));
     }
 
     private String base64Url(String input) {

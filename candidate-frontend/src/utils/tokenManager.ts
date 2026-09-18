@@ -56,6 +56,23 @@ export const tokenManager = {
     return null;
   },
 
+  /**
+   * Returns remaining lifetime of current access token in seconds.
+   */
+  getTokenRemainingLifetime(): number {
+    const expiresAt = localStorage.getItem(EXPIRES_AT_KEY);
+    if (!expiresAt) {
+      const payload = tokenManager.decodePayload();
+      if (payload?.exp && typeof payload.exp === 'number') {
+        const remaining = payload.exp - Math.floor(Date.now() / 1000);
+        return remaining > 0 ? remaining : 0;
+      }
+      return 0;
+    }
+    const remainingMs = Number(expiresAt) - Date.now();
+    return remainingMs > 0 ? Math.floor(remainingMs / 1000) : 0;
+  },
+
   isAccessTokenExpired(): boolean {
     const expiresAt = localStorage.getItem(EXPIRES_AT_KEY);
     if (!expiresAt) return true;

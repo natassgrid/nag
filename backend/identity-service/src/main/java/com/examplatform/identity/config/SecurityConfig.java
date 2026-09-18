@@ -11,7 +11,7 @@
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU标识 Affero General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
  * You should have received a copy of the GNU Affero General Public License
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
@@ -55,6 +55,8 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.POST, "/api/v1/identity/otp/verify").permitAll()
                 .requestMatchers(HttpMethod.POST, "/api/v1/identity/otp/resend").permitAll()
                 .requestMatchers(HttpMethod.POST, "/api/v1/identity/auth/token").permitAll()
+                .requestMatchers(HttpMethod.POST, "/api/v1/identity/auth/token/refresh").permitAll()
+                .requestMatchers(HttpMethod.POST, "/api/v1/identity/auth/refresh").permitAll()
                 .requestMatchers(HttpMethod.POST, "/api/v1/identity/auth/webauthn").permitAll()
                 .requestMatchers("/actuator/health", "/actuator/health/**", "/actuator/info", "/actuator/prometheus").permitAll()
                 .anyRequest().authenticated()

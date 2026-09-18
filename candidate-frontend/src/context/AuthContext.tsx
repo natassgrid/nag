@@ -6,6 +6,7 @@ import React, { createContext, useCallback, useContext, useEffect, useState } fr
 import { authService } from '../services/authService';
 import { candidateService } from '../services/candidateService';
 import { tokenManager } from '../utils/tokenManager';
+import { useUserActivity } from '../hooks/useUserActivity';
 import type {
   CandidateProfileResponse,
   RegistrationRequest,
@@ -35,7 +36,7 @@ interface AuthContextType {
   refreshProfile: () => Promise<void>;
 }
 
-// ─── Context & persistence keys ────────────────────────────────────────────
+// ─── Context & persistence keys ─────────────────────────────────────────────
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
@@ -43,7 +44,7 @@ const PENDING_USER_KEY = 'nag_pending_user_id';
 const PENDING_MOBILE_KEY = 'nag_pending_mobile';
 const OTP_SENT_KEY = 'nag_otp_sent_to';
 
-// ─── Provider ──────────────────────────────────────────────────────────────
+// ─── Provider ───────────────────────────────────────────────────────────────
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [profile, setProfile] = useState<CandidateProfileResponse | null>(null);
@@ -85,7 +86,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   }, [isAuthenticated, refreshProfile]);
 
-  // ── Auth actions ──────────────────────────────────────────────────────────
+  // ── Auth actions ────────────────────────────────────────────────────────────
 
   const login = useCallback(async (username: string, password: string): Promise<boolean> => {
     try {
@@ -121,6 +122,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       sessionStorage.removeItem(OTP_SENT_KEY);
     }
   }, []);
+
+  // Monitor user activity and proactive refresh
+  useUserActivity(isAuthenticated, logout);
 
   const register = useCallback(async (request: RegistrationRequest): Promise<void> => {
     const response = await authService.register(request);

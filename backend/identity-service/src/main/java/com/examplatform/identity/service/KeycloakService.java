@@ -21,6 +21,9 @@ package com.examplatform.identity.service;
 
 import com.examplatform.identity.config.KeycloakProperties;
 import com.examplatform.identity.dto.AuthTokenResponse;
+import com.examplatform.identity.exception.AuthenticationException;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.MediaType;
@@ -29,6 +32,8 @@ import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
 import org.springframework.web.client.RestClient;
 
+import java.nio.charset.StandardCharsets;
+import java.util.Base64;
 import java.util.Map;
 
 @Slf4j
@@ -38,6 +43,7 @@ public class KeycloakService {
 
     private final KeycloakProperties keycloakProperties;
     private final RestClient restClient = RestClient.create();
+    private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 
     /**
      * Exchange username + password for JWT tokens via Keycloak token endpoint.
@@ -87,6 +93,59 @@ public class KeycloakService {
         } catch (Exception e) {
             log.error("Failed to obtain tokens from Keycloak for user {}: {}", username, e.getMessage());
             throw new RuntimeException("Authentication service unavailable. Please try again.", e);
+        }
+    }
+
+    /**
+     * Exchange a valid refresh token for new JWT access and refresh tokens.
+     * POST {serverUrl}/realms/{realm}/protocol/openid-connect/token with grant_type=refresh_token
+     */
+    public AuthTokenResponse refreshToken(String refreshToken) {
+        if (refreshToken == null || refreshToken.isBlank()) {
+            throw new AuthenticationException("Refresh token is required");
+        }
+
+        String tokenUrl = keycloakProperties.getServerUrl()
+            + "/realms/" + keycloakProperties.getRealm()
+            + "/protocol/openid-connect/token";
+
+        MultiValueMap<String, String> form = new LinkedMultiValueMap<>();
+        form.add("grant_type", "refresh_token");
+        form.add("client_id", keycloakProperties.getClientId());
+        if (keycloakProperties.getClientSecret() != null && !keycloakProperties.getClientSecret().isBlank()) {
+            form.add("client_secret", keycloakProperties.getClientSecret());
+        }
+        form.add("refresh_token", refreshToken);
+
+        try {
+            Map<?, ?> response = restClient.post()
+                .uri(tokenUrl)
+                .contentType(MediaType.APPLICATION_FORM_URLENCODED)
+                .body(form)
+                .retrieve()
+                .body(Map.class);
+
+            if (response == null) {
+                throw new IllegalStateException("Empty response from Keycloak token refresh endpoint");
+            }
+
+            long expiresIn = response.containsKey("expires_in")
+                ? Long.parseLong(response.get("expires_in").toString()) : 900L;
+
+            String accessToken = (String) response.get("access_token");
+            String newRefreshToken = (String) response.get("refresh_token");
+            String userId = extractSubjectFromJwt(accessToken);
+
+            return AuthTokenResponse.builder()
+                .accessToken(accessToken)
+                .refreshToken(newRefreshToken != null ? newRefreshToken : refreshToken)
+                .expiresIn(expiresIn)
+                .tokenType("Bearer")
+                .userId(userId)
+                .build();
+        } catch (Exception e) {
+            log.error("Failed to refresh token via Keycloak: {}", e.getMessage());
+            throw new AuthenticationException("Invalid or expired refresh token", e);
         }
     }
 
@@ -212,5 +271,23 @@ public class KeycloakService {
             throw new IllegalStateException("Could not obtain Keycloak admin token");
         }
         return (String) response.get("access_token");
+    }
+
+    private String extractSubjectFromJwt(String token) {
+        if (token == null || token.isBlank()) return null;
+        try {
+            String[] parts = token.split("\\.");
+            if (parts.length >= 2) {
+                byte[] decoded = Base64.getUrlDecoder().decode(parts[1]);
+                String payload = new String(decoded, StandardCharsets.UTF_8);
+                JsonNode node = OBJECT_MAPPER.readTree(payload);
+                if (node.hasNonNull("sub")) {
+                    return node.get("sub").asText();
+                }
+            }
+        } catch (Exception ex) {
+            log.debug("Could not extract sub from JWT: {}", ex.getMessage());
+        }
+        return null;
     }
 }
