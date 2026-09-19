@@ -104,7 +104,7 @@ public class MessagingAutoConfiguration {
             return factory;
         }
 
-        @Bean
+        @Bean(name = "eventPublisher")
         @ConditionalOnMissingBean(EventPublisher.class)
         public EventPublisher rabbitEventPublisher(RabbitTemplate rabbitTemplate, MessageConverter messageConverter) {
             rabbitTemplate.setMessageConverter(messageConverter);
@@ -114,10 +114,10 @@ public class MessagingAutoConfiguration {
 
     @Configuration(proxyBeanMethods = false)
     @ConditionalOnClass(name = "org.springframework.kafka.core.KafkaTemplate")
-    @ConditionalOnProperty(name = "platform.messaging.broker", havingValue = "kafka", matchIfMissing = true)
+    @ConditionalOnProperty(name = "platform.messaging.broker", havingValue = "kafka")
     static class KafkaMessagingConfiguration {
 
-        @Bean
+        @Bean(name = "eventPublisher")
         @ConditionalOnMissingBean(EventPublisher.class)
         public EventPublisher kafkaEventPublisher(KafkaTemplate<String, Object> kafkaTemplate) {
             return new KafkaEventPublisher(kafkaTemplate);
@@ -125,22 +125,12 @@ public class MessagingAutoConfiguration {
     }
 
     @Configuration(proxyBeanMethods = false)
-    @ConditionalOnProperty(name = "platform.messaging.broker", havingValue = "in-memory")
+    @ConditionalOnProperty(name = "platform.messaging.broker", havingValue = "in-memory", matchIfMissing = true)
     static class InMemoryMessagingConfiguration {
 
-        @Bean
+        @Bean(name = "eventPublisher")
         @ConditionalOnMissingBean(EventPublisher.class)
         public EventPublisher inMemorySpringEventPublisher(ApplicationEventPublisher applicationEventPublisher) {
-            return new SpringEventPublisher(applicationEventPublisher);
-        }
-    }
-
-    @Configuration(proxyBeanMethods = false)
-    static class FallbackMessagingConfiguration {
-
-        @Bean
-        @ConditionalOnMissingBean(EventPublisher.class)
-        public EventPublisher springEventPublisher(ApplicationEventPublisher applicationEventPublisher) {
             return new SpringEventPublisher(applicationEventPublisher);
         }
     }

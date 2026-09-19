@@ -1,17 +1,20 @@
-#!/bin/bash
-# SPDX-License-Identifier: AGPL-3.0-only
-#
-# National Assessment Grid (NAG) - Open Digital Public Infrastructure (DPI) Platform
-# Copyright (C) 2025 NAG Contributors
-#
+#!/usr/bin/env bash
 # =============================================================================
-# Smart redeploy script for NAG Single JVM Monolith Mode
-# Consolidates all 14 microservices + audit into 1 JVM Spring Boot runtime + Postgres + Redis.
+# Redeploy NAG Single JVM Monolith Stack (Clean Docker Compose Workflow)
+#
+# Architecture:
+#   - 1 Monolith container combining all 14 services + Flyway + Embedded In-Memory Bus
+#   - 1 Postgres 16 container with pgvector
+#   - 1 Redis 7 container
+#   - 1 HashiCorp Vault container
+#   - 1 Keycloak container
+#   - 1 Admin Frontend (React/Vite)
+#   - 1 Candidate Frontend (React/Vite)
 #
 # Usage:
-#   ./redeploy-monolith.sh                  # Rebuild and start monolith (in-memory events, preserves DB)
-#   ./redeploy-monolith.sh --rabbit         # Rebuild and start monolith with RabbitMQ message broker
-#   ./redeploy-monolith.sh --clean-db       # Rebuild & restart, explicitly deleting DB volumes
+#   ./redeploy-monolith.sh                  # Deploy with In-Memory Event Bus (Zero-Broker, Minimal RAM)
+#   ./redeploy-monolith.sh --rabbit         # Deploy with RabbitMQ Broker
+#   ./redeploy-monolith.sh --clean-db       # Drop all volumes / fresh Postgres schema
 #   ./redeploy-monolith.sh --observability  # Start with Prometheus, Grafana, and Jaeger
 #   ./redeploy-monolith.sh --ai             # Start with Ollama, LiteLLM, IndicTrans2
 #   ./redeploy-monolith.sh --no-cache       # Force rebuild without Docker cache
@@ -55,9 +58,11 @@ if [ "$RABBIT" = true ]; then
     PROFILES_ARGS+=(--profile rabbit)
     export PLATFORM_MESSAGING_BROKER=rabbit
     export MANAGEMENT_HEALTH_RABBIT_ENABLED=true
+    export SPRING_RABBITMQ_LISTENER_AUTO_STARTUP=true
 else
     export PLATFORM_MESSAGING_BROKER="${PLATFORM_MESSAGING_BROKER:-in-memory}"
     export MANAGEMENT_HEALTH_RABBIT_ENABLED=false
+    export SPRING_RABBITMQ_LISTENER_AUTO_STARTUP=false
 fi
 
 if [ "$OBSERVABILITY" = true ]; then

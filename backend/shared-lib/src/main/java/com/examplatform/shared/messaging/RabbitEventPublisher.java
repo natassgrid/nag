@@ -40,7 +40,7 @@ public class RabbitEventPublisher implements EventPublisher {
 
     @Override
     public void publish(String topic, String key, Object payload) {
-        log.debug("Publishing event via RabbitMQ to exchange '{}' with routingKey '{}' (key='{}')",
+        log.info("Publishing event via RabbitMQ to exchange '{}' with routingKey '{}' (key='{}')",
                 EXCHANGE_NAME, topic, key);
         rabbitTemplate.convertAndSend(EXCHANGE_NAME, topic, payload);
     }
