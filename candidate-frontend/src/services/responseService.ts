@@ -2,7 +2,7 @@
 // Wraps response-service REST calls for answer saving, session submission, and response history retrieval.
 
 import { api, unwrap } from './api';
-import { offlineQueue } from '../utils/offlineQueue';
+import { offlineQueue, type QueuedResponse } from '../utils/offlineQueue';
 import type {
   BulkSaveRequest,
   SaveResponseRequest,
@@ -38,11 +38,12 @@ function formatBackendPayload(request: SaveResponseRequest) {
   return {
     questionId: request.questionId,
     selectedOptionIds,
-    enteredValue: request.integerAnswer !== undefined ? String(request.integerAnswer) : null,
+    enteredValue: request.integerAnswer !== undefined && request.integerAnswer !== null ? String(request.integerAnswer) : null,
     timestamp: new Date().toISOString(),
     cumulativeTimeSpentMs: request.timeTakenSeconds ? request.timeTakenSeconds * 1000 : 5000,
     saveSource: 'MANUAL',
     revisionSequence: request.revisionSequence || 1,
+    focusLossCount: 0,
   };
 }
 
@@ -58,58 +59,74 @@ export const responseService = {
     const payload = formatBackendPayload(request);
     try {
       return unwrap(await api.post(`${BASE}/${sessionId}/save`, payload));
-    } catch (error: unknown) {
-      // Network offline — queue for later
-      const axiosError = error as { code?: string };
-      if (axiosError.code === 'ERR_NETWORK' || axiosError.code === 'ECONNABORTED') {
+    } catch (err: unknown) {
+      const isNetworkError =
+        !navigator.onLine ||
+        (err instanceof Error &&
+          (err.message.includes('Network Error') ||
+            err.message.includes('timeout') ||
+            err.message.includes('ECONNREFUSED')));
+
+      if (isNetworkError) {
+        // Queue for bulk save upon reconnect
         offlineQueue.enqueue(sessionId, request);
-        // Return a synthetic response so TakeExam can continue locally
         return {
           responseId: `offline-${Date.now()}`,
           questionId: request.questionId,
+          revisionSequence: request.revisionSequence || 1,
           savedAt: new Date().toISOString(),
-          revisionSequence: request.revisionSequence,
         };
       }
-      throw error;
+      throw err;
     }
   },
 
   /**
-   * Flush the offline queue for a session.
-   * Called when connectivity is restored.
+   * Flush responses queued offline for a session.
+   * Clears successfully processed items from the offline queue.
    */
-  async flushOfflineQueue(sessionId: string): Promise<void> {
-    const queued = offlineQueue.getForSession(sessionId);
-    if (queued.length === 0) return;
+  async flushOfflineQueue(sessionId: string): Promise<SaveResponseResponse[]> {
+    const queued: QueuedResponse[] = offlineQueue.getForSession(sessionId);
+    if (queued.length === 0) return [];
 
-    const bulkRequest: BulkSaveRequest = {
-      responses: queued.map((q) => q.response),
+    const req: BulkSaveRequest = {
+      responses: queued.map((item: QueuedResponse) => item.response),
     };
 
-    await responseService.bulkSave(sessionId, bulkRequest);
+    const results = await this.bulkSave(sessionId, req);
     offlineQueue.clearSession(sessionId);
+    return results;
   },
 
-  /** Bulk-save for offline-buffered responses with server-side deduplication. */
+  /**
+   * Alias for flushOfflineQueue
+   */
+  async reconcileOfflineQueue(sessionId: string): Promise<SaveResponseResponse[]> {
+    return this.flushOfflineQueue(sessionId);
+  },
+
+  /**
+   * Bulk-save an array of responses (e.g., on reconnect after offline period).
+   */
   async bulkSave(sessionId: string, request: BulkSaveRequest): Promise<SaveResponseResponse[]> {
-    const payload = {
-      responses: (request.responses || []).map(formatBackendPayload),
-    };
-    return unwrap(await api.post(`${BASE}/${sessionId}/bulk-save`, payload));
+    const formattedResponses = request.responses.map((r) => formatBackendPayload(r));
+    return unwrap(
+      await api.post(`${BASE}/${sessionId}/bulk-save`, { responses: formattedResponses }),
+    );
   },
 
-  /** Finalize and submit the exam session — locks all responses. */
-  async submitSession(sessionId: string): Promise<void> {
-    await api.post(`${BASE}/${sessionId}/submit`);
+  /**
+   * Submit an exam session for evaluation.
+   * Triggers the EVALUATION_STARTED workflow.
+   */
+  async submitSession(sessionId: string): Promise<{ status: string; submittedAt: string }> {
+    return unwrap(await api.post(`${BASE}/${sessionId}/submit`));
   },
 
-  /** Retrieve previously saved responses for an exam session (for session resumption). */
+  /**
+   * Retrieve response history for a session (used to restore state on reconnect).
+   */
   async getSessionResponses(sessionId: string): Promise<PersistedResponse[]> {
-    try {
-      return unwrap(await api.get(`${BASE}/${sessionId}/responses`));
-    } catch {
-      return [];
-    }
+    return unwrap(await api.get(`${BASE}/${sessionId}`));
   },
 };

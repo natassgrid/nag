@@ -25,7 +25,7 @@ import org.springframework.amqp.rabbit.core.RabbitTemplate;
 
 /**
  * RabbitMQ implementation of {@link EventPublisher}.
- * Used in macro-services / lightweight broker deployment mode.
+ * Used in macro-services / monolith / lightweight broker deployment modes.
  * Publishes events to the shared platform topic exchange 'exam.events' using the topic name as routing key.
  */
 @Slf4j
@@ -33,12 +33,14 @@ import org.springframework.amqp.rabbit.core.RabbitTemplate;
 public class RabbitEventPublisher implements EventPublisher {
 
     public static final String EXCHANGE_NAME = "exam.events";
+    public static final String DEAD_LETTER_EXCHANGE = "exam.events.dlx";
+    public static final String DEAD_LETTER_QUEUE = "exam.events.dlq";
 
     private final RabbitTemplate rabbitTemplate;
 
     @Override
     public void publish(String topic, String key, Object payload) {
-        log.debug("Publishing event via RabbitMQ to exchange '{}' with routingKey '{}' (key='{}')",
+        log.info("Publishing event via RabbitMQ to exchange '{}' with routingKey '{}' (key='{}')",
                 EXCHANGE_NAME, topic, key);
         rabbitTemplate.convertAndSend(EXCHANGE_NAME, topic, payload);
     }

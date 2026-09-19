@@ -87,7 +87,11 @@ public class SaveResponseRequest {
     private Integer revisionSequence;
 
     @Min(value = 0, message = "focusLossCount must be >= 0")
-    private int focusLossCount;
+    private Integer focusLossCount;
 
     private String integrityChecksum;
+
+    public int getFocusLossCount() {
+        return focusLossCount != null ? focusLossCount : 0;
+    }
 }

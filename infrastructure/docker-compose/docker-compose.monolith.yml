@@ -8,6 +8,7 @@
 # Consolidates all 14 domain microservices + audit into 1 JVM Spring Boot runtime.
 # Memory requirement: ~1 GB RAM (runs comfortably on 2 GB - 4 GB VMs).
 # Zero external message broker (Kafka/RabbitMQ not needed; uses in-memory Spring events).
+# Optionally supports RabbitMQ via `PLATFORM_MESSAGING_BROKER=rabbit --profile rabbit`.
 #
 # Usage:
 #   docker compose -f docker-compose.yml -f docker-compose.monolith.yml up --build
@@ -27,6 +28,31 @@ x-healthcheck-spring: &healthcheck-spring
 services:
 
   # ===========================================================================
+  # Optional RabbitMQ 3.13 — Lightweight message broker for Monolith RabbitMQ mode
+  # ===========================================================================
+  rabbitmq:
+    profiles: ["rabbit"]
+    image: rabbitmq:3.13-management-alpine
+    container_name: exam-monolith-rabbitmq
+    restart: unless-stopped
+    ports:
+      - "5672:5672"       # AMQP protocol
+      - "15672:15672"     # Web Management Console (http://localhost:15672)
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-exam_rabbit}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASS:-rabbit_secret}
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD-SHELL", "rabbitmq-diagnostics -q check_port_connectivity || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 15s
+    networks:
+      - exam-network
+
+  # ===========================================================================
   # Single JVM Monolith Application (All 14 Modules + Audit Embedded)
   # ===========================================================================
   monolith-app:
@@ -42,7 +68,7 @@ services:
       - "${MONOLITH_PORT:-9000}:${MONOLITH_PORT:-9000}"
     environment:
       SPRING_PROFILES_ACTIVE: docker
-      PLATFORM_MESSAGING_BROKER: in-memory
+      PLATFORM_MESSAGING_BROKER: ${PLATFORM_MESSAGING_BROKER:-in-memory}
       SERVER_PORT: ${MONOLITH_PORT:-9000}
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-exam_platform}?currentSchema=identity_service,candidate_service,question_service,examination_service,paper_generator,delivery_service,response_service,evaluation_service,result_service,audit_service,notification_service,admin_service,analytics_service,asset_service,public
       SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:-exam_admin}
@@ -50,6 +76,11 @@ services:
       REDIS_HOST: redis
       REDIS_PORT: "6379"
       REDIS_PASSWORD: ${REDIS_PASSWORD:-redis_secret}
+      SPRING_RABBITMQ_HOST: ${SPRING_RABBITMQ_HOST:-rabbitmq}
+      SPRING_RABBITMQ_PORT: ${SPRING_RABBITMQ_PORT:-5672}
+      SPRING_RABBITMQ_USERNAME: ${RABBITMQ_USER:-exam_rabbit}
+      SPRING_RABBITMQ_PASSWORD: ${RABBITMQ_PASS:-rabbit_secret}
+      SPRING_RABBITMQ_LISTENER_AUTO_STARTUP: ${SPRING_RABBITMQ_LISTENER_AUTO_STARTUP:-false}
       KEYCLOAK_ISSUER_URI: http://keycloak:8080/realms/exam-realm
       KEYCLOAK_SERVER_URL: http://keycloak:8080
       VAULT_ADDR: http://vault:8200
@@ -57,7 +88,7 @@ services:
       MANAGEMENT_HEALTH_VAULT_ENABLED: "false"
       MANAGEMENT_HEALTH_DISCOVERY_ENABLED: "false"
       MANAGEMENT_HEALTH_KAFKA_ENABLED: "false"
-      MANAGEMENT_HEALTH_RABBIT_ENABLED: "false"
+      MANAGEMENT_HEALTH_RABBIT_ENABLED: "${MANAGEMENT_HEALTH_RABBIT_ENABLED:-false}"
       MANAGEMENT_HEALTH_MAIL_ENABLED: "false"
       ASSET_STORAGE_PATH: /data/asset-storage
       SCORECARD_STORAGE_MODE: ${SCORECARD_STORAGE_MODE:-local}
@@ -138,3 +169,4 @@ services:
 volumes:
   asset_storage:
   scorecard_storage:
+  rabbitmq_data:

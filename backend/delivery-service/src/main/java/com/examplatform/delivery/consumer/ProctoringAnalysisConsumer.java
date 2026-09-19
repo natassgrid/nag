@@ -20,8 +20,11 @@ package com.examplatform.delivery.consumer;
 
 import com.examplatform.shared.messaging.EventPublisher;
 import com.examplatform.shared.messaging.GenericDomainEvent;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.amqp.core.ExchangeTypes;
+import org.springframework.amqp.core.Message;
 import org.springframework.amqp.rabbit.annotation.Exchange;
 import org.springframework.amqp.rabbit.annotation.Queue;
 import org.springframework.amqp.rabbit.annotation.QueueBinding;
@@ -62,15 +65,21 @@ public class ProctoringAnalysisConsumer {
 
     private final EventPublisher eventPublisher;
     private final Random random;
+    private final ObjectMapper objectMapper;
 
     @Autowired
     public ProctoringAnalysisConsumer(EventPublisher eventPublisher) {
-        this(eventPublisher, new Random());
+        this(eventPublisher, new Random(), new ObjectMapper());
     }
 
     public ProctoringAnalysisConsumer(EventPublisher eventPublisher, Random random) {
+        this(eventPublisher, random, new ObjectMapper());
+    }
+
+    public ProctoringAnalysisConsumer(EventPublisher eventPublisher, Random random, ObjectMapper objectMapper) {
         this.eventPublisher = eventPublisher;
         this.random = random;
+        this.objectMapper = objectMapper;
     }
 
     /**
@@ -91,8 +100,39 @@ public class ProctoringAnalysisConsumer {
                     key = PROCTORING_TOPIC
             )
     )
-    public void analyzeRabbit(Map<String, Object> event) {
-        processEvent(event);
+    public void analyzeRabbit(Object message) {
+        if (message instanceof Map<?, ?> map) {
+            @SuppressWarnings("unchecked")
+            Map<String, Object> eventMap = (Map<String, Object>) map;
+            processEvent(eventMap);
+        } else if (message instanceof Message amqpMsg) {
+            try {
+                Map<String, Object> eventMap = objectMapper.readValue(
+                        amqpMsg.getBody(),
+                        new TypeReference<Map<String, Object>>() {});
+                processEvent(eventMap);
+            } catch (Exception e) {
+                log.error("Failed to parse proctoring alert RabbitMQ message: {}", e.getMessage());
+            }
+        } else if (message instanceof byte[] bytes) {
+            try {
+                Map<String, Object> eventMap = objectMapper.readValue(
+                        bytes,
+                        new TypeReference<Map<String, Object>>() {});
+                processEvent(eventMap);
+            } catch (Exception e) {
+                log.error("Failed to parse proctoring alert RabbitMQ message: {}", e.getMessage());
+            }
+        } else if (message instanceof String s) {
+            try {
+                Map<String, Object> eventMap = objectMapper.readValue(
+                        s,
+                        new TypeReference<Map<String, Object>>() {});
+                processEvent(eventMap);
+            } catch (Exception e) {
+                log.error("Failed to parse proctoring alert RabbitMQ message: {}", e.getMessage());
+            }
+        }
     }
 
     /**

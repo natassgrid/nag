@@ -49,7 +49,7 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
-PROFILES_ARGS=()
+PROFILES_ARGS=(--profile kafka --profile micro)
 if [ "$OBSERVABILITY" = true ]; then
     PROFILES_ARGS+=(--profile observability)
 fi
@@ -165,7 +165,7 @@ if [ "$HEALTH_CHECK" = true ]; then
         # Check if container is running
         if ! docker ps --format '{{.Names}}' | grep -q "^${container}$"; then
             printf "  %-25s %-12s %-8s %s\n" "$svc" "⬇ DOWN" "$port" "Container not running"
-            DOWN=$((DOWN + 1))
+            DOWN=$((DOWN + 1))\
             continue
         fi
 

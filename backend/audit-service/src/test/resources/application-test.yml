@@ -36,9 +36,17 @@ spring:
     listener:
       auto-startup: false
 
+  rabbitmq:
+    listener:
+      simple:
+        auto-startup: false
+      direct:
+        auto-startup: false
+
   autoconfigure:
     exclude:
       - org.springframework.boot.autoconfigure.kafka.KafkaAutoConfiguration
+      - org.springframework.boot.autoconfigure.amqp.RabbitAutoConfiguration
       - org.springframework.cloud.vault.config.VaultAutoConfiguration
 
 platform:
