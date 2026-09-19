@@ -17,7 +17,7 @@
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
 
-import { EditorPlugin, ToolbarButton, KeyBinding, PluginContext, ToolbarDropdownItem } from '../editor-plugin';
+import { EditorPlugin, ToolbarButton, KeyBinding, PluginContext } from '../editor-plugin';
 
 /**
  * Plugin for text alignment (left, center, right, justify).
@@ -33,7 +33,6 @@ export class AlignmentPlugin implements EditorPlugin {
       icon: 'format_align_left',
       group: 'align',
       isToggle: true,
-      isActive: (_doc, _sel) => false,
       execute: (ctx: PluginContext) => ctx.setAlignment('left')
     },
     {
@@ -42,7 +41,6 @@ export class AlignmentPlugin implements EditorPlugin {
       icon: 'format_align_center',
       group: 'align',
       isToggle: true,
-      isActive: (_doc, _sel) => false,
       execute: (ctx: PluginContext) => ctx.setAlignment('center')
     },
     {
@@ -51,7 +49,6 @@ export class AlignmentPlugin implements EditorPlugin {
       icon: 'format_align_right',
       group: 'align',
       isToggle: true,
-      isActive: (_doc, _sel) => false,
       execute: (ctx: PluginContext) => ctx.setAlignment('right')
     },
     {
@@ -60,7 +57,6 @@ export class AlignmentPlugin implements EditorPlugin {
       icon: 'format_align_justify',
       group: 'align',
       isToggle: true,
-      isActive: (_doc, _sel) => false,
       execute: (ctx: PluginContext) => ctx.setAlignment('justify')
     }
   ];

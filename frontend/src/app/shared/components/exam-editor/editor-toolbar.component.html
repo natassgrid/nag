@@ -3,14 +3,13 @@
         <ng-container *ngFor="let button of group.buttons">
 
           <!-- Button with dropdown -->
-          <ng-container *ngIf="button.dropdown; else simpleButton">
+          <ng-container *ngIf="button.dropdown">
             <button
               mat-icon-button
               type="button"
               [matMenuTriggerFor]="dropdownMenu"
               [matTooltip]="button.label"
               [attr.aria-label]="button.label"
-              (mousedown)="$event.preventDefault()"
               class="toolbar-btn"
             >
               <mat-icon>{{ button.icon }}</mat-icon>
@@ -20,7 +19,6 @@
                 mat-menu-item
                 type="button"
                 *ngFor="let item of button.dropdown"
-                (mousedown)="$event.preventDefault()"
                 (click)="executeDropdownItem(item)"
                 [attr.aria-label]="item.label"
               >
@@ -36,7 +34,7 @@
           </ng-container>
 
           <!-- Simple toggle/action button -->
-          <ng-template #simpleButton>
+          <ng-container *ngIf="!button.dropdown">
             <button
               mat-icon-button
               type="button"
@@ -49,7 +47,7 @@
             >
               <mat-icon>{{ button.icon }}</mat-icon>
             </button>
-          </ng-template>
+          </ng-container>
 
         </ng-container>
 

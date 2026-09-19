@@ -26,7 +26,7 @@ import { MatMenuModule } from '@angular/material/menu';
 import { MatDividerModule } from '@angular/material/divider';
 import { PluginRegistry } from './plugins/plugin-registry';
 import { PluginContext, ToolbarButton, EditorSelection } from './plugins';
-import { ExamDocument, ExamElement, MarkType } from './models';
+import { ExamDocument, MarkType } from './models';
 
 /**
  * Editor toolbar displaying buttons from all registered plugins.
@@ -71,12 +71,17 @@ export class EditorToolbarComponent {
 
   isButtonActive(button: ToolbarButton): boolean {
     if (!button.isToggle) return false;
-    if (button.isActive) {
-      return button.isActive(this.document, this.selection);
-    }
-    // Fallback: check via context for marks
-    if (['bold', 'italic', 'underline', 'superscript', 'subscript'].includes(button.id)) {
-      return this.context?.isMarkActive(button.id as MarkType) ?? false;
+
+    // Check mark
+    if (this.context && ['bold', 'italic', 'underline', 'superscript', 'subscript'].includes(button.id)) {
+      try {
+        if (typeof document !== 'undefined' && document.queryCommandState(button.id)) {
+          return true;
+        }
+      } catch {
+        // ignore
+      }
+      return this.context.isMarkActive(button.id as MarkType);
     }
     // Check block type
     if (button.id === this.context?.getActiveBlockType()) {
@@ -86,6 +91,9 @@ export class EditorToolbarComponent {
     if (button.id.startsWith('align-')) {
       const align = button.id.replace('align-', '');
       return this.context?.getAlignment() === align;
+    }
+    if (button.isActive) {
+      return button.isActive(this.document, this.selection);
     }
     return false;
   }
@@ -105,7 +113,6 @@ export class EditorToolbarComponent {
   }
 
   onUndo(): void {
-    // Emit to parent — parent calls undo()
     (this.context as any).undo?.();
     this.cdr.markForCheck();
   }

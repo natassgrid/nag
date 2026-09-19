@@ -34,7 +34,6 @@ export class FormatMarksPlugin implements EditorPlugin {
       group: 'format',
       isToggle: true,
       shortcut: 'Ctrl+B',
-      isActive: (_doc, _sel) => false, // Evaluated via context in component
       execute: (ctx: PluginContext) => ctx.toggleMark('bold')
     },
     {
@@ -44,7 +43,6 @@ export class FormatMarksPlugin implements EditorPlugin {
       group: 'format',
       isToggle: true,
       shortcut: 'Ctrl+I',
-      isActive: (_doc, _sel) => false,
       execute: (ctx: PluginContext) => ctx.toggleMark('italic')
     },
     {
@@ -54,7 +52,6 @@ export class FormatMarksPlugin implements EditorPlugin {
       group: 'format',
       isToggle: true,
       shortcut: 'Ctrl+U',
-      isActive: (_doc, _sel) => false,
       execute: (ctx: PluginContext) => ctx.toggleMark('underline')
     },
     {
@@ -63,7 +60,6 @@ export class FormatMarksPlugin implements EditorPlugin {
       icon: 'superscript',
       group: 'format',
       isToggle: true,
-      isActive: (_doc, _sel) => false,
       execute: (ctx: PluginContext) => ctx.toggleMark('superscript')
     },
     {
@@ -72,7 +68,6 @@ export class FormatMarksPlugin implements EditorPlugin {
       icon: 'subscript',
       group: 'format',
       isToggle: true,
-      isActive: (_doc, _sel) => false,
       execute: (ctx: PluginContext) => ctx.toggleMark('subscript')
     }
   ];
