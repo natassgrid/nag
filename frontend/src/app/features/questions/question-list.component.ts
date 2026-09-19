@@ -30,7 +30,7 @@ import { QuestionFormDialogComponent } from './question-form-dialog.component';
 import { AiGenerateDialogComponent } from './ai-generate-dialog/ai-generate-dialog.component';
 import { QuestionTranslationDialogComponent } from './translation/question-translation-dialog.component';
 import { PassageFormDialogComponent } from './passage/passage-form-dialog.component';
-import { PassageResponse } from './passage.service';
+import { PassageService, PassageResponse } from './passage.service';
 import { SubjectTopicService, Subject } from './subject-topic.service';
 import {
   PaginatedTableComponent,
@@ -166,6 +166,7 @@ export class QuestionListComponent implements OnInit {
 
   constructor(
     private questionService: QuestionService,
+    private passageService: PassageService,
     private snackBar: MatSnackBar,
     private subjectTopicService: SubjectTopicService,
     private cdr: ChangeDetectorRef
@@ -269,6 +270,20 @@ export class QuestionListComponent implements OnInit {
   }
 
   openEditDrawer(question: QuestionResponse): void {
+    if (question.passageId) {
+      this.passageService.getPassage(question.passageId).subscribe({
+        next: (passage) => {
+          this.editingPassage = passage;
+          this.passageDrawerOpen = true;
+          this.cdr.markForCheck();
+        },
+        error: (err) => {
+          console.error('Failed to load passage for question:', err);
+          this.snackBar.open('Failed to load passage for question', 'Close', { duration: 3000 });
+        }
+      });
+      return;
+    }
     this.editingQuestion = question;
     this.drawerOpen = true;
   }
