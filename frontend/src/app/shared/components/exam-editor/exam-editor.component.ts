@@ -475,6 +475,13 @@ export class ExamEditorComponent implements ControlValueAccessor, OnInit, OnDest
   }
 
   private toggleBlock(type: BlockType): void {
+    const tagMap: Partial<Record<BlockType, string>> = {
+      'heading-one': '<h1>',
+      'heading-two': '<h2>',
+      'heading-three': '<h3>',
+      'paragraph': '<p>'
+    };
+
     if (this.contentComponent) {
       if (type === 'numbered-list') {
         this.contentComponent.execFormatCommand('insertOrderedList');
@@ -484,12 +491,6 @@ export class ExamEditorComponent implements ControlValueAccessor, OnInit, OnDest
         this.contentComponent.execFormatCommand('insertUnorderedList');
         return;
       }
-      const tagMap: Partial<Record<BlockType, string>> = {
-        'heading-one': '<h1>',
-        'heading-two': '<h2>',
-        'heading-three': '<h3>',
-        'paragraph': '<p>'
-      };
       if (tagMap[type]) {
         this.contentComponent.execFormatCommand('formatBlock', tagMap[type]);
         return;
@@ -508,22 +509,20 @@ export class ExamEditorComponent implements ControlValueAccessor, OnInit, OnDest
   }
 
   private setAlignment(align: TextAlignment): void {
-    if (this.contentComponent) {
-      const alignCmdMap: Record<TextAlignment, string> = {
-        left: 'justifyLeft',
-        center: 'justifyCenter',
-        right: 'justifyRight',
-        justify: 'justifyFull'
-      };
-      if (alignCmdMap[align]) {
-        this.contentComponent.execFormatCommand(alignCmdMap[align]);
-        return;
-      }
-    }
+    const alignCmdMap: Record<TextAlignment, string> = {
+      left: 'justifyLeft',
+      center: 'justifyCenter',
+      right: 'justifyRight',
+      justify: 'justifyFull'
+    };
 
-    const newDoc = this.document.map(el => ({ ...el, align } as ExamElement)) as ExamDocument;
-    this.onDocumentChange(newDoc);
-    this.contentComponent?.renderDocument();
+    if (this.contentComponent && alignCmdMap[align]) {
+      this.contentComponent.execFormatCommand(alignCmdMap[align]);
+    } else {
+      const newDoc = this.document.map(el => ({ ...el, align } as ExamElement)) as ExamDocument;
+      this.onDocumentChange(newDoc);
+      this.contentComponent?.renderDocument();
+    }
   }
 
   private getAlignment(): TextAlignment {
@@ -537,14 +536,12 @@ export class ExamEditorComponent implements ControlValueAccessor, OnInit, OnDest
       } else {
         this.contentComponent.execFormatCommand('outdent');
       }
-      return;
+    } else {
+      const current = this.getIndentLevel();
+      const next = Math.max(0, Math.min(8, current + delta));
+      const newDoc = this.document.map(el => ({ ...el, indent: next } as ExamElement)) as ExamDocument;
+      this.onDocumentChange(newDoc);
     }
-
-    const current = this.getIndentLevel();
-    const next = Math.max(0, Math.min(8, current + delta));
-    const newDoc = this.document.map(el => ({ ...el, indent: next } as ExamElement)) as ExamDocument;
-    this.onDocumentChange(newDoc);
-    this.contentComponent?.renderDocument();
   }
 
   private getIndentLevel(): number {
