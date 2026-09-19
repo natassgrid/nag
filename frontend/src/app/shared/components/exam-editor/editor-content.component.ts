@@ -38,8 +38,11 @@ import {
   ExamText,
   VOID_TYPES,
   HIGHLIGHT_COLORS,
-  TEXT_COLORS
+  TEXT_COLORS,
+  MathInlineElement,
+  ChemicalStructureElement
 } from './models';
+import { MATH_SENTINEL, SMILES_SENTINEL, decodeSentinel } from './utils/serializer';
 import { EditorSelection } from './plugins';
 import { EditorAssetService } from './services';
 
@@ -204,6 +207,26 @@ export class EditorContentComponent implements AfterViewInit, OnChanges, OnDestr
       case 'video':
         const videoSrc = this.assetService.getDownloadUrl((element as any).assetId);
         return `<div class="media-block" contenteditable="false"><video controls src="${videoSrc}"></video></div>`;
+      case 'math-inline': {
+        const math = element as MathInlineElement;
+        // Render via KaTeX at display time; void node is non-editable
+        const latexEscaped = math.latex.replace(/"/g, '&quot;');
+        const displayClass = math.display ? 'math-void--display' : 'math-void--inline';
+        return `<span class="math-void ${displayClass}" contenteditable="false" data-latex="${latexEscaped}" data-type="math-inline">`
+          + this.renderKatexSafe(math.latex, math.display ?? false)
+          + `</span>`;
+      }
+      case 'chemical-structure': {
+        const chem = element as ChemicalStructureElement;
+        const smilesEscaped = chem.smiles.replace(/"/g, '&quot;');
+        const titleHtml = chem.title ? `<div class="chem-caption">${this.escapeHtml(chem.title)}</div>` : '';
+        const w = chem.width ?? 250;
+        const h = chem.height ?? 200;
+        return `<span class="chem-void" contenteditable="false" data-smiles="${smilesEscaped}" data-type="chemical-structure">`
+          + `<canvas class="smiles-canvas" width="${w}" height="${h}" data-smiles="${smilesEscaped}" data-theme="${chem.theme ?? 'light'}"></canvas>`
+          + titleHtml
+          + `</span>`;
+      }
       default:
         return `<p>${this.childrenToHtml((element as any).children)}</p>`;
     }
@@ -214,6 +237,21 @@ export class EditorContentComponent implements AfterViewInit, OnChanges, OnDestr
   }
 
   private textToHtml(text: ExamText): string {
+    // Check for inline math/smiles sentinels (from serializer parseInlineLine)
+    const sentinel = decodeSentinel(text.text || '');
+    if (sentinel) {
+      if (sentinel.kind === 'math') {
+        return `<span class="math-void math-void--inline" contenteditable="false" data-latex="${sentinel.payload.replace(/"/g, '&quot;')}" data-type="math-inline">`
+          + this.renderKatexSafe(sentinel.payload, false)
+          + `</span>`;
+      }
+      if (sentinel.kind === 'smiles') {
+        return `<span class="chem-void" contenteditable="false" data-smiles="${sentinel.payload.replace(/"/g, '&quot;')}" data-type="chemical-structure">`
+          + `<canvas class="smiles-canvas" width="250" height="200" data-smiles="${sentinel.payload.replace(/"/g, '&quot;')}" data-theme="light"></canvas>`
+          + `</span>`;
+      }
+    }
+
     let html = this.escapeHtml(text.text || '');
     if (!html) html = '<br>';
 
@@ -237,6 +275,30 @@ export class EditorContentComponent implements AfterViewInit, OnChanges, OnDestr
     }
 
     return html;
+  }
+
+  /**
+   * Render a LaTeX string to KaTeX HTML, with graceful error fallback.
+   * Imported lazily to avoid issues if katex is not yet available.
+   */
+  private renderKatexSafe(latex: string, displayMode: boolean): string {
+    try {
+      // katex is already a dependency of the frontend package.json
+      const katex: any = (window as any)['katex'];
+      if (!katex) {
+        // Fallback: show raw latex in a code span
+        return `<code class="math-raw">${this.escapeHtml(latex)}</code>`;
+      }
+      return katex.renderToString(latex, {
+        throwOnError: false,
+        displayMode,
+        output: 'htmlAndMathml',
+        trust: false,
+        strict: 'ignore'
+      });
+    } catch {
+      return `<code class="math-raw">${this.escapeHtml(latex)}</code>`;
+    }
   }
 
   private buildBlockStyle(align?: string, indent?: number): string {
@@ -323,6 +385,17 @@ export class EditorContentComponent implements AfterViewInit, OnChanges, OnDestr
     const el = node as HTMLElement;
     const tag = el.tagName.toLowerCase();
     const newMarks = { ...marks };
+
+    // Void math/chem spans — reconstruct as sentinels so the document model is stable
+    const nodeType = el.getAttribute('data-type');
+    if (nodeType === 'math-inline') {
+      const latex = el.getAttribute('data-latex') || '';
+      return [{ text: `\x00math\x00${latex}\x00` }];
+    }
+    if (nodeType === 'chemical-structure') {
+      const smiles = el.getAttribute('data-smiles') || '';
+      return [{ text: `\x00smiles\x00${smiles}\x00` }];
+    }
 
     if (tag === 'strong' || tag === 'b') newMarks.bold = true;
     if (tag === 'em' || tag === 'i') newMarks.italic = true;

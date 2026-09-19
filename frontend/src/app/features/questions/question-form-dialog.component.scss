@@ -253,3 +253,15 @@ textarea {
   border: 1px solid #e0e0e0;
   background: #fff;
 }
+
+/* Inline exam-editor wrapper inside option rows — matches the height of a mat-form-field */
+.option-editor-wrapper {
+  flex: 1;
+  min-width: 0;
+  exam-editor {
+    width: 100%;
+    .exam-editor-wrapper {
+      border-radius: 4px;
+    }
+  }
+}

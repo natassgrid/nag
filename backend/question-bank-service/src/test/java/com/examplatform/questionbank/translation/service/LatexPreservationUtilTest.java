@@ -33,6 +33,35 @@ class LatexPreservationUtilTest {
     }
 
     @Test
+    @DisplayName("Preserves SMILES chemical notation tags (<smiles>...</smiles>)")
+    void testPreserveSmilesTags() {
+        String input = "Identify the product of the reaction with <smiles>c1ccccc1</smiles> (benzene) and <smiles>CC(=O)O</smiles>.";
+        LatexPreservationUtil.MaskResult result = LatexPreservationUtil.mask(input);
+
+        assertEquals("Identify the product of the reaction with __NAG_MATH_0__ (benzene) and __NAG_MATH_1__.", result.maskedText());
+        assertEquals(2, result.preservedTokens().size());
+        assertEquals("<smiles>c1ccccc1</smiles>", result.preservedTokens().get(0));
+        assertEquals("<smiles>CC(=O)O</smiles>", result.preservedTokens().get(1));
+
+        String translatedMock = "__NAG_MATH_0__ (बेंजीन) और __NAG_MATH_1__ के साथ प्रतिक्रिया के उत्पाद की पहचान करें।";
+        String restored = LatexPreservationUtil.unmask(translatedMock, result.preservedTokens());
+        assertEquals("<smiles>c1ccccc1</smiles> (बेंजीन) और <smiles>CC(=O)O</smiles> के साथ प्रतिक्रिया के उत्पाद की पहचान करें।", restored);
+    }
+
+    @Test
+    @DisplayName("Preserves fenced SMILES code blocks (```smiles ... ```)")
+    void testPreserveFencedSmilesCodeBlocks() {
+        String input = "The chemical structure is:\n```smiles\nCC(=O)Oc1ccccc1C(=O)O\n```\nWhat is its IUPAC name?";
+        LatexPreservationUtil.MaskResult result = LatexPreservationUtil.mask(input);
+
+        assertEquals(1, result.preservedTokens().size());
+        assertEquals("```smiles\nCC(=O)Oc1ccccc1C(=O)O\n```", result.preservedTokens().get(0));
+
+        String restored = LatexPreservationUtil.unmask(result.maskedText(), result.preservedTokens());
+        assertEquals(input, restored);
+    }
+
+    @Test
     @DisplayName("Preserves Markdown image syntax (![alt](url))")
     void testPreserveMarkdownImage() {
         String input = "Refer to the diagram ![Circuit Diagram](https://cdn.examplatform.org/diagrams/q123.svg) to find the equivalent resistance.";

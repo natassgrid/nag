@@ -61,7 +61,9 @@ export type BlockType =
   | 'list-item'
   | 'image'
   | 'audio'
-  | 'video';
+  | 'video'
+  | 'math-inline'         // Issue #25 — first-class KaTeX node
+  | 'chemical-structure'; // Issue #126 — SmilesDrawer 2D structure
 
 export type TextAlignment = 'left' | 'center' | 'right' | 'justify';
 
@@ -127,6 +129,46 @@ export interface VideoElement {
   children: ExamText[];
 }
 
+// ─── Math Inline Node (Issue #25) ────────────────────────────────────────────
+
+/**
+ * First-class LaTeX math node. Replaces the $$...$$  text convention.
+ * Stored as a void element — KaTeX renders it; the serializer round-trips
+ * it back to $$...$$ in Markdown output for API persistence.
+ */
+export interface MathInlineElement {
+  type: 'math-inline';
+  /** LaTeX source, e.g. "\\frac{a}{b}" */
+  latex: string;
+  /** true = display block (centred), false/undefined = inline */
+  display?: boolean;
+  /** Slate void element convention */
+  children: [{ text: '' }];
+}
+
+// ─── Chemical Structure Node (Issue #126) ────────────────────────────────────
+
+/**
+ * First-class 2D chemical structure node rendered by SmilesDrawer 2.0.
+ * Stored as a void element — the renderer draws an SVG at display time.
+ * Serializer round-trips to <smiles>...</smiles> tags in Markdown output.
+ */
+export interface ChemicalStructureElement {
+  type: 'chemical-structure';
+  /** SMILES notation, e.g. "c1ccccc1" for benzene */
+  smiles: string;
+  /** Optional molecule name / caption shown below the diagram */
+  title?: string;
+  /** Rendered SVG width in px, default 250 */
+  width?: number;
+  /** Rendered SVG height in px, default 200 */
+  height?: number;
+  /** SmilesDrawer colour theme, default 'light' */
+  theme?: 'light' | 'dark';
+  /** Slate void element convention */
+  children: [{ text: '' }];
+}
+
 // ─── Union Types ─────────────────────────────────────────────────────────────
 
 export type ExamElement =
@@ -139,7 +181,9 @@ export type ExamElement =
   | ListItemElement
   | ImageElement
   | AudioElement
-  | VideoElement;
+  | VideoElement
+  | MathInlineElement
+  | ChemicalStructureElement;
 
 export type ExamNode = ExamElement | ExamText;
 
@@ -153,7 +197,7 @@ export type MarkType = 'bold' | 'italic' | 'underline' | 'superscript' | 'subscr
 
 // ─── Void Elements (media) ───────────────────────────────────────────────────
 
-export const VOID_TYPES: BlockType[] = ['image', 'audio', 'video'];
+export const VOID_TYPES: BlockType[] = ['image', 'audio', 'video', 'math-inline', 'chemical-structure'];
 
 export const LIST_TYPES: BlockType[] = ['numbered-list', 'bulleted-list'];
 

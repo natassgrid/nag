@@ -110,4 +110,11 @@ export class PluginRegistry {
     this.plugins.forEach(p => p.onDestroy?.());
     this.plugins = [];
   }
+
+  /**
+   * Alias for clear().
+   */
+  destroy(): void {
+    this.clear();
+  }
 }

@@ -116,6 +116,34 @@
   width: 100%;
 }
 
+.editor-container {
+  display: flex;
+  flex-direction: column;
+}
+
+.field-block {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  margin-bottom: 0.75rem;
+}
+
+.field-label {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #334155;
+
+  .required {
+    color: #ef4444;
+  }
+}
+
+.form-error {
+  font-size: 0.75rem;
+  color: #dc2626;
+  margin-top: 0.25rem;
+}
+
 .sub-questions-list {
   display: flex;
   flex-direction: column;
@@ -168,9 +196,8 @@
     align-items: center;
     gap: 0.5rem;
 
-    .option-field {
+    .option-editor-container {
       flex: 1;
-      margin-bottom: -1.25em;
     }
   }
 }

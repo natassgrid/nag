@@ -27,7 +27,9 @@ import {
   SCHEMA_LIMITS,
   HIGHLIGHT_COLORS,
   TEXT_COLORS,
-  MarkType
+  MarkType,
+  MathInlineElement,
+  ChemicalStructureElement
 } from '../models';
 
 /**
@@ -50,7 +52,8 @@ export interface ValidationError {
 const ALLOWED_BLOCK_TYPES: Set<string> = new Set<BlockType>([
   'paragraph', 'heading-one', 'heading-two', 'heading-three',
   'numbered-list', 'bulleted-list', 'list-item',
-  'image', 'audio', 'video'
+  'image', 'audio', 'video',
+  'math-inline', 'chemical-structure'
 ]);
 
 /**
@@ -230,11 +233,33 @@ function validateElementAttributes(element: ExamElement, path: number[], errors:
   }
 
   // Validate media assetId
-  if (VOID_TYPES.includes(element.type)) {
+  if (['image', 'audio', 'video'].includes(element.type)) {
     if (!('assetId' in element) || !(element as any).assetId) {
       errors.push({
         path,
         message: `Media element '${element.type}' requires assetId`,
+        severity: 'error'
+      });
+    }
+  }
+
+  // Validate math-inline latex
+  if (element.type === 'math-inline') {
+    if (!('latex' in element) || typeof (element as any).latex !== 'string') {
+      errors.push({
+        path,
+        message: `math-inline element requires a 'latex' string property`,
+        severity: 'error'
+      });
+    }
+  }
+
+  // Validate chemical-structure smiles
+  if (element.type === 'chemical-structure') {
+    if (!('smiles' in element) || typeof (element as any).smiles !== 'string') {
+      errors.push({
+        path,
+        message: `chemical-structure element requires a 'smiles' string property`,
         severity: 'error'
       });
     }
@@ -309,6 +334,10 @@ function getAllowedAttributes(type: BlockType): Set<string> {
     case 'audio':
     case 'video':
       return new Set(['assetId']);
+    case 'math-inline':
+      return new Set(['latex', 'display']);
+    case 'chemical-structure':
+      return new Set(['smiles', 'title', 'width', 'height', 'theme']);
     default:
       return new Set([]);
   }

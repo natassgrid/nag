@@ -59,19 +59,21 @@
         Stimulus / Passage Content
       </h3>
       <p class="section-helper">
-        Enter the main paragraph, reading comprehension text, case study, or context snippet. Math equations, tables, and formatting are supported.
+        Enter the main paragraph, reading comprehension text, case study, or context snippet. Math equations, tables, chemical formulas, and formatting are supported.
       </p>
-      <mat-form-field appearance="outline" class="form-field full-width">
-        <mat-label>Passage Text</mat-label>
-        <textarea
-          matInput
+      <div class="editor-container full-width">
+        <exam-editor
           formControlName="content"
-          rows="6"
+          mode="full"
           placeholder="Enter the reading comprehension passage or case study text here..."
-        ></textarea>
-        <mat-error *ngIf="form.get('content')?.hasError('required')">Passage content is required</mat-error>
-        <mat-error *ngIf="form.get('content')?.hasError('minlength')">Passage must be at least 20 characters</mat-error>
-      </mat-form-field>
+        ></exam-editor>
+        <div class="form-error" *ngIf="form.get('content')?.touched && form.get('content')?.hasError('required')">
+          Passage content is required
+        </div>
+        <div class="form-error" *ngIf="form.get('content')?.touched && form.get('content')?.hasError('minlength')">
+          Passage must be at least 20 characters
+        </div>
+      </div>
     </div>
 
     <!-- Sub-Questions Builder -->
@@ -117,16 +119,17 @@
           </div>
 
           <!-- Sub-question Prompt -->
-          <mat-form-field appearance="outline" class="form-field full-width">
-            <mat-label>Question Prompt / Stem</mat-label>
-            <textarea
-              matInput
+          <div class="field-block full-width">
+            <label class="field-label">Question Prompt / Stem <span class="required">*</span></label>
+            <exam-editor
               formControlName="content"
-              rows="2"
+              mode="full"
               placeholder="e.g. According to paragraph 2, what causes the shift?"
-            ></textarea>
-            <mat-error *ngIf="sqGroup.get('content')?.hasError('required')">Question prompt is required</mat-error>
-          </mat-form-field>
+            ></exam-editor>
+            <div class="form-error" *ngIf="sqGroup.get('content')?.touched && sqGroup.get('content')?.hasError('required')">
+              Question prompt is required
+            </div>
+          </div>
 
           <div class="form-row">
             <mat-form-field appearance="outline" class="form-field">
@@ -169,19 +172,26 @@
                 >
                   <mat-icon>{{ optGroup.get('isCorrect')?.value ? 'check_circle' : 'radio_button_unchecked' }}</mat-icon>
                 </button>
-                <mat-form-field appearance="outline" class="option-field">
-                  <mat-label>Option {{ optIdx + 1 }}</mat-label>
-                  <input matInput formControlName="text" placeholder="Option text" />
-                </mat-form-field>
+                <div class="option-editor-container">
+                  <exam-editor
+                    formControlName="text"
+                    mode="inline"
+                    [placeholder]="'Option ' + (optIdx + 1) + ' text'"
+                  ></exam-editor>
+                </div>
               </div>
             </div>
           </div>
 
           <!-- Explanation -->
-          <mat-form-field appearance="outline" class="form-field full-width">
-            <mat-label>Explanation / Solution (Optional)</mat-label>
-            <input matInput formControlName="explanation" placeholder="Explain the rationale for the correct answer" />
-          </mat-form-field>
+          <div class="field-block full-width">
+            <label class="field-label">Explanation / Solution (Optional)</label>
+            <exam-editor
+              formControlName="explanation"
+              mode="full"
+              placeholder="Explain the rationale for the correct answer"
+            ></exam-editor>
+          </div>
         </div>
       </div>
     </div>
