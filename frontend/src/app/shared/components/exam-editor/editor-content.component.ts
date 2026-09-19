@@ -93,7 +93,7 @@ export class EditorContentComponent implements AfterViewInit, OnChanges, OnDestr
   ngOnChanges(changes: SimpleChanges): void {
     if (changes['document'] && !changes['document'].firstChange) {
       if (this.isInternalChange) {
-        // Change originated from user input — DOM is already correct, skip re-render
+        // Change originated from user input - DOM is already correct, skip re-render
         this.isInternalChange = false;
         return;
       }
@@ -163,14 +163,89 @@ export class EditorContentComponent implements AfterViewInit, OnChanges, OnDestr
     });
   }
 
-  // ─── Rendering ───────────────────────────────────────────────────────────
+  // ─── Execution & Formatting Helper ───
 
-  private renderDocument(): void {
+  /**
+   * Executes a native browser formatting command (e.g. 'bold', 'italic', etc.)
+   * on the current DOM selection, then synchronizes the DOM back to the AST document model.
+   */
+  public execFormatCommand(cmd: string, value: string | undefined = undefined): boolean {
+    const editorEl = this.editorArea?.nativeElement;
+    if (!editorEl) return false;
+
+    editorEl.focus();
+    const success = document.execCommand(cmd, false, value);
+    this.onInput(new Event('input'));
+    this.trackSelection();
+    return success;
+  }
+
+  /**
+   * Synchronizes the DOM back into an ExamDocument AST model and emits the change.
+   */
+  public syncDocument(): ExamDocument | null {
+    const newDoc = this.parseDomToDocument();
+    if (newDoc) {
+      this.isInternalChange = true;
+      this.documentChange.emit(newDoc);
+    }
+    return newDoc;
+  }
+
+  // ─── Rendering ───
+
+  public renderDocument(): void {
     if (!this.editorArea) return;
     this.isRendering = true;
     const el = this.editorArea.nativeElement;
     el.innerHTML = this.documentToHtml(this.document);
     this.isRendering = false;
+    this.renderSmilesCanvases(el);
+  }
+
+  /**
+   * Render any SMILES 2D structure canvases present in the rendered DOM.
+   */
+  private renderSmilesCanvases(container: HTMLElement): void {
+    const canvases = container.querySelectorAll<HTMLCanvasElement>('canvas.smiles-canvas');
+    if (!canvases || canvases.length === 0) return;
+
+    canvases.forEach(canvas => {
+      const smiles = canvas.getAttribute('data-smiles');
+      if (!smiles) return;
+      try {
+        const sd: any = (window as any)['SmilesDrawer'] || (window as any)['__smilesDrawer'];
+        if (sd) {
+          const drawer = new (sd.Drawer || sd.SvgDrawer || sd)({
+            width: canvas.width,
+            height: canvas.height
+          });
+          if (typeof drawer.draw === 'function') {
+            drawer.draw(smiles, canvas, 'light', false);
+          } else if (typeof drawer.drawToCanvas === 'function') {
+            drawer.drawToCanvas(smiles, canvas, 'light');
+          }
+        } else {
+          // Fallback text rendering
+          const ctx = canvas.getContext('2d');
+          if (ctx) {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.font = '12px monospace';
+            ctx.fillStyle = '#424242';
+            ctx.fillText(smiles, 8, canvas.height / 2);
+          }
+        }
+      } catch {
+        // Fallback text on error
+        const ctx = canvas.getContext('2d');
+        if (ctx) {
+          ctx.clearRect(0, 0, canvas.width, canvas.height);
+          ctx.font = '12px monospace';
+          ctx.fillStyle = '#616161';
+          ctx.fillText(smiles, 8, canvas.height / 2);
+        }
+      }
+    });
   }
 
   private documentToHtml(doc: ExamDocument): string {
@@ -316,7 +391,7 @@ export class EditorContentComponent implements AfterViewInit, OnChanges, OnDestr
       .replace(/"/g, '&quot;');
   }
 
-  // ─── DOM Parsing ─────────────────────────────────────────────────────────
+  // ─── DOM Parsing ───
 
   private parseDomToDocument(): ExamDocument | null {
     const el = this.editorArea?.nativeElement;
@@ -342,27 +417,37 @@ export class EditorContentComponent implements AfterViewInit, OnChanges, OnDestr
     const el = node as HTMLElement;
     const tag = el.tagName.toLowerCase();
 
+    const align = (el.style.textAlign as any) || undefined;
+    const marginLeft = el.style.marginLeft;
+    let indent: number | undefined = undefined;
+    if (marginLeft && marginLeft.endsWith('em')) {
+      const emVal = parseFloat(marginLeft);
+      if (!isNaN(emVal) && emVal > 0) {
+        indent = Math.round(emVal / 2);
+      }
+    }
+
     switch (tag) {
       case 'p':
-        return { type: 'paragraph', children: this.parseInlineChildren(el) };
+        return { type: 'paragraph', align, indent, children: this.parseInlineChildren(el) } as any;
       case 'h1':
-        return { type: 'heading-one', children: this.parseInlineChildren(el) };
+        return { type: 'heading-one', align, children: this.parseInlineChildren(el) };
       case 'h2':
-        return { type: 'heading-two', children: this.parseInlineChildren(el) };
+        return { type: 'heading-two', align, children: this.parseInlineChildren(el) };
       case 'h3':
-        return { type: 'heading-three', children: this.parseInlineChildren(el) };
+        return { type: 'heading-three', align, children: this.parseInlineChildren(el) };
       case 'ol':
         return { type: 'numbered-list', children: this.parseListItems(el) } as any;
       case 'ul':
         return { type: 'bulleted-list', children: this.parseListItems(el) } as any;
       case 'li':
-        return { type: 'list-item', children: this.parseInlineChildren(el) };
+        return { type: 'list-item', indent, children: this.parseInlineChildren(el) };
       case 'div':
         // Media blocks or fallback to paragraph
         if (el.classList.contains('media-block')) return null; // Preserve as-is
-        return { type: 'paragraph', children: this.parseInlineChildren(el) };
+        return { type: 'paragraph', align, indent, children: this.parseInlineChildren(el) } as any;
       default:
-        return { type: 'paragraph', children: this.parseInlineChildren(el) };
+        return { type: 'paragraph', align, indent, children: this.parseInlineChildren(el) } as any;
     }
   }
 
@@ -386,7 +471,7 @@ export class EditorContentComponent implements AfterViewInit, OnChanges, OnDestr
     const tag = el.tagName.toLowerCase();
     const newMarks = { ...marks };
 
-    // Void math/chem spans — reconstruct as sentinels so the document model is stable
+    // Void math/chem spans - reconstruct as sentinels so the document model is stable
     const nodeType = el.getAttribute('data-type');
     if (nodeType === 'math-inline') {
       const latex = el.getAttribute('data-latex') || '';
@@ -403,6 +488,18 @@ export class EditorContentComponent implements AfterViewInit, OnChanges, OnDestr
     if (tag === 'sup') newMarks.superscript = true;
     if (tag === 'sub') newMarks.subscript = true;
     if (tag === 'br') return [{ text: '\n', ...marks }];
+
+    // Check inline styling for highlight/color
+    if (el.style.backgroundColor) {
+      const bg = el.style.backgroundColor;
+      const matched = HIGHLIGHT_COLORS.find(c => c.hex.toLowerCase() === bg.toLowerCase());
+      if (matched) newMarks.highlight = matched.key;
+    }
+    if (el.style.color) {
+      const col = el.style.color;
+      const matched = TEXT_COLORS.find(c => c.hex.toLowerCase() === col.toLowerCase());
+      if (matched) newMarks.color = matched.key;
+    }
 
     const results: ExamText[] = [];
     for (let i = 0; i < el.childNodes.length; i++) {

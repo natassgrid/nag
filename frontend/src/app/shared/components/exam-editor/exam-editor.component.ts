@@ -103,7 +103,7 @@ function matchHotkey(hotkey: string, event: KeyboardEvent): boolean {
  * ```
  *
  * The value flowing in/out is always a **Markdown string** (with $$...$$ for math
- * and <smiles>...</smiles> for chemical structures) — the same format used by
+ * and <smiles>...</smiles> for chemical structures) - the same format used by
  * the backend API. The ExamDocument JSON lives only inside the component.
  */
 @Component({
@@ -204,7 +204,7 @@ export class ExamEditorComponent implements ControlValueAccessor, OnInit, OnDest
     this.registry.register(new ChemicalStructurePlugin());
   }
 
-  // ─── ControlValueAccessor ──────────────────────────────────────────────────
+  // ─── ControlValueAccessor ───
 
   writeValue(obj: any): void {
     this.document = deserialiseContent(obj);
@@ -226,7 +226,7 @@ export class ExamEditorComponent implements ControlValueAccessor, OnInit, OnDest
     this.cdr.markForCheck();
   }
 
-  // ─── Document mutation events from EditorContentComponent ─────────────────
+  // ─── Document mutation events from EditorContentComponent ───
 
   onDocumentChange(newDoc: ExamDocument): void {
     if (this.mode === 'readonly') return;
@@ -283,7 +283,7 @@ export class ExamEditorComponent implements ControlValueAccessor, OnInit, OnDest
     this.onTouched();
   }
 
-  // ─── Undo / Redo ───────────────────────────────────────────────────────────
+  // ─── Undo / Redo ───
 
   undo(): void {
     if (this.undoStack.length === 0) return;
@@ -293,6 +293,7 @@ export class ExamEditorComponent implements ControlValueAccessor, OnInit, OnDest
     this.onChange(markdown);
     this.valueChange.emit(markdown);
     this.cdr.markForCheck();
+    this.contentComponent?.renderDocument();
   }
 
   redo(): void {
@@ -303,22 +304,27 @@ export class ExamEditorComponent implements ControlValueAccessor, OnInit, OnDest
     this.onChange(markdown);
     this.valueChange.emit(markdown);
     this.cdr.markForCheck();
+    this.contentComponent?.renderDocument();
   }
 
-  // ─── Public API ───────────────────────────────────────────────────────────
+  // ─── Public API ───
 
   export(): ExamDocument { return JSON.parse(JSON.stringify(this.document)); }
 
   validate() { return validateDocument(this.document); }
 
-  load(doc: ExamDocument): void { this.document = doc; this.cdr.markForCheck(); }
+  load(doc: ExamDocument): void {
+    this.document = doc;
+    this.cdr.markForCheck();
+    this.contentComponent?.renderDocument();
+  }
 
   insertAsset(assetId: string, type: 'image' | 'audio' | 'video'): void {
     const node: ExamElement = { type, assetId, children: [{ text: '' }] } as any;
     this.insertNodes([node]);
   }
 
-  // ─── Plugin Context ────────────────────────────────────────────────────────
+  // ─── Plugin Context ───
 
   get pluginContext(): PluginContext & {
     undo: () => void;
@@ -330,7 +336,10 @@ export class ExamEditorComponent implements ControlValueAccessor, OnInit, OnDest
     return {
       document: this.document,
       selection: this.selection,
-      setDocument: (doc) => { this.onDocumentChange(doc); },
+      setDocument: (doc) => {
+        this.onDocumentChange(doc);
+        this.contentComponent?.renderDocument();
+      },
       setSelection: (sel) => { this.selection = sel; this.cdr.markForCheck(); },
       focus: () => { this.contentComponent?.editorArea?.nativeElement.focus(); },
       insertNode: (node) => { this.insertNodes([node]); },
@@ -349,14 +358,14 @@ export class ExamEditorComponent implements ControlValueAccessor, OnInit, OnDest
       openMathInput: () => this.openMathInput(),
       openSmilesInput: () => this.openSmilesInput(),
       openAssetPicker: (type) => {
-        // Emit to parent via a custom event — parent handles the dialog
+        // Emit to parent via a custom event - parent handles the dialog
         // (keeps the editor decoupled from AssetPickerDialogComponent)
         (this as any).assetPickerRequest?.emit(type);
       }
     };
   }
 
-  // ─── Math input dialog ─────────────────────────────────────────────────────
+  // ─── Math input dialog ───
 
   openMathInput(existing?: { latex: string; display?: boolean }): void {
     const ref = this.dialog.open(MathInputDialogComponent, {
@@ -370,7 +379,7 @@ export class ExamEditorComponent implements ControlValueAccessor, OnInit, OnDest
     });
   }
 
-  // ─── SMILES input dialog ───────────────────────────────────────────────────
+  // ─── SMILES input dialog ───
 
   openSmilesInput(existing?: { smiles: string; title?: string }): void {
     const ref = this.dialog.open(SmilesInputDialogComponent, {
@@ -384,7 +393,7 @@ export class ExamEditorComponent implements ControlValueAccessor, OnInit, OnDest
     });
   }
 
-  // ─── Document Manipulation Helpers ─────────────────────────────────────────
+  // ─── Document Manipulation Helpers ───
 
   private insertNodes(nodes: ExamElement[]): void {
     // For now: append to the end of the document (before the last empty para)
@@ -399,15 +408,33 @@ export class ExamEditorComponent implements ControlValueAccessor, OnInit, OnDest
     newDoc.push(...nodes);
     newDoc.push({ type: 'paragraph', children: [{ text: '' }] });
     this.onDocumentChange(newDoc);
+    this.contentComponent?.renderDocument();
   }
 
   private toggleMark(mark: MarkType, value?: string | boolean): void {
-    // Toggle mark on all text nodes in the selected range.
-    // Without a deep selection model we toggle on the entire document (full-document approach).
-    // In practice users select text before clicking toolbar — this is a reasonable approximation.
+    // If a text range is selected in the DOM, execute native browser formatting command
+    const sel = window.getSelection();
+    const hasDomSelection = sel && sel.rangeCount > 0 && !sel.isCollapsed &&
+      this.contentComponent?.editorArea?.nativeElement.contains(sel.anchorNode);
+
+    const execCmdMap: Partial<Record<MarkType, string>> = {
+      bold: 'bold',
+      italic: 'italic',
+      underline: 'underline',
+      superscript: 'superscript',
+      subscript: 'subscript'
+    };
+
+    if (hasDomSelection && execCmdMap[mark]) {
+      this.contentComponent?.execFormatCommand(execCmdMap[mark]!);
+      return;
+    }
+
+    // Otherwise (or for custom marks like highlight/color): toggle mark on AST document
     const isActive = this.isMarkActive(mark);
     const newDoc = this.applyMarkToDocument(this.document, mark, isActive ? undefined : (value ?? true));
     this.onDocumentChange(newDoc);
+    this.contentComponent?.renderDocument();
   }
 
   private applyMarkToDocument(doc: ExamDocument, mark: MarkType, value: any): ExamDocument {
@@ -454,11 +481,13 @@ export class ExamEditorComponent implements ControlValueAccessor, OnInit, OnDest
       return { ...el, type: newType } as ExamElement;
     }) as ExamDocument;
     this.onDocumentChange(newDoc);
+    this.contentComponent?.renderDocument();
   }
 
   private setAlignment(align: TextAlignment): void {
     const newDoc = this.document.map(el => ({ ...el, align } as ExamElement)) as ExamDocument;
     this.onDocumentChange(newDoc);
+    this.contentComponent?.renderDocument();
   }
 
   private getAlignment(): TextAlignment {
@@ -470,6 +499,7 @@ export class ExamEditorComponent implements ControlValueAccessor, OnInit, OnDest
     const next = Math.max(0, Math.min(8, current + delta));
     const newDoc = this.document.map(el => ({ ...el, indent: next } as ExamElement)) as ExamDocument;
     this.onDocumentChange(newDoc);
+    this.contentComponent?.renderDocument();
   }
 
   private getIndentLevel(): number {

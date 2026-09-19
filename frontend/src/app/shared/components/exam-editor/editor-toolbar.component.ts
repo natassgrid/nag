@@ -17,7 +17,7 @@
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
 
-import { Component, Input, ChangeDetectionStrategy } from '@angular/core';
+import { Component, Input, ChangeDetectionStrategy, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
@@ -54,8 +54,10 @@ export class EditorToolbarComponent {
   @Input() document: ExamDocument = [];
   @Input() selection: EditorSelection | null = null;
 
+  constructor(private cdr: ChangeDetectorRef) {}
+
   get toolbarGroups(): { name: string; buttons: ToolbarButton[] }[] {
-    const groupMap = this.pluginRegistry.getToolbarGroups();
+    const groupMap = this.pluginRegistry?.getToolbarGroups?.() || new Map();
     const groups: { name: string; buttons: ToolbarButton[] }[] = [];
     const order = ['format', 'block', 'list', 'align', 'indent', 'color', 'media'];
     for (const name of order) {
@@ -91,21 +93,25 @@ export class EditorToolbarComponent {
   executeButton(button: ToolbarButton): void {
     if (this.context) {
       button.execute(this.context);
+      this.cdr.markForCheck();
     }
   }
 
   executeDropdownItem(item: { execute: (ctx: PluginContext) => void }): void {
     if (this.context) {
       item.execute(this.context);
+      this.cdr.markForCheck();
     }
   }
 
   onUndo(): void {
     // Emit to parent — parent calls undo()
     (this.context as any).undo?.();
+    this.cdr.markForCheck();
   }
 
   onRedo(): void {
     (this.context as any).redo?.();
+    this.cdr.markForCheck();
   }
 }

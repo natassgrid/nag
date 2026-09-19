@@ -7,18 +7,20 @@
             <button
               mat-icon-button
               type="button"
-              [matMenuTriggerFor]="menu"
+              [matMenuTriggerFor]="dropdownMenu"
               [matTooltip]="button.label"
               [attr.aria-label]="button.label"
+              (mousedown)="$event.preventDefault()"
               class="toolbar-btn"
             >
               <mat-icon>{{ button.icon }}</mat-icon>
             </button>
-            <mat-menu #menu="matMenu">
+            <mat-menu #dropdownMenu="matMenu">
               <button
                 mat-menu-item
                 type="button"
                 *ngFor="let item of button.dropdown"
+                (mousedown)="$event.preventDefault()"
                 (click)="executeDropdownItem(item)"
                 [attr.aria-label]="item.label"
               >
