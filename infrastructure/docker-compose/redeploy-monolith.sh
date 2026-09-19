@@ -158,7 +158,7 @@ else
 fi
 
 echo ""
-INFRA_TARGETS="postgres redis vault keycloak"
+INFRA_TARGETS="postgres redis vault vault-init keycloak"
 if [ "$RABBIT" = true ]; then
     INFRA_TARGETS="$INFRA_TARGETS rabbitmq"
 fi
@@ -176,6 +176,9 @@ $COMPOSE up --wait -d postgres vault redis
 if [ "$RABBIT" = true ]; then
     $COMPOSE up --wait -d rabbitmq
 fi
+# Ensure vault-init has unsealed Vault and provisioned transit keys
+echo "  Ensuring Vault is unsealed and transit keys are initialized..."
+$COMPOSE up -d vault-init
 
 echo ""
 echo "📦 Building monolith-app and frontends..."
