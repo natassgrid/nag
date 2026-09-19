@@ -50,6 +50,10 @@ dependencies {
     // Kafka (evaluation events)
     implementation libs.spring.kafka
 
+    // Resilience4j (circuit breaker)
+    implementation libs.resilience4j.spring.boot4
+    implementation libs.spring.boot.starter.aspectj
+
     // Actuator + Prometheus
     implementation libs.spring.boot.starter.actuator
     implementation libs.micrometer.registry.prometheus
