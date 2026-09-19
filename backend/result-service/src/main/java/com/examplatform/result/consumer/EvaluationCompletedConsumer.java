@@ -14,8 +14,7 @@
  * GNU Affero General Public License for more details.
  *
  * You should have received a copy of the GNU Affero General Public License
- * along with this program. If not, see <https://www.gnu.org/licenses/>.
- */
+ * along with this program. If not, see <https://www.gnu.org/licenses/>.\n */
 
 package com.examplatform.result.consumer;
 
@@ -29,6 +28,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.amqp.core.ExchangeTypes;
+import org.springframework.amqp.core.Message;
 import org.springframework.amqp.rabbit.annotation.Exchange;
 import org.springframework.amqp.rabbit.annotation.Queue;
 import org.springframework.amqp.rabbit.annotation.QueueBinding;
@@ -42,6 +42,7 @@ import org.springframework.stereotype.Component;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -101,7 +102,11 @@ public class EvaluationCompletedConsumer {
         log.info("Received RabbitMQ EVALUATION_COMPLETED event: {}", message);
         try {
             String payload;
-            if (message instanceof String s) {
+            if (message instanceof Message amqpMsg) {
+                payload = new String(amqpMsg.getBody(), StandardCharsets.UTF_8);
+            } else if (message instanceof byte[] bytes) {
+                payload = new String(bytes, StandardCharsets.UTF_8);
+            } else if (message instanceof String s) {
                 payload = s;
             } else {
                 payload = objectMapper.writeValueAsString(message);
@@ -126,7 +131,11 @@ public class EvaluationCompletedConsumer {
         try {
             Object rawPayload = event.payload();
             String payload;
-            if (rawPayload instanceof String s) {
+            if (rawPayload instanceof Message amqpMsg) {
+                payload = new String(amqpMsg.getBody(), StandardCharsets.UTF_8);
+            } else if (rawPayload instanceof byte[] bytes) {
+                payload = new String(bytes, StandardCharsets.UTF_8);
+            } else if (rawPayload instanceof String s) {
                 payload = s;
             } else {
                 payload = objectMapper.writeValueAsString(rawPayload);
@@ -204,8 +213,7 @@ public class EvaluationCompletedConsumer {
 
     /**
      * Enriches saved results with diagnostic data from the evaluation event.
-     * Computes accuracy rate and time analysis from question-level scores.
-     */
+     * Computes accuracy rate and time analysis from question-level scores.\n     */
     private void enrichWithDiagnostics(List<Result> results, Map<String, Object> event, String tenantId) {
         if (results.isEmpty()) return;
 

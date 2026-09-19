@@ -26,6 +26,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.amqp.core.ExchangeTypes;
+import org.springframework.amqp.core.Message;
 import org.springframework.amqp.rabbit.annotation.Exchange;
 import org.springframework.amqp.rabbit.annotation.Queue;
 import org.springframework.amqp.rabbit.annotation.QueueBinding;
@@ -34,6 +35,7 @@ import org.springframework.context.event.EventListener;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.stereotype.Component;
 
+import java.nio.charset.StandardCharsets;
 import java.util.Map;
 import java.util.UUID;
 
@@ -79,7 +81,15 @@ public class SessionEventConsumer {
     public void handleRabbitSessionEvent(Object message) {
         log.info("Received RabbitMQ session event: {}", message);
         try {
-            if (message instanceof Map<?, ?> map) {
+            if (message instanceof Message amqpMsg) {
+                String s = new String(amqpMsg.getBody(), StandardCharsets.UTF_8);
+                JsonNode node = objectMapper.readTree(s);
+                processJsonNode(node);
+            } else if (message instanceof byte[] bytes) {
+                String s = new String(bytes, StandardCharsets.UTF_8);
+                JsonNode node = objectMapper.readTree(s);
+                processJsonNode(node);
+            } else if (message instanceof Map<?, ?> map) {
                 @SuppressWarnings("unchecked")
                 Map<String, Object> eventMap = (Map<String, Object>) map;
                 processEventMap(eventMap);
@@ -106,7 +116,15 @@ public class SessionEventConsumer {
         log.info("Received Spring in-memory session event: key={}", event.key());
         try {
             Object payload = event.payload();
-            if (payload instanceof Map<?, ?> map) {
+            if (payload instanceof Message amqpMsg) {
+                String s = new String(amqpMsg.getBody(), StandardCharsets.UTF_8);
+                JsonNode node = objectMapper.readTree(s);
+                processJsonNode(node);
+            } else if (payload instanceof byte[] bytes) {
+                String s = new String(bytes, StandardCharsets.UTF_8);
+                JsonNode node = objectMapper.readTree(s);
+                processJsonNode(node);
+            } else if (payload instanceof Map<?, ?> map) {
                 @SuppressWarnings("unchecked")
                 Map<String, Object> eventMap = (Map<String, Object>) map;
                 processEventMap(eventMap);

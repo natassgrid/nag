@@ -26,6 +26,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.amqp.core.ExchangeTypes;
+import org.springframework.amqp.core.Message;
 import org.springframework.amqp.rabbit.annotation.Exchange;
 import org.springframework.amqp.rabbit.annotation.Queue;
 import org.springframework.amqp.rabbit.annotation.QueueBinding;
@@ -34,14 +35,14 @@ import org.springframework.context.event.EventListener;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.stereotype.Component;
 
+import java.nio.charset.StandardCharsets;
+
 /**
- * Consumer that listens for audit events on the
- * {@code exam.audit.events} topic. Deserializes incoming JSON messages,
- * extracts audit fields, and delegates to {@link AuditIngestionService}
- * for SHA-256 hashing, HSM signing, and immutable persistence.
- * Supports Kafka, RabbitMQ, and in-memory Spring ApplicationEvents.
+ * Consumes audit event messages from Kafka, RabbitMQ, and in-memory Spring events.
+ * Deserializes JSON payloads and delegates to {@link AuditIngestionService}
+ * for cryptographic signing and persistent storage.
  *
- * Validates: Requirements 15.1, 15.2
+ * Requirements: 12.1, 12.2, 12.3
  */
 @Slf4j
 @Component
@@ -56,7 +57,7 @@ public class AuditEventConsumer {
     /**
      * Listener for audit events via Kafka.
      *
-     * @param message the raw event payload from Kafka
+     * @param message the raw JSON string payload from Kafka
      */
     @KafkaListener(topics = AUDIT_TOPIC, groupId = "audit-service")
     public void onKafkaAuditEvent(String message) {
@@ -80,7 +81,11 @@ public class AuditEventConsumer {
         log.debug("Received RabbitMQ audit event: {}", message);
         try {
             String payload;
-            if (message instanceof String s) {
+            if (message instanceof Message amqpMsg) {
+                payload = new String(amqpMsg.getBody(), StandardCharsets.UTF_8);
+            } else if (message instanceof byte[] bytes) {
+                payload = new String(bytes, StandardCharsets.UTF_8);
+            } else if (message instanceof String s) {
                 payload = s;
             } else {
                 payload = objectMapper.writeValueAsString(message);
@@ -105,7 +110,11 @@ public class AuditEventConsumer {
         try {
             Object payload = event.payload();
             String message;
-            if (payload instanceof String s) {
+            if (payload instanceof Message amqpMsg) {
+                message = new String(amqpMsg.getBody(), StandardCharsets.UTF_8);
+            } else if (payload instanceof byte[] bytes) {
+                message = new String(bytes, StandardCharsets.UTF_8);
+            } else if (payload instanceof String s) {
                 message = s;
             } else {
                 message = objectMapper.writeValueAsString(payload);
