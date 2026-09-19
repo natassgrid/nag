@@ -19,10 +19,14 @@
 
 package com.examplatform.evaluation.consumer;
 
+import com.examplatform.evaluation.client.AnswerKeyClient;
+import com.examplatform.evaluation.client.CandidateResponseClient;
 import com.examplatform.evaluation.domain.Evaluation;
 import com.examplatform.evaluation.dto.AnswerKey;
 import com.examplatform.evaluation.dto.CandidateResponse;
 import com.examplatform.evaluation.service.AutoEvaluationService;
+import com.examplatform.evaluation.service.ScoreAggregationService;
+import com.examplatform.shared.messaging.EventPublisher;
 import com.examplatform.shared.messaging.GenericDomainEvent;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -41,8 +45,11 @@ import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.stereotype.Component;
 
 import java.nio.charset.StandardCharsets;
+import java.time.Instant;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 /**
@@ -57,8 +64,13 @@ import java.util.UUID;
 public class SessionEventConsumer {
 
     public static final String SESSION_EVENTS_TOPIC = "exam.session.events";
+    public static final String DLQ_TOPIC = "exam.evaluation.dlq";
 
     private final AutoEvaluationService autoEvaluationService;
+    private final ScoreAggregationService scoreAggregationService;
+    private final AnswerKeyClient answerKeyClient;
+    private final CandidateResponseClient candidateResponseClient;
+    private final EventPublisher eventPublisher;
     private final ObjectMapper objectMapper;
 
     /**
@@ -140,6 +152,12 @@ public class SessionEventConsumer {
     }
 
     public void processJsonEvent(JsonNode event) {
+        UUID sessionId = null;
+        UUID candidateId = null;
+        String tenantId = "default";
+        UUID paperId = null;
+        UUID examId = null;
+
         try {
             String eventType = event.has("eventType") ? event.get("eventType").asText() : "";
 
@@ -148,18 +166,34 @@ public class SessionEventConsumer {
                 return;
             }
 
-            UUID sessionId = UUID.fromString(event.get("sessionId").asText());
-            UUID candidateId = UUID.fromString(event.get("candidateId").asText());
-            String tenantId = event.has("tenantId") ? event.get("tenantId").asText() : "default";
+            sessionId = UUID.fromString(event.get("sessionId").asText());
+            candidateId = UUID.fromString(event.get("candidateId").asText());
+            tenantId = event.has("tenantId") && !event.get("tenantId").asText().isBlank()
+                    ? event.get("tenantId").asText() : "default";
 
-            // Fetch answer keys (from question-bank-service or local cache — stub for now)
-            List<AnswerKey> answerKeys = fetchAnswerKeys(event);
+            if (event.has("paperId") && !event.get("paperId").asText().isBlank()) {
+                try {
+                    paperId = UUID.fromString(event.get("paperId").asText());
+                } catch (IllegalArgumentException ignored) {
+                }
+            }
 
-            // Fetch final responses (from response-service — stub for now)
-            List<CandidateResponse> responses = fetchCandidateResponses(event);
+            if (event.has("examId") && !event.get("examId").asText().isBlank()) {
+                try {
+                    examId = UUID.fromString(event.get("examId").asText());
+                } catch (IllegalArgumentException ignored) {
+                }
+            }
 
-            if (answerKeys.isEmpty()) {
-                log.warn("No answer keys found for session {}. Skipping auto-evaluation.", sessionId);
+            // Fetch final candidate responses (from event or response-service)
+            List<CandidateResponse> responses = fetchCandidateResponses(event, sessionId, tenantId);
+
+            // Fetch answer keys (from event, paperId gRPC, or batch question IDs gRPC)
+            List<AnswerKey> answerKeys = fetchAnswerKeys(event, paperId, responses, tenantId);
+
+            if (answerKeys == null || answerKeys.isEmpty()) {
+                log.warn("No answer keys found for session {}. Emitting DLQ event and skipping evaluation.", sessionId);
+                emitDeadLetterEvent(sessionId, candidateId, tenantId, paperId, examId, "No answer keys found for session", event);
                 return;
             }
 
@@ -169,40 +203,86 @@ public class SessionEventConsumer {
             log.info("Auto-evaluation completed for session {}: {} evaluations created",
                     sessionId, evaluations.size());
 
+            scoreAggregationService.aggregateScores(sessionId, candidateId, examId, tenantId);
+            log.info("Score aggregation and EVALUATION_COMPLETED event published for session {}", sessionId);
+
         } catch (Exception e) {
             log.error("Failed to process session event: {}", e.getMessage(), e);
-        }
-    }
-
-    /**
-     * Fetches answer keys for the submitted session.
-     */
-    private List<AnswerKey> fetchAnswerKeys(JsonNode event) {
-        if (event.has("answerKeys")) {
-            try {
-                return objectMapper.readValue(
-                        event.get("answerKeys").toString(),
-                        new TypeReference<List<AnswerKey>>() {});
-            } catch (Exception e) {
-                log.warn("Failed to parse answer keys from event", e);
+            if (sessionId != null && candidateId != null) {
+                emitDeadLetterEvent(sessionId, candidateId, tenantId, paperId, examId, e.getMessage(), event);
             }
         }
-        return Collections.emptyList();
     }
 
     /**
-     * Fetches candidate responses for the submitted session.
+     * Fetches candidate responses from the event payload or by querying response-service via REST.
      */
-    private List<CandidateResponse> fetchCandidateResponses(JsonNode event) {
-        if (event.has("responses")) {
+    private List<CandidateResponse> fetchCandidateResponses(JsonNode event, UUID sessionId, String tenantId) {
+        if (event.has("responses") && event.get("responses").isArray() && !event.get("responses").isEmpty()) {
             try {
                 return objectMapper.readValue(
                         event.get("responses").toString(),
                         new TypeReference<List<CandidateResponse>>() {});
             } catch (Exception e) {
-                log.warn("Failed to parse candidate responses from event", e);
+                log.warn("Failed to parse candidate responses from event payload: {}", e.getMessage());
             }
         }
+
+        return candidateResponseClient.getCandidateResponses(sessionId, tenantId);
+    }
+
+    /**
+     * Fetches answer keys from event payload, paperId gRPC call, or batch question IDs gRPC call.
+     */
+    private List<AnswerKey> fetchAnswerKeys(JsonNode event, UUID paperId, List<CandidateResponse> responses, String tenantId) {
+        if (event.has("answerKeys") && event.get("answerKeys").isArray() && !event.get("answerKeys").isEmpty()) {
+            try {
+                return objectMapper.readValue(
+                        event.get("answerKeys").toString(),
+                        new TypeReference<List<AnswerKey>>() {});
+            } catch (Exception e) {
+                log.warn("Failed to parse answer keys from event payload: {}", e.getMessage());
+            }
+        }
+
+        if (paperId != null) {
+            return answerKeyClient.getAnswerKeysForPaper(paperId, tenantId);
+        }
+
+        if (responses != null && !responses.isEmpty()) {
+            List<UUID> questionIds = responses.stream()
+                    .map(CandidateResponse::getQuestionId)
+                    .filter(java.util.Objects::nonNull)
+                    .toList();
+            if (!questionIds.isEmpty()) {
+                return answerKeyClient.batchGetAnswerKeys(questionIds, tenantId);
+            }
+        }
+
         return Collections.emptyList();
+    }
+
+    /**
+     * Emits a dead-letter event to {@code exam.evaluation.dlq} for retry/reprocessing when upstream fails.
+     */
+    private void emitDeadLetterEvent(UUID sessionId, UUID candidateId, String tenantId,
+                                    UUID paperId, UUID examId, String reason, JsonNode originalEvent) {
+        try {
+            Map<String, Object> dlqEvent = new HashMap<>();
+            dlqEvent.put("eventType", "EVALUATION_FAILED_DLQ");
+            dlqEvent.put("sessionId", sessionId.toString());
+            dlqEvent.put("candidateId", candidateId.toString());
+            dlqEvent.put("tenantId", tenantId != null ? tenantId : "default");
+            dlqEvent.put("paperId", paperId != null ? paperId.toString() : "");
+            dlqEvent.put("examId", examId != null ? examId.toString() : "");
+            dlqEvent.put("reason", reason != null ? reason : "Unknown evaluation failure");
+            dlqEvent.put("failedAt", Instant.now().toString());
+            dlqEvent.put("originalEvent", originalEvent != null ? originalEvent.toString() : "");
+
+            eventPublisher.publish(DLQ_TOPIC, sessionId.toString(), dlqEvent);
+            log.info("Published DLQ event to {} for session {}: reason={}", DLQ_TOPIC, sessionId, reason);
+        } catch (Exception e) {
+            log.error("Failed to publish DLQ event to {} for session {}: {}", DLQ_TOPIC, sessionId, e.getMessage());
+        }
     }
 }

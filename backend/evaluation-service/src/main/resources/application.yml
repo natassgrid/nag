@@ -72,6 +72,31 @@ server:
     context-path: /
   shutdown: graceful
 
+grpc:
+  client:
+    questionbank:
+      host: ${GRPC_QUESTION_BANK_HOST:localhost}
+      port: ${GRPC_QUESTION_BANK_PORT:9083}
+      timeout-ms: 5000
+
+app:
+  response-service:
+    url: ${RESPONSE_SERVICE_URI:http://localhost:8088}
+
+resilience4j:
+  circuitbreaker:
+    instances:
+      questionBank:
+        sliding-window-size: 10
+        failure-rate-threshold: 50
+        wait-duration-in-open-state: 10s
+        permitted-number-of-calls-in-half-open-state: 3
+      responseService:
+        sliding-window-size: 10
+        failure-rate-threshold: 50
+        wait-duration-in-open-state: 10s
+        permitted-number-of-calls-in-half-open-state: 3
+
 management:
   endpoints:
     web:
