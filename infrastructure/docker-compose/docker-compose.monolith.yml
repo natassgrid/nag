@@ -4,17 +4,14 @@
 # Copyright (C) 2025 NAG Contributors
 #
 # =============================================================================
-# Monolith Deployment Mode (Requirement 24.3, 24.4)
-# Consolidates all 14 backend microservices + audit into a single Spring Boot JVM
-# reducing RAM consumption from ~8.5GB down to ~1.2GB for low-spec servers and local dev.
-#
-# Supports:
-#   1. In-Memory messaging (zero broker, ultra-lightweight)
-#   2. RabbitMQ messaging (with --profile rabbit)
+# Docker Compose — NAG Single JVM Monolith Mode (Ultralight / Low-RAM / Standalone)
+# Consolidates all 14 domain microservices + audit into 1 JVM Spring Boot runtime.
+# Memory requirement: ~1 GB RAM (runs comfortably on 2 GB - 4 GB VMs).
+# Zero external message broker (Kafka/RabbitMQ not needed; uses in-memory Spring events).
+# Optionally supports RabbitMQ via `PLATFORM_MESSAGING_BROKER=rabbit --profile rabbit`.
 #
 # Usage:
-#   docker compose -f docker-compose.yml -f docker-compose.monolith.yml up -d
-#   docker compose --profile rabbit -f docker-compose.yml -f docker-compose.monolith.yml up -d
+#   docker compose -f docker-compose.yml -f docker-compose.monolith.yml up --build
 # =============================================================================
 
 x-service-common: &service-common
@@ -62,12 +59,13 @@ services:
     restart: unless-stopped
     build:
       context: ../../
-      dockerfile: backend/Dockerfile.monolith
+      dockerfile: backend/Dockerfile
+      args:
+        SERVICE_NAME: monolith-app
     image: localhost:5000/exam/monolith-app:latest
     container_name: exam-monolith-app
     ports:
       - "${MONOLITH_PORT:-9000}:${MONOLITH_PORT:-9000}"
-      - "8080:8080"
     environment:
       SPRING_PROFILES_ACTIVE: docker
       PLATFORM_MESSAGING_BROKER: ${PLATFORM_MESSAGING_BROKER:-in-memory}
@@ -82,7 +80,6 @@ services:
       SPRING_RABBITMQ_PORT: ${SPRING_RABBITMQ_PORT:-5672}
       SPRING_RABBITMQ_USERNAME: ${RABBITMQ_USER:-exam_rabbit}
       SPRING_RABBITMQ_PASSWORD: ${RABBITMQ_PASS:-rabbit_secret}
-      SPRING_RABBITMQ_LISTENER_AUTO_STARTUP: ${SPRING_RABBITMQ_LISTENER_AUTO_STARTUP:-true}
       KEYCLOAK_ISSUER_URI: http://keycloak:8080/realms/exam-realm
       KEYCLOAK_SERVER_URL: http://keycloak:8080
       VAULT_ADDR: http://vault:8200
@@ -111,27 +108,22 @@ services:
       exam-network:
         aliases:
           - api-gateway
-          - auth-service
-          - candidate-service
-          - question-bank-service
-          - examination-service
-          - paper-generator
-          - delivery-service
-          - response-service
-          - evaluation-service
-          - result-service
-          - audit-service
-          - notification-service
-          - admin-service
-          - analytics-service
-          - asset-service
-    healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://localhost:8080/actuator/health/readiness || wget -qO- http://localhost:8080/actuator/health || exit 1"]
-      <<: *healthcheck-spring
+          - monolith-app
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
     volumes:
-      - monolith_asset_data:/data/asset-storage
-      - monolith_scorecard_data:/data/scorecards
+      - asset_storage:/data/asset-storage
+      - scorecard_storage:/data/scorecards
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:${MONOLITH_PORT:-9000}/actuator/health || exit 1"]
+      <<: *healthcheck-spring
 
+  # ===========================================================================
+  # Frontend — Admin SPA
+  # ===========================================================================
   frontend:
     <<: *service-common
     build:
@@ -140,22 +132,20 @@ services:
     image: localhost:5000/exam/frontend:latest
     container_name: exam-frontend
     ports:
-      - "${FRONTEND_PORT:-4200}:80"
-    environment:
-      VITE_API_GATEWAY_URL: http://localhost:8080
-      VITE_KEYCLOAK_URL: http://localhost:8080
-      VITE_KEYCLOAK_REALM: exam-realm
-      VITE_KEYCLOAK_CLIENT_ID: exam-admin-frontend
+      - "4200:80"
     depends_on:
       monolith-app:
         condition: service_healthy
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://localhost:80/ || exit 1"]
-      interval: 10s
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:80/health || exit 1"]
+      interval: 30s
       timeout: 5s
-      retries: 5
+      retries: 3
       start_period: 10s
 
+  # ===========================================================================
+  # Candidate Frontend — Candidate SPA
+  # ===========================================================================
   candidate-frontend:
     <<: *service-common
     build:
@@ -164,23 +154,18 @@ services:
     image: localhost:5000/exam/candidate-frontend:latest
     container_name: exam-candidate-frontend
     ports:
-      - "${CANDIDATE_FRONTEND_PORT:-4300}:80"
-    environment:
-      VITE_API_GATEWAY_URL: http://localhost:8080
-      VITE_KEYCLOAK_URL: http://localhost:8080
-      VITE_KEYCLOAK_REALM: exam-realm
-      VITE_KEYCLOAK_CLIENT_ID: exam-candidate-frontend
+      - "4300:80"
     depends_on:
       monolith-app:
         condition: service_healthy
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://localhost:80/ || exit 1"]
-      interval: 10s
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:80/health || exit 1"]
+      interval: 30s
       timeout: 5s
-      retries: 5
+      retries: 3
       start_period: 10s
 
 volumes:
-  monolith_asset_data:
-  monolith_scorecard_data:
+  asset_storage:
+  scorecard_storage:
   rabbitmq_data:
