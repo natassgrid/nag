@@ -14,8 +14,7 @@
  * GNU Affero General Public License for more details.
  *
  * You should have received a copy of the GNU Affero General Public License
- * along with this program. If not, see <https://www.gnu.org/licenses/>.
- */
+ * along with this program. If not, see <https://www.gnu.org/licenses/>.\n */
 
 import {
   Component,
@@ -83,12 +82,7 @@ export class PassageFormDialogComponent implements OnChanges {
 
   readonly difficultyOptions = ['EASY', 'MEDIUM', 'HARD'];
   readonly cognitiveLevels = ['KNOWLEDGE', 'COMPREHENSION', 'APPLICATION', 'ANALYSIS', 'SYNTHESIS', 'EVALUATION'];
-  readonly questionTypes = [
-    { label: 'Multiple Choice (Single)', value: 'SINGLE_MCQ' },
-    { label: 'Multiple Choice (Multiple)', value: 'MULTIPLE_MCQ' },
-    { label: 'True / False', value: 'TRUE_FALSE' },
-    { label: 'Numerical / Integer', value: 'NUMERICAL' }
-  ];
+  readonly questionTypes = [\n    { label: 'Multiple Choice (Single)', value: 'SINGLE_MCQ' },\n    { label: 'Multiple Choice (Multiple)', value: 'MULTIPLE_MCQ' },\n    { label: 'True / False', value: 'TRUE_FALSE' },\n    { label: 'Numerical / Integer', value: 'NUMERICAL' }\n  ];
 
   constructor(
     private fb: FormBuilder,
@@ -218,15 +212,18 @@ export class PassageFormDialogComponent implements OnChanges {
 
   onTopicChange(topicId: number): void {
     const selected = this.topics.find(t => t.id === topicId);
+    const subjectId = this.form.get('subjectId')?.value;
     if (selected) {
       this.form.patchValue({ topic: selected.name, subtopicId: null });
       this.subtopics = [];
-      this.subjectTopicService.getSubtopics(topicId).subscribe({
-        next: (subtopics) => {
-          this.subtopics = subtopics || [];
-          this.cdr.markForCheck();
-        }
-      });
+      if (subjectId) {
+        this.subjectTopicService.getSubtopics(subjectId, topicId).subscribe({
+          next: (subtopics) => {
+            this.subtopics = subtopics || [];
+            this.cdr.markForCheck();
+          }
+        });
+      }
     }
   }
 
@@ -255,8 +252,8 @@ export class PassageFormDialogComponent implements OnChanges {
         this.cdr.markForCheck();
       });
     }
-    if (p.topicId) {
-      this.subjectTopicService.getSubtopics(p.topicId).subscribe(st => {
+    if (p.subjectId && p.topicId) {
+      this.subjectTopicService.getSubtopics(p.subjectId, p.topicId).subscribe(st => {
         this.subtopics = st || [];
         this.cdr.markForCheck();
       });
