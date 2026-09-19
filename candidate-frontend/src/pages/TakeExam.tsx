@@ -34,6 +34,8 @@ import { MathRenderer } from '../components/MathRenderer';
 import { ImageZoomModal } from '../components/ImageZoomModal';
 import { ALL_EXAM_LANGUAGES } from '../components/LanguageSelector';
 import { ExamLanguageBanner } from '../components/ExamLanguageBanner';
+import { PassagePanel } from '../components/PassagePanel';
+import { GroupProgressStrip } from '../components/GroupProgressStrip';
 import { offlineQueue } from '../utils/offlineQueue';
 import {
   saveLanguagePreference,
@@ -147,7 +149,6 @@ const TakeExam: React.FC = () => {
 
   const sessionIdRef = useRef<string>('');
   const isOfflineSessionRef = useRef<boolean>(false);
-
 
   // ─── Multilingual Content Resolvers ────────────────────────
   const hasTranslation = useCallback(
@@ -423,7 +424,7 @@ const TakeExam: React.FC = () => {
     }
   };
 
-  // ─── Countdown Timer ──────────────────────────────────────────
+  // ─── Countdown Timer ──────────────────────────────────────────────────────
   useEffect(() => {
     if (loading || timeLeft <= 0) return;
 
@@ -509,7 +510,7 @@ const TakeExam: React.FC = () => {
     }
   };
 
-  // ─── Online/offline detection & Sync ──────────────────────────
+  // ─── Online/offline detection & Sync ────────────────────────
   useEffect(() => {
     const onOnline = async () => {
       setOnline(true);
@@ -540,7 +541,7 @@ const TakeExam: React.FC = () => {
     };
   }, [toast]);
 
-  // ─── Question Status Calculator ──────────────────────────────
+  // ─── Question Status Calculator ────────────────────────────
   const getQuestionState = (questionId: string): QuestionStatus => {
     const rec = answers[questionId];
     if (!rec || !rec.visited) return 'NOT_VISITED';
@@ -756,6 +757,10 @@ const TakeExam: React.FC = () => {
   }
 
   const currentQ = questions[currentIndex];
+  const effectivePassageContent = currentQ?.passageId
+    ? (currentQ.passageContent || questions.find((q) => q.passageId === currentQ.passageId && q.passageContent)?.passageContent)
+    : undefined;
+
   const currentAnswer = currentQ ? answers[currentQ.id] : null;
   const isAnswered = currentAnswer?.optionIndex !== null && currentAnswer?.optionIndex !== undefined;
   const regionalLangForDisplay =
@@ -940,14 +945,42 @@ const TakeExam: React.FC = () => {
 
       {/* Main Delivery Body */}
       <div className="flex flex-1 overflow-hidden">
+        {/* Left Passage Pane (When current question is linked to a comprehension passage) */}
+        {effectivePassageContent && currentQ && (
+          <div className="hidden lg:flex w-[45%] shrink-0 flex-col border-r border-slate-200 bg-slate-50/50">
+            <PassagePanel
+              passageId={currentQ.passageId!}
+              passageContent={effectivePassageContent}
+              allQuestions={questions}
+              currentQuestionIndex={currentIndex}
+              onNavigateToQuestion={goToQuestion}
+              fontSize={fontSize === 'xl' ? 'large' : fontSize}
+            />
+          </div>
+        )}
+
         {/* Left / Center: Question & Options Panel */}
         <div className="flex flex-1 flex-col overflow-y-auto bg-white p-6 border-r border-slate-200">
           {currentQ && (
             <div className="mx-auto flex w-full max-w-4xl flex-1 flex-col justify-between">
               <div>
+                {/* Mobile / Tablet Collapsible Passage Card (When on smaller screens) */}
+                {effectivePassageContent && (
+                  <div className="mb-4 lg:hidden">
+                    <PassagePanel
+                      passageId={currentQ.passageId!}
+                      passageContent={effectivePassageContent}
+                      allQuestions={questions}
+                      currentQuestionIndex={currentIndex}
+                      onNavigateToQuestion={goToQuestion}
+                      fontSize={fontSize === 'xl' ? 'large' : fontSize}
+                    />
+                  </div>
+                )}
+
                 {/* Question Meta Bar */}
-                <div className="flex items-center justify-between border-b border-slate-200 pb-3">
-                  <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200 pb-3">
+                  <div className="flex flex-wrap items-center gap-2">
                     <span className="rounded bg-teal-100 px-2 py-0.5 text-xs font-black text-teal-900">
                       Question {currentIndex + 1} of {questions.length}
                     </span>
@@ -958,6 +991,14 @@ const TakeExam: React.FC = () => {
                       <span className="rounded bg-slate-100 px-2 py-0.5 text-[11px] font-medium text-slate-600 hidden sm:inline">
                         Topic: {currentQ.topic}
                       </span>
+                    )}
+                    {currentQ.passageId && (
+                      <GroupProgressStrip
+                        passageId={currentQ.passageId}
+                        allQuestions={questions}
+                        currentQuestionIndex={currentIndex}
+                        onNavigateToQuestion={goToQuestion}
+                      />
                     )}
                   </div>
                   <div className="text-xs font-bold text-slate-500">
@@ -1355,6 +1396,7 @@ const TakeExam: React.FC = () => {
               {currentSectionQuestionIndices.map(({ q, idx }) => {
                 const state = getQuestionState(q.id);
                 const isCurrent = idx === currentIndex;
+                const isPassageQ = Boolean(q.passageId);
 
                 let bgClass = 'bg-slate-200 text-slate-700 hover:bg-slate-300';
                 if (state === 'ANSWERED') bgClass = 'bg-emerald-600 text-white shadow-xs';
@@ -1366,10 +1408,16 @@ const TakeExam: React.FC = () => {
                   <button
                     key={q.id}
                     onClick={() => goToQuestion(idx)}
-                    className={`flex h-9 items-center justify-center rounded-lg text-xs font-bold transition ${bgClass} ${
+                    className={`relative flex h-9 items-center justify-center rounded-lg text-xs font-bold transition ${bgClass} ${
                       isCurrent ? 'ring-2 ring-slate-900 ring-offset-1 scale-105' : ''
-                    }`}
+                    } ${isPassageQ ? 'border-2 border-teal-500' : ''}`}
+                    title={isPassageQ ? `Passage Question ${idx + 1}` : `Question ${idx + 1}`}
                   >
+                    {isPassageQ && (
+                      <span className="absolute -top-1 -right-1 flex h-3 w-3 items-center justify-center rounded-full bg-teal-800 text-[8px] font-black text-white">
+                        P
+                      </span>
+                    )}
                     {idx + 1}
                   </button>
                 );
