@@ -18,6 +18,7 @@
  */
 
 import { Injectable } from '@angular/core';
+import { Subject, Observable } from 'rxjs';
 import { EditorPlugin, ToolbarButton, KeyBinding } from './editor-plugin';
 
 /**
@@ -30,25 +31,34 @@ import { EditorPlugin, ToolbarButton, KeyBinding } from './editor-plugin';
 export class PluginRegistry {
 
   private plugins: EditorPlugin[] = [];
+  private pluginsChangedSubject = new Subject<void>();
+  public pluginsChanged$: Observable<void> = this.pluginsChangedSubject.asObservable();
 
   /**
    * Register a plugin. Plugins are sorted by priority (lower first).
    */
   register(plugin: EditorPlugin): void {
     if (this.plugins.find(p => p.name === plugin.name)) {
-      console.warn(`[PluginRegistry] Plugin '${plugin.name}' already registered, skipping.`);
       return;
     }
     this.plugins.push(plugin);
     this.plugins.sort((a, b) => (a.priority ?? 100) - (b.priority ?? 100));
     plugin.onInit?.();
+    this.pluginsChangedSubject.next();
   }
 
   /**
    * Register multiple plugins at once.
    */
   registerAll(plugins: EditorPlugin[]): void {
-    plugins.forEach(p => this.register(p));
+    plugins.forEach(p => {
+      if (!this.plugins.find(item => item.name === p.name)) {
+        this.plugins.push(p);
+        p.onInit?.();
+      }
+    });
+    this.plugins.sort((a, b) => (a.priority ?? 100) - (b.priority ?? 100));
+    this.pluginsChangedSubject.next();
   }
 
   /**
@@ -59,6 +69,7 @@ export class PluginRegistry {
     if (index >= 0) {
       this.plugins[index].onDestroy?.();
       this.plugins.splice(index, 1);
+      this.pluginsChangedSubject.next();
     }
   }
 
@@ -109,6 +120,7 @@ export class PluginRegistry {
   clear(): void {
     this.plugins.forEach(p => p.onDestroy?.());
     this.plugins = [];
+    this.pluginsChangedSubject.next();
   }
 
   /**

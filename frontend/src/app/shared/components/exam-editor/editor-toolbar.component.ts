@@ -17,13 +17,23 @@
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
 
-import { Component, Input, ChangeDetectionStrategy, ChangeDetectorRef } from '@angular/core';
+import {
+  Component,
+  Input,
+  OnInit,
+  OnDestroy,
+  OnChanges,
+  SimpleChanges,
+  ChangeDetectionStrategy,
+  ChangeDetectorRef
+} from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { MatMenuModule } from '@angular/material/menu';
 import { MatDividerModule } from '@angular/material/divider';
+import { Subscription } from 'rxjs';
 import { PluginRegistry } from './plugins/plugin-registry';
 import { PluginContext, ToolbarButton, EditorSelection } from './plugins';
 import { ExamDocument, MarkType } from './models';
@@ -47,16 +57,44 @@ import { ExamDocument, MarkType } from './models';
   templateUrl: './editor-toolbar.component.html',
   styleUrls: ['./editor-toolbar.component.scss']
 })
-export class EditorToolbarComponent {
+export class EditorToolbarComponent implements OnInit, OnDestroy, OnChanges {
 
   @Input() pluginRegistry!: PluginRegistry;
   @Input() context!: PluginContext;
   @Input() document: ExamDocument = [];
   @Input() selection: EditorSelection | null = null;
 
+  toolbarGroups: { name: string; buttons: ToolbarButton[] }[] = [];
+  private pluginSub?: Subscription;
+
   constructor(private cdr: ChangeDetectorRef) {}
 
-  get toolbarGroups(): { name: string; buttons: ToolbarButton[] }[] {
+  ngOnInit(): void {
+    this.updateToolbarGroups();
+    if (this.pluginRegistry?.pluginsChanged$) {
+      this.pluginSub = this.pluginRegistry.pluginsChanged$.subscribe(() => {
+        this.updateToolbarGroups();
+      });
+    }
+  }
+
+  ngOnDestroy(): void {
+    this.pluginSub?.unsubscribe();
+  }
+
+  ngOnChanges(changes: SimpleChanges): void {
+    if (changes['pluginRegistry']) {
+      this.pluginSub?.unsubscribe();
+      if (this.pluginRegistry?.pluginsChanged$) {
+        this.pluginSub = this.pluginRegistry.pluginsChanged$.subscribe(() => {
+          this.updateToolbarGroups();
+        });
+      }
+      this.updateToolbarGroups();
+    }
+  }
+
+  public updateToolbarGroups(): void {
     const groupMap = this.pluginRegistry?.getToolbarGroups?.() || new Map();
     const groups: { name: string; buttons: ToolbarButton[] }[] = [];
     const order = ['format', 'block', 'list', 'align', 'indent', 'color', 'media'];
@@ -66,7 +104,8 @@ export class EditorToolbarComponent {
         groups.push({ name, buttons });
       }
     }
-    return groups;
+    this.toolbarGroups = groups;
+    this.cdr.markForCheck();
   }
 
   isButtonActive(button: ToolbarButton): boolean {

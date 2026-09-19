@@ -156,12 +156,15 @@ export class ExamEditorComponent implements ControlValueAccessor, OnInit, OnDest
     public registry: PluginRegistry,
     private cdr: ChangeDetectorRef,
     private dialog: MatDialog
-  ) {}
+  ) {
+    this.registerDefaultPlugins();
+  }
 
   ngOnInit(): void {
-    this.registerDefaultPlugins();
-    for (const plugin of this.plugins) {
-      this.registry.register(plugin);
+    if (this.plugins && this.plugins.length > 0) {
+      for (const plugin of this.plugins) {
+        this.registry.register(plugin);
+      }
     }
     this.ready.emit();
   }
