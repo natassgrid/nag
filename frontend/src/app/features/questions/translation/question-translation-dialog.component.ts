@@ -252,44 +252,41 @@ export class QuestionTranslationDialogComponent implements OnInit, OnChanges {
 
     const langName = this.getSelectedLangName();
 
-    const textsToTranslate: string[] = [
-      this.question.content || '',
-      this.question.explanation || '',
-      ...this.optionTranslations.map(o => o.sourceText || '')
-    ];
 
-    this.translationService.translateBulk({
-      texts: textsToTranslate,
-      sourceLanguage: 'en',
-      targetLanguage: this.selectedLanguageCode
-    }).subscribe({
-      next: (translatedTexts) => {
-        this.autoTranslating = false;
-        if (translatedTexts && translatedTexts.length >= 2) {
+    this.translationService.autoTranslateQuestion(this.question.id, this.selectedLanguageCode)
+      .subscribe({
+        next: (res: import('./translation.service').AutoTranslateResponse) => {
+          this.autoTranslating = false;
+
           this.form.patchValue({
-            translatedContent: translatedTexts[0] || this.form.value.translatedContent,
-            translatedExplanation: translatedTexts[1] || this.form.value.translatedExplanation
+            translatedContent: res.translatedContent || this.form.value.translatedContent,
+            translatedExplanation: res.translatedExplanation || this.form.value.translatedExplanation
           });
 
-          let optIdx = 2;
-          this.optionTranslations.forEach(opt => {
-            if (optIdx < translatedTexts.length) {
-              opt.text = translatedTexts[optIdx] || opt.text;
-              optIdx++;
-            }
-          });
+          if (res.translatedOptions && res.translatedOptions.length > 0) {
+            const transOptsMap = new Map<string, string>();
+            res.translatedOptions.forEach(opt => transOptsMap.set(opt.id, opt.text));
+            this.optionTranslations.forEach(opt => {
+              const translated = transOptsMap.get(opt.id);
+              if (translated) opt.text = translated;
+            });
+          }
 
-          this.snackBar.open(`Auto-translated to ${langName} via IndicTrans2. Please review and refine.`, 'Close', { duration: 4000 });
+          this.snackBar.open(
+            `Auto-translated to ${langName} via IndicTrans2. Please review and refine.`,
+            'Close',
+            { duration: 4000 }
+          );
+          this.cdr.markForCheck();
+        },
+        error: (err: { error?: { message?: string }; message?: string }) => {
+          this.autoTranslating = false;
+          this.errorMessage = err?.error?.message || err?.message || 'Failed to auto-translate with IndicTrans2';
+          this.snackBar.open(`IndicTrans2 translation failed: ${this.errorMessage}`, 'Close', { duration: 5000 });
+          this.cdr.markForCheck();
         }
-        this.cdr.markForCheck();
-      },
-      error: (err) => {
-        this.autoTranslating = false;
-        this.errorMessage = err?.error?.message || err?.message || 'Failed to auto-translate with IndicTrans2';
-        this.snackBar.open(`IndicTrans2 translation failed: ${this.errorMessage}`, 'Close', { duration: 5000 });
-        this.cdr.markForCheck();
-      }
-    });
+      });
+
   }
 
   getTranslationStatusForLang(code: string): string | null {

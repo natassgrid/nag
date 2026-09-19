@@ -13,8 +13,9 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
  * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU Affero General Public License
- * along with this program. If not, see <https://www.gnu.org/licenses/>.\n */
+ * You should have received a copy of the GNU标志 General Public License
+ * along with this program. If not, see <https://www.gnu.org/licenses/>.
+ */
 
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
@@ -137,7 +138,7 @@ export const SUPPORTED_LANGUAGES: SupportedLanguage[] = [
   { code: 'mni', name: 'Manipuri', nativeName: 'মৈতৈলোন্', script: 'Bengali' },
   { code: 'sat', name: 'Santali', nativeName: 'ᱥᱟᱱᱛᱟᱲᱤ', script: 'Ol Chiki' },
   { code: 'bo', name: 'Bodo', nativeName: 'बड़ो', script: 'Devanagari' },
-  { code: 'kas', name: 'Kashmiri', nativeName: 'कॉशुर', script: 'Perso-Arabic' }
+  { code: 'kas', name: 'Kashmiri', nativeName: 'کٲشُر', script: 'Perso-Arabic' }
 ];
 
 @Injectable({ providedIn: 'root' })

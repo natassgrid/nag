@@ -14,7 +14,8 @@
  * GNU Affero General Public License for more details.
  *
  * You should have received a copy of the GNU Affero General Public License
- * along with this program. If not, see <https://www.gnu.org/licenses/>.\n */
+ * along with this program. If not, see <https://www.gnu.org/licenses/>.
+ */
 
 import { Component, Inject, ChangeDetectionStrategy, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
@@ -52,72 +53,72 @@ export interface ImagePasteDialogResult {
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <h2 mat-dialog-title class="dialog-title">
-      <mat-icon class="title-icon">data_object</mat-icon>
+    <h2 mat-dialog-title class=\"dialog-title\">
+      <mat-icon class=\"title-icon\">data_object</mat-icon>
       {{ data.title || 'Paste Base64 / Data URI' }}
     </h2>
 
-    <mat-dialog-content class="dialog-content">
-      <p class="dialog-hint">
+    <mat-dialog-content class=\"dialog-content\">
+      <p class=\"dialog-hint\">
         Paste a Base64 Image string, Data URI (<code>data:image/svg+xml;base64,...</code>, <code>data:image/png;base64,...</code>), or raw <code>&lt;svg&gt;...&lt;/svg&gt;</code> code.
       </p>
 
-      <mat-form-field appearance="outline" class="full-width">
+      <mat-form-field appearance=\"outline\" class=\"full-width\">
         <mat-label>Image Data URI or Raw SVG</mat-label>
         <textarea
           matInput
-          [(ngModel)]="rawInput"
-          (ngModelChange)="onInputChange()"
-          rows="5"
-          placeholder="data:image/png;base64,iVBORw0KGgo... or <svg>...</svg>"
-          spellcheck="false"
+          [(ngModel)]=\"rawInput\"
+          (ngModelChange)=\"onInputChange()\"
+          rows=\"5\"
+          placeholder=\"data:image/png;base64,iVBORw0KGgo... or <svg>...</svg>\"
+          spellcheck=\"false\"
         ></textarea>
         <button
           mat-icon-button
           matSuffix
-          *ngIf="rawInput"
-          (click)="rawInput = ''; onInputChange()"
-          matTooltip="Clear input"
-          type="button"
+          *ngIf=\"rawInput\"
+          (click)=\"rawInput = ''; onInputChange()\"
+          matTooltip=\"Clear input\"
+          type=\"button\"
         >
           <mat-icon>clear</mat-icon>
         </button>
       </mat-form-field>
 
-      <mat-form-field appearance="outline" class="full-width" *ngIf="data.showAltText !== false">
+      <mat-form-field appearance=\"outline\" class=\"full-width\" *ngIf=\"data.showAltText !== false\">
         <mat-label>Alt Text / Description (Optional)</mat-label>
         <input
           matInput
-          [(ngModel)]="altText"
-          placeholder="e.g. Mirror reflection diagram"
+          [(ngModel)]=\"altText\"
+          placeholder=\"e.g. Mirror reflection diagram\"
         />
       </mat-form-field>
 
       <!-- Live Preview -->
-      <div class="preview-box" *ngIf="previewUrl">
-        <div class="preview-header">
+      <div class=\"preview-box\" *ngIf=\"previewUrl\">
+        <div class=\"preview-header\">
           <mat-icon>visibility</mat-icon>
           <span>Image Preview</span>
         </div>
-        <div class="preview-img-wrapper">
-          <img [src]="safePreviewUrl" [alt]="altText || 'Pasted image'" class="preview-img" />
+        <div class=\"preview-img-wrapper\">
+          <img [src]=\"safePreviewUrl\" [alt]=\"altText || 'Pasted image'\" class=\"preview-img\" />
         </div>
       </div>
 
-      <div class="error-msg" *ngIf="parseError">
+      <div class=\"error-msg\" *ngIf=\"parseError\">
         <mat-icon>error_outline</mat-icon>
         <span>{{ parseError }}</span>
       </div>
     </mat-dialog-content>
 
-    <mat-dialog-actions align="end">
-      <button mat-button (click)="dialogRef.close(null)" type="button">Cancel</button>
+    <mat-dialog-actions align=\"end\">
+      <button mat-button (click)=\"dialogRef.close(null)\" type=\"button\">Cancel</button>
       <button
         mat-raised-button
-        color="primary"
-        [disabled]="!normalizedUrl"
-        (click)="apply()"
-        type="button"
+        color=\"primary\"
+        [disabled]=\"!normalizedUrl\"
+        (click)=\"apply()\"
+        type=\"button\"
       >
         Apply Image
       </button>

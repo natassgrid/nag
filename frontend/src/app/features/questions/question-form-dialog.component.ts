@@ -14,7 +14,8 @@
  * GNU Affero General Public License for more details.
  *
  * You should have received a copy of the GNU Affero General Public License
- * along with this program. If not, see <https://www.gnu.org/licenses/>.\n */
+ * along with this program. If not, see <https://www.gnu.org/licenses/>.
+ */
 
 import {
   Component,
@@ -28,19 +29,14 @@ import {
   ChangeDetectorRef
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { FormBuilder, FormGroup, Validators, ReactiveFormsModule, FormsModule } from '@angular/forms';
-import { DomSanitizer, SafeUrl } from '@angular/platform-browser';
+import { FormBuilder, FormGroup, FormArray, Validators, ReactiveFormsModule, FormsModule } from '@angular/forms';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { MatSelectModule } from '@angular/material/select';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
-import { MatCheckboxModule } from '@angular/material/checkbox';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatTooltipModule } from '@angular/material/tooltip';
-import { MatSlideToggleModule } from '@angular/material/slide-toggle';
-import { MatDialog, MatDialogModule } from '@angular/material/dialog';
-import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import {
   SubjectTopicService,
   Subject,
@@ -53,12 +49,8 @@ import {
   CreateQuestionRequest,
   QuestionOptionDto
 } from './question.service';
-import { AssetPickerDialogComponent } from '../assets/asset-picker-dialog.component';
-import { ImagePasteDialogComponent } from './image-paste-dialog.component';
-import { AssetResponse } from '../assets/asset.model';
 import { RightDrawerComponent } from '../../shared/components/right-drawer/right-drawer.component';
-import { MathRendererComponent } from '../../shared/components/math-renderer/math-renderer.component';
-import { ExamEditorComponent } from '../../shared/components/exam-editor/exam-editor.component';
+import { SubQuestionFormComponent } from '../../shared/components/sub-question-form/sub-question-form.component';
 
 @Component({
   selector: 'app-question-form-dialog',
@@ -72,15 +64,10 @@ import { ExamEditorComponent } from '../../shared/components/exam-editor/exam-ed
     MatSelectModule,
     MatButtonModule,
     MatIconModule,
-    MatCheckboxModule,
     MatProgressSpinnerModule,
     MatTooltipModule,
-    MatSlideToggleModule,
-    MatDialogModule,
-    MatSnackBarModule,
     RightDrawerComponent,
-    MathRendererComponent,
-    ExamEditorComponent
+    SubQuestionFormComponent
   ],
   templateUrl: './question-form-dialog.component.html',
   styleUrls: ['./question-form-dialog.component.scss'],
@@ -119,34 +106,18 @@ export class QuestionFormDialogComponent implements OnInit, OnChanges {
   creatingTopic = false;
   creatingSubtopic = false;
 
-  options: {
-    id: string;
-    text: string;
-    isCorrect: boolean;
-    imageUrl?: string;
-    imageAltText?: string;
-    isImageOnly?: boolean;
-  }[] = [];
-  optionIds = ['A', 'B', 'C', 'D', 'E', 'F'];
+  /** Option validation error — passed as @Input to SubQuestionFormComponent. */
   optionError = '';
   saving = false;
   saveError = '';
-  currentQuestionType = '';
 
-  editorContent: string = '';
-  explanationContent: string = '';
-
-  showContentPreview = false;
-  showOptionPreviews = false;
-  showExplanationPreview = false;
+  /** Option letter labels used when serialising options in save(). */
+  readonly optionIds = ['A', 'B', 'C', 'D', 'E', 'F'];
 
   constructor(
     private fb: FormBuilder,
     private subjectTopicService: SubjectTopicService,
     private questionService: QuestionService,
-    private dialog: MatDialog,
-    private sanitizer: DomSanitizer,
-    private snackBar: MatSnackBar,
     private cdr: ChangeDetectorRef
   ) {
     this.initForm();
@@ -166,14 +137,6 @@ export class QuestionFormDialogComponent implements OnInit, OnChanges {
     }
   }
 
-  getSafeImageUrl(url?: string | null): SafeUrl | string {
-    if (!url) return '';
-    if (url.startsWith('data:') || url.startsWith('blob:')) {
-      return this.sanitizer.bypassSecurityTrustUrl(url);
-    }
-    return url;
-  }
-
   private unescapeNewlines(text?: string | null): string {
     if (!text) return '';
     return text
@@ -187,6 +150,26 @@ export class QuestionFormDialogComponent implements OnInit, OnChanges {
     const content = this.unescapeNewlines(q?.content);
     const explanation = this.unescapeNewlines(q?.explanation);
 
+    // Build options FormArray — rich mode groups include imageUrl / imageAltText / isImageOnly
+    let optionGroups: FormGroup[] = [];
+    const qt = q?.questionType || '';
+    if (q?.options && q.options.length > 0) {
+      optionGroups = q.options.map((o: QuestionOptionDto) =>
+        this.fb.group({
+          text: [this.unescapeNewlines(o.text)],
+          isCorrect: [o.isCorrect],
+          imageUrl: [o.imageUrl || ''],
+          imageAltText: [o.imageAltText || ''],
+          isImageOnly: [!!o.imageUrl && (!o.text || !o.text.trim())]
+        })
+      );
+    } else if (qt === 'SINGLE_MCQ' || qt === 'MULTI_MCQ') {
+      optionGroups = [
+        this.fb.group({ text: [''], isCorrect: [false], imageUrl: [''], imageAltText: [''], isImageOnly: [false] }),
+        this.fb.group({ text: [''], isCorrect: [false], imageUrl: [''], imageAltText: [''], isImageOnly: [false] })
+      ];
+    }
+
     this.form = this.fb.group({
       subject: [q?.subject || '', Validators.required],
       topic: [q?.topic || '', Validators.required],
@@ -196,29 +179,11 @@ export class QuestionFormDialogComponent implements OnInit, OnChanges {
       questionType: [q?.questionType || '', Validators.required],
       content: [content, Validators.required],
       answerKey: [q?.answerKey || ''],
-      explanation: [explanation]
+      explanation: [explanation],
+      options: this.fb.array(optionGroups)
     });
 
-    this.editorContent = content;
-    this.explanationContent = explanation;
-
-    if (q?.options && q.options.length > 0) {
-      this.options = q.options.map((o: QuestionOptionDto) => ({
-        id: o.id,
-        text: this.unescapeNewlines(o.text),
-        isCorrect: o.isCorrect,
-        imageUrl: o.imageUrl || '',
-        imageAltText: o.imageAltText || '',
-        isImageOnly: !!o.imageUrl && (!o.text || !o.text.trim())
-      }));
-    } else {
-      this.options = [];
-    }
-
-    const initialType = this.form.get('questionType')?.value || '';
-    if (initialType) {
-      this.onQuestionTypeChange(initialType);
-    }
+    this.optionError = '';
   }
 
   loadSubjects(): void {
@@ -401,149 +366,11 @@ export class QuestionFormDialogComponent implements OnInit, OnChanges {
     });
   }
 
-  onEditorChange(html: string): void {
-    this.editorContent = html;
-    this.form.patchValue({ content: html });
-    this.form.get('content')?.markAsDirty();
-    this.form.get('content')?.markAsTouched();
-  }
-
-  onExplanationChange(html: string): void {
-    this.explanationContent = html;
-    this.form.patchValue({ explanation: html });
-    this.form.get('explanation')?.markAsDirty();
-    this.form.get('explanation')?.markAsTouched();
-  }
-
-  openContentAssetPicker(): void {
-    const ref = this.dialog.open(AssetPickerDialogComponent, {
-      width: '800px',
-      data: { assetType: 'IMAGE', title: 'Insert Image into Content' }
-    });
-    ref.afterClosed().subscribe((asset: AssetResponse) => {
-      if (asset) {
-        const alt = asset.altText || asset.title || asset.originalFilename || 'Diagram';
-        const url = `/api/v1/assets/${asset.id}/download`;
-        const mdImage = `\n![${alt}](${url})\n`;
-        this.editorContent = (this.editorContent || '') + mdImage;
-        this.onEditorChange(this.editorContent);
-        this.cdr.markForCheck();
-      }
-    });
-  }
-
-  openContentDataUriDialog(): void {
-    const ref = this.dialog.open(ImagePasteDialogComponent, {
-      width: '560px',
-      data: {
-        title: 'Insert Base64 / Data URI Image into Content',
-        showAltText: true
-      }
-    });
-    ref.afterClosed().subscribe((res) => {
-      if (res) {
-        const alt = res.altText || 'Diagram';
-        const mdImage = `\n![${alt}](${res.imageUrl})\n`;
-        this.editorContent = (this.editorContent || '') + mdImage;
-        this.onEditorChange(this.editorContent);
-        this.cdr.markForCheck();
-      }
-    });
-  }
-
-  openExplanationAssetPicker(): void {
-    const ref = this.dialog.open(AssetPickerDialogComponent, {
-      width: '800px',
-      data: { assetType: 'IMAGE', title: 'Insert Image into Explanation' }
-    });
-    ref.afterClosed().subscribe((asset: AssetResponse) => {
-      if (asset) {
-        const alt = asset.altText || asset.title || asset.originalFilename || 'Explanation Diagram';
-        const url = `/api/v1/assets/${asset.id}/download`;
-        const mdImage = `\n![${alt}](${url})\n`;
-        this.explanationContent = (this.explanationContent || '') + mdImage;
-        this.onExplanationChange(this.explanationContent);
-        this.cdr.markForCheck();
-      }
-    });
-  }
-
-  openExplanationDataUriDialog(): void {
-    const ref = this.dialog.open(ImagePasteDialogComponent, {
-      width: '560px',
-      data: {
-        title: 'Insert Base64 / Data URI Image into Explanation',
-        showAltText: true
-      }
-    });
-    ref.afterClosed().subscribe((res) => {
-      if (res) {
-        const alt = res.altText || 'Explanation Diagram';
-        const mdImage = `\n![${alt}](${res.imageUrl})\n`;
-        this.explanationContent = (this.explanationContent || '') + mdImage;
-        this.onExplanationChange(this.explanationContent);
-        this.cdr.markForCheck();
-      }
-    });
-  }
-
-  openOptionAssetPicker(index: number): void {
-    const ref = this.dialog.open(AssetPickerDialogComponent, {
-      width: '800px',
-      data: { assetType: 'IMAGE', title: `Select Image for Option ${this.options[index].id}` }
-    });
-    ref.afterClosed().subscribe((asset: AssetResponse) => {
-      if (asset) {
-        this.options[index].imageUrl = `/api/v1/assets/${asset.id}/download`;
-        if (!this.options[index].imageAltText) {
-          this.options[index].imageAltText = asset.altText || asset.title || `Option ${this.options[index].id}`;
-        }
-        this.cdr.markForCheck();
-      }
-    });
-  }
-
-  openOptionDataUriDialog(index: number): void {
-    const ref = this.dialog.open(ImagePasteDialogComponent, {
-      width: '560px',
-      data: {
-        title: `Paste Base64 / Data URI for Option ${this.options[index].id}`,
-        currentUrl: this.options[index].imageUrl,
-        altText: this.options[index].imageAltText || `Option ${this.options[index].id}`
-      }
-    });
-    ref.afterClosed().subscribe((res) => {
-      if (res) {
-        this.options[index].imageUrl = res.imageUrl;
-        this.options[index].imageAltText = res.altText || `Option ${this.options[index].id}`;
-        this.cdr.markForCheck();
-      }
-    });
-  }
-
-  clearOptionImage(index: number): void {
-    this.options[index].imageUrl = '';
-    this.options[index].imageAltText = '';
-    this.options[index].isImageOnly = false;
-    this.cdr.markForCheck();
-  }
-
-  toggleImageOnly(index: number, isImageOnly: boolean): void {
-    this.options[index].isImageOnly = isImageOnly;
-    if (isImageOnly) {
-      this.options[index].text = '';
-      if (!this.options[index].imageUrl) {
-        this.openOptionDataUriDialog(index);
-      }
-    }
-    this.cdr.markForCheck();
-  }
-
   formatLatex(text: string): string {
     if (!text) return '';
     let formatted = text;
 
-    // Convert single-dollar $math$ to $$math$$ (enclosed in $$...$$)
+    // Convert single-dollar $math$ to $$math$$
     formatted = formatted.replace(/(^|[^$])\$([^$\n]+)\$([^$]|$)/g, '$1$$$$$2$$$$$3');
 
     // Remove empty math blocks $$ $$ or $$$$
@@ -561,110 +388,77 @@ export class QuestionFormDialogComponent implements OnInit, OnChanges {
     return formatted;
   }
 
-  onQuestionTypeChange(value: string): void {
-    this.currentQuestionType = value;
-    if (value !== 'SINGLE_MCQ' && value !== 'MULTI_MCQ') {
-      this.options = [];
-    } else if (this.options.length === 0) {
-      this.options = [
-        { id: 'A', text: '', isCorrect: false, imageUrl: '', imageAltText: '', isImageOnly: false },
-        { id: 'B', text: '', isCorrect: false, imageUrl: '', imageAltText: '', isImageOnly: false }
-      ];
-    }
-    this.optionError = '';
-    this.cdr.markForCheck();
-  }
-
-  isMcqOrMsq(): boolean {
-    return this.currentQuestionType === 'SINGLE_MCQ' || this.currentQuestionType === 'MULTI_MCQ';
-  }
-
-  isMcq(): boolean {
-    return this.currentQuestionType === 'SINGLE_MCQ';
-  }
-
-  addOption(): void {
-    if (this.options.length < 5) {
-      this.options.push({
-        id: this.optionIds[this.options.length],
-        text: '',
-        isCorrect: false,
-        imageUrl: '',
-        imageAltText: '',
-        isImageOnly: false
-      });
-      this.cdr.markForCheck();
-    }
-  }
-
-  removeOption(i: number): void {
-    if (this.options.length > 2) {
-      this.options.splice(i, 1);
-      this.cdr.markForCheck();
-    }
-  }
-
-  onMcqCorrectChange(checkedIndex: number): void {
-    this.options.forEach((o, i) => { if (i !== checkedIndex) o.isCorrect = false; });
-  }
-
   cancel(): void {
     this.close.emit(null);
   }
 
   save(): void {
     this.form.markAllAsTouched();
-    if (this.form.valid) {
-      const value: CreateQuestionRequest = { ...this.form.value };
-      value.subjectId = this.selectedSubject?.id ?? undefined;
-      value.topicId = this.selectedTopic?.id ?? undefined;
-      const selectedSubtopic = this.subtopics.find(st => st.name === value.subtopic);
-      value.subtopicId = selectedSubtopic?.id ?? undefined;
-      if (value.content) value.content = this.formatLatex(value.content);
-      if (value.explanation) value.explanation = this.formatLatex(value.explanation);
-      if (this.isMcqOrMsq() && this.options.length >= 2) {
-        const correct = this.options.filter(o => o.isCorrect).length;
-        if (this.isMcq() && correct !== 1) {
-          this.optionError = 'MCQ requires exactly one correct option'; return;
-        }
-        if (!this.isMcq() && correct < 1) {
-          this.optionError = 'MSQ requires at least one correct option'; return;
-        }
-        for (const opt of this.options) {
-          const hasText = opt.text && opt.text.trim().length > 0;
-          const hasImg = opt.imageUrl && opt.imageUrl.trim().length > 0;
-          if (!hasText && !hasImg) {
-            this.optionError = `Option ${opt.id} must have either text or an image.`;
-            return;
-          }
-        }
-        value.options = this.options.map((o, i) => ({
-          id: this.optionIds[i],
-          text: this.formatLatex(o.text || ''),
-          isCorrect: o.isCorrect,
-          imageUrl: o.imageUrl?.trim() || undefined,
-          imageAltText: o.imageAltText?.trim() || undefined
-        }));
+    if (!this.form.valid) return;
+
+    const value: CreateQuestionRequest = { ...this.form.value };
+    value.subjectId = this.selectedSubject?.id ?? undefined;
+    value.topicId = this.selectedTopic?.id ?? undefined;
+    const selectedSubtopic = this.subtopics.find(st => st.name === value.subtopic);
+    value.subtopicId = selectedSubtopic?.id ?? undefined;
+
+    if (value.content) value.content = this.formatLatex(value.content);
+    if (value.explanation) value.explanation = this.formatLatex(value.explanation);
+
+    const qt = this.form.get('questionType')?.value || '';
+    const isMcqOrMsq = qt === 'SINGLE_MCQ' || qt === 'MULTI_MCQ';
+    const isMcq = qt === 'SINGLE_MCQ';
+    const optionsArray = this.form.get('options') as FormArray;
+
+    if (isMcqOrMsq && optionsArray.length >= 2) {
+      const correct = optionsArray.controls.filter(c => c.get('isCorrect')?.value).length;
+      if (isMcq && correct !== 1) {
+        this.optionError = 'MCQ requires exactly one correct option';
+        this.cdr.markForCheck();
+        return;
       }
-
-      this.saving = true;
-      this.saveError = '';
-
-      const req$ = this.question?.id
-        ? this.questionService.updateQuestion(this.question.id, value)
-        : this.questionService.createQuestion(value);
-
-      req$.subscribe({
-        next: (savedQuestion: QuestionResponse) => {
-          this.saving = false;
-          this.close.emit(savedQuestion);
-        },
-        error: (err: any) => {
-          this.saving = false;
-          this.saveError = err?.error?.message || 'Failed to save question. Please verify all fields.';
+      if (!isMcq && correct < 1) {
+        this.optionError = 'MSQ requires at least one correct option';
+        this.cdr.markForCheck();
+        return;
+      }
+      for (let i = 0; i < optionsArray.length; i++) {
+        const c = optionsArray.at(i);
+        const hasText = (c.get('text')?.value || '').trim().length > 0;
+        const hasImg = (c.get('imageUrl')?.value || '').trim().length > 0;
+        if (!hasText && !hasImg) {
+          this.optionError = `Option ${this.optionIds[i]} must have either text or an image.`;
           this.cdr.markForCheck();
+          return;
         }
-      });
+      }
+      value.options = optionsArray.controls.map((c, i) => ({
+        id: this.optionIds[i],
+        text: this.formatLatex(c.get('text')?.value || ''),
+        isCorrect: c.get('isCorrect')?.value,
+        imageUrl: (c.get('imageUrl')?.value || '').trim() || undefined,
+        imageAltText: (c.get('imageAltText')?.value || '').trim() || undefined
+      }));
     }
+
+    this.optionError = '';
+    this.saving = true;
+    this.saveError = '';
+
+    const req$ = this.question?.id
+      ? this.questionService.updateQuestion(this.question.id, value)
+      : this.questionService.createQuestion(value);
+
+    req$.subscribe({
+      next: (savedQuestion: QuestionResponse) => {
+        this.saving = false;
+        this.close.emit(savedQuestion);
+      },
+      error: (err: any) => {
+        this.saving = false;
+        this.saveError = err?.error?.message || 'Failed to save question. Please verify all fields.';
+        this.cdr.markForCheck();
+      }
+    });
   }
 }

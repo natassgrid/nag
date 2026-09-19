@@ -1,289 +1,156 @@
-    <app-right-drawer
-      [isOpen]="isOpen"
-      [title]="question ? 'Edit Question' : 'Create Question'"
-      [subtitle]="question ? ('ID: ' + question.id) : 'Add a new question to the item bank'"
-      width="75%"
-      [showFooter]="true"
-      (close)="cancel()"
-    >
-      <div class="question-form-container">
-        <form [formGroup]="form" class="question-form">
-          <!-- Metadata grid (3 columns) -->
-          <div class="metadata-grid">
-            <div class="field-with-action">
-              <mat-form-field appearance="outline" class="flex-field">
-                <mat-label>Subject <span class="required">*</span></mat-label>
-                <mat-select formControlName="subject" (selectionChange)="onSubjectChange($event.value)">
-                  <mat-option *ngFor="let s of subjects" [value]="s.name">{{ s.name }}</mat-option>
-                </mat-select>
-                <mat-error *ngIf="form.get('subject')?.hasError('required')">Subject is required</mat-error>
-              </mat-form-field>
-              <button mat-icon-button type="button" color="primary" (click)="toggleNewSubject()" matTooltip="Create new subject">
-                <mat-icon>add_circle_outline</mat-icon>
-              </button>
-            </div>
+<app-right-drawer
+  [isOpen]="isOpen"
+  [title]="question ? 'Edit Question' : 'Create Question'"
+  [subtitle]="question ? ('ID: ' + question.id) : 'Add a new question to the item bank'"
+  width="75%"
+  [showFooter]="true"
+  (close)="cancel()">
 
-            <div class="field-with-action">
-              <mat-form-field appearance="outline" class="flex-field">
-                <mat-label>Topic <span class="required">*</span></mat-label>
-                <mat-select formControlName="topic" (selectionChange)="onTopicChange($event.value)" [disabled]="!selectedSubject">
-                  <mat-option *ngFor="let t of topics" [value]="t.name">{{ t.name }}</mat-option>
-                </mat-select>
-                <mat-error *ngIf="form.get('topic')?.hasError('required')">Topic is required</mat-error>
-              </mat-form-field>
-              <button mat-icon-button type="button" color="primary" [disabled]="!selectedSubject" (click)="toggleNewTopic()" matTooltip="Create new topic">
-                <mat-icon>add_circle_outline</mat-icon>
-              </button>
-            </div>
+  <div class="question-form-container">
+    <form [formGroup]="form" class="question-form">
 
-            <div class="field-with-action">
-              <mat-form-field appearance="outline" class="flex-field">
-                <mat-label>Subtopic</mat-label>
-                <mat-select formControlName="subtopic" [disabled]="!selectedTopic">
-                  <mat-option value="">None</mat-option>
-                  <mat-option *ngFor="let st of subtopics" [value]="st.name">{{ st.name }}</mat-option>
-                </mat-select>
-              </mat-form-field>
-              <button mat-icon-button type="button" color="primary" [disabled]="!selectedTopic" (click)="toggleNewSubtopic()" matTooltip="Create new subtopic">
-                <mat-icon>add_circle_outline</mat-icon>
-              </button>
-            </div>
-
-            <mat-form-field appearance="outline">
-              <mat-label>Difficulty <span class="required">*</span></mat-label>
-              <mat-select formControlName="difficulty">
-                <mat-option *ngFor="let d of difficulties" [value]="d">{{ d }}</mat-option>
-              </mat-select>
-              <mat-error *ngIf="form.get('difficulty')?.hasError('required')">Difficulty is required</mat-error>
-            </mat-form-field>
-
-            <mat-form-field appearance="outline">
-              <mat-label>Cognitive Level <span class="required">*</span></mat-label>
-              <mat-select formControlName="cognitiveLevel">
-                <mat-option *ngFor="let cl of cognitiveLevels" [value]="cl">{{ cl }}</mat-option>
-              </mat-select>
-              <mat-error *ngIf="form.get('cognitiveLevel')?.hasError('required')">Cognitive Level is required</mat-error>
-            </mat-form-field>
-
-            <mat-form-field appearance="outline">
-              <mat-label>Question Type <span class="required">*</span></mat-label>
-              <mat-select formControlName="questionType" (selectionChange)="onQuestionTypeChange($event.value)">
-                <mat-option *ngFor="let qt of questionTypes" [value]="qt.value">{{ qt.label }}</mat-option>
-              </mat-select>
-              <mat-error *ngIf="form.get('questionType')?.hasError('required')">Type is required</mat-error>
-            </mat-form-field>
-          </div>
-
-          <!-- Inline create rows (shown conditionally, full width below grid) -->
-          <div *ngIf="showNewSubject" class="inline-create">
-            <mat-form-field appearance="outline" class="flex-field">
-              <mat-label>New Subject Name</mat-label>
-              <input matInput [(ngModel)]="newSubjectName" [ngModelOptions]="{standalone: true}" />
-            </mat-form-field>
-            <button mat-raised-button color="accent" type="button"
-                    [disabled]="!newSubjectName || creatingSubject"
-                    (click)="createNewSubject()">
-              <mat-spinner *ngIf="creatingSubject" diameter="18"></mat-spinner>
-              <span *ngIf="!creatingSubject">Create</span>
-            </button>
-            <button mat-button type="button" (click)="showNewSubject = false">Cancel</button>
-          </div>
-          <div *ngIf="showNewTopic" class="inline-create">
-            <mat-form-field appearance="outline" class="flex-field">
-              <mat-label>New Topic Name</mat-label>
-              <input matInput [(ngModel)]="newTopicName" [ngModelOptions]="{standalone: true}" />
-            </mat-form-field>
-            <button mat-raised-button color="accent" type="button"
-                    [disabled]="!newTopicName || creatingTopic"
-                    (click)="createNewTopic()">
-              <mat-spinner *ngIf="creatingTopic" diameter="18"></mat-spinner>
-              <span *ngIf="!creatingTopic">Create</span>
-            </button>
-            <button mat-button type="button" (click)="showNewTopic = false">Cancel</button>
-          </div>
-          <div *ngIf="showNewSubtopic" class="inline-create">
-            <mat-form-field appearance="outline" class="flex-field">
-              <mat-label>New Subtopic Name</mat-label>
-              <input matInput [(ngModel)]="newSubtopicName" [ngModelOptions]="{standalone: true}" />
-            </mat-form-field>
-            <button mat-raised-button color="accent" type="button"
-                    [disabled]="!newSubtopicName || creatingSubtopic"
-                    (click)="createNewSubtopic()">
-              <mat-spinner *ngIf="creatingSubtopic" diameter="18"></mat-spinner>
-              <span *ngIf="!creatingSubtopic">Create</span>
-            </button>
-            <button mat-button type="button" (click)="showNewSubtopic = false">Cancel</button>
-          </div>
-
-          <!-- Question content editor (full width, maximum visibility) -->
-          <div class="editor-field">
-            <div class="editor-header">
-              <label class="editor-label">Content <span class="required">*</span></label>
-              <div class="editor-header-actions">
-                <button mat-stroked-button type="button" class="btn-insert-image" (click)="openContentAssetPicker()"
-                        matTooltip="Insert diagram/image from Asset Library into content">
-                  <mat-icon>add_photo_alternate</mat-icon>
-                  <span>Insert Asset</span>
-                </button>
-                <button mat-stroked-button type="button" class="btn-insert-image" (click)="openContentDataUriDialog()"
-                        matTooltip="Paste Base64 or Data URI image directly into content">
-                  <mat-icon>data_object</mat-icon>
-                  <span>Paste Data URI</span>
-                </button>
-                <mat-slide-toggle
-                  [(ngModel)]="showContentPreview"
-                  [ngModelOptions]="{standalone: true}"
-                  color="primary">
-                  Preview
-                </mat-slide-toggle>
-              </div>
-            </div>
-            <exam-editor
-              [value]="editorContent"
-              (valueChange)="onEditorChange($event)"
-              mode="full"
-              placeholder="Enter question content... Use $$...$$ for LaTeX math, click ƒ for formula, ⚗ for structure"
-            ></exam-editor>
-            <mat-error *ngIf="form.get('content')?.hasError('required') && form.get('content')?.touched">Content is required</mat-error>
-            <div *ngIf="showContentPreview && editorContent" class="content-preview">
-              <div class="preview-label">Live Preview</div>
-              <app-math-renderer [content]="editorContent"></app-math-renderer>
-            </div>
-          </div>
-
-          <!-- MCQ/MSQ Options section -->
-          <div *ngIf="isMcqOrMsq()" class="options-section">
-            <div class="options-header">
-              <span class="options-label">Answer Options</span>
-              <span class="options-hint">{{ isMcq() ? 'Select exactly one correct answer' : 'Select one or more correct answers' }}</span>
-              <mat-slide-toggle
-                [(ngModel)]="showOptionPreviews"
-                [ngModelOptions]="{standalone: true}"
-                color="primary">
-                Preview
-              </mat-slide-toggle>
-              <button mat-icon-button type="button" color="primary" (click)="addOption()"
-                      [disabled]="options.length >= 5" matTooltip="Add option (max 5)">
-                <mat-icon>add</mat-icon>
-              </button>
-            </div>
-            <div *ngFor="let opt of options; let i = index" class="option-row-wrapper">
-              <div class="option-row">
-                <span class="option-id">{{ optionIds[i] }}</span>
-
-                <!-- Option Thumbnail preview if imageUrl is present -->
-                <div *ngIf="opt.imageUrl" class="option-thumb-container" [matTooltip]="opt.imageAltText || 'Option image'">
-                  <img [src]="getSafeImageUrl(opt.imageUrl)" [alt]="opt.imageAltText || 'Option ' + optionIds[i]" class="option-thumb" />
-                  <button mat-icon-button type="button" class="btn-clear-thumb" (click)="clearOptionImage(i)" matTooltip="Remove image">
-                    <mat-icon>cancel</mat-icon>
-                  </button>
-                </div>
-
-                <!-- Option Text inline editor -->
-                <div class="flex-field option-editor-wrapper" *ngIf="!opt.isImageOnly">
-                  <exam-editor
-                    [value]="opt.text"
-                    (valueChange)="opt.text = $event"
-                    mode="inline"
-                    [placeholder]="opt.imageUrl ? 'Optional text label / description' : 'Option text (use $$...$$ for LaTeX or click ƒ)'"
-                  ></exam-editor>
-                </div>
-
-                <div *ngIf="opt.isImageOnly" class="image-only-placeholder flex-field">
-                  <mat-icon class="placeholder-icon">image</mat-icon>
-                  <span class="placeholder-text">{{ opt.imageUrl ? (opt.imageAltText || 'Image selected') : 'Image-only (click Add Image or Paste Data URI)' }}</span>
-                </div>
-
-                <!-- Add/Change Image from Asset Library -->
-                <button mat-icon-button type="button" [color]="opt.imageUrl ? 'accent' : 'primary'"
-                        (click)="openOptionAssetPicker(i)" [matTooltip]="opt.imageUrl ? 'Change image from Asset Library' : 'Add image from Asset Library'">
-                  <mat-icon>{{ opt.imageUrl ? 'image' : 'add_photo_alternate' }}</mat-icon>
-                </button>
-
-                <!-- Paste Base64 / Data URI Button -->
-                <button mat-icon-button type="button" [color]="opt.imageUrl && opt.imageUrl.startsWith('data:') ? 'accent' : 'default'"
-                        (click)="openOptionDataUriDialog(i)" [matTooltip]="opt.imageUrl ? 'Edit Base64 / Data URI' : 'Paste Base64 / Data URI image'">
-                  <mat-icon>data_object</mat-icon>
-                </button>
-
-                <!-- Image-only Checkbox -->
-                <mat-checkbox [(ngModel)]="opt.isImageOnly" [ngModelOptions]="{standalone: true}"
-                              (change)="toggleImageOnly(i, $event.checked)"
-                              matTooltip="Mark as image-only option">
-                  <span class="image-only-label">Image-only</span>
-                </mat-checkbox>
-
-                <!-- Mark as correct checkbox -->
-                <mat-checkbox [(ngModel)]="opt.isCorrect" [ngModelOptions]="{standalone: true}"
-                              (change)="isMcq() && onMcqCorrectChange(i)"
-                              matTooltip="Mark as correct">
-                </mat-checkbox>
-
-                <button mat-icon-button type="button" color="warn" (click)="removeOption(i)"
-                        [disabled]="options.length <= 2" matTooltip="Remove option">
-                  <mat-icon>remove_circle</mat-icon>
-                </button>
-              </div>
-
-              <!-- Live KaTeX + Image Preview for Option -->
-              <div *ngIf="showOptionPreviews && (opt.text || opt.imageUrl)" class="option-preview">
-                <div *ngIf="opt.imageUrl" class="preview-thumb-row">
-                  <img [src]="getSafeImageUrl(opt.imageUrl)" [alt]="opt.imageAltText || 'Option ' + optionIds[i]" class="preview-opt-img" />
-                </div>
-                <app-math-renderer *ngIf="opt.text" [content]="opt.text"></app-math-renderer>
-              </div>
-            </div>
-            <mat-error *ngIf="optionError">{{ optionError }}</mat-error>
-          </div>
-
-          <mat-form-field appearance="outline" *ngIf="!isMcqOrMsq()">
-            <mat-label>Answer Key</mat-label>
-            <textarea matInput formControlName="answerKey" rows="3"></textarea>
+      <!-- ── Metadata grid: Subject / Topic / Subtopic / Difficulty / Cognitive Level / Question Type ── -->
+      <div class="metadata-grid">
+        <div class="field-with-action">
+          <mat-form-field appearance="outline" class="flex-field">
+            <mat-label>Subject <span class="required">*</span></mat-label>
+            <mat-select formControlName="subject" (selectionChange)="onSubjectChange($event.value)">
+              <mat-option *ngFor="let s of subjects" [value]="s.name">{{ s.name }}</mat-option>
+            </mat-select>
+            <mat-error *ngIf="form.get('subject')?.hasError('required')">Subject is required</mat-error>
           </mat-form-field>
+          <button mat-icon-button type="button" color="primary"
+                  (click)="toggleNewSubject()" matTooltip="Create new subject">
+            <mat-icon>add_circle_outline</mat-icon>
+          </button>
+        </div>
 
-          <!-- Explanation field with editor and preview -->
-          <div class="editor-field">
-            <div class="editor-header">
-              <label class="editor-label">Explanation</label>
-              <div class="editor-header-actions">
-                <button mat-stroked-button type="button" class="btn-insert-image" (click)="openExplanationAssetPicker()"
-                        matTooltip="Insert diagram/image from Asset Library into explanation">
-                  <mat-icon>add_photo_alternate</mat-icon>
-                  <span>Insert Asset</span>
-                </button>
-                <button mat-stroked-button type="button" class="btn-insert-image" (click)="openExplanationDataUriDialog()"
-                        matTooltip="Paste Base64 or Data URI image into explanation">
-                  <mat-icon>data_object</mat-icon>
-                  <span>Paste Data URI</span>
-                </button>
-                <mat-slide-toggle
-                  [(ngModel)]="showExplanationPreview"
-                  [ngModelOptions]="{standalone: true}"
-                  color="primary">
-                  Preview
-                </mat-slide-toggle>
-              </div>
-            </div>
-            <exam-editor
-              [value]="explanationContent"
-              (valueChange)="onExplanationChange($event)"
-              mode="full"
-              placeholder="Explain the correct answer... Use $$...$$ for LaTeX math"
-            ></exam-editor>
-            <div *ngIf="showExplanationPreview && explanationContent" class="content-preview">
-              <div class="preview-label">Live Preview</div>
-              <app-math-renderer [content]="explanationContent"></app-math-renderer>
-            </div>
-          </div>
-        </form>
-        <div *ngIf="saveError" style="color: #c62828; font-size: 13px; margin-top: 8px;">{{ saveError }}</div>
+        <div class="field-with-action">
+          <mat-form-field appearance="outline" class="flex-field">
+            <mat-label>Topic <span class="required">*</span></mat-label>
+            <mat-select formControlName="topic"
+                        (selectionChange)="onTopicChange($event.value)"
+                        [disabled]="!selectedSubject">
+              <mat-option *ngFor="let t of topics" [value]="t.name">{{ t.name }}</mat-option>
+            </mat-select>
+            <mat-error *ngIf="form.get('topic')?.hasError('required')">Topic is required</mat-error>
+          </mat-form-field>
+          <button mat-icon-button type="button" color="primary"
+                  [disabled]="!selectedSubject"
+                  (click)="toggleNewTopic()" matTooltip="Create new topic">
+            <mat-icon>add_circle_outline</mat-icon>
+          </button>
+        </div>
+
+        <div class="field-with-action">
+          <mat-form-field appearance="outline" class="flex-field">
+            <mat-label>Subtopic</mat-label>
+            <mat-select formControlName="subtopic" [disabled]="!selectedTopic">
+              <mat-option value="">None</mat-option>
+              <mat-option *ngFor="let st of subtopics" [value]="st.name">{{ st.name }}</mat-option>
+            </mat-select>
+          </mat-form-field>
+          <button mat-icon-button type="button" color="primary"
+                  [disabled]="!selectedTopic"
+                  (click)="toggleNewSubtopic()" matTooltip="Create new subtopic">
+            <mat-icon>add_circle_outline</mat-icon>
+          </button>
+        </div>
+
+        <mat-form-field appearance="outline">
+          <mat-label>Difficulty <span class="required">*</span></mat-label>
+          <mat-select formControlName="difficulty">
+            <mat-option *ngFor="let d of difficulties" [value]="d">{{ d }}</mat-option>
+          </mat-select>
+          <mat-error *ngIf="form.get('difficulty')?.hasError('required')">Difficulty is required</mat-error>
+        </mat-form-field>
+
+        <mat-form-field appearance="outline">
+          <mat-label>Cognitive Level <span class="required">*</span></mat-label>
+          <mat-select formControlName="cognitiveLevel">
+            <mat-option *ngFor="let cl of cognitiveLevels" [value]="cl">{{ cl }}</mat-option>
+          </mat-select>
+          <mat-error *ngIf="form.get('cognitiveLevel')?.hasError('required')">Cognitive Level is required</mat-error>
+        </mat-form-field>
+
+        <mat-form-field appearance="outline">
+          <mat-label>Question Type <span class="required">*</span></mat-label>
+          <mat-select formControlName="questionType">
+            <mat-option *ngFor="let qt of questionTypes" [value]="qt.value">{{ qt.label }}</mat-option>
+          </mat-select>
+          <mat-error *ngIf="form.get('questionType')?.hasError('required')">Type is required</mat-error>
+        </mat-form-field>
       </div>
 
-      <div drawer-footer>
-        <button mat-button [disabled]="saving" (click)="cancel()">Cancel</button>
-        <button mat-raised-button color="primary" [disabled]="saving" (click)="save()">
-          <mat-spinner *ngIf="saving" diameter="18" style="display:inline-block;margin-right:6px;vertical-align:middle;"></mat-spinner>
-          {{ saving ? 'Saving…' : 'Save' }}
+      <!-- ── Inline create rows (shown conditionally below the grid) ── -->
+      <div *ngIf="showNewSubject" class="inline-create">
+        <mat-form-field appearance="outline" class="flex-field">
+          <mat-label>New Subject Name</mat-label>
+          <input matInput [(ngModel)]="newSubjectName" [ngModelOptions]="{standalone: true}" />
+        </mat-form-field>
+        <button mat-raised-button color="accent" type="button"
+                [disabled]="!newSubjectName || creatingSubject"
+                (click)="createNewSubject()">
+          <mat-spinner *ngIf="creatingSubject" diameter="18"></mat-spinner>
+          <span *ngIf="!creatingSubject">Create</span>
         </button>
+        <button mat-button type="button" (click)="showNewSubject = false">Cancel</button>
       </div>
-    </app-right-drawer>
+
+      <div *ngIf="showNewTopic" class="inline-create">
+        <mat-form-field appearance="outline" class="flex-field">
+          <mat-label>New Topic Name</mat-label>
+          <input matInput [(ngModel)]="newTopicName" [ngModelOptions]="{standalone: true}" />
+        </mat-form-field>
+        <button mat-raised-button color="accent" type="button"
+                [disabled]="!newTopicName || creatingTopic"
+                (click)="createNewTopic()">
+          <mat-spinner *ngIf="creatingTopic" diameter="18"></mat-spinner>
+          <span *ngIf="!creatingTopic">Create</span>
+        </button>
+        <button mat-button type="button" (click)="showNewTopic = false">Cancel</button>
+      </div>
+
+      <div *ngIf="showNewSubtopic" class="inline-create">
+        <mat-form-field appearance="outline" class="flex-field">
+          <mat-label>New Subtopic Name</mat-label>
+          <input matInput [(ngModel)]="newSubtopicName" [ngModelOptions]="{standalone: true}" />
+        </mat-form-field>
+        <button mat-raised-button color="accent" type="button"
+                [disabled]="!newSubtopicName || creatingSubtopic"
+                (click)="createNewSubtopic()">
+          <mat-spinner *ngIf="creatingSubtopic" diameter="18"></mat-spinner>
+          <span *ngIf="!creatingSubtopic">Create</span>
+        </button>
+        <button mat-button type="button" (click)="showNewSubtopic = false">Cancel</button>
+      </div>
+
+      <!-- ── Shared sub-question form: content, options, answer key, explanation ──
+           richMode=true: enables asset picker, Data-URI paste, image-only, KaTeX preview.
+           questionType / difficulty / cognitiveLevel are in the metadata grid above,
+           so the metadata row is NOT shown inside SubQuestionFormComponent. -->
+      <app-sub-question-form
+        [formGroup]="form"
+        [richMode]="true"
+        [questionTypes]="questionTypes"
+        [difficultyOptions]="difficulties"
+        [cognitiveLevels]="cognitiveLevels"
+        [optionError]="optionError">
+      </app-sub-question-form>
+
+    </form>
+
+    <div *ngIf="saveError" style="color: #c62828; font-size: 13px; margin-top: 8px;">{{ saveError }}</div>
+  </div>
+
+  <div drawer-footer>
+    <button mat-button [disabled]="saving" (click)="cancel()">Cancel</button>
+    <button mat-raised-button color="primary" [disabled]="saving" (click)="save()">
+      <mat-spinner *ngIf="saving" diameter="18"
+                   style="display:inline-block;margin-right:6px;vertical-align:middle;">
+      </mat-spinner>
+      {{ saving ? 'Saving…' : 'Save' }}
+    </button>
+  </div>
+
+</app-right-drawer>

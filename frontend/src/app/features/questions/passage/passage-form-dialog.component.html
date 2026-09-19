@@ -1,211 +1,211 @@
-<div class="drawer-overlay" *ngIf="isOpen" (click)="onCancel()"></div>
+<app-right-drawer
+  [isOpen]="isOpen"
+  [title]="passage ? 'Edit Comprehension Passage' : 'Create Comprehension Passage'"
+  [subtitle]="passage ? ('ID: ' + passage.id) : 'Add a new reading comprehension passage with linked questions'"
+  width="75%"
+  [showFooter]="true"
+  (close)="onCancel()">
 
-<div class="drawer-container" [class.open]="isOpen">
-  <div class="drawer-header">
-    <div class="header-title">
-      <mat-icon class="header-icon">menu_book</mat-icon>
-      <h2>{{ passage ? 'Edit Comprehension Passage' : 'Create Comprehension Passage' }}</h2>
-    </div>
-    <button mat-icon-button (click)="onCancel()" aria-label="Close drawer">
-      <mat-icon>close</mat-icon>
-    </button>
-  </div>
+  <div class="passage-form-container">
+    <form [formGroup]="form" class="passage-form">
 
-  <form [formGroup]="form" (ngSubmit)="onSubmit()" class="drawer-body">
-    <!-- Hierarchy Section -->
-    <div class="form-section">
-      <h3 class="section-title">
-        <mat-icon>account_tree</mat-icon>
-        Subject & Topic Hierarchy
-      </h3>
-      <div class="form-row">
-        <mat-form-field appearance="outline" class="form-field">
-          <mat-label>Subject</mat-label>
-          <mat-select formControlName="subjectId" (selectionChange)="onSubjectChange($event.value)">
-            <mat-option *ngFor="let s of subjects" [value]="s.id">{{ s.name }}</mat-option>
-          </mat-select>
-          <mat-error *ngIf="form.get('subjectId')?.hasError('required')">Subject is required</mat-error>
-        </mat-form-field>
+      <!-- ── Metadata grid: Subject / Topic / Subtopic / Title ── -->
+      <div class="metadata-grid">
+        <div class="field-with-action">
+          <mat-form-field appearance="outline" class="flex-field">
+            <mat-label>Subject <span class="required">*</span></mat-label>
+            <mat-select formControlName="subjectId" (selectionChange)="onSubjectChange($event.value)">
+              <mat-option *ngFor="let s of subjects" [value]="s.id">{{ s.name }}</mat-option>
+            </mat-select>
+            <mat-error *ngIf="form.get('subjectId')?.hasError('required')">Subject is required</mat-error>
+          </mat-form-field>
+          <button mat-icon-button type="button" color="primary"
+                  (click)="toggleNewSubject()" matTooltip="Create new subject">
+            <mat-icon>add_circle_outline</mat-icon>
+          </button>
+        </div>
 
-        <mat-form-field appearance="outline" class="form-field">
-          <mat-label>Topic</mat-label>
-          <mat-select formControlName="topicId" (selectionChange)="onTopicChange($event.value)">
-            <mat-option *ngFor="let t of topics" [value]="t.id">{{ t.name }}</mat-option>
-          </mat-select>
-          <mat-error *ngIf="form.get('topicId')?.hasError('required')">Topic is required</mat-error>
-        </mat-form-field>
-      </div>
+        <div class="field-with-action">
+          <mat-form-field appearance="outline" class="flex-field">
+            <mat-label>Topic <span class="required">*</span></mat-label>
+            <mat-select formControlName="topicId"
+                        (selectionChange)="onTopicChange($event.value)"
+                        [disabled]="!selectedSubject">
+              <mat-option *ngFor="let t of topics" [value]="t.id">{{ t.name }}</mat-option>
+            </mat-select>
+            <mat-error *ngIf="form.get('topicId')?.hasError('required')">Topic is required</mat-error>
+          </mat-form-field>
+          <button mat-icon-button type="button" color="primary"
+                  [disabled]="!selectedSubject"
+                  (click)="toggleNewTopic()" matTooltip="Create new topic">
+            <mat-icon>add_circle_outline</mat-icon>
+          </button>
+        </div>
 
-      <div class="form-row">
-        <mat-form-field appearance="outline" class="form-field">
-          <mat-label>Subtopic (Optional)</mat-label>
-          <mat-select formControlName="subtopicId" (selectionChange)="onSubtopicChange($event.value)">
-            <mat-option [value]="null">-- None --</mat-option>
-            <mat-option *ngFor="let st of subtopics" [value]="st.id">{{ st.name }}</mat-option>
-          </mat-select>
-        </mat-form-field>
+        <div class="field-with-action">
+          <mat-form-field appearance="outline" class="flex-field">
+            <mat-label>Subtopic</mat-label>
+            <mat-select formControlName="subtopicId"
+                        (selectionChange)="onSubtopicChange($event.value)"
+                        [disabled]="!selectedTopic">
+              <mat-option [value]="null">None</mat-option>
+              <mat-option *ngFor="let st of subtopics" [value]="st.id">{{ st.name }}</mat-option>
+            </mat-select>
+          </mat-form-field>
+          <button mat-icon-button type="button" color="primary"
+                  [disabled]="!selectedTopic"
+                  (click)="toggleNewSubtopic()" matTooltip="Create new subtopic">
+            <mat-icon>add_circle_outline</mat-icon>
+          </button>
+        </div>
 
-        <mat-form-field appearance="outline" class="form-field">
+        <mat-form-field appearance="outline" class="full-row-field">
           <mat-label>Passage Title (Optional)</mat-label>
-          <input matInput formControlName="title" placeholder="e.g. Passage 1 - Ecological Balance" />
+          <input matInput formControlName="title" placeholder="e.g. Passage 1 - Ecological Balance & Climate Shift" />
         </mat-form-field>
       </div>
-    </div>
 
-    <!-- Stimulus / Passage Text -->
-    <div class="form-section">
-      <h3 class="section-title">
-        <mat-icon>article</mat-icon>
-        Stimulus / Passage Content
-      </h3>
-      <p class="section-helper">
-        Enter the main paragraph, reading comprehension text, case study, or context snippet. Math equations, tables, chemical formulas, and formatting are supported.
-      </p>
-      <div class="editor-container full-width">
+      <!-- ── Inline create rows (conditionally shown) ── -->
+      <div *ngIf="showNewSubject" class="inline-create">
+        <mat-form-field appearance="outline" class="flex-field">
+          <mat-label>New Subject Name</mat-label>
+          <input matInput [(ngModel)]="newSubjectName" [ngModelOptions]="{standalone: true}" />
+        </mat-form-field>
+        <button mat-raised-button color="accent" type="button"
+                [disabled]="!newSubjectName || creatingSubject"
+                (click)="createNewSubject()">
+          <mat-spinner *ngIf="creatingSubject" diameter="18"></mat-spinner>
+          <span *ngIf="!creatingSubject">Create</span>
+        </button>
+        <button mat-button type="button" (click)="showNewSubject = false">Cancel</button>
+      </div>
+
+      <div *ngIf="showNewTopic" class="inline-create">
+        <mat-form-field appearance="outline" class="flex-field">
+          <mat-label>New Topic Name</mat-label>
+          <input matInput [(ngModel)]="newTopicName" [ngModelOptions]="{standalone: true}" />
+        </mat-form-field>
+        <button mat-raised-button color="accent" type="button"
+                [disabled]="!newTopicName || creatingTopic"
+                (click)="createNewTopic()">
+          <mat-spinner *ngIf="creatingTopic" diameter="18"></mat-spinner>
+          <span *ngIf="!creatingTopic">Create</span>
+        </button>
+        <button mat-button type="button" (click)="showNewTopic = false">Cancel</button>
+      </div>
+
+      <div *ngIf="showNewSubtopic" class="inline-create">
+        <mat-form-field appearance="outline" class="flex-field">
+          <mat-label>New Subtopic Name</mat-label>
+          <input matInput [(ngModel)]="newSubtopicName" [ngModelOptions]="{standalone: true}" />
+        </mat-form-field>
+        <button mat-raised-button color="accent" type="button"
+                [disabled]="!newSubtopicName || creatingSubtopic"
+                (click)="createNewSubtopic()">
+          <mat-spinner *ngIf="creatingSubtopic" diameter="18"></mat-spinner>
+          <span *ngIf="!creatingSubtopic">Create</span>
+        </button>
+        <button mat-button type="button" (click)="showNewSubtopic = false">Cancel</button>
+      </div>
+
+      <!-- ── Stimulus / Passage Content ── -->
+      <div class="passage-content-section">
+        <div class="section-title-row">
+          <div class="section-title">
+            <mat-icon>article</mat-icon>
+            <span>Passage Stimulus / Reading Content</span>
+            <span class="required">*</span>
+          </div>
+          <span class="section-hint">Markdown, math formulas ($$...$$), tables, and formatting supported</span>
+        </div>
+
         <exam-editor
           formControlName="content"
           mode="full"
-          placeholder="Enter the reading comprehension passage or case study text here..."
-        ></exam-editor>
-        <div class="form-error" *ngIf="form.get('content')?.touched && form.get('content')?.hasError('required')">
+          placeholder="Enter the reading comprehension passage, case study, or scenario text here...">
+        </exam-editor>
+
+        <div class="form-error"
+             *ngIf="form.get('content')?.touched && form.get('content')?.hasError('required')">
           Passage content is required
         </div>
-        <div class="form-error" *ngIf="form.get('content')?.touched && form.get('content')?.hasError('minlength')">
+        <div class="form-error"
+             *ngIf="form.get('content')?.touched && form.get('content')?.hasError('minlength')">
           Passage must be at least 20 characters
         </div>
       </div>
-    </div>
 
-    <!-- Sub-Questions Builder -->
-    <div class="form-section">
-      <div class="section-header-flex">
-        <div>
-          <h3 class="section-title">
-            <mat-icon>format_list_numbered</mat-icon>
-            Sub-Questions ({{ subQuestionsArray.length }})
-          </h3>
-          <p class="section-helper">Each passage must contain between 2 and 10 linked sub-questions.</p>
+      <!-- ── Sub-Questions Section ── -->
+      <div class="sub-questions-section">
+        <div class="sub-questions-header">
+          <div class="sub-questions-title-group">
+            <h3 class="sub-questions-title">
+              <mat-icon>format_list_numbered</mat-icon>
+              <span>Sub-Questions ({{ subQuestionsArray.length }})</span>
+            </h3>
+            <span class="sub-questions-subtitle">Passage must contain between 2 and 10 linked sub-questions.</span>
+          </div>
+          <button
+            type="button"
+            mat-raised-button
+            color="primary"
+            (click)="addSubQuestion()"
+            [disabled]="subQuestionsArray.length >= 10">
+            <mat-icon>add</mat-icon>
+            Add Sub-Question
+          </button>
         </div>
-        <button
-          type="button"
-          mat-stroked-button
-          color="primary"
-          (click)="addSubQuestion()"
-          [disabled]="subQuestionsArray.length >= 10"
-        >
-          <mat-icon>add</mat-icon>
-          Add Sub-Question
-        </button>
-      </div>
 
-      <div formArrayName="subQuestions" class="sub-questions-list">
-        <div
-          *ngFor="let sqGroup of subQuestionsArray.controls; let qIdx = index"
-          [formGroupName]="qIdx"
-          class="sub-question-card"
-        >
-          <div class="card-header">
-            <span class="sub-q-badge">Question {{ qIdx + 1 }}</span>
-            <button
-              type="button"
-              mat-icon-button
-              color="warn"
-              (click)="removeSubQuestion(qIdx)"
-              [disabled]="subQuestionsArray.length <= 2"
-              matTooltip="Remove Question"
-            >
-              <mat-icon>delete_outline</mat-icon>
-            </button>
-          </div>
+        <div formArrayName="subQuestions" class="sub-questions-list">
+          <div
+            *ngFor="let sqGroup of subQuestionsArray.controls; let qIdx = index"
+            class="sub-question-card">
 
-          <!-- Sub-question Prompt -->
-          <div class="field-block full-width">
-            <label class="field-label">Question Prompt / Stem <span class="required">*</span></label>
-            <exam-editor
-              formControlName="content"
-              mode="full"
-              placeholder="e.g. According to paragraph 2, what causes the shift?"
-            ></exam-editor>
-            <div class="form-error" *ngIf="sqGroup.get('content')?.touched && sqGroup.get('content')?.hasError('required')">
-              Question prompt is required
-            </div>
-          </div>
-
-          <div class="form-row">
-            <mat-form-field appearance="outline" class="form-field">
-              <mat-label>Question Type</mat-label>
-              <mat-select formControlName="questionType">
-                <mat-option *ngFor="let qt of questionTypes" [value]="qt.value">{{ qt.label }}</mat-option>
-              </mat-select>
-            </mat-form-field>
-
-            <mat-form-field appearance="outline" class="form-field">
-              <mat-label>Difficulty</mat-label>
-              <mat-select formControlName="difficulty">
-                <mat-option *ngFor="let d of difficultyOptions" [value]="d">{{ d }}</mat-option>
-              </mat-select>
-            </mat-form-field>
-
-            <mat-form-field appearance="outline" class="form-field">
-              <mat-label>Cognitive Level</mat-label>
-              <mat-select formControlName="cognitiveLevel">
-                <mat-option *ngFor="let cl of cognitiveLevels" [value]="cl">{{ cl }}</mat-option>
-              </mat-select>
-            </mat-form-field>
-          </div>
-
-          <!-- Options Builder -->
-          <div class="options-section">
-            <h4 class="options-title">Options & Correct Answer:</h4>
-            <div formArrayName="options" class="options-grid">
-              <div
-                *ngFor="let optGroup of getOptionsArray(qIdx).controls; let optIdx = index"
-                [formGroupName]="optIdx"
-                class="option-row"
-              >
-                <button
-                  type="button"
-                  mat-icon-button
-                  [color]="optGroup.get('isCorrect')?.value ? 'primary' : 'basic'"
-                  (click)="setCorrectOption(qIdx, optIdx)"
-                  [matTooltip]="optGroup.get('isCorrect')?.value ? 'Marked as Correct' : 'Click to mark correct'"
-                >
-                  <mat-icon>{{ optGroup.get('isCorrect')?.value ? 'check_circle' : 'radio_button_unchecked' }}</mat-icon>
-                </button>
-                <div class="option-editor-container">
-                  <exam-editor
-                    formControlName="text"
-                    mode="inline"
-                    [placeholder]="'Option ' + (optIdx + 1) + ' text'"
-                  ></exam-editor>
-                </div>
+            <!-- Card header: badge + delete button -->
+            <div class="card-header">
+              <div class="card-header-left">
+                <span class="sub-q-badge">Question {{ qIdx + 1 }}</span>
               </div>
+              <button
+                type="button"
+                mat-icon-button
+                color="warn"
+                (click)="removeSubQuestion(qIdx)"
+                [disabled]="subQuestionsArray.length <= 2"
+                matTooltip="Remove this Question">
+                <mat-icon>delete_outline</mat-icon>
+              </button>
             </div>
-          </div>
 
-          <!-- Explanation -->
-          <div class="field-block full-width">
-            <label class="field-label">Explanation / Solution (Optional)</label>
-            <exam-editor
-              formControlName="explanation"
-              mode="full"
-              placeholder="Explain the rationale for the correct answer"
-            ></exam-editor>
+            <!-- Modern shared sub-question form -->
+            <app-sub-question-form
+              [formGroup]="getSubQuestionGroup(qIdx)"
+              [index]="qIdx"
+              [showMetadataRow]="true"
+              [questionTypes]="questionTypes"
+              [difficultyOptions]="difficulties"
+              [cognitiveLevels]="cognitiveLevels">
+            </app-sub-question-form>
+
           </div>
         </div>
       </div>
-    </div>
 
-    <!-- Drawer Footer Actions -->
-    <div class="drawer-footer">
-      <button type="button" mat-stroked-button (click)="onCancel()" [disabled]="isSubmitting">
-        Cancel
-      </button>
-      <button type="submit" mat-flat-button color="primary" [disabled]="isSubmitting">
-        <mat-icon *ngIf="!isSubmitting">save</mat-icon>
-        <span *ngIf="!isSubmitting">{{ passage ? 'Update Passage' : 'Create Passage & Questions' }}</span>
-        <span *ngIf="isSubmitting">Saving...</span>
-      </button>
-    </div>
-  </form>
-</div>
+    </form>
+  </div>
+
+  <!-- ── Footer Actions ── -->
+  <div drawer-footer>
+    <button type="button" mat-button (click)="onCancel()" [disabled]="isSubmitting">
+      Cancel
+    </button>
+    <button type="button" mat-raised-button color="primary" (click)="onSubmit()" [disabled]="isSubmitting">
+      <mat-spinner *ngIf="isSubmitting" diameter="18"
+                   style="display:inline-block;margin-right:6px;vertical-align:middle;">
+      </mat-spinner>
+      <span *ngIf="!isSubmitting">{{ passage ? 'Update Passage' : 'Save Passage &amp; Questions' }}</span>
+      <span *ngIf="isSubmitting">Saving...</span>
+    </button>
+  </div>
+
+</app-right-drawer>

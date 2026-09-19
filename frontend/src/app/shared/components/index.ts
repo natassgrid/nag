@@ -14,7 +14,8 @@
  * GNU Affero General Public License for more details.
  *
  * You should have received a copy of the GNU Affero General Public License
- * along with this program. If not, see <https://www.gnu.org/licenses/>.\n */
+ * along with this program. If not, see <https://www.gnu.org/licenses/>.
+ */
 
 export * from './status-badge/status-badge.component';
 export * from './search-input/search-input.component';
@@ -24,3 +25,4 @@ export * from './page-header/page-header.component';
 export * from './paginated-table';
 export * from './confirm-dialog/confirm-dialog.component';
 export * from './right-drawer/right-drawer.component';
+export * from './sub-question-form/sub-question-form.component';
