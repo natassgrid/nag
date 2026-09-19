@@ -34,7 +34,6 @@ export class ListPlugin implements EditorPlugin {
       group: 'list',
       isToggle: true,
       shortcut: 'Ctrl+Shift+7',
-      isActive: (_doc, _sel) => false,
       execute: (ctx: PluginContext) => ctx.toggleBlock('numbered-list')
     },
     {
@@ -44,7 +43,6 @@ export class ListPlugin implements EditorPlugin {
       group: 'list',
       isToggle: true,
       shortcut: 'Ctrl+Shift+8',
-      isActive: (_doc, _sel) => false,
       execute: (ctx: PluginContext) => ctx.toggleBlock('bulleted-list')
     }
   ];

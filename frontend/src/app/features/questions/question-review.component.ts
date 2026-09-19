@@ -20,6 +20,7 @@
 import { Component, OnInit, ChangeDetectorRef, ViewChild, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { DomSanitizer, SafeUrl } from '@angular/platform-browser';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatCardModule } from '@angular/material/card';
@@ -111,8 +112,17 @@ export class QuestionReviewComponent {
   constructor(
     private questionService: QuestionService,
     private snackBar: MatSnackBar,
+    private sanitizer: DomSanitizer,
     private cdr: ChangeDetectorRef
   ) {}
+
+  getSafeImageUrl(url?: string | null): SafeUrl | string {
+    if (!url) return '';
+    if (url.startsWith('data:') || url.startsWith('blob:')) {
+      return this.sanitizer.bypassSecurityTrustUrl(url);
+    }
+    return url;
+  }
 
   reload(): void {
     this.paginatedTable?.reload();
@@ -146,7 +156,7 @@ export class QuestionReviewComponent {
       next: () => {
         this.acting = false;
         this.snackBar.open('Question rejected', 'Close', { duration: 3000 });
-        this.rejectComment = '';
+        this.selected = null;
         this.reload();
       },
       error: () => {
@@ -156,15 +166,30 @@ export class QuestionReviewComponent {
     });
   }
 
-  isMcq(q: QuestionResponse): boolean {
-    return q.questionType === 'SINGLE_MCQ' || q.questionType === 'MULTI_MCQ';
-  }
-
   getDiffClass(diff?: string): string {
-    return 'chip-' + (diff || 'medium').toLowerCase();
+    switch (diff?.toUpperCase()) {
+      case 'EASY': return 'diff-easy';
+      case 'MEDIUM': return 'diff-medium';
+      case 'HARD': return 'diff-hard';
+      case 'EXPERT': return 'diff-expert';
+      default: return '';
+    }
   }
 
   formatType(type?: string): string {
-    return (type || '').replace(/_/g, ' ');
+    switch (type) {
+      case 'SINGLE_MCQ': return 'Single Choice (MCQ)';
+      case 'MULTI_MCQ': return 'Multiple Choice (MSQ)';
+      case 'NUMERICAL': return 'Numerical';
+      case 'DESCRIPTIVE': return 'Descriptive';
+      default: return type || 'N/A';
+    }
+  }
+
+  isMcq(question?: QuestionResponse | null): boolean {
+    return (
+      question?.questionType === 'SINGLE_MCQ' ||
+      question?.questionType === 'MULTI_MCQ'
+    );
   }
 }

@@ -123,7 +123,7 @@
               <span class="option-id">{{ opt.id }}.</span>
               <div class="option-content-block">
                 <div *ngIf="opt.imageUrl" class="option-image-preview">
-                  <img [src]="opt.imageUrl" [alt]="opt.imageAltText || opt.id" class="review-opt-thumb" />
+                  <img [src]="getSafeImageUrl(opt.imageUrl)" [alt]="opt.imageAltText || opt.id" class="review-opt-thumb" />
                 </div>
                 <div class="option-text" *ngIf="opt.text">
                   <app-math-renderer [content]="opt.text" [inline]="true"></app-math-renderer>

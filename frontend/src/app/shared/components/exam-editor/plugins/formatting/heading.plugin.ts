@@ -17,8 +17,7 @@
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
 
-import { EditorPlugin, ToolbarButton, KeyBinding, PluginContext, ToolbarDropdownItem } from '../editor-plugin';
-import { BlockType } from '../../models';
+import { EditorPlugin, ToolbarButton, KeyBinding, PluginContext } from '../editor-plugin';
 
 /**
  * Plugin for heading blocks (H1, H2, H3) and paragraph.
@@ -33,7 +32,6 @@ export class HeadingPlugin implements EditorPlugin {
       label: 'Block Type',
       icon: 'title',
       group: 'block',
-      isActive: (_doc, _sel) => false,
       execute: () => {},
       dropdown: [
         {

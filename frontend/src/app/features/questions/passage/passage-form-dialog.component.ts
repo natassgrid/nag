@@ -14,7 +14,8 @@
  * GNU Affero General Public License for more details.
  *
  * You should have received a copy of the GNU Affero General Public License
- * along with this program. If not, see <https://www.gnu.org/licenses/>.\n */
+ * along with this program. If not, see <https://www.gnu.org/licenses/>.
+ */
 
 import {
   Component,
@@ -29,6 +30,7 @@ import {
 import { CommonModule } from '@angular/common';
 import {
   ReactiveFormsModule,
+  FormsModule,
   FormBuilder,
   FormGroup,
   FormArray,
@@ -39,14 +41,14 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { MatSelectModule } from '@angular/material/select';
-import { MatCheckboxModule } from '@angular/material/checkbox';
-import { MatRadioModule } from '@angular/material/radio';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
-import { MatTabsModule } from '@angular/material/tabs';
+import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { PassageService, PassageRequest, PassageResponse } from '../passage.service';
 import { SubjectTopicService, Subject, Topic, Subtopic } from '../subject-topic.service';
 import { ExamEditorComponent } from '../../../shared/components/exam-editor/exam-editor.component';
+import { RightDrawerComponent } from '../../../shared/components/right-drawer/right-drawer.component';
+import { SubQuestionFormComponent } from '../../../shared/components/sub-question-form/sub-question-form.component';
 
 @Component({
   selector: 'app-passage-form-dialog',
@@ -54,17 +56,18 @@ import { ExamEditorComponent } from '../../../shared/components/exam-editor/exam
   imports: [
     CommonModule,
     ReactiveFormsModule,
+    FormsModule,
     MatButtonModule,
     MatIconModule,
     MatFormFieldModule,
     MatInputModule,
     MatSelectModule,
-    MatCheckboxModule,
-    MatRadioModule,
     MatSnackBarModule,
-    MatTabsModule,
+    MatProgressSpinnerModule,
     MatTooltipModule,
-    ExamEditorComponent
+    ExamEditorComponent,
+    RightDrawerComponent,
+    SubQuestionFormComponent
   ],
   templateUrl: './passage-form-dialog.component.html',
   styleUrls: ['./passage-form-dialog.component.scss'],
@@ -82,14 +85,31 @@ export class PassageFormDialogComponent implements OnChanges {
   topics: Topic[] = [];
   subtopics: Subtopic[] = [];
 
-  readonly difficultyOptions = ['EASY', 'MEDIUM', 'HARD'];
-  readonly cognitiveLevels = ['KNOWLEDGE', 'COMPREHENSION', 'APPLICATION', 'ANALYSIS', 'SYNTHESIS', 'EVALUATION'];
-  readonly questionTypes = [
-    { label: 'Multiple Choice (Single)', value: 'SINGLE_MCQ' },
-    { label: 'Multiple Choice (Multiple)', value: 'MULTIPLE_MCQ' },
-    { label: 'True / False', value: 'TRUE_FALSE' },
-    { label: 'Numerical / Integer', value: 'NUMERICAL' }
+  selectedSubject: Subject | null = null;
+  selectedTopic: Topic | null = null;
+
+  showNewSubject = false;
+  showNewTopic = false;
+  showNewSubtopic = false;
+  newSubjectName = '';
+  newTopicName = '';
+  newSubtopicName = '';
+  creatingSubject = false;
+  creatingTopic = false;
+  creatingSubtopic = false;
+
+  readonly difficulties = ['EASY', 'MEDIUM', 'HARD', 'EXPERT'];
+  readonly cognitiveLevels = [
+    'REMEMBER', 'UNDERSTAND', 'APPLY', 'ANALYZE', 'EVALUATE', 'CREATE'
   ];
+  readonly questionTypes = [
+    { value: 'SINGLE_MCQ', label: 'Single Choice (MCQ)' },
+    { value: 'MULTI_MCQ', label: 'Multiple Choice (MSQ)' },
+    { value: 'NUMERICAL', label: 'Numerical' },
+    { value: 'DESCRIPTIVE', label: 'Descriptive' }
+  ];
+
+  readonly optionIds = ['A', 'B', 'C', 'D', 'E', 'F'];
 
   constructor(
     private fb: FormBuilder,
@@ -116,6 +136,11 @@ export class PassageFormDialogComponent implements OnChanges {
     return this.form.get('subQuestions') as FormArray;
   }
 
+  /** Returns the sub-question FormGroup at the given index for passing to SubQuestionFormComponent. */
+  getSubQuestionGroup(index: number): FormGroup {
+    return this.subQuestionsArray.at(index) as FormGroup;
+  }
+
   private buildForm(): void {
     this.form = this.fb.group({
       title: [''],
@@ -129,7 +154,7 @@ export class PassageFormDialogComponent implements OnChanges {
       subQuestions: this.fb.array([])
     });
 
-    // Default 2 sub questions for a new comprehension passage
+    // Default 2 sub-questions for a new comprehension passage
     this.addSubQuestion();
     this.addSubQuestion();
   }
@@ -139,22 +164,32 @@ export class PassageFormDialogComponent implements OnChanges {
       passageOrderIndex: [orderIndex],
       content: ['', Validators.required],
       difficulty: ['MEDIUM', Validators.required],
-      cognitiveLevel: ['COMPREHENSION', Validators.required],
+      cognitiveLevel: ['UNDERSTAND', Validators.required],
       questionType: ['SINGLE_MCQ', Validators.required],
+      answerKey: [''],
       explanation: [''],
       options: this.fb.array([
-        this.createOptionGroup('Option A', true),
-        this.createOptionGroup('Option B', false),
-        this.createOptionGroup('Option C', false),
-        this.createOptionGroup('Option D', false)
+        this.createOptionGroup('', false),
+        this.createOptionGroup('', false),
+        this.createOptionGroup('', false),
+        this.createOptionGroup('', false)
       ])
     });
   }
 
-  createOptionGroup(text: string = '', isCorrect: boolean = false): FormGroup {
+  createOptionGroup(
+    text = '',
+    isCorrect = false,
+    imageUrl = '',
+    imageAltText = '',
+    isImageOnly = false
+  ): FormGroup {
     return this.fb.group({
-      text: [text, Validators.required],
-      isCorrect: [isCorrect]
+      text: [text],
+      isCorrect: [isCorrect],
+      imageUrl: [imageUrl],
+      imageAltText: [imageAltText],
+      isImageOnly: [isImageOnly]
     });
   }
 
@@ -185,14 +220,6 @@ export class PassageFormDialogComponent implements OnChanges {
     this.cdr.markForCheck();
   }
 
-  setCorrectOption(qIndex: number, optIndex: number): void {
-    const opts = this.getOptionsArray(qIndex);
-    for (let i = 0; i < opts.length; i++) {
-      opts.at(i).get('isCorrect')?.setValue(i === optIndex);
-    }
-    this.cdr.markForCheck();
-  }
-
   loadSubjects(): void {
     this.subjectTopicService.getSubjects().subscribe({
       next: (subs) => {
@@ -204,25 +231,30 @@ export class PassageFormDialogComponent implements OnChanges {
 
   onSubjectChange(subjectId: number): void {
     const selected = this.subjects.find(s => s.id === subjectId);
+    this.selectedSubject = selected || null;
+    this.selectedTopic = null;
+    this.topics = [];
+    this.subtopics = [];
     if (selected) {
-      this.form.patchValue({ subject: selected.name, topicId: null, subtopicId: null });
-      this.topics = [];
-      this.subtopics = [];
+      this.form.patchValue({ subject: selected.name, topicId: null, subtopicId: null, topic: '', subtopic: '' });
       this.subjectTopicService.getTopics(subjectId).subscribe({
         next: (topics) => {
           this.topics = topics || [];
           this.cdr.markForCheck();
         }
       });
+    } else {
+      this.form.patchValue({ subject: '', topicId: null, subtopicId: null, topic: '', subtopic: '' });
     }
   }
 
   onTopicChange(topicId: number): void {
     const selected = this.topics.find(t => t.id === topicId);
+    this.selectedTopic = selected || null;
+    this.subtopics = [];
     const subjectId = this.form.get('subjectId')?.value;
     if (selected) {
-      this.form.patchValue({ topic: selected.name, subtopicId: null });
-      this.subtopics = [];
+      this.form.patchValue({ topic: selected.name, subtopicId: null, subtopic: '' });
       if (subjectId) {
         this.subjectTopicService.getSubtopics(subjectId, topicId).subscribe({
           next: (subtopics) => {
@@ -231,14 +263,109 @@ export class PassageFormDialogComponent implements OnChanges {
           }
         });
       }
+    } else {
+      this.form.patchValue({ topic: '', subtopicId: null, subtopic: '' });
     }
   }
 
-  onSubtopicChange(subtopicId: number): void {
-    const selected = this.subtopics.find(st => st.id === subtopicId);
-    if (selected) {
-      this.form.patchValue({ subtopic: selected.name });
+  onSubtopicChange(subtopicId: number | null): void {
+    if (subtopicId) {
+      const selected = this.subtopics.find(st => st.id === subtopicId);
+      this.form.patchValue({ subtopic: selected?.name || '' });
+    } else {
+      this.form.patchValue({ subtopic: '' });
     }
+  }
+
+  toggleNewSubject(): void {
+    this.showNewSubject = !this.showNewSubject;
+    this.newSubjectName = '';
+  }
+
+  toggleNewTopic(): void {
+    this.showNewTopic = !this.showNewTopic;
+    this.newTopicName = '';
+  }
+
+  toggleNewSubtopic(): void {
+    this.showNewSubtopic = !this.showNewSubtopic;
+    this.newSubtopicName = '';
+  }
+
+  createNewSubject(): void {
+    if (!this.newSubjectName) return;
+    this.creatingSubject = true;
+    this.subjectTopicService.createSubject({ name: this.newSubjectName }).subscribe({
+      next: (subject: Subject) => {
+        this.subjects = [...this.subjects, subject];
+        this.form.patchValue({ subjectId: subject.id, subject: subject.name });
+        this.onSubjectChange(subject.id);
+        this.showNewSubject = false;
+        this.newSubjectName = '';
+        this.creatingSubject = false;
+        this.cdr.markForCheck();
+      },
+      error: () => {
+        this.creatingSubject = false;
+        this.cdr.markForCheck();
+      }
+    });
+  }
+
+  createNewTopic(): void {
+    if (!this.newTopicName || !this.selectedSubject) return;
+    this.creatingTopic = true;
+    this.subjectTopicService.createTopic(this.selectedSubject.id, { name: this.newTopicName }).subscribe({
+      next: (topic: Topic) => {
+        this.topics = [...this.topics, topic];
+        this.form.patchValue({ topicId: topic.id, topic: topic.name });
+        this.onTopicChange(topic.id);
+        this.showNewTopic = false;
+        this.newTopicName = '';
+        this.creatingTopic = false;
+        this.cdr.markForCheck();
+      },
+      error: () => {
+        this.creatingTopic = false;
+        this.cdr.markForCheck();
+      }
+    });
+  }
+
+  createNewSubtopic(): void {
+    if (!this.newSubtopicName || !this.selectedSubject || !this.selectedTopic) return;
+    this.creatingSubtopic = true;
+    this.subjectTopicService.createSubtopic(
+      this.selectedSubject.id,
+      this.selectedTopic.id,
+      { name: this.newSubtopicName }
+    ).subscribe({
+      next: (subtopic: Subtopic) => {
+        this.subtopics = [...this.subtopics, subtopic];
+        this.form.patchValue({ subtopicId: subtopic.id, subtopic: subtopic.name });
+        this.showNewSubtopic = false;
+        this.newSubtopicName = '';
+        this.creatingSubtopic = false;
+        this.cdr.markForCheck();
+      },
+      error: () => {
+        this.creatingSubtopic = false;
+        this.cdr.markForCheck();
+      }
+    });
+  }
+
+  private normalizeCognitiveLevel(val?: string): string {
+    if (!val) return 'UNDERSTAND';
+    const map: Record<string, string> = {
+      KNOWLEDGE: 'REMEMBER',
+      COMPREHENSION: 'UNDERSTAND',
+      APPLICATION: 'APPLY',
+      ANALYSIS: 'ANALYZE',
+      EVALUATION: 'EVALUATE',
+      SYNTHESIS: 'CREATE'
+    };
+    return map[val] || val;
   }
 
   private populateForm(p: PassageResponse): void {
@@ -256,6 +383,8 @@ export class PassageFormDialogComponent implements OnChanges {
     if (p.subjectId) {
       this.subjectTopicService.getTopics(p.subjectId).subscribe(t => {
         this.topics = t || [];
+        this.selectedSubject = this.subjects.find(s => s.id === p.subjectId) || null;
+        this.selectedTopic = this.topics.find(top => top.id === p.topicId) || null;
         this.cdr.markForCheck();
       });
     }
@@ -273,15 +402,19 @@ export class PassageFormDialogComponent implements OnChanges {
           passageOrderIndex: [sq.passageOrderIndex || idx + 1],
           content: [sq.content, Validators.required],
           difficulty: [sq.difficulty || 'MEDIUM', Validators.required],
-          cognitiveLevel: [sq.cognitiveLevel || 'COMPREHENSION', Validators.required],
+          cognitiveLevel: [this.normalizeCognitiveLevel(sq.cognitiveLevel), Validators.required],
           questionType: [sq.questionType || 'SINGLE_MCQ', Validators.required],
+          answerKey: [sq.answerKey || ''],
           explanation: [sq.explanation || ''],
           options: this.fb.array(
             (sq.options || []).map(opt =>
-              this.fb.group({
-                text: [opt.text, Validators.required],
-                isCorrect: [opt.isCorrect || false]
-              })
+              this.createOptionGroup(
+                opt.text || '',
+                Boolean(opt.isCorrect),
+                opt.imageUrl || '',
+                opt.imageAltText || '',
+                !!opt.imageUrl && (!opt.text || !opt.text.trim())
+              )
             )
           )
         });
@@ -294,15 +427,24 @@ export class PassageFormDialogComponent implements OnChanges {
   private resetForm(): void {
     this.form.reset({
       title: '',
-      difficulty: 'MEDIUM',
-      cognitiveLevel: 'COMPREHENSION',
-      questionType: 'SINGLE_MCQ'
+      subjectId: null,
+      topicId: null,
+      subtopicId: null,
+      subject: '',
+      topic: '',
+      subtopic: '',
+      content: ''
     });
     this.subQuestionsArray.clear();
     this.addSubQuestion();
     this.addSubQuestion();
     this.topics = [];
     this.subtopics = [];
+    this.selectedSubject = null;
+    this.selectedTopic = null;
+    this.showNewSubject = false;
+    this.showNewTopic = false;
+    this.showNewSubtopic = false;
     this.cdr.markForCheck();
   }
 
@@ -316,6 +458,31 @@ export class PassageFormDialogComponent implements OnChanges {
     if (this.subQuestionsArray.length < 2) {
       this.snackBar.open('Comprehension passage requires at least 2 sub-questions.', 'OK', { duration: 3000 });
       return;
+    }
+
+    // Validate sub-questions options
+    for (let i = 0; i < this.subQuestionsArray.length; i++) {
+      const sq = this.subQuestionsArray.at(i);
+      const qt = sq.get('questionType')?.value || 'SINGLE_MCQ';
+      const isMcq = qt === 'SINGLE_MCQ';
+      const isMsq = qt === 'MULTI_MCQ';
+      const opts = sq.get('options') as FormArray;
+
+      if (isMcq || isMsq) {
+        if (opts.length < 2) {
+          this.snackBar.open(`Question ${i + 1} requires at least 2 options.`, 'OK', { duration: 3000 });
+          return;
+        }
+        const correctCount = opts.controls.filter(c => c.get('isCorrect')?.value).length;
+        if (isMcq && correctCount !== 1) {
+          this.snackBar.open(`Question ${i + 1} (MCQ) requires exactly one correct option.`, 'OK', { duration: 3000 });
+          return;
+        }
+        if (isMsq && correctCount < 1) {
+          this.snackBar.open(`Question ${i + 1} (MSQ) requires at least one correct option.`, 'OK', { duration: 3000 });
+          return;
+        }
+      }
     }
 
     this.isSubmitting = true;
@@ -337,10 +504,14 @@ export class PassageFormDialogComponent implements OnChanges {
         difficulty: sq.difficulty,
         cognitiveLevel: sq.cognitiveLevel,
         questionType: sq.questionType,
+        answerKey: sq.answerKey || undefined,
         explanation: sq.explanation || undefined,
-        options: sq.options.map((opt: any) => ({
-          text: opt.text,
-          isCorrect: Boolean(opt.isCorrect)
+        options: (sq.options || []).map((opt: any, optIdx: number) => ({
+          id: this.optionIds[optIdx] || String.fromCharCode(65 + optIdx),
+          text: opt.text || '',
+          isCorrect: Boolean(opt.isCorrect),
+          imageUrl: (opt.imageUrl || '').trim() || undefined,
+          imageAltText: (opt.imageAltText || '').trim() || undefined
         }))
       }))
     };

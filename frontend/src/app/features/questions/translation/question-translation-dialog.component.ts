@@ -30,6 +30,7 @@ import {
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule, ReactiveFormsModule, FormBuilder, FormGroup, Validators } from '@angular/forms';
+import { DomSanitizer, SafeUrl } from '@angular/platform-browser';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { MatSelectModule } from '@angular/material/select';
@@ -120,9 +121,18 @@ export class QuestionTranslationDialogComponent implements OnInit, OnChanges {
     private translationService: TranslationService,
     private authService: AuthService,
     private snackBar: MatSnackBar,
+    private sanitizer: DomSanitizer,
     private cdr: ChangeDetectorRef
   ) {
     this.initForm();
+  }
+
+  getSafeImageUrl(url?: string | null): SafeUrl | string {
+    if (!url) return '';
+    if (url.startsWith('data:') || url.startsWith('blob:')) {
+      return this.sanitizer.bypassSecurityTrustUrl(url);
+    }
+    return url;
   }
 
   ngOnInit(): void {
@@ -159,100 +169,124 @@ export class QuestionTranslationDialogComponent implements OnInit, OnChanges {
           this.translationsMap.set(tr.languageCode, tr);
         });
         this.loadingTranslations = false;
-        if (this.initialLanguageCode && this.translationsMap.has(this.initialLanguageCode)) {
-          this.selectedLanguageCode = this.initialLanguageCode;
-        }
-        this.switchLanguage(this.selectedLanguageCode);
+        this.syncActiveTranslation();
         this.cdr.markForCheck();
       },
       error: () => {
         this.loadingTranslations = false;
-        this.switchLanguage(this.selectedLanguageCode);
+        this.syncActiveTranslation();
         this.cdr.markForCheck();
       }
     });
   }
 
-  switchLanguage(langCode: string): void {
-    this.selectedLanguageCode = langCode;
-    this.activeTranslation = this.translationsMap.get(langCode);
+  switchLanguage(code: string): void {
+    this.selectedLanguageCode = code;
     this.showRejectInput = false;
     this.rejectComments = '';
     this.errorMessage = '';
+    this.syncActiveTranslation();
+  }
 
-    // Populate options from source question
-    const sourceOpts = this.question?.options || [];
-    const translatedOpts = this.activeTranslation?.translatedOptions || [];
+  private syncActiveTranslation(): void {
+    this.activeTranslation = this.translationsMap.get(this.selectedLanguageCode);
+    const existing = this.activeTranslation;
 
-    this.optionTranslations = sourceOpts.map(so => {
-      const matched = translatedOpts.find(to => to.id === so.id);
-      return {
-        id: so.id,
-        sourceText: so.text,
-        text: matched ? (matched.text || '') : '',
-        isCorrect: so.isCorrect,
-        imageUrl: matched?.imageUrl || so.imageUrl,
-        imageAltText: matched?.imageAltText || so.imageAltText || '',
-        sourceImageUrl: so.imageUrl,
-        sourceImageAltText: so.imageAltText
-      };
-    });
-
-    if (this.activeTranslation) {
+    if (existing) {
       this.form.patchValue({
-        translatedContent: this.activeTranslation.translatedContent || '',
-        translatedExplanation: this.activeTranslation.translatedExplanation || ''
+        translatedContent: existing.translatedContent || '',
+        translatedExplanation: existing.translatedExplanation || ''
       });
+
+      if (this.question?.options && this.question.options.length > 0) {
+        const transOptsMap = new Map<string, string>();
+        if (existing.translatedOptions) {
+          existing.translatedOptions.forEach(opt => {
+            transOptsMap.set(opt.id, opt.text);
+          });
+        }
+
+        this.optionTranslations = this.question.options.map(srcOpt => ({
+          id: srcOpt.id,
+          sourceText: srcOpt.text || '',
+          text: transOptsMap.get(srcOpt.id) || '',
+          isCorrect: srcOpt.isCorrect,
+          imageUrl: srcOpt.imageUrl,
+          imageAltText: srcOpt.imageAltText,
+          sourceImageUrl: srcOpt.imageUrl,
+          sourceImageAltText: srcOpt.imageAltText
+        }));
+      } else {
+        this.optionTranslations = [];
+      }
     } else {
       this.form.patchValue({
         translatedContent: '',
         translatedExplanation: ''
       });
+
+      if (this.question?.options && this.question.options.length > 0) {
+        this.optionTranslations = this.question.options.map(srcOpt => ({
+          id: srcOpt.id,
+          sourceText: srcOpt.text || '',
+          text: '',
+          isCorrect: srcOpt.isCorrect,
+          imageUrl: srcOpt.imageUrl,
+          imageAltText: srcOpt.imageAltText,
+          sourceImageUrl: srcOpt.imageUrl,
+          sourceImageAltText: srcOpt.imageAltText
+        }));
+      } else {
+        this.optionTranslations = [];
+      }
     }
+
     this.cdr.markForCheck();
   }
 
-  /**
-   * Automatically translate the source question (stem, options, and explanation)
-   * into the currently selected language using the local IndicTrans2 AI model.
-   */
   autoTranslateWithIndicTrans2(): void {
-    if (!this.question?.id) return;
+    if (!this.question) return;
     this.autoTranslating = true;
     this.errorMessage = '';
+    this.cdr.markForCheck();
 
-    const targetLangName = this.getSelectedLangName();
+    const langName = this.getSelectedLangName();
 
-    this.translationService.autoTranslateQuestion(this.question.id, this.selectedLanguageCode).subscribe({
-      next: (res) => {
-        this.autoTranslating = false;
-        if (res.translatedContent) {
+
+    this.translationService.autoTranslateQuestion(this.question.id, this.selectedLanguageCode)
+      .subscribe({
+        next: (res: import('./translation.service').AutoTranslateResponse) => {
+          this.autoTranslating = false;
+
           this.form.patchValue({
-            translatedContent: res.translatedContent,
-            translatedExplanation: res.translatedExplanation || ''
+            translatedContent: res.translatedContent || this.form.value.translatedContent,
+            translatedExplanation: res.translatedExplanation || this.form.value.translatedExplanation
           });
+
+          if (res.translatedOptions && res.translatedOptions.length > 0) {
+            const transOptsMap = new Map<string, string>();
+            res.translatedOptions.forEach(opt => transOptsMap.set(opt.id, opt.text));
+            this.optionTranslations.forEach(opt => {
+              const translated = transOptsMap.get(opt.id);
+              if (translated) opt.text = translated;
+            });
+          }
+
+          this.snackBar.open(
+            `Auto-translated to ${langName} via IndicTrans2. Please review and refine.`,
+            'Close',
+            { duration: 4000 }
+          );
+          this.cdr.markForCheck();
+        },
+        error: (err: { error?: { message?: string }; message?: string }) => {
+          this.autoTranslating = false;
+          this.errorMessage = err?.error?.message || err?.message || 'Failed to auto-translate with IndicTrans2';
+          this.snackBar.open(`IndicTrans2 translation failed: ${this.errorMessage}`, 'Close', { duration: 5000 });
+          this.cdr.markForCheck();
         }
-        if (res.translatedOptions && res.translatedOptions.length > 0) {
-          this.optionTranslations.forEach(opt => {
-            const found = res.translatedOptions?.find(to => to.id === opt.id);
-            if (found) {
-              opt.text = found.text || '';
-              if (found.imageAltText) opt.imageAltText = found.imageAltText;
-              if (found.imageUrl) opt.imageUrl = found.imageUrl;
-            }
-          });
-        }
-        this.form.markAsDirty();
-        this.snackBar.open(`Auto-translated to ${targetLangName} using IndicTrans2!`, 'Close', { duration: 4000 });
-        this.cdr.markForCheck();
-      },
-      error: (err) => {
-        this.autoTranslating = false;
-        this.errorMessage = err?.error?.message || err?.message || 'Failed to auto-translate with IndicTrans2';
-        this.snackBar.open(`IndicTrans2 translation failed: ${this.errorMessage}`, 'Close', { duration: 5000 });
-        this.cdr.markForCheck();
-      }
-    });
+      });
+
   }
 
   getTranslationStatusForLang(code: string): string | null {

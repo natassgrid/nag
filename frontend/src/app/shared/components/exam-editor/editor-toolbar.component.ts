@@ -17,16 +17,26 @@
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
 
-import { Component, Input, ChangeDetectionStrategy } from '@angular/core';
+import {
+  Component,
+  Input,
+  OnInit,
+  OnDestroy,
+  OnChanges,
+  SimpleChanges,
+  ChangeDetectionStrategy,
+  ChangeDetectorRef
+} from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { MatMenuModule } from '@angular/material/menu';
 import { MatDividerModule } from '@angular/material/divider';
+import { Subscription } from 'rxjs';
 import { PluginRegistry } from './plugins/plugin-registry';
 import { PluginContext, ToolbarButton, EditorSelection } from './plugins';
-import { ExamDocument, ExamElement, MarkType } from './models';
+import { ExamDocument, MarkType } from './models';
 
 /**
  * Editor toolbar displaying buttons from all registered plugins.
@@ -47,15 +57,45 @@ import { ExamDocument, ExamElement, MarkType } from './models';
   templateUrl: './editor-toolbar.component.html',
   styleUrls: ['./editor-toolbar.component.scss']
 })
-export class EditorToolbarComponent {
+export class EditorToolbarComponent implements OnInit, OnDestroy, OnChanges {
 
   @Input() pluginRegistry!: PluginRegistry;
   @Input() context!: PluginContext;
   @Input() document: ExamDocument = [];
   @Input() selection: EditorSelection | null = null;
 
-  get toolbarGroups(): { name: string; buttons: ToolbarButton[] }[] {
-    const groupMap = this.pluginRegistry.getToolbarGroups();
+  toolbarGroups: { name: string; buttons: ToolbarButton[] }[] = [];
+  private pluginSub?: Subscription;
+
+  constructor(private cdr: ChangeDetectorRef) {}
+
+  ngOnInit(): void {
+    this.updateToolbarGroups();
+    if (this.pluginRegistry?.pluginsChanged$) {
+      this.pluginSub = this.pluginRegistry.pluginsChanged$.subscribe(() => {
+        this.updateToolbarGroups();
+      });
+    }
+  }
+
+  ngOnDestroy(): void {
+    this.pluginSub?.unsubscribe();
+  }
+
+  ngOnChanges(changes: SimpleChanges): void {
+    if (changes['pluginRegistry']) {
+      this.pluginSub?.unsubscribe();
+      if (this.pluginRegistry?.pluginsChanged$) {
+        this.pluginSub = this.pluginRegistry.pluginsChanged$.subscribe(() => {
+          this.updateToolbarGroups();
+        });
+      }
+      this.updateToolbarGroups();
+    }
+  }
+
+  public updateToolbarGroups(): void {
+    const groupMap = this.pluginRegistry?.getToolbarGroups?.() || new Map();
     const groups: { name: string; buttons: ToolbarButton[] }[] = [];
     const order = ['format', 'block', 'list', 'align', 'indent', 'color', 'media'];
     for (const name of order) {
@@ -64,17 +104,23 @@ export class EditorToolbarComponent {
         groups.push({ name, buttons });
       }
     }
-    return groups;
+    this.toolbarGroups = groups;
+    this.cdr.markForCheck();
   }
 
   isButtonActive(button: ToolbarButton): boolean {
     if (!button.isToggle) return false;
-    if (button.isActive) {
-      return button.isActive(this.document, this.selection);
-    }
-    // Fallback: check via context for marks
-    if (['bold', 'italic', 'underline', 'superscript', 'subscript'].includes(button.id)) {
-      return this.context?.isMarkActive(button.id as MarkType) ?? false;
+
+    // Check mark
+    if (this.context && ['bold', 'italic', 'underline', 'superscript', 'subscript'].includes(button.id)) {
+      try {
+        if (typeof document !== 'undefined' && document.queryCommandState(button.id)) {
+          return true;
+        }
+      } catch {
+        // ignore
+      }
+      return this.context.isMarkActive(button.id as MarkType);
     }
     // Check block type
     if (button.id === this.context?.getActiveBlockType()) {
@@ -85,27 +131,33 @@ export class EditorToolbarComponent {
       const align = button.id.replace('align-', '');
       return this.context?.getAlignment() === align;
     }
+    if (button.isActive) {
+      return button.isActive(this.document, this.selection);
+    }
     return false;
   }
 
   executeButton(button: ToolbarButton): void {
     if (this.context) {
       button.execute(this.context);
+      this.cdr.markForCheck();
     }
   }
 
   executeDropdownItem(item: { execute: (ctx: PluginContext) => void }): void {
     if (this.context) {
       item.execute(this.context);
+      this.cdr.markForCheck();
     }
   }
 
   onUndo(): void {
-    // Emit to parent — parent calls undo()
     (this.context as any).undo?.();
+    this.cdr.markForCheck();
   }
 
   onRedo(): void {
     (this.context as any).redo?.();
+    this.cdr.markForCheck();
   }
 }
