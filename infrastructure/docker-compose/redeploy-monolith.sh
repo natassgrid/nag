@@ -9,7 +9,8 @@
 # Consolidates all 14 microservices + audit into 1 JVM Spring Boot runtime + Postgres + Redis.
 #
 # Usage:
-#   ./redeploy-monolith.sh                  # Rebuild and start monolith (preserves DB volumes)
+#   ./redeploy-monolith.sh                  # Rebuild and start monolith (in-memory events, preserves DB)
+#   ./redeploy-monolith.sh --rabbit         # Rebuild and start monolith with RabbitMQ message broker
 #   ./redeploy-monolith.sh --clean-db       # Rebuild & restart, explicitly deleting DB volumes
 #   ./redeploy-monolith.sh --observability  # Start with Prometheus, Grafana, and Jaeger
 #   ./redeploy-monolith.sh --ai             # Start with Ollama, LiteLLM, IndicTrans2
@@ -29,6 +30,12 @@ HEALTH_CHECK=false
 OBSERVABILITY=false
 AI=false
 CLEAN_DB=false
+RABBIT=false
+
+# If PLATFORM_MESSAGING_BROKER environment variable is pre-set to rabbit
+if [ "${PLATFORM_MESSAGING_BROKER:-}" = "rabbit" ]; then
+    RABBIT=true
+fi
 
 while [[ $# -gt 0 ]]; do
     case $1 in
@@ -36,6 +43,7 @@ while [[ $# -gt 0 ]]; do
         --restart) RESTART_ONLY=true; shift ;;
         --health) HEALTH_CHECK=true; shift ;;
         --clean-db|--clean-volumes|--delete-db-volume|--reset-db|--drop-db) CLEAN_DB=true; shift ;;
+        --rabbit|--with-rabbit) RABBIT=true; shift ;;
         --observability|--with-observability) OBSERVABILITY=true; shift ;;
         --ai|--with-ai) AI=true; shift ;;
         *) echo "Unknown option: $1"; exit 1 ;;
@@ -43,6 +51,15 @@ while [[ $# -gt 0 ]]; do
 done
 
 PROFILES_ARGS=()
+if [ "$RABBIT" = true ]; then
+    PROFILES_ARGS+=(--profile rabbit)
+    export PLATFORM_MESSAGING_BROKER=rabbit
+    export MANAGEMENT_HEALTH_RABBIT_ENABLED=true
+else
+    export PLATFORM_MESSAGING_BROKER="${PLATFORM_MESSAGING_BROKER:-in-memory}"
+    export MANAGEMENT_HEALTH_RABBIT_ENABLED=false
+fi
+
 if [ "$OBSERVABILITY" = true ]; then
     PROFILES_ARGS+=(--profile observability)
 fi
@@ -55,6 +72,11 @@ COMPOSE="docker compose ${PROFILES_ARGS[*]} -f docker-compose.yml -f docker-comp
 echo "============================================="
 echo "  NAG Platform — Single JVM Monolith Mode"
 echo "  Architecture: 1 JVM Monolith + Postgres + Redis"
+if [ "$RABBIT" = true ]; then
+echo "  Messaging:    RabbitMQ (exam-monolith-rabbitmq:5672)"
+else
+echo "  Messaging:    In-Memory Spring Events (Zero External Broker)"
+fi
 if [ "$CLEAN_DB" = true ]; then
 echo "  Database:     Reset (Volumes will be deleted)"
 else
@@ -108,12 +130,15 @@ if [ "$HEALTH_CHECK" = true ]; then
     exit 0
 fi
 
+# --- Target app services to manage ---
+APP_TARGETS="monolith-app frontend candidate-frontend"
+
 # --- Restart only mode ---
 if [ "$RESTART_ONLY" = true ]; then
     echo ""
     echo "🔄 Restarting monolith services (no build)..."
-    $COMPOSE stop
-    $COMPOSE up -d
+    $COMPOSE stop $APP_TARGETS
+    $COMPOSE up -d $APP_TARGETS
     echo ""
     echo "✅ Monolith restarted."
     exit 0
@@ -134,6 +159,9 @@ fi
 
 echo ""
 INFRA_TARGETS="postgres redis vault keycloak"
+if [ "$RABBIT" = true ]; then
+    INFRA_TARGETS="$INFRA_TARGETS rabbitmq"
+fi
 if [ "$OBSERVABILITY" = true ]; then
     INFRA_TARGETS="$INFRA_TARGETS prometheus grafana jaeger"
 fi
@@ -142,17 +170,20 @@ if [ "$AI" = true ]; then
 fi
 
 echo "🚀 Starting infrastructure ($INFRA_TARGETS)..."
-docker compose "${PROFILES_ARGS[@]}" -f docker-compose.yml up -d $INFRA_TARGETS
+$COMPOSE up -d $INFRA_TARGETS
 echo "  Waiting for infrastructure to be healthy..."
-docker compose -f docker-compose.yml up --wait -d postgres vault redis
+$COMPOSE up --wait -d postgres vault redis
+if [ "$RABBIT" = true ]; then
+    $COMPOSE up --wait -d rabbitmq
+fi
 
 echo ""
 echo "📦 Building monolith-app and frontends..."
-$COMPOSE build $NO_CACHE monolith-app frontend candidate-frontend
+$COMPOSE build $NO_CACHE $APP_TARGETS
 
 echo ""
 echo "🚀 Starting monolith stack..."
-$COMPOSE up -d
+$COMPOSE up -d $APP_TARGETS
 
 echo ""
 echo "============================================="
