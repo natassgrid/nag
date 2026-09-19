@@ -5,7 +5,7 @@
  * Copyright (C) 2025 NAG Contributors
  *
  * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU Affero General Public License as published
+ * it under the terms of the GNU practical General Public License as published
  * by the Free Software Foundation, version 3 of the License.
  *
  * This program is distributed in the hope that it will be useful,
@@ -169,25 +169,28 @@ export class QuestionTranslationDialogComponent implements OnInit, OnChanges {
           this.translationsMap.set(tr.languageCode, tr);
         });
         this.loadingTranslations = false;
-        this.selectLanguage(this.selectedLanguageCode);
+        this.syncActiveTranslation();
         this.cdr.markForCheck();
       },
       error: () => {
         this.loadingTranslations = false;
-        this.selectLanguage(this.selectedLanguageCode);
+        this.syncActiveTranslation();
         this.cdr.markForCheck();
       }
     });
   }
 
-  selectLanguage(langCode: string): void {
-    this.selectedLanguageCode = langCode;
+  switchLanguage(code: string): void {
+    this.selectedLanguageCode = code;
     this.showRejectInput = false;
     this.rejectComments = '';
     this.errorMessage = '';
+    this.syncActiveTranslation();
+  }
 
-    const existing = this.translationsMap.get(langCode);
-    this.activeTranslation = existing;
+  private syncActiveTranslation(): void {
+    this.activeTranslation = this.translationsMap.get(this.selectedLanguageCode);
+    const existing = this.activeTranslation;
 
     if (existing) {
       this.form.patchValue({
@@ -241,37 +244,6 @@ export class QuestionTranslationDialogComponent implements OnInit, OnChanges {
     this.cdr.markForCheck();
   }
 
-  saveDraft(): void {
-    if (!this.question?.id) return;
-    this.saving = true;
-    this.errorMessage = '';
-
-    const request: TranslationRequest = {
-      languageCode: this.selectedLanguageCode,
-      translatedContent: this.form.get('translatedContent')?.value || '',
-      translatedExplanation: this.form.get('translatedExplanation')?.value || undefined,
-      translatedOptions: this.optionTranslations.map(opt => ({
-        id: opt.id,
-        text: opt.text || ''
-      }))
-    };
-
-    this.translationService.saveTranslation(this.question.id, request).subscribe({
-      next: (res) => {
-        this.saving = false;
-        this.translationsMap.set(res.languageCode, res);
-        this.activeTranslation = res;
-        this.snackBar.open(`Translation saved for ${this.getSelectedLangName()}`, 'Close', { duration: 3000 });
-        this.cdr.markForCheck();
-      },
-      error: (err) => {
-        this.saving = false;
-        this.errorMessage = err?.error?.message || 'Failed to save translation.';
-        this.cdr.markForCheck();
-      }
-    });
-  }
-
   autoTranslateWithIndicTrans2(): void {
     if (!this.question) return;
     this.autoTranslating = true;
@@ -279,7 +251,6 @@ export class QuestionTranslationDialogComponent implements OnInit, OnChanges {
     this.cdr.markForCheck();
 
     const langName = this.getSelectedLangName();
-    const isIndic = ['hi', 'ta', 'te', 'kn', 'ml', 'mr', 'bn', 'gu', 'pa', 'or', 'as'].includes(this.selectedLanguageCode);
 
     const textsToTranslate: string[] = [
       this.question.content || '',
@@ -287,71 +258,152 @@ export class QuestionTranslationDialogComponent implements OnInit, OnChanges {
       ...this.optionTranslations.map(o => o.sourceText || '')
     ];
 
-    setTimeout(() => {
-      this.autoTranslating = false;
-      const note = isIndic
-        ? `[Auto-Translated to ${langName} via IndicTrans2]\n`
-        : `[Draft in ${langName}]\n`;
+    this.translationService.translateBulk({
+      texts: textsToTranslate,
+      sourceLanguage: 'en',
+      targetLanguage: this.selectedLanguageCode
+    }).subscribe({
+      next: (translatedTexts) => {
+        this.autoTranslating = false;
+        if (translatedTexts && translatedTexts.length >= 2) {
+          this.form.patchValue({
+            translatedContent: translatedTexts[0] || this.form.value.translatedContent,
+            translatedExplanation: translatedTexts[1] || this.form.value.translatedExplanation
+          });
 
-      if (!this.form.get('translatedContent')?.value && this.question?.content) {
-        this.form.patchValue({
-          translatedContent: note + this.question.content
-        });
-      }
+          let optIdx = 2;
+          this.optionTranslations.forEach(opt => {
+            if (optIdx < translatedTexts.length) {
+              opt.text = translatedTexts[optIdx] || opt.text;
+              optIdx++;
+            }
+          });
 
-      if (!this.form.get('translatedExplanation')?.value && this.question?.explanation) {
-        this.form.patchValue({
-          translatedExplanation: note + this.question.explanation
-        });
-      }
-
-      this.optionTranslations.forEach(opt => {
-        if (!opt.text && opt.sourceText) {
-          opt.text = opt.sourceText;
+          this.snackBar.open(`Auto-translated to ${langName} via IndicTrans2. Please review and refine.`, 'Close', { duration: 4000 });
         }
-      });
-
-      this.snackBar.open(`Pre-populated ${langName} template. Please review and refine.`, 'Close', { duration: 4000 });
-      this.cdr.markForCheck();
-    }, 800);
-  }
-
-  submitForReview(): void {
-    if (!this.question?.id || !this.activeTranslation?.id) {
-      this.saveDraft();
-      return;
-    }
-    this.saving = true;
-    this.translationService.submitTranslationForReview(this.question.id, this.activeTranslation.id).subscribe({
-      next: (res) => {
-        this.saving = false;
-        this.translationsMap.set(res.languageCode, res);
-        this.activeTranslation = res;
-        this.snackBar.open('Translation submitted for review', 'Close', { duration: 3000 });
         this.cdr.markForCheck();
       },
       error: (err) => {
-        this.saving = false;
-        this.errorMessage = err?.error?.message || 'Failed to submit translation.';
+        this.autoTranslating = false;
+        this.errorMessage = err?.error?.message || err?.message || 'Failed to auto-translate with IndicTrans2';
+        this.snackBar.open(`IndicTrans2 translation failed: ${this.errorMessage}`, 'Close', { duration: 5000 });
         this.cdr.markForCheck();
       }
     });
   }
 
-  approve(): void {
-    if (!this.question?.id || !this.activeTranslation?.id) return;
-    this.approving = true;
-    this.translationService.approveTranslation(this.question.id, this.activeTranslation.id).subscribe({
-      next: (res) => {
-        this.approving = false;
-        this.translationsMap.set(res.languageCode, res);
-        this.activeTranslation = res;
-        this.snackBar.open(`Translation approved for ${this.getSelectedLangName()}`, 'Close', { duration: 3000 });
+  getTranslationStatusForLang(code: string): string | null {
+    const tr = this.translationsMap.get(code);
+    return tr ? tr.status : null;
+  }
+
+  getSelectedLangObj(): SupportedLanguage | undefined {
+    return this.translationService.getLanguage(this.selectedLanguageCode);
+  }
+
+  getSelectedLangName(): string {
+    return this.getSelectedLangObj()?.name || 'Hindi';
+  }
+
+  canReview(): boolean {
+    const roles = this.authService.getUserRoles();
+    return roles.some(r => ['REVIEWER', 'APPROVER', 'EXAM_CONTROLLER', 'SUPER_ADMIN'].includes(r));
+  }
+
+  canTranslate(): boolean {
+    const roles = this.authService.getUserRoles();
+    return roles.some(r => ['TRANSLATOR', 'QUESTION_AUTHOR', 'EXAM_CONTROLLER', 'SUPER_ADMIN'].includes(r));
+  }
+
+  isDraft(): boolean {
+    return !this.activeTranslation || this.activeTranslation.status === 'DRAFT';
+  }
+
+  isApproved(): boolean {
+    return this.activeTranslation?.status === 'APPROVED';
+  }
+
+  isStale(): boolean {
+    return this.activeTranslation?.status === 'STALE';
+  }
+
+  hasRejectionComment(): boolean {
+    return !!(this.activeTranslation?.status === 'DRAFT' && this.activeTranslation?.reviewComments);
+  }
+
+  saveTranslation(): void {
+    if (!this.question?.id) return;
+    this.form.markAllAsTouched();
+    if (this.form.invalid) {
+      this.errorMessage = 'Please provide the translated question content.';
+      return;
+    }
+
+    if (this.optionTranslations.length > 0) {
+      const invalidOpt = this.optionTranslations.find(o => (!o.text || !o.text.trim()) && (!o.imageUrl || !o.imageUrl.trim()));
+      if (invalidOpt) {
+        this.errorMessage = `Please provide translated text or image for Option ${invalidOpt.id}.`;
+        return;
+      }
+    }
+
+    const currentUserId = this.authService.getUserId() || '00000000-0000-0000-0000-000000000001';
+
+    const req: TranslationRequest = {
+      questionId: this.question.id,
+      languageCode: this.selectedLanguageCode,
+      translatorId: currentUserId,
+      translatedContent: this.form.value.translatedContent.trim(),
+      translatedExplanation: this.form.value.translatedExplanation ? this.form.value.translatedExplanation.trim() : undefined,
+      translatedOptions: this.optionTranslations.length > 0
+        ? this.optionTranslations.map(o => ({
+            id: o.id,
+            text: (o.text || '').trim(),
+            imageUrl: o.imageUrl,
+            imageAltText: (o.imageAltText || '').trim() || undefined
+          }))
+        : undefined
+    };
+
+    this.saving = true;
+    this.errorMessage = '';
+
+    const apiCall = this.activeTranslation?.translationId
+      ? this.translationService.resubmitTranslation(this.activeTranslation.translationId, req)
+      : this.translationService.submitTranslation(req);
+
+    apiCall.subscribe({
+      next: () => {
+        this.saving = false;
+        const msg = this.activeTranslation
+          ? 'Translation updated & resubmitted successfully'
+          : 'Translation submitted successfully';
+        this.snackBar.open(msg, 'Close', { duration: 3000 });
+        this.loadTranslations();
+      },
+      error: (err) => {
+        this.saving = false;
+        this.errorMessage = err?.error?.message || err?.message || 'Failed to submit translation';
         this.cdr.markForCheck();
+      }
+    });
+  }
+
+  approveTranslation(): void {
+    if (!this.activeTranslation?.translationId) return;
+    const currentUserId = this.authService.getUserId() || '00000000-0000-0000-0000-000000000001';
+    this.approving = true;
+    this.errorMessage = '';
+
+    this.translationService.approveTranslation(this.activeTranslation.translationId, currentUserId).subscribe({
+      next: () => {
+        this.approving = false;
+        this.snackBar.open('Translation approved successfully!', 'Close', { duration: 3000 });
+        this.loadTranslations();
       },
       error: (err) => {
         this.approving = false;
-        this.errorMessage = err?.error?.message || 'Failed to approve translation.';
+        this.errorMessage = err?.error?.message || err?.message || 'Failed to approve translation';
         this.cdr.markForCheck();
       }
     });
@@ -360,63 +412,41 @@ export class QuestionTranslationDialogComponent implements OnInit, OnChanges {
   openRejectPrompt(): void {
     this.showRejectInput = true;
     this.rejectComments = '';
+    this.cdr.markForCheck();
   }
 
   cancelReject(): void {
     this.showRejectInput = false;
     this.rejectComments = '';
+    this.cdr.markForCheck();
   }
 
   confirmReject(): void {
-    if (!this.question?.id || !this.activeTranslation?.id || !this.rejectComments.trim()) return;
+    if (!this.activeTranslation?.translationId || !this.rejectComments.trim()) return;
+    const currentUserId = this.authService.getUserId() || '00000000-0000-0000-0000-000000000001';
     this.rejecting = true;
-    this.translationService.rejectTranslation(this.question.id, this.activeTranslation.id, this.rejectComments.trim()).subscribe({
-      next: (res) => {
+    this.errorMessage = '';
+
+    this.translationService.rejectTranslation(
+      this.activeTranslation.translationId,
+      currentUserId,
+      this.rejectComments.trim()
+    ).subscribe({
+      next: () => {
         this.rejecting = false;
         this.showRejectInput = false;
-        this.translationsMap.set(res.languageCode, res);
-        this.activeTranslation = res;
-        this.snackBar.open('Translation rejected and returned for revisions', 'Close', { duration: 3000 });
-        this.cdr.markForCheck();
+        this.snackBar.open('Translation marked as rejected with comments.', 'Close', { duration: 3000 });
+        this.loadTranslations();
       },
       error: (err) => {
         this.rejecting = false;
-        this.errorMessage = err?.error?.message || 'Failed to reject translation.';
+        this.errorMessage = err?.error?.message || err?.message || 'Failed to reject translation';
         this.cdr.markForCheck();
       }
     });
   }
 
-  getSelectedLangName(): string {
-    return this.languages.find(l => l.code === this.selectedLanguageCode)?.name || this.selectedLanguageCode;
-  }
-
-  getSelectedLangObj(): SupportedLanguage | undefined {
-    return this.languages.find(l => l.code === this.selectedLanguageCode);
-  }
-
-  hasTranslation(code: string): boolean {
-    return this.translationsMap.has(code);
-  }
-
-  getTranslationStatus(code: string): string {
-    return this.translationsMap.get(code)?.state || '';
-  }
-
-  canReview(): boolean {
-    const role = this.authService.getRole?.() || '';
-    return ['ROLE_CONTENT_REVIEWER', 'ROLE_ADMIN', 'ROLE_SUPER_ADMIN'].includes(role);
-  }
-
-  isApproved(): boolean {
-    return this.activeTranslation?.state === 'APPROVED';
-  }
-
-  isPendingReview(): boolean {
-    return this.activeTranslation?.state === 'PENDING_REVIEW';
-  }
-
   onClose(): void {
-    this.close.emit(false);
+    this.close.emit(true);
   }
 }

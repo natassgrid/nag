@@ -14,8 +14,7 @@
  * GNU Affero General Public License for more details.
  *
  * You should have received a copy of the GNU Affero General Public License
- * along with this program. If not, see <https://www.gnu.org/licenses/>.
- */
+ * along with this program. If not, see <https://www.gnu.org/licenses/>.\n */
 
 import {
   Component,
@@ -567,7 +566,10 @@ export class QuestionFormDialogComponent implements OnInit, OnChanges {
     if (value !== 'SINGLE_MCQ' && value !== 'MULTI_MCQ') {
       this.options = [];
     } else if (this.options.length === 0) {
-      this.options = [\n        { id: 'A', text: '', isCorrect: false, imageUrl: '', imageAltText: '', isImageOnly: false },\n        { id: 'B', text: '', isCorrect: false, imageUrl: '', imageAltText: '', isImageOnly: false }\n      ];
+      this.options = [
+        { id: 'A', text: '', isCorrect: false, imageUrl: '', imageAltText: '', isImageOnly: false },
+        { id: 'B', text: '', isCorrect: false, imageUrl: '', imageAltText: '', isImageOnly: false }
+      ];
     }
     this.optionError = '';
     this.cdr.markForCheck();

@@ -73,7 +73,25 @@ export class QuestionReviewComponent {
   acting = false;
   viewMode: 'table' | 'split' = 'table';
 
-  columns: ColumnDef<QuestionResponse>[] = [\n    { key: 'subject', header: 'Subject', sortable: true },\n    { key: 'topic', header: 'Topic', sortable: true },\n    {\n      key: 'difficulty',\n      header: 'Difficulty',\n      type: 'chip',\n      chipClass: (val) => 'chip-' + (val || 'medium').toLowerCase(),\n      sortable: true\n    },\n    {\n      key: 'questionType',\n      header: 'Type',\n      cell: (row) => this.formatType(row.questionType),\n      sortable: true\n    },\n    { key: 'createdAt', header: 'Created', type: 'date', sortable: true },\n    { key: 'actions', header: 'Action', type: 'actions' }\n  ];
+  columns: ColumnDef<QuestionResponse>[] = [
+    { key: 'subject', header: 'Subject', sortable: true },
+    { key: 'topic', header: 'Topic', sortable: true },
+    {
+      key: 'difficulty',
+      header: 'Difficulty',
+      type: 'chip',
+      chipClass: (val) => 'chip-' + (val || 'medium').toLowerCase(),
+      sortable: true
+    },
+    {
+      key: 'questionType',
+      header: 'Type',
+      cell: (row) => this.formatType(row.questionType),
+      sortable: true
+    },
+    { key: 'createdAt', header: 'Created', type: 'date', sortable: true },
+    { key: 'actions', header: 'Action', type: 'actions' }
+  ];
 
   fetcher: PaginatedDataFetcher<QuestionResponse> = (req) => {
     return this.questionService.getQuestionsForReview(req.page, req.size).pipe(
