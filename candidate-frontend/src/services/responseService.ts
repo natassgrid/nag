@@ -2,7 +2,7 @@
 // Wraps response-service REST calls for answer saving, session submission, and response history retrieval.
 
 import { api, unwrap } from './api';
-import { offlineQueue } from '../utils/offlineQueue';
+import { offlineQueue, type QueuedResponse } from '../utils/offlineQueue';
 import type {
   BulkSaveRequest,
   SaveResponseRequest,
@@ -72,11 +72,9 @@ export const responseService = {
         offlineQueue.enqueue(sessionId, request);
         return {
           responseId: `offline-${Date.now()}`,
-          sessionId,
           questionId: request.questionId,
           revisionSequence: request.revisionSequence || 1,
           savedAt: new Date().toISOString(),
-          status: 'QUEUED_OFFLINE',
         };
       }
       throw err;
@@ -84,20 +82,27 @@ export const responseService = {
   },
 
   /**
-   * Reconcile multiple responses queued offline.
+   * Flush responses queued offline for a session.
    * Clears successfully processed items from the offline queue.
    */
-  async reconcileOfflineQueue(sessionId: string): Promise<SaveResponseResponse[]> {
-    const queued = offlineQueue.getQueue(sessionId);
+  async flushOfflineQueue(sessionId: string): Promise<SaveResponseResponse[]> {
+    const queued: QueuedResponse[] = offlineQueue.getForSession(sessionId);
     if (queued.length === 0) return [];
 
     const req: BulkSaveRequest = {
-      responses: queued.map((item) => item.response),
+      responses: queued.map((item: QueuedResponse) => item.response),
     };
 
     const results = await this.bulkSave(sessionId, req);
-    offlineQueue.clear(sessionId);
+    offlineQueue.clearSession(sessionId);
     return results;
+  },
+
+  /**
+   * Alias for flushOfflineQueue
+   */
+  async reconcileOfflineQueue(sessionId: string): Promise<SaveResponseResponse[]> {
+    return this.flushOfflineQueue(sessionId);
   },
 
   /**
