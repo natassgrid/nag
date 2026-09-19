@@ -23,10 +23,17 @@ import com.examplatform.result.domain.Result;
 import com.examplatform.result.dto.CandidateScoreInput;
 import com.examplatform.result.repository.ResultRepository;
 import com.examplatform.result.service.ResultComputationService;
+import com.examplatform.shared.messaging.GenericDomainEvent;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.amqp.core.ExchangeTypes;
+import org.springframework.amqp.rabbit.annotation.Exchange;
+import org.springframework.amqp.rabbit.annotation.Queue;
+import org.springframework.amqp.rabbit.annotation.QueueBinding;
+import org.springframework.amqp.rabbit.annotation.RabbitListener;
+import org.springframework.context.event.EventListener;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.kafka.support.KafkaHeaders;
 import org.springframework.messaging.handler.annotation.Header;
@@ -42,9 +49,10 @@ import java.util.Optional;
 import java.util.UUID;
 
 /**
- * Kafka consumer for the exam.evaluation.completed topic.
+ * Consumer for the exam.evaluation.completed topic.
  * Triggered after evaluation-service completes scoring for a candidate's session.
  * Computes and persists the full diagnostic result record.
+ * Supports Kafka, RabbitMQ, and in-memory Spring events across deployment modes.
  *
  * Validates: SPEC-RS3 (EVALUATION_COMPLETED Consumer)
  */
@@ -53,28 +61,90 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class EvaluationCompletedConsumer {
 
+    public static final String EVALUATION_COMPLETED_TOPIC = "exam.evaluation.completed";
+
     private final ResultComputationService resultComputationService;
     private final ResultRepository resultRepository;
     private final ObjectMapper objectMapper;
 
     /**
-     * Consumes EVALUATION_COMPLETED events and triggers result computation.
-     * Idempotent: if a result already exists for the candidate+exam, it is skipped.
+     * Consumes EVALUATION_COMPLETED events via Kafka.
      *
      * @param payload  the event payload as JSON string
      * @param key      the Kafka message key (sessionId)
      */
     @KafkaListener(
-            topics = "exam.evaluation.completed",
+            topics = EVALUATION_COMPLETED_TOPIC,
             groupId = "result-service-evaluation-consumer",
             containerFactory = "kafkaListenerContainerFactory"
     )
     public void onEvaluationCompleted(
             @Payload String payload,
-            @Header(KafkaHeaders.RECEIVED_KEY) String key) {
+            @Header(value = KafkaHeaders.RECEIVED_KEY, required = false) String key) {
+        log.info("Received Kafka EVALUATION_COMPLETED event: key={}", key);
+        processEvaluationCompleted(payload, key);
+    }
 
-        log.info("Received EVALUATION_COMPLETED event: key={}", key);
+    /**
+     * Consumes EVALUATION_COMPLETED events via RabbitMQ.
+     *
+     * @param message the event payload (String or Object map)
+     */
+    @RabbitListener(
+            bindings = @QueueBinding(
+                    value = @Queue(value = "result.evaluation.events.queue", durable = "true"),
+                    exchange = @Exchange(value = "exam.events", type = ExchangeTypes.TOPIC),
+                    key = EVALUATION_COMPLETED_TOPIC
+            )
+    )
+    public void onRabbitEvaluationCompleted(Object message) {
+        log.info("Received RabbitMQ EVALUATION_COMPLETED event: {}", message);
+        try {
+            String payload;
+            if (message instanceof String s) {
+                payload = s;
+            } else {
+                payload = objectMapper.writeValueAsString(message);
+            }
+            processEvaluationCompleted(payload, null);
+        } catch (Exception e) {
+            log.error("Failed to process RabbitMQ EVALUATION_COMPLETED event: {}", e.getMessage(), e);
+        }
+    }
 
+    /**
+     * Consumes EVALUATION_COMPLETED events via in-memory Spring events (monolith mode).
+     *
+     * @param event the in-memory generic domain event
+     */
+    @EventListener
+    public void onSpringEvaluationCompleted(GenericDomainEvent event) {
+        if (!EVALUATION_COMPLETED_TOPIC.equals(event.topic())) {
+            return;
+        }
+        log.info("Received Spring in-memory EVALUATION_COMPLETED event: key={}", event.key());
+        try {
+            Object rawPayload = event.payload();
+            String payload;
+            if (rawPayload instanceof String s) {
+                payload = s;
+            } else {
+                payload = objectMapper.writeValueAsString(rawPayload);
+            }
+            processEvaluationCompleted(payload, event.key());
+        } catch (Exception e) {
+            log.error("Failed to process Spring in-memory EVALUATION_COMPLETED event: {}", e.getMessage(), e);
+        }
+    }
+
+    /**
+     * Core processing logic for EVALUATION_COMPLETED events.
+     * Idempotent: if a result already exists for the candidate+exam, it is skipped.
+     *
+     * @param payload the JSON string payload
+     * @param key     the event key (optional)
+     */
+    public void processEvaluationCompleted(String payload, String key) {
         try {
             Map<String, Object> event = objectMapper.readValue(payload, new TypeReference<>() {});
             String eventType = (String) event.get("eventType");

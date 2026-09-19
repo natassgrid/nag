@@ -23,6 +23,7 @@ import com.examplatform.result.domain.Result;
 import com.examplatform.result.dto.CandidateScoreInput;
 import com.examplatform.result.repository.ResultRepository;
 import com.examplatform.result.service.ResultComputationService;
+import com.examplatform.shared.messaging.GenericDomainEvent;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -79,7 +80,7 @@ class EvaluationCompletedConsumerTest {
     }
 
     @Test
-    @DisplayName("SPEC-RS3-T1: Valid EVALUATION_COMPLETED event → result computed")
+    @DisplayName("SPEC-RS3-T1: Valid EVALUATION_COMPLETED event via Kafka → result computed")
     void validEvent_computesResult() throws Exception {
         String payload = objectMapper.writeValueAsString(Map.of(
                 "eventType", "EVALUATION_COMPLETED",
@@ -106,6 +107,76 @@ class EvaluationCompletedConsumerTest {
                 .thenReturn(List.of(mockResult));
 
         consumer.onEvaluationCompleted(payload, sessionId.toString());
+
+        verify(resultComputationService).computeResults(eq(examId), any(), anyBoolean(), eq("default"));
+    }
+
+    @Test
+    @DisplayName("SPEC-RS3-T1b: Valid EVALUATION_COMPLETED event via RabbitMQ → result computed")
+    void validRabbitEvent_computesResult() throws Exception {
+        Map<String, Object> eventMap = Map.of(
+                "eventType", "EVALUATION_COMPLETED",
+                "sessionId", sessionId.toString(),
+                "candidateId", candidateId.toString(),
+                "examId", examId.toString(),
+                "totalRawScore", 145.0,
+                "sectionScores", Map.of("Physics", 55.0),
+                "tenantId", "default",
+                "questionLevelScores", List.of()
+        );
+
+        Result mockResult = Result.builder()
+                .candidateId(candidateId)
+                .examId(examId)
+                .totalScore(BigDecimal.valueOf(145.0))
+                .digiLockerPushed(false)
+                .build();
+        mockResult.setTenantId("default");
+
+        when(resultRepository.findByCandidateIdAndExamIdAndTenantId(candidateId, examId, "default"))
+                .thenReturn(Optional.empty());
+        when(resultComputationService.computeResults(eq(examId), any(), anyBoolean(), eq("default")))
+                .thenReturn(List.of(mockResult));
+
+        consumer.onRabbitEvaluationCompleted(eventMap);
+
+        verify(resultComputationService).computeResults(eq(examId), any(), anyBoolean(), eq("default"));
+    }
+
+    @Test
+    @DisplayName("SPEC-RS3-T1c: Valid EVALUATION_COMPLETED event via Spring in-memory → result computed")
+    void validSpringEvent_computesResult() throws Exception {
+        Map<String, Object> eventMap = Map.of(
+                "eventType", "EVALUATION_COMPLETED",
+                "sessionId", sessionId.toString(),
+                "candidateId", candidateId.toString(),
+                "examId", examId.toString(),
+                "totalRawScore", 145.0,
+                "sectionScores", Map.of("Physics", 55.0),
+                "tenantId", "default",
+                "questionLevelScores", List.of()
+        );
+
+        GenericDomainEvent domainEvent = new GenericDomainEvent(
+                EvaluationCompletedConsumer.EVALUATION_COMPLETED_TOPIC,
+                sessionId.toString(),
+                eventMap
+        );
+
+        Result mockResult = Result.builder()
+                .candidateId(candidateId)
+                .examId(examId)
+                .totalScore(BigDecimal.valueOf(145.0))
+                .digiLockerPushed(false)
+                .build();
+        mockResult.setTenantId("default");
+
+        when(resultRepository.findByCandidateIdAndExamIdAndTenantId(candidateId, examId, "default"))
+                .thenReturn(Optional.empty());
+        when(resultComputationService.computeResults(eq(examId), any(), anyBoolean(), eq("default")))
+                .thenReturn(List.of(mockResult));
+
+        consumer.onSpringEvaluationCompleted(domainEvent);
 
         verify(resultComputationService).computeResults(eq(examId), any(), anyBoolean(), eq("default"));
     }

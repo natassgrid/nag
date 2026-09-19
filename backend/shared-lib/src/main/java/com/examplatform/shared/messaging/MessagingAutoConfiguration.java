@@ -20,7 +20,12 @@
 package com.examplatform.shared.messaging;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.springframework.amqp.core.Binding;
+import org.springframework.amqp.core.BindingBuilder;
+import org.springframework.amqp.core.Queue;
+import org.springframework.amqp.core.QueueBuilder;
 import org.springframework.amqp.core.TopicExchange;
+import org.springframework.amqp.rabbit.config.SimpleRabbitListenerContainerFactory;
 import org.springframework.amqp.rabbit.connection.ConnectionFactory;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.amqp.support.converter.Jackson2JsonMessageConverter;
@@ -53,6 +58,27 @@ public class MessagingAutoConfiguration {
         }
 
         @Bean
+        @ConditionalOnMissingBean(name = "examEventsDeadLetterExchange")
+        public TopicExchange examEventsDeadLetterExchange() {
+            return new TopicExchange(RabbitEventPublisher.DEAD_LETTER_EXCHANGE, true, false);
+        }
+
+        @Bean
+        @ConditionalOnMissingBean(name = "examEventsDeadLetterQueue")
+        public Queue examEventsDeadLetterQueue() {
+            return QueueBuilder.durable(RabbitEventPublisher.DEAD_LETTER_QUEUE).build();
+        }
+
+        @Bean
+        @ConditionalOnMissingBean(name = "examEventsDeadLetterBinding")
+        public Binding examEventsDeadLetterBinding() {
+            return BindingBuilder
+                    .bind(examEventsDeadLetterQueue())
+                    .to(examEventsDeadLetterExchange())
+                    .with("#");
+        }
+
+        @Bean
         @ConditionalOnMissingBean(MessageConverter.class)
         public MessageConverter jackson2JsonMessageConverter(ObjectMapper objectMapper) {
             return new Jackson2JsonMessageConverter(objectMapper);
@@ -64,6 +90,18 @@ public class MessagingAutoConfiguration {
             RabbitTemplate template = new RabbitTemplate(connectionFactory);
             template.setMessageConverter(messageConverter);
             return template;
+        }
+
+        @Bean
+        @ConditionalOnMissingBean(name = "rabbitListenerContainerFactory")
+        public SimpleRabbitListenerContainerFactory rabbitListenerContainerFactory(
+                ConnectionFactory connectionFactory,
+                MessageConverter messageConverter) {
+            SimpleRabbitListenerContainerFactory factory = new SimpleRabbitListenerContainerFactory();
+            factory.setConnectionFactory(connectionFactory);
+            factory.setMessageConverter(messageConverter);
+            factory.setDefaultRequeueRejected(false);
+            return factory;
         }
 
         @Bean
