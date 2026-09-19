@@ -68,6 +68,12 @@ public class QuestionResponse {
     /** Parsed options for MCQ/MSQ questions */
     private List<QuestionOption> options;
 
+    /** Optional passage FK if this question belongs to a comprehension group */
+    private UUID passageId;
+
+    /** 0-based order index within its passage group */
+    private Integer passageOrderIndex;
+
     /**
      * Warnings about similar questions detected during creation (similarity 0.85–0.92).
      * Null/empty when no similar questions were found or for non-creation responses.

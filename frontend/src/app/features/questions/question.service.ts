@@ -48,6 +48,8 @@ export interface QuestionResponse {
   state: string;
   authorId: string;
   createdAt: string;
+  passageId?: string;
+  passageOrderIndex?: number;
   options?: QuestionOptionDto[];
 }
 
@@ -67,6 +69,8 @@ export interface CreateQuestionRequest {
   answerKey?: string;
   explanation?: string;
   hasImages?: boolean;
+  passageId?: string;
+  passageOrderIndex?: number;
   options?: QuestionOptionDto[];
   references?: string;
   chapter?: string;

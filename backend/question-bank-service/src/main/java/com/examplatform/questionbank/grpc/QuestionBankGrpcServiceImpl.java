@@ -11,7 +11,9 @@
 
 package com.examplatform.questionbank.grpc;
 
+import com.examplatform.questionbank.domain.Passage;
 import com.examplatform.questionbank.domain.Question;
+import com.examplatform.questionbank.repository.PassageRepository;
 import com.examplatform.questionbank.repository.QuestionRepository;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -22,7 +24,10 @@ import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.Objects;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @Slf4j
 @Service
@@ -30,6 +35,7 @@ import java.util.UUID;
 public class QuestionBankGrpcServiceImpl extends QuestionBankGrpcServiceGrpc.QuestionBankGrpcServiceImplBase {
 
     private final QuestionRepository questionRepository;
+    private final PassageRepository passageRepository;
     private final ObjectMapper objectMapper;
 
     @Override
@@ -39,10 +45,13 @@ public class QuestionBankGrpcServiceImpl extends QuestionBankGrpcServiceGrpc.Que
 
         try {
             List<Question> questions = questionRepository.findByTenantId(request.getTenantId());
+            Map<UUID, Passage> passageMap = fetchPassagesForQuestions(questions);
+
             PaperQuestionsGrpcResponse.Builder builder = PaperQuestionsGrpcResponse.newBuilder();
 
             for (Question q : questions) {
-                builder.addQuestions(toGrpcQuestion(q));
+                Passage p = q.getPassageId() != null ? passageMap.get(q.getPassageId()) : null;
+                builder.addQuestions(toGrpcQuestion(q, p));
             }
 
             responseObserver.onNext(builder.build());
@@ -74,9 +83,12 @@ public class QuestionBankGrpcServiceImpl extends QuestionBankGrpcServiceGrpc.Que
                     ? questionRepository.findQuestionsByIdsIn(uuids, request.getTenantId())
                     : List.of();
 
+            Map<UUID, Passage> passageMap = fetchPassagesForQuestions(questions);
+
             BatchFindQuestionsGrpcResponse.Builder builder = BatchFindQuestionsGrpcResponse.newBuilder();
             for (Question q : questions) {
-                builder.addQuestions(toGrpcQuestion(q));
+                Passage p = q.getPassageId() != null ? passageMap.get(q.getPassageId()) : null;
+                builder.addQuestions(toGrpcQuestion(q, p));
             }
 
             responseObserver.onNext(builder.build());
@@ -90,7 +102,22 @@ public class QuestionBankGrpcServiceImpl extends QuestionBankGrpcServiceGrpc.Que
         }
     }
 
-    private QuestionSummaryGrpc toGrpcQuestion(Question q) {
+    private Map<UUID, Passage> fetchPassagesForQuestions(List<Question> questions) {
+        List<UUID> passageIds = questions.stream()
+                .map(Question::getPassageId)
+                .filter(Objects::nonNull)
+                .distinct()
+                .toList();
+
+        if (passageIds.isEmpty()) {
+            return Map.of();
+        }
+
+        List<Passage> passages = passageRepository.findAllById(passageIds);
+        return passages.stream().collect(Collectors.toMap(Passage::getId, p -> p));
+    }
+
+    private QuestionSummaryGrpc toGrpcQuestion(Question q, Passage passage) {
         QuestionSummaryGrpc.Builder b = QuestionSummaryGrpc.newBuilder();
         if (q.getId() != null) b.setId(q.getId().toString());
         if (q.getContent() != null) b.setContent(q.getContent());
@@ -103,6 +130,16 @@ public class QuestionBankGrpcServiceImpl extends QuestionBankGrpcServiceGrpc.Que
         if (q.getSubjectId() != null) b.setSubjectId(q.getSubjectId().toString());
         if (q.getAnswerKey() != null) b.setAnswerKey(q.getAnswerKey());
         if (q.getExplanation() != null) b.setExplanation(q.getExplanation());
+
+        if (q.getPassageId() != null) {
+            b.setPassageId(q.getPassageId().toString());
+            if (passage != null && passage.getContent() != null) {
+                b.setPassageContent(passage.getContent());
+            }
+            if (q.getPassageOrderIndex() != null) {
+                b.setPassageOrderIndex(q.getPassageOrderIndex());
+            }
+        }
 
         if (q.getOptions() != null) {
             try {

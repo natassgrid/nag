@@ -41,6 +41,9 @@ message QuestionSummaryGrpc {
   string options_json = 10;
   string answer_key = 11;
   string explanation = 12;
+  string passage_id = 13;
+  string passage_content = 14;
+  int32 passage_order_index = 15;
 }
 
 message PaperQuestionsGrpcResponse {

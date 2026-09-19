@@ -14,7 +14,8 @@
  * GNU Affero General Public License for more details.
  *
  * You should have received a copy of the GNU Affero General Public License
- * along with this program. If not, see <https://www.gnu.org/licenses/>.\n */
+ * along with this program. If not, see <https://www.gnu.org/licenses/>.
+ */
 
 package com.examplatform.papergenerator.dto;
 
@@ -28,8 +29,8 @@ import java.util.UUID;
 
 /**
  * Summary DTO representing a question retrieved from the Question Bank.
- * Used during paper assembly to evaluate reuse policies and compute
- * difficulty scores.
+ * Used during paper assembly to evaluate reuse policies, compute
+ * difficulty scores, and preserve comprehension passage groupings.
  *
  * Validates: Requirements 8.3, 8.4
  */
@@ -65,4 +66,14 @@ public class QuestionSummary {
      * Question text content or snippet for paper summary review.
      */
     private String content;
+
+    /**
+     * UUID of comprehension passage if this question belongs to a stimulus group.
+     */
+    private UUID passageId;
+
+    /**
+     * Order index of this question within its passage.
+     */
+    private Integer passageOrderIndex;
 }

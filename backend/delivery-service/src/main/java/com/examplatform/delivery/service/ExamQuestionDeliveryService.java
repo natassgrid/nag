@@ -50,6 +50,7 @@ import java.util.UUID;
  * Enriches questions with approved/published multi-language translations (e.g. Hindi).
  * Supports option randomization per candidate session across English and regional translations.
  * Preserves question and option images / SVGs across translations and randomizations.
+ * Supports Comprehension / Case Study passages with contiguous sub-question delivery.
  */
 @Slf4j
 @Service
@@ -130,8 +131,7 @@ public class ExamQuestionDeliveryService {
 
     /**
      * Randomizes option order for each question deterministically using a session seed.
-     * Preserves originalIndex, option ID, imageUrl, and imageAltText while updating the display index and correctOptionIndex.
-     * Also synchronizes the option ordering and image preservation in any attached regional language translations.
+     * Preserves originalIndex, option ID, imageUrl, imageAltText, and passage grouping info.
      *
      * @param questions original list of questions
      * @param seedId    UUID used as randomization seed (e.g. sessionId or candidateId)
@@ -250,6 +250,10 @@ public class ExamQuestionDeliveryService {
                     .topic(q.getTopic())
                     .correctOptionIndex(newCorrectOptionIndex != null ? newCorrectOptionIndex : q.getCorrectOptionIndex())
                     .explanation(q.getExplanation())
+                    .questionType(q.getQuestionType())
+                    .passageId(q.getPassageId())
+                    .passageContent(q.getPassageContent())
+                    .passageOrderIndex(q.getPassageOrderIndex())
                     .translations(randomizedTranslations)
                     .build());
         }
@@ -324,30 +328,21 @@ public class ExamQuestionDeliveryService {
                                 : qDto.getImageAltText();
 
                         List<QuestionOptionDeliveryDto> transOptions = new ArrayList<>();
+                        JsonNode optNode = node.path("options");
+                        if (optNode.isArray() && qDto.getOptions() != null) {
+                            for (int i = 0; i < optNode.size(); i++) {
+                                JsonNode o = optNode.get(i);
+                                String optText = o.path("text").asText("");
+                                String optId = o.has("id") ? o.path("id").asText("") : String.valueOf((char) ('A' + i));
+                                String optImg = o.has("imageUrl") && !o.get("imageUrl").isNull()
+                                        ? o.get("imageUrl").asText(null) : null;
+                                String optAlt = o.has("imageAltText") && !o.get("imageAltText").isNull()
+                                        ? o.get("imageAltText").asText(null) : null;
 
-                        JsonNode optionsNode = node.path("options");
-                        if (optionsNode.isArray()) {
-                            for (int i = 0; i < optionsNode.size(); i++) {
-                                JsonNode optNode = optionsNode.get(i);
-                                String optText = optNode.path("text").asText("");
-                                String optId = optNode.path("id").asText(String.valueOf((char) ('A' + i)));
-                                String optImg = optNode.has("imageUrl") && !optNode.get("imageUrl").isNull()
-                                        ? optNode.get("imageUrl").asText(null)
-                                        : null;
-                                String optAlt = optNode.has("imageAltText") && !optNode.get("imageAltText").isNull()
-                                        ? optNode.get("imageAltText").asText(null)
-                                        : null;
-
-                                // Fallback to base question option if translation payload doesn't specify image
-                                if ((optImg == null || optImg.isBlank()) && qDto.getOptions() != null) {
-                                    for (QuestionOptionDeliveryDto baseOpt : qDto.getOptions()) {
-                                        if (optId.equalsIgnoreCase(baseOpt.getId())) {
-                                            optImg = baseOpt.getImageUrl();
-                                            if (optAlt == null || optAlt.isBlank()) {
-                                                optAlt = baseOpt.getImageAltText();
-                                            }
-                                            break;
-                                        }
+                                if (optImg == null && i < qDto.getOptions().size()) {
+                                    optImg = qDto.getOptions().get(i).getImageUrl();
+                                    if (optAlt == null) {
+                                        optAlt = qDto.getOptions().get(i).getImageAltText();
                                     }
                                 }
 
@@ -419,6 +414,15 @@ public class ExamQuestionDeliveryService {
             String imageAltText = qNode.has("imageAltText") && !qNode.get("imageAltText").isNull() ? qNode.get("imageAltText").asText(null) : null;
             boolean hasImages = qNode.has("hasImages") ? qNode.get("hasImages").asBoolean() : false;
 
+            String questionType = qNode.has("questionType") ? qNode.get("questionType").asText() :
+                    (qNode.has("question_type") ? qNode.get("question_type").asText() : "SINGLE_MCQ");
+            String passageId = qNode.has("passageId") ? qNode.get("passageId").asText() :
+                    (qNode.has("passage_id") ? qNode.get("passage_id").asText() : null);
+            String passageContent = qNode.has("passageContent") ? qNode.get("passageContent").asText() :
+                    (qNode.has("passage_content") ? qNode.get("passage_content").asText() : null);
+            Integer passageOrderIndex = qNode.has("passageOrderIndex") ? qNode.get("passageOrderIndex").asInt() :
+                    (qNode.has("passage_order_index") ? qNode.get("passage_order_index").asInt() : null);
+
             List<QuestionOptionDeliveryDto> options = new ArrayList<>();
             Integer correctOptionIndex = null;
             JsonNode optionsNode = qNode.get("options");
@@ -483,6 +487,10 @@ public class ExamQuestionDeliveryService {
                     .topic(topic)
                     .correctOptionIndex(correctOptionIndex)
                     .explanation(explanation)
+                    .questionType(questionType)
+                    .passageId(passageId)
+                    .passageContent(passageContent)
+                    .passageOrderIndex(passageOrderIndex)
                     .build();
         } catch (Exception e) {
             log.warn("Error parsing individual question node: {}", e.getMessage());
@@ -555,8 +563,10 @@ public class ExamQuestionDeliveryService {
         String keyword = "%" + (subject != null && !subject.isBlank() ? subject.trim() : "") + "%";
         String sql = """
             SELECT q.id, q.subject, q.topic, q.subtopic, q.difficulty, q.cognitive_level, q.question_type,
-                   q.content, q.options, q.answer_key, q.explanation, q.has_images
+                   q.content, q.options, q.answer_key, q.explanation, q.has_images,
+                   q.passage_id, p.content AS passage_content, q.passage_order_index
             FROM question_service.question q
+            LEFT JOIN question_service.passage p ON q.passage_id = p.id
             LEFT JOIN question_service.translation t ON q.id = t.question_id AND t.language_code = 'hi' AND t.status IN ('PUBLISHED', 'APPROVED')
             WHERE (q.tenant_id = ? OR q.tenant_id = 'default')
               AND q.state = 'APPROVED'
@@ -584,8 +594,10 @@ public class ExamQuestionDeliveryService {
         if (filtered.size() < limit) {
             String fallbackSql = """
                 SELECT q.id, q.subject, q.topic, q.subtopic, q.difficulty, q.cognitive_level, q.question_type,
-                       q.content, q.options, q.answer_key, q.explanation, q.has_images
+                       q.content, q.options, q.answer_key, q.explanation, q.has_images,
+                       q.passage_id, p.content AS passage_content, q.passage_order_index
                 FROM question_service.question q
+                LEFT JOIN question_service.passage p ON q.passage_id = p.id
                 LEFT JOIN question_service.translation t ON q.id = t.question_id AND t.language_code = 'hi' AND t.status IN ('PUBLISHED', 'APPROVED')
                 WHERE (q.tenant_id = ? OR q.tenant_id = 'default')
                   AND q.state = 'APPROVED'
@@ -613,8 +625,10 @@ public class ExamQuestionDeliveryService {
     private List<QuestionDeliveryDto> fetchDefaultApprovedQuestions(String tenantId) {
         String sql = """
             SELECT q.id, q.subject, q.topic, q.subtopic, q.difficulty, q.cognitive_level, q.question_type,
-                   q.content, q.options, q.answer_key, q.explanation, q.has_images
+                   q.content, q.options, q.answer_key, q.explanation, q.has_images,
+                   q.passage_id, p.content AS passage_content, q.passage_order_index
             FROM question_service.question q
+            LEFT JOIN question_service.passage p ON q.passage_id = p.id
             LEFT JOIN question_service.translation t ON q.id = t.question_id AND t.language_code = 'hi' AND t.status IN ('PUBLISHED', 'APPROVED')
             WHERE (q.tenant_id = ? OR q.tenant_id = 'default')
               AND q.state = 'APPROVED'
@@ -636,10 +650,16 @@ public class ExamQuestionDeliveryService {
                 String subject = rs.getString("subject");
                 String topic = rs.getString("topic");
                 String content = rs.getString("content");
+                String questionType = rs.getString("question_type");
                 String optionsJson = rs.getString("options");
                 String answerKey = rs.getString("answer_key");
                 String explanation = rs.getString("explanation");
                 boolean hasImages = rs.getBoolean("has_images");
+
+                UUID passageIdObj = rs.getObject("passage_id", UUID.class);
+                String passageId = passageIdObj != null ? passageIdObj.toString() : null;
+                String passageContent = rs.getString("passage_content");
+                Integer passageOrderIndex = (Integer) rs.getObject("passage_order_index");
 
                 List<QuestionOptionDeliveryDto> options = new ArrayList<>();
                 Integer correctOptionIndex = null;
@@ -705,6 +725,10 @@ public class ExamQuestionDeliveryService {
                         .topic(topic != null ? topic : "General")
                         .correctOptionIndex(correctOptionIndex)
                         .explanation(explanation)
+                        .questionType(questionType != null ? questionType : "SINGLE_MCQ")
+                        .passageId(passageId)
+                        .passageContent(passageContent)
+                        .passageOrderIndex(passageOrderIndex)
                         .build();
             }, params);
         } catch (Exception e) {

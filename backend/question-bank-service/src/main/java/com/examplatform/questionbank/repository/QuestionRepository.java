@@ -57,6 +57,12 @@ public interface QuestionRepository extends JpaRepository<Question, UUID>, JpaSp
 
     Page<Question> findBySubjectAndTenantId(String subject, String tenantId, Pageable pageable);
 
+    List<Question> findByPassageIdOrderByPassageOrderIndexAsc(UUID passageId);
+
+    List<Question> findByPassageIdAndTenantIdOrderByPassageOrderIndexAsc(UUID passageId, String tenantId);
+
+    List<Question> findByPassageIdIn(List<UUID> passageIds);
+
     @Query("""
         SELECT q FROM Question q
         WHERE (q.tenantId = :tenantId OR q.tenantId = 'default' OR :tenantId IS NULL)

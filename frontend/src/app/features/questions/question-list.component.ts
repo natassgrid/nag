@@ -29,6 +29,8 @@ import { QuestionService, QuestionResponse } from './question.service';
 import { QuestionFormDialogComponent } from './question-form-dialog.component';
 import { AiGenerateDialogComponent } from './ai-generate-dialog/ai-generate-dialog.component';
 import { QuestionTranslationDialogComponent } from './translation/question-translation-dialog.component';
+import { PassageFormDialogComponent } from './passage/passage-form-dialog.component';
+import { PassageService, PassageResponse } from './passage.service';
 import { SubjectTopicService, Subject } from './subject-topic.service';
 import {
   PaginatedTableComponent,
@@ -64,7 +66,8 @@ const DEFAULT_SUBJECT_OPTIONS = [
     PageHeaderComponent,
     QuestionFormDialogComponent,
     AiGenerateDialogComponent,
-    QuestionTranslationDialogComponent
+    QuestionTranslationDialogComponent,
+    PassageFormDialogComponent
   ],
   templateUrl: './question-list.component.html',
   changeDetection: ChangeDetectionStrategy.Eager,
@@ -74,12 +77,15 @@ export class QuestionListComponent implements OnInit {
 
   @ViewChild('paginatedTable') paginatedTable!: PaginatedTableComponent<QuestionResponse>;
   @ViewChild('visualsTmpl', { static: true }) visualsTmpl!: any;
+  @ViewChild('typeTmpl', { static: true }) typeTmpl!: any;
 
   drawerOpen = false;
   editingQuestion?: QuestionResponse;
   aiDrawerOpen = false;
   translationDrawerOpen = false;
   translatingQuestion?: QuestionResponse;
+  passageDrawerOpen = false;
+  editingPassage?: PassageResponse;
 
   filters: Record<string, any> = {};
 
@@ -160,6 +166,7 @@ export class QuestionListComponent implements OnInit {
 
   constructor(
     private questionService: QuestionService,
+    private passageService: PassageService,
     private snackBar: MatSnackBar,
     private subjectTopicService: SubjectTopicService,
     private cdr: ChangeDetectorRef
@@ -177,7 +184,7 @@ export class QuestionListComponent implements OnInit {
         chipClass: (val) => 'chip-' + (val || '').toLowerCase(),
         sortable: true
       },
-      { key: 'questionType', header: 'Type', sortable: true },
+      { key: 'questionType', header: 'Type', type: 'custom', template: this.typeTmpl, sortable: true },
       {
         key: 'state',
         header: 'State',
@@ -238,6 +245,19 @@ export class QuestionListComponent implements OnInit {
     this.drawerOpen = true;
   }
 
+  openCreatePassageDrawer(): void {
+    this.editingPassage = undefined;
+    this.passageDrawerOpen = true;
+  }
+
+  onPassageDrawerClose(saved: boolean): void {
+    this.passageDrawerOpen = false;
+    this.editingPassage = undefined;
+    if (saved) {
+      this.reload();
+    }
+  }
+
   openAiGenerateDrawer(): void {
     this.aiDrawerOpen = true;
   }
@@ -250,6 +270,20 @@ export class QuestionListComponent implements OnInit {
   }
 
   openEditDrawer(question: QuestionResponse): void {
+    if (question.passageId) {
+      this.passageService.getPassage(question.passageId).subscribe({
+        next: (passage) => {
+          this.editingPassage = passage;
+          this.passageDrawerOpen = true;
+          this.cdr.markForCheck();
+        },
+        error: (err) => {
+          console.error('Failed to load passage for question:', err);
+          this.snackBar.open('Failed to load passage for question', 'Close', { duration: 3000 });
+        }
+      });
+      return;
+    }
     this.editingQuestion = question;
     this.drawerOpen = true;
   }
@@ -321,38 +355,34 @@ export class QuestionListComponent implements OnInit {
         a.click();
         document.body.removeChild(a);
         window.URL.revokeObjectURL(url);
-        this.snackBar.open('Export downloaded successfully', 'Close', { duration: 3000 });
+        this.snackBar.open(`Exported questions (${format.toUpperCase()}) successfully`, 'Close', { duration: 3000 });
       },
-      error: (err: any) => {
+      error: (err) => {
         this.exporting = false;
-        const msg = err.error?.message || 'Failed to export questions';
+        const msg = err.error?.message || 'Export failed';
         this.snackBar.open(msg, 'Close', { duration: 4000 });
       }
     });
   }
 
-  /** Triggers the bulk question import from a selected ZIP file. */
   onImportFileSelected(event: Event): void {
     const input = event.target as HTMLInputElement;
     if (!input.files || input.files.length === 0) return;
-
     const file = input.files[0];
-    input.value = ''; // reset so the same file can be chosen again if needed
-
     this.importing = true;
-    this.snackBar.open(`Importing ${file.name}…`, '', { duration: 0 });
-
     this.questionService.importQuestions(file).subscribe({
       next: (res) => {
         this.importing = false;
-        const message = `Import complete: ${res.successfulCount} created/updated, ${res.failedCount} failed, ${res.duplicateCount} duplicates skipped.`;
-        this.snackBar.open(message, 'Close', { duration: 6000 });
+        input.value = '';
+        const msg = `Import complete: ${res.successfulCount} imported, ${res.duplicateCount} duplicates, ${res.failedCount} failed`;
+        this.snackBar.open(msg, 'Close', { duration: 5000 });
         this.reload();
       },
-      error: (err: any) => {
+      error: (err) => {
         this.importing = false;
-        const msg = err.error?.message || 'Import failed. Ensure the ZIP contains valid batch files.';
-        this.snackBar.open(msg, 'Close', { duration: 5000 });
+        input.value = '';
+        const msg = err.error?.message || 'Import failed';
+        this.snackBar.open(msg, 'Close', { duration: 4000 });
       }
     });
   }

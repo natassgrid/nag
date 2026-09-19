@@ -21,6 +21,7 @@ package com.examplatform.papergenerator.service;
 
 import com.examplatform.papergenerator.domain.Paper;
 import com.examplatform.papergenerator.dto.PaperDocument;
+import com.examplatform.papergenerator.dto.QuestionGroup;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -30,6 +31,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -37,7 +40,7 @@ import java.util.UUID;
 /**
  * Service for serializing and deserializing Paper entities.
  * Serializes to JSON with schema versioning; stores only question identifiers
- * (no question content) for security.
+ * (no question content) for security while preserving comprehension question groups.
  *
  * Validates: Requirements 8.7, 28.1, 28.2, 28.3, 28.5
  */
@@ -62,12 +65,14 @@ public class PaperSerializer {
     public String format(Paper paper) {
         try {
             List<UUID> questionIds = extractQuestionIds(paper.getPaperDefinitionJson());
+            List<QuestionGroup> questionGroups = extractQuestionGroups(paper.getPaperDefinitionJson());
 
             PaperDocument document = PaperDocument.builder()
                     .schemaVersion(CURRENT_SCHEMA_VERSION)
                     .examId(paper.getExamId())
                     .shiftId(paper.getShiftId())
                     .questionIds(questionIds)
+                    .questionGroups(questionGroups != null ? questionGroups : new ArrayList<>())
                     .difficultyScore(paper.getDifficultyScore())
                     .generatedAt(paper.getCreatedAt() != null ? paper.getCreatedAt() : Instant.now())
                     .build();
@@ -93,11 +98,16 @@ public class PaperSerializer {
 
             validateSchemaVersion(document.getSchemaVersion());
 
+            Map<String, Object> defMap = new HashMap<>();
+            defMap.put("questionIds", document.getQuestionIds());
+            if (document.getQuestionGroups() != null && !document.getQuestionGroups().isEmpty()) {
+                defMap.put("questionGroups", document.getQuestionGroups());
+            }
+
             Paper paper = Paper.builder()
                     .examId(document.getExamId())
                     .shiftId(document.getShiftId())
-                    .paperDefinitionJson(objectMapper.writeValueAsString(
-                            Map.of("questionIds", document.getQuestionIds())))
+                    .paperDefinitionJson(objectMapper.writeValueAsString(defMap))
                     .difficultyScore(document.getDifficultyScore())
                     .status("DRAFT")
                     .build();
@@ -209,6 +219,24 @@ public class PaperSerializer {
             return List.of();
         } catch (JsonProcessingException e) {
             log.warn("Could not extract question IDs from paper definition: {}", e.getMessage());
+            return List.of();
+        }
+    }
+
+    private List<QuestionGroup> extractQuestionGroups(String paperDefinitionJson) {
+        if (paperDefinitionJson == null || paperDefinitionJson.isBlank()) {
+            return List.of();
+        }
+        try {
+            JsonNode root = objectMapper.readTree(paperDefinitionJson);
+            JsonNode groupsNode = root.path("questionGroups");
+            if (groupsNode.isArray() && !groupsNode.isEmpty()) {
+                return objectMapper.readValue(groupsNode.toString(),
+                        new TypeReference<List<QuestionGroup>>() {});
+            }
+            return List.of();
+        } catch (Exception e) {
+            log.warn("Could not extract question groups from paper definition: {}", e.getMessage());
             return List.of();
         }
     }

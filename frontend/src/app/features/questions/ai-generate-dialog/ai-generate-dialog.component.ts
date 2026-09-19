@@ -227,7 +227,7 @@ export class AiGenerateDialogComponent implements OnInit, OnChanges, OnDestroy {
     this.subtopics = [];
     this.form.patchValue({ subtopic: '' });
     if (match && this.selectedSubject) {
-      this.subjectTopicService.getSubtopics(match.id, this.selectedSubject.id).subscribe(subtopics => {
+      this.subjectTopicService.getSubtopics(this.selectedSubject.id, match.id).subscribe(subtopics => {
         this.subtopics = subtopics;
       });
     }
