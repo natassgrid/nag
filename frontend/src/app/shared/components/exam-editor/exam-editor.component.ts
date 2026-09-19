@@ -45,7 +45,9 @@ import {
   BlockType,
   LIST_TYPES,
   VOID_TYPES,
-  TextAlignment
+  TextAlignment,
+  HIGHLIGHT_COLORS,
+  TEXT_COLORS
 } from './models';
 import { PluginRegistry } from './plugins/plugin-registry';
 import { PluginContext, EditorSelection } from './plugins/editor-plugin';
@@ -91,20 +93,6 @@ function matchHotkey(hotkey: string, event: KeyboardEvent): boolean {
  * Replaces the legacy Quill-based ExamEditorComponent.
  * Implements Angular's ControlValueAccessor so it works with Reactive Forms
  * and with plain [value]/(valueChange) bindings.
- *
- * Usage (reactive form):
- * ```html
- * <exam-editor formControlName="content" mode="full"></exam-editor>
- * ```
- *
- * Usage (two-way binding):
- * ```html
- * <exam-editor [value]="markdownStr" (valueChange)="onChanged($event)" mode="inline"></exam-editor>
- * ```
- *
- * The value flowing in/out is always a **Markdown string** (with $$...$$ for math
- * and <smiles>...</smiles> for chemical structures) - the same format used by
- * the backend API. The ExamDocument JSON lives only inside the component.
  */
 @Component({
   selector: 'exam-editor',
@@ -147,6 +135,7 @@ export class ExamEditorComponent implements ControlValueAccessor, OnInit, OnDest
       this.undoStack = [];
       this.redoStack = [];
       this.cdr.markForCheck();
+      this.contentComponent?.renderDocument();
     }
   }
 
@@ -211,6 +200,7 @@ export class ExamEditorComponent implements ControlValueAccessor, OnInit, OnDest
     this.undoStack = [];
     this.redoStack = [];
     this.cdr.markForCheck();
+    this.contentComponent?.renderDocument();
   }
 
   registerOnChange(fn: any): void {
@@ -257,7 +247,6 @@ export class ExamEditorComponent implements ControlValueAccessor, OnInit, OnDest
     if (!data) return;
     const nodes = sanitizeClipboardData(data);
     if (!nodes || nodes.length === 0) return;
-    // Insert pasted nodes after current cursor position
     this.insertNodes(nodes);
   }
 
@@ -358,8 +347,6 @@ export class ExamEditorComponent implements ControlValueAccessor, OnInit, OnDest
       openMathInput: () => this.openMathInput(),
       openSmilesInput: () => this.openSmilesInput(),
       openAssetPicker: (type) => {
-        // Emit to parent via a custom event - parent handles the dialog
-        // (keeps the editor decoupled from AssetPickerDialogComponent)
         (this as any).assetPickerRequest?.emit(type);
       }
     };
@@ -396,11 +383,7 @@ export class ExamEditorComponent implements ControlValueAccessor, OnInit, OnDest
   // ─── Document Manipulation Helpers ───
 
   private insertNodes(nodes: ExamElement[]): void {
-    // For now: append to the end of the document (before the last empty para)
-    // A full Slate-like cursor-aware insertion would require deeper selection tracking;
-    // this pragmatic approach works for the exam editor use case.
     const newDoc = [...this.document];
-    // Remove a trailing empty paragraph before inserting, add it back after
     const last = newDoc[newDoc.length - 1];
     const hasTrailingEmpty = last?.type === 'paragraph' &&
       last.children.length === 1 && (last.children[0] as ExamText).text === '';
@@ -412,11 +395,6 @@ export class ExamEditorComponent implements ControlValueAccessor, OnInit, OnDest
   }
 
   private toggleMark(mark: MarkType, value?: string | boolean): void {
-    // If a text range is selected in the DOM, execute native browser formatting command
-    const sel = window.getSelection();
-    const hasDomSelection = sel && sel.rangeCount > 0 && !sel.isCollapsed &&
-      this.contentComponent?.editorArea?.nativeElement.contains(sel.anchorNode);
-
     const execCmdMap: Partial<Record<MarkType, string>> = {
       bold: 'bold',
       italic: 'italic',
@@ -425,12 +403,28 @@ export class ExamEditorComponent implements ControlValueAccessor, OnInit, OnDest
       subscript: 'subscript'
     };
 
-    if (hasDomSelection && execCmdMap[mark]) {
-      this.contentComponent?.execFormatCommand(execCmdMap[mark]!);
+    if (execCmdMap[mark] && this.contentComponent) {
+      this.contentComponent.execFormatCommand(execCmdMap[mark]!);
       return;
     }
 
-    // Otherwise (or for custom marks like highlight/color): toggle mark on AST document
+    if (mark === 'color' && typeof value === 'string' && this.contentComponent) {
+      const col = TEXT_COLORS.find(c => c.key === value);
+      if (col) {
+        this.contentComponent.execFormatCommand('foreColor', col.hex);
+        return;
+      }
+    }
+
+    if (mark === 'highlight' && typeof value === 'string' && this.contentComponent) {
+      const hl = HIGHLIGHT_COLORS.find(c => c.key === value);
+      if (hl) {
+        this.contentComponent.execFormatCommand('hiliteColor', hl.hex);
+        return;
+      }
+    }
+
+    // Fallback: AST toggle
     const isActive = this.isMarkActive(mark);
     const newDoc = this.applyMarkToDocument(this.document, mark, isActive ? undefined : (value ?? true));
     this.onDocumentChange(newDoc);
@@ -462,6 +456,13 @@ export class ExamEditorComponent implements ControlValueAccessor, OnInit, OnDest
   }
 
   private isMarkActive(mark: MarkType): boolean {
+    try {
+      if (document.queryCommandState(mark)) {
+        return true;
+      }
+    } catch {
+      // ignore
+    }
     const firstPara = this.document.find(el => el.type === 'paragraph');
     if (!firstPara || !firstPara.children.length) return false;
     const firstText = firstPara.children[0] as ExamText;
@@ -474,6 +475,28 @@ export class ExamEditorComponent implements ControlValueAccessor, OnInit, OnDest
   }
 
   private toggleBlock(type: BlockType): void {
+    if (this.contentComponent) {
+      if (type === 'numbered-list') {
+        this.contentComponent.execFormatCommand('insertOrderedList');
+        return;
+      }
+      if (type === 'bulleted-list') {
+        this.contentComponent.execFormatCommand('insertUnorderedList');
+        return;
+      }
+      const tagMap: Partial<Record<BlockType, string>> = {
+        'heading-one': '<h1>',
+        'heading-two': '<h2>',
+        'heading-three': '<h3>',
+        'paragraph': '<p>'
+      };
+      if (tagMap[type]) {
+        this.contentComponent.execFormatCommand('formatBlock', tagMap[type]);
+        return;
+      }
+    }
+
+    // Fallback: AST toggle
     const current = this.getActiveBlockType();
     const newType = current === type ? 'paragraph' : type;
     const newDoc = this.document.map(el => {
@@ -485,6 +508,19 @@ export class ExamEditorComponent implements ControlValueAccessor, OnInit, OnDest
   }
 
   private setAlignment(align: TextAlignment): void {
+    if (this.contentComponent) {
+      const alignCmdMap: Record<TextAlignment, string> = {
+        left: 'justifyLeft',
+        center: 'justifyCenter',
+        right: 'justifyRight',
+        justify: 'justifyFull'
+      };
+      if (alignCmdMap[align]) {
+        this.contentComponent.execFormatCommand(alignCmdMap[align]);
+        return;
+      }
+    }
+
     const newDoc = this.document.map(el => ({ ...el, align } as ExamElement)) as ExamDocument;
     this.onDocumentChange(newDoc);
     this.contentComponent?.renderDocument();
@@ -495,6 +531,15 @@ export class ExamEditorComponent implements ControlValueAccessor, OnInit, OnDest
   }
 
   private changeIndent(delta: number): void {
+    if (this.contentComponent) {
+      if (delta > 0) {
+        this.contentComponent.execFormatCommand('indent');
+      } else {
+        this.contentComponent.execFormatCommand('outdent');
+      }
+      return;
+    }
+
     const current = this.getIndentLevel();
     const next = Math.max(0, Math.min(8, current + delta));
     const newDoc = this.document.map(el => ({ ...el, indent: next } as ExamElement)) as ExamDocument;

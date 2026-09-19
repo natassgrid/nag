@@ -76,12 +76,18 @@ export class EditorContentComponent implements AfterViewInit, OnChanges, OnDestr
 
   private isRendering = false;
   private isInternalChange = false;
+  private savedRange: Range | null = null;
   private selectionChangeHandler = () => this.onSelectionChange();
 
   constructor(private assetService: EditorAssetService, private ngZone: NgZone) {}
 
   ngAfterViewInit(): void {
     this.renderDocument();
+    try {
+      document.execCommand('defaultParagraphSeparator', false, 'p');
+    } catch {
+      // ignore
+    }
     // Listen for selection changes at document level for reliable tracking
     document.addEventListener('selectionchange', this.selectionChangeHandler);
   }
@@ -93,7 +99,7 @@ export class EditorContentComponent implements AfterViewInit, OnChanges, OnDestr
   ngOnChanges(changes: SimpleChanges): void {
     if (changes['document'] && !changes['document'].firstChange) {
       if (this.isInternalChange) {
-        // Change originated from user input - DOM is already correct, skip re-render
+        // Change originated from user input or execCommand - DOM is already correct, skip re-render
         this.isInternalChange = false;
         return;
       }
@@ -151,6 +157,8 @@ export class EditorContentComponent implements AfterViewInit, OnChanges, OnDestr
       return;
     }
 
+    this.savedRange = range.cloneRange();
+
     const anchorPath = this.getNodePath(range.startContainer, editorEl);
     const focusPath = this.getNodePath(range.endContainer, editorEl);
 
@@ -173,7 +181,22 @@ export class EditorContentComponent implements AfterViewInit, OnChanges, OnDestr
     const editorEl = this.editorArea?.nativeElement;
     if (!editorEl) return false;
 
-    editorEl.focus();
+    try {
+      document.execCommand('styleWithCSS', false, 'false');
+    } catch {
+      // ignore
+    }
+
+    const sel = window.getSelection();
+    const isInside = sel && sel.rangeCount > 0 && editorEl.contains(sel.getRangeAt(0).commonAncestorContainer);
+
+    if (!isInside && this.savedRange) {
+      sel?.removeAllRanges();
+      sel?.addRange(this.savedRange);
+    } else if (!isInside) {
+      editorEl.focus();
+    }
+
     const success = document.execCommand(cmd, false, value);
     this.onInput(new Event('input'));
     this.trackSelection();
@@ -482,12 +505,42 @@ export class EditorContentComponent implements AfterViewInit, OnChanges, OnDestr
       return [{ text: `\x00smiles\x00${smiles}\x00` }];
     }
 
+    // Check HTML tag formatting
     if (tag === 'strong' || tag === 'b') newMarks.bold = true;
     if (tag === 'em' || tag === 'i') newMarks.italic = true;
     if (tag === 'u') newMarks.underline = true;
     if (tag === 'sup') newMarks.superscript = true;
     if (tag === 'sub') newMarks.subscript = true;
     if (tag === 'br') return [{ text: '\n', ...marks }];
+
+    // Check CSS styles for formatting (Chrome execCommand with styles or spans)
+    const fw = el.style.fontWeight;
+    if (fw === 'bold' || fw === '700' || fw === 'bolder' || parseInt(fw, 10) >= 600) {
+      newMarks.bold = true;
+    } else if (fw === 'normal' || fw === '400') {
+      delete newMarks.bold;
+    }
+
+    const fs = el.style.fontStyle;
+    if (fs === 'italic' || fs === 'oblique') {
+      newMarks.italic = true;
+    } else if (fs === 'normal') {
+      delete newMarks.italic;
+    }
+
+    const td = el.style.textDecoration || el.style.textDecorationLine;
+    if (td && td.includes('underline')) {
+      newMarks.underline = true;
+    } else if (td && td.includes('none')) {
+      delete newMarks.underline;
+    }
+
+    const va = el.style.verticalAlign;
+    if (va === 'super') {
+      newMarks.superscript = true;
+    } else if (va === 'sub') {
+      newMarks.subscript = true;
+    }
 
     // Check inline styling for highlight/color
     if (el.style.backgroundColor) {
