@@ -62,6 +62,39 @@ CREATE INDEX idx_subtopic_tenant_id ON question_service.subtopic(tenant_id);
 CREATE INDEX idx_subtopic_topic_id ON question_service.subtopic(topic_id);
 
 -- ============================================================
+-- Table: passage (Comprehension Passages / Case Studies - Issue #135)
+-- ============================================================
+CREATE TABLE IF NOT EXISTS question_service.passage (
+    id                  UUID PRIMARY KEY,
+    tenant_id           VARCHAR(255) NOT NULL,
+    title               VARCHAR(500),
+    content             TEXT,
+    content_format      VARCHAR(20) NOT NULL DEFAULT 'MIXED',
+    subject_id          BIGINT NOT NULL REFERENCES question_service.subject(id),
+    topic_id            BIGINT REFERENCES question_service.topic(id),
+    subtopic_id         BIGINT REFERENCES question_service.subtopic(id),
+    subject             VARCHAR(100) NOT NULL,
+    topic               VARCHAR(200),
+    subtopic            VARCHAR(200),
+    has_images          BOOLEAN NOT NULL DEFAULT FALSE,
+    state               VARCHAR(20) NOT NULL DEFAULT 'DRAFT',
+    encryption_key_id   VARCHAR(255),
+    author_id           UUID NOT NULL,
+    reviewer_id         UUID,
+    embedding           halfvec(384),
+    created_at          TIMESTAMP NOT NULL DEFAULT NOW(),
+    updated_at          TIMESTAMP NOT NULL DEFAULT NOW(),
+    version             BIGINT NOT NULL DEFAULT 0
+);
+
+CREATE INDEX IF NOT EXISTS idx_passage_tenant_id ON question_service.passage(tenant_id);
+CREATE INDEX IF NOT EXISTS idx_passage_subject_id ON question_service.passage(subject_id);
+CREATE INDEX IF NOT EXISTS idx_passage_topic_id ON question_service.passage(topic_id);
+CREATE INDEX IF NOT EXISTS idx_passage_subtopic_id ON question_service.passage(subtopic_id);
+CREATE INDEX IF NOT EXISTS idx_passage_state ON question_service.passage(state);
+CREATE INDEX IF NOT EXISTS idx_passage_embedding ON question_service.passage USING ivfflat (embedding halfvec_cosine_ops) WITH (lists = 50);
+
+-- ============================================================
 -- Table: question (hash-partitioned by subject_id for scalability)
 -- ============================================================
 -- Content supports: plain text, HTML, LaTeX ($$..$$), SVG (<svg>...</svg>)
@@ -77,6 +110,8 @@ CREATE INDEX idx_subtopic_topic_id ON question_service.subtopic(topic_id);
 CREATE TABLE question_service.question (
     id                      UUID NOT NULL,
     tenant_id               VARCHAR(255) NOT NULL,
+    passage_id              UUID REFERENCES question_service.passage(id),
+    passage_order_index     INTEGER,
     subject_id              BIGINT NOT NULL,
     topic_id                BIGINT NOT NULL,
     subtopic_id             BIGINT,
@@ -120,6 +155,7 @@ CREATE TABLE question_service.question_p7 PARTITION OF question_service.question
 
 -- Indexes (created on parent; propagated to partitions)
 CREATE INDEX idx_question_tenant_id ON question_service.question(tenant_id);
+CREATE INDEX idx_question_passage_id ON question_service.question(passage_id);
 CREATE INDEX idx_question_subject_id ON question_service.question(subject_id);
 CREATE INDEX idx_question_topic_id ON question_service.question(topic_id);
 CREATE INDEX idx_question_subtopic_id ON question_service.question(subtopic_id);
@@ -220,7 +256,8 @@ CREATE INDEX idx_batch_job_user
 CREATE TABLE IF NOT EXISTS question_service.translation (
     id                  UUID PRIMARY KEY,
     tenant_id           VARCHAR(255) NOT NULL,
-    question_id         UUID NOT NULL,
+    question_id         UUID,
+    passage_id          UUID REFERENCES question_service.passage(id),
     language_code       VARCHAR(10) NOT NULL,
     translated_payload  TEXT,
     payload_encrypted   BOOLEAN NOT NULL DEFAULT FALSE,
@@ -240,6 +277,8 @@ CREATE INDEX IF NOT EXISTS idx_translation_tenant_id
     ON question_service.translation (tenant_id);
 CREATE INDEX IF NOT EXISTS idx_translation_question_id
     ON question_service.translation (question_id);
+CREATE INDEX IF NOT EXISTS idx_translation_passage_id
+    ON question_service.translation (passage_id);
 CREATE INDEX IF NOT EXISTS idx_translation_language_code
     ON question_service.translation (language_code);
 CREATE INDEX IF NOT EXISTS idx_translation_status
