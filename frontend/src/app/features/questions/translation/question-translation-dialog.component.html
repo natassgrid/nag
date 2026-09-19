@@ -108,7 +108,7 @@
             <span class="option-badge">{{ opt.id }}</span>
             <div class="source-opt-content">
               <div *ngIf="opt.imageUrl" class="source-opt-image-box">
-                <img [src]="opt.imageUrl" [alt]="opt.imageAltText || opt.id" class="opt-preview-thumb" />
+                <img [src]="getSafeImageUrl(opt.imageUrl)" [alt]="opt.imageAltText || opt.id" class="opt-preview-thumb" />
               </div>
               <div class="option-text" *ngIf="opt.text">
                 <app-math-renderer [content]="opt.text"></app-math-renderer>
@@ -180,7 +180,7 @@
                 <div class="option-inputs-group">
                   <!-- Thumbnail preview if image present -->
                   <div *ngIf="opt.imageUrl" class="trans-opt-img-box">
-                    <img [src]="opt.imageUrl" [alt]="opt.imageAltText || opt.id" class="opt-preview-thumb" />
+                    <img [src]="getSafeImageUrl(opt.imageUrl)" [alt]="opt.imageAltText || opt.id" class="opt-preview-thumb" />
                     <span class="trans-img-hint">Diagram preserved from source</span>
                   </div>
                   <div class="source-ref-mini" *ngIf="opt.sourceText">
@@ -277,7 +277,7 @@
             >
               <span class="preview-opt-id">{{ opt.id }}.</span>
               <div class="preview-opt-body">
-                <img *ngIf="opt.imageUrl" [src]="opt.imageUrl" [alt]="opt.imageAltText || opt.id" class="preview-opt-thumb" />
+                <img *ngIf="opt.imageUrl" [src]="getSafeImageUrl(opt.imageUrl)" [alt]="opt.imageAltText || opt.id" class="preview-opt-thumb" />
                 <app-math-renderer *ngIf="opt.text" [content]="opt.text"></app-math-renderer>
               </div>
             </div>
@@ -310,7 +310,7 @@
             >
               <span class="preview-opt-id">{{ opt.id }}.</span>
               <div class="preview-opt-body">
-                <img *ngIf="opt.imageUrl" [src]="opt.imageUrl" [alt]="opt.imageAltText || opt.id" class="preview-opt-thumb" />
+                <img *ngIf="opt.imageUrl" [src]="getSafeImageUrl(opt.imageUrl)" [alt]="opt.imageAltText || opt.id" class="preview-opt-thumb" />
                 <app-math-renderer *ngIf="opt.text" [content]="opt.text"></app-math-renderer>
                 <span *ngIf="!opt.text && !opt.imageUrl" class="text-muted">(empty)</span>
               </div>
@@ -350,7 +350,7 @@
         mat-flat-button
         color="primary"
         [disabled]="saving || isApproved()"
-        (click)="saveTranslation()"
+        (click)="saveDraft()"
         matTooltip="Save changes and submit for reviewer approval"
       >
         <mat-progress-spinner
@@ -359,7 +359,7 @@
           diameter="16"
           class="spinner-inline"
         ></mat-progress-spinner>
-        <span>{{ activeTranslation?.status === 'DRAFT' ? 'Save & Resubmit' : 'Save Translation' }}</span>
+        <span>{{ activeTranslation?.state === 'DRAFT' ? 'Save & Resubmit' : 'Save Translation' }}</span>
       </button>
 
       <!-- Reviewer Approve Button -->
@@ -368,7 +368,7 @@
         color="accent"
         *ngIf="canReview() && !isApproved() && activeTranslation"
         [disabled]="approving"
-        (click)="approveTranslation()"
+        (click)="approve()"
         matTooltip="Approve this translation for examination delivery"
       >
         <mat-progress-spinner

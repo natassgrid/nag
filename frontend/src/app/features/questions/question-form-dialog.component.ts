@@ -30,6 +30,7 @@ import {
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormBuilder, FormGroup, Validators, ReactiveFormsModule, FormsModule } from '@angular/forms';
+import { DomSanitizer, SafeUrl } from '@angular/platform-browser';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { MatSelectModule } from '@angular/material/select';
@@ -40,6 +41,7 @@ import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { MatSlideToggleModule } from '@angular/material/slide-toggle';
 import { MatDialog, MatDialogModule } from '@angular/material/dialog';
+import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import {
   SubjectTopicService,
   Subject,
@@ -53,10 +55,12 @@ import {
   QuestionOptionDto
 } from './question.service';
 import { AssetPickerDialogComponent } from '../assets/asset-picker-dialog.component';
+import { ImagePasteDialogComponent } from './image-paste-dialog.component';
 import { AssetResponse } from '../assets/asset.model';
 import { RightDrawerComponent } from '../../shared/components/right-drawer/right-drawer.component';
 import { MathRendererComponent } from '../../shared/components/math-renderer/math-renderer.component';
 import { ExamEditorComponent } from '../../shared/components/exam-editor/exam-editor.component';
+
 @Component({
   selector: 'app-question-form-dialog',
   standalone: true,
@@ -74,6 +78,7 @@ import { ExamEditorComponent } from '../../shared/components/exam-editor/exam-ed
     MatTooltipModule,
     MatSlideToggleModule,
     MatDialogModule,
+    MatSnackBarModule,
     RightDrawerComponent,
     MathRendererComponent,
     ExamEditorComponent
@@ -141,6 +146,8 @@ export class QuestionFormDialogComponent implements OnInit, OnChanges {
     private subjectTopicService: SubjectTopicService,
     private questionService: QuestionService,
     private dialog: MatDialog,
+    private sanitizer: DomSanitizer,
+    private snackBar: MatSnackBar,
     private cdr: ChangeDetectorRef
   ) {
     this.initForm();
@@ -158,6 +165,14 @@ export class QuestionFormDialogComponent implements OnInit, OnChanges {
       this.initForm();
       this.syncHierarchyFromQuestion();
     }
+  }
+
+  getSafeImageUrl(url?: string | null): SafeUrl | string {
+    if (!url) return '';
+    if (url.startsWith('data:') || url.startsWith('blob:')) {
+      return this.sanitizer.bypassSecurityTrustUrl(url);
+    }
+    return url;
   }
 
   private unescapeNewlines(text?: string | null): string {
@@ -418,6 +433,25 @@ export class QuestionFormDialogComponent implements OnInit, OnChanges {
     });
   }
 
+  openContentDataUriDialog(): void {
+    const ref = this.dialog.open(ImagePasteDialogComponent, {
+      width: '560px',
+      data: {
+        title: 'Insert Base64 / Data URI Image into Content',
+        showAltText: true
+      }
+    });
+    ref.afterClosed().subscribe((res) => {
+      if (res) {
+        const alt = res.altText || 'Diagram';
+        const mdImage = `\n![${alt}](${res.imageUrl})\n`;
+        this.editorContent = (this.editorContent || '') + mdImage;
+        this.onEditorChange(this.editorContent);
+        this.cdr.markForCheck();
+      }
+    });
+  }
+
   openExplanationAssetPicker(): void {
     const ref = this.dialog.open(AssetPickerDialogComponent, {
       width: '800px',
@@ -428,6 +462,25 @@ export class QuestionFormDialogComponent implements OnInit, OnChanges {
         const alt = asset.altText || asset.title || asset.originalFilename || 'Explanation Diagram';
         const url = `/api/v1/assets/${asset.id}/download`;
         const mdImage = `\n![${alt}](${url})\n`;
+        this.explanationContent = (this.explanationContent || '') + mdImage;
+        this.onExplanationChange(this.explanationContent);
+        this.cdr.markForCheck();
+      }
+    });
+  }
+
+  openExplanationDataUriDialog(): void {
+    const ref = this.dialog.open(ImagePasteDialogComponent, {
+      width: '560px',
+      data: {
+        title: 'Insert Base64 / Data URI Image into Explanation',
+        showAltText: true
+      }
+    });
+    ref.afterClosed().subscribe((res) => {
+      if (res) {
+        const alt = res.altText || 'Explanation Diagram';
+        const mdImage = `\n![${alt}](${res.imageUrl})\n`;
         this.explanationContent = (this.explanationContent || '') + mdImage;
         this.onExplanationChange(this.explanationContent);
         this.cdr.markForCheck();
@@ -451,6 +504,24 @@ export class QuestionFormDialogComponent implements OnInit, OnChanges {
     });
   }
 
+  openOptionDataUriDialog(index: number): void {
+    const ref = this.dialog.open(ImagePasteDialogComponent, {
+      width: '560px',
+      data: {
+        title: `Paste Base64 / Data URI for Option ${this.options[index].id}`,
+        currentUrl: this.options[index].imageUrl,
+        altText: this.options[index].imageAltText || `Option ${this.options[index].id}`
+      }
+    });
+    ref.afterClosed().subscribe((res) => {
+      if (res) {
+        this.options[index].imageUrl = res.imageUrl;
+        this.options[index].imageAltText = res.altText || `Option ${this.options[index].id}`;
+        this.cdr.markForCheck();
+      }
+    });
+  }
+
   clearOptionImage(index: number): void {
     this.options[index].imageUrl = '';
     this.options[index].imageAltText = '';
@@ -463,7 +534,7 @@ export class QuestionFormDialogComponent implements OnInit, OnChanges {
     if (isImageOnly) {
       this.options[index].text = '';
       if (!this.options[index].imageUrl) {
-        this.openOptionAssetPicker(index);
+        this.openOptionDataUriDialog(index);
       }
     }
     this.cdr.markForCheck();
@@ -496,10 +567,7 @@ export class QuestionFormDialogComponent implements OnInit, OnChanges {
     if (value !== 'SINGLE_MCQ' && value !== 'MULTI_MCQ') {
       this.options = [];
     } else if (this.options.length === 0) {
-      this.options = [
-        { id: 'A', text: '', isCorrect: false, imageUrl: '', imageAltText: '', isImageOnly: false },
-        { id: 'B', text: '', isCorrect: false, imageUrl: '', imageAltText: '', isImageOnly: false }
-      ];
+      this.options = [\n        { id: 'A', text: '', isCorrect: false, imageUrl: '', imageAltText: '', isImageOnly: false },\n        { id: 'B', text: '', isCorrect: false, imageUrl: '', imageAltText: '', isImageOnly: false }\n      ];
     }
     this.optionError = '';
     this.cdr.markForCheck();
@@ -576,22 +644,22 @@ export class QuestionFormDialogComponent implements OnInit, OnChanges {
           imageAltText: o.imageAltText?.trim() || undefined
         }));
       }
-      this.optionError = '';
-      this.saveError = '';
-      this.saving = true;
 
-      const call = this.question
+      this.saving = true;
+      this.saveError = '';
+
+      const req$ = this.question?.id
         ? this.questionService.updateQuestion(this.question.id, value)
         : this.questionService.createQuestion(value);
 
-      call.subscribe({
-        next: (res: QuestionResponse) => {
+      req$.subscribe({
+        next: (savedQuestion: QuestionResponse) => {
           this.saving = false;
-          this.close.emit(res);
+          this.close.emit(savedQuestion);
         },
         error: (err: any) => {
           this.saving = false;
-          this.saveError = err?.error?.message || err?.error?.error || 'Failed to save question. Please try again.';
+          this.saveError = err?.error?.message || 'Failed to save question. Please verify all fields.';
           this.cdr.markForCheck();
         }
       });
