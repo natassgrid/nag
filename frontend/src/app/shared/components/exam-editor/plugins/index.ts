@@ -19,3 +19,5 @@
 
 export * from './editor-plugin';
 export * from './plugin-registry';
+export * from './math-inline.plugin';
+export * from './chemical-structure.plugin';

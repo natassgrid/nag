@@ -1,9 +1,39 @@
-<quill-editor
-  [(ngModel)]="content"
-  [modules]="quillModules"
-  [placeholder]="placeholder"
-  [readOnly]="disabled"
-  theme="snow"
-  (onContentChanged)="onContentChanged($event)"
-  (onBlur)="onEditorBlur()"
-></quill-editor>
+<!--
+  ExamEditorComponent — plugin-driven rich-text editor for examination content.
+  Replaces the legacy Quill-based implementation.
+
+  Modes:
+    full     — all toolbar groups (heading, list, align, indent, math, SMILES, media)
+    inline   — marks only (bold, italic, underline, sub/super, math, SMILES)
+    readonly — no toolbar, non-editable rendered view
+-->
+<div
+  class="exam-editor-wrapper"
+  [class.mode-full]="mode === 'full'"
+  [class.mode-inline]="mode === 'inline'"
+  [class.mode-readonly]="mode === 'readonly'"
+  [class.disabled]="disabled"
+>
+  <!-- Toolbar (hidden in readonly mode via CSS) -->
+  <div class="exam-editor-toolbar" *ngIf="mode !== 'readonly'">
+    <editor-toolbar
+      [pluginRegistry]="registry"
+      [context]="pluginContext"
+      [document]="document"
+      [selection]="selection"
+    ></editor-toolbar>
+  </div>
+
+  <!-- Editable content surface -->
+  <editor-content
+    [document]="document"
+    [placeholder]="placeholder"
+    [disabled]="disabled || mode === 'readonly'"
+    [selection]="selection"
+    (documentChange)="onDocumentChange($event)"
+    (selectionChange)="onSelectionChange($event)"
+    (paste)="onPaste($event)"
+    (keydown)="onKeydown($event)"
+    (blurred)="onBlur()"
+  ></editor-content>
+</div>

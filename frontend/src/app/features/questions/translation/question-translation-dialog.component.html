@@ -161,14 +161,11 @@
           <!-- Translated Question Stem -->
           <div class="form-section">
             <label class="section-label required">Translated Question Stem</label>
-            <mat-form-field appearance="outline" class="full-width">
-              <textarea
-                matInput
-                rows="4"
-                formControlName="translatedContent"
-                placeholder="Enter translated question content in {{ getSelectedLangName() }}..."
-              ></textarea>
-            </mat-form-field>
+            <exam-editor
+              formControlName="translatedContent"
+              mode="full"
+              [placeholder]="'Enter translated question content in ' + getSelectedLangName() + '...'">
+            </exam-editor>
           </div>
 
           <!-- Translated Options -->
@@ -190,15 +187,15 @@
                     <span class="source-ref-label">Original:</span>
                     <app-math-renderer [content]="opt.sourceText"></app-math-renderer>
                   </div>
-                  <mat-form-field appearance="outline" class="full-width opt-field" *ngIf="opt.sourceText || !opt.imageUrl">
-                    <mat-label>Option {{ opt.id }} Text</mat-label>
-                    <input
-                      matInput
-                      [(ngModel)]="opt.text"
-                      [ngModelOptions]="{standalone: true}"
-                      placeholder="Translate option {{ opt.id }} text..."
-                    />
-                  </mat-form-field>
+                  <div class="full-width opt-field" *ngIf="opt.sourceText || !opt.imageUrl">
+                    <label class="section-label">Option {{ opt.id }} Text</label>
+                    <exam-editor
+                      [value]="opt.text"
+                      (valueChange)="opt.text = $event"
+                      mode="inline"
+                      [placeholder]="'Translate option ' + opt.id + ' text...'">
+                    </exam-editor>
+                  </div>
                   <!-- Editable image alt-text for localization/accessibility -->
                   <mat-form-field appearance="outline" class="full-width opt-field" *ngIf="opt.imageUrl">
                     <mat-label>Diagram / Image Alt-Text ({{ getSelectedLangName() }})</mat-label>
@@ -217,14 +214,11 @@
           <!-- Translated Explanation -->
           <div class="form-section">
             <label class="section-label">Translated Explanation (Optional)</label>
-            <mat-form-field appearance="outline" class="full-width">
-              <textarea
-                matInput
-                rows="3"
-                formControlName="translatedExplanation"
-                placeholder="Enter translated explanation in {{ getSelectedLangName() }}..."
-              ></textarea>
-            </mat-form-field>
+            <exam-editor
+              formControlName="translatedExplanation"
+              mode="full"
+              [placeholder]="'Enter translated explanation in ' + getSelectedLangName() + '...'">
+            </exam-editor>
           </div>
         </form>
 

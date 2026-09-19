@@ -20,6 +20,7 @@
     "react-dom": "^19.2.8",
     "react-hook-form": "^7.87.0",
     "react-router-dom": "^7.18.3",
+    "smiles-drawer": "^2.1.7",
     "zod": "^4.5.4"
   },
   "devDependencies": {

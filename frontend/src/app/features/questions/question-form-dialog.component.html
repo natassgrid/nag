@@ -143,7 +143,8 @@
             <exam-editor
               [value]="editorContent"
               (valueChange)="onEditorChange($event)"
-              placeholder="Enter question content... Use $$...$$ for LaTeX math"
+              mode="full"
+              placeholder="Enter question content... Use $$...$$ for LaTeX math, click ƒ for formula, ⚗ for structure"
             ></exam-editor>
             <mat-error *ngIf="form.get('content')?.hasError('required') && form.get('content')?.touched">Content is required</mat-error>
             <div *ngIf="showContentPreview && editorContent" class="content-preview">
@@ -180,11 +181,15 @@
                   </button>
                 </div>
 
-                <!-- Option Text input -->
-                <mat-form-field appearance="outline" class="flex-field" *ngIf="!opt.isImageOnly">
-                  <input matInput [(ngModel)]="opt.text" [ngModelOptions]="{standalone: true}"
-                         [placeholder]="opt.imageUrl ? 'Optional text label / description' : 'Option text (use $$...$$ for LaTeX)'" />
-                </mat-form-field>
+                <!-- Option Text inline editor -->
+                <div class="flex-field option-editor-wrapper" *ngIf="!opt.isImageOnly">
+                  <exam-editor
+                    [value]="opt.text"
+                    (valueChange)="opt.text = $event"
+                    mode="inline"
+                    [placeholder]="opt.imageUrl ? 'Optional text label / description' : 'Option text (use $$...$$ for LaTeX or click ƒ)'"
+                  ></exam-editor>
+                </div>
 
                 <div *ngIf="opt.isImageOnly" class="image-only-placeholder flex-field">
                   <mat-icon class="placeholder-icon">image</mat-icon>
@@ -253,6 +258,7 @@
             <exam-editor
               [value]="explanationContent"
               (valueChange)="onExplanationChange($event)"
+              mode="full"
               placeholder="Explain the correct answer... Use $$...$$ for LaTeX math"
             ></exam-editor>
             <div *ngIf="showExplanationPreview && explanationContent" class="content-preview">

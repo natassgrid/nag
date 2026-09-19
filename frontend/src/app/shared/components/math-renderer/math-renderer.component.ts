@@ -22,9 +22,11 @@ import {
   HostBinding,
   Input,
   OnChanges,
+  AfterViewChecked,
   SimpleChanges,
   ViewEncapsulation,
-  ChangeDetectionStrategy
+  ChangeDetectionStrategy,
+  ElementRef
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
@@ -43,29 +45,46 @@ import 'katex/dist/contrib/mhchem.js';
   encapsulation: ViewEncapsulation.None,
   changeDetection: ChangeDetectionStrategy.OnPush
 })
-export class MathRendererComponent implements OnChanges {
+export class MathRendererComponent implements OnChanges, AfterViewChecked {
   @Input() content: string | null = '';
   @Input() inline: boolean = false;
   @Input() className: string = '';
 
-  // FIX #6: bind the 'inline-mode' class to :host when inline=true so the
-  // SCSS :host.inline-mode rule takes effect and the host becomes display:inline.
   @HostBinding('class.inline-mode') get isInlineMode(): boolean {
     return this.inline;
   }
 
   renderedHtml: SafeHtml = '';
 
+  // Track whether SMILES canvases need drawing after DOM update
+  private pendingSmilesRender = false;
+
+  // SmilesDrawer instance (lazy-loaded)
+  private smilesDrawer: any = null;
+  private smilesDrawerLoading = false;
+
   // Non-math LaTeX commands that should be treated as text/HTML
   private nonMathPattern =
     /\\{1,2}(begin|end)\{(enumerate|itemize|document|figure|table|center)\}|\\{1,2}item|\\{1,2}section|\\{1,2}subsection/;
 
-  constructor(private sanitizer: DomSanitizer) {}
+  constructor(private sanitizer: DomSanitizer, private el: ElementRef) {}
 
   ngOnChanges(changes: SimpleChanges): void {
     if (changes['content'] || changes['inline']) {
       this.render();
     }
+  }
+
+  /**
+   * After each view update, find unrendered SMILES canvas elements
+   * and draw them using SmilesDrawer 2.0 if pending.
+   */
+  ngAfterViewChecked(): void {
+    if (!this.pendingSmilesRender) return;
+    const canvases = this.el.nativeElement.querySelectorAll('canvas[data-smiles]:not([data-smiles-drawn])');
+    if (canvases.length === 0) return;
+    this.pendingSmilesRender = false;
+    this.drawSmilesCanvases(canvases);
   }
 
   private render(): void {
@@ -85,6 +104,10 @@ export class MathRendererComponent implements OnChanges {
       // Prevents \\-to-newline and markdown processing from corrupting SVG attributes/paths
       const { processedText: textWithoutSvg, tokens: svgTokens } = this.extractSvgBlocks(text);
       text = textWithoutSvg;
+
+      // 3b. Extract <smiles>...</smiles> blocks — convert to canvas placeholders (Issue #126)
+      const { processedText: textWithoutSmiles, smilesItems } = this.extractSmilesBlocks(text);
+      text = textWithoutSmiles;
 
       // 4. Extract and render all LaTeX math expressions to placeholders
       // This protects math formulas containing \\, _, *, &, etc. from being corrupted by Markdown or doc cleaners
@@ -129,6 +152,12 @@ export class MathRendererComponent implements OnChanges {
       for (const [placeholder, svgBlock] of svgTokens.entries()) {
         parsedHtml = parsedHtml.split(placeholder).join(svgBlock);
       }
+
+      // 12. Reinsert SMILES canvas elements (Issue #126)
+      for (const { placeholder, canvasHtml } of smilesItems) {
+        parsedHtml = parsedHtml.split(placeholder).join(canvasHtml);
+      }
+      if (smilesItems.length > 0) this.pendingSmilesRender = true;
 
       this.renderedHtml = this.sanitizer.bypassSecurityTrustHtml(parsedHtml);
     } catch (e) {
@@ -407,6 +436,95 @@ export class MathRendererComponent implements OnChanges {
     } catch {
       return `<span class="math-render-error text-amber-600 font-mono text-xs">${this.escapeHtml(trimmed)}</span>`;
     }
+  }
+
+  /**
+   * Extracts <smiles>...</smiles> blocks and replaces them with
+   * `<canvas data-smiles="...">` placeholder elements for SmilesDrawer rendering.
+   *
+   * Issue #126 — SmilesDrawer 2.0 integration.
+   */
+  private extractSmilesBlocks(text: string): {
+    processedText: string;
+    smilesItems: { placeholder: string; canvasHtml: string }[];
+  } {
+    const smilesItems: { placeholder: string; canvasHtml: string }[] = [];
+    let idx = 0;
+
+    const processedText = text.replace(
+      /<smiles>([\s\S]*?)<\/smiles>(?:\s*<!--\s*(.*?)\s*-->)?/gi,
+      (_match, smiles: string, title: string | undefined) => {
+        const placeholder = `%%%NAG_SMILES_BLOCK_${idx++}%%%`;
+        const escapedSmiles = smiles.trim().replace(/"/g, '&quot;');
+        const titleHtml = title
+          ? `<div class="smiles-caption">${this.escapeHtml(title.trim())}</div>`
+          : '';
+        const canvasHtml =
+          `<span class="smiles-block">`
+          + `<canvas width="260" height="210" data-smiles="${escapedSmiles}" data-theme="light" class="smiles-canvas"></canvas>`
+          + titleHtml
+          + `</span>`;
+        smilesItems.push({ placeholder, canvasHtml });
+        return placeholder;
+      }
+    );
+
+    return { processedText, smilesItems };
+  }
+
+  /**
+   * Draw SMILES structures onto canvas elements after they are in the DOM.
+   * Uses SmilesDrawer 2.0 with lazy dynamic import.
+   */
+  private drawSmilesCanvases(canvases: NodeListOf<HTMLCanvasElement>): void {
+    this.loadSmilesDrawer().then(drawer => {
+      if (!drawer) return;
+      canvases.forEach((canvas) => {
+        const smiles = canvas.getAttribute('data-smiles') || '';
+        const theme = canvas.getAttribute('data-theme') || 'light';
+        if (!smiles) return;
+        try {
+          // Mark as drawn to avoid duplicate renders
+          canvas.setAttribute('data-smiles-drawn', '1');
+          if (typeof drawer.draw === 'function') {
+            drawer.draw(smiles, canvas, theme, false);
+          } else if (typeof drawer.drawToCanvas === 'function') {
+            drawer.drawToCanvas(smiles, canvas, theme);
+          } else if (typeof drawer.parse === 'function') {
+            const tree = drawer.parse(smiles);
+            if (tree) drawer.draw(tree, canvas, theme, false);
+          }
+        } catch (e) {
+          // Show SMILES text as fallback
+          const ctx = canvas.getContext('2d');
+          if (ctx) {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.font = '12px monospace';
+            ctx.fillStyle = '#424242';
+            ctx.fillText(smiles, 8, canvas.height / 2);
+          }
+        }
+      });
+    });
+  }
+
+  /** Lazy-load smiles-drawer and cache the instance. */
+  private async loadSmilesDrawer(): Promise<any> {
+    if (this.smilesDrawer) return this.smilesDrawer;
+    if (this.smilesDrawerLoading) return null;
+    this.smilesDrawerLoading = true;
+    try {
+      const sd: any = await import('smiles-drawer');
+      const SvgDrawer = sd.SvgDrawer ?? sd.default?.SvgDrawer;
+      const Drawer = sd.Drawer ?? sd.default?.Drawer ?? SvgDrawer;
+      if (Drawer) {
+        this.smilesDrawer = new Drawer({ width: 260, height: 210, compactDrawing: false });
+      }
+    } catch {
+      this.smilesDrawer = null;
+    }
+    this.smilesDrawerLoading = false;
+    return this.smilesDrawer;
   }
 
   private escapeHtml(str: string): string {

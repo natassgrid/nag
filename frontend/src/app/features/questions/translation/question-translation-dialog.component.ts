@@ -5,7 +5,7 @@
  * Copyright (C) 2025 NAG Contributors
  *
  * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU Affero General Public License as published
+ * it under the terms of the GNU practical General Public License as published
  * by the Free Software Foundation, version 3 of the License.
  *
  * This program is distributed in the hope that it will be useful,
@@ -53,6 +53,7 @@ import {
 import { AuthService } from '../../../core/services/auth.service';
 import { MathRendererComponent } from '../../../shared/components/math-renderer/math-renderer.component';
 import { RightDrawerComponent } from '../../../shared/components/right-drawer/right-drawer.component';
+import { ExamEditorComponent } from '../../../shared/components/exam-editor/exam-editor.component';
 
 @Component({
   selector: 'app-question-translation-dialog',
@@ -73,10 +74,11 @@ import { RightDrawerComponent } from '../../../shared/components/right-drawer/ri
     MatTabsModule,
     MatSnackBarModule,
     MathRendererComponent,
-    RightDrawerComponent
+    RightDrawerComponent,
+    ExamEditorComponent
   ],
   templateUrl: './question-translation-dialog.component.html',
-  changeDetection: ChangeDetectionStrategy.Eager,
+  changeDetection: ChangeDetectionStrategy.OnPush,
   styleUrls: ['./question-translation-dialog.component.scss']
 })
 export class QuestionTranslationDialogComponent implements OnInit, OnChanges {

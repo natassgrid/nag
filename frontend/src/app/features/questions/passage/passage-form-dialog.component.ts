@@ -14,8 +14,7 @@
  * GNU Affero General Public License for more details.
  *
  * You should have received a copy of the GNU Affero General Public License
- * along with this program. If not, see <https://www.gnu.org/licenses/>.
- */
+ * along with this program. If not, see <https://www.gnu.org/licenses/>.\n */
 
 import {
   Component,
@@ -47,6 +46,7 @@ import { MatTabsModule } from '@angular/material/tabs';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { PassageService, PassageRequest, PassageResponse } from '../passage.service';
 import { SubjectTopicService, Subject, Topic, Subtopic } from '../subject-topic.service';
+import { ExamEditorComponent } from '../../../shared/components/exam-editor/exam-editor.component';
 
 @Component({
   selector: 'app-passage-form-dialog',
@@ -63,7 +63,8 @@ import { SubjectTopicService, Subject, Topic, Subtopic } from '../subject-topic.
     MatRadioModule,
     MatSnackBarModule,
     MatTabsModule,
-    MatTooltipModule
+    MatTooltipModule,
+    ExamEditorComponent
   ],
   templateUrl: './passage-form-dialog.component.html',
   styleUrls: ['./passage-form-dialog.component.scss'],

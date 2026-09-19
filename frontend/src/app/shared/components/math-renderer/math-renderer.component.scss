@@ -156,3 +156,32 @@
     border-radius: 3px;
   }
 }
+
+/* Issue #126 — SmilesDrawer 2D chemical structure rendering */
+:host ::ng-deep {
+  .smiles-block {
+    display: inline-flex;
+    flex-direction: column;
+    align-items: center;
+    margin: 8px 4px;
+    vertical-align: middle;
+  }
+
+  .smiles-canvas {
+    display: block;
+    max-width: 100%;
+    height: auto;
+    border: 1px solid #e0e0e0;
+    border-radius: 4px;
+    background: #fff;
+    cursor: zoom-in;
+  }
+
+  .smiles-caption {
+    font-size: 11px;
+    color: #546e7a;
+    font-style: italic;
+    margin-top: 4px;
+    text-align: center;
+  }
+}
