@@ -100,30 +100,28 @@ public class QuestionService {
         if (text == null || text.isBlank()) {
             return false;
         }
-        return text.contains("<img") || text.contains("<svg") || text.contains("![");
+        return text.contains("<img")
+                || text.contains("<svg")
+                || text.contains("data:image/")
+                || text.matches("(?s).*!\\[.*?\\]\\(.*?\\).*");
     }
 
     /**
-     * Result of resolving the Subject -> Topic -> Subtopic hierarchy for a
-     * question, carrying both the numeric ids (source of truth) and the
-     * denormalized names used by downstream features.
+     * Container for resolved Subject -> Topic -> Subtopic names and IDs.
      */
     public record ResolvedHierarchy(
-            Long subjectId, String subjectName,
-            Long topicId, String topicName,
-            Long subtopicId, String subtopicName) {}
+            Long subjectId,
+            String subjectName,
+            Long topicId,
+            String topicName,
+            Long subtopicId,
+            String subtopicName
+    ) {}
 
     /**
-     * Resolves and validates the hierarchy referenced by a create/update request.
-     *
-     * <p>The numeric ids ({@code subjectId}/{@code topicId}/{@code subtopicId})
-     * are authoritative. This method verifies that each id exists within the
-     * tenant, that the topic belongs to the subject, and that the subtopic (if
-     * present) belongs to the topic. It returns the resolved names so the caller
-     * can denormalize them onto the question row.
-     *
-     * @throws IllegalArgumentException if any id is missing, not found in the
-     *         tenant, or the parent/child relationship is inconsistent
+     * Validates and resolves the numeric hierarchy references.
+     * Looks up {@link Subject}, {@link Topic}, and optionally {@link Subtopic} by ID,
+     * verifies parent-child relationships match, and returns the resolved names.
      */
     public ResolvedHierarchy resolveHierarchy(CreateQuestionRequest request, String tenantId) {
         if (request.getSubjectId() == null) {
@@ -184,22 +182,16 @@ public class QuestionService {
         }
 
         // Resolve and validate the Subject -> Topic -> Subtopic hierarchy by numeric id.
-        // Populates the denormalized name fields on the request so downstream code
-        // (similarity, reviewer routing, search, versioning, export) keeps working.
         ResolvedHierarchy hierarchy = resolveHierarchy(request, tenantId);
 
         // Check similarity against existing questions in same subject+tenant (FR-2)
-        // Uses enforceNoDuplicate: throws SimilarQuestionException on > 0.92, returns WARN for 0.85–0.92
-        // NFR-2: If LLM/embedding service is unavailable, question creation still succeeds with warning logged
         SimilarityCheckResult similarityResult = null;
         try {
             similarityResult = similarityDetectionService.enforceNoDuplicate(
                     request.getContent(), hierarchy.subjectName(), tenantId);
         } catch (SimilarQuestionException e) {
-            // Near-duplicate detected (> 0.92) — propagate to reject creation
             throw e;
         } catch (Exception e) {
-            // LLM/embedding service unavailable — proceed without duplicate detection (NFR-2)
             log.warn("Similarity check unavailable during question creation. " +
                     "Proceeding without duplicate detection. Reason: {}", e.getMessage());
         }
@@ -211,16 +203,13 @@ public class QuestionService {
         String answerKey = request.getAnswerKey();
         if (request.getOptions() != null && !request.getOptions().isEmpty()) {
             var options = request.getOptions();
-            // Validate option count (2-6)
             if (options.size() < 2 || options.size() > 5) {
                 throw new IllegalArgumentException("MCQ/MSQ questions must have between 2 and 5 options");
             }
-            // Assign option IDs A-F based on position
             String[] ids = {"A", "B", "C", "D", "E", "F"};
             for (int i = 0; i < options.size(); i++) {
                 options.get(i).setId(ids[i]);
             }
-            // Validate correct options
             long correctCount = options.stream().filter(o -> o.isCorrect()).count();
             QuestionType questionType = request.getQuestionType();
             if (questionType == QuestionType.SINGLE_MCQ) {
@@ -232,7 +221,6 @@ public class QuestionService {
                     throw new IllegalArgumentException("MSQ questions must have at least one correct option");
                 }
             }
-            // Serialize to JSON
             try {
                 answerKey = new com.fasterxml.jackson.databind.ObjectMapper().writeValueAsString(options);
             } catch (Exception e) {
@@ -260,6 +248,8 @@ public class QuestionService {
                 .explanation(request.getExplanation())
                 .references(request.getReferences())
                 .hasImages(hasImages)
+                .passageId(request.getPassageId())
+                .passageOrderIndex(request.getPassageOrderIndex())
                 .state("DRAFT")
                 .encryptionKeyId(dekKeyName)
                 .authorId(authorId)
@@ -272,8 +262,6 @@ public class QuestionService {
         Question saved = questionRepository.save(question);
 
         // Generate and store embedding via native query (FR-1)
-        // Column is insertable=false/updatable=false so we use native SQL with halfvec cast.
-        // NFR-2: If LLM service is unavailable, question creation still succeeds without embedding
         try {
             float[] embedding = embeddingService.embed(request.getContent());
             if (embedding != null && embedding.length > 0) {
@@ -288,35 +276,32 @@ public class QuestionService {
         log.info("Question created: id={}, type={}, author={}, tenant={}, encrypted={}",
                 saved.getId(), saved.getQuestionType(), authorId, tenantId, encryptionEnabled);
 
-        // Publish QUESTION_CREATED audit event (fire-and-forget)
         publishAuditEvent("QUESTION_CREATED", saved.getId(), authorId, tenantId,
                 Map.of("questionType", saved.getQuestionType(), "state", saved.getState()));
 
-        // Build response with similarity warnings if applicable (FR-2: flag for human review)
         QuestionResponse response = toResponse(saved);
         if (similarityResult != null && similarityResult.status() == SimilarityCheckResult.Status.WARN) {
             List<QuestionResponse.SimilarQuestionWarning> warnings = similarityResult.similarQuestions().stream()
-                    .map(sq -> QuestionResponse.SimilarQuestionWarning.builder()
+                    .<QuestionResponse.SimilarQuestionWarning>map(sq -> QuestionResponse.SimilarQuestionWarning.builder()
                             .questionId(sq.questionId())
                             .similarity(sq.similarity())
                             .contentSnippet(sq.content())
                             .build())
                     .toList();
             response.setWarnings(warnings);
-            log.info("Question created with similarity warnings: id={}, warningCount={}",
-                    saved.getId(), warnings.size());
         }
 
         return response;
     }
 
     /**
-     * Lists questions for a tenant with optional filters and pagination (including subjectId / topicId).
+     * Lists questions for a tenant with optional filtering by subject, topic, difficulty, state, and text search.
      */
     @Transactional(readOnly = true)
     public org.springframework.data.domain.Page<QuestionResponse> listQuestions(
-            String subject, Long subjectId, String topic, Long topicId, String difficulty, String state,
-            String search, int page, int size, String tenantId) {
+            String subject, Long subjectId, String topic, Long topicId,
+            String difficulty, String state, String search,
+            int page, int size, String tenantId) {
 
         org.springframework.data.domain.Pageable pageable =
                 org.springframework.data.domain.PageRequest.of(page, size,
@@ -389,10 +374,6 @@ public class QuestionService {
 
     /**
      * Retrieves a question by its ID.
-     *
-     * @param questionId the question UUID
-     * @return the question response with decrypted content
-     * @throws EntityNotFoundException if the question does not exist
      */
     @Transactional(readOnly = true)
     public QuestionResponse getQuestion(UUID questionId) {
@@ -403,14 +384,6 @@ public class QuestionService {
 
     /**
      * Submits a DRAFT question for review — transitions state from DRAFT to REVIEW.
-     *
-     * @param questionId the question UUID
-     * @param authorId   UUID of the question author
-     * @param tenantId   tenant identifier
-     * @return the updated question response
-     * @throws EntityNotFoundException   if the question is not found
-     * @throws IllegalStateException     if the question is not in DRAFT state
-     * @throws IllegalArgumentException  if the caller is not the author
      */
     public QuestionResponse submitForReview(UUID questionId, UUID authorId, String tenantId) {
         Question question = questionRepository.findById(questionId)
@@ -449,7 +422,7 @@ public class QuestionService {
                 effectiveTenant
         );
 
-        if (questions.isEmpty() && cognitiveLevel != null && !cognitiveLevel.isBlank()) {
+        if (questions.isEmpty()) {
             questions = questionRepository.findBlueprintQuestionsFallback(
                     subject != null ? subject.trim() : "",
                     topic != null ? topic.trim() : "",
@@ -496,13 +469,14 @@ public class QuestionService {
     private static final com.fasterxml.jackson.databind.ObjectMapper MAPPER =
             new com.fasterxml.jackson.databind.ObjectMapper();
 
-    private QuestionResponse toResponse(Question question) {
+    public QuestionResponse toResponse(Question question) {
         LocalDateTime createdAt = question.getCreatedAt() != null
                 ? LocalDateTime.ofInstant(question.getCreatedAt(), ZoneOffset.UTC)
                 : null;
+        LocalDateTime updatedAt = question.getUpdatedAt() != null
+                ? LocalDateTime.ofInstant(question.getUpdatedAt(), ZoneOffset.UTC)
+                : null;
 
-        // Use the options field directly from the entity (JSONB column).
-        // Fall back to parsing from answerKey JSON for legacy data.
         java.util.List<com.examplatform.questionbank.dto.QuestionOption> options = question.getOptions();
         if ((options == null || options.isEmpty())) {
             String questionType = question.getQuestionType();
@@ -534,7 +508,13 @@ public class QuestionService {
                 .references(question.getReferences())
                 .state(question.getState())
                 .authorId(question.getAuthorId())
+                .reviewerId(question.getReviewerId())
+                .encryptionKeyId(question.getEncryptionKeyId())
+                .passageId(question.getPassageId())
+                .passageOrderIndex(question.getPassageOrderIndex())
+                .version(question.getVersion())
                 .createdAt(createdAt)
+                .updatedAt(updatedAt)
                 .options(options)
                 .hasImages(question.isHasImages())
                 .build();

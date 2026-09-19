@@ -395,6 +395,9 @@ export interface QuestionDto {
   sectionName?: string;
   topic?: string;
   questionType?: string;
+  passageId?: string;
+  passageContent?: string;
+  passageOrderIndex?: number;
   sequenceNumber?: number;
   explanation?: string;         // English master explanation
   correctOptionIndex?: number;  // Available in practice/learning mode
@@ -554,7 +557,7 @@ export interface NotificationDto {
   actionUrl?: string;
 }
 
-// ─── Post-Exam Review Types (Issue #101) ───────────────────────
+// ─── Post-Exam Review Types (Issue #101) ──────────────────────
 
 export interface ReviewOption {
   id: string;
@@ -581,6 +584,9 @@ export interface ReviewQuestion {
   timeSpentMs: number;
   peerAccuracyPct: number;
   explanation: string;
+  passageId?: string;
+  passageContent?: string;
+  passageOrderIndex?: number;
 }
 
 export interface ExamReviewResponse {

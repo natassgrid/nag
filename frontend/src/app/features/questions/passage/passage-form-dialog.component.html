@@ -1,0 +1,201 @@
+<div class="drawer-overlay" *ngIf="isOpen" (click)="onCancel()"></div>
+
+<div class="drawer-container" [class.open]="isOpen">
+  <div class="drawer-header">
+    <div class="header-title">
+      <mat-icon class="header-icon">menu_book</mat-icon>
+      <h2>{{ passage ? 'Edit Comprehension Passage' : 'Create Comprehension Passage' }}</h2>
+    </div>
+    <button mat-icon-button (click)="onCancel()" aria-label="Close drawer">
+      <mat-icon>close</mat-icon>
+    </button>
+  </div>
+
+  <form [formGroup]="form" (ngSubmit)="onSubmit()" class="drawer-body">
+    <!-- Hierarchy Section -->
+    <div class="form-section">
+      <h3 class="section-title">
+        <mat-icon>account_tree</mat-icon>
+        Subject & Topic Hierarchy
+      </h3>
+      <div class="form-row">
+        <mat-form-field appearance="outline" class="form-field">
+          <mat-label>Subject</mat-label>
+          <mat-select formControlName="subjectId" (selectionChange)="onSubjectChange($event.value)">
+            <mat-option *ngFor="let s of subjects" [value]="s.id">{{ s.name }}</mat-option>
+          </mat-select>
+          <mat-error *ngIf="form.get('subjectId')?.hasError('required')">Subject is required</mat-error>
+        </mat-form-field>
+
+        <mat-form-field appearance="outline" class="form-field">
+          <mat-label>Topic</mat-label>
+          <mat-select formControlName="topicId" (selectionChange)="onTopicChange($event.value)">
+            <mat-option *ngFor="let t of topics" [value]="t.id">{{ t.name }}</mat-option>
+          </mat-select>
+          <mat-error *ngIf="form.get('topicId')?.hasError('required')">Topic is required</mat-error>
+        </mat-form-field>
+      </div>
+
+      <div class="form-row">
+        <mat-form-field appearance="outline" class="form-field">
+          <mat-label>Subtopic (Optional)</mat-label>
+          <mat-select formControlName="subtopicId" (selectionChange)="onSubtopicChange($event.value)">
+            <mat-option [value]="null">-- None --</mat-option>
+            <mat-option *ngFor="let st of subtopics" [value]="st.id">{{ st.name }}</mat-option>
+          </mat-select>
+        </mat-form-field>
+
+        <mat-form-field appearance="outline" class="form-field">
+          <mat-label>Passage Title (Optional)</mat-label>
+          <input matInput formControlName="title" placeholder="e.g. Passage 1 - Ecological Balance" />
+        </mat-form-field>
+      </div>
+    </div>
+
+    <!-- Stimulus / Passage Text -->
+    <div class="form-section">
+      <h3 class="section-title">
+        <mat-icon>article</mat-icon>
+        Stimulus / Passage Content
+      </h3>
+      <p class="section-helper">
+        Enter the main paragraph, reading comprehension text, case study, or context snippet. Math equations, tables, and formatting are supported.
+      </p>
+      <mat-form-field appearance="outline" class="form-field full-width">
+        <mat-label>Passage Text</mat-label>
+        <textarea
+          matInput
+          formControlName="content"
+          rows="6"
+          placeholder="Enter the reading comprehension passage or case study text here..."
+        ></textarea>
+        <mat-error *ngIf="form.get('content')?.hasError('required')">Passage content is required</mat-error>
+        <mat-error *ngIf="form.get('content')?.hasError('minlength')">Passage must be at least 20 characters</mat-error>
+      </mat-form-field>
+    </div>
+
+    <!-- Sub-Questions Builder -->
+    <div class="form-section">
+      <div class="section-header-flex">
+        <div>
+          <h3 class="section-title">
+            <mat-icon>format_list_numbered</mat-icon>
+            Sub-Questions ({{ subQuestionsArray.length }})
+          </h3>
+          <p class="section-helper">Each passage must contain between 2 and 10 linked sub-questions.</p>
+        </div>
+        <button
+          type="button"
+          mat-stroked-button
+          color="primary"
+          (click)="addSubQuestion()"
+          [disabled]="subQuestionsArray.length >= 10"
+        >
+          <mat-icon>add</mat-icon>
+          Add Sub-Question
+        </button>
+      </div>
+
+      <div formArrayName="subQuestions" class="sub-questions-list">
+        <div
+          *ngFor="let sqGroup of subQuestionsArray.controls; let qIdx = index"
+          [formGroupName]="qIdx"
+          class="sub-question-card"
+        >
+          <div class="card-header">
+            <span class="sub-q-badge">Question {{ qIdx + 1 }}</span>
+            <button
+              type="button"
+              mat-icon-button
+              color="warn"
+              (click)="removeSubQuestion(qIdx)"
+              [disabled]="subQuestionsArray.length <= 2"
+              matTooltip="Remove Question"
+            >
+              <mat-icon>delete_outline</mat-icon>
+            </button>
+          </div>
+
+          <!-- Sub-question Prompt -->
+          <mat-form-field appearance="outline" class="form-field full-width">
+            <mat-label>Question Prompt / Stem</mat-label>
+            <textarea
+              matInput
+              formControlName="content"
+              rows="2"
+              placeholder="e.g. According to paragraph 2, what causes the shift?"
+            ></textarea>
+            <mat-error *ngIf="sqGroup.get('content')?.hasError('required')">Question prompt is required</mat-error>
+          </mat-form-field>
+
+          <div class="form-row">
+            <mat-form-field appearance="outline" class="form-field">
+              <mat-label>Question Type</mat-label>
+              <mat-select formControlName="questionType">
+                <mat-option *ngFor="let qt of questionTypes" [value]="qt.value">{{ qt.label }}</mat-option>
+              </mat-select>
+            </mat-form-field>
+
+            <mat-form-field appearance="outline" class="form-field">
+              <mat-label>Difficulty</mat-label>
+              <mat-select formControlName="difficulty">
+                <mat-option *ngFor="let d of difficultyOptions" [value]="d">{{ d }}</mat-option>
+              </mat-select>
+            </mat-form-field>
+
+            <mat-form-field appearance="outline" class="form-field">
+              <mat-label>Cognitive Level</mat-label>
+              <mat-select formControlName="cognitiveLevel">
+                <mat-option *ngFor="let cl of cognitiveLevels" [value]="cl">{{ cl }}</mat-option>
+              </mat-select>
+            </mat-form-field>
+          </div>
+
+          <!-- Options Builder -->
+          <div class="options-section">
+            <h4 class="options-title">Options & Correct Answer:</h4>
+            <div formArrayName="options" class="options-grid">
+              <div
+                *ngFor="let optGroup of getOptionsArray(qIdx).controls; let optIdx = index"
+                [formGroupName]="optIdx"
+                class="option-row"
+              >
+                <button
+                  type="button"
+                  mat-icon-button
+                  [color]="optGroup.get('isCorrect')?.value ? 'primary' : 'basic'"
+                  (click)="setCorrectOption(qIdx, optIdx)"
+                  [matTooltip]="optGroup.get('isCorrect')?.value ? 'Marked as Correct' : 'Click to mark correct'"
+                >
+                  <mat-icon>{{ optGroup.get('isCorrect')?.value ? 'check_circle' : 'radio_button_unchecked' }}</mat-icon>
+                </button>
+                <mat-form-field appearance="outline" class="option-field">
+                  <mat-label>Option {{ optIdx + 1 }}</mat-label>
+                  <input matInput formControlName="text" placeholder="Option text" />
+                </mat-form-field>
+              </div>
+            </div>
+          </div>
+
+          <!-- Explanation -->
+          <mat-form-field appearance="outline" class="form-field full-width">
+            <mat-label>Explanation / Solution (Optional)</mat-label>
+            <input matInput formControlName="explanation" placeholder="Explain the rationale for the correct answer" />
+          </mat-form-field>
+        </div>
+      </div>
+    </div>
+
+    <!-- Drawer Footer Actions -->
+    <div class="drawer-footer">
+      <button type="button" mat-stroked-button (click)="onCancel()" [disabled]="isSubmitting">
+        Cancel
+      </button>
+      <button type="submit" mat-flat-button color="primary" [disabled]="isSubmitting">
+        <mat-icon *ngIf="!isSubmitting">save</mat-icon>
+        <span *ngIf="!isSubmitting">{{ passage ? 'Update Passage' : 'Create Passage & Questions' }}</span>
+        <span *ngIf="isSubmitting">Saving...</span>
+      </button>
+    </div>
+  </form>
+</div>

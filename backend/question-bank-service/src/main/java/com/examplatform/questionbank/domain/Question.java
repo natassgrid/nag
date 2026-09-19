@@ -51,7 +51,7 @@ import java.util.UUID;
  * are also stored (denormalized) because reviewer routing, full-text search,
  * similarity detection, version diffs, and human-readable export all operate on
  * the names. The ids are the source of truth for the hierarchy link; the names
- * are kept in sync by the service layer at write time.
+ * are kept in sync by the service layer at write time.</p>
  *
  * <h3>Partitioning Strategy (NFR-5)</h3>
  * <p>The underlying table {@code question_service.question} is hash-partitioned
@@ -59,7 +59,7 @@ import java.util.UUID;
  * composite {@code (id, subject_id)} — required by PostgreSQL since the partition
  * key must be part of the primary key constraint. Partitioning by the numeric
  * {@code subject_id} (rather than the {@code subject} name string) yields a
- * narrower partition key and more even hash distribution.
+ * narrower partition key and more even hash distribution.</p>
  *
  * <p><strong>JPA Compatibility:</strong> This entity uses only {@code id} (UUID v7)
  * as the JPA {@link jakarta.persistence.Id @Id}. This is valid because:
@@ -74,7 +74,7 @@ import java.util.UUID;
  *
  * <p><strong>Performance Note:</strong> Repository queries SHOULD include
  * {@code subjectId} in their predicates whenever possible to enable partition
- * pruning.
+ * pruning.</p>
  *
  * Validates: Requirements 4.1, 4.5, NFR-5
  */
@@ -176,4 +176,12 @@ public class Question extends BaseEntity {
 
     @Column(name = "reviewer_id")
     private UUID reviewerId;
+
+    /** Optional FK to passage if this question belongs to a paragraph/comprehension group. */
+    @Column(name = "passage_id")
+    private UUID passageId;
+
+    /** 0-based order index of this sub-question within its passage group. */
+    @Column(name = "passage_order_index")
+    private Integer passageOrderIndex;
 }

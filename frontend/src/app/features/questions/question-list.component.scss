@@ -19,3 +19,23 @@
     height: 18px;
   }
 }
+
+.type-cell {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.passage-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: #f0fdf4;
+  color: #15803d;
+  border: 1px solid #bbf7d0;
+  border-radius: 4px;
+  padding: 1px 5px;
+  font-size: 0.7rem;
+  font-weight: 800;
+  font-family: monospace;
+}
