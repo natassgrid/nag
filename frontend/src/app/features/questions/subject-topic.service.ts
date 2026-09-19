@@ -1,13 +1,31 @@
+/*
+ * SPDX-License-Identifier: AGPL-3.0-only
+ *
+ * National Assessment Grid (NAG) - Open Digital Public Infrastructure (DPI) Platform
+ * Copyright (C) 2025 NAG Contributors
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as published
+ * by the Free Software Foundation, version 3 of the License.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program. If not, see <https://www.gnu.org/licenses/>.
+ */
+
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { map } from 'rxjs/operators';
-import { environment } from '../../../../environments/environment';
 
 export interface Subject {
   id: number;
   name: string;
-  code: string;
+  code?: string;
   description?: string;
   topicCount?: number;
   questionCount?: number;
@@ -30,18 +48,28 @@ export interface Subtopic {
   questionCount?: number;
 }
 
+export interface SubtopicNode {
+  id: number;
+  name: string;
+  description?: string;
+  questionCount?: number;
+}
+
+export interface TopicNode {
+  id: number;
+  name: string;
+  description?: string;
+  questionCount?: number;
+  subtopics: SubtopicNode[];
+}
+
 export interface SubjectHierarchy {
   id: number;
   name: string;
-  code: string;
-  topics: {
-    id: number;
-    name: string;
-    subtopics: {
-      id: number;
-      name: string;
-    }[];
-  }[];
+  code?: string;
+  description?: string;
+  questionCount?: number;
+  topics: TopicNode[];
 }
 
 interface ApiResponse<T> {
@@ -54,7 +82,7 @@ interface ApiResponse<T> {
   providedIn: 'root'
 })
 export class SubjectTopicService {
-  private readonly baseUrl = `${environment.apiUrl}/api/v1/subjects`;
+  private readonly baseUrl = '/api/v1/subjects';
 
   constructor(private http: HttpClient) {}
 
@@ -70,13 +98,13 @@ export class SubjectTopicService {
       .pipe(map(res => res.data));
   }
 
-  createSubject(data: { name: string; code: string; description?: string }): Observable<Subject> {
+  createSubject(data: { name: string; code?: string; description?: string }): Observable<Subject> {
     return this.http
       .post<ApiResponse<Subject>>(this.baseUrl, data)
       .pipe(map(res => res.data));
   }
 
-  updateSubject(id: number, data: { name: string; code: string; description?: string }): Observable<Subject> {
+  updateSubject(id: number, data: { name: string; code?: string; description?: string }): Observable<Subject> {
     return this.http
       .put<ApiResponse<Subject>>(`${this.baseUrl}/${id}`, data)
       .pipe(map(res => res.data));

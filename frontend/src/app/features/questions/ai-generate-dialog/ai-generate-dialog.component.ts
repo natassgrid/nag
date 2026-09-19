@@ -366,4 +366,26 @@ export class AiGenerateDialogComponent implements OnInit, OnChanges, OnDestroy {
       options: question.options
     }).subscribe({
       next: () => {
-        this.savingIds.delete(index);\n        this.savedIndices.add(index);\n        this.snackBar.open('Question saved as draft', 'OK', { duration: 3000 });\n      },\n      error: (err) => {\n        this.savingIds.delete(index);\n        this.snackBar.open(err?.error?.message || 'Failed to save question', 'Dismiss', { duration: 4000 });\n      }\n    });\n  }\n\n  canSave(question: GeneratedQuestion, index: number): boolean {\n    return question.validation?.valid && !question.duplicate && !this.savedIndices.has(index) && !question.savedQuestionId;\n  }\n\n  onClose(): void {\n    this.stopPolling();\n    const hasSaved = this.savedIndices.size > 0\n      || (this.response?.questions?.some(q => q.savedQuestionId) ?? false)\n      || (this.batchJob?.totalGenerated ?? 0) > 0;\n    this.close.emit(hasSaved);\n  }\n}\n
+        this.savingIds.delete(index);
+        this.savedIndices.add(index);
+        this.snackBar.open('Question saved as draft', 'OK', { duration: 3000 });
+      },
+      error: (err) => {
+        this.savingIds.delete(index);
+        this.snackBar.open(err?.error?.message || 'Failed to save question', 'Dismiss', { duration: 4000 });
+      }
+    });
+  }
+
+  canSave(question: GeneratedQuestion, index: number): boolean {
+    return question.validation?.valid && !question.duplicate && !this.savedIndices.has(index) && !question.savedQuestionId;
+  }
+
+  onClose(): void {
+    this.stopPolling();
+    const hasSaved = this.savedIndices.size > 0
+      || (this.response?.questions?.some(q => q.savedQuestionId) ?? false)
+      || (this.batchJob?.totalGenerated ?? 0) > 0;
+    this.close.emit(hasSaved);
+  }
+}
