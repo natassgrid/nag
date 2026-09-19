@@ -79,6 +79,21 @@ spring:
     virtual:
       enabled: true
 
+scorecard:
+  storage:
+    mode: ${SCORECARD_STORAGE_MODE:s3}
+    bucket: ${SCORECARD_STORAGE_BUCKET:exam-platform-scorecards}
+    local:
+      path: ${SCORECARD_STORAGE_PATH:./scorecards}
+    s3:
+      bucket: ${AWS_S3_SCORECARD_BUCKET:${AWS_S3_BUCKET_NAME:exam-platform-scorecards}}
+      region: ${AWS_REGION:ap-south-1}
+      endpoint: ${AWS_S3_ENDPOINT:http://localhost:9000}
+      access-key: ${AWS_ACCESS_KEY_ID:minioadmin}
+      secret-key: ${AWS_SECRET_ACCESS_KEY:minioadmin}
+      path-style-access: true
+      presigned-url-duration-minutes: 15
+
 server:
   port: ${RESULT_SERVICE_PORT:8090}
   servlet:

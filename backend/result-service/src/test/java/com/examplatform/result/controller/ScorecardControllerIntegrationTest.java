@@ -21,23 +21,24 @@ package com.examplatform.result.controller;
 
 import com.examplatform.result.domain.Result;
 import com.examplatform.result.repository.ResultRepository;
+import com.examplatform.result.storage.ScorecardStorageProvider;
 import com.examplatform.result.support.AbstractIntegrationTest;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.io.TempDir;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
-import java.io.File;
-import java.nio.file.Files;
-import java.nio.file.Path;
+import java.io.ByteArrayInputStream;
+import java.nio.charset.StandardCharsets;
 import java.util.Collections;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
@@ -53,29 +54,66 @@ class ScorecardControllerIntegrationTest extends AbstractIntegrationTest {
     @MockitoBean
     private ResultRepository resultRepository;
 
+    @MockitoBean
+    private ScorecardStorageProvider scorecardStorageProvider;
+
     private static final String TENANT_ID = "tenant-test";
     private static final UUID CANDIDATE_ID = UUID.fromString("11111111-1111-1111-1111-111111111111");
+    private static final UUID RESULT_ID = UUID.fromString("22222222-2222-2222-2222-222222222222");
 
     @Nested
-    @DisplayName("GET /api/v1/results/{candidateId}/scorecard")
-    class DownloadScorecardEndpoint {
+    @DisplayName("GET /api/v1/results/{id}/scorecard")
+    class GetScorecardEndpoint {
 
         @Test
-        @DisplayName("+ve: CANDIDATE downloads scorecard - returns 200 OK with PDF")
-        void candidateCanDownloadScorecard(@TempDir Path tempDir) throws Exception {
-            Path pdfPath = tempDir.resolve("scorecard.pdf");
-            Files.write(pdfPath, "%PDF-1.4 test scorecard content".getBytes());
+        @DisplayName("+ve: CANDIDATE requests scorecard JSON - returns presigned URL")
+        void candidateCanGetPresignedUrl() throws Exception {
+            String storageKey = "scorecards/scorecard-" + RESULT_ID + ".pdf";
+            String presignedUrl = "https://s3.ap-south-1.amazonaws.com/exam-scorecards/" + storageKey + "?signature=abc";
 
             Result result = Result.builder()
                     .candidateId(CANDIDATE_ID)
                     .examId(UUID.randomUUID())
-                    .scorecardPdfRef(pdfPath.toAbsolutePath().toString())
+                    .scorecardPdfRef(storageKey)
                     .build();
 
             when(resultRepository.findByCandidateIdAndTenantId(eq(CANDIDATE_ID), eq(TENANT_ID)))
                     .thenReturn(List.of(result));
+            when(scorecardStorageProvider.name()).thenReturn("s3");
+            when(scorecardStorageProvider.generatePresignedUrl(eq(storageKey), any()))
+                    .thenReturn(presignedUrl);
 
             mockMvc.perform(get("/api/v1/results/{candidateId}/scorecard", CANDIDATE_ID)
+                            .accept(MediaType.APPLICATION_JSON)
+                            .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_CANDIDATE"))
+                                    .jwt(j -> j.subject(CANDIDATE_ID.toString()).claim("tenant_id", TENANT_ID)))
+                            .header("X-Tenant-Id", TENANT_ID))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.downloadUrl").value(presignedUrl))
+                    .andExpect(jsonPath("$.candidateId").value(CANDIDATE_ID.toString()))
+                    .andExpect(jsonPath("$.storageProvider").value("s3"))
+                    .andExpect(jsonPath("$.expiresInSeconds").value(900));
+        }
+
+        @Test
+        @DisplayName("+ve: CANDIDATE downloads binary PDF directly with Accept: application/pdf")
+        void candidateCanDownloadScorecardPdf() throws Exception {
+            String storageKey = "scorecards/scorecard-" + RESULT_ID + ".pdf";
+            byte[] pdfBytes = "%PDF-1.4 test scorecard content".getBytes(StandardCharsets.UTF_8);
+
+            Result result = Result.builder()
+                    .candidateId(CANDIDATE_ID)
+                    .examId(UUID.randomUUID())
+                    .scorecardPdfRef(storageKey)
+                    .build();
+
+            when(resultRepository.findByCandidateIdAndTenantId(eq(CANDIDATE_ID), eq(TENANT_ID)))
+                    .thenReturn(List.of(result));
+            when(scorecardStorageProvider.download(eq(storageKey)))
+                    .thenReturn(Optional.of(new ByteArrayInputStream(pdfBytes)));
+
+            mockMvc.perform(get("/api/v1/results/{candidateId}/scorecard", CANDIDATE_ID)
+                            .accept(MediaType.APPLICATION_PDF)
                             .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_CANDIDATE"))
                                     .jwt(j -> j.subject(CANDIDATE_ID.toString()).claim("tenant_id", TENANT_ID)))
                             .header("X-Tenant-Id", TENANT_ID))
@@ -85,21 +123,24 @@ class ScorecardControllerIntegrationTest extends AbstractIntegrationTest {
         }
 
         @Test
-        @DisplayName("+ve: ADMIN downloads scorecard - returns 200 OK with PDF")
-        void adminCanDownloadScorecard(@TempDir Path tempDir) throws Exception {
-            Path pdfPath = tempDir.resolve("scorecard.pdf");
-            Files.write(pdfPath, "%PDF-1.4 admin download".getBytes());
+        @DisplayName("+ve: ADMIN downloads scorecard binary PDF directly")
+        void adminCanDownloadScorecard() throws Exception {
+            String storageKey = "scorecards/scorecard-" + RESULT_ID + ".pdf";
+            byte[] pdfBytes = "%PDF-1.4 admin download".getBytes(StandardCharsets.UTF_8);
 
             Result result = Result.builder()
                     .candidateId(CANDIDATE_ID)
                     .examId(UUID.randomUUID())
-                    .scorecardPdfRef(pdfPath.toAbsolutePath().toString())
+                    .scorecardPdfRef(storageKey)
                     .build();
 
             when(resultRepository.findByCandidateIdAndTenantId(eq(CANDIDATE_ID), eq(TENANT_ID)))
                     .thenReturn(List.of(result));
+            when(scorecardStorageProvider.download(eq(storageKey)))
+                    .thenReturn(Optional.of(new ByteArrayInputStream(pdfBytes)));
 
             mockMvc.perform(get("/api/v1/results/{candidateId}/scorecard", CANDIDATE_ID)
+                            .param("download", "true")
                             .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_ADMIN"))
                                     .jwt(j -> j.subject(UUID.randomUUID().toString()).claim("tenant_id", TENANT_ID)))
                             .header("X-Tenant-Id", TENANT_ID))
@@ -122,18 +163,21 @@ class ScorecardControllerIntegrationTest extends AbstractIntegrationTest {
         }
 
         @Test
-        @DisplayName("-ve: Scorecard file not on disk returns 404 Not Found")
+        @DisplayName("-ve: Scorecard file not found in storage returns 404 Not Found")
         void scorecardFileMissingReturns404() throws Exception {
+            String storageKey = "scorecards/missing.pdf";
             Result result = Result.builder()
                     .candidateId(CANDIDATE_ID)
                     .examId(UUID.randomUUID())
-                    .scorecardPdfRef("nonexistent/path/scorecard.pdf")
+                    .scorecardPdfRef(storageKey)
                     .build();
 
             when(resultRepository.findByCandidateIdAndTenantId(eq(CANDIDATE_ID), eq(TENANT_ID)))
                     .thenReturn(List.of(result));
+            when(scorecardStorageProvider.download(eq(storageKey))).thenReturn(Optional.empty());
 
             mockMvc.perform(get("/api/v1/results/{candidateId}/scorecard", CANDIDATE_ID)
+                            .accept(MediaType.APPLICATION_PDF)
                             .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_CANDIDATE"))
                                     .jwt(j -> j.subject(CANDIDATE_ID.toString()).claim("tenant_id", TENANT_ID)))
                             .header("X-Tenant-Id", TENANT_ID))
@@ -156,6 +200,37 @@ class ScorecardControllerIntegrationTest extends AbstractIntegrationTest {
         void unauthenticatedReturnsUnauthorized() throws Exception {
             mockMvc.perform(get("/api/v1/results/{candidateId}/scorecard", CANDIDATE_ID))
                     .andExpect(status().isUnauthorized());
+        }
+    }
+
+    @Nested
+    @DisplayName("GET /api/v1/results/{id}/scorecard/presigned")
+    class PresignedEndpoint {
+
+        @Test
+        @DisplayName("+ve: Explicit presigned URL endpoint returns 200 OK")
+        void explicitPresignedEndpoint() throws Exception {
+            String storageKey = "scorecards/scorecard-" + RESULT_ID + ".pdf";
+            String presignedUrl = "https://s3.ap-south-1.amazonaws.com/exam-scorecards/" + storageKey;
+
+            Result result = Result.builder()
+                    .candidateId(CANDIDATE_ID)
+                    .examId(UUID.randomUUID())
+                    .scorecardPdfRef(storageKey)
+                    .build();
+
+            when(resultRepository.findByCandidateIdAndTenantId(eq(CANDIDATE_ID), eq(TENANT_ID)))
+                    .thenReturn(List.of(result));
+            when(scorecardStorageProvider.name()).thenReturn("s3");
+            when(scorecardStorageProvider.generatePresignedUrl(eq(storageKey), any()))
+                    .thenReturn(presignedUrl);
+
+            mockMvc.perform(get("/api/v1/results/{candidateId}/scorecard/presigned", CANDIDATE_ID)
+                            .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_CANDIDATE"))
+                                    .jwt(j -> j.subject(CANDIDATE_ID.toString()).claim("tenant_id", TENANT_ID)))
+                            .header("X-Tenant-Id", TENANT_ID))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.downloadUrl").value(presignedUrl));
         }
     }
 }

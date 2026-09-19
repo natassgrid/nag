@@ -98,9 +98,11 @@
 
                 <!-- Actions Template -->
                 <ng-container *ngIf="col.type === 'actions' && actionsTemplate">
-                  <ng-container
-                    *ngTemplateOutlet="actionsTemplate; context: { $implicit: row, row: row }"
-                  ></ng-container>
+                  <div class="actions-cell-wrapper">
+                    <ng-container
+                      *ngTemplateOutlet="actionsTemplate; context: { $implicit: row, row: row }"
+                    ></ng-container>
+                  </div>
                 </ng-container>
 
                 <!-- Chip / Badge -->

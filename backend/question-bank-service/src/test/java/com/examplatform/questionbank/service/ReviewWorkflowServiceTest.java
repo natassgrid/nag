@@ -20,6 +20,7 @@
 package com.examplatform.questionbank.service;
 
 import com.examplatform.questionbank.domain.Question;
+import com.examplatform.questionbank.dto.ReviewerAssignment;
 import com.examplatform.shared.config.DynamicConfigService;
 import com.examplatform.shared.messaging.EventPublisher;
 import org.junit.jupiter.api.BeforeEach;
@@ -32,6 +33,7 @@ import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
@@ -58,6 +60,9 @@ class ReviewWorkflowServiceTest {
     @Mock
     private DynamicConfigService dynamicConfigService;
 
+    @Mock
+    private ReviewerAssignmentService reviewerAssignmentService;
+
     @Captor
     private ArgumentCaptor<String> topicCaptor;
 
@@ -73,15 +78,20 @@ class ReviewWorkflowServiceTest {
     private UUID questionId;
     private UUID authorId;
     private UUID actorId;
+    private UUID reviewerId;
+    private UUID secondaryReviewerId;
     private String tenantId;
 
     @BeforeEach
     void setUp() {
-        reviewWorkflowService = new ReviewWorkflowService(eventPublisher, dynamicConfigService);
+        reviewWorkflowService = new ReviewWorkflowService(
+                eventPublisher, dynamicConfigService, reviewerAssignmentService);
 
         questionId = UUID.randomUUID();
         authorId = UUID.randomUUID();
         actorId = UUID.randomUUID();
+        reviewerId = UUID.randomUUID();
+        secondaryReviewerId = UUID.randomUUID();
         tenantId = "tenant-exam-board";
 
         Mockito.lenient().when(dynamicConfigService.getBoolean(anyString(), anyString(), anyBoolean()))
@@ -93,9 +103,7 @@ class ReviewWorkflowServiceTest {
                 .authorId(authorId)
                 .state("REVIEW")
                 .build();
-        // Use reflection-like setter for BaseEntity id
         testQuestion.setTenantId(tenantId);
-        // Set id via the protected method — use builder workaround
         try {
             var idField = testQuestion.getClass().getSuperclass().getDeclaredField("id");
             idField.setAccessible(true);
@@ -106,17 +114,32 @@ class ReviewWorkflowServiceTest {
     }
 
     @Test
-    @DisplayName("Transition to REVIEW publishes lifecycle event to exam.question.lifecycle")
-    void transitionToReview_publishesLifecycleEvent() {
+    @DisplayName("Transition to REVIEW assigns reviewer(s), publishes lifecycle event and reviewer notifications")
+    void transitionToReview_publishesLifecycleEventAndNotifications() {
+        ReviewerAssignment assignment = ReviewerAssignment.builder()
+                .primaryReviewerId(reviewerId)
+                .secondaryReviewerId(secondaryReviewerId)
+                .assignedReviewerIds(List.of(reviewerId, secondaryReviewerId))
+                .escalatedToController(false)
+                .build();
+
+        when(reviewerAssignmentService.assignReviewers("Mathematics", authorId, tenantId, true))
+                .thenReturn(assignment);
+
         reviewWorkflowService.processTransition(testQuestion, "DRAFT", "REVIEW", actorId, null, tenantId);
 
-        verify(eventPublisher).publish(topicCaptor.capture(), keyCaptor.capture(), valueCaptor.capture());
+        // 1 lifecycle event + 2 reviewer notifications = 3 eventPublisher.publish calls
+        verify(eventPublisher, times(3)).publish(topicCaptor.capture(), keyCaptor.capture(), valueCaptor.capture());
 
-        assertThat(topicCaptor.getValue()).isEqualTo("exam.question.lifecycle");
-        assertThat(keyCaptor.getValue()).isEqualTo(questionId.toString());
+        var topics = topicCaptor.getAllValues();
+        var keys = keyCaptor.getAllValues();
+        var values = valueCaptor.getAllValues();
+
+        assertThat(topics.get(0)).isEqualTo("exam.question.lifecycle");
+        assertThat(keys.get(0)).isEqualTo(questionId.toString());
 
         @SuppressWarnings("unchecked")
-        Map<String, Object> payload = (Map<String, Object>) valueCaptor.getValue();
+        Map<String, Object> payload = (Map<String, Object>) values.get(0);
         assertThat(payload)
                 .containsEntry("eventType", "SUBMITTED_FOR_REVIEW")
                 .containsEntry("questionId", questionId)
@@ -125,15 +148,24 @@ class ReviewWorkflowServiceTest {
                 .containsEntry("actorId", actorId)
                 .containsEntry("tenantId", tenantId)
                 .containsEntry("dualReviewRequired", true)
-                .containsKey("assignedReviewer")
+                .containsEntry("assignedReviewer", reviewerId.toString())
+                .containsEntry("assignedReviewer2", secondaryReviewerId.toString())
                 .containsKey("timestamp");
+
+        // Reviewer notifications
+        assertThat(topics.get(1)).isEqualTo("exam.notifications.outbound");
+        assertThat(keys.get(1)).isEqualTo(reviewerId.toString());
+
+        assertThat(topics.get(2)).isEqualTo("exam.notifications.outbound");
+        assertThat(keys.get(2)).isEqualTo(secondaryReviewerId.toString());
     }
 
     @Test
-    @DisplayName("Transition to APPROVED publishes REVIEWER_APPROVED event and sends notification")
+    @DisplayName("Transition to APPROVED releases reviewer load, publishes REVIEWER_APPROVED event and sends notification")
     void transitionToApproved_publishesEventAndNotification() {
         reviewWorkflowService.processTransition(testQuestion, "REVIEW", "APPROVED", actorId, null, tenantId);
 
+        verify(reviewerAssignmentService).releaseReviewerLoad(actorId, tenantId);
         verify(eventPublisher, times(2)).publish(topicCaptor.capture(), keyCaptor.capture(), valueCaptor.capture());
 
         var topics = topicCaptor.getAllValues();
@@ -167,11 +199,12 @@ class ReviewWorkflowServiceTest {
     }
 
     @Test
-    @DisplayName("Transition to DRAFT publishes RETURNED_TO_DRAFT event with comments and notifies author")
+    @DisplayName("Transition to DRAFT releases reviewer load, publishes RETURNED_TO_DRAFT event with comments and notifies author")
     void transitionToDraft_publishesEventAndNotificationWithComments() {
         String comments = "Please provide more detailed explanation in the answer key.";
         reviewWorkflowService.processTransition(testQuestion, "REVIEW", "DRAFT", actorId, comments, tenantId);
 
+        verify(reviewerAssignmentService).releaseReviewerLoad(actorId, tenantId);
         verify(eventPublisher, times(2)).publish(topicCaptor.capture(), keyCaptor.capture(), valueCaptor.capture());
 
         var topics = topicCaptor.getAllValues();

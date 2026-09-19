@@ -25,6 +25,7 @@ import com.examplatform.identity.domain.UserAccount;
 import com.examplatform.identity.domain.enums.AccountStatus;
 import com.examplatform.identity.dto.AuthTokenRequest;
 import com.examplatform.identity.dto.AuthTokenResponse;
+import com.examplatform.identity.dto.RefreshTokenRequest;
 import com.examplatform.identity.exception.AccountNotFoundException;
 import com.examplatform.identity.exception.AuthenticationException;
 import com.examplatform.identity.exception.MfaRequiredException;
@@ -43,6 +44,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.test.util.ReflectionTestUtils;
 
+import java.time.LocalDateTime;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -63,7 +65,7 @@ import static org.mockito.Mockito.when;
 /**
  * Unit tests for {@link AuthenticationService}.
  *
- * <p><strong>Validates: Requirements 2.1, 2.2, 2.5, 2.7</strong>
+ * <p><strong>Validates: Requirements 2.1, 2.2, 2.5, 2.7</strong></p>
  */
 @ExtendWith(MockitoExtension.class)
 @DisplayName("AuthenticationService")
@@ -413,6 +415,123 @@ class AuthenticationServiceTest {
                     () -> assertThat(session.getTenantId()).isEqualTo(TENANT_ID),
                     () -> assertThat(session.getSessionToken()).isNotBlank(),
                     () -> assertThat(session.getExpiresAt()).isNotNull()
+            );
+        }
+    }
+
+    // -------------------------------------------------------------------------
+    // Token Refresh
+    // -------------------------------------------------------------------------
+
+    @Nested
+    @DisplayName("Token Refresh")
+    class TokenRefresh {
+
+        @Test
+        @DisplayName("Successfully refreshes token and extends active session lifetime")
+        void successfulTokenRefresh() {
+            UserAccount account = activeAccount();
+            account.setDeviceFingerprint("fp-known");
+            when(keycloakService.refreshToken("valid-refresh-token")).thenReturn(sampleTokens());
+            when(userAccountRepository.findById(ACCOUNT_ID)).thenReturn(Optional.of(account));
+
+            ActiveSession existingSession = ActiveSession.builder()
+                    .userId(ACCOUNT_ID)
+                    .sessionToken("old-session-token")
+                    .deviceFp("fp-known")
+                    .ipAddress(IP)
+                    .expiresAt(LocalDateTime.now().minusMinutes(5))
+                    .build();
+            existingSession.setTenantId(TENANT_ID);
+            when(activeSessionRepository.findByUserIdAndTenantId(ACCOUNT_ID, TENANT_ID))
+                    .thenReturn(Optional.of(existingSession));
+
+            RefreshTokenRequest request = RefreshTokenRequest.builder()
+                    .refreshToken("valid-refresh-token")
+                    .deviceFingerprint("fp-known")
+                    .build();
+
+            AuthTokenResponse response = authenticationService.refreshToken(request, TENANT_ID, IP);
+
+            assertThat(response).isNotNull();
+            assertThat(response.getAccessToken()).isEqualTo("access.jwt.token");
+            assertThat(response.getRefreshToken()).isEqualTo("refresh.jwt.token");
+            assertThat(response.getUserId()).isEqualTo(ACCOUNT_ID.toString());
+
+            ArgumentCaptor<ActiveSession> sessionCaptor = ArgumentCaptor.forClass(ActiveSession.class);
+            verify(activeSessionRepository).save(sessionCaptor.capture());
+            ActiveSession savedSession = sessionCaptor.getValue();
+            assertThat(savedSession.getExpiresAt()).isAfter(LocalDateTime.now());
+        }
+
+        @Test
+        @DisplayName("Throws AuthenticationException when refresh token is blank")
+        void throwsWhenRefreshTokenBlank() {
+            RefreshTokenRequest request = RefreshTokenRequest.builder()
+                    .refreshToken("")
+                    .build();
+
+            assertThatThrownBy(() -> authenticationService.refreshToken(request, TENANT_ID, IP))
+                    .isInstanceOf(AuthenticationException.class)
+                    .hasMessageContaining("Refresh token is required");
+        }
+
+        @Test
+        @DisplayName("Throws AuthenticationException when Keycloak rejects refresh token")
+        void throwsWhenKeycloakRejectsRefreshToken() {
+            when(keycloakService.refreshToken("expired-token"))
+                    .thenThrow(new AuthenticationException("Invalid or expired refresh token"));
+
+            RefreshTokenRequest request = RefreshTokenRequest.builder()
+                    .refreshToken("expired-token")
+                    .build();
+
+            assertThatThrownBy(() -> authenticationService.refreshToken(request, TENANT_ID, IP))
+                    .isInstanceOf(AuthenticationException.class)
+                    .hasMessageContaining("Invalid or expired refresh token");
+        }
+
+        @Test
+        @DisplayName("Throws AuthenticationException when account is locked or deactivated")
+        void throwsWhenAccountNotActiveOnRefresh() {
+            UserAccount account = activeAccount();
+            account.setAccountStatus(AccountStatus.LOCKED);
+            when(keycloakService.refreshToken("valid-token")).thenReturn(sampleTokens());
+            when(userAccountRepository.findById(ACCOUNT_ID)).thenReturn(Optional.of(account));
+
+            RefreshTokenRequest request = RefreshTokenRequest.builder()
+                    .refreshToken("valid-token")
+                    .build();
+
+            assertThatThrownBy(() -> authenticationService.refreshToken(request, TENANT_ID, IP))
+                    .isInstanceOf(AuthenticationException.class)
+                    .hasMessageContaining("Account is not active");
+        }
+
+        @Test
+        @DisplayName("Throws AuthenticationException and publishes DENIED_ACCESS on device fingerprint mismatch")
+        void throwsOnDeviceFingerprintMismatch() {
+            UserAccount account = activeAccount();
+            account.setDeviceFingerprint("fp-registered");
+            when(keycloakService.refreshToken("valid-token")).thenReturn(sampleTokens());
+            when(userAccountRepository.findById(ACCOUNT_ID)).thenReturn(Optional.of(account));
+
+            RefreshTokenRequest request = RefreshTokenRequest.builder()
+                    .refreshToken("valid-token")
+                    .deviceFingerprint("fp-attacker")
+                    .build();
+
+            assertThatThrownBy(() -> authenticationService.refreshToken(request, TENANT_ID, IP))
+                    .isInstanceOf(AuthenticationException.class)
+                    .hasMessageContaining("Device not recognised");
+
+            verify(auditEventPublisher).publish(
+                    eq(AuditEventType.DENIED_ACCESS),
+                    eq(ACCOUNT_ID.toString()),
+                    eq("identity:auth/token"),
+                    eq(IP),
+                    eq("fp-attacker"),
+                    any()
             );
         }
     }

@@ -19,7 +19,7 @@
 
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { BehaviorSubject, Observable, tap, map } from 'rxjs';
+import { BehaviorSubject, Observable, tap, map, finalize, shareReplay, throwError } from 'rxjs';
 
 export interface UserToken {
   accessToken: string;
@@ -36,6 +36,7 @@ export class AuthService {
   private readonly USER_KEY = 'exam_user';
 
   private isAuthenticatedSubject = new BehaviorSubject<boolean>(this.hasToken());
+  private refreshTokenInProgress$: Observable<UserToken> | null = null;
 
   isAuthenticated$ = this.isAuthenticatedSubject.asObservable();
 
@@ -121,6 +122,29 @@ export class AuthService {
     }
   }
 
+  /**
+   * Returns remaining lifetime of current access token in seconds.
+   */
+  getTokenRemainingLifetimeSeconds(): number {
+    const token = this.getToken();
+    if (!token) return 0;
+    try {
+      const payload = this.decodeJwtPayload(token);
+      if (!payload || !payload.exp) return 0;
+      const remaining = payload.exp - Math.floor(Date.now() / 1000);
+      return remaining > 0 ? remaining : 0;
+    } catch {
+      return 0;
+    }
+  }
+
+  /**
+   * Checks if current token expires within the given threshold (in seconds).
+   */
+  isTokenExpiringSoon(thresholdSeconds: number = 120): boolean {
+    return this.hasToken() && this.getTokenRemainingLifetimeSeconds() <= thresholdSeconds;
+  }
+
   hasRole(role: string): boolean {
     return this.getUserRoles().includes(role);
   }
@@ -133,7 +157,9 @@ export class AuthService {
   storeTokens(tokenData: UserToken, fallbackUsername?: string): void {
     if (tokenData && tokenData.accessToken) {
       localStorage.setItem(this.TOKEN_KEY, tokenData.accessToken);
-      localStorage.setItem(this.REFRESH_KEY, tokenData.refreshToken);
+      if (tokenData.refreshToken) {
+        localStorage.setItem(this.REFRESH_KEY, tokenData.refreshToken);
+      }
 
       // Extract roles, userId, and readable username from JWT payload
       const payload = this.decodeJwtPayload(tokenData.accessToken);
@@ -153,6 +179,16 @@ export class AuthService {
         userName = payload.email.split('@')[0];
       } else if (tokenData.userId && !this.isUuid(tokenData.userId)) {
         userName = tokenData.userId;
+      }
+
+      const existingUser = localStorage.getItem(this.USER_KEY);
+      if (existingUser && !userName) {
+        try {
+          const parsed = JSON.parse(existingUser);
+          userName = parsed.userName || '';
+        } catch {
+          // ignore
+        }
       }
 
       localStorage.setItem(this.USER_KEY, JSON.stringify({ roles, userId, userName }));
@@ -207,9 +243,39 @@ export class AuthService {
     }
     return this.http.post<{ status: string; data: UserToken }>('/api/v1/identity/auth/token', payload)
       .pipe(
-        map(response => response.data),
+        map(response => response.data || (response as unknown as UserToken)),
         tap(token => this.storeTokens(token, credentials.username))
       );
+  }
+
+  /**
+   * Refreshes the access token using the stored refresh token.
+   * Concurrency-safe: simultaneous calls share the same inflight Observable.
+   */
+  refreshToken(): Observable<UserToken> {
+    if (this.refreshTokenInProgress$) {
+      return this.refreshTokenInProgress$;
+    }
+
+    const refreshToken = this.getRefreshToken();
+    if (!refreshToken) {
+      this.clearTokens();
+      return throwError(() => new Error('No refresh token available'));
+    }
+
+    this.refreshTokenInProgress$ = this.http.post<{ status: string; data: UserToken }>(
+      '/api/v1/identity/auth/token/refresh',
+      { refreshToken }
+    ).pipe(
+      map(response => response.data || (response as unknown as UserToken)),
+      tap(token => this.storeTokens(token)),
+      finalize(() => {
+        this.refreshTokenInProgress$ = null;
+      }),
+      shareReplay(1)
+    );
+
+    return this.refreshTokenInProgress$;
   }
 
   register(data: { name: string; email: string; mobile: string; identityDocType: string; identityDocNumber: string }): Observable<{ registrationId: string }> {
@@ -217,11 +283,20 @@ export class AuthService {
   }
 
   verifyOtp(data: { registrationId: string; otp: string }): Observable<UserToken> {
-    return this.http.post<UserToken>('/api/v1/identity/otp/verify', data)
-      .pipe(tap(token => this.storeTokens(token)));
+    return this.http.post<{ status: string; data: UserToken }>('/api/v1/identity/otp/verify', data)
+      .pipe(
+        map(response => response.data || (response as unknown as UserToken)),
+        tap(token => this.storeTokens(token))
+      );
   }
 
   logout(): void {
+    const userId = this.getUserId();
+    if (userId) {
+      this.http.delete('/api/v1/identity/auth/logout').subscribe({
+        error: () => { /* ignore error during logout */ }
+      });
+    }
     this.clearTokens();
   }
 }

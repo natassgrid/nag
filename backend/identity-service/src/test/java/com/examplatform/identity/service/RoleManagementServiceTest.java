@@ -23,6 +23,7 @@ import com.examplatform.identity.domain.UserAccount;
 import com.examplatform.identity.domain.UserRoleAssignment;
 import com.examplatform.identity.domain.enums.AccountStatus;
 import com.examplatform.identity.domain.enums.UserRole;
+import com.examplatform.identity.dto.ReviewerResponse;
 import com.examplatform.identity.dto.RoleAction;
 import com.examplatform.identity.dto.RoleAssignmentRequest;
 import com.examplatform.identity.dto.RoleAssignmentResponse;
@@ -246,6 +247,58 @@ class RoleManagementServiceTest {
             List<UserRole> roles = roleManagementService.getRoles(TARGET_USER_ID, TENANT_ID);
 
             assertThat(roles).containsExactly(UserRole.CANDIDATE, UserRole.EVALUATOR);
+        }
+    }
+
+    @Nested
+    @DisplayName("Find reviewers")
+    class FindReviewers {
+
+        @Test
+        @DisplayName("finds subject matter experts matching requested subject")
+        void findsSubjectMatterExperts() {
+            UUID mathUserId = UUID.randomUUID();
+            UserAccount mathUser = UserAccount.builder()
+                    .username("math_expert@example.com")
+                    .specialization("Mathematics")
+                    .accountStatus(AccountStatus.ACTIVE)
+                    .build();
+            mathUser.setTenantId(TENANT_ID);
+            ReflectionTestUtils.setField(mathUser, "id", mathUserId);
+
+            UUID physicsUserId = UUID.randomUUID();
+            UserAccount physicsUser = UserAccount.builder()
+                    .username("physics_expert@example.com")
+                    .specialization("Physics")
+                    .accountStatus(AccountStatus.ACTIVE)
+                    .build();
+            physicsUser.setTenantId(TENANT_ID);
+            ReflectionTestUtils.setField(physicsUser, "id", physicsUserId);
+
+            when(userAccountRepository.findByTenantId(TENANT_ID))
+                    .thenReturn(List.of(mathUser, physicsUser));
+
+            UserRoleAssignment mathAssignment = UserRoleAssignment.builder()
+                    .userId(mathUserId)
+                    .role(UserRole.SUBJECT_MATTER_EXPERT)
+                    .build();
+            mathAssignment.setTenantId(TENANT_ID);
+
+            UserRoleAssignment physicsAssignment = UserRoleAssignment.builder()
+                    .userId(physicsUserId)
+                    .role(UserRole.SUBJECT_MATTER_EXPERT)
+                    .build();
+            physicsAssignment.setTenantId(TENANT_ID);
+
+            when(roleAssignmentRepository.findByUserIdIn(List.of(mathUserId, physicsUserId)))
+                    .thenReturn(List.of(mathAssignment, physicsAssignment));
+
+            List<ReviewerResponse> reviewers = roleManagementService.findReviewers("Mathematics", TENANT_ID);
+
+            assertThat(reviewers).hasSize(1);
+            assertThat(reviewers.get(0).getUsername()).isEqualTo("math_expert@example.com");
+            assertThat(reviewers.get(0).getSpecialization()).isEqualTo("Mathematics");
+            assertThat(reviewers.get(0).getRoles()).contains("SUBJECT_MATTER_EXPERT");
         }
     }
 }

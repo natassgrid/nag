@@ -36,6 +36,8 @@ import java.util.List;
 public class TranslatedQuestionDeliveryDto {
     private String languageCode;
     private String content;
+    private String imageUrl;
+    private String imageAltText;
     private List<QuestionOptionDeliveryDto> options;
     private String explanation;
 }

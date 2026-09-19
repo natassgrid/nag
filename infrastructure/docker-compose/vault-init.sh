@@ -18,7 +18,9 @@ export VAULT_ADDR="${VAULT_ADDR:-http://vault:8200}"
 TARGET_TOKEN="${VAULT_TOKEN:-vault_root_token}"
 KEYS_FILE="/vault/data/vault-keys.json"
 
+mkdir -p /vault/data 2>/dev/null || true
 chmod 777 /vault/data 2>/dev/null || true
+chown -R vault:vault /vault/data 2>/dev/null || true
 
 echo "⏳ Waiting for Vault server to start at $VAULT_ADDR..."
 while true; do

@@ -20,7 +20,7 @@
 import { HttpInterceptorFn } from '@angular/common/http';
 import { inject } from '@angular/core';
 import { Router } from '@angular/router';
-import { tap, catchError, throwError } from 'rxjs';
+import { catchError, throwError, switchMap } from 'rxjs';
 import { AuthService } from '../services/auth.service';
 
 function generateRequestId(): string {
@@ -37,13 +37,15 @@ export const authInterceptor: HttpInterceptorFn = (req, next) => {
     .set('X-Tenant-Id', 'default')
     .set('Accept-Language', navigator.language || 'en');
 
+  // Don't send auth token on unauthenticated (public) endpoints
+  const isPublicAuthEndpoint = req.url.includes('/identity/auth/token') ||
+                                req.url.includes('/identity/auth/refresh') ||
+                                req.url.includes('/identity/register') ||
+                                req.url.includes('/identity/otp/') ||
+                                req.url.includes('/actuator/');
+
   if (token && token !== 'undefined' && token !== 'null') {
-    // Don't send auth token on unauthenticated (public) endpoints
-    const isUnauthenticated = req.url.includes('/identity/auth/') ||
-                              req.url.includes('/identity/register') ||
-                              req.url.includes('/identity/otp/') ||
-                              req.url.includes('/actuator/');
-    if (!isUnauthenticated) {
+    if (!isPublicAuthEndpoint) {
       headers = headers.set('Authorization', `Bearer ${token}`);
     }
   }
@@ -51,8 +53,19 @@ export const authInterceptor: HttpInterceptorFn = (req, next) => {
   const clonedReq = req.clone({ headers });
   return next(clonedReq).pipe(
     catchError(error => {
-      if (error.status === 401) {
-        // Token expired or invalid — clear session and redirect to login
+      if (error.status === 401 && !isPublicAuthEndpoint && authService.getRefreshToken()) {
+        return authService.refreshToken().pipe(
+          switchMap(newToken => {
+            const retryHeaders = clonedReq.headers.set('Authorization', `Bearer ${newToken.accessToken}`);
+            return next(clonedReq.clone({ headers: retryHeaders }));
+          }),
+          catchError(refreshError => {
+            authService.logout();
+            router.navigate(['/auth/login']);
+            return throwError(() => refreshError);
+          })
+        );
+      } else if (error.status === 401 && !isPublicAuthEndpoint) {
         authService.logout();
         router.navigate(['/auth/login']);
       }

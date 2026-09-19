@@ -20,7 +20,12 @@
 package com.examplatform.shared.messaging;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.springframework.amqp.core.Binding;
+import org.springframework.amqp.core.BindingBuilder;
+import org.springframework.amqp.core.Queue;
+import org.springframework.amqp.core.QueueBuilder;
 import org.springframework.amqp.core.TopicExchange;
+import org.springframework.amqp.rabbit.config.SimpleRabbitListenerContainerFactory;
 import org.springframework.amqp.rabbit.connection.ConnectionFactory;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.amqp.support.converter.Jackson2JsonMessageConverter;
@@ -53,6 +58,27 @@ public class MessagingAutoConfiguration {
         }
 
         @Bean
+        @ConditionalOnMissingBean(name = "examEventsDeadLetterExchange")
+        public TopicExchange examEventsDeadLetterExchange() {
+            return new TopicExchange(RabbitEventPublisher.DEAD_LETTER_EXCHANGE, true, false);
+        }
+
+        @Bean
+        @ConditionalOnMissingBean(name = "examEventsDeadLetterQueue")
+        public Queue examEventsDeadLetterQueue() {
+            return QueueBuilder.durable(RabbitEventPublisher.DEAD_LETTER_QUEUE).build();
+        }
+
+        @Bean
+        @ConditionalOnMissingBean(name = "examEventsDeadLetterBinding")
+        public Binding examEventsDeadLetterBinding() {
+            return BindingBuilder
+                    .bind(examEventsDeadLetterQueue())
+                    .to(examEventsDeadLetterExchange())
+                    .with("#");
+        }
+
+        @Bean
         @ConditionalOnMissingBean(MessageConverter.class)
         public MessageConverter jackson2JsonMessageConverter(ObjectMapper objectMapper) {
             return new Jackson2JsonMessageConverter(objectMapper);
@@ -67,6 +93,18 @@ public class MessagingAutoConfiguration {
         }
 
         @Bean
+        @ConditionalOnMissingBean(name = "rabbitListenerContainerFactory")
+        public SimpleRabbitListenerContainerFactory rabbitListenerContainerFactory(
+                ConnectionFactory connectionFactory,
+                MessageConverter messageConverter) {
+            SimpleRabbitListenerContainerFactory factory = new SimpleRabbitListenerContainerFactory();
+            factory.setConnectionFactory(connectionFactory);
+            factory.setMessageConverter(messageConverter);
+            factory.setDefaultRequeueRejected(false);
+            return factory;
+        }
+
+        @Bean(name = "eventPublisher")
         @ConditionalOnMissingBean(EventPublisher.class)
         public EventPublisher rabbitEventPublisher(RabbitTemplate rabbitTemplate, MessageConverter messageConverter) {
             rabbitTemplate.setMessageConverter(messageConverter);
@@ -76,10 +114,10 @@ public class MessagingAutoConfiguration {
 
     @Configuration(proxyBeanMethods = false)
     @ConditionalOnClass(name = "org.springframework.kafka.core.KafkaTemplate")
-    @ConditionalOnProperty(name = "platform.messaging.broker", havingValue = "kafka", matchIfMissing = true)
+    @ConditionalOnProperty(name = "platform.messaging.broker", havingValue = "kafka")
     static class KafkaMessagingConfiguration {
 
-        @Bean
+        @Bean(name = "eventPublisher")
         @ConditionalOnMissingBean(EventPublisher.class)
         public EventPublisher kafkaEventPublisher(KafkaTemplate<String, Object> kafkaTemplate) {
             return new KafkaEventPublisher(kafkaTemplate);
@@ -87,22 +125,12 @@ public class MessagingAutoConfiguration {
     }
 
     @Configuration(proxyBeanMethods = false)
-    @ConditionalOnProperty(name = "platform.messaging.broker", havingValue = "in-memory")
+    @ConditionalOnProperty(name = "platform.messaging.broker", havingValue = "in-memory", matchIfMissing = true)
     static class InMemoryMessagingConfiguration {
 
-        @Bean
+        @Bean(name = "eventPublisher")
         @ConditionalOnMissingBean(EventPublisher.class)
         public EventPublisher inMemorySpringEventPublisher(ApplicationEventPublisher applicationEventPublisher) {
-            return new SpringEventPublisher(applicationEventPublisher);
-        }
-    }
-
-    @Configuration(proxyBeanMethods = false)
-    static class FallbackMessagingConfiguration {
-
-        @Bean
-        @ConditionalOnMissingBean(EventPublisher.class)
-        public EventPublisher springEventPublisher(ApplicationEventPublisher applicationEventPublisher) {
             return new SpringEventPublisher(applicationEventPublisher);
         }
     }

@@ -26,7 +26,8 @@ import lombok.NoArgsConstructor;
 
 /**
  * Question option payload delivered to the candidate delivery interface.
- * Supports option randomization with original and display index tracking.
+ * Supports option randomization with original and display index tracking,
+ * and preserves image/SVG diagram assets and accessible alt text.
  */
 @Data
 @Builder
@@ -37,11 +38,24 @@ public class QuestionOptionDeliveryDto {
     private int index;
     private int originalIndex;
     private String text;
+    private String imageUrl;
+    private String imageAltText;
 
     public QuestionOptionDeliveryDto(int index, String text) {
         this.id = String.valueOf((char) ('A' + index));
         this.index = index;
         this.originalIndex = index;
         this.text = text;
+        this.imageUrl = null;
+        this.imageAltText = null;
+    }
+
+    public QuestionOptionDeliveryDto(int index, String text, String imageUrl, String imageAltText) {
+        this.id = String.valueOf((char) ('A' + index));
+        this.index = index;
+        this.originalIndex = index;
+        this.text = text;
+        this.imageUrl = imageUrl;
+        this.imageAltText = imageAltText;
     }
 }

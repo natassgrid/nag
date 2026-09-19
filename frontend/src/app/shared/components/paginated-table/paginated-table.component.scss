@@ -198,6 +198,20 @@
       background-color: #f8fafc;
     }
 
+    .actions-cell-wrapper {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      white-space: nowrap;
+      vertical-align: middle;
+    }
+
+    td.mat-column-actions,
+    th.mat-column-actions {
+      white-space: nowrap;
+      width: 1%;
+    }
+
     .no-data-cell {
       padding: 48px;
       text-align: center;
@@ -222,7 +236,7 @@
       font-size: 14px;
     }
 
-    /* ── FILTER DRAWER SIDEBAR ───────────────────────────────────────── */
+    /* ── FILTER DRAWER SIDEBAR ─────────────────────────────────────────── */
     .filter-drawer {
       width: 0;
       max-width: 320px;

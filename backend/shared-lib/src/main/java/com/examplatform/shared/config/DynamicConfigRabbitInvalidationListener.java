@@ -23,11 +23,13 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.amqp.core.ExchangeTypes;
+import org.springframework.amqp.core.Message;
 import org.springframework.amqp.rabbit.annotation.Exchange;
 import org.springframework.amqp.rabbit.annotation.Queue;
 import org.springframework.amqp.rabbit.annotation.QueueBinding;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
 
+import java.nio.charset.StandardCharsets;
 import java.util.Map;
 
 /**
@@ -67,6 +69,22 @@ public class DynamicConfigRabbitInvalidationListener {
     private SystemConfigChangeEvent parseEvent(Object message) {
         if (message instanceof SystemConfigChangeEvent e) {
             return e;
+        }
+        if (message instanceof Message amqpMsg) {
+            String jsonStr = new String(amqpMsg.getBody(), StandardCharsets.UTF_8);
+            try {
+                return objectMapper.readValue(jsonStr, SystemConfigChangeEvent.class);
+            } catch (Exception e) {
+                log.debug("Could not parse json as SystemConfigChangeEvent: {}", e.getMessage());
+            }
+        }
+        if (message instanceof byte[] bytes) {
+            String jsonStr = new String(bytes, StandardCharsets.UTF_8);
+            try {
+                return objectMapper.readValue(jsonStr, SystemConfigChangeEvent.class);
+            } catch (Exception e) {
+                log.debug("Could not parse json as SystemConfigChangeEvent: {}", e.getMessage());
+            }
         }
         if (message instanceof Map<?, ?> map) {
             String paramName = (String) map.get("paramName");

@@ -21,7 +21,9 @@ package com.examplatform.identity.service;
 
 import com.examplatform.identity.domain.UserAccount;
 import com.examplatform.identity.domain.UserRoleAssignment;
+import com.examplatform.identity.domain.enums.AccountStatus;
 import com.examplatform.identity.domain.enums.UserRole;
+import com.examplatform.identity.dto.ReviewerResponse;
 import com.examplatform.identity.dto.RoleAction;
 import com.examplatform.identity.dto.RoleAssignmentRequest;
 import com.examplatform.identity.dto.RoleAssignmentResponse;
@@ -37,15 +39,17 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
 /**
- * Service responsible for managing user role assignments and revocations.
- * Only Super_Admin users can invoke role management operations.
+ * Service responsible for managing user role assignments, revocations,
+ * and querying user pools including reviewers.
  */
 @Slf4j
 @Service
@@ -148,7 +152,7 @@ public class RoleManagementService {
      * List all user accounts for a tenant with their assigned roles.
      *
      * @param tenantId tenant context
-     * @return list of user account responses including roles
+     * @return list of user account responses including roles and specialization
      */
     public List<UserAccountResponse> listAllUsers(String tenantId) {
         List<UserAccount> accounts = userAccountRepository.findByTenantId(tenantId);
@@ -169,11 +173,92 @@ public class RoleManagementService {
                 .map(account -> UserAccountResponse.builder()
                         .id(account.getId())
                         .username(account.getUsername())
-                        .accountStatus(account.getAccountStatus().name())
+                        .accountStatus(account.getAccountStatus() != null ? account.getAccountStatus().name() : null)
+                        .specialization(account.getSpecialization())
                         .mfaEnabled(account.isMfaEnabled())
                         .roles(rolesByUser.getOrDefault(account.getId(), Collections.emptyList()))
                         .createdAt(account.getCreatedAt())
                         .build())
                 .toList();
+    }
+
+    /**
+     * Finds active reviewers and subject matter experts for a given subject and tenant.
+     * If subject specialists are available, returns them; if none match, returns general reviewers
+     * and exam controllers as escalation/fallback options.
+     *
+     * @param subject  target subject domain (optional)
+     * @param tenantId tenant context
+     * @return list of matching reviewer responses
+     */
+    public List<ReviewerResponse> findReviewers(String subject, String tenantId) {
+        String effectiveTenant = (tenantId != null && !tenantId.isBlank()) ? tenantId : "default";
+        List<UserAccount> accounts = userAccountRepository.findByTenantId(effectiveTenant);
+        if (accounts.isEmpty()) {
+            return Collections.emptyList();
+        }
+
+        List<UUID> activeUserIds = accounts.stream()
+                .filter(a -> a.getAccountStatus() == AccountStatus.ACTIVE)
+                .map(UserAccount::getId)
+                .toList();
+
+        if (activeUserIds.isEmpty()) {
+            return Collections.emptyList();
+        }
+
+        List<UserRoleAssignment> assignments = roleAssignmentRepository.findByUserIdIn(activeUserIds);
+        Map<UUID, List<String>> rolesByUser = assignments.stream()
+                .collect(Collectors.groupingBy(
+                        UserRoleAssignment::getUserId,
+                        Collectors.mapping(a -> a.getRole().name(), Collectors.toList())
+                ));
+
+        Set<String> reviewerRoles = Set.of(
+                UserRole.REVIEWER.name(),
+                UserRole.SUBJECT_MATTER_EXPERT.name(),
+                UserRole.EXAM_CONTROLLER.name(),
+                "QUESTION_REVIEWER"
+        );
+
+        List<ReviewerResponse> allReviewers = accounts.stream()
+                .filter(a -> a.getAccountStatus() == AccountStatus.ACTIVE)
+                .filter(a -> {
+                    List<String> roles = rolesByUser.getOrDefault(a.getId(), Collections.emptyList());
+                    return roles.stream().anyMatch(reviewerRoles::contains);
+                })
+                .map(a -> ReviewerResponse.builder()
+                        .id(a.getId())
+                        .username(a.getUsername())
+                        .specialization(a.getSpecialization())
+                        .accountStatus(a.getAccountStatus().name())
+                        .roles(rolesByUser.getOrDefault(a.getId(), Collections.emptyList()))
+                        .build())
+                .toList();
+
+        if (subject == null || subject.isBlank()) {
+            return allReviewers;
+        }
+
+        String targetSubject = subject.trim().toLowerCase();
+
+        // 1. Exact or partial match on specialization
+        List<ReviewerResponse> specialists = allReviewers.stream()
+                .filter(r -> r.getSpecialization() != null && matchesSubject(r.getSpecialization(), targetSubject))
+                .toList();
+
+        if (!specialists.isEmpty()) {
+            return specialists;
+        }
+
+        // 2. If no specialist, return general reviewers / exam controllers as fallback pool
+        return allReviewers;
+    }
+
+    private boolean matchesSubject(String specialization, String subject) {
+        if (specialization == null || subject == null) return false;
+        String s1 = specialization.trim().toLowerCase();
+        String s2 = subject.trim().toLowerCase();
+        return s1.equals(s2) || s1.contains(s2) || s2.contains(s1);
     }
 }

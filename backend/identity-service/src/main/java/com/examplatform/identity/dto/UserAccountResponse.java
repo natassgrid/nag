@@ -14,8 +14,7 @@
  * GNU Affero General Public License for more details.
  *
  * You should have received a copy of the GNU Affero General Public License
- * along with this program. If not, see <https://www.gnu.org/licenses/>.
- */
+ * along with this program. If not, see <https://www.gnu.org/licenses/>.\n */
 
 package com.examplatform.identity.dto;
 
@@ -36,6 +35,7 @@ public class UserAccountResponse {
     private UUID id;
     private String username;
     private String accountStatus;
+    private String specialization;
     private boolean mfaEnabled;
     private List<String> roles;
     private Instant createdAt;

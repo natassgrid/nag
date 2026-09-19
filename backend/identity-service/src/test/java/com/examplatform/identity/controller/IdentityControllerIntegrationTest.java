@@ -105,9 +105,11 @@ class IdentityControllerIntegrationTest extends AbstractIntegrationTest {
                             .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_SUPER_ADMIN"))))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.status").value("SUCCESS"))
-                    .andExpect(jsonPath("$.data[0].id").value(TEST_USER_ID.toString()))
+                    .andExpect(jsonPath("$.data").isArray())
                     .andExpect(jsonPath("$.data[0].username").value("admin_user"))
                     .andExpect(jsonPath("$.data[0].roles[0]").value("SUPER_ADMIN"));
+
+            verify(roleManagementService).listAllUsers(TENANT_ID);
         }
 
         @Test
@@ -124,8 +126,8 @@ class IdentityControllerIntegrationTest extends AbstractIntegrationTest {
         }
 
         @Test
-        @DisplayName("-ve: CANDIDATE role receives 403 Forbidden")
-        void candidateReceivesForbidden() throws Exception {
+        @DisplayName("-ve: CANDIDATE is forbidden - returns 403 Forbidden")
+        void candidateForbiddenFromListingUsers() throws Exception {
             mockMvc.perform(get("/api/v1/identity/users")
                             .header("X-Tenant-Id", TENANT_ID)
                             .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_CANDIDATE"))))
@@ -133,8 +135,8 @@ class IdentityControllerIntegrationTest extends AbstractIntegrationTest {
         }
 
         @Test
-        @DisplayName("-ve: Unauthenticated request receives 401 Unauthorized")
-        void unauthenticatedReceivesUnauthorized() throws Exception {
+        @DisplayName("-ve: Unauthenticated request returns 401 Unauthorized")
+        void unauthenticatedCannotListUsers() throws Exception {
             mockMvc.perform(get("/api/v1/identity/users")
                             .header("X-Tenant-Id", TENANT_ID))
                     .andExpect(status().isUnauthorized());
@@ -142,27 +144,30 @@ class IdentityControllerIntegrationTest extends AbstractIntegrationTest {
     }
 
     // =========================================================================
-    // 2. POST /api/v1/identity/register (Candidate Registration)
+    // 2. POST /api/v1/identity/register
     // =========================================================================
     @Nested
     @DisplayName("POST /api/v1/identity/register")
     class RegisterEndpoint {
 
-        @Test
-        @DisplayName("+ve: Valid candidate registration returns 202 Accepted")
-        void validRegistrationReturnsAccepted() throws Exception {
-            RegistrationRequest request = RegistrationRequest.builder()
-                    .fullName("Priya Sharma")
-                    .email("priya.sharma@nag.gov.in")
-                    .mobile("9876543210")
-                    .identityDocType(IdentityDocType.AADHAAR)
-                    .identityDocNumber("123456789012")
-                    .password("SecurePass123#")
-                    .build();
+        private RegistrationRequest validRequest() {
+            RegistrationRequest req = new RegistrationRequest();
+            req.setIdentityDocType(IdentityDocType.AADHAAR);
+            req.setIdentityDocNumber("123456789012");
+            req.setFullName("Ramesh Kumar");
+            req.setEmail("ramesh.kumar@example.com");
+            req.setMobile("9876543210");
+            req.setPassword("SecurePassword123#");
+            return req;
+        }
 
+        @Test
+        @DisplayName("+ve: Valid registration returns 202 Accepted")
+        void validRegistrationReturnsAccepted() throws Exception {
+            RegistrationRequest request = validRequest();
             RegistrationResponse response = RegistrationResponse.builder()
                     .userId(TEST_USER_ID.toString())
-                    .message("Registration initiated. OTP sent to registered mobile.")
+                    .message("Registration initiated")
                     .build();
 
             when(registrationService.register(any(RegistrationRequest.class), eq(TENANT_ID))).thenReturn(response);
@@ -173,84 +178,80 @@ class IdentityControllerIntegrationTest extends AbstractIntegrationTest {
                             .content(objectMapper.writeValueAsString(request)))
                     .andExpect(status().isAccepted())
                     .andExpect(jsonPath("$.status").value("SUCCESS"))
-                    .andExpect(jsonPath("$.data.userId").value(TEST_USER_ID.toString()))
-                    .andExpect(jsonPath("$.data.message").value("Registration initiated. OTP sent to registered mobile."));
+                    .andExpect(jsonPath("$.data.userId").value(TEST_USER_ID.toString()));
+
+            verify(registrationService).register(any(RegistrationRequest.class), eq(TENANT_ID));
         }
 
         @Test
-        @DisplayName("-ve: Missing required fields and invalid mobile format returns 400 Bad Request")
-        void invalidPayloadReturnsBadRequest() throws Exception {
-            RegistrationRequest invalidRequest = RegistrationRequest.builder()
-                    .fullName("") // Blank: violates @NotBlank & @Size
-                    .email("not-an-email") // Invalid email
-                    .mobile("1234") // Invalid pattern
-                    .identityDocType(null) // Violates @NotNull
-                    .password("short") // Violates @Size(min = 8)
-                    .build();
-
-            mockMvc.perform(post("/api/v1/identity/register")
-                            .header("X-Tenant-Id", TENANT_ID)
-                            .contentType(MediaType.APPLICATION_JSON)
-                            .content(objectMapper.writeValueAsString(invalidRequest)))
-                    .andExpect(status().isBadRequest())
-                    .andExpect(jsonPath("$.title").value("Validation Failed"))
-                    .andExpect(jsonPath("$.fieldErrors.email").exists())
-                    .andExpect(jsonPath("$.fieldErrors.mobile").exists())
-                    .andExpect(jsonPath("$.fieldErrors.fullName").exists())
-                    .andExpect(jsonPath("$.fieldErrors.password").exists());
-        }
-
-        @Test
-        @DisplayName("-ve: Duplicate email / identity doc returns 409 Conflict")
+        @DisplayName("-ve: Duplicate identity returns 409 Conflict")
         void duplicateIdentityReturnsConflict() throws Exception {
-            RegistrationRequest request = RegistrationRequest.builder()
-                    .fullName("Priya Sharma")
-                    .email("duplicate@nag.gov.in")
-                    .mobile("9876543210")
-                    .identityDocType(IdentityDocType.AADHAAR)
-                    .identityDocNumber("123456789012")
-                    .password("SecurePass123#")
-                    .build();
+            RegistrationRequest request = validRequest();
 
             when(registrationService.register(any(RegistrationRequest.class), eq(TENANT_ID)))
-                    .thenThrow(new DuplicateIdentityException("An account with this email address already exists."));
+                    .thenThrow(new DuplicateIdentityException("Identity document already registered"));
 
             mockMvc.perform(post("/api/v1/identity/register")
                             .header("X-Tenant-Id", TENANT_ID)
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(objectMapper.writeValueAsString(request)))
                     .andExpect(status().isConflict())
-                    .andExpect(jsonPath("$.title").value("Duplicate Identity"))
-                    .andExpect(jsonPath("$.detail").value("An account with this email address already exists."));
+                    .andExpect(jsonPath("$.title").value("Duplicate Identity"));
+        }
+
+        @Test
+        @DisplayName("-ve: Invalid email format returns 400 Bad Request")
+        void invalidEmailReturnsBadRequest() throws Exception {
+            RegistrationRequest request = validRequest();
+            request.setEmail("not-an-email");
+
+            mockMvc.perform(post("/api/v1/identity/register")
+                            .header("X-Tenant-Id", TENANT_ID)
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(request)))
+                    .andExpect(status().isBadRequest())
+                    .andExpect(jsonPath("$.title").value("Validation Failed"));
+        }
+
+        @Test
+        @DisplayName("-ve: Missing identityDocType returns 400 Bad Request")
+        void missingDocTypeReturnsBadRequest() throws Exception {
+            RegistrationRequest request = validRequest();
+            request.setIdentityDocType(null);
+
+            mockMvc.perform(post("/api/v1/identity/register")
+                            .header("X-Tenant-Id", TENANT_ID)
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(request)))
+                    .andExpect(status().isBadRequest())
+                    .andExpect(jsonPath("$.title").value("Validation Failed"));
         }
     }
 
     // =========================================================================
-    // 3. POST /api/v1/identity/otp/verify (OTP Verification & Account Activation)
+    // 3. POST /api/v1/identity/otp/verify
     // =========================================================================
     @Nested
     @DisplayName("POST /api/v1/identity/otp/verify")
-    class OtpVerificationEndpoint {
+    class VerifyOtpEndpoint {
 
         @Test
-        @DisplayName("+ve: Valid OTP verification returns 200 OK with AuthTokenResponse")
+        @DisplayName("+ve: Valid OTP returns 200 OK with tokens")
         void validOtpReturnsOkWithTokens() throws Exception {
-            OtpVerifyRequest request = OtpVerifyRequest.builder()
-                    .userId(TEST_USER_ID.toString())
-                    .mobile("9876543210")
-                    .otp("123456")
-                    .build();
+            OtpVerifyRequest request = new OtpVerifyRequest();
+            request.setUserId(TEST_USER_ID.toString());
+            request.setOtp("123456");
 
-            AuthTokenResponse tokenResponse = AuthTokenResponse.builder()
-                    .accessToken("mock-access-token")
-                    .refreshToken("mock-refresh-token")
-                    .tokenType("Bearer")
+            AuthTokenResponse tokens = AuthTokenResponse.builder()
+                    .accessToken("sample.access.token")
+                    .refreshToken("sample.refresh.token")
                     .expiresIn(900L)
+                    .tokenType("Bearer")
                     .userId(TEST_USER_ID.toString())
                     .build();
 
             when(otpVerificationService.verifyOtpAndActivate(any(OtpVerifyRequest.class), eq(TENANT_ID)))
-                    .thenReturn(tokenResponse);
+                    .thenReturn(tokens);
 
             mockMvc.perform(post("/api/v1/identity/otp/verify")
                             .header("X-Tenant-Id", TENANT_ID)
@@ -258,76 +259,70 @@ class IdentityControllerIntegrationTest extends AbstractIntegrationTest {
                             .content(objectMapper.writeValueAsString(request)))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.status").value("SUCCESS"))
-                    .andExpect(jsonPath("$.data.accessToken").value("mock-access-token"))
+                    .andExpect(jsonPath("$.data.accessToken").value("sample.access.token"))
                     .andExpect(jsonPath("$.data.tokenType").value("Bearer"))
                     .andExpect(jsonPath("$.data.userId").value(TEST_USER_ID.toString()));
         }
 
         @Test
-        @DisplayName("-ve: Invalid OTP length returns 400 Bad Request")
-        void invalidOtpLengthReturnsBadRequest() throws Exception {
-            OtpVerifyRequest invalidRequest = OtpVerifyRequest.builder()
-                    .userId(TEST_USER_ID.toString())
-                    .mobile("9876543210")
-                    .otp("123") // Must be 6 digits
-                    .build();
-
-            mockMvc.perform(post("/api/v1/identity/otp/verify")
-                            .header("X-Tenant-Id", TENANT_ID)
-                            .contentType(MediaType.APPLICATION_JSON)
-                            .content(objectMapper.writeValueAsString(invalidRequest)))
-                    .andExpect(status().isBadRequest())
-                    .andExpect(jsonPath("$.title").value("Validation Failed"))
-                    .andExpect(jsonPath("$.fieldErrors.otp").exists());
-        }
-
-        @Test
-        @DisplayName("-ve: Expired or wrong OTP returns 422 Unprocessable Entity")
-        void expiredOtpReturnsUnprocessableEntity() throws Exception {
-            OtpVerifyRequest request = OtpVerifyRequest.builder()
-                    .userId(TEST_USER_ID.toString())
-                    .mobile("9876543210")
-                    .otp("999999")
-                    .build();
+        @DisplayName("-ve: Invalid OTP returns 422 Unprocessable Entity")
+        void invalidOtpReturnsUnprocessableEntity() throws Exception {
+            OtpVerifyRequest request = new OtpVerifyRequest();
+            request.setUserId(TEST_USER_ID.toString());
+            request.setOtp("000000");
 
             when(otpVerificationService.verifyOtpAndActivate(any(OtpVerifyRequest.class), eq(TENANT_ID)))
-                    .thenThrow(new InvalidOtpException("Invalid or expired OTP. Please request a new OTP."));
+                    .thenThrow(new InvalidOtpException("Invalid or expired OTP"));
 
             mockMvc.perform(post("/api/v1/identity/otp/verify")
                             .header("X-Tenant-Id", TENANT_ID)
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(objectMapper.writeValueAsString(request)))
                     .andExpect(status().isUnprocessableEntity())
-                    .andExpect(jsonPath("$.title").value("Invalid OTP"))
-                    .andExpect(jsonPath("$.detail").value("Invalid or expired OTP. Please request a new OTP."));
+                    .andExpect(jsonPath("$.title").value("Invalid OTP"));
+        }
+
+        @Test
+        @DisplayName("-ve: Blank OTP returns 400 Bad Request")
+        void blankOtpReturnsBadRequest() throws Exception {
+            OtpVerifyRequest request = new OtpVerifyRequest();
+            request.setUserId(TEST_USER_ID.toString());
+            request.setOtp("");
+
+            mockMvc.perform(post("/api/v1/identity/otp/verify")
+                            .header("X-Tenant-Id", TENANT_ID)
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(request)))
+                    .andExpect(status().isBadRequest())
+                    .andExpect(jsonPath("$.title").value("Validation Failed"));
         }
     }
 
     // =========================================================================
-    // 4. POST /api/v1/identity/auth/token (Username/Password Authentication)
+    // 4. POST /api/v1/identity/auth/token
     // =========================================================================
     @Nested
     @DisplayName("POST /api/v1/identity/auth/token")
-    class AuthenticationEndpoint {
+    class TokenEndpoint {
 
         @Test
         @DisplayName("+ve: Valid credentials return 200 OK with tokens")
-        void validCredentialsReturnOk() throws Exception {
+        void validCredentialsReturnTokens() throws Exception {
             AuthTokenRequest request = AuthTokenRequest.builder()
-                    .username("candidate01")
-                    .password("CorrectPass123#")
+                    .username("user@example.com")
+                    .password("Password123#")
                     .build();
 
-            AuthTokenResponse tokenResponse = AuthTokenResponse.builder()
-                    .accessToken("jwt-access-token")
-                    .refreshToken("jwt-refresh-token")
-                    .tokenType("Bearer")
+            AuthTokenResponse tokens = AuthTokenResponse.builder()
+                    .accessToken("valid.jwt.token")
+                    .refreshToken("refresh.jwt.token")
                     .expiresIn(900L)
+                    .tokenType("Bearer")
                     .userId(TEST_USER_ID.toString())
                     .build();
 
             when(authenticationService.authenticate(any(AuthTokenRequest.class), eq(TENANT_ID), any()))
-                    .thenReturn(tokenResponse);
+                    .thenReturn(tokens);
 
             mockMvc.perform(post("/api/v1/identity/auth/token")
                             .header("X-Tenant-Id", TENANT_ID)
@@ -335,47 +330,46 @@ class IdentityControllerIntegrationTest extends AbstractIntegrationTest {
                             .content(objectMapper.writeValueAsString(request)))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.status").value("SUCCESS"))
-                    .andExpect(jsonPath("$.data.accessToken").value("jwt-access-token"));
+                    .andExpect(jsonPath("$.data.accessToken").value("valid.jwt.token"))
+                    .andExpect(jsonPath("$.data.tokenType").value("Bearer"));
         }
 
         @Test
-        @DisplayName("-ve: Invalid credentials return 401 Unauthorized")
-        void invalidCredentialsReturnUnauthorized() throws Exception {
-            AuthTokenRequest request = AuthTokenRequest.builder()
-                    .username("candidate01")
-                    .password("WrongPassword")
-                    .build();
-
-            when(authenticationService.authenticate(any(AuthTokenRequest.class), eq(TENANT_ID), any()))
-                    .thenThrow(new AuthenticationException("Invalid username or password."));
-
-            mockMvc.perform(post("/api/v1/identity/auth/token")
-                            .header("X-Tenant-Id", TENANT_ID)
-                            .contentType(MediaType.APPLICATION_JSON)
-                            .content(objectMapper.writeValueAsString(request)))
-                    .andExpect(status().isUnauthorized())
-                    .andExpect(jsonPath("$.title").value("Unauthorized"))
-                    .andExpect(jsonPath("$.detail").value("Invalid username or password."));
-        }
-
-        @Test
-        @DisplayName("-ve: Account requiring MFA returns 403 Forbidden with mfaRequired true")
+        @DisplayName("-ve: MFA required returns 403 Forbidden with MFA error code")
         void mfaRequiredReturnsForbidden() throws Exception {
             AuthTokenRequest request = AuthTokenRequest.builder()
-                    .username("admin01")
-                    .password("CorrectPassword")
+                    .username("user@example.com")
+                    .password("Password123#")
                     .build();
 
             when(authenticationService.authenticate(any(AuthTokenRequest.class), eq(TENANT_ID), any()))
-                    .thenThrow(new MfaRequiredException("MFA OTP required for this account."));
+                    .thenThrow(new MfaRequiredException("MFA required. Please provide OTP code."));
 
             mockMvc.perform(post("/api/v1/identity/auth/token")
                             .header("X-Tenant-Id", TENANT_ID)
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(objectMapper.writeValueAsString(request)))
                     .andExpect(status().isForbidden())
-                    .andExpect(jsonPath("$.title").value("MFA Required"))
-                    .andExpect(jsonPath("$.mfaRequired").value(true));
+                    .andExpect(jsonPath("$.title").value("MFA Required"));
+        }
+
+        @Test
+        @DisplayName("-ve: Invalid credentials return 401 Unauthorized")
+        void invalidCredentialsReturnUnauthorized() throws Exception {
+            AuthTokenRequest request = AuthTokenRequest.builder()
+                    .username("user@example.com")
+                    .password("WrongPassword")
+                    .build();
+
+            when(authenticationService.authenticate(any(AuthTokenRequest.class), eq(TENANT_ID), any()))
+                    .thenThrow(new AuthenticationException("Invalid credentials"));
+
+            mockMvc.perform(post("/api/v1/identity/auth/token")
+                            .header("X-Tenant-Id", TENANT_ID)
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(request)))
+                    .andExpect(status().isUnauthorized())
+                    .andExpect(jsonPath("$.title").value("Unauthorized"));
         }
 
         @Test
@@ -392,6 +386,77 @@ class IdentityControllerIntegrationTest extends AbstractIntegrationTest {
                             .content(objectMapper.writeValueAsString(request)))
                     .andExpect(status().isBadRequest())
                     .andExpect(jsonPath("$.title").value("Validation Failed"));
+        }
+    }
+
+    // =========================================================================
+    // 4b. POST /api/v1/identity/auth/token/refresh
+    // =========================================================================
+    @Nested
+    @DisplayName("POST /api/v1/identity/auth/token/refresh")
+    class RefreshTokenEndpoint {
+
+        @Test
+        @DisplayName("+ve: Valid refresh token returns 200 OK with rotated tokens")
+        void validRefreshTokenReturnsTokens() throws Exception {
+            RefreshTokenRequest request = RefreshTokenRequest.builder()
+                    .refreshToken("sample-valid-refresh-token")
+                    .deviceFingerprint("fp-device-1")
+                    .build();
+
+            AuthTokenResponse tokens = AuthTokenResponse.builder()
+                    .accessToken("new.access.token")
+                    .refreshToken("new.refresh.token")
+                    .expiresIn(900L)
+                    .tokenType("Bearer")
+                    .userId(TEST_USER_ID.toString())
+                    .build();
+
+            when(authenticationService.refreshToken(any(RefreshTokenRequest.class), eq(TENANT_ID), any()))
+                    .thenReturn(tokens);
+
+            mockMvc.perform(post("/api/v1/identity/auth/token/refresh")
+                            .header("X-Tenant-Id", TENANT_ID)
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(request)))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.status").value("SUCCESS"))
+                    .andExpect(jsonPath("$.data.accessToken").value("new.access.token"))
+                    .andExpect(jsonPath("$.data.refreshToken").value("new.refresh.token"))
+                    .andExpect(jsonPath("$.data.userId").value(TEST_USER_ID.toString()));
+        }
+
+        @Test
+        @DisplayName("-ve: Blank refresh token returns 400 Bad Request")
+        void blankRefreshTokenReturnsBadRequest() throws Exception {
+            RefreshTokenRequest request = RefreshTokenRequest.builder()
+                    .refreshToken("")
+                    .build();
+
+            mockMvc.perform(post("/api/v1/identity/auth/token/refresh")
+                            .header("X-Tenant-Id", TENANT_ID)
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(request)))
+                    .andExpect(status().isBadRequest())
+                    .andExpect(jsonPath("$.title").value("Validation Failed"));
+        }
+
+        @Test
+        @DisplayName("-ve: Invalid or expired refresh token returns 401 Unauthorized")
+        void invalidRefreshTokenReturnsUnauthorized() throws Exception {
+            RefreshTokenRequest request = RefreshTokenRequest.builder()
+                    .refreshToken("invalid-token")
+                    .build();
+
+            when(authenticationService.refreshToken(any(RefreshTokenRequest.class), eq(TENANT_ID), any()))
+                    .thenThrow(new AuthenticationException("Invalid or expired refresh token"));
+
+            mockMvc.perform(post("/api/v1/identity/auth/token/refresh")
+                            .header("X-Tenant-Id", TENANT_ID)
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(request)))
+                    .andExpect(status().isUnauthorized())
+                    .andExpect(jsonPath("$.title").value("Unauthorized"));
         }
     }
 

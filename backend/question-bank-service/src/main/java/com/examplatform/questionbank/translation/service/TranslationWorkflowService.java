@@ -108,12 +108,12 @@ public class TranslationWorkflowService {
         validateOptionIds(request, question);
 
         TranslatedQuestionPayload payload = buildPayload(request, question);
-        String stored = payloadService.serialize(payload);
+        String serialized = payloadService.serialize(payload);
 
         Translation translation = Translation.builder()
                 .questionId(request.getQuestionId())
                 .languageCode(request.getLanguageCode())
-                .translatedPayload(stored)
+                .translatedPayload(serialized)
                 .payloadEncrypted(payloadService.isEncryptionEnabled())
                 .sourceVersion(question.getVersion() != null ? question.getVersion() : 0L)
                 .status(Translation.TranslationStatus.DRAFT)
@@ -121,9 +121,8 @@ public class TranslationWorkflowService {
                 .build();
         translation.setTenantId(tenantId);
 
-        log.info("Translation requested: questionId={}, lang={}, translator={}, tenant={}, encrypted={}",
-                request.getQuestionId(), request.getLanguageCode(),
-                request.getTranslatorId(), tenantId, payloadService.isEncryptionEnabled());
+        log.info("Translation requested: questionId={}, lang={}, translatorId={}, tenant={}",
+                request.getQuestionId(), request.getLanguageCode(), request.getTranslatorId(), tenantId);
 
         return translationRepository.save(translation);
     }
@@ -170,8 +169,9 @@ public class TranslationWorkflowService {
     }
 
     /**
-     * Upsert a translation (creates if not existing, updates if already present)
-     * and sets status (e.g. PUBLISHED or APPROVED).
+     * Upsert a translation (e.g. from automated IndicTrans2 background pipeline).
+     * If existing translation exists, updates payload and sets to target status (e.g. PUBLISHED).
+     * If not, inserts new translation directly.
      */
     public Translation upsertTranslation(
             UUID questionId,
@@ -184,23 +184,38 @@ public class TranslationWorkflowService {
             String reviewComments,
             String tenantId) {
 
-        validateLanguageCode(languageCode);
-
         Question question = questionRepository.findById(questionId)
-                .orElseThrow(() -> new IllegalArgumentException("Source question not found: " + questionId));
+                .orElseThrow(() -> new IllegalArgumentException(
+                        "Source question not found: " + questionId));
 
         Map<String, QuestionOption> sourceOptionMap = (question.getOptions() != null)
                 ? question.getOptions().stream().collect(Collectors.toMap(QuestionOption::getId, o -> o, (a, b) -> a))
                 : Collections.emptyMap();
 
-        List<TranslatedQuestionPayload.TranslatedOption> payloadOptions = (options != null)
-                ? options.stream().map(dto -> {
-                    QuestionOption src = sourceOptionMap.get(dto.id());
-                    String imgUrl = dto.imageUrl() != null ? dto.imageUrl() : (src != null ? src.getImageUrl() : null);
-                    String altText = dto.imageAltText() != null ? dto.imageAltText() : (src != null ? src.getImageAltText() : null);
-                    return new TranslatedQuestionPayload.TranslatedOption(dto.id(), dto.text(), imgUrl, altText);
-                }).toList()
-                : Collections.emptyList();
+        List<TranslatedQuestionPayload.TranslatedOption> payloadOptions;
+        if (options != null && !options.isEmpty()) {
+            payloadOptions = options.stream().map(dto -> {
+                QuestionOption src = sourceOptionMap.get(dto.id());
+                String imgUrl = (dto.imageUrl() != null && !dto.imageUrl().isBlank())
+                        ? dto.imageUrl()
+                        : (src != null ? src.getImageUrl() : null);
+                String altText = (dto.imageAltText() != null && !dto.imageAltText().isBlank())
+                        ? dto.imageAltText()
+                        : (src != null ? src.getImageAltText() : null);
+                return new TranslatedQuestionPayload.TranslatedOption(dto.id(), dto.text(), imgUrl, altText);
+            }).toList();
+        } else if (question.getOptions() != null && !question.getOptions().isEmpty()) {
+            payloadOptions = question.getOptions().stream().map(src ->
+                    new TranslatedQuestionPayload.TranslatedOption(
+                            src.getId(),
+                            src.getText(),
+                            src.getImageUrl(),
+                            src.getImageAltText()
+                    )
+            ).toList();
+        } else {
+            payloadOptions = Collections.emptyList();
+        }
 
         TranslatedQuestionPayload payload = new TranslatedQuestionPayload(content, payloadOptions, explanation);
         String serialized = payloadService.serialize(payload);
@@ -268,33 +283,25 @@ public class TranslationWorkflowService {
         }
     }
 
-    /**
-     * Validates that every option ID in the translated options matches an option
-     * ID present in the source question, and that no source option is missing.
-     */
     private void validateOptionIds(TranslationRequest request, Question question) {
-        if (request.getTranslatedOptions() == null || request.getTranslatedOptions().isEmpty()) {
-            return; // No options to validate (SHORT_ANSWER etc.)
+        if (question.getOptions() == null || question.getOptions().isEmpty()) {
+            return;
         }
 
-        List<QuestionOption> sourceOptions =
-                question.getOptions() != null ? question.getOptions() : Collections.emptyList();
-
-        Set<String> sourceIds = sourceOptions.stream()
+        Set<String> sourceOptionIds = question.getOptions().stream()
                 .map(QuestionOption::getId)
                 .collect(Collectors.toSet());
 
-        Set<String> translatedIds = request.getTranslatedOptions().stream()
+        Set<String> requestOptionIds = Optional.ofNullable(request.getTranslatedOptions())
+                .orElse(Collections.emptyList())
+                .stream()
                 .map(TranslatedOptionDto::id)
                 .collect(Collectors.toSet());
 
-        Set<String> unknown = translatedIds.stream()
-                .filter(id -> !sourceIds.contains(id))
-                .collect(Collectors.toSet());
-
-        if (!unknown.isEmpty()) {
+        if (!sourceOptionIds.equals(requestOptionIds)) {
             throw new IllegalArgumentException(
-                    "Translated options contain IDs not present in source question: " + unknown);
+                    "Translated option IDs do not match source question options. Source: "
+                            + sourceOptionIds + ", provided: " + requestOptionIds);
         }
     }
 
@@ -303,17 +310,32 @@ public class TranslationWorkflowService {
                 ? question.getOptions().stream().collect(Collectors.toMap(QuestionOption::getId, o -> o, (a, b) -> a))
                 : Collections.emptyMap();
 
-        List<TranslatedQuestionPayload.TranslatedOption> options = Optional
-                .ofNullable(request.getTranslatedOptions())
-                .orElse(Collections.emptyList())
-                .stream()
-                .map(dto -> {
-                    QuestionOption src = sourceOptionMap.get(dto.id());
-                    String imgUrl = dto.imageUrl() != null ? dto.imageUrl() : (src != null ? src.getImageUrl() : null);
-                    String altText = dto.imageAltText() != null ? dto.imageAltText() : (src != null ? src.getImageAltText() : null);
-                    return new TranslatedQuestionPayload.TranslatedOption(dto.id(), dto.text(), imgUrl, altText);
-                })
-                .toList();
+        List<TranslatedQuestionPayload.TranslatedOption> options;
+        if (request.getTranslatedOptions() != null && !request.getTranslatedOptions().isEmpty()) {
+            options = request.getTranslatedOptions().stream()
+                    .map(dto -> {
+                        QuestionOption src = sourceOptionMap.get(dto.id());
+                        String imgUrl = (dto.imageUrl() != null && !dto.imageUrl().isBlank())
+                                ? dto.imageUrl()
+                                : (src != null ? src.getImageUrl() : null);
+                        String altText = (dto.imageAltText() != null && !dto.imageAltText().isBlank())
+                                ? dto.imageAltText()
+                                : (src != null ? src.getImageAltText() : null);
+                        return new TranslatedQuestionPayload.TranslatedOption(dto.id(), dto.text(), imgUrl, altText);
+                    })
+                    .toList();
+        } else if (question != null && question.getOptions() != null && !question.getOptions().isEmpty()) {
+            options = question.getOptions().stream().map(src ->
+                    new TranslatedQuestionPayload.TranslatedOption(
+                            src.getId(),
+                            src.getText(),
+                            src.getImageUrl(),
+                            src.getImageAltText()
+                    )
+            ).toList();
+        } else {
+            options = Collections.emptyList();
+        }
 
         return new TranslatedQuestionPayload(
                 request.getTranslatedContent(),

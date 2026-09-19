@@ -20,6 +20,7 @@
 package com.examplatform.questionbank.service;
 
 import com.examplatform.questionbank.domain.Question;
+import com.examplatform.questionbank.dto.ReviewerAssignment;
 import com.examplatform.shared.config.DynamicConfigService;
 import com.examplatform.shared.messaging.EventPublisher;
 import lombok.RequiredArgsConstructor;
@@ -27,6 +28,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.time.Instant;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 
@@ -46,6 +48,7 @@ public class ReviewWorkflowService {
 
     private final EventPublisher eventPublisher;
     private final DynamicConfigService dynamicConfigService;
+    private final ReviewerAssignmentService reviewerAssignmentService;
 
     /**
      * Processes a lifecycle transition event and triggers appropriate workflow actions.
@@ -69,40 +72,63 @@ public class ReviewWorkflowService {
     }
 
     /**
-     * DRAFT -> REVIEW: Assign to available reviewer by subject specialization,
-     * publish lifecycle event.
+     * DRAFT -> REVIEW: Assign to available reviewer(s) by subject specialization,
+     * load-balance, and publish lifecycle event and reviewer notifications.
      */
     private void handleSubmittedForReview(Question question, UUID actorId, String tenantId) {
-        // Assign reviewer by subject specialization (simplified — production would query reviewer pool)
-        UUID assignedReviewer = resolveReviewerBySubject(question.getSubject(), tenantId);
         boolean dualReviewRequired = dynamicConfigService.getBoolean(
                 "question.dual.review.required", tenantId, true);
 
-        Map<String, Object> lifecycleEvent = Map.of(
-                "eventType", "SUBMITTED_FOR_REVIEW",
-                "questionId", question.getId(),
-                "subject", question.getSubject(),
-                "authorId", question.getAuthorId(),
-                "assignedReviewer", assignedReviewer != null ? assignedReviewer.toString() : "UNASSIGNED",
-                "dualReviewRequired", dualReviewRequired,
-                "actorId", actorId,
-                "tenantId", tenantId,
-                "timestamp", Instant.now().toString()
-        );
+        ReviewerAssignment assignment = reviewerAssignmentService.assignReviewers(
+                question.getSubject(), question.getAuthorId(), tenantId, dualReviewRequired);
+
+        UUID primaryReviewer = assignment.getPrimaryReviewerId();
+        UUID secondaryReviewer = assignment.getSecondaryReviewerId();
+
+        Map<String, Object> lifecycleEvent = new HashMap<>();
+        lifecycleEvent.put("eventType", "SUBMITTED_FOR_REVIEW");
+        lifecycleEvent.put("questionId", question.getId());
+        lifecycleEvent.put("subject", question.getSubject());
+        lifecycleEvent.put("authorId", question.getAuthorId());
+        lifecycleEvent.put("assignedReviewer", primaryReviewer != null ? primaryReviewer.toString() : "UNASSIGNED");
+        if (secondaryReviewer != null) {
+            lifecycleEvent.put("assignedReviewer2", secondaryReviewer.toString());
+        }
+        lifecycleEvent.put("assignedReviewers", assignment.getAssignedReviewerIds().stream().map(UUID::toString).toList());
+        lifecycleEvent.put("escalatedToController", assignment.isEscalatedToController());
+        lifecycleEvent.put("dualReviewRequired", dualReviewRequired);
+        lifecycleEvent.put("actorId", actorId);
+        lifecycleEvent.put("tenantId", tenantId);
+        lifecycleEvent.put("timestamp", Instant.now().toString());
 
         eventPublisher.publish(TOPIC_LIFECYCLE, question.getId().toString(), lifecycleEvent);
 
-        log.info("Question submitted for review: questionId={}, subject={}, assignedReviewer={}, dualReviewRequired={}, tenant={}",
-                question.getId(), question.getSubject(), assignedReviewer, dualReviewRequired, tenantId);
+        // Notify assigned reviewer(s)
+        for (UUID assignedReviewerId : assignment.getAssignedReviewerIds()) {
+            Map<String, Object> notification = Map.of(
+                    "type", "QUESTION_ASSIGNED_FOR_REVIEW",
+                    "recipientId", assignedReviewerId,
+                    "questionId", question.getId(),
+                    "subject", question.getSubject(),
+                    "tenantId", tenantId,
+                    "message", "A new question for subject '" + question.getSubject() + "' has been assigned to you for review."
+            );
+            eventPublisher.publish(TOPIC_NOTIFICATIONS, assignedReviewerId.toString(), notification);
+        }
+
+        log.info("Question submitted for review: questionId={}, subject={}, primaryReviewer={}, secondaryReviewer={}, dualReviewRequired={}, tenant={}",
+                question.getId(), question.getSubject(), primaryReviewer, secondaryReviewer, dualReviewRequired, tenantId);
     }
 
     /**
-     * REVIEW -> APPROVED: Reviewer approved the question. Notify the author.
+     * REVIEW -> APPROVED: Reviewer approved the question. Decrement load and notify the author.
      */
     private void handleApproved(Question question, String fromState, UUID actorId, String tenantId) {
         if (!"REVIEW".equals(fromState)) {
             return;
         }
+
+        reviewerAssignmentService.releaseReviewerLoad(actorId, tenantId);
 
         Map<String, Object> lifecycleEvent = Map.of(
                 "eventType", "REVIEWER_APPROVED",
@@ -133,13 +159,15 @@ public class ReviewWorkflowService {
     }
 
     /**
-     * REVIEW -> DRAFT: Reviewer returned question with comments. Notify the author.
+     * REVIEW -> DRAFT: Reviewer returned question with comments. Decrement load and notify the author.
      */
     private void handleReturnedToDraft(Question question, String fromState, UUID actorId,
                                        String comments, String tenantId) {
         if (!"REVIEW".equals(fromState)) {
             return;
         }
+
+        reviewerAssignmentService.releaseReviewerLoad(actorId, tenantId);
 
         Map<String, Object> lifecycleEvent = Map.of(
                 "eventType", "RETURNED_TO_DRAFT",
@@ -201,14 +229,5 @@ public class ReviewWorkflowService {
 
         log.info("Question published to bank: questionId={}, publisher={}, tenant={}",
                 question.getId(), actorId, tenantId);
-    }
-
-    /**
-     * Resolves a reviewer UUID for a given subject (stubbed for prototype).
-     */
-    private UUID resolveReviewerBySubject(String subject, String tenantId) {
-        // In full implementation, query keycloak/user roles for SUBJECT_MATTER_EXPERT + subject
-        // Stubbed: return deterministic UUID based on subject name
-        return UUID.nameUUIDFromBytes(("reviewer:" + tenantId + ":" + subject).getBytes());
     }
 }

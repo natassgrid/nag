@@ -31,6 +31,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.springframework.amqp.core.ExchangeTypes;
+import org.springframework.amqp.core.Message;
 import org.springframework.amqp.rabbit.annotation.Exchange;
 import org.springframework.amqp.rabbit.annotation.Queue;
 import org.springframework.amqp.rabbit.annotation.QueueBinding;
@@ -39,6 +40,7 @@ import org.springframework.context.event.EventListener;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.stereotype.Component;
 
+import java.nio.charset.StandardCharsets;
 import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
@@ -87,7 +89,13 @@ public class SessionEventConsumer {
         log.info("Received RabbitMQ session event: {}", message);
         try {
             JsonNode event;
-            if (message instanceof String s) {
+            if (message instanceof Message amqpMsg) {
+                String s = new String(amqpMsg.getBody(), StandardCharsets.UTF_8);
+                event = objectMapper.readTree(s);
+            } else if (message instanceof byte[] bytes) {
+                String s = new String(bytes, StandardCharsets.UTF_8);
+                event = objectMapper.readTree(s);
+            } else if (message instanceof String s) {
                 event = objectMapper.readTree(s);
             } else if (message instanceof JsonNode jn) {
                 event = jn;
@@ -112,7 +120,13 @@ public class SessionEventConsumer {
         try {
             Object payload = event.payload();
             JsonNode jsonNode;
-            if (payload instanceof String s) {
+            if (payload instanceof Message amqpMsg) {
+                String s = new String(amqpMsg.getBody(), StandardCharsets.UTF_8);
+                jsonNode = objectMapper.readTree(s);
+            } else if (payload instanceof byte[] bytes) {
+                String s = new String(bytes, StandardCharsets.UTF_8);
+                jsonNode = objectMapper.readTree(s);
+            } else if (payload instanceof String s) {
                 jsonNode = objectMapper.readTree(s);
             } else if (payload instanceof JsonNode jn) {
                 jsonNode = jn;

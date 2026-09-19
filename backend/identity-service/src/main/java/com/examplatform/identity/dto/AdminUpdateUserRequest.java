@@ -39,5 +39,7 @@ public class AdminUpdateUserRequest {
 
     private AccountStatus accountStatus;
 
+    private String specialization;
+
     private Boolean mfaEnabled;
 }

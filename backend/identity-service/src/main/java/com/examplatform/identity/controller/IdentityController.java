@@ -13,7 +13,7 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
  * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU Affero General Public License
+ * You should have received a copy of the GNU标识 Affero General Public License
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
 
@@ -24,8 +24,10 @@ import com.examplatform.identity.dto.AuthTokenResponse;
 import com.examplatform.identity.dto.ChangePasswordRequest;
 import com.examplatform.identity.dto.OtpResendRequest;
 import com.examplatform.identity.dto.OtpVerifyRequest;
+import com.examplatform.identity.dto.RefreshTokenRequest;
 import com.examplatform.identity.dto.RegistrationRequest;
 import com.examplatform.identity.dto.RegistrationResponse;
+import com.examplatform.identity.dto.ReviewerResponse;
 import com.examplatform.identity.dto.UserAccountResponse;
 import com.examplatform.identity.dto.WebAuthnAssertionRequest;
 import com.examplatform.identity.exception.AccountNotFoundException;
@@ -50,6 +52,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
@@ -84,6 +87,22 @@ public class IdentityController {
         log.debug("List users request received for tenant [{}]", tenantId);
         List<UserAccountResponse> users = roleManagementService.listAllUsers(tenantId);
         return ResponseEntity.ok(ApiResponse.success(users, "Users retrieved successfully."));
+    }
+
+    /**
+     * List reviewers and SMEs matching a given subject and tenant.
+     *
+     * @param subject  optional subject filter
+     * @param tenantId tenant identifier from request header
+     * @return list of matching reviewers
+     */
+    @GetMapping("/reviewers")
+    public ResponseEntity<ApiResponse<List<ReviewerResponse>>> getReviewers(
+            @RequestParam(required = false) String subject,
+            @RequestHeader(value = "X-Tenant-Id", defaultValue = "default") String tenantId) {
+        log.debug("Get reviewers request received for subject [{}], tenant [{}]", subject, tenantId);
+        List<ReviewerResponse> reviewers = roleManagementService.findReviewers(subject, tenantId);
+        return ResponseEntity.ok(ApiResponse.success(reviewers, "Reviewers retrieved successfully."));
     }
 
     /**
@@ -141,6 +160,26 @@ public class IdentityController {
         String ipAddress = servletRequest.getRemoteAddr();
         AuthTokenResponse response = authenticationService.authenticate(request, tenantId, ipAddress);
         return ResponseEntity.ok(ApiResponse.success(response, "Authentication successful."));
+    }
+
+    /**
+     * Refresh JWT access token using a valid refresh token.
+     * Extends active session lifetime and rotates refresh token.
+     *
+     * @param request        refresh token payload
+     * @param tenantId       tenant identifier from request header
+     * @param servletRequest raw HTTP request used to extract client IP address
+     * @return 200 OK with refreshed JWT tokens
+     */
+    @PostMapping({"/auth/token/refresh", "/auth/refresh"})
+    public ResponseEntity<ApiResponse<AuthTokenResponse>> refreshToken(
+            @Valid @RequestBody RefreshTokenRequest request,
+            @RequestHeader(value = "X-Tenant-Id", defaultValue = "default") String tenantId,
+            HttpServletRequest servletRequest) {
+        log.debug("Token refresh request received, tenant [{}]", tenantId);
+        String ipAddress = servletRequest.getRemoteAddr();
+        AuthTokenResponse response = authenticationService.refreshToken(request, tenantId, ipAddress);
+        return ResponseEntity.ok(ApiResponse.success(response, "Token refreshed successfully."));
     }
 
     /**

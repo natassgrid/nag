@@ -42,7 +42,7 @@ export const authService = {
   async refreshToken(): Promise<AuthTokenResponse> {
     const refreshToken = tokenManager.getRefreshToken();
     if (!refreshToken) throw new Error('No refresh token available');
-    return unwrap(await api.post(`${BASE}/auth/refresh`, { refreshToken }));
+    return unwrap(await api.post(`${BASE}/auth/token/refresh`, { refreshToken }));
   },
 
   /** Revoke refresh token and clear local storage on logout. */
