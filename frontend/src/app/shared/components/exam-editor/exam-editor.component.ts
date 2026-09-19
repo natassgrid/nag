@@ -127,8 +127,14 @@ export class ExamEditorComponent implements ControlValueAccessor, OnInit, OnDest
   /** Optional additional plugin instances to register beyond the defaults. */
   @Input() plugins: any[] = [];
 
+  private lastEmittedValue: string | null = null;
+
   @Input()
   set value(val: any) {
+    if (typeof val === 'string' && val === this.lastEmittedValue) {
+      return; // Skip echo of internal typing/deletion
+    }
+    this.lastEmittedValue = typeof val === 'string' ? val : null;
     const newDoc = deserialiseContent(val);
     if (JSON.stringify(newDoc) !== JSON.stringify(this.document)) {
       this.document = newDoc;
@@ -199,6 +205,10 @@ export class ExamEditorComponent implements ControlValueAccessor, OnInit, OnDest
   // ─── ControlValueAccessor ───
 
   writeValue(obj: any): void {
+    if (typeof obj === 'string' && obj === this.lastEmittedValue) {
+      return;
+    }
+    this.lastEmittedValue = typeof obj === 'string' ? obj : null;
     this.document = deserialiseContent(obj);
     this.undoStack = [];
     this.redoStack = [];
@@ -233,6 +243,7 @@ export class ExamEditorComponent implements ControlValueAccessor, OnInit, OnDest
 
     this.document = newDoc;
     const markdown = serialiseDocument(newDoc);
+    this.lastEmittedValue = markdown;
     this.onChange(markdown);
     this.valueChange.emit(markdown);
     this.cdr.markForCheck();
@@ -282,6 +293,7 @@ export class ExamEditorComponent implements ControlValueAccessor, OnInit, OnDest
     this.redoStack.push(JSON.parse(JSON.stringify(this.document)));
     this.document = this.undoStack.pop()!;
     const markdown = serialiseDocument(this.document);
+    this.lastEmittedValue = markdown;
     this.onChange(markdown);
     this.valueChange.emit(markdown);
     this.cdr.markForCheck();
@@ -293,6 +305,7 @@ export class ExamEditorComponent implements ControlValueAccessor, OnInit, OnDest
     this.undoStack.push(JSON.parse(JSON.stringify(this.document)));
     this.document = this.redoStack.pop()!;
     const markdown = serialiseDocument(this.document);
+    this.lastEmittedValue = markdown;
     this.onChange(markdown);
     this.valueChange.emit(markdown);
     this.cdr.markForCheck();

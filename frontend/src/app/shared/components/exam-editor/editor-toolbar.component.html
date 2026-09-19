@@ -51,11 +51,11 @@
 
         </ng-container>
 
-        <mat-divider *ngIf="!last" vertical class="toolbar-divider"></mat-divider>
+        <div *ngIf="!last" class="toolbar-divider" role="separator"></div>
       </ng-container>
 
       <!-- Undo / Redo -->
-      <mat-divider vertical class="toolbar-divider"></mat-divider>
+      <div class="toolbar-divider" role="separator"></div>
       <button
         mat-icon-button
         type="button"
