@@ -14,7 +14,16 @@
    - The `code_content` passed to `client_edit_file` MUST contain the 100% complete file text including all headers, license comments, seed data, imports, configuration keys, and trailing blocks.
    - Passing only the modified lines or snippet to `client_edit_file` is strictly forbidden as it destroys the rest of the file.
 
-3. **Frontend-Specific Preservation Rules**:
+3. **No Literal `\n` / `\r` Escape Characters in Source Code (CRITICAL)**:
+   - When generating or modifying source code files (`.ts`, `.js`, `.html`, `.scss`, `.css`, `.java`, etc.), **NEVER** write literal `\n` or `\r\n` escape sequences in place of real line breaks in code statements, arrays, or object literals (e.g., `const list = [\n { id: 1 } \n]`).
+   - Literal `\n` strings outside of explicit quoted string values break compilers and parsers with errors like:
+     - `TS1127: Invalid character`
+     - `TS2304: Cannot find name 'n'`
+     - `TS1005: ',' expected`
+   - Always emit genuine whitespace line breaks in multiline code structures.
+   - Always inspect `git diff` to verify no escaped `\n` sequences were injected into source code.
+
+4. **Frontend-Specific Preservation Rules**:
    - **HTML Templates (`*.component.html`, `*.html`, `*.tsx`, `*.jsx`)**:
      - NEVER output only the inner child elements, updated form rows, or newly added modal/drawer tags.
      - ALWAYS preserve the full document structure: `<div class="page-layout">`, `<app-page-header>`, main table/cards container, `<app-paginated-table>`, action templates (`<ng-template #actionsTmpl>`), result banners, and all existing drawer/dialog components.
@@ -25,12 +34,13 @@
      - NEVER replace a component with just the new methods.
      - ALWAYS retain all existing imports, class properties, `@ViewChild` refs, lifecycle hooks (`ngOnInit`, `ngOnChanges`), constructor injections, and helper functions.
 
-4. **Mandatory Immediate `git diff` Verification**:
+5. **Mandatory Immediate `git diff` Verification**:
    - After writing to any file, IMMEDIATELY run `git diff <path>` to review the line-by-line diff.
    - If any unintended deletions, wiped sections, or missing template blocks are detected, restore and correct them immediately before proceeding.
 
-5. **Verify Clean Git Status**:
+6. **Verify Clean Git Status & Build**:
    - Run `git status` prior to completing any task or reporting back to ensure no files were corrupted or accidentally overwritten.
+   - Run build checks (`npm run build` or `docker build`) to verify the code compiles cleanly with 0 errors.
 
 ---
 
@@ -58,7 +68,7 @@ All AI agents, prompt generators, seed script creators, and backend services gen
 |---|---|---|
 | Human-readable `.md` / display strings | Single backslash | `$$\frac{a}{b}$$`, `$$\neq 0$$`, `$$\neg L$$` |
 | JSON field value (API payload, seed script) | Double backslash (`\\`) | `"$$\\frac{a}{b}$$"`, `"$$\\neq 0$$"`, `"$$\\neg L$$"` |
-| SQL string literal inside a migration file | Double backslash (`\\`) | `'$$\\det(A) \\neq 0$$'` |
+| SQL string literal inside a migration file | Double backslash (`\\`) | `'$$\det(A) \\neq 0$$'` |
 | Java/Kotlin string literal | Double backslash (`\\`) | `"$$\\frac{a}{b}$$"` |
 
 **Why this matters for the renderer:** The MathRenderer receives the *parsed* JSON value (single backslash). It normalises any remaining over-escaped chains (e.g. `\\\\det` → `\det`) before passing to KaTeX. Never emit more than two consecutive backslashes (`\\`) before a LaTeX command in a JSON value — triple or quadruple escaping (`\\\\`) produces raw token output even after normalisation.
@@ -94,12 +104,12 @@ The MathRenderer loads the KaTeX **mhchem** contrib extension. Use `\ce{}` for c
 |---|---|---|
 | Molecular formula | `"$$\\ce{H2SO4}$$"` | H₂SO₄ |
 | Reaction equation | `"$$\\ce{2H2 + O2 -> 2H2O}$$"` | balanced equation with arrow |
-| Ion | `"$$\\ce{Fe^{2+}}$$"` | Fe²⁺ |
+| Ion | `"$$\\ce{Fe^{2+}}$$" | Fe²⁺ |
 | Physical unit | `"$$\\pu{6.022e23 mol-1}$$"` | Avogadro's number |
 
 No new npm dependency — mhchem ships inside the `katex` package. Does **not** support 2D structural diagrams (benzene rings etc.).
 
-
+### 2. General Formatting Rules
 
 - **Standard Markdown (GFM)**: Use `**bold**`, `*italic*`, `` `code` ``, fenced code blocks, and pipe tables.
 - **Paragraph separation**: Use double newlines (`\n\n`) between headings, statement groups, and conclusion groups.

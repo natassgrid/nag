@@ -99,16 +99,26 @@ Key classes:
 3. **UI library**: Angular Material 21
 4. **File structure**: Every component MUST have separate files for template, styles, and logic. Use `templateUrl: './component-name.component.html'` and `styleUrls: ['./component-name.component.scss']`. NEVER use inline `template:` or `styles:[]` in the `@Component` decorator. Each component directory contains: `component-name.component.ts`, `component-name.component.html`, `component-name.component.scss`.
 5. **List pages**: Always use the shared `PaginatedTableComponent` with a `fetcher: PaginatedDataFetcher<T>` function. The fetcher returns `Observable<PaginatedResponse<T>>`. The paginated table handles loading, empty state, search, pagination, and change detection internally. Never use manual `loading` flags or `ChangeDetectorRef` for list data — let the table handle it.
-5. **Service pattern**: `@Injectable({ providedIn: 'root' })`. All API responses are wrapped in `ApiResponse<T>` by the backend. For paginated list endpoints, the backend returns `Page<T>` (Spring Data) which serializes as `{ content: [], totalElements, totalPages, size, number }`. Services unwrap via `.pipe(map(res => res?.data?.content ?? res?.data ?? []))` for arrays. Always pass `page`, `size`, and `search` query params to the backend — never do client-side pagination. The fetcher in the component passes `req.page`, `req.size`, `req.search` directly to the service method.
-6. **Server-side pagination (backend)**: All list/search endpoints MUST accept `?page=0&size=20&search=` query params and return Spring `Page<T>`. Use `PageRequest.of(page, size, Sort.by(...))` in the service layer with Spring Data JPA paginated repository methods (`findBy...(... , Pageable pageable)` returning `Page<T>`). The controller returns `ApiResponse<Page<ResponseDTO>>`. This ensures the browser Network tab always shows pagination query params.
-7. **Form dialogs**: Use `MatDialog` with `MAT_DIALOG_DATA` injection. Dialog closes with `dialogRef.close(formValue)`. Parent component subscribes to `afterClosed()` and calls the service, then `this.table.reload()`.
-8. **Confirmation dialogs**: Never use browser `confirm()`. Use the shared `ConfirmDialogComponent` at `shared/components/confirm-dialog/confirm-dialog.component.ts`. It accepts `ConfirmDialogData { title, message, confirmText, cancelText, color, icon }` and returns `boolean` on close.
-9. **Snackbar feedback**: `this.snackBar.open('Message', 'OK', { duration: 3000 })` on success; `this.snackBar.open(err?.error?.message || 'Error', 'Dismiss', { duration: 4000 })` on error.
-8. **DatePicker**: Always set `[min]="minDate"` where `minDate = new Date()` to allow only future dates. Always convert to ISO string before sending: `d instanceof Date ? d.toISOString().split('T')[0] : d`.
-9. **Cascading dropdowns**: Use `valueChanges` subscription on parent control → clear child + load options → auto-set denormalized name field. See `centre-form-dialog.component.ts` for reference.
-10. **Routing**: Lazy-load features via `loadChildren` or `loadComponent`. Use `roleGuard` with `data: { roles: [...] }`. All scheduling routes are under `/exam/scheduling/`.
-11. **Proxy**: Angular dev server proxies `/api` → `http://localhost:9000` (API gateway). All service base URLs are relative (e.g., `/api/v1/examinations`).
-12. **Imports**: Every standalone component explicitly imports all Material modules it uses in its `imports` array.
+6. **Service pattern**: `@Injectable({ providedIn: 'root' })`. All API responses are wrapped in `ApiResponse<T>` by the backend. For paginated list endpoints, the backend returns `Page<T>` (Spring Data) which serializes as `{ content: [], totalElements, totalPages, size, number }`. Services unwrap via `.pipe(map(res => res?.data?.content ?? res?.data ?? []))` for arrays. Always pass `page`, `size`, and `search` query params to the backend — never do client-side pagination. The fetcher in the component passes `req.page`, `req.size`, `req.search` directly to the service method.
+7. **Server-side pagination (backend)**: All list/search endpoints MUST accept `?page=0&size=20&search=` query params and return Spring `Page<T>`. Use `PageRequest.of(page, size, Sort.by(...))` in the service layer with Spring Data JPA paginated repository methods (`findBy...(... , Pageable pageable)` returning `Page<T>`). The controller returns `ApiResponse<Page<ResponseDTO>>`. This ensures the browser Network tab always shows pagination query params.
+8. **Form dialogs**: Use `MatDialog` with `MAT_DIALOG_DATA` injection. Dialog closes with `dialogRef.close(formValue)`. Parent component subscribes to `afterClosed()` and calls the service, then `this.table.reload()`.
+9. **Confirmation dialogs**: Never use browser `confirm()`. Use the shared `ConfirmDialogComponent` at `shared/components/confirm-dialog/confirm-dialog.component.ts`. It accepts `ConfirmDialogData { title, message, confirmText, cancelText, color, icon }` and returns `boolean` on close.
+10. **Snackbar feedback**: `this.snackBar.open('Message', 'OK', { duration: 3000 })` on success; `this.snackBar.open(err?.error?.message || 'Error', 'Dismiss', { duration: 4000 })` on error.
+11. **DatePicker**: Always set `[min]="minDate"` where `minDate = new Date()` to allow only future dates. Always convert to ISO string before sending: `d instanceof Date ? d.toISOString().split('T')[0] : d`.
+12. **Cascading dropdowns**: Use `valueChanges` subscription on parent control → clear child + load options → auto-set denormalized name field. See `centre-form-dialog.component.ts` for reference.
+13. **Routing**: Lazy-load features via `loadChildren` or `loadComponent`. Use `roleGuard` with `data: { roles: [...] }`. All scheduling routes are under `/exam/scheduling/`.
+14. **Proxy**: Angular dev server proxies `/api` → `http://localhost:9000` (API gateway). All service base URLs are relative (e.g., `/api/v1/examinations`).
+15. **Imports**: Every standalone component explicitly imports all Material modules it uses in its `imports` array.
+
+## Code Generation & Modification Safety Guards
+
+1. **No Literal `\n` in Source Files (CRITICAL)**:
+   - When generating or editing source code (`.ts`, `.js`, `.html`, `.css`, `.scss`, `.java`, etc.), NEVER output escaped `\n` or `\r\n` characters directly in multiline statements, array declarations, or object initializers.
+   - Genuine whitespace line breaks must always be emitted.
+   - Escaped `\n` strings in code cause syntax errors: `TS1127: Invalid character`, `TS2304: Cannot find name 'n'`, `TS1005: ',' expected`.
+2. **Immediate Diff & Compilation Verification**:
+   - Always run `git diff <path>` after modifying any file to ensure no unintended deletions, overwrites, or escaped `\n` sequences exist.
+   - Verify code compiles cleanly with `npm run build` or `docker build`.
 
 ## Local Development
 
@@ -158,4 +168,3 @@ The following property tests are pending implementation (marked `[ ]*` in tasks.
 - 10.7: Response revision history preservation property test
 - 11.4: Partial marking arithmetic correctness property test
 - 12.3: Result score decomposition invariant property test
-- 13.3: Audit event tamper detection property test
