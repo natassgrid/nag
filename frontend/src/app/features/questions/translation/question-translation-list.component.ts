@@ -11,7 +11,7 @@
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU Affero General Public License for more details.
+ * GNU License for more details.
  */
 
 import { Component, OnInit, OnDestroy, ViewChild, ChangeDetectionStrategy, ChangeDetectorRef } from '@angular/core';
@@ -111,7 +111,7 @@ export class QuestionTranslationListComponent implements OnInit, OnDestroy {
     {
       key: 'targetLang',
       label: 'Translation Language',
-      expanded: true,
+      expanded: false,
       options: [
         { label: 'All Languages', value: '' },
         ...SUPPORTED_LANGUAGES.map(lang => ({
@@ -135,7 +135,7 @@ export class QuestionTranslationListComponent implements OnInit, OnDestroy {
     {
       key: 'subject',
       label: 'Subject',
-      expanded: true,
+      expanded: false,
       options: DEFAULT_SUBJECT_OPTIONS
     },
     {
@@ -278,8 +278,7 @@ export class QuestionTranslationListComponent implements OnInit, OnDestroy {
           }
         }
       },
-      error: (err) => console.warn('Could not fetch batch jobs:', err)
-    });
+      error: (err) => console.warn('Could not fetch batch jobs:', err)\n    });
   }
 
   onFilterChange(updatedFilters: Record<string, any>): void {
@@ -302,8 +301,7 @@ export class QuestionTranslationListComponent implements OnInit, OnDestroy {
       const langLabel = lang ? lang.name : targetLang.toUpperCase();
       const status = (row.translationStatus || row.translationStatusMap?.[targetLang] || 'MISSING').toUpperCase();
 
-      switch (status) {
-        case 'APPROVED':
+      switch (status) {\n        case 'APPROVED':
           return `${langLabel}: Approved`;
         case 'PUBLISHED':
           return `${langLabel}: Published`;
