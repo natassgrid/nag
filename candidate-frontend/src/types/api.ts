@@ -34,10 +34,30 @@ export interface RegistrationRequest {
 export interface RegistrationResponse {
   userId: string;     // UUID
   message: string;
-  otpSentTo: {
+  otpSentTo?: {
     email: string;    // masked, e.g. c*****@gmail.com
     mobile: string;   // masked, e.g. ******3210
   };
+}
+
+export interface VerificationStatusResponse {
+  userId: string;
+  emailVerified: boolean;
+  mobileVerified: boolean;
+  accountStatus: string;
+  smsRemainingThisWeek: number;
+  nextSmsAvailableAt?: string | null;
+  fullyVerified: boolean;
+}
+
+export interface EmailVerifyRequest {
+  userId: string;
+  otp: string;
+}
+
+export interface MobileVerifyRequest {
+  userId: string;
+  otp: string;
 }
 
 export interface OtpVerifyRequest {
@@ -49,7 +69,8 @@ export interface OtpVerifyRequest {
 export interface AuthTokenRequest {
   username: string;             // email or mobile
   password: string;
-  otp?: string;                 // optional MFA
+  otp?: string;                 // optional MFA / TOTP
+  otpCode?: string;
   deviceFingerprint?: string;
 }
 
@@ -82,6 +103,58 @@ export interface ResetPasswordRequest {
 
 export interface OtpResendRequest {
   userId: string;
+}
+
+// ─── Admin Invitation & 2FA DTOs ─────────────────────────────
+
+export interface AdminInviteRequest {
+  email: string;
+  fullName: string;
+  roles: string[];
+  specialization?: string;
+}
+
+export interface AdminInviteResponse {
+  invitationId: string;
+  email: string;
+  fullName: string;
+  roles: string[];
+  status: string;
+  expiresAt: string;
+  message: string;
+}
+
+export interface ValidateInviteResponse {
+  valid: boolean;
+  email: string;
+  fullName: string;
+  roles: string[];
+  tenantId: string;
+  expiresAt: string;
+  message: string;
+}
+
+export interface AcceptInviteRequest {
+  token: string;
+  password: string;
+  totpSecret: string;
+  totpCode: string;
+  backupCodes?: string[];
+}
+
+export interface TotpSetupResponse {
+  secret: string;
+  otpauthUri: string;
+  issuer: string;
+  username: string;
+  backupCodes: string[];
+}
+
+export interface TotpVerifySetupRequest {
+  userId?: string;
+  secret: string;
+  code: string;
+  backupCodes?: string[];
 }
 
 // ─── Candidate Service DTOs ──────────────────────────────────
@@ -333,23 +406,15 @@ export interface AdmitCardResponse {
 
 export type NavigationMode = 'SEQUENTIAL' | 'FLEXIBLE' | 'RESTRICTED';
 
-// ─── Multilingual support ─────────────────────────────────────
-// The delivery service packages both the English master and any approved
-// regional translation in the session bundle.  Client-side language switching
-// is zero-latency (no additional network requests).
-
-/** BCP-47 language code, e.g. "en", "hi", "ta", "te", "mr", "bn", "gu", "kn" */
 export type LanguageCode = string;
 
-/** Display metadata for a supported examination language. */
 export interface ExamLanguage {
-  code: LanguageCode;           // BCP-47 code
-  name: string;                 // English name, e.g. "Hindi"
-  nativeName: string;           // Script name, e.g. "हिन्दी"
-  rtl?: boolean;                // right-to-left script (Arabic, Urdu etc.)
+  code: LanguageCode;
+  name: string;
+  nativeName: string;
+  rtl?: boolean;
 }
 
-/** Per-language text for a single option. */
 export interface QuestionOptionTranslation {
   id?: string;
   index?: number;
@@ -359,7 +424,6 @@ export interface QuestionOptionTranslation {
   imageAltText?: string;
 }
 
-/** Per-language content for an entire question. */
 export interface QuestionTranslation {
   id?: string;
   languageCode?: string;
@@ -374,7 +438,7 @@ export interface QuestionTranslation {
 export interface QuestionOption {
   id?: string;
   index: number;
-  text?: string;                 // English master text
+  text?: string;
   content?: string;
   imageUrl?: string;
   imageAltText?: string;
@@ -382,13 +446,13 @@ export interface QuestionOption {
 }
 
 export interface QuestionDto {
-  id: string;                   // UUID
-  text?: string;                // English master text
+  id: string;
+  text?: string;
   content?: string;
   imageUrl?: string;
   imageAltText?: string;
   hasImages?: boolean;
-  options: QuestionOption[];    // English master options
+  options: QuestionOption[];
   marks: number;
   negativeMarks: number;
   sectionId?: string;
@@ -399,14 +463,8 @@ export interface QuestionDto {
   passageContent?: string;
   passageOrderIndex?: number;
   sequenceNumber?: number;
-  explanation?: string;         // English master explanation
-  correctOptionIndex?: number;  // Available in practice/learning mode
-  /**
-   * Regional translations keyed by BCP-47 language code.
-   * Only languages enabled for this assessment are included.
-   * The "en" key is absent — use the top-level fields for English.
-   * Example: { "hi": { text: "...", options: [...] }, "ta": { ... } }
-   */
+  explanation?: string;
+  correctOptionIndex?: number;
   translations?: Record<LanguageCode, QuestionTranslation>;
 }
 
@@ -414,14 +472,13 @@ export interface SessionStartRequest {
   examId: string;
   shiftId?: string;
   candidateId?: string;
-  /** BCP-47 code for the candidate's chosen examination medium. */
   languageCode?: LanguageCode;
   forceNewSession?: boolean;
   terminateExisting?: boolean;
 }
 
 export interface SessionStartResponse {
-  sessionId: string;            // UUID
+  sessionId: string;
   examId: string;
   examTitle?: string;
   shiftId?: string;
@@ -431,17 +488,15 @@ export interface SessionStartResponse {
   durationSeconds: number;
   totalQuestions: number;
   navigationMode: NavigationMode;
-  questions: QuestionDto[];     // all questions delivered at session start (bilingual payload)
-  serverTime: string;           // ISO timestamp for clock sync
-  expiresAt: string;            // ISO timestamp for session expiry
+  questions: QuestionDto[];
+  serverTime: string;
+  expiresAt: string;
   kioskModeEnforced?: boolean;
   heartbeatIntervalSeconds?: number;
   autosaveIntervalSeconds?: number;
   maxDisconnectGraceSeconds?: number;
   tamperDetectionEnabled?: boolean;
-  /** Languages available for this assessment package. Always includes "en". */
   availableLanguages?: ExamLanguage[];
-  /** Default language selected during registration/application. */
   defaultLanguageCode?: LanguageCode;
 }
 
@@ -454,7 +509,7 @@ export interface NavigationRequest {
 export interface NavigationResponse {
   currentQuestionIndex: number;
   currentSectionIndex: number;
-  allowedActions: string[];     // ['NEXT', 'PREVIOUS', 'JUMP', 'MARK_REVIEW']
+  allowedActions: string[];
 }
 
 // ─── Response Service DTOs ───────────────────────────────────
@@ -462,17 +517,17 @@ export interface NavigationResponse {
 export type ResponseType = 'MCQ' | 'INTEGER' | 'DESCRIPTIVE';
 
 export interface SaveResponseRequest {
-  questionId: string;           // UUID
+  questionId: string;
   responseType: ResponseType;
-  selectedOptionIndex?: number; // for MCQ
-  integerAnswer?: number;       // for INTEGER
+  selectedOptionIndex?: number;
+  integerAnswer?: number;
   markedForReview: boolean;
   timeTakenSeconds: number;
-  revisionSequence: number;     // increment on each change to same question
+  revisionSequence: number;
 }
 
 export interface SaveResponseResponse {
-  responseId: string;           // UUID
+  responseId: string;
   questionId: string;
   savedAt: string;
   revisionSequence: number;
@@ -497,7 +552,7 @@ export interface SectionResult {
 }
 
 export interface ResultDto {
-  id: string;                   // UUID
+  id: string;
   candidateId: string;
   examId: string;
   examTitle: string;
@@ -527,7 +582,7 @@ export interface ResultDto {
 export type AssetType = 'IMAGE' | 'DOCUMENT' | 'VIDEO' | 'AUDIO';
 
 export interface AssetUploadResponse {
-  id: string;                   // UUID
+  id: string;
   originalFilename: string;
   contentType: string;
   fileSize: number;
@@ -547,7 +602,7 @@ export type NotificationType =
   | 'ANNOUNCEMENT';
 
 export interface NotificationDto {
-  id: string;                   // UUID
+  id: string;
   userId: string;
   title: string;
   body: string;
@@ -557,7 +612,7 @@ export interface NotificationDto {
   actionUrl?: string;
 }
 
-// ─── Post-Exam Review Types (Issue #101) ──────────────────────
+// ─── Post-Exam Review Types ──────────────────────────────────
 
 export interface ReviewOption {
   id: string;
@@ -595,7 +650,7 @@ export interface ExamReviewResponse {
   questions: ReviewQuestion[];
 }
 
-// ─── Extended ResultDto fields (Issue #101 diagnostics) ────────
+// ─── Extended ResultDto fields ───────────────────────────────
 
 export interface CognitiveBreakdown {
   REMEMBER?: number;

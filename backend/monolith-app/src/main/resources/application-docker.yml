@@ -23,6 +23,22 @@ spring:
           issuer-uri: http://keycloak:8080/realms/exam-realm
           jwk-set-uri: http://keycloak:8080/realms/exam-realm/protocol/openid-connect/certs
 
+  mail:
+    host: ${SPRING_MAIL_HOST:${MAIL_HOST:${SMTP_HOST:smtp.gmail.com}}}
+    port: ${SPRING_MAIL_PORT:${MAIL_PORT:${SMTP_PORT:587}}}
+    username: ${SPRING_MAIL_USERNAME:${MAIL_USERNAME:${SMTP_USERNAME:}}}
+    password: ${SPRING_MAIL_PASSWORD:${MAIL_PASSWORD:${SMTP_PASSWORD:}}}
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+            required: true
+          connectiontimeout: 5000
+          timeout: 5000
+          writetimeout: 5000
+
   cloud:
     vault:
       uri: http://vault:8200
@@ -50,3 +66,6 @@ app:
     server-url: http://keycloak:8080
   question-bank:
     service-url: ${QUESTION_BANK_SERVICE_URI:http://localhost:9000}
+  frontend:
+    admin-url: ${ADMIN_PORTAL_URL:http://localhost:4200}
+    candidate-url: ${CANDIDATE_PORTAL_URL:http://localhost:4300}

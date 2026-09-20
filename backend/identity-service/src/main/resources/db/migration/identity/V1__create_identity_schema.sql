@@ -21,8 +21,12 @@ CREATE TABLE identity_service.user_account (
     identity_doc_hmac   VARCHAR(255),
     account_status      VARCHAR(50),
     specialization      VARCHAR(255),
+    email_verified      BOOLEAN NOT NULL DEFAULT FALSE,
+    mobile_verified     BOOLEAN NOT NULL DEFAULT FALSE,
     mfa_enabled         BOOLEAN NOT NULL DEFAULT FALSE,
     mfa_secret_ref      VARCHAR(255),
+    totp_secret         VARCHAR(255),
+    backup_codes        TEXT,
     device_fingerprint  VARCHAR(255),
     failed_attempt_count INTEGER NOT NULL DEFAULT 0,
     last_failed_at      TIMESTAMP,
@@ -43,21 +47,53 @@ CREATE INDEX idx_user_account_specialization ON identity_service.user_account(sp
 -- Table: otp_verification
 -- ============================================================
 CREATE TABLE identity_service.otp_verification (
-    id          UUID PRIMARY KEY,
-    tenant_id   VARCHAR(255) NOT NULL,
-    user_id     UUID,
-    mobile_hash VARCHAR(255) NOT NULL,
-    otp_hash    VARCHAR(255) NOT NULL,
-    expires_at  TIMESTAMP NOT NULL,
-    verified    BOOLEAN NOT NULL DEFAULT FALSE,
-    created_at  TIMESTAMP NOT NULL DEFAULT NOW(),
-    updated_at  TIMESTAMP NOT NULL DEFAULT NOW(),
-    version     BIGINT NOT NULL DEFAULT 0
+    id                  UUID PRIMARY KEY,
+    tenant_id           VARCHAR(255) NOT NULL,
+    user_id             UUID,
+    mobile_hash         VARCHAR(255) NOT NULL,
+    email_hash          VARCHAR(255),
+    target_destination  VARCHAR(255),
+    otp_hash            VARCHAR(255) NOT NULL,
+    otp_type            VARCHAR(50) NOT NULL DEFAULT 'MOBILE',
+    channel             VARCHAR(50) NOT NULL DEFAULT 'SMS',
+    expires_at          TIMESTAMP NOT NULL,
+    verified            BOOLEAN NOT NULL DEFAULT FALSE,
+    created_at          TIMESTAMP NOT NULL DEFAULT NOW(),
+    updated_at          TIMESTAMP NOT NULL DEFAULT NOW(),
+    version             BIGINT NOT NULL DEFAULT 0
 );
 
 CREATE INDEX idx_otp_verification_tenant_id ON identity_service.otp_verification(tenant_id);
 CREATE INDEX idx_otp_verification_mobile_hash ON identity_service.otp_verification(mobile_hash);
 CREATE INDEX idx_otp_verification_user_id ON identity_service.otp_verification(user_id);
+CREATE INDEX idx_otp_verification_user_type ON identity_service.otp_verification(user_id, otp_type);
+CREATE INDEX idx_otp_verification_email_hash ON identity_service.otp_verification(email_hash);
+CREATE INDEX idx_otp_verification_created_channel ON identity_service.otp_verification(user_id, channel, created_at);
+
+-- ============================================================
+-- Table: admin_invitation
+-- ============================================================
+CREATE TABLE identity_service.admin_invitation (
+    id                  UUID PRIMARY KEY,
+    tenant_id           VARCHAR(255) NOT NULL,
+    email               VARCHAR(255) NOT NULL,
+    email_hash          VARCHAR(255) NOT NULL,
+    full_name           VARCHAR(255) NOT NULL,
+    roles               TEXT NOT NULL,
+    token_hash          VARCHAR(255) NOT NULL UNIQUE,
+    status              VARCHAR(50) NOT NULL DEFAULT 'PENDING',
+    expires_at          TIMESTAMP NOT NULL,
+    invited_by          UUID,
+    accepted_at         TIMESTAMP,
+    created_at          TIMESTAMP NOT NULL DEFAULT NOW(),
+    updated_at          TIMESTAMP NOT NULL DEFAULT NOW(),
+    version             BIGINT NOT NULL DEFAULT 0
+);
+
+CREATE INDEX idx_admin_invitation_tenant ON identity_service.admin_invitation(tenant_id);
+CREATE INDEX idx_admin_invitation_email_hash ON identity_service.admin_invitation(email_hash);
+CREATE INDEX idx_admin_invitation_token_hash ON identity_service.admin_invitation(token_hash);
+CREATE INDEX idx_admin_invitation_status ON identity_service.admin_invitation(status);
 
 -- ============================================================
 -- Table: user_role_assignment
@@ -395,73 +431,73 @@ ON CONFLICT (role_id, permission_id, tenant_id) DO NOTHING;
 -- =============================================================================
 INSERT INTO identity_service.user_account (
     id, tenant_id, username, email_hash, mobile_hash,
-    account_status, specialization, mfa_enabled, failed_attempt_count,
-    created_at, updated_at, version
+    account_status, specialization, email_verified, mobile_verified,
+    mfa_enabled, failed_attempt_count, created_at, updated_at, version
 ) VALUES
 ('018f4e2a-0000-7000-8000-000000000001', 'default', 'superadmin',
  '186cf774c97b60a1c106ef718d10970a6a06e06bef89553d9ae65d938a886eae',
  'a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2',
- 'ACTIVE', NULL, false, 0, NOW(), NOW(), 0),
+ 'ACTIVE', NULL, true, true, false, 0, NOW(), NOW(), 0),
 ('018f4e2a-0000-7000-8000-000000000002', 'default', 'secadmin',
  '429143a61064c974ed58080b7d7ea39cf806571abf7ec5f9f79f0faba5f1ec0b',
  'b1c2d3e4f5a6b1c2d3e4f5a6b1c2d3e4f5a6b1c2d3e4f5a6b1c2d3e4f5a6b1c2',
- 'ACTIVE', NULL, false, 0, NOW(), NOW(), 0),
+ 'ACTIVE', NULL, true, true, false, 0, NOW(), NOW(), 0),
 ('018f4e2a-0000-7000-8000-000000000003', 'default', 'author1',
  '1d0e1b1bd678143a050f6cb90e6ebdfd2927c81b1321e1fc01f2e2490f1459c7',
  'c2d3e4f5a6b1c2d3e4f5a6b1c2d3e4f5a6b1c2d3e4f5a6b1c2d3e4f5a6b1c2d3',
- 'ACTIVE', 'Mathematics', false, 0, NOW(), NOW(), 0),
+ 'ACTIVE', 'Mathematics', true, true, false, 0, NOW(), NOW(), 0),
 ('018f4e2a-0000-7000-8000-000000000004', 'default', 'reviewer1',
  '674ea6de0c758c87a3a9156288164e9781ae2d5cf765824c4e2ee7ed0756b73a',
  'd3e4f5a6b1c2d3e4f5a6b1c2d3e4f5a6b1c2d3e4f5a6b1c2d3e4f5a6b1c2d3e4',
- 'ACTIVE', 'Mathematics', false, 0, NOW(), NOW(), 0),
+ 'ACTIVE', 'Mathematics', true, true, false, 0, NOW(), NOW(), 0),
 ('018f4e2a-0000-7000-8000-000000000005', 'default', 'controller1',
  '3bf7bd3a4c57518cb4d1622284d6b4b6769b6a1c3b5973ae770226f7b5ba839b',
  'e4f5a6b1c2d3e4f5a6b1c2d3e4f5a6b1c2d3e4f5a6b1c2d3e4f5a6b1c2d3e4f5',
- 'ACTIVE', NULL, false, 0, NOW(), NOW(), 0),
+ 'ACTIVE', NULL, true, true, false, 0, NOW(), NOW(), 0),
 ('018f4e2a-0000-7000-8000-000000000006', 'default', 'candidate1',
  'e75c44736ae122cf1ec886b703515008e1be7dd934cdf94239d7edb202eb52df',
  'f5a6b1c2d3e4f5a6b1c2d3e4f5a6b1c2d3e4f5a6b1c2d3e4f5a6b1c2d3e4f5a6',
- 'ACTIVE', NULL, false, 0, NOW(), NOW(), 0),
+ 'ACTIVE', NULL, true, true, false, 0, NOW(), NOW(), 0),
 ('018f4e2a-0000-7000-8000-000000000007', 'default', 'translator1',
  '24d1de25d350ae44f9ac21ca873d279f37b05c5cb59b8e71b6c136f8d1ff7df6',
  'a6b1c2d3e4f5a6b1c2d3e4f5a6b1c2d3e4f5a6b1c2d3e4f5a6b1c2d3e4f5a6b1',
- 'ACTIVE', 'Hindi', false, 0, NOW(), NOW(), 0),
+ 'ACTIVE', 'Hindi', true, true, false, 0, NOW(), NOW(), 0),
 ('018f4e2a-0000-7000-8000-000000000008', 'default', 'evaluator1',
  'baec845d9fd8d0728a11a32c237f79edec6bc30d416b01f97ba255998746ab79',
  'b1c2d3e4f5a6b1c2d3e4f5a6b1c2d3e4f5a6b1c2d3e4f5a6b1c2d3e4f5a6b100',
- 'ACTIVE', 'Mathematics', false, 0, NOW(), NOW(), 0),
+ 'ACTIVE', 'Mathematics', true, true, false, 0, NOW(), NOW(), 0),
 ('018f4e2a-0000-7000-8000-000000000009', 'default', 'auditor1',
  'a8e7654aed6072f7d449a51607c5164bfdc3bb0f96b2d83f978f526ce9d2b576',
  'c2d3e4f5a6b1c2d3e4f5a6b1c2d3e4f5a6b1c2d3e4f5a6b1c2d3e4f5a6b1c200',
- 'ACTIVE', NULL, false, 0, NOW(), NOW(), 0),
+ 'ACTIVE', NULL, true, true, false, 0, NOW(), NOW(), 0),
 ('018f4e2a-0000-7000-8000-00000000000a', 'default', 'approver1',
  'e973de4808e055b3238a774fbfba4bea8f563b24ff0d60fdb84023588251786f',
  'd3e4f5a6b1c2d3e4f5a6b1c2d3e4f5a6b1c2d3e4f5a6b1c2d3e4f5a6b1c2d300',
- 'ACTIVE', NULL, false, 0, NOW(), NOW(), 0),
+ 'ACTIVE', NULL, true, true, false, 0, NOW(), NOW(), 0),
 ('018f4e2a-0000-7000-8000-00000000000b', 'default', 'reviewer_physics',
  'b1e2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6b1e2',
  'd3e4f5a6b1c2d3e4f5a6b1c2d3e4f5a6b1c2d3e4f5a6b1c2d3e4f5a6b1c2d301',
- 'ACTIVE', 'Physics', false, 0, NOW(), NOW(), 0),
+ 'ACTIVE', 'Physics', true, true, false, 0, NOW(), NOW(), 0),
 ('018f4e2a-0000-7000-8000-00000000000c', 'default', 'reviewer_general_awareness',
  'c1e2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6c1e2',
  'd3e4f5a6b1c2d3e4f5a6b1c2d3e4f5a6b1c2d3e4f5a6b1c2d3e4f5a6b1c2d302',
- 'ACTIVE', 'General Awareness', false, 0, NOW(), NOW(), 0),
+ 'ACTIVE', 'General Awareness', true, true, false, 0, NOW(), NOW(), 0),
 ('018f4e2a-0000-7000-8000-00000000000d', 'default', 'reviewer_quant',
  'd1e2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6d1e2',
  'd3e4f5a6b1c2d3e4f5a6b1c2d3e4f5a6b1c2d3e4f5a6b1c2d3e4f5a6b1c2d303',
- 'ACTIVE', 'Quantitative Aptitude', false, 0, NOW(), NOW(), 0),
+ 'ACTIVE', 'Quantitative Aptitude', true, true, false, 0, NOW(), NOW(), 0),
 ('018f4e2a-0000-7000-8000-00000000000e', 'default', 'reviewer_reasoning',
  'e1e2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6e1e2',
  'd3e4f5a6b1c2d3e4f5a6b1c2d3e4f5a6b1c2d3e4f5a6b1c2d3e4f5a6b1c2d304',
- 'ACTIVE', 'General Intelligence & Reasoning', false, 0, NOW(), NOW(), 0),
+ 'ACTIVE', 'General Intelligence & Reasoning', true, true, false, 0, NOW(), NOW(), 0),
 ('018f4e2a-0000-7000-8000-00000000000f', 'default', 'reviewer_english',
  'f1e2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6f1e2',
  'd3e4f5a6b1c2d3e4f5a6b1c2d3e4f5a6b1c2d3e4f5a6b1c2d3e4f5a6b1c2d305',
- 'ACTIVE', 'English Comprehension', false, 0, NOW(), NOW(), 0),
+ 'ACTIVE', 'English Comprehension', true, true, false, 0, NOW(), NOW(), 0),
 ('018f4e2a-0000-7000-8000-000000000010', 'default', 'sme_math2',
  '11e2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f611e2',
  'd3e4f5a6b1c2d3e4f5a6b1c2d3e4f5a6b1c2d3e4f5a6b1c2d3e4f5a6b1c2d306',
- 'ACTIVE', 'Mathematics', false, 0, NOW(), NOW(), 0)
+ 'ACTIVE', 'Mathematics', true, true, false, 0, NOW(), NOW(), 0)
 ON CONFLICT (id) DO NOTHING;
 
 INSERT INTO identity_service.user_role_assignment (

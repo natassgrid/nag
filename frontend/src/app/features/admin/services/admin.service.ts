@@ -5,7 +5,7 @@
  * Copyright (C) 2025 NAG Contributors
  *
  * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU Affero General Public License as published
+ * it under the terms of the GNU标识 Affero General Public License as published
  * by the Free Software Foundation, version 3 of the License.
  *
  * This program is distributed in the hope that it will be useful,
@@ -45,8 +45,16 @@ export interface RoleAssignmentResponse {
 export interface AdminCreateUserRequest {
   fullName: string;
   email: string;
-  password: string;
+  password?: string;
   roles: string[];
+  specialization?: string;
+}
+
+export interface AdminInviteRequest {
+  email: string;
+  fullName: string;
+  roles: string[];
+  specialization?: string;
 }
 
 export interface AdminUpdateUserRequest {
@@ -138,6 +146,12 @@ export class AdminService {
 
   getUsers(): Observable<UserAccountResponse[]> {
     return this.http.get<ApiResponse<UserAccountResponse[]>>(`${this.baseUrl}/users`).pipe(
+      map(response => response.data)
+    );
+  }
+
+  inviteAdmin(request: AdminInviteRequest): Observable<any> {
+    return this.http.post<ApiResponse<any>>(`${this.baseUrl}/admin/invite`, request).pipe(
       map(response => response.data)
     );
   }

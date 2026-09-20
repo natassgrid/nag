@@ -14,6 +14,8 @@
 
 x-service-common: &service-common
   restart: unless-stopped
+  env_file:
+    - .env
   networks:
     - exam-network
 
@@ -45,6 +47,30 @@ x-spring-macro-env: &spring-macro-env
   MANAGEMENT_HEALTH_DISCOVERY_ENABLED: "false"
   MANAGEMENT_HEALTH_KAFKA_ENABLED: "false"
   MANAGEMENT_HEALTH_MAIL_ENABLED: "false"
+  # Email / SMTP Configuration
+  SMTP_HOST: ${SMTP_HOST:-${MAIL_HOST:-smtp.gmail.com}}
+  SMTP_PORT: ${SMTP_PORT:-${MAIL_PORT:-587}}
+  SMTP_USERNAME: ${SMTP_USERNAME:-${MAIL_USERNAME:-}}
+  SMTP_PASSWORD: ${SMTP_PASSWORD:-${MAIL_PASSWORD:-}}
+  SMTP_FROM: ${SMTP_FROM:-${MAIL_FROM:-noreply@natassgrid.gov.in}}
+  MAIL_HOST: ${MAIL_HOST:-${SMTP_HOST:-smtp.gmail.com}}
+  MAIL_PORT: ${MAIL_PORT:-${SMTP_PORT:-587}}
+  MAIL_USERNAME: ${MAIL_USERNAME:-${SMTP_USERNAME:-}}
+  MAIL_PASSWORD: ${MAIL_PASSWORD:-${SMTP_PASSWORD:-}}
+  MAIL_FROM: ${MAIL_FROM:-${SMTP_FROM:-noreply@natassgrid.gov.in}}
+  SPRING_MAIL_HOST: ${SMTP_HOST:-${MAIL_HOST:-smtp.gmail.com}}
+  SPRING_MAIL_PORT: ${SMTP_PORT:-${MAIL_PORT:-587}}
+  SPRING_MAIL_USERNAME: ${SMTP_USERNAME:-${MAIL_USERNAME:-}}
+  SPRING_MAIL_PASSWORD: ${SMTP_PASSWORD:-${MAIL_PASSWORD:-}}
+  SPRING_MAIL_FROM: ${SMTP_FROM:-${MAIL_FROM:-noreply@natassgrid.gov.in}}
+  ADMIN_PORTAL_URL: ${ADMIN_PORTAL_URL:-http://localhost:4200}
+  CANDIDATE_PORTAL_URL: ${CANDIDATE_PORTAL_URL:-http://localhost:4300}
+  # SMS Gateway Configuration
+  SMS_ENABLED: ${SMS_ENABLED:-false}
+  MOBILE_VERIFICATION_REQUIRED: ${MOBILE_VERIFICATION_REQUIRED:-false}
+  MSG91_AUTH_KEY: ${MSG91_AUTH_KEY:-}
+  MSG91_TEMPLATE_ID: ${MSG91_TEMPLATE_ID:-}
+  MSG91_SENDER_ID: ${MSG91_SENDER_ID:-NAGGov}
   OTEL_EXPORTER_OTLP_ENDPOINT: http://jaeger:4318
   APP_JWT_SECRET: dev-jwt-secret-key-for-local-testing-minimum-32-chars
 
@@ -101,99 +127,108 @@ services:
       OTEL_SERVICE_NAME: auth-admin-service
     depends_on:
       <<: *depends-macro
-      vault:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://localhost:${AUTH_ADMIN_PORT:-8081}/actuator/health || exit 1"]
       <<: *healthcheck-spring
 
   # ===========================================================================
-  # Macro 2: Content Service (Question Bank, Examination, Paper Gen, Asset)
+  # Macro 2: Paper Service (Question Bank, Paper Generator, Assets)
   # ===========================================================================
-  content-service:
+  paper-service:
     <<: *service-common
     build:
       context: ../../
       dockerfile: backend/Dockerfile
       args:
-        SERVICE_NAME: content-app
-    image: localhost:5000/exam/content-app:latest
-    container_name: exam-content-service
+        SERVICE_NAME: paper-app
+    image: localhost:5000/exam/paper-app:latest
+    container_name: exam-paper-service
     ports:
-      - "${CONTENT_APP_PORT:-8083}:${CONTENT_APP_PORT:-8083}"
+      - "${PAPER_SERVICE_PORT:-8083}:${PAPER_SERVICE_PORT:-8083}"
     environment:
       <<: *spring-macro-env
-      SERVER_PORT: ${CONTENT_APP_PORT:-8083}
-      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-exam_platform}?currentSchema=question_service,examination_service,paper_generator,asset_service,public
-      OTEL_SERVICE_NAME: content-service
-      INDICTRANS2_URL: ${INDICTRANS2_URL:-http://indictrans2:7860}
+      SERVER_PORT: ${PAPER_SERVICE_PORT:-8083}
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-exam_platform}?currentSchema=question_service,paper_generator,asset_service,public
+      OTEL_SERVICE_NAME: paper-service
+      ASSET_STORAGE_PATH: /data/asset-storage
+      # AI Generation & Bedrock / LiteLLM Settings
+      AI_BEDROCK_ENABLED: ${AI_BEDROCK_ENABLED:-false}
+      AWS_REGION_NAME: ${AWS_REGION_NAME:-us-east-1}
       AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:-}
       AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-}
-      AWS_REGION_NAME: ${AWS_REGION_NAME:-us-east-1}
+      AI_BEDROCK_ROLE_ARN: ${AI_BEDROCK_ROLE_ARN:-}
+      AI_BEDROCK_S3_BUCKET: ${AI_BEDROCK_S3_BUCKET:-}
+      AI_MODEL_EASY: ${AI_MODEL_EASY:-nova-micro}
+      AI_MODEL_MEDIUM: ${AI_MODEL_MEDIUM:-nova-lite}
+      AI_MODEL_HARD: ${AI_MODEL_HARD:-nova-lite}
+      INDICTRANS2_URL: http://indictrans2:7860
+      SPRING_AI_OPENAI_BASE_URL: http://litellm:4000
+      SPRING_AI_OPENAI_API_KEY: sk-litellm-dev-key
     depends_on:
       <<: *depends-macro
     volumes:
       - asset_storage:/data/asset-storage
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://localhost:${CONTENT_APP_PORT:-8083}/actuator/health || exit 1"]
+      test: ["CMD-SHELL", "wget -qO- http://localhost:${PAPER_SERVICE_PORT:-8083}/actuator/health || exit 1"]
       <<: *healthcheck-spring
 
   # ===========================================================================
-  # Macro 3: Execution Service (Delivery & Response ? Hot Path)
+  # Macro 3: Exam Delivery Service (Examination, Delivery, Response)
   # ===========================================================================
-  execution-service:
+  delivery-service:
     <<: *service-common
     build:
       context: ../../
       dockerfile: backend/Dockerfile
       args:
-        SERVICE_NAME: execution-app
-    image: localhost:5000/exam/execution-app:latest
-    container_name: exam-execution-service
+        SERVICE_NAME: delivery-app
+    image: localhost:5000/exam/delivery-app:latest
+    container_name: exam-delivery-service
     ports:
-      - "${EXECUTION_APP_PORT:-8087}:${EXECUTION_APP_PORT:-8087}"
+      - "${DELIVERY_APP_PORT:-8085}:${DELIVERY_APP_PORT:-8085}"
     environment:
       <<: *spring-macro-env
-      SERVER_PORT: ${EXECUTION_APP_PORT:-8087}
-      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-exam_platform}?currentSchema=delivery_service,response_service,public
-      OTEL_SERVICE_NAME: execution-service
+      SERVER_PORT: ${DELIVERY_APP_PORT:-8085}
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-exam_platform}?currentSchema=examination_service,delivery_service,response_service,public
+      OTEL_SERVICE_NAME: exam-delivery-service
     depends_on:
       <<: *depends-macro
-      redis:
-        condition: service_healthy
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://localhost:${EXECUTION_APP_PORT:-8087}/actuator/health || exit 1"]
+      test: ["CMD-SHELL", "wget -qO- http://localhost:${DELIVERY_APP_PORT:-8085}/actuator/health || exit 1"]
       <<: *healthcheck-spring
 
   # ===========================================================================
-  # Macro 4: Post-Exam Service (Evaluation, Result, Analytics)
+  # Macro 4: Assessment & Analytics (Evaluation, Result, Analytics)
   # ===========================================================================
-  post-exam-service:
+  assessment-service:
     <<: *service-common
     build:
       context: ../../
       dockerfile: backend/Dockerfile
       args:
-        SERVICE_NAME: post-exam-app
-    image: localhost:5000/exam/post-exam-app:latest
-    container_name: exam-post-exam-service
+        SERVICE_NAME: assessment-app
+    image: localhost:5000/exam/assessment-app:latest
+    container_name: exam-assessment-service
     ports:
-      - "${POST_EXAM_APP_PORT:-8089}:${POST_EXAM_APP_PORT:-8089}"
+      - "${ASSESSMENT_PORT:-8089}:${ASSESSMENT_PORT:-8089}"
     environment:
       <<: *spring-macro-env
-      SERVER_PORT: ${POST_EXAM_APP_PORT:-8089}
+      SERVER_PORT: ${ASSESSMENT_PORT:-8089}
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-exam_platform}?currentSchema=evaluation_service,result_service,analytics_service,public
-      OTEL_SERVICE_NAME: post-exam-service
+      OTEL_SERVICE_NAME: assessment-service
+      SCORECARD_STORAGE_MODE: local
+      SCORECARD_STORAGE_PATH: /data/scorecards
+      SCORECARD_STORAGE_BUCKET: exam-platform-scorecards
     depends_on:
       <<: *depends-macro
+    volumes:
+      - scorecard_storage:/data/scorecards
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://localhost:${POST_EXAM_APP_PORT:-8089}/actuator/health || exit 1"]
+      test: ["CMD-SHELL", "wget -qO- http://localhost:${ASSESSMENT_PORT:-8089}/actuator/health || exit 1"]
       <<: *healthcheck-spring
 
   # ===========================================================================
-  # Macro 5: Audit Service (Isolated Standalone for Legal Compliance)
+  # Macro 5: Audit Service (Stand-alone audit append-only log)
   # ===========================================================================
   audit-service:
     <<: *service-common
@@ -213,56 +248,12 @@ services:
       OTEL_SERVICE_NAME: audit-service
     depends_on:
       <<: *depends-macro
-      vault:
-        condition: service_healthy
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://localhost:${AUDIT_SERVICE_PORT:-8091}/actuator/health || exit 1"]
       <<: *healthcheck-spring
 
   # ===========================================================================
-  # API Gateway ? Routes traffic to the 5 macro backend endpoints
-  # ===========================================================================
-  api-gateway:
-    <<: *service-common
-    build:
-      context: ../../
-      dockerfile: backend/Dockerfile
-      args:
-        SERVICE_NAME: api-gateway
-    image: localhost:5000/exam/api-gateway:latest
-    container_name: exam-api-gateway
-    ports:
-      - "${GATEWAY_PORT:-9000}:${GATEWAY_PORT:-9000}"
-    environment:
-      <<: *spring-macro-env
-      SERVER_PORT: ${GATEWAY_PORT:-9000}
-      OTEL_SERVICE_NAME: api-gateway
-      # Route upstream targets mapped to macro services
-      IDENTITY_SERVICE_URI: http://auth-admin-service:${AUTH_ADMIN_PORT:-8081}
-      CANDIDATE_SERVICE_URI: http://auth-admin-service:${AUTH_ADMIN_PORT:-8081}
-      ADMIN_SERVICE_URI: http://auth-admin-service:${AUTH_ADMIN_PORT:-8081}
-      NOTIFICATION_SERVICE_URI: http://auth-admin-service:${AUTH_ADMIN_PORT:-8081}
-      QUESTION_BANK_SERVICE_URI: http://content-service:${CONTENT_APP_PORT:-8083}
-      EXAMINATION_SERVICE_URI: http://content-service:${CONTENT_APP_PORT:-8083}
-      PAPER_GENERATOR_URI: http://content-service:${CONTENT_APP_PORT:-8083}
-      ASSET_SERVICE_URI: http://content-service:${CONTENT_APP_PORT:-8083}
-      DELIVERY_SERVICE_URI: http://execution-service:${EXECUTION_APP_PORT:-8087}
-      RESPONSE_SERVICE_URI: http://execution-service:${EXECUTION_APP_PORT:-8087}
-      EVALUATION_SERVICE_URI: http://post-exam-service:${POST_EXAM_APP_PORT:-8089}
-      RESULT_SERVICE_URI: http://post-exam-service:${POST_EXAM_APP_PORT:-8089}
-      ANALYTICS_SERVICE_URI: http://post-exam-service:${POST_EXAM_APP_PORT:-8089}
-      AUDIT_SERVICE_URI: http://audit-service:${AUDIT_SERVICE_PORT:-8091}
-    depends_on:
-      auth-admin-service:
-        condition: service_healthy
-      rabbitmq:
-        condition: service_healthy
-    healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://localhost:${GATEWAY_PORT:-9000}/actuator/health || exit 1"]
-      <<: *healthcheck-spring
-
-  # ===========================================================================
-  # Frontend ? Admin SPA
+  # Frontend — Admin SPA
   # ===========================================================================
   frontend:
     <<: *service-common
@@ -273,9 +264,6 @@ services:
     container_name: exam-frontend
     ports:
       - "4200:80"
-    depends_on:
-      api-gateway:
-        condition: service_healthy
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:80/health || exit 1"]
       interval: 30s
@@ -284,7 +272,7 @@ services:
       start_period: 10s
 
   # ===========================================================================
-  # Candidate Frontend ? Candidate SPA
+  # Candidate Frontend — Candidate SPA
   # ===========================================================================
   candidate-frontend:
     <<: *service-common
@@ -295,9 +283,6 @@ services:
     container_name: exam-candidate-frontend
     ports:
       - "4300:80"
-    depends_on:
-      api-gateway:
-        condition: service_healthy
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:80/health || exit 1"]
       interval: 30s
@@ -308,3 +293,4 @@ services:
 volumes:
   rabbitmq_data:
   asset_storage:
+  scorecard_storage:

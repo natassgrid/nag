@@ -20,5 +20,5 @@
 package com.examplatform.identity.domain.enums;
 
 public enum AccountStatus {
-    PENDING_VERIFICATION, ACTIVE, LOCKED, DEACTIVATED
+    PENDING_VERIFICATION, PENDING_SETUP, ACTIVE, LOCKED, DEACTIVATED
 }

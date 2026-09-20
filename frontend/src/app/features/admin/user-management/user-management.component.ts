@@ -73,16 +73,35 @@ export class UserManagementComponent implements OnInit {
 
   columns: ColumnDef<UserAccountResponse>[] = [];
 
-  readonly availableRoles = ['ADMIN', 'CANDIDATE', 'AUTHOR', 'REVIEWER', 'PROCTOR'];
+  readonly availableRoles = [
+    'SUPER_ADMIN',
+    'SECURITY_ADMIN',
+    'QUESTION_AUTHOR',
+    'REVIEWER',
+    'SUBJECT_MATTER_EXPERT',
+    'APPROVER',
+    'EXAM_CONTROLLER',
+    'TRANSLATOR',
+    'EVALUATOR',
+    'AUDITOR',
+    'CANDIDATE'
+  ];
 
   // Signals for Local State Management
   readonly filters = signal<Record<string, any>>({});
+  readonly inviteDrawerOpen = signal<boolean>(false);
   readonly createDrawerOpen = signal<boolean>(false);
   readonly editDrawerOpen = signal<boolean>(false);
   readonly roleDrawerOpen = signal<boolean>(false);
   readonly saving = signal<boolean>(false);
 
-  // Form Signals
+  // Invite Form Signals
+  readonly inviteEmail = signal<string>('');
+  readonly inviteFullName = signal<string>('');
+  readonly inviteSpecialization = signal<string>('');
+  readonly inviteRoles = signal<string[]>(['QUESTION_AUTHOR']);
+
+  // Create Form Signals
   readonly newFullName = signal<string>('');
   readonly newEmail = signal<string>('');
   readonly newPassword = signal<string>('');
@@ -97,6 +116,12 @@ export class UserManagementComponent implements OnInit {
   readonly roleAction = signal<'ASSIGN' | 'REVOKE'>('ASSIGN');
 
   // Computed state
+  readonly isInviteValid = computed(() => {
+    return this.inviteFullName().trim().length > 0 &&
+           this.inviteEmail().trim().length > 0 &&
+           this.inviteRoles().length > 0;
+  });
+
   readonly isCreateValid = computed(() => {
     return this.newFullName().trim().length > 0 &&
            this.newEmail().trim().length > 0 &&
@@ -110,6 +135,8 @@ export class UserManagementComponent implements OnInit {
       expanded: true,
       options: [
         { label: 'Active', value: 'ACTIVE' },
+        { label: 'Pending Setup', value: 'PENDING_SETUP' },
+        { label: 'Pending Verification', value: 'PENDING_VERIFICATION' },
         { label: 'Deactivated', value: 'DEACTIVATED' }
       ]
     },
@@ -118,11 +145,12 @@ export class UserManagementComponent implements OnInit {
       label: 'Role',
       expanded: false,
       options: [
-        { label: 'Admin', value: 'ADMIN' },
-        { label: 'Candidate', value: 'CANDIDATE' },
-        { label: 'Author', value: 'AUTHOR' },
+        { label: 'Super Admin', value: 'SUPER_ADMIN' },
+        { label: 'Security Admin', value: 'SECURITY_ADMIN' },
+        { label: 'Question Author', value: 'QUESTION_AUTHOR' },
         { label: 'Reviewer', value: 'REVIEWER' },
-        { label: 'Proctor', value: 'PROCTOR' }
+        { label: 'Exam Controller', value: 'EXAM_CONTROLLER' },
+        { label: 'Candidate', value: 'CANDIDATE' }
       ]
     },
     {
@@ -182,7 +210,7 @@ export class UserManagementComponent implements OnInit {
 
   ngOnInit(): void {
     this.columns = [
-      { key: 'username', header: 'Username', sortable: true },
+      { key: 'username', header: 'Username / Email', sortable: true },
       {
         key: 'accountStatus',
         header: 'Status',
@@ -190,7 +218,7 @@ export class UserManagementComponent implements OnInit {
         template: this.statusTmpl,
         sortable: true
       },
-      { key: 'mfaEnabled', header: 'MFA', type: 'custom', template: this.mfaTmpl, sortable: true },
+      { key: 'mfaEnabled', header: '2FA', type: 'custom', template: this.mfaTmpl, sortable: true },
       { key: 'roles', header: 'Roles', type: 'custom', template: this.rolesTmpl },
       { key: 'createdAt', header: 'Created', type: 'date', sortable: true },
       { key: 'actions', header: 'Actions', type: 'actions' }
@@ -205,11 +233,42 @@ export class UserManagementComponent implements OnInit {
     this.paginatedTable?.reload();
   }
 
+  openInviteDrawer(): void {
+    this.inviteEmail.set('');
+    this.inviteFullName.set('');
+    this.inviteSpecialization.set('');
+    this.inviteRoles.set(['QUESTION_AUTHOR']);
+    this.inviteDrawerOpen.set(true);
+  }
+
+  sendAdminInvite(): void {
+    if (!this.isInviteValid()) return;
+    this.saving.set(true);
+    this.adminService.inviteAdmin({
+      email: this.inviteEmail().trim(),
+      fullName: this.inviteFullName().trim(),
+      specialization: this.inviteSpecialization().trim() || undefined,
+      roles: this.inviteRoles()
+    }).subscribe({
+      next: () => {
+        this.notificationService.showSuccess('Invitation dispatched successfully via email.');
+        this.inviteDrawerOpen.set(false);
+        this.saving.set(false);
+        this.reload();
+      },
+      error: (err) => {
+        this.saving.set(false);
+        const msg = err.error?.message || 'Failed to send invitation.';
+        this.notificationService.showError(msg);
+      }
+    });
+  }
+
   openCreateDrawer(): void {
     this.newFullName.set('');
     this.newEmail.set('');
     this.newPassword.set('');
-    this.newRoles.set(['ROLE_EXAM_ADMIN']);
+    this.newRoles.set(['CANDIDATE']);
     this.createDrawerOpen.set(true);
   }
 

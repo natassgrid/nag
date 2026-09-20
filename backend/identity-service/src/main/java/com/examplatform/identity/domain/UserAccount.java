@@ -5,7 +5,7 @@
  * Copyright (C) 2025 NAG Contributors
  *
  * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU标识 Affero General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, version 3 of the License.
  *
  * This program is distributed in the hope that it will be useful,
@@ -68,6 +68,14 @@ public class UserAccount extends BaseEntity {
     @Column(name = "account_status")
     private AccountStatus accountStatus = AccountStatus.PENDING_VERIFICATION;
 
+    @Builder.Default
+    @Column(name = "email_verified")
+    private boolean emailVerified = false;
+
+    @Builder.Default
+    @Column(name = "mobile_verified")
+    private boolean mobileVerified = false;
+
     @Column(name = "specialization")
     private String specialization;
 
@@ -77,6 +85,12 @@ public class UserAccount extends BaseEntity {
 
     @Column(name = "mfa_secret_ref")
     private String mfaSecretRef;
+
+    @Column(name = "totp_secret")
+    private String totpSecret;
+
+    @Column(name = "backup_codes", columnDefinition = "TEXT")
+    private String backupCodes;
 
     @Column(name = "device_fingerprint")
     private String deviceFingerprint;

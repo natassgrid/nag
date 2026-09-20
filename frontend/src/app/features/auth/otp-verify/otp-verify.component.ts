@@ -86,9 +86,9 @@ export class OtpVerifyComponent implements OnInit {
       next: () => {
         this.router.navigate(['/dashboard']);
       },
-      error: (err) => {
+      error: (err: any) => {
         this.isLoading = false;
-        this.errorMessage = err.error?.message || 'OTP verification failed. Please try again.';
+        this.errorMessage = err?.error?.message || 'OTP verification failed. Please try again.';
       }
     });
   }

@@ -29,6 +29,24 @@ export interface UserToken {
   userId: string;
 }
 
+export interface TotpSetupData {
+  secret: string;
+  otpauthUri: string;
+  issuer: string;
+  username: string;
+  backupCodes: string[];
+}
+
+export interface ValidateInviteData {
+  valid: boolean;
+  email: string;
+  fullName: string;
+  roles: string[];
+  tenantId: string;
+  expiresAt: string;
+  message: string;
+}
+
 @Injectable({ providedIn: 'root' })
 export class AuthService {
   private readonly TOKEN_KEY = 'exam_access_token';
@@ -241,11 +259,29 @@ export class AuthService {
     if (credentials.deviceFingerprint) {
       payload.deviceFingerprint = credentials.deviceFingerprint;
     }
-    return this.http.post<{ status: string; data: UserToken }>('/api/v1/identity/auth/token', payload)
+    return this.http.post<{ status?: string; data?: UserToken } & UserToken>('/api/v1/identity/auth/token', payload)
       .pipe(
-        map(response => response.data || (response as unknown as UserToken)),
+        map(response => response.data || (response as UserToken)),
         tap(token => this.storeTokens(token, credentials.username))
       );
+  }
+
+  /**
+   * Verifies an OTP code for registration or identity verification.
+   */
+  verifyOtp(payload: { registrationId?: string; userId?: string; mobile?: string; otp: string }): Observable<UserToken> {
+    return this.http.post<{ status?: string; data?: UserToken } & UserToken>('/api/v1/identity/otp/verify', payload)
+      .pipe(
+        map(response => response.data || (response as UserToken)),
+        tap(token => this.storeTokens(token))
+      );
+  }
+
+  /**
+   * Resends an OTP code.
+   */
+  resendOtp(payload: { userId?: string; mobile?: string }): Observable<any> {
+    return this.http.post('/api/v1/identity/otp/resend', payload);
   }
 
   /**
@@ -263,11 +299,11 @@ export class AuthService {
       return throwError(() => new Error('No refresh token available'));
     }
 
-    this.refreshTokenInProgress$ = this.http.post<{ status: string; data: UserToken }>(
+    this.refreshTokenInProgress$ = this.http.post<{ status?: string; data?: UserToken } & UserToken>(
       '/api/v1/identity/auth/token/refresh',
       { refreshToken }
     ).pipe(
-      map(response => response.data || (response as unknown as UserToken)),
+      map(response => response.data || (response as UserToken)),
       tap(token => this.storeTokens(token)),
       finalize(() => {
         this.refreshTokenInProgress$ = null;
@@ -278,16 +314,27 @@ export class AuthService {
     return this.refreshTokenInProgress$;
   }
 
-  register(data: { name: string; email: string; mobile: string; identityDocType: string; identityDocNumber: string }): Observable<{ registrationId: string }> {
-    return this.http.post<{ registrationId: string }>('/api/v1/identity/register', data);
+  validateInvite(token: string): Observable<ValidateInviteData> {
+    return this.http.get<{ data: ValidateInviteData }>(`/api/v1/identity/admin/invite/validate?token=${encodeURIComponent(token)}`)
+      .pipe(map(res => res.data));
   }
 
-  verifyOtp(data: { registrationId: string; otp: string }): Observable<UserToken> {
-    return this.http.post<{ status: string; data: UserToken }>('/api/v1/identity/otp/verify', data)
+  setupTotp(): Observable<TotpSetupData> {
+    return this.http.post<{ data: TotpSetupData }>('/api/v1/identity/auth/2fa/setup', {})
+      .pipe(map(res => res.data));
+  }
+
+  acceptInvite(payload: { token: string; password: string; totpSecret: string; totpCode: string; backupCodes?: string[] }): Observable<UserToken> {
+    return this.http.post<{ data: UserToken }>('/api/v1/identity/admin/invite/accept', payload)
       .pipe(
-        map(response => response.data || (response as unknown as UserToken)),
+        map(res => res.data),
         tap(token => this.storeTokens(token))
       );
+  }
+
+  sendAdminInvite(data: { email: string; fullName: string; roles: string[]; specialization?: string }): Observable<any> {
+    return this.http.post<{ data: any }>('/api/v1/identity/admin/invite', data)
+      .pipe(map(res => res.data));
   }
 
   logout(): void {

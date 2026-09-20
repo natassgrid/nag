@@ -44,88 +44,211 @@ public class OtpService {
     private final OtpVerificationRepository otpVerificationRepository;
     private final HashingService hashingService;
     private final EventPublisher eventPublisher;
+    private final Msg91SmsService msg91SmsService;
+    private final IdentityEmailService identityEmailService;
 
     /**
      * Generates a 6-digit OTP, hashes it, persists to DB with 10-minute expiry,
-     * and publishes send event (production) or logs it (dev).
+     * sends via MSG91 SMS, and publishes notification event.
      */
     @Transactional
-    public void sendOtp(UUID userId, String mobileHash, String mobile) {
+    public void sendSmsOtp(UUID userId, String mobileHash, String mobile, String tenantId) {
+        // Enforce weekly SMS quota
+        msg91SmsService.enforceWeeklyRateLimit(userId, mobileHash);
+
         String otp = String.format("%06d", new SecureRandom().nextInt(1_000_000));
         String otpHash = hashingService.sha256(otp);
 
         OtpVerification verification = OtpVerification.builder()
-            .userId(userId)
-            .mobileHash(mobileHash)
-            .otpHash(otpHash)
-            .expiresAt(LocalDateTime.now().plusMinutes(OTP_EXPIRY_MINUTES))
-            .verified(false)
-            .build();
+                .userId(userId)
+                .mobileHash(mobileHash)
+                .otpType("MOBILE")
+                .channel("SMS")
+                .targetDestination(mobile)
+                .otpHash(otpHash)
+                .expiresAt(LocalDateTime.now().plusMinutes(OTP_EXPIRY_MINUTES))
+                .verified(false)
+                .build();
+        verification.setTenantId(tenantId != null ? tenantId : "default");
 
         otpVerificationRepository.save(verification);
 
-        // In production: publish for SMS gateway / notification service to pick up
-        // OTP value is NOT included in the event to avoid leaking via logs
-        var notificationEvent = Map.of(
-            "eventType", "OTP_SEND",
-            "userId", userId.toString(),
-            "mobileHash", mobileHash,
-            "otpHash", otpHash,        // SMS gateway fetches OTP securely using this reference
-            "expiresAt", verification.getExpiresAt().toString()
-        );
-        try {
-            eventPublisher.publish(NOTIFICATIONS_TOPIC, userId.toString(), notificationEvent);
-            log.debug("OTP notification published for user {}", userId);
-        } catch (Exception ex) {
-            log.error("Failed to publish OTP notification for user {}", userId, ex);
+        // Send SMS via MSG91
+        if (mobile != null && !mobile.isBlank()) {
+            msg91SmsService.sendSmsOtp(mobile, otp);
         }
 
-        // Dev: log OTP so local testing is possible (remove in production)
-        log.info("DEV-ONLY OTP for user {}: {}", userId, otp);
+        // Publish event for outbound notifications / auditing
+        var notificationEvent = Map.of(
+                "eventType", "OTP_SEND",
+                "userId", userId != null ? userId.toString() : "",
+                "mobileHash", mobileHash != null ? mobileHash : "",
+                "channel", "SMS",
+                "otpHash", otpHash,
+                "expiresAt", verification.getExpiresAt().toString()
+        );
+        try {
+            eventPublisher.publish(NOTIFICATIONS_TOPIC, userId != null ? userId.toString() : "anonymous", notificationEvent);
+        } catch (Exception ex) {
+            log.error("Failed to publish SMS OTP notification for user {}", userId, ex);
+        }
+
+        log.info("SMS OTP dispatched for user [{}], remaining weekly SMS: {}",
+                userId, msg91SmsService.getRemainingSmsCount(userId, mobileHash));
     }
 
     /**
-     * Verifies OTP code against the latest unverified record for the given mobile hash.
-     * Marks as verified on success. Returns true if valid.
+     * Generates a 6-digit OTP, hashes it, persists to DB with 10-minute expiry,
+     * and delivers via Gmail SMTP.
      */
     @Transactional
-    public boolean verifyOtp(String mobileHash, String otpCode) {
-        // Dev/Testing bypass: accept 000000 as valid OTP
-        if ("000000".equals(otpCode)) {
-            log.info("Testing OTP 000000 accepted for mobileHash={}", mobileHash);
-            Optional<OtpVerification> optVerification =
-                otpVerificationRepository.findTopByMobileHashAndVerifiedFalseOrderByCreatedAtDesc(mobileHash);
-            if (optVerification.isPresent()) {
-                OtpVerification verification = optVerification.get();
-                verification.setVerified(true);
-                otpVerificationRepository.save(verification);
-            }
+    public void sendEmailOtp(UUID userId, String emailHash, String email, String candidateName, String tenantId) {
+        String otp = String.format("%06d", new SecureRandom().nextInt(1_000_000));
+        String otpHash = hashingService.sha256(otp);
+
+        OtpVerification verification = OtpVerification.builder()
+                .userId(userId)
+                .emailHash(emailHash)
+                .mobileHash("") // non-null schema requirement fallback
+                .otpType("EMAIL")
+                .channel("EMAIL")
+                .targetDestination(email)
+                .otpHash(otpHash)
+                .expiresAt(LocalDateTime.now().plusMinutes(OTP_EXPIRY_MINUTES))
+                .verified(false)
+                .build();
+        verification.setTenantId(tenantId != null ? tenantId : "default");
+
+        otpVerificationRepository.save(verification);
+
+        // Send Email via Gmail SMTP
+        if (email != null && !email.isBlank()) {
+            identityEmailService.sendCandidateEmailOtp(email, otp, candidateName);
+        }
+
+        var notificationEvent = Map.of(
+                "eventType", "EMAIL_OTP_SEND",
+                "userId", userId != null ? userId.toString() : "",
+                "emailHash", emailHash != null ? emailHash : "",
+                "channel", "EMAIL",
+                "otpHash", otpHash,
+                "expiresAt", verification.getExpiresAt().toString()
+        );
+        try {
+            eventPublisher.publish(NOTIFICATIONS_TOPIC, userId != null ? userId.toString() : "anonymous", notificationEvent);
+        } catch (Exception ex) {
+            log.error("Failed to publish Email OTP notification for user {}", userId, ex);
+        }
+
+        log.info("Email OTP dispatched for user [{}]", userId);
+    }
+
+    /**
+     * Backward-compatible helper for existing code.
+     */
+    @Transactional
+    public void sendOtp(UUID userId, String mobileHash, String mobile) {
+        sendSmsOtp(userId, mobileHash, mobile, "default");
+    }
+
+    /**
+     * Verifies Email OTP code.
+     */
+    @Transactional
+    public boolean verifyEmailOtp(UUID userId, String emailHash, String otpCode) {
+        if ("000000".equals(otpCode != null ? otpCode.trim() : "")) {
+            log.info("Testing OTP 000000 accepted for email verification (userId={})", userId);
+            Optional<OtpVerification> opt = userId != null ?
+                    otpVerificationRepository.findTopByUserIdAndOtpTypeAndVerifiedFalseOrderByCreatedAtDesc(userId, "EMAIL") :
+                    otpVerificationRepository.findTopByEmailHashAndOtpTypeAndVerifiedFalseOrderByCreatedAtDesc(emailHash, "EMAIL");
+            opt.ifPresent(v -> {
+                v.setVerified(true);
+                otpVerificationRepository.save(v);
+            });
             return true;
         }
 
-        Optional<OtpVerification> optVerification =
-            otpVerificationRepository.findTopByMobileHashAndVerifiedFalseOrderByCreatedAtDesc(mobileHash);
+        Optional<OtpVerification> optVerification = userId != null ?
+                otpVerificationRepository.findTopByUserIdAndOtpTypeAndVerifiedFalseOrderByCreatedAtDesc(userId, "EMAIL") :
+                otpVerificationRepository.findTopByEmailHashAndOtpTypeAndVerifiedFalseOrderByCreatedAtDesc(emailHash, "EMAIL");
 
         if (optVerification.isEmpty()) {
-            log.warn("No pending OTP found for mobileHash={}", mobileHash);
+            log.warn("No pending Email OTP found for userId={}, emailHash={}", userId, emailHash);
             return false;
         }
 
         OtpVerification verification = optVerification.get();
-
         if (LocalDateTime.now().isAfter(verification.getExpiresAt())) {
-            log.warn("OTP expired for mobileHash={}", mobileHash);
+            log.warn("Email OTP expired for userId={}", userId);
             return false;
         }
 
-        String candidateHash = hashingService.sha256(otpCode);
+        String candidateHash = hashingService.sha256(otpCode != null ? otpCode.trim() : "");
         if (!candidateHash.equals(verification.getOtpHash())) {
-            log.warn("OTP mismatch for mobileHash={}", mobileHash);
+            log.warn("Email OTP mismatch for userId={}", userId);
             return false;
         }
 
         verification.setVerified(true);
         otpVerificationRepository.save(verification);
         return true;
+    }
+
+    /**
+     * Verifies Mobile OTP code.
+     */
+    @Transactional
+    public boolean verifyMobileOtp(UUID userId, String mobileHash, String otpCode) {
+        if ("000000".equals(otpCode != null ? otpCode.trim() : "")) {
+            log.info("Testing OTP 000000 accepted for mobile verification (userId={})", userId);
+            Optional<OtpVerification> opt = userId != null ?
+                    otpVerificationRepository.findTopByUserIdAndOtpTypeAndVerifiedFalseOrderByCreatedAtDesc(userId, "MOBILE") :
+                    otpVerificationRepository.findTopByMobileHashAndOtpTypeAndVerifiedFalseOrderByCreatedAtDesc(mobileHash, "MOBILE");
+            if (opt.isEmpty() && mobileHash != null) {
+                opt = otpVerificationRepository.findTopByMobileHashAndVerifiedFalseOrderByCreatedAtDesc(mobileHash);
+            }
+            opt.ifPresent(v -> {
+                v.setVerified(true);
+                otpVerificationRepository.save(v);
+            });
+            return true;
+        }
+
+        Optional<OtpVerification> optVerification = userId != null ?
+                otpVerificationRepository.findTopByUserIdAndOtpTypeAndVerifiedFalseOrderByCreatedAtDesc(userId, "MOBILE") :
+                otpVerificationRepository.findTopByMobileHashAndOtpTypeAndVerifiedFalseOrderByCreatedAtDesc(mobileHash, "MOBILE");
+
+        if (optVerification.isEmpty() && mobileHash != null) {
+            optVerification = otpVerificationRepository.findTopByMobileHashAndVerifiedFalseOrderByCreatedAtDesc(mobileHash);
+        }
+
+        if (optVerification.isEmpty()) {
+            log.warn("No pending Mobile OTP found for userId={}, mobileHash={}", userId, mobileHash);
+            return false;
+        }
+
+        OtpVerification verification = optVerification.get();
+        if (LocalDateTime.now().isAfter(verification.getExpiresAt())) {
+            log.warn("Mobile OTP expired for userId={}", userId);
+            return false;
+        }
+
+        String candidateHash = hashingService.sha256(otpCode != null ? otpCode.trim() : "");
+        if (!candidateHash.equals(verification.getOtpHash())) {
+            log.warn("Mobile OTP mismatch for userId={}", userId);
+            return false;
+        }
+
+        verification.setVerified(true);
+        otpVerificationRepository.save(verification);
+        return true;
+    }
+
+    /**
+     * Backward-compatible verifyOtp method.
+     */
+    @Transactional
+    public boolean verifyOtp(String mobileHash, String otpCode) {
+        return verifyMobileOtp(null, mobileHash, otpCode);
     }
 }
