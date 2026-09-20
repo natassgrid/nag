@@ -13,7 +13,7 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
  * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU标志 Affero General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
 
@@ -104,7 +104,8 @@ function serialiseElement(el: ExamElement, _depth: number): string {
     }
     case 'math-inline': {
       const math = el as MathInlineElement;
-      return math.display ? `\n$$${math.latex}$$\n` : `$$${math.latex}$$`;
+      const cleanLatex = sanitizeLatex(math.latex);
+      return math.display ? `\n$$${cleanLatex}$$\n` : `$$${cleanLatex}$$`;
     }
     case 'chemical-structure': {
       const chem = el as ChemicalStructureElement;
@@ -131,7 +132,7 @@ function serialiseTextNode(text: ExamText): string {
   const sentinel = decodeSentinel(s);
   if (sentinel) {
     if (sentinel.kind === 'math') {
-      return `$$${sentinel.payload}$$`;
+      return `$$${sanitizeLatex(sentinel.payload)}$$`;
     }
     if (sentinel.kind === 'smiles') {
       return `<smiles>${sentinel.payload}</smiles>`;
@@ -305,7 +306,7 @@ export function parseMarkdownToDocument(md: string): ExamDocument {
         latex = trimmed.slice(2, -2).trim();
         doc.push({
           type: 'math-inline',
-          latex,
+          latex: sanitizeLatex(latex),
           display: true,
           children: [{ text: '' }]
         } as MathInlineElement);
@@ -326,7 +327,7 @@ export function parseMarkdownToDocument(md: string): ExamDocument {
         }
         doc.push({
           type: 'math-inline',
-          latex: latex.trim(),
+          latex: sanitizeLatex(latex),
           display: true,
           children: [{ text: '' }]
         } as MathInlineElement);
@@ -445,7 +446,7 @@ function parseInlineLine(line: string): ExamText[] {
 
     if (match[1] !== undefined) {
       // $$...$$ math
-      results.push({ text: encodeMathSentinel(match[1]) });
+      results.push({ text: encodeMathSentinel(sanitizeLatex(match[1])) });
     } else if (match[3] !== undefined) {
       // <smiles ...>...</smiles>
       results.push({ text: encodeSmilesSentinel(match[3]) });
@@ -534,4 +535,38 @@ export function decodeSentinel(text: string): { kind: 'math' | 'smiles'; payload
     return { kind: 'smiles', payload: text.slice(8, -1) };
   }
   return null;
+}
+
+/**
+ * Normalizes and sanitizes LaTeX strings, repairing mangled AI outputs and escape artifacts:
+ *  - Converts '\ ext' or '\ text' -> '\text'
+ *  - Replaces '\t' tab character that unescaped '\text', '\tan', '\times', etc.
+ *  - Strips stray whitespace after backslash before command words ('\ frac' -> '\frac')
+ *  - Collapses duplicated backslashes before commands
+ *  - Escapes bare '%' characters for KaTeX
+ */
+export function sanitizeLatex(latex: string): string {
+  if (!latex || typeof latex !== 'string') return '';
+  let s = latex.trim();
+
+  // 1. Repair tab characters that were unescaped from \t-commands
+  s = s.replace(/\t(ext|an|imes|heta|au|o|herefore|ilde|extbf|extit)\b/g, '\\$1');
+
+  // 2. Fix '\ ext' or '\  ext' or '\ text' -> '\text'
+  s = s.replace(/\\+(\s*)ext(?=\{|\s|$|[0-9])/g, '\\text');
+
+  // 3. Fix whitespace between backslash and command letters ('\ frac' -> '\frac')
+  s = s.replace(/\\+\s+([a-zA-Z]+)/g, '\\$1');
+
+  // 4. Deduplicate multiple backslashes before commands
+  let previous: string;
+  do {
+    previous = s;
+    s = s.replace(/\\{2,}([a-zA-Z]+|[{}_#$%&^~])/g, '\\$1');
+  } while (s !== previous);
+
+  // 5. Ensure bare % is escaped for KaTeX
+  s = s.replace(/(?<!\\)%/g, '\\%');
+
+  return s;
 }

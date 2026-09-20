@@ -3,14 +3,26 @@
  *
  * National Assessment Grid (NAG) - Open Digital Public Infrastructure (DPI) Platform
  * Copyright (C) 2025 NAG Contributors
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as published
+ * by the Free Software Foundation, version 3 of the License.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
 
 import {
   Component,
   OnInit,
   ChangeDetectionStrategy,
-  ChangeDetectorRef,
   ViewEncapsulation,
+  ChangeDetectorRef,
   ViewChild,
   ElementRef
 } from '@angular/core';
@@ -28,6 +40,7 @@ import { Inject } from '@angular/core';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import katex from 'katex';
 import 'katex/dist/contrib/mhchem.mjs';
+import { sanitizeLatex } from './utils/serializer';
 
 export interface MathInputDialogData {
   /** Pre-fill with existing LaTeX (for edit mode) */
@@ -49,8 +62,7 @@ export interface SymbolCategory {
 }
 
 /**
- * Modernized dialog for authoring LaTeX formulas & equations (Math, Physics, Chemistry)
- * with live KaTeX + mhchem preview.
+ * Math & Chemical Formula Insert / Edit Dialog
  *
  * Addresses Issue #143:
  *  - Categorized symbol palette (basic, calculus, algebra, chemistry, greek, etc.)
@@ -98,7 +110,7 @@ export class MathInputDialogComponent implements OnInit {
     private sanitizer: DomSanitizer,
     private cdr: ChangeDetectorRef
   ) {
-    this.latex = data?.latex || '';
+    this.latex = sanitizeLatex(data?.latex || '');
     this.display = !!data?.display;
     this.isEdit = !!data?.latex;
   }
@@ -138,63 +150,92 @@ export class MathInputDialogComponent implements OnInit {
           { label: 'Derivative', latex: '\\frac{df}{dx}', preview: '\\frac{df}{dx}' },
           { label: 'Partial Deriv', latex: '\\frac{\\partial f}{\\partial x}', preview: '\\frac{\\partial f}{\\partial x}' },
           { label: 'Limit', latex: '\\lim_{x \\to 0} f(x)', preview: '\\lim_{x \\to 0}' },
-          { label: 'Summation', latex: '\\sum_{i=1}^{n} x_i', preview: '\\sum_{i=1}^n' },
-          { label: 'Product', latex: '\\prod_{i=1}^{n} x_i', preview: '\\prod' },
-          { label: 'Infinity', latex: '\\infty', preview: '\\infty' },
-          { label: 'Gradient', latex: '\\nabla f', preview: '\\nabla' }
+          { label: 'Summation', latex: '\\sum_{i=1}^{n} x_i', preview: '\\sum x_i' },
+          { label: 'Product', latex: '\\prod_{i=1}^{n} x_i', preview: '\\prod x_i' },
+          { label: 'Infinity', latex: '\\infty', preview: '\\infty' }
         ]
       },
       {
-        name: 'Linear Algebra & Sets',
-        icon: 'grid_view',
-        snippets: [
-          { label: 'Matrix (2x2)', latex: '\\begin{pmatrix} a & b \\\\ c & d \\end{pmatrix}', preview: '\\begin{pmatrix} a & b \\\\ c & d \\end{pmatrix}' },
-          { label: 'Determinant', latex: '\\begin{vmatrix} a & b \\\\ c & d \\end{vmatrix}', preview: '\\begin{vmatrix} a & b \\\\ c & d \\end{vmatrix}' },
-          { label: 'Vector', latex: '\\vec{v}', preview: '\\vec{v}' },
-          { label: 'Dot Product', latex: '\\vec{a} \\cdot \\vec{b}', preview: '\\vec{a} \\cdot \\vec{b}' },
-          { label: 'Cross Product', latex: '\\vec{a} \\times \\vec{b}', preview: '\\vec{a} \\times \\vec{b}' },
-          { label: 'Element of', latex: '\\in', preview: '\\in' },
-          { label: 'Subset', latex: '\\subset', preview: '\\subset' },
-          { label: 'Union', latex: '\\cup', preview: '\\cup' },
-          { label: 'Intersection', latex: '\\cap', preview: '\\cap' },
-          { label: 'For All', latex: '\\forall', preview: '\\forall' },
-          { label: 'Exists', latex: '\\exists', preview: '\\exists' }
-        ]
-      },
-      {
-        name: 'Chemistry & Physics',
+        name: 'Chemistry (\u005cce)',
         icon: 'science',
         snippets: [
           { label: 'Reaction Arrow', latex: '\\ce{A -> B}', preview: '\\ce{A -> B}' },
-          { label: 'Equilibrium', latex: '\\ce{A <=> B}', preview: '\\ce{A <=> B}' },
-          { label: 'Water Synthesis', latex: '\\ce{2H2 + O2 -> 2H2O}', preview: '\\ce{2H2 + O2 -> 2H2O}' },
+          { label: 'Reversible Arrow', latex: '\\ce{A <=> B}', preview: '\\ce{A <=> B}' },
+          { label: 'Water Formation', latex: '\\ce{2H2 + O2 -> 2H2O}', preview: '\\ce{2H2 + O2 -> 2H2O}' },
           { label: 'Combustion', latex: '\\ce{CH4 + 2O2 -> CO2 + 2H2O}', preview: '\\ce{CH4 + 2O2 -> CO2 + 2H2O}' },
-          { label: 'Hydronium', latex: '\\ce{H3O+}', preview: '\\ce{H3O+}' },
-          { label: 'Sulfate Ion', latex: '\\ce{SO4^{2-}}', preview: '\\ce{SO4^{2-}}' },
-          { label: 'State (aq)', latex: '\\ce{NaCl(aq)}', preview: '\\ce{NaCl(aq)}' },
-          { label: 'Delta / Heat', latex: '\\ce{->[\\Delta]}', preview: '\\ce{->[\\Delta]}' },
-          { label: 'Physical Unit', latex: '\\pu{9.8 m/s^2}', preview: '\\pu{9.8 m/s^2}' },
-          { label: 'Joules / Energy', latex: '\\pu{4.184 J/(g K)}', preview: '\\pu{4.184 J/(g K)}' }
+          { label: 'Precipitate (v)', latex: '\\ce{Ag+ + Cl- -> AgCl v}', preview: '\\ce{AgCl v}' },
+          { label: 'Gas Evolution (^)', latex: '\\ce{Zn + 2HCl -> ZnCl2 + H2 ^}', preview: '\\ce{H2 ^}' },
+          { label: 'Charges/Ions', latex: '\\ce{SO4^2- + Ba^2+ -> BaSO4}', preview: '\\ce{SO4^2-}' },
+          { label: 'Hydrate', latex: '\\ce{CuSO4 . 5H2O}', preview: '\\ce{CuSO4 . 5H2O}' },
+          { label: 'State Symbols', latex: '\\ce{NaCl(aq) + AgNO3(aq) -> AgCl(s) + NaNO3(aq)}', preview: '\\ce{NaCl(aq)}' },
+          { label: 'Physical Unit', latex: '\\pu{9.8 m/s^2}', preview: '\\pu{9.8 m/s^2}' }
+        ]
+      },
+      {
+        name: 'Algebra & Matrices',
+        icon: 'grid_on',
+        snippets: [
+          {
+            label: '2x2 Matrix',
+            latex: '\\begin{pmatrix} a & b \\\\ c & d \\end{pmatrix}',
+            preview: '\\begin{pmatrix} a & b \\\\ c & d \\end{pmatrix}'
+          },
+          {
+            label: '3x3 Matrix',
+            latex: '\\begin{pmatrix} a & b & c \\\\ d & e & f \\\\ g & h & i \\end{pmatrix}',
+            preview: '\\begin{pmatrix} 1 & 0 \\\\ 0 & 1 \\end{pmatrix}'
+          },
+          {
+            label: 'Determinant',
+            latex: '\\begin{vmatrix} a & b \\\\ c & d \\end{vmatrix}',
+            preview: '\\begin{vmatrix} a & b \\\\ c & d \\end{vmatrix}'
+          },
+          {
+            label: 'Cases / Piecewise',
+            latex: 'f(x) = \\begin{cases} x^2 & x \\geq 0 \\\\ -x & x < 0 \\end{cases}',
+            preview: '\\begin{cases} a \\\\ b \\end{cases}'
+          },
+          { label: 'Binomial Coeff', latex: '\\binom{n}{k}', preview: '\\binom{n}{k}' }
         ]
       },
       {
         name: 'Greek Letters',
-        icon: 'language',
+        icon: 'translate',
         snippets: [
-          { label: 'alpha', latex: '\\alpha', preview: '\\alpha' },
-          { label: 'beta', latex: '\\beta', preview: '\\beta' },
-          { label: 'gamma', latex: '\\gamma', preview: '\\gamma' },
-          { label: 'delta', latex: '\\delta', preview: '\\delta' },
-          { label: 'Delta', latex: '\\Delta', preview: '\\Delta' },
-          { label: 'theta', latex: '\\theta', preview: '\\theta' },
-          { label: 'lambda', latex: '\\lambda', preview: '\\lambda' },
-          { label: 'Lambda', latex: '\\Lambda', preview: '\\Lambda' },
-          { label: 'mu', latex: '\\mu', preview: '\\mu' },
-          { label: 'pi', latex: '\\pi', preview: '\\pi' },
-          { label: 'sigma', latex: '\\sigma', preview: '\\sigma' },
-          { label: 'Sigma', latex: '\\Sigma', preview: '\\Sigma' },
-          { label: 'omega', latex: '\\omega', preview: '\\omega' },
-          { label: 'Omega', latex: '\\Omega', preview: '\\Omega' }
+          { label: 'alpha (\u03b1)', latex: '\\alpha', preview: '\\alpha' },
+          { label: 'beta (\u03b2)', latex: '\\beta', preview: '\\beta' },
+          { label: 'gamma (\u03b3)', latex: '\\gamma', preview: '\\gamma' },
+          { label: 'delta (\u03b4)', latex: '\\delta', preview: '\\delta' },
+          { label: 'Delta (\u0394)', latex: '\\Delta', preview: '\\Delta' },
+          { label: 'theta (\u03b8)', latex: '\\theta', preview: '\\theta' },
+          { label: 'lambda (\u03bb)', latex: '\\lambda', preview: '\\lambda' },
+          { label: 'mu (\u03bc)', latex: '\\mu', preview: '\\mu' },
+          { label: 'pi (\u03c0)', latex: '\\pi', preview: '\\pi' },
+          { label: 'sigma (\u03c3)', latex: '\\sigma', preview: '\\sigma' },
+          { label: 'Sigma (\u03a3)', latex: '\\Sigma', preview: '\\Sigma' },
+          { label: 'omega (\u03c9)', latex: '\\omega', preview: '\\omega' },
+          { label: 'Omega (\u03a9)', latex: '\\Omega', preview: '\\Omega' },
+          { label: 'phi (\u03c6)', latex: '\\phi', preview: '\\phi' },
+          { label: 'rho (\u03c1)', latex: '\\rho', preview: '\\rho' }
+        ]
+      },
+      {
+        name: 'Sets & Logic',
+        icon: 'hub',
+        snippets: [
+          { label: 'Element Of', latex: '\\in', preview: '\\in' },
+          { label: 'Not In', latex: '\\notin', preview: '\\notin' },
+          { label: 'Subset', latex: '\\subset', preview: '\\subset' },
+          { label: 'Subset Eq', latex: '\\subseteq', preview: '\\subseteq' },
+          { label: 'Union', latex: '\\cup', preview: '\\cup' },
+          { label: 'Intersection', latex: '\\cap', preview: '\\cap' },
+          { label: 'Empty Set', latex: '\\emptyset', preview: '\\emptyset' },
+          { label: 'For All', latex: '\\forall', preview: '\\forall' },
+          { label: 'Exists', latex: '\\exists', preview: '\\exists' },
+          { label: 'Therefore', latex: '\\therefore', preview: '\\therefore' },
+          { label: 'Because', latex: '\\because', preview: '\\because' },
+          { label: 'Implies', latex: '\\implies', preview: '\\implies' },
+          { label: 'Equivalent', latex: '\\iff', preview: '\\iff' }
         ]
       }
     ];
@@ -250,13 +291,15 @@ export class MathInputDialogComponent implements OnInit {
   }
 
   private updatePreview(): void {
-    const trimmed = this.latex.trim();
-    if (!trimmed) {
+    const raw = this.latex.trim();
+    if (!raw) {
       this.previewHtml = '';
       this.renderError = '';
       this.cdr.markForCheck();
       return;
     }
+
+    const trimmed = sanitizeLatex(raw);
 
     try {
       const html = katex.renderToString(trimmed, {
@@ -280,7 +323,8 @@ export class MathInputDialogComponent implements OnInit {
   }
 
   confirm(): void {
-    const trimmed = this.latex.trim();
+    const raw = this.latex.trim();
+    const trimmed = sanitizeLatex(raw);
     if (!trimmed || this.renderError) return;
     this.dialogRef.close({
       latex: trimmed,

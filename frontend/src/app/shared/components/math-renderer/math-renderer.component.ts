@@ -11,7 +11,7 @@
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU General Public License for more details.
+ * GNU标识 Affero General Public License for more details.
  *
  * You should have received a copy of the GNU Affero General Public License
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
@@ -100,26 +100,29 @@ export class MathRendererComponent implements OnChanges, AfterViewChecked {
       const { processedText: textWithoutSvg, tokens: svgTokens } = this.extractSvgBlocks(text);
       text = textWithoutSvg;
 
-      // 3b. Extract <smiles>...</smiles> blocks — convert to svg placeholders (Issue #126 / #144)
+      // 4. Extract SMILES chemical structures <smiles ...>...</smiles> (FIX #126 / #144)
       const { processedText: textWithoutSmiles, smilesItems } = this.extractSmilesBlocks(text);
       text = textWithoutSmiles;
+      if (smilesItems.length > 0) {
+        this.pendingSmilesRender = true;
+      }
 
-      // 4. Extract and render all LaTeX math expressions to placeholders
-      const { processedText: textWithoutMath, tokens: mathTokens } = this.extractAndRenderMath(text);
+      // 5. Extract Math blocks ($$...$$, \[...\], \(...\), $...$) and replace with placeholders
+      const { processedText: textWithoutMath, tokens: mathTokens } = this.extractMathBlocks(text);
       text = textWithoutMath;
 
-      // 5. Normalize pipe tables
+      // 6. Normalize pipe tables
       if (!this.inline) {
         text = this.normalizeMarkdownTables(text);
       }
 
-      // 6. Clean LaTeX document-level commands outside math blocks
+      // 7. Clean LaTeX document-level commands outside math blocks
       text = this.cleanLatexDocCommands(text);
 
-      // 7. Pre-process inline markdown formatting
+      // 8. Pre-process inline markdown formatting
       text = this.parseInlineMarkdown(text);
 
-      // 8. Parse Markdown using marked
+      // 9. Parse Markdown using marked
       let parsedHtml = '';
       if (this.inline) {
         parsedHtml = marked.parseInline(text, {
@@ -134,76 +137,60 @@ export class MathRendererComponent implements OnChanges, AfterViewChecked {
         }) as string;
       }
 
-      // 9. Re-insert LaTeX math placeholders
+      // 10. Re-insert LaTeX math placeholders
       mathTokens.forEach((renderedKatex, placeholder) => {
         parsedHtml = parsedHtml.split(placeholder).join(renderedKatex);
       });
 
-      // 10. Re-insert SMILES placeholders & mark for svg drawing
-      if (smilesItems.length > 0) {
-        smilesItems.forEach(({ placeholder, svgHtml }) => {
-          parsedHtml = parsedHtml.split(placeholder).join(svgHtml);
-        });
-        this.pendingSmilesRender = true;
-      }
+      // 11. Re-insert SMILES svg placeholder blocks
+      smilesItems.forEach(item => {
+        parsedHtml = parsedHtml.split(item.placeholder).join(item.svgHtml);
+      });
 
-      // 11. Re-insert SVG block placeholders LAST
+      // 12. Re-insert raw SVG block placeholders
       svgTokens.forEach((svgContent, placeholder) => {
         parsedHtml = parsedHtml.split(placeholder).join(svgContent);
       });
 
       this.renderedHtml = this.sanitizer.bypassSecurityTrustHtml(parsedHtml);
     } catch {
+      // Fallback: render raw content safely
       this.renderedHtml = this.sanitizer.bypassSecurityTrustHtml(
-        `<span class="math-render-fallback">${this.escapeHtml(this.content || '')}</span>`
+        `<span class="math-render-fallback">${this.escapeHtml(this.content)}</span>`
       );
     }
   }
 
-  private shouldDisplayBlock(cleanMatch: string, fullMatch: string, offset: number, fullStr: string): boolean {
-    if (cleanMatch.includes('\\begin{align') || cleanMatch.includes('\\begin{equation')) {
-      return true;
-    }
-    const before = fullStr.substring(0, offset);
-    const after = fullStr.substring(offset + fullMatch.length);
-    const isLineStart = /(?:^|\n)\s*$/.test(before);
-    const isLineEnd = /^\s*(?:\n|$)/.test(after);
-    return isLineStart && isLineEnd;
-  }
-
-  private extractAndRenderMath(text: string): { processedText: string; tokens: Map<string, string> } {
+  private extractMathBlocks(text: string): { processedText: string; tokens: Map<string, string> } {
     const tokens = new Map<string, string>();
-    let tokenIdx = 0;
+    let tokenIndex = 0;
 
-    const createPlaceholder = (rendered: string): string => {
-      const placeholder = `%%%NAG_MATH_BLOCK_${tokenIdx++}%%%`;
-      tokens.set(placeholder, rendered);
+    const createPlaceholder = (renderedHtml: string): string => {
+      const placeholder = `%%%NAG_MATH_BLOCK_${tokenIndex++}%%%`;
+      tokens.set(placeholder, renderedHtml);
       return placeholder;
     };
 
     // 1. Display Math: $$ ... $$
-    text = text.replace(/\\\\?\${2}([\s\S]*?)\\\\?\${2}/g, (_, math) => {
+    text = text.replace(/\$\$([\s\S]*?)\$\$/g, (_match, math) => {
       const rendered = this.renderKatex(math, true);
       return createPlaceholder(rendered);
     });
 
     // 2. Display Math: \[ ... \]
-    text = text.replace(/\\{1,4}\[([\s\S]*?)\\\\{1,4}\]/g, (_, math) => {
+    text = text.replace(/\\\[([\s\S]*?)\\\]/g, (_match, math) => {
       const rendered = this.renderKatex(math, true);
       return createPlaceholder(rendered);
     });
 
-    // 3. LaTeX environments: \begin{...}...\end{...}
-    const envRegex = /\\{1,4}begin\{(matrix|pmatrix|bmatrix|vmatrix|Vmatrix|cases|align|align\*|aligned|equation|equation\*|gather|gather\*)\}([\s\S]*?)\\{1,4}end\{\1\}/g;
-    text = text.replace(envRegex, (fullMatch, _env, _inner, offset, fullStr) => {
-      const cleanMatch = fullMatch.replace(/\\{2,}/g, '\\');
-      const isDisplay = this.shouldDisplayBlock(cleanMatch, fullMatch, offset, fullStr);
-      const rendered = this.renderKatex(cleanMatch, isDisplay);
+    // 3. Fenced math code blocks: ```math ... ``` or ```latex ... ```
+    text = text.replace(/```(?:math|latex)\s*\n([\s\S]*?)```/g, (_match, math) => {
+      const rendered = this.renderKatex(math, true);
       return createPlaceholder(rendered);
     });
 
     // 4. Inline Math: \( ... \)
-    text = text.replace(/\\{1,4}\(([\s\S]*?)\\{1,4}\)/g, (_, math) => {
+    text = text.replace(/\\\(([\s\S]*?)\\\)/g, (_match, math) => {
       const rendered = this.renderKatex(math, false);
       return createPlaceholder(rendered);
     });
@@ -227,7 +214,7 @@ export class MathRendererComponent implements OnChanges, AfterViewChecked {
       .replace(/~~([^~\n\r]+?)~~/g, '<del>$1</del>')
       .replace(/`([^`\n\r]+?)`/g, '<code>$1</code>')
       .replace(/(^|[^*])\*([^*\n\r]+?)\*([^*]|$)/g, '$1<em>$2</em>$3')
-      .replace(/(^|[^a-zA-Z0-9_])_([^_\n\r]+?)_([^a-zA-Z0-9_]|$)/g, '$1<em>$2</em>$3');
+      .replace(/(^|[^a-zA-Z0-9_])_([^_\n\r]+?)([^a-zA-Z0-9_]|$)/g, '$1<em>$2</em>$3');
   }
 
   private unescapeNewlines(text: string): string {
@@ -302,12 +289,24 @@ export class MathRendererComponent implements OnChanges, AfterViewChecked {
   private sanitizeLatex(latex: string): string {
     if (!latex || typeof latex !== 'string') return '';
     let s = latex.trim();
+
+    // 1. Repair tab characters that unescaped \t-commands
+    s = s.replace(/\t(ext|an|imes|heta|au|o|herefore|ilde|extbf|extit)\b/g, '\\$1');
+
+    // 2. Fix '\ ext' or '\  ext' or '\ text' -> '\text'
+    s = s.replace(/\\+(\s*)ext(?=\{|\s|$|[0-9])/g, '\\text');
+
+    // 3. Fix whitespace between backslash and command letters ('\ frac' -> '\frac')
+    s = s.replace(/\\+\s+([a-zA-Z]+)/g, '\\$1');
+
+    // 4. Deduplicate multiple backslashes before commands
     let previous: string;
     do {
       previous = s;
       s = s.replace(/\\{2,}([a-zA-Z]+|[{}_#$%&^~])/g, '\\$1');
     } while (s !== previous);
-    // Ensure bare % is escaped for KaTeX
+
+    // 5. Ensure bare % is escaped for KaTeX
     s = s.replace(/(?<!\\)%/g, '\\%');
     return s;
   }
@@ -368,19 +367,23 @@ export class MathRendererComponent implements OnChanges, AfterViewChecked {
         const themeMatch = attrs.match(/theme="(light|dark)"/i);
 
         const title = titleMatch ? titleMatch[1] : (commentTitle?.trim() || undefined);
-        const width = widthMatch ? widthMatch[1] : '260';
-        const height = heightMatch ? heightMatch[1] : '200';
+        const width = widthMatch ? parseInt(widthMatch[1], 10) : 260;
+        const height = heightMatch ? parseInt(heightMatch[1], 10) : 200;
         const theme = themeMatch ? themeMatch[1] : 'light';
 
-        const escapedSmiles = smiles.trim().replace(/"/g, '&quot;');
-        const titleHtml = title
-          ? `<div class="smiles-caption">${this.escapeHtml(title.trim())}</div>`
+        const safeSmiles = (smiles || '').trim().replace(/"/g, '&quot;');
+        const safeTitle = title ? title.replace(/"/g, '&quot;') : '';
+
+        const captionHtml = title
+          ? `<div class="chemical-structure-caption font-sans text-xs text-slate-500 dark:text-slate-400 mt-1 text-center font-medium">${this.escapeHtml(title)}</div>`
           : '';
+
         const svgHtml =
-          `<span class="smiles-block smiles-block--${theme}">`
-          + `<svg width="${width}" height="${height}" data-smiles="${escapedSmiles}" data-theme="${theme}" class="smiles-svg"></svg>`
-          + titleHtml
-          + `</span>`;
+          `<span class="chemical-structure-container inline-flex flex-col items-center align-middle mx-1 my-0.5 p-1 rounded border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 shadow-xs" data-smiles-container="true">` +
+          `<svg data-smiles="${safeSmiles}" data-theme="${theme}" data-title="${safeTitle}" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" class="smiles-drawer-svg block max-w-full"></svg>` +
+          captionHtml +
+          `</span>`;
+
         smilesItems.push({ placeholder, svgHtml });
         return placeholder;
       }
@@ -390,82 +393,82 @@ export class MathRendererComponent implements OnChanges, AfterViewChecked {
   }
 
   /**
-   * Draw SMILES structures onto SVG elements after they are in the DOM.
-   * Uses SmilesDrawer 2.0 SvgDrawer with lazy dynamic import.
+   * Lazily loads SmilesDrawer 2.0 (SvgDrawer) and draws each SMILES svg element.
    */
-  private drawSmilesSvgs(svgs: NodeListOf<SVGElement>): void {
-    this.loadSmilesDrawer().then(sdModule => {
-      if (!sdModule) return;
-      const SmilesDrawer = sdModule.default ?? sdModule;
-      const SvgDrawer = SmilesDrawer.SvgDrawer ?? sdModule.SvgDrawer;
-      if (!SvgDrawer) return;
+  private async drawSmilesSvgs(svgElements: NodeListOf<SVGSVGElement>): Promise<void> {
+    if (svgElements.length === 0) return;
 
-      svgs.forEach((svg) => {
-        const smiles = svg.getAttribute('data-smiles') || '';
-        const theme = svg.getAttribute('data-theme') || 'light';
-        const width = parseInt(svg.getAttribute('width') || '260', 10);
-        const height = parseInt(svg.getAttribute('height') || '200', 10);
+    try {
+      if (!this.smilesDrawerModule && !this.smilesDrawerLoading) {
+        this.smilesDrawerLoading = true;
+        this.smilesDrawerModule =
+          (window as any)['SmilesDrawer'] ||
+          (window as any)['__smilesDrawer'] ||
+          (await import('smiles-drawer'));
+        this.smilesDrawerLoading = false;
+      }
+
+      const sd = this.smilesDrawerModule;
+      if (!sd) return;
+
+      const SvgDrawer = sd.SvgDrawer ?? sd.default?.SvgDrawer ?? sd.Drawer ?? sd.default;
+
+      svgElements.forEach(svgEl => {
+        if (svgEl.hasAttribute('data-smiles-drawn')) return;
+        const smiles = svgEl.getAttribute('data-smiles');
         if (!smiles) return;
 
-        try {
-          svg.setAttribute('data-smiles-drawn', '1');
-          const drawer = new SvgDrawer({ width, height, compactDrawing: false });
+        const theme = svgEl.getAttribute('data-theme') || 'light';
+        const w = parseInt(svgEl.getAttribute('width') || '260', 10);
+        const h = parseInt(svgEl.getAttribute('height') || '200', 10);
 
-          if (typeof SmilesDrawer.parse === 'function') {
-            SmilesDrawer.parse(
-              smiles,
-              (tree: any) => {
-                drawer.draw(tree, svg, theme, null, false);
-              },
-              () => {
-                this.fallbackSmilesSvg(svg, smiles);
-              }
-            );
-          } else if (SmilesDrawer.Parser?.parse) {
-            const tree = SmilesDrawer.Parser.parse(smiles);
-            drawer.draw(tree, svg, theme, null, false);
+        try {
+          if (SvgDrawer) {
+            const drawer = new SvgDrawer({
+              width: w,
+              height: h,
+              compactDrawing: false
+            });
+
+            if (typeof drawer.draw === 'function') {
+              drawer.draw(smiles, svgEl, theme, false);
+              svgEl.setAttribute('data-smiles-drawn', 'true');
+            } else if (typeof drawer.parse === 'function') {
+              drawer.parse(smiles, (tree: any) => {
+                drawer.draw(tree, svgEl, theme, false);
+                svgEl.setAttribute('data-smiles-drawn', 'true');
+              }, () => {
+                this.renderSmilesFallbackSvg(svgEl, smiles);
+              });
+            }
           }
         } catch {
-          this.fallbackSmilesSvg(svg, smiles);
+          this.renderSmilesFallbackSvg(svgEl, smiles);
         }
       });
-    });
-  }
-
-  private fallbackSmilesSvg(svg: SVGElement, smiles: string): void {
-    while (svg.firstChild) {
-      svg.removeChild(svg.firstChild);
-    }
-    const textNode = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-    textNode.setAttribute('x', '10');
-    textNode.setAttribute('y', '30');
-    textNode.setAttribute('font-family', 'monospace');
-    textNode.setAttribute('font-size', '12');
-    textNode.setAttribute('fill', '#d32f2f');
-    textNode.textContent = smiles;
-    svg.appendChild(textNode);
-  }
-
-  /** Lazy-load smiles-drawer module and cache it. */
-  private async loadSmilesDrawer(): Promise<any> {
-    if (this.smilesDrawerModule) return this.smilesDrawerModule;
-    if (this.smilesDrawerLoading) return null;
-    this.smilesDrawerLoading = true;
-    try {
-      this.smilesDrawerModule = await import('smiles-drawer');
     } catch {
-      this.smilesDrawerModule = null;
+      svgElements.forEach(svgEl => {
+        const smiles = svgEl.getAttribute('data-smiles') || '';
+        this.renderSmilesFallbackSvg(svgEl, smiles);
+      });
     }
-    this.smilesDrawerLoading = false;
-    return this.smilesDrawerModule;
   }
 
-  private escapeHtml(str: string): string {
-    return str
+  private renderSmilesFallbackSvg(svgEl: SVGSVGElement, smiles: string): void {
+    svgEl.setAttribute('data-smiles-drawn', 'true');
+    const w = parseInt(svgEl.getAttribute('width') || '260', 10);
+    const h = parseInt(svgEl.getAttribute('height') || '200', 10);
+    svgEl.innerHTML =
+      `<rect width="${w}" height="${h}" fill="#f8fafc" stroke="#e2e8f0" rx="4"/>` +
+      `<text x="${w / 2}" y="${h / 2}" font-family="monospace" font-size="12" fill="#64748b" text-anchor="middle" dominant-baseline="middle">${this.escapeHtml(smiles)}</text>`;
+  }
+
+  private escapeHtml(text: string): string {
+    return (text || '')
       .replace(/&/g, '&amp;')
       .replace(/</g, '&lt;')
       .replace(/>/g, '&gt;')
       .replace(/"/g, '&quot;')
-      .replace(/'/g, '&#039;');
+      .replace(/'/g, '&#39;');
   }
 }

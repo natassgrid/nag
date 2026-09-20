@@ -44,7 +44,7 @@ import {
   MathInlineElement,
   ChemicalStructureElement
 } from './models';
-import { decodeSentinel, encodeMathSentinel, encodeSmilesSentinel } from './utils/serializer';
+import { decodeSentinel, encodeMathSentinel, encodeSmilesSentinel, sanitizeLatex } from './utils/serializer';
 import { EditorSelection } from './plugins';
 import { EditorAssetService } from './services';
 
@@ -476,8 +476,9 @@ export class EditorContentComponent implements AfterViewInit, OnChanges, OnDestr
    * Render a LaTeX string to KaTeX HTML, with graceful error fallback.
    */
   public renderKatexSafe(latex: string, displayMode: boolean): string {
+    const cleaned = sanitizeLatex(latex);
     try {
-      return katex.renderToString(latex, {
+      return katex.renderToString(cleaned, {
         throwOnError: false,
         displayMode,
         output: 'htmlAndMathml',
@@ -537,7 +538,7 @@ export class EditorContentComponent implements AfterViewInit, OnChanges, OnDestr
       const display = el.getAttribute('data-display') === 'true' || el.classList.contains('math-void--display');
       return {
         type: 'math-inline',
-        latex,
+        latex: sanitizeLatex(latex),
         display,
         children: [{ text: '' }]
       } as MathInlineElement;
@@ -616,7 +617,7 @@ export class EditorContentComponent implements AfterViewInit, OnChanges, OnDestr
     const nodeType = el.getAttribute('data-type');
     if (nodeType === 'math-inline' || el.classList.contains('math-void')) {
       const latex = el.getAttribute('data-latex') || '';
-      return [{ text: encodeMathSentinel(latex) }];
+      return [{ text: encodeMathSentinel(sanitizeLatex(latex)) }];
     }
     if (nodeType === 'chemical-structure' || el.classList.contains('chem-void')) {
       const smiles = el.getAttribute('data-smiles') || '';

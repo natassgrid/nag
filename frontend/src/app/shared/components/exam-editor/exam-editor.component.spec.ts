@@ -17,7 +17,8 @@ import {
   parseMarkdownToDocument,
   encodeMathSentinel,
   encodeSmilesSentinel,
-  decodeSentinel
+  decodeSentinel,
+  sanitizeLatex
 } from './utils/serializer';
 import { ExamDocument } from './models';
 
@@ -38,6 +39,17 @@ describe('ExamEditor & Dialog Components (Issues #143 & #144)', () => {
 
       const deserialized = deserialiseContent(markdown);
       expect(deserialized.length).toBeGreaterThan(0);
+    });
+
+    it('should sanitize AI-generated latex anomalies like \\ ext and unescaped tab characters', () => {
+      expect(sanitizeLatex('\\ ext{kg}')).toBe('\\text{kg}');
+      expect(sanitizeLatex('\\  ext{meters}')).toBe('\\text{meters}');
+      expect(sanitizeLatex('\\ text{speed}')).toBe('\\text{speed}');
+      expect(sanitizeLatex('\\t ext{time}')).toBe('\\text{time}');
+      expect(sanitizeLatex('\text{mass}')).toBe('\\text{mass}');
+      expect(sanitizeLatex('\\ frac{1}{2}')).toBe('\\frac{1}{2}');
+      expect(sanitizeLatex('\\\\frac{a}{b}')).toBe('\\frac{a}{b}');
+      expect(sanitizeLatex('50%')).toBe('50\\%');
     });
 
     it('should serialize inline math and SMILES sentinels inside paragraphs without null characters', () => {
