@@ -11,7 +11,7 @@
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU Affero General Public License for more details.
+ * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU Affero General Public License
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
@@ -21,12 +21,12 @@ import { EditorPlugin, ToolbarButton, PluginContext } from './editor-plugin';
 import { MathInlineElement } from '../models';
 
 /**
- * Math-inline plugin — Issue #25.
+ * Math-inline plugin — Issue #25 & #143.
  *
  * Inserts a first-class `math-inline` void node into the document.
  * The toolbar button opens a modal (delegated to the host component via
- * `ctx.openMathInput()` extension) where the user types LaTeX and sees
- * a live KaTeX preview. On confirm, `insertNode` places the void node.
+ * `ctx.openMathInput()` extension) where the user types LaTeX (math, physics, chemistry)
+ * and sees a live KaTeX + mhchem preview. On confirm, `insertNode` places the void node.
  *
  * Serialiser round-trips: math-inline ↔ $$latex$$ (per AGENTS.md convention).
  */
@@ -37,7 +37,7 @@ export class MathInlinePlugin implements EditorPlugin {
   toolbarButtons: ToolbarButton[] = [
     {
       id: 'insert-math',
-      label: 'Insert Math Formula ($$...$$)',
+      label: 'Insert Formula / Equation ($$...$$)',
       icon: 'functions',
       group: 'format',
       execute: (ctx: PluginContext) => {

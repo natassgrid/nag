@@ -8,7 +8,7 @@
 import React, { useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import katex from 'katex';
 import { marked } from 'marked';
-import 'katex/dist/contrib/mhchem.js';
+import 'katex/dist/contrib/mhchem.mjs';
 import ImageZoomModal from './ImageZoomModal';
 
 interface MathRendererProps {

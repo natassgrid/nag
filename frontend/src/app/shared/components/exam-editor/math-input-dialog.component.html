@@ -2,7 +2,7 @@
   <div mat-dialog-title class="math-dialog-header">
     <div class="header-title">
       <mat-icon class="header-icon">functions</mat-icon>
-      <span>{{ isEdit ? 'Edit Math Formula' : 'Insert Math Formula' }}</span>
+      <span>{{ isEdit ? 'Edit Formula / Equation' : 'Insert Formula / Equation' }}</span>
     </div>
     <button mat-icon-button type="button" (click)="cancel()" class="close-btn" matTooltip="Cancel (Esc)">
       <mat-icon>close</mat-icon>
@@ -12,15 +12,14 @@
   <mat-dialog-content class="math-dialog-content">
     <!-- LaTeX input area -->
     <mat-form-field appearance="outline" class="latex-form-field" subscriptSizing="dynamic">
-      <mat-label>LaTeX expression</mat-label>
+      <mat-label>LaTeX / Formula Expression</mat-label>
       <textarea
         #latexInput
         matInput
         rows="3"
         [(ngModel)]="latex"
         (ngModelChange)="onLatexChange()"
-        (keydown)="onTextareaKeydown($event)"
-        placeholder="e.g. \frac{a}{b}, \sum_{i=1}^{n} x_i, \ce{H2SO4}, \alpha + \beta"
+        placeholder="e.g. \frac{a}{b}, \sum_{i=1}^{n} x_i, \ce{CH4 + 2O2 -> CO2 + 2H2O}, \pu{9.8 m/s^2}"
         class="latex-textarea"
       ></textarea>
       <button
@@ -34,12 +33,12 @@
       >
         <mat-icon>backspace</mat-icon>
       </button>
-      <mat-hint>Type LaTeX directly or click palette symbols below. Single backslash (\) inside.</mat-hint>
+      <mat-hint>Supports LaTeX math, physics units (\pu&#123;...&#125;), and chemical equations (\ce&#123;...&#125;).</mat-hint>
     </mat-form-field>
 
     <!-- Display mode option -->
     <div class="display-mode-row">
-      <mat-checkbox [(ngModel)]="display" (ngModelChange)="onLatexChange()" color="primary">
+      <mat-checkbox [(ngModel)]="display" (ngModelChange)="onDisplayToggle()" color="primary">
         Display block (centered on its own line)
       </mat-checkbox>
     </div>
@@ -72,7 +71,7 @@
         <div *ngIf="renderError" class="math-preview-error">
           <mat-icon class="error-icon">error_outline</mat-icon>
           <div class="error-text">
-            <strong>KaTeX Syntax Error:</strong>
+            <strong>Syntax Error:</strong>
             <span>{{ renderError }}</span>
           </div>
         </div>
@@ -95,12 +94,12 @@
               *ngFor="let item of cat.snippets"
               type="button"
               class="palette-btn"
-              [matTooltip]="item.tooltip || item.latex"
+              [matTooltip]="item.latex"
               matTooltipPosition="above"
-              (click)="insertSnippet(item.latex)"
+              (click)="insertSnippet(item)"
             >
-              <span *ngIf="item.preview" [innerHTML]="item.preview" class="btn-preview"></span>
-              <span *ngIf="!item.preview" class="btn-label">{{ item.label }}</span>
+              <span class="btn-label">{{ item.label }}</span>
+              <span class="btn-latex-code">{{ item.latex }}</span>
             </button>
           </div>
         </mat-tab>
@@ -119,7 +118,7 @@
       class="confirm-btn"
     >
       <mat-icon>{{ isEdit ? 'save' : 'add' }}</mat-icon>
-      <span>{{ isEdit ? 'Update Formula' : 'Insert Formula' }}</span>
+      <span>{{ isEdit ? 'Update Expression' : 'Insert Expression' }}</span>
     </button>
   </mat-dialog-actions>
 </div>
