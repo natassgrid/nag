@@ -23,9 +23,19 @@
 # =============================================================================
 set -e
 
+# Enable Docker BuildKit for multi-stage cache mounts in WSL / Linux
+export DOCKER_BUILDKIT=1
+export COMPOSE_DOCKER_CLI_BUILD=1
+
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 cd "$SCRIPT_DIR"
+
+# Ensure .env exists for Docker Compose
+if [ ! -f .env ] && [ -f .env.example ]; then
+    echo "📋 Creating .env from .env.example..."
+    cp .env.example .env
+fi
 
 NO_CACHE=""
 RESTART_ONLY=false
@@ -120,15 +130,16 @@ if [ "$HEALTH_CHECK" = true ]; then
         exit 1
     fi
 
-    health_url="http://localhost:8080/actuator/health"
+    target_port="${MONOLITH_PORT:-9000}"
+    health_url="http://localhost:${target_port}/actuator/health"
     health_response=$(curl -s --connect-timeout 3 --max-time 5 "$health_url" 2>/dev/null || echo "")
 
     if [ -z "$health_response" ]; then
-        health_response=$(docker exec "$container" wget -qO- "$health_url" 2>/dev/null || echo "")
+        health_response=$(docker exec "$container" wget -qO- "http://localhost:${target_port}/actuator/health" 2>/dev/null || echo "")
     fi
 
     if echo "$health_response" | grep -q -E '"status":"UP"|healthy'; then
-        echo "  monolith-app: ✅ UP (Port 8080)"
+        echo "  monolith-app: ✅ UP (Port ${target_port})"
     else
         echo "  monolith-app: ⚠️ $health_response"
     fi
