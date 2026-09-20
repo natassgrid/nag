@@ -11,7 +11,8 @@
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU Affero General Public License for more details.\n *
+ * GNU Affero General Public License for more details.
+ *
  * You should have received a copy of the GNU Affero General Public License
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
@@ -46,9 +47,7 @@ import {
   VOID_TYPES,
   TextAlignment,
   HIGHLIGHT_COLORS,
-  TEXT_COLORS,
-  MathInlineElement,
-  ChemicalStructureElement
+  TEXT_COLORS
 } from './models';
 import { PluginRegistry } from './plugins/plugin-registry';
 import { PluginContext, EditorSelection } from './plugins/editor-plugin';
@@ -106,7 +105,8 @@ function matchHotkey(hotkey: string, event: KeyboardEvent): boolean {
     EditorContentComponent
   ],
   providers: [
-    {\n      provide: NG_VALUE_ACCESSOR,
+    {
+      provide: NG_VALUE_ACCESSOR,
       useExisting: forwardRef(() => ExamEditorComponent),
       multi: true
     },

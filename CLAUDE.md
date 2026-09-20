@@ -38,9 +38,12 @@
    - After writing to any file, IMMEDIATELY run `git diff <path>` to review the line-by-line diff.
    - If any unintended deletions, wiped sections, or missing template blocks are detected, restore and correct them immediately before proceeding.
 
-6. **Verify Clean Git Status & Build**:
+6. **Mandatory Post-Task Verification & Docker Builds**:
    - Run `git status` prior to completing any task or reporting back to ensure no files were corrupted or accidentally overwritten.
-   - Run build checks (`npm run build` or `docker build`) to verify the code compiles cleanly with 0 errors.
+   - Run local build checks (`npm run build`, `npm run lint`, unit tests, or Gradle compile) to verify the code compiles cleanly with 0 errors.
+   - **MANDATORY DOCKER BUILDS**: After task completion, ALWAYS execute Docker builds:
+     1. **Backend Docker Build**: Run Docker build for the backend base and modified backend service / monolith.
+     2. **UI Docker Builds**: After backend build completes, run Docker builds for the UI applications (`frontend` and `candidate-frontend`).
 
 ---
 
@@ -79,7 +82,7 @@ All AI agents, prompt generators, seed script creators, and backend services gen
 > `\n` followed by a lowercase letter is a LaTeX command, NOT a line break.
 > This is the second most common cause of broken rendering.
 
-The MathRenderer converts `\n` to a real newline **only when it is not immediately followed by a lowercase letter**. This prevents `\neq`, `\neg`, `\rightarrow`, `\text`, `\tau`, `\theta` from being split at the `\n`.
+The MathRenderer converts `\n` to a real newline **only when it is not immediately followed by a lowercase letter**. This prevents `\\neq`, `\\neg`, `\\rightarrow`, `\\text`, `\\tau`, `\\theta` from being split at the `\n`.
 
 **Safe separators in JSON strings:**
 
@@ -178,36 +181,66 @@ II. System $$\Psi$$ is not capable of executing Shor's algorithm for large integ
 ---
 
 ### 2. Frontend Builds (`frontend` - Angular)
-- **All build, test, and lint commands MUST run through WSL Ubuntu 24.04**:
+- **All build, test, and lint commands MUST run through WSL Ubuntu 24.04 or native terminal**:
   ```powershell
   # Build production
-  wsl -d Ubuntu-24.04 -e bash -lic "cd /mnt/c/Users/sheel/IdeaProjects/nag/frontend && npm run build"
+  cd frontend && npm run build
 
   # Run lint
-  wsl -d Ubuntu-24.04 -e bash -lic "cd /mnt/c/Users/sheel/IdeaProjects/nag/frontend && npm run lint"
+  cd frontend && npm run lint
 
   # Run tests (single run)
-  wsl -d Ubuntu-24.04 -e bash -lic "cd /mnt/c/Users/sheel/IdeaProjects/nag/frontend && npx ng test --watch=false --browsers=ChromeHeadless"
+  cd frontend && npm test -- --watch=false --browsers=ChromeHeadless
   ```
 
 ---
 
 ### 3. Candidate Frontend Builds (`candidate-frontend` - Vite/React)
-- **All build, test, and lint commands MUST run through WSL Ubuntu 24.04**:
+- **All build, test, and lint commands MUST run through WSL Ubuntu 24.04 or native terminal**:
   ```powershell
   # Build production
-  wsl -d Ubuntu-24.04 -e bash -lic "cd /mnt/c/Users/sheel/IdeaProjects/nag/candidate-frontend && npm run build"
+  cd candidate-frontend && npm run build
 
   # Run lint
-  wsl -d Ubuntu-24.04 -e bash -lic "cd /mnt/c/Users/sheel/IdeaProjects/nag/candidate-frontend && npm run lint"
+  cd candidate-frontend && npm run lint
   ```
+
+---
+
+### 4. Mandatory Post-Task Docker Builds (Backend & UI)
+
+Upon task completion, run Docker builds to verify container packaging parity:
+
+#### Step 1: Backend Docker Build
+```bash
+# Build base builder image (required if not cached)
+docker build -f backend/Dockerfile.base -t exam/builder-base .
+
+# Build target backend service (e.g. monolith-app or modified service)
+docker build -f backend/Dockerfile --build-arg SERVICE_NAME=monolith-app -t exam/monolith-app .
+
+# Or build via Docker Compose
+docker compose -f infrastructure/docker-compose/docker-compose.yml -f infrastructure/docker-compose/docker-compose.monolith.yml build monolith-app
+```
+
+#### Step 2: UI Docker Builds (After Backend Build)
+```bash
+# 1. Build Angular Admin/Authoring Frontend Docker image
+docker build -t exam/frontend -f frontend/Dockerfile frontend
+
+# 2. Build Candidate Delivery Frontend (React/Vite) Docker image
+docker build -t exam/candidate-frontend -f candidate-frontend/Dockerfile candidate-frontend
+
+# Or build both UI services via Docker Compose
+docker compose -f infrastructure/docker-compose/docker-compose.yml -f infrastructure/docker-compose/docker-compose.monolith.yml build frontend candidate-frontend
+```
 
 ---
 
 ## Environment & Path Mapping
 - **Host OS**: Windows
 - **WSL Distribution**: `Ubuntu-24.04`
-- **Windows Root**: `C:\Users\sheel\IdeaProjects\nag`
+- **Windows Root**: `C:\Users\sheel\IdeaProjects\nag` (or current repository root)
 - **WSL Root**: `/mnt/c/Users/sheel/IdeaProjects/nag`
 - **WSL Installed Toolchains**:
   - Java: OpenJDK 21

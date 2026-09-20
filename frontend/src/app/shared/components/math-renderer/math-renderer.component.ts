@@ -217,7 +217,8 @@ export class MathRendererComponent implements OnChanges, AfterViewChecked {
    * Identifies all LaTeX math expressions (display, environments, bracketed, parenthesis, and inline dollars)
    * and renders them into KaTeX HTML, substituting placeholders to protect the formulas.
    */
-  private extractAndRenderMath(text: string): { processedText: string; tokens: Map<string, string> } {\n    const tokens = new Map<string, string>();
+  private extractAndRenderMath(text: string): { processedText: string; tokens: Map<string, string> } {
+    const tokens = new Map<string, string>();
     let tokenIndex = 0;
 
     const createPlaceholder = (rendered: string): string => {
@@ -256,7 +257,7 @@ export class MathRendererComponent implements OnChanges, AfterViewChecked {
     });
 
     // 5. Inline Math: $ ... $
-    text = text.replace(/(^|[^\\])\$([^\$\n\r]+?)\$(?!\$)/g, (match, prefix, math) => {
+    text = text.replace(/(^|[^\\])\$([^$\n\r]+?)\$(?!\$)/g, (match, prefix, math) => {
       const rendered = this.renderKatex(math, false);
       return (prefix || '') + createPlaceholder(rendered);
     });
@@ -267,9 +268,9 @@ export class MathRendererComponent implements OnChanges, AfterViewChecked {
   private parseInlineMarkdown(text: string): string {
     if (!text) return '';
     return text
-      .replace(/\*\*\*([^\*\n\r]+?)\*\*\*/g, '<strong><em>$1</em></strong>')
+      .replace(/\*\*\*([^*\n\r]+?)\*\*\*/g, '<strong><em>$1</em></strong>')
       .replace(/___([^_\n\r]+?)___/g, '<strong><em>$1</em></strong>')
-      .replace(/\*\*([^\*\n\r]+?)\*\*/g, '<strong>$1</strong>')
+      .replace(/\*\*([^*\n\r]+?)\*\*/g, '<strong>$1</strong>')
       .replace(/__([^_\n\r]+?)__/g, '<strong>$1</strong>')
       .replace(/~~([^~\n\r]+?)~~/g, '<del>$1</del>')
       .replace(/`([^`\n\r]+?)`/g, '<code>$1</code>')
