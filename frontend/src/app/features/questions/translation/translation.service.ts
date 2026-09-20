@@ -197,12 +197,14 @@ export class TranslationService {
     return this.http.put<TranslationResponse>(`${this.baseUrl}/${translationId}/review`, request);
   }
 
-  approveTranslation(translationId: string): Observable<TranslationResponse> {
-    return this.reviewTranslation(translationId, { comments: 'Approved' });
+  approveTranslation(translationId: string, reviewerId?: string): Observable<TranslationResponse> {
+    return this.reviewTranslation(translationId, { reviewerId, comments: 'Approved' });
   }
 
-  rejectTranslation(translationId: string, comments: string): Observable<TranslationResponse> {
-    return this.reviewTranslation(translationId, { comments });
+  rejectTranslation(translationId: string, reviewerIdOrComments?: string, comments?: string): Observable<TranslationResponse> {
+    const finalComments = comments !== undefined ? comments : reviewerIdOrComments;
+    const finalReviewerId = comments !== undefined ? reviewerIdOrComments : undefined;
+    return this.reviewTranslation(translationId, { reviewerId: finalReviewerId, comments: finalComments });
   }
 
   publishTranslation(translationId: string): Observable<TranslationResponse> {

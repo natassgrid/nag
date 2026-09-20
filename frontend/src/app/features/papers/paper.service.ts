@@ -45,6 +45,7 @@ export interface PaperSummary {
 export interface PaperGenerationRequest {
   examId: string;
   shiftId: string;
+  name?: string;
   paperName?: string;
   isPractice?: boolean;
   blueprintRules: BlueprintRule[];
@@ -184,6 +185,8 @@ export interface RuleFeasibility {
   cognitiveLevel?: string;
   requested?: number;
   available?: number;
+  needed?: number;
+  surplus?: number;
   sufficient?: boolean;
   status?: string;
   deficit?: number;
@@ -195,6 +198,7 @@ export type RuleFeasibilityDetail = RuleFeasibility;
 
 export interface BlueprintFeasibilityRequest {
   examId?: string;
+  shiftId?: string;
   rules: BlueprintRule[];
 }
 

@@ -30,7 +30,7 @@
               <div class="gap-counts">
                 <span class="count-pill needed">Need: {{ gap.needed }}</span>
                 <span class="count-pill available">Have: {{ gap.available }}</span>
-                <span class="count-pill short">Deficit: -{{ gap.needed - gap.available }}</span>
+                <span class="count-pill short">Deficit: -{{ (gap.needed ?? 0) - (gap.available ?? 0) }}</span>
               </div>
             </div>
           </div>

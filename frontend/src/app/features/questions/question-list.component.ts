@@ -5,7 +5,7 @@
  * Copyright (C) 2025 NAG Contributors
  *
  * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU Affero General Public License as published
+ * it under the terms of the GNU标识 Affero General Public License as published
  * by the Free Software Foundation, version 3 of the License.
  *
  * This program is distributed in the hope that it will be useful,
@@ -292,25 +292,25 @@ export class QuestionListComponent implements OnInit {
     this.translationDrawerOpen = true;
   }
 
-  onDrawerClose(saved?: boolean): void {
+  onDrawerClose(saved?: any): void {
     this.drawerOpen = false;
     this.editingQuestion = undefined;
     if (saved) this.reload();
   }
 
-  onPassageDrawerClose(saved?: boolean): void {
+  onPassageDrawerClose(saved?: any): void {
     this.passageDrawerOpen = false;
     this.editingPassage = undefined;
     if (saved) this.reload();
   }
 
-  onTranslationDrawerClose(saved?: boolean): void {
+  onTranslationDrawerClose(saved?: any): void {
     this.translationDrawerOpen = false;
     this.translatingQuestion = undefined;
     if (saved) this.reload();
   }
 
-  onAiDrawerClose(saved?: boolean): void {
+  onAiDrawerClose(saved?: any): void {
     this.aiDrawerOpen = false;
     if (saved) this.reload();
   }
