@@ -19,8 +19,8 @@
 
 package com.examplatform.app;
 
+import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
-import org.springframework.boot.builder.SpringApplicationBuilder;
 import org.springframework.context.annotation.FullyQualifiedAnnotationBeanNameGenerator;
 import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
 import org.springframework.scheduling.annotation.EnableAsync;
@@ -58,8 +58,8 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 public class AuthAdminApplication {
 
     public static void main(String[] args) {
-        new SpringApplicationBuilder(AuthAdminApplication.class)
-                .beanNameGenerator(new FullyQualifiedAnnotationBeanNameGenerator())
-                .run(args);
+        SpringApplication app = new SpringApplication(AuthAdminApplication.class);
+        app.setBeanNameGenerator(new FullyQualifiedAnnotationBeanNameGenerator());
+        app.run(args);
     }
 }

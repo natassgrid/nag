@@ -5,6 +5,10 @@ server:
   port: ${SERVER_PORT:9000}
 
 spring:
+  main:
+    allow-bean-definition-overriding: true
+    bean-name-generator: org.springframework.context.annotation.FullyQualifiedAnnotationBeanNameGenerator
+
   datasource:
     url: jdbc:postgresql://postgres:5432/${POSTGRES_DB:exam_platform}?currentSchema=identity_service,candidate_service,question_service,examination_service,paper_generator,delivery_service,response_service,evaluation_service,result_service,audit_service,notification_service,admin_service,analytics_service,asset_service,public
     username: ${POSTGRES_USER:exam_admin}

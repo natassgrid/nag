@@ -89,7 +89,34 @@ public class GraalVmRuntimeHintsRegistrar implements RuntimeHintsRegistrar {
             );
         }
 
-        // 2. Register reflection for third-party libraries if present on classpath
+        // 2. Register reflection for application context initializers and main classes
+        registerClassIfPresent(hints, classLoader, "com.examplatform.app.MonolithApplication__ApplicationContextInitializer",
+                MemberCategory.INVOKE_DECLARED_CONSTRUCTORS,
+                MemberCategory.INVOKE_PUBLIC_CONSTRUCTORS,
+                MemberCategory.INVOKE_DECLARED_METHODS,
+                MemberCategory.INVOKE_PUBLIC_METHODS);
+        registerClassIfPresent(hints, classLoader, "com.examplatform.app.AuthAdminApplication__ApplicationContextInitializer",
+                MemberCategory.INVOKE_DECLARED_CONSTRUCTORS,
+                MemberCategory.INVOKE_PUBLIC_CONSTRUCTORS,
+                MemberCategory.INVOKE_DECLARED_METHODS,
+                MemberCategory.INVOKE_PUBLIC_METHODS);
+        registerClassIfPresent(hints, classLoader, "com.examplatform.app.ContentApplication__ApplicationContextInitializer",
+                MemberCategory.INVOKE_DECLARED_CONSTRUCTORS,
+                MemberCategory.INVOKE_PUBLIC_CONSTRUCTORS,
+                MemberCategory.INVOKE_DECLARED_METHODS,
+                MemberCategory.INVOKE_PUBLIC_METHODS);
+        registerClassIfPresent(hints, classLoader, "com.examplatform.app.ExecutionApplication__ApplicationContextInitializer",
+                MemberCategory.INVOKE_DECLARED_CONSTRUCTORS,
+                MemberCategory.INVOKE_PUBLIC_CONSTRUCTORS,
+                MemberCategory.INVOKE_DECLARED_METHODS,
+                MemberCategory.INVOKE_PUBLIC_METHODS);
+        registerClassIfPresent(hints, classLoader, "com.examplatform.app.PostExamApplication__ApplicationContextInitializer",
+                MemberCategory.INVOKE_DECLARED_CONSTRUCTORS,
+                MemberCategory.INVOKE_PUBLIC_CONSTRUCTORS,
+                MemberCategory.INVOKE_DECLARED_METHODS,
+                MemberCategory.INVOKE_PUBLIC_METHODS);
+
+        // 3. Register reflection for third-party libraries if present on classpath
         registerClassIfPresent(hints, classLoader, "com.fasterxml.uuid.Generators",
                 MemberCategory.INVOKE_DECLARED_CONSTRUCTORS,
                 MemberCategory.INVOKE_PUBLIC_METHODS);
@@ -106,7 +133,7 @@ public class GraalVmRuntimeHintsRegistrar implements RuntimeHintsRegistrar {
                 MemberCategory.INVOKE_DECLARED_CONSTRUCTORS,
                 MemberCategory.INVOKE_PUBLIC_METHODS);
 
-        // 3. Register common resource patterns
+        // 4. Register common resource patterns
         hints.resources().registerPattern("META-INF/spring/*");
         hints.resources().registerPattern("db/migration/*");
         hints.resources().registerPattern("application*.yml");

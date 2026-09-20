@@ -35,22 +35,30 @@ RUN --mount=type=cache,target=/root/.gradle/caches \
     --mount=type=cache,target=/root/.gradle/wrapper \
     ./gradlew :backend:${SERVICE_NAME}:nativeCompile -x test --no-daemon
 
-# --- Stage 2: Ultra-minimal Distroless Runtime ---
-FROM gcr.io/distroless/cc-debian12:nonroot
+# --- Stage 2: Minimal Runtime Environment ---
+FROM debian:12-slim
 
 ARG SERVICE_NAME
 ENV SERVICE_NAME=${SERVICE_NAME}
 ENV PORT=8080
 
+# Install runtime dependencies (zlib for GraalVM binary, wget/curl for healthchecks, ca-certificates for TLS)
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends ca-certificates curl wget zlib1g && \
+    rm -rf /var/lib/apt/lists/* && \
+    useradd -u 10001 -U -m appuser && \
+    mkdir -p /app /data/asset-storage /data/scorecards && \
+    chown -R appuser:appuser /app /data
+
 WORKDIR /app
 
 # Copy the compiled native executable from builder stage
-COPY --from=builder /workspace/backend/${SERVICE_NAME}/build/native/nativeCompile/${SERVICE_NAME} /app/server
+COPY --from=builder --chown=appuser:appuser /workspace/backend/${SERVICE_NAME}/build/native/nativeCompile/${SERVICE_NAME} /app/server
 
 # Expose microservice HTTP port
 EXPOSE 8080
 
-USER nonroot:nonroot
+USER appuser
 
 # Run the native binary directly (sub-50ms cold-start, ~35MB RSS footprint)
 ENTRYPOINT ["/app/server"]

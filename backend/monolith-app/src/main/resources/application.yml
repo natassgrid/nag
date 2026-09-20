@@ -5,6 +5,7 @@
 spring:
   main:
     allow-bean-definition-overriding: true
+    bean-name-generator: org.springframework.context.annotation.FullyQualifiedAnnotationBeanNameGenerator
   application:
     name: nag-monolith
   autoconfigure:
