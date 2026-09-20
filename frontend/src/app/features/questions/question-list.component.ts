@@ -36,9 +36,9 @@ import {
 } from '../../shared/components/paginated-table';
 import { PageHeaderComponent } from '../../shared/components/page-header/page-header.component';
 import { QuestionFormDialogComponent } from './question-form-dialog.component';
-import { AiGenerateDialogComponent } from './ai-generate-dialog.component';
+import { AiGenerateDialogComponent } from './ai-generate-dialog/ai-generate-dialog.component';
 import { QuestionTranslationDialogComponent } from './translation/question-translation-dialog.component';
-import { PassageFormDialogComponent } from './passage-form-dialog.component';
+import { PassageFormDialogComponent } from './passage/passage-form-dialog.component';
 
 export const DEFAULT_SUBJECT_OPTIONS = [
   { label: 'Physics', value: 'Physics' },

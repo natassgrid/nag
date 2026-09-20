@@ -33,15 +33,15 @@ export interface TranslatedOptionDto {
 export interface TranslationRequest {
   questionId: string;
   languageCode: string;
-  translatorId: string;
+  translatorId?: string;
   translatedContent: string;
   translatedOptions?: TranslatedOptionDto[];
   translatedExplanation?: string;
 }
 
 export interface TranslationReviewRequest {
-  reviewerId: string;
-  comments: string;
+  reviewerId?: string;
+  comments?: string;
 }
 
 export interface TranslationResponse {
@@ -153,72 +153,58 @@ export class TranslationService {
     return SUPPORTED_LANGUAGES.find(l => l.code === code || l.code.toLowerCase() === (code || '').toLowerCase());
   }
 
-  /**
-   * List all translations for a question across all languages and statuses.
-   */
   listTranslationsForQuestion(questionId: string): Observable<TranslationResponse[]> {
     return this.http.get<TranslationResponse[]>(`${this.baseUrl}/question/${questionId}`);
   }
 
-  /**
-   * Get approved or published translation for a question and language code.
-   */
   getApprovedTranslation(questionId: string, lang: string): Observable<TranslationResponse> {
     return this.http.get<TranslationResponse>(`${this.baseUrl}/question/${questionId}/language/${lang}`);
   }
 
-  /**
-   * Auto-translate a question into target language using IndicTrans2 AI model.
-   */
   autoTranslateQuestion(questionId: string, languageCode: string): Observable<AutoTranslateResponse> {
     return this.http.post<AutoTranslateResponse>(`${this.baseUrl}/question/${questionId}/auto-translate/${languageCode}`, {});
   }
 
-  /**
-   * Submit an asynchronous batch auto-translation job (e.g. ENG to Hindi for all questions with upsert & published status).
-   */
   startBatchTranslation(request?: BatchTranslationRequest): Observable<BatchTranslationJobResponse> {
     return this.http.post<BatchTranslationJobResponse>(`${this.baseUrl}/batch/auto-translate`, request || {});
   }
 
-  /**
-   * Get batch translation job status & progress.
-   */
   getBatchJobStatus(jobId: string): Observable<BatchTranslationJobResponse> {
     return this.http.get<BatchTranslationJobResponse>(`${this.baseUrl}/batch/${jobId}`);
   }
 
-  /**
-   * List all batch translation jobs.
-   */
   listBatchJobs(): Observable<BatchTranslationJobResponse[]> {
     return this.http.get<BatchTranslationJobResponse[]>(`${this.baseUrl}/batch`);
   }
 
-  /**
-   * Cancel an active batch translation job.
-   */
   cancelBatchJob(jobId: string): Observable<BatchTranslationJobResponse> {
     return this.http.post<BatchTranslationJobResponse>(`${this.baseUrl}/batch/${jobId}/cancel`, {});
   }
 
-  /**
-   * Save (draft) or update a question translation.
-   */
   saveTranslation(request: TranslationRequest): Observable<TranslationResponse> {
     return this.http.post<TranslationResponse>(this.baseUrl, request);
   }
 
-  /**
-   * Review a question translation (approve or request changes).
-   */
+  submitTranslation(request: TranslationRequest): Observable<TranslationResponse> {
+    return this.saveTranslation(request);
+  }
+
+  resubmitTranslation(translationId: string, request: TranslationRequest): Observable<TranslationResponse> {
+    return this.http.put<TranslationResponse>(`${this.baseUrl}/${translationId}`, request);
+  }
+
   reviewTranslation(translationId: string, request: TranslationReviewRequest): Observable<TranslationResponse> {
     return this.http.put<TranslationResponse>(`${this.baseUrl}/${translationId}/review`, request);
   }
 
-  /**
-   * Publish an approved translation so it becomes immediately available for paper delivery.
-   */
+  approveTranslation(translationId: string): Observable<TranslationResponse> {
+    return this.reviewTranslation(translationId, { comments: 'Approved' });
+  }
+
+  rejectTranslation(translationId: string, comments: string): Observable<TranslationResponse> {
+    return this.reviewTranslation(translationId, { comments });
+  }
+
   publishTranslation(translationId: string): Observable<TranslationResponse> {
     return this.http.put<TranslationResponse>(`${this.baseUrl}/${translationId}/publish`, {});
   }

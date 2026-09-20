@@ -25,6 +25,7 @@ import { PaginatedResponse } from '../../shared/components/paginated-table';
 
 export interface PaperSummary {
   id: string;
+  paperId?: string;
   name: string;
   examId?: string;
   examName?: string;
@@ -55,7 +56,7 @@ export interface BlueprintRule {
   difficulty?: string;
   cognitiveLevel?: string;
   questionType?: string;
-  targetCount: number;
+  targetCount?: number;
   questionCount?: number;
 }
 
@@ -165,26 +166,51 @@ export interface BlueprintTemplateResponse {
   version?: number;
 }
 
+export interface GapDetail {
+  subject?: string;
+  topic?: string;
+  difficulty?: string;
+  cognitiveLevel?: string;
+  needed?: number;
+  available?: number;
+  deficit?: number;
+  message?: string;
+}
+
 export interface RuleFeasibility {
   subject: string;
   topic: string;
   difficulty?: string;
   cognitiveLevel?: string;
-  requested: number;
-  available: number;
-  sufficient: boolean;
+  requested?: number;
+  available?: number;
+  sufficient?: boolean;
+  status?: string;
+  deficit?: number;
+  targetCount?: number;
+  questionCount?: number;
 }
 
+export type RuleFeasibilityDetail = RuleFeasibility;
+
 export interface BlueprintFeasibilityRequest {
+  examId?: string;
   rules: BlueprintRule[];
 }
 
 export interface BlueprintFeasibilityResponse {
   feasible: boolean;
-  totalRequested: number;
-  totalAvailable: number;
-  rules: RuleFeasibility[];
+  totalRequested?: number;
+  totalAvailable?: number;
+  totalQuestionsNeeded?: number;
+  totalQuestionsAvailable?: number;
+  deficitRuleCount?: number;
+  summary?: string;
+  checkedAt?: string;
+  rules?: RuleFeasibility[];
   insufficientRules?: RuleFeasibility[];
+  gaps?: GapDetail[];
+  ruleDetails?: RuleFeasibilityDetail[];
   overallSufficiency?: number;
 }
 
@@ -225,13 +251,20 @@ export class PaperService {
     }
 
     return this.http.get<any>(this.baseUrl, { params: httpParams }).pipe(
-      map(res => ({
-        content: res.data?.content || res.content || [],
-        totalElements: res.data?.totalElements ?? res.totalElements ?? 0,
-        totalPages: res.data?.totalPages ?? res.totalPages ?? 0,
-        size: res.data?.size ?? res.size ?? (params?.size || 10),
-        number: res.data?.number ?? res.number ?? (params?.page || 0)
-      }))
+      map(res => {
+        const items = res.data?.content || res.content || [];
+        const normalized = items.map((p: any) => ({
+          ...p,
+          paperId: p.paperId || p.id
+        }));
+        return {
+          content: normalized,
+          totalElements: res.data?.totalElements ?? res.totalElements ?? 0,
+          totalPages: res.data?.totalPages ?? res.totalPages ?? 0,
+          size: res.data?.size ?? res.size ?? (params?.size || 10),
+          number: res.data?.number ?? res.number ?? (params?.page || 0)
+        };
+      })
     );
   }
 

@@ -5,7 +5,7 @@
  * Copyright (C) 2025 NAG Contributors
  *
  * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU标志 General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, version 3 of the License.
  *
  * This program is distributed in the hope that it will be useful,
@@ -31,6 +31,7 @@ import { MatMenuModule } from '@angular/material/menu';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatSelectModule } from '@angular/material/select';
 import { MatInputModule } from '@angular/material/input';
+import { MatSlideToggleModule } from '@angular/material/slide-toggle';
 import { MatCheckboxModule } from '@angular/material/checkbox';
 import { QuestionService, QuestionResponse } from '../question.service';
 import { TranslationService, SUPPORTED_LANGUAGES, BatchTranslationJobResponse } from './translation.service';
@@ -72,6 +73,7 @@ const DEFAULT_SUBJECT_OPTIONS = [
     MatFormFieldModule,
     MatSelectModule,
     MatInputModule,
+    MatSlideToggleModule,
     MatCheckboxModule,
     PaginatedTableComponent,
     PageHeaderComponent,
@@ -97,12 +99,24 @@ export class QuestionTranslationListComponent implements OnInit {
   subjects: Subject[] = [];
 
   // Batch modal form fields
-  batchSourceLang = 'en';
-  batchTargetLang = 'hi';
+  batchSourceLanguage = 'en';
+  batchTargetLanguage = 'hi';
   batchTargetStatus = 'PUBLISHED';
-  batchSubject = '';
-  batchOverwrite = false;
-  batchSubmitting = false;
+  batchSubjectFilter = '';
+  batchOverwriteExisting = false;
+  isSubmittingBatch = false;
+
+  get batchTargetLang(): string { return this.batchTargetLanguage; }
+  set batchTargetLang(val: string) { this.batchTargetLanguage = val; }
+
+  get batchSubject(): string { return this.batchSubjectFilter; }
+  set batchSubject(val: string) { this.batchSubjectFilter = val; }
+
+  get batchOverwrite(): boolean { return this.batchOverwriteExisting; }
+  set batchOverwrite(val: boolean) { this.batchOverwriteExisting = val; }
+
+  get batchSubmitting(): boolean { return this.isSubmittingBatch; }
+  set batchSubmitting(val: boolean) { this.isSubmittingBatch = val; }
 
   filters: Record<string, any> = {
     targetLang: 'hi'
@@ -293,6 +307,7 @@ export class QuestionTranslationListComponent implements OnInit {
       this.selectedLanguage = Array.isArray(updatedFilters['targetLang'])
         ? updatedFilters['targetLang'][0]
         : updatedFilters['targetLang'];
+      this.batchTargetLanguage = this.selectedLanguage;
     }
   }
 
@@ -331,17 +346,21 @@ export class QuestionTranslationListComponent implements OnInit {
     this.batchModalOpen = false;
   }
 
+  triggerBatchAutoTranslate(): void {
+    this.submitBatchTranslation();
+  }
+
   submitBatchTranslation(): void {
-    this.batchSubmitting = true;
+    this.isSubmittingBatch = true;
     this.translationService.startBatchTranslation({
-      sourceLanguage: this.batchSourceLang,
-      targetLanguage: this.batchTargetLang,
+      sourceLanguage: this.batchSourceLanguage,
+      targetLanguage: this.batchTargetLanguage,
       targetStatus: this.batchTargetStatus,
-      subject: this.batchSubject || undefined,
-      overwriteExisting: this.batchOverwrite
+      subject: this.batchSubjectFilter || undefined,
+      overwriteExisting: this.batchOverwriteExisting
     }).subscribe({
       next: (job) => {
-        this.batchSubmitting = false;
+        this.isSubmittingBatch = false;
         this.batchModalOpen = false;
         this.activeBatchJob = job;
         const jobId = job.id || job.jobId;
@@ -353,7 +372,7 @@ export class QuestionTranslationListComponent implements OnInit {
         this.cdr.markForCheck();
       },
       error: (err) => {
-        this.batchSubmitting = false;
+        this.isSubmittingBatch = false;
         this.snackBar.open(err?.error?.message || 'Failed to start batch translation', 'Close', { duration: 5000 });
         this.cdr.markForCheck();
       }
