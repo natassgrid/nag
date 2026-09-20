@@ -13,7 +13,7 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
  * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU标志 General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
 
@@ -85,6 +85,7 @@ export type BatchJobStatus = 'PENDING' | 'IN_PROGRESS' | 'COMPLETED' | 'FAILED' 
 
 export interface BatchTranslationJobResponse {
   id: string;
+  jobId?: string;
   tenantId: string;
   status: BatchJobStatus;
   sourceLanguage: string;
@@ -95,6 +96,7 @@ export interface BatchTranslationJobResponse {
   totalQuestions: number;
   processedQuestions: number;
   successfulQuestions: number;
+  translatedCount?: number;
   failedQuestions: number;
   progressPercentage: number;
   failedQuestionIds?: string[];
@@ -201,31 +203,23 @@ export class TranslationService {
   }
 
   /**
-   * Submit a new translation for a question.
+   * Save (draft) or update a question translation.
    */
-  submitTranslation(request: TranslationRequest): Observable<{ translationId: string; status: string; message: string }> {
-    return this.http.post<{ translationId: string; status: string; message: string }>(this.baseUrl, request);
+  saveTranslation(request: TranslationRequest): Observable<TranslationResponse> {
+    return this.http.post<TranslationResponse>(this.baseUrl, request);
   }
 
   /**
-   * Resubmit a rejected translation.
+   * Review a question translation (approve or request changes).
    */
-  resubmitTranslation(id: string, request: TranslationRequest): Observable<{ translationId: string; status: string; message: string }> {
-    return this.http.put<{ translationId: string; status: string; message: string }>(`${this.baseUrl}/${id}`, request);
+  reviewTranslation(translationId: string, request: TranslationReviewRequest): Observable<TranslationResponse> {
+    return this.http.put<TranslationResponse>(`${this.baseUrl}/${translationId}/review`, request);
   }
 
   /**
-   * Approve a translation.
+   * Publish an approved translation so it becomes immediately available for paper delivery.
    */
-  approveTranslation(id: string, reviewerId: string): Observable<{ translationId: string; status: string; message: string }> {
-    return this.http.post<{ translationId: string; status: string; message: string }>(`${this.baseUrl}/${id}/approve`, { reviewerId });
-  }
-
-  /**
-   * Reject a translation with mandatory reviewer comments.
-   */
-  rejectTranslation(id: string, reviewerId: string, comments: string): Observable<{ translationId: string; status: string; message: string }> {
-    const body: TranslationReviewRequest = { reviewerId, comments };
-    return this.http.post<{ translationId: string; status: string; message: string }>(`${this.baseUrl}/${id}/reject`, body);
+  publishTranslation(translationId: string): Observable<TranslationResponse> {
+    return this.http.put<TranslationResponse>(`${this.baseUrl}/${translationId}/publish`, {});
   }
 }

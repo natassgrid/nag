@@ -5,7 +5,7 @@
  * Copyright (C) 2025 NAG Contributors
  *
  * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU Affero General Public License as published
+ * it under the terms of the GNU标志 General Public License as published
  * by the Free Software Foundation, version 3 of the License.
  *
  * This program is distributed in the hope that it will be useful,
@@ -25,11 +25,17 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatSnackBarModule, MatSnackBar } from '@angular/material/snack-bar';
 import { MatChipsModule } from '@angular/material/chips';
 import { MatTooltipModule } from '@angular/material/tooltip';
+import { MatCardModule } from '@angular/material/card';
+import { MatProgressBarModule } from '@angular/material/progress-bar';
+import { MatMenuModule } from '@angular/material/menu';
+import { MatFormFieldModule } from '@angular/material/form-field';
+import { MatSelectModule } from '@angular/material/select';
+import { MatInputModule } from '@angular/material/input';
+import { MatCheckboxModule } from '@angular/material/checkbox';
 import { QuestionService, QuestionResponse } from '../question.service';
 import { TranslationService, SUPPORTED_LANGUAGES, BatchTranslationJobResponse } from './translation.service';
 import { SubjectTopicService, Subject } from '../subject-topic.service';
 import { QuestionTranslationDialogComponent } from './question-translation-dialog.component';
-import { BatchTranslationDialogComponent } from './batch-translation-dialog.component';
 import {
   PaginatedTableComponent,
   ColumnDef,
@@ -60,10 +66,16 @@ const DEFAULT_SUBJECT_OPTIONS = [
     MatSnackBarModule,
     MatChipsModule,
     MatTooltipModule,
+    MatCardModule,
+    MatProgressBarModule,
+    MatMenuModule,
+    MatFormFieldModule,
+    MatSelectModule,
+    MatInputModule,
+    MatCheckboxModule,
     PaginatedTableComponent,
     PageHeaderComponent,
-    QuestionTranslationDialogComponent,
-    BatchTranslationDialogComponent
+    QuestionTranslationDialogComponent
   ],
   templateUrl: './question-translation-list.component.html',
   changeDetection: ChangeDetectionStrategy.Eager,
@@ -73,15 +85,24 @@ export class QuestionTranslationListComponent implements OnInit {
 
   @ViewChild('paginatedTable') paginatedTable!: PaginatedTableComponent<QuestionResponse>;
 
-  translationDrawerOpen = false;
-  batchDrawerOpen = false;
-  translatingQuestion?: QuestionResponse;
+  drawerOpen = false;
+  batchModalOpen = false;
+  selectedQuestion?: QuestionResponse;
+  selectedLanguageForDrawer: string = 'hi';
   selectedLanguage: string = 'hi';
 
   activeBatchJob?: BatchTranslationJobResponse;
 
   languages = SUPPORTED_LANGUAGES;
   subjects: Subject[] = [];
+
+  // Batch modal form fields
+  batchSourceLang = 'en';
+  batchTargetLang = 'hi';
+  batchTargetStatus = 'PUBLISHED';
+  batchSubject = '';
+  batchOverwrite = false;
+  batchSubmitting = false;
 
   filters: Record<string, any> = {
     targetLang: 'hi'
@@ -233,7 +254,7 @@ export class QuestionTranslationListComponent implements OnInit {
         next: (job) => {
           if (job.status === 'PENDING' || job.status === 'IN_PROGRESS') {
             this.activeBatchJob = job;
-            this.pollBatchJob(job.jobId);
+            this.pollBatchJob(job.id || job.jobId || savedJobId);
           } else {
             localStorage.removeItem('active_batch_translation_job_id');
           }
@@ -248,7 +269,8 @@ export class QuestionTranslationListComponent implements OnInit {
 
   pollBatchJob(jobId: string): void {
     setTimeout(() => {
-      if (!this.activeBatchJob || this.activeBatchJob.jobId !== jobId) return;
+      const currentId = this.activeBatchJob?.id || this.activeBatchJob?.jobId;
+      if (!this.activeBatchJob || currentId !== jobId) return;
       this.translationService.getBatchJobStatus(jobId).subscribe({
         next: (job) => {
           this.activeBatchJob = job;
@@ -257,7 +279,7 @@ export class QuestionTranslationListComponent implements OnInit {
             this.pollBatchJob(jobId);
           } else {
             localStorage.removeItem('active_batch_translation_job_id');
-            this.snackBar.open(`Batch Translation Completed: ${job.translatedCount} translated`, 'Close', { duration: 5000 });
+            this.snackBar.open(`Batch Translation Completed: ${job.successfulQuestions ?? job.translatedCount ?? 0} translated`, 'Close', { duration: 5000 });
             this.reload();
           }
         }
@@ -278,32 +300,71 @@ export class QuestionTranslationListComponent implements OnInit {
     this.paginatedTable?.reload();
   }
 
-  openTranslateDrawer(question: QuestionResponse): void {
-    this.translatingQuestion = question;
-    this.translationDrawerOpen = true;
+  getActiveTargetLang(): string {
+    return this.selectedLanguage || 'hi';
   }
 
-  openBatchDrawer(): void {
-    this.batchDrawerOpen = true;
+  getLanguageName(code: string): string {
+    const lang = this.translationService.getLanguage(code);
+    return lang ? `${lang.name} (${lang.nativeName})` : code;
   }
 
-  onTranslationSaved(): void {
-    this.translationDrawerOpen = false;
-    this.translatingQuestion = undefined;
-    this.reload();
+  openTranslationDrawer(question: QuestionResponse, langCode = 'hi'): void {
+    this.selectedQuestion = question;
+    this.selectedLanguageForDrawer = langCode;
+    this.drawerOpen = true;
   }
 
-  onBatchJobStarted(job: BatchTranslationJobResponse): void {
-    this.batchDrawerOpen = false;
-    this.activeBatchJob = job;
-    localStorage.setItem('active_batch_translation_job_id', job.jobId);
-    this.snackBar.open(`Batch Translation job started (${job.totalQuestions} questions)`, 'Close', { duration: 4000 });
-    this.pollBatchJob(job.jobId);
+  onDrawerClose(saved?: boolean): void {
+    this.drawerOpen = false;
+    this.selectedQuestion = undefined;
+    if (saved) {
+      this.reload();
+    }
   }
 
-  cancelBatchJob(): void {
+  openBatchModal(): void {
+    this.batchModalOpen = true;
+  }
+
+  closeBatchModal(): void {
+    this.batchModalOpen = false;
+  }
+
+  submitBatchTranslation(): void {
+    this.batchSubmitting = true;
+    this.translationService.startBatchTranslation({
+      sourceLanguage: this.batchSourceLang,
+      targetLanguage: this.batchTargetLang,
+      targetStatus: this.batchTargetStatus,
+      subject: this.batchSubject || undefined,
+      overwriteExisting: this.batchOverwrite
+    }).subscribe({
+      next: (job) => {
+        this.batchSubmitting = false;
+        this.batchModalOpen = false;
+        this.activeBatchJob = job;
+        const jobId = job.id || job.jobId;
+        if (jobId) {
+          localStorage.setItem('active_batch_translation_job_id', jobId);
+          this.pollBatchJob(jobId);
+        }
+        this.snackBar.open(`Batch auto-translation job started (${job.totalQuestions} questions)`, 'Close', { duration: 4000 });
+        this.cdr.markForCheck();
+      },
+      error: (err) => {
+        this.batchSubmitting = false;
+        this.snackBar.open(err?.error?.message || 'Failed to start batch translation', 'Close', { duration: 5000 });
+        this.cdr.markForCheck();
+      }
+    });
+  }
+
+  cancelActiveBatchJob(): void {
     if (!this.activeBatchJob) return;
-    this.translationService.cancelBatchJob(this.activeBatchJob.jobId).subscribe({
+    const jobId = this.activeBatchJob.id || this.activeBatchJob.jobId;
+    if (!jobId) return;
+    this.translationService.cancelBatchJob(jobId).subscribe({
       next: (job) => {
         this.activeBatchJob = job;
         localStorage.removeItem('active_batch_translation_job_id');
@@ -311,6 +372,10 @@ export class QuestionTranslationListComponent implements OnInit {
         this.cdr.markForCheck();
       }
     });
+  }
+
+  dismissBatchCard(): void {
+    this.activeBatchJob = undefined;
   }
 
   getTranslationStatusLabel(question: QuestionResponse): string {

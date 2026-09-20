@@ -30,7 +30,7 @@ RUN rm /etc/nginx/conf.d/default.conf
 COPY nginx.conf /etc/nginx/conf.d/
 
 # Copy built Angular app from builder
-COPY --from=builder /app/dist/exam-platform/browser /usr/share/nginx/html
+COPY --from=builder /app/dist/exam-platform-frontend/browser /usr/share/nginx/html
 
 # Healthcheck
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \

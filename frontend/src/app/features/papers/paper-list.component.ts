@@ -106,12 +106,12 @@ export class PaperListComponent implements OnInit {
       key: 'name',
       header: 'Paper Name',
       sortable: true,
-      cell: (row) => row.name || `Paper ${row.paperId.substring(0, 8)}…`
+      cell: (row) => row.name || `Paper ${row.paperId?.substring(0, 8) || ''}…`
     },
     {
       key: 'examName',
       header: 'Examination',
-      cell: (row) => row.examName || this.examMap.get(row.examId) || row.examId.substring(0, 8) + '…',
+      cell: (row) => row.examName || (row.examId ? (this.examMap.get(row.examId) || row.examId.substring(0, 8) + '…') : '—'),
       sortable: true
     },
     {
@@ -141,15 +141,15 @@ export class PaperListComponent implements OnInit {
       ? this.activeFilters['status'][0]
       : this.activeFilters['status'];
 
-    return this.paperService.getPapers(
-      req.page,
-      req.size,
-      this.activeFilters['examId'],
-      statusVal,
-      req.search,
-      req.sort,
-      req.order
-    );
+    return this.paperService.getPapers({
+      page: req.page,
+      size: req.size,
+      examId: this.activeFilters['examId'],
+      status: statusVal,
+      search: req.search,
+      sort: req.sort,
+      order: req.order
+    });
   };
 
   constructor(
@@ -177,7 +177,7 @@ export class PaperListComponent implements OnInit {
     this.paperTable?.reload();
   }
 
-  // ── Paper Summary Drawer ──────────────────────────────────────────────────
+  // ── Paper Summary Drawer ──────────────────────────────────────────
 
   viewPaperSummary(row: PaperSummary): void {
     this.selectedPaperId = row.paperId;
@@ -202,7 +202,7 @@ export class PaperListComponent implements OnInit {
     this.cdr.detectChanges();
   }
 
-  // ── Generate ──────────────────────────────────────────────────────────────
+  // ── Generate ────────────────────────────────────────────────────────
 
   openGenerateDrawer(): void {
     this.generateDrawerOpen = true;
@@ -223,7 +223,7 @@ export class PaperListComponent implements OnInit {
     this.cdr.detectChanges();
   }
 
-  // ── Approve & Encrypt ─────────────────────────────────────────────────────
+  // ── Approve & Encrypt ───────────────────────────────────────────────
 
   approvePaper(row: PaperSummary): void {
     this.approvingId = row.paperId;

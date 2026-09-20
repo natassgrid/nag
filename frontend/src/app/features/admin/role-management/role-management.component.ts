@@ -217,7 +217,12 @@ export class RoleManagementComponent implements OnInit {
 
     const groups: ModulePermissionGroup[] = [];
     map.forEach((items, mod) => {
-      groups.push({\n        module: mod,\n        moduleLabel: this.formatModuleLabel(mod),\n        moduleIcon: this.getModuleIcon(mod),\n        permissions: items\n      });
+      groups.push({
+        module: mod,
+        moduleLabel: this.formatModuleLabel(mod),
+        moduleIcon: this.getModuleIcon(mod),
+        permissions: items
+      });
     });
 
     return groups.sort((a, b) => {
@@ -406,6 +411,58 @@ export class RoleManagementComponent implements OnInit {
     this.filters.set({ ...filters });
   }
 
+  hasPermission(role: RoleDefinitionResponse, permCode: string): boolean {
+    return !!role.permissions?.some(p => p.code === permCode);
+  }
+
+  toggleActive(role: RoleDefinitionResponse): void {
+    const updatedActive = !role.active;
+    this.adminService.updateRoleDefinition(role.id, {
+      name: role.name,
+      description: role.description,
+      active: updatedActive,
+      permissionIds: role.permissions?.map(p => p.id) || []
+    }).subscribe({
+      next: () => {
+        this.notificationService.showSuccess(`Role ${role.name} ${updatedActive ? 'activated' : 'deactivated'}.`);
+        this.paginatedTable?.reload();
+      },
+      error: (err) => {
+        this.notificationService.showError(err?.error?.message || 'Failed to update role status.');
+      }
+    });
+  }
+
+  // ── Helper methods for Create Drawer ──
+
+  isCreateGroupChecked(group: ModulePermissionGroup): boolean {
+    return group.permissions.length > 0 && group.permissions.every(p => this.newSelectedPermIds().has(p.id));
+  }
+
+  isCreateGroupIndeterminate(group: ModulePermissionGroup): boolean {
+    const selectedCount = this.getCreateGroupSelectedCount(group);
+    return selectedCount > 0 && selectedCount < group.permissions.length;
+  }
+
+  getCreateGroupSelectedCount(group: ModulePermissionGroup): number {
+    return group.permissions.filter(p => this.newSelectedPermIds().has(p.id)).length;
+  }
+
+  // ── Helper methods for Edit Drawer ──
+
+  isEditGroupChecked(group: ModulePermissionGroup): boolean {
+    return group.permissions.length > 0 && group.permissions.every(p => this.editSelectedPermIds().has(p.id));
+  }
+
+  isEditGroupIndeterminate(group: ModulePermissionGroup): boolean {
+    const selectedCount = this.getEditGroupSelectedCount(group);
+    return selectedCount > 0 && selectedCount < group.permissions.length;
+  }
+
+  getEditGroupSelectedCount(group: ModulePermissionGroup): number {
+    return group.permissions.filter(p => this.editSelectedPermIds().has(p.id)).length;
+  }
+
   // ── View Role ──
 
   openViewDrawer(role: RoleDefinitionResponse): void {
@@ -455,6 +512,10 @@ export class RoleManagementComponent implements OnInit {
     this.newSelectedPermIds.set(current);
   }
 
+  saveNewRole(): void {
+    this.submitCreate();
+  }
+
   submitCreate(): void {
     if (!this.isCreateValid()) return;
     this.saving.set(true);
@@ -467,13 +528,13 @@ export class RoleManagementComponent implements OnInit {
 
     this.adminService.createRoleDefinition(req).subscribe({
       next: () => {
-        this.notificationService.success('Role created successfully.');
+        this.notificationService.showSuccess('Role created successfully.');
         this.createDrawerOpen.set(false);
         this.saving.set(false);
         this.paginatedTable?.reload();
       },
       error: (err) => {
-        this.notificationService.error(err?.error?.message || 'Failed to create role.');
+        this.notificationService.showError(err?.error?.message || 'Failed to create role.');
         this.saving.set(false);
       }
     });
@@ -522,6 +583,10 @@ export class RoleManagementComponent implements OnInit {
     this.editSelectedPermIds.set(current);
   }
 
+  saveEditRole(): void {
+    this.submitEdit();
+  }
+
   submitEdit(): void {
     const role = this.editingRole();
     if (!role) return;
@@ -535,13 +600,13 @@ export class RoleManagementComponent implements OnInit {
 
     this.adminService.updateRoleDefinition(role.id, req).subscribe({
       next: () => {
-        this.notificationService.success('Role updated successfully.');
+        this.notificationService.showSuccess('Role updated successfully.');
         this.editDrawerOpen.set(false);
         this.saving.set(false);
         this.paginatedTable?.reload();
       },
       error: (err) => {
-        this.notificationService.error(err?.error?.message || 'Failed to update role.');
+        this.notificationService.showError(err?.error?.message || 'Failed to update role.');
         this.saving.set(false);
       }
     });
@@ -555,18 +620,18 @@ export class RoleManagementComponent implements OnInit {
       message: `Are you sure you want to delete role "${role.name}" (${role.code})? This action cannot be undone.`,
       confirmText: 'Delete Role',
       cancelText: 'Cancel',
-      isDestructive: true
+      color: 'warn'
     };
 
     this.dialog.open(ConfirmDialogComponent, { data }).afterClosed().subscribe(confirmed => {
       if (confirmed) {
         this.adminService.deleteRoleDefinition(role.id).subscribe({
           next: () => {
-            this.notificationService.success('Role deleted successfully.');
+            this.notificationService.showSuccess('Role deleted successfully.');
             this.paginatedTable?.reload();
           },
           error: (err) => {
-            this.notificationService.error(err?.error?.message || 'Failed to delete role.');
+            this.notificationService.showError(err?.error?.message || 'Failed to delete role.');
           }
         });
       }

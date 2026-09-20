@@ -26,12 +26,8 @@ import { MatSnackBarModule, MatSnackBar } from '@angular/material/snack-bar';
 import { MatChipsModule } from '@angular/material/chips';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { QuestionService, QuestionResponse } from './question.service';
-import { QuestionFormDialogComponent } from './question-form-dialog.component';
-import { AiGenerateDialogComponent } from './ai-generate-dialog/ai-generate-dialog.component';
-import { QuestionTranslationDialogComponent } from './translation/question-translation-dialog.component';
-import { PassageFormDialogComponent } from './passage/passage-form-dialog.component';
-import { PassageService, PassageResponse } from './passage.service';
 import { SubjectTopicService, Subject } from './subject-topic.service';
+import { PassageResponse } from './passage.service';
 import {
   PaginatedTableComponent,
   ColumnDef,
@@ -39,16 +35,19 @@ import {
   FilterCategory
 } from '../../shared/components/paginated-table';
 import { PageHeaderComponent } from '../../shared/components/page-header/page-header.component';
+import { QuestionFormDialogComponent } from './question-form-dialog.component';
+import { AiGenerateDialogComponent } from './ai-generate-dialog.component';
+import { QuestionTranslationDialogComponent } from './translation/question-translation-dialog.component';
+import { PassageFormDialogComponent } from './passage-form-dialog.component';
 
-const DEFAULT_SUBJECT_OPTIONS = [
-  { label: 'Quantitative Aptitude', value: 'Quantitative Aptitude' },
-  { label: 'General Intelligence and Reasoning', value: 'General Intelligence and Reasoning' },
-  { label: 'English Language', value: 'English Language' },
-  { label: 'General Awareness', value: 'General Awareness' },
-  { label: 'Computer Aptitude', value: 'Computer Aptitude' },
-  { label: 'Mathematics', value: 'Mathematics' },
+export const DEFAULT_SUBJECT_OPTIONS = [
   { label: 'Physics', value: 'Physics' },
-  { label: 'Chemistry', value: 'Chemistry' }
+  { label: 'Chemistry', value: 'Chemistry' },
+  { label: 'Mathematics', value: 'Mathematics' },
+  { label: 'Biology', value: 'Biology' },
+  { label: 'Computer Science', value: 'Computer Science' },
+  { label: 'General Knowledge', value: 'General Knowledge' },
+  { label: 'English', value: 'English' }
 ];
 
 @Component({
@@ -86,6 +85,8 @@ export class QuestionListComponent implements OnInit {
   translatingQuestion?: QuestionResponse;
   passageDrawerOpen = false;
   editingPassage?: PassageResponse;
+  exporting = false;
+  importing = false;
 
   filters: Record<string, any> = {};
 
@@ -155,88 +156,112 @@ export class QuestionListComponent implements OnInit {
     const subject = !isNumericSubject && rawSubject ? String(rawSubject) : undefined;
 
     return this.questionService.getQuestions({
-      subject,
+      page: req.page,
+      size: req.size,
       subjectId,
+      subject,
       difficulty: activeDifficulty || undefined,
       state: activeState || undefined,
-      search: req.search || undefined,
+      search: req.search,
       sort: req.sort,
-      order: req.order,
-      page: req.page,
-      size: req.size
+      order: req.order
     });
   };
 
   constructor(
     private questionService: QuestionService,
-    private passageService: PassageService,
-    private snackBar: MatSnackBar,
     private subjectTopicService: SubjectTopicService,
+    private snackBar: MatSnackBar,
     private cdr: ChangeDetectorRef
   ) {}
 
   ngOnInit(): void {
     this.columns = [
-      { key: 'hasImages', header: 'Media', type: 'custom', template: this.visualsTmpl },
-      { key: 'subject', header: 'Subject', sortable: true },
-      { key: 'topic', header: 'Topic', sortable: true },
+      {
+        key: 'content',
+        header: 'Question Content',
+        cell: (q: QuestionResponse) => {
+          const raw = q.content || '';
+          return raw.replace(/<[^>]*>/g, '').trim().slice(0, 100) + (raw.length > 100 ? '…' : '');
+        },
+        sortable: true
+      },
+      {
+        key: 'questionType',
+        header: 'Type',
+        type: 'custom',
+        template: this.typeTmpl,
+        sortable: true
+      },
+      {
+        key: 'subject',
+        header: 'Subject',
+        cell: (q: QuestionResponse) => q.subject || '—',
+        sortable: true
+      },
+      {
+        key: 'topic',
+        header: 'Topic',
+        cell: (q: QuestionResponse) => q.topic || '—',
+        sortable: true
+      },
       {
         key: 'difficulty',
         header: 'Difficulty',
         type: 'chip',
-        chipClass: (val) => 'chip-' + (val || '').toLowerCase(),
+        chipClass: (val: string) => 'diff-' + (val ?? '').toLowerCase(),
         sortable: true
       },
-      { key: 'questionType', header: 'Type', type: 'custom', template: this.typeTmpl, sortable: true },
+      {
+        key: 'cognitiveLevel',
+        header: 'Cognitive Level',
+        cell: (q: QuestionResponse) => q.cognitiveLevel ? q.cognitiveLevel.charAt(0).toUpperCase() + q.cognitiveLevel.slice(1).toLowerCase() : '—'
+      },
+      {
+        key: 'hasVisuals',
+        header: 'Visuals',
+        type: 'custom',
+        template: this.visualsTmpl
+      },
       {
         key: 'state',
-        header: 'State',
+        header: 'Status',
         type: 'chip',
-        chipClass: (val) => 'chip-state-' + (val || '').toLowerCase(),
+        chipClass: (val: string) => 'status-' + (val ?? '').toLowerCase(),
         sortable: true
       },
-      { key: 'createdAt', header: 'Created', type: 'date', sortable: true },
-      { key: 'actions', header: 'Actions', type: 'actions' }
+      {
+        key: 'actions',
+        header: 'Actions',
+        type: 'actions'
+      }
     ];
+
     this.loadSubjects();
   }
 
   loadSubjects(): void {
     this.subjectTopicService.getSubjects().subscribe({
       next: (subjects) => {
-        this.subjects = subjects || [];
-        const subjectOptions = this.subjects.length > 0
-          ? this.subjects.map(s => ({ label: s.name, value: s.id.toString() }))
-          : DEFAULT_SUBJECT_OPTIONS;
-        this.filterCategories = this.filterCategories.map(cat => {
-          if (cat.key === 'subject') {
-            return {
-              ...cat,
-              options: subjectOptions
-            };
+        this.subjects = subjects;
+        const options = subjects.map(s => ({
+          label: s.name,
+          value: s.name
+        }));
+        if (options.length > 0) {
+          const category = this.filterCategories.find(c => c.key === 'subject');
+          if (category) {
+            category.options = options;
           }
-          return cat;
-        });
-        this.cdr.markForCheck();
+        }
       },
-      error: (err) => {
-        console.warn('Failed to load subjects for filter:', err);
-        this.filterCategories = this.filterCategories.map(cat => {
-          if (cat.key === 'subject') {
-            return {
-              ...cat,
-              options: DEFAULT_SUBJECT_OPTIONS
-            };
-          }
-          return cat;
-        });
-        this.cdr.markForCheck();
-      }
+      error: () => {}
     });
   }
 
-  onFilterChange(updatedFilters: Record<string, any>): void {
-    this.filters = { ...updatedFilters };
+  onFilterChange(filters: Record<string, any>): void {
+    this.filters = { ...filters };
+    this.reload();
   }
 
   reload(): void {
@@ -265,6 +290,29 @@ export class QuestionListComponent implements OnInit {
   openTranslationDrawer(question: QuestionResponse): void {
     this.translatingQuestion = question;
     this.translationDrawerOpen = true;
+  }
+
+  onDrawerClose(saved?: boolean): void {
+    this.drawerOpen = false;
+    this.editingQuestion = undefined;
+    if (saved) this.reload();
+  }
+
+  onPassageDrawerClose(saved?: boolean): void {
+    this.passageDrawerOpen = false;
+    this.editingPassage = undefined;
+    if (saved) this.reload();
+  }
+
+  onTranslationDrawerClose(saved?: boolean): void {
+    this.translationDrawerOpen = false;
+    this.translatingQuestion = undefined;
+    if (saved) this.reload();
+  }
+
+  onAiDrawerClose(saved?: boolean): void {
+    this.aiDrawerOpen = false;
+    if (saved) this.reload();
   }
 
   onDrawerSaved(): void {
@@ -302,6 +350,7 @@ export class QuestionListComponent implements OnInit {
   }
 
   exportQuestions(format: 'json' | 'csv'): void {
+    this.exporting = true;
     const rawSubject = Array.isArray(this.filters['subject']) ? this.filters['subject'][0] : this.filters['subject'];
     const activeDifficulty = Array.isArray(this.filters['difficulty']) ? this.filters['difficulty'][0] : this.filters['difficulty'];
     const activeState = Array.isArray(this.filters['state']) ? this.filters['state'][0] : this.filters['state'];
@@ -318,6 +367,7 @@ export class QuestionListComponent implements OnInit {
       search: this.paginatedTable?.searchQuery || undefined
     }).subscribe({
       next: (blob: Blob) => {
+        this.exporting = false;
         const url = window.URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
@@ -327,28 +377,40 @@ export class QuestionListComponent implements OnInit {
         document.body.removeChild(a);
         window.URL.revokeObjectURL(url);
         this.snackBar.open('Export downloaded successfully', 'Close', { duration: 3000 });
+        this.cdr.detectChanges();
       },
       error: (err) => {
+        this.exporting = false;
         this.snackBar.open(err?.error?.message || 'Export failed', 'Close', { duration: 4000 });
+        this.cdr.detectChanges();
       }
     });
+  }
+
+  onImportFileSelected(event: Event): void {
+    this.onFileSelected(event);
   }
 
   onFileSelected(event: Event): void {
     const input = event.target as HTMLInputElement;
     if (!input.files || input.files.length === 0) return;
     const file = input.files[0];
+    this.importing = true;
     this.snackBar.open(`Importing ${file.name}...`, undefined, { duration: 2000 });
     this.questionService.importQuestions(file).subscribe({
       next: (result) => {
+        this.importing = false;
         input.value = '';
         const msg = `Import complete: ${result.successfulCount} imported, ${result.duplicateCount} duplicates, ${result.failedCount} failed`;
         this.snackBar.open(msg, 'Close', { duration: 5000 });
         this.reload();
+        this.cdr.detectChanges();
       },
       error: (err) => {
+        this.importing = false;
         input.value = '';
         this.snackBar.open(err?.error?.message || 'Import failed', 'Close', { duration: 5000 });
+        this.cdr.detectChanges();
       }
     });
   }

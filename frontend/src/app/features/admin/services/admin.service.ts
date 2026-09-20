@@ -75,7 +75,7 @@ export interface RoleDefinitionResponse {
   id: string;
   name: string;
   code: string;
-  description: string;
+  description?: string;
   active: boolean;
   systemRole: boolean;
   permissions: PermissionResponse[];
@@ -180,7 +180,7 @@ export class AdminService {
     );
   }
 
-  assignRole(userId: string, role: string, action: 'ASSIGN' | 'REVOKE'): Observable<RoleAssignmentResponse> {
+  assignRole(userId: string, role: string, action: 'ASSIGN' | 'REVOKE' = 'ASSIGN'): Observable<RoleAssignmentResponse> {
     const body: RoleAssignmentRequest = { role, action };
     return this.http.post<ApiResponse<RoleAssignmentResponse>>(`${this.baseUrl}/roles/assignments/${userId}`, body).pipe(
       map(response => response.data)
@@ -252,6 +252,18 @@ export class AdminService {
     return this.http.put<SystemConfigItem>(`${this.configUrl}/${paramName}`, { paramValue });
   }
 
+  updateBulkSystemConfigs(configs: Record<string, string>): Observable<Record<string, string>> {
+    return this.http.post<ApiResponse<Record<string, string>>>(`${this.configUrl}/bulk`, configs).pipe(
+      map(response => response.data || configs)
+    );
+  }
+
+  resetSystemConfigs(): Observable<Record<string, string>> {
+    return this.http.post<ApiResponse<Record<string, string>>>(`${this.configUrl}/reset`, {}).pipe(
+      map(response => response.data || {})
+    );
+  }
+
   // ===================================================================
   // Audit Logs
   // ===================================================================
@@ -276,6 +288,12 @@ export class AdminService {
 
     return this.http.get<ApiResponse<PaginatedPage<AuditEventResponse>>>(this.auditUrl, { params: queryParams }).pipe(
       map(response => response.data)
+    );
+  }
+
+  getAuditEvents(page = 0, size = 500, search = ''): Observable<AuditEventResponse[]> {
+    return this.getAuditLogs({ page, size }).pipe(
+      map(pageData => pageData?.content || [])
     );
   }
 }
