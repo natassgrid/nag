@@ -55,7 +55,8 @@ subprojects {
                         '-J-Xmx8g',
                         '-H:+ReportExceptionStackTraces',
                         '-H:+AddAllCharsets',
-                        '--enable-preview'
+                        '--enable-preview',
+                        '--initialize-at-build-time=org.slf4j,ch.qos.logback,org.apache.commons.logging,org.springframework.core.SpringProperties'
                     ])
                 }
             }

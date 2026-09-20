@@ -47,7 +47,7 @@ graalvm-native = { id = "org.graalvm.buildtools.native", version.ref = "graalvm-
 
 ### 2. Root Build Script (`build.gradle`)
 
-Root `build.gradle` configures default Native Image build arguments for all subprojects (allocating 8GB compiler heap for fast compilation):
+Root `build.gradle` configures default Native Image build arguments for all subprojects (allocating 8GB compiler heap and safe build-time initialization for logging and spring core properties):
 
 ```groovy
 plugins.withId('org.graalvm.buildtools.native') {
@@ -59,7 +59,8 @@ plugins.withId('org.graalvm.buildtools.native') {
                     '-J-Xmx8g',
                     '-H:+ReportExceptionStackTraces',
                     '-H:+AddAllCharsets',
-                    '--enable-preview'
+                    '--enable-preview',
+                    '--initialize-at-build-time=org.slf4j,ch.qos.logback,org.apache.commons.logging,org.springframework.core.SpringProperties'
                 ])
             }
         }

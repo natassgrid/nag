@@ -16,8 +16,6 @@
 package com.examplatform.shared.aot;
 
 import jakarta.annotation.PostConstruct;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.context.annotation.ImportRuntimeHints;
 import org.springframework.core.NativeDetector;
@@ -31,14 +29,10 @@ import org.springframework.core.NativeDetector;
 @ImportRuntimeHints(GraalVmRuntimeHintsRegistrar.class)
 public class GraalVmAutoConfiguration {
 
-    private static final Logger log = LoggerFactory.getLogger(GraalVmAutoConfiguration.class);
-
     @PostConstruct
     public void logRuntimeEnvironment() {
         if (NativeDetector.inNativeImage()) {
-            log.info("🚀 Running inside GraalVM Native Image (AOT compiled with Spring Boot 4.x)");
-        } else {
-            log.debug("Running on standard JVM (GraalVM AOT hints available for native compilation)");
+            System.out.println("🚀 Running inside GraalVM Native Image (AOT compiled with Spring Boot 4.x)");
         }
     }
 }
