@@ -12,7 +12,8 @@
 #   - 1 Candidate Frontend (React/Vite)
 #
 # Usage:
-#   ./redeploy-monolith.sh                  # Deploy with In-Memory Event Bus (Zero-Broker, Minimal RAM)
+#   ./redeploy-monolith.sh                  # Deploy standard JVM Monolith (In-Memory Event Bus)
+#   ./redeploy-monolith.sh --native         # Deploy with GraalVM Native Image (Sub-50ms Cold-Start, ~35MB RSS)
 #   ./redeploy-monolith.sh --rabbit         # Deploy with RabbitMQ Broker
 #   ./redeploy-monolith.sh --clean-db       # Drop all volumes / fresh Postgres schema
 #   ./redeploy-monolith.sh --observability  # Start with Prometheus, Grafana, and Jaeger
@@ -44,6 +45,12 @@ OBSERVABILITY=false
 AI=false
 CLEAN_DB=false
 RABBIT=false
+NATIVE=false
+
+# Support environment variables
+if [ "${USE_NATIVE:-}" = "true" ] || [ "${NATIVE:-}" = "true" ]; then
+    NATIVE=true
+fi
 
 # If PLATFORM_MESSAGING_BROKER environment variable is pre-set to rabbit
 if [ "${PLATFORM_MESSAGING_BROKER:-}" = "rabbit" ]; then
@@ -55,6 +62,7 @@ while [[ $# -gt 0 ]]; do
         --no-cache) NO_CACHE="--no-cache"; shift ;;
         --restart) RESTART_ONLY=true; shift ;;
         --health) HEALTH_CHECK=true; shift ;;
+        --native|--with-native|--graalvm) NATIVE=true; shift ;;
         --clean-db|--clean-volumes|--delete-db-volume|--reset-db|--drop-db) CLEAN_DB=true; shift ;;
         --rabbit|--with-rabbit) RABBIT=true; shift ;;
         --observability|--with-observability) OBSERVABILITY=true; shift ;;
@@ -86,7 +94,12 @@ COMPOSE="docker compose ${PROFILES_ARGS[*]} -f docker-compose.yml -f docker-comp
 
 echo "============================================="
 echo "  NAG Platform — Single JVM Monolith Mode"
-echo "  Architecture: 1 JVM Monolith + Postgres + Redis"
+if [ "$NATIVE" = true ]; then
+echo "  Runtime:      🚀 GraalVM Native Image (AOT Compiled / Distroless CC)"
+else
+echo "  Runtime:      ☕ OpenJDK 21 JVM (Temurin JRE Alpine)"
+fi
+echo "  Architecture: 1 Monolith App + Postgres + Redis"
 if [ "$RABBIT" = true ]; then
 echo "  Messaging:    RabbitMQ (exam-monolith-rabbitmq:5672)"
 else
@@ -105,9 +118,9 @@ echo "  AI Pipeline:   Enabled (Ollama, LiteLLM, IndicTrans2)"
 fi
 echo "============================================="
 
-# --- Ensure builder base image exists ---
+# --- Ensure builder base image exists for standard JVM build ---
 ensure_builder_base() {
-    if ! docker image inspect exam/builder-base:latest >/dev/null 2>&1; then
+    if [ "$NATIVE" = false ] && ! docker image inspect exam/builder-base:latest >/dev/null 2>&1; then
         echo "🔧 Building builder base image (one-time)..."
         cd "$PROJECT_ROOT"
         docker build -f backend/Dockerfile.base -t exam/builder-base:latest .
@@ -204,7 +217,14 @@ $COMPOSE up -d vault-init
 
 echo ""
 echo "📦 Building monolith-app and frontends..."
-$COMPOSE build $NO_CACHE $APP_TARGETS
+if [ "$NATIVE" = true ]; then
+    echo "  Building monolith-app using GraalVM Native Image (backend/Dockerfile.native)..."
+    docker build $NO_CACHE -f "$PROJECT_ROOT/backend/Dockerfile.native" --build-arg SERVICE_NAME=monolith-app -t "localhost:5000/exam/monolith-app:latest" "$PROJECT_ROOT"
+    echo "  Building frontend and candidate-frontend..."
+    $COMPOSE build $NO_CACHE frontend candidate-frontend
+else
+    $COMPOSE build $NO_CACHE $APP_TARGETS
+fi
 
 echo ""
 echo "🚀 Starting monolith stack..."
