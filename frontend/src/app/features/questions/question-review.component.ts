@@ -17,20 +17,20 @@
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
 
-import { Component, OnInit, ChangeDetectorRef, ViewChild, ChangeDetectionStrategy } from '@angular/core';
+import { Component, ChangeDetectionStrategy, ChangeDetectorRef, ViewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { DomSanitizer, SafeUrl } from '@angular/platform-browser';
-import { MatButtonModule } from '@angular/material/button';
-import { MatIconModule } from '@angular/material/icon';
 import { MatCardModule } from '@angular/material/card';
-import { MatSnackBarModule, MatSnackBar } from '@angular/material/snack-bar';
+import { MatButtonModule } from '@angular/material/button';
 import { MatChipsModule } from '@angular/material/chips';
-import { MatTooltipModule } from '@angular/material/tooltip';
-import { MatDividerModule } from '@angular/material/divider';
+import { MatIconModule } from '@angular/material/icon';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
-import { tap } from 'rxjs/operators';
+import { MatDividerModule } from '@angular/material/divider';
+import { MatSnackBarModule, MatSnackBar } from '@angular/material/snack-bar';
+import { MatTooltipModule } from '@angular/material/tooltip';
+import { DomSanitizer, SafeUrl } from '@angular/platform-browser';
+import { tap } from 'rxjs';
 import { QuestionService, QuestionResponse } from './question.service';
 import {
   PaginatedTableComponent,
@@ -46,15 +46,15 @@ import { MathRendererComponent } from '../../shared/components/math-renderer/mat
   imports: [
     CommonModule,
     FormsModule,
-    MatButtonModule,
-    MatIconModule,
     MatCardModule,
-    MatSnackBarModule,
+    MatButtonModule,
     MatChipsModule,
-    MatTooltipModule,
-    MatDividerModule,
+    MatIconModule,
     MatFormFieldModule,
     MatInputModule,
+    MatDividerModule,
+    MatSnackBarModule,
+    MatTooltipModule,
     PaginatedTableComponent,
     PageHeaderComponent,
     MathRendererComponent
@@ -94,7 +94,7 @@ export class QuestionReviewComponent {
   ];
 
   fetcher: PaginatedDataFetcher<QuestionResponse> = (req) => {
-    return this.questionService.getQuestionsForReview(req.page, req.size).pipe(
+    return this.questionService.getQuestionsForReview(req.page, req.size, req.search || undefined).pipe(
       tap(page => {
         const list = page?.content ?? (Array.isArray(page) ? page : []);
         this.questions = [...list];
@@ -152,11 +152,10 @@ export class QuestionReviewComponent {
   reject(): void {
     if (!this.selected || !this.rejectComment.trim()) return;
     this.acting = true;
-    this.questionService.rejectQuestion(this.selected.id, this.rejectComment.trim()).subscribe({
+    this.questionService.rejectQuestion(this.selected.id, this.rejectComment).subscribe({
       next: () => {
         this.acting = false;
         this.snackBar.open('Question rejected', 'Close', { duration: 3000 });
-        this.selected = null;
         this.reload();
       },
       error: () => {
@@ -177,12 +176,15 @@ export class QuestionReviewComponent {
   }
 
   formatType(type?: string): string {
+    if (!type) return '-';
     switch (type) {
-      case 'SINGLE_MCQ': return 'Single Choice (MCQ)';
-      case 'MULTI_MCQ': return 'Multiple Choice (MSQ)';
-      case 'NUMERICAL': return 'Numerical';
+      case 'SINGLE_MCQ': return 'Single Choice';
+      case 'MULTI_MCQ': return 'Multiple Choice';
+      case 'TRUE_FALSE': return 'True / False';
       case 'DESCRIPTIVE': return 'Descriptive';
-      default: return type || 'N/A';
+      case 'CODING': return 'Coding';
+      case 'CASE_STUDY': return 'Case Study';
+      default: return type;
     }
   }
 

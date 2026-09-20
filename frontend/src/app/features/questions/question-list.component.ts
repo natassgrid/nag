@@ -11,7 +11,7 @@
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU Affero General Public License for more details.
+ * GNU标志 General Public License for more details.
  *
  * You should have received a copy of the GNU Affero General Public License
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
@@ -159,6 +159,7 @@ export class QuestionListComponent implements OnInit {
       subjectId,
       difficulty: activeDifficulty || undefined,
       state: activeState || undefined,
+      search: req.search || undefined,
       page: req.page,
       size: req.size
     });
@@ -369,12 +370,17 @@ export class QuestionListComponent implements OnInit {
     const input = event.target as HTMLInputElement;
     if (!input.files || input.files.length === 0) return;
     const file = input.files[0];
+
+    const rawSubject = Array.isArray(this.filters['subject']) ? this.filters['subject'][0] : this.filters['subject'];
+    const isNumericSubject = rawSubject !== undefined && rawSubject !== null && rawSubject !== '' && !isNaN(Number(rawSubject));
+    const subjectId = isNumericSubject ? Number(rawSubject) : undefined;
+
     this.importing = true;
-    this.questionService.importQuestions(file).subscribe({
-      next: (res) => {
+    this.questionService.importQuestions(file, subjectId).subscribe({
+      next: (result) => {
         this.importing = false;
         input.value = '';
-        const msg = `Import complete: ${res.successfulCount} imported, ${res.duplicateCount} duplicates, ${res.failedCount} failed`;
+        const msg = `Import complete: ${result.successfulCount} created, ${result.duplicateCount} duplicates, ${result.failedCount} failed`;
         this.snackBar.open(msg, 'Close', { duration: 5000 });
         this.reload();
       },
@@ -385,5 +391,9 @@ export class QuestionListComponent implements OnInit {
         this.snackBar.open(msg, 'Close', { duration: 4000 });
       }
     });
+  }
+
+  onFileSelected(event: Event): void {
+    this.onImportFileSelected(event);
   }
 }

@@ -14,8 +14,7 @@
  * GNU Affero General Public License for more details.
  *
  * You should have received a copy of the GNU Affero General Public License
- * along with this program. If not, see <https://www.gnu.org/licenses/>.
- */
+ * along with this program. If not, see <https://www.gnu.org/licenses/>.\n */
 
 package com.examplatform.questionbank.service;
 
@@ -50,7 +49,7 @@ public class QuestionSearchService {
 
     /**
      * Search questions by query text, subject, and difficulty.
-     * Currently uses JPA fallback with LIKE matching on subject/topic/content.
+     * Currently uses JPA fallback with smart multi-field matching on metadata and content.
      * Production: replace with OpenSearch client call for 100M+ question support.
      *
      * @param query      free-text search query
@@ -96,10 +95,35 @@ public class QuestionSearchService {
     }
 
     private boolean matchesQuery(Question q, String lowerQuery) {
-        return containsIgnoreCase(q.getSubject(), lowerQuery)
-                || containsIgnoreCase(q.getTopic(), lowerQuery)
-                || containsIgnoreCase(q.getContent(), lowerQuery)
-                || containsIgnoreCase(q.getSubtopic(), lowerQuery);
+        String cleanQuery = lowerQuery.trim();
+        if (matchesAnyField(q, cleanQuery)) {
+            return true;
+        }
+
+        String[] tokens = cleanQuery.split("\\s+");
+        if (tokens.length > 1) {
+            for (String token : tokens) {
+                if (!token.isBlank() && !matchesAnyField(q, token)) {
+                    return false;
+                }
+            }
+            return true;
+        }
+        return false;
+    }
+
+    private boolean matchesAnyField(Question q, String queryToken) {
+        return containsIgnoreCase(q.getSubject(), queryToken)
+                || containsIgnoreCase(q.getTopic(), queryToken)
+                || containsIgnoreCase(q.getSubtopic(), queryToken)
+                || containsIgnoreCase(q.getChapter(), queryToken)
+                || containsIgnoreCase(q.getDifficulty(), queryToken)
+                || containsIgnoreCase(q.getCognitiveLevel(), queryToken)
+                || containsIgnoreCase(q.getQuestionType(), queryToken)
+                || containsIgnoreCase(q.getContent(), queryToken)
+                || containsIgnoreCase(q.getExplanation(), queryToken)
+                || containsIgnoreCase(q.getState(), queryToken)
+                || containsIgnoreCase(q.getReferences(), queryToken);
     }
 
     private boolean containsIgnoreCase(String field, String query) {
