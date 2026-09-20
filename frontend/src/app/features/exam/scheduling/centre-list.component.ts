@@ -102,7 +102,8 @@ export class CentreListComponent {
         this.snackBar.open('Centre created', 'OK', { duration: 3000 });
         this.reload();
       },
-      error: (e) => this.snackBar.open(e?.error?.message || 'Error creating centre', 'Dismiss', { duration: 4000 })\n    });
+      error: (e: any) => this.snackBar.open(e?.error?.message || 'Error creating centre', 'Dismiss', { duration: 4000 })
+    });
   }
 
   deactivate(centre: CentreResponse): void {
@@ -111,7 +112,7 @@ export class CentreListComponent {
         this.snackBar.open('Centre deactivated', 'OK', { duration: 3000 });
         this.reload();
       },
-      error: (e) => this.snackBar.open(e?.error?.message || 'Error', 'Dismiss', { duration: 4000 })
+      error: (e: any) => this.snackBar.open(e?.error?.message || 'Error', 'Dismiss', { duration: 4000 })
     });
   }
 }

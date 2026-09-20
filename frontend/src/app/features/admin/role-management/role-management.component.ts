@@ -13,7 +13,7 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
  * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU濱Affero General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
 
@@ -217,12 +217,7 @@ export class RoleManagementComponent implements OnInit {
 
     const groups: ModulePermissionGroup[] = [];
     map.forEach((items, mod) => {
-      groups.push({
-        module: mod,
-        moduleLabel: this.formatModuleLabel(mod),
-        moduleIcon: this.getModuleIcon(mod),
-        permissions: items
-      });
+      groups.push({\n        module: mod,\n        moduleLabel: this.formatModuleLabel(mod),\n        moduleIcon: this.getModuleIcon(mod),\n        permissions: items\n      });
     });
 
     return groups.sort((a, b) => {
@@ -343,7 +338,8 @@ export class RoleManagementComponent implements OnInit {
       { key: 'code', header: 'Code', sortable: true },
       { key: 'description', header: 'Description', cell: (r) => r.description || '—' },
       { key: 'active', header: 'Status', type: 'custom', template: this.statusTmpl },
-      {\n        key: 'systemRole',
+      {
+        key: 'systemRole',
         header: 'Type',
         cell: (r) => r.systemRole ? 'System' : 'Custom',
         type: 'badge',

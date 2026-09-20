@@ -11,7 +11,7 @@
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU Affero General Public License for more details.
+ * GNU sound Affero General Public License for more details.
  *
  * You should have received a copy of the GNU Affero General Public License
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
@@ -131,7 +131,8 @@ export class UserManagementComponent implements OnInit {
   });
 
   filterCategories: FilterCategory[] = [
-    {\n      key: 'accountStatus',
+    {
+      key: 'accountStatus',
       label: 'Status',
       expanded: true,
       options: [
@@ -268,7 +269,7 @@ export class UserManagementComponent implements OnInit {
         this.saving.set(false);
         this.reload();
       },
-      error: (err) => {
+      error: (err: any) => {
         this.notificationService.error(err?.error?.message || 'Failed to send invite.');
         this.saving.set(false);
       }
@@ -298,7 +299,7 @@ export class UserManagementComponent implements OnInit {
         this.saving.set(false);
         this.reload();
       },
-      error: (err) => {
+      error: (err: any) => {
         this.notificationService.error(err?.error?.message || 'Failed to create user.');
         this.saving.set(false);
       }
@@ -326,7 +327,7 @@ export class UserManagementComponent implements OnInit {
         this.saving.set(false);
         this.reload();
       },
-      error: (err) => {
+      error: (err: any) => {
         this.notificationService.error(err?.error?.message || 'Failed to update user.');
         this.saving.set(false);
       }
@@ -355,7 +356,7 @@ export class UserManagementComponent implements OnInit {
         this.saving.set(false);
         this.reload();
       },
-      error: (err) => {
+      error: (err: any) => {
         this.notificationService.error(err?.error?.message || 'Failed to update user roles.');
         this.saving.set(false);
       }

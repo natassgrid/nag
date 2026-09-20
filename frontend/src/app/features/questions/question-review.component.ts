@@ -73,7 +73,8 @@ export class QuestionReviewComponent {
   acting = false;
   viewMode: 'table' | 'split' = 'table';
 
-  columns: ColumnDef<QuestionResponse>[] = [\n    { key: 'subject', header: 'Subject', sortable: true },
+  columns: ColumnDef<QuestionResponse>[] = [
+    { key: 'subject', header: 'Subject', sortable: true },
     { key: 'topic', header: 'Topic', sortable: true },
     {
       key: 'difficulty',

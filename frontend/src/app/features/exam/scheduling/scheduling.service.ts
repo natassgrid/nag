@@ -180,12 +180,13 @@ export interface SeatAllocationRequest {
 
 // ── Service ────────────────────────────────────────────────────────────────
 
-@Injectable({ providedIn: 'root' })\nexport class SchedulingService {
+@Injectable({ providedIn: 'root' })
+export class SchedulingService {
   private readonly base = '/api/v1/examinations';
 
   constructor(private http: HttpClient) {}
 
-  // ── Schedules ───────────────────────────────────────────────────────────
+  // ── Schedules ────────────────────────────────────────────────────────────
 
   createSchedule(examId: string, req: CreateScheduleRequest): Observable<ScheduleResponse> {
     return this.http.post<ApiResponse<ScheduleResponse>>(`${this.base}/${examId}/schedules`, req)
@@ -223,9 +224,8 @@ export interface SeatAllocationRequest {
   }
 
   addShift(examId: string, scheduleId: string, req: CreateShiftRequest): Observable<ShiftResponse> {
-    return this.http.post<ApiResponse<ShiftResponse>>(
-      `${this.base}/${examId}/schedules/${scheduleId}/shifts`, req
-    ).pipe(map(r => r.data));
+    return this.http.post<ApiResponse<ShiftResponse>>(`${this.base}/${examId}/schedules/${scheduleId}/shifts`, req)
+      .pipe(map(r => r.data));
   }
 
   updateShift(examId: string, scheduleId: string, shiftId: string, req: CreateShiftRequest): Observable<ShiftResponse> {
