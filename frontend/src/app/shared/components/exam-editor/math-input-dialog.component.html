@@ -1,0 +1,125 @@
+<div class="math-dialog-container" (keydown)="onDialogKeydown($event)">
+  <div mat-dialog-title class="math-dialog-header">
+    <div class="header-title">
+      <mat-icon class="header-icon">functions</mat-icon>
+      <span>{{ isEdit ? 'Edit Math Formula' : 'Insert Math Formula' }}</span>
+    </div>
+    <button mat-icon-button type="button" (click)="cancel()" class="close-btn" matTooltip="Cancel (Esc)">
+      <mat-icon>close</mat-icon>
+    </button>
+  </div>
+
+  <mat-dialog-content class="math-dialog-content">
+    <!-- LaTeX input area -->
+    <mat-form-field appearance="outline" class="latex-form-field">
+      <mat-label>LaTeX expression</mat-label>
+      <textarea
+        #latexInput
+        matInput
+        rows="3"
+        [(ngModel)]="latex"
+        (ngModelChange)="onLatexChange()"
+        (keydown)="onTextareaKeydown($event)"
+        placeholder="e.g. \frac{a}{b}, \sum_{i=1}^{n} x_i, \ce{H2SO4}, \alpha + \beta"
+        class="latex-textarea"
+      ></textarea>
+      <button
+        *ngIf="latex"
+        mat-icon-button
+        matSuffix
+        type="button"
+        (click)="clearLatex()"
+        matTooltip="Clear input"
+        class="clear-btn"
+      >
+        <mat-icon>backspace</mat-icon>
+      </button>
+      <mat-hint>Type LaTeX directly or click palette symbols below. Single backslash (\) inside.</mat-hint>
+    </mat-form-field>
+
+    <!-- Display mode option -->
+    <div class="display-mode-row">
+      <mat-checkbox [(ngModel)]="display" (ngModelChange)="onLatexChange()" color="primary">
+        Display block (centered on its own line)
+      </mat-checkbox>
+    </div>
+
+    <!-- Live KaTeX preview -->
+    <div class="math-preview-section">
+      <div class="preview-header">
+        <span class="preview-title">Live Preview:</span>
+        <span class="preview-mode-tag" [class.tag-block]="display">
+          {{ display ? 'Display Block Mode' : 'Inline Mode' }}
+        </span>
+      </div>
+
+      <div
+        class="math-preview-box"
+        [class.math-preview-box--block]="display"
+        [class.math-preview-box--error]="!!renderError"
+      >
+        <div
+          *ngIf="previewHtml && !renderError"
+          [innerHTML]="previewHtml"
+          class="math-preview-rendered"
+        ></div>
+
+        <div *ngIf="!previewHtml && !renderError" class="math-preview-placeholder">
+          <mat-icon class="placeholder-icon">visibility</mat-icon>
+          <span>Type a LaTeX expression or click symbols from the palette to see preview</span>
+        </div>
+
+        <div *ngIf="renderError" class="math-preview-error">
+          <mat-icon class="error-icon">error_outline</mat-icon>
+          <div class="error-text">
+            <strong>KaTeX Syntax Error:</strong>
+            <span>{{ renderError }}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Categorized Symbol Palette -->
+    <div class="palette-container">
+      <div class="palette-title">Symbol & Template Palette</div>
+
+      <mat-tab-group animationDuration="0ms" class="palette-tabs" [(selectedIndex)]="selectedTabIndex">
+        <mat-tab *ngFor="let cat of categories">
+          <ng-template mat-tab-label>
+            <mat-icon class="tab-icon">{{ cat.icon }}</mat-icon>
+            <span>{{ cat.name }}</span>
+          </ng-template>
+
+          <div class="palette-grid">
+            <button
+              *ngFor="let item of cat.snippets"
+              type="button"
+              class="palette-btn"
+              [matTooltip]="item.tooltip || item.latex"
+              matTooltipPosition="above"
+              (click)="insertSnippet(item.latex)"
+            >
+              <span *ngIf="item.preview" [innerHTML]="item.preview" class="btn-preview"></span>
+              <span *ngIf="!item.preview" class="btn-label">{{ item.label }}</span>
+            </button>
+          </div>
+        </mat-tab>
+      </mat-tab-group>
+    </div>
+  </mat-dialog-content>
+
+  <mat-dialog-actions align="end" class="math-dialog-actions">
+    <button mat-button (click)="cancel()" type="button">Cancel</button>
+    <button
+      mat-raised-button
+      color="primary"
+      [disabled]="!latex.trim() || !!renderError"
+      (click)="confirm()"
+      type="button"
+      class="confirm-btn"
+    >
+      <mat-icon>{{ isEdit ? 'save' : 'add' }}</mat-icon>
+      <span>{{ isEdit ? 'Update Formula' : 'Insert Formula' }}</span>
+    </button>
+  </mat-dialog-actions>
+</div>
