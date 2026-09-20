@@ -44,7 +44,7 @@ import {
   MathInlineElement,
   ChemicalStructureElement
 } from './models';
-import { decodeSentinel } from './utils/serializer';
+import { decodeSentinel, encodeMathSentinel, encodeSmilesSentinel } from './utils/serializer';
 import { EditorSelection } from './plugins';
 import { EditorAssetService } from './services';
 
@@ -616,11 +616,11 @@ export class EditorContentComponent implements AfterViewInit, OnChanges, OnDestr
     const nodeType = el.getAttribute('data-type');
     if (nodeType === 'math-inline' || el.classList.contains('math-void')) {
       const latex = el.getAttribute('data-latex') || '';
-      return [{ text: `\x00math\x00${latex}\x00` }];
+      return [{ text: encodeMathSentinel(latex) }];
     }
     if (nodeType === 'chemical-structure' || el.classList.contains('chem-void')) {
       const smiles = el.getAttribute('data-smiles') || '';
-      return [{ text: `\x00smiles\x00${smiles}\x00` }];
+      return [{ text: encodeSmilesSentinel(smiles) }];
     }
 
     // Check HTML tag formatting

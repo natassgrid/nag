@@ -11,12 +11,19 @@ import { NoopAnimationsModule } from '@angular/platform-browser/animations';
 import { ExamEditorComponent } from './exam-editor.component';
 import { MathInputDialogComponent } from './math-input-dialog.component';
 import { SmilesInputDialogComponent } from './smiles-input-dialog.component';
-import { serialiseDocument, deserialiseContent, parseMarkdownToDocument } from './utils/serializer';
+import {
+  serialiseDocument,
+  deserialiseContent,
+  parseMarkdownToDocument,
+  encodeMathSentinel,
+  encodeSmilesSentinel,
+  decodeSentinel
+} from './utils/serializer';
 import { ExamDocument } from './models';
 
 describe('ExamEditor & Dialog Components (Issues #143 & #144)', () => {
 
-  describe('Serializer round-trip tests', () => {
+  describe('Serializer round-trip and unicode safety tests', () => {
     it('should serialize and deserialize math-inline nodes', () => {
       const doc: ExamDocument = [
         {
@@ -31,6 +38,49 @@ describe('ExamEditor & Dialog Components (Issues #143 & #144)', () => {
 
       const deserialized = deserialiseContent(markdown);
       expect(deserialized.length).toBeGreaterThan(0);
+    });
+
+    it('should serialize inline math and SMILES sentinels inside paragraphs without null characters', () => {
+      const doc: ExamDocument = [
+        {
+          type: 'paragraph',
+          children: [
+            { text: 'The average weight of ' },
+            { text: encodeMathSentinel('\\frac{a}{b}') },
+            { text: ' is 50 kg and structure ' },
+            { text: encodeSmilesSentinel('c1ccccc1') },
+            { text: '.' }
+          ]
+        }
+      ];
+      const markdown = serialiseDocument(doc);
+      expect(markdown).toBe('The average weight of $$\\frac{a}{b}$$ is 50 kg and structure <smiles>c1ccccc1</smiles>.');
+      expect(markdown.indexOf('\x00')).toBe(-1);
+      expect(markdown.indexOf('\u0000')).toBe(-1);
+
+      const parsed = parseMarkdownToDocument(markdown);
+      expect(parsed.length).toBe(1);
+      const p = parsed[0] as any;
+      expect(p.children.length).toBe(5);
+      const mathSentinel = decodeSentinel(p.children[1].text);
+      expect(mathSentinel?.kind).toBe('math');
+      expect(mathSentinel?.payload).toBe('\\frac{a}{b}');
+    });
+
+    it('should correctly decode legacy sentinels and strip null characters from serialization', () => {
+      const legacyDoc: ExamDocument = [
+        {
+          type: 'paragraph',
+          children: [
+            { text: 'Question: ' },
+            { text: '\x00math\x00\\ce{CH4 + 2O2 -> CO2 + 2H2O}\x00' },
+            { text: '\x00smiles\x00CCO\x00' }
+          ]
+        }
+      ];
+      const markdown = serialiseDocument(legacyDoc);
+      expect(markdown).toBe('Question: $$\\ce{CH4 + 2O2 -> CO2 + 2H2O}$$<smiles>CCO</smiles>');
+      expect(markdown).not.toContain('\x00');
     });
 
     it('should serialize and deserialize chemical-structure nodes with attributes', () => {
