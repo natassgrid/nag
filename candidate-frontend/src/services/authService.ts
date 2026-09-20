@@ -7,12 +7,15 @@ import type {
   AuthTokenRequest,
   AuthTokenResponse,
   ChangePasswordRequest,
+  EmailVerifyRequest,
   ForgotPasswordRequest,
+  MobileVerifyRequest,
   OtpResendRequest,
   OtpVerifyRequest,
   RegistrationRequest,
   RegistrationResponse,
   ResetPasswordRequest,
+  VerificationStatusResponse,
 } from '../types/api';
 
 const BASE = '/api/v1/identity';
@@ -23,17 +26,42 @@ export const authService = {
     return unwrap(await api.post(`${BASE}/register`, request));
   },
 
-  /** Verify email/mobile OTP and activate the account. Returns JWT tokens. */
+  /** Verify candidate Email OTP. Returns verification status. */
+  async verifyEmail(request: EmailVerifyRequest): Promise<VerificationStatusResponse> {
+    return unwrap(await api.post(`${BASE}/verify/email`, request));
+  },
+
+  /** Verify candidate Mobile OTP. Returns verification status. */
+  async verifyMobile(request: MobileVerifyRequest): Promise<VerificationStatusResponse> {
+    return unwrap(await api.post(`${BASE}/verify/mobile`, request));
+  },
+
+  /** Get candidate verification status and weekly SMS count. */
+  async getVerificationStatus(userId: string): Promise<VerificationStatusResponse> {
+    return unwrap(await api.get(`${BASE}/verification-status?userId=${encodeURIComponent(userId)}`));
+  },
+
+  /** Resend Email verification OTP (independent of SMS). */
+  async resendEmailOtp(userId: string): Promise<void> {
+    await api.post(`${BASE}/resend/email-otp`, { userId });
+  },
+
+  /** Resend SMS verification OTP (MSG91, weekly rate limited). */
+  async resendSmsOtp(userId: string): Promise<void> {
+    await api.post(`${BASE}/resend/sms-otp`, { userId });
+  },
+
+  /** Verify OTP and activate the account (backward-compatible). Returns JWT tokens. */
   async verifyOtp(request: OtpVerifyRequest): Promise<AuthTokenResponse> {
     return unwrap(await api.post(`${BASE}/otp/verify`, request));
   },
 
-  /** Re-send OTP to the candidate's registered email and mobile. */
+  /** Re-send OTP (backward-compatible). */
   async resendOtp(request: OtpResendRequest): Promise<void> {
     await api.post(`${BASE}/otp/resend`, request);
   },
 
-  /** Authenticate with username/password. Returns JWT tokens. */
+  /** Authenticate with username/password and optional MFA/TOTP. Returns JWT tokens. */
   async login(request: AuthTokenRequest): Promise<AuthTokenResponse> {
     return unwrap(await api.post(`${BASE}/auth/token`, request));
   },

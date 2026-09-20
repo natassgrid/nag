@@ -13,7 +13,7 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
  * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU标识 Affero General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
 
@@ -22,16 +22,23 @@ package com.examplatform.identity.controller;
 import com.examplatform.identity.dto.AuthTokenRequest;
 import com.examplatform.identity.dto.AuthTokenResponse;
 import com.examplatform.identity.dto.ChangePasswordRequest;
+import com.examplatform.identity.dto.EmailVerifyRequest;
+import com.examplatform.identity.dto.MobileVerifyRequest;
 import com.examplatform.identity.dto.OtpResendRequest;
 import com.examplatform.identity.dto.OtpVerifyRequest;
 import com.examplatform.identity.dto.RefreshTokenRequest;
 import com.examplatform.identity.dto.RegistrationRequest;
 import com.examplatform.identity.dto.RegistrationResponse;
 import com.examplatform.identity.dto.ReviewerResponse;
+import com.examplatform.identity.dto.TotpSetupResponse;
+import com.examplatform.identity.dto.TotpVerifySetupRequest;
 import com.examplatform.identity.dto.UserAccountResponse;
+import com.examplatform.identity.dto.VerificationStatusResponse;
 import com.examplatform.identity.dto.WebAuthnAssertionRequest;
 import com.examplatform.identity.exception.AccountNotFoundException;
+import com.examplatform.identity.service.AdminInvitationService;
 import com.examplatform.identity.service.AuthenticationService;
+import com.examplatform.identity.service.CandidateVerificationService;
 import com.examplatform.identity.service.OtpVerificationService;
 import com.examplatform.identity.service.RegistrationService;
 import com.examplatform.identity.service.RoleManagementService;
@@ -60,7 +67,6 @@ import java.util.UUID;
 
 /**
  * REST controller for the Identity Service.
- * Full business logic is implemented in tasks 2.2–2.8.
  */
 @Slf4j
 @RestController
@@ -70,15 +76,14 @@ public class IdentityController {
 
     private final RegistrationService registrationService;
     private final OtpVerificationService otpVerificationService;
+    private final CandidateVerificationService candidateVerificationService;
+    private final AdminInvitationService adminInvitationService;
     private final AuthenticationService authenticationService;
     private final WebAuthnService webAuthnService;
     private final RoleManagementService roleManagementService;
 
     /**
      * List all user accounts for the given tenant (admin only).
-     *
-     * @param tenantId tenant identifier from request header
-     * @return list of user accounts with roles
      */
     @GetMapping("/users")
     @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'SECURITY_ADMIN')")
@@ -91,10 +96,6 @@ public class IdentityController {
 
     /**
      * List reviewers and SMEs matching a given subject and tenant.
-     *
-     * @param subject  optional subject filter
-     * @param tenantId tenant identifier from request header
-     * @return list of matching reviewers
      */
     @GetMapping("/reviewers")
     public ResponseEntity<ApiResponse<List<ReviewerResponse>>> getReviewers(
@@ -107,10 +108,6 @@ public class IdentityController {
 
     /**
      * Initiate candidate registration.
-     *
-     * @param request  registration payload with identity document and contact details
-     * @param tenantId tenant identifier from request header
-     * @return 202 Accepted with acknowledgement
      */
     @PostMapping("/register")
     public ResponseEntity<ApiResponse<RegistrationResponse>> register(
@@ -122,16 +119,86 @@ public class IdentityController {
         RegistrationResponse response = registrationService.register(request, tenantId);
         log.debug("Registration completed in {}ms for tenant [{}]", System.currentTimeMillis() - start, tenantId);
         return ResponseEntity.accepted()
-                .body(ApiResponse.success(response, "Registration initiated. OTP sent to registered mobile."));
+                .body(ApiResponse.success(response, "Registration initiated. Verification OTP sent to email and mobile."));
     }
 
     /**
-     * Verify OTP and activate the pending account.
-     * Issues JWT access + refresh tokens via Keycloak on success.
-     *
-     * @param request  OTP verification payload
-     * @param tenantId tenant identifier from request header
-     * @return 200 OK with JWT tokens
+     * Verify Email OTP for candidate.
+     */
+    @PostMapping({"/verify/email", "/auth/verify/email"})
+    public ResponseEntity<ApiResponse<VerificationStatusResponse>> verifyEmail(
+            @Valid @RequestBody EmailVerifyRequest request,
+            @RequestHeader(value = "X-Tenant-Id", defaultValue = "default") String tenantId) {
+        log.debug("Candidate email OTP verification request for userId [{}], tenant [{}]", request.getUserId(), tenantId);
+        VerificationStatusResponse response = candidateVerificationService.verifyEmailOtp(request, tenantId);
+        return ResponseEntity.ok(ApiResponse.success(response, "Email verified successfully."));
+    }
+
+    /**
+     * Verify Mobile OTP for candidate.
+     */
+    @PostMapping({"/verify/mobile", "/auth/verify/mobile"})
+    public ResponseEntity<ApiResponse<VerificationStatusResponse>> verifyMobile(
+            @Valid @RequestBody MobileVerifyRequest request,
+            @RequestHeader(value = "X-Tenant-Id", defaultValue = "default") String tenantId) {
+        log.debug("Candidate mobile OTP verification request for userId [{}], tenant [{}]", request.getUserId(), tenantId);
+        VerificationStatusResponse response = candidateVerificationService.verifyMobileOtp(request, tenantId);
+        return ResponseEntity.ok(ApiResponse.success(response, "Mobile number verified successfully."));
+    }
+
+    /**
+     * Get candidate verification status and remaining SMS count.
+     */
+    @GetMapping("/verification-status")
+    public ResponseEntity<ApiResponse<VerificationStatusResponse>> getVerificationStatus(
+            @RequestParam String userId,
+            @RequestHeader(value = "X-Tenant-Id", defaultValue = "default") String tenantId) {
+        UUID uid;
+        try {
+            uid = UUID.fromString(userId.trim());
+        } catch (IllegalArgumentException e) {
+            throw new AccountNotFoundException("Invalid user ID format: " + userId);
+        }
+        VerificationStatusResponse response = candidateVerificationService.getVerificationStatus(uid, tenantId);
+        return ResponseEntity.ok(ApiResponse.success(response, "Verification status retrieved successfully."));
+    }
+
+    /**
+     * Resend candidate Email OTP.
+     */
+    @PostMapping("/resend/email-otp")
+    public ResponseEntity<ApiResponse<Void>> resendEmailOtp(
+            @Valid @RequestBody OtpResendRequest request,
+            @RequestHeader(value = "X-Tenant-Id", defaultValue = "default") String tenantId) {
+        UUID userId;
+        try {
+            userId = UUID.fromString(request.getUserId().trim());
+        } catch (IllegalArgumentException e) {
+            throw new AccountNotFoundException("Invalid user ID format: " + request.getUserId());
+        }
+        registrationService.resendEmailOtp(userId, tenantId);
+        return ResponseEntity.ok(ApiResponse.success(null, "Email OTP resent successfully."));
+    }
+
+    /**
+     * Resend candidate SMS OTP.
+     */
+    @PostMapping("/resend/sms-otp")
+    public ResponseEntity<ApiResponse<Void>> resendSmsOtp(
+            @Valid @RequestBody OtpResendRequest request,
+            @RequestHeader(value = "X-Tenant-Id", defaultValue = "default") String tenantId) {
+        UUID userId;
+        try {
+            userId = UUID.fromString(request.getUserId().trim());
+        } catch (IllegalArgumentException e) {
+            throw new AccountNotFoundException("Invalid user ID format: " + request.getUserId());
+        }
+        registrationService.resendSmsOtp(userId, tenantId);
+        return ResponseEntity.ok(ApiResponse.success(null, "SMS OTP resent successfully."));
+    }
+
+    /**
+     * Verify OTP and activate the pending account (backward-compatible).
      */
     @PostMapping("/otp/verify")
     public ResponseEntity<ApiResponse<AuthTokenResponse>> verifyOtp(
@@ -143,13 +210,25 @@ public class IdentityController {
     }
 
     /**
+     * Resend OTP (backward-compatible).
+     */
+    @PostMapping("/otp/resend")
+    public ResponseEntity<ApiResponse<Void>> resendOtp(
+            @Valid @RequestBody OtpResendRequest request,
+            @RequestHeader(value = "X-Tenant-Id", defaultValue = "default") String tenantId) {
+        log.info("OTP resend request for userId [{}], tenant [{}]", request.getUserId(), tenantId);
+        UUID userId;
+        try {
+            userId = UUID.fromString(request.getUserId().trim());
+        } catch (IllegalArgumentException e) {
+            throw new AccountNotFoundException("Invalid user ID format: " + request.getUserId());
+        }
+        registrationService.resendOtp(userId, tenantId);
+        return ResponseEntity.ok(ApiResponse.success(null, "OTP resent successfully."));
+    }
+
+    /**
      * Authenticate with username/password and optional MFA OTP.
-     * Enforces device binding and single concurrent session per user.
-     *
-     * @param request        authentication credentials (username, password, optional OTP, optional device FP)
-     * @param tenantId       tenant identifier from request header
-     * @param servletRequest raw HTTP request used to extract client IP address
-     * @return 200 OK with JWT access and refresh tokens
      */
     @PostMapping("/auth/token")
     public ResponseEntity<ApiResponse<AuthTokenResponse>> token(
@@ -164,12 +243,6 @@ public class IdentityController {
 
     /**
      * Refresh JWT access token using a valid refresh token.
-     * Extends active session lifetime and rotates refresh token.
-     *
-     * @param request        refresh token payload
-     * @param tenantId       tenant identifier from request header
-     * @param servletRequest raw HTTP request used to extract client IP address
-     * @return 200 OK with refreshed JWT tokens
      */
     @PostMapping({"/auth/token/refresh", "/auth/refresh"})
     public ResponseEntity<ApiResponse<AuthTokenResponse>> refreshToken(
@@ -184,12 +257,6 @@ public class IdentityController {
 
     /**
      * Authenticate using WebAuthn / FIDO2 assertion.
-     * Verifies authenticator assertion and issues JWT tokens.
-     *
-     * @param request        WebAuthn assertion payload from the client authenticator
-     * @param tenantId       tenant identifier from request header
-     * @param servletRequest raw HTTP request used to extract client IP address
-     * @return 200 OK with JWT access and refresh tokens
      */
     @PostMapping("/auth/webauthn")
     public ResponseEntity<ApiResponse<AuthTokenResponse>> webAuthn(
@@ -204,14 +271,39 @@ public class IdentityController {
     }
 
     /**
-     * Change password for the authenticated candidate.
-     * Requires the current password as verification before updating to the new one.
-     * Supports both POST and PUT methods at /auth/change-password.
-     *
-     * @param request  the change password request (currentPassword + newPassword)
-     * @param jwt      the authenticated user's JWT
-     * @param tenantId the tenant identifier
-     * @return 200 OK on success
+     * Initiate TOTP 2FA setup (returns secret, otpauth URI, backup codes).
+     */
+    @PostMapping("/auth/2fa/setup")
+    public ResponseEntity<ApiResponse<TotpSetupResponse>> setup2fa(
+            @RequestParam(required = false) String username,
+            @AuthenticationPrincipal Jwt jwt) {
+        String targetUsername = (jwt != null) ? jwt.getClaimAsString("preferred_username") : username;
+        if (targetUsername == null || targetUsername.isBlank()) {
+            targetUsername = (jwt != null) ? jwt.getSubject() : "admin-user";
+        }
+        TotpSetupResponse setup = adminInvitationService.generateTotpSetup(targetUsername);
+        return ResponseEntity.ok(ApiResponse.success(setup, "TOTP 2FA setup credentials generated."));
+    }
+
+    /**
+     * Verify and activate TOTP 2FA setup for user.
+     */
+    @PostMapping("/auth/2fa/verify-setup")
+    public ResponseEntity<ApiResponse<Void>> verify2faSetup(
+            @Valid @RequestBody TotpVerifySetupRequest request,
+            @AuthenticationPrincipal Jwt jwt,
+            @RequestHeader(value = "X-Tenant-Id", defaultValue = "default") String tenantId) {
+        String userIdStr = (jwt != null) ? jwt.getSubject() : request.getUserId();
+        if (userIdStr == null || userIdStr.isBlank()) {
+            throw new AccountNotFoundException("User ID is required to enable 2FA.");
+        }
+        UUID userId = UUID.fromString(userIdStr.trim());
+        adminInvitationService.verifyAndEnableTotp(userId, request, tenantId);
+        return ResponseEntity.ok(ApiResponse.success(null, "2FA TOTP configured and activated successfully."));
+    }
+
+    /**
+     * Change password for the authenticated user.
      */
     @RequestMapping(
             value = "/auth/change-password",
@@ -232,37 +324,7 @@ public class IdentityController {
     }
 
     /**
-     * Resend OTP to a candidate awaiting verification.
-     *
-     * @param request  the resend request (userId)
-     * @param tenantId the tenant identifier
-     * @return 200 OK confirming OTP was sent
-     */
-    @PostMapping("/otp/resend")
-    public ResponseEntity<ApiResponse<Void>> resendOtp(
-            @Valid @RequestBody OtpResendRequest request,
-            @RequestHeader(value = "X-Tenant-Id", defaultValue = "default") String tenantId) {
-
-        log.info("OTP resend request for userId [{}], tenant [{}]", request.getUserId(), tenantId);
-
-        UUID userId;
-        try {
-            userId = UUID.fromString(request.getUserId().trim());
-        } catch (IllegalArgumentException e) {
-            throw new AccountNotFoundException("Invalid user ID format: " + request.getUserId());
-        }
-
-        registrationService.resendOtp(userId, tenantId);
-
-        return ResponseEntity.ok(ApiResponse.success(null, "OTP resent successfully."));
-    }
-
-    /**
      * Logout: revoke active sessions and refresh tokens.
-     *
-     * @param jwt      the authenticated user's JWT
-     * @param tenantId the tenant identifier
-     * @return 200 OK confirming logout
      */
     @DeleteMapping("/auth/logout")
     @PreAuthorize("isAuthenticated()")

@@ -107,7 +107,8 @@ class RegistrationServiceTest {
             // then
             assertAll(
                     () -> assertThat(response.getMessage()).isNotBlank(),
-                    () -> verify(otpService).sendOtp(any(), any(), any())
+                    () -> verify(otpService).sendEmailOtp(any(), any(), any(), any(), any()),
+                    () -> verify(otpService).sendSmsOtp(any(), any(), any(), any())
             );
         }
 
@@ -234,7 +235,7 @@ class RegistrationServiceTest {
 
             registrationService.resendOtp(userId, tenantId);
 
-            verify(otpService).sendOtp(eq(userId), eq("mobilehash123"), eq(null));
+            verify(otpService).sendSmsOtp(eq(userId), eq("mobilehash123"), eq(null), eq(tenantId));
         }
 
         @Test
@@ -246,7 +247,7 @@ class RegistrationServiceTest {
                     .isInstanceOf(AccountNotFoundException.class)
                     .hasMessageContaining("Account not found for user");
 
-            verify(otpService, never()).sendOtp(any(), any(), any());
+            verify(otpService, never()).sendSmsOtp(any(), any(), any(), any());
         }
 
         @Test
@@ -264,7 +265,7 @@ class RegistrationServiceTest {
                     .isInstanceOf(AccountNotFoundException.class)
                     .hasMessageContaining("No account found for user in this tenant");
 
-            verify(otpService, never()).sendOtp(any(), any(), any());
+            verify(otpService, never()).sendSmsOtp(any(), any(), any(), any());
         }
 
         @Test
@@ -282,7 +283,7 @@ class RegistrationServiceTest {
                     .isInstanceOf(InvalidOtpException.class)
                     .hasMessageContaining("Account is already verified");
 
-            verify(otpService, never()).sendOtp(any(), any(), any());
+            verify(otpService, never()).sendSmsOtp(any(), any(), any(), any());
         }
     }
 }

@@ -32,6 +32,7 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
+
 /**
  * Global exception handler for the Identity Service.
  * Translates exceptions into RFC 7807 {@link ProblemDetail} responses.
@@ -152,6 +153,22 @@ public class GlobalExceptionHandler {
     }
 
     /**
+     * Handle TOTP validation failure.
+     * Returns HTTP 422 Unprocessable Entity.
+     *
+     * @param ex the invalid TOTP exception
+     * @return 422 Unprocessable Entity with problem detail
+     */
+    @ExceptionHandler(InvalidTotpException.class)
+    public ResponseEntity<ProblemDetail> handleInvalidTotp(InvalidTotpException ex) {
+        ProblemDetail pd = ProblemDetailBuilder.forStatus(HttpStatus.UNPROCESSABLE_ENTITY)
+                .withTitle("Invalid TOTP")
+                .withDetail(ex.getMessage())
+                .build();
+        return ResponseEntity.status(HttpStatus.UNPROCESSABLE_ENTITY).body(pd);
+    }
+
+    /**
      * Handle account not found (no matching pending account for the mobile number).
      * Returns HTTP 404 Not Found.
      *
@@ -165,6 +182,38 @@ public class GlobalExceptionHandler {
                 .withDetail(ex.getMessage())
                 .build();
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(pd);
+    }
+
+    /**
+     * Handle invitation not found.
+     * Returns HTTP 404 Not Found.
+     *
+     * @param ex the invitation not found exception
+     * @return 404 Not Found with problem detail
+     */
+    @ExceptionHandler(InvitationNotFoundException.class)
+    public ResponseEntity<ProblemDetail> handleInvitationNotFound(InvitationNotFoundException ex) {
+        ProblemDetail pd = ProblemDetailBuilder.forStatus(HttpStatus.NOT_FOUND)
+                .withTitle("Invitation Not Found")
+                .withDetail(ex.getMessage())
+                .build();
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(pd);
+    }
+
+    /**
+     * Handle invitation expired or invalid state.
+     * Returns HTTP 400 Bad Request.
+     *
+     * @param ex the invitation expired exception
+     * @return 400 Bad Request with problem detail
+     */
+    @ExceptionHandler(InvitationExpiredException.class)
+    public ResponseEntity<ProblemDetail> handleInvitationExpired(InvitationExpiredException ex) {
+        ProblemDetail pd = ProblemDetailBuilder.forStatus(HttpStatus.BAD_REQUEST)
+                .withTitle("Invitation Expired")
+                .withDetail(ex.getMessage())
+                .build();
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(pd);
     }
 
     /**
@@ -184,6 +233,31 @@ public class GlobalExceptionHandler {
         log.warn("Rate limit exceeded: {}", ex.getMessage());
         return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
                 .header("Retry-After", "60")
+                .body(pd);
+    }
+
+    /**
+     * Handle weekly SMS rate limit exceeded (max 3 per 7-day rolling window).
+     * Returns HTTP 429 Too Many Requests with next available time.
+     *
+     * @param ex the SMS rate limit exceeded exception
+     * @return 429 Too Many Requests with problem detail and Retry-After
+     */
+    @ExceptionHandler(SmsRateLimitExceededException.class)
+    public ResponseEntity<ProblemDetail> handleSmsRateLimitExceeded(SmsRateLimitExceededException ex) {
+        ProblemDetailBuilder builder = ProblemDetailBuilder.forStatus(HttpStatus.TOO_MANY_REQUESTS)
+                .withTitle("SMS Rate Limit Exceeded")
+                .withDetail(ex.getMessage())
+                .withProperty("retryAfterSeconds", ex.getRetryAfterSeconds());
+
+        if (ex.getNextAvailableAt() != null) {
+            builder.withProperty("nextAvailableAt", ex.getNextAvailableAt().toString());
+        }
+
+        ProblemDetail pd = builder.build();
+        log.warn("SMS rate limit exceeded: {}", ex.getMessage());
+        return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
+                .header("Retry-After", String.valueOf(ex.getRetryAfterSeconds()))
                 .body(pd);
     }
 

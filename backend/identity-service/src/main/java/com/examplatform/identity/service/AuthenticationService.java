@@ -41,7 +41,6 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.Map;
-import java.util.Optional;
 import java.util.UUID;
 
 /**
@@ -58,17 +57,18 @@ public class AuthenticationService {
 
     private final UserAccountRepository userAccountRepository;
     private final ActiveSessionRepository activeSessionRepository;
-    private final HashingService hashingService;
     private final KeycloakService keycloakService;
+    private final HashingService hashingService;
     private final OtpService otpService;
+    private final TotpService totpService;
+    private final RiskAssessmentService riskAssessmentService;
+    private final AccountLockoutService accountLockoutService;
+    private final DynamicConfigService dynamicConfigService;
     private final AuditEventPublisher auditEventPublisher;
     private final AppSecurityProperties appSecurityProperties;
-    private final AccountLockoutService accountLockoutService;
-    private final RiskAssessmentService riskAssessmentService;
-    private final DynamicConfigService dynamicConfigService;
 
     /**
-     * Authenticate a user with username/password and optional MFA OTP.
+     * Authenticate a user with username/password and optional MFA OTP / TOTP 2FA.
      *
      * @param request   authentication credentials (username, password, optional OTP, optional device FP)
      * @param tenantId  the tenant the request belongs to
@@ -96,7 +96,9 @@ public class AuthenticationService {
             case DEACTIVATED ->
                 throw new AuthenticationException("Account has been deactivated.");
             case PENDING_VERIFICATION ->
-                throw new AuthenticationException("Account not yet verified. Please complete OTP verification.");
+                throw new AuthenticationException("Account not yet verified. Please complete verification.");
+            case PENDING_SETUP ->
+                throw new AuthenticationException("Account setup is pending. Please use your email invitation link.");
             case ACTIVE -> { /* proceed */ }
             default ->
                 throw new AuthenticationException("Invalid credentials");
@@ -120,20 +122,44 @@ public class AuthenticationService {
         account.setFailedAttemptCount(0);
         account.setLastFailedAt(null);
 
-        // 3b. Global MFA Enforcement or Step-up authentication on risk signal
+        // 3b. Global MFA Enforcement, TOTP 2FA, or Step-up authentication on risk signal
         boolean globalMfaEnforced = dynamicConfigService.getBoolean(
                 "auth.mfa.enforced", tenantId, appSecurityProperties.isMfaEnabled());
 
-        if (globalMfaEnforced || account.isMfaEnabled()) {
+        if (globalMfaEnforced || account.isMfaEnabled() || account.getTotpSecret() != null) {
             String otpCode = request.getOtpCode();
-            String mobileHash = account.getMobileHash() != null ? account.getMobileHash() : hashingService.sha256(request.getUsername().toLowerCase().trim());
             if (otpCode == null || otpCode.isBlank()) {
-                otpService.sendOtp(account.getId(), mobileHash, null);
-                throw new MfaRequiredException("MFA required. Please provide OTP code.");
+                if (account.getTotpSecret() == null) {
+                    String mobileHash = account.getMobileHash() != null ? account.getMobileHash() : hashingService.sha256(request.getUsername().toLowerCase().trim());
+                    otpService.sendOtp(account.getId(), mobileHash, null);
+                }
+                throw new MfaRequiredException("2FA / MFA required. Please provide your authenticator OTP code.");
             }
-            boolean otpValid = otpService.verifyOtp(mobileHash, otpCode);
-            if (!otpValid) {
-                throw new AuthenticationException("Invalid MFA code.");
+
+            boolean mfaValid = false;
+
+            // 1. Check TOTP Secret if configured
+            if (account.getTotpSecret() != null && !account.getTotpSecret().isBlank()) {
+                mfaValid = totpService.verifyTotpCode(account.getTotpSecret(), otpCode);
+                // 2. Check Backup codes
+                if (!mfaValid && account.getBackupCodes() != null) {
+                    String remainingBackupCodes = totpService.validateAndConsumeBackupCode(otpCode, account.getBackupCodes());
+                    if (remainingBackupCodes != null) {
+                        mfaValid = true;
+                        account.setBackupCodes(remainingBackupCodes);
+                        log.info("Backup recovery code used for user [{}]", account.getId());
+                    }
+                }
+            }
+
+            // 3. Fallback to SMS OTP if TOTP was not matched
+            if (!mfaValid) {
+                String mobileHash = account.getMobileHash() != null ? account.getMobileHash() : hashingService.sha256(request.getUsername().toLowerCase().trim());
+                mfaValid = otpService.verifyOtp(mobileHash, otpCode);
+            }
+
+            if (!mfaValid) {
+                throw new AuthenticationException("Invalid MFA code / 2FA verification failed.");
             }
         } else {
             // Risk-based step-up evaluation only when step-up is explicitly enabled in config
@@ -149,7 +175,7 @@ public class AuthenticationService {
                 }
                 boolean otpValid = otpService.verifyOtp(mobileHash, otpCode);
                 if (!otpValid) {
-                    throw new AuthenticationException("Invalid MFA code.");
+                    throw new AuthenticationException("Invalid MFA code / 2FA verification failed.");
                 }
             }
         }

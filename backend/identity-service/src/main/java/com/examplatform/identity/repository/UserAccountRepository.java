@@ -42,5 +42,7 @@ public interface UserAccountRepository extends JpaRepository<UserAccount, UUID> 
 
     Optional<UserAccount> findByUsernameIgnoreCaseAndTenantId(String username, String tenantId);
 
+    Optional<UserAccount> findByUsernameAndTenantId(String username, String tenantId);
+
     List<UserAccount> findByTenantId(String tenantId);
 }

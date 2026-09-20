@@ -22,32 +22,32 @@
 
     <!-- Glassmorphic Card -->
     <div class="login-card">
-      <h2 id="login-heading" class="card-title">{{ mfaRequired ? 'Multi-Factor Verification' : 'Sign in to your account' }}</h2>
+      <h2 id="login-heading" class="card-title">{{ mfaRequired ? 'Multi-Factor Verification (2FA)' : 'Sign in to your account' }}</h2>
 
       <!-- Step-up / MFA Banner -->
       <div *ngIf="mfaRequired" class="mfa-banner" style="background: rgba(30, 64, 175, 0.1); border: 1px solid rgba(59, 130, 246, 0.3); border-radius: 8px; padding: 12px 16px; margin-bottom: 20px; display: flex; align-items: center; gap: 12px;">
         <mat-icon style="color: #3b82f6;">security</mat-icon>
         <p style="margin: 0; font-size: 0.875rem; color: #1e3a8a; line-height: 1.4;">
-          {{ mfaPromptMessage || 'Enter the 6-digit OTP code to complete authentication.' }}
+          {{ mfaPromptMessage || 'Enter the 6-digit code from your authenticator app or emergency backup code.' }}
         </p>
       </div>
 
       <form [formGroup]="loginForm" (ngSubmit)="onSubmit()" aria-label="Login form" class="login-form">
         <div class="form-group" [style.display]="mfaRequired ? 'none' : 'block'">
-          <label class="input-label" for="username-input">Email or Mobile Number</label>
+          <label class="input-label" for="username-input">Email Address</label>
           <input
             id="username-input"
             formControlName="username"
             type="text"
             autocomplete="username"
-            placeholder="you@example.com or 9876543210"
+            placeholder="admin@exam-platform.gov.in"
             aria-required="true"
             [attr.aria-invalid]="loginForm.get('username')?.invalid && loginForm.get('username')?.touched"
             class="candidate-input"
             [class.has-error]="loginForm.get('username')?.invalid && loginForm.get('username')?.touched"
           />
           <p class="input-error" *ngIf="loginForm.get('username')?.invalid && loginForm.get('username')?.touched">
-            Username or email is required
+            Email is required
           </p>
         </div>
 
@@ -79,25 +79,23 @@
           </p>
         </div>
 
-        <!-- OTP Input (shown when MFA or step-up authentication is triggered) -->
+        <!-- OTP / TOTP Input -->
         <div *ngIf="mfaRequired" class="form-group">
-          <label class="input-label" for="otp-input">6-Digit Verification Code (OTP)</label>
+          <label class="input-label" for="otp-input">Authenticator Code (TOTP) or Backup Code</label>
           <input
             id="otp-input"
             formControlName="otpCode"
             type="text"
-            inputmode="numeric"
-            maxlength="6"
             autocomplete="one-time-code"
-            placeholder="e.g. 123456"
+            placeholder="e.g. 123456 or XXXX-XXXX"
             aria-required="true"
             [attr.aria-invalid]="loginForm.get('otpCode')?.invalid && loginForm.get('otpCode')?.touched"
             class="candidate-input"
-            style="letter-spacing: 4px; font-size: 1.25rem; font-weight: 600; text-align: center;"
+            style="letter-spacing: 2px; font-size: 1.15rem; font-weight: 600; text-align: center;"
             [class.has-error]="loginForm.get('otpCode')?.invalid && loginForm.get('otpCode')?.touched"
           />
           <p class="input-error" *ngIf="loginForm.get('otpCode')?.invalid && loginForm.get('otpCode')?.touched">
-            Please enter a valid 6-digit numeric OTP
+            Please enter your 6-digit TOTP code or backup code
           </p>
         </div>
 
@@ -127,11 +125,10 @@
         </button>
       </form>
 
-      <div *ngIf="!mfaRequired" class="auth-links">
-        <span class="auth-hint">Don't have an account?</span>
-        <a [routerLink]="['/auth/register']" class="register-link" aria-label="Register here">
-          Register here
-        </a>
+      <div *ngIf="!mfaRequired" class="auth-links" style="justify-content: center; text-align: center; margin-top: 16px;">
+        <span class="auth-hint" style="color: #64748b; font-size: 0.8125rem;">
+          Staff and Administrator access is by invitation only.
+        </span>
       </div>
     </div>
   </div>

@@ -1,13 +1,38 @@
+<!--
+  SPDX-License-Identifier: AGPL-3.0-only
+
+  National Assessment Grid (NAG) - Open Digital Public Infrastructure (DPI) Platform
+  Copyright (C) 2025 NAG Contributors
+
+  This program is free software: you can redistribute it and/or modify
+  it under the terms of the GNU Affero General Public License as published
+  by the Free Software Foundation, version 3 of the License.
+
+  This program is distributed in the hope that it will be useful,
+  but WITHOUT ANY WARRANTY; without even the implied warranty of
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+  GNU Affero General Public License for more details.
+
+  You should have received a copy of the GNU Affero General Public License
+  along with this program. If not, see <https://www.gnu.org/licenses/>.
+-->
+
 <div class="page-layout" role="main" aria-labelledby="user-mgmt-heading">
   <app-page-header
     title="User Management"
-    subtitle="Create, edit, and manage platform user accounts and roles."
+    subtitle="Create, edit, invite, and manage platform user accounts and access roles."
     icon="people"
   >
-    <button mat-raised-button color="primary" (click)="openCreateDrawer()" aria-label="Create a new user">
-      <mat-icon>person_add</mat-icon>
-      Create User
-    </button>
+    <div class="header-actions">
+      <button mat-stroked-button color="primary" (click)="openInviteDrawer()" aria-label="Invite Administrator">
+        <mat-icon>mail</mat-icon>
+        Invite Administrator
+      </button>
+      <button mat-raised-button color="primary" (click)="openCreateDrawer()" aria-label="Create a new user">
+        <mat-icon>person_add</mat-icon>
+        Create User
+      </button>
+    </div>
   </app-page-header>
 
   <!-- Reusable Paginated Table -->
@@ -19,14 +44,14 @@
     [filterCategories]="filterCategories"
     (filterChange)="onFilterChange($event)"
     [actionsTemplate]="actionsTmpl"
-    searchPlaceholder="Filter by username, status, or role..."
+    searchPlaceholder="Filter by username, email, status, or role..."
   ></app-paginated-table>
 
   <!-- Status Column Custom Template -->
   <ng-template #statusTmpl let-user>
     <app-status-badge
-      [variant]="user?.accountStatus === 'ACTIVE' ? 'success' : 'neutral'"
-      [label]="user?.accountStatus === 'ACTIVE' ? 'Active' : 'Deactivated'"
+      [variant]="user?.accountStatus === 'ACTIVE' ? 'success' : (user?.accountStatus?.startsWith('PENDING') ? 'warn' : 'neutral')"
+      [label]="user?.accountStatus === 'ACTIVE' ? 'Active' : (user?.accountStatus === 'PENDING_SETUP' ? 'Pending Setup' : (user?.accountStatus === 'PENDING_VERIFICATION' ? 'Pending Verification' : 'Deactivated'))"
     ></app-status-badge>
   </ng-template>
 
@@ -65,6 +90,45 @@
       </button>
     </mat-menu>
   </ng-template>
+
+  <!-- ── RIGHT COLLAPSIBLE DRAWER: INVITE ADMINISTRATOR ── -->
+  <app-right-drawer
+    [isOpen]="inviteDrawerOpen()"
+    title="Invite Administrator"
+    subtitle="Send a secure time-limited invitation email with 2FA TOTP setup onboarding."
+    (close)="inviteDrawerOpen.set(false)"
+  >
+    <div drawer-body class="drawer-form-container">
+      <mat-form-field appearance="outline" class="full-width">
+        <mat-label>Full Name</mat-label>
+        <input matInput [ngModel]="inviteFullName()" (ngModelChange)="inviteFullName.set($event)" placeholder="e.g. Dr. John Doe" required />
+      </mat-form-field>
+
+      <mat-form-field appearance="outline" class="full-width">
+        <mat-label>Official Email Address</mat-label>
+        <input matInput type="email" [ngModel]="inviteEmail()" (ngModelChange)="inviteEmail.set($event)" placeholder="e.g. jdoe@natassgrid.gov.in" required />
+      </mat-form-field>
+
+      <mat-form-field appearance="outline" class="full-width">
+        <mat-label>Specialization / Department (Optional)</mat-label>
+        <input matInput [ngModel]="inviteSpecialization()" (ngModelChange)="inviteSpecialization.set($event)" placeholder="e.g. Physics / Higher Education" />
+      </mat-form-field>
+
+      <mat-form-field appearance="outline" class="full-width">
+        <mat-label>Assigned Administrative Roles</mat-label>
+        <mat-select [ngModel]="inviteRoles()" (ngModelChange)="inviteRoles.set($event)" multiple>
+          <mat-option *ngFor="let role of availableRoles" [value]="role">{{ role }}</mat-option>
+        </mat-select>
+      </mat-form-field>
+    </div>
+
+    <div drawer-footer>
+      <button mat-button (click)="inviteDrawerOpen.set(false)">Cancel</button>
+      <button mat-raised-button color="primary" [disabled]="!isInviteValid() || saving()" (click)="sendAdminInvite()">
+        Send Invitation
+      </button>
+    </div>
+  </app-right-drawer>
 
   <!-- ── RIGHT COLLAPSIBLE DRAWER: CREATE USER ── -->
   <app-right-drawer

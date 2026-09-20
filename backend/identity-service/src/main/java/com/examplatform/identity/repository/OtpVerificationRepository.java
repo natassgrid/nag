@@ -21,8 +21,11 @@ package com.examplatform.identity.repository;
 
 import com.examplatform.identity.domain.OtpVerification;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.time.LocalDateTime;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -30,4 +33,25 @@ import java.util.UUID;
 public interface OtpVerificationRepository extends JpaRepository<OtpVerification, UUID> {
 
     Optional<OtpVerification> findTopByMobileHashAndVerifiedFalseOrderByCreatedAtDesc(String mobileHash);
+
+    Optional<OtpVerification> findTopByUserIdAndOtpTypeAndVerifiedFalseOrderByCreatedAtDesc(UUID userId, String otpType);
+
+    Optional<OtpVerification> findTopByEmailHashAndOtpTypeAndVerifiedFalseOrderByCreatedAtDesc(String emailHash, String otpType);
+
+    Optional<OtpVerification> findTopByMobileHashAndOtpTypeAndVerifiedFalseOrderByCreatedAtDesc(String mobileHash, String otpType);
+
+    @Query("SELECT COUNT(o) FROM OtpVerification o WHERE o.userId = :userId AND o.channel = :channel AND o.createdAt >= :after")
+    long countByUserIdAndChannelAndCreatedAtAfter(@Param("userId") UUID userId,
+                                                 @Param("channel") String channel,
+                                                 @Param("after") LocalDateTime after);
+
+    @Query("SELECT COUNT(o) FROM OtpVerification o WHERE o.mobileHash = :mobileHash AND o.channel = :channel AND o.createdAt >= :after")
+    long countByMobileHashAndChannelAndCreatedAtAfter(@Param("mobileHash") String mobileHash,
+                                                     @Param("channel") String channel,
+                                                     @Param("after") LocalDateTime after);
+
+    @Query("SELECT MIN(o.createdAt) FROM OtpVerification o WHERE o.userId = :userId AND o.channel = :channel AND o.createdAt >= :after")
+    Optional<LocalDateTime> findOldestSmsInWindow(@Param("userId") UUID userId,
+                                                 @Param("channel") String channel,
+                                                 @Param("after") LocalDateTime after);
 }

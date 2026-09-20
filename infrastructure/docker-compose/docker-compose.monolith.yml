@@ -8,7 +8,7 @@
 # Consolidates all 14 domain microservices + audit into 1 JVM Spring Boot runtime.
 # Memory requirement: ~1 GB RAM (runs comfortably on 2 GB - 4 GB VMs).
 # Zero external message broker (Kafka/RabbitMQ not needed; uses in-memory Spring events).
-# Optionally supports RabbitMQ via `PLATFORM_MESSAGING_BROKER=rabbit --profile rabbit`.
+# Optionally supports RabbitMQ via `PLATFORM_MESSAGING_BROKER=rabbit --profile rabbit``.
 #
 # Usage:
 #   docker compose -f docker-compose.yml -f docker-compose.monolith.yml up --build
@@ -57,6 +57,8 @@ services:
   # ===========================================================================
   monolith-app:
     restart: unless-stopped
+    env_file:
+      - .env
     build:
       context: ../../
       dockerfile: backend/Dockerfile
@@ -90,6 +92,30 @@ services:
       MANAGEMENT_HEALTH_KAFKA_ENABLED: "false"
       MANAGEMENT_HEALTH_RABBIT_ENABLED: "${MANAGEMENT_HEALTH_RABBIT_ENABLED:-false}"
       MANAGEMENT_HEALTH_MAIL_ENABLED: "false"
+      # Email / SMTP Configuration
+      SMTP_HOST: ${SMTP_HOST:-${MAIL_HOST:-smtp.gmail.com}}
+      SMTP_PORT: ${SMTP_PORT:-${MAIL_PORT:-587}}
+      SMTP_USERNAME: ${SMTP_USERNAME:-${MAIL_USERNAME:-}}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-${MAIL_PASSWORD:-}}
+      SMTP_FROM: ${SMTP_FROM:-${MAIL_FROM:-noreply@natassgrid.gov.in}}
+      MAIL_HOST: ${MAIL_HOST:-${SMTP_HOST:-smtp.gmail.com}}
+      MAIL_PORT: ${MAIL_PORT:-${SMTP_PORT:-587}}
+      MAIL_USERNAME: ${MAIL_USERNAME:-${SMTP_USERNAME:-}}
+      MAIL_PASSWORD: ${MAIL_PASSWORD:-${SMTP_PASSWORD:-}}
+      MAIL_FROM: ${MAIL_FROM:-${SMTP_FROM:-noreply@natassgrid.gov.in}}
+      SPRING_MAIL_HOST: ${SMTP_HOST:-${MAIL_HOST:-smtp.gmail.com}}
+      SPRING_MAIL_PORT: ${SMTP_PORT:-${MAIL_PORT:-587}}
+      SPRING_MAIL_USERNAME: ${SMTP_USERNAME:-${MAIL_USERNAME:-}}
+      SPRING_MAIL_PASSWORD: ${SMTP_PASSWORD:-${MAIL_PASSWORD:-}}
+      SPRING_MAIL_FROM: ${SMTP_FROM:-${MAIL_FROM:-noreply@natassgrid.gov.in}}
+      ADMIN_PORTAL_URL: ${ADMIN_PORTAL_URL:-http://localhost:4200}
+      CANDIDATE_PORTAL_URL: ${CANDIDATE_PORTAL_URL:-http://localhost:4300}
+      # SMS Gateway Configuration
+      SMS_ENABLED: ${SMS_ENABLED:-false}
+      MOBILE_VERIFICATION_REQUIRED: ${MOBILE_VERIFICATION_REQUIRED:-false}
+      MSG91_AUTH_KEY: ${MSG91_AUTH_KEY:-}
+      MSG91_TEMPLATE_ID: ${MSG91_TEMPLATE_ID:-}
+      MSG91_SENDER_ID: ${MSG91_SENDER_ID:-NAGGov}
       ASSET_STORAGE_PATH: /data/asset-storage
       SCORECARD_STORAGE_MODE: ${SCORECARD_STORAGE_MODE:-local}
       SCORECARD_STORAGE_PATH: ${SCORECARD_STORAGE_PATH:-/data/scorecards}
