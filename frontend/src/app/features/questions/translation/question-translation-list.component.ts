@@ -107,7 +107,7 @@ export class QuestionTranslationListComponent implements OnInit, OnDestroy {
   activeBatchJob: BatchTranslationJobResponse | null = null;
   private pollSub?: Subscription;
 
-  filterCategories: FilterCategory[] = [\
+  filterCategories: FilterCategory[] = [
     {
       key: 'targetLang',
       label: 'Translation Language',
