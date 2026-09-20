@@ -94,8 +94,8 @@ export class SmilesInputDialogComponent implements OnInit, AfterViewInit {
   renderError = '';
   selectedTabIndex = 0;
 
-  private drawerInstance: any = null;
-  private drawerLoading = false;
+  private smilesDrawerModule: any = null;
+  private moduleLoading = false;
 
   categories: SmilesCategory[] = [];
 
@@ -251,9 +251,18 @@ export class SmilesInputDialogComponent implements OnInit, AfterViewInit {
     }
 
     try {
-      const drawer = await this.getDrawer();
-      if (!drawer) {
+      const sdModule = await this.getSmilesDrawerModule();
+      if (!sdModule) {
         this.renderError = 'SmilesDrawer renderer is loading...';
+        this.cdr.markForCheck();
+        return;
+      }
+
+      const SmilesDrawer = sdModule.default ?? sdModule;
+      const Drawer = SmilesDrawer.Drawer ?? sdModule.Drawer;
+
+      if (!Drawer) {
+        this.renderError = 'SmilesDrawer renderer unavailable';
         this.cdr.markForCheck();
         return;
       }
@@ -264,58 +273,56 @@ export class SmilesInputDialogComponent implements OnInit, AfterViewInit {
         ctx.clearRect(0, 0, canvas.width, canvas.height);
       }
 
-      if (typeof drawer.draw === 'function') {
-        drawer.draw(trimmed, canvas, this.theme, false);
-      } else if (typeof drawer.drawToCanvas === 'function') {
-        drawer.drawToCanvas(trimmed, canvas, this.theme);
-      } else if (typeof drawer.parse === 'function') {
-        const tree = drawer.parse(trimmed);
-        if (tree) {
-          drawer.draw(tree, canvas, this.theme, false);
-        }
-      }
+      const drawer = new Drawer({
+        width: this.width,
+        height: this.height,
+        compactDrawing: false
+      });
 
-      this.renderError = '';
+      if (typeof SmilesDrawer.parse === 'function') {
+        SmilesDrawer.parse(
+          trimmed,
+          (tree: any) => {
+            try {
+              drawer.draw(tree, canvas, this.theme, false);
+              this.renderError = '';
+              this.cdr.markForCheck();
+            } catch (drawErr: any) {
+              this.renderError = drawErr?.message || 'Error rendering 2D structure';
+              this.cdr.markForCheck();
+            }
+          },
+          (parseErr: any) => {
+            this.renderError = parseErr?.message || 'Invalid SMILES chemical notation';
+            this.cdr.markForCheck();
+          }
+        );
+      } else if (SmilesDrawer.Parser?.parse) {
+        const tree = SmilesDrawer.Parser.parse(trimmed);
+        drawer.draw(tree, canvas, this.theme, false);
+        this.renderError = '';
+        this.cdr.markForCheck();
+      }
     } catch (e: any) {
       this.renderError = e?.message || 'Invalid SMILES chemical notation';
+      this.cdr.markForCheck();
     }
-
-    this.cdr.markForCheck();
   }
 
-  private async getDrawer(): Promise<any> {
-    if (this.drawerInstance) {
-      // Update drawer dimensions
-      this.drawerInstance.opts = {
-        ...(this.drawerInstance.opts || {}),
-        width: this.width,
-        height: this.height
-      };
-      return this.drawerInstance;
-    }
-
-    if (this.drawerLoading) return null;
-    this.drawerLoading = true;
+  private async getSmilesDrawerModule(): Promise<any> {
+    if (this.smilesDrawerModule) return this.smilesDrawerModule;
+    if (this.moduleLoading) return null;
+    this.moduleLoading = true;
 
     try {
-      const sd: any = await import('smiles-drawer');
-      const SvgDrawer = sd.SvgDrawer ?? sd.default?.SvgDrawer;
-      const Drawer = sd.Drawer ?? sd.default?.Drawer ?? SvgDrawer ?? sd.default;
-
-      if (Drawer) {
-        this.drawerInstance = new Drawer({
-          width: this.width,
-          height: this.height,
-          compactDrawing: false
-        });
-      }
+      this.smilesDrawerModule = await import('smiles-drawer');
     } catch (err) {
-      console.warn('Could not load SmilesDrawer:', err);
+      console.warn('Could not load SmilesDrawer module:', err);
     } finally {
-      this.drawerLoading = false;
+      this.moduleLoading = false;
     }
 
-    return this.drawerInstance;
+    return this.smilesDrawerModule;
   }
 
   cancel(): void {

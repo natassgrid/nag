@@ -26,7 +26,7 @@ interface MathRendererProps {
 const NON_MATH_PATTERN =
   /\\{1,2}(begin|end)\\{(enumerate|itemize|document|figure|table|center)\\}|\\{1,2}item|\\{1,2}section|\\{1,2}subsection/;
 
-// ─── SMILES canvas component ──────────────────────────────────────────────────
+// ─── SMILES canvas component ──────────────────────────────────────────────
 
 interface SmilesCanvasProps {
   smiles: string;
@@ -63,29 +63,38 @@ const SmilesCanvas: React.FC<SmilesCanvasProps> = ({
         const sd: any = await import('smiles-drawer');
         if (cancelled) return;
 
-        const DrawerClass =
-          sd.SvgDrawer ??
-          sd.Drawer ??
-          sd.default?.SvgDrawer ??
-          sd.default?.Drawer ??
-          sd.default;
+        const SmilesDrawer = sd.default ?? sd;
+        const Drawer = SmilesDrawer.Drawer ?? sd.Drawer;
 
-        if (!DrawerClass) {
+        if (!Drawer) {
           setError('smiles-drawer not available');
           return;
         }
 
-        const drawer = new DrawerClass({ width, height, compactDrawing: false });
+        const drawer = new Drawer({ width, height, compactDrawing: false });
         const canvas = canvasRef.current;
         if (!canvas) return;
 
-        if (typeof drawer.draw === 'function') {
-          drawer.draw(smiles, canvas, theme, false);
-        } else if (typeof drawer.drawToCanvas === 'function') {
-          drawer.drawToCanvas(smiles, canvas, theme);
-        } else if (typeof drawer.parse === 'function') {
-          const tree = drawer.parse(smiles);
-          if (tree) drawer.draw(tree, canvas, theme, false);
+        if (typeof SmilesDrawer.parse === 'function') {
+          SmilesDrawer.parse(
+            smiles,
+            (tree: any) => {
+              if (cancelled) return;
+              try {
+                drawer.draw(tree, canvas, theme, false);
+                setError('');
+              } catch (err: any) {
+                setError(err?.message || 'Error drawing chemical structure');
+              }
+            },
+            (parseErr: any) => {
+              if (!cancelled) setError(parseErr?.message || 'Invalid SMILES');
+            }
+          );
+        } else if (SmilesDrawer.Parser?.parse) {
+          const tree = SmilesDrawer.Parser.parse(smiles);
+          drawer.draw(tree, canvas, theme, false);
+          setError('');
         }
       } catch (e: any) {
         if (!cancelled) setError(e?.message || 'Invalid SMILES');
@@ -152,7 +161,7 @@ const SmilesCanvas: React.FC<SmilesCanvasProps> = ({
   );
 };
 
-// ─── SMILES extraction ────────────────────────────────────────────────────────
+// ─── SMILES extraction ─────────────────────────────────────────────
 
 interface SmilesToken {
   placeholder: string;
@@ -174,7 +183,7 @@ function extractSmilesBlocks(text: string): { processedText: string; smilesToken
   let idx = 0;
 
   const processedText = text.replace(
-    /<smiles(?:\s+([^>]*?))?>([\s\S]*?)<\/smiles>(?:\s*<!--\s*(.*?)\s*-->)?/gi,
+    /<smiles(?:\s+([^>]*?))?>([\s\S]*?)<\/smiles>(?:\\s*<!--\\s*(.*?)\\s*-->)?/gi,
     (_match, rawAttrs: string | undefined, smiles: string, commentTitle?: string) => {
       const placeholder = `%%%NAG_SMILES_${idx++}%%%`;
       const attrs = rawAttrs || '';
@@ -203,19 +212,119 @@ function extractSmilesBlocks(text: string): { processedText: string; smilesToken
   return { processedText, smilesTokens };
 }
 
-// ─── Utility functions ────────────────────────────────────────────────────────
+// ─── SVG extraction ───────────────────────────────────────────────
 
-function unescapeNewlines(text: string): string {
+function extractSvgBlocks(text: string): { processedText: string; svgTokens: Map<string, string> } {
+  const svgTokens = new Map<string, string>();
+  let idx = 0;
+  const processedText = text.replace(/<svg[\s\S]*?<\/svg>/gi, (match) => {
+    const placeholder = `%%%NAG_SVG_${idx++}%%%`;
+    svgTokens.set(placeholder, match);
+    return placeholder;
+  });
+  return { processedText, svgTokens };
+}
+
+// ─── LaTeX & Markdown preprocessing ───────────────────────────────
+
+function cleanLatexDocCommands(text: string): string {
+  return text
+    .replace(/\\{1,2}begin\{enumerate\}/gi, '')
+    .replace(/\\{1,2}end\{enumerate\}/gi, '')
+    .replace(/\\{1,2}begin\{itemize\}/gi, '')
+    .replace(/\\{1,2}end\{itemize\}/gi, '')
+    .replace(/\\{1,2}item\s*/gi, '\n- ')
+    .replace(/\\{1,2}textbf\{([^}]*)\}/gi, '**$1**')
+    .replace(/\\{1,2}textit\{([^}]*)\}/gi, '*$1*')
+    .replace(/\\\\(\s|$)/g, '\n$1');
+}
+
+function sanitizeLatex(latex: string): string {
+  if (!latex) return '';
+  let s = latex.trim();
+  let prev: string;
+  do {
+    prev = s;
+    s = s.replace(/\\{2,}([a-zA-Z]+|[{}_#$%&^~])/g, '\\$1');
+  } while (s !== prev);
+  return s.replace(/(?<!\\)%/g, '\\%');
+}
+
+function renderKatex(latex: string, displayMode = false): string {
+  const clean = sanitizeLatex(latex);
+  if (!clean) return '';
+  if (NON_MATH_PATTERN.test(clean)) {
+    return `<span>${clean}</span>`;
+  }
+  try {
+    return katex.renderToString(clean, {
+      throwOnError: false,
+      displayMode,
+      output: 'htmlAndMathml',
+      trust: false,
+      strict: 'ignore',
+    });
+  } catch {
+    return `<span class="math-render-error text-amber-600 font-mono text-xs">${clean}</span>`;
+  }
+}
+
+function shouldDisplayBlock(cleanMatch: string, fullMatch: string, offset: number, fullStr: string): boolean {
+  if (cleanMatch.includes('\\begin{align') || cleanMatch.includes('\\begin{equation')) return true;
+  const before = fullStr.substring(0, offset);
+  const after = fullStr.substring(offset + fullMatch.length);
+  return /(?:^|\n)\s*$/.test(before) && /^\s*(?:\n|$)/.test(after);
+}
+
+function extractAndRenderMath(text: string): { processedText: string; tokens: Map<string, string> } {
+  const tokens = new Map<string, string>();
+  let idx = 0;
+  const ph = (rendered: string) => {
+    const key = `%%%NAG_MATH_${idx++}%%%`;
+    tokens.set(key, rendered);
+    return key;
+  };
+
+  // 1. Display $$...$$
+  text = text.replace(/\\\\?\${2}([\s\S]*?)\\\\?\${2}/g, (_, m) => ph(renderKatex(m, true)));
+  // 2. Display \[...\]
+  text = text.replace(/\\{1,4}\[([\s\S]*?)\\\\{1,4}\]/g, (_, m) => ph(renderKatex(m, true)));
+  // 3. LaTeX environments
+  const envRegex = /\\{1,4}begin\{(matrix|pmatrix|bmatrix|vmatrix|Vmatrix|cases|align|align\*|aligned|equation|equation\*|gather|gather\*)\}([\s\S]*?)\\{1,4}end\{\1\}/g;
+  text = text.replace(envRegex, (match, _e, _i, offset, full) => {
+    const clean = match.replace(/\\{2,}/g, '\\');
+    return ph(renderKatex(clean, shouldDisplayBlock(clean, match, offset, full)));
+  });
+  // 4. Inline \(...\)
+  text = text.replace(/\\{1,4}\(([\s\S]*?)\\{1,4}\)/g, (_, m) => ph(renderKatex(m, false)));
+  // 5. Inline $...$
+  text = text.replace(/(^|[^\\])\$([^$\n\r]+?)\$(?!\$)/g, (_, prefix, m) => (prefix || '') + ph(renderKatex(m, false)));
+
+  return { processedText: text, tokens };
+}
+
+function parseInlineMarkdown(text: string): string {
   if (!text) return '';
   return text
+    .replace(/\*\*\*([^*\n\r]+?)\*\*\*/g, '<strong><em>$1</em></strong>')
+    .replace(/___([^_\n\r]+?)___/g, '<strong><em>$1</em></strong>')
+    .replace(/\*\*([^*\n\r]+?)\*\*/g, '<strong>$1</strong>')
+    .replace(/__([^_\n\r]+?)__/g, '<strong>$1</strong>')
+    .replace(/~~([^~\n\r]+?)~~/g, '<del>$1</del>')
+    .replace(/`([^`\n\r]+?)`/g, '<code>$1</code>')
+    .replace(/(^|[^*])\*([^*\n\r]+?)\*([^*]|$)/g, '$1<em>$2</em>$3')
+    .replace(/(^|[^a-zA-Z0-9_])_([^_\n\r]+?)_([^a-zA-Z0-9_]|$)/g, '$1<em>$2</em>$3');
+}
+
+function unescapeNewlines(text: string): string {
+  return (text || '')
     .replace(/\\r\\n/g, '\n')
     .replace(/\\n(?![a-z])/g, '\n')
     .replace(/\\t(?![a-z])/g, '\t');
 }
 
 function decodeHtmlEntities(text: string): string {
-  if (!text) return '';
-  return text
+  return (text || '')
     .replace(/&nbsp;/g, ' ')
     .replace(/&amp;/g, '&')
     .replace(/&lt;/g, '<')
@@ -235,13 +344,13 @@ function normalizeMarkdownTables(text: string): string {
   let inTable = false;
   let tableHeaderCols = 0;
   const newLines: string[] = [];
+
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i].trim();
     if (line.startsWith('|') && line.endsWith('|') && line.length > 2) {
       if (!inTable) {
         inTable = true;
-        const colCount = line.split('|').length - 2;
-        tableHeaderCols = colCount;
+        tableHeaderCols = line.split('|').length - 2;
         newLines.push(line);
         const nextLine = (lines[i + 1] || '').trim();
         if (!nextLine.startsWith('|') || !nextLine.includes('-')) {
@@ -258,319 +367,131 @@ function normalizeMarkdownTables(text: string): string {
   return newLines.join('\n');
 }
 
-function cleanLatexDocCommands(text: string): string {
-  if (!text) return '';
-  return text
-    .replace(/\\{1,2}begin\{enumerate\}/gi, '')
-    .replace(/\\{1,2}end\{enumerate\}/gi, '')
-    .replace(/\\{1,2}begin\{itemize\}/gi, '')
-    .replace(/\\{1,2}end\{itemize\}/gi, '')
-    .replace(/\\{1,2}item\s*/gi, '\n- ')
-    .replace(/\\{1,2}textbf\{([^}]*)\}/gi, '**$1**')
-    .replace(/\\{1,2}textit\{([^}]*)\}/gi, '*$1*')
-    .replace(/\\\\(\s|$)/g, '\n$1');
-}
+// ─── Main MathRenderer Component ──────────────────────────────────
 
-function parseInlineMarkdown(text: string): string {
-  if (!text) return '';
-  return text
-    .replace(/\*\*\*([^*\n\r]+?)\*\*\*/g, '<strong><em>$1</em></strong>')
-    .replace(/___([^_\\n\\r]+?)___/g, '<strong><em>$1</em></strong>')
-    .replace(/\*\*([^*\n\r]+?)\*\*/g, '<strong>$1</strong>')
-    .replace(/__([^_\\n\\r]+?)__/g, '<strong>$1</strong>')
-    .replace(/~~([^~\\n\\r]+?)~~/g, '<del>$1</del>')
-    .replace(/`([^`\\n\\r]+?)`/g, '<code>$1</code>')
-    .replace(/(^|[^*])\*([^*\n\r]+?)\*([^*]|$)/g, '$1<em>$2</em>$3')
-    .replace(/(^|[^a-zA-Z0-9_])_([^_\\n\\r]+?)_([^a-zA-Z0-9_]|$)/g, '$1<em>$2</em>$3');
-}
-
-function escapeHtml(str: string): string {
-  return str
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#039;');
-}
-
-function sanitizeLatex(latex: string): string {
-  if (!latex || typeof latex !== 'string') return '';
-  let s = latex.trim();
-  let previous: string;
-  do {
-    previous = s;
-    s = s.replace(/\\{2,}([a-zA-Z]+|[{}_#$%&^~])/g, '\\$1');
-  } while (s !== previous);
-  s = s.replace(/(?<!\\)%/g, '\\%');
-  return s;
-}
-
-function renderKatexString(latex: string, displayMode = false): string {
-  const trimmed = sanitizeLatex(latex);
-  if (!trimmed) return '';
-  if (NON_MATH_PATTERN.test(trimmed)) {
-    return `<span>${escapeHtml(trimmed)}</span>`;
-  }
-  try {
-    return katex.renderToString(trimmed, {
-      throwOnError: false,
-      displayMode,
-      output: 'htmlAndMathml',
-      trust: false,
-      strict: 'ignore',
-    });
-  } catch {
-    return `<span class="math-render-error text-amber-600 font-mono text-xs">${escapeHtml(trimmed)}</span>`;
-  }
-}
-
-function shouldDisplayBlock(
-  math: string,
-  fullMatch: string,
-  offset: number,
-  fullStr: string,
-  forceInline: boolean
-): boolean {
-  if (forceInline) return false;
-  const charBefore = offset > 0 ? fullStr[offset - 1] : '';
-  const charAfter = offset + fullMatch.length < fullStr.length ? fullStr[offset + fullMatch.length] : '';
-  if ((charBefore === '(' || charBefore === '[') && (charAfter === ')' || charAfter === ']')) return false;
-  const textBefore = fullStr.slice(0, offset);
-  const lastNewlineBefore = textBefore.lastIndexOf('\n');
-  const linePrefix = lastNewlineBefore === -1 ? textBefore : textBefore.slice(lastNewlineBefore + 1);
-  const textAfter = fullStr.slice(offset + fullMatch.length);
-  const nextNewlineAfter = textAfter.indexOf('\n');
-  const lineSuffix = nextNewlineAfter === -1 ? textAfter : textAfter.slice(0, nextNewlineAfter);
-  if (/^\s*(\d+\.|[IVXLC]+\.|[A-Za-z]\.|[-*•])\s/.test(linePrefix)) return false;
-  const trimmedMath = math.trim();
-  const isSingleVariableToken = /^(\\[a-zA-Z]+\s+)?[a-zA-Z0-9_]{1,3}$/.test(trimmedMath);
-  const hasSurroundingText = linePrefix.trim() !== '' || lineSuffix.trim() !== '';
-  if (isSingleVariableToken && hasSurroundingText) return false;
-  return true;
-}
-
-function extractSvgBlocks(text: string): { processedText: string; tokens: Map<string, string> } {
-  const tokens = new Map<string, string>();
-  let idx = 0;
-  const processedText = text.replace(/<svg[\s\S]*?<\/svg>/gi, (match) => {
-    const placeholder = `%%%NAG_SVG_BLOCK_${idx++}%%%`;
-    tokens.set(placeholder, match);
-    return placeholder;
-  });
-  return { processedText, tokens };
-}
-
-function extractAndRenderMath(text: string, inline: boolean): { processedText: string; tokens: Map<string, string> } {
-  const tokens = new Map<string, string>();
-  let tokenIndex = 0;
-  const createPlaceholder = (rendered: string): string => {
-    const placeholder = `%%%NAG_MATH_BLOCK_${tokenIndex++}%%%`;
-    tokens.set(placeholder, rendered);
-    return placeholder;
-  };
-  text = text.replace(/\$\$([\s\S]*?)\$\$/g, (fullMatch, math, offset, fullStr) => {
-    const isDisplay = shouldDisplayBlock(math, fullMatch, offset, fullStr, inline);
-    return createPlaceholder(renderKatexString(math, isDisplay));
-  });
-  text = text.replace(/\\{1,4}\[([\s\S]*?)\\{1,4}\]/g, (fullMatch, math, offset, fullStr) => {
-    const isDisplay = shouldDisplayBlock(math, fullMatch, offset, fullStr, inline);
-    return createPlaceholder(renderKatexString(math, isDisplay));
-  });
-  const envRegex = /\\{1,4}begin\{(matrix|pmatrix|bmatrix|vmatrix|Vmatrix|cases|align|align\*|aligned|equation|equation\*|gather|gather\*)\}([\s\S]*?)\\{1,4}end\{\1\}/g;
-  text = text.replace(envRegex, (fullMatch, _env, _inner, offset, fullStr) => {
-    const cleanMatch = fullMatch.replace(/\\{2,}/g, '\\');
-    const isDisplay = shouldDisplayBlock(cleanMatch, fullMatch, offset, fullStr, inline);
-    return createPlaceholder(renderKatexString(cleanMatch, isDisplay));
-  });
-  text = text.replace(/\\{1,4}\(([\s\S]*?)\\{1,4}\)/g, (_, math) => createPlaceholder(renderKatexString(math, false)));
-  text = text.replace(/(^|[^\\])\$([^$\n\r]+?)\$(?!\$)/g, (_, prefix, math) => (prefix || '') + createPlaceholder(renderKatexString(math, false)));
-  return { processedText: text, tokens };
-}
-
-// ─── HTML parsing (returns HTML string for dangerouslySetInnerHTML) ───────────
-
-/**
- * Parses mixed Markdown, LaTeX, and SMILES content into HTML.
- * SMILES blocks are replaced with placeholder strings — the React render
- * phase replaces them with <SmilesCanvas> components via splitOnPlaceholders.
- */
-function parseContentToHtml(raw: string, inline: boolean): {
-  htmlParts: string[];
-  smilesTokens: SmilesToken[];
-} {
-  if (!raw || !raw.trim()) return { htmlParts: [''], smilesTokens: [] };
-
-  try {
-    let text = unescapeNewlines(raw.trim());
-    text = decodeHtmlEntities(text);
-
-    // 3a. Extract SVG blocks
-    const { processedText: textWithoutSvg, tokens: svgTokens } = extractSvgBlocks(text);
-    text = textWithoutSvg;
-
-    // 3b. Extract SMILES blocks BEFORE LaTeX/Markdown (Issue #126 & #144)
-    const { processedText: textWithoutSmiles, smilesTokens } = extractSmilesBlocks(text);
-    text = textWithoutSmiles;
-
-    // 4. Extract and render LaTeX
-    const { processedText: textWithoutMath, tokens: mathTokens } = extractAndRenderMath(text, inline);
-    text = textWithoutMath;
-
-    if (!inline) text = normalizeMarkdownTables(text);
-    text = cleanLatexDocCommands(text);
-    text = parseInlineMarkdown(text);
-
-    let htmlResult = '';
-    if (inline) {
-      const parsed = marked.parseInline(text, { gfm: true, breaks: true });
-      htmlResult = typeof parsed === 'string' ? parsed : '';
-    } else {
-      const parsed = marked.parse(text, { gfm: true, breaks: true, async: false });
-      htmlResult = typeof parsed === 'string' ? parsed : '';
-    }
-
-    htmlResult = parseInlineMarkdown(htmlResult);
-
-    for (const [placeholder, rendered] of mathTokens.entries()) {
-      htmlResult = htmlResult.split(placeholder).join(rendered);
-    }
-    for (const [placeholder, svgBlock] of svgTokens.entries()) {
-      htmlResult = htmlResult.split(placeholder).join(svgBlock);
-    }
-
-    // Split the final HTML on SMILES placeholders so we can interleave
-    // <SmilesCanvas> React components with dangerouslySetInnerHTML spans.
-    if (smilesTokens.length === 0) {
-      return { htmlParts: [htmlResult], smilesTokens: [] };
-    }
-
-    // Build split array: [html, smiles, html, smiles, html, ...]
-    const htmlParts: string[] = [];
-    let remaining = htmlResult;
-    for (const token of smilesTokens) {
-      const idx = remaining.indexOf(token.placeholder);
-      if (idx === -1) {
-        htmlParts.push(remaining);
-        remaining = '';
-      } else {
-        htmlParts.push(remaining.slice(0, idx));
-        remaining = remaining.slice(idx + token.placeholder.length);
-      }
-    }
-    htmlParts.push(remaining);
-
-    return { htmlParts, smilesTokens };
-  } catch (err) {
-    console.warn('Failed to parse Markdown / Math content:', err);
-    return { htmlParts: [escapeHtml(raw)], smilesTokens: [] };
-  }
-}
-
-/** Global CSS injected once for image zoom + SMILES styles */
-const CONTENT_STYLES = `
-.math-rendered-content img {
-  max-width: 100%;
-  height: auto;
-  cursor: zoom-in;
-  border-radius: 4px;
-  transition: opacity 0.15s;
-}
-.math-rendered-content img:hover { opacity: 0.85; }
-`;
-
-// ─── Main MathRenderer component ──────────────────────────────────────────────
-
-/**
- * MathRenderer — renders examination content containing Markdown, LaTeX math,
- * and SMILES chemical structure notation.
- *
- * Additions (Issues #126 & #144):
- *  • Parses <smiles ...>...</smiles> tags with width, height, theme, title attributes.
- *  • Renders each SMILES string as a 2D skeletal structure canvas via SmilesDrawer 2.0.
- *  • Chemical structures support click-to-zoom via ImageZoomModal (PNG snapshot).
- */
-export const MathRenderer: React.FC<MathRendererProps> = ({
+export const MathRenderer: React.FC<MathRendererProps> = React.memo(({
   content,
   className = '',
   inline = false,
 }) => {
-  const [zoomSrc, setZoomSrc] = useState<{ src: string; alt: string } | null>(null);
+  const [zoomImg, setZoomImg] = useState<string | null>(null);
 
-  const handleImageClick = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
-    const target = e.target as HTMLElement;
-    if (target.tagName === 'IMG') {
-      const img = target as HTMLImageElement;
-      setZoomSrc({ src: img.src, alt: img.alt || 'Question figure' });
+  const { htmlWithPlaceholders, smilesTokens } = useMemo(() => {
+    if (!content || !content.trim()) {
+      return { htmlWithPlaceholders: '', smilesTokens: [] };
     }
+
+    try {
+      let text = unescapeNewlines(content.trim());
+      text = decodeHtmlEntities(text);
+
+      const { processedText: withoutSvg, svgTokens } = extractSvgBlocks(text);
+      text = withoutSvg;
+
+      const { processedText: withoutSmiles, smilesTokens: sTokens } = extractSmilesBlocks(text);
+      text = withoutSmiles;
+
+      const { processedText: withoutMath, tokens: mathTokens } = extractAndRenderMath(text);
+      text = withoutMath;
+
+      if (!inline) {
+        text = normalizeMarkdownTables(text);
+      }
+
+      text = cleanLatexDocCommands(text);
+      text = parseInlineMarkdown(text);
+
+      let parsed = (inline
+        ? marked.parseInline(text, { gfm: true, breaks: true })
+        : marked.parse(text, { gfm: true, breaks: true, async: false })) as string;
+
+      mathTokens.forEach((renderedKatex, placeholder) => {
+        parsed = parsed.split(placeholder).join(renderedKatex);
+      });
+
+      svgTokens.forEach((svgContent, placeholder) => {
+        parsed = parsed.split(placeholder).join(svgContent);
+      });
+
+      return { htmlWithPlaceholders: parsed, smilesTokens: sTokens };
+    } catch {
+      return {
+        htmlWithPlaceholders: `<span class="math-render-fallback">${content}</span>`,
+        smilesTokens: [],
+      };
+    }
+  }, [content, inline]);
+
+  const handleZoom = useCallback((imgSrc: string) => {
+    setZoomImg(imgSrc);
   }, []);
 
-  const handleSmilesZoom = useCallback((dataUrl: string, smiles: string) => {
-    setZoomSrc({ src: dataUrl, alt: `Chemical structure: ${smiles}` });
+  const handleCloseZoom = useCallback(() => {
+    setZoomImg(null);
   }, []);
 
-  const { htmlParts, smilesTokens } = useMemo(
-    () => (content ? parseContentToHtml(content, inline) : { htmlParts: [''], smilesTokens: [] }),
-    [content, inline]
-  );
-
-  if (!content) return null;
-
-  // Inline mode: single span, no SMILES canvas interleaving
-  if (inline) {
-    const html = htmlParts.join('');
-    return html ? (
-      <span
-        className={`math-rendered-content inline ${className}`}
-        dangerouslySetInnerHTML={{ __html: html }}
-      />
-    ) : null;
-  }
-
-  // Block mode: interleave HTML parts with SmilesCanvas components
-  const nodes: React.ReactNode[] = [];
-  htmlParts.forEach((part, i) => {
-    if (part) {
-      nodes.push(
+  // Split HTML on SMILES placeholders and interleave React SMILES canvas components
+  const renderedSegments = useMemo(() => {
+    if (smilesTokens.length === 0) {
+      return (
         <span
-          key={`html-${i}`}
+          className="math-renderer-content"
+          dangerouslySetInnerHTML={{ __html: htmlWithPlaceholders }}
+        />
+      );
+    }
+
+    // Build regex to split on all SMILES placeholders
+    const pattern = new RegExp(`(${smilesTokens.map(t => t.placeholder).join('|')})`, 'g');
+    const parts = htmlWithPlaceholders.split(pattern);
+    const tokenMap = new Map(smilesTokens.map(t => [t.placeholder, t]));
+
+    return parts.map((part, idx) => {
+      const token = tokenMap.get(part);
+      if (token) {
+        return (
+          <SmilesCanvas
+            key={`smiles-${idx}`}
+            smiles={token.smiles}
+            title={token.title}
+            width={token.width}
+            height={token.height}
+            theme={token.theme}
+            onZoom={handleZoom}
+          />
+        );
+      }
+      if (!part) return null;
+      return (
+        <span
+          key={`html-${idx}`}
           dangerouslySetInnerHTML={{ __html: part }}
         />
       );
-    }
-    if (i < smilesTokens.length) {
-      const token = smilesTokens[i];
-      nodes.push(
-        <SmilesCanvas
-          key={`smiles-${i}`}
-          smiles={token.smiles}
-          title={token.title}
-          width={token.width}
-          height={token.height}
-          theme={token.theme}
-          onZoom={(dataUrl) => handleSmilesZoom(dataUrl, token.smiles)}
-        />
-      );
-    }
-  });
+    });
+  }, [htmlWithPlaceholders, smilesTokens, handleZoom]);
+
+  const ElementType = inline ? 'span' : 'div';
 
   return (
     <>
-      <style>{CONTENT_STYLES}</style>
-      <div
-        className={`math-rendered-content ${className}`}
-        onClick={handleImageClick}
-        style={{ cursor: 'default' }}
+      <ElementType
+        className={`math-renderer ${inline ? 'math-renderer--inline' : 'math-renderer--block'} ${className}`}
       >
-        {nodes}
-      </div>
-      <ImageZoomModal
-        src={zoomSrc?.src || ''}
-        alt={zoomSrc?.alt || ''}
-        isOpen={zoomSrc !== null}
-        onClose={() => setZoomSrc(null)}
-      />
+        {renderedSegments}
+      </ElementType>
+
+      {zoomImg && (
+        <ImageZoomModal
+          isOpen={true}
+          src={zoomImg}
+          alt="Chemical Structure (Zoomed)"
+          onClose={handleCloseZoom}
+        />
+      )}
     </>
   );
-};
+});
 
+MathRenderer.displayName = 'MathRenderer';
 export default MathRenderer;

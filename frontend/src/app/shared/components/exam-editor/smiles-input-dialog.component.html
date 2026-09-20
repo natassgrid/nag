@@ -12,7 +12,7 @@
   <mat-dialog-content class="smiles-dialog-content">
     <!-- SMILES input and Title inputs -->
     <div class="inputs-section">
-      <mat-form-field appearance="outline" class="full-width-field">
+      <mat-form-field appearance="outline" class="full-width-field" subscriptSizing="dynamic">
         <mat-label>SMILES Notation</mat-label>
         <input
           #smilesInput
@@ -35,10 +35,10 @@
         >
           <mat-icon>backspace</mat-icon>
         </button>
-        <mat-hint>Enter Simplified Molecular Input Line Entry System (SMILES) string or pick a preset below.</mat-hint>
+        <mat-hint>Enter SMILES notation (e.g. c1ccccc1) or pick a preset below.</mat-hint>
       </mat-form-field>
 
-      <mat-form-field appearance="outline" class="full-width-field">
+      <mat-form-field appearance="outline" class="full-width-field" subscriptSizing="dynamic">
         <mat-label>Caption / Molecule Label (optional)</mat-label>
         <input
           matInput
@@ -52,7 +52,7 @@
     <!-- Display Options & Dimensions -->
     <div class="options-row">
       <div class="dimension-fields">
-        <mat-form-field appearance="outline" class="dim-field">
+        <mat-form-field appearance="outline" class="dim-field" subscriptSizing="dynamic">
           <mat-label>Width (px)</mat-label>
           <input
             matInput
@@ -65,7 +65,7 @@
           />
         </mat-form-field>
 
-        <mat-form-field appearance="outline" class="dim-field">
+        <mat-form-field appearance="outline" class="dim-field" subscriptSizing="dynamic">
           <mat-label>Height (px)</mat-label>
           <input
             matInput
