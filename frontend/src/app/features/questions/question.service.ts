@@ -51,6 +51,9 @@ export interface QuestionResponse {
   passageId?: string;
   passageOrderIndex?: number;
   options?: QuestionOptionDto[];
+  translatedLanguages?: string[];
+  translationStatusMap?: Record<string, string>;
+  translationStatus?: string;
 }
 
 export interface CreateQuestionRequest {
@@ -186,6 +189,9 @@ export class QuestionService {
     topicId?: number | string;
     difficulty?: string;
     state?: string;
+    targetLang?: string;
+    translationStatus?: string;
+    search?: string;
     page?: number;
     size?: number;
   }): Observable<PagedResponse<QuestionResponse>> {
@@ -203,6 +209,9 @@ export class QuestionService {
       }
       if (filters.difficulty) params = params.set('difficulty', filters.difficulty);
       if (filters.state)      params = params.set('state', filters.state);
+      if (filters.targetLang) params = params.set('targetLang', filters.targetLang);
+      if (filters.translationStatus) params = params.set('translationStatus', filters.translationStatus);
+      if (filters.search)     params = params.set('search', filters.search);
       params = params.set('page', String(filters.page ?? 0));
       params = params.set('size', String(filters.size ?? 20));
     }
@@ -263,8 +272,7 @@ export class QuestionService {
   /**
    * Exports questions matching the given filters as a compressed ZIP archive.
    * The archive contains batch files (100 questions each) plus a manifest.
-   * Returns the raw Blob so the caller can trigger a browser download.
-   */
+   * Returns the raw Blob so the caller can trigger a browser download.\n   */
   exportQuestions(filters?: {
     format?: 'json' | 'csv';
     subject?: string;

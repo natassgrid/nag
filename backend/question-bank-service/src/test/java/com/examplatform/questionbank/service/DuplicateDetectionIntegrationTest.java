@@ -31,13 +31,13 @@ import com.examplatform.questionbank.dto.QuestionResponse;
 import com.examplatform.questionbank.exception.SimilarQuestionException;
 import com.examplatform.questionbank.repository.QuestionRepository;
 import com.examplatform.questionbank.repository.SimilarityResult;
+import com.examplatform.questionbank.translation.repository.TranslationRepository;
 import com.examplatform.shared.messaging.EventPublisher;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
@@ -45,7 +45,6 @@ import java.time.Instant;
 import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
-import java.util.concurrent.CompletableFuture;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -86,6 +85,9 @@ class DuplicateDetectionIntegrationTest {
     @Mock
     private EventPublisher eventPublisher;
 
+    @Mock
+    private TranslationRepository translationRepository;
+
     // Real SimilarityDetectionService with mocked dependencies
     private SimilarityDetectionService similarityDetectionService;
 
@@ -115,7 +117,8 @@ class DuplicateDetectionIntegrationTest {
                 subtopicRepository,
                 similarityDetectionService,
                 embeddingService,
-                eventPublisher
+                eventPublisher,
+                translationRepository
         );
 
         // Set encryptionEnabled = false to avoid Vault dependency in tests
@@ -423,6 +426,7 @@ class DuplicateDetectionIntegrationTest {
             // Then: question was created without warnings
             assertThat(response).isNotNull();
             assertThat(response.getState()).isEqualTo("DRAFT");
+            assertThat(response.getWarnings()).isNull();
 
             // Verify: question was persisted
             verify(questionRepository, atLeastOnce()).save(any(Question.class));

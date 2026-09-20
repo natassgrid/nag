@@ -148,7 +148,7 @@
         mat-flat-button
         color="primary"
         class="translate-btn"
-        (click)="openTranslationDrawer(row, 'hi')"
+        (click)="openTranslationDrawer(row, getActiveTargetLang() || 'hi')"
       >
         <mat-icon>translate</mat-icon>
         Translate / Review

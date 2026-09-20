@@ -204,12 +204,28 @@ class QuestionControllerIntegrationTest extends AbstractIntegrationTest {
         @Test
         @DisplayName("+ve: REVIEWER retrieves paginated list of questions - returns 200 OK")
         void reviewerCanListQuestions() throws Exception {
-            when(questionService.listQuestions(any(), any(), any(), any(), any(), any(), any(), anyInt(), anyInt(), eq(TENANT_ID)))
+            when(questionService.listQuestions(any(), any(), any(), any(), any(), any(), any(), any(), any(), anyInt(), anyInt(), eq(TENANT_ID)))
                     .thenReturn(new PageImpl<>(List.of(sampleQuestionResponse())));
 
             mockMvc.perform(get("/api/v1/questions")
                             .header("X-Tenant-Id", TENANT_ID)
                             .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_REVIEWER"))))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.status").value("success"))
+                    .andExpect(jsonPath("$.data.content[0].id").value(QUESTION_ID.toString()));
+        }
+
+        @Test
+        @DisplayName("+ve: TRANSLATOR retrieves filtered questions by targetLang and translationStatus")
+        void translatorCanListFilteredQuestions() throws Exception {
+            when(questionService.listQuestions(any(), any(), any(), any(), any(), any(), any(), eq("hi"), eq("MISSING"), anyInt(), anyInt(), eq(TENANT_ID)))
+                    .thenReturn(new PageImpl<>(List.of(sampleQuestionResponse())));
+
+            mockMvc.perform(get("/api/v1/questions")
+                            .header("X-Tenant-Id", TENANT_ID)
+                            .param("targetLang", "hi")
+                            .param("translationStatus", "MISSING")
+                            .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_TRANSLATOR"))))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.status").value("success"))
                     .andExpect(jsonPath("$.data.content[0].id").value(QUESTION_ID.toString()));
@@ -401,7 +417,8 @@ class QuestionControllerIntegrationTest extends AbstractIntegrationTest {
             mockMvc.perform(put("/api/v1/questions/{id}/approve", QUESTION_ID)
                             .header("X-Tenant-Id", TENANT_ID)
                             .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_REVIEWER"))
-                                    .jwt(j -> j.subject(REVIEWER_ID.toString()))))
+                                    .jwt(j -> j.subject(REVIEWER_ID.toString())))
+                            .contentType(MediaType.APPLICATION_JSON))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.status").value("success"))
                     .andExpect(jsonPath("$.data.state").value("APPROVED"));
