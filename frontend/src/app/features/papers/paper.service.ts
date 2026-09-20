@@ -5,78 +5,91 @@
  * Copyright (C) 2025 NAG Contributors
  *
  * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, version 3 of the License.
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
 
 import { Injectable } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
-import { Observable, map } from 'rxjs';
-import { PaginatedResponse } from '../../shared/components/paginated-table/pagination.model';
+import { Observable } from 'rxjs';
+import { map } from 'rxjs/operators';
+import { PaginatedResponse } from '../../shared/components/paginated-table';
 
-// ── Domain models ────────────────────────────────────────────────────────────
-
-export interface BlueprintRule {
-  subject: string;
-  topic: string;
-  difficulty: 'EASY' | 'MEDIUM' | 'HARD' | '';
-  cognitiveLevel: string;
-  questionCount: number;
+export interface PaperSummary {
+  id: string;
+  paperId?: string;
+  name: string;
+  examId?: string;
+  examName?: string;
+  shiftId?: string;
+  shiftName?: string;
+  status: string;
+  isPractice?: boolean;
+  totalMarks?: number;
+  totalQuestions?: number;
+  difficultyScore?: number;
+  generatedBy?: string;
+  approvedBy?: string;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface PaperGenerationRequest {
-  name?: string;
   examId: string;
   shiftId: string;
+  name?: string;
+  paperName?: string;
   isPractice?: boolean;
   blueprintRules: BlueprintRule[];
 }
 
-export interface PaperSummary {
-  paperId: string;
-  name?: string;
-  examId: string;
-  examName?: string;
-  shiftId: string;
-  shiftName?: string;
-  status: 'DRAFT' | 'APPROVED' | 'ENCRYPTED';
-  isPractice?: boolean;
-  difficultyScore: number;
-  encryptionKeyId?: string;
-  createdAt?: string;
+export interface BlueprintRule {
+  subject: string;
+  topic: string;
+  difficulty?: string;
+  cognitiveLevel?: string;
+  questionType?: string;
+  targetCount?: number;
+  questionCount?: number;
 }
 
 export interface QuestionDetail {
   questionId: string;
+  content: string;
+  answerKey: string;
   subject: string;
   topic: string;
   difficulty: string;
   cognitiveLevel: string;
-  usageCount: number;
+  orderIndex: number;
+  marks: number;
+  negativeMarks: number;
+  explanation?: string;
+  options?: any[];
+  usageCount?: number;
   lastUsedAt?: string;
-  content?: string;
 }
 
 export interface PaperDetail {
-  id: string;
+  id?: string;
+  paperId?: string;
   name?: string;
-  examId: string;
+  examId?: string;
   examName?: string;
-  shiftId: string;
+  shiftId?: string;
   shiftName?: string;
-  status: 'DRAFT' | 'APPROVED' | 'ENCRYPTED';
+  status?: string;
   isPractice?: boolean;
-  paperDefinitionJson?: string;
-  difficultyScore: number;
-  topicDistributionJson?: string;
+  totalMarks?: number;
+  difficultyScore?: number;
   encryptedPackageRef?: string;
   encryptionKeyId?: string;
   generatedBy?: string;
@@ -85,6 +98,7 @@ export interface PaperDetail {
   totalQuestions?: number;
   topicDistribution?: Record<string, number>;
   questions?: QuestionDetail[];
+  paperDefinitionJson?: string;
 }
 
 export interface PaperGenerationResponse {
@@ -154,92 +168,107 @@ export interface BlueprintTemplateResponse {
 }
 
 export interface GapDetail {
-  subject: string;
-  topic: string;
+  subject?: string;
+  topic?: string;
   difficulty?: string;
-  needed: number;
-  available: number;
+  cognitiveLevel?: string;
+  needed?: number;
+  available?: number;
+  deficit?: number;
+  message?: string;
 }
 
-export interface RuleFeasibilityDetail {
+export interface RuleFeasibility {
   subject: string;
   topic: string;
   difficulty?: string;
   cognitiveLevel?: string;
-  needed: number;
-  available: number;
-  surplus: number;
-  deficit: number;
-  status: 'SATISFIED' | 'DEFICIT';
+  requested?: number;
+  available?: number;
+  needed?: number;
+  surplus?: number;
+  sufficient?: boolean;
+  status?: string;
+  deficit?: number;
+  targetCount?: number;
+  questionCount?: number;
 }
+
+export type RuleFeasibilityDetail = RuleFeasibility;
 
 export interface BlueprintFeasibilityRequest {
   examId?: string;
   shiftId?: string;
-  blueprintRules: BlueprintRule[];
-  notifyAdminOnDeficit?: boolean;
+  rules: BlueprintRule[];
 }
 
 export interface BlueprintFeasibilityResponse {
   feasible: boolean;
-  examId?: string;
-  shiftId?: string;
-  totalQuestionsNeeded: number;
-  totalQuestionsAvailable: number;
-  deficitRuleCount: number;
-  ruleDetails: RuleFeasibilityDetail[];
-  gaps: GapDetail[];
-  notificationDispatched: boolean;
-  summary: string;
-  checkedAt: string;
+  totalRequested?: number;
+  totalAvailable?: number;
+  totalQuestionsNeeded?: number;
+  totalQuestionsAvailable?: number;
+  deficitRuleCount?: number;
+  summary?: string;
+  checkedAt?: string;
+  rules?: RuleFeasibility[];
+  insufficientRules?: RuleFeasibility[];
+  gaps?: GapDetail[];
+  ruleDetails?: RuleFeasibilityDetail[];
+  overallSufficiency?: number;
 }
 
-// ── Service ──────────────────────────────────────────────────────────────────
+export interface PaperListParams {
+  page?: number;
+  size?: number;
+  sort?: string;
+  order?: string;
+  search?: string;
+  status?: string;
+  examId?: string;
+  shiftId?: string;
+  isPractice?: boolean;
+}
 
-@Injectable({ providedIn: 'root' })
+@Injectable({
+  providedIn: 'root'
+})
 export class PaperService {
   private readonly baseUrl = '/api/v1/papers';
-  private readonly templateBaseUrl = '/api/v1/papers/blueprint-templates';
+  private readonly templateBaseUrl = '/api/v1/papers/templates';
 
   constructor(private http: HttpClient) {}
 
-  getPapers(
-    page: number = 0,
-    size: number = 20,
-    examId?: string,
-    status?: string
-  ): Observable<PaginatedResponse<PaperSummary>> {
-    let params = new HttpParams()
-      .set('page', page.toString())
-      .set('size', size.toString());
+  getPapers(params?: PaperListParams): Observable<PaginatedResponse<PaperSummary>> {
+    let httpParams = new HttpParams();
 
-    if (examId) {
-      params = params.set('examId', examId);
-    }
-    if (status) {
-      params = params.set('status', status);
+    if (params) {
+      if (params.page !== undefined) httpParams = httpParams.set('page', params.page.toString());
+      if (params.size !== undefined) httpParams = httpParams.set('size', params.size.toString());
+      if (params.sort) httpParams = httpParams.set('sort', params.sort);
+      if (params.order) httpParams = httpParams.set('order', params.order);
+      if (params.search) httpParams = httpParams.set('search', params.search);
+      if (params.status) httpParams = httpParams.set('status', params.status);
+      if (params.examId) httpParams = httpParams.set('examId', params.examId);
+      if (params.shiftId) httpParams = httpParams.set('shiftId', params.shiftId);
+      if (params.isPractice !== undefined) httpParams = httpParams.set('isPractice', params.isPractice.toString());
     }
 
-    return this.http.get<any>(this.baseUrl, { params }).pipe(
-      map((res) => ({
-        content: (res.content ?? []).map((p: any) => ({
-          paperId: p.paperId ?? p.id,
-          name: p.name,
-          examId: p.examId,
-          examName: p.examName,
-          shiftId: p.shiftId,
-          shiftName: p.shiftName,
-          status: p.status,
-          isPractice: Boolean(p.isPractice),
-          difficultyScore: p.difficultyScore ?? 0,
-          encryptionKeyId: p.encryptionKeyId,
-          createdAt: p.createdAt
-        })),
-        totalElements: res.totalElements ?? 0,
-        totalPages: res.totalPages ?? 0,
-        number: res.number ?? 0,
-        size: res.size ?? size
-      }))
+    return this.http.get<any>(this.baseUrl, { params: httpParams }).pipe(
+      map(res => {
+        const items = res.data?.content || res.content || [];
+        const normalized = items.map((p: any) => ({
+          ...p,
+          paperId: p.paperId || p.id
+        }));
+        return {
+          content: normalized,
+          totalElements: res.data?.totalElements ?? res.totalElements ?? 0,
+          totalPages: res.data?.totalPages ?? res.totalPages ?? 0,
+          size: res.data?.size ?? res.size ?? (params?.size || 10),
+          number: res.data?.number ?? res.number ?? (params?.page || 0)
+        };
+      })
     );
   }
 
@@ -255,34 +284,37 @@ export class PaperService {
     return this.http.post<PaperApprovalResponse>(`${this.baseUrl}/${paperId}/approve`, {});
   }
 
-  /**
-   * Triggers asynchronous batch translation for all questions in an examination paper.
-   */
-  translatePaper(paperId: string, request?: PaperTranslateRequest): Observable<PaperTranslateResponse> {
-    return this.http.post<PaperTranslateResponse>(`${this.baseUrl}/${paperId}/translate`, request ?? {});
+  publishPaper(paperId: string): Observable<PaperApprovalResponse> {
+    return this.http.post<PaperApprovalResponse>(`${this.baseUrl}/${paperId}/publish`, {});
   }
 
-  /**
-   * Retrieves the latest progress and status of a paper translation job.
-   */
-  getPaperTranslationStatus(paperId: string, jobId: string): Observable<PaperTranslateResponse> {
-    return this.http.get<PaperTranslateResponse>(`${this.baseUrl}/${paperId}/translate/${jobId}`);
+  startTranslation(paperId: string, req: PaperTranslateRequest): Observable<PaperTranslateResponse> {
+    return this.http.post<PaperTranslateResponse>(`${this.baseUrl}/${paperId}/translate`, req);
   }
 
-  /**
-   * Evaluates blueprint rules against current question bank availability without generating a paper.
-   */
-  checkBlueprintSufficiency(request: BlueprintFeasibilityRequest): Observable<BlueprintFeasibilityResponse> {
-    return this.http.post<BlueprintFeasibilityResponse>(`${this.baseUrl}/blueprints/check-sufficiency`, request);
+  translatePaper(paperId: string, req: PaperTranslateRequest): Observable<PaperTranslateResponse> {
+    return this.startTranslation(paperId, req);
   }
 
-  // ── Blueprint Template API ───────────────────────────────────────────────────
+  getTranslationStatus(paperId: string): Observable<PaperTranslateResponse> {
+    return this.http.get<PaperTranslateResponse>(`${this.baseUrl}/${paperId}/translation-status`);
+  }
+
+  getPaperTranslationStatus(paperId: string, jobId?: string): Observable<PaperTranslateResponse> {
+    return jobId ? this.getTranslationJob(jobId) : this.getTranslationStatus(paperId);
+  }
+
+  getTranslationJob(jobId: string): Observable<PaperTranslateResponse> {
+    return this.http.get<PaperTranslateResponse>(`${this.baseUrl}/translations/${jobId}`);
+  }
+
+  // ── Blueprint Templates ──────────────────────────────────────────
+
+  createTemplate(req: BlueprintTemplateRequest): Observable<BlueprintTemplateResponse> {
+    return this.http.post<BlueprintTemplateResponse>(this.templateBaseUrl, req);
+  }
 
   listTemplates(examId?: string): Observable<BlueprintTemplateResponse[]> {
-    return this.getTemplates(examId);
-  }
-
-  getTemplates(examId?: string): Observable<BlueprintTemplateResponse[]> {
     let params = new HttpParams();
     if (examId) {
       params = params.set('examId', examId);
@@ -290,31 +322,31 @@ export class PaperService {
     return this.http.get<BlueprintTemplateResponse[]>(this.templateBaseUrl, { params });
   }
 
-  getTemplate(id: string): Observable<BlueprintTemplateResponse> {
-    return this.http.get<BlueprintTemplateResponse>(`${this.templateBaseUrl}/${id}`);
+  getTemplates(examId?: string): Observable<BlueprintTemplateResponse[]> {
+    return this.listTemplates(examId);
   }
 
-  createTemplate(req: BlueprintTemplateRequest): Observable<BlueprintTemplateResponse> {
-    return this.http.post<BlueprintTemplateResponse>(this.templateBaseUrl, req);
+  getTemplate(templateId: string): Observable<BlueprintTemplateResponse> {
+    return this.http.get<BlueprintTemplateResponse>(`${this.templateBaseUrl}/${templateId}`);
   }
 
-  updateTemplate(id: string, req: BlueprintTemplateRequest): Observable<BlueprintTemplateResponse> {
-    return this.http.put<BlueprintTemplateResponse>(`${this.templateBaseUrl}/${id}`, req);
+  updateTemplate(templateId: string, req: BlueprintTemplateRequest): Observable<BlueprintTemplateResponse> {
+    return this.http.put<BlueprintTemplateResponse>(`${this.templateBaseUrl}/${templateId}`, req);
   }
 
-  deleteTemplate(id: string): Observable<void> {
-    return this.http.delete<void>(`${this.templateBaseUrl}/${id}`);
+  deleteTemplate(templateId: string): Observable<void> {
+    return this.http.delete<void>(`${this.templateBaseUrl}/${templateId}`);
   }
 
-  /**
-   * Audits a stored blueprint template's sufficiency against live question bank inventory.
-   */
-  checkTemplateSufficiency(templateId: string, notifyAdmin: boolean = true): Observable<BlueprintFeasibilityResponse> {
-    const params = new HttpParams().set('notifyAdmin', notifyAdmin.toString());
-    return this.http.post<BlueprintFeasibilityResponse>(
-      `${this.templateBaseUrl}/${templateId}/check-sufficiency`,
-      {},
-      { params }
-    );
+  checkFeasibility(req: BlueprintFeasibilityRequest): Observable<BlueprintFeasibilityResponse> {
+    return this.http.post<BlueprintFeasibilityResponse>(`${this.templateBaseUrl}/feasibility`, req);
+  }
+
+  checkTemplateSufficiency(templateId: string, notifyAdmin = false): Observable<any> {
+    return this.http.post<any>(`${this.templateBaseUrl}/${templateId}/check-sufficiency`, { notifyAdmin });
+  }
+
+  checkBlueprintSufficiency(request: any): Observable<any> {
+    return this.http.post<any>(`${this.templateBaseUrl}/check-sufficiency`, request);
   }
 }

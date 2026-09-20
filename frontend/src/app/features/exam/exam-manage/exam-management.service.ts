@@ -68,6 +68,14 @@ export interface CreateExamRequest {
   sections: Section[];
 }
 
+export interface PagedResponse<T> {
+  content: T[];
+  totalElements: number;
+  totalPages: number;
+  size: number;
+  number: number;
+}
+
 interface ApiResponse<T> {
   status: string;
   message: string;
@@ -81,12 +89,39 @@ export class ExamManagementService {
 
   constructor(private http: HttpClient) {}
 
-  getExams(page = 0, size = 20, search?: string): Observable<ExaminationResponse[]> {
+  getExams(page = 0, size = 20, search?: string, sort?: string, order?: string): Observable<ExaminationResponse[]> {
     let params = `?page=${page}&size=${size}`;
     if (search) params += `&search=${encodeURIComponent(search)}`;
+    if (sort) params += `&sort=${encodeURIComponent(sort)}`;
+    if (order) params += `&order=${encodeURIComponent(order)}`;
     return this.http
       .get<ApiResponse<any>>(`${this.baseUrl}${params}`)
       .pipe(map(res => res?.data?.content ?? res?.data ?? []));
+  }
+
+  getExamsPaged(page = 0, size = 20, search?: string, sort?: string, order?: string): Observable<PagedResponse<ExaminationResponse>> {
+    let params = `?page=${page}&size=${size}`;
+    if (search) params += `&search=${encodeURIComponent(search)}`;
+    if (sort) params += `&sort=${encodeURIComponent(sort)}`;
+    if (order) params += `&order=${encodeURIComponent(order)}`;
+    return this.http
+      .get<ApiResponse<any>>(`${this.baseUrl}${params}`)
+      .pipe(map(res => {
+        const payload = res?.data ?? res;
+        if (Array.isArray(payload)) {
+          return { content: payload, totalElements: payload.length, totalPages: 1, size: payload.length, number: 0 };
+        }
+        if (payload && Array.isArray(payload.content)) {
+          return {
+            content: payload.content,
+            totalElements: payload.totalElements ?? payload.content.length,
+            totalPages: payload.totalPages ?? 1,
+            size: payload.size ?? payload.content.length,
+            number: payload.number ?? 0
+          };
+        }
+        return { content: [], totalElements: 0, totalPages: 0, size: 20, number: 0 };
+      }));
   }
 
   createExam(data: CreateExamRequest): Observable<ExaminationResponse> {

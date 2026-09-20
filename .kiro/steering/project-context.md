@@ -121,11 +121,11 @@ Key classes:
 2. **Immediate Diff & Compilation Verification**:
    - Always run `git diff <path>` after modifying any file to ensure no unintended deletions, overwrites, or escaped `\n` sequences exist.
    - Verify code compiles cleanly with `npm run build` or `docker build`.
-3. **MANDATORY: UI Docker Build & Production Build Verification (NEVER SKIP)**:
-   - Always run the production build and Docker build for the affected UI before completing a task:
-     - Angular Admin Portal: `docker build -t exam-frontend:latest ./frontend`
-     - React Candidate Engine: `docker build -t candidate-frontend:latest ./candidate-frontend`
-   - If backend changes were made, also verify backend compile (`./gradlew compileJava`) and container image build (`docker build -f backend/Dockerfile -t exam-monolith:latest ./backend`).
+3. **MANDATORY: UI Docker Build & Production Build Verification With `--no-cache` (NEVER SKIP)**:
+   - Always run the production build and Docker build with `--no-cache` for the affected UI before completing a task:
+     - Angular Admin Portal: `docker build --no-cache -t exam-frontend:latest ./frontend`
+     - React Candidate Engine: `docker build --no-cache -t candidate-frontend:latest ./candidate-frontend`
+   - If backend changes were made, also verify backend compile (`./gradlew compileJava`) and container image build (`docker build --no-cache -f backend/Dockerfile -t exam-monolith:latest ./backend`).
 
 ## Local Development
 
@@ -135,7 +135,7 @@ Key classes:
 - **Run Backend Tests**: `./gradlew test`
 - **Run Single Service**: `./gradlew :backend:<service-name>:bootRun`
 - **Build UI Frontend (Production)**: `npm run build -- --configuration production` (in `frontend/`)
-- **Docker Build UI**: `docker build -t exam-frontend:latest ./frontend`
+- **Docker Build UI (No Cache)**: `docker build --no-cache -t exam-frontend:latest ./frontend`
 
 ## Infrastructure Ports (Local Dev)
 

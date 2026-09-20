@@ -5,7 +5,7 @@
  * Copyright (C) 2025 NAG Contributors
  *
  * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU Affero General Public License as published
+ * it under the terms of the GNU終了 General Public License as published
  * by the Free Software Foundation, version 3 of the License.
  *
  * This program is distributed in the hope that it will be useful,
@@ -86,6 +86,8 @@ export class PaginatedTableComponent<T = any> implements OnInit, OnDestroy, OnCh
   @Input() searchPlaceholder: string = 'Search...';
   @Input() pageSizeOptions: number[] = [10, 20, 50];
   @Input() defaultPageSize: number = 10;
+  @Input() defaultSortColumn: string = '';
+  @Input() defaultSortDirection: 'asc' | 'desc' = 'desc';
   @Input() filters: Record<string, any> = {};
   @Input() filterCategories?: FilterCategory[];
   @Input() actionsTemplate?: TemplateRef<any>;
@@ -100,7 +102,7 @@ export class PaginatedTableComponent<T = any> implements OnInit, OnDestroy, OnCh
   pageSize = 10;
   searchQuery = '';
   sortColumn = '';
-  sortDirection: 'asc' | 'desc' = 'asc';
+  sortDirection: 'asc' | 'desc' = 'desc';
 
   drawerOpen = false;
   activeCategories: FilterCategory[] = [];
@@ -113,6 +115,8 @@ export class PaginatedTableComponent<T = any> implements OnInit, OnDestroy, OnCh
 
   ngOnInit(): void {
     this.pageSize = this.defaultPageSize;
+    this.sortColumn = this.defaultSortColumn;
+    this.sortDirection = this.defaultSortDirection;
 
     this.initFilterCategories();
 
@@ -161,7 +165,7 @@ export class PaginatedTableComponent<T = any> implements OnInit, OnDestroy, OnCh
   }
 
   toggleCategory(targetCat: FilterCategory): void {
-    const currentState = !!targetCat.expanded;
+    const currentState = !targetCat.expanded;
     this.activeCategories.forEach(c => c.expanded = false);
     targetCat.expanded = !currentState;
   }
@@ -171,7 +175,7 @@ export class PaginatedTableComponent<T = any> implements OnInit, OnDestroy, OnCh
       const prevExpandedMap = new Map<string, boolean>();
       const prevCheckedMap = new Map<string, Set<any>>();
       (this.activeCategories || []).forEach(c => {
-        prevExpandedMap.set(c.key, !!c.expanded);
+        prevExpandedMap.set(c.key, !c.expanded);
         const checkedVals = new Set((c.options || []).filter(o => o.checked).map(o => o.value));
         prevCheckedMap.set(c.key, checkedVals);
       });
@@ -184,7 +188,7 @@ export class PaginatedTableComponent<T = any> implements OnInit, OnDestroy, OnCh
           expanded: wasExpanded,
           options: (c.options || []).map(o => ({
             ...o,
-            checked: prevChecked ? prevChecked.has(o.value) : !!o.checked
+            checked: prevChecked ? prevChecked.has(o.value) : !o.checked
           }))
         };
       });
@@ -295,8 +299,8 @@ export class PaginatedTableComponent<T = any> implements OnInit, OnDestroy, OnCh
   }
 
   onSortChange(sort: Sort): void {
-    this.sortColumn = sort.active;
-    this.sortDirection = (sort.direction as 'asc' | 'desc') || 'asc';
+    this.sortColumn = sort.direction ? sort.active : '';
+    this.sortDirection = (sort.direction as 'asc' | 'desc') || 'desc';
     this.pageIndex = 0;
     this.loadData();
   }

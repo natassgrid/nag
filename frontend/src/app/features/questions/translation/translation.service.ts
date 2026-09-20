@@ -13,7 +13,7 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
  * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU标志 General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
 
@@ -33,15 +33,15 @@ export interface TranslatedOptionDto {
 export interface TranslationRequest {
   questionId: string;
   languageCode: string;
-  translatorId: string;
+  translatorId?: string;
   translatedContent: string;
   translatedOptions?: TranslatedOptionDto[];
   translatedExplanation?: string;
 }
 
 export interface TranslationReviewRequest {
-  reviewerId: string;
-  comments: string;
+  reviewerId?: string;
+  comments?: string;
 }
 
 export interface TranslationResponse {
@@ -85,6 +85,7 @@ export type BatchJobStatus = 'PENDING' | 'IN_PROGRESS' | 'COMPLETED' | 'FAILED' 
 
 export interface BatchTranslationJobResponse {
   id: string;
+  jobId?: string;
   tenantId: string;
   status: BatchJobStatus;
   sourceLanguage: string;
@@ -95,6 +96,7 @@ export interface BatchTranslationJobResponse {
   totalQuestions: number;
   processedQuestions: number;
   successfulQuestions: number;
+  translatedCount?: number;
   failedQuestions: number;
   progressPercentage: number;
   failedQuestionIds?: string[];
@@ -151,81 +153,61 @@ export class TranslationService {
     return SUPPORTED_LANGUAGES.find(l => l.code === code || l.code.toLowerCase() === (code || '').toLowerCase());
   }
 
-  /**
-   * List all translations for a question across all languages and statuses.
-   */
   listTranslationsForQuestion(questionId: string): Observable<TranslationResponse[]> {
     return this.http.get<TranslationResponse[]>(`${this.baseUrl}/question/${questionId}`);
   }
 
-  /**
-   * Get approved or published translation for a question and language code.
-   */
   getApprovedTranslation(questionId: string, lang: string): Observable<TranslationResponse> {
     return this.http.get<TranslationResponse>(`${this.baseUrl}/question/${questionId}/language/${lang}`);
   }
 
-  /**
-   * Auto-translate a question into target language using IndicTrans2 AI model.
-   */
   autoTranslateQuestion(questionId: string, languageCode: string): Observable<AutoTranslateResponse> {
     return this.http.post<AutoTranslateResponse>(`${this.baseUrl}/question/${questionId}/auto-translate/${languageCode}`, {});
   }
 
-  /**
-   * Submit an asynchronous batch auto-translation job (e.g. ENG to Hindi for all questions with upsert & published status).
-   */
   startBatchTranslation(request?: BatchTranslationRequest): Observable<BatchTranslationJobResponse> {
     return this.http.post<BatchTranslationJobResponse>(`${this.baseUrl}/batch/auto-translate`, request || {});
   }
 
-  /**
-   * Get batch translation job status & progress.
-   */
   getBatchJobStatus(jobId: string): Observable<BatchTranslationJobResponse> {
     return this.http.get<BatchTranslationJobResponse>(`${this.baseUrl}/batch/${jobId}`);
   }
 
-  /**
-   * List all batch translation jobs.
-   */
   listBatchJobs(): Observable<BatchTranslationJobResponse[]> {
     return this.http.get<BatchTranslationJobResponse[]>(`${this.baseUrl}/batch`);
   }
 
-  /**
-   * Cancel an active batch translation job.
-   */
   cancelBatchJob(jobId: string): Observable<BatchTranslationJobResponse> {
     return this.http.post<BatchTranslationJobResponse>(`${this.baseUrl}/batch/${jobId}/cancel`, {});
   }
 
-  /**
-   * Submit a new translation for a question.
-   */
-  submitTranslation(request: TranslationRequest): Observable<{ translationId: string; status: string; message: string }> {
-    return this.http.post<{ translationId: string; status: string; message: string }>(this.baseUrl, request);
+  saveTranslation(request: TranslationRequest): Observable<TranslationResponse> {
+    return this.http.post<TranslationResponse>(this.baseUrl, request);
   }
 
-  /**
-   * Resubmit a rejected translation.
-   */
-  resubmitTranslation(id: string, request: TranslationRequest): Observable<{ translationId: string; status: string; message: string }> {
-    return this.http.put<{ translationId: string; status: string; message: string }>(`${this.baseUrl}/${id}`, request);
+  submitTranslation(request: TranslationRequest): Observable<TranslationResponse> {
+    return this.saveTranslation(request);
   }
 
-  /**
-   * Approve a translation.
-   */
-  approveTranslation(id: string, reviewerId: string): Observable<{ translationId: string; status: string; message: string }> {
-    return this.http.post<{ translationId: string; status: string; message: string }>(`${this.baseUrl}/${id}/approve`, { reviewerId });
+  resubmitTranslation(translationId: string, request: TranslationRequest): Observable<TranslationResponse> {
+    return this.http.put<TranslationResponse>(`${this.baseUrl}/${translationId}`, request);
   }
 
-  /**
-   * Reject a translation with mandatory reviewer comments.
-   */
-  rejectTranslation(id: string, reviewerId: string, comments: string): Observable<{ translationId: string; status: string; message: string }> {
-    const body: TranslationReviewRequest = { reviewerId, comments };
-    return this.http.post<{ translationId: string; status: string; message: string }>(`${this.baseUrl}/${id}/reject`, body);
+  reviewTranslation(translationId: string, request: TranslationReviewRequest): Observable<TranslationResponse> {
+    return this.http.put<TranslationResponse>(`${this.baseUrl}/${translationId}/review`, request);
+  }
+
+  approveTranslation(translationId: string, reviewerId?: string): Observable<TranslationResponse> {
+    return this.reviewTranslation(translationId, { reviewerId, comments: 'Approved' });
+  }
+
+  rejectTranslation(translationId: string, reviewerIdOrComments?: string, comments?: string): Observable<TranslationResponse> {
+    const finalComments = comments !== undefined ? comments : reviewerIdOrComments;
+    const finalReviewerId = comments !== undefined ? reviewerIdOrComments : undefined;
+    return this.reviewTranslation(translationId, { reviewerId: finalReviewerId, comments: finalComments });
+  }
+
+  publishTranslation(translationId: string): Observable<TranslationResponse> {
+    return this.http.put<TranslationResponse>(`${this.baseUrl}/${translationId}/publish`, {});
   }
 }

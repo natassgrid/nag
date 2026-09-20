@@ -5,7 +5,7 @@
  * Copyright (C) 2025 NAG Contributors
  *
  * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, version 3 of the License.
  *
  * This program is distributed in the hope that it will be useful,
@@ -13,7 +13,7 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
  * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
 
@@ -22,32 +22,31 @@ import {
   Input,
   Output,
   EventEmitter,
-  OnInit,
   OnChanges,
   SimpleChanges,
-  ChangeDetectorRef,
-  ChangeDetectionStrategy
+  ChangeDetectionStrategy,
+  ChangeDetectorRef
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
-import { MatDividerModule } from '@angular/material/divider';
-import { MatTooltipModule } from '@angular/material/tooltip';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
-import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { MatChipsModule } from '@angular/material/chips';
+import { MatSnackBarModule, MatSnackBar } from '@angular/material/snack-bar';
 import { MatMenuModule } from '@angular/material/menu';
-import { of } from 'rxjs';
-import { catchError, finalize } from 'rxjs/operators';
+import { MatTooltipModule } from '@angular/material/tooltip';
+import { MatDividerModule } from '@angular/material/divider';
+import { RightDrawerComponent } from '../../../shared/components/right-drawer/right-drawer.component';
 import {
   PaperService,
-  BlueprintFeasibilityResponse,
   BlueprintTemplateResponse,
   BlueprintRule,
+  BlueprintFeasibilityResponse,
   BlueprintFeasibilityRequest,
   RuleFeasibilityDetail
 } from '../paper.service';
-import { RightDrawerComponent } from '../../../shared/components/right-drawer/right-drawer.component';
+import { catchError, finalize } from 'rxjs/operators';
+import { of } from 'rxjs';
 
 @Component({
   selector: 'app-blueprint-feasibility-modal',
@@ -56,30 +55,30 @@ import { RightDrawerComponent } from '../../../shared/components/right-drawer/ri
     CommonModule,
     MatButtonModule,
     MatIconModule,
-    MatDividerModule,
-    MatTooltipModule,
     MatProgressSpinnerModule,
-    MatSnackBarModule,
     MatChipsModule,
+    MatSnackBarModule,
     MatMenuModule,
+    MatTooltipModule,
+    MatDividerModule,
     RightDrawerComponent
   ],
   templateUrl: './blueprint-feasibility-modal.component.html',
   styleUrls: ['./blueprint-feasibility-modal.component.scss'],
   changeDetection: ChangeDetectionStrategy.OnPush
 })
-export class BlueprintFeasibilityModalComponent implements OnInit, OnChanges {
+export class BlueprintFeasibilityModalComponent implements OnChanges {
   @Input() isOpen = false;
   @Input() template?: BlueprintTemplateResponse;
   @Input() customRules?: BlueprintRule[];
   @Input() examId?: string;
-  @Input() shiftId?: string;
   @Input() examName?: string;
+  @Input() shiftId?: string;
+
   @Output() close = new EventEmitter<void>();
 
   loading = false;
-  notifying = false;
-  feasibility: BlueprintFeasibilityResponse | null = null;
+  feasibility?: BlueprintFeasibilityResponse;
   error: string | null = null;
   showPromptPreview = false;
 
@@ -88,12 +87,6 @@ export class BlueprintFeasibilityModalComponent implements OnInit, OnChanges {
     private snackBar: MatSnackBar,
     private cdr: ChangeDetectorRef
   ) {}
-
-  ngOnInit(): void {
-    if (this.isOpen) {
-      this.runAnalysis(false);
-    }
-  }
 
   ngOnChanges(changes: SimpleChanges): void {
     if (changes['isOpen'] && this.isOpen) {
@@ -118,7 +111,7 @@ export class BlueprintFeasibilityModalComponent implements OnInit, OnChanges {
   get deficitRules(): RuleFeasibilityDetail[] {
     if (!this.feasibility?.ruleDetails) return [];
     return this.feasibility.ruleDetails.filter(
-      (r) => r.status === 'DEFICIT' || (r.deficit && r.deficit > 0)
+      (r: RuleFeasibilityDetail) => r.status === 'DEFICIT' || ((r.deficit ?? 0) > 0)
     );
   }
 
@@ -142,7 +135,7 @@ export class BlueprintFeasibilityModalComponent implements OnInit, OnChanges {
             const msg =
               err?.error?.detail ??
               err?.error?.message ??
-              'Failed to audit template sufficiency';
+              'Failed to verify template sufficiency';
             this.error = msg;
             this.snackBar.open(msg, 'Dismiss', { duration: 4000 });
             return of(null);
@@ -173,9 +166,10 @@ export class BlueprintFeasibilityModalComponent implements OnInit, OnChanges {
         return;
       }
 
-      const request: BlueprintFeasibilityRequest = {
+      const request: any = {
         examId: this.examId || this.template?.examId,
         shiftId: this.shiftId,
+        rules,
         blueprintRules: rules,
         notifyAdminOnDeficit: notifyAdmin
       };
@@ -226,7 +220,7 @@ export class BlueprintFeasibilityModalComponent implements OnInit, OnChanges {
     const blueprintName = this.template?.name || 'Assessment Blueprint';
     const examScope = this.examName || this.examId || 'General Assessment';
     const totalDeficit = rules.reduce(
-      (acc, r) => acc + (r.deficit > 0 ? r.deficit : r.needed),
+      (acc, r) => acc + ((r.deficit ?? 0) > 0 ? r.deficit! : (r.needed ?? 0)),
       0
     );
 
@@ -246,7 +240,7 @@ export class BlueprintFeasibilityModalComponent implements OnInit, OnChanges {
     prompt += `Generate the specified count of items for each rule below:\n\n`;
 
     rules.forEach((rule, idx) => {
-      const needed = rule.deficit > 0 ? rule.deficit : rule.needed;
+      const needed = (rule.deficit ?? 0) > 0 ? rule.deficit! : (rule.needed ?? 0);
       prompt += `### Rule ${idx + 1}: ${rule.subject} > ${rule.topic}\n`;
       prompt += `- **Subject:** ${rule.subject}\n`;
       prompt += `- **Topic:** ${rule.topic}\n`;
@@ -257,7 +251,7 @@ export class BlueprintFeasibilityModalComponent implements OnInit, OnChanges {
 
     prompt += `## Quality & Formatting Guidelines\n`;
     prompt += `1. **Standard:** Provide well-calibrated, unambiguous questions with 4 distinct options (A, B, C, D) for MCQs.\n`;
-    prompt += `2. **Mathematical / Scientific Formulas:** Use standard LaTeX enclosed in single dollar signs (e.g., \`$E = mc^2$\` or \`$\\frac{-b \\pm \\sqrt{b^2 - 4ac}}{2a}$\`).\n`;
+    prompt += `2. **Mathematical / Scientific Formulas:** Use standard LaTeX enclosed in single dollar signs (e.g., \`$E = mc^2\` or \`$\\frac{-b \\pm \\sqrt{b^2 - 4ac}}{2a}$\`).\n`;
     prompt += `3. **Distractors:** Ensure incorrect options represent plausible student misconceptions, not trivial mistakes.\n`;
     prompt += `4. **Explanations:** Include comprehensive, pedagogical step-by-step explanations for the correct answer.\n\n`;
 
@@ -296,7 +290,7 @@ export class BlueprintFeasibilityModalComponent implements OnInit, OnChanges {
         difficulty: r.difficulty || 'MEDIUM',
         cognitiveLevel: r.cognitiveLevel || 'APPLY',
         questionType: 'SINGLE_MCQ',
-        count: r.deficit > 0 ? r.deficit : r.needed
+        count: (r.deficit ?? 0) > 0 ? r.deficit! : (r.needed ?? 0)
       }))
     };
     return JSON.stringify(batchRequest, null, 2);
@@ -319,111 +313,57 @@ export class BlueprintFeasibilityModalComponent implements OnInit, OnChanges {
 
   copyAIPrompt(): void {
     const prompt = this.generateAIPrompt();
-    this.copyToClipboard(
-      prompt,
-      'AI Question Generation prompt copied to clipboard!'
-    );
-  }
-
-  copyAIBatchJson(): void {
-    const json = this.generateAIBatchJson();
-    this.copyToClipboard(
-      json,
-      'AI Batch Generation JSON payload copied to clipboard!'
-    );
+    navigator.clipboard.writeText(prompt).then(() => {
+      this.snackBar.open(
+        'AI Generation Prompt copied to clipboard! Paste into ChatGPT/Claude.',
+        'OK',
+        { duration: 3500 }
+      );
+    });
   }
 
   downloadAIPrompt(): void {
     const prompt = this.generateAIPrompt();
-    const baseName = this.getSanitizedBaseName();
-    this.downloadFile(`${baseName}_ai_question_prompt.md`, prompt, 'text/markdown');
-    this.snackBar.open('Downloaded AI Question Generation Prompt (.md)', 'OK', {
-      duration: 3000
+    const blob = new Blob([prompt], { type: 'text/markdown;charset=utf-8;' });
+    const filename = `ai-question-generation-${this.template?.name ? this.template.name.toLowerCase().replace(/\\s+/g, '-') : 'blueprint'}-${Date.now()}.md`;
+    this.downloadFile(blob, filename);
+  }
+
+  copyAIBatchJson(): void {
+    const json = this.generateAIBatchJson();
+    navigator.clipboard.writeText(json).then(() => {
+      this.snackBar.open(
+        'AI Batch JSON configuration copied to clipboard!',
+        'OK',
+        { duration: 3500 }
+      );
     });
   }
 
   downloadAIBatchJson(): void {
     const json = this.generateAIBatchJson();
-    const baseName = this.getSanitizedBaseName();
-    this.downloadFile(
-      `${baseName}_ai_batch_request.json`,
-      json,
-      'application/json'
-    );
-    this.snackBar.open('Downloaded AI Batch Generation Request (.json)', 'OK', {
-      duration: 3000
-    });
+    const blob = new Blob([json], { type: 'application/json;charset=utf-8;' });
+    const filename = `ai-batch-request-${this.template?.name ? this.template.name.toLowerCase().replace(/\\s+/g, '-') : 'blueprint'}-${Date.now()}.json`;
+    this.downloadFile(blob, filename);
   }
 
   downloadAuditJson(): void {
     const json = this.generateAuditJson();
-    const baseName = this.getSanitizedBaseName();
-    this.downloadFile(
-      `${baseName}_feasibility_audit.json`,
-      json,
-      'application/json'
-    );
-    this.snackBar.open('Downloaded Feasibility Audit Report (.json)', 'OK', {
-      duration: 3000
-    });
+    const blob = new Blob([json], { type: 'application/json;charset=utf-8;' });
+    const filename = `blueprint-audit-report-${this.template?.id || 'adhoc'}-${Date.now()}.json`;
+    this.downloadFile(blob, filename);
   }
 
-  private getSanitizedBaseName(): string {
-    const name = this.template?.name || this.examName || 'blueprint';
-    return name
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, '_')
-      .replace(/^_+|_+$/g, '') || 'blueprint_audit';
-  }
-
-  private copyToClipboard(text: string, successMessage: string): void {
-    if (navigator.clipboard && navigator.clipboard.writeText) {
-      navigator.clipboard
-        .writeText(text)
-        .then(() => {
-          this.snackBar.open(successMessage, 'OK', { duration: 3500 });
-        })
-        .catch(() => {
-          this.fallbackCopyText(text, successMessage);
-        });
-    } else {
-      this.fallbackCopyText(text, successMessage);
-    }
-  }
-
-  private fallbackCopyText(text: string, successMessage: string): void {
-    const textArea = document.createElement('textarea');
-    textArea.value = text;
-    textArea.style.position = 'fixed';
-    textArea.style.opacity = '0';
-    document.body.appendChild(textArea);
-    textArea.focus();
-    textArea.select();
-    try {
-      document.execCommand('copy');
-      this.snackBar.open(successMessage, 'OK', { duration: 3500 });
-    } catch {
-      this.snackBar.open('Failed to copy to clipboard', 'Dismiss', {
-        duration: 3000
-      });
-    }
-    document.body.removeChild(textArea);
-  }
-
-  private downloadFile(
-    filename: string,
-    content: string,
-    contentType: string = 'text/plain'
-  ): void {
-    const blob = new Blob([content], { type: contentType });
+  private downloadFile(blob: Blob, filename: string): void {
     const url = window.URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = filename;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
     window.URL.revokeObjectURL(url);
+    this.snackBar.open(`Downloaded ${filename}`, 'OK', { duration: 3000 });
   }
 
   onClose(): void {

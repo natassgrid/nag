@@ -97,7 +97,7 @@ class ExaminationControllerIntegrationTest extends AbstractIntegrationTest {
         @Test
         @DisplayName("+ve: EXAM_CONTROLLER retrieves paginated list of examinations - returns 200 OK")
         void examControllerCanListExaminations() throws Exception {
-            when(examinationService.listByTenantPaged(eq(TENANT_ID), any(), anyInt(), anyInt()))
+            when(examinationService.listByTenantPaged(eq(TENANT_ID), any(), any(), any(), anyInt(), anyInt()))
                     .thenReturn(new PageImpl<>(List.of(sampleExaminationResponse())));
 
             mockMvc.perform(get("/api/v1/examinations")

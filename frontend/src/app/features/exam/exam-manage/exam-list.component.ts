@@ -24,7 +24,6 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { MatTooltipModule } from '@angular/material/tooltip';
-import { map } from 'rxjs/operators';
 import { ExamManagementService, ExaminationResponse, CreateExamRequest } from './exam-management.service';
 import { ExamFormDialogComponent } from './exam-form-dialog.component';
 import {
@@ -81,17 +80,7 @@ export class ExamListComponent {
   ];
 
   fetcher: PaginatedDataFetcher<ExaminationResponse> = (req) => {
-    return this.examService.getExams(req.page, req.size, req.search).pipe(
-      map(exams => {
-        return {
-          content: exams,
-          totalElements: exams.length,
-          totalPages: 1,
-          size: req.size,
-          number: req.page
-        };
-      })
-    );
+    return this.examService.getExamsPaged(req.page, req.size, req.search, req.sort, req.order);
   };
 
   constructor(

@@ -67,6 +67,8 @@
             mat-table
             [dataSource]="dataSource"
             matSort
+            [matSortActive]="sortColumn"
+            [matSortDirection]="sortDirection"
             (matSortChange)="onSortChange($event)"
             class="custom-paginated-table"
           >

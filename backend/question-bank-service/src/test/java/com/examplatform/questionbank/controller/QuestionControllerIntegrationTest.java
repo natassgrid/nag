@@ -204,7 +204,7 @@ class QuestionControllerIntegrationTest extends AbstractIntegrationTest {
         @Test
         @DisplayName("+ve: REVIEWER retrieves paginated list of questions - returns 200 OK")
         void reviewerCanListQuestions() throws Exception {
-            when(questionService.listQuestions(any(), any(), any(), any(), any(), any(), any(), any(), any(), anyInt(), anyInt(), eq(TENANT_ID)))
+            when(questionService.listQuestions(any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), anyInt(), anyInt(), eq(TENANT_ID)))
                     .thenReturn(new PageImpl<>(List.of(sampleQuestionResponse())));
 
             mockMvc.perform(get("/api/v1/questions")
@@ -218,7 +218,7 @@ class QuestionControllerIntegrationTest extends AbstractIntegrationTest {
         @Test
         @DisplayName("+ve: TRANSLATOR retrieves filtered questions by targetLang and translationStatus")
         void translatorCanListFilteredQuestions() throws Exception {
-            when(questionService.listQuestions(any(), any(), any(), any(), any(), any(), any(), eq("hi"), eq("MISSING"), anyInt(), anyInt(), eq(TENANT_ID)))
+            when(questionService.listQuestions(any(), any(), any(), any(), any(), any(), any(), eq("hi"), eq("MISSING"), any(), any(), anyInt(), anyInt(), eq(TENANT_ID)))
                     .thenReturn(new PageImpl<>(List.of(sampleQuestionResponse())));
 
             mockMvc.perform(get("/api/v1/questions")

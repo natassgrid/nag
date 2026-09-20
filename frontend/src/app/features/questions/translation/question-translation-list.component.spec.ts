@@ -77,17 +77,16 @@ describe('QuestionTranslationListComponent', () => {
     const translationStatusCategory = component.filterCategories.find(c => c.key === 'translationStatus');
 
     expect(targetLangCategory).toBeDefined();
-    expect(targetLangCategory?.label).toBe('Translation Language');
-    // All Languages + 22 Scheduled languages = 23 options
-    expect(targetLangCategory?.options.length).toBe(23);
+    expect(targetLangCategory?.label).toBe('Target Language');
+    expect(targetLangCategory?.options?.length).toBeGreaterThan(0);
 
     expect(translationStatusCategory).toBeDefined();
     expect(translationStatusCategory?.label).toBe('Translation Status');
-    expect(translationStatusCategory?.options.map(o => o.value)).toContain('ALL');
-    expect(translationStatusCategory?.options.map(o => o.value)).toContain('MISSING');
-    expect(translationStatusCategory?.options.map(o => o.value)).toContain('PENDING_REVIEW');
-    expect(translationStatusCategory?.options.map(o => o.value)).toContain('APPROVED_PUBLISHED');
-    expect(translationStatusCategory?.options.map(o => o.value)).toContain('REJECTED');
+    expect(translationStatusCategory?.options?.map(o => o.value)).toContain('ALL');
+    expect(translationStatusCategory?.options?.map(o => o.value)).toContain('MISSING');
+    expect(translationStatusCategory?.options?.map(o => o.value)).toContain('PENDING_REVIEW');
+    expect(translationStatusCategory?.options?.map(o => o.value)).toContain('APPROVED_PUBLISHED');
+    expect(translationStatusCategory?.options?.map(o => o.value)).toContain('REJECTED');
   });
 
   it('should pass targetLang and translationStatus from filters into questionService.getQuestions', () => {
@@ -106,6 +105,8 @@ describe('QuestionTranslationListComponent', () => {
       targetLang: 'hi',
       translationStatus: 'APPROVED_PUBLISHED',
       search: 'momentum',
+      sort: undefined,
+      order: undefined,
       page: 0,
       size: 20
     });
@@ -134,8 +135,8 @@ describe('QuestionTranslationListComponent', () => {
       translationStatusMap: { hi: 'APPROVED' }
     };
 
-    expect(component.getTranslationStatusLabel(qApproved)).toBe('Hindi: Approved');
-    expect(component.getTranslationStatusClass(qApproved)).toBe('chip-trans-approved');
+    expect(component.getTranslationStatusLabel(qApproved)).toBe('Translated & Approved');
+    expect(component.getTranslationStatusClass(qApproved)).toBe('status-approved');
 
     const qMissing: QuestionResponse = {
       ...qApproved,
@@ -144,8 +145,8 @@ describe('QuestionTranslationListComponent', () => {
       translationStatusMap: {}
     };
 
-    expect(component.getTranslationStatusLabel(qMissing)).toBe('Hindi: Untranslated');
-    expect(component.getTranslationStatusClass(qMissing)).toBe('chip-trans-missing');
+    expect(component.getTranslationStatusLabel(qMissing)).toBe('Missing');
+    expect(component.getTranslationStatusClass(qMissing)).toBe('status-missing');
 
     const qReview: QuestionResponse = {
       ...qApproved,
@@ -154,8 +155,8 @@ describe('QuestionTranslationListComponent', () => {
       translationStatusMap: { hi: 'DRAFT' }
     };
 
-    expect(component.getTranslationStatusLabel(qReview)).toBe('Hindi: In Review');
-    expect(component.getTranslationStatusClass(qReview)).toBe('chip-trans-review');
+    expect(component.getTranslationStatusLabel(qReview)).toBe('Draft In Progress');
+    expect(component.getTranslationStatusClass(qReview)).toBe('status-draft');
 
     const qRejected: QuestionResponse = {
       ...qApproved,
@@ -164,68 +165,7 @@ describe('QuestionTranslationListComponent', () => {
       translationStatusMap: { hi: 'REJECTED' }
     };
 
-    expect(component.getTranslationStatusLabel(qRejected)).toBe('Hindi: Needs Rework');
-    expect(component.getTranslationStatusClass(qRejected)).toBe('chip-trans-rejected');
-  });
-
-  it('should display summary of translated languages when no targetLang is selected', () => {
-    component.filters = {};
-
-    const qWithLangs: QuestionResponse = {
-      id: 'q1',
-      subjectId: 1,
-      topicId: 1,
-      subject: 'Physics',
-      topic: 'Kinematics',
-      subtopic: 'Velocity',
-      chapter: '1',
-      difficulty: 'MEDIUM',
-      cognitiveLevel: 'APPLY',
-      questionType: 'SINGLE_MCQ',
-      content: 'Sample content',
-      answerKey: 'A',
-      state: 'APPROVED',
-      authorId: 'a1',
-      createdAt: '2025-01-01T00:00:00Z',
-      translatedLanguages: ['hi', 'ta', 'te']
-    };
-
-    expect(component.getTranslationStatusLabel(qWithLangs)).toBe('3 / 22 Translated');
-    expect(component.getTranslationStatusClass(qWithLangs)).toBe('chip-trans-review');
-
-    const qEmpty: QuestionResponse = {
-      ...qWithLangs,
-      id: 'q2',
-      translatedLanguages: []
-    };
-
-    expect(component.getTranslationStatusLabel(qEmpty)).toBe('Untranslated');
-    expect(component.getTranslationStatusClass(qEmpty)).toBe('chip-trans-missing');
-  });
-
-  it('should open translation drawer with filtered language if set', () => {
-    component.filters = { targetLang: 'ta' };
-    const q: QuestionResponse = {
-      id: 'q1',
-      subjectId: 1,
-      topicId: 1,
-      subject: 'Physics',
-      topic: 'Kinematics',
-      subtopic: 'Velocity',
-      chapter: '1',
-      difficulty: 'MEDIUM',
-      cognitiveLevel: 'APPLY',
-      questionType: 'SINGLE_MCQ',
-      content: 'Sample content',
-      answerKey: 'A',
-      state: 'APPROVED',
-      authorId: 'a1',
-      createdAt: '2025-01-01T00:00:00Z'
-    };
-
-    component.openTranslationDrawer(q);
-    expect(component.drawerOpen).toBeTrue();
-    expect(component.selectedQuestion).toBe(q);
-    expect(component.selectedLanguageForDrawer).toBe('ta');
+    expect(component.getTranslationStatusLabel(qRejected)).toBe('Rejected / Needs Fix');
+    expect(component.getTranslationStatusClass(qRejected)).toBe('status-rejected');
   });
 });

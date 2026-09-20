@@ -1,4 +1,3 @@
-import { Component, ViewChild, ChangeDetectionStrategy } from '@angular/core';
 /*
  * SPDX-License-Identifier: AGPL-3.0-only
  *
@@ -18,13 +17,13 @@ import { Component, ViewChild, ChangeDetectionStrategy } from '@angular/core';
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
 
+import { Component, ViewChild, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
-import { map } from 'rxjs/operators';
 import { SchedulingService, CentreResponse, CreateCentreRequest } from './scheduling.service';
 import { CentreFormDialogComponent } from './centre-form-dialog.component';
 import {
@@ -75,17 +74,7 @@ export class CentreListComponent {
   ];
 
   fetcher: PaginatedDataFetcher<CentreResponse> = (req) => {
-    return this.schedulingService.listCentres(undefined, undefined, req.page, req.size, req.search).pipe(
-      map(centres => {
-        return {
-          content: centres,
-          totalElements: centres.length,
-          totalPages: 1,
-          size: req.size,
-          number: req.page
-        };
-      })
-    );
+    return this.schedulingService.listCentresPaged(undefined, undefined, req.page, req.size, req.search, req.sort, req.order);
   };
 
   constructor(
@@ -113,7 +102,7 @@ export class CentreListComponent {
         this.snackBar.open('Centre created', 'OK', { duration: 3000 });
         this.reload();
       },
-      error: (e) => this.snackBar.open(e?.error?.message || 'Error creating centre', 'Dismiss', { duration: 4000 })
+      error: (e: any) => this.snackBar.open(e?.error?.message || 'Error creating centre', 'Dismiss', { duration: 4000 })
     });
   }
 
@@ -123,7 +112,7 @@ export class CentreListComponent {
         this.snackBar.open('Centre deactivated', 'OK', { duration: 3000 });
         this.reload();
       },
-      error: (e) => this.snackBar.open(e?.error?.message || 'Error', 'Dismiss', { duration: 4000 })
+      error: (e: any) => this.snackBar.open(e?.error?.message || 'Error', 'Dismiss', { duration: 4000 })
     });
   }
 }

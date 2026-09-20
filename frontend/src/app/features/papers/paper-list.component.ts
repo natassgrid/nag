@@ -13,11 +13,17 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
  * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
 
-import { Component, OnInit, ViewChild, ChangeDetectionStrategy, ChangeDetectorRef } from '@angular/core';
+import {
+  Component,
+  OnInit,
+  ViewChild,
+  ChangeDetectionStrategy,
+  ChangeDetectorRef
+} from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
@@ -27,23 +33,24 @@ import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { MatChipsModule } from '@angular/material/chips';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
-import { of, catchError } from 'rxjs';
+import {
+  PaginatedTableComponent,
+  ColumnDef,
+  PaginatedDataFetcher,
+  FilterCategory
+} from '../../shared/components/paginated-table';
+import { PageHeaderComponent } from '../../shared/components/page-header/page-header.component';
+import { PaperGenerateDialogComponent } from './paper-generate-dialog.component';
+import { PaperSummaryDrawerComponent } from './paper-summary-drawer.component';
 import {
   PaperService,
   PaperSummary,
   PaperGenerationResponse,
   PaperDetail
 } from './paper.service';
-import { PaperGenerateDialogComponent } from './paper-generate-dialog.component';
-import { PaperSummaryDrawerComponent } from './paper-summary-drawer.component';
-import {
-  PaginatedTableComponent,
-  PaginatedDataFetcher,
-  FilterCategory
-} from '../../shared/components/paginated-table';
-import { ColumnDef } from '../../shared/components/paginated-table/pagination.model';
-import { PageHeaderComponent } from '../../shared/components/page-header/page-header.component';
-import { ExamManagementService } from '../exam/exam-manage/exam-management.service';
+import { ExamManagementService, ExaminationResponse } from '../exam/exam-manage/exam-management.service';
+import { of } from 'rxjs';
+import { catchError } from 'rxjs/operators';
 
 @Component({
   selector: 'app-paper-list',
@@ -106,52 +113,84 @@ export class PaperListComponent implements OnInit {
       key: 'name',
       header: 'Paper Name',
       sortable: true,
-      cell: (row) => row.name || `Paper ${row.paperId.substring(0, 8)}…`
+      cell: (row) => row.name || `Paper ${(row.paperId || row.id)?.substring(0, 8) || ''}…`
     },
     {
       key: 'examName',
       header: 'Examination',
-      cell: (row) => row.examName || this.examMap.get(row.examId) || row.examId.substring(0, 8) + '…',
-      sortable: true
+      sortable: true,
+      cell: (row) => row.examName || this.examMap.get(row.examId || '') || row.examId || '—'
     },
     {
       key: 'shiftName',
       header: 'Shift',
-      cell: (row) => row.shiftName || row.shiftId || '—',
-      sortable: true
+      sortable: true,
+      cell: (row) => row.shiftName || row.shiftId || '—'
+    },
+    {
+      key: 'totalQuestions',
+      header: 'Questions',
+      sortable: true,
+      cell: (row) => (row.totalQuestions !== undefined ? `${row.totalQuestions}` : '—')
+    },
+    {
+      key: 'totalMarks',
+      header: 'Total Marks',
+      sortable: true,
+      cell: (row) => (row.totalMarks !== undefined ? `${row.totalMarks}` : '—')
     },
     {
       key: 'difficultyScore',
       header: 'Difficulty',
-      cell: (row) => row.difficultyScore?.toFixed(2) ?? '—'
+      sortable: true,
+      cell: (row) =>
+        row.difficultyScore !== undefined ? row.difficultyScore.toFixed(2) : '—'
     },
     {
       key: 'status',
       header: 'Status',
+      sortable: true,
       type: 'chip',
-      chipClass: (val: string) => 'status-' + (val ?? '').toLowerCase(),
-      sortable: true
+      chipClass: (status: string) => {
+        switch (status?.toUpperCase()) {
+          case 'APPROVED':
+            return 'status-approved';
+          case 'ENCRYPTED':
+            return 'status-encrypted';
+          case 'PUBLISHED':
+            return 'status-published';
+          default:
+            return 'status-draft';
+        }
+      }
     },
-    { key: 'createdAt', header: 'Created', type: 'date', sortable: true },
-    { key: 'actions', header: 'Actions', type: 'actions' }
+    {
+      key: 'createdAt',
+      header: 'Generated At',
+      sortable: true,
+      cell: (row) => (row.createdAt ? new Date(row.createdAt).toLocaleDateString() : '—')
+    },
+    {
+      key: 'actions',
+      header: 'Actions',
+      type: 'actions'
+    }
   ];
 
   fetcher: PaginatedDataFetcher<PaperSummary> = (req) => {
-    const statusVal = Array.isArray(this.activeFilters['status'])
-      ? this.activeFilters['status'][0]
-      : this.activeFilters['status'];
-
-    return this.paperService.getPapers(
-      req.page,
-      req.size,
-      this.activeFilters['examId'],
-      statusVal
-    );
+    return this.paperService.getPapers({
+      page: req.page,
+      size: req.size,
+      search: req.search,
+      sort: req.sort,
+      order: req.order,
+      status: this.activeFilters['status']
+    });
   };
 
   constructor(
     private paperService: PaperService,
-    private examService: ExamManagementService,
+    private examManagementService: ExamManagementService,
     private snackBar: MatSnackBar,
     private router: Router,
     private cdr: ChangeDetectorRef
@@ -162,10 +201,13 @@ export class PaperListComponent implements OnInit {
   }
 
   loadExams(): void {
-    this.examService.getExams(0, 100).pipe(catchError(() => of([]))).subscribe((exams) => {
-      this.examMap.clear();
-      (exams || []).forEach((e) => this.examMap.set(e.id, e.name));
-      this.cdr.detectChanges();
+    this.examManagementService.getExams().subscribe({
+      next: (res) => {
+        const exams: ExaminationResponse[] = Array.isArray(res) ? res : (res as any)?.content || [];
+        exams.forEach((e) => this.examMap.set(e.id, e.name));
+        this.cdr.detectChanges();
+      },
+      error: () => {}
     });
   }
 
@@ -174,10 +216,10 @@ export class PaperListComponent implements OnInit {
     this.paperTable?.reload();
   }
 
-  // ── Paper Summary Drawer ──────────────────────────────────────────────────
+  // ── Paper Summary Drawer ──────────────────────────────────────────
 
   viewPaperSummary(row: PaperSummary): void {
-    this.selectedPaperId = row.paperId;
+    this.selectedPaperId = row.paperId ?? row.id ?? null;
     this.summaryDrawerOpen = true;
     this.cdr.detectChanges();
   }
@@ -199,7 +241,7 @@ export class PaperListComponent implements OnInit {
     this.cdr.detectChanges();
   }
 
-  // ── Generate ──────────────────────────────────────────────────────────────
+  // ── Generate ──────────────────────────────────────────────────────
 
   openGenerateDrawer(): void {
     this.generateDrawerOpen = true;
@@ -220,12 +262,15 @@ export class PaperListComponent implements OnInit {
     this.cdr.detectChanges();
   }
 
-  // ── Approve & Encrypt ─────────────────────────────────────────────────────
+  // ── Approve & Encrypt ─────────────────────────────────────────────
 
   approvePaper(row: PaperSummary): void {
-    this.approvingId = row.paperId;
+    const paperId = row.paperId ?? row.id;
+    if (!paperId) return;
+
+    this.approvingId = paperId;
     this.paperService
-      .approvePaper(row.paperId)
+      .approvePaper(paperId)
       .pipe(
         catchError((err) => {
           this.snackBar.open('Approval failed: ' + (err.error?.detail || err.message), 'Close', {

@@ -192,6 +192,8 @@ export class QuestionService {
     targetLang?: string;
     translationStatus?: string;
     search?: string;
+    sort?: string;
+    order?: string;
     page?: number;
     size?: number;
   }): Observable<PagedResponse<QuestionResponse>> {
@@ -212,6 +214,8 @@ export class QuestionService {
       if (filters.targetLang) params = params.set('targetLang', filters.targetLang);
       if (filters.translationStatus) params = params.set('translationStatus', filters.translationStatus);
       if (filters.search)     params = params.set('search', filters.search);
+      if (filters.sort)       params = params.set('sort', filters.sort);
+      if (filters.order)      params = params.set('order', filters.order);
       params = params.set('page', String(filters.page ?? 0));
       params = params.set('size', String(filters.size ?? 20));
     }
@@ -253,8 +257,8 @@ export class QuestionService {
       .pipe(map(res => res.data));
   }
 
-  getQuestionsForReview(page = 0, size = 20, search?: string): Observable<PagedResponse<QuestionResponse>> {
-    return this.getQuestions({ state: 'REVIEW', search, page, size });
+  getQuestionsForReview(page = 0, size = 20, search?: string, sort?: string, order?: string): Observable<PagedResponse<QuestionResponse>> {
+    return this.getQuestions({ state: 'REVIEW', search, sort, order, page, size });
   }
 
   approveQuestion(id: string): Observable<QuestionResponse> {

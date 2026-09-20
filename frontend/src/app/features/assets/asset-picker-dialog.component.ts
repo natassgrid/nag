@@ -88,8 +88,8 @@ export class AssetPickerDialogComponent implements OnInit, OnDestroy {
   columns: ColumnDef<AssetResponse>[] = [
     { key: 'originalFilename', header: 'Filename', sortable: true },
     { key: 'assetType', header: 'Type', sortable: true },
-    { key: 'fileSize', header: 'Size', cell: (row) => this.assetService.formatFileSize(row.fileSize) },
-    { key: 'createdAt', header: 'Uploaded', type: 'date' },
+    { key: 'fileSize', header: 'Size', cell: (row) => this.assetService.formatFileSize(row.fileSize), sortable: true },
+    { key: 'createdAt', header: 'Uploaded', type: 'date', sortable: true },
     { key: 'actions', header: '', type: 'actions' }
   ];
 
@@ -98,6 +98,8 @@ export class AssetPickerDialogComponent implements OnInit, OnDestroy {
       filename: req.search || undefined,
       assetType: this.data.assetType || undefined,
       status: 'ACTIVE',
+      sort: req.sort,
+      order: req.order,
       page: req.page,
       size: req.size
     });

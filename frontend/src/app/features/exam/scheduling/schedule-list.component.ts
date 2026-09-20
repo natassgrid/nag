@@ -24,7 +24,6 @@ import { MatCardModule } from '@angular/material/card';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatTooltipModule } from '@angular/material/tooltip';
-import { map } from 'rxjs/operators';
 import { ExamManagementService, ExaminationResponse } from '../exam-manage/exam-management.service';
 import {
   PaginatedTableComponent,
@@ -69,18 +68,7 @@ export class ScheduleListComponent {
   ];
 
   fetcher: PaginatedDataFetcher<ExaminationResponse> = (req) => {
-    return this.examService.getExams(req.page, req.size, req.search).pipe(
-      map(exams => {
-        // Backend now returns paginated content; wrap if needed
-        return {
-          content: exams,
-          totalElements: exams.length, // will be overridden when backend returns Page
-          totalPages: 1,
-          size: req.size,
-          number: req.page
-        };
-      })
-    );
+    return this.examService.getExamsPaged(req.page, req.size, req.search, req.sort, req.order);
   };
 
   constructor(

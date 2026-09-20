@@ -34,6 +34,10 @@ import com.examplatform.examination.repository.ShiftSeatAllocationRepository;
 import com.examplatform.shared.messaging.EventPublisher;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -100,16 +104,16 @@ public class ExaminationCentreService {
     }
 
     /**
-     * Lists centres with server-side pagination and optional search/filter.
+     * Lists centres with server-side pagination, optional search/filter, and dynamic sorting.
      */
     @Transactional(readOnly = true)
-    public org.springframework.data.domain.Page<CentreResponse> listCentresPaged(
-            String tenantId, String search, String state, String city, int page, int size) {
-        org.springframework.data.domain.Pageable pageable =
-                org.springframework.data.domain.PageRequest.of(page, size,
-                        org.springframework.data.domain.Sort.by("createdAt").descending());
+    public Page<CentreResponse> listCentresPaged(
+            String tenantId, String search, String state, String city, String sort, String order, int page, int size) {
+        Sort.Direction direction = "asc".equalsIgnoreCase(order) ? Sort.Direction.ASC : Sort.Direction.DESC;
+        String sortProp = resolveCentreSortProperty(sort);
+        Pageable pageable = PageRequest.of(page, size, Sort.by(direction, sortProp));
 
-        org.springframework.data.domain.Page<ExaminationCentre> centrePage;
+        Page<ExaminationCentre> centrePage;
         if (search != null && !search.isBlank()) {
             centrePage = centreRepository.findByTenantIdAndCentreNameContainingIgnoreCaseAndActiveTrue(
                     tenantId, search.trim(), pageable);
@@ -118,6 +122,27 @@ public class ExaminationCentreService {
         }
 
         return centrePage.map(this::toCentreResponse);
+    }
+
+    @Transactional(readOnly = true)
+    public Page<CentreResponse> listCentresPaged(
+            String tenantId, String search, String state, String city, int page, int size) {
+        return listCentresPaged(tenantId, search, state, city, null, "desc", page, size);
+    }
+
+    private String resolveCentreSortProperty(String sort) {
+        if (sort == null || sort.isBlank()) return "createdAt";
+        return switch (sort.trim().toLowerCase()) {
+            case "centrename", "name" -> "centreName";
+            case "city" -> "city";
+            case "state" -> "state";
+            case "district" -> "district";
+            case "totalcapacity", "capacity" -> "totalCapacity";
+            case "active" -> "active";
+            case "createdat", "created" -> "createdAt";
+            case "updatedat" -> "updatedAt";
+            default -> "createdAt";
+        };
     }
 
     @Transactional(readOnly = true)
