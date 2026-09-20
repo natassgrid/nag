@@ -37,6 +37,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import java.util.ArrayList;
@@ -110,7 +111,7 @@ class AsyncBatchTranslationWorkerTest {
         Page<Question> page = new PageImpl<>(List.of(q1, q2), PageRequest.of(0, 10), 2);
 
         when(jobRepository.findById(jobId)).thenReturn(Optional.of(job));
-        when(questionRepository.findAllQuestionsForBatch(eq(tenantId), any(PageRequest.class))).thenReturn(page);
+        when(questionRepository.findAll(any(Specification.class), any(PageRequest.class))).thenReturn(page);
 
         AutoTranslateResponse trans1 = AutoTranslateResponse.builder()
                 .questionId(questionId1)
@@ -253,7 +254,7 @@ class AsyncBatchTranslationWorkerTest {
         Page<Question> page = new PageImpl<>(List.of(q1, q2), PageRequest.of(0, 10), 2);
 
         when(jobRepository.findById(jobId)).thenReturn(Optional.of(job));
-        when(questionRepository.findAllQuestionsForBatch(eq(tenantId), any(PageRequest.class))).thenReturn(page);
+        when(questionRepository.findAll(any(Specification.class), any(PageRequest.class))).thenReturn(page);
 
         // Q1 fails with network / AI error
         when(indicTrans2Service.autoTranslateQuestionEntity(q1, "hi"))
@@ -291,7 +292,7 @@ class AsyncBatchTranslationWorkerTest {
 
         worker.processBatchTranslationJob(jobId, tenantId);
 
-        verify(questionRepository, never()).findAllQuestionsForBatch(any(), any());
+        verify(questionRepository, never()).findAll(any(Specification.class), any(PageRequest.class));
     }
 
     @Test
@@ -316,8 +317,7 @@ class AsyncBatchTranslationWorkerTest {
         Page<Question> page = new PageImpl<>(List.of(q1), PageRequest.of(0, 10), 1);
 
         when(jobRepository.findById(jobId)).thenReturn(Optional.of(job));
-        when(questionRepository.findBySubjectFilterAndTenantId(eq("Quantitative Aptitude"), eq(tenantId), any(PageRequest.class)))
-                .thenReturn(page);
+        when(questionRepository.findAll(any(Specification.class), any(PageRequest.class))).thenReturn(page);
 
         when(indicTrans2Service.autoTranslateQuestionEntity(any(), eq("hi"))).thenReturn(
                 AutoTranslateResponse.builder().questionId(questionId1).languageCode("hi").translatedContent("गणित").build()
@@ -326,7 +326,7 @@ class AsyncBatchTranslationWorkerTest {
         worker.processBatchTranslationJob(jobId, tenantId);
 
         assertThat(job.getStatus()).isEqualTo(BatchTranslationJobStatus.COMPLETED);
-        verify(questionRepository).findBySubjectFilterAndTenantId(eq("Quantitative Aptitude"), eq(tenantId), any(PageRequest.class));
+        verify(questionRepository).findAll(any(Specification.class), any(PageRequest.class));
         verify(jobRepository, times(1)).incrementSuccess(jobId);
     }
 
@@ -356,7 +356,7 @@ class AsyncBatchTranslationWorkerTest {
         Page<Question> page = new PageImpl<>(List.of(q1, q2), PageRequest.of(0, 10), 2);
 
         when(jobRepository.findById(jobId)).thenReturn(Optional.of(job));
-        when(questionRepository.findAllQuestionsForBatch(eq(tenantId), any(PageRequest.class))).thenReturn(page);
+        when(questionRepository.findAll(any(Specification.class), any(PageRequest.class))).thenReturn(page);
 
         when(indicTrans2Service.autoTranslateQuestionEntity(any(), eq("hi"))).thenReturn(
                 AutoTranslateResponse.builder().questionId(questionId1).languageCode("hi").translatedContent("Q").build()
