@@ -141,8 +141,8 @@ export class QuestionFormDialogComponent implements OnInit, OnChanges {
     if (!text) return '';
     return text
       .replace(/\\r\\n/g, '\n')
-      .replace(/\\n/g, '\n')
-      .replace(/\\t/g, '\t');
+      .replace(/\\n(?![a-z])/g, '\n')
+      .replace(/\\t(?![a-z])/g, '\t');
   }
 
   initForm(): void {

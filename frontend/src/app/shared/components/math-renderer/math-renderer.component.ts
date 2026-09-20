@@ -11,7 +11,7 @@
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU Affero General Public License for more details.
+ * GNU标识 Affero General Public License for more details.
  *
  * You should have received a copy of the GNU Affero General Public License
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
@@ -33,8 +33,8 @@ import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import katex from 'katex';
 import { marked } from 'marked';
 // mhchem adds \ce{} (chemical equations) and \pu{} (physical units) to KaTeX.
-// It ships inside the katex package — no extra npm dependency needed.
-import 'katex/dist/contrib/mhchem.js';
+// It ships inside the katex package — using ESM .mjs for proper Vite/esbuild bundler integration.
+import 'katex/dist/contrib/mhchem.mjs';
 
 @Component({
   selector: 'app-math-renderer',
@@ -48,24 +48,20 @@ import 'katex/dist/contrib/mhchem.js';
 export class MathRendererComponent implements OnChanges, AfterViewChecked {
   @Input() content: string | null = '';
   @Input() inline: boolean = false;
-  @Input() className: string = '';
 
-  @HostBinding('class.inline-mode') get isInlineMode(): boolean {
-    return this.inline;
-  }
+  @HostBinding('class.math-renderer-host') hostClass = true;
 
   renderedHtml: SafeHtml = '';
 
-  // Track whether SMILES canvases need drawing after DOM update
   private pendingSmilesRender = false;
 
-  // SmilesDrawer instance (lazy-loaded)
-  private smilesDrawer: any = null;
+  // SmilesDrawer module (lazy-loaded)
+  private smilesDrawerModule: any = null;
   private smilesDrawerLoading = false;
 
   // Non-math LaTeX commands that should be treated as text/HTML
   private nonMathPattern =
-    /\\{1,2}(begin|end)\{(enumerate|itemize|document|figure|table|center)\}|\\{1,2}item|\\{1,2}section|\\{1,2}subsection/;
+    /\\{1,2}(begin|end)\\{(enumerate|itemize|document|figure|table|center)\\}|\\{1,2}item|\\{1,2}section|\\{1,2}subsection/;
 
   constructor(private sanitizer: DomSanitizer, private el: ElementRef) {}
 
@@ -76,15 +72,15 @@ export class MathRendererComponent implements OnChanges, AfterViewChecked {
   }
 
   /**
-   * After each view update, find unrendered SMILES canvas elements
-   * and draw them using SmilesDrawer 2.0 if pending.
+   * After each view update, find unrendered SMILES svg elements
+   * and draw them using SmilesDrawer 2.0 SvgDrawer if pending.
    */
   ngAfterViewChecked(): void {
     if (!this.pendingSmilesRender) return;
-    const canvases = this.el.nativeElement.querySelectorAll('canvas[data-smiles]:not([data-smiles-drawn])');
-    if (canvases.length === 0) return;
+    const svgs = this.el.nativeElement.querySelectorAll('svg[data-smiles]:not([data-smiles-drawn])');
+    if (svgs.length === 0) return;
     this.pendingSmilesRender = false;
-    this.drawSmilesCanvases(canvases);
+    this.drawSmilesSvgs(svgs);
   }
 
   private render(): void {
@@ -101,31 +97,32 @@ export class MathRendererComponent implements OnChanges, AfterViewChecked {
       text = this.decodeHtmlEntities(text);
 
       // 3. Extract SVG blocks as opaque placeholders FIRST (FIX #4)
-      // Prevents \\-to-newline and markdown processing from corrupting SVG attributes/paths
       const { processedText: textWithoutSvg, tokens: svgTokens } = this.extractSvgBlocks(text);
       text = textWithoutSvg;
 
-      // 3b. Extract <smiles>...</smiles> blocks — convert to canvas placeholders (Issue #126)
+      // 4. Extract SMILES chemical structures <smiles ...>...</smiles> (FIX #126 / #144)
       const { processedText: textWithoutSmiles, smilesItems } = this.extractSmilesBlocks(text);
       text = textWithoutSmiles;
+      if (smilesItems.length > 0) {
+        this.pendingSmilesRender = true;
+      }
 
-      // 4. Extract and render all LaTeX math expressions to placeholders
-      // This protects math formulas containing \\, _, *, &, etc. from being corrupted by Markdown or doc cleaners
-      const { processedText: textWithoutMath, tokens: mathTokens } = this.extractAndRenderMath(text);
+      // 5. Extract Math blocks ($$...$$, \[...\], \(...\), $...$) and replace with placeholders
+      const { processedText: textWithoutMath, tokens: mathTokens } = this.extractMathBlocks(text);
       text = textWithoutMath;
 
-      // 5. Normalize pipe tables
+      // 6. Normalize pipe tables
       if (!this.inline) {
         text = this.normalizeMarkdownTables(text);
       }
 
-      // 6. Clean LaTeX document-level commands outside math blocks
+      // 7. Clean LaTeX document-level commands outside math blocks
       text = this.cleanLatexDocCommands(text);
 
-      // 7. Pre-process inline markdown formatting
+      // 8. Pre-process inline markdown formatting
       text = this.parseInlineMarkdown(text);
 
-      // 8. Parse Markdown using marked
+      // 9. Parse Markdown using marked
       let parsedHtml = '';
       if (this.inline) {
         parsedHtml = marked.parseInline(text, {
@@ -140,130 +137,66 @@ export class MathRendererComponent implements OnChanges, AfterViewChecked {
         }) as string;
       }
 
-      // 9. Secondary pass for any inline markdown in HTML blocks passed through by marked
-      parsedHtml = this.parseInlineMarkdown(parsedHtml);
+      // 10. Re-insert LaTeX math placeholders
+      mathTokens.forEach((renderedKatex, placeholder) => {
+        parsedHtml = parsedHtml.split(placeholder).join(renderedKatex);
+      });
 
-      // 10. Reinsert rendered KaTeX math blocks
-      for (const [placeholder, rendered] of mathTokens.entries()) {
-        parsedHtml = parsedHtml.split(placeholder).join(rendered);
-      }
+      // 11. Re-insert SMILES svg placeholder blocks
+      smilesItems.forEach(item => {
+        parsedHtml = parsedHtml.split(item.placeholder).join(item.svgHtml);
+      });
 
-      // 11. Reinsert SVG blocks (FIX #4)
-      for (const [placeholder, svgBlock] of svgTokens.entries()) {
-        parsedHtml = parsedHtml.split(placeholder).join(svgBlock);
-      }
-
-      // 12. Reinsert SMILES canvas elements (Issue #126)
-      for (const { placeholder, canvasHtml } of smilesItems) {
-        parsedHtml = parsedHtml.split(placeholder).join(canvasHtml);
-      }
-      if (smilesItems.length > 0) this.pendingSmilesRender = true;
+      // 12. Re-insert raw SVG block placeholders
+      svgTokens.forEach((svgContent, placeholder) => {
+        parsedHtml = parsedHtml.split(placeholder).join(svgContent);
+      });
 
       this.renderedHtml = this.sanitizer.bypassSecurityTrustHtml(parsedHtml);
-    } catch (e) {
-      console.warn('Failed to parse Markdown / Math content:', e);
-      this.renderedHtml = this.sanitizer.bypassSecurityTrustHtml(this.content);
+    } catch {
+      // Fallback: render raw content safely
+      this.renderedHtml = this.sanitizer.bypassSecurityTrustHtml(
+        `<span class="math-render-fallback">${this.escapeHtml(this.content)}</span>`
+      );
     }
   }
 
-  /**
-   * FIX #3 — Numbered-list / inline context:
-   * A formula on a line that starts with a list marker (e.g. "1.", "I.", "-", "*")
-   * followed by other text should never become a display block — it must stay inline
-   * to avoid breaking statement list flow.
-   */
-  private shouldDisplayBlock(
-    math: string,
-    fullMatch: string,
-    offset: number,
-    fullStr: string
-  ): boolean {
-    if (this.inline) return false;
-
-    // Check if directly wrapped in parentheses or brackets e.g. ($$math$$)
-    const charBefore = offset > 0 ? fullStr[offset - 1] : '';
-    const charAfter = offset + fullMatch.length < fullStr.length ? fullStr[offset + fullMatch.length] : '';
-    const isEnclosedInParens = (charBefore === '(' || charBefore === '[') && (charAfter === ')' || charAfter === ']');
-    if (isEnclosedInParens) {
-      return false;
-    }
-
-    const textBefore = fullStr.slice(0, offset);
-    const lastNewlineBefore = textBefore.lastIndexOf('\n');
-    const linePrefix = lastNewlineBefore === -1 ? textBefore : textBefore.slice(lastNewlineBefore + 1);
-
-    // FIX #3: list item lines (numbered, lettered, roman numerals, bullet) always stay inline
-    const listItemPrefix = /^\s*(\d+\.|[IVXLC]+\.|[A-Za-z]\.|[-*•])\s/;
-    if (listItemPrefix.test(linePrefix)) {
-      return false;
-    }
-
-    const textAfter = fullStr.slice(offset + fullMatch.length);
-    const nextNewlineAfter = textAfter.indexOf('\n');
-    const lineSuffix = nextNewlineAfter === -1 ? textAfter : textAfter.slice(0, nextNewlineAfter);
-
-    const hasSurroundingText = linePrefix.trim() !== '' || lineSuffix.trim() !== '';
-
-    // Check if it is a single variable token (e.g. "A", "L", "\neg L", "x") embedded in running text
-    const trimmedMath = math.trim();
-    const isSingleVariableToken = /^(\\[a-zA-Z]+\s+)?[a-zA-Z0-9_]{1,3}$/.test(trimmedMath);
-
-    if (isSingleVariableToken && hasSurroundingText) {
-      return false;
-    }
-
-    return true;
-  }
-
-  /**
-   * Identifies all LaTeX math expressions (display, environments, bracketed, parenthesis, and inline dollars)
-   * and renders them into KaTeX HTML, substituting placeholders to protect the formulas.
-   *
-   * FIX #2 — Delimiter variations:
-   * Accept 1–4 backslashes before ( ) [ ] delimiters so \\(, \\\(, \\\\( all match correctly.
-   */
-  private extractAndRenderMath(text: string): { processedText: string; tokens: Map<string, string> } {
+  private extractMathBlocks(text: string): { processedText: string; tokens: Map<string, string> } {
     const tokens = new Map<string, string>();
     let tokenIndex = 0;
 
-    const createPlaceholder = (rendered: string): string => {
+    const createPlaceholder = (renderedHtml: string): string => {
       const placeholder = `%%%NAG_MATH_BLOCK_${tokenIndex++}%%%`;
-      tokens.set(placeholder, rendered);
+      tokens.set(placeholder, renderedHtml);
       return placeholder;
     };
 
-    // 1. Math in $$ ... $$ (display mode when standalone, inline mode when in running text)
-    text = text.replace(/\$\$([\s\S]*?)\$\$/g, (fullMatch, math, offset, fullStr) => {
-      const isDisplay = this.shouldDisplayBlock(math, fullMatch, offset, fullStr);
-      const rendered = this.renderKatex(math, isDisplay);
+    // 1. Display Math: $$ ... $$
+    text = text.replace(/\$\$([\s\S]*?)\$\$/g, (_match, math) => {
+      const rendered = this.renderKatex(math, true);
       return createPlaceholder(rendered);
     });
 
-    // 2. Math in \[ ... \] — accept 1–4 leading/trailing backslashes (FIX #2)
-    text = text.replace(/\\{1,4}\[([\s\S]*?)\\{1,4}\]/g, (fullMatch, math, offset, fullStr) => {
-      const isDisplay = this.shouldDisplayBlock(math, fullMatch, offset, fullStr);
-      const rendered = this.renderKatex(math, isDisplay);
+    // 2. Display Math: \[ ... \]
+    text = text.replace(/\\\[([\s\S]*?)\\\]/g, (_match, math) => {
+      const rendered = this.renderKatex(math, true);
       return createPlaceholder(rendered);
     });
 
-    // 3. LaTeX environments: \begin{...}...\end{...} — accept 1–4 backslashes
-    const envRegex = /\\{1,4}begin\{(matrix|pmatrix|bmatrix|vmatrix|Vmatrix|cases|align|align\*|aligned|equation|equation\*|gather|gather\*)\}([\s\S]*?)\\{1,4}end\{\1\}/g;
-    text = text.replace(envRegex, (fullMatch, _env, _inner, offset, fullStr) => {
-      // Normalize all over-escaped backslashes before passing to KaTeX
-      const cleanMatch = fullMatch.replace(/\\{2,}/g, '\\');
-      const isDisplay = this.shouldDisplayBlock(cleanMatch, fullMatch, offset, fullStr);
-      const rendered = this.renderKatex(cleanMatch, isDisplay);
+    // 3. Fenced math code blocks: ```math ... ``` or ```latex ... ```
+    text = text.replace(/```(?:math|latex)\s*\n([\s\S]*?)```/g, (_match, math) => {
+      const rendered = this.renderKatex(math, true);
       return createPlaceholder(rendered);
     });
 
-    // 4. Inline Math: \( ... \) — accept 1–4 leading/trailing backslashes (FIX #2)
-    text = text.replace(/\\{1,4}\(([\s\S]*?)\\{1,4}\)/g, (_, math) => {
+    // 4. Inline Math: \( ... \)
+    text = text.replace(/\\\(([\s\S]*?)\\\)/g, (_match, math) => {
       const rendered = this.renderKatex(math, false);
       return createPlaceholder(rendered);
     });
 
-    // 5. Inline Math: $ ... $ (avoid escaped \$ and ensure non-empty)
-    text = text.replace(/(^|[^\\])\$([^\$\n\r]+?)\$(?!\$)/g, (match, prefix, math) => {
+    // 5. Inline Math: $ ... $
+    text = text.replace(/(^|[^\\])\$([^$\n\r]+?)\$(?!\$)/g, (match, prefix, math) => {
       const rendered = this.renderKatex(math, false);
       return (prefix || '') + createPlaceholder(rendered);
     });
@@ -274,47 +207,21 @@ export class MathRendererComponent implements OnChanges, AfterViewChecked {
   private parseInlineMarkdown(text: string): string {
     if (!text) return '';
     return text
-      // Bold + Italic: ***text*** or ___text___
-      .replace(/\*\*\*([^\*\n\r]+?)\*\*\*/g, '<strong><em>$1</em></strong>')
+      .replace(/\*\*\*([^*\n\r]+?)\*\*\*/g, '<strong><em>$1</em></strong>')
       .replace(/___([^_\n\r]+?)___/g, '<strong><em>$1</em></strong>')
-      // Bold: **text** or __text__
-      .replace(/\*\*([^\*\n\r]+?)\*\*/g, '<strong>$1</strong>')
+      .replace(/\*\*([^*\n\r]+?)\*\*/g, '<strong>$1</strong>')
       .replace(/__([^_\n\r]+?)__/g, '<strong>$1</strong>')
-      // Strikethrough: ~~text~~
       .replace(/~~([^~\n\r]+?)~~/g, '<del>$1</del>')
-      // Inline code: `code`
       .replace(/`([^`\n\r]+?)`/g, '<code>$1</code>')
-      // Italic: *text*
-      .replace(/(^|[^*])\*([^*\\n\r]+?)\*([^*]|$)/g, '$1<em>$2</em>$3')
-      // Italic: _text_
-      .replace(/(^|[^a-zA-Z0-9_])_([^_\n\r]+?)_([^a-zA-Z0-9_]|$)/g, '$1<em>$2</em>$3');
+      .replace(/(^|[^*])\*([^*\n\r]+?)\*([^*]|$)/g, '$1<em>$2</em>$3')
+      .replace(/(^|[^a-zA-Z0-9_])_([^_\n\r]+?)([^a-zA-Z0-9_]|$)/g, '$1<em>$2</em>$3');
   }
 
-  /**
-   * Unescapes literal JSON/escaped newline sequences (\n, \r\n, \t) into real whitespace,
-   * but ONLY when they are NOT part of a LaTeX command name.
-   *
-   * Problem: a naïve global `\n → newline` replacement corrupts LaTeX commands that begin
-   * with the letters n, r, or t — e.g. `\neq`, `\neg`, `\rightarrow`, `\text`, `\tau`.
-   * The string `\neq` in raw JSON is stored as `\` + `n` + `e` + `q`, and a blanket
-   * replace turns it into newline + `eq`, breaking the rendered output.
-   *
-   * Safe rules:
-   * - All standard LaTeX command names are lowercase (e.g. \neq, \neg, \rightarrow).
-   *   Uppercase variants like \N, \I don't exist as common math commands.
-   * - Therefore `\n` followed by a LOWERCASE letter is a LaTeX command; block it.
-   * - `\n` followed by an uppercase letter (e.g. \nI., \nII.) is a list separator; allow it.
-   * - `\n` followed by a digit, space, or punctuation is always a JSON newline; allow it.
-   * - Same logic for `\t` (blocks \tau, \theta, \times, \to, \text).
-   */
   private unescapeNewlines(text: string): string {
     if (typeof text !== 'string') return '';
     return text
-      // \r\n sequence — always a JSON line ending
       .replace(/\\r\\n/g, '\n')
-      // \n only when NOT immediately followed by a lowercase ASCII letter (LaTeX command)
       .replace(/\\n(?![a-z])/g, '\n')
-      // \t only when NOT immediately followed by a lowercase ASCII letter (e.g. \tau, \theta)
       .replace(/\\t(?![a-z])/g, '\t');
   }
 
@@ -379,33 +286,31 @@ export class MathRendererComponent implements OnChanges, AfterViewChecked {
       .replace(/\\\\(\s|$)/g, '\n$1');
   }
 
-  /**
-   * Sanitizes LaTeX expression before passing to KaTeX.
-   *
-   * FIX #1 — Multi-escaped backslashes:
-   * Iteratively collapse over-escaped backslash chains (e.g. \\\\det → \\det → \det)
-   * until the string is stable, so every over-escaped chain is fully reduced regardless
-   * of how many levels of serialization introduced the extra escapes.
-   */
   private sanitizeLatex(latex: string): string {
     if (!latex || typeof latex !== 'string') return '';
     let s = latex.trim();
+
+    // 1. Repair tab characters that unescaped \t-commands
+    s = s.replace(/\t(ext|an|imes|heta|au|o|herefore|ilde|extbf|extit)\b/g, '\\$1');
+
+    // 2. Fix '\ ext' or '\  ext' or '\ text' -> '\text'
+    s = s.replace(/\\+(\s*)ext(?=\{|\s|$|[0-9])/g, '\\text');
+
+    // 3. Fix whitespace between backslash and command letters ('\ frac' -> '\frac')
+    s = s.replace(/\\+\s+([a-zA-Z]+)/g, '\\$1');
+
+    // 4. Deduplicate multiple backslashes before commands
     let previous: string;
     do {
       previous = s;
       s = s.replace(/\\{2,}([a-zA-Z]+|[{}_#$%&^~])/g, '\\$1');
     } while (s !== previous);
-    // Ensure bare % is escaped for KaTeX (% is a LaTeX comment character)
+
+    // 5. Ensure bare % is escaped for KaTeX
     s = s.replace(/(?<!\\)%/g, '\\%');
     return s;
   }
 
-  /**
-   * Extracts inline SVG blocks as opaque placeholders so that subsequent markdown
-   * and LaTeX processing steps cannot corrupt SVG attribute values or path data.
-   *
-   * FIX #4 — SVG + Markdown + LaTeX integration
-   */
   private extractSvgBlocks(text: string): { processedText: string; tokens: Map<string, string> } {
     const tokens = new Map<string, string>();
     let idx = 0;
@@ -439,32 +344,47 @@ export class MathRendererComponent implements OnChanges, AfterViewChecked {
   }
 
   /**
-   * Extracts <smiles>...</smiles> blocks and replaces them with
-   * `<canvas data-smiles="...">` placeholder elements for SmilesDrawer rendering.
+   * Extracts <smiles ...>...</smiles> blocks and replaces them with
+   * `<svg data-smiles="...">` placeholder elements for SmilesDrawer SvgDrawer rendering.
    *
-   * Issue #126 — SmilesDrawer 2.0 integration.
+   * Addresses Issue #126 / #144: Supports width, height, theme, and title attributes.
    */
   private extractSmilesBlocks(text: string): {
     processedText: string;
-    smilesItems: { placeholder: string; canvasHtml: string }[];
+    smilesItems: { placeholder: string; svgHtml: string }[];
   } {
-    const smilesItems: { placeholder: string; canvasHtml: string }[] = [];
+    const smilesItems: { placeholder: string; svgHtml: string }[] = [];
     let idx = 0;
 
     const processedText = text.replace(
-      /<smiles>([\s\S]*?)<\/smiles>(?:\s*<!--\s*(.*?)\s*-->)?/gi,
-      (_match, smiles: string, title: string | undefined) => {
+      /<smiles(?:\s+([^>]*?))?>([\s\S]*?)<\/smiles>(?:\s*<!--\s*(.*?)\s*-->)?/gi,
+      (_match, rawAttrs: string | undefined, smiles: string, commentTitle: string | undefined) => {
         const placeholder = `%%%NAG_SMILES_BLOCK_${idx++}%%%`;
-        const escapedSmiles = smiles.trim().replace(/"/g, '&quot;');
-        const titleHtml = title
-          ? `<div class="smiles-caption">${this.escapeHtml(title.trim())}</div>`
+        const attrs = rawAttrs || '';
+        const titleMatch = attrs.match(/title="([^"]*)"/i);
+        const widthMatch = attrs.match(/width="(\d+)"/i);
+        const heightMatch = attrs.match(/height="(\d+)"/i);
+        const themeMatch = attrs.match(/theme="(light|dark)"/i);
+
+        const title = titleMatch ? titleMatch[1] : (commentTitle?.trim() || undefined);
+        const width = widthMatch ? parseInt(widthMatch[1], 10) : 260;
+        const height = heightMatch ? parseInt(heightMatch[1], 10) : 200;
+        const theme = themeMatch ? themeMatch[1] : 'light';
+
+        const safeSmiles = (smiles || '').trim().replace(/"/g, '&quot;');
+        const safeTitle = title ? title.replace(/"/g, '&quot;') : '';
+
+        const captionHtml = title
+          ? `<div class="chemical-structure-caption font-sans text-xs text-slate-500 dark:text-slate-400 mt-1 text-center font-medium">${this.escapeHtml(title)}</div>`
           : '';
-        const canvasHtml =
-          `<span class="smiles-block">`
-          + `<canvas width="260" height="210" data-smiles="${escapedSmiles}" data-theme="light" class="smiles-canvas"></canvas>`
-          + titleHtml
-          + `</span>`;
-        smilesItems.push({ placeholder, canvasHtml });
+
+        const svgHtml =
+          `<span class="chemical-structure-container inline-flex flex-col items-center align-middle mx-1 my-0.5 p-1 rounded border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 shadow-xs" data-smiles-container="true">` +
+          `<svg data-smiles="${safeSmiles}" data-theme="${theme}" data-title="${safeTitle}" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" class="smiles-drawer-svg block max-w-full"></svg>` +
+          captionHtml +
+          `</span>`;
+
+        smilesItems.push({ placeholder, svgHtml });
         return placeholder;
       }
     );
@@ -473,66 +393,82 @@ export class MathRendererComponent implements OnChanges, AfterViewChecked {
   }
 
   /**
-   * Draw SMILES structures onto canvas elements after they are in the DOM.
-   * Uses SmilesDrawer 2.0 with lazy dynamic import.
+   * Lazily loads SmilesDrawer 2.0 (SvgDrawer) and draws each SMILES svg element.
    */
-  private drawSmilesCanvases(canvases: NodeListOf<HTMLCanvasElement>): void {
-    this.loadSmilesDrawer().then(drawer => {
-      if (!drawer) return;
-      canvases.forEach((canvas) => {
-        const smiles = canvas.getAttribute('data-smiles') || '';
-        const theme = canvas.getAttribute('data-theme') || 'light';
+  private async drawSmilesSvgs(svgElements: NodeListOf<SVGSVGElement>): Promise<void> {
+    if (svgElements.length === 0) return;
+
+    try {
+      if (!this.smilesDrawerModule && !this.smilesDrawerLoading) {
+        this.smilesDrawerLoading = true;
+        this.smilesDrawerModule =
+          (window as any)['SmilesDrawer'] ||
+          (window as any)['__smilesDrawer'] ||
+          (await import('smiles-drawer'));
+        this.smilesDrawerLoading = false;
+      }
+
+      const sd = this.smilesDrawerModule;
+      if (!sd) return;
+
+      const SvgDrawer = sd.SvgDrawer ?? sd.default?.SvgDrawer ?? sd.Drawer ?? sd.default;
+
+      svgElements.forEach(svgEl => {
+        if (svgEl.hasAttribute('data-smiles-drawn')) return;
+        const smiles = svgEl.getAttribute('data-smiles');
         if (!smiles) return;
+
+        const theme = svgEl.getAttribute('data-theme') || 'light';
+        const w = parseInt(svgEl.getAttribute('width') || '260', 10);
+        const h = parseInt(svgEl.getAttribute('height') || '200', 10);
+
         try {
-          // Mark as drawn to avoid duplicate renders
-          canvas.setAttribute('data-smiles-drawn', '1');
-          if (typeof drawer.draw === 'function') {
-            drawer.draw(smiles, canvas, theme, false);
-          } else if (typeof drawer.drawToCanvas === 'function') {
-            drawer.drawToCanvas(smiles, canvas, theme);
-          } else if (typeof drawer.parse === 'function') {
-            const tree = drawer.parse(smiles);
-            if (tree) drawer.draw(tree, canvas, theme, false);
+          if (SvgDrawer) {
+            const drawer = new SvgDrawer({
+              width: w,
+              height: h,
+              compactDrawing: false
+            });
+
+            if (typeof drawer.draw === 'function') {
+              drawer.draw(smiles, svgEl, theme, false);
+              svgEl.setAttribute('data-smiles-drawn', 'true');
+            } else if (typeof drawer.parse === 'function') {
+              drawer.parse(smiles, (tree: any) => {
+                drawer.draw(tree, svgEl, theme, false);
+                svgEl.setAttribute('data-smiles-drawn', 'true');
+              }, () => {
+                this.renderSmilesFallbackSvg(svgEl, smiles);
+              });
+            }
           }
-        } catch (e) {
-          // Show SMILES text as fallback
-          const ctx = canvas.getContext('2d');
-          if (ctx) {
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            ctx.font = '12px monospace';
-            ctx.fillStyle = '#424242';
-            ctx.fillText(smiles, 8, canvas.height / 2);
-          }
+        } catch {
+          this.renderSmilesFallbackSvg(svgEl, smiles);
         }
       });
-    });
-  }
-
-  /** Lazy-load smiles-drawer and cache the instance. */
-  private async loadSmilesDrawer(): Promise<any> {
-    if (this.smilesDrawer) return this.smilesDrawer;
-    if (this.smilesDrawerLoading) return null;
-    this.smilesDrawerLoading = true;
-    try {
-      const sd: any = await import('smiles-drawer');
-      const SvgDrawer = sd.SvgDrawer ?? sd.default?.SvgDrawer;
-      const Drawer = sd.Drawer ?? sd.default?.Drawer ?? SvgDrawer;
-      if (Drawer) {
-        this.smilesDrawer = new Drawer({ width: 260, height: 210, compactDrawing: false });
-      }
     } catch {
-      this.smilesDrawer = null;
+      svgElements.forEach(svgEl => {
+        const smiles = svgEl.getAttribute('data-smiles') || '';
+        this.renderSmilesFallbackSvg(svgEl, smiles);
+      });
     }
-    this.smilesDrawerLoading = false;
-    return this.smilesDrawer;
   }
 
-  private escapeHtml(str: string): string {
-    return str
+  private renderSmilesFallbackSvg(svgEl: SVGSVGElement, smiles: string): void {
+    svgEl.setAttribute('data-smiles-drawn', 'true');
+    const w = parseInt(svgEl.getAttribute('width') || '260', 10);
+    const h = parseInt(svgEl.getAttribute('height') || '200', 10);
+    svgEl.innerHTML =
+      `<rect width="${w}" height="${h}" fill="#f8fafc" stroke="#e2e8f0" rx="4"/>` +
+      `<text x="${w / 2}" y="${h / 2}" font-family="monospace" font-size="12" fill="#64748b" text-anchor="middle" dominant-baseline="middle">${this.escapeHtml(smiles)}</text>`;
+  }
+
+  private escapeHtml(text: string): string {
+    return (text || '')
       .replace(/&/g, '&amp;')
       .replace(/</g, '&lt;')
       .replace(/>/g, '&gt;')
       .replace(/"/g, '&quot;')
-      .replace(/'/g, '&#039;');
+      .replace(/'/g, '&#39;');
   }
 }

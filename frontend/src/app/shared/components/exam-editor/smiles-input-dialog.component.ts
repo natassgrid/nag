@@ -11,29 +11,54 @@ import {
   AfterViewInit,
   ChangeDetectionStrategy,
   ChangeDetectorRef,
+  ViewEncapsulation,
   ViewChild,
-  ElementRef,
-  Inject
+  ElementRef
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { MatDialogRef, MAT_DIALOG_DATA, MatDialogModule } from '@angular/material/dialog';
 import { MatButtonModule } from '@angular/material/button';
+import { MatButtonToggleModule } from '@angular/material/button-toggle';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { MatIconModule } from '@angular/material/icon';
-import { MatChipsModule } from '@angular/material/chips';
-import { ChemicalStructurePlugin } from './plugins/chemical-structure.plugin';
+import { MatTabsModule } from '@angular/material/tabs';
+import { MatTooltipModule } from '@angular/material/tooltip';
+import { Inject } from '@angular/core';
 
 export interface SmilesInputDialogData {
+  /** Pre-fill with existing SMILES notation */
   smiles?: string;
   title?: string;
+  width?: number;
+  height?: number;
+  theme?: 'light' | 'dark';
+}
+
+export interface SmilesPreset {
+  name: string;
+  smiles: string;
+  description?: string;
+}
+
+export interface SmilesCategory {
+  name: string;
+  icon: string;
+  presets: SmilesPreset[];
 }
 
 /**
- * Dialog for authoring a 2D chemical structure via SMILES notation.
- * Uses SmilesDrawer 2.0 (smiles-drawer) for live SVG preview.
- * Opened by the ChemicalStructurePlugin toolbar button.
+ * Modernized dialog for authoring and inserting 2D chemical structure diagrams
+ * using SMILES (Simplified Molecular Input Line Entry System) notation.
+ *
+ * Addresses Issue #144:
+ *  - Categorized preset molecules (aromatics, functional groups, biomolecules, alkanes)
+ *  - Live 2D chemical structure preview powered by SmilesDrawer 2.0
+ *  - Configurable dimensions (width/height) & theme (light/dark)
+ *  - Molecule caption / figure label
+ *  - Keyboard accessibility (Ctrl+Enter / Enter to insert, Esc to cancel)
+ *  - Pre-fill & edit mode support
  */
 @Component({
   selector: 'exam-smiles-input-dialog',
@@ -43,100 +68,35 @@ export interface SmilesInputDialogData {
     FormsModule,
     MatDialogModule,
     MatButtonModule,
+    MatButtonToggleModule,
     MatFormFieldModule,
     MatInputModule,
     MatIconModule,
-    MatChipsModule
+    MatTabsModule,
+    MatTooltipModule
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
-  template: `
-    <h2 mat-dialog-title>
-      <mat-icon style="vertical-align:middle;margin-right:6px">science</mat-icon>
-      Insert Chemical Structure
-    </h2>
-
-    <mat-dialog-content>
-      <mat-form-field appearance="outline" style="width:100%">
-        <mat-label>SMILES notation</mat-label>
-        <input
-          matInput
-          [(ngModel)]="smiles"
-          (ngModelChange)="onSmilesChange()"
-          placeholder="e.g. c1ccccc1  (benzene)"
-          style="font-family: monospace"
-        />
-        <mat-hint>Standard SMILES — aromatic atoms in lowercase (c, n, o, s)</mat-hint>
-      </mat-form-field>
-
-      <mat-form-field appearance="outline" style="width:100%;margin-top:8px">
-        <mat-label>Caption / molecule name (optional)</mat-label>
-        <input matInput [(ngModel)]="title" placeholder="e.g. Benzene" />
-      </mat-form-field>
-
-      <!-- Quick-pick templates -->
-      <div class="smiles-templates">
-        <span class="smiles-templates-label">Quick templates:</span>
-        <mat-chip-set>
-          <mat-chip
-            *ngFor="let t of templates"
-            (click)="selectTemplate(t.smiles, t.label)"
-            style="cursor:pointer"
-          >{{ t.label }}</mat-chip>
-        </mat-chip-set>
-      </div>
-
-      <!-- Live SmilesDrawer SVG preview -->
-      <div class="smiles-preview">
-        <span class="smiles-preview-label">2D Structure Preview:</span>
-        <div class="smiles-canvas-wrapper">
-          <canvas #smilesCanvas width="280" height="220"></canvas>
-          <div *ngIf="renderError" class="smiles-error">
-            <mat-icon style="font-size:14px;vertical-align:middle">warning</mat-icon>
-            {{ renderError }}
-          </div>
-          <div *ngIf="!smiles" class="smiles-empty">
-            Type a SMILES string to see the structure
-          </div>
-        </div>
-      </div>
-    </mat-dialog-content>
-
-    <mat-dialog-actions align="end">
-      <button mat-button (click)="cancel()" type="button">Cancel</button>
-      <button mat-raised-button color="primary" [disabled]="!smiles.trim() || !!renderError" (click)="confirm()" type="button">
-        Insert Structure
-      </button>
-    </mat-dialog-actions>
-  `,
-  styles: [`
-    .smiles-templates { margin: 12px 0 8px; }
-    .smiles-templates-label { font-size: 11px; color: #757575; display: block; margin-bottom: 6px; }
-    .smiles-preview { margin-top: 16px; }
-    .smiles-preview-label { font-size: 11px; color: #757575; display: block; margin-bottom: 8px; }
-    .smiles-canvas-wrapper {
-      border: 1px solid #e0e0e0; border-radius: 6px; background: #fff;
-      display: flex; align-items: center; justify-content: center;
-      min-height: 240px; position: relative; padding: 8px;
-    }
-    .smiles-error { color: #d32f2f; font-size: 12px; position: absolute; bottom: 8px; left: 8px; }
-    .smiles-empty { color: #9e9e9e; font-size: 13px; }
-    canvas { max-width: 100%; }
-  `]
+  encapsulation: ViewEncapsulation.None,
+  templateUrl: './smiles-input-dialog.component.html',
+  styleUrls: ['./smiles-input-dialog.component.scss']
 })
 export class SmilesInputDialogComponent implements OnInit, AfterViewInit {
-
-  @ViewChild('smilesCanvas') canvasRef!: ElementRef<HTMLCanvasElement>;
+  @ViewChild('svgRef') svgRef?: ElementRef<SVGElement>;
+  @ViewChild('smilesInput') smilesInputRef?: ElementRef<HTMLInputElement>;
 
   smiles = '';
   title = '';
+  width = 260;
+  height = 200;
+  theme: 'light' | 'dark' = 'light';
+  isEdit = false;
   renderError = '';
+  selectedTabIndex = 0;
 
-  // eslint-disable-next-line @typescript-eslint/naming-convention
-  readonly templates = ChemicalStructurePlugin.TEMPLATES;
+  private smilesDrawerModule: any = null;
+  private moduleLoading = false;
 
-  // SmilesDrawer instance — loaded dynamically to avoid build-time issues
-  // if smiles-drawer is not yet installed. Gracefully degrades to show SMILES text.
-  private drawer: any = null;
+  categories: SmilesCategory[] = [];
 
   constructor(
     private dialogRef: MatDialogRef<SmilesInputDialogComponent>,
@@ -145,98 +105,238 @@ export class SmilesInputDialogComponent implements OnInit, AfterViewInit {
   ) {
     this.smiles = data?.smiles || '';
     this.title = data?.title || '';
+    this.width = data?.width || 260;
+    this.height = data?.height || 200;
+    this.theme = data?.theme || 'light';
+    this.isEdit = !!data?.smiles;
   }
 
-  ngOnInit(): void {}
-
-  async ngAfterViewInit(): Promise<void> {
-    await this.loadDrawer();
-    if (this.smiles) this.drawSmiles();
+  ngOnInit(): void {
+    this.initializePresetCategories();
   }
 
-  private async loadDrawer(): Promise<void> {
-    try {
-      // Dynamic import so a missing package doesn't crash at startup
-      const sd: any = await import('smiles-drawer');
-      const SvgDrawer = sd.SvgDrawer ?? sd.default?.SvgDrawer;
-      if (SvgDrawer) {
-        this.drawer = new SvgDrawer({ width: 280, height: 220, compactDrawing: false });
-      } else {
-        // smiles-drawer v2 may export differently
-        const Drawer = sd.Drawer ?? sd.default?.Drawer;
-        this.drawer = Drawer ? new Drawer({ width: 280, height: 220 }) : null;
-      }
-    } catch {
-      // Package not installed — preview unavailable, insertion still works
-      this.drawer = null;
+  ngAfterViewInit(): void {
+    if (this.smiles) {
+      this.drawStructure();
     }
+  }
+
+  private initializePresetCategories(): void {
+    this.categories = [
+      {
+        name: 'Aromatics & Rings',
+        icon: 'hexagon',
+        presets: [
+          { name: 'Benzene', smiles: 'c1ccccc1', description: 'C6H6 - Standard benzene ring' },
+          { name: 'Toluene', smiles: 'Cc1ccccc1', description: 'Methylbenzene' },
+          { name: 'Phenol', smiles: 'Oc1ccccc1', description: 'Hydroxybenzene' },
+          { name: 'Aniline', smiles: 'Nc1ccccc1', description: 'Aminobenzene' },
+          { name: 'Benzoic Acid', smiles: 'c1ccccc1C(=O)O', description: 'Carboxybenzene' },
+          { name: 'Pyridine', smiles: 'c1ccncc1', description: 'Heterocyclic aromatic' },
+          { name: 'Cyclohexane', smiles: 'C1CCCCC1', description: '6-membered aliphatic ring' },
+          { name: 'Cyclopentane', smiles: 'C1CCCC1', description: '5-membered ring' },
+          { name: 'Naphthalene', smiles: 'c1ccc2ccccc2c1', description: 'Bicyclic aromatic' },
+          { name: 'Anthracene', smiles: 'c1ccc2cc3ccccc3cc2c1', description: 'Tricyclic aromatic' },
+          { name: 'Furan', smiles: 'c1ccoc1', description: '5-membered oxygen ring' },
+          { name: 'Thiophene', smiles: 'c1ccsc1', description: '5-membered sulfur ring' },
+          { name: 'Pyrrole', smiles: 'c1cc[nH]c1', description: '5-membered nitrogen ring' }
+        ]
+      },
+      {
+        name: 'Functional Groups',
+        icon: 'bubble_chart',
+        presets: [
+          { name: 'Ethanol', smiles: 'CCO', description: 'Alcohol: CH3-CH2-OH' },
+          { name: 'Methanol', smiles: 'CO', description: 'Alcohol: CH3-OH' },
+          { name: 'Acetic Acid', smiles: 'CC(=O)O', description: 'Carboxylic acid' },
+          { name: 'Acetone', smiles: 'CC(=O)C', description: 'Ketone: (CH3)2CO' },
+          { name: 'Acetaldehyde', smiles: 'CC=O', description: 'Aldehyde: CH3CHO' },
+          { name: 'Diethyl Ether', smiles: 'CCOCC', description: 'Ether: (C2H5)2O' },
+          { name: 'Ethyl Acetate', smiles: 'CCOC(=O)C', description: 'Ester: CH3COOCH2CH3' },
+          { name: 'Formaldehyde', smiles: 'C=O', description: 'HCHO' },
+          { name: 'Acetonitrile', smiles: 'CC#N', description: 'Nitrile: CH3CN' },
+          { name: 'Chloroform', smiles: 'ClC(Cl)Cl', description: 'Trichloromethane' },
+          { name: 'Urea', smiles: 'NC(=O)N', description: '(NH2)2CO' }
+        ]
+      },
+      {
+        name: 'Biomolecules & Drugs',
+        icon: 'medication',
+        presets: [
+          { name: 'Aspirin', smiles: 'CC(=O)Oc1ccccc1C(=O)O', description: 'Acetylsalicylic acid' },
+          { name: 'Paracetamol', smiles: 'CC(=O)Nc1ccc(O)cc1', description: 'Acetaminophen' },
+          { name: 'Caffeine', smiles: 'Cn1c(=O)c2c(ncn2C)n(c1=O)C', description: '1,3,7-Trimethylxanthine' },
+          { name: 'Ibuprofen', smiles: 'CC(C)Cc1ccc(cc1)C(C)C(=O)O', description: 'NSAID pain reliever' },
+          { name: 'D-Glucose', smiles: 'OC[C@H]1OC(O)[C@H](O)[C@@H](O)[C@@H]1O', description: 'Aldohexose carbohydrate' },
+          { name: 'L-Alanine', smiles: 'N[C@@H](C)C(=O)O', description: 'Amino acid' },
+          { name: 'Glycine', smiles: 'NCC(=O)O', description: 'Simplest amino acid' },
+          { name: 'L-Cysteine', smiles: 'N[C@@H](CS)C(=O)O', description: 'Thiol amino acid' },
+          { name: 'L-Serine', smiles: 'N[C@@H](CO)C(=O)O', description: 'Hydroxyl amino acid' }
+        ]
+      },
+      {
+        name: 'Alkanes & Chains',
+        icon: 'linear_scale',
+        presets: [
+          { name: 'Methane', smiles: 'C', description: 'CH4' },
+          { name: 'Ethane', smiles: 'CC', description: 'CH3-CH3' },
+          { name: 'Propane', smiles: 'CCC', description: 'CH3-CH2-CH3' },
+          { name: 'n-Butane', smiles: 'CCCC', description: 'CH3-(CH2)2-CH3' },
+          { name: 'Isobutane', smiles: 'CC(C)C', description: '2-Methylpropane' },
+          { name: 'Ethene', smiles: 'C=C', description: 'Ethylene: H2C=CH2' },
+          { name: 'Ethyne', smiles: 'C#C', description: 'Acetylene: HC≡CH' },
+          { name: '1,3-Butadiene', smiles: 'C=CC=C', description: 'Conjugated diene' },
+          { name: 'Isoprene', smiles: 'CC(=C)C=C', description: '2-Methyl-1,3-butadiene' }
+        ]
+      }
+    ];
+  }
+
+  selectPreset(preset: SmilesPreset): void {
+    this.smiles = preset.smiles;
+    if (!this.title) {
+      this.title = preset.name;
+    }
+    this.onSmilesChange();
   }
 
   onSmilesChange(): void {
-    this.renderError = '';
-    this.drawSmiles();
+    this.drawStructure();
   }
 
-  selectTemplate(smiles: string, label: string): void {
-    this.smiles = smiles;
-    this.title = this.title || label;
-    this.renderError = '';
-    this.drawSmiles();
-    this.cdr.markForCheck();
+  onDimensionChange(): void {
+    if (this.width < 140) this.width = 140;
+    if (this.width > 600) this.width = 600;
+    if (this.height < 120) this.height = 120;
+    if (this.height > 450) this.height = 450;
+    this.drawStructure();
   }
 
-  private drawSmiles(): void {
-    if (!this.canvasRef) return;
-    const canvas = this.canvasRef.nativeElement;
-
-    if (!this.smiles.trim()) {
-      const ctx = canvas.getContext('2d');
-      ctx?.clearRect(0, 0, canvas.width, canvas.height);
-      this.cdr.markForCheck();
-      return;
-    }
-
-    if (!this.drawer) {
-      // Graceful fallback: draw the SMILES text on canvas
-      const ctx = canvas.getContext('2d');
-      if (ctx) {
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-        ctx.font = '13px monospace';
-        ctx.fillStyle = '#424242';
-        ctx.fillText(this.smiles, 12, canvas.height / 2);
+  clearSmiles(): void {
+    this.smiles = '';
+    this.renderError = '';
+    const svg = this.svgRef?.nativeElement;
+    if (svg) {
+      while (svg.firstChild) {
+        svg.removeChild(svg.firstChild);
       }
+    }
+    this.cdr.markForCheck();
+    this.smilesInputRef?.nativeElement.focus();
+  }
+
+  onEnterPressed(event: Event): void {
+    event.preventDefault();
+    this.confirm();
+  }
+
+  onDialogKeydown(event: KeyboardEvent): void {
+    if ((event.ctrlKey || event.metaKey) && event.key === 'Enter') {
+      event.preventDefault();
+      this.confirm();
+    } else if (event.key === 'Escape') {
+      event.preventDefault();
+      this.cancel();
+    }
+  }
+
+  private async drawStructure(): Promise<void> {
+    const trimmed = this.smiles.trim();
+    const svg = this.svgRef?.nativeElement;
+
+    if (!trimmed || !svg) {
+      this.renderError = '';
       this.cdr.markForCheck();
       return;
     }
 
     try {
-      // smiles-drawer v2 API: parse → draw
-      const sd: any = (window as any).__smilesDrawer ?? this.drawer;
-      if (typeof this.drawer.draw === 'function') {
-        // v1-style API
-        this.drawer.draw(this.smiles, canvas, 'light', false);
-      } else if (typeof this.drawer.drawToCanvas === 'function') {
-        this.drawer.drawToCanvas(this.smiles, canvas, 'light');
-      } else {
-        // v2 static parse → draw
-        const tree = this.drawer.parse?.(this.smiles);
-        if (tree) this.drawer.draw(tree, canvas, 'light', false);
+      const sdModule = await this.getSmilesDrawerModule();
+      if (!sdModule) {
+        this.renderError = 'SmilesDrawer renderer is loading...';
+        this.cdr.markForCheck();
+        return;
       }
-      this.renderError = '';
-    } catch (e: any) {
-      this.renderError = e?.message || 'Invalid SMILES notation';
-    }
 
-    this.cdr.markForCheck();
+      const SmilesDrawer = sdModule.default ?? sdModule;
+      const SvgDrawer = SmilesDrawer.SvgDrawer ?? sdModule.SvgDrawer;
+
+      if (!SvgDrawer) {
+        this.renderError = 'SmilesDrawer renderer unavailable';
+        this.cdr.markForCheck();
+        return;
+      }
+
+      // Clear previous SVG contents
+      while (svg.firstChild) {
+        svg.removeChild(svg.firstChild);
+      }
+
+      const drawer = new SvgDrawer({
+        width: this.width,
+        height: this.height,
+        compactDrawing: false
+      });
+
+      if (typeof SmilesDrawer.parse === 'function') {
+        SmilesDrawer.parse(
+          trimmed,
+          (tree: any) => {
+            try {
+              drawer.draw(tree, svg, this.theme, null, false);
+              this.renderError = '';
+              this.cdr.markForCheck();
+            } catch (drawErr: any) {
+              this.renderError = drawErr?.message || 'Error rendering 2D structure';
+              this.cdr.markForCheck();
+            }
+          },
+          (parseErr: any) => {
+            this.renderError = parseErr?.message || 'Invalid SMILES chemical notation';
+            this.cdr.markForCheck();
+          }
+        );
+      } else if (SmilesDrawer.Parser?.parse) {
+        const tree = SmilesDrawer.Parser.parse(trimmed);
+        drawer.draw(tree, svg, this.theme, null, false);
+        this.renderError = '';
+        this.cdr.markForCheck();
+      }
+    } catch (e: any) {
+      this.renderError = e?.message || 'Invalid SMILES chemical notation';
+      this.cdr.markForCheck();
+    }
   }
 
-  cancel(): void { this.dialogRef.close(null); }
+  private async getSmilesDrawerModule(): Promise<any> {
+    if (this.smilesDrawerModule) return this.smilesDrawerModule;
+    if (this.moduleLoading) return null;
+    this.moduleLoading = true;
+
+    try {
+      this.smilesDrawerModule = await import('smiles-drawer');
+    } catch (err) {
+      console.warn('Could not load SmilesDrawer module:', err);
+    } finally {
+      this.moduleLoading = false;
+    }
+
+    return this.smilesDrawerModule;
+  }
+
+  cancel(): void {
+    this.dialogRef.close(null);
+  }
 
   confirm(): void {
-    if (!this.smiles.trim()) return;
+    const trimmed = this.smiles.trim();
+    if (!trimmed || this.renderError) return;
     this.dialogRef.close({
-      smiles: this.smiles.trim(),
-      title: this.title?.trim() || undefined
+      smiles: trimmed,
+      title: this.title.trim() || undefined,
+      width: this.width,
+      height: this.height,
+      theme: this.theme
     });
   }
 }

@@ -38,9 +38,12 @@
    - After writing to any file, IMMEDIATELY run `git diff <path>` to review the line-by-line diff.
    - If any unintended deletions, wiped sections, or missing template blocks are detected, restore and correct them immediately before proceeding.
 
-6. **Verify Clean Git Status & Build**:
+6. **Mandatory Post-Task Verification & Docker Builds**:
    - Run `git status` prior to completing any task or reporting back to ensure no files were corrupted or accidentally overwritten.
-   - Run build checks (`npm run build` or `docker build`) to verify the code compiles cleanly with 0 errors.
+   - Run local build checks (`npm run build`, `npm run lint`, unit tests, or Gradle compile) to verify the code compiles cleanly with 0 errors.
+   - **MANDATORY DOCKER BUILDS**: After task completion, ALWAYS execute Docker builds:
+     1. **Backend Docker Build**: Run Docker build for the backend base and modified backend service / monolith.
+     2. **UI Docker Builds**: After backend build completes, run Docker builds for the UI applications (`frontend` and `candidate-frontend`).
 
 ---
 
@@ -162,10 +165,34 @@ II. System $$\Psi$$ is not capable of executing Shor's algorithm for large integ
    - Terminal: Use WSL Ubuntu-24.04 (`wsl -d Ubuntu-24.04 -e bash -lic "cd /mnt/c/Users/sheel/IdeaProjects/nag && ./gradlew ..."`).
 
 2. **Frontend Builds (`frontend` - Angular & `candidate-frontend` - Vite/React)**:
-   - Always run through WSL Ubuntu 24.04:
-     - Angular: `wsl -d Ubuntu-24.04 -e bash -lic "cd /mnt/c/Users/sheel/IdeaProjects/nag/frontend && npm run build"`
-     - Vite/React: `wsl -d Ubuntu-24.04 -e bash -lic "cd /mnt/c/Users/sheel/IdeaProjects/nag/candidate-frontend && npm run build"`
+   - Always run through WSL Ubuntu 24.04 or native terminal:
+     - Angular: `cd frontend && npm run build` (or via WSL `wsl -d Ubuntu-24.04 -e bash -lic "cd /mnt/c/Users/sheel/IdeaProjects/nag/frontend && npm run build"`)
+     - Vite/React: `cd candidate-frontend && npm run build` (or via WSL `wsl -d Ubuntu-24.04 -e bash -lic "cd /mnt/c/Users/sheel/IdeaProjects/nag/candidate-frontend && npm run build"`)
 
-3. **Path Mapping**:
-   - Windows: `C:\Users\sheel\IdeaProjects\nag`
+3. **Mandatory Post-Task Docker Builds**:
+   - **Step 1: Backend Docker Build**:
+     After completing changes, verify backend container builds:
+     ```bash
+     # Build base builder image
+     docker build -f backend/Dockerfile.base -t exam/builder-base .
+
+     # Build service or monolith container
+     docker build -f backend/Dockerfile --build-arg SERVICE_NAME=monolith-app -t exam/monolith-app .
+     ```
+   - **Step 2: UI Docker Builds (Run After Backend Build)**:
+     After backend Docker build completes, build the Docker images for the UI:
+     ```bash
+     # Angular Admin / Authoring UI
+     docker build -t exam/frontend -f frontend/Dockerfile frontend
+
+     # React Candidate Delivery UI
+     docker build -t exam/candidate-frontend -f candidate-frontend/Dockerfile candidate-frontend
+     ```
+   - **Or build all services simultaneously with Compose**:
+     ```bash
+     docker compose -f infrastructure/docker-compose/docker-compose.yml -f infrastructure/docker-compose/docker-compose.monolith.yml build
+     ```
+
+4. **Path Mapping**:
+   - Windows: `C:\Users\sheel\IdeaProjects\nag` (or current repository root)
    - WSL: `/mnt/c/Users/sheel/IdeaProjects/nag` (Distribution: `Ubuntu-24.04`)

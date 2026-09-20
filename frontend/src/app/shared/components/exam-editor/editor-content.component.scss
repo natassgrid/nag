@@ -43,39 +43,61 @@
 :host ::ng-deep .math-void {
   display: inline-flex;
   align-items: center;
-  padding: 1px 3px;
-  border-radius: 3px;
+  padding: 2px 6px;
+  border-radius: 4px;
   background: #e8f5e9;
   border: 1px solid #a5d6a7;
-  cursor: default;
+  cursor: pointer;
   user-select: none;
   vertical-align: middle;
+  transition: all 0.15s ease;
+  position: relative;
+}
+
+:host ::ng-deep .math-void:hover {
+  background: #dcedc8;
+  border-color: #689f38;
+  box-shadow: 0 0 0 2px rgba(104, 159, 56, 0.2);
 }
 
 :host ::ng-deep .math-void--display {
   display: flex;
   justify-content: center;
-  margin: 8px 0;
-  background: #f3f8f3;
+  margin: 10px 0;
+  background: #f1f8e9;
   border-radius: 6px;
-  padding: 8px 16px;
+  padding: 10px 18px;
+  border: 1px solid #c5e1a5;
 }
 
-:host ::ng-deep .math-raw { font-size: 12px; color: #c62828; background: #fff3e0; padding: 2px 4px; }
+:host ::ng-deep .math-void--display:hover {
+  background: #e8f5e9;
+  border-color: #4caf50;
+  box-shadow: 0 0 0 2px rgba(76, 175, 80, 0.2);
+}
+
+:host ::ng-deep .math-raw { font-size: 12px; color: #c62828; background: #fff3e0; padding: 2px 4px; border-radius: 3px; }
 
 /* Chemical structure void nodes */
 :host ::ng-deep .chem-void {
   display: inline-flex;
   flex-direction: column;
   align-items: center;
-  padding: 4px;
+  padding: 6px 8px;
   border-radius: 6px;
   background: #e3f2fd;
   border: 1px solid #90caf9;
-  cursor: default;
+  cursor: pointer;
   user-select: none;
   vertical-align: middle;
-  margin: 4px 2px;
+  margin: 6px 4px;
+  transition: all 0.15s ease;
+}
+
+:host ::ng-deep .chem-void:hover {
+  background: #bbdefb;
+  border-color: #1976d2;
+  box-shadow: 0 0 0 2px rgba(25, 118, 210, 0.2);
 }
 
 :host ::ng-deep .chem-caption {
@@ -83,6 +105,8 @@
   color: #1565c0;
   margin-top: 4px;
   font-style: italic;
+  font-weight: 500;
+  text-align: center;
 }
 
 :host ::ng-deep .smiles-canvas { display: block; max-width: 100%; }

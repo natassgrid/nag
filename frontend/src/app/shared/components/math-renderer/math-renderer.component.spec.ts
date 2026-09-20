@@ -49,7 +49,7 @@ describe('MathRendererComponent', () => {
     expect(component).toBeTruthy();
   });
 
-  describe('LaTeX Math rendering (FR-1, FR-2, FR-3)', () => {
+  describe('LaTeX Math rendering (FR-1, FR-2, FR-3, Issue #143)', () => {
     it('should render inline LaTeX wrapped in $...$', () => {
       setContent('Find the value of $x^2 + y^2 = z^2$ when $x=3$ and $y=4$.');
       const rendererDiv = fixture.debugElement.query(By.css('.math-renderer'));
@@ -81,6 +81,14 @@ describe('MathRendererComponent', () => {
       expect(innerHTML).toContain('katex');
     });
 
+    it('should render chemical formulas via mhchem \\ce{}', () => {
+      setContent('Reaction: $$\\ce{2H2 + O2 -> 2H2O}$$');
+      const rendererDiv = fixture.debugElement.query(By.css('.math-renderer'));
+      const innerHTML = rendererDiv.nativeElement.innerHTML;
+      expect(innerHTML).toContain('katex');
+      expect(innerHTML).not.toContain('math-render-error');
+    });
+
     it('should handle over-escaped backslashes in LaTeX commands from JSON serialization', () => {
       const rawText = '**Statements:**\\n1. A matrix $$A$$ is invertible if and only if its determinant is non-zero ($$\\\\det(A) \\\\neq 0$$).\\n2. A square matrix $$A$$ has a non-zero determinant if and only if its row vectors are linearly independent ($$L$$).\\n3. Matrix $$M$$ has row vectors that are linearly dependent ($$\\\\neg L$$).\\n\\n**Conclusions:**\\nI. Matrix $$M$$ is not invertible.\\nII. The determinant of Matrix $$M$$ is zero ($$\\\\det(M) = 0$$).';
       setContent(rawText);
@@ -101,6 +109,27 @@ describe('MathRendererComponent', () => {
       expect(innerHTML).toContain('(1) All poets are daydreamers.');
       expect(innerHTML).toContain('(I) Some painters are poets.');
       expect(innerHTML).not.toContain('katex');
+    });
+  });
+
+  describe('SMILES Chemical Structure Rendering (Issue #144)', () => {
+    it('should render <smiles> tag to canvas placeholder', () => {
+      setContent('<smiles>c1ccccc1</smiles>');
+      const rendererDiv = fixture.debugElement.query(By.css('.math-renderer'));
+      const innerHTML = rendererDiv.nativeElement.innerHTML;
+      expect(innerHTML).toContain('<canvas');
+      expect(innerHTML).toContain('data-smiles="c1ccccc1"');
+      expect(innerHTML).toContain('class="smiles-canvas"');
+    });
+
+    it('should parse width, height, theme and title attributes from <smiles> tag', () => {
+      setContent('<smiles width="300" height="220" theme="dark" title="Benzene Ring">c1ccccc1</smiles>');
+      const rendererDiv = fixture.debugElement.query(By.css('.math-renderer'));
+      const innerHTML = rendererDiv.nativeElement.innerHTML;
+      expect(innerHTML).toContain('width="300"');
+      expect(innerHTML).toContain('height="220"');
+      expect(innerHTML).toContain('data-theme="dark"');
+      expect(innerHTML).toContain('Benzene Ring');
     });
   });
 
