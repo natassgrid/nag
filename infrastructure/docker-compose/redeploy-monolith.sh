@@ -11,16 +11,14 @@
 #   - 1 Admin Frontend (React/Vite)
 #   - 1 Candidate Frontend (React/Vite)
 #
-# Usage:
-#   ./redeploy-monolith.sh                  # Deploy standard JVM Monolith (In-Memory Event Bus)
-#   ./redeploy-monolith.sh --native         # Deploy with GraalVM Native Image (Sub-50ms Cold-Start, ~35MB RSS)
-#   ./redeploy-monolith.sh --rabbit         # Deploy with RabbitMQ Broker
-#   ./redeploy-monolith.sh --clean-db       # Drop all volumes / fresh Postgres schema
-#   ./redeploy-monolith.sh --observability  # Start with Prometheus, Grafana, and Jaeger
-#   ./redeploy-monolith.sh --ai             # Start with Ollama, LiteLLM, IndicTrans2
-#   ./redeploy-monolith.sh --no-cache       # Force rebuild without Docker cache
-#   ./redeploy-monolith.sh --restart        # Restart services without rebuilding
-#   ./redeploy-monolith.sh --health         # Check health status of monolith
+# Usage (supports multiple arguments combined in any order):
+#   ./redeploy-monolith.sh                            # Default standard JVM Monolith (In-Memory Bus)
+#   ./redeploy-monolith.sh --native --ai              # Native GraalVM + AI Pipeline (Ollama/LiteLLM/IndicTrans2)
+#   ./redeploy-monolith.sh --native --clean-db        # Native GraalVM + fresh DB volume wipe
+#   ./redeploy-monolith.sh --native --observability   # Native GraalVM + Prometheus, Grafana, Jaeger
+#   ./redeploy-monolith.sh --restart                  # Quick restart running containers without rebuilding
+#   ./redeploy-monolith.sh --restart --ai             # Restart app containers and ensure AI pipeline is up
+#   ./redeploy-monolith.sh --health                   # Probe actuator health of monolith
 # =============================================================================
 set -e
 
@@ -166,8 +164,12 @@ APP_TARGETS="monolith-app frontend candidate-frontend"
 if [ "$RESTART_ONLY" = true ]; then
     echo ""
     echo "🔄 Restarting monolith services (no build)..."
-    $COMPOSE stop $APP_TARGETS
-    $COMPOSE up -d $APP_TARGETS
+    if [ "$AI" = true ] || [ "$OBSERVABILITY" = true ] || [ "$RABBIT" = true ]; then
+        $COMPOSE up -d
+    else
+        $COMPOSE stop $APP_TARGETS
+        $COMPOSE up -d $APP_TARGETS
+    fi
     echo ""
     echo "✅ Monolith restarted."
     exit 0
