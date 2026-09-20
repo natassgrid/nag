@@ -106,13 +106,13 @@
         [class.preview-box--dark]="theme === 'dark'"
         [class.preview-box--error]="!!renderError"
       >
-        <canvas
-          #canvasRef
-          [width]="width"
-          [height]="height"
+        <svg
+          #svgRef
+          [attr.width]="width"
+          [attr.height]="height"
           [style.display]="!renderError && smiles ? 'block' : 'none'"
-          class="structure-canvas"
-        ></canvas>
+          class="structure-svg"
+        ></svg>
 
         <div *ngIf="!smiles && !renderError" class="preview-placeholder">
           <mat-icon class="placeholder-icon">biotech</mat-icon>

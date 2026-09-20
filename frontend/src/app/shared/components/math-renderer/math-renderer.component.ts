@@ -11,7 +11,7 @@
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU Affero General Public License for more details.
+ * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU Affero General Public License
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
@@ -72,15 +72,15 @@ export class MathRendererComponent implements OnChanges, AfterViewChecked {
   }
 
   /**
-   * After each view update, find unrendered SMILES canvas elements
-   * and draw them using SmilesDrawer 2.0 if pending.
+   * After each view update, find unrendered SMILES svg elements
+   * and draw them using SmilesDrawer 2.0 SvgDrawer if pending.
    */
   ngAfterViewChecked(): void {
     if (!this.pendingSmilesRender) return;
-    const canvases = this.el.nativeElement.querySelectorAll('canvas[data-smiles]:not([data-smiles-drawn])');
-    if (canvases.length === 0) return;
+    const svgs = this.el.nativeElement.querySelectorAll('svg[data-smiles]:not([data-smiles-drawn])');
+    if (svgs.length === 0) return;
     this.pendingSmilesRender = false;
-    this.drawSmilesCanvases(canvases);
+    this.drawSmilesSvgs(svgs);
   }
 
   private render(): void {
@@ -100,7 +100,7 @@ export class MathRendererComponent implements OnChanges, AfterViewChecked {
       const { processedText: textWithoutSvg, tokens: svgTokens } = this.extractSvgBlocks(text);
       text = textWithoutSvg;
 
-      // 3b. Extract <smiles>...</smiles> blocks — convert to canvas placeholders (Issue #126 / #144)
+      // 3b. Extract <smiles>...</smiles> blocks — convert to svg placeholders (Issue #126 / #144)
       const { processedText: textWithoutSmiles, smilesItems } = this.extractSmilesBlocks(text);
       text = textWithoutSmiles;
 
@@ -139,10 +139,10 @@ export class MathRendererComponent implements OnChanges, AfterViewChecked {
         parsedHtml = parsedHtml.split(placeholder).join(renderedKatex);
       });
 
-      // 10. Re-insert SMILES placeholders & mark for canvas drawing
+      // 10. Re-insert SMILES placeholders & mark for svg drawing
       if (smilesItems.length > 0) {
-        smilesItems.forEach(({ placeholder, canvasHtml }) => {
-          parsedHtml = parsedHtml.split(placeholder).join(canvasHtml);
+        smilesItems.forEach(({ placeholder, svgHtml }) => {
+          parsedHtml = parsedHtml.split(placeholder).join(svgHtml);
         });
         this.pendingSmilesRender = true;
       }
@@ -346,15 +346,15 @@ export class MathRendererComponent implements OnChanges, AfterViewChecked {
 
   /**
    * Extracts <smiles ...>...</smiles> blocks and replaces them with
-   * `<canvas data-smiles="...">` placeholder elements for SmilesDrawer rendering.
+   * `<svg data-smiles="...">` placeholder elements for SmilesDrawer SvgDrawer rendering.
    *
    * Addresses Issue #126 / #144: Supports width, height, theme, and title attributes.
    */
   private extractSmilesBlocks(text: string): {
     processedText: string;
-    smilesItems: { placeholder: string; canvasHtml: string }[];
+    smilesItems: { placeholder: string; svgHtml: string }[];
   } {
-    const smilesItems: { placeholder: string; canvasHtml: string }[] = [];
+    const smilesItems: { placeholder: string; svgHtml: string }[] = [];
     let idx = 0;
 
     const processedText = text.replace(
@@ -376,12 +376,12 @@ export class MathRendererComponent implements OnChanges, AfterViewChecked {
         const titleHtml = title
           ? `<div class="smiles-caption">${this.escapeHtml(title.trim())}</div>`
           : '';
-        const canvasHtml =
+        const svgHtml =
           `<span class="smiles-block smiles-block--${theme}">`
-          + `<canvas width="${width}" height="${height}" data-smiles="${escapedSmiles}" data-theme="${theme}" class="smiles-canvas"></canvas>`
+          + `<svg width="${width}" height="${height}" data-smiles="${escapedSmiles}" data-theme="${theme}" class="smiles-svg"></svg>`
           + titleHtml
           + `</span>`;
-        smilesItems.push({ placeholder, canvasHtml });
+        smilesItems.push({ placeholder, svgHtml });
         return placeholder;
       }
     );
@@ -390,56 +390,60 @@ export class MathRendererComponent implements OnChanges, AfterViewChecked {
   }
 
   /**
-   * Draw SMILES structures onto canvas elements after they are in the DOM.
-   * Uses SmilesDrawer 2.0 with lazy dynamic import.
+   * Draw SMILES structures onto SVG elements after they are in the DOM.
+   * Uses SmilesDrawer 2.0 SvgDrawer with lazy dynamic import.
    */
-  private drawSmilesCanvases(canvases: NodeListOf<HTMLCanvasElement>): void {
+  private drawSmilesSvgs(svgs: NodeListOf<SVGElement>): void {
     this.loadSmilesDrawer().then(sdModule => {
       if (!sdModule) return;
       const SmilesDrawer = sdModule.default ?? sdModule;
-      const Drawer = SmilesDrawer.Drawer ?? sdModule.Drawer;
-      if (!Drawer) return;
+      const SvgDrawer = SmilesDrawer.SvgDrawer ?? sdModule.SvgDrawer;
+      if (!SvgDrawer) return;
 
-      canvases.forEach((canvas) => {
-        const smiles = canvas.getAttribute('data-smiles') || '';
-        const theme = canvas.getAttribute('data-theme') || 'light';
-        const width = parseInt(canvas.getAttribute('width') || '260', 10);
-        const height = parseInt(canvas.getAttribute('height') || '200', 10);
+      svgs.forEach((svg) => {
+        const smiles = svg.getAttribute('data-smiles') || '';
+        const theme = svg.getAttribute('data-theme') || 'light';
+        const width = parseInt(svg.getAttribute('width') || '260', 10);
+        const height = parseInt(svg.getAttribute('height') || '200', 10);
         if (!smiles) return;
 
         try {
-          canvas.setAttribute('data-smiles-drawn', '1');
-          const drawer = new Drawer({ width, height, compactDrawing: false });
+          svg.setAttribute('data-smiles-drawn', '1');
+          const drawer = new SvgDrawer({ width, height, compactDrawing: false });
 
           if (typeof SmilesDrawer.parse === 'function') {
             SmilesDrawer.parse(
               smiles,
               (tree: any) => {
-                drawer.draw(tree, canvas, theme, false);
+                drawer.draw(tree, svg, theme, null, false);
               },
               () => {
-                this.fallbackSmilesCanvas(canvas, smiles, theme);
+                this.fallbackSmilesSvg(svg, smiles);
               }
             );
           } else if (SmilesDrawer.Parser?.parse) {
             const tree = SmilesDrawer.Parser.parse(smiles);
-            drawer.draw(tree, canvas, theme, false);
+            drawer.draw(tree, svg, theme, null, false);
           }
         } catch {
-          this.fallbackSmilesCanvas(canvas, smiles, theme);
+          this.fallbackSmilesSvg(svg, smiles);
         }
       });
     });
   }
 
-  private fallbackSmilesCanvas(canvas: HTMLCanvasElement, smiles: string, theme: string): void {
-    const ctx = canvas.getContext('2d');
-    if (ctx) {
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-      ctx.font = '12px monospace';
-      ctx.fillStyle = theme === 'dark' ? '#eceff1' : '#424242';
-      ctx.fillText(smiles, 8, canvas.height / 2);
+  private fallbackSmilesSvg(svg: SVGElement, smiles: string): void {
+    while (svg.firstChild) {
+      svg.removeChild(svg.firstChild);
     }
+    const textNode = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+    textNode.setAttribute('x', '10');
+    textNode.setAttribute('y', '30');
+    textNode.setAttribute('font-family', 'monospace');
+    textNode.setAttribute('font-size', '12');
+    textNode.setAttribute('fill', '#d32f2f');
+    textNode.textContent = smiles;
+    svg.appendChild(textNode);
   }
 
   /** Lazy-load smiles-drawer module and cache it. */

@@ -19,15 +19,16 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { MatDialogRef, MAT_DIALOG_DATA, MatDialogModule } from '@angular/material/dialog';
 import { MatButtonModule } from '@angular/material/button';
+import { MatButtonToggleModule } from '@angular/material/button-toggle';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { MatIconModule } from '@angular/material/icon';
 import { MatTabsModule } from '@angular/material/tabs';
 import { MatTooltipModule } from '@angular/material/tooltip';
-import { MatButtonToggleModule } from '@angular/material/button-toggle';
 import { Inject } from '@angular/core';
 
 export interface SmilesInputDialogData {
+  /** Pre-fill with existing SMILES notation */
   smiles?: string;
   title?: string;
   width?: number;
@@ -38,7 +39,6 @@ export interface SmilesInputDialogData {
 export interface SmilesPreset {
   name: string;
   smiles: string;
-  formula?: string;
   description?: string;
 }
 
@@ -49,16 +49,15 @@ export interface SmilesCategory {
 }
 
 /**
- * Modernized dialog for authoring 2D chemical structures from SMILES notation
- * with categorized template presets and live SmilesDrawer 2.0 preview.
+ * Modernized dialog for authoring and inserting 2D chemical structure diagrams
+ * using SMILES (Simplified Molecular Input Line Entry System) notation.
  *
  * Addresses Issue #144:
- *  - Categorized chemical structure presets (Aromatics, Functional Groups, Biomolecules/Drugs, Alkanes)
- *  - Real-time 2D skeletal preview rendering with SmilesDrawer
- *  - Custom dimensions (width, height) and theme (light/dark) configuration
- *  - Molecule caption / title support
- *  - Robust syntax validation & error messaging
- *  - Keyboard accessibility (Enter / Ctrl+Enter to insert, Esc to cancel)
+ *  - Categorized preset molecules (aromatics, functional groups, biomolecules, alkanes)
+ *  - Live 2D chemical structure preview powered by SmilesDrawer 2.0
+ *  - Configurable dimensions (width/height) & theme (light/dark)
+ *  - Molecule caption / figure label
+ *  - Keyboard accessibility (Ctrl+Enter / Enter to insert, Esc to cancel)
  *  - Pre-fill & edit mode support
  */
 @Component({
@@ -69,12 +68,12 @@ export interface SmilesCategory {
     FormsModule,
     MatDialogModule,
     MatButtonModule,
+    MatButtonToggleModule,
     MatFormFieldModule,
     MatInputModule,
     MatIconModule,
     MatTabsModule,
-    MatTooltipModule,
-    MatButtonToggleModule
+    MatTooltipModule
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   encapsulation: ViewEncapsulation.None,
@@ -82,7 +81,7 @@ export interface SmilesCategory {
   styleUrls: ['./smiles-input-dialog.component.scss']
 })
 export class SmilesInputDialogComponent implements OnInit, AfterViewInit {
-  @ViewChild('canvasRef') canvasRef?: ElementRef<HTMLCanvasElement>;
+  @ViewChild('svgRef') svgRef?: ElementRef<SVGElement>;
   @ViewChild('smilesInput') smilesInputRef?: ElementRef<HTMLInputElement>;
 
   smiles = '';
@@ -216,10 +215,11 @@ export class SmilesInputDialogComponent implements OnInit, AfterViewInit {
   clearSmiles(): void {
     this.smiles = '';
     this.renderError = '';
-    const canvas = this.canvasRef?.nativeElement;
-    if (canvas) {
-      const ctx = canvas.getContext('2d');
-      if (ctx) ctx.clearRect(0, 0, canvas.width, canvas.height);
+    const svg = this.svgRef?.nativeElement;
+    if (svg) {
+      while (svg.firstChild) {
+        svg.removeChild(svg.firstChild);
+      }
     }
     this.cdr.markForCheck();
     this.smilesInputRef?.nativeElement.focus();
@@ -242,9 +242,9 @@ export class SmilesInputDialogComponent implements OnInit, AfterViewInit {
 
   private async drawStructure(): Promise<void> {
     const trimmed = this.smiles.trim();
-    const canvas = this.canvasRef?.nativeElement;
+    const svg = this.svgRef?.nativeElement;
 
-    if (!trimmed || !canvas) {
+    if (!trimmed || !svg) {
       this.renderError = '';
       this.cdr.markForCheck();
       return;
@@ -259,21 +259,20 @@ export class SmilesInputDialogComponent implements OnInit, AfterViewInit {
       }
 
       const SmilesDrawer = sdModule.default ?? sdModule;
-      const Drawer = SmilesDrawer.Drawer ?? sdModule.Drawer;
+      const SvgDrawer = SmilesDrawer.SvgDrawer ?? sdModule.SvgDrawer;
 
-      if (!Drawer) {
+      if (!SvgDrawer) {
         this.renderError = 'SmilesDrawer renderer unavailable';
         this.cdr.markForCheck();
         return;
       }
 
-      // Clear previous canvas
-      const ctx = canvas.getContext('2d');
-      if (ctx) {
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
+      // Clear previous SVG contents
+      while (svg.firstChild) {
+        svg.removeChild(svg.firstChild);
       }
 
-      const drawer = new Drawer({
+      const drawer = new SvgDrawer({
         width: this.width,
         height: this.height,
         compactDrawing: false
@@ -284,7 +283,7 @@ export class SmilesInputDialogComponent implements OnInit, AfterViewInit {
           trimmed,
           (tree: any) => {
             try {
-              drawer.draw(tree, canvas, this.theme, false);
+              drawer.draw(tree, svg, this.theme, null, false);
               this.renderError = '';
               this.cdr.markForCheck();
             } catch (drawErr: any) {
@@ -299,7 +298,7 @@ export class SmilesInputDialogComponent implements OnInit, AfterViewInit {
         );
       } else if (SmilesDrawer.Parser?.parse) {
         const tree = SmilesDrawer.Parser.parse(trimmed);
-        drawer.draw(tree, canvas, this.theme, false);
+        drawer.draw(tree, svg, this.theme, null, false);
         this.renderError = '';
         this.cdr.markForCheck();
       }

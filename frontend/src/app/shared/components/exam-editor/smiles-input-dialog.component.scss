@@ -20,11 +20,11 @@
   gap: 8px;
   font-size: 18px;
   font-weight: 600;
-  color: #0d47a1;
+  color: #004d40;
 }
 
 .header-icon {
-  color: #1976d2;
+  color: #00796b;
   font-size: 24px;
   width: 24px;
   height: 24px;
@@ -37,7 +37,7 @@
 .smiles-dialog-content {
   padding: 16px 24px !important;
   overflow-y: auto;
-  max-height: 65vh;
+  max-height: 68vh;
 }
 
 .inputs-section {
@@ -53,8 +53,8 @@
 
 .smiles-input-text {
   font-family: 'JetBrains Mono', 'Fira Code', 'Courier New', monospace !important;
-  font-size: 14px !important;
-  font-weight: 500;
+  font-size: 13.5px !important;
+  letter-spacing: 0.3px;
 }
 
 .clear-btn {
@@ -63,12 +63,11 @@
 
 .options-row {
   display: flex;
-  align-items: center;
   justify-content: space-between;
-  gap: 16px;
-  margin-top: 4px;
-  margin-bottom: 12px;
+  align-items: center;
+  margin-bottom: 8px;
   flex-wrap: wrap;
+  gap: 8px;
 }
 
 .dimension-fields {
@@ -155,6 +154,7 @@
   }
 }
 
+.structure-svg,
 .structure-canvas {
   display: block;
   max-width: 100%;
@@ -203,11 +203,12 @@
 }
 
 .molecule-caption-label {
-  font-size: 12px;
-  color: #546e7a;
-  font-style: italic;
   text-align: center;
-  margin-top: 6px;
+  font-size: 12.5px;
+  font-weight: 500;
+  color: #616161;
+  margin-top: 4px;
+  font-style: italic;
 }
 
 .presets-container {
@@ -255,8 +256,7 @@
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  justify-content: center;
-  padding: 6px 10px;
+  padding: 8px 10px;
   background: #f8f9fa;
   border: 1px solid #e2e8f0;
   border-radius: 6px;
@@ -270,22 +270,31 @@
     border-color: #7dd3fc;
     transform: translateY(-1px);
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+
+    .preset-name {
+      color: #0369a1;
+    }
+  }
+
+  &:active {
+    transform: translateY(0);
   }
 }
 
 .preset-name {
   font-size: 12px;
   font-weight: 600;
-  color: #1e293b;
+  color: #334155;
+  margin-bottom: 2px;
 }
 
 .preset-code {
-  font-family: monospace;
-  font-size: 10px;
+  font-family: 'JetBrains Mono', 'Fira Code', 'Courier New', monospace;
+  font-size: 10.5px;
   color: #64748b;
-  white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  white-space: nowrap;
   max-width: 100%;
 }
 

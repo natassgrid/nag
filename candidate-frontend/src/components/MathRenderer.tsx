@@ -1,49 +1,46 @@
 /*
  * SPDX-License-Identifier: AGPL-3.0-only
  *
- * National Assessment Grid (NAG) - Open Digital Public Infrastructure (DPI) Platform
+ * National Assessment Grid (NAG) - Candidate Frontend
  * Copyright (C) 2025 NAG Contributors
  */
 
-import React, { useMemo, useState, useCallback, useEffect, useRef } from 'react';
-import { ImageZoomModal } from './ImageZoomModal';
+import React, { useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import katex from 'katex';
 import { marked } from 'marked';
-// mhchem adds \ce{} (chemical equations) and \pu{} (physical units) to KaTeX.
-// It ships inside the katex package — no extra npm dependency needed.
 import 'katex/dist/contrib/mhchem.js';
+import ImageZoomModal from './ImageZoomModal';
 
 interface MathRendererProps {
-  /** Raw content string containing mixed Markdown text, HTML, $$LaTeX$$, $LaTeX$, \(...\), or \[...\] */
-  content?: string | null;
-  /** Optional custom CSS classes for the container */
+  /** The raw markdown + math content to render */
+  content: string | null | undefined;
+  /** Additional CSS class names for styling */
   className?: string;
-  /** Force inline span vs block wrapper (default: false for block-capable container) */
+  /** When true, renders as an inline <span>; otherwise as a <div> block */
   inline?: boolean;
 }
 
-/** Non-math LaTeX commands that should be rendered as plain text/HTML */
+// Non-math LaTeX commands that should be treated as text/HTML
 const NON_MATH_PATTERN =
   /\\{1,2}(begin|end)\\{(enumerate|itemize|document|figure|table|center)\\}|\\{1,2}item|\\{1,2}section|\\{1,2}subsection/;
 
-// ─── SMILES canvas component ──────────────────────────────────────────────
+// ─── SMILES SVG component ──────────────────────────────────────────────
 
-interface SmilesCanvasProps {
+interface SmilesSvgProps {
   smiles: string;
   title?: string;
   width?: number;
   height?: number;
   theme?: 'light' | 'dark';
-  onZoom?: (svg: string) => void;
+  onZoom?: (svgDataUrl: string) => void;
 }
 
 /**
- * Renders a single SMILES structure onto a <canvas> using SmilesDrawer 2.0.
- * Falls back to displaying the raw SMILES string if the library is unavailable.
+ * Renders a single SMILES chemical structure onto an <svg> element using SmilesDrawer 2.0 SvgDrawer.
  *
- * Issue #126 & #144 — SmilesDrawer 2.0 integration with theme and dimension options.
+ * Issue #126 & #144 — Crisp vector SVG rendering with theme and dimension options.
  */
-const SmilesCanvas: React.FC<SmilesCanvasProps> = ({
+const SmilesSvg: React.FC<SmilesSvgProps> = ({
   smiles,
   title,
   width = 260,
@@ -51,11 +48,11 @@ const SmilesCanvas: React.FC<SmilesCanvasProps> = ({
   theme = 'light',
   onZoom,
 }) => {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const svgRef = useRef<SVGSVGElement>(null);
   const [error, setError] = useState('');
 
   useEffect(() => {
-    if (!smiles || !canvasRef.current) return;
+    if (!smiles || !svgRef.current) return;
     let cancelled = false;
 
     (async () => {
@@ -64,16 +61,22 @@ const SmilesCanvas: React.FC<SmilesCanvasProps> = ({
         if (cancelled) return;
 
         const SmilesDrawer = sd.default ?? sd;
-        const Drawer = SmilesDrawer.Drawer ?? sd.Drawer;
+        const SvgDrawer = SmilesDrawer.SvgDrawer ?? sd.SvgDrawer;
 
-        if (!Drawer) {
-          setError('smiles-drawer not available');
+        if (!SvgDrawer) {
+          setError('SmilesDrawer renderer unavailable');
           return;
         }
 
-        const drawer = new Drawer({ width, height, compactDrawing: false });
-        const canvas = canvasRef.current;
-        if (!canvas) return;
+        const svg = svgRef.current;
+        if (!svg) return;
+
+        // Clear existing SVG children
+        while (svg.firstChild) {
+          svg.removeChild(svg.firstChild);
+        }
+
+        const drawer = new SvgDrawer({ width, height, compactDrawing: false });
 
         if (typeof SmilesDrawer.parse === 'function') {
           SmilesDrawer.parse(
@@ -81,32 +84,37 @@ const SmilesCanvas: React.FC<SmilesCanvasProps> = ({
             (tree: any) => {
               if (cancelled) return;
               try {
-                drawer.draw(tree, canvas, theme, false);
+                drawer.draw(tree, svg, theme, null, false);
                 setError('');
               } catch (err: any) {
                 setError(err?.message || 'Error drawing chemical structure');
               }
             },
             (parseErr: any) => {
-              if (!cancelled) setError(parseErr?.message || 'Invalid SMILES');
+              if (!cancelled) setError(parseErr?.message || 'Invalid SMILES notation');
             }
           );
         } else if (SmilesDrawer.Parser?.parse) {
           const tree = SmilesDrawer.Parser.parse(smiles);
-          drawer.draw(tree, canvas, theme, false);
+          drawer.draw(tree, svg, theme, null, false);
           setError('');
         }
       } catch (e: any) {
-        if (!cancelled) setError(e?.message || 'Invalid SMILES');
+        if (!cancelled) setError(e?.message || 'Invalid SMILES notation');
       }
     })();
 
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [smiles, width, height, theme]);
 
   const handleClick = useCallback(() => {
-    if (onZoom && canvasRef.current) {
-      onZoom(canvasRef.current.toDataURL('image/png'));
+    if (onZoom && svgRef.current) {
+      const serializer = new XMLSerializer();
+      const svgStr = serializer.serializeToString(svgRef.current);
+      const dataUrl = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svgStr);
+      onZoom(dataUrl);
     }
   }, [onZoom]);
 
@@ -128,8 +136,8 @@ const SmilesCanvas: React.FC<SmilesCanvasProps> = ({
           {smiles}
         </code>
       ) : (
-        <canvas
-          ref={canvasRef}
+        <svg
+          ref={svgRef}
           width={width}
           height={height}
           onClick={handleClick}
@@ -167,23 +175,17 @@ interface SmilesToken {
   placeholder: string;
   smiles: string;
   title?: string;
-  width?: number;
-  height?: number;
-  theme?: 'light' | 'dark';
+  width: number;
+  height: number;
+  theme: 'light' | 'dark';
 }
 
-/**
- * Extracts <smiles ...>...</smiles> blocks from text, replacing them with unique
- * placeholder strings. Returns the modified text and a list of SMILES tokens.
- *
- * Issue #126 & #144 — Supports attributes for width, height, theme, and title.
- */
 function extractSmilesBlocks(text: string): { processedText: string; smilesTokens: SmilesToken[] } {
   const smilesTokens: SmilesToken[] = [];
   let idx = 0;
 
   const processedText = text.replace(
-    /<smiles(?:\s+([^>]*?))?>([\s\S]*?)<\/smiles>(?:\\s*<!--\\s*(.*?)\\s*-->)?/gi,
+    /<smiles(?:\s+([^>]*?))?>([\s\S]*?)<\/smiles>(?:\s*<!--\s*(.*?)\s*-->)?/gi,
     (_match, rawAttrs: string | undefined, smiles: string, commentTitle?: string) => {
       const placeholder = `%%%NAG_SMILES_${idx++}%%%`;
       const attrs = rawAttrs || '';
@@ -192,18 +194,13 @@ function extractSmilesBlocks(text: string): { processedText: string; smilesToken
       const heightMatch = attrs.match(/height="(\d+)"/i);
       const themeMatch = attrs.match(/theme="(light|dark)"/i);
 
-      const title = titleMatch ? titleMatch[1] : (commentTitle?.trim() || undefined);
-      const width = widthMatch ? parseInt(widthMatch[1], 10) : undefined;
-      const height = heightMatch ? parseInt(heightMatch[1], 10) : undefined;
-      const theme = themeMatch ? (themeMatch[1] as 'light' | 'dark') : undefined;
-
       smilesTokens.push({
         placeholder,
         smiles: smiles.trim(),
-        title,
-        width,
-        height,
-        theme,
+        title: titleMatch ? titleMatch[1] : (commentTitle?.trim() || undefined),
+        width: widthMatch ? parseInt(widthMatch[1], 10) : 260,
+        height: heightMatch ? parseInt(heightMatch[1], 10) : 200,
+        theme: (themeMatch ? themeMatch[1] : 'light') as 'light' | 'dark',
       });
       return placeholder;
     }
@@ -430,7 +427,7 @@ export const MathRenderer: React.FC<MathRendererProps> = React.memo(({
     setZoomImg(null);
   }, []);
 
-  // Split HTML on SMILES placeholders and interleave React SMILES canvas components
+  // Split HTML on SMILES placeholders and interleave React SMILES svg components
   const renderedSegments = useMemo(() => {
     if (smilesTokens.length === 0) {
       return (
@@ -450,7 +447,7 @@ export const MathRenderer: React.FC<MathRendererProps> = React.memo(({
       const token = tokenMap.get(part);
       if (token) {
         return (
-          <SmilesCanvas
+          <SmilesSvg
             key={`smiles-${idx}`}
             smiles={token.smiles}
             title={token.title}
