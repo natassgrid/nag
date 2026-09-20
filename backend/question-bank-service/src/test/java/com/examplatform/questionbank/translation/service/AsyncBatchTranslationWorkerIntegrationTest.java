@@ -20,8 +20,7 @@
 package com.examplatform.questionbank.translation.service;
 
 import com.examplatform.questionbank.domain.Question;
-import com.examplatform.questionbank.domain.QuestionOption;
-import com.examplatform.questionbank.domain.QuestionType;
+import com.examplatform.questionbank.dto.QuestionOption;
 import com.examplatform.questionbank.repository.QuestionRepository;
 import com.examplatform.questionbank.support.AbstractIntegrationTest;
 import com.examplatform.questionbank.translation.domain.BatchTranslationJob;
@@ -37,7 +36,6 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
-import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 
@@ -75,32 +73,39 @@ class AsyncBatchTranslationWorkerIntegrationTest extends AbstractIntegrationTest
     @Test
     @DisplayName("Worker queries real DB for All Subjects batch job and processes all questions")
     void shouldFetchAndTranslateAllQuestionsFromRealDatabase() {
-        // Given 3 questions in database
+        // Given 2 questions in database
         Question q1 = Question.builder()
+                .subjectId(1L)
+                .topicId(10L)
                 .subject("Physics")
                 .topic("Mechanics")
-                .type(QuestionType.MCQ)
+                .difficulty("MEDIUM")
+                .cognitiveLevel("UNDERSTAND")
+                .questionType("MCQ")
                 .content("What is Newton's first law?")
                 .authorId(UUID.randomUUID())
-                .options(List.of(QuestionOption.builder().key("A").text("Inertia").correct(true).build()))
+                .options(List.of(QuestionOption.builder().id("A").text("Inertia").correct(true).build()))
                 .state("APPROVED")
-                .version(1)
                 .build();
         q1.setTenantId(TENANT_ID);
 
         Question q2 = Question.builder()
+                .subjectId(2L)
+                .topicId(20L)
                 .subject("Chemistry")
                 .topic("Organic")
-                .type(QuestionType.MCQ)
+                .difficulty("EASY")
+                .cognitiveLevel("REMEMBER")
+                .questionType("MCQ")
                 .content("What is methane?")
                 .authorId(UUID.randomUUID())
-                .options(List.of(QuestionOption.builder().key("A").text("CH4").correct(true).build()))
+                .options(List.of(QuestionOption.builder().id("A").text("CH4").correct(true).build()))
                 .state("APPROVED")
-                .version(1)
                 .build();
         q2.setTenantId(TENANT_ID);
 
-        questionRepository.saveAll(List.of(q1, q2));
+        q1 = questionRepository.save(q1);
+        q2 = questionRepository.save(q2);
 
         // Mock IndicTrans2 response
         when(indicTrans2Service.autoTranslateQuestionEntity(any(Question.class), eq("hi")))
@@ -127,7 +132,6 @@ class AsyncBatchTranslationWorkerIntegrationTest extends AbstractIntegrationTest
                 .maxConcurrency(2)
                 .overwriteExisting(true)
                 .initiatedBy(UUID.randomUUID())
-                .createdAt(Instant.now())
                 .build();
         job.setTenantId(TENANT_ID);
         job = jobRepository.save(job);
@@ -140,43 +144,52 @@ class AsyncBatchTranslationWorkerIntegrationTest extends AbstractIntegrationTest
         assertThat(completedJob.getStatus()).isEqualTo(BatchTranslationJobStatus.COMPLETED);
         assertThat(completedJob.getTotalQuestions()).isEqualTo(2);
         assertThat(completedJob.getProcessedQuestions()).isEqualTo(2);
-        assertThat(completedJob.getSuccessCount()).isEqualTo(2);
-        assertThat(completedJob.getFailureCount()).isEqualTo(0);
+        assertThat(completedJob.getSuccessfulQuestions()).isEqualTo(2);
+        assertThat(completedJob.getFailedQuestions()).isEqualTo(0);
 
-        List<Translation> translations = translationRepository.findByTenantId(TENANT_ID);
-        assertThat(translations).hasSize(2);
-        assertThat(translations).allMatch(t -> "hi".equals(t.getLanguageCode()) &&
-                t.getStatus() == Translation.TranslationStatus.PUBLISHED);
+        List<Translation> trans1 = translationRepository.findByQuestionIdAndLanguageCodeAndTenantId(q1.getId(), "hi", TENANT_ID);
+        List<Translation> trans2 = translationRepository.findByQuestionIdAndLanguageCodeAndTenantId(q2.getId(), "hi", TENANT_ID);
+        assertThat(trans1).hasSize(1);
+        assertThat(trans2).hasSize(1);
+        assertThat(trans1.get(0).getStatus()).isEqualTo(Translation.TranslationStatus.PUBLISHED);
+        assertThat(trans2.get(0).getStatus()).isEqualTo(Translation.TranslationStatus.PUBLISHED);
     }
 
     @Test
     @DisplayName("Worker filters by subject correctly on real database")
     void shouldFilterBySubjectOnRealDatabase() {
         Question q1 = Question.builder()
+                .subjectId(3L)
+                .topicId(30L)
                 .subject("Mathematics")
                 .topic("Algebra")
-                .type(QuestionType.MCQ)
+                .difficulty("HARD")
+                .cognitiveLevel("APPLY")
+                .questionType("MCQ")
                 .content("Solve 2x + 4 = 10")
                 .authorId(UUID.randomUUID())
-                .options(List.of(QuestionOption.builder().key("A").text("x = 3").correct(true).build()))
+                .options(List.of(QuestionOption.builder().id("A").text("x = 3").correct(true).build()))
                 .state("APPROVED")
-                .version(1)
                 .build();
         q1.setTenantId(TENANT_ID);
 
         Question q2 = Question.builder()
+                .subjectId(4L)
+                .topicId(40L)
                 .subject("History")
                 .topic("Modern India")
-                .type(QuestionType.MCQ)
+                .difficulty("EASY")
+                .cognitiveLevel("REMEMBER")
+                .questionType("MCQ")
                 .content("When did India become independent?")
                 .authorId(UUID.randomUUID())
-                .options(List.of(QuestionOption.builder().key("A").text("1947").correct(true).build()))
+                .options(List.of(QuestionOption.builder().id("A").text("1947").correct(true).build()))
                 .state("APPROVED")
-                .version(1)
                 .build();
         q2.setTenantId(TENANT_ID);
 
-        questionRepository.saveAll(List.of(q1, q2));
+        q1 = questionRepository.save(q1);
+        q2 = questionRepository.save(q2);
 
         when(indicTrans2Service.autoTranslateQuestionEntity(any(Question.class), eq("hi")))
                 .thenAnswer(inv -> {
@@ -202,7 +215,6 @@ class AsyncBatchTranslationWorkerIntegrationTest extends AbstractIntegrationTest
                 .maxConcurrency(2)
                 .overwriteExisting(true)
                 .initiatedBy(UUID.randomUUID())
-                .createdAt(Instant.now())
                 .build();
         job.setTenantId(TENANT_ID);
         job = jobRepository.save(job);
@@ -216,8 +228,9 @@ class AsyncBatchTranslationWorkerIntegrationTest extends AbstractIntegrationTest
         assertThat(completedJob.getTotalQuestions()).isEqualTo(1);
         assertThat(completedJob.getProcessedQuestions()).isEqualTo(1);
 
-        List<Translation> translations = translationRepository.findByTenantId(TENANT_ID);
-        assertThat(translations).hasSize(1);
-        assertThat(translations.get(0).getQuestionId()).isEqualTo(q1.getId());
+        List<Translation> trans1 = translationRepository.findByQuestionIdAndLanguageCodeAndTenantId(q1.getId(), "hi", TENANT_ID);
+        List<Translation> trans2 = translationRepository.findByQuestionIdAndLanguageCodeAndTenantId(q2.getId(), "hi", TENANT_ID);
+        assertThat(trans1).hasSize(1);
+        assertThat(trans2).isEmpty();
     }
 }
