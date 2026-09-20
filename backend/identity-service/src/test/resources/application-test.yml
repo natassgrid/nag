@@ -19,7 +19,9 @@ spring:
   flyway:
     enabled: true
     schemas: identity_service
+    default-schema: identity_service
     locations: classpath:db/migration/identity
+    table: flyway_schema_history_identity
 
   cloud:
     vault:

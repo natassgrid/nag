@@ -13,7 +13,7 @@ CREATE EXTENSION IF NOT EXISTS vector SCHEMA public;
 -- storage on the referencing side and speeding up joins.
 -- ============================================================
 
-CREATE TABLE question_service.subject (
+CREATE TABLE IF NOT EXISTS question_service.subject (
     id          BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     tenant_id   VARCHAR(255) NOT NULL,
     name        VARCHAR(200) NOT NULL,
@@ -26,10 +26,10 @@ CREATE TABLE question_service.subject (
     CONSTRAINT uq_subject_name_tenant UNIQUE (name, tenant_id)
 );
 
-CREATE INDEX idx_subject_tenant_id ON question_service.subject(tenant_id);
-CREATE INDEX idx_subject_name ON question_service.subject(name);
+CREATE INDEX IF NOT EXISTS idx_subject_tenant_id ON question_service.subject(tenant_id);
+CREATE INDEX IF NOT EXISTS idx_subject_name ON question_service.subject(name);
 
-CREATE TABLE question_service.topic (
+CREATE TABLE IF NOT EXISTS question_service.topic (
     id          BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     tenant_id   VARCHAR(255) NOT NULL,
     subject_id  BIGINT NOT NULL REFERENCES question_service.subject(id) ON DELETE CASCADE,
@@ -42,10 +42,10 @@ CREATE TABLE question_service.topic (
     CONSTRAINT uq_topic_name_subject_tenant UNIQUE (name, subject_id, tenant_id)
 );
 
-CREATE INDEX idx_topic_tenant_id ON question_service.topic(tenant_id);
-CREATE INDEX idx_topic_subject_id ON question_service.topic(subject_id);
+CREATE INDEX IF NOT EXISTS idx_topic_tenant_id ON question_service.topic(tenant_id);
+CREATE INDEX IF NOT EXISTS idx_topic_subject_id ON question_service.topic(subject_id);
 
-CREATE TABLE question_service.subtopic (
+CREATE TABLE IF NOT EXISTS question_service.subtopic (
     id          BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     tenant_id   VARCHAR(255) NOT NULL,
     topic_id    BIGINT NOT NULL REFERENCES question_service.topic(id) ON DELETE CASCADE,
@@ -58,8 +58,8 @@ CREATE TABLE question_service.subtopic (
     CONSTRAINT uq_subtopic_name_topic_tenant UNIQUE (name, topic_id, tenant_id)
 );
 
-CREATE INDEX idx_subtopic_tenant_id ON question_service.subtopic(tenant_id);
-CREATE INDEX idx_subtopic_topic_id ON question_service.subtopic(topic_id);
+CREATE INDEX IF NOT EXISTS idx_subtopic_tenant_id ON question_service.subtopic(tenant_id);
+CREATE INDEX IF NOT EXISTS idx_subtopic_topic_id ON question_service.subtopic(topic_id);
 
 -- ============================================================
 -- Table: passage (Comprehension Passages / Case Studies - Issue #135)
@@ -107,7 +107,7 @@ CREATE INDEX IF NOT EXISTS idx_passage_embedding ON question_service.passage USI
 -- sync at write time; they back reviewer routing, search, similarity, version
 -- diffs and human-readable export.
 
-CREATE TABLE question_service.question (
+CREATE TABLE IF NOT EXISTS question_service.question (
     id                      UUID NOT NULL,
     tenant_id               VARCHAR(255) NOT NULL,
     passage_id              UUID REFERENCES question_service.passage(id),
@@ -144,27 +144,27 @@ CREATE TABLE question_service.question (
 ) PARTITION BY HASH (subject_id);
 
 -- Create 8 hash partitions
-CREATE TABLE question_service.question_p0 PARTITION OF question_service.question FOR VALUES WITH (MODULUS 8, REMAINDER 0);
-CREATE TABLE question_service.question_p1 PARTITION OF question_service.question FOR VALUES WITH (MODULUS 8, REMAINDER 1);
-CREATE TABLE question_service.question_p2 PARTITION OF question_service.question FOR VALUES WITH (MODULUS 8, REMAINDER 2);
-CREATE TABLE question_service.question_p3 PARTITION OF question_service.question FOR VALUES WITH (MODULUS 8, REMAINDER 3);
-CREATE TABLE question_service.question_p4 PARTITION OF question_service.question FOR VALUES WITH (MODULUS 8, REMAINDER 4);
-CREATE TABLE question_service.question_p5 PARTITION OF question_service.question FOR VALUES WITH (MODULUS 8, REMAINDER 5);
-CREATE TABLE question_service.question_p6 PARTITION OF question_service.question FOR VALUES WITH (MODULUS 8, REMAINDER 6);
-CREATE TABLE question_service.question_p7 PARTITION OF question_service.question FOR VALUES WITH (MODULUS 8, REMAINDER 7);
+CREATE TABLE IF NOT EXISTS question_service.question_p0 PARTITION OF question_service.question FOR VALUES WITH (MODULUS 8, REMAINDER 0);
+CREATE TABLE IF NOT EXISTS question_service.question_p1 PARTITION OF question_service.question FOR VALUES WITH (MODULUS 8, REMAINDER 1);
+CREATE TABLE IF NOT EXISTS question_service.question_p2 PARTITION OF question_service.question FOR VALUES WITH (MODULUS 8, REMAINDER 2);
+CREATE TABLE IF NOT EXISTS question_service.question_p3 PARTITION OF question_service.question FOR VALUES WITH (MODULUS 8, REMAINDER 3);
+CREATE TABLE IF NOT EXISTS question_service.question_p4 PARTITION OF question_service.question FOR VALUES WITH (MODULUS 8, REMAINDER 4);
+CREATE TABLE IF NOT EXISTS question_service.question_p5 PARTITION OF question_service.question FOR VALUES WITH (MODULUS 8, REMAINDER 5);
+CREATE TABLE IF NOT EXISTS question_service.question_p6 PARTITION OF question_service.question FOR VALUES WITH (MODULUS 8, REMAINDER 6);
+CREATE TABLE IF NOT EXISTS question_service.question_p7 PARTITION OF question_service.question FOR VALUES WITH (MODULUS 8, REMAINDER 7);
 
 -- Indexes (created on parent; propagated to partitions)
-CREATE INDEX idx_question_tenant_id ON question_service.question(tenant_id);
-CREATE INDEX idx_question_passage_id ON question_service.question(passage_id);
-CREATE INDEX idx_question_subject_id ON question_service.question(subject_id);
-CREATE INDEX idx_question_topic_id ON question_service.question(topic_id);
-CREATE INDEX idx_question_subtopic_id ON question_service.question(subtopic_id);
-CREATE INDEX idx_question_subject ON question_service.question(subject);
-CREATE INDEX idx_question_topic ON question_service.question(topic);
-CREATE INDEX idx_question_difficulty ON question_service.question(difficulty);
-CREATE INDEX idx_question_state ON question_service.question(state);
-CREATE INDEX idx_question_author_id ON question_service.question(author_id);
-CREATE INDEX idx_question_type ON question_service.question(question_type);
+CREATE INDEX IF NOT EXISTS idx_question_tenant_id ON question_service.question(tenant_id);
+CREATE INDEX IF NOT EXISTS idx_question_passage_id ON question_service.question(passage_id);
+CREATE INDEX IF NOT EXISTS idx_question_subject_id ON question_service.question(subject_id);
+CREATE INDEX IF NOT EXISTS idx_question_topic_id ON question_service.question(topic_id);
+CREATE INDEX IF NOT EXISTS idx_question_subtopic_id ON question_service.question(subtopic_id);
+CREATE INDEX IF NOT EXISTS idx_question_subject ON question_service.question(subject);
+CREATE INDEX IF NOT EXISTS idx_question_topic ON question_service.question(topic);
+CREATE INDEX IF NOT EXISTS idx_question_difficulty ON question_service.question(difficulty);
+CREATE INDEX IF NOT EXISTS idx_question_state ON question_service.question(state);
+CREATE INDEX IF NOT EXISTS idx_question_author_id ON question_service.question(author_id);
+CREATE INDEX IF NOT EXISTS idx_question_type ON question_service.question(question_type);
 
 CREATE INDEX IF NOT EXISTS idx_question_has_images
     ON question_service.question(has_images)
@@ -175,13 +175,13 @@ COMMENT ON COLUMN question_service.question.has_images
 
 -- halfvec cosine similarity index (IVFFlat) for duplicate detection
 -- Uses cosine distance operator <=> on halfvec(384)
-CREATE INDEX idx_question_embedding ON question_service.question
+CREATE INDEX IF NOT EXISTS idx_question_embedding ON question_service.question
     USING ivfflat (embedding halfvec_cosine_ops) WITH (lists = 50);
 
 -- ============================================================
 -- Table: question_version (audit trail)
 -- ============================================================
-CREATE TABLE question_service.question_version (
+CREATE TABLE IF NOT EXISTS question_service.question_version (
     id              UUID PRIMARY KEY,
     tenant_id       VARCHAR(255) NOT NULL,
     question_id     UUID NOT NULL,
@@ -195,8 +195,8 @@ CREATE TABLE question_service.question_version (
     version         BIGINT NOT NULL DEFAULT 0
 );
 
-CREATE INDEX idx_question_version_tenant_id ON question_service.question_version(tenant_id);
-CREATE INDEX idx_question_version_question_id ON question_service.question_version(question_id);
+CREATE INDEX IF NOT EXISTS idx_question_version_tenant_id ON question_service.question_version(tenant_id);
+CREATE INDEX IF NOT EXISTS idx_question_version_question_id ON question_service.question_version(question_id);
 
 -- ============================================================
 -- Table: batch_generation_job
@@ -225,13 +225,13 @@ CREATE TABLE IF NOT EXISTS question_service.batch_generation_job (
     version                BIGINT        NOT NULL DEFAULT 0
 );
 
-CREATE INDEX idx_batch_job_tenant_created
+CREATE INDEX IF NOT EXISTS idx_batch_job_tenant_created
     ON question_service.batch_generation_job (tenant_id, created_at DESC);
 
-CREATE INDEX idx_batch_job_status
+CREATE INDEX IF NOT EXISTS idx_batch_job_status
     ON question_service.batch_generation_job (status, created_at ASC);
 
-CREATE INDEX idx_batch_job_user
+CREATE INDEX IF NOT EXISTS idx_batch_job_user
     ON question_service.batch_generation_job (initiated_by, tenant_id, created_at DESC);
 
 -- ============================================================

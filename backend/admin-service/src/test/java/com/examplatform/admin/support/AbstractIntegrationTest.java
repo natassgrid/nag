@@ -126,7 +126,7 @@ public abstract class AbstractIntegrationTest {
                         "SELECT table_name FROM information_schema.tables " +
                                 "WHERE table_schema = 'admin_service' " +
                                 "AND table_type = 'BASE TABLE' " +
-                                "AND table_name NOT IN ('flyway_schema_history')",
+                                "AND table_name NOT LIKE 'flyway_schema_history%'",
                         String.class
                 );
 

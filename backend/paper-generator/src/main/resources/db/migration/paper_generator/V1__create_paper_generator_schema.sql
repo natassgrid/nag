@@ -12,7 +12,7 @@ CREATE SCHEMA IF NOT EXISTS paper_generator;
 -- No DEFAULT gen_random_uuid() — the database never assigns IDs.
 -- created_at / updated_at are set by BaseEntity @PrePersist / @PreUpdate;
 -- no DEFAULT NOW() so the DB never silently overrides application values.
-CREATE TABLE paper_generator.paper (
+CREATE TABLE IF NOT EXISTS paper_generator.paper (
     id                      UUID         PRIMARY KEY,
     tenant_id               VARCHAR(255) NOT NULL,
     name                    VARCHAR(255),
@@ -31,10 +31,10 @@ CREATE TABLE paper_generator.paper (
     version                 BIGINT       NOT NULL DEFAULT 0
 );
 
-CREATE INDEX idx_paper_tenant_id ON paper_generator.paper(tenant_id);
-CREATE INDEX idx_paper_exam_id   ON paper_generator.paper(exam_id);
-CREATE INDEX idx_paper_shift_id  ON paper_generator.paper(shift_id);
-CREATE INDEX idx_paper_status    ON paper_generator.paper(status);
+CREATE INDEX IF NOT EXISTS idx_paper_tenant_id ON paper_generator.paper(tenant_id);
+CREATE INDEX IF NOT EXISTS idx_paper_exam_id   ON paper_generator.paper(exam_id);
+CREATE INDEX IF NOT EXISTS idx_paper_shift_id  ON paper_generator.paper(shift_id);
+CREATE INDEX IF NOT EXISTS idx_paper_status    ON paper_generator.paper(status);
 
 -- ============================================================
 -- Table: blueprint_template
@@ -46,7 +46,7 @@ CREATE INDEX idx_paper_status    ON paper_generator.paper(status);
 -- rules_json is a JSONB array of BlueprintRule objects:
 -- [{"subject":"Mathematics","topic":"Algebra","difficulty":"EASY",
 --   "cognitiveLevel":"APPLY","questionCount":5}, ...]
-CREATE TABLE paper_generator.blueprint_template (
+CREATE TABLE IF NOT EXISTS paper_generator.blueprint_template (
     id           UUID         PRIMARY KEY,
     tenant_id    VARCHAR(255) NOT NULL,
     name         VARCHAR(255) NOT NULL,
@@ -61,8 +61,8 @@ CREATE TABLE paper_generator.blueprint_template (
     CONSTRAINT uq_blueprint_template_tenant_name UNIQUE (tenant_id, name)
 );
 
-CREATE INDEX idx_blueprint_template_tenant_id ON paper_generator.blueprint_template(tenant_id);
-CREATE INDEX idx_blueprint_template_exam_id   ON paper_generator.blueprint_template(exam_id);
+CREATE INDEX IF NOT EXISTS idx_blueprint_template_tenant_id ON paper_generator.blueprint_template(tenant_id);
+CREATE INDEX IF NOT EXISTS idx_blueprint_template_exam_id   ON paper_generator.blueprint_template(exam_id);
 
 -- ============================================================
 -- Seed Blueprint Rule Templates for Major Indian Government Examinations
