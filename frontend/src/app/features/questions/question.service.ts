@@ -253,8 +253,8 @@ export class QuestionService {
       .pipe(map(res => res.data));
   }
 
-  getQuestionsForReview(page = 0, size = 20): Observable<PagedResponse<QuestionResponse>> {
-    return this.getQuestions({ state: 'REVIEW', page, size });
+  getQuestionsForReview(page = 0, size = 20, search?: string): Observable<PagedResponse<QuestionResponse>> {
+    return this.getQuestions({ state: 'REVIEW', search, page, size });
   }
 
   approveQuestion(id: string): Observable<QuestionResponse> {
@@ -272,7 +272,8 @@ export class QuestionService {
   /**
    * Exports questions matching the given filters as a compressed ZIP archive.
    * The archive contains batch files (100 questions each) plus a manifest.
-   * Returns the raw Blob so the caller can trigger a browser download.\n   */
+   * Returns the raw Blob so the caller can trigger a browser download.
+   */
   exportQuestions(filters?: {
     format?: 'json' | 'csv';
     subject?: string;
@@ -303,11 +304,15 @@ export class QuestionService {
   /**
    * Imports questions from a ZIP archive of JSON/CSV batch files.
    */
-  importQuestions(file: File): Observable<ImportResult> {
+  importQuestions(file: File, subjectId?: number): Observable<ImportResult> {
     const formData = new FormData();
     formData.append('file', file);
+    let params = new HttpParams();
+    if (subjectId !== undefined && subjectId !== null) {
+      params = params.set('subjectId', String(subjectId));
+    }
     return this.http
-      .post<ApiResponse<ImportResult>>(`${this.baseUrl}/import`, formData)
+      .post<ApiResponse<ImportResult>>(`${this.baseUrl}/import`, formData, { params })
       .pipe(map(res => res.data));
   }
 

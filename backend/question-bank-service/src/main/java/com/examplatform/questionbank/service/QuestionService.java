@@ -27,7 +27,6 @@ import com.examplatform.questionbank.domain.Subtopic;
 import com.examplatform.questionbank.domain.Topic;
 import com.examplatform.questionbank.domain.enums.QuestionType;
 import com.examplatform.questionbank.dto.CreateQuestionRequest;
-import com.examplatform.questionbank.dto.QuestionOption;
 import com.examplatform.questionbank.dto.QuestionResponse;
 import com.examplatform.questionbank.exception.SimilarQuestionException;
 import com.examplatform.questionbank.repository.QuestionRepository;
@@ -37,15 +36,16 @@ import com.examplatform.questionbank.repository.TopicRepository;
 import com.examplatform.questionbank.translation.domain.Translation;
 import com.examplatform.questionbank.translation.repository.TranslationRepository;
 import com.examplatform.questionbank.util.EmbeddingUtils;
+import com.examplatform.shared.messaging.EventPublisher;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import com.examplatform.shared.messaging.EventPublisher;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.Instant;
 import java.time.LocalDateTime;
+import java.time.Instant;
 import java.time.ZoneOffset;
 import java.util.Collections;
 import java.util.HashMap;
@@ -55,19 +55,18 @@ import java.util.UUID;
 import java.util.stream.Collectors;
 
 /**
- * Service layer for question CRUD operations.
- * Handles question creation with per-question DEK encryption,
- * metadata validation, and Draft state persistence.
+ * Service for Question authoring, lifecycle management, similarity detection,
+ * hierarchy resolution, and multi-field smart querying.
  *
- * Validates: Requirements 4.1, 4.2, 4.3, 4.5
+ * Validates: Requirements 4.1, 4.2, 4.3, 4.5, 4.6, 5.1, 5.2, 5.3, 5.5, FR-1, FR-2
  */
 @Slf4j
 @Service
-@RequiredArgsConstructor
 @Transactional
+@RequiredArgsConstructor
 public class QuestionService {
 
-    private static final String AUDIT_TOPIC = "exam.audit.events";
+    private static final String AUDIT_TOPIC = "audit-events";
 
     private final QuestionRepository questionRepository;
     private final SubjectRepository subjectRepository;
@@ -78,63 +77,24 @@ public class QuestionService {
     private final EventPublisher eventPublisher;
     private final TranslationRepository translationRepository;
 
-    @org.springframework.beans.factory.annotation.Value("${app.encryption.enabled:false}")
+    @Value("${app.encryption.enabled:true}")
     private boolean encryptionEnabled;
 
     /**
-     * Detects whether question content, explanation, or options contain diagrams,
-     * SVGs, or images.
-     */
-    public static boolean detectHasImages(String content, String explanation, List<QuestionOption> options) {
-        if (containsImageMarkup(content) || containsImageMarkup(explanation)) {
-            return true;
-        }
-        if (options != null) {
-            for (QuestionOption opt : options) {
-                if (opt.getImageUrl() != null && !opt.getImageUrl().isBlank()) {
-                    return true;
-                }
-                if (containsImageMarkup(opt.getText())) {
-                    return true;
-                }
-            }
-        }
-        return false;
-    }
-
-    private static boolean containsImageMarkup(String text) {
-        if (text == null || text.isBlank()) {
-            return false;
-        }
-        return text.contains("<img")
-                || text.contains("<svg")
-                || text.contains("data:image/")
-                || text.matches("(?s).*!\\[.*?\\]\\(.*?\\).*");
-    }
-
-    /**
-     * Container for resolved Subject -> Topic -> Subtopic names and IDs.
+     * Resolves and validates the numeric Subject -> Topic -> Subtopic hierarchy.
      */
     public record ResolvedHierarchy(
-            Long subjectId,
-            String subjectName,
-            Long topicId,
-            String topicName,
-            Long subtopicId,
-            String subtopicName
+            Long subjectId, String subjectName,
+            Long topicId, String topicName,
+            Long subtopicId, String subtopicName
     ) {}
 
-    /**
-     * Validates and resolves the numeric hierarchy references.
-     * Looks up {@link Subject}, {@link Topic}, and optionally {@link Subtopic} by ID,
-     * verifies parent-child relationships match, and returns the resolved names.
-     */
     public ResolvedHierarchy resolveHierarchy(CreateQuestionRequest request, String tenantId) {
         if (request.getSubjectId() == null) {
-            throw new IllegalArgumentException("subjectId is required");
+            throw new IllegalArgumentException("subjectId is required to create a question");
         }
         if (request.getTopicId() == null) {
-            throw new IllegalArgumentException("topicId is required");
+            throw new IllegalArgumentException("topicId is required to create a question");
         }
 
         Subject subject = subjectRepository.findById(request.getSubjectId())
@@ -146,6 +106,7 @@ public class QuestionService {
                 .filter(t -> tenantId.equals(t.getTenantId()))
                 .orElseThrow(() -> new IllegalArgumentException(
                         "Topic not found for id=" + request.getTopicId() + " in tenant " + tenantId));
+
         if (!topic.getSubjectId().equals(subject.getId())) {
             throw new IllegalArgumentException("Topic " + topic.getId()
                     + " does not belong to subject " + subject.getId());
@@ -397,12 +358,62 @@ public class QuestionService {
         return (root, query, cb) -> cb.equal(cb.lower(root.get(field)), value.toLowerCase());
     }
 
-    private org.springframework.data.jpa.domain.Specification<Question> searchLike(String search) {
-        String pattern = "%" + search.toLowerCase() + "%";
-        return (root, query, cb) -> cb.or(
-                cb.like(cb.lower(root.get("subject")), pattern),
-                cb.like(cb.lower(root.get("topic")), pattern),
-                cb.like(cb.lower(root.get("content")), pattern)
+    /**
+     * Smart multi-field search specification.
+     * Matches across question content, subject, topic, subtopic, chapter, difficulty,
+     * cognitiveLevel, questionType, explanation, references, and state.
+     * Supports smart token matching where multi-word queries match across different metadata fields.
+     */
+    public org.springframework.data.jpa.domain.Specification<Question> searchLike(String search) {
+        if (search == null || search.isBlank()) {
+            return null;
+        }
+        String cleanSearch = search.trim();
+        String fullPattern = "%" + cleanSearch.toLowerCase() + "%";
+        String[] tokens = cleanSearch.split("\\s+");
+
+        return (root, query, cb) -> {
+            jakarta.persistence.criteria.Predicate fullPhraseMatch = matchAnyField(root, cb, fullPattern);
+
+            if (tokens.length <= 1) {
+                return fullPhraseMatch;
+            }
+
+            // For multi-token searches (e.g. "Chemistry Reaction", "Physics EASY"),
+            // each token must match at least one metadata or content field.
+            List<jakarta.persistence.criteria.Predicate> tokenPredicates = new java.util.ArrayList<>();
+            for (String token : tokens) {
+                if (!token.isBlank()) {
+                    String tokenPattern = "%" + token.toLowerCase() + "%";
+                    tokenPredicates.add(matchAnyField(root, cb, tokenPattern));
+                }
+            }
+
+            if (tokenPredicates.isEmpty()) {
+                return fullPhraseMatch;
+            }
+
+            jakarta.persistence.criteria.Predicate allTokensMatch = cb.and(tokenPredicates.toArray(new jakarta.persistence.criteria.Predicate[0]));
+            return cb.or(fullPhraseMatch, allTokensMatch);
+        };
+    }
+
+    private jakarta.persistence.criteria.Predicate matchAnyField(
+            jakarta.persistence.criteria.Root<Question> root,
+            jakarta.persistence.criteria.CriteriaBuilder cb,
+            String pattern) {
+        return cb.or(
+                cb.like(cb.lower(cb.coalesce(root.get("subject"), "")), pattern),
+                cb.like(cb.lower(cb.coalesce(root.get("topic"), "")), pattern),
+                cb.like(cb.lower(cb.coalesce(root.get("subtopic"), "")), pattern),
+                cb.like(cb.lower(cb.coalesce(root.get("chapter"), "")), pattern),
+                cb.like(cb.lower(cb.coalesce(root.get("difficulty"), "")), pattern),
+                cb.like(cb.lower(cb.coalesce(root.get("cognitiveLevel"), "")), pattern),
+                cb.like(cb.lower(cb.coalesce(root.get("questionType"), "")), pattern),
+                cb.like(cb.lower(cb.coalesce(root.get("content"), "")), pattern),
+                cb.like(cb.lower(cb.coalesce(root.get("explanation"), "")), pattern),
+                cb.like(cb.lower(cb.coalesce(root.get("state"), "")), pattern),
+                cb.like(cb.lower(cb.coalesce(root.get("references"), "")), pattern)
         );
     }
 
@@ -685,5 +696,24 @@ public class QuestionService {
             return "DRAFT";
         }
         return t.getStatus() != null ? t.getStatus().name() : "DRAFT";
+    }
+
+    public static boolean detectHasImages(String content, String explanation, List<com.examplatform.questionbank.dto.QuestionOption> options) {
+        if (containsImageTagOrMarkdown(content)) return true;
+        if (containsImageTagOrMarkdown(explanation)) return true;
+        if (options != null) {
+            for (var opt : options) {
+                if (opt.getImageUrl() != null && !opt.getImageUrl().isBlank()) return true;
+                if (containsImageTagOrMarkdown(opt.getText())) return true;
+            }
+        }
+        return false;
+    }
+
+    public static boolean containsImageTagOrMarkdown(String text) {
+        if (text == null || text.isBlank()) return false;
+        if (text.contains("<img") || text.contains("<svg")) return true;
+        if (text.matches(".*!\\[[^\\]]*\\]\\([^)]+\\).*")) return true;
+        return false;
     }
 }

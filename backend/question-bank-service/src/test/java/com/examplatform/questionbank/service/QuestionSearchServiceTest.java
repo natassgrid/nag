@@ -126,6 +126,55 @@ class QuestionSearchServiceTest {
     }
 
     @Test
+    @DisplayName("search matches across multiple fields like chapter, explanation, cognitiveLevel, and tokens")
+    void searchMatchesMultiFieldsAndTokens() {
+        Question q1 = Question.builder()
+                .subject("Chemistry")
+                .topic("Organic Chemistry")
+                .subtopic("Hydrocarbons")
+                .chapter("Alkanes and Alkenes")
+                .difficulty("EASY")
+                .cognitiveLevel("UNDERSTAND")
+                .questionType("SINGLE_MCQ")
+                .content("What is the general formula of alkanes?")
+                .explanation("Alkanes follow CnH2n+2 formula.")
+                .state("PUBLISHED")
+                .authorId(UUID.randomUUID())
+                .build();
+
+        Question q2 = Question.builder()
+                .subject("Chemistry")
+                .topic("Inorganic Chemistry")
+                .subtopic("Periodic Table")
+                .chapter("Noble Gases")
+                .difficulty("HARD")
+                .cognitiveLevel("ANALYZE")
+                .questionType("DESCRIPTIVE")
+                .content("Why are noble gases inert?")
+                .explanation("Full valence shell creates stability.")
+                .state("PUBLISHED")
+                .authorId(UUID.randomUUID())
+                .build();
+
+        when(questionRepository.findBySubjectAndStateAndTenantId("Chemistry", "PUBLISHED", TENANT_ID))
+                .thenReturn(List.of(q1, q2));
+
+        // Multi-token search matching topic ("Organic") and difficulty ("EASY")
+        Page<QuestionResponse> results = questionSearchService.search(
+                "Organic EASY", "Chemistry", null, 0, 10, TENANT_ID);
+
+        assertThat(results.getContent()).hasSize(1);
+        assertThat(results.getContent().get(0).getChapter()).isEqualTo("Alkanes and Alkenes");
+
+        // Search matching explanation keyword
+        Page<QuestionResponse> resultsExpl = questionSearchService.search(
+                "valence stability", "Chemistry", null, 0, 10, TENANT_ID);
+
+        assertThat(resultsExpl.getContent()).hasSize(1);
+        assertThat(resultsExpl.getContent().get(0).getTopic()).isEqualTo("Inorganic Chemistry");
+    }
+
+    @Test
     @DisplayName("search returns empty page when no matches")
     void searchReturnsEmptyOnNoMatch() {
         when(questionRepository.findBySubjectAndStateAndTenantId("Chemistry", "PUBLISHED", TENANT_ID))

@@ -151,9 +151,13 @@
         <div class="filter-drawer" [class.open]="drawerOpen" *ngIf="enableFilter">
           <div class="filter-drawer-header">
             <span class="drawer-title">Filters</span>
-            <button mat-icon-button class="close-btn" (click)="toggleDrawer()" aria-label="Close filters">
-              <mat-icon>close</mat-icon>
-            </button>
+            <div class="header-actions">
+              <button mat-button class="btn-reset-header" (click)="resetDrawerFilters()">Reset</button>
+              <button mat-flat-button color="primary" class="btn-apply-header" (click)="applyDrawerFilters()">Apply</button>
+              <button mat-icon-button class="close-btn" (click)="toggleDrawer()" aria-label="Close filters">
+                <mat-icon>close</mat-icon>
+              </button>
+            </div>
           </div>
 
           <div class="filter-drawer-body">
