@@ -104,7 +104,7 @@ Key classes:
 6. **Service pattern**: `@Injectable({ providedIn: 'root' })`. All API responses are wrapped in `ApiResponse<T>` by the backend. For paginated list endpoints, the backend returns `Page<T>` (Spring Data) which serializes as `{ content: [], totalElements, totalPages, size, number }`. Services unwrap via `.pipe(map(res => res?.data?.content ?? res?.data ?? []))` for arrays. Always pass `page`, `size`, and `search` query params to the backend — never do client-side pagination. The fetcher in the component passes `req.page`, `req.size`, `req.search` directly to the service method.
 7. **Server-side pagination (backend)**: All list/search endpoints MUST accept `?page=0&size=20&search=` query params and return Spring `Page<T>`. Use `PageRequest.of(page, size, Sort.by(...))` in the service layer with Spring Data JPA paginated repository methods (`findBy...(... , Pageable pageable)` returning `Page<T>`). The controller returns `ApiResponse<Page<ResponseDTO>>`. This ensures the browser Network tab always shows pagination query params.
 8. **Form dialogs**: Use `MatDialog` with `MAT_DIALOG_DATA` injection. Dialog closes with `dialogRef.close(formValue)`. Parent component subscribes to `afterClosed()` and calls the service, then `this.table.reload()`.
-9. **Confirmation dialogs**: Never use browser `confirm()`. Use the shared `ConfirmDialogComponent` at `shared/components/confirm-dialog/confirm-dialog.component.ts`. It accepts `ConfirmDialogData { title, message, confirmText, cancelText, color, icon }` and returns `boolean` on close.
+9. **Confirmation dialogs**: Never use browser `confirm()`. Use the shared `ConfirmDialogComponent` at `shared/components/confirm-dialog/confirm-dialog.component.ts`. It accepts `ConfirmDialogData { title, message, confirmText, cancelText, color, icon }` and returns `boolean` on close.\
 10. **Snackbar feedback**: `this.snackBar.open('Message', 'OK', { duration: 3000 })` on success; `this.snackBar.open(err?.error?.message || 'Error', 'Dismiss', { duration: 4000 })` on error.
 11. **DatePicker**: Always set `[min]="minDate"` where `minDate = new Date()` to allow only future dates. Always convert to ISO string before sending: `d instanceof Date ? d.toISOString().split('T')[0] : d`.
 12. **Cascading dropdowns**: Use `valueChanges` subscription on parent control → clear child + load options → auto-set denormalized name field. See `centre-form-dialog.component.ts` for reference.
@@ -121,11 +121,11 @@ Key classes:
 2. **Immediate Diff & Compilation Verification**:
    - Always run `git diff <path>` after modifying any file to ensure no unintended deletions, overwrites, or escaped `\n` sequences exist.
    - Verify code compiles cleanly with `npm run build` or `docker build`.
-3. **MANDATORY: UI Docker Build & Production Build Verification (NEVER SKIP)**:
-   - Always run the production build and Docker build for the affected UI before completing a task:
-     - Angular Admin Portal: `docker build -t exam-frontend:latest ./frontend`
-     - React Candidate Engine: `docker build -t candidate-frontend:latest ./candidate-frontend`
-   - If backend changes were made, also verify backend compile (`./gradlew compileJava`) and container image build (`docker build -f backend/Dockerfile -t exam-monolith:latest ./backend`).
+3. **MANDATORY: UI Docker Build & Production Build Verification With `--no-cache` (NEVER SKIP)**:
+   - Always run the production build and Docker build with `--no-cache` for the affected UI before completing a task:
+     - Angular Admin Portal: `docker build --no-cache -t exam-frontend:latest ./frontend`
+     - React Candidate Engine: `docker build --no-cache -t candidate-frontend:latest ./candidate-frontend`
+   - If backend changes were made, also verify backend compile (`./gradlew compileJava`) and container image build (`docker build --no-cache -f backend/Dockerfile -t exam-monolith:latest ./backend`).
 
 ## Local Development
 
@@ -135,22 +135,22 @@ Key classes:
 - **Run Backend Tests**: `./gradlew test`
 - **Run Single Service**: `./gradlew :backend:<service-name>:bootRun`
 - **Build UI Frontend (Production)**: `npm run build -- --configuration production` (in `frontend/`)
-- **Docker Build UI**: `docker build -t exam-frontend:latest ./frontend`
+- **Docker Build UI (No Cache)**: `docker build --no-cache -t exam-frontend:latest ./frontend`
 
 ## Infrastructure Ports (Local Dev)
 
-| Service     | Port  |
-|-------------|-------|
-| PostgreSQL  | 5432  |
-| Kafka       | 29092 (external) / 9092 (internal) |
-| Redis       | 6379  |
-| Keycloak    | 8080  |
-| Vault       | 8200  |
-| Prometheus  | 9090  |
-| Grafana     | 3000  |
-| Jaeger UI   | 16686 |
-| OTLP gRPC   | 4317  |
-| OTLP HTTP   | 4318  |
+| Service     | Port  |\
+|-------------|-------|\
+| PostgreSQL  | 5432  |\
+| Kafka       | 29092 (external) / 9092 (internal) |\
+| Redis       | 6379  |\
+| Keycloak    | 8080  |\
+| Vault       | 8200  |\
+| Prometheus  | 9090  |\
+| Grafana     | 3000  |\
+| Jaeger UI   | 16686 |\
+| OTLP gRPC   | 4317  |\
+| OTLP HTTP   | 4318  |\
 
 ## Security Principles
 
