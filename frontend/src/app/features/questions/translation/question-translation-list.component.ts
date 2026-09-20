@@ -107,7 +107,7 @@ export class QuestionTranslationListComponent implements OnInit, OnDestroy {
   activeBatchJob: BatchTranslationJobResponse | null = null;
   private pollSub?: Subscription;
 
-  filterCategories: FilterCategory[] = [
+  filterCategories: FilterCategory[] = [\
     {
       key: 'targetLang',
       label: 'Translation Language',
@@ -278,7 +278,8 @@ export class QuestionTranslationListComponent implements OnInit, OnDestroy {
           }
         }
       },
-      error: (err) => console.warn('Could not fetch batch jobs:', err)\n    });
+      error: (err) => console.warn('Could not fetch batch jobs:', err)
+    });
   }
 
   onFilterChange(updatedFilters: Record<string, any>): void {
@@ -301,7 +302,8 @@ export class QuestionTranslationListComponent implements OnInit, OnDestroy {
       const langLabel = lang ? lang.name : targetLang.toUpperCase();
       const status = (row.translationStatus || row.translationStatusMap?.[targetLang] || 'MISSING').toUpperCase();
 
-      switch (status) {\n        case 'APPROVED':
+      switch (status) {
+        case 'APPROVED':
           return `${langLabel}: Approved`;
         case 'PUBLISHED':
           return `${langLabel}: Published`;
