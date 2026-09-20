@@ -11,7 +11,7 @@
 
 # =============================================================================
 # Build and Deploy all services using Docker Compose
-# Usage: ./build-and-deploy.sh [--no-cache] [--service <name>] [--observability] [--ai]
+# Usage: ./build-and-deploy.sh [--no-cache] [--service <name>] [--observability] [--ai] [--native]
 # =============================================================================
 set -e
 
@@ -22,6 +22,7 @@ NO_CACHE=""
 SERVICE=""
 OBSERVABILITY=false
 AI=false
+NATIVE=false
 
 while [[ $# -gt 0 ]]; do
     case $1 in
@@ -29,6 +30,7 @@ while [[ $# -gt 0 ]]; do
         --service) SERVICE="$2"; shift 2 ;;
         --observability|--with-observability) OBSERVABILITY=true; shift ;;
         --ai|--with-ai) AI=true; shift ;;
+        --native) NATIVE=true; shift ;;
         *) echo "Unknown option: $1"; exit 1 ;;
     esac
 done
@@ -41,8 +43,14 @@ if [ "$AI" = true ]; then
     PROFILES_ARGS+=(--profile ai)
 fi
 
+DOCKERFILE_TARGET="backend/Dockerfile"
+if [ "$NATIVE" = true ]; then
+    DOCKERFILE_TARGET="backend/Dockerfile.native"
+fi
+
 echo "============================================="
 echo "  Exam Platform — Docker Build & Deploy"
+echo "  Container Engine: $(if [ "$NATIVE" = true ]; then echo "GraalVM Native Image (AOT)"; else echo "Temurin OpenJDK JVM"; fi)"
 if [ "$OBSERVABILITY" = true ]; then
 echo "  Observability: Enabled (Prometheus, Grafana, Jaeger)"
 fi
@@ -79,7 +87,11 @@ $COMPOSE up -d registry
 echo ""
 if [ -n "$SERVICE" ]; then
     echo "▶ Building and starting service: $SERVICE"
-    $COMPOSE build $NO_CACHE "$SERVICE"
+    if [ "$NATIVE" = true ]; then
+        docker build -f "$PROJECT_ROOT/backend/Dockerfile.native" --build-arg SERVICE_NAME="$SERVICE" -t "localhost:5000/exam/${SERVICE}:latest" "$PROJECT_ROOT"
+    else
+        $COMPOSE build $NO_CACHE "$SERVICE"
+    fi
     $COMPOSE up -d "$SERVICE"
 else
     echo "▶ Building all application services sequentially (shared Gradle cache)..."
@@ -92,7 +104,11 @@ else
     )
     for svc in "${SERVICES[@]}"; do
         echo "  Building $svc..."
-        $COMPOSE build $NO_CACHE "$svc"
+        if [ "$NATIVE" = true ] && [ "$svc" != "frontend" ] && [ "$svc" != "candidate-frontend" ]; then
+            docker build -f "$PROJECT_ROOT/backend/Dockerfile.native" --build-arg SERVICE_NAME="$svc" -t "localhost:5000/exam/${svc}:latest" "$PROJECT_ROOT"
+        else
+            $COMPOSE build $NO_CACHE "$svc"
+        fi
     done
     echo ""
     echo "▶ Starting all application services..."

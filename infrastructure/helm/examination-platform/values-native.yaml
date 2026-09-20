@@ -1,0 +1,96 @@
+# SPDX-License-Identifier: AGPL-3.0-only
+#
+# National Assessment Grid (NAG) - Open Digital Public Infrastructure (DPI) Platform
+# Copyright (C) 2025 NAG Contributors
+#
+# =============================================================================
+# GraalVM Native Image Helm Values Profile
+# Optimized for Spring Boot 4.x Native Binaries (Sub-50ms Startup & Low RSS)
+# =============================================================================
+
+global:
+  image:
+    tag: native-latest
+
+defaults:
+  replicas: 2
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 1000m
+      memory: 256Mi
+  # Native binaries do not require standard JVM HotSpot options
+  javaOpts: ""
+  startupProbe:
+    httpGet:
+      path: /actuator/health/readiness
+      port: management
+    initialDelaySeconds: 1
+    periodSeconds: 2
+    failureThreshold: 10
+  livenessProbe:
+    httpGet:
+      path: /actuator/health/liveness
+      port: management
+    initialDelaySeconds: 5
+    periodSeconds: 10
+    failureThreshold: 3
+  readinessProbe:
+    httpGet:
+      path: /actuator/health/readiness
+      port: management
+    initialDelaySeconds: 2
+    periodSeconds: 5
+    failureThreshold: 3
+
+# --- Identity Service ---
+identityService:
+  resources:
+    requests:
+      cpu: 200m
+      memory: 192Mi
+    limits:
+      cpu: 2000m
+      memory: 512Mi
+
+# --- Paper Generator ---
+paperGenerator:
+  resources:
+    requests:
+      cpu: 250m
+      memory: 256Mi
+    limits:
+      cpu: 2000m
+      memory: 512Mi
+
+# --- Delivery Service ---
+deliveryService:
+  resources:
+    requests:
+      cpu: 500m
+      memory: 256Mi
+    limits:
+      cpu: 4000m
+      memory: 512Mi
+
+# --- Response Service ---
+responseService:
+  resources:
+    requests:
+      cpu: 500m
+      memory: 256Mi
+    limits:
+      cpu: 4000m
+      memory: 512Mi
+
+# --- API Gateway ---
+apiGateway:
+  resources:
+    requests:
+      cpu: 200m
+      memory: 128Mi
+    limits:
+      cpu: 2000m
+      memory: 256Mi
