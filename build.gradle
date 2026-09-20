@@ -52,6 +52,7 @@ subprojects {
                 main {
                     imageName = project.name
                     buildArgs.addAll([
+                        '-J-Xmx8g',
                         '-H:+ReportExceptionStackTraces',
                         '-H:+AddAllCharsets',
                         '--enable-preview',

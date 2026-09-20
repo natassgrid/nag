@@ -47,7 +47,7 @@ graalvm-native = { id = "org.graalvm.buildtools.native", version.ref = "graalvm-
 
 ### 2. Root Build Script (`build.gradle`)
 
-Root `build.gradle` configures default Native Image build arguments for all subprojects:
+Root `build.gradle` configures default Native Image build arguments for all subprojects (allocating 8GB compiler heap for fast, out-of-memory-safe compilation):
 
 ```groovy
 plugins.withId('org.graalvm.buildtools.native') {
@@ -56,6 +56,7 @@ plugins.withId('org.graalvm.buildtools.native') {
             main {
                 imageName = project.name
                 buildArgs.addAll([
+                    '-J-Xmx8g',
                     '-H:+ReportExceptionStackTraces',
                     '-H:+AddAllCharsets',
                     '--enable-preview',
