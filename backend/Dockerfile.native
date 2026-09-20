@@ -1,19 +1,17 @@
 # =============================================================================
 # Multi-stage Dockerfile for Spring Boot 4.x GraalVM Native Images
-# Usage: docker build -f backend/Dockerfile.native --build-arg SERVICE_NAME=paper-generator -t nag/paper-generator:native .
+# Usage: docker build -f backend/Dockerfile.native --build-arg SERVICE_NAME=monolith-app -t nag/monolith-app:native .
 # Must be built from the repo root (context = .)
 # =============================================================================
 
 # --- Stage 1: Native Image Builder with GraalVM JDK ---
 FROM ghcr.io/graalvm/native-image-community:21-ol9 AS builder
-
 ARG SERVICE_NAME
 
 WORKDIR /workspace
 
-# Install build prerequisites
-RUN microdnf update -y && \
-    microdnf install -y findutils git tar gzip && \
+# Install essential build prerequisites without full system update to prevent OL9 glibc conflicts
+RUN microdnf install -y --nodocs findutils git tar gzip && \
     microdnf clean all
 
 # Copy Gradle wrapper and root configuration
@@ -21,8 +19,13 @@ COPY gradlew ./
 COPY gradle/ gradle/
 COPY build.gradle settings.gradle ./
 
-# Fix line endings and permissions
-RUN sed -i 's/\r$//' gradlew && chmod +x gradlew
+# Copy local Gradle distribution to avoid network download during build
+COPY backend/gradle/gradle-8.14.5-bin.zip /tmp/gradle-8.14.5-bin.zip
+
+# Fix line endings, make executable, and point wrapper at local zip
+RUN sed -i 's/\r$//' gradlew && \
+    chmod +x gradlew && \
+    sed -i 's|distributionUrl=.*|distributionUrl=file\\:/tmp/gradle-8.14.5-bin.zip|' gradle/wrapper/gradle-wrapper.properties
 
 # Copy all backend source modules (for multi-project Gradle dependencies)
 COPY backend/ backend/
