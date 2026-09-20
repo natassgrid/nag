@@ -41,7 +41,6 @@ import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 
 @DisplayName("AsyncBatchTranslationWorker Database Integration Tests")
@@ -72,7 +71,7 @@ class AsyncBatchTranslationWorkerIntegrationTest extends AbstractIntegrationTest
 
     @Test
     @DisplayName("Worker queries real DB for All Subjects batch job and processes all questions")
-    void shouldFetchAndTranslateAllQuestionsFromRealDatabase() {
+    void shouldFetchAndTranslateAllQuestionsFromRealDatabase() throws Exception {
         // Given 2 questions in database
         Question q1 = Question.builder()
                 .subjectId(1L)
@@ -108,12 +107,13 @@ class AsyncBatchTranslationWorkerIntegrationTest extends AbstractIntegrationTest
         q2 = questionRepository.save(q2);
 
         // Mock IndicTrans2 response
-        when(indicTrans2Service.autoTranslateQuestionEntity(any(Question.class), eq("hi")))
+        when(indicTrans2Service.autoTranslateQuestionEntity(any(), any()))
                 .thenAnswer(inv -> {
                     Question q = inv.getArgument(0);
+                    String lang = inv.getArgument(1);
                     return AutoTranslateResponse.builder()
                             .questionId(q.getId())
-                            .languageCode("hi")
+                            .languageCode(lang)
                             .translatedContent("अनुवाद: " + q.getContent())
                             .translatedOptions(List.of(new TranslatedOptionDto("A", "विकल्प A")))
                             .model("IndicTrans2-v1")
@@ -139,8 +139,18 @@ class AsyncBatchTranslationWorkerIntegrationTest extends AbstractIntegrationTest
         // When
         worker.processBatchTranslationJob(job.getId(), TENANT_ID);
 
+        // Await background execution
+        BatchTranslationJob completedJob = null;
+        for (int i = 0; i < 50; i++) {
+            completedJob = jobRepository.findById(job.getId()).orElse(null);
+            if (completedJob != null && completedJob.getStatus() == BatchTranslationJobStatus.COMPLETED) {
+                break;
+            }
+            Thread.sleep(100);
+        }
+
         // Then
-        BatchTranslationJob completedJob = jobRepository.findById(job.getId()).orElseThrow();
+        assertThat(completedJob).isNotNull();
         assertThat(completedJob.getStatus()).isEqualTo(BatchTranslationJobStatus.COMPLETED);
         assertThat(completedJob.getTotalQuestions()).isEqualTo(2);
         assertThat(completedJob.getProcessedQuestions()).isEqualTo(2);
@@ -157,7 +167,7 @@ class AsyncBatchTranslationWorkerIntegrationTest extends AbstractIntegrationTest
 
     @Test
     @DisplayName("Worker filters by subject correctly on real database")
-    void shouldFilterBySubjectOnRealDatabase() {
+    void shouldFilterBySubjectOnRealDatabase() throws Exception {
         Question q1 = Question.builder()
                 .subjectId(3L)
                 .topicId(30L)
@@ -191,12 +201,13 @@ class AsyncBatchTranslationWorkerIntegrationTest extends AbstractIntegrationTest
         q1 = questionRepository.save(q1);
         q2 = questionRepository.save(q2);
 
-        when(indicTrans2Service.autoTranslateQuestionEntity(any(Question.class), eq("hi")))
+        when(indicTrans2Service.autoTranslateQuestionEntity(any(), any()))
                 .thenAnswer(inv -> {
                     Question q = inv.getArgument(0);
+                    String lang = inv.getArgument(1);
                     return AutoTranslateResponse.builder()
                             .questionId(q.getId())
-                            .languageCode("hi")
+                            .languageCode(lang)
                             .translatedContent("अनुवाद: " + q.getContent())
                             .translatedOptions(List.of(new TranslatedOptionDto("A", "विकल्प A")))
                             .model("IndicTrans2-v1")
@@ -222,8 +233,18 @@ class AsyncBatchTranslationWorkerIntegrationTest extends AbstractIntegrationTest
         // When
         worker.processBatchTranslationJob(job.getId(), TENANT_ID);
 
+        // Await background execution
+        BatchTranslationJob completedJob = null;
+        for (int i = 0; i < 50; i++) {
+            completedJob = jobRepository.findById(job.getId()).orElse(null);
+            if (completedJob != null && completedJob.getStatus() == BatchTranslationJobStatus.COMPLETED) {
+                break;
+            }
+            Thread.sleep(100);
+        }
+
         // Then
-        BatchTranslationJob completedJob = jobRepository.findById(job.getId()).orElseThrow();
+        assertThat(completedJob).isNotNull();
         assertThat(completedJob.getStatus()).isEqualTo(BatchTranslationJobStatus.COMPLETED);
         assertThat(completedJob.getTotalQuestions()).isEqualTo(1);
         assertThat(completedJob.getProcessedQuestions()).isEqualTo(1);
