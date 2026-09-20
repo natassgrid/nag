@@ -33,6 +33,8 @@ import com.examplatform.questionbank.repository.QuestionRepository;
 import com.examplatform.questionbank.repository.SubjectRepository;
 import com.examplatform.questionbank.repository.SubtopicRepository;
 import com.examplatform.questionbank.repository.TopicRepository;
+import com.examplatform.questionbank.translation.domain.Translation;
+import com.examplatform.questionbank.translation.repository.TranslationRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -44,6 +46,10 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
 
 import java.time.Instant;
 import java.util.List;
@@ -53,6 +59,7 @@ import java.util.UUID;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -85,6 +92,9 @@ class QuestionServiceTest {
 
     @Mock
     private EventPublisher eventPublisher;
+
+    @Mock
+    private TranslationRepository translationRepository;
 
     @InjectMocks
     private QuestionService questionService;
@@ -373,6 +383,81 @@ class QuestionServiceTest {
             QuestionResponse response = questionService.createQuestion(request, UUID.randomUUID(), "tenant-abc");
 
             assertThat(response.isHasImages()).isTrue();
+        }
+    }
+
+    @Nested
+    @DisplayName("listQuestions with translation filters and metadata")
+    class ListQuestionsTranslationTests {
+
+        @Test
+        @DisplayName("should attach translation status and language metadata to questions")
+        void shouldAttachTranslationMetadata() {
+            UUID q1Id = UUID.randomUUID();
+            UUID q2Id = UUID.randomUUID();
+
+            Question q1 = Question.builder()
+                    .subject("Physics")
+                    .topic("Mechanics")
+                    .difficulty("MEDIUM")
+                    .state("APPROVED")
+                    .content("What is Newton's second law?")
+                    .build();
+            try {
+                var idField = q1.getClass().getSuperclass().getDeclaredField("id");
+                idField.setAccessible(true);
+                idField.set(q1, q1Id);
+            } catch (Exception ignored) {}
+
+            Question q2 = Question.builder()
+                    .subject("Physics")
+                    .topic("Thermodynamics")
+                    .difficulty("EASY")
+                    .state("APPROVED")
+                    .content("Define isothermal process.")
+                    .build();
+            try {
+                var idField = q2.getClass().getSuperclass().getDeclaredField("id");
+                idField.setAccessible(true);
+                idField.set(q2, q2Id);
+            } catch (Exception ignored) {}
+
+            Page<Question> questionPage = new PageImpl<>(List.of(q1, q2));
+            when(questionRepository.findAll(any(Specification.class), any(Pageable.class))).thenReturn(questionPage);
+
+            Translation t1 = Translation.builder()
+                    .questionId(q1Id)
+                    .languageCode("hi")
+                    .status(Translation.TranslationStatus.APPROVED)
+                    .build();
+
+            Translation t2 = Translation.builder()
+                    .questionId(q1Id)
+                    .languageCode("ta")
+                    .status(Translation.TranslationStatus.DRAFT)
+                    .build();
+
+            when(translationRepository.findByQuestionIdsAndTenantId(eq(List.of(q1Id, q2Id)), eq("tenant-abc")))
+                    .thenReturn(List.of(t1, t2));
+
+            Page<QuestionResponse> result = questionService.listQuestions(
+                    "Physics", null, null, null, null, null, null,
+                    "hi", "APPROVED", 0, 20, "tenant-abc");
+
+            assertThat(result.getContent()).hasSize(2);
+
+            QuestionResponse resp1 = result.getContent().get(0);
+            assertThat(resp1.getId()).isEqualTo(q1Id);
+            assertThat(resp1.getTranslatedLanguages()).containsExactlyInAnyOrder("hi", "ta");
+            assertThat(resp1.getTranslationStatusMap()).containsEntry("hi", "APPROVED");
+            assertThat(resp1.getTranslationStatusMap()).containsEntry("ta", "DRAFT");
+            assertThat(resp1.getTranslationStatus()).isEqualTo("APPROVED");
+
+            QuestionResponse resp2 = result.getContent().get(1);
+            assertThat(resp2.getId()).isEqualTo(q2Id);
+            assertThat(resp2.getTranslatedLanguages()).isEmpty();
+            assertThat(resp2.getTranslationStatusMap()).isEmpty();
+            assertThat(resp2.getTranslationStatus()).isEqualTo("MISSING");
         }
     }
 }

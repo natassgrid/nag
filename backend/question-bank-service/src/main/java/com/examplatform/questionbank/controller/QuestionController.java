@@ -11,7 +11,7 @@
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
  * You should have received a copy of the GNU Affero General Public License
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
@@ -104,22 +104,24 @@ public class QuestionController {
 
     /**
      * List questions for a tenant with optional filtering and pagination.
-     * Requires QUESTION_AUTHOR, REVIEWER, or APPROVER role.
+     * Requires QUESTION_AUTHOR, REVIEWER, APPROVER, TRANSLATOR, EXAM_CONTROLLER, or ADMIN role.
      *
-     * @param subject    optional subject name filter
-     * @param subjectId  optional subject numeric ID filter (enables partition pruning)
-     * @param topic      optional topic name filter
-     * @param topicId    optional topic numeric ID filter
-     * @param difficulty optional difficulty filter
-     * @param state      optional state filter (DRAFT, REVIEW, APPROVED, etc.)
-     * @param search     optional text search filter
-     * @param page       page number (0-based, default 0)
-     * @param size       page size (default 20)
-     * @param tenantId   tenant identifier from the X-Tenant-Id header
+     * @param subject           optional subject name filter
+     * @param subjectId         optional subject numeric ID filter (enables partition pruning)
+     * @param topic             optional topic name filter
+     * @param topicId           optional topic numeric ID filter
+     * @param difficulty        optional difficulty filter
+     * @param state             optional state filter (DRAFT, REVIEW, APPROVED, etc.)
+     * @param search            optional text search filter
+     * @param targetLang        optional target language code filter (e.g. hi, ta, te)
+     * @param translationStatus optional translation status filter (MISSING, DRAFT, IN_REVIEW, APPROVED, PUBLISHED, REJECTED, EXISTS)
+     * @param page              page number (0-based, default 0)
+     * @param size              page size (default 20)
+     * @param tenantId          tenant identifier from the X-Tenant-Id header
      * @return 200 OK with paginated question responses
      */
     @GetMapping
-    @PreAuthorize("hasAnyRole('QUESTION_AUTHOR', 'REVIEWER', 'APPROVER')")
+    @PreAuthorize("hasAnyRole('QUESTION_AUTHOR', 'REVIEWER', 'APPROVER', 'TRANSLATOR', 'EXAM_CONTROLLER', 'ADMIN')")
     public ResponseEntity<ApiResponse<Page<QuestionResponse>>> listQuestions(
             @RequestParam(required = false) String subject,
             @RequestParam(required = false) Long subjectId,
@@ -128,27 +130,29 @@ public class QuestionController {
             @RequestParam(required = false) String difficulty,
             @RequestParam(required = false) String state,
             @RequestParam(required = false) String search,
+            @RequestParam(required = false) String targetLang,
+            @RequestParam(required = false) String translationStatus,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size,
             @RequestHeader("X-Tenant-Id") String tenantId) {
 
-        log.info("Listing questions: tenant={}, subject={}, subjectId={}, topic={}, topicId={}, difficulty={}, state={}, page={}, size={}",
-                tenantId, subject, subjectId, topic, topicId, difficulty, state, page, size);
+        log.info("Listing questions: tenant={}, subject={}, subjectId={}, topic={}, topicId={}, difficulty={}, state={}, targetLang={}, translationStatus={}, page={}, size={}",
+                tenantId, subject, subjectId, topic, topicId, difficulty, state, targetLang, translationStatus, page, size);
 
         Page<QuestionResponse> responses = questionService.listQuestions(
-                subject, subjectId, topic, topicId, difficulty, state, search, page, size, tenantId);
+                subject, subjectId, topic, topicId, difficulty, state, search, targetLang, translationStatus, page, size, tenantId);
         return ResponseEntity.ok(ApiResponse.success(responses, "Questions retrieved successfully"));
     }
 
     /**
      * Retrieve a question by ID.
-     * Requires QUESTION_AUTHOR, REVIEWER, or APPROVER role.
+     * Requires QUESTION_AUTHOR, REVIEWER, APPROVER, TRANSLATOR, EXAM_CONTROLLER, or ADMIN role.
      *
      * @param id the question UUID
      * @return 200 OK with the question response
      */
     @GetMapping("/{id}")
-    @PreAuthorize("hasAnyRole('QUESTION_AUTHOR', 'REVIEWER', 'APPROVER')")
+    @PreAuthorize("hasAnyRole('QUESTION_AUTHOR', 'REVIEWER', 'APPROVER', 'TRANSLATOR', 'EXAM_CONTROLLER', 'ADMIN')")
     public ResponseEntity<ApiResponse<QuestionResponse>> getQuestion(@PathVariable UUID id) {
         QuestionResponse response = questionService.getQuestion(id);
         return ResponseEntity.ok(ApiResponse.success(response, "Question retrieved successfully"));
@@ -171,65 +175,18 @@ public class QuestionController {
             @RequestHeader("X-Tenant-Id") String tenantId) {
 
         UUID authorId = UUID.fromString(jwt.getSubject());
-
         log.info("Submitting question for review: id={}, author={}, tenant={}", id, authorId, tenantId);
 
         QuestionResponse response = questionService.submitForReview(id, authorId, tenantId);
-
-        return ResponseEntity.ok(ApiResponse.success(response, "Question submitted for review"));
+        return ResponseEntity.ok(ApiResponse.success(response, "Question submitted for review successfully"));
     }
 
     /**
-     * Update an existing question.
-     * Requires QUESTION_AUTHOR role. Creates a version record tracking changes.
-     *
-     * @param id        the question UUID
-     * @param request   the update payload (validated)
-     * @param jwt       the authenticated JWT principal
-     * @param tenantId  tenant identifier from the X-Tenant-Id header
-     * @return 200 OK with the updated question response
-     */
-    @PutMapping("/{id}")
-    @PreAuthorize("hasRole('QUESTION_AUTHOR')")
-    public ResponseEntity<ApiResponse<QuestionResponse>> updateQuestion(
-            @PathVariable UUID id,
-            @Valid @RequestBody CreateQuestionRequest request,
-            @AuthenticationPrincipal Jwt jwt,
-            @RequestHeader("X-Tenant-Id") String tenantId) {
-
-        UUID authorId = UUID.fromString(jwt.getSubject());
-
-        log.info("Updating question: id={}, author={}, tenant={}", id, authorId, tenantId);
-
-        QuestionResponse response = questionUpdateService.updateQuestion(id, request, authorId, tenantId);
-
-        return ResponseEntity.ok(ApiResponse.success(response, "Question updated successfully"));
-    }
-
-    /**
-     * Retrieve version history for a question.
-     * Requires QUESTION_AUTHOR, REVIEWER, or APPROVER role.
-     *
-     * @param id the question UUID
-     * @return 200 OK with the list of versions (newest first)
-     */
-    @GetMapping("/{id}/versions")
-    @PreAuthorize("hasAnyRole('QUESTION_AUTHOR', 'REVIEWER', 'APPROVER')")
-    public ResponseEntity<ApiResponse<List<QuestionVersion>>> getQuestionVersions(@PathVariable UUID id) {
-        List<QuestionVersion> versions = questionVersioningService.getVersions(id);
-        return ResponseEntity.ok(ApiResponse.success(versions, "Question versions retrieved successfully"));
-    }
-
-    /**
-     * Transition a question through the lifecycle FSM.
+     * Generic transition endpoint driven by the transition request payload.
      * Requires REVIEWER or APPROVER role.
-     * Rejects invalid transitions with HTTP 422.
-     * Enforces four-eyes principle (reviewer ≠ approver) with HTTP 403.
-     *
-     * Validates: Requirements 4.6, 5.5
      *
      * @param id       the question UUID
-     * @param request  the transition request containing target state
+     * @param request  transition request containing targetState and optional comments
      * @param jwt      the authenticated JWT principal
      * @param tenantId tenant identifier from the X-Tenant-Id header
      * @return 200 OK with the updated question response
@@ -243,26 +200,24 @@ public class QuestionController {
             @RequestHeader("X-Tenant-Id") String tenantId) {
 
         UUID actorId = UUID.fromString(jwt.getSubject());
-
         log.info("Transitioning question: id={}, targetState={}, actor={}, tenant={}",
                 id, request.getTargetState(), actorId, tenantId);
 
         QuestionResponse response = questionLifecycleService.transition(id, request, actorId, tenantId);
-
-        return ResponseEntity.ok(ApiResponse.success(response, "Question state transitioned"));
+        return ResponseEntity.ok(ApiResponse.success(response, "Question transitioned successfully"));
     }
 
     /**
-     * Approve a question currently in REVIEW state.
-     * Transitions the question to APPROVED state and records the reviewer.
+     * Approve a question — transitions to APPROVED state.
+     * Enforces the Four-Eyes Principle: approver cannot be the author.
      * Requires REVIEWER or APPROVER role.
      *
-     * Validates: Requirements 5.1, 5.2
+     * Validates: Requirements 5.2, 5.5
      *
      * @param id       the question UUID
      * @param jwt      the authenticated JWT principal
      * @param tenantId tenant identifier from the X-Tenant-Id header
-     * @return 200 OK with the updated question response
+     * @return 200 OK with the approved question response
      */
     @PutMapping("/{id}/approve")
     @PreAuthorize("hasAnyRole('REVIEWER', 'APPROVER')")
@@ -272,126 +227,176 @@ public class QuestionController {
             @RequestHeader("X-Tenant-Id") String tenantId) {
 
         UUID reviewerId = UUID.fromString(jwt.getSubject());
-
         log.info("Approving question: id={}, reviewer={}, tenant={}", id, reviewerId, tenantId);
 
         QuestionResponse response = questionLifecycleService.approve(id, reviewerId, tenantId);
-
-        return ResponseEntity.ok(ApiResponse.success(response, "Question approved"));
+        return ResponseEntity.ok(ApiResponse.success(response, "Question approved successfully"));
     }
 
     /**
-     * Reject a question currently in REVIEW state.
-     * Transitions the question back to DRAFT state for revision.
+     * Reject a question with required comments — transitions back to DRAFT state.
      * Requires REVIEWER or APPROVER role.
      *
-     * Validates: Requirements 5.1, 5.3
+     * Validates: Requirement 5.3
      *
      * @param id       the question UUID
-     * @param body     request body containing optional "comments" field
+     * @param payload  map containing mandatory "comments"
      * @param jwt      the authenticated JWT principal
      * @param tenantId tenant identifier from the X-Tenant-Id header
-     * @return 200 OK with the updated question response
+     * @return 200 OK with the rejected question response (in DRAFT state)
      */
     @PutMapping("/{id}/reject")
     @PreAuthorize("hasAnyRole('REVIEWER', 'APPROVER')")
     public ResponseEntity<ApiResponse<QuestionResponse>> reject(
             @PathVariable UUID id,
-            @RequestBody(required = false) java.util.Map<String, String> body,
+            @RequestBody java.util.Map<String, String> payload,
             @AuthenticationPrincipal Jwt jwt,
             @RequestHeader("X-Tenant-Id") String tenantId) {
 
         UUID reviewerId = UUID.fromString(jwt.getSubject());
-        String comments = (body != null) ? body.get("comments") : null;
+        String comments = payload.get("comments");
+        if (comments == null || comments.isBlank()) {
+            return ResponseEntity.badRequest()
+                    .body(ApiResponse.error("Comments are required when rejecting a question"));
+        }
 
         log.info("Rejecting question: id={}, reviewer={}, tenant={}", id, reviewerId, tenantId);
 
         QuestionResponse response = questionLifecycleService.reject(id, reviewerId, comments, tenantId);
-
-        return ResponseEntity.ok(ApiResponse.success(response, "Question rejected"));
+        return ResponseEntity.ok(ApiResponse.success(response, "Question rejected successfully"));
     }
 
     /**
-     * Full-text search for questions with optional subject and difficulty filters.
-     * Falls back to JPA LIKE queries; production uses OpenSearch for sub-2-second p95.
+     * Update an existing question.
+     * If modified, creates a new QuestionVersion record and clears embedding.
+     * Requires QUESTION_AUTHOR role.
      *
-     * Validates: Requirements 19.3, 26.5
+     * Validates: Requirements 4.4, 4.6
      *
-     * @param query      free-text search query
-     * @param subject    optional subject filter
+     * @param id       the question UUID
+     * @param request  the updated question payload
+     * @param jwt      the authenticated JWT principal
+     * @param tenantId tenant identifier from the X-Tenant-Id header
+     * @return 200 OK with the updated question response
+     */
+    @PutMapping("/{id}")
+    @PreAuthorize("hasRole('QUESTION_AUTHOR')")
+    public ResponseEntity<ApiResponse<QuestionResponse>> updateQuestion(
+            @PathVariable UUID id,
+            @Valid @RequestBody CreateQuestionRequest request,
+            @AuthenticationPrincipal Jwt jwt,
+            @RequestHeader("X-Tenant-Id") String tenantId) {
+
+        UUID authorId = UUID.fromString(jwt.getSubject());
+        log.info("Updating question: id={}, author={}, tenant={}", id, authorId, tenantId);
+
+        QuestionResponse response = questionUpdateService.updateQuestion(id, request, authorId, tenantId);
+        return ResponseEntity.ok(ApiResponse.success(response, "Question updated successfully"));
+    }
+
+    /**
+     * Retrieve the version history of a question.
+     * Requires QUESTION_AUTHOR, REVIEWER, or APPROVER role.
+     *
+     * Validates: Requirement 4.6
+     *
+     * @param id the question UUID
+     * @return 200 OK with the list of question versions
+     */
+    @GetMapping("/{id}/versions")
+    @PreAuthorize("hasAnyRole('QUESTION_AUTHOR', 'REVIEWER', 'APPROVER')")
+    public ResponseEntity<ApiResponse<List<QuestionVersion>>> getVersions(@PathVariable UUID id) {
+        List<QuestionVersion> versions = questionVersioningService.getVersions(id);
+        return ResponseEntity.ok(ApiResponse.success(versions, "Version history retrieved successfully"));
+    }
+
+    /**
+     * Search questions using full-text search with optional filters.
+     * Requires QUESTION_AUTHOR, REVIEWER, or APPROVER role.
+     *
+     * Validates: Requirement 19.3
+     *
+     * @param query      search text query
      * @param difficulty optional difficulty filter
+     * @param state      optional state filter
      * @param page       page number (0-based, default 0)
      * @param size       page size (default 20)
      * @param tenantId   tenant identifier from the X-Tenant-Id header
-     * @return 200 OK with paginated question results
+     * @return 200 OK with paginated matching question responses
      */
     @GetMapping("/search")
     @PreAuthorize("hasAnyRole('QUESTION_AUTHOR', 'REVIEWER', 'APPROVER')")
-    public ResponseEntity<ApiResponse<Page<QuestionResponse>>> searchQuestions(
-            @RequestParam(required = false, defaultValue = "") String query,
-            @RequestParam(required = false) String subject,
+    public ResponseEntity<ApiResponse<Page<QuestionResponse>>> search(
+            @RequestParam String query,
             @RequestParam(required = false) String difficulty,
+            @RequestParam(required = false) String state,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size,
             @RequestHeader("X-Tenant-Id") String tenantId) {
 
-        Page<QuestionResponse> results = questionSearchService.search(query, subject, difficulty, page, size, tenantId);
+        log.info("Searching questions: query='{}', tenant={}, difficulty={}, state={}, page={}, size={}",
+                query, tenantId, difficulty, state, page, size);
+
+        Page<QuestionResponse> results = questionSearchService.search(
+                query, difficulty, state, page, size, tenantId);
         return ResponseEntity.ok(ApiResponse.success(results, "Search completed successfully"));
     }
 
     /**
-     * Retrieves analytics data for a specific question.
+     * Retrieve analytics and exposure metrics for a question.
+     * Requires EXAM_CONTROLLER or ADMIN role.
      *
-     * Validates: Requirements 26.5
+     * Validates: Requirement 26.5
      *
      * @param id the question UUID
-     * @return 200 OK with analytics data
+     * @return 200 OK with question analytics data
      */
     @GetMapping("/{id}/analytics")
-    @PreAuthorize("hasAnyRole('QUESTION_AUTHOR', 'REVIEWER', 'APPROVER')")
-    public ResponseEntity<ApiResponse<QuestionAnalytics>> getQuestionAnalytics(@PathVariable UUID id) {
-        QuestionResponse question = questionService.getQuestion(id);
-
-        // Stub analytics — production would compute from evaluation data
-        QuestionAnalytics analytics = QuestionAnalytics.builder()
-                .difficultyIndex(0.0)
-                .discriminationIndex(0.0)
-                .usageCount(0)
-                .build();
-
+    @PreAuthorize("hasAnyRole('EXAM_CONTROLLER', 'ADMIN')")
+    public ResponseEntity<ApiResponse<QuestionAnalytics>> getAnalytics(@PathVariable UUID id) {
+        QuestionAnalytics analytics = questionLifecycleService.getAnalytics(id);
         return ResponseEntity.ok(ApiResponse.success(analytics, "Analytics retrieved successfully"));
     }
 
     /**
-     * Blueprint matching endpoint for Paper Generator.
+     * Find approved questions matching blueprint criteria for Paper Generator.
+     * Requires EXAM_CONTROLLER or ADMIN role.
+     *
+     * @param request  blueprint matching criteria
+     * @param tenantId tenant identifier from the X-Tenant-Id header
+     * @return 200 OK with matching approved questions
      */
-    @PostMapping("/blueprint-match")
-    public ResponseEntity<ApiResponse<List<QuestionResponse>>> findBlueprintQuestions(
-            @RequestBody BlueprintMatchRequest request,
-            @RequestHeader(value = "X-Tenant-Id", defaultValue = "default") String tenantId) {
+    @PostMapping("/match-blueprint")
+    @PreAuthorize("hasAnyRole('EXAM_CONTROLLER', 'ADMIN')")
+    public ResponseEntity<ApiResponse<List<QuestionResponse>>> matchBlueprint(
+            @Valid @RequestBody BlueprintMatchRequest request,
+            @RequestHeader(value = "X-Tenant-Id", required = false) String tenantId) {
 
-        log.info("Blueprint question match request: subject={}, topic={}, difficulty={}, cognitiveLevel={}, tenant={}",
-                request.getSubject(), request.getTopic(), request.getDifficulty(), request.getCognitiveLevel(), tenantId);
-
-        List<QuestionResponse> responses = questionService.findBlueprintQuestions(
-                request.getSubject(), request.getTopic(), request.getDifficulty(), request.getCognitiveLevel(), tenantId);
-
-        return ResponseEntity.ok(ApiResponse.success(responses, "Blueprint questions retrieved successfully"));
+        List<QuestionResponse> questions = questionService.findBlueprintQuestions(
+                request.getSubject(),
+                request.getTopic(),
+                request.getDifficulty(),
+                request.getCognitiveLevel(),
+                tenantId
+        );
+        return ResponseEntity.ok(ApiResponse.success(questions, "Blueprint questions retrieved successfully"));
     }
 
     /**
-     * Batch lookup endpoint for Paper Generator review.
+     * Find questions by a list of UUIDs for Paper Generator review.
+     * Requires EXAM_CONTROLLER or ADMIN role.
+     *
+     * @param ids      list of question UUIDs
+     * @param tenantId tenant identifier from the X-Tenant-Id header
+     * @return 200 OK with questions
      */
-    @PostMapping("/batch-find")
-    public ResponseEntity<ApiResponse<List<QuestionResponse>>> findQuestionsByIds(
-            @RequestBody List<UUID> questionIds,
-            @RequestHeader(value = "X-Tenant-Id", defaultValue = "default") String tenantId) {
+    @PostMapping("/by-ids")
+    @PreAuthorize("hasAnyRole('EXAM_CONTROLLER', 'ADMIN')")
+    public ResponseEntity<ApiResponse<List<QuestionResponse>>> getQuestionsByIds(
+            @RequestBody List<UUID> ids,
+            @RequestHeader(value = "X-Tenant-Id", required = false) String tenantId) {
 
-        log.info("Batch question lookup request: count={}, tenant={}",
-                questionIds != null ? questionIds.size() : 0, tenantId);
-
-        List<QuestionResponse> responses = questionService.findQuestionsByIds(questionIds, tenantId);
-
-        return ResponseEntity.ok(ApiResponse.success(responses, "Questions retrieved successfully"));
+        List<QuestionResponse> questions = questionService.findQuestionsByIds(ids, tenantId);
+        return ResponseEntity.ok(ApiResponse.success(questions, "Questions retrieved successfully"));
     }
 }

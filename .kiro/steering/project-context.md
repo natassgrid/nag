@@ -9,6 +9,7 @@ This is a large-scale, secure, multilingual, cloud-native examination platform d
 - **Architecture Style**: Domain-driven microservices monorepo
 - **Backend**: Java 21 / Spring Boot 4.1.0 with virtual threads (Project Loom)
 - **Frontend**: Angular 21 SPA (WCAG 2.2 AA compliant)
+- **Candidate Frontend**: React 19 SPA
 - **Database**: PostgreSQL 16 with per-service schemas (single cluster)
 - **Cache**: Redis Cluster (session/rate-limiting/hot state)
 - **Messaging**: Apache Kafka (domain events, RPO=0)
@@ -50,7 +51,8 @@ This is a large-scale, secure, multilingual, cloud-native examination platform d
 │   ├── admin-service/           # Multi-tenancy, user mgmt, config API
 │   ├── analytics-service/       # Difficulty/discrimination indices, dashboards
 │   └── api-gateway/             # Spring Cloud Gateway, OAuth2, rate limit, WAF
-├── frontend/                    # Angular SPA
+├── frontend/                    # Angular SPA (Admin / Author / Localization portal)
+├── candidate-frontend/          # React SPA (Candidate exam engine)
 ├── infrastructure/
 │   ├── docker-compose/          # Local dev stack (Postgres, Kafka, Redis, Keycloak, Vault, monitoring)
 │   ├── helm/                    # Kubernetes Helm charts
@@ -119,14 +121,21 @@ Key classes:
 2. **Immediate Diff & Compilation Verification**:
    - Always run `git diff <path>` after modifying any file to ensure no unintended deletions, overwrites, or escaped `\n` sequences exist.
    - Verify code compiles cleanly with `npm run build` or `docker build`.
+3. **MANDATORY: UI Docker Build & Production Build Verification (NEVER SKIP)**:
+   - Always run the production build and Docker build for the affected UI before completing a task:
+     - Angular Admin Portal: `docker build -t exam-frontend:latest ./frontend`
+     - React Candidate Engine: `docker build -t candidate-frontend:latest ./candidate-frontend`
+   - If backend changes were made, also verify backend compile (`./gradlew compileJava`) and container image build (`docker build -f backend/Dockerfile -t exam-monolith:latest ./backend`).
 
 ## Local Development
 
 - **Start Infrastructure**: `docker compose -f infrastructure/docker-compose/docker-compose.yml up -d`
 - **Start Services**: `docker compose -f infrastructure/docker-compose/docker-compose.services.yml up -d`
-- **Build All**: `./gradlew build -x test`
-- **Run Tests**: `./gradlew test`
+- **Build All Backend**: `./gradlew build -x test`
+- **Run Backend Tests**: `./gradlew test`
 - **Run Single Service**: `./gradlew :backend:<service-name>:bootRun`
+- **Build UI Frontend (Production)**: `npm run build -- --configuration production` (in `frontend/`)
+- **Docker Build UI**: `docker build -t exam-frontend:latest ./frontend`
 
 ## Infrastructure Ports (Local Dev)
 

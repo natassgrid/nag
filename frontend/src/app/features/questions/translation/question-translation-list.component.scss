@@ -384,3 +384,29 @@
   color: #64748b;
   border-bottom: 1px solid #e2e8f0;
 }
+
+::ng-deep {
+  .chip-trans-approved {
+    background-color: #dcfce7 !important;
+    color: #15803d !important;
+    font-weight: 600 !important;
+  }
+
+  .chip-trans-review {
+    background-color: #fef3c7 !important;
+    color: #b45309 !important;
+    font-weight: 600 !important;
+  }
+
+  .chip-trans-rejected {
+    background-color: #fee2e2 !important;
+    color: #b91c1c !important;
+    font-weight: 600 !important;
+  }
+
+  .chip-trans-missing {
+    background-color: #f1f5f9 !important;
+    color: #64748b !important;
+    font-weight: 500 !important;
+  }
+}

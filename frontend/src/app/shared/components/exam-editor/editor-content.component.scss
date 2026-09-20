@@ -13,6 +13,24 @@
   box-sizing: border-box;
 }
 
+/* Inline mode for options: reduced to ~1/3 height for compact single/double-line option entries */
+:host-context(.mode-inline) .editor-content {
+  min-height: 36px !important;
+  max-height: 80px !important;
+  padding: 6px 10px !important;
+  font-size: 13.5px !important;
+  line-height: 1.35 !important;
+}
+
+/* Read-only mode: no cursor or editing box */
+:host-context(.mode-readonly) .editor-content {
+  pointer-events: none !important;
+  user-select: text !important;
+  min-height: unset !important;
+  padding: 0 !important;
+  border: none !important;
+}
+
 .editor-content.empty::before {
   content: attr(data-placeholder);
   color: #9e9e9e;

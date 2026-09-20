@@ -11,7 +11,7 @@
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU Affero General Public License for more details.
+ * GNU License for more details.
  */
 
 import { Component, OnInit, OnDestroy, ViewChild, ChangeDetectionStrategy, ChangeDetectorRef } from '@angular/core';
@@ -109,9 +109,33 @@ export class QuestionTranslationListComponent implements OnInit, OnDestroy {
 
   filterCategories: FilterCategory[] = [
     {
+      key: 'targetLang',
+      label: 'Translation Language',
+      expanded: false,
+      options: [
+        { label: 'All Languages', value: '' },
+        ...SUPPORTED_LANGUAGES.map(lang => ({
+          label: `${lang.nativeName} (${lang.name})`,
+          value: lang.code
+        }))
+      ]
+    },
+    {
+      key: 'translationStatus',
+      label: 'Translation Status',
+      expanded: true,
+      options: [
+        { label: 'All Questions', value: 'ALL' },
+        { label: 'Untranslated (Missing)', value: 'MISSING' },
+        { label: 'Pending Review (Draft / In Review)', value: 'PENDING_REVIEW' },
+        { label: 'Approved / Published', value: 'APPROVED_PUBLISHED' },
+        { label: 'Rejected / Needs Rework', value: 'REJECTED' }
+      ]
+    },
+    {
       key: 'subject',
       label: 'Subject',
-      expanded: true,
+      expanded: false,
       options: DEFAULT_SUBJECT_OPTIONS
     },
     {
@@ -159,12 +183,21 @@ export class QuestionTranslationListComponent implements OnInit, OnDestroy {
       chipClass: (val) => 'chip-state-' + (val || 'draft').toLowerCase(),
       sortable: true
     },
+    {
+      key: 'translationStatus',
+      header: 'Translation Status',
+      type: 'chip',
+      cell: (row) => this.getTranslationStatusLabel(row),
+      chipClass: (val, row) => this.getTranslationStatusClass(row)
+    },
     { key: 'actions', header: 'Localization', type: 'actions' }
   ];
 
   fetcher: PaginatedDataFetcher<QuestionResponse> = (req) => {
     const rawSubject = Array.isArray(this.filters['subject']) ? this.filters['subject'][0] : this.filters['subject'];
     const activeDifficulty = Array.isArray(this.filters['difficulty']) ? this.filters['difficulty'][0] : this.filters['difficulty'];
+    const rawTargetLang = Array.isArray(this.filters['targetLang']) ? this.filters['targetLang'][0] : this.filters['targetLang'];
+    const rawTransStatus = Array.isArray(this.filters['translationStatus']) ? this.filters['translationStatus'][0] : this.filters['translationStatus'];
 
     const isNumericSubject = rawSubject !== undefined && rawSubject !== null && rawSubject !== '' && !isNaN(Number(rawSubject));
     const subjectId = isNumericSubject ? Number(rawSubject) : undefined;
@@ -174,6 +207,9 @@ export class QuestionTranslationListComponent implements OnInit, OnDestroy {
       subject,
       subjectId,
       difficulty: activeDifficulty || undefined,
+      targetLang: rawTargetLang && rawTargetLang !== '' ? rawTargetLang : undefined,
+      translationStatus: rawTransStatus && rawTransStatus !== 'ALL' && rawTransStatus !== '' ? rawTransStatus : undefined,
+      search: req.search,
       page: req.page,
       size: req.size
     });
@@ -254,9 +290,79 @@ export class QuestionTranslationListComponent implements OnInit, OnDestroy {
     this.paginatedTable?.reload();
   }
 
-  openTranslationDrawer(question: QuestionResponse, langCode: string = 'hi'): void {
+  getActiveTargetLang(): string | undefined {
+    const rawTargetLang = Array.isArray(this.filters['targetLang']) ? this.filters['targetLang'][0] : this.filters['targetLang'];
+    return rawTargetLang && rawTargetLang.trim() !== '' ? rawTargetLang.trim() : undefined;
+  }
+
+  getTranslationStatusLabel(row: QuestionResponse): string {
+    const targetLang = this.getActiveTargetLang();
+    if (targetLang) {
+      const lang = this.languages.find(l => l.code === targetLang);
+      const langLabel = lang ? lang.name : targetLang.toUpperCase();
+      const status = (row.translationStatus || row.translationStatusMap?.[targetLang] || 'MISSING').toUpperCase();
+
+      switch (status) {
+        case 'APPROVED':
+          return `${langLabel}: Approved`;
+        case 'PUBLISHED':
+          return `${langLabel}: Published`;
+        case 'DRAFT':
+        case 'IN_REVIEW':
+        case 'PENDING_REVIEW':
+          return `${langLabel}: In Review`;
+        case 'REJECTED':
+        case 'NEEDS_REWORK':
+          return `${langLabel}: Needs Rework`;
+        case 'STALE':
+          return `${langLabel}: Outdated`;
+        case 'MISSING':
+        case 'UNTRANSLATED':
+        default:
+          return `${langLabel}: Untranslated`;
+      }
+    }
+
+    const count = row.translatedLanguages?.length || 0;
+    if (count === 0) {
+      return 'Untranslated';
+    }
+    return `${count} / 22 Translated`;
+  }
+
+  getTranslationStatusClass(row: QuestionResponse): string {
+    const targetLang = this.getActiveTargetLang();
+    if (targetLang) {
+      const status = (row.translationStatus || row.translationStatusMap?.[targetLang] || 'MISSING').toUpperCase();
+      switch (status) {
+        case 'APPROVED':
+        case 'PUBLISHED':
+        case 'APPROVED_PUBLISHED':
+          return 'chip-trans-approved';
+        case 'DRAFT':
+        case 'IN_REVIEW':
+        case 'PENDING_REVIEW':
+          return 'chip-trans-review';
+        case 'REJECTED':
+        case 'NEEDS_REWORK':
+        case 'STALE':
+          return 'chip-trans-rejected';
+        case 'MISSING':
+        case 'UNTRANSLATED':
+        default:
+          return 'chip-trans-missing';
+      }
+    }
+
+    const count = row.translatedLanguages?.length || 0;
+    if (count >= 22) return 'chip-trans-approved';
+    if (count > 0) return 'chip-trans-review';
+    return 'chip-trans-missing';
+  }
+
+  openTranslationDrawer(question: QuestionResponse, langCode?: string): void {
     this.selectedQuestion = question;
-    this.selectedLanguageForDrawer = langCode;
+    this.selectedLanguageForDrawer = langCode || this.getActiveTargetLang() || 'hi';
     this.drawerOpen = true;
   }
 

@@ -21,6 +21,8 @@ package com.examplatform.questionbank.translation.repository;
 
 import com.examplatform.questionbank.translation.domain.Translation;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
@@ -47,4 +49,13 @@ public interface TranslationRepository extends JpaRepository<Translation, UUID> 
     List<Translation> findByTranslatorIdAndTenantId(UUID translatorId, String tenantId);
 
     List<Translation> findByStatusAndTenantId(Translation.TranslationStatus status, String tenantId);
+
+    @Query("""
+        SELECT t FROM Translation t
+        WHERE t.questionId IN :questionIds
+          AND (t.tenantId = :tenantId OR t.tenantId = 'default' OR :tenantId IS NULL)
+    """)
+    List<Translation> findByQuestionIdsAndTenantId(
+            @Param("questionIds") List<UUID> questionIds,
+            @Param("tenantId") String tenantId);
 }

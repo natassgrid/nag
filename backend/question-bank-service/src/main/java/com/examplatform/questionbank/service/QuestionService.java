@@ -34,6 +34,8 @@ import com.examplatform.questionbank.repository.QuestionRepository;
 import com.examplatform.questionbank.repository.SubjectRepository;
 import com.examplatform.questionbank.repository.SubtopicRepository;
 import com.examplatform.questionbank.repository.TopicRepository;
+import com.examplatform.questionbank.translation.domain.Translation;
+import com.examplatform.questionbank.translation.repository.TranslationRepository;
 import com.examplatform.questionbank.util.EmbeddingUtils;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
@@ -45,9 +47,12 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 /**
  * Service layer for question CRUD operations.
@@ -71,6 +76,7 @@ public class QuestionService {
     private final SimilarityDetectionService similarityDetectionService;
     private final EmbeddingService embeddingService;
     private final EventPublisher eventPublisher;
+    private final TranslationRepository translationRepository;
 
     @org.springframework.beans.factory.annotation.Value("${app.encryption.enabled:false}")
     private boolean encryptionEnabled;
@@ -295,12 +301,14 @@ public class QuestionService {
     }
 
     /**
-     * Lists questions for a tenant with optional filtering by subject, topic, difficulty, state, and text search.
+     * Lists questions for a tenant with optional filtering by hierarchy, difficulty, state, text search,
+     * target language, and translation status.
      */
     @Transactional(readOnly = true)
     public org.springframework.data.domain.Page<QuestionResponse> listQuestions(
             String subject, Long subjectId, String topic, Long topicId,
             String difficulty, String state, String search,
+            String targetLang, String translationStatus,
             int page, int size, String tenantId) {
 
         org.springframework.data.domain.Pageable pageable =
@@ -342,17 +350,43 @@ public class QuestionService {
             spec = spec.and(searchLike(search));
         }
 
-        return questionRepository.findAll(spec, pageable).map(this::toResponse);
+        if ((targetLang != null && !targetLang.isBlank()) || (translationStatus != null && !translationStatus.isBlank() && !"ALL".equalsIgnoreCase(translationStatus))) {
+            spec = spec.and(buildTranslationSpecification(targetLang, translationStatus, tenantId));
+        }
+
+        org.springframework.data.domain.Page<Question> pageResult = questionRepository.findAll(spec, pageable);
+        List<UUID> questionIds = pageResult.getContent().stream().map(Question::getId).toList();
+
+        Map<UUID, List<Translation>> translationsByQuestion = Collections.emptyMap();
+        if (!questionIds.isEmpty()) {
+            List<Translation> translations = translationRepository.findByQuestionIdsAndTenantId(questionIds, tenantId);
+            if (translations != null && !translations.isEmpty()) {
+                translationsByQuestion = translations.stream().collect(Collectors.groupingBy(Translation::getQuestionId));
+            }
+        }
+
+        final Map<UUID, List<Translation>> finalTranslationsMap = translationsByQuestion;
+        final String effectiveTargetLang = (targetLang != null && !targetLang.isBlank()) ? targetLang.trim().toLowerCase() : null;
+
+        return pageResult.map(q -> toResponse(q, finalTranslationsMap.getOrDefault(q.getId(), Collections.emptyList()), effectiveTargetLang));
     }
 
     /**
-     * Backward-compatible listQuestions method.
+     * Backward-compatible listQuestions methods.
      */
+    @Transactional(readOnly = true)
+    public org.springframework.data.domain.Page<QuestionResponse> listQuestions(
+            String subject, Long subjectId, String topic, Long topicId,
+            String difficulty, String state, String search,
+            int page, int size, String tenantId) {
+        return listQuestions(subject, subjectId, topic, topicId, difficulty, state, search, null, null, page, size, tenantId);
+    }
+
     @Transactional(readOnly = true)
     public org.springframework.data.domain.Page<QuestionResponse> listQuestions(
             String subject, String topic, String difficulty, String state,
             String search, int page, int size, String tenantId) {
-        return listQuestions(subject, null, topic, null, difficulty, state, search, page, size, tenantId);
+        return listQuestions(subject, null, topic, null, difficulty, state, search, null, null, page, size, tenantId);
     }
 
     private org.springframework.data.jpa.domain.Specification<Question> tenantEquals(String tenantId) {
@@ -373,13 +407,99 @@ public class QuestionService {
     }
 
     /**
-     * Retrieves a question by its ID.
+     * Builds a JPA Specification joining questions with translations for language and status filtering.
+     */
+    private org.springframework.data.jpa.domain.Specification<Question> buildTranslationSpecification(
+            String targetLang, String translationStatus, String tenantId) {
+        return (root, query, cb) -> {
+            jakarta.persistence.criteria.Subquery<UUID> subquery = query.subquery(UUID.class);
+            jakarta.persistence.criteria.Root<Translation> tRoot = subquery.from(Translation.class);
+            subquery.select(tRoot.get("questionId"));
+
+            List<jakarta.persistence.criteria.Predicate> predicates = new java.util.ArrayList<>();
+            predicates.add(cb.equal(tRoot.get("questionId"), root.get("id")));
+
+            if (tenantId != null && !tenantId.isBlank()) {
+                predicates.add(cb.or(
+                        cb.equal(tRoot.get("tenantId"), tenantId),
+                        cb.equal(tRoot.get("tenantId"), "default")
+                ));
+            }
+
+            if (targetLang != null && !targetLang.isBlank()) {
+                predicates.add(cb.equal(cb.lower(tRoot.get("languageCode")), targetLang.trim().toLowerCase()));
+            }
+
+            String status = translationStatus != null ? translationStatus.trim().toUpperCase() : null;
+            boolean negate = false;
+
+            if (status != null && !status.isBlank() && !"ALL".equals(status)) {
+                switch (status) {
+                    case "MISSING":
+                    case "UNTRANSLATED":
+                        negate = true;
+                        break;
+                    case "EXISTS":
+                        // Existence check already covered by questionId + languageCode
+                        break;
+                    case "APPROVED":
+                        predicates.add(cb.equal(tRoot.get("status"), Translation.TranslationStatus.APPROVED));
+                        break;
+                    case "PUBLISHED":
+                        predicates.add(cb.equal(tRoot.get("status"), Translation.TranslationStatus.PUBLISHED));
+                        break;
+                    case "APPROVED_PUBLISHED":
+                    case "APPROVED_OR_PUBLISHED":
+                        predicates.add(tRoot.get("status").in(Translation.TranslationStatus.APPROVED, Translation.TranslationStatus.PUBLISHED));
+                        break;
+                    case "DRAFT":
+                        predicates.add(cb.equal(tRoot.get("status"), Translation.TranslationStatus.DRAFT));
+                        break;
+                    case "IN_REVIEW":
+                    case "PENDING_REVIEW":
+                        predicates.add(cb.equal(tRoot.get("status"), Translation.TranslationStatus.DRAFT));
+                        break;
+                    case "STALE":
+                        predicates.add(cb.equal(tRoot.get("status"), Translation.TranslationStatus.STALE));
+                        break;
+                    case "REJECTED":
+                    case "NEEDS_REWORK":
+                        jakarta.persistence.criteria.Predicate rejPred = cb.and(
+                                cb.equal(tRoot.get("status"), Translation.TranslationStatus.DRAFT),
+                                cb.isNotNull(tRoot.get("reviewComments")),
+                                cb.notEqual(tRoot.get("reviewComments"), "")
+                        );
+                        jakarta.persistence.criteria.Predicate stalePred = cb.equal(tRoot.get("status"), Translation.TranslationStatus.STALE);
+                        predicates.add(cb.or(rejPred, stalePred));
+                        break;
+                    default:
+                        try {
+                            Translation.TranslationStatus enumStatus = Translation.TranslationStatus.valueOf(status);
+                            predicates.add(cb.equal(tRoot.get("status"), enumStatus));
+                        } catch (IllegalArgumentException ignored) {}
+                        break;
+                }
+            }
+
+            subquery.where(predicates.toArray(new jakarta.persistence.criteria.Predicate[0]));
+
+            if (negate) {
+                return cb.not(cb.exists(subquery));
+            } else {
+                return cb.exists(subquery);
+            }
+        };
+    }
+
+    /**
+     * Retrieves a question by its ID with translation metadata.
      */
     @Transactional(readOnly = true)
     public QuestionResponse getQuestion(UUID questionId) {
         Question question = questionRepository.findById(questionId)
                 .orElseThrow(() -> new EntityNotFoundException("Question not found: " + questionId));
-        return toResponse(question);
+        List<Translation> translations = translationRepository.findByQuestionIdAndTenantId(questionId, question.getTenantId());
+        return toResponse(question, translations, null);
     }
 
     /**
@@ -470,6 +590,10 @@ public class QuestionService {
             new com.fasterxml.jackson.databind.ObjectMapper();
 
     public QuestionResponse toResponse(Question question) {
+        return toResponse(question, Collections.emptyList(), null);
+    }
+
+    public QuestionResponse toResponse(Question question, List<Translation> translations, String targetLang) {
         LocalDateTime createdAt = question.getCreatedAt() != null
                 ? LocalDateTime.ofInstant(question.getCreatedAt(), ZoneOffset.UTC)
                 : null;
@@ -488,6 +612,35 @@ public class QuestionService {
                                     java.util.List<com.examplatform.questionbank.dto.QuestionOption>>() {});
                 } catch (Exception ignored) {}
             }
+        }
+
+        List<String> translatedLangs = Collections.emptyList();
+        Map<String, String> statusMap = Collections.emptyMap();
+        String activeTransStatus = null;
+
+        if (translations != null && !translations.isEmpty()) {
+            translatedLangs = translations.stream()
+                    .map(Translation::getLanguageCode)
+                    .filter(l -> l != null && !l.isBlank())
+                    .map(String::toLowerCase)
+                    .distinct()
+                    .toList();
+
+            statusMap = new HashMap<>();
+            for (Translation t : translations) {
+                if (t.getLanguageCode() != null) {
+                    statusMap.put(t.getLanguageCode().toLowerCase(), resolveTranslationStatus(t));
+                }
+            }
+
+            if (targetLang != null && !targetLang.isBlank()) {
+                activeTransStatus = statusMap.get(targetLang.toLowerCase());
+                if (activeTransStatus == null) {
+                    activeTransStatus = "MISSING";
+                }
+            }
+        } else if (targetLang != null && !targetLang.isBlank()) {
+            activeTransStatus = "MISSING";
         }
 
         return QuestionResponse.builder()
@@ -517,6 +670,20 @@ public class QuestionService {
                 .updatedAt(updatedAt)
                 .options(options)
                 .hasImages(question.isHasImages())
+                .translatedLanguages(translatedLangs)
+                .translationStatusMap(statusMap)
+                .translationStatus(activeTransStatus)
                 .build();
+    }
+
+    private String resolveTranslationStatus(Translation t) {
+        if (t == null) return "MISSING";
+        if (t.getStatus() == Translation.TranslationStatus.DRAFT) {
+            if (t.getReviewComments() != null && !t.getReviewComments().isBlank()) {
+                return "REJECTED";
+            }
+            return "DRAFT";
+        }
+        return t.getStatus() != null ? t.getStatus().name() : "DRAFT";
     }
 }
