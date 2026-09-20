@@ -1,5 +1,6 @@
 package com.examplatform.asset.controller;
 
+import com.examplatform.asset.config.TestSecurityConfig;
 import com.examplatform.asset.domain.entity.MediaAsset;
 import com.examplatform.asset.domain.enums.AssetStatus;
 import com.examplatform.asset.domain.enums.AssetType;
@@ -9,10 +10,9 @@ import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
-import com.examplatform.asset.config.TestSecurityConfig;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
 import org.springframework.mock.web.MockMultipartFile;
@@ -20,6 +20,7 @@ import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
+import org.springframework.test.context.aot.DisabledInAotMode;
 import org.springframework.test.web.servlet.MockMvc;
 import org.testcontainers.containers.KafkaContainer;
 import org.testcontainers.containers.PostgreSQLContainer;
@@ -50,6 +51,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @ActiveProfiles("test")
 @Import(TestSecurityConfig.class)
 @DisplayName("AssetController Integration Tests")
+@DisabledInAotMode
 @Disabled
 class AssetControllerIntegrationTest {
 
@@ -271,7 +273,7 @@ class AssetControllerIntegrationTest {
         }
     }
 
-    // ── Helpers ───────────────────────────────────────────────────────────────
+    // ── Helpers ─────────────────────────────────────────────────────────────────
 
     private MediaAsset createTestAsset(String tenantId) {
         MediaAsset asset = MediaAsset.builder()

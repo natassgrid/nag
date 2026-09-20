@@ -40,6 +40,7 @@ import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
+import org.springframework.test.context.aot.DisabledInAotMode;
 import org.springframework.test.web.servlet.MockMvc;
 import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.containers.output.Slf4jLogConsumer;
@@ -57,6 +58,7 @@ import java.util.List;
 @ActiveProfiles("test")
 @TestInstance(Lifecycle.PER_CLASS)
 @Import(AbstractIntegrationTest.TestInfrastructureOverrideConfig.class)
+@DisabledInAotMode
 public abstract class AbstractIntegrationTest {
 
     private static final Logger log = LoggerFactory.getLogger(AbstractIntegrationTest.class);
