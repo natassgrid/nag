@@ -16,6 +16,13 @@
 # along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 spring:
+  autoconfigure:
+    exclude:
+      - io.github.resilience4j.springboot.bulkhead.autoconfigure.BulkheadRefreshScopedRegistryAutoConfiguration
+      - io.github.resilience4j.springboot.circuitbreaker.autoconfigure.CircuitBreakerRefreshScopedRegistryAutoConfiguration
+      - io.github.resilience4j.springboot.ratelimiter.autoconfigure.RateLimiterRefreshScopedRegistryAutoConfiguration
+      - io.github.resilience4j.springboot.retry.autoconfigure.RetryRefreshScopedRegistryAutoConfiguration
+      - io.github.resilience4j.springboot.timelimiter.autoconfigure.TimeLimiterRefreshScopedRegistryAutoConfiguration
   application:
     name: identity-service
   datasource:
