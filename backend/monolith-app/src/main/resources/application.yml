@@ -7,6 +7,13 @@ spring:
     allow-bean-definition-overriding: true
   application:
     name: nag-monolith
+  autoconfigure:
+    exclude:
+      - io.github.resilience4j.springboot.bulkhead.autoconfigure.BulkheadRefreshScopedRegistryAutoConfiguration
+      - io.github.resilience4j.springboot.circuitbreaker.autoconfigure.CircuitBreakerRefreshScopedRegistryAutoConfiguration
+      - io.github.resilience4j.springboot.ratelimiter.autoconfigure.RateLimiterRefreshScopedRegistryAutoConfiguration
+      - io.github.resilience4j.springboot.retry.autoconfigure.RetryRefreshScopedRegistryAutoConfiguration
+      - io.github.resilience4j.springboot.timelimiter.autoconfigure.TimeLimiterRefreshScopedRegistryAutoConfiguration
 
   datasource:
     url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/exam_platform?currentSchema=identity_service,candidate_service,question_service,examination_service,paper_generator,delivery_service,response_service,evaluation_service,result_service,audit_service,notification_service,admin_service,analytics_service,asset_service,public}
