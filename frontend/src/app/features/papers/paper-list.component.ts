@@ -41,14 +41,14 @@ import {
 } from '../../shared/components/paginated-table';
 import { PageHeaderComponent } from '../../shared/components/page-header/page-header.component';
 import { PaperGenerateDialogComponent } from './paper-generate-dialog.component';
-import { PaperSummaryDrawerComponent } from './paper-summary-drawer/paper-summary-drawer.component';
+import { PaperSummaryDrawerComponent } from './paper-summary-drawer.component';
 import {
   PaperService,
   PaperSummary,
   PaperGenerationResponse,
   PaperDetail
 } from './paper.service';
-import { ExamScheduleService } from '../exam-schedule/exam-schedule.service';
+import { ExamManagementService, ExaminationResponse } from '../exam/exam-manage/exam-management.service';
 import { of } from 'rxjs';
 import { catchError } from 'rxjs/operators';
 
@@ -190,7 +190,7 @@ export class PaperListComponent implements OnInit {
 
   constructor(
     private paperService: PaperService,
-    private examScheduleService: ExamScheduleService,
+    private examManagementService: ExamManagementService,
     private snackBar: MatSnackBar,
     private router: Router,
     private cdr: ChangeDetectorRef
@@ -201,9 +201,13 @@ export class PaperListComponent implements OnInit {
   }
 
   loadExams(): void {
-    this.examScheduleService.getExams().subscribe((exams) => {
-      (exams || []).forEach((e) => this.examMap.set(e.id, e.name));
-      this.cdr.detectChanges();
+    this.examManagementService.getExams().subscribe({
+      next: (res) => {
+        const exams: ExaminationResponse[] = Array.isArray(res) ? res : (res as any)?.content || [];
+        exams.forEach((e) => this.examMap.set(e.id, e.name));
+        this.cdr.detectChanges();
+      },
+      error: () => {}
     });
   }
 
