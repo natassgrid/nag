@@ -21,7 +21,7 @@ import { Injectable } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable, map } from 'rxjs';
 
-// ── Interfaces ───────────────────────────────────────────────────────────────
+// ── Interfaces ─────────────────────────────────────────────────────────────
 
 interface ApiResponse<T> {
   status: string;
@@ -71,10 +71,10 @@ export interface ShiftResponse {
 export interface CentreResponse {
   id: string;
   countryId?: number;
-  stateId?: number;
-  cityId?: number;
   countryName?: string;
+  stateId?: number;
   stateName?: string;
+  cityId?: number;
   cityName?: string;
   region?: string;
   state: string;
@@ -105,7 +105,15 @@ export interface SeatAllocationResponse {
   updatedAt: string;
 }
 
-// ── Request DTOs ─────────────────────────────────────────────────────────────
+export interface PagedResponse<T> {
+  content: T[];
+  totalElements: number;
+  totalPages: number;
+  size: number;
+  number: number;
+}
+
+// ── Request DTOs ───────────────────────────────────────────────────────────
 
 export interface CreateScheduleRequest {
   scheduleName: string;
@@ -170,15 +178,14 @@ export interface SeatAllocationRequest {
   specialCategorySeats: number;
 }
 
-// ── Service ──────────────────────────────────────────────────────────────────
+// ── Service ────────────────────────────────────────────────────────────────
 
-@Injectable({ providedIn: 'root' })
-export class SchedulingService {
+@Injectable({ providedIn: 'root' })\nexport class SchedulingService {
   private readonly base = '/api/v1/examinations';
 
   constructor(private http: HttpClient) {}
 
-  // ── Schedules ──────────────────────────────────────────────────────────────
+  // ── Schedules ───────────────────────────────────────────────────────────
 
   createSchedule(examId: string, req: CreateScheduleRequest): Observable<ScheduleResponse> {
     return this.http.post<ApiResponse<ScheduleResponse>>(`${this.base}/${examId}/schedules`, req)
@@ -207,7 +214,7 @@ export class SchedulingService {
     ).pipe(map(r => r.data));
   }
 
-  // ── Shifts ─────────────────────────────────────────────────────────────────
+  // ── Shifts ───────────────────────────────────────────────────────────────
 
   listShifts(examId: string, scheduleId: string): Observable<ShiftResponse[]> {
     return this.http.get<ApiResponse<ShiftResponse[]>>(
@@ -227,20 +234,48 @@ export class SchedulingService {
     ).pipe(map(r => r.data));
   }
 
-  // ── Centres ────────────────────────────────────────────────────────────────
+  // ── Centres ──────────────────────────────────────────────────────────────
 
   createCentre(req: CreateCentreRequest): Observable<CentreResponse> {
     return this.http.post<ApiResponse<CentreResponse>>(`${this.base}/centres`, req)
       .pipe(map(r => r.data));
   }
 
-  listCentres(state?: string, city?: string, page = 0, size = 20, search?: string): Observable<CentreResponse[]> {
+  listCentres(state?: string, city?: string, page = 0, size = 20, search?: string, sort?: string, order?: string): Observable<CentreResponse[]> {
     let params = new HttpParams().set('page', page).set('size', size);
     if (state) params = params.set('state', state);
     if (city) params = params.set('city', city);
     if (search) params = params.set('search', search);
+    if (sort) params = params.set('sort', sort);
+    if (order) params = params.set('order', order);
     return this.http.get<ApiResponse<any>>(`${this.base}/centres`, { params })
       .pipe(map(r => r?.data?.content ?? r?.data ?? []));
+  }
+
+  listCentresPaged(state?: string, city?: string, page = 0, size = 20, search?: string, sort?: string, order?: string): Observable<PagedResponse<CentreResponse>> {
+    let params = new HttpParams().set('page', page).set('size', size);
+    if (state) params = params.set('state', state);
+    if (city) params = params.set('city', city);
+    if (search) params = params.set('search', search);
+    if (sort) params = params.set('sort', sort);
+    if (order) params = params.set('order', order);
+    return this.http.get<ApiResponse<any>>(`${this.base}/centres`, { params })
+      .pipe(map(res => {
+        const payload = res?.data ?? res;
+        if (Array.isArray(payload)) {
+          return { content: payload, totalElements: payload.length, totalPages: 1, size: payload.length, number: 0 };
+        }
+        if (payload && Array.isArray(payload.content)) {
+          return {
+            content: payload.content,
+            totalElements: payload.totalElements ?? payload.content.length,
+            totalPages: payload.totalPages ?? 1,
+            size: payload.size ?? payload.content.length,
+            number: payload.number ?? 0
+          };
+        }
+        return { content: [], totalElements: 0, totalPages: 0, size: 20, number: 0 };
+      }));
   }
 
   getCentre(centreId: string): Observable<CentreResponse> {
@@ -253,7 +288,7 @@ export class SchedulingService {
       .pipe(map(r => r.data));
   }
 
-  // ── Allocations ────────────────────────────────────────────────────────────
+  // ── Allocations ──────────────────────────────────────────────────────────
 
   upsertAllocation(examId: string, scheduleId: string, shiftId: string, req: SeatAllocationRequest): Observable<SeatAllocationResponse> {
     return this.http.post<ApiResponse<SeatAllocationResponse>>(

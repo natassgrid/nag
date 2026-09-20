@@ -124,6 +124,8 @@ export class AssetListComponent implements OnInit {
       assetType: (typeVal as AssetType) || undefined,
       status: (statusVal as AssetStatus) || undefined,
       tags: this.filters['tags'] || undefined,
+      sort: req.sort,
+      order: req.order,
       page: req.page,
       size: req.size
     });

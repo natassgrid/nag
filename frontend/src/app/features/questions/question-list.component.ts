@@ -11,7 +11,7 @@
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU标志 General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
  * You should have received a copy of the GNU Affero General Public License
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
@@ -160,6 +160,8 @@ export class QuestionListComponent implements OnInit {
       difficulty: activeDifficulty || undefined,
       state: activeState || undefined,
       search: req.search || undefined,
+      sort: req.sort,
+      order: req.order,
       page: req.page,
       size: req.size
     });
@@ -251,42 +253,13 @@ export class QuestionListComponent implements OnInit {
     this.passageDrawerOpen = true;
   }
 
-  onPassageDrawerClose(saved: boolean): void {
-    this.passageDrawerOpen = false;
-    this.editingPassage = undefined;
-    if (saved) {
-      this.reload();
-    }
+  openEditDrawer(question: QuestionResponse): void {
+    this.editingQuestion = question;
+    this.drawerOpen = true;
   }
 
   openAiGenerateDrawer(): void {
     this.aiDrawerOpen = true;
-  }
-
-  onAiDrawerClose(hasSaved: boolean): void {
-    this.aiDrawerOpen = false;
-    if (hasSaved) {
-      this.reload();
-    }
-  }
-
-  openEditDrawer(question: QuestionResponse): void {
-    if (question.passageId) {
-      this.passageService.getPassage(question.passageId).subscribe({
-        next: (passage) => {
-          this.editingPassage = passage;
-          this.passageDrawerOpen = true;
-          this.cdr.markForCheck();
-        },
-        error: (err) => {
-          console.error('Failed to load passage for question:', err);
-          this.snackBar.open('Failed to load passage for question', 'Close', { duration: 3000 });
-        }
-      });
-      return;
-    }
-    this.editingQuestion = question;
-    this.drawerOpen = true;
   }
 
   openTranslationDrawer(question: QuestionResponse): void {
@@ -294,106 +267,89 @@ export class QuestionListComponent implements OnInit {
     this.translationDrawerOpen = true;
   }
 
-  onTranslationDrawerClose(updated?: boolean): void {
+  onDrawerSaved(): void {
+    this.drawerOpen = false;
+    this.editingQuestion = undefined;
+    this.reload();
+  }
+
+  onPassageSaved(): void {
+    this.passageDrawerOpen = false;
+    this.editingPassage = undefined;
+    this.reload();
+  }
+
+  onAiQuestionsSaved(): void {
+    this.reload();
+  }
+
+  onTranslationSaved(): void {
     this.translationDrawerOpen = false;
     this.translatingQuestion = undefined;
-    if (updated) {
-      this.reload();
-    }
+    this.reload();
   }
 
-  onDrawerClose(result: QuestionResponse | null): void {
-    this.drawerOpen = false;
-    if (result) {
-      const msg = this.editingQuestion ? 'Question updated successfully' : 'Question created successfully';
-      this.snackBar.open(msg, 'Close', { duration: 3000 });
-      this.reload();
-    }
-  }
-
-  submitForReview(question: QuestionResponse): void {
-    this.questionService.submitForReview(question.id).subscribe({
+  submitForReview(q: QuestionResponse): void {
+    this.questionService.submitForReview(q.id).subscribe({
       next: () => {
         this.snackBar.open('Question submitted for review', 'Close', { duration: 3000 });
         this.reload();
       },
       error: (err) => {
-        const message = err.error?.message || 'Failed to submit question for review';
-        this.snackBar.open(message, 'Close', { duration: 3000 });
+        this.snackBar.open(err.error?.message || 'Failed to submit for review', 'Close', { duration: 4000 });
       }
     });
   }
 
-  exporting = false;
-  importing = false;
-
-  /** Downloads a ZIP export of questions matching the active filters. */
   exportQuestions(format: 'json' | 'csv'): void {
     const rawSubject = Array.isArray(this.filters['subject']) ? this.filters['subject'][0] : this.filters['subject'];
     const activeDifficulty = Array.isArray(this.filters['difficulty']) ? this.filters['difficulty'][0] : this.filters['difficulty'];
     const activeState = Array.isArray(this.filters['state']) ? this.filters['state'][0] : this.filters['state'];
-
     const isNumericSubject = rawSubject !== undefined && rawSubject !== null && rawSubject !== '' && !isNaN(Number(rawSubject));
     const subjectId = isNumericSubject ? Number(rawSubject) : undefined;
     const subject = !isNumericSubject && rawSubject ? String(rawSubject) : undefined;
 
-    this.exporting = true;
     this.questionService.exportQuestions({
       format,
       subject,
       subjectId,
       difficulty: activeDifficulty || undefined,
-      state: activeState || undefined
+      state: activeState || undefined,
+      search: this.paginatedTable?.searchQuery || undefined
     }).subscribe({
       next: (blob: Blob) => {
-        this.exporting = false;
         const url = window.URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        const date = new Date().toISOString().slice(0, 10);
-        a.download = `question-bank-export-${date}.zip`;
+        a.download = `questions-export-${new Date().toISOString().slice(0, 10)}.zip`;
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
         window.URL.revokeObjectURL(url);
-        this.snackBar.open(`Exported questions (${format.toUpperCase()}) successfully`, 'Close', { duration: 3000 });
+        this.snackBar.open('Export downloaded successfully', 'Close', { duration: 3000 });
       },
       error: (err) => {
-        this.exporting = false;
-        const msg = err.error?.message || 'Export failed';
-        this.snackBar.open(msg, 'Close', { duration: 4000 });
-      }
-    });
-  }
-
-  onImportFileSelected(event: Event): void {
-    const input = event.target as HTMLInputElement;
-    if (!input.files || input.files.length === 0) return;
-    const file = input.files[0];
-
-    const rawSubject = Array.isArray(this.filters['subject']) ? this.filters['subject'][0] : this.filters['subject'];
-    const isNumericSubject = rawSubject !== undefined && rawSubject !== null && rawSubject !== '' && !isNaN(Number(rawSubject));
-    const subjectId = isNumericSubject ? Number(rawSubject) : undefined;
-
-    this.importing = true;
-    this.questionService.importQuestions(file, subjectId).subscribe({
-      next: (result) => {
-        this.importing = false;
-        input.value = '';
-        const msg = `Import complete: ${result.successfulCount} created, ${result.duplicateCount} duplicates, ${result.failedCount} failed`;
-        this.snackBar.open(msg, 'Close', { duration: 5000 });
-        this.reload();
-      },
-      error: (err) => {
-        this.importing = false;
-        input.value = '';
-        const msg = err.error?.message || 'Import failed';
-        this.snackBar.open(msg, 'Close', { duration: 4000 });
+        this.snackBar.open(err?.error?.message || 'Export failed', 'Close', { duration: 4000 });
       }
     });
   }
 
   onFileSelected(event: Event): void {
-    this.onImportFileSelected(event);
+    const input = event.target as HTMLInputElement;
+    if (!input.files || input.files.length === 0) return;
+    const file = input.files[0];
+    this.snackBar.open(`Importing ${file.name}...`, undefined, { duration: 2000 });
+    this.questionService.importQuestions(file).subscribe({
+      next: (result) => {
+        input.value = '';
+        const msg = `Import complete: ${result.successfulCount} imported, ${result.duplicateCount} duplicates, ${result.failedCount} failed`;
+        this.snackBar.open(msg, 'Close', { duration: 5000 });
+        this.reload();
+      },
+      error: (err) => {
+        input.value = '';
+        this.snackBar.open(err?.error?.message || 'Import failed', 'Close', { duration: 5000 });
+      }
+    });
   }
 }

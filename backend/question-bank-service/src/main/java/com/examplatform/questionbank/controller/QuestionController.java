@@ -103,7 +103,7 @@ public class QuestionController {
     }
 
     /**
-     * List questions for a tenant with optional filtering and pagination.
+     * List questions for a tenant with optional filtering, sorting, and pagination.
      * Requires QUESTION_AUTHOR, REVIEWER, APPROVER, TRANSLATOR, EXAM_CONTROLLER, or ADMIN role.
      *
      * @param subject           optional subject name filter
@@ -115,6 +115,8 @@ public class QuestionController {
      * @param search            optional text search filter
      * @param targetLang        optional target language code filter (e.g. hi, ta, te)
      * @param translationStatus optional translation status filter (MISSING, DRAFT, IN_REVIEW, APPROVED, PUBLISHED, REJECTED, EXISTS)
+     * @param sort              optional sort property
+     * @param order             sort direction (asc, desc; default desc)
      * @param page              page number (0-based, default 0)
      * @param size              page size (default 20)
      * @param tenantId          tenant identifier from the X-Tenant-Id header
@@ -132,15 +134,17 @@ public class QuestionController {
             @RequestParam(required = false) String search,
             @RequestParam(required = false) String targetLang,
             @RequestParam(required = false) String translationStatus,
+            @RequestParam(required = false) String sort,
+            @RequestParam(defaultValue = "desc") String order,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size,
             @RequestHeader("X-Tenant-Id") String tenantId) {
 
-        log.info("Listing questions: tenant={}, subject={}, subjectId={}, topic={}, topicId={}, difficulty={}, state={}, targetLang={}, translationStatus={}, page={}, size={}",
-                tenantId, subject, subjectId, topic, topicId, difficulty, state, targetLang, translationStatus, page, size);
+        log.info("Listing questions: tenant={}, subject={}, subjectId={}, topic={}, topicId={}, difficulty={}, state={}, targetLang={}, translationStatus={}, sort={}, order={}, page={}, size={}",
+                tenantId, subject, subjectId, topic, topicId, difficulty, state, targetLang, translationStatus, sort, order, page, size);
 
         Page<QuestionResponse> responses = questionService.listQuestions(
-                subject, subjectId, topic, topicId, difficulty, state, search, targetLang, translationStatus, page, size, tenantId);
+                subject, subjectId, topic, topicId, difficulty, state, search, targetLang, translationStatus, sort, order, page, size, tenantId);
         return ResponseEntity.ok(ApiResponse.success(responses, "Questions retrieved successfully"));
     }
 

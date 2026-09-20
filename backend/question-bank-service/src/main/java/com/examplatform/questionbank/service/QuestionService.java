@@ -14,8 +14,7 @@
  * GNU Affero General Public License for more details.
  *
  * You should have received a copy of the GNU Affero General Public License
- * along with this program. If not, see <https://www.gnu.org/licenses/>.
- */
+ * along with this program. If not, see <https://www.gnu.org/licenses/>.\n */
 
 package com.examplatform.questionbank.service;
 
@@ -263,18 +262,23 @@ public class QuestionService {
 
     /**
      * Lists questions for a tenant with optional filtering by hierarchy, difficulty, state, text search,
-     * target language, and translation status.
+     * target language, translation status, and dynamic sorting.
      */
     @Transactional(readOnly = true)
     public org.springframework.data.domain.Page<QuestionResponse> listQuestions(
             String subject, Long subjectId, String topic, Long topicId,
             String difficulty, String state, String search,
             String targetLang, String translationStatus,
+            String sort, String order,
             int page, int size, String tenantId) {
 
+        org.springframework.data.domain.Sort.Direction direction = "asc".equalsIgnoreCase(order)
+                ? org.springframework.data.domain.Sort.Direction.ASC
+                : org.springframework.data.domain.Sort.Direction.DESC;
+        String sortProperty = resolveQuestionSortProperty(sort);
         org.springframework.data.domain.Pageable pageable =
                 org.springframework.data.domain.PageRequest.of(page, size,
-                        org.springframework.data.domain.Sort.by("createdAt").descending());
+                        org.springframework.data.domain.Sort.by(direction, sortProperty));
 
         org.springframework.data.jpa.domain.Specification<Question> spec =
                 org.springframework.data.jpa.domain.Specification.where(tenantEquals(tenantId));
@@ -339,15 +343,42 @@ public class QuestionService {
     public org.springframework.data.domain.Page<QuestionResponse> listQuestions(
             String subject, Long subjectId, String topic, Long topicId,
             String difficulty, String state, String search,
+            String targetLang, String translationStatus,
             int page, int size, String tenantId) {
-        return listQuestions(subject, subjectId, topic, topicId, difficulty, state, search, null, null, page, size, tenantId);
+        return listQuestions(subject, subjectId, topic, topicId, difficulty, state, search, targetLang, translationStatus, null, "desc", page, size, tenantId);
+    }
+
+    @Transactional(readOnly = true)
+    public org.springframework.data.domain.Page<QuestionResponse> listQuestions(
+            String subject, Long subjectId, String topic, Long topicId,
+            String difficulty, String state, String search,
+            int page, int size, String tenantId) {
+        return listQuestions(subject, subjectId, topic, topicId, difficulty, state, search, null, null, null, "desc", page, size, tenantId);
     }
 
     @Transactional(readOnly = true)
     public org.springframework.data.domain.Page<QuestionResponse> listQuestions(
             String subject, String topic, String difficulty, String state,
             String search, int page, int size, String tenantId) {
-        return listQuestions(subject, null, topic, null, difficulty, state, search, null, null, page, size, tenantId);
+        return listQuestions(subject, null, topic, null, difficulty, state, search, null, null, null, "desc", page, size, tenantId);
+    }
+
+    private String resolveQuestionSortProperty(String sort) {
+        if (sort == null || sort.isBlank()) return "createdAt";
+        return switch (sort.trim().toLowerCase()) {
+            case "subject", "subjectname" -> "subject";
+            case "topic", "topicname" -> "topic";
+            case "subtopic" -> "subtopic";
+            case "chapter" -> "chapter";
+            case "difficulty" -> "difficulty";
+            case "cognitivelevel" -> "cognitiveLevel";
+            case "questiontype" -> "questionType";
+            case "state", "status" -> "state";
+            case "updatedat" -> "updatedAt";
+            case "createdat", "created" -> "createdAt";
+            case "id" -> "id";
+            default -> "createdAt";
+        };
     }
 
     private org.springframework.data.jpa.domain.Specification<Question> tenantEquals(String tenantId) {

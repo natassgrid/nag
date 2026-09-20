@@ -71,6 +71,8 @@ export interface AssetSearchParams {
   tags?: string;
   status?: AssetStatus;
   storageProvider?: string;
+  sort?: string;
+  order?: string;
   page?: number;
   size?: number;
 }

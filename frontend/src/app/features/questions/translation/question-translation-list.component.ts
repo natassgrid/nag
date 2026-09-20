@@ -11,35 +11,25 @@
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU License for more details.
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
 
-import { Component, OnInit, OnDestroy, ViewChild, ChangeDetectionStrategy, ChangeDetectorRef } from '@angular/core';
+import { Component, OnInit, ViewChild, ChangeDetectionStrategy, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
+import { MatSnackBarModule, MatSnackBar } from '@angular/material/snack-bar';
 import { MatChipsModule } from '@angular/material/chips';
 import { MatTooltipModule } from '@angular/material/tooltip';
-import { MatSelectModule } from '@angular/material/select';
-import { MatFormFieldModule } from '@angular/material/form-field';
-import { MatSnackBarModule, MatSnackBar } from '@angular/material/snack-bar';
-import { MatMenuModule } from '@angular/material/menu';
-import { MatCardModule } from '@angular/material/card';
-import { MatProgressBarModule } from '@angular/material/progress-bar';
-import { MatSlideToggleModule } from '@angular/material/slide-toggle';
-import { Subscription, interval } from 'rxjs';
-
 import { QuestionService, QuestionResponse } from '../question.service';
+import { TranslationService, SUPPORTED_LANGUAGES, BatchTranslationJobResponse } from './translation.service';
 import { SubjectTopicService, Subject } from '../subject-topic.service';
-import {
-  TranslationService,
-  SUPPORTED_LANGUAGES,
-  SupportedLanguage,
-  BatchTranslationJobResponse,
-  BatchTranslationRequest
-} from './translation.service';
 import { QuestionTranslationDialogComponent } from './question-translation-dialog.component';
+import { BatchTranslationDialogComponent } from './batch-translation-dialog.component';
 import {
   PaginatedTableComponent,
   ColumnDef,
@@ -67,69 +57,54 @@ const DEFAULT_SUBJECT_OPTIONS = [
     FormsModule,
     MatButtonModule,
     MatIconModule,
+    MatSnackBarModule,
     MatChipsModule,
     MatTooltipModule,
-    MatSelectModule,
-    MatFormFieldModule,
-    MatSnackBarModule,
-    MatMenuModule,
-    MatCardModule,
-    MatProgressBarModule,
-    MatSlideToggleModule,
     PaginatedTableComponent,
     PageHeaderComponent,
-    QuestionTranslationDialogComponent
+    QuestionTranslationDialogComponent,
+    BatchTranslationDialogComponent
   ],
   templateUrl: './question-translation-list.component.html',
   changeDetection: ChangeDetectionStrategy.Eager,
   styleUrls: ['./question-translation-list.component.scss']
 })
-export class QuestionTranslationListComponent implements OnInit, OnDestroy {
+export class QuestionTranslationListComponent implements OnInit {
+
   @ViewChild('paginatedTable') paginatedTable!: PaginatedTableComponent<QuestionResponse>;
 
-  languages: SupportedLanguage[] = SUPPORTED_LANGUAGES;
+  translationDrawerOpen = false;
+  batchDrawerOpen = false;
+  translatingQuestion?: QuestionResponse;
   selectedLanguage: string = 'hi';
 
-  drawerOpen = false;
-  selectedQuestion?: QuestionResponse;
-  selectedLanguageForDrawer = 'hi';
+  activeBatchJob?: BatchTranslationJobResponse;
 
-  filters: Record<string, any> = {};
+  languages = SUPPORTED_LANGUAGES;
   subjects: Subject[] = [];
 
-  // Batch Translation Modal & Tracker State
-  batchModalOpen = false;
-  batchTargetLanguage = 'hi';
-  batchOverwriteExisting = false;
-  batchTargetStatus = 'PUBLISHED';
-  batchSubjectFilter = '';
-  isSubmittingBatch = false;
-  activeBatchJob: BatchTranslationJobResponse | null = null;
-  private pollSub?: Subscription;
+  filters: Record<string, any> = {
+    targetLang: 'hi'
+  };
 
   filterCategories: FilterCategory[] = [
     {
       key: 'targetLang',
-      label: 'Translation Language',
-      expanded: false,
-      options: [
-        { label: 'All Languages', value: '' },
-        ...SUPPORTED_LANGUAGES.map(lang => ({
-          label: `${lang.nativeName} (${lang.name})`,
-          value: lang.code
-        }))
-      ]
+      label: 'Target Language',
+      expanded: true,
+      options: SUPPORTED_LANGUAGES.map(l => ({ label: `${l.name} (${l.nativeName})`, value: l.code }))
     },
     {
       key: 'translationStatus',
       label: 'Translation Status',
       expanded: true,
       options: [
-        { label: 'All Questions', value: 'ALL' },
-        { label: 'Untranslated (Missing)', value: 'MISSING' },
-        { label: 'Pending Review (Draft / In Review)', value: 'PENDING_REVIEW' },
-        { label: 'Approved / Published', value: 'APPROVED_PUBLISHED' },
-        { label: 'Rejected / Needs Rework', value: 'REJECTED' }
+        { label: 'All', value: 'ALL' },
+        { label: 'Missing / Untranslated', value: 'MISSING' },
+        { label: 'Draft', value: 'DRAFT' },
+        { label: 'Pending Review', value: 'PENDING_REVIEW' },
+        { label: 'Approved & Published', value: 'APPROVED_PUBLISHED' },
+        { label: 'Rejected', value: 'REJECTED' }
       ]
     },
     {
@@ -210,6 +185,8 @@ export class QuestionTranslationListComponent implements OnInit, OnDestroy {
       targetLang: rawTargetLang && rawTargetLang !== '' ? rawTargetLang : undefined,
       translationStatus: rawTransStatus && rawTransStatus !== 'ALL' && rawTransStatus !== '' ? rawTransStatus : undefined,
       search: req.search,
+      sort: req.sort,
+      order: req.order,
       page: req.page,
       size: req.size
     });
@@ -228,10 +205,6 @@ export class QuestionTranslationListComponent implements OnInit, OnDestroy {
     this.checkForActiveBatchJob();
   }
 
-  ngOnDestroy(): void {
-    this.stopPolling();
-  }
-
   loadSubjects(): void {
     this.subjectTopicService.getSubjects().subscribe({
       next: (subjects) => {
@@ -241,10 +214,7 @@ export class QuestionTranslationListComponent implements OnInit, OnDestroy {
           : DEFAULT_SUBJECT_OPTIONS;
         this.filterCategories = this.filterCategories.map(cat => {
           if (cat.key === 'subject') {
-            return {
-              ...cat,
-              options: subjectOptions
-            };
+            return { ...cat, options: subjectOptions };
           }
           return cat;
         });
@@ -252,237 +222,140 @@ export class QuestionTranslationListComponent implements OnInit, OnDestroy {
       },
       error: (err) => {
         console.warn('Failed to load subjects:', err);
-        this.filterCategories = this.filterCategories.map(cat => {
-          if (cat.key === 'subject') {
-            return {
-              ...cat,
-              options: DEFAULT_SUBJECT_OPTIONS
-            };
-          }
-          return cat;
-        });
-        this.cdr.markForCheck();
       }
     });
   }
 
   checkForActiveBatchJob(): void {
-    this.translationService.listBatchJobs().subscribe({
-      next: (jobs) => {
-        if (jobs && jobs.length > 0) {
-          const active = jobs.find(j => j.status === 'IN_PROGRESS' || j.status === 'PENDING');
-          if (active) {
-            this.activeBatchJob = active;
-            this.startPolling(active.id);
-            this.cdr.markForCheck();
+    const savedJobId = localStorage.getItem('active_batch_translation_job_id');
+    if (savedJobId) {
+      this.translationService.getBatchJobStatus(savedJobId).subscribe({
+        next: (job) => {
+          if (job.status === 'PENDING' || job.status === 'IN_PROGRESS') {
+            this.activeBatchJob = job;
+            this.pollBatchJob(job.jobId);
+          } else {
+            localStorage.removeItem('active_batch_translation_job_id');
+          }
+          this.cdr.markForCheck();
+        },
+        error: () => {
+          localStorage.removeItem('active_batch_translation_job_id');
+        }
+      });
+    }
+  }
+
+  pollBatchJob(jobId: string): void {
+    setTimeout(() => {
+      if (!this.activeBatchJob || this.activeBatchJob.jobId !== jobId) return;
+      this.translationService.getBatchJobStatus(jobId).subscribe({
+        next: (job) => {
+          this.activeBatchJob = job;
+          this.cdr.markForCheck();
+          if (job.status === 'PENDING' || job.status === 'IN_PROGRESS') {
+            this.pollBatchJob(jobId);
+          } else {
+            localStorage.removeItem('active_batch_translation_job_id');
+            this.snackBar.open(`Batch Translation Completed: ${job.translatedCount} translated`, 'Close', { duration: 5000 });
+            this.reload();
           }
         }
-      },
-      error: (err) => console.warn('Could not fetch batch jobs:', err)
-    });
+      });
+    }, 3000);
   }
 
   onFilterChange(updatedFilters: Record<string, any>): void {
     this.filters = { ...updatedFilters };
+    if (updatedFilters['targetLang']) {
+      this.selectedLanguage = Array.isArray(updatedFilters['targetLang'])
+        ? updatedFilters['targetLang'][0]
+        : updatedFilters['targetLang'];
+    }
   }
 
   reload(): void {
     this.paginatedTable?.reload();
   }
 
-  getActiveTargetLang(): string | undefined {
-    const rawTargetLang = Array.isArray(this.filters['targetLang']) ? this.filters['targetLang'][0] : this.filters['targetLang'];
-    return rawTargetLang && rawTargetLang.trim() !== '' ? rawTargetLang.trim() : undefined;
+  openTranslateDrawer(question: QuestionResponse): void {
+    this.translatingQuestion = question;
+    this.translationDrawerOpen = true;
   }
 
-  getTranslationStatusLabel(row: QuestionResponse): string {
-    const targetLang = this.getActiveTargetLang();
-    if (targetLang) {
-      const lang = this.languages.find(l => l.code === targetLang);
-      const langLabel = lang ? lang.name : targetLang.toUpperCase();
-      const status = (row.translationStatus || row.translationStatusMap?.[targetLang] || 'MISSING').toUpperCase();
-
-      switch (status) {
-        case 'APPROVED':
-          return `${langLabel}: Approved`;
-        case 'PUBLISHED':
-          return `${langLabel}: Published`;
-        case 'DRAFT':
-        case 'IN_REVIEW':
-        case 'PENDING_REVIEW':
-          return `${langLabel}: In Review`;
-        case 'REJECTED':
-        case 'NEEDS_REWORK':
-          return `${langLabel}: Needs Rework`;
-        case 'STALE':
-          return `${langLabel}: Outdated`;
-        case 'MISSING':
-        case 'UNTRANSLATED':
-        default:
-          return `${langLabel}: Untranslated`;
-      }
-    }
-
-    const count = row.translatedLanguages?.length || 0;
-    if (count === 0) {
-      return 'Untranslated';
-    }
-    return `${count} / 22 Translated`;
+  openBatchDrawer(): void {
+    this.batchDrawerOpen = true;
   }
 
-  getTranslationStatusClass(row: QuestionResponse): string {
-    const targetLang = this.getActiveTargetLang();
-    if (targetLang) {
-      const status = (row.translationStatus || row.translationStatusMap?.[targetLang] || 'MISSING').toUpperCase();
-      switch (status) {
-        case 'APPROVED':
-        case 'PUBLISHED':
-        case 'APPROVED_PUBLISHED':
-          return 'chip-trans-approved';
-        case 'DRAFT':
-        case 'IN_REVIEW':
-        case 'PENDING_REVIEW':
-          return 'chip-trans-review';
-        case 'REJECTED':
-        case 'NEEDS_REWORK':
-        case 'STALE':
-          return 'chip-trans-rejected';
-        case 'MISSING':
-        case 'UNTRANSLATED':
-        default:
-          return 'chip-trans-missing';
-      }
-    }
-
-    const count = row.translatedLanguages?.length || 0;
-    if (count >= 22) return 'chip-trans-approved';
-    if (count > 0) return 'chip-trans-review';
-    return 'chip-trans-missing';
+  onTranslationSaved(): void {
+    this.translationDrawerOpen = false;
+    this.translatingQuestion = undefined;
+    this.reload();
   }
 
-  openTranslationDrawer(question: QuestionResponse, langCode?: string): void {
-    this.selectedQuestion = question;
-    this.selectedLanguageForDrawer = langCode || this.getActiveTargetLang() || 'hi';
-    this.drawerOpen = true;
+  onBatchJobStarted(job: BatchTranslationJobResponse): void {
+    this.batchDrawerOpen = false;
+    this.activeBatchJob = job;
+    localStorage.setItem('active_batch_translation_job_id', job.jobId);
+    this.snackBar.open(`Batch Translation job started (${job.totalQuestions} questions)`, 'Close', { duration: 4000 });
+    this.pollBatchJob(job.jobId);
   }
 
-  onDrawerClose(updated: boolean): void {
-    this.drawerOpen = false;
-    if (updated) {
-      this.reload();
-    }
-  }
-
-  // ---------------------------------------------------------------------------
-  // Batch Translation Actions
-  // ---------------------------------------------------------------------------
-
-  openBatchModal(): void {
-    this.batchModalOpen = true;
-  }
-
-  closeBatchModal(): void {
-    this.batchModalOpen = false;
-  }
-
-  triggerBatchAutoTranslate(): void {
-    this.isSubmittingBatch = true;
-    const req: BatchTranslationRequest = {
-      sourceLanguage: 'en',
-      targetLanguage: this.batchTargetLanguage,
-      targetStatus: this.batchTargetStatus,
-      subject: this.batchSubjectFilter ? this.batchSubjectFilter : undefined,
-      overwriteExisting: this.batchOverwriteExisting,
-      batchSize: 50,
-      throttleDelayMs: 50,
-      maxConcurrency: 2
-    };
-
-    this.translationService.startBatchTranslation(req).subscribe({
-      next: (job) => {
-        this.isSubmittingBatch = false;
-        this.batchModalOpen = false;
-        this.activeBatchJob = job;
-        this.snackBar.open(
-          `Batch translation started for ${this.getLanguageName(this.batchTargetLanguage)} (Job ID: ${job.id.substring(0, 8)}...)`,
-          'Close',
-          { duration: 4000 }
-        );
-        this.startPolling(job.id);
-        this.cdr.markForCheck();
-      },
-      error: (err) => {
-        this.isSubmittingBatch = false;
-        this.snackBar.open(
-          `Failed to start batch translation: ${err?.error?.message || err.message || 'Unknown error'}`,
-          'Close',
-          { duration: 5000 }
-        );
-        this.cdr.markForCheck();
-      }
-    });
-  }
-
-  startPolling(jobId: string): void {
-    this.stopPolling();
-    this.pollSub = interval(2500).subscribe(() => {
-      this.translationService.getBatchJobStatus(jobId).subscribe({
-        next: (job) => {
-          this.activeBatchJob = job;
-          this.cdr.markForCheck();
-
-          if (job.status === 'COMPLETED' || job.status === 'FAILED' || job.status === 'CANCELLED') {
-            this.stopPolling();
-            if (job.status === 'COMPLETED') {
-              this.snackBar.open(
-                `Batch translation completed! ${job.successfulQuestions} questions translated and published.`,
-                'Refresh',
-                { duration: 6000 }
-              ).onAction().subscribe(() => this.reload());
-              this.reload();
-            }
-          }
-        },
-        error: (err) => console.warn('Failed to poll batch translation job:', err)
-      });
-    });
-  }
-
-  cancelActiveBatchJob(): void {
+  cancelBatchJob(): void {
     if (!this.activeBatchJob) return;
-    this.translationService.cancelBatchJob(this.activeBatchJob.id).subscribe({
+    this.translationService.cancelBatchJob(this.activeBatchJob.jobId).subscribe({
       next: (job) => {
         this.activeBatchJob = job;
-        this.stopPolling();
-        this.snackBar.open('Batch translation job cancelled.', 'Close', { duration: 3000 });
+        localStorage.removeItem('active_batch_translation_job_id');
+        this.snackBar.open('Batch job cancelled', 'Close', { duration: 3000 });
         this.cdr.markForCheck();
-      },
-      error: (err) => {
-        this.snackBar.open(`Failed to cancel job: ${err?.message || 'Error'}`, 'Close', { duration: 4000 });
       }
     });
   }
 
-  dismissBatchCard(): void {
-    this.activeBatchJob = null;
-    this.stopPolling();
-  }
-
-  private stopPolling(): void {
-    if (this.pollSub) {
-      this.pollSub.unsubscribe();
-      this.pollSub = undefined;
+  getTranslationStatusLabel(question: QuestionResponse): string {
+    const lang = this.selectedLanguage || 'hi';
+    const status = question.translationStatusMap?.[lang] || question.translationStatus || 'MISSING';
+    switch (status) {
+      case 'APPROVED':
+      case 'APPROVED_PUBLISHED':
+        return 'Translated & Approved';
+      case 'PENDING_REVIEW':
+      case 'REVIEW':
+        return 'Review Pending';
+      case 'DRAFT':
+        return 'Draft In Progress';
+      case 'REJECTED':
+        return 'Rejected / Needs Fix';
+      case 'MISSING':
+      default:
+        return 'Missing';
     }
   }
 
-  truncateContent(text: string): string {
-    if (!text) return '';
-    const clean = text.replace(/<[^>]*>/g, '');
-    return clean.length > 80 ? clean.substring(0, 80) + '...' : clean;
+  getTranslationStatusClass(question: QuestionResponse): string {
+    const lang = this.selectedLanguage || 'hi';
+    const status = question.translationStatusMap?.[lang] || question.translationStatus || 'MISSING';
+    switch (status) {
+      case 'APPROVED':
+      case 'APPROVED_PUBLISHED':
+        return 'status-approved';
+      case 'PENDING_REVIEW':
+      case 'REVIEW':
+        return 'status-review';
+      case 'DRAFT':
+        return 'status-draft';
+      case 'REJECTED':
+        return 'status-rejected';
+      case 'MISSING':
+      default:
+        return 'status-missing';
+    }
   }
 
-  getLanguageName(code: string): string {
-    const found = this.languages.find(l => l.code === code);
-    return found ? `${found.nativeName} (${found.name})` : code;
+  truncateContent(content: string, limit = 80): string {
+    if (!content) return '';
+    const clean = content.replace(/<[^>]*>/g, '').replace(/&nbsp;/g, ' ');
+    return clean.length > limit ? clean.substring(0, limit) + '...' : clean;
   }
 }

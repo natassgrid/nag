@@ -5,7 +5,7 @@
  * Copyright (C) 2025 NAG Contributors
  *
  * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU标识 Affero General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, version 3 of the License.
  *
  * This program is distributed in the hope that it will be useful,
@@ -19,15 +19,38 @@
 
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { Observable, map } from 'rxjs';
+import { Observable } from 'rxjs';
+import { map } from 'rxjs/operators';
 
 export interface UserAccountResponse {
   id: string;
   username: string;
+  email: string;
+  roles: string[];
   accountStatus: string;
   mfaEnabled: boolean;
-  roles: string[];
+  tenantId: string;
   createdAt: string;
+  updatedAt: string;
+}
+
+export interface AdminInviteRequest {
+  email: string;
+  fullName: string;
+  specialization?: string;
+  roles: string[];
+}
+
+export interface AdminCreateUserRequest {
+  email: string;
+  fullName: string;
+  password?: string;
+  roles: string[];
+}
+
+export interface AdminUpdateUserRequest {
+  accountStatus?: 'ACTIVE' | 'DEACTIVATED';
+  mfaEnabled?: boolean;
 }
 
 export interface RoleAssignmentRequest {
@@ -37,30 +60,7 @@ export interface RoleAssignmentRequest {
 
 export interface RoleAssignmentResponse {
   userId: string;
-  role: string;
-  action: string;
-  message: string;
-}
-
-export interface AdminCreateUserRequest {
-  fullName: string;
-  email: string;
-  password?: string;
   roles: string[];
-  specialization?: string;
-}
-
-export interface AdminInviteRequest {
-  email: string;
-  fullName: string;
-  roles: string[];
-  specialization?: string;
-}
-
-export interface AdminUpdateUserRequest {
-  fullName?: string;
-  accountStatus?: string;
-  mfaEnabled?: boolean;
 }
 
 export interface PermissionResponse {
@@ -150,6 +150,12 @@ export class AdminService {
     );
   }
 
+  inviteUser(request: AdminInviteRequest): Observable<any> {
+    return this.http.post<ApiResponse<any>>(`${this.baseUrl}/admin/invite`, request).pipe(
+      map(response => response.data)
+    );
+  }
+
   inviteAdmin(request: AdminInviteRequest): Observable<any> {
     return this.http.post<ApiResponse<any>>(`${this.baseUrl}/admin/invite`, request).pipe(
       map(response => response.data)
@@ -185,29 +191,26 @@ export class AdminService {
   // Role Definition CRUD
   // ===================================================================
 
-  getRoleDefinitions(page: number, size: number, search: string): Observable<PaginatedPage<RoleDefinitionResponse>> {
+  getRoleDefinitions(page: number, size: number, search: string, sort?: string, order?: string): Observable<PaginatedPage<RoleDefinitionResponse>> {
+    const params: Record<string, string> = { page: page.toString(), size: size.toString(), search };
+    if (sort) params['sort'] = sort;
+    if (order) params['order'] = order;
     return this.http.get<ApiResponse<PaginatedPage<RoleDefinitionResponse>>>(
       `${this.baseUrl}/roles/definitions`,
-      { params: { page: page.toString(), size: size.toString(), search } }
+      { params }
     ).pipe(map(response => response.data));
   }
 
   getRoleDefinition(roleId: string): Observable<RoleDefinitionResponse> {
-    return this.http.get<ApiResponse<RoleDefinitionResponse>>(
-      `${this.baseUrl}/roles/definitions/${roleId}`
-    ).pipe(map(response => response.data));
+    return this.http.get<ApiResponse<RoleDefinitionResponse>>(`${this.baseUrl}/roles/definitions/${roleId}`).pipe(map(response => response.data));
   }
 
   createRoleDefinition(request: CreateRoleRequest): Observable<RoleDefinitionResponse> {
-    return this.http.post<ApiResponse<RoleDefinitionResponse>>(
-      `${this.baseUrl}/roles/definitions`, request
-    ).pipe(map(response => response.data));
+    return this.http.post<ApiResponse<RoleDefinitionResponse>>(`${this.baseUrl}/roles/definitions`, request).pipe(map(response => response.data));
   }
 
   updateRoleDefinition(roleId: string, request: UpdateRoleRequest): Observable<RoleDefinitionResponse> {
-    return this.http.put<ApiResponse<RoleDefinitionResponse>>(
-      `${this.baseUrl}/roles/definitions/${roleId}`, request
-    ).pipe(map(response => response.data));
+    return this.http.put<ApiResponse<RoleDefinitionResponse>>(`${this.baseUrl}/roles/definitions/${roleId}`, request).pipe(map(response => response.data));
   }
 
   deleteRoleDefinition(roleId: string): Observable<void> {
@@ -216,10 +219,13 @@ export class AdminService {
     );
   }
 
-  getPermissions(page: number, size: number, search: string): Observable<PaginatedPage<PermissionResponse>> {
+  getPermissions(page: number, size: number, search: string, sort?: string, order?: string): Observable<PaginatedPage<PermissionResponse>> {
+    const params: Record<string, string> = { page: page.toString(), size: size.toString(), search };
+    if (sort) params['sort'] = sort;
+    if (order) params['order'] = order;
     return this.http.get<ApiResponse<PaginatedPage<PermissionResponse>>>(
       `${this.baseUrl}/roles/permissions`,
-      { params: { page: page.toString(), size: size.toString(), search } }
+      { params }
     ).pipe(map(response => response.data));
   }
 
@@ -243,32 +249,33 @@ export class AdminService {
   }
 
   updateSystemConfig(paramName: string, paramValue: string): Observable<SystemConfigItem> {
-    return this.http.put<SystemConfigItem>(this.configUrl, { paramName, paramValue });
-  }
-
-  updateBulkSystemConfigs(configs: Record<string, string>): Observable<Record<string, string>> {
-    return this.http.put<Record<string, string>>(`${this.configUrl}/bulk`, { configs });
-  }
-
-  resetSystemConfigs(): Observable<Record<string, string>> {
-    return this.http.post<Record<string, string>>(`${this.configUrl}/reset`, {});
+    return this.http.put<SystemConfigItem>(`${this.configUrl}/${paramName}`, { paramValue });
   }
 
   // ===================================================================
   // Audit Logs
   // ===================================================================
 
-  getAuditEvents(page = 0, size = 100, search = ''): Observable<AuditEventResponse[]> {
-    return this.http.get<ApiResponse<AuditEventResponse[]> | AuditEventResponse[]>(
-      `${this.auditUrl}/events`,
-      { params: { page: page.toString(), size: size.toString(), search } }
-    ).pipe(
-      map(response => {
-        if (Array.isArray(response)) {
-          return response;
-        }
-        return (response as ApiResponse<AuditEventResponse[]>).data || [];
-      })
+  getAuditLogs(params: {
+    eventType?: string;
+    principal?: string;
+    status?: string;
+    from?: string;
+    to?: string;
+    page?: number;
+    size?: number;
+  }): Observable<PaginatedPage<AuditEventResponse>> {
+    const queryParams: Record<string, string> = {};
+    if (params.eventType) queryParams['eventType'] = params.eventType;
+    if (params.principal) queryParams['principal'] = params.principal;
+    if (params.status) queryParams['status'] = params.status;
+    if (params.from) queryParams['from'] = params.from;
+    if (params.to) queryParams['to'] = params.to;
+    queryParams['page'] = (params.page ?? 0).toString();
+    queryParams['size'] = (params.size ?? 20).toString();
+
+    return this.http.get<ApiResponse<PaginatedPage<AuditEventResponse>>>(this.auditUrl, { params: queryParams }).pipe(
+      map(response => response.data)
     );
   }
 }

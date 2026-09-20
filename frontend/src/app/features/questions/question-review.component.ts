@@ -73,8 +73,7 @@ export class QuestionReviewComponent {
   acting = false;
   viewMode: 'table' | 'split' = 'table';
 
-  columns: ColumnDef<QuestionResponse>[] = [
-    { key: 'subject', header: 'Subject', sortable: true },
+  columns: ColumnDef<QuestionResponse>[] = [\n    { key: 'subject', header: 'Subject', sortable: true },
     { key: 'topic', header: 'Topic', sortable: true },
     {
       key: 'difficulty',
@@ -94,7 +93,7 @@ export class QuestionReviewComponent {
   ];
 
   fetcher: PaginatedDataFetcher<QuestionResponse> = (req) => {
-    return this.questionService.getQuestionsForReview(req.page, req.size, req.search || undefined).pipe(
+    return this.questionService.getQuestionsForReview(req.page, req.size, req.search || undefined, req.sort, req.order).pipe(
       tap(page => {
         const list = page?.content ?? (Array.isArray(page) ? page : []);
         this.questions = [...list];

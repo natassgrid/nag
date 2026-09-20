@@ -17,29 +17,30 @@
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
 
-import { Component, OnInit, ViewChild, signal, computed, ChangeDetectionStrategy } from '@angular/core';
+import { Component, OnInit, ViewChild, ChangeDetectionStrategy, signal, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
+import { MatTooltipModule } from '@angular/material/tooltip';
 import { MatChipsModule } from '@angular/material/chips';
-import { MatMenuModule } from '@angular/material/menu';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { MatSelectModule } from '@angular/material/select';
-import { MatCheckboxModule } from '@angular/material/checkbox';
+import { MatSlideToggleModule } from '@angular/material/slide-toggle';
+import { MatRadioModule } from '@angular/material/radio';
 import { map } from 'rxjs/operators';
-import { AdminService, UserAccountResponse } from '../services/admin.service';
+import { AdminService, UserAccountResponse } from '../admin.service';
 import { NotificationService } from '../../../core/services/notification.service';
-import { PageHeaderComponent } from '../../../shared/components/page-header/page-header.component';
-import { StatusBadgeComponent } from '../../../shared/components/status-badge/status-badge.component';
 import {
   PaginatedTableComponent,
-  ColumnDef,
   PaginatedDataFetcher,
   FilterCategory
 } from '../../../shared/components/paginated-table';
+import { ColumnDef } from '../../../shared/components/paginated-table/pagination.model';
+import { PageHeaderComponent } from '../../../shared/components/page-header/page-header.component';
 import { RightDrawerComponent } from '../../../shared/components/right-drawer/right-drawer.component';
+import { StatusBadgeComponent } from '../../../shared/components/status-badge/status-badge.component';
 
 @Component({
   selector: 'app-user-management',
@@ -49,12 +50,13 @@ import { RightDrawerComponent } from '../../../shared/components/right-drawer/ri
     FormsModule,
     MatButtonModule,
     MatIconModule,
+    MatTooltipModule,
     MatChipsModule,
-    MatMenuModule,
     MatFormFieldModule,
     MatInputModule,
     MatSelectModule,
-    MatCheckboxModule,
+    MatSlideToggleModule,
+    MatRadioModule,
     PaginatedTableComponent,
     PageHeaderComponent,
     RightDrawerComponent,
@@ -129,8 +131,7 @@ export class UserManagementComponent implements OnInit {
   });
 
   filterCategories: FilterCategory[] = [
-    {
-      key: 'accountStatus',
+    {\n      key: 'accountStatus',
       label: 'Status',
       expanded: true,
       options: [
@@ -190,6 +191,17 @@ export class UserManagementComponent implements OnInit {
             filtered = filtered.filter(u => u.mfaEnabled === mfaVal);
           }
         }
+        if (req.sort) {
+          const sortKey = req.sort as keyof UserAccountResponse;
+          const order = req.order === 'desc' ? -1 : 1;
+          filtered = [...filtered].sort((a, b) => {
+            const valA = (a[sortKey] ?? '').toString().toLowerCase();
+            const valB = (b[sortKey] ?? '').toString().toLowerCase();
+            if (valA < valB) return -1 * order;
+            if (valA > valB) return 1 * order;
+            return 0;
+          });
+        }
         const start = req.page * req.size;
         const paged = filtered.slice(start, start + req.size);
         return {
@@ -241,25 +253,24 @@ export class UserManagementComponent implements OnInit {
     this.inviteDrawerOpen.set(true);
   }
 
-  sendAdminInvite(): void {
+  submitInvite(): void {
     if (!this.isInviteValid()) return;
     this.saving.set(true);
-    this.adminService.inviteAdmin({
+    this.adminService.inviteUser({
       email: this.inviteEmail().trim(),
       fullName: this.inviteFullName().trim(),
       specialization: this.inviteSpecialization().trim() || undefined,
       roles: this.inviteRoles()
     }).subscribe({
       next: () => {
-        this.notificationService.showSuccess('Invitation dispatched successfully via email.');
+        this.notificationService.success('User invited successfully.');
         this.inviteDrawerOpen.set(false);
         this.saving.set(false);
         this.reload();
       },
       error: (err) => {
+        this.notificationService.error(err?.error?.message || 'Failed to send invite.');
         this.saving.set(false);
-        const msg = err.error?.message || 'Failed to send invitation.';
-        this.notificationService.showError(msg);
       }
     });
   }
@@ -272,7 +283,7 @@ export class UserManagementComponent implements OnInit {
     this.createDrawerOpen.set(true);
   }
 
-  saveCreateUser(): void {
+  submitCreate(): void {
     if (!this.isCreateValid()) return;
     this.saving.set(true);
     this.adminService.createUser({
@@ -282,12 +293,13 @@ export class UserManagementComponent implements OnInit {
       roles: this.newRoles()
     }).subscribe({
       next: () => {
-        this.notificationService.showSuccess('User created successfully');
+        this.notificationService.success('User created successfully.');
         this.createDrawerOpen.set(false);
         this.saving.set(false);
         this.reload();
       },
-      error: () => {
+      error: (err) => {
+        this.notificationService.error(err?.error?.message || 'Failed to create user.');
         this.saving.set(false);
       }
     });
@@ -295,12 +307,12 @@ export class UserManagementComponent implements OnInit {
 
   openEditDrawer(user: UserAccountResponse): void {
     this.editingUser.set(user);
-    this.editStatus.set(user.accountStatus as any);
-    this.editMfaEnabled.set(!!user.mfaEnabled);
+    this.editStatus.set(user.accountStatus === 'DEACTIVATED' ? 'DEACTIVATED' : 'ACTIVE');
+    this.editMfaEnabled.set(user.mfaEnabled ?? false);
     this.editDrawerOpen.set(true);
   }
 
-  saveEditUser(): void {
+  submitEdit(): void {
     const user = this.editingUser();
     if (!user) return;
     this.saving.set(true);
@@ -309,12 +321,13 @@ export class UserManagementComponent implements OnInit {
       mfaEnabled: this.editMfaEnabled()
     }).subscribe({
       next: () => {
-        this.notificationService.showSuccess('User updated successfully');
-        this.saving.set(false);
+        this.notificationService.success('User updated successfully.');
         this.editDrawerOpen.set(false);
+        this.saving.set(false);
         this.reload();
       },
-      error: () => {
+      error: (err) => {
+        this.notificationService.error(err?.error?.message || 'Failed to update user.');
         this.saving.set(false);
       }
     });
@@ -327,30 +340,25 @@ export class UserManagementComponent implements OnInit {
     this.roleDrawerOpen.set(true);
   }
 
-  saveRoleChange(): void {
+  submitRoleAction(): void {
     const user = this.roleUser();
     if (!user) return;
     this.saving.set(true);
-    this.adminService.assignRole(user.id, this.selectedRole(), this.roleAction()).subscribe({
-      next: (res) => {
-        this.notificationService.showSuccess(res.message || 'Role updated successfully');
-        this.saving.set(false);
+    const obs$ = this.roleAction() === 'ASSIGN'
+      ? this.adminService.assignRole(user.id, this.selectedRole())
+      : this.adminService.revokeRole(user.id, this.selectedRole());
+
+    obs$.subscribe({
+      next: () => {
+        this.notificationService.success(`Role ${this.selectedRole()} ${this.roleAction().toLowerCase()}ed successfully.`);
         this.roleDrawerOpen.set(false);
+        this.saving.set(false);
         this.reload();
       },
-      error: () => {
+      error: (err) => {
+        this.notificationService.error(err?.error?.message || 'Failed to update user roles.');
         this.saving.set(false);
       }
-    });
-  }
-
-  deactivateUser(user: UserAccountResponse): void {
-    this.adminService.deactivateUser(user.id).subscribe({
-      next: () => {
-        this.notificationService.showSuccess('User deactivated successfully');
-        this.reload();
-      },
-      error: () => {}
     });
   }
 }

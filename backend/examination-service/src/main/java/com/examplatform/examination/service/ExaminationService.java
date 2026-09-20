@@ -6,7 +6,9 @@
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as published
- * by the Free Software Foundation, version 3 of the License.\n *\n * This program is distributed in the hope that it will be useful,
+ * by the Free Software Foundation, version 3 of the License.
+ *
+ * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
  * GNU Affero General Public License for more details.
@@ -32,6 +34,10 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -75,15 +81,15 @@ public class ExaminationService {
     }
 
     /**
-     * Lists examinations with server-side pagination and optional search filter.
+     * Lists examinations with server-side pagination, optional search filter, and dynamic sorting.
      */
-    public org.springframework.data.domain.Page<ExaminationResponse> listByTenantPaged(
-            String tenantId, String search, int page, int size) {
-        org.springframework.data.domain.Pageable pageable =
-                org.springframework.data.domain.PageRequest.of(page, size,
-                        org.springframework.data.domain.Sort.by("createdAt").descending());
+    public Page<ExaminationResponse> listByTenantPaged(
+            String tenantId, String search, String sort, String order, int page, int size) {
+        Sort.Direction direction = "asc".equalsIgnoreCase(order) ? Sort.Direction.ASC : Sort.Direction.DESC;
+        String sortProp = resolveExamSortProperty(sort);
+        Pageable pageable = PageRequest.of(page, size, Sort.by(direction, sortProp));
 
-        org.springframework.data.domain.Page<Examination> examPage;
+        Page<Examination> examPage;
         if (search != null && !search.isBlank()) {
             examPage = examinationRepository.findByTenantIdAndNameContainingIgnoreCase(tenantId, search.trim(), pageable);
         } else {
@@ -96,6 +102,11 @@ public class ExaminationService {
         });
     }
 
+    public Page<ExaminationResponse> listByTenantPaged(
+            String tenantId, String search, int page, int size) {
+        return listByTenantPaged(tenantId, search, null, "desc", page, size);
+    }
+
     /**
      * Lists PUBLISHED examinations for the given tenant with pagination.
      * Used by the candidate-facing public endpoint — no admin role required.
@@ -106,13 +117,11 @@ public class ExaminationService {
      * @param size     page size
      * @return paginated list of published examinations
      */
-    public org.springframework.data.domain.Page<ExaminationResponse> listPublishedPaged(
+    public Page<ExaminationResponse> listPublishedPaged(
             String tenantId, String search, int page, int size) {
-        org.springframework.data.domain.Pageable pageable =
-                org.springframework.data.domain.PageRequest.of(page, size,
-                        org.springframework.data.domain.Sort.by("createdAt").descending());
+        Pageable pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
 
-        org.springframework.data.domain.Page<Examination> examPage;
+        Page<Examination> examPage;
         if (search != null && !search.isBlank()) {
             examPage = examinationRepository.findByStatusAndTenantIdAndNameContainingIgnoreCase(
                     "PUBLISHED", tenantId, search.trim(), pageable);
@@ -263,7 +272,26 @@ public class ExaminationService {
         return toResponse(saved, sections);
     }
 
-    // ── Private helpers ────────────────────────────────────────────────────────
+    private String resolveExamSortProperty(String sort) {
+        if (sort == null || sort.isBlank()) return "createdAt";
+        return switch (sort.trim().toLowerCase()) {
+            case "name", "examname" -> "name";
+            case "code" -> "code";
+            case "conductingauthority", "authority" -> "conductingAuthority";
+            case "category" -> "category";
+            case "examinationtype", "type" -> "examinationType";
+            case "academicyear", "year" -> "academicYear";
+            case "examinationmode", "mode" -> "examinationMode";
+            case "durationminutes", "duration" -> "durationMinutes";
+            case "totalmarks", "marks" -> "totalMarks";
+            case "status" -> "status";
+            case "createdat", "created" -> "createdAt";
+            case "updatedat" -> "updatedAt";
+            default -> "createdAt";
+        };
+    }
+
+    // ── Private helpers ──────────────────────────────────────────────────────────
 
     private void validateSectionMarks(CreateExaminationRequest request) {
         if (request.getSections() == null || request.getTotalMarks() == null) {

@@ -13,7 +13,7 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
  * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
 
@@ -145,7 +145,10 @@ export class PaperListComponent implements OnInit {
       req.page,
       req.size,
       this.activeFilters['examId'],
-      statusVal
+      statusVal,
+      req.search,
+      req.sort,
+      req.order
     );
   };
 

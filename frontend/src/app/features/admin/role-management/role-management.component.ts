@@ -13,7 +13,7 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
  * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU Affero General Public License
+ * You should have received a copy of the GNU濱Affero General Public License
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
 
@@ -272,7 +272,7 @@ export class RoleManagementComponent implements OnInit {
   ];
 
   fetcher: PaginatedDataFetcher<RoleDefinitionResponse> = (req) => {
-    return this.adminService.getRoleDefinitions(req.page, req.size, req.search || '').pipe(
+    return this.adminService.getRoleDefinitions(req.page, req.size, req.search || '', req.sort, req.order).pipe(
       map(page => {
         if (req.page === 0) {
           this.allRoles.set(page.content);
@@ -289,7 +289,7 @@ export class RoleManagementComponent implements OnInit {
   };
 
   permFetcher: PaginatedDataFetcher<PermissionResponse> = (req) => {
-    return this.adminService.getPermissions(req.page, req.size, req.search || '').pipe(
+    return this.adminService.getPermissions(req.page, req.size, req.search || '', req.sort, req.order).pipe(
       map(page => {
         if (page && page.content && page.content.length > 0) {
           return {
@@ -302,12 +302,23 @@ export class RoleManagementComponent implements OnInit {
         }
         // Fallback filtering if backend permissions table is empty
         const search = (req.search || '').toLowerCase();
-        const filtered = FALLBACK_PERMISSIONS.filter(p =>
+        let filtered = FALLBACK_PERMISSIONS.filter(p =>
           !search ||
           p.name.toLowerCase().includes(search) ||
           p.code.toLowerCase().includes(search) ||
           p.module.toLowerCase().includes(search)
         );
+        if (req.sort) {
+          const sortKey = req.sort as keyof PermissionResponse;
+          const order = req.order === 'desc' ? -1 : 1;
+          filtered = [...filtered].sort((a, b) => {
+            const valA = (a[sortKey] ?? '').toString().toLowerCase();
+            const valB = (b[sortKey] ?? '').toString().toLowerCase();
+            if (valA < valB) return -1 * order;
+            if (valA > valB) return 1 * order;
+            return 0;
+          });
+        }
         return {
           content: filtered,
           totalElements: filtered.length,
@@ -332,8 +343,7 @@ export class RoleManagementComponent implements OnInit {
       { key: 'code', header: 'Code', sortable: true },
       { key: 'description', header: 'Description', cell: (r) => r.description || '—' },
       { key: 'active', header: 'Status', type: 'custom', template: this.statusTmpl },
-      {
-        key: 'systemRole',
+      {\n        key: 'systemRole',
         header: 'Type',
         cell: (r) => r.systemRole ? 'System' : 'Custom',
         type: 'badge',
@@ -449,43 +459,26 @@ export class RoleManagementComponent implements OnInit {
     this.newSelectedPermIds.set(current);
   }
 
-  isCreateGroupChecked(group: ModulePermissionGroup): boolean {
-    const current = this.newSelectedPermIds();
-    return group.permissions.length > 0 && group.permissions.every(p => current.has(p.id));
-  }
-
-  isCreateGroupIndeterminate(group: ModulePermissionGroup): boolean {
-    const current = this.newSelectedPermIds();
-    const count = group.permissions.filter(p => current.has(p.id)).length;
-    return count > 0 && count < group.permissions.length;
-  }
-
-  getCreateGroupSelectedCount(group: ModulePermissionGroup): number {
-    const current = this.newSelectedPermIds();
-    return group.permissions.filter(p => current.has(p.id)).length;
-  }
-
-  saveNewRole(): void {
+  submitCreate(): void {
     if (!this.isCreateValid()) return;
     this.saving.set(true);
-    const request: CreateRoleRequest = {
+    const req: CreateRoleRequest = {
       name: this.newName().trim(),
       code: this.newCode().trim().toUpperCase(),
       description: this.newDescription().trim() || undefined,
       permissionIds: Array.from(this.newSelectedPermIds())
     };
 
-    this.adminService.createRoleDefinition(request).subscribe({
+    this.adminService.createRoleDefinition(req).subscribe({
       next: () => {
-        this.notificationService.showSuccess('Role created successfully');
+        this.notificationService.success('Role created successfully.');
         this.createDrawerOpen.set(false);
         this.saving.set(false);
-        this.paginatedTable.reload();
-        this.cdr.markForCheck();
+        this.paginatedTable?.reload();
       },
-      error: () => {
+      error: (err) => {
+        this.notificationService.error(err?.error?.message || 'Failed to create role.');
         this.saving.set(false);
-        this.cdr.markForCheck();
       }
     });
   }
@@ -497,8 +490,7 @@ export class RoleManagementComponent implements OnInit {
     this.editName.set(role.name);
     this.editDescription.set(role.description || '');
     this.editActive.set(role.active);
-    const permIds = new Set((role.permissions || []).map(p => p.id));
-    this.editSelectedPermIds.set(permIds);
+    this.editSelectedPermIds.set(new Set(role.permissions?.map(p => p.id) || []));
     this.permSearchQuery.set('');
     this.editDrawerOpen.set(true);
   }
@@ -534,92 +526,54 @@ export class RoleManagementComponent implements OnInit {
     this.editSelectedPermIds.set(current);
   }
 
-  isEditGroupChecked(group: ModulePermissionGroup): boolean {
-    const current = this.editSelectedPermIds();
-    return group.permissions.length > 0 && group.permissions.every(p => current.has(p.id));
-  }
-
-  isEditGroupIndeterminate(group: ModulePermissionGroup): boolean {
-    const current = this.editSelectedPermIds();
-    const count = group.permissions.filter(p => current.has(p.id)).length;
-    return count > 0 && count < group.permissions.length;
-  }
-
-  getEditGroupSelectedCount(group: ModulePermissionGroup): number {
-    const current = this.editSelectedPermIds();
-    return group.permissions.filter(p => current.has(p.id)).length;
-  }
-
-  saveEditRole(): void {
+  submitEdit(): void {
     const role = this.editingRole();
     if (!role) return;
     this.saving.set(true);
-
-    const request: UpdateRoleRequest = {
+    const req: UpdateRoleRequest = {
       name: this.editName().trim(),
-      description: this.editDescription().trim(),
+      description: this.editDescription().trim() || undefined,
       active: this.editActive(),
       permissionIds: Array.from(this.editSelectedPermIds())
     };
 
-    this.adminService.updateRoleDefinition(role.id, request).subscribe({
+    this.adminService.updateRoleDefinition(role.id, req).subscribe({
       next: () => {
-        this.notificationService.showSuccess('Role updated successfully');
+        this.notificationService.success('Role updated successfully.');
         this.editDrawerOpen.set(false);
         this.saving.set(false);
-        this.paginatedTable.reload();
-        this.cdr.markForCheck();
+        this.paginatedTable?.reload();
       },
-      error: () => {
+      error: (err) => {
+        this.notificationService.error(err?.error?.message || 'Failed to update role.');
         this.saving.set(false);
-        this.cdr.markForCheck();
       }
-    });
-  }
-
-  // ── Toggle Active ──
-
-  toggleActive(role: RoleDefinitionResponse): void {
-    const newStatus = !role.active;
-    this.adminService.updateRoleDefinition(role.id, { active: newStatus }).subscribe({
-      next: () => {
-        this.notificationService.showSuccess(`Role ${newStatus ? 'activated' : 'deactivated'}`);
-        this.paginatedTable.reload();
-      },
-      error: () => {}
     });
   }
 
   // ── Delete Role ──
 
   deleteRole(role: RoleDefinitionResponse): void {
-    const dialogRef = this.dialog.open(ConfirmDialogComponent, {
-      data: {
-        title: 'Delete Role',
-        message: `Are you sure you want to delete the role "${role.name}" (${role.code})? This action cannot be undone.`,
-        confirmText: 'Delete',
-        cancelText: 'Cancel',
-        color: 'warn',
-        icon: 'warning'
-      } as ConfirmDialogData
+    const data: ConfirmDialogData = {
+      title: 'Delete Role',
+      message: `Are you sure you want to delete role "${role.name}" (${role.code})? This action cannot be undone.`,
+      confirmText: 'Delete Role',
+      cancelText: 'Cancel',
+      isDestructive: true
+    };
+
+    this.dialog.open(ConfirmDialogComponent, { data }).afterClosed().subscribe(confirmed => {
+      if (confirmed) {
+        this.adminService.deleteRoleDefinition(role.id).subscribe({
+          next: () => {
+            this.notificationService.success('Role deleted successfully.');
+            this.paginatedTable?.reload();
+          },
+          error: (err) => {
+            this.notificationService.error(err?.error?.message || 'Failed to delete role.');
+          }
+        });
+      }
     });
-
-    dialogRef.afterClosed().subscribe((confirmed: boolean) => {
-      if (!confirmed) return;
-
-      this.adminService.deleteRoleDefinition(role.id).subscribe({
-        next: () => {
-          this.notificationService.showSuccess('Role deleted successfully');
-          this.paginatedTable.reload();
-        },
-        error: () => {}
-      });
-    });
-  }
-
-  // ── Matrix Helpers ──
-
-  hasPermission(role: RoleDefinitionResponse, permCode: string): boolean {
-    return !!role.permissions?.some(p => p.code === permCode);
   }
 }

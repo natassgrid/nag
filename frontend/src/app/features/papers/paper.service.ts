@@ -5,78 +5,84 @@
  * Copyright (C) 2025 NAG Contributors
  *
  * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, version 3 of the License.
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
 
 import { Injectable } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
-import { Observable, map } from 'rxjs';
+import { Observable } from 'rxjs';
+import { map } from 'rxjs/operators';
 import { PaginatedResponse } from '../../shared/components/paginated-table/pagination.model';
 
-// ── Domain models ────────────────────────────────────────────────────────────
-
-export interface BlueprintRule {
-  subject: string;
-  topic: string;
-  difficulty: 'EASY' | 'MEDIUM' | 'HARD' | '';
-  cognitiveLevel: string;
-  questionCount: number;
-}
-
-export interface PaperGenerationRequest {
-  name?: string;
-  examId: string;
-  shiftId: string;
-  isPractice?: boolean;
-  blueprintRules: BlueprintRule[];
-}
+// ── Interfaces ─────────────────────────────────────────────────────────────
 
 export interface PaperSummary {
   paperId: string;
   name?: string;
-  examId: string;
+  examId?: string;
   examName?: string;
-  shiftId: string;
+  shiftId?: string;
   shiftName?: string;
-  status: 'DRAFT' | 'APPROVED' | 'ENCRYPTED';
-  isPractice?: boolean;
+  status: string;
+  isPractice: boolean;
   difficultyScore: number;
   encryptionKeyId?: string;
   createdAt?: string;
 }
 
+export interface PaperGenerationRequest {
+  examId: string;
+  shiftId: string;
+  paperName?: string;
+  isPractice?: boolean;
+  blueprintRules: BlueprintRule[];
+}
+
+export interface BlueprintRule {
+  subject: string;
+  topic: string;
+  difficulty?: string;
+  cognitiveLevel?: string;
+  questionType?: string;
+  targetCount: number;
+}
+
 export interface QuestionDetail {
   questionId: string;
+  content: string;
+  answerKey: string;
   subject: string;
   topic: string;
   difficulty: string;
   cognitiveLevel: string;
-  usageCount: number;
-  lastUsedAt?: string;
-  content?: string;
+  orderIndex: number;
+  marks: number;
+  negativeMarks: number;
+  explanation?: string;
+  options?: any[];
 }
 
 export interface PaperDetail {
-  id: string;
+  id?: string;
+  paperId?: string;
   name?: string;
-  examId: string;
+  examId?: string;
   examName?: string;
-  shiftId: string;
+  shiftId?: string;
   shiftName?: string;
-  status: 'DRAFT' | 'APPROVED' | 'ENCRYPTED';
+  status?: string;
   isPractice?: boolean;
-  paperDefinitionJson?: string;
-  difficultyScore: number;
-  topicDistributionJson?: string;
+  totalMarks?: number;
+  difficultyScore?: number;
   encryptedPackageRef?: string;
   encryptionKeyId?: string;
   generatedBy?: string;
@@ -194,7 +200,7 @@ export interface BlueprintFeasibilityResponse {
   checkedAt: string;
 }
 
-// ── Service ──────────────────────────────────────────────────────────────────
+// ── Service ────────────────────────────────────────────────────────────────
 
 @Injectable({ providedIn: 'root' })
 export class PaperService {
@@ -207,7 +213,10 @@ export class PaperService {
     page: number = 0,
     size: number = 20,
     examId?: string,
-    status?: string
+    status?: string,
+    search?: string,
+    sort?: string,
+    order?: string
   ): Observable<PaginatedResponse<PaperSummary>> {
     let params = new HttpParams()
       .set('page', page.toString())
@@ -218,6 +227,15 @@ export class PaperService {
     }
     if (status) {
       params = params.set('status', status);
+    }
+    if (search) {
+      params = params.set('search', search);
+    }
+    if (sort) {
+      params = params.set('sort', sort);
+    }
+    if (order) {
+      params = params.set('order', order);
     }
 
     return this.http.get<any>(this.baseUrl, { params }).pipe(
@@ -255,34 +273,29 @@ export class PaperService {
     return this.http.post<PaperApprovalResponse>(`${this.baseUrl}/${paperId}/approve`, {});
   }
 
-  /**
-   * Triggers asynchronous batch translation for all questions in an examination paper.
-   */
-  translatePaper(paperId: string, request?: PaperTranslateRequest): Observable<PaperTranslateResponse> {
-    return this.http.post<PaperTranslateResponse>(`${this.baseUrl}/${paperId}/translate`, request ?? {});
+  publishPaper(paperId: string): Observable<PaperApprovalResponse> {
+    return this.http.post<PaperApprovalResponse>(`${this.baseUrl}/${paperId}/publish`, {});
   }
 
-  /**
-   * Retrieves the latest progress and status of a paper translation job.
-   */
-  getPaperTranslationStatus(paperId: string, jobId: string): Observable<PaperTranslateResponse> {
-    return this.http.get<PaperTranslateResponse>(`${this.baseUrl}/${paperId}/translate/${jobId}`);
+  startTranslation(paperId: string, req: PaperTranslateRequest): Observable<PaperTranslateResponse> {
+    return this.http.post<PaperTranslateResponse>(`${this.baseUrl}/${paperId}/translate`, req);
   }
 
-  /**
-   * Evaluates blueprint rules against current question bank availability without generating a paper.
-   */
-  checkBlueprintSufficiency(request: BlueprintFeasibilityRequest): Observable<BlueprintFeasibilityResponse> {
-    return this.http.post<BlueprintFeasibilityResponse>(`${this.baseUrl}/blueprints/check-sufficiency`, request);
+  getTranslationStatus(paperId: string): Observable<PaperTranslateResponse> {
+    return this.http.get<PaperTranslateResponse>(`${this.baseUrl}/${paperId}/translation-status`);
   }
 
-  // ── Blueprint Template API ───────────────────────────────────────────────────
+  getTranslationJob(jobId: string): Observable<PaperTranslateResponse> {
+    return this.http.get<PaperTranslateResponse>(`${this.baseUrl}/translations/${jobId}`);
+  }
+
+  // ── Blueprint Templates ──────────────────────────────────────────────────
+
+  createTemplate(req: BlueprintTemplateRequest): Observable<BlueprintTemplateResponse> {
+    return this.http.post<BlueprintTemplateResponse>(this.templateBaseUrl, req);
+  }
 
   listTemplates(examId?: string): Observable<BlueprintTemplateResponse[]> {
-    return this.getTemplates(examId);
-  }
-
-  getTemplates(examId?: string): Observable<BlueprintTemplateResponse[]> {
     let params = new HttpParams();
     if (examId) {
       params = params.set('examId', examId);
@@ -290,31 +303,19 @@ export class PaperService {
     return this.http.get<BlueprintTemplateResponse[]>(this.templateBaseUrl, { params });
   }
 
-  getTemplate(id: string): Observable<BlueprintTemplateResponse> {
-    return this.http.get<BlueprintTemplateResponse>(`${this.templateBaseUrl}/${id}`);
+  getTemplate(templateId: string): Observable<BlueprintTemplateResponse> {
+    return this.http.get<BlueprintTemplateResponse>(`${this.templateBaseUrl}/${templateId}`);
   }
 
-  createTemplate(req: BlueprintTemplateRequest): Observable<BlueprintTemplateResponse> {
-    return this.http.post<BlueprintTemplateResponse>(this.templateBaseUrl, req);
+  updateTemplate(templateId: string, req: BlueprintTemplateRequest): Observable<BlueprintTemplateResponse> {
+    return this.http.put<BlueprintTemplateResponse>(`${this.templateBaseUrl}/${templateId}`, req);
   }
 
-  updateTemplate(id: string, req: BlueprintTemplateRequest): Observable<BlueprintTemplateResponse> {
-    return this.http.put<BlueprintTemplateResponse>(`${this.templateBaseUrl}/${id}`, req);
+  deleteTemplate(templateId: string): Observable<void> {
+    return this.http.delete<void>(`${this.templateBaseUrl}/${templateId}`);
   }
 
-  deleteTemplate(id: string): Observable<void> {
-    return this.http.delete<void>(`${this.templateBaseUrl}/${id}`);
-  }
-
-  /**
-   * Audits a stored blueprint template's sufficiency against live question bank inventory.
-   */
-  checkTemplateSufficiency(templateId: string, notifyAdmin: boolean = true): Observable<BlueprintFeasibilityResponse> {
-    const params = new HttpParams().set('notifyAdmin', notifyAdmin.toString());
-    return this.http.post<BlueprintFeasibilityResponse>(
-      `${this.templateBaseUrl}/${templateId}/check-sufficiency`,
-      {},
-      { params }
-    );
+  checkFeasibility(req: BlueprintFeasibilityRequest): Observable<BlueprintFeasibilityResponse> {
+    return this.http.post<BlueprintFeasibilityResponse>(`${this.templateBaseUrl}/feasibility`, req);
   }
 }

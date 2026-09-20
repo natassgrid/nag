@@ -71,10 +71,14 @@ export class AssetService {
   /**
    * List assets with pagination.
    */
-  listAssets(params: { page: number; size: number; search?: string }): Observable<PaginatedResponse<AssetResponse>> {
+  listAssets(params: { page: number; size: number; search?: string; sort?: string; order?: string }): Observable<PaginatedResponse<AssetResponse>> {
     let httpParams = new HttpParams()
       .set('page', String(params.page))
       .set('size', String(params.size));
+
+    if (params.search) httpParams = httpParams.set('search', params.search);
+    if (params.sort) httpParams = httpParams.set('sort', params.sort);
+    if (params.order) httpParams = httpParams.set('order', params.order);
 
     return this.http.get<ApiResponse<PaginatedResponse<AssetResponse>>>(this.baseUrl, { params: httpParams })
       .pipe(map(res => res.data));
@@ -94,6 +98,8 @@ export class AssetService {
     if (params.tags) httpParams = httpParams.set('tags', params.tags);
     if (params.status) httpParams = httpParams.set('status', params.status);
     if (params.storageProvider) httpParams = httpParams.set('storageProvider', params.storageProvider);
+    if (params.sort) httpParams = httpParams.set('sort', params.sort);
+    if (params.order) httpParams = httpParams.set('order', params.order);
 
     return this.http.get<ApiResponse<PaginatedResponse<AssetResponse>>>(`${this.baseUrl}/search`, { params: httpParams })
       .pipe(map(res => res.data));

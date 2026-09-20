@@ -47,7 +47,6 @@ public interface PaperRepository extends JpaRepository<Paper, UUID> {
         WHERE p.tenantId = :tenantId
           AND (:examId IS NULL OR p.examId = :examId)
           AND (:status IS NULL OR p.status = :status)
-        ORDER BY p.createdAt DESC
     """)
     Page<Paper> findPapers(
             @Param("tenantId") String tenantId,

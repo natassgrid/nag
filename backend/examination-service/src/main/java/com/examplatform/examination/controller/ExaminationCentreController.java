@@ -82,10 +82,12 @@ public class ExaminationCentreController {
             @RequestParam(required = false) String search,
             @RequestParam(required = false) String state,
             @RequestParam(required = false) String city,
+            @RequestParam(required = false) String sort,
+            @RequestParam(defaultValue = "desc") String order,
             @AuthenticationPrincipal Jwt jwt) {
 
         org.springframework.data.domain.Page<CentreResponse> centres =
-                centreService.listCentresPaged(tenantId, search, state, city, page, size);
+                centreService.listCentresPaged(tenantId, search, state, city, sort, order, page, size);
         return ResponseEntity.ok(ApiResponse.success(centres, "Centres retrieved successfully"));
     }
 
