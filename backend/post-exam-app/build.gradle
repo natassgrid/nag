@@ -18,6 +18,7 @@ plugins {
     alias(libs.plugins.spring.boot)
     alias(libs.plugins.spring.dependency.management)
     alias(libs.plugins.lombok)
+    alias(libs.plugins.graalvm.native)
 }
 
 version = '0.0.1-SNAPSHOT'

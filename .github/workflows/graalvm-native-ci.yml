@@ -1,0 +1,80 @@
+name: GraalVM Native Image CI
+
+on:
+  push:
+    branches: [ develop, main, 'feat/**' ]
+    paths:
+      - 'backend/**'
+      - 'gradle/**'
+      - 'build.gradle'
+      - 'settings.gradle'
+      - '.github/workflows/graalvm-native-ci.yml'
+  pull_request:
+    branches: [ develop, main ]
+    paths:
+      - 'backend/**'
+      - 'gradle/**'
+      - 'build.gradle'
+      - 'settings.gradle'
+
+jobs:
+  aot-validation:
+    name: Spring Boot 4.x AOT & Native Hints Validation
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        service:
+          - api-gateway
+          - paper-generator
+          - identity-service
+          - candidate-service
+          - notification-service
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up GraalVM JDK
+        uses: graalvm/setup-graalvm@v1
+        with:
+          java-version: '21'
+          distribution: 'graalvm-community'
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          cache: 'gradle'
+
+      - name: Grant execute permission for gradlew
+        run: chmod +x gradlew
+
+      - name: Validate Spring Boot 4.x AOT Processing
+        run: ./gradlew :backend:${{ matrix.service }}:processAot --no-daemon
+
+      - name: Run Native Reachability Metadata Collection
+        run: ./gradlew :backend:${{ matrix.service }}:collectReachabilityMetadata --no-daemon
+
+  native-compile-pilot:
+    name: Pilot Native Image Compilation
+    runs-on: ubuntu-latest
+    needs: aot-validation
+    if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/heads/feat/155')
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up GraalVM JDK
+        uses: graalvm/setup-graalvm@v1
+        with:
+          java-version: '21'
+          distribution: 'graalvm-community'
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          cache: 'gradle'
+
+      - name: Grant execute permission for gradlew
+        run: chmod +x gradlew
+
+      - name: Compile Native Binary (api-gateway pilot)
+        run: ./gradlew :backend:api-gateway:nativeCompile -x test --no-daemon
+
+      - name: Verify Native Binary Output
+        run: |
+          ls -lh backend/api-gateway/build/native/nativeCompile/
+          file backend/api-gateway/build/native/nativeCompile/api-gateway

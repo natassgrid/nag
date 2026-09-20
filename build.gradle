@@ -18,6 +18,7 @@ plugins {
     alias(libs.plugins.spring.dependency.management) apply false
     alias(libs.plugins.lombok) apply false
     alias(libs.plugins.protobuf) apply false
+    alias(libs.plugins.graalvm.native) apply false
 }
 
 subprojects {
@@ -42,6 +43,22 @@ subprojects {
     plugins.withId('org.springframework.boot') {
         tasks.named('jar') {
             enabled = true
+        }
+    }
+
+    plugins.withId('org.graalvm.buildtools.native') {
+        graalvmNative {
+            binaries {
+                main {
+                    imageName = project.name
+                    buildArgs.addAll([
+                        '-H:+ReportExceptionStackTraces',
+                        '-H:+AddAllCharsets',
+                        '--enable-preview',
+                        '--initialize-at-build-time=org.slf4j.LoggerFactory,org.slf4j.helpers.Reporter'
+                    ])
+                }
+            }
         }
     }
 }
