@@ -32,6 +32,8 @@
     [selection]="selection"
     (documentChange)="onDocumentChange($event)"
     (selectionChange)="onSelectionChange($event)"
+    (editMath)="onEditMath($event)"
+    (editSmiles)="onEditSmiles($event)"
     (paste)="onPaste($event)"
     (keydown)="onKeydown($event)"
     (blurred)="onBlur()"

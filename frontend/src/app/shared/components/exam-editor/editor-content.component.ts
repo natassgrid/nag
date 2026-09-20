@@ -14,8 +14,7 @@
  * GNU Affero General Public License for more details.
  *
  * You should have received a copy of the GNU Affero General Public License
- * along with this program. If not, see <https://www.gnu.org/licenses/>.
- */
+ * along with this program. If not, see <https://www.gnu.org/licenses/>.\n */
 
 import {
   Component,
@@ -32,6 +31,8 @@ import {
   NgZone
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import katex from 'katex';
+import 'katex/dist/contrib/mhchem.js';
 import {
   ExamDocument,
   ExamElement,
@@ -42,7 +43,7 @@ import {
   MathInlineElement,
   ChemicalStructureElement
 } from './models';
-import { MATH_SENTINEL, SMILES_SENTINEL, decodeSentinel } from './utils/serializer';
+import { decodeSentinel } from './utils/serializer';
 import { EditorSelection } from './plugins';
 import { EditorAssetService } from './services';
 
@@ -73,6 +74,17 @@ export class EditorContentComponent implements AfterViewInit, OnChanges, OnDestr
   @Output() focused = new EventEmitter<void>();
   @Output() blurred = new EventEmitter<void>();
   @Output() keydown = new EventEmitter<KeyboardEvent>();
+
+  // Interactive editing events (Issues #143 & #144)
+  @Output() editMath = new EventEmitter<{ latex: string; display: boolean; element: HTMLElement }>();
+  @Output() editSmiles = new EventEmitter<{
+    smiles: string;
+    title?: string;
+    width?: number;
+    height?: number;
+    theme?: 'light' | 'dark';
+    element: HTMLElement;
+  }>();
 
   private isRendering = false;
   private isInternalChange = false;
@@ -125,6 +137,41 @@ export class EditorContentComponent implements AfterViewInit, OnChanges, OnDestr
     if (newDoc) {
       this.isInternalChange = true;
       this.documentChange.emit(newDoc);
+    }
+  }
+
+  onContentClick(event: MouseEvent): void {
+    const target = event.target as HTMLElement;
+    if (!target) return;
+
+    const mathEl = target.closest('.math-void') as HTMLElement;
+    if (mathEl) {
+      event.preventDefault();
+      event.stopPropagation();
+      const latex = mathEl.getAttribute('data-latex') || '';
+      const display = mathEl.getAttribute('data-display') === 'true' || mathEl.classList.contains('math-void--display');
+      this.editMath.emit({ latex, display, element: mathEl });
+      return;
+    }
+
+    const chemEl = target.closest('.chem-void') as HTMLElement;
+    if (chemEl) {
+      event.preventDefault();
+      event.stopPropagation();
+      const smiles = chemEl.getAttribute('data-smiles') || '';
+      const title = chemEl.getAttribute('data-title') || undefined;
+      const width = parseInt(chemEl.getAttribute('data-width') || '260', 10);
+      const height = parseInt(chemEl.getAttribute('data-height') || '200', 10);
+      const theme = (chemEl.getAttribute('data-theme') as any) || 'light';
+      this.editSmiles.emit({
+        smiles,
+        title,
+        width: isNaN(width) ? 260 : width,
+        height: isNaN(height) ? 200 : height,
+        theme,
+        element: chemEl
+      });
+      return;
     }
   }
 
@@ -204,6 +251,50 @@ export class EditorContentComponent implements AfterViewInit, OnChanges, OnDestr
   }
 
   /**
+   * Inserts an arbitrary HTML fragment at the saved selection range or at the end of content.
+   */
+  public insertElementAtSelection(htmlStr: string): void {
+    const editorEl = this.editorArea?.nativeElement;
+    if (!editorEl) return;
+    editorEl.focus();
+    const sel = window.getSelection();
+    let range = this.savedRange;
+    if (sel && sel.rangeCount > 0 && editorEl.contains(sel.getRangeAt(0).commonAncestorContainer)) {
+      range = sel.getRangeAt(0);
+    }
+    if (range && editorEl.contains(range.commonAncestorContainer)) {
+      range.deleteContents();
+      const tempDiv = document.createElement('div');
+      tempDiv.innerHTML = htmlStr;
+      const frag = document.createDocumentFragment();
+      let node: Node | null;
+      let lastNode: Node | null = null;
+      while ((node = tempDiv.firstChild)) {
+        lastNode = frag.appendChild(node);
+      }
+      range.insertNode(frag);
+      if (lastNode) {
+        const newRange = document.createRange();
+        newRange.setStartAfter(lastNode);
+        newRange.collapse(true);
+        sel?.removeAllRanges();
+        sel?.addRange(newRange);
+        this.savedRange = newRange.cloneRange();
+      }
+      this.syncDocument();
+      this.renderSmilesCanvases(editorEl);
+    } else {
+      const tempDiv = document.createElement('div');
+      tempDiv.innerHTML = htmlStr;
+      while (tempDiv.firstChild) {
+        editorEl.appendChild(tempDiv.firstChild);
+      }
+      this.syncDocument();
+      this.renderSmilesCanvases(editorEl);
+    }
+  }
+
+  /**
    * Synchronizes the DOM back into an ExamDocument AST model and emits the change.
    */
   public syncDocument(): ExamDocument | null {
@@ -229,46 +320,48 @@ export class EditorContentComponent implements AfterViewInit, OnChanges, OnDestr
   /**
    * Render any SMILES 2D structure canvases present in the rendered DOM.
    */
-  private renderSmilesCanvases(container: HTMLElement): void {
+  public async renderSmilesCanvases(container: HTMLElement): Promise<void> {
     const canvases = container.querySelectorAll<HTMLCanvasElement>('canvas.smiles-canvas');
     if (!canvases || canvases.length === 0) return;
 
-    canvases.forEach(canvas => {
-      const smiles = canvas.getAttribute('data-smiles');
-      if (!smiles) return;
-      try {
-        const sd: any = (window as any)['SmilesDrawer'] || (window as any)['__smilesDrawer'];
-        if (sd) {
-          const drawer = new (sd.Drawer || sd.SvgDrawer || sd)({
-            width: canvas.width,
-            height: canvas.height
-          });
-          if (typeof drawer.draw === 'function') {
-            drawer.draw(smiles, canvas, 'light', false);
-          } else if (typeof drawer.drawToCanvas === 'function') {
-            drawer.drawToCanvas(smiles, canvas, 'light');
+    try {
+      const sd: any = (window as any)['SmilesDrawer'] || (window as any)['__smilesDrawer'] || (await import('smiles-drawer'));
+      const SvgDrawer = sd.SvgDrawer ?? sd.default?.SvgDrawer;
+      const Drawer = sd.Drawer ?? sd.default?.Drawer ?? SvgDrawer ?? sd.default;
+
+      canvases.forEach(canvas => {
+        const smiles = canvas.getAttribute('data-smiles');
+        const theme = canvas.getAttribute('data-theme') || 'light';
+        if (!smiles) return;
+        try {
+          if (Drawer) {
+            const drawer = new Drawer({
+              width: canvas.width,
+              height: canvas.height,
+              compactDrawing: false
+            });
+            if (typeof drawer.draw === 'function') {
+              drawer.draw(smiles, canvas, theme, false);
+            } else if (typeof drawer.drawToCanvas === 'function') {
+              drawer.drawToCanvas(smiles, canvas, theme);
+            } else if (typeof drawer.parse === 'function') {
+              const tree = drawer.parse(smiles);
+              if (tree) drawer.draw(tree, canvas, theme, false);
+            }
           }
-        } else {
-          // Fallback text rendering
+        } catch {
           const ctx = canvas.getContext('2d');
           if (ctx) {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
             ctx.font = '12px monospace';
-            ctx.fillStyle = '#424242';
+            ctx.fillStyle = '#616161';
             ctx.fillText(smiles, 8, canvas.height / 2);
           }
         }
-      } catch {
-        // Fallback text on error
-        const ctx = canvas.getContext('2d');
-        if (ctx) {
-          ctx.clearRect(0, 0, canvas.width, canvas.height);
-          ctx.font = '12px monospace';
-          ctx.fillStyle = '#616161';
-          ctx.fillText(smiles, 8, canvas.height / 2);
-        }
-      }
-    });
+      });
+    } catch {
+      // Graceful fallback
+    }
   }
 
   private documentToHtml(doc: ExamDocument): string {
@@ -307,21 +400,22 @@ export class EditorContentComponent implements AfterViewInit, OnChanges, OnDestr
         return `<div class="media-block" contenteditable="false"><video controls src="${videoSrc}"></video></div>`;
       case 'math-inline': {
         const math = element as MathInlineElement;
-        // Render via KaTeX at display time; void node is non-editable
         const latexEscaped = math.latex.replace(/"/g, '&quot;');
         const displayClass = math.display ? 'math-void--display' : 'math-void--inline';
-        return `<span class="math-void ${displayClass}" contenteditable="false" data-latex="${latexEscaped}" data-type="math-inline">`
+        return `<span class="math-void ${displayClass}" contenteditable="false" data-latex="${latexEscaped}" data-display="${math.display ? 'true' : 'false'}" data-type="math-inline" title="Click to edit formula">`
           + this.renderKatexSafe(math.latex, math.display ?? false)
           + `</span>`;
       }
       case 'chemical-structure': {
         const chem = element as ChemicalStructureElement;
         const smilesEscaped = chem.smiles.replace(/"/g, '&quot;');
+        const titleEscaped = chem.title ? chem.title.replace(/"/g, '&quot;') : '';
         const titleHtml = chem.title ? `<div class="chem-caption">${this.escapeHtml(chem.title)}</div>` : '';
-        const w = chem.width ?? 250;
+        const w = chem.width ?? 260;
         const h = chem.height ?? 200;
-        return `<span class="chem-void" contenteditable="false" data-smiles="${smilesEscaped}" data-type="chemical-structure">`
-          + `<canvas class="smiles-canvas" width="${w}" height="${h}" data-smiles="${smilesEscaped}" data-theme="${chem.theme ?? 'light'}"></canvas>`
+        const theme = chem.theme ?? 'light';
+        return `<span class="chem-void" contenteditable="false" data-smiles="${smilesEscaped}" data-title="${titleEscaped}" data-width="${w}" data-height="${h}" data-theme="${theme}" data-type="chemical-structure" title="Click to edit chemical structure">`
+          + `<canvas class="smiles-canvas" width="${w}" height="${h}" data-smiles="${smilesEscaped}" data-theme="${theme}"></canvas>`
           + titleHtml
           + `</span>`;
       }
@@ -339,13 +433,15 @@ export class EditorContentComponent implements AfterViewInit, OnChanges, OnDestr
     const sentinel = decodeSentinel(text.text || '');
     if (sentinel) {
       if (sentinel.kind === 'math') {
-        return `<span class="math-void math-void--inline" contenteditable="false" data-latex="${sentinel.payload.replace(/"/g, '&quot;')}" data-type="math-inline">`
+        const latexEscaped = sentinel.payload.replace(/"/g, '&quot;');
+        return `<span class="math-void math-void--inline" contenteditable="false" data-latex="${latexEscaped}" data-display="false" data-type="math-inline" title="Click to edit formula">`
           + this.renderKatexSafe(sentinel.payload, false)
           + `</span>`;
       }
       if (sentinel.kind === 'smiles') {
-        return `<span class="chem-void" contenteditable="false" data-smiles="${sentinel.payload.replace(/"/g, '&quot;')}" data-type="chemical-structure">`
-          + `<canvas class="smiles-canvas" width="250" height="200" data-smiles="${sentinel.payload.replace(/"/g, '&quot;')}" data-theme="light"></canvas>`
+        const smilesEscaped = sentinel.payload.replace(/"/g, '&quot;');
+        return `<span class="chem-void" contenteditable="false" data-smiles="${smilesEscaped}" data-type="chemical-structure" title="Click to edit chemical structure">`
+          + `<canvas class="smiles-canvas" width="260" height="200" data-smiles="${smilesEscaped}" data-theme="light"></canvas>`
           + `</span>`;
       }
     }
@@ -369,7 +465,7 @@ export class EditorContentComponent implements AfterViewInit, OnChanges, OnDestr
       if (color) spanStyles += `color:${color.hex};`;
     }
     if (spanStyles) {
-      html = `<span style="${spanStyles}">${html}</span>`;
+      html = `<span style=\"${spanStyles}\">${html}</span>`;
     }
 
     return html;
@@ -377,16 +473,9 @@ export class EditorContentComponent implements AfterViewInit, OnChanges, OnDestr
 
   /**
    * Render a LaTeX string to KaTeX HTML, with graceful error fallback.
-   * Imported lazily to avoid issues if katex is not yet available.
    */
-  private renderKatexSafe(latex: string, displayMode: boolean): string {
+  public renderKatexSafe(latex: string, displayMode: boolean): string {
     try {
-      // katex is already a dependency of the frontend package.json
-      const katex: any = (window as any)['katex'];
-      if (!katex) {
-        // Fallback: show raw latex in a code span
-        return `<code class="math-raw">${this.escapeHtml(latex)}</code>`;
-      }
       return katex.renderToString(latex, {
         throwOnError: false,
         displayMode,
@@ -403,15 +492,15 @@ export class EditorContentComponent implements AfterViewInit, OnChanges, OnDestr
     const styles: string[] = [];
     if (align && align !== 'left') styles.push(`text-align:${align}`);
     if (indent && indent > 0) styles.push(`margin-left:${indent * 2}em`);
-    return styles.length > 0 ? ` style="${styles.join(';')}"` : '';
+    return styles.length > 0 ? ` style=\"${styles.join(';')}\"` : '';
   }
 
-  private escapeHtml(text: string): string {
+  public escapeHtml(text: string): string {
     return text
       .replace(/&/g, '&amp;')
       .replace(/</g, '&lt;')
       .replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;');
+      .replace(/\"/g, '&quot;');
   }
 
   // ─── DOM Parsing ───
@@ -440,6 +529,35 @@ export class EditorContentComponent implements AfterViewInit, OnChanges, OnDestr
     const el = node as HTMLElement;
     const tag = el.tagName.toLowerCase();
 
+    // Check block-level math or smiles
+    const nodeType = el.getAttribute('data-type');
+    if (nodeType === 'math-inline' || el.classList.contains('math-void')) {
+      const latex = el.getAttribute('data-latex') || '';
+      const display = el.getAttribute('data-display') === 'true' || el.classList.contains('math-void--display');
+      return {
+        type: 'math-inline',
+        latex,
+        display,
+        children: [{ text: '' }]
+      } as MathInlineElement;
+    }
+    if (nodeType === 'chemical-structure' || el.classList.contains('chem-void')) {
+      const smiles = el.getAttribute('data-smiles') || '';
+      const title = el.getAttribute('data-title') || undefined;
+      const width = parseInt(el.getAttribute('data-width') || '260', 10);
+      const height = parseInt(el.getAttribute('data-height') || '200', 10);
+      const theme = (el.getAttribute('data-theme') as any) || 'light';
+      return {
+        type: 'chemical-structure',
+        smiles,
+        title,
+        width: isNaN(width) ? 260 : width,
+        height: isNaN(height) ? 200 : height,
+        theme,
+        children: [{ text: '' }]
+      } as ChemicalStructureElement;
+    }
+
     const align = (el.style.textAlign as any) || undefined;
     const marginLeft = el.style.marginLeft;
     let indent: number | undefined = undefined;
@@ -466,8 +584,7 @@ export class EditorContentComponent implements AfterViewInit, OnChanges, OnDestr
       case 'li':
         return { type: 'list-item', indent, children: this.parseInlineChildren(el) };
       case 'div':
-        // Media blocks or fallback to paragraph
-        if (el.classList.contains('media-block')) return null; // Preserve as-is
+        if (el.classList.contains('media-block')) return null;
         return { type: 'paragraph', align, indent, children: this.parseInlineChildren(el) } as any;
       default:
         return { type: 'paragraph', align, indent, children: this.parseInlineChildren(el) } as any;
@@ -496,11 +613,11 @@ export class EditorContentComponent implements AfterViewInit, OnChanges, OnDestr
 
     // Void math/chem spans - reconstruct as sentinels so the document model is stable
     const nodeType = el.getAttribute('data-type');
-    if (nodeType === 'math-inline') {
+    if (nodeType === 'math-inline' || el.classList.contains('math-void')) {
       const latex = el.getAttribute('data-latex') || '';
       return [{ text: `\x00math\x00${latex}\x00` }];
     }
-    if (nodeType === 'chemical-structure') {
+    if (nodeType === 'chemical-structure' || el.classList.contains('chem-void')) {
       const smiles = el.getAttribute('data-smiles') || '';
       return [{ text: `\x00smiles\x00${smiles}\x00` }];
     }

@@ -24,7 +24,7 @@ interface MathRendererProps {
 
 /** Non-math LaTeX commands that should be rendered as plain text/HTML */
 const NON_MATH_PATTERN =
-  /\\{1,2}(begin|end)\{(enumerate|itemize|document|figure|table|center)\}|\\{1,2}item|\\{1,2}section|\\{1,2}subsection/;
+  /\\{1,2}(begin|end)\\{(enumerate|itemize|document|figure|table|center)\\}|\\{1,2}item|\\{1,2}section|\\{1,2}subsection/;
 
 // ─── SMILES canvas component ──────────────────────────────────────────────────
 
@@ -33,6 +33,7 @@ interface SmilesCanvasProps {
   title?: string;
   width?: number;
   height?: number;
+  theme?: 'light' | 'dark';
   onZoom?: (svg: string) => void;
 }
 
@@ -40,13 +41,14 @@ interface SmilesCanvasProps {
  * Renders a single SMILES structure onto a <canvas> using SmilesDrawer 2.0.
  * Falls back to displaying the raw SMILES string if the library is unavailable.
  *
- * Issue #126 — SmilesDrawer 2.0 integration.
+ * Issue #126 & #144 — SmilesDrawer 2.0 integration with theme and dimension options.
  */
 const SmilesCanvas: React.FC<SmilesCanvasProps> = ({
   smiles,
   title,
   width = 260,
-  height = 210,
+  height = 200,
+  theme = 'light',
   onZoom,
 }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -58,11 +60,9 @@ const SmilesCanvas: React.FC<SmilesCanvasProps> = ({
 
     (async () => {
       try {
-        // Dynamic import — gracefully degrades if smiles-drawer not installed
         const sd: any = await import('smiles-drawer');
         if (cancelled) return;
 
-        // smiles-drawer v2 exports differ — try SvgDrawer → Drawer → default
         const DrawerClass =
           sd.SvgDrawer ??
           sd.Drawer ??
@@ -80,12 +80,12 @@ const SmilesCanvas: React.FC<SmilesCanvasProps> = ({
         if (!canvas) return;
 
         if (typeof drawer.draw === 'function') {
-          drawer.draw(smiles, canvas, 'light', false);
+          drawer.draw(smiles, canvas, theme, false);
         } else if (typeof drawer.drawToCanvas === 'function') {
-          drawer.drawToCanvas(smiles, canvas, 'light');
+          drawer.drawToCanvas(smiles, canvas, theme);
         } else if (typeof drawer.parse === 'function') {
           const tree = drawer.parse(smiles);
-          if (tree) drawer.draw(tree, canvas, 'light', false);
+          if (tree) drawer.draw(tree, canvas, theme, false);
         }
       } catch (e: any) {
         if (!cancelled) setError(e?.message || 'Invalid SMILES');
@@ -93,17 +93,27 @@ const SmilesCanvas: React.FC<SmilesCanvasProps> = ({
     })();
 
     return () => { cancelled = true; };
-  }, [smiles, width, height]);
+  }, [smiles, width, height, theme]);
 
   const handleClick = useCallback(() => {
     if (onZoom && canvasRef.current) {
-      // Convert canvas to data URL for zoom modal
       onZoom(canvasRef.current.toDataURL('image/png'));
     }
   }, [onZoom]);
 
+  const isDark = theme === 'dark';
+
   return (
-    <span className="smiles-block" style={{ display: 'inline-flex', flexDirection: 'column', alignItems: 'center', margin: '8px 4px', verticalAlign: 'middle' }}>
+    <span
+      className={`smiles-block smiles-block--${theme}`}
+      style={{
+        display: 'inline-flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        margin: '8px 4px',
+        verticalAlign: 'middle',
+      }}
+    >
       {error ? (
         <code style={{ fontSize: '12px', color: '#d32f2f', background: '#fff3e0', padding: '4px 8px', borderRadius: '4px' }}>
           {smiles}
@@ -117,16 +127,24 @@ const SmilesCanvas: React.FC<SmilesCanvasProps> = ({
           style={{
             display: 'block',
             maxWidth: '100%',
-            border: '1px solid #e0e0e0',
-            borderRadius: '4px',
-            background: '#fff',
+            border: isDark ? '1px solid #374151' : '1px solid #e0e0e0',
+            borderRadius: '6px',
+            background: isDark ? '#1e1e24' : '#fff',
             cursor: onZoom ? 'zoom-in' : 'default',
           }}
           aria-label={title || `Chemical structure: ${smiles}`}
         />
       )}
       {title && (
-        <span style={{ fontSize: '11px', color: '#546e7a', fontStyle: 'italic', marginTop: '4px', textAlign: 'center' }}>
+        <span
+          style={{
+            fontSize: '11px',
+            color: isDark ? '#9ca3af' : '#546e7a',
+            fontStyle: 'italic',
+            marginTop: '4px',
+            textAlign: 'center',
+          }}
+        >
           {title}
         </span>
       )}
@@ -140,27 +158,43 @@ interface SmilesToken {
   placeholder: string;
   smiles: string;
   title?: string;
+  width?: number;
+  height?: number;
+  theme?: 'light' | 'dark';
 }
 
 /**
- * Extracts <smiles>...</smiles> blocks from text, replacing them with unique
+ * Extracts <smiles ...>...</smiles> blocks from text, replacing them with unique
  * placeholder strings. Returns the modified text and a list of SMILES tokens.
  *
- * Issue #126 — SMILES extraction step runs before LaTeX/Markdown processing
- * so chemical notation is never corrupted by those pipelines.
+ * Issue #126 & #144 — Supports attributes for width, height, theme, and title.
  */
 function extractSmilesBlocks(text: string): { processedText: string; smilesTokens: SmilesToken[] } {
   const smilesTokens: SmilesToken[] = [];
   let idx = 0;
 
   const processedText = text.replace(
-    /<smiles>([\s\S]*?)<\/smiles>(?:\s*<!--\s*(.*?)\s*-->)?/gi,
-    (_match, smiles: string, title?: string) => {
+    /<smiles(?:\s+([^>]*?))?>([\s\S]*?)<\/smiles>(?:\s*<!--\s*(.*?)\s*-->)?/gi,
+    (_match, rawAttrs: string | undefined, smiles: string, commentTitle?: string) => {
       const placeholder = `%%%NAG_SMILES_${idx++}%%%`;
+      const attrs = rawAttrs || '';
+      const titleMatch = attrs.match(/title="([^"]*)"/i);
+      const widthMatch = attrs.match(/width="(\d+)"/i);
+      const heightMatch = attrs.match(/height="(\d+)"/i);
+      const themeMatch = attrs.match(/theme="(light|dark)"/i);
+
+      const title = titleMatch ? titleMatch[1] : (commentTitle?.trim() || undefined);
+      const width = widthMatch ? parseInt(widthMatch[1], 10) : undefined;
+      const height = heightMatch ? parseInt(heightMatch[1], 10) : undefined;
+      const theme = themeMatch ? (themeMatch[1] as 'light' | 'dark') : undefined;
+
       smilesTokens.push({
         placeholder,
         smiles: smiles.trim(),
-        title: title?.trim() || undefined,
+        title,
+        width,
+        height,
+        theme,
       });
       return placeholder;
     }
@@ -169,7 +203,7 @@ function extractSmilesBlocks(text: string): { processedText: string; smilesToken
   return { processedText, smilesTokens };
 }
 
-// ─── Utility functions (unchanged from original) ─────────────────────────────
+// ─── Utility functions ────────────────────────────────────────────────────────
 
 function unescapeNewlines(text: string): string {
   if (!text) return '';
@@ -240,14 +274,14 @@ function cleanLatexDocCommands(text: string): string {
 function parseInlineMarkdown(text: string): string {
   if (!text) return '';
   return text
-    .replace(/\*\*\*([^\*\n\r]+?)\*\*\*/g, '<strong><em>$1</em></strong>')
-    .replace(/___([^_\n\r]+?)___/g, '<strong><em>$1</em></strong>')
-    .replace(/\*\*([^\*\n\r]+?)\*\*/g, '<strong>$1</strong>')
-    .replace(/__([^_\n\r]+?)__/g, '<strong>$1</strong>')
-    .replace(/~~([^~\n\r]+?)~~/g, '<del>$1</del>')
-    .replace(/`([^`\n\r]+?)`/g, '<code>$1</code>')
-    .replace(/(^|[^*])\*([^*\\n\r]+?)\*([^*]|$)/g, '$1<em>$2</em>$3')
-    .replace(/(^|[^a-zA-Z0-9_])_([^_\n\r]+?)_([^a-zA-Z0-9_]|$)/g, '$1<em>$2</em>$3');
+    .replace(/\*\*\*([^*\n\r]+?)\*\*\*/g, '<strong><em>$1</em></strong>')
+    .replace(/___([^_\\n\\r]+?)___/g, '<strong><em>$1</em></strong>')
+    .replace(/\*\*([^*\n\r]+?)\*\*/g, '<strong>$1</strong>')
+    .replace(/__([^_\\n\\r]+?)__/g, '<strong>$1</strong>')
+    .replace(/~~([^~\\n\\r]+?)~~/g, '<del>$1</del>')
+    .replace(/`([^`\\n\\r]+?)`/g, '<code>$1</code>')
+    .replace(/(^|[^*])\*([^*\n\r]+?)\*([^*]|$)/g, '$1<em>$2</em>$3')
+    .replace(/(^|[^a-zA-Z0-9_])_([^_\\n\\r]+?)_([^a-zA-Z0-9_]|$)/g, '$1<em>$2</em>$3');
 }
 
 function escapeHtml(str: string): string {
@@ -349,7 +383,7 @@ function extractAndRenderMath(text: string, inline: boolean): { processedText: s
     return createPlaceholder(renderKatexString(cleanMatch, isDisplay));
   });
   text = text.replace(/\\{1,4}\(([\s\S]*?)\\{1,4}\)/g, (_, math) => createPlaceholder(renderKatexString(math, false)));
-  text = text.replace(/(^|[^\\])\$([^\$\n\r]+?)\$(?!\$)/g, (_, prefix, math) => (prefix || '') + createPlaceholder(renderKatexString(math, false)));
+  text = text.replace(/(^|[^\\])\$([^$\n\r]+?)\$(?!\$)/g, (_, prefix, math) => (prefix || '') + createPlaceholder(renderKatexString(math, false)));
   return { processedText: text, tokens };
 }
 
@@ -374,7 +408,7 @@ function parseContentToHtml(raw: string, inline: boolean): {
     const { processedText: textWithoutSvg, tokens: svgTokens } = extractSvgBlocks(text);
     text = textWithoutSvg;
 
-    // 3b. Extract SMILES blocks BEFORE LaTeX/Markdown (Issue #126)
+    // 3b. Extract SMILES blocks BEFORE LaTeX/Markdown (Issue #126 & #144)
     const { processedText: textWithoutSmiles, smilesTokens } = extractSmilesBlocks(text);
     text = textWithoutSmiles;
 
@@ -444,14 +478,14 @@ const CONTENT_STYLES = `
 .math-rendered-content img:hover { opacity: 0.85; }
 `;
 
-// ─── Main MathRenderer component ─────────────────────────────────────────────
+// ─── Main MathRenderer component ──────────────────────────────────────────────
 
 /**
  * MathRenderer — renders examination content containing Markdown, LaTeX math,
  * and SMILES chemical structure notation.
  *
- * Additions (Issue #126):
- *  • Parses <smiles>...</smiles> tags.
+ * Additions (Issues #126 & #144):
+ *  • Parses <smiles ...>...</smiles> tags with width, height, theme, title attributes.
  *  • Renders each SMILES string as a 2D skeletal structure canvas via SmilesDrawer 2.0.
  *  • Chemical structures support click-to-zoom via ImageZoomModal (PNG snapshot).
  */
@@ -510,6 +544,9 @@ export const MathRenderer: React.FC<MathRendererProps> = ({
           key={`smiles-${i}`}
           smiles={token.smiles}
           title={token.title}
+          width={token.width}
+          height={token.height}
+          theme={token.theme}
           onZoom={(dataUrl) => handleSmilesZoom(dataUrl, token.smiles)}
         />
       );

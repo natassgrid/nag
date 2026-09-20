@@ -11,8 +11,7 @@
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU Affero General Public License for more details.
- *
+ * GNU Affero General Public License for more details.\n *
  * You should have received a copy of the GNU Affero General Public License
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
@@ -47,7 +46,9 @@ import {
   VOID_TYPES,
   TextAlignment,
   HIGHLIGHT_COLORS,
-  TEXT_COLORS
+  TEXT_COLORS,
+  MathInlineElement,
+  ChemicalStructureElement
 } from './models';
 import { PluginRegistry } from './plugins/plugin-registry';
 import { PluginContext, EditorSelection } from './plugins/editor-plugin';
@@ -105,8 +106,7 @@ function matchHotkey(hotkey: string, event: KeyboardEvent): boolean {
     EditorContentComponent
   ],
   providers: [
-    {
-      provide: NG_VALUE_ACCESSOR,
+    {\n      provide: NG_VALUE_ACCESSOR,
       useExisting: forwardRef(() => ExamEditorComponent),
       multi: true
     },
@@ -368,31 +368,124 @@ export class ExamEditorComponent implements ControlValueAccessor, OnInit, OnDest
     };
   }
 
+  // ─── Interactive Click-to-Edit Handlers (Issues #143 & #144) ───
+
+  onEditMath(event: { latex: string; display: boolean; element: HTMLElement }): void {
+    this.openMathInput({ latex: event.latex, display: event.display }, event.element);
+  }
+
+  onEditSmiles(event: {
+    smiles: string;
+    title?: string;
+    width?: number;
+    height?: number;
+    theme?: 'light' | 'dark';
+    element: HTMLElement;
+  }): void {
+    this.openSmilesInput(
+      {
+        smiles: event.smiles,
+        title: event.title,
+        width: event.width,
+        height: event.height,
+        theme: event.theme
+      },
+      event.element
+    );
+  }
+
   // ─── Math input dialog ───
 
-  openMathInput(existing?: { latex: string; display?: boolean }): void {
+  openMathInput(existing?: { latex: string; display?: boolean }, targetEl?: HTMLElement): void {
     const ref = this.dialog.open(MathInputDialogComponent, {
-      width: '560px',
+      width: '640px',
+      maxWidth: '95vw',
       data: existing || {}
     });
     ref.afterClosed().subscribe((result: { latex: string; display: boolean } | null) => {
       if (!result) return;
-      const node = MathInlinePlugin.createNode(result.latex, result.display);
-      this.insertNodes([node]);
+      const latexEscaped = result.latex.replace(/"/g, '&quot;');
+      const displayClass = result.display ? 'math-void--display' : 'math-void--inline';
+      const katexHtml = this.contentComponent
+        ? this.contentComponent.renderKatexSafe(result.latex, result.display)
+        : result.latex;
+
+      if (targetEl && targetEl.parentElement) {
+        // Edit in-place
+        targetEl.setAttribute('data-latex', latexEscaped);
+        targetEl.setAttribute('data-display', result.display ? 'true' : 'false');
+        targetEl.className = `math-void ${displayClass}`;
+        targetEl.innerHTML = katexHtml;
+        this.contentComponent?.syncDocument();
+      } else {
+        // Insert at cursor / selection
+        const html =
+          `<span class="math-void ${displayClass}" contenteditable="false" data-latex="${latexEscaped}" data-display="${result.display ? 'true' : 'false'}" data-type="math-inline" title="Click to edit formula">`
+          + katexHtml
+          + `</span>&nbsp;`;
+        this.contentComponent?.insertElementAtSelection(html);
+      }
     });
   }
 
   // ─── SMILES input dialog ───
 
-  openSmilesInput(existing?: { smiles: string; title?: string }): void {
+  openSmilesInput(
+    existing?: {
+      smiles: string;
+      title?: string;
+      width?: number;
+      height?: number;
+      theme?: 'light' | 'dark';
+    },
+    targetEl?: HTMLElement
+  ): void {
     const ref = this.dialog.open(SmilesInputDialogComponent, {
-      width: '480px',
+      width: '620px',
+      maxWidth: '95vw',
       data: existing || {}
     });
-    ref.afterClosed().subscribe((result: { smiles: string; title?: string } | null) => {
+    ref.afterClosed().subscribe((result: {
+      smiles: string;
+      title?: string;
+      width?: number;
+      height?: number;
+      theme?: 'light' | 'dark';
+    } | null) => {
       if (!result) return;
-      const node = ChemicalStructurePlugin.createNode(result.smiles, result.title);
-      this.insertNodes([node]);
+      const smilesEscaped = result.smiles.replace(/"/g, '&quot;');
+      const titleEscaped = result.title ? result.title.replace(/"/g, '&quot;') : '';
+      const titleHtml = result.title
+        ? `<div class="chem-caption">${this.escapeHtml(result.title)}</div>`
+        : '';
+      const w = result.width ?? 260;
+      const h = result.height ?? 200;
+      const theme = result.theme ?? 'light';
+
+      if (targetEl && targetEl.parentElement) {
+        // Edit in-place
+        targetEl.setAttribute('data-smiles', smilesEscaped);
+        targetEl.setAttribute('data-title', titleEscaped);
+        targetEl.setAttribute('data-width', String(w));
+        targetEl.setAttribute('data-height', String(h));
+        targetEl.setAttribute('data-theme', theme);
+        targetEl.innerHTML =
+          `<canvas class="smiles-canvas" width="${w}" height="${h}" data-smiles="${smilesEscaped}" data-theme="${theme}"></canvas>`
+          + titleHtml;
+        this.contentComponent?.syncDocument();
+        const editorArea = this.contentComponent?.editorArea?.nativeElement;
+        if (editorArea) {
+          this.contentComponent?.renderSmilesCanvases(editorArea);
+        }
+      } else {
+        // Insert at cursor / selection
+        const html =
+          `<span class="chem-void" contenteditable="false" data-smiles="${smilesEscaped}" data-title="${titleEscaped}" data-width="${w}" data-height="${h}" data-theme="${theme}" data-type="chemical-structure" title="Click to edit chemical structure">`
+          + `<canvas class="smiles-canvas" width="${w}" height="${h}" data-smiles="${smilesEscaped}" data-theme="${theme}"></canvas>`
+          + titleHtml
+          + `</span>&nbsp;`;
+        this.contentComponent?.insertElementAtSelection(html);
+      }
     });
   }
 
@@ -562,5 +655,13 @@ export class ExamEditorComponent implements ControlValueAccessor, OnInit, OnDest
 
   private getIndentLevel(): number {
     return (this.document[0] as any)?.indent || 0;
+  }
+
+  private escapeHtml(str: string): string {
+    return str
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
   }
 }

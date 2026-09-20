@@ -46,7 +46,6 @@ import {
  *  • numbered/bulleted lists  ↔  1. … / - …
  *  • images  ↔  ![alt](assetUrl)
  *  • alignment / indent: stored as HTML attributes on the serialised paragraph
- *    (round-trips via the load path that reconstructs from the markdown string)
  *
  * Content detection (load path):
  *  • Detects EXAM_JSON  by detecting a JSON array whose first element has a `type` key
@@ -54,7 +53,7 @@ import {
  *  • Falls back to MARKDOWN
  */
 
-// ─── Serialise (ExamDocument → Markdown string) ──────────────────────────────
+// ─── Serialise (ExamDocument → Markdown string) ───
 
 /**
  * Serialise an ExamDocument to a Markdown string for API persistence.
@@ -64,7 +63,7 @@ export function serialiseDocument(doc: ExamDocument): string {
   return doc.map(el => serialiseElement(el, 0)).join('\n');
 }
 
-function serialiseElement(el: ExamElement, depth: number): string {
+function serialiseElement(el: ExamElement, _depth: number): string {
   switch (el.type) {
     case 'paragraph': {
       const p = el as ParagraphElement;
@@ -105,13 +104,16 @@ function serialiseElement(el: ExamElement, depth: number): string {
     }
     case 'math-inline': {
       const math = el as MathInlineElement;
-      // Use $$...$$ per AGENTS.md convention; display block gets its own line
       return math.display ? `\n$$${math.latex}$$\n` : `$$${math.latex}$$`;
     }
     case 'chemical-structure': {
       const chem = el as ChemicalStructureElement;
+      const titleAttr = chem.title ? ` title="${chem.title.replace(/"/g, '&quot;')}"` : '';
+      const widthAttr = chem.width && chem.width !== 260 ? ` width="${chem.width}"` : '';
+      const heightAttr = chem.height && chem.height !== 200 ? ` height="${chem.height}"` : '';
+      const themeAttr = chem.theme && chem.theme !== 'light' ? ` theme="${chem.theme}"` : '';
       const titleComment = chem.title ? ` <!-- ${chem.title} -->` : '';
-      return `<smiles>${chem.smiles}</smiles>${titleComment}`;
+      return `<smiles${titleAttr}${widthAttr}${heightAttr}${themeAttr}>${chem.smiles}</smiles>${titleComment}`;
     }
     default:
       return '';
@@ -137,7 +139,7 @@ function serialiseTextNode(text: ExamText): string {
   return s;
 }
 
-// ─── Deserialise (string → ExamDocument) ─────────────────────────────────────
+// ─── Deserialise (string → ExamDocument) ───
 
 /**
  * Possible content formats stored in the backend.
@@ -247,25 +249,49 @@ export function parseMarkdownToDocument(markdown: string): ExamDocument {
     // --- Markdown image
     const imgMatch = line.match(/^!\[([^\]]*)\]\(([^)]+)\)$/);
     if (imgMatch) {
-      // Extract assetId from /api/v1/assets/{id}/download
       const assetIdMatch = imgMatch[2].match(/\/api\/v1\/assets\/([^/]+)\/download/);
       if (assetIdMatch) {
         doc.push({ type: 'image', assetId: assetIdMatch[1], alt: imgMatch[1], children: [{ text: '' }] });
       } else {
-        // External image — store as paragraph with markdown text
         doc.push({ type: 'paragraph', children: [{ text: line }] });
       }
       i++;
       continue;
     }
 
-    // --- SMILES chemical structure: <smiles>...</smiles>
-    const smilesMatch = line.match(/^<smiles>([\s\S]*?)<\/smiles>(?:\s*<!--\s*(.*?)\s*-->)?/);
+    // --- Standalone Math block: $$...$$
+    const mathBlockMatch = line.match(/^\$\$([\s\S]*?)\$\$$/);
+    if (mathBlockMatch) {
+      doc.push({
+        type: 'math-inline',
+        latex: mathBlockMatch[1].trim(),
+        display: true,
+        children: [{ text: '' }]
+      });
+      i++;
+      continue;
+    }
+
+    // --- SMILES chemical structure: <smiles ...>...</smiles>
+    const smilesMatch = line.match(/^<smiles(?:\s+([^>]*?))?>([\s\S]*?)<\/smiles>(?:\s*<!--\s*(.*?)\s*-->)?/i);
     if (smilesMatch) {
+      const rawAttrs = smilesMatch[1] || '';
+      const titleAttrMatch = rawAttrs.match(/title="([^"]*)"/i);
+      const widthMatch = rawAttrs.match(/width="(\d+)"/i);
+      const heightMatch = rawAttrs.match(/height="(\d+)"/i);
+      const themeMatch = rawAttrs.match(/theme="(light|dark)"/i);
+      const title = titleAttrMatch ? titleAttrMatch[1] : (smilesMatch[3]?.trim() || undefined);
+      const width = widthMatch ? parseInt(widthMatch[1], 10) : undefined;
+      const height = heightMatch ? parseInt(heightMatch[1], 10) : undefined;
+      const theme = themeMatch ? (themeMatch[1] as 'light' | 'dark') : undefined;
+
       doc.push({
         type: 'chemical-structure',
-        smiles: smilesMatch[1].trim(),
-        title: smilesMatch[2]?.trim() || undefined,
+        smiles: smilesMatch[2].trim(),
+        title,
+        width,
+        height,
+        theme,
         children: [{ text: '' }]
       });
       i++;
@@ -273,7 +299,6 @@ export function parseMarkdownToDocument(markdown: string): ExamDocument {
     }
 
     // --- Paragraph (may contain inline $$...$$ and <smiles>)
-    // Aggregate consecutive non-special lines into a single paragraph block
     doc.push({ type: 'paragraph', children: parseInlineLine(line) });
     i++;
   }
@@ -284,44 +309,34 @@ export function parseMarkdownToDocument(markdown: string): ExamDocument {
 /**
  * Parse an inline text line that may contain $$...$$ math tokens,
  * <smiles>...</smiles>, and standard Markdown marks (bold, italic, etc.).
- *
- * Returns an array of ExamText nodes (and void nodes embedded inline
- * are represented as text nodes containing a placeholder — true void
- * node embedding in contenteditable paragraphs is handled by the renderer).
- *
- * NOTE: For the purposes of DOM rendering, math and SMILES inside a paragraph
- * are serialised as special sentinel text values that the EditorContentComponent
- * knows how to render as void nodes.
  */
 function parseInlineLine(line: string): ExamText[] {
   if (!line) return [{ text: '' }];
 
   const results: ExamText[] = [];
 
-  // Tokenise by $$...$$ and <smiles>...</smiles>
-  const tokenRe = /\$\$([\s\S]*?)\$\$|<smiles>([\s\S]*?)<\/smiles>/g;
+  // Tokenise by $$...$$ and <smiles ...>...</smiles>
+  const tokenRe = /\$\$([\s\S]*?)\$\$|<smiles(?:\s+([^>]*?))?>([\s\S]*?)<\/smiles>/gi;
   let lastIndex = 0;
   let match: RegExpExecArray | null;
 
   while ((match = tokenRe.exec(line)) !== null) {
-    // Text before this token
     if (match.index > lastIndex) {
       const before = line.slice(lastIndex, match.index);
       results.push(...parseMarkupText(before));
     }
 
     if (match[1] !== undefined) {
-      // $$...$$ math — encode as a special text sentinel that the renderer handles
+      // $$...$$ math
       results.push({ text: `\x00math\x00${match[1]}\x00` });
-    } else if (match[2] !== undefined) {
-      // <smiles> — encode as a special text sentinel
-      results.push({ text: `\x00smiles\x00${match[2]}\x00` });
+    } else if (match[3] !== undefined) {
+      // <smiles ...>...</smiles>
+      results.push({ text: `\x00smiles\x00${match[3]}\x00` });
     }
 
     lastIndex = tokenRe.lastIndex;
   }
 
-  // Remaining text
   if (lastIndex < line.length) {
     results.push(...parseMarkupText(line.slice(lastIndex)));
   }
@@ -336,7 +351,6 @@ function parseMarkupText(text: string): ExamText[] {
   if (!text) return [];
 
   const result: ExamText[] = [];
-  // Simple single-pass tokeniser for **bold**, *italic*, <u>, <sub>, <sup>
   const markRe = /(\*\*\*([^*]+?)\*\*\*|\*\*([^*]+?)\*\*|\*([^*]+?)\*|<u>([^<]+?)<\/u>|<sup>([^<]+?)<\/sup>|<sub>([^<]+?)<\/sub>)/g;
   let last = 0;
   let m: RegExpExecArray | null;
@@ -361,8 +375,7 @@ function parseMarkupText(text: string): ExamText[] {
 
 /**
  * Unescape JSON-encoded newline / tab sequences in a string,
- * but NOT when immediately followed by a lowercase LaTeX command letter
- * (e.g. \neq, \neg, \rightarrow must NOT be split into newline + 'eq').
+ * but NOT when immediately followed by a lowercase LaTeX command letter.
  */
 function unescapeNewlines(text: string): string {
   if (!text) return '';
@@ -372,7 +385,7 @@ function unescapeNewlines(text: string): string {
     .replace(/\\t(?![a-z])/g, '\t');
 }
 
-// ─── Inline Sentinel Helpers ─────────────────────────────────────────────────
+// ─── Inline Sentinel Helpers ───
 
 /** Sentinel prefix for inline math in text children */
 export const MATH_SENTINEL = '\x00math\x00';
