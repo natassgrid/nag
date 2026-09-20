@@ -59,7 +59,7 @@ plugins.withId('org.graalvm.buildtools.native') {
                     '-H:+ReportExceptionStackTraces',
                     '-H:+AddAllCharsets',
                     '--enable-preview',
-                    '--initialize-at-build-time=org.slf4j.LoggerFactory,org.slf4j.helpers.Reporter'
+                    '--initialize-at-build-time=org.slf4j,ch.qos.logback'
                 ])
             }
         }
