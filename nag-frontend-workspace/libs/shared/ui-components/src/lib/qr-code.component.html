@@ -1,0 +1,39 @@
+<div class="qr-code-wrapper inline-flex flex-col items-center justify-center p-3 bg-white rounded-xl border border-slate-200 shadow-xs">
+  <svg
+    [attr.width]="size()"
+    [attr.height]="size()"
+    viewBox="0 0 100 100"
+    class="text-slate-900"
+  >
+    <!-- Outer Frame -->
+    <rect x="5" y="5" width="90" height="90" fill="none" stroke="currentColor" stroke-width="2" rx="4" />
+
+    <!-- Top-Left Target -->
+    <rect x="12" y="12" width="24" height="24" fill="none" stroke="currentColor" stroke-width="3" />
+    <rect x="18" y="18" width="12" height="12" fill="currentColor" />
+
+    <!-- Top-Right Target -->
+    <rect x="64" y="12" width="24" height="24" fill="none" stroke="currentColor" stroke-width="3" />
+    <rect x="70" y="18" width="12" height="12" fill="currentColor" />
+
+    <!-- Bottom-Left Target -->
+    <rect x="12" y="64" width="24" height="24" fill="none" stroke="currentColor" stroke-width="3" />
+    <rect x="18" y="70" width="12" height="12" fill="currentColor" />
+
+    <!-- Deterministic Data Patterns based on text hash -->
+    @for (dot of dataMatrix(); track dot.id) {
+      <rect
+        [attr.x]="dot.x"
+        [attr.y]="dot.y"
+        [attr.width]="dot.w"
+        [attr.height]="dot.h"
+        fill="currentColor"
+      />
+    }
+  </svg>
+  @if (label()) {
+    <span class="text-[10px] font-mono text-slate-500 mt-2 font-semibold">
+      {{ label() }}
+    </span>
+  }
+</div>

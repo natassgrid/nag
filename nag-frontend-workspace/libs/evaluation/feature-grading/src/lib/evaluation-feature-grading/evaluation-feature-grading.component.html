@@ -1,0 +1,243 @@
+<div class="grading-console-container p-6 max-w-7xl mx-auto">
+  <nag-page-header
+    title="Candidate Response Evaluation & Dispute Desk"
+    subtitle="Double-blind subjective scoring, dispute adjudication, and psychometric rubric enforcement"
+    icon="fact_check"
+  >
+    <div actions class="flex items-center gap-3">
+      <div class="bg-slate-100 p-1 rounded-xl flex items-center gap-1 text-xs font-semibold">
+        <button
+          type="button"
+          (click)="activeTab.set('grading')"
+          class="px-3 py-1.5 rounded-lg transition-colors"
+          [ngClass]="{
+            'bg-white text-indigo-700 shadow-xs': activeTab() === 'grading',
+            'text-slate-600 hover:text-slate-900': activeTab() !== 'grading'
+          }"
+        >
+          Pending Grading ({{ evalService.tasks().length }})
+        </button>
+        <button
+          type="button"
+          (click)="activeTab.set('disputes')"
+          class="px-3 py-1.5 rounded-lg transition-colors"
+          [ngClass]="{
+            'bg-white text-indigo-700 shadow-xs': activeTab() === 'disputes',
+            'text-slate-600 hover:text-slate-900': activeTab() !== 'disputes'
+          }"
+        >
+          Candidate Disputes ({{ evalService.disputes().length }})
+        </button>
+      </div>
+    </div>
+  </nag-page-header>
+
+  <!-- KPI Metrics -->
+  <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+    <nag-stat-card
+      label="Pending Items"
+      [value]="evalService.tasks().length"
+      icon="pending_actions"
+      variant="warn"
+    />
+    <nag-stat-card
+      label="Open Disputes"
+      [value]="evalService.disputes().length"
+      icon="gavel"
+      variant="accent"
+    />
+    <nag-stat-card
+      label="Mean Cohort Score"
+      value="74.2"
+      unit="/100"
+      icon="speed"
+      variant="primary"
+    />
+    <nag-stat-card
+      label="Scoring Reliability"
+      value="0.94"
+      unit="Cronbach's α"
+      icon="verified"
+      variant="success"
+    />
+  </div>
+
+  <!-- Grading Mode -->
+  @if (activeTab() === 'grading') {
+    @if (evalService.loading()) {
+      <div class="py-12 flex flex-col items-center justify-center text-slate-500 gap-3">
+        <mat-icon class="animate-spin !text-3xl">refresh</mat-icon>
+        <span class="text-sm">Loading pending evaluation items...</span>
+      </div>
+    } @else if (evalService.tasks().length === 0) {
+      <nag-empty-state
+        title="All candidate submissions graded"
+        description="There are currently no outstanding subjective responses awaiting evaluation."
+        icon="task_alt"
+      />
+    } @else {
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <!-- Task List -->
+        <div class="space-y-3">
+          @for (task of evalService.tasks(); track task.id) {
+            <button
+              type="button"
+              (click)="selectedTask.set(task)"
+              class="w-full text-left p-4 rounded-xl border cursor-pointer transition-all bg-white"
+              [ngClass]="{
+                'border-indigo-600 ring-2 ring-indigo-600/20 shadow-sm': selectedTask()?.id === task.id,
+                'border-slate-200 hover:border-slate-300': selectedTask()?.id !== task.id
+              }"
+            >
+              <div class="flex items-center justify-between text-xs mb-1.5">
+                <span class="font-mono font-bold text-slate-700">{{ task.questionCode }}</span>
+                <nag-status-badge [variant]="taskStatusVariant(task.status)" [label]="task.status" />
+              </div>
+              <div class="text-xs text-slate-500 mb-2">
+                Candidate: {{ task.candidateRoll }}
+              </div>
+              <div class="text-xs text-slate-700 line-clamp-2">
+                {{ task.questionContent }}
+              </div>
+            </button>
+          }
+        </div>
+
+        <!-- Scoring Workspace -->
+        <div class="lg:col-span-2 bg-white rounded-xl border border-slate-200 shadow-xs p-6 space-y-6">
+          @if (selectedTask(); as current) {
+            <div class="flex items-center justify-between border-b pb-3">
+              <div>
+                <span class="text-xs font-mono font-bold text-indigo-600">{{ current.questionCode }}</span>
+                <h3 class="text-base font-bold text-slate-900 mt-0.5">Subjective Response Evaluation</h3>
+              </div>
+              <span class="text-xs font-semibold px-2.5 py-1 rounded bg-slate-100 text-slate-700">
+                Max Marks: {{ current.maxMarks }}
+              </span>
+            </div>
+
+            <div class="space-y-2">
+              <span class="text-xs font-bold uppercase text-slate-500">Problem Statement</span>
+              <div class="p-3 bg-slate-50 rounded-lg border border-slate-200 text-sm">
+                <nag-math-renderer [content]="current.questionContent" />
+              </div>
+            </div>
+
+            <div class="space-y-2">
+              <span class="text-xs font-bold uppercase text-slate-500">Candidate Response</span>
+              <div class="p-4 bg-amber-50/40 rounded-lg border border-amber-200 text-sm font-mono whitespace-pre-wrap">
+                {{ current.candidateResponse }}
+              </div>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-4 border-t">
+              <div>
+                <label for="award-marks-input" class="block text-xs font-bold uppercase text-slate-700 mb-1">
+                  Awarded Marks (0 - {{ current.maxMarks }})
+                </label>
+                <input
+                  id="award-marks-input"
+                  type="number"
+                  [(ngModel)]="awardedMarks"
+                  [max]="current.maxMarks"
+                  min="0"
+                  class="w-full px-3 py-2 text-sm border rounded-lg focus:ring-2 focus:ring-indigo-500"
+                />
+              </div>
+              <div>
+                <label for="evaluator-remarks-input" class="block text-xs font-bold uppercase text-slate-700 mb-1">
+                  Evaluator Remarks & Rubric Notes
+                </label>
+                <input
+                  id="evaluator-remarks-input"
+                  type="text"
+                  [(ngModel)]="evaluatorComments"
+                  placeholder="e.g. Correct derivation with minor sign flaw"
+                  class="w-full px-3 py-2 text-sm border rounded-lg focus:ring-2 focus:ring-indigo-500"
+                />
+              </div>
+            </div>
+
+            <div class="flex items-center justify-end gap-3 pt-2">
+              <button
+                mat-flat-button
+                color="primary"
+                (click)="submitScore(current.id)"
+                [disabled]="submittingScore()"
+              >
+                <mat-icon>check</mat-icon>
+                Commit Grade
+              </button>
+            </div>
+          } @else {
+            <div class="text-center py-16 text-slate-400">
+              <mat-icon class="!text-4xl mb-2">touch_app</mat-icon>
+              <p class="text-sm">Select a candidate submission from the left queue to evaluate.</p>
+            </div>
+          }
+        </div>
+      </div>
+    }
+  }
+
+  <!-- Disputes Mode -->
+  @if (activeTab() === 'disputes') {
+    @if (evalService.disputes().length === 0) {
+      <nag-empty-state
+        title="No candidate dispute tickets"
+        description="All candidate inquiries have been adjudicated and finalized."
+        icon="sentiment_satisfied_alt"
+      />
+    } @else {
+      <div class="bg-white rounded-xl border border-slate-200 shadow-xs overflow-hidden">
+        <table class="min-w-full divide-y divide-slate-200 text-left text-sm">
+          <thead class="bg-slate-50 text-slate-600 font-semibold text-xs uppercase tracking-wider">
+            <tr>
+              <th scope="col" class="px-5 py-3.5">Dispute ID & Roll</th>
+              <th scope="col" class="px-5 py-3.5">Question Code</th>
+              <th scope="col" class="px-5 py-3.5">Candidate Challenge</th>
+              <th scope="col" class="px-5 py-3.5">Status</th>
+              <th scope="col" class="px-5 py-3.5 text-right">Action</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-slate-100 text-slate-700">
+            @for (d of evalService.disputes(); track d.id) {
+              <tr class="hover:bg-slate-50/70 transition-colors">
+                <td class="px-5 py-4">
+                  <div class="font-bold text-slate-900">{{ d.id }}</div>
+                  <div class="text-xs text-slate-500">{{ d.candidateRoll }}</div>
+                </td>
+                <td class="px-5 py-4 font-mono font-bold">{{ d.questionCode }}</td>
+                <td class="px-5 py-4">
+                  <div class="font-medium text-slate-900">{{ d.reason }}</div>
+                  <div class="text-xs text-slate-500 line-clamp-1">{{ d.candidateArgument }}</div>
+                </td>
+                <td class="px-5 py-4">
+                  <nag-status-badge [variant]="disputeStatusVariant(d.status)" [label]="d.status" />
+                </td>
+                <td class="px-5 py-4 text-right">
+                  <button
+                    mat-button
+                    color="primary"
+                    class="!text-xs"
+                    (click)="resolveDispute(d, 'RESOLVED')"
+                  >
+                    Accept
+                  </button>
+                  <button
+                    mat-button
+                    color="warn"
+                    class="!text-xs"
+                    (click)="resolveDispute(d, 'REJECTED')"
+                  >
+                    Dismiss
+                  </button>
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    }
+  }
+</div>

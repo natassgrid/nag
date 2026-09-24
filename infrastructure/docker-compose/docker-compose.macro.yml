@@ -4,9 +4,13 @@
 # Copyright (C) 2025 NAG Contributors
 #
 # =============================================================================
-# Docker Compose ? NAG Macro-Services Mode (Lightweight / Demo / EC2 / Small Tenants)
-# Consolidates 14 microservices into 5 deployment units + API Gateway + RabbitMQ.
-# Memory requirement: ~2.5 GB RAM (runs comfortably on t3.medium with 4 GB).
+# Docker Compose — NAG Macroservices Deployment Profile
+# Groups 14 microservices into 5 balanced Macroservice clusters + Audit:
+#   Macro 1: Identity & Access (Identity, Candidate, Admin, Notification)
+#   Macro 2: Question & Authoring (Question, Paper Generator, Asset)
+#   Macro 3: Exam Delivery (Examination, Delivery, Response)
+#   Macro 4: Assessment & Analytics (Evaluation, Result, Analytics)
+#   Macro 5: Audit Service (Stand-alone audit append-only log)
 #
 # Usage:
 #   docker compose -f docker-compose.yml -f docker-compose.macro.yml up --build
@@ -14,8 +18,6 @@
 
 x-service-common: &service-common
   restart: unless-stopped
-  env_file:
-    - .env
   networks:
     - exam-network
 
@@ -26,14 +28,20 @@ x-healthcheck-spring: &healthcheck-spring
   start_period: 30s
 
 x-spring-macro-env: &spring-macro-env
-  SPRING_PROFILES_ACTIVE: macro,docker
+  SPRING_PROFILES_ACTIVE: docker
   PLATFORM_MESSAGING_BROKER: rabbit
-  SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:-exam_admin}
-  SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-exam_secret}
   SPRING_RABBITMQ_HOST: rabbitmq
-  SPRING_RABBITMQ_PORT: "5672"
+  SPRING_RABBITMQ_PORT: 5672
   SPRING_RABBITMQ_USERNAME: ${RABBITMQ_USER:-exam_rabbit}
   SPRING_RABBITMQ_PASSWORD: ${RABBITMQ_PASS:-rabbit_secret}
+  SPRING_RABBITMQ_LISTENER_AUTO_STARTUP: "true"
+  MANAGEMENT_HEALTH_RABBIT_ENABLED: "true"
+  MANAGEMENT_HEALTH_KAFKA_ENABLED: "false"
+  MANAGEMENT_HEALTH_VAULT_ENABLED: "false"
+  MANAGEMENT_HEALTH_DISCOVERY_ENABLED: "false"
+  MANAGEMENT_HEALTH_MAIL_ENABLED: "false"
+  SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:-exam_admin}
+  SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-exam_secret}
   REDIS_HOST: redis
   REDIS_PORT: "6379"
   REDIS_PASSWORD: ${REDIS_PASSWORD:-redis_secret}
@@ -41,53 +49,27 @@ x-spring-macro-env: &spring-macro-env
   KEYCLOAK_SERVER_URL: http://keycloak:8080
   VAULT_ADDR: http://vault:8200
   VAULT_ROOT_TOKEN: ${VAULT_ROOT_TOKEN:-vault_root_token}
-  SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
-  KAFKA_BOOTSTRAP_SERVERS: kafka:9092
-  MANAGEMENT_HEALTH_VAULT_ENABLED: "false"
-  MANAGEMENT_HEALTH_DISCOVERY_ENABLED: "false"
-  MANAGEMENT_HEALTH_KAFKA_ENABLED: "false"
-  MANAGEMENT_HEALTH_MAIL_ENABLED: "false"
-  # Email / SMTP Configuration
-  SMTP_HOST: ${SMTP_HOST:-${MAIL_HOST:-smtp.gmail.com}}
-  SMTP_PORT: ${SMTP_PORT:-${MAIL_PORT:-587}}
-  SMTP_USERNAME: ${SMTP_USERNAME:-${MAIL_USERNAME:-}}
-  SMTP_PASSWORD: ${SMTP_PASSWORD:-${MAIL_PASSWORD:-}}
-  SMTP_FROM: ${SMTP_FROM:-${MAIL_FROM:-noreply@natassgrid.gov.in}}
-  MAIL_HOST: ${MAIL_HOST:-${SMTP_HOST:-smtp.gmail.com}}
-  MAIL_PORT: ${MAIL_PORT:-${SMTP_PORT:-587}}
-  MAIL_USERNAME: ${MAIL_USERNAME:-${SMTP_USERNAME:-}}
-  MAIL_PASSWORD: ${MAIL_PASSWORD:-${SMTP_PASSWORD:-}}
-  MAIL_FROM: ${MAIL_FROM:-${SMTP_FROM:-noreply@natassgrid.gov.in}}
-  SPRING_MAIL_HOST: ${SMTP_HOST:-${MAIL_HOST:-smtp.gmail.com}}
-  SPRING_MAIL_PORT: ${SMTP_PORT:-${MAIL_PORT:-587}}
-  SPRING_MAIL_USERNAME: ${SMTP_USERNAME:-${MAIL_USERNAME:-}}
-  SPRING_MAIL_PASSWORD: ${SMTP_PASSWORD:-${MAIL_PASSWORD:-}}
-  SPRING_MAIL_FROM: ${SMTP_FROM:-${MAIL_FROM:-noreply@natassgrid.gov.in}}
-  ADMIN_PORTAL_URL: ${ADMIN_PORTAL_URL:-http://localhost:4200}
-  CANDIDATE_PORTAL_URL: ${CANDIDATE_PORTAL_URL:-http://localhost:4300}
-  # SMS Gateway Configuration
-  SMS_ENABLED: ${SMS_ENABLED:-false}
-  MOBILE_VERIFICATION_REQUIRED: ${MOBILE_VERIFICATION_REQUIRED:-false}
-  MSG91_AUTH_KEY: ${MSG91_AUTH_KEY:-}
-  MSG91_TEMPLATE_ID: ${MSG91_TEMPLATE_ID:-}
-  MSG91_SENDER_ID: ${MSG91_SENDER_ID:-NAGGov}
-  OTEL_EXPORTER_OTLP_ENDPOINT: http://jaeger:4318
+  ENABLE_OBSERVABILITY: ${ENABLE_OBSERVABILITY:-false}
+  OTEL_SDK_DISABLED: ${OTEL_SDK_DISABLED:-true}
+  OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT:-http://jaeger:4318}
   APP_JWT_SECRET: dev-jwt-secret-key-for-local-testing-minimum-32-chars
 
 x-depends-macro: &depends-macro
   postgres:
+    condition: service_healthy
+  redis:
     condition: service_healthy
   rabbitmq:
     condition: service_healthy
 
 services:
 
-  # ===========================================================================
-  # RabbitMQ 3.13 ? Lightweight message broker (~80 MB RAM vs 512 MB Kafka)
-  # ===========================================================================
+  # ===========================================================================\
+  # RabbitMQ 3.13 — Message broker for Macroservice inter-cluster messaging
+  # ===========================================================================\
   rabbitmq:
     image: rabbitmq:3.13-management-alpine
-    container_name: exam-rabbitmq
+    container_name: exam-macro-rabbitmq
     restart: unless-stopped
     ports:
       - "5672:5672"       # AMQP protocol
@@ -107,32 +89,55 @@ services:
       - exam-network
 
   # ===========================================================================
-  # Macro 1: Auth & Admin Service (Identity, Candidate, Admin, Notification)
+  # Macro 1: Identity & Access Service (Identity, Candidate, Admin, Notification)
   # ===========================================================================
-  auth-admin-service:
+  identity-service:
     <<: *service-common
     build:
       context: ../../
       dockerfile: backend/Dockerfile
       args:
-        SERVICE_NAME: auth-admin-app
-    image: localhost:5000/exam/auth-admin-app:latest
-    container_name: exam-auth-admin-service
+        SERVICE_NAME: identity-app
+    image: localhost:5000/exam/identity-app:latest
+    container_name: exam-identity-service
     ports:
-      - "${AUTH_ADMIN_PORT:-8081}:${AUTH_ADMIN_PORT:-8081}"
+      - "${IDENTITY_APP_PORT:-8081}:${IDENTITY_APP_PORT:-8081}"
     environment:
       <<: *spring-macro-env
-      SERVER_PORT: ${AUTH_ADMIN_PORT:-8081}
+      SERVER_PORT: ${IDENTITY_APP_PORT:-8081}
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-exam_platform}?currentSchema=identity_service,candidate_service,admin_service,notification_service,public
-      OTEL_SERVICE_NAME: auth-admin-service
+      OTEL_SERVICE_NAME: identity-service
+      ADMIN_PORTAL_URL: ${ADMIN_PORTAL_URL:-http://localhost:4200}
+      CANDIDATE_PORTAL_URL: ${CANDIDATE_PORTAL_URL:-http://localhost:4300}
+      # Email / SMTP Configuration
+      SMTP_HOST: ${SMTP_HOST:-${MAIL_HOST:-smtp.gmail.com}}
+      SMTP_PORT: ${SMTP_PORT:-${MAIL_PORT:-587}}
+      SMTP_USERNAME: ${SMTP_USERNAME:-${MAIL_USERNAME:-}}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-${MAIL_PASSWORD:-}}
+      SMTP_FROM: ${SMTP_FROM:-${MAIL_FROM:-noreply@natassgrid.gov.in}}
+      MAIL_HOST: ${MAIL_HOST:-${SMTP_HOST:-smtp.gmail.com}}
+      MAIL_PORT: ${MAIL_PORT:-${SMTP_PORT:-587}}
+      MAIL_USERNAME: ${MAIL_USERNAME:-${SMTP_USERNAME:-}}
+      MAIL_PASSWORD: ${MAIL_PASSWORD:-${SMTP_PASSWORD:-}}
+      MAIL_FROM: ${MAIL_FROM:-${SMTP_FROM:-noreply@natassgrid.gov.in}}
+      SPRING_MAIL_HOST: ${SMTP_HOST:-${MAIL_HOST:-smtp.gmail.com}}
+      SPRING_MAIL_PORT: ${SMTP_PORT:-${MAIL_PORT:-587}}
+      SPRING_MAIL_USERNAME: ${SMTP_USERNAME:-${MAIL_USERNAME:-}}
+      SPRING_MAIL_PASSWORD: ${SMTP_PASSWORD:-${MAIL_PASSWORD:-}}
+      SPRING_MAIL_FROM: ${SMTP_FROM:-${MAIL_FROM:-noreply@natassgrid.gov.in}}
+      SMS_ENABLED: ${SMS_ENABLED:-false}
+      MOBILE_VERIFICATION_REQUIRED: ${MOBILE_VERIFICATION_REQUIRED:-false}
+      MSG91_AUTH_KEY: ${MSG91_AUTH_KEY:-}
+      MSG91_TEMPLATE_ID: ${MSG91_TEMPLATE_ID:-}
+      MSG91_SENDER_ID: ${MSG91_SENDER_ID:-NAGGov}
     depends_on:
       <<: *depends-macro
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://localhost:${AUTH_ADMIN_PORT:-8081}/actuator/health || exit 1"]
+      test: ["CMD-SHELL", "wget -qO- http://localhost:${IDENTITY_APP_PORT:-8081}/actuator/health || exit 1"]
       <<: *healthcheck-spring
 
   # ===========================================================================
-  # Macro 2: Paper Service (Question Bank, Paper Generator, Assets)
+  # Macro 2: Question & Authoring Service (Question, Paper Generator, Asset)
   # ===========================================================================
   paper-service:
     <<: *service-common
@@ -253,14 +258,16 @@ services:
       <<: *healthcheck-spring
 
   # ===========================================================================
-  # Frontend — Admin SPA
+  # Frontend — Admin Portal SPA (Nx Workspace / Angular 22)
   # ===========================================================================
   frontend:
     <<: *service-common
     build:
-      context: ../../frontend
+      context: ../../nag-frontend-workspace
       dockerfile: Dockerfile
-    image: localhost:5000/exam/frontend:latest
+      args:
+        APP_NAME: admin-portal
+    image: localhost:5000/exam/admin-portal:latest
     container_name: exam-frontend
     ports:
       - "4200:80"
@@ -272,17 +279,40 @@ services:
       start_period: 10s
 
   # ===========================================================================
-  # Candidate Frontend — Candidate SPA
+  # Candidate Frontend — Delivery Console SPA (Nx Workspace / Angular 22)
   # ===========================================================================
   candidate-frontend:
     <<: *service-common
     build:
-      context: ../../candidate-frontend
+      context: ../../nag-frontend-workspace
       dockerfile: Dockerfile
-    image: localhost:5000/exam/candidate-frontend:latest
+      args:
+        APP_NAME: candidate-delivery
+    image: localhost:5000/exam/candidate-delivery:latest
     container_name: exam-candidate-frontend
     ports:
       - "4300:80"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:80/health || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+  # ===========================================================================
+  # Public Verifier — Credential & Proof Verifier SPA (Nx Workspace / Angular 22)
+  # ===========================================================================
+  public-verifier:
+    <<: *service-common
+    build:
+      context: ../../nag-frontend-workspace
+      dockerfile: Dockerfile
+      args:
+        APP_NAME: public-verifier
+    image: localhost:5000/exam/public-verifier:latest
+    container_name: exam-public-verifier
+    ports:
+      - "4400:80"
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:80/health || exit 1"]
       interval: 30s

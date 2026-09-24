@@ -8,11 +8,13 @@
 #   - 1 Redis 7 container
 #   - 1 HashiCorp Vault container
 #   - 1 Keycloak container
-#   - 1 Admin Frontend (React/Vite)
-#   - 1 Candidate Frontend (React/Vite)
+#   - 1 Admin Portal SPA (Nx Workspace / Angular 22 - Port 4200)
+#   - 1 Candidate Delivery SPA (Nx Workspace / Angular 22 - Port 4300)
+#   - 1 Public Verifier SPA (Nx Workspace / Angular 22 - Port 4400)
 #
 # Usage:
-#   ./redeploy-monolith.sh                  # Deploy with In-Memory Event Bus (Zero-Broker, Minimal RAM)
+#   ./redeploy-monolith.sh                  # Deploy Monolith + all 3 Nx Frontends
+#   ./redeploy-monolith.sh --backend-only   # Deploy only Backend Monolith + DB/Vault/Redis (Skip Frontend builds)
 #   ./redeploy-monolith.sh --rabbit         # Deploy with RabbitMQ Broker
 #   ./redeploy-monolith.sh --clean-db       # Drop all volumes / fresh Postgres schema
 #   ./redeploy-monolith.sh --observability  # Start with Prometheus, Grafana, and Jaeger
@@ -22,6 +24,9 @@
 #   ./redeploy-monolith.sh --health         # Check health status of monolith
 # =============================================================================
 set -e
+
+export BUILDX_NO_DEFAULT_ATTESTATIONS=1
+export DOCKER_BUILDKIT=1
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
@@ -34,6 +39,7 @@ OBSERVABILITY=false
 AI=false
 CLEAN_DB=false
 RABBIT=false
+BACKEND_ONLY=false
 
 # If PLATFORM_MESSAGING_BROKER environment variable is pre-set to rabbit
 if [ "${PLATFORM_MESSAGING_BROKER:-}" = "rabbit" ]; then
@@ -46,6 +52,7 @@ while [[ $# -gt 0 ]]; do
         --restart) RESTART_ONLY=true; shift ;;
         --health) HEALTH_CHECK=true; shift ;;
         --clean-db|--clean-volumes|--delete-db-volume|--reset-db|--drop-db) CLEAN_DB=true; shift ;;
+        --backend-only|--monolith-only|--no-frontends) BACKEND_ONLY=true; shift ;;
         --rabbit|--with-rabbit) RABBIT=true; shift ;;
         --observability|--with-observability) OBSERVABILITY=true; shift ;;
         --ai|--with-ai) AI=true; shift ;;
@@ -81,6 +88,11 @@ if [ "$RABBIT" = true ]; then
 echo "  Messaging:    RabbitMQ (exam-monolith-rabbitmq:5672)"
 else
 echo "  Messaging:    In-Memory Spring Events (Zero External Broker)"
+fi
+if [ "$BACKEND_ONLY" = true ]; then
+echo "  Frontends:    Skipped (--backend-only mode active)"
+else
+echo "  Frontends:    Nx Angular Apps (Admin:4200, Candidate:4300, Verifier:4400)"
 fi
 if [ "$CLEAN_DB" = true ]; then
 echo "  Database:     Reset (Volumes will be deleted)"
@@ -120,7 +132,7 @@ if [ "$HEALTH_CHECK" = true ]; then
         exit 1
     fi
 
-    health_url="http://localhost:8080/actuator/health"
+    health_url="http://localhost:9000/actuator/health"
     health_response=$(curl -s --connect-timeout 3 --max-time 5 "$health_url" 2>/dev/null || echo "")
 
     if [ -z "$health_response" ]; then
@@ -128,7 +140,7 @@ if [ "$HEALTH_CHECK" = true ]; then
     fi
 
     if echo "$health_response" | grep -q -E '"status":"UP"|healthy'; then
-        echo "  monolith-app: ✅ UP (Port 8080)"
+        echo "  monolith-app: ✅ UP (Port 9000)"
     else
         echo "  monolith-app: ⚠️ $health_response"
     fi
@@ -136,7 +148,11 @@ if [ "$HEALTH_CHECK" = true ]; then
 fi
 
 # --- Target app services to manage ---
-APP_TARGETS="monolith-app frontend candidate-frontend"
+if [ "$BACKEND_ONLY" = true ]; then
+    APP_TARGETS="monolith-app"
+else
+    APP_TARGETS="monolith-app admin-portal candidate-delivery public-verifier"
+fi
 
 # --- Restart only mode ---
 if [ "$RESTART_ONLY" = true ]; then
@@ -192,16 +208,26 @@ echo "  Ensuring Vault is unsealed and transit keys are initialized..."
 $COMPOSE up -d vault-init
 
 echo ""
-echo "📦 Building monolith-app and frontends..."
+echo "📦 Building targets: $APP_TARGETS..."
 $COMPOSE build $NO_CACHE $APP_TARGETS
 
 echo ""
-echo "🚀 Starting monolith stack..."
+echo "🚀 Starting monolith stack ($APP_TARGETS)..."
 $COMPOSE up -d $APP_TARGETS
 
 echo ""
 echo "============================================="
 echo "  🎉 Single JVM Monolith redeploy complete!"
+echo "============================================="
+echo "  Monolith API:        http://localhost:9000"
+echo "  Actuator Health:     http://localhost:9000/actuator/health"
+if [ "$BACKEND_ONLY" = false ]; then
+echo "  Admin Portal:        http://localhost:4200"
+echo "  Candidate Delivery:  http://localhost:4300"
+echo "  Public Verifier:     http://localhost:4400"
+fi
+echo "  Postgres Database:   localhost:5432"
+echo "  Redis Cache:         localhost:6379"
 echo "============================================="
 echo ""
 $COMPOSE ps --format "table {{.Name}}\t{{.Status}}\t{{.Ports}}" 2>/dev/null || $COMPOSE ps

@@ -1,0 +1,186 @@
+<div class="paper-gen-container p-6 max-w-7xl mx-auto">
+  <nag-page-header
+    title="Algorithmic Question Paper Generation"
+    subtitle="Constrained automated test assembly with cryptographic Merkle tree ledger verification"
+    icon="auto_awesome"
+  >
+    <div actions class="flex items-center gap-3">
+      <button
+        mat-flat-button
+        color="primary"
+        (click)="generatePaper()"
+        [disabled]="generating()"
+        class="!rounded-lg"
+      >
+        <mat-icon>{{ generating() ? 'hourglass_top' : 'shield' }}</mat-icon>
+        {{ generating() ? 'Assembling Paper...' : 'Generate & Mint Proof' }}
+      </button>
+    </div>
+  </nag-page-header>
+
+  <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+    <!-- Blueprint Configuration Column -->
+    <div class="lg:col-span-2 space-y-6 bg-white p-6 rounded-xl border border-slate-200 shadow-xs">
+      <h2 class="text-base font-bold text-slate-900 border-b pb-2 flex items-center gap-2">
+        <mat-icon class="text-indigo-600">settings_suggest</mat-icon>
+        Blueprint Constraints & Assembly Matrix
+      </h2>
+
+      <div class="grid grid-cols-2 gap-4">
+        <div>
+          <label for="exam-id-input" class="block text-xs font-semibold text-slate-700 uppercase mb-1">
+            Target Exam Code
+          </label>
+          <input
+            id="exam-id-input"
+            type="text"
+            [(ngModel)]="examCode"
+            placeholder="NES-2026-S1"
+            class="w-full px-3 py-2 text-sm border rounded-lg focus:ring-2 focus:ring-indigo-500"
+          />
+        </div>
+        <div>
+          <label for="total-q-input" class="block text-xs font-semibold text-slate-700 uppercase mb-1">
+            Total Items to Draw
+          </label>
+          <input
+            id="total-q-input"
+            type="number"
+            [(ngModel)]="totalQuestions"
+            class="w-full px-3 py-2 text-sm border rounded-lg focus:ring-2 focus:ring-indigo-500"
+          />
+        </div>
+      </div>
+
+      <!-- Difficulty Distribution Sliders -->
+      <div class="p-4 bg-slate-50 rounded-xl border border-slate-200 space-y-3">
+        <div class="flex items-center justify-between">
+          <span class="text-xs font-bold uppercase text-slate-700">
+            Difficulty Balance Distribution (%)
+          </span>
+          <span
+            class="text-xs font-bold px-2 py-0.5 rounded"
+            [ngClass]="{
+              'bg-emerald-100 text-emerald-800': easyPercent + medPercent + hardPercent === 100,
+              'bg-rose-100 text-rose-800': easyPercent + medPercent + hardPercent !== 100
+            }"
+          >
+            Sum: {{ easyPercent + medPercent + hardPercent }}%
+          </span>
+        </div>
+
+        <div class="space-y-2">
+          <div class="flex items-center gap-3">
+            <span class="text-xs font-medium w-16 text-slate-600">Easy ({{ easyPercent }}%)</span>
+            <input
+              type="range"
+              [(ngModel)]="easyPercent"
+              min="0"
+              max="100"
+              class="grow accent-emerald-600"
+            />
+          </div>
+          <div class="flex items-center gap-3">
+            <span class="text-xs font-medium w-16 text-slate-600">Medium ({{ medPercent }}%)</span>
+            <input
+              type="range"
+              [(ngModel)]="medPercent"
+              min="0"
+              max="100"
+              class="grow accent-amber-600"
+            />
+          </div>
+          <div class="flex items-center gap-3">
+            <span class="text-xs font-medium w-16 text-slate-600">Hard ({{ hardPercent }}%)</span>
+            <input
+              type="range"
+              [(ngModel)]="hardPercent"
+              min="0"
+              max="100"
+              class="grow accent-rose-600"
+            />
+          </div>
+        </div>
+      </div>
+
+      <!-- Anti-collusion Shuffle Toggles -->
+      <div class="p-4 border rounded-xl space-y-2">
+        <span class="block text-xs font-bold uppercase text-slate-700 mb-2">
+          Anti-Collusion Dynamic Shuffling
+        </span>
+        <label class="flex items-center gap-2.5 text-sm text-slate-700 cursor-pointer">
+          <input
+            type="checkbox"
+            [(ngModel)]="shuffleQuestions"
+            class="h-4 w-4 rounded text-indigo-600 border-slate-300"
+          />
+          <span>Pseudorandom candidate-specific question permutation</span>
+        </label>
+        <label class="flex items-center gap-2.5 text-sm text-slate-700 cursor-pointer">
+          <input
+            type="checkbox"
+            [(ngModel)]="shuffleOptions"
+            class="h-4 w-4 rounded text-indigo-600 border-slate-300"
+          />
+          <span>Dynamic option key permutation (A, B, C, D rotation)</span>
+        </label>
+      </div>
+    </div>
+
+    <!-- Ledger Integrity & Proof Column -->
+    <div class="space-y-6">
+      <div class="bg-white p-6 rounded-xl border border-slate-200 shadow-xs">
+        <h2 class="text-base font-bold text-slate-900 border-b pb-2 mb-4 flex items-center gap-2">
+          <mat-icon class="text-indigo-600">verified</mat-icon>
+          Cryptographic Ledger Proof
+        </h2>
+
+        @if (proofResult()) {
+          <div class="space-y-3">
+            <div class="p-3 bg-emerald-50 rounded-lg border border-emerald-200">
+              <div class="flex items-center gap-2 text-emerald-800 text-xs font-bold mb-1">
+                <mat-icon class="!text-sm leading-none">check_circle</mat-icon>
+                <span>Merkle Root Anchored</span>
+              </div>
+              <div class="text-[11px] font-mono text-emerald-950 break-all">
+                {{ proofResult()?.proofHash }}
+              </div>
+            </div>
+
+            <div class="text-xs space-y-1.5 text-slate-600">
+              <div class="flex justify-between">
+                <span class="text-slate-400">Ledger Block:</span>
+                <span class="font-mono font-bold">#{{ proofResult()?.blockNumber }}</span>
+              </div>
+              <div class="flex justify-between">
+                <span class="text-slate-400">Timestamp:</span>
+                <span>{{ proofResult()?.timestamp }}</span>
+              </div>
+              <div class="flex justify-between">
+                <span class="text-slate-400">Merkle Root:</span>
+                <span class="font-mono text-[10px] truncate max-w-[140px]">
+                  {{ proofResult()?.merkleRoot }}
+                </span>
+              </div>
+            </div>
+          </div>
+        } @else {
+          <div class="text-center py-8 text-slate-400">
+            <mat-icon class="!text-4xl text-slate-300 mb-2">lock_clock</mat-icon>
+            <p class="text-xs">No paper minted yet. Generate a paper to anchor its Merkle tree on the ledger.</p>
+          </div>
+        }
+      </div>
+
+      <div class="bg-indigo-50/50 p-5 rounded-xl border border-indigo-100 text-xs text-indigo-950 space-y-2">
+        <h4 class="font-bold flex items-center gap-1.5">
+          <mat-icon class="!text-base text-indigo-600 leading-none">info</mat-icon>
+          Zero-Knowledge Verification
+        </h4>
+        <p class="text-indigo-800/80 leading-relaxed">
+          Once minted, the hash proof is permanently recorded. Candidate exam clients can independently verify that their test instances adhere to this exact blueprint.
+        </p>
+      </div>
+    </div>
+  </div>
+</div>

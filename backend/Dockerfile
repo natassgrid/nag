@@ -23,8 +23,8 @@ COPY backend/gradle/gradle-8.14.5-bin.zip /tmp/gradle-8.14.5-bin.zip
 # Fix Windows CRLF line endings, make executable, point wrapper at local zip
 RUN sed -i 's/\r$//' gradlew && \
     chmod +x gradlew && \
-    sed -i 's|distributionUrl=.*|distributionUrl=file\\:/tmp/gradle-8.14.5-bin.zip|' gradle/wrapper/gradle-wrapper.properties && \
-    ./gradlew --version
+    sed -i 's|distributionUrl=.*|distributionUrl=file\:/tmp/gradle-8.14.5-bin.zip|' gradle/wrapper/gradle-wrapper.properties && \
+    sh ./gradlew --version
 
 # Copy all backend source (needed for multi-module resolution)
 COPY backend/ backend/
@@ -32,7 +32,7 @@ COPY backend/ backend/
 # Build the target service jar
 RUN --mount=type=cache,target=/root/.gradle/caches \
     --mount=type=cache,target=/root/.gradle/wrapper \
-    ./gradlew :backend:${SERVICE_NAME}:bootJar -x test --no-daemon
+    sh ./gradlew :backend:${SERVICE_NAME}:bootJar -x test --no-daemon
 
 # --- Stage 2: Runtime ---
 FROM eclipse-temurin:21-jre-alpine
@@ -49,14 +49,24 @@ RUN mkdir -p /data/asset-storage && chown -R appuser:appgroup /data /app
 
 # Copy the built jar
 COPY --from=builder /workspace/backend/${SERVICE_NAME}/build/libs/*.jar app.jar
-RUN chown appuser:appgroup /app/app.jar
 
-# Spring Boot Actuator health endpoint
-HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=5 \
-    CMD wget -qO- http://localhost:8080/actuator/health || exit 1
-
+# Run as non-root user
 USER appuser
 
-EXPOSE 8080
+EXPOSE 8080 8081 8082 8083 8084 8085 8086 8087 8088 8089 8090 8091 9000
 
-ENTRYPOINT ["java", "-jar", "app.jar"]
+# Health check using wget (built into alpine)
+HEALTHCHECK --interval=30s --timeout=5s --start-period=60s --retries=3 \
+    CMD wget -qO- http://localhost:8080/actuator/health || \
+        wget -qO- http://localhost:8081/actuator/health || \
+        wget -qO- http://localhost:8083/actuator/health || \
+        wget -qO- http://localhost:8087/actuator/health || \
+        wget -qO- http://localhost:8089/actuator/health || \
+        wget -qO- http://localhost:8091/actuator/health || \
+        wget -qO- http://localhost:9000/actuator/health || exit 1
+
+ENTRYPOINT ["java", \
+    "-XX:+UseG1GC", \
+    "-XX:MaxRAMPercentage=75.0", \
+    "-Djava.security.egd=file:/dev/./urandom", \
+    "-jar", "app.jar"]

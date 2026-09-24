@@ -1,0 +1,18 @@
+# Gradle / Java
+.gradle/
+build/
+target/
+*.class
+*.jar
+!**/build.gradle
+!**/settings.gradle
+
+# IDEs
+.idea/
+.vscode/
+*.iml
+
+# Logs & temp
+*.log
+tmp/
+temp/

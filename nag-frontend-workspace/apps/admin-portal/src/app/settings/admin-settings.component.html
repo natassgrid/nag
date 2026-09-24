@@ -1,0 +1,143 @@
+<div class="admin-settings-page max-w-5xl mx-auto p-6 space-y-6">
+  <nag-page-header
+    title="System Configuration & Security Policies"
+    subtitle="Global platform controls, delivery security timeouts, proctoring kiosks, and DPI gateway anchors"
+    icon="settings"
+  >
+    <div actions class="flex items-center gap-3">
+      <button mat-stroked-button (click)="resetDefaults()" class="!rounded-xl">
+        Reset Defaults
+      </button>
+      <button mat-flat-button color="primary" (click)="saveSettings()" [disabled]="saving()" class="!rounded-xl">
+        <mat-icon>{{ saving() ? 'hourglass_top' : 'save' }}</mat-icon>
+        {{ saving() ? 'Saving...' : 'Save Configuration' }}
+      </button>
+    </div>
+  </nag-page-header>
+
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+    <!-- Security & Auth -->
+    <div class="bg-white rounded-2xl border border-slate-200 p-6 shadow-xs space-y-4">
+      <h3 class="text-sm font-bold text-slate-900 uppercase tracking-wider flex items-center gap-2 border-b pb-3">
+        <mat-icon class="text-indigo-600 !text-lg">security</mat-icon>
+        Authentication & Session Security
+      </h3>
+
+      <div class="space-y-4 text-xs">
+        <div class="flex items-center justify-between">
+          <label for="auth-mfa-enforced">
+            <span class="block font-bold text-slate-800">Enforce Multi-Factor Authentication (MFA)</span>
+            <span class="text-slate-500">Require TOTP hardware tokens for all officers</span>
+          </label>
+          <input id="auth-mfa-enforced" type="checkbox" [(ngModel)]="settings.authMfaEnforced" class="w-4 h-4 text-indigo-600 rounded" />
+        </div>
+
+        <div>
+          <label for="auth-timeout" class="block font-bold text-slate-700 uppercase mb-1">Session Inactivity Timeout (Minutes)</label>
+          <input id="auth-timeout" type="number" [(ngModel)]="settings.authSessionTimeoutMinutes" class="w-full px-3 py-2 border rounded-xl" />
+        </div>
+
+        <div>
+          <label for="auth-max-attempts" class="block font-bold text-slate-700 uppercase mb-1">Max Failed Login Attempts Before Lockout</label>
+          <input id="auth-max-attempts" type="number" [(ngModel)]="settings.authMaxLoginAttempts" class="w-full px-3 py-2 border rounded-xl" />
+        </div>
+      </div>
+    </div>
+
+    <!-- Exam Delivery & Kiosk Proctoring -->
+    <div class="bg-white rounded-2xl border border-slate-200 p-6 shadow-xs space-y-4">
+      <h3 class="text-sm font-bold text-slate-900 uppercase tracking-wider flex items-center gap-2 border-b pb-3">
+        <mat-icon class="text-indigo-600 !text-lg">lock</mat-icon>
+        Delivery & Kiosk Proctoring
+      </h3>
+
+      <div class="space-y-4 text-xs">
+        <div class="flex items-center justify-between">
+          <label for="delivery-kiosk-enforced">
+            <span class="block font-bold text-slate-800">Hardware Kiosk Mode Enforced</span>
+            <span class="text-slate-500">Lock down full-screen display & block clipboard</span>
+          </label>
+          <input id="delivery-kiosk-enforced" type="checkbox" [(ngModel)]="settings.deliveryKioskModeEnforced" class="w-4 h-4 text-indigo-600 rounded" />
+        </div>
+
+        <div class="flex items-center justify-between">
+          <label for="delivery-tamper-detection">
+            <span class="block font-bold text-slate-800">Tamper & Multi-Monitor Detection</span>
+            <span class="text-slate-500">Log window blur events and capture anomalies</span>
+          </label>
+          <input id="delivery-tamper-detection" type="checkbox" [(ngModel)]="settings.deliveryTamperDetectionEnabled" class="w-4 h-4 text-indigo-600 rounded" />
+        </div>
+
+        <div>
+          <label for="delivery-heartbeat" class="block font-bold text-slate-700 uppercase mb-1">Telemetry Heartbeat Interval (Seconds)</label>
+          <input id="delivery-heartbeat" type="number" [(ngModel)]="settings.deliveryTelemetryHeartbeatSeconds" class="w-full px-3 py-2 border rounded-xl" />
+        </div>
+      </div>
+    </div>
+
+    <!-- Assessment & AI Studio -->
+    <div class="bg-white rounded-2xl border border-slate-200 p-6 shadow-xs space-y-4">
+      <h3 class="text-sm font-bold text-slate-900 uppercase tracking-wider flex items-center gap-2 border-b pb-3">
+        <mat-icon class="text-indigo-600 !text-lg">psychology</mat-icon>
+        Assessment & AI Studio Policies
+      </h3>
+
+      <div class="space-y-4 text-xs">
+        <div class="flex items-center justify-between">
+          <label for="dual-review-req">
+            <span class="block font-bold text-slate-800">Dual-Review Peer Blind Approval</span>
+            <span class="text-slate-500">Require two independent domain reviewers</span>
+          </label>
+          <input id="dual-review-req" type="checkbox" [(ngModel)]="settings.questionDualReviewRequired" class="w-4 h-4 text-indigo-600 rounded" />
+        </div>
+
+        <div class="flex items-center justify-between">
+          <label for="ai-gen-enabled">
+            <span class="block font-bold text-slate-800">AI Distractor & Stem Generation</span>
+            <span class="text-slate-500">Enable LiteLLM assistant in Authoring Studio</span>
+          </label>
+          <input id="ai-gen-enabled" type="checkbox" [(ngModel)]="settings.questionAiGenerationEnabled" class="w-4 h-4 text-indigo-600 rounded" />
+        </div>
+
+        <div class="flex items-center justify-between">
+          <label for="anon-eval">
+            <span class="block font-bold text-slate-800">Anonymize Evaluation Answer Sheets</span>
+            <span class="text-slate-500">Mask candidate identities during grading</span>
+          </label>
+          <input id="anon-eval" type="checkbox" [(ngModel)]="settings.evaluationAnonymizeCandidateSheets" class="w-4 h-4 text-indigo-600 rounded" />
+        </div>
+      </div>
+    </div>
+
+    <!-- DPI & Infrastructure Gateway -->
+    <div class="bg-white rounded-2xl border border-slate-200 p-6 shadow-xs space-y-4">
+      <h3 class="text-sm font-bold text-slate-900 uppercase tracking-wider flex items-center gap-2 border-b pb-3">
+        <mat-icon class="text-indigo-600 !text-lg">hub</mat-icon>
+        DPI & Infrastructure Gateway
+      </h3>
+
+      <div class="space-y-4 text-xs">
+        <div class="flex items-center justify-between">
+          <label for="dpi-digilocker">
+            <span class="block font-bold text-slate-800">DigiLocker KYC Gateway</span>
+            <span class="text-slate-500">Automated Aadhaar / document anchoring</span>
+          </label>
+          <input id="dpi-digilocker" type="checkbox" [(ngModel)]="settings.dpiDigilockerVerificationEnabled" class="w-4 h-4 text-indigo-600 rounded" />
+        </div>
+
+        <div>
+          <label for="alert-webhook" class="block font-bold text-slate-700 uppercase mb-1">Critical Security Alert Webhook</label>
+          <input id="alert-webhook" type="text" [(ngModel)]="settings.alertCriticalErrorWebhook" placeholder="https://ops.nag.gov.in/webhooks/security" class="w-full px-3 py-2 border rounded-xl font-mono" />
+        </div>
+
+        <div class="flex items-center justify-between">
+          <label for="maintenance-mode">
+            <span class="block font-bold text-slate-800">Emergency Maintenance Mode</span>
+            <span class="text-slate-500">Restrict access to superadmins only</span>
+          </label>
+          <input id="maintenance-mode" type="checkbox" [(ngModel)]="settings.platformMaintenanceMode" class="w-4 h-4 text-rose-600 rounded" />
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

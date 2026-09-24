@@ -1,0 +1,13 @@
+{
+  "name": "examinations-feature-paper-gen",
+  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "libs/examinations/feature-paper-gen/src",
+  "prefix": "lib",
+  "projectType": "library",
+  "tags": ["scope:examinations", "type:feature"],
+  "targets": {
+    "lint": {
+      "executor": "@nx/eslint:lint"
+    }
+  }
+}

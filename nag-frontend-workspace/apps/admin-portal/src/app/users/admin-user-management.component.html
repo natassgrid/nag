@@ -1,0 +1,165 @@
+<div class="admin-users-page max-w-7xl mx-auto p-6 space-y-8">
+  <nag-page-header
+    title="User Access & Security Administration"
+    subtitle="Manage role-based access control, cryptographic key pairs, and mandatory TOTP two-factor authentication"
+    icon="manage_accounts"
+  >
+    <div actions class="flex items-center gap-3">
+      <button mat-flat-button color="primary" (click)="openInviteModal()" class="!rounded-xl">
+        <mat-icon>person_add</mat-icon>
+        Invite Authority User
+      </button>
+    </div>
+  </nag-page-header>
+
+  <!-- Filter & Search Toolbar -->
+  <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs flex flex-col md:flex-row items-center justify-between gap-4">
+    <div class="w-full md:w-96">
+      <nag-search-input
+        placeholder="Search users by name, email, or role..."
+        (searchChange)="searchQuery.set($event)"
+      />
+    </div>
+
+    <div class="flex items-center gap-3 w-full md:w-auto">
+      <label for="role-filter-select" class="text-xs text-slate-500 font-semibold">Filter Role:</label>
+      <select
+        id="role-filter-select"
+        [ngModel]="selectedRole()"
+        (ngModelChange)="selectedRole.set($event)"
+        class="px-3 py-2 text-xs border border-slate-300 rounded-xl bg-slate-50 focus:ring-2 focus:ring-indigo-500"
+      >
+        <option value="ALL">All Roles</option>
+        <option value="SUPER_ADMIN">Super Admin</option>
+        <option value="EXAM_CONTROLLER">Exam Controller</option>
+        <option value="QUESTION_AUTHOR">Question Author</option>
+        <option value="EVALUATOR">Evaluator</option>
+        <option value="AUDITOR">Auditor</option>
+      </select>
+    </div>
+  </div>
+
+  <!-- User Management Table -->
+  <div class="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
+    <div class="overflow-x-auto">
+      <table class="w-full text-xs text-left">
+        <thead class="bg-slate-50 text-slate-600 uppercase font-semibold border-b">
+          <tr>
+            <th class="p-4">User</th>
+            <th class="p-4">Assigned Role</th>
+            <th class="p-4">2FA (TOTP) Status</th>
+            <th class="p-4">Last Login (UTC)</th>
+            <th class="p-4">Account Status</th>
+            <th class="p-4 text-right">Actions</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-slate-100 font-sans">
+          @for (user of filteredUsers(); track user.id) {
+            <tr class="hover:bg-slate-50/70 transition-colors">
+              <td class="p-4">
+                <div class="font-bold text-slate-900 text-sm">{{ user.name }}</div>
+                <div class="text-[11px] text-slate-500 font-mono">{{ user.email }}</div>
+              </td>
+              <td class="p-4">
+                <span class="px-2.5 py-1 rounded-lg text-[10px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-100">
+                  {{ user.role }}
+                </span>
+              </td>
+              <td class="p-4">
+                <span class="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-700">
+                  <mat-icon class="!text-xs leading-none">lock</mat-icon>
+                  Enforced & Active
+                </span>
+              </td>
+              <td class="p-4 text-slate-500 font-mono text-[11px]">{{ user.lastLogin }}</td>
+              <td class="p-4">
+                <nag-status-badge
+                  [variant]="user.status === 'ACTIVE' ? 'success' : 'error'"
+                  [label]="user.status"
+                />
+              </td>
+              <td class="p-4 text-right">
+                <button
+                  mat-stroked-button
+                  color="warn"
+                  (click)="toggleUserStatus(user)"
+                  class="!rounded-lg !text-[11px] !py-1 !px-2.5"
+                >
+                  {{ user.status === 'ACTIVE' ? 'Revoke Access' : 'Reactivate' }}
+                </button>
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Invite User Modal -->
+  @if (isInviteModalOpen()) {
+    <div class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4">
+      <div class="bg-white rounded-3xl max-w-lg w-full p-8 shadow-2xl border border-slate-100 space-y-6">
+        <div class="flex items-center justify-between border-b pb-4">
+          <h3 class="text-base font-bold text-slate-900">Invite Assessment Authority Member</h3>
+          <button mat-icon-button (click)="isInviteModalOpen.set(false)">
+            <mat-icon>close</mat-icon>
+          </button>
+        </div>
+
+        <div class="space-y-4 text-xs">
+          <div>
+            <label for="invite-fullname-input" class="block font-bold text-slate-700 mb-1">Full Official Name</label>
+            <input
+              id="invite-fullname-input"
+              type="text"
+              [(ngModel)]="newUserName"
+              placeholder="e.g. Dr. Rajesh Kumar"
+              class="w-full px-3 py-2.5 border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500"
+            />
+          </div>
+
+          <div>
+            <label for="invite-email-input" class="block font-bold text-slate-700 mb-1">Official Government / Institutional Email</label>
+            <input
+              id="invite-email-input"
+              type="email"
+              [(ngModel)]="newUserEmail"
+              placeholder="e.g. rajesh.k@nag.gov.in"
+              class="w-full px-3 py-2.5 border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500"
+            />
+          </div>
+
+          <div>
+            <label for="invite-role-select" class="block font-bold text-slate-700 mb-1">Assigned Privilege Role</label>
+            <select
+              id="invite-role-select"
+              [(ngModel)]="newUserRole"
+              class="w-full px-3 py-2.5 border border-slate-300 rounded-xl bg-slate-50 focus:ring-2 focus:ring-indigo-500"
+            >
+              <option value="QUESTION_AUTHOR">Question Author (Draft & Formula Authoring)</option>
+              <option value="EXAM_CONTROLLER">Exam Controller (Paper Assembly & Scheduling)</option>
+              <option value="EVALUATOR">Evaluator (Double-Blind Grading)</option>
+              <option value="AUDITOR">Auditor (Read-Only Ledger & Hash Verification)</option>
+              <option value="SUPER_ADMIN">Super Administrator (Full Cluster Control)</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="flex items-center justify-end gap-3 pt-2">
+          <button mat-stroked-button (click)="isInviteModalOpen.set(false)" class="!rounded-xl">
+            Cancel
+          </button>
+          <button
+            mat-flat-button
+            color="primary"
+            (click)="submitInvite()"
+            [disabled]="!newUserName.trim() || !newUserEmail.trim()"
+            class="!rounded-xl"
+          >
+            Send Cryptographic Invitation
+          </button>
+        </div>
+      </div>
+    </div>
+  }
+</div>

@@ -1,0 +1,140 @@
+<div class="candidate-results-page max-w-6xl mx-auto p-6 space-y-8">
+  <nag-page-header
+    title="Official Candidate Scorecard & Performance Analytics"
+    subtitle="Verifiable national performance metrics with immutable ledger audit trail"
+    icon="military_tech"
+  >
+    <div actions class="flex items-center gap-3">
+      <a mat-stroked-button routerLink="/dashboard" class="!rounded-xl">
+        &larr; Dashboard
+      </a>
+      <a mat-stroked-button routerLink="/review" color="primary" class="!rounded-xl">
+        <mat-icon>quiz</mat-icon>
+        Review Questions & Solutions
+      </a>
+      <button mat-flat-button color="primary" (click)="downloadScorecard()" class="!rounded-xl">
+        <mat-icon>file_download</mat-icon>
+        Download PDF
+      </button>
+    </div>
+  </nag-page-header>
+
+  @if (scorecard(); as sc) {
+    <!-- Scorecard Certificate Banner -->
+    <div class="scorecard-certificate bg-white rounded-3xl border border-slate-200 shadow-md p-8 space-y-6">
+      <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-b border-slate-100 pb-6">
+        <div class="flex items-center gap-4">
+          <div class="w-14 h-14 rounded-2xl bg-indigo-600 text-white flex items-center justify-center font-black text-xl">
+            NAG
+          </div>
+          <div>
+            <span class="text-xs font-mono font-bold text-indigo-700 bg-indigo-50 px-2.5 py-0.5 rounded">
+              {{ sc.examCode }}
+            </span>
+            <h2 class="text-xl font-black text-slate-900 mt-1">
+              {{ sc.examTitle }}
+            </h2>
+            <div class="flex items-center gap-4 text-xs text-slate-500 mt-0.5 font-medium">
+              <span>Candidate: <b class="text-slate-800">{{ sc.candidateName }}</b></span>
+              <span>Roll: <b class="font-mono text-slate-800">{{ sc.rollNumber }}</b></span>
+            </div>
+          </div>
+        </div>
+
+        <nag-status-badge
+          [variant]="sc.qualifyingStatus === 'QUALIFIED' ? 'success' : 'error'"
+          [label]="sc.qualifyingStatus === 'QUALIFIED' ? 'Qualified for Allocation' : 'Did Not Qualify'"
+        />
+      </div>
+
+      <!-- KPI Cards -->
+      <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
+        <nag-stat-card
+          label="Total Score"
+          [value]="sc.totalScore"
+          [unit]="'/' + sc.maxScore"
+          icon="score"
+          variant="primary"
+        />
+        <nag-stat-card
+          label="National Percentile"
+          [value]="sc.percentile + '%'"
+          icon="trending_up"
+          variant="success"
+        />
+        <nag-stat-card
+          label="All India Rank (AIR)"
+          [value]="'#' + sc.nationalRank"
+          [trendText]="'of ' + sc.totalAppeared + ' candidates'"
+          icon="leaderboard"
+          variant="warn"
+        />
+        <nag-stat-card
+          label="Ledger Block"
+          [value]="'#' + sc.blockHeight"
+          icon="layers"
+          variant="info"
+        />
+      </div>
+
+      <!-- Subject Breakdown -->
+      <div class="space-y-3">
+        <h3 class="text-sm font-bold uppercase tracking-wider text-slate-700">
+          Subject-Wise Breakdown
+        </h3>
+        <div class="overflow-x-auto border border-slate-200 rounded-2xl">
+          <table class="w-full text-xs text-left">
+            <thead class="bg-slate-50 text-slate-600 uppercase font-semibold border-b">
+              <tr>
+                <th class="p-3.5">Subject / Module</th>
+                <th class="p-3.5 text-center">Marks Obtained</th>
+                <th class="p-3.5 text-center">Max Marks</th>
+                <th class="p-3.5 text-center">Accuracy Rate</th>
+                <th class="p-3.5 text-right">Performance Status</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-100">
+              @for (sub of sc.subjectScores; track sub.subject) {
+                <tr class="hover:bg-slate-50/50">
+                  <td class="p-3.5 font-bold text-slate-900">{{ sub.subject }}</td>
+                  <td class="p-3.5 text-center font-semibold text-indigo-700">{{ sub.marksObtained }}</td>
+                  <td class="p-3.5 text-center text-slate-500">{{ sub.maxMarks }}</td>
+                  <td class="p-3.5 text-center font-mono font-medium">{{ sub.accuracyRate }}%</td>
+                  <td class="p-3.5 text-right">
+                    <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                      Top 1% Tier
+                    </span>
+                  </td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Cryptographic Seal Box with QR Code -->
+      <div class="bg-slate-50 rounded-2xl p-6 border border-slate-200 flex flex-col md:flex-row items-center justify-between gap-6">
+        <div class="space-y-2 text-xs font-mono grow">
+          <div class="flex items-center gap-2 text-slate-900 font-bold uppercase text-[11px] pb-1 border-b border-slate-200">
+            <mat-icon class="!text-sm leading-none text-indigo-600">verified</mat-icon>
+            <span>Cryptographic Proof & Ledger Commitment</span>
+          </div>
+          <div>
+            <span class="text-slate-400 block text-[10px]">SUBMISSION HASH:</span>
+            <span class="break-all font-bold text-slate-800">{{ sc.ledgerProofHash }}</span>
+          </div>
+          <div>
+            <span class="text-slate-400 block text-[10px]">MERKLE ROOT ANCHOR:</span>
+            <span class="break-all text-slate-600">{{ sc.merkleRoot }}</span>
+          </div>
+        </div>
+
+        <nag-qr-code
+          [data]="'https://nag.gov.in/verify?hash=' + sc.ledgerProofHash"
+          [size]="110"
+          label="Scan to Verify"
+        />
+      </div>
+    </div>
+  }
+</div>

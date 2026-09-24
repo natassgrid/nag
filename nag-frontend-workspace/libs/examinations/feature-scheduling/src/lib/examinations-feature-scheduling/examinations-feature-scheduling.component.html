@@ -1,0 +1,214 @@
+<div class="exam-scheduling-container p-6 max-w-7xl mx-auto">
+  <nag-page-header
+    title="Examination Orchestration & Scheduling"
+    subtitle="Manage secure nationwide test schedules, center capacities, and multi-tenant slot quotas"
+    icon="event_note"
+  >
+    <div actions class="flex items-center gap-3">
+      <button mat-stroked-button (click)="refresh()" class="!rounded-lg">
+        <mat-icon>refresh</mat-icon>
+        Sync
+      </button>
+      <button
+        mat-flat-button
+        color="primary"
+        (click)="showCreateModal.set(true)"
+        class="!rounded-lg"
+      >
+        <mat-icon>add</mat-icon>
+        Schedule Session
+      </button>
+    </div>
+  </nag-page-header>
+
+  <!-- KPI Summary Cards -->
+  <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+    <nag-stat-card
+      label="Total Sessions"
+      [value]="examService.schedules().length"
+      icon="event"
+      variant="primary"
+    />
+    <nag-stat-card
+      label="Total Candidate Capacity"
+      [value]="totalCapacity()"
+      icon="groups"
+      variant="accent"
+    />
+    <nag-stat-card
+      label="Registered Candidates"
+      [value]="totalRegistered()"
+      icon="how_to_reg"
+      variant="success"
+    />
+    <nag-stat-card
+      label="Utilization Rate"
+      [value]="utilizationRate() + '%'"
+      icon="pie_chart"
+      variant="info"
+    />
+  </div>
+
+  <!-- Filter Bar -->
+  <div class="flex items-center justify-between gap-4 mb-6">
+    <nag-search-input
+      placeholder="Search by exam code, subject, or title..."
+      (searchChange)="searchFilter.set($event)"
+    />
+  </div>
+
+  <!-- Sessions Table -->
+  @if (examService.loading()) {
+    <div class="py-12 flex flex-col items-center justify-center text-slate-500 gap-3">
+      <mat-icon class="animate-spin !text-3xl">refresh</mat-icon>
+      <span class="text-sm">Loading exam schedules...</span>
+    </div>
+  } @else if (filteredSchedules().length === 0) {
+    <nag-empty-state
+      title="No scheduled exams found"
+      description="Create a new assessment session to orchestrate exam centers and slots."
+      icon="calendar_today"
+    >
+      <button
+        mat-flat-button
+        color="primary"
+        (click)="showCreateModal.set(true)"
+      >
+        Schedule Session
+      </button>
+    </nag-empty-state>
+  } @else {
+    <div class="bg-white rounded-xl border border-slate-200 shadow-xs overflow-hidden">
+      <table class="min-w-full divide-y divide-slate-200 text-left text-sm">
+        <thead class="bg-slate-50 text-slate-600 font-semibold text-xs uppercase tracking-wider">
+          <tr>
+            <th scope="col" class="px-5 py-3.5">Exam Code & Title</th>
+            <th scope="col" class="px-5 py-3.5">Subject</th>
+            <th scope="col" class="px-5 py-3.5">Session Date & Time</th>
+            <th scope="col" class="px-5 py-3.5">Slot Quota</th>
+            <th scope="col" class="px-5 py-3.5">Status</th>
+            <th scope="col" class="px-5 py-3.5 text-right">Actions</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-slate-100 text-slate-700">
+          @for (item of filteredSchedules(); track item.id) {
+            <tr class="hover:bg-slate-50/70 transition-colors">
+              <td class="px-5 py-4">
+                <div class="font-bold text-slate-900">{{ item.title }}</div>
+                <div class="text-xs font-mono text-slate-500">{{ item.examCode }}</div>
+              </td>
+              <td class="px-5 py-4 font-medium">{{ item.subject }}</td>
+              <td class="px-5 py-4">
+                <div>{{ item.sessionDate }}</div>
+                <div class="text-xs text-slate-500">{{ item.startTime }} - {{ item.endTime }}</div>
+              </td>
+              <td class="px-5 py-4">
+                <div class="flex items-center gap-2">
+                  <span class="font-semibold">{{ item.registeredCandidates }}</span>
+                  <span class="text-slate-400">/ {{ item.totalSlots }}</span>
+                </div>
+              </td>
+              <td class="px-5 py-4">
+                <nag-status-badge [variant]="statusVariant(item.status)" [label]="item.status" />
+              </td>
+              <td class="px-5 py-4 text-right">
+                <button
+                  mat-button
+                  color="primary"
+                  class="!text-xs"
+                  (click)="viewCenters()"
+                >
+                  View Centers
+                </button>
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  }
+
+  <!-- Simple Create Modal -->
+  @if (showCreateModal()) {
+    <div class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-xs p-4">
+      <div class="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl border border-slate-100 space-y-4">
+        <h3 class="text-lg font-bold text-slate-900">Schedule Examination Session</h3>
+        <div class="space-y-3">
+          <div>
+            <label for="new-exam-title" class="block text-xs font-semibold text-slate-700 uppercase mb-1">
+              Exam Title
+            </label>
+            <input
+              id="new-exam-title"
+              type="text"
+              [(ngModel)]="newTitle"
+              placeholder="e.g. National Eligibility Screening 2026"
+              class="w-full px-3 py-2 text-sm border rounded-lg focus:ring-2 focus:ring-indigo-500"
+            />
+          </div>
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label for="new-exam-code" class="block text-xs font-semibold text-slate-700 uppercase mb-1">
+                Exam Code
+              </label>
+              <input
+                id="new-exam-code"
+                type="text"
+                [(ngModel)]="newCode"
+                placeholder="NES-2026-S1"
+                class="w-full px-3 py-2 text-sm border rounded-lg focus:ring-2 focus:ring-indigo-500"
+              />
+            </div>
+            <div>
+              <label for="new-exam-subject" class="block text-xs font-semibold text-slate-700 uppercase mb-1">
+                Subject
+              </label>
+              <input
+                id="new-exam-subject"
+                type="text"
+                [(ngModel)]="newSubject"
+                placeholder="Computer Science"
+                class="w-full px-3 py-2 text-sm border rounded-lg focus:ring-2 focus:ring-indigo-500"
+              />
+            </div>
+          </div>
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label for="new-exam-date" class="block text-xs font-semibold text-slate-700 uppercase mb-1">
+                Session Date
+              </label>
+              <input
+                id="new-exam-date"
+                type="date"
+                [(ngModel)]="newDate"
+                class="w-full px-3 py-2 text-sm border rounded-lg focus:ring-2 focus:ring-indigo-500"
+              />
+            </div>
+            <div>
+              <label for="new-exam-slots" class="block text-xs font-semibold text-slate-700 uppercase mb-1">
+                Total Slots
+              </label>
+              <input
+                id="new-exam-slots"
+                type="number"
+                [(ngModel)]="newSlots"
+                class="w-full px-3 py-2 text-sm border rounded-lg focus:ring-2 focus:ring-indigo-500"
+              />
+            </div>
+          </div>
+        </div>
+        <div class="flex items-center justify-end gap-2 pt-3 border-t">
+          <button mat-button (click)="showCreateModal.set(false)">Cancel</button>
+          <button
+            mat-flat-button
+            color="primary"
+            (click)="submitSchedule()"
+            [disabled]="!newTitle || !newCode"
+          >
+            Create Schedule
+          </button>
+        </div>
+      </div>
+    </div>
+  }
+</div>

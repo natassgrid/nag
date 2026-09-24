@@ -1,0 +1,41 @@
+name: Frontend Monorepo CI (Nx)
+
+on:
+  push:
+    branches: [main, master, develop]
+  pull_request:
+    branches: [main, master, develop]
+
+jobs:
+  validate-frontend:
+    name: Lint, Test & Build Frontend Workspace
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: 'npm'
+          cache-dependency-path: 'nag-frontend-workspace/package-lock.json'
+
+      - name: Install dependencies
+        working-directory: nag-frontend-workspace
+        run: npm ci --legacy-peer-deps
+
+      - name: Derive base and head for Nx affected
+        uses: nrwl/nx-set-shas@v4
+        with:
+          main-branch-name: 'main'
+
+      - name: Enforce Module Boundaries & ESLint
+        working-directory: nag-frontend-workspace
+        run: npx nx run-many -t lint
+
+      - name: Build All Applications & Libraries
+        working-directory: nag-frontend-workspace
+        run: npx nx run-many -t build

@@ -1,0 +1,104 @@
+<div class="questions-bank-container p-6 max-w-7xl mx-auto">
+  <nag-page-header
+    title="Question Bank"
+    subtitle="Manage secure, versioned assessment items with pgvector semantic similarity search"
+    icon="quiz"
+  >
+    <div actions class="flex items-center gap-3">
+      <a
+        mat-flat-button
+        color="primary"
+        class="!rounded-lg"
+        routerLink="/questions/authoring"
+      >
+        <mat-icon>add</mat-icon>
+        Author New Question
+      </a>
+    </div>
+  </nag-page-header>
+
+  <!-- Search & Filters Toolbar -->
+  <div class="bg-white p-4 rounded-xl border border-slate-200 mb-6 shadow-xs flex flex-col md:flex-row gap-4 items-center justify-between">
+    <div class="w-full md:w-96">
+      <nag-search-input
+        placeholder="Search questions by text or LaTeX..."
+        (searchChange)="onSearchTextChange($event)"
+      />
+    </div>
+
+    <div class="flex items-center gap-3 w-full md:w-auto">
+      <!-- Vector Similarity Search Trigger Button -->
+      <button
+        mat-stroked-button
+        color="accent"
+        (click)="showVectorDrawer.set(!showVectorDrawer())"
+        class="!rounded-lg flex items-center gap-2"
+      >
+        <mat-icon>saved_search</mat-icon>
+        Vector Search (pgvector)
+      </button>
+    </div>
+  </div>
+
+  <!-- Vector Similarity Query Drawer (Conditional) -->
+  @if (showVectorDrawer()) {
+    <div class="bg-indigo-50/70 border border-indigo-200 p-5 rounded-xl mb-6 space-y-3">
+      <div class="flex items-center justify-between">
+        <div class="flex items-center gap-2 text-indigo-900 font-semibold text-sm">
+          <mat-icon class="!text-lg leading-none">grain</mat-icon>
+          <span>Semantic Similarity Query (Cosine Distance via pgvector)</span>
+        </div>
+        <button
+          mat-icon-button
+          (click)="showVectorDrawer.set(false)"
+          class="!text-slate-500"
+        >
+          <mat-icon>close</mat-icon>
+        </button>
+      </div>
+
+      <div class="flex gap-2">
+        <input
+          type="text"
+          [(ngModel)]="vectorQueryPrompt"
+          placeholder="e.g. Find questions involving Eigenvalues of hermitian matrices..."
+          class="grow px-3 py-2 text-sm bg-white border border-indigo-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+          (keyup.enter)="runVectorSearch()"
+        />
+        <button
+          mat-flat-button
+          color="primary"
+          (click)="runVectorSearch()"
+          [disabled]="searchingVector()"
+          class="!rounded-lg"
+        >
+          {{ searchingVector() ? 'Searching...' : 'Find Matches' }}
+        </button>
+      </div>
+    </div>
+  }
+
+  <!-- Main Content / Questions Feed -->
+  @if (questionService.loading()) {
+    <div class="py-12 flex flex-col items-center justify-center text-slate-500 gap-3">
+      <mat-icon class="animate-spin !text-3xl">refresh</mat-icon>
+      <span class="text-sm">Loading questions from encrypted bank...</span>
+    </div>
+  } @else if (questionService.questions().length === 0) {
+    <nag-empty-state
+      title="No questions found"
+      description="Your bank has no active questions matching this query or filter."
+      icon="menu_book"
+    />
+  } @else {
+    <div class="space-y-4">
+      @for (q of questionService.questions(); track q.id) {
+        <nag-question-card
+          [data]="toCardData(q)"
+          (cardEdit)="onEditQuestion($event)"
+          (cardDelete)="onDeleteQuestion($event)"
+        />
+      }
+    </div>
+  }
+</div>

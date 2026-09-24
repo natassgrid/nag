@@ -1,0 +1,13 @@
+{
+  "name": "questions-ui-question-card",
+  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "libs/questions/ui-question-card/src",
+  "prefix": "lib",
+  "projectType": "library",
+  "tags": ["scope:questions", "type:ui"],
+  "targets": {
+    "lint": {
+      "executor": "@nx/eslint:lint"
+    }
+  }
+}

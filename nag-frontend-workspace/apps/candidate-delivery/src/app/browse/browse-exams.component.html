@@ -1,0 +1,186 @@
+<div class="browse-exams-page max-w-7xl mx-auto p-6 space-y-8">
+  <nag-page-header
+    title="National Assessment Catalog"
+    subtitle="Explore active national examinations, eligibility criteria, and open registration windows"
+    icon="travel_explore"
+  >
+    <div actions class="flex items-center gap-3">
+      <a mat-stroked-button routerLink="/dashboard" class="!rounded-xl">
+        &larr; Back to Dashboard
+      </a>
+    </div>
+  </nag-page-header>
+
+  <!-- Filter / Search Toolbar -->
+  <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs flex flex-col md:flex-row items-center justify-between gap-4">
+    <div class="w-full md:w-96">
+      <nag-search-input
+        placeholder="Search exams by name, discipline, or code..."
+        (searchChange)="onSearchChange($event)"
+      />
+    </div>
+
+    <div class="flex items-center gap-2 overflow-x-auto w-full md:w-auto">
+      <button
+        type="button"
+        (click)="selectedCategory.set('ALL')"
+        class="px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors"
+        [ngClass]="{
+          'bg-indigo-600 text-white': selectedCategory() === 'ALL',
+          'bg-slate-100 text-slate-700 hover:bg-slate-200': selectedCategory() !== 'ALL'
+        }"
+      >
+        All Categories
+      </button>
+      <button
+        type="button"
+        (click)="selectedCategory.set('TECHNICAL')"
+        class="px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors"
+        [ngClass]="{
+          'bg-indigo-600 text-white': selectedCategory() === 'TECHNICAL',
+          'bg-slate-100 text-slate-700 hover:bg-slate-200': selectedCategory() !== 'TECHNICAL'
+        }"
+      >
+        Engineering & Tech
+      </button>
+      <button
+        type="button"
+        (click)="selectedCategory.set('ADMIN')"
+        class="px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors"
+        [ngClass]="{
+          'bg-indigo-600 text-white': selectedCategory() === 'ADMIN',
+          'bg-slate-100 text-slate-700 hover:bg-slate-200': selectedCategory() !== 'ADMIN'
+        }"
+      >
+        Civil & Public Admin
+      </button>
+    </div>
+  </div>
+
+  <!-- Exams Grid -->
+  <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+    @for (exam of filteredExams(); track exam.id) {
+      <div class="exam-item-card bg-white rounded-2xl border border-slate-200 p-6 shadow-xs flex flex-col justify-between space-y-4 hover:shadow-md transition-shadow">
+        <div class="space-y-3">
+          <div class="flex items-start justify-between gap-2">
+            <span class="text-xs font-mono font-bold bg-slate-100 text-slate-700 px-2 py-0.5 rounded">
+              {{ exam.code }}
+            </span>
+            <nag-status-badge
+              [variant]="exam.applied ? 'success' : 'primary'"
+              [label]="exam.applied ? 'Registered' : 'Registration Open'"
+            />
+          </div>
+
+          <h3 class="text-base font-bold text-slate-900 leading-snug">
+            {{ exam.title }}
+          </h3>
+
+          <p class="text-xs text-slate-500 line-clamp-2">
+            Department: {{ exam.department }} &bull; Eligibility: {{ exam.eligibility }}
+          </p>
+
+          <div class="bg-slate-50 p-3 rounded-xl border border-slate-100 space-y-1.5 text-xs text-slate-600">
+            <div class="flex justify-between">
+              <span class="text-slate-400">Exam Date:</span>
+              <span class="font-medium text-slate-800">{{ exam.examDate }}</span>
+            </div>
+            <div class="flex justify-between">
+              <span class="text-slate-400">Reg. Deadline:</span>
+              <span class="font-semibold text-rose-600">{{ exam.applicationDeadline }}</span>
+            </div>
+            <div class="flex justify-between pt-1 border-t border-slate-200/60">
+              <span class="text-slate-400">Fee:</span>
+              <span class="font-bold text-slate-900">&#8377; {{ exam.feeAmount }}</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="pt-2 border-t border-slate-100">
+          @if (exam.applied) {
+            <button
+              mat-stroked-button
+              disabled
+              class="!w-full !rounded-xl !text-xs font-semibold"
+            >
+              <mat-icon class="!text-sm">check</mat-icon>
+              Already Registered
+            </button>
+          } @else {
+            <button
+              mat-flat-button
+              color="primary"
+              (click)="openApplyModal(exam)"
+              class="!w-full !rounded-xl !text-xs font-semibold"
+            >
+              Register & Apply &rarr;
+            </button>
+          }
+        </div>
+      </div>
+    }
+  </div>
+
+  <!-- Application Registration Modal -->
+  @if (selectedApplyExam(); as exam) {
+    <div class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4">
+      <div class="bg-white rounded-3xl max-w-lg w-full p-8 shadow-2xl border border-slate-100 space-y-6">
+        <div class="flex items-center justify-between border-b pb-4">
+          <div>
+            <h3 class="text-base font-bold text-slate-900">Exam Registration Confirmation</h3>
+            <span class="text-xs text-slate-500">{{ exam.title }}</span>
+          </div>
+          <button mat-icon-button (click)="selectedApplyExam.set(null)">
+            <mat-icon>close</mat-icon>
+          </button>
+        </div>
+
+        <div class="space-y-4 text-xs">
+          <div class="p-4 bg-indigo-50/60 rounded-2xl border border-indigo-100 space-y-2">
+            <div class="flex justify-between">
+              <span class="text-indigo-700">Exam Code:</span>
+              <span class="font-mono font-bold text-indigo-950">{{ exam.code }}</span>
+            </div>
+            <div class="flex justify-between">
+              <span class="text-indigo-700">Exam Date:</span>
+              <span class="font-bold text-indigo-950">{{ exam.examDate }}</span>
+            </div>
+            <div class="flex justify-between">
+              <span class="text-indigo-700">Registration Fee:</span>
+              <span class="font-bold text-indigo-950">&#8377; {{ exam.feeAmount }}</span>
+            </div>
+          </div>
+
+          <div class="space-y-2">
+            <label for="preferred-center-select" class="block font-bold text-slate-700">Select Preferred Exam City / Zone:</label>
+            <select
+              id="preferred-center-select"
+              [(ngModel)]="selectedCenterCity"
+              class="w-full px-3 py-2 border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500"
+            >
+              <option value="DELHI_NCR">Delhi NCR (IIT Delhi / NIC / JNU Centers)</option>
+              <option value="MUMBAI">Mumbai Metropolitan Region</option>
+              <option value="BENGALURU">Bengaluru Urban & Electronic City</option>
+              <option value="HYDERABAD">Hyderabad HITEC City Center</option>
+              <option value="CHENNAI">Chennai Central Assessment Hub</option>
+              <option value="KOLKATA">Kolkata Salt Lake Sector V</option>
+            </select>
+          </div>
+
+          <p class="text-[11px] text-slate-500 leading-relaxed">
+            By confirming, your profile details will be linked to the national seating allocation algorithm and an immutable roll token will be issued.
+          </p>
+        </div>
+
+        <div class="flex items-center justify-end gap-3 pt-2">
+          <button mat-stroked-button (click)="selectedApplyExam.set(null)" class="!rounded-xl">
+            Cancel
+          </button>
+          <button mat-flat-button color="primary" (click)="confirmApplication(exam)" class="!rounded-xl">
+            Confirm & Submit Application
+          </button>
+        </div>
+      </div>
+    </div>
+  }
+</div>

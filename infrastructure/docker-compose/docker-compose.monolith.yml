@@ -8,7 +8,7 @@
 # Consolidates all 14 domain microservices + audit into 1 JVM Spring Boot runtime.
 # Memory requirement: ~1 GB RAM (runs comfortably on 2 GB - 4 GB VMs).
 # Zero external message broker (Kafka/RabbitMQ not needed; uses in-memory Spring events).
-# Optionally supports RabbitMQ via `PLATFORM_MESSAGING_BROKER=rabbit --profile rabbit``.
+# Optionally supports RabbitMQ via `PLATFORM_MESSAGING_BROKER=rabbit --profile rabbit`.
 #
 # Usage:
 #   docker compose -f docker-compose.yml -f docker-compose.monolith.yml up --build
@@ -149,15 +149,17 @@ services:
       <<: *healthcheck-spring
 
   # ===========================================================================
-  # Frontend — Admin SPA
+  # Admin Portal SPA (Nx Workspace / Angular 22 - Port 4200)
   # ===========================================================================
-  frontend:
+  admin-portal:
     <<: *service-common
     build:
-      context: ../../frontend
+      context: ../../nag-frontend-workspace
       dockerfile: Dockerfile
-    image: localhost:5000/exam/frontend:latest
-    container_name: exam-frontend
+      args:
+        APP_NAME: admin-portal
+    image: localhost:5000/exam/admin-portal:latest
+    container_name: exam-admin-portal
     ports:
       - "4200:80"
     depends_on:
@@ -171,17 +173,43 @@ services:
       start_period: 10s
 
   # ===========================================================================
-  # Candidate Frontend — Candidate SPA
+  # Candidate Delivery SPA (Nx Workspace / Angular 22 - Port 4300)
   # ===========================================================================
-  candidate-frontend:
+  candidate-delivery:
     <<: *service-common
     build:
-      context: ../../candidate-frontend
+      context: ../../nag-frontend-workspace
       dockerfile: Dockerfile
-    image: localhost:5000/exam/candidate-frontend:latest
-    container_name: exam-candidate-frontend
+      args:
+        APP_NAME: candidate-delivery
+    image: localhost:5000/exam/candidate-delivery:latest
+    container_name: exam-candidate-delivery
     ports:
       - "4300:80"
+    depends_on:
+      monolith-app:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:80/health || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+  # ===========================================================================
+  # Public Verifier SPA (Nx Workspace / Angular 22 - Port 4400)
+  # ===========================================================================
+  public-verifier:
+    <<: *service-common
+    build:
+      context: ../../nag-frontend-workspace
+      dockerfile: Dockerfile
+      args:
+        APP_NAME: public-verifier
+    image: localhost:5000/exam/public-verifier:latest
+    container_name: exam-public-verifier
+    ports:
+      - "4400:80"
     depends_on:
       monolith-app:
         condition: service_healthy
