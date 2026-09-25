@@ -11,81 +11,89 @@ import {
   signal,
   computed,
   inject,
+  ViewChild,
+  ElementRef,
+  ChangeDetectionStrategy,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { FormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatDialog, MatDialogModule } from '@angular/material/dialog';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
-import { MatTooltipModule } from '@angular/material/tooltip';
-import { MatMenuModule } from '@angular/material/menu';
 import { HttpEventType } from '@angular/common/http';
 import { PageHeaderComponent } from '@nag-frontend-workspace/shared-ui-components';
 import { AssetService } from './asset.service';
 import { AssetResponse, AssetType, AssetStatus } from './asset.model';
-import { AssetUploadDialogComponent } from './asset-upload-dialog.component';
-import { AssetPreviewDialogComponent } from './asset-preview-dialog.component';
-import { AssetMetadataDialogComponent } from './asset-metadata-dialog.component';
+import {
+  AssetMetricsRibbonComponent,
+  AssetToolbarComponent,
+  AssetGridViewComponent,
+  AssetTableViewComponent,
+  AssetPaginationComponent,
+  AssetUploadDialogComponent,
+  AssetPreviewDialogComponent,
+  AssetMetadataDialogComponent,
+} from './components';
 
 @Component({
   selector: 'app-admin-assets',
   standalone: true,
   imports: [
     CommonModule,
-    FormsModule,
     MatButtonModule,
     MatIconModule,
     MatDialogModule,
     MatSnackBarModule,
-    MatTooltipModule,
-    MatMenuModule,
     PageHeaderComponent,
+    AssetMetricsRibbonComponent,
+    AssetToolbarComponent,
+    AssetGridViewComponent,
+    AssetTableViewComponent,
+    AssetPaginationComponent,
   ],
   templateUrl: './admin-assets.component.html',
   styleUrl: './admin-assets.component.scss',
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class AdminAssetsComponent implements OnInit {
+  @ViewChild('globalFileInput') globalFileInput?: ElementRef<HTMLInputElement>;
+
   readonly assetService = inject(AssetService);
   private readonly dialog = inject(MatDialog);
   private readonly snackBar = inject(MatSnackBar);
 
   // Core State Signals
-  assets = signal<AssetResponse[]>([]);
-  totalElements = signal<number>(0);
-  totalPages = signal<number>(0);
-  currentPage = signal<number>(0);
-  pageSize = signal<number>(12);
-  loading = signal<boolean>(false);
-  failedImages = signal<Set<string>>(new Set<string>());
+  readonly assets = signal<AssetResponse[]>([]);
+  readonly totalElements = signal<number>(0);
+  readonly totalPages = signal<number>(0);
+  readonly currentPage = signal<number>(0);
+  readonly pageSize = signal<number>(12);
+  readonly loading = signal<boolean>(false);
+  readonly failedImages = signal<Set<string>>(new Set<string>());
 
   // Filters & Controls
-  searchQuery = signal<string>('');
-  selectedType = signal<string>('ALL');
-  selectedStatus = signal<string>('ACTIVE');
-  viewMode = signal<'grid' | 'table'>('grid');
+  readonly searchQuery = signal<string>('');
+  readonly selectedType = signal<string>('ALL');
+  readonly selectedStatus = signal<string>('ACTIVE');
+  readonly viewMode = signal<'grid' | 'table'>('grid');
 
   selectedAssetForReplace: AssetResponse | null = null;
 
   // Computed metrics
-  totalStorageBytes = computed(() => {
+  readonly totalStorageBytes = computed(() => {
     return this.assets().reduce((acc, a) => acc + (a.fileSize || 0), 0);
   });
 
-  totalStorageFormatted = computed(() => {
+  readonly totalStorageFormatted = computed(() => {
     return this.assetService.formatFileSize(this.totalStorageBytes());
   });
 
-  imageCount = computed(() => {
+  readonly imageCount = computed(() => {
     return this.assets().filter((a) => a.assetType === 'IMAGE').length;
   });
 
-  audioCount = computed(() => {
+  readonly audioCount = computed(() => {
     return this.assets().filter((a) => a.assetType === 'AUDIO').length;
-  });
-
-  videoCount = computed(() => {
-    return this.assets().filter((a) => a.assetType === 'VIDEO').length;
   });
 
   ngOnInit(): void {
@@ -141,10 +149,6 @@ export class AdminAssetsComponent implements OnInit {
     this.failedImages.update((s) => new Set(s).add(id));
   }
 
-  isImageFailed(id: string): boolean {
-    return this.failedImages().has(id);
-  }
-
   onSearchChange(query: string): void {
     this.searchQuery.set(query);
     this.currentPage.set(0);
@@ -198,9 +202,9 @@ export class AdminAssetsComponent implements OnInit {
     });
   }
 
-  triggerReplaceBinary(asset: AssetResponse, fileInput: HTMLInputElement): void {
+  triggerReplaceBinary(asset: AssetResponse): void {
     this.selectedAssetForReplace = asset;
-    fileInput.click();
+    this.globalFileInput?.nativeElement.click();
   }
 
   onBinaryFileSelected(event: Event): void {

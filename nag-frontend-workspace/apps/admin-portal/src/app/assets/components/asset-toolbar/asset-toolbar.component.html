@@ -1,0 +1,87 @@
+<div class="bg-white rounded-2xl border border-slate-200 p-4 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
+  <!-- Search Bar -->
+  <div class="relative flex-1 max-w-md">
+    <mat-icon class="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-lg">search</mat-icon>
+    <input
+      type="text"
+      placeholder="Filter by filename, title, or tag..."
+      [ngModel]="searchQuery()"
+      (ngModelChange)="searchQueryChange.emit($event)"
+      class="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all text-slate-800 placeholder-slate-400"
+    />
+  </div>
+
+  <!-- Filter Buttons & Controls -->
+  <div class="flex items-center flex-wrap gap-2">
+    <!-- Asset Type Filter Pills -->
+    <div class="flex bg-slate-100 p-1 rounded-xl text-xs font-semibold">
+      <button
+        type="button"
+        (click)="selectedTypeChange.emit('ALL')"
+        class="px-3 py-1 rounded-lg transition-all cursor-pointer"
+        [ngClass]="selectedType() === 'ALL' ? 'bg-white text-indigo-600 shadow-xs' : 'text-slate-600 hover:text-slate-900'"
+      >
+        All
+      </button>
+      <button
+        type="button"
+        (click)="selectedTypeChange.emit('IMAGE')"
+        class="px-3 py-1 rounded-lg transition-all cursor-pointer"
+        [ngClass]="selectedType() === 'IMAGE' ? 'bg-white text-indigo-600 shadow-xs' : 'text-slate-600 hover:text-slate-900'"
+      >
+        Images
+      </button>
+      <button
+        type="button"
+        (click)="selectedTypeChange.emit('AUDIO')"
+        class="px-3 py-1 rounded-lg transition-all cursor-pointer"
+        [ngClass]="selectedType() === 'AUDIO' ? 'bg-white text-indigo-600 shadow-xs' : 'text-slate-600 hover:text-slate-900'"
+      >
+        Audio
+      </button>
+      <button
+        type="button"
+        (click)="selectedTypeChange.emit('VIDEO')"
+        class="px-3 py-1 rounded-lg transition-all cursor-pointer"
+        [ngClass]="selectedType() === 'VIDEO' ? 'bg-white text-indigo-600 shadow-xs' : 'text-slate-600 hover:text-slate-900'"
+      >
+        Video
+      </button>
+    </div>
+
+    <!-- Status Filter Dropdown -->
+    <select
+      [ngModel]="selectedStatus()"
+      (ngModelChange)="selectedStatusChange.emit($event)"
+      class="bg-slate-50 border border-slate-200 rounded-xl px-3 py-1.5 text-xs font-semibold text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 cursor-pointer"
+    >
+      <option value="ACTIVE">Active Assets</option>
+      <option value="ARCHIVED">Archived</option>
+      <option value="ALL">All Statuses</option>
+    </select>
+
+    <div class="h-6 w-px bg-slate-200 mx-1"></div>
+
+    <!-- View Switcher -->
+    <div class="flex items-center bg-slate-100 p-0.5 rounded-xl">
+      <button
+        mat-icon-button
+        (click)="viewModeChange.emit('grid')"
+        class="!w-8 !h-8 !rounded-lg cursor-pointer"
+        [ngClass]="viewMode() === 'grid' ? '!bg-white !text-indigo-600 shadow-xs' : '!text-slate-500'"
+        title="Grid View"
+      >
+        <mat-icon class="!text-sm">grid_view</mat-icon>
+      </button>
+      <button
+        mat-icon-button
+        (click)="viewModeChange.emit('table')"
+        class="!w-8 !h-8 !rounded-lg cursor-pointer"
+        [ngClass]="viewMode() === 'table' ? '!bg-white !text-indigo-600 shadow-xs' : '!text-slate-500'"
+        title="Table View"
+      >
+        <mat-icon class="!text-sm">view_list</mat-icon>
+      </button>
+    </div>
+  </div>
+</div>
