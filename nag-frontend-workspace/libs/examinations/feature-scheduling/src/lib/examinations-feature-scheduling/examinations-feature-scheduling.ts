@@ -11,14 +11,11 @@ import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, RouterModule } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
-import { MatTooltipModule } from '@angular/material/tooltip';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
-import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import {
   ExaminationService,
   SchedulingService,
   CentreManagementService,
-  ExaminationResponse,
   ScheduleResponse,
   ShiftResponse,
   SeatAllocationResponse,
@@ -28,6 +25,17 @@ import {
   CreateShiftRequest,
   SeatAllocationRequest,
 } from '@nag-frontend-workspace/examinations-data-access';
+import { SchedulingTab } from '../models';
+import {
+  ScheduleListTableComponent,
+  ShiftMatrixGridComponent,
+  SeatAllocationPanelComponent,
+  CreateScheduleModalComponent,
+  ScheduleTransitionModalComponent,
+  ScheduleAmendModalComponent,
+  ShiftEditModalComponent,
+  SeatAllocationModalComponent,
+} from '../components';
 
 @Component({
   selector: 'nag-examinations-feature-scheduling',
@@ -38,9 +46,15 @@ import {
     RouterModule,
     MatButtonModule,
     MatIconModule,
-    MatTooltipModule,
     MatSnackBarModule,
-    MatProgressSpinnerModule,
+    ScheduleListTableComponent,
+    ShiftMatrixGridComponent,
+    SeatAllocationPanelComponent,
+    CreateScheduleModalComponent,
+    ScheduleTransitionModalComponent,
+    ScheduleAmendModalComponent,
+    ShiftEditModalComponent,
+    SeatAllocationModalComponent,
   ],
   templateUrl: './examinations-feature-scheduling.component.html',
   styleUrl: './examinations-feature-scheduling.component.scss',
@@ -54,7 +68,7 @@ export class ExaminationsFeatureScheduling implements OnInit {
   private readonly snackBar = inject(MatSnackBar);
 
   // Active Navigation Mode: 'SCHEDULES' | 'SHIFTS' | 'ALLOCATIONS'
-  readonly currentTab = signal<'SCHEDULES' | 'SHIFTS' | 'ALLOCATIONS'>('SCHEDULES');
+  readonly currentTab = signal<SchedulingTab>('SCHEDULES');
 
   // Exam Selection
   readonly exams = this.examService.exams;
@@ -71,6 +85,7 @@ export class ExaminationsFeatureScheduling implements OnInit {
   // Shifts State
   readonly shifts = this.scheduleService.shifts;
   readonly selectedShift = signal<ShiftResponse | null>(null);
+  readonly editingShift = signal<ShiftResponse | null>(null);
 
   // Centres & Allocations State
   readonly centres = this.centreService.centres;
@@ -87,64 +102,8 @@ export class ExaminationsFeatureScheduling implements OnInit {
   readonly showShiftModal = signal<boolean>(false);
   readonly showAllocationModal = signal<boolean>(false);
 
-  // Create Schedule Form Fields
-  newScheduleName = '';
-  newNotificationNumber = '';
-  newExamDate = '';
-  newReserveDate = '';
-  newTimeZone = 'Asia/Kolkata';
-
-  // Transition Form Fields
-  targetStatus = '';
-  transitionComment = '';
-
-  // Amend Form Fields
-  amendReason = '';
-  amendScheduleName = '';
-  amendNotificationNumber = '';
-  amendExamDate = '';
-  amendReserveDate = '';
-  amendEffectiveFrom = '';
-  amendTimeZone = 'Asia/Kolkata';
-
-  // Shift Form Fields
-  editingShiftId: string | null = null;
-  shiftNumber = 1;
-  shiftName = 'Morning Session (Shift 1)';
-  reportingTime = '07:30:00';
-  gateClosingTime = '08:30:00';
-  loginStartTime = '08:45:00';
-  examStartTime = '09:00:00';
-  examEndTime = '12:00:00';
-  exitTime = '12:15:00';
-  durationMinutes = 180;
-  bufferMinutes = 30;
-
-  // Seat Allocation Form Fields
-  allocCentreId = '';
-  allocTotalSeats = 200;
-  allocAvailableSeats = 180;
-  allocReservedSeats = 20;
-  allocPwdSeats = 10;
-  allocEmergencyBufferSeats = 10;
-  allocFemaleReservedSeats = 0;
-  allocSpecialCategorySeats = 0;
-
-  // Workflow Map
-  private readonly nextStatusMap: Record<string, string[]> = {
-    DRAFT: ['SCHEDULER_REVIEW', 'CANCELLED'],
-    SCHEDULER_REVIEW: ['CONTROLLER_APPROVED', 'CANCELLED'],
-    CONTROLLER_APPROVED: ['SECURITY_REVIEW', 'CANCELLED'],
-    SECURITY_REVIEW: ['CHAIRMAN_APPROVED', 'CANCELLED'],
-    CHAIRMAN_APPROVED: ['PUBLISHED', 'CANCELLED'],
-    PUBLISHED: ['CANCELLED'],
-  };
-
   // Computed KPIs
   readonly totalSchedulesCount = computed(() => (this.schedules() || []).length);
-  readonly publishedSchedulesCount = computed(
-    () => (this.schedules() || []).filter((s) => s?.status === 'PUBLISHED').length
-  );
   readonly totalShiftsCount = computed(() => (this.shifts() || []).length);
 
   readonly filteredSchedules = computed(() => {
@@ -162,7 +121,6 @@ export class ExaminationsFeatureScheduling implements OnInit {
   });
 
   ngOnInit(): void {
-    // Load exams list
     this.examService.getExams(0, 50).subscribe({
       next: (exams) => {
         const list = exams || [];
@@ -177,7 +135,6 @@ export class ExaminationsFeatureScheduling implements OnInit {
       },
     });
 
-    // Load centres for seat allocation
     this.centreService.listCentres(undefined, undefined, 0, 100).subscribe();
   }
 
@@ -233,34 +190,12 @@ export class ExaminationsFeatureScheduling implements OnInit {
   }
 
   openCreateSchedule(): void {
-    const today = new Date();
-    const nextMonth = new Date(today.getFullYear(), today.getMonth() + 1, 15);
-    const reserve = new Date(today.getFullYear(), today.getMonth() + 1, 16);
-
-    this.newScheduleName = `Session 1 - ${this.selectedExam()?.name || 'Examination'} 2026`;
-    this.newNotificationNumber = `NAG-NOTIF-${Date.now().toString().slice(-6)}`;
-    this.newExamDate = nextMonth.toISOString().split('T')[0];
-    this.newReserveDate = reserve.toISOString().split('T')[0];
-    this.newTimeZone = 'Asia/Kolkata';
     this.showCreateScheduleModal.set(true);
   }
 
-  saveSchedule(): void {
+  handleCreateSchedule(payload: CreateScheduleRequest): void {
     const examId = this.selectedExamId();
-    if (!examId || !this.newScheduleName.trim() || !this.newExamDate) {
-      this.snackBar.open('Schedule Name and Exam Date are required', 'Dismiss', {
-        duration: 3000,
-      });
-      return;
-    }
-
-    const payload: CreateScheduleRequest = {
-      scheduleName: this.newScheduleName.trim(),
-      notificationNumber: this.newNotificationNumber.trim() || undefined,
-      examDate: this.newExamDate,
-      reserveDate: this.newReserveDate || undefined,
-      timeZone: this.newTimeZone,
-    };
+    if (!examId) return;
 
     this.scheduleService.createSchedule(examId, payload).subscribe({
       next: (created) => {
@@ -280,30 +215,15 @@ export class ExaminationsFeatureScheduling implements OnInit {
     });
   }
 
-  // --- Approval Transition Workflow ---
-  getNextStatuses(status?: string): string[] {
-    if (!status) return [];
-    return this.nextStatusMap[status] || [];
-  }
-
-  openTransitionModal(schedule: ScheduleResponse, event?: Event): void {
-    if (event) event.stopPropagation();
+  openTransitionModal(schedule: ScheduleResponse): void {
     this.selectedSchedule.set(schedule);
-    const available = this.getNextStatuses(schedule?.status);
-    this.targetStatus = available[0] || '';
-    this.transitionComment = '';
     this.showTransitionModal.set(true);
   }
 
-  submitTransition(): void {
+  handleTransition(req: ScheduleTransitionRequest): void {
     const examId = this.selectedExamId();
     const sched = this.selectedSchedule();
-    if (!examId || !sched || !this.targetStatus) return;
-
-    const req: ScheduleTransitionRequest = {
-      targetStatus: this.targetStatus,
-      comment: this.transitionComment.trim() || undefined,
-    };
+    if (!examId || !sched) return;
 
     this.scheduleService.transitionSchedule(examId, sched.id, req).subscribe({
       next: (updated) => {
@@ -323,39 +243,15 @@ export class ExaminationsFeatureScheduling implements OnInit {
     });
   }
 
-  // --- Amend Schedule ---
-  openAmendModal(schedule: ScheduleResponse, event?: Event): void {
-    if (event) event.stopPropagation();
+  openAmendModal(schedule: ScheduleResponse): void {
     this.selectedSchedule.set(schedule);
-    this.amendReason = '';
-    this.amendScheduleName = schedule.scheduleName || '';
-    this.amendNotificationNumber = schedule.notificationNumber || '';
-    this.amendExamDate = schedule.examDate || '';
-    this.amendReserveDate = schedule.reserveDate || '';
-    this.amendEffectiveFrom = new Date().toISOString();
-    this.amendTimeZone = schedule.timeZone || 'Asia/Kolkata';
     this.showAmendModal.set(true);
   }
 
-  submitAmendment(): void {
+  handleAmend(req: AmendScheduleRequest): void {
     const examId = this.selectedExamId();
     const sched = this.selectedSchedule();
-    if (!examId || !sched || !this.amendReason.trim()) {
-      this.snackBar.open('Change Reason is required for schedule amendments', 'Dismiss', {
-        duration: 3000,
-      });
-      return;
-    }
-
-    const req: AmendScheduleRequest = {
-      changeReason: this.amendReason.trim(),
-      scheduleName: this.amendScheduleName.trim(),
-      notificationNumber: this.amendNotificationNumber.trim() || undefined,
-      examDate: this.amendExamDate,
-      reserveDate: this.amendReserveDate || undefined,
-      effectiveFrom: this.amendEffectiveFrom || undefined,
-      timeZone: this.amendTimeZone,
-    };
+    if (!examId || !sched) return;
 
     this.scheduleService.amendSchedule(examId, sched.id, req).subscribe({
       next: (newVersion) => {
@@ -378,60 +274,24 @@ export class ExaminationsFeatureScheduling implements OnInit {
     });
   }
 
-  // --- Shift Management ---
   openAddShift(): void {
-    this.editingShiftId = null;
-    const currentShifts = this.shifts() || [];
-    const nextNum = currentShifts.length + 1;
-    this.shiftNumber = nextNum;
-    this.shiftName = `Shift ${nextNum} (${nextNum === 1 ? 'Morning' : nextNum === 2 ? 'Afternoon' : 'Evening'})`;
-    this.reportingTime = nextNum === 1 ? '07:30:00' : '13:00:00';
-    this.gateClosingTime = nextNum === 1 ? '08:30:00' : '14:00:00';
-    this.loginStartTime = nextNum === 1 ? '08:45:00' : '14:15:00';
-    this.examStartTime = nextNum === 1 ? '09:00:00' : '14:30:00';
-    this.examEndTime = nextNum === 1 ? '12:00:00' : '17:30:00';
-    this.exitTime = nextNum === 1 ? '12:15:00' : '17:45:00';
-    this.durationMinutes = this.selectedExam()?.durationMinutes || 180;
-    this.bufferMinutes = 30;
+    this.editingShift.set(null);
     this.showShiftModal.set(true);
   }
 
   openEditShift(shift: ShiftResponse): void {
-    this.editingShiftId = shift.id;
-    this.shiftNumber = shift.shiftNumber;
-    this.shiftName = shift.shiftName || '';
-    this.reportingTime = shift.reportingTime || '07:30:00';
-    this.gateClosingTime = shift.gateClosingTime || '08:30:00';
-    this.loginStartTime = shift.loginStartTime || '08:45:00';
-    this.examStartTime = shift.examStartTime || '09:00:00';
-    this.examEndTime = shift.examEndTime || '12:00:00';
-    this.exitTime = shift.exitTime || '';
-    this.durationMinutes = shift.durationMinutes || 180;
-    this.bufferMinutes = shift.bufferMinutes || 30;
+    this.editingShift.set(shift);
     this.showShiftModal.set(true);
   }
 
-  saveShift(): void {
+  handleSaveShift(event: { shiftId: string | null; request: CreateShiftRequest }): void {
     const examId = this.selectedExamId();
     const sched = this.selectedSchedule();
     if (!examId || !sched) return;
 
-    const payload: CreateShiftRequest = {
-      shiftNumber: this.shiftNumber,
-      shiftName: this.shiftName.trim() || undefined,
-      reportingTime: this.reportingTime,
-      gateClosingTime: this.gateClosingTime,
-      loginStartTime: this.loginStartTime,
-      examStartTime: this.examStartTime,
-      examEndTime: this.examEndTime,
-      exitTime: this.exitTime || undefined,
-      durationMinutes: this.durationMinutes,
-      bufferMinutes: this.bufferMinutes,
-    };
-
-    if (this.editingShiftId) {
+    if (event.shiftId) {
       this.scheduleService
-        .updateShift(examId, sched.id, this.editingShiftId, payload)
+        .updateShift(examId, sched.id, event.shiftId, event.request)
         .subscribe({
           next: () => {
             this.showShiftModal.set(false);
@@ -447,7 +307,7 @@ export class ExaminationsFeatureScheduling implements OnInit {
           },
         });
     } else {
-      this.scheduleService.addShift(examId, sched.id, payload).subscribe({
+      this.scheduleService.addShift(examId, sched.id, event.request).subscribe({
         next: () => {
           this.showShiftModal.set(false);
           this.snackBar.open('Shift added successfully', 'OK', { duration: 3000 });
@@ -464,7 +324,6 @@ export class ExaminationsFeatureScheduling implements OnInit {
     }
   }
 
-  // --- Seat Allocations ---
   viewAllocations(shift: ShiftResponse): void {
     this.selectedShift.set(shift);
     this.currentTab.set('ALLOCATIONS');
@@ -489,39 +348,14 @@ export class ExaminationsFeatureScheduling implements OnInit {
   }
 
   openAddAllocation(): void {
-    const centreList = this.centres() || [];
-    if (centreList.length > 0 && !this.allocCentreId) {
-      this.allocCentreId = centreList[0].id;
-    }
-    this.allocTotalSeats = 250;
-    this.allocAvailableSeats = 220;
-    this.allocReservedSeats = 30;
-    this.allocPwdSeats = 10;
-    this.allocEmergencyBufferSeats = 10;
-    this.allocFemaleReservedSeats = 0;
-    this.allocSpecialCategorySeats = 0;
     this.showAllocationModal.set(true);
   }
 
-  saveAllocation(): void {
+  handleSaveAllocation(payload: SeatAllocationRequest): void {
     const examId = this.selectedExamId();
     const sched = this.selectedSchedule();
     const shift = this.selectedShift();
-    if (!examId || !sched || !shift || !this.allocCentreId) {
-      this.snackBar.open('Please select a Test Centre', 'Dismiss', { duration: 3000 });
-      return;
-    }
-
-    const payload: SeatAllocationRequest = {
-      centreId: this.allocCentreId,
-      totalSeats: this.allocTotalSeats,
-      availableSeats: this.allocAvailableSeats,
-      reservedSeats: this.allocReservedSeats,
-      pwdSeats: this.allocPwdSeats,
-      emergencyBufferSeats: this.allocEmergencyBufferSeats,
-      femaleReservedSeats: this.allocFemaleReservedSeats,
-      specialCategorySeats: this.allocSpecialCategorySeats,
-    };
+    if (!examId || !sched || !shift) return;
 
     this.centreService.upsertAllocation(examId, sched.id, shift.id, payload).subscribe({
       next: () => {
@@ -539,10 +373,5 @@ export class ExaminationsFeatureScheduling implements OnInit {
         );
       },
     });
-  }
-
-  getCentreName(centreId: string): string {
-    const c = (this.centres() || []).find((item) => item?.id === centreId);
-    return c ? `${c.centreName} (${c.city}, ${c.state})` : centreId;
   }
 }

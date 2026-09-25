@@ -1,0 +1,97 @@
+<div class="shift-matrix-container space-y-4">
+  <div class="flex items-center justify-between">
+    <div>
+      <h2 class="text-sm font-bold text-slate-800 uppercase tracking-wide">
+        Test Shifts for {{ selectedSchedule()?.scheduleName }} (v{{ selectedSchedule()?.scheduleVersion }})
+      </h2>
+      <p class="text-xs text-slate-500">
+        Define daily candidate entry time, gate closing, login, exam duration, and buffer intervals
+      </p>
+    </div>
+    <button
+      mat-flat-button
+      color="primary"
+      (click)="onAddShift()"
+    >
+      <mat-icon>add</mat-icon>
+      Add Shift
+    </button>
+  </div>
+
+  @if (shifts().length === 0) {
+    <div class="p-12 bg-white rounded-2xl border border-dashed border-slate-300 text-center space-y-3">
+      <mat-icon class="!text-4xl text-slate-300 leading-none">schedule</mat-icon>
+      <h3 class="text-base font-bold text-slate-800">No Shifts Defined</h3>
+      <p class="text-xs text-slate-500 max-w-md mx-auto">
+        Add morning or afternoon shifts to allow candidates to sit for the examination.
+      </p>
+      <button
+        mat-flat-button
+        color="primary"
+        (click)="onAddShift()"
+      >
+        <mat-icon>add</mat-icon>
+        Add Shift 1
+      </button>
+    </div>
+  } @else {
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+      @for (shift of shifts(); track shift.id) {
+        <div class="bg-white p-5 rounded-2xl border border-slate-200 space-y-4 shadow-xs hover:border-indigo-200 transition-all">
+          <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+            <div class="flex items-center gap-2">
+              <span class="w-7 h-7 rounded-lg bg-indigo-600 text-white flex items-center justify-center font-bold text-xs">
+                {{ shift.shiftNumber }}
+              </span>
+              <h3 class="text-sm font-bold text-slate-900">{{ shift.shiftName || ('Shift ' + shift.shiftNumber) }}</h3>
+            </div>
+            <div class="flex items-center gap-1">
+              <button
+                mat-icon-button
+                (click)="onEditShift(shift)"
+                class="!text-slate-400 hover:!text-indigo-600"
+                matTooltip="Edit Shift Timing"
+              >
+                <mat-icon class="!text-base">edit</mat-icon>
+              </button>
+            </div>
+          </div>
+
+          <!-- Shift Timing Grid -->
+          <div class="grid grid-cols-2 gap-2 text-xs">
+            <div class="bg-slate-50 p-2 rounded-lg">
+              <span class="text-[10px] text-slate-400 font-semibold uppercase block">Reporting Time</span>
+              <span class="font-mono font-bold text-slate-800">{{ shift.reportingTime }}</span>
+            </div>
+            <div class="bg-slate-50 p-2 rounded-lg">
+              <span class="text-[10px] text-rose-500 font-semibold uppercase block">Gate Closing</span>
+              <span class="font-mono font-bold text-rose-700">{{ shift.gateClosingTime }}</span>
+            </div>
+            <div class="bg-indigo-50 p-2 rounded-lg">
+              <span class="text-[10px] text-indigo-600 font-semibold uppercase block">Exam Start</span>
+              <span class="font-mono font-bold text-indigo-900">{{ shift.examStartTime }}</span>
+            </div>
+            <div class="bg-indigo-50 p-2 rounded-lg">
+              <span class="text-[10px] text-indigo-600 font-semibold uppercase block">Exam End</span>
+              <span class="font-mono font-bold text-indigo-900">{{ shift.examEndTime }}</span>
+            </div>
+          </div>
+
+          <!-- Footer -->
+          <div class="flex items-center justify-between pt-2 border-t border-slate-100 text-xs text-slate-500">
+            <span>Duration: <strong>{{ shift.durationMinutes }}m</strong> (+{{ shift.bufferMinutes }}m buffer)</span>
+            <button
+              mat-flat-button
+              color="accent"
+              class="!text-xs"
+              (click)="onViewAllocations(shift)"
+            >
+              <mat-icon class="!text-xs">airline_seat_recline_normal</mat-icon>
+              Seat Quotas
+            </button>
+          </div>
+        </div>
+      }
+    </div>
+  }
+</div>
