@@ -1,10 +1,11 @@
+import { inject } from '@angular/core';
 import { Route } from '@angular/router';
-import { authGuard } from '@nag-frontend-workspace/shared-data-access-auth';
+import { AuthService, authGuard } from '@nag-frontend-workspace/shared-data-access-auth';
 
 export const appRoutes: Route[] = [
   {
     path: '',
-    redirectTo: 'dashboard',
+    redirectTo: () => (inject(AuthService).isAuthenticated() ? 'dashboard' : 'login'),
     pathMatch: 'full',
   },
   {
@@ -72,6 +73,6 @@ export const appRoutes: Route[] = [
   },
   {
     path: '**',
-    redirectTo: 'dashboard',
+    redirectTo: () => (inject(AuthService).isAuthenticated() ? 'dashboard' : 'login'),
   },
 ];
