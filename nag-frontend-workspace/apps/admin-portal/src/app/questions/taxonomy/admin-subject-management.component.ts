@@ -1,21 +1,21 @@
-import { Component, OnInit, inject, signal, computed } from '@angular/core';
+import { Component, OnInit, inject, signal, computed, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterModule } from '@angular/router';
 import { MatIconModule } from '@angular/material/icon';
 import { MatButtonModule } from '@angular/material/button';
-import { MatCardModule } from '@angular/material/card';
-import { MatChipsModule } from '@angular/material/chips';
-import { MatTooltipModule } from '@angular/material/tooltip';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
-import { MatExpansionModule } from '@angular/material/expansion';
 import {
   SubjectTopicService,
   SubjectHierarchy,
-  TopicNode,
-  SubtopicNode,
 } from '@nag-frontend-workspace/questions-data-access';
+import { CreateSubjectDto, CreateTopicDto, CreateSubtopicDto } from './models';
+import {
+  TaxonomyStatsCardsComponent,
+  CreateSubjectCardComponent,
+  SubjectTreeNodeComponent,
+} from './components';
 
 @Component({
   selector: 'app-admin-subject-management',
@@ -26,15 +26,15 @@ import {
     RouterModule,
     MatIconModule,
     MatButtonModule,
-    MatCardModule,
-    MatChipsModule,
-    MatTooltipModule,
     MatProgressSpinnerModule,
     MatSnackBarModule,
-    MatExpansionModule,
+    TaxonomyStatsCardsComponent,
+    CreateSubjectCardComponent,
+    SubjectTreeNodeComponent,
   ],
   templateUrl: './admin-subject-management.component.html',
   styleUrl: './admin-subject-management.component.scss',
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class AdminSubjectManagementComponent implements OnInit {
   private readonly subjectTopicService = inject(SubjectTopicService);
@@ -50,20 +50,13 @@ export class AdminSubjectManagementComponent implements OnInit {
   readonly expandedTopics = signal<Set<number>>(new Set<number>());
 
   // Quick-Add Subject Modal / Panel
-  showAddSubject = signal<boolean>(false);
-  newSubjectName = '';
-  newSubjectCode = '';
-  newSubjectDescription = '';
+  readonly showAddSubject = signal<boolean>(false);
 
   // Quick-Add Topic tracking per subjectId
   readonly addingTopicSubjectId = signal<number | null>(null);
-  newTopicName = '';
-  newTopicDescription = '';
 
   // Quick-Add Subtopic tracking per topicId
   readonly addingSubtopicTopicId = signal<number | null>(null);
-  newSubtopicName = '';
-  newSubtopicDescription = '';
 
   // Computed Metrics
   readonly totalSubjects = computed(() => this.hierarchy().length);
@@ -171,10 +164,6 @@ export class AdminSubjectManagementComponent implements OnInit {
     this.expandedTopics.set(current);
   }
 
-  isTopicExpanded(id: number): boolean {
-    return this.expandedTopics().has(id);
-  }
-
   expandAll(): void {
     const allSubjectIds = new Set<number>();
     const allTopicIds = new Set<number>();
@@ -192,149 +181,103 @@ export class AdminSubjectManagementComponent implements OnInit {
   }
 
   // --- Create Subject ---
-  createSubject(): void {
-    if (!this.newSubjectName.trim()) {
-      this.snackBar.open('Please enter a valid subject name', 'Dismiss', {
-        duration: 3000,
-      });
-      return;
-    }
-
+  handleCreateSubject(dto: CreateSubjectDto): void {
     this.creating.set(true);
-    this.subjectTopicService
-      .createSubject({
-        name: this.newSubjectName.trim(),
-        code: this.newSubjectCode.trim() || undefined,
-        description: this.newSubjectDescription.trim() || undefined,
-      })
-      .subscribe({
-        next: (created) => {
-          this.creating.set(false);
-          this.snackBar.open(
-            `Subject "${created.name}" created successfully!`,
-            'Dismiss',
-            { duration: 3000 }
-          );
-          this.newSubjectName = '';
-          this.newSubjectCode = '';
-          this.newSubjectDescription = '';
-          this.showAddSubject.set(false);
-          this.loadHierarchy();
-        },
-        error: (err) => {
-          this.creating.set(false);
-          this.snackBar.open(
-            err?.error?.message || 'Failed to create subject',
-            'Dismiss',
-            { duration: 4000 }
-          );
-        },
-      });
+    this.subjectTopicService.createSubject(dto).subscribe({
+      next: (created) => {
+        this.creating.set(false);
+        this.snackBar.open(
+          `Subject "${created.name}" created successfully!`,
+          'Dismiss',
+          { duration: 3000 }
+        );
+        this.showAddSubject.set(false);
+        this.loadHierarchy();
+      },
+      error: (err) => {
+        this.creating.set(false);
+        this.snackBar.open(
+          err?.error?.message || 'Failed to create subject',
+          'Dismiss',
+          { duration: 4000 }
+        );
+      },
+    });
   }
 
   // --- Create Topic ---
   openAddTopic(subjectId: number): void {
     this.addingTopicSubjectId.set(subjectId);
-    this.newTopicName = '';
-    this.newTopicDescription = '';
   }
 
   closeAddTopic(): void {
     this.addingTopicSubjectId.set(null);
-    this.newTopicName = '';
-    this.newTopicDescription = '';
   }
 
-  createTopic(subjectId: number): void {
-    if (!this.newTopicName.trim()) {
-      this.snackBar.open('Please enter a valid topic name', 'Dismiss', {
-        duration: 3000,
-      });
-      return;
-    }
-
+  handleCreateTopic(event: { subjectId: number; dto: CreateTopicDto }): void {
+    const { subjectId, dto } = event;
     this.creating.set(true);
-    this.subjectTopicService
-      .createTopic(subjectId, {
-        name: this.newTopicName.trim(),
-        description: this.newTopicDescription.trim() || undefined,
-      })
-      .subscribe({
-        next: (created) => {
-          this.creating.set(false);
-          this.snackBar.open(
-            `Topic "${created.name}" created successfully!`,
-            'Dismiss',
-            { duration: 3000 }
-          );
-          this.closeAddTopic();
-          // Ensure subject is expanded
-          const currentExp = new Set(this.expandedSubjects());
-          currentExp.add(subjectId);
-          this.expandedSubjects.set(currentExp);
-          this.loadHierarchy();
-        },
-        error: (err) => {
-          this.creating.set(false);
-          this.snackBar.open(
-            err?.error?.message || 'Failed to create topic',
-            'Dismiss',
-            { duration: 4000 }
-          );
-        },
-      });
+    this.subjectTopicService.createTopic(subjectId, dto).subscribe({
+      next: (created) => {
+        this.creating.set(false);
+        this.snackBar.open(
+          `Topic "${created.name}" created successfully!`,
+          'Dismiss',
+          { duration: 3000 }
+        );
+        this.closeAddTopic();
+        // Ensure subject is expanded
+        const currentExp = new Set(this.expandedSubjects());
+        currentExp.add(subjectId);
+        this.expandedSubjects.set(currentExp);
+        this.loadHierarchy();
+      },
+      error: (err) => {
+        this.creating.set(false);
+        this.snackBar.open(
+          err?.error?.message || 'Failed to create topic',
+          'Dismiss',
+          { duration: 4000 }
+        );
+      },
+    });
   }
 
   // --- Create Subtopic ---
   openAddSubtopic(topicId: number): void {
     this.addingSubtopicTopicId.set(topicId);
-    this.newSubtopicName = '';
-    this.newSubtopicDescription = '';
   }
 
   closeAddSubtopic(): void {
     this.addingSubtopicTopicId.set(null);
-    this.newSubtopicName = '';
-    this.newSubtopicDescription = '';
   }
 
-  createSubtopic(subjectId: number, topicId: number): void {
-    if (!this.newSubtopicName.trim()) {
-      this.snackBar.open('Please enter a valid subtopic name', 'Dismiss', {
-        duration: 3000,
-      });
-      return;
-    }
-
+  handleCreateSubtopic(event: { subjectId: number; topicId: number; dto: CreateSubtopicDto }): void {
+    const { subjectId, topicId, dto } = event;
     this.creating.set(true);
-    this.subjectTopicService
-      .createSubtopic(subjectId, topicId, {
-        name: this.newSubtopicName.trim(),
-        description: this.newSubtopicDescription.trim() || undefined,
-      })
-      .subscribe({
-        next: (created) => {
-          this.creating.set(false);
-          this.snackBar.open(
-            `Subtopic "${created.name}" created successfully!`,
-            'Dismiss',
-            { duration: 3000 }
-          );
-          this.closeAddSubtopic();
-          // Ensure topic is expanded
-          const currentExp = new Set(this.expandedTopics());
-          currentExp.add(topicId);
-          this.expandedTopics.set(currentExp);
-          this.loadHierarchy();
-        },
-        error: (err) => {
-          this.creating.set(false);
-          this.snackBar.open(
-            err?.error?.message || 'Failed to create subtopic',
-            'Dismiss',
-            { duration: 4000 }
-          );
-        },
-      });
+    this.subjectTopicService.createSubtopic(subjectId, topicId, dto).subscribe({
+      next: (created) => {
+        this.creating.set(false);
+        this.snackBar.open(
+          `Subtopic "${created.name}" created successfully!`,
+          'Dismiss',
+          { duration: 3000 }
+        );
+        this.closeAddSubtopic();
+        // Ensure topic is expanded
+        const currentExp = new Set(this.expandedTopics());
+        currentExp.add(topicId);
+        this.expandedTopics.set(currentExp);
+        this.loadHierarchy();
+      },
+      error: (err) => {
+        this.creating.set(false);
+        this.snackBar.open(
+          err?.error?.message || 'Failed to create subtopic',
+          'Dismiss',
+          { duration: 4000 }
+        );
+      },
+    });
   }
 }
