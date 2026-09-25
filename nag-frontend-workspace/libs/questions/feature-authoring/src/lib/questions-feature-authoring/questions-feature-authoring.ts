@@ -354,7 +354,7 @@ export class QuestionsFeatureAuthoring implements OnInit {
       subtopic: selectedSubtop?.name || '',
       subjectId: this.selectedSubjectId || 0,
       topicId: this.selectedTopicId || undefined,
-      subtopicId: this.selectedSubtopicId || undefined,
+      
       marks: this.marks,
       negativeMarks: this.negativeMarks,
       options: formattedOptions,
@@ -468,7 +468,7 @@ export class QuestionsFeatureAuthoring implements OnInit {
       subtopic: selectedSubtop?.name || undefined,
       subjectId: this.selectedSubjectId || 0,
       topicId: this.selectedTopicId || undefined,
-      subtopicId: this.selectedSubtopicId || undefined,
+      
       subQuestions: formattedSubQuestions,
     };
 
@@ -497,4 +497,5 @@ export class QuestionsFeatureAuthoring implements OnInit {
     this.router.navigate(['/questions/bank']);
   }
 }
+
 
