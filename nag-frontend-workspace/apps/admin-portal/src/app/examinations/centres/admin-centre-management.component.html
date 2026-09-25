@@ -1,0 +1,487 @@
+<div class="centre-mgmt-container p-6 max-w-7xl mx-auto space-y-6">
+  <!-- Top Banner -->
+  <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-6 rounded-2xl border border-slate-200 shadow-xs">
+    <div class="flex items-center gap-4">
+      <div class="w-12 h-12 rounded-xl bg-purple-50 border border-purple-100 flex items-center justify-center text-purple-600 shadow-xs">
+        <mat-icon class="!text-2xl leading-none">domain</mat-icon>
+      </div>
+      <div>
+        <h1 class="text-xl font-black text-slate-900 tracking-tight flex items-center gap-2">
+          <span>Examination Centre Directory</span>
+          <span class="text-xs font-semibold px-2 py-0.5 rounded-full bg-purple-50 text-purple-700 border border-purple-200">
+            Nationwide Infrastructure
+          </span>
+        </h1>
+        <p class="text-xs text-slate-500 font-medium mt-0.5">
+          Manage secure test venues, building labs, terminal seat capacities, and geographic location hierarchies
+        </p>
+      </div>
+    </div>
+
+    <div class="flex items-center gap-3">
+      <button
+        mat-stroked-button
+        (click)="loadCentres()"
+        [disabled]="loading()"
+        class="!text-slate-700 !border-slate-300"
+      >
+        <mat-icon>refresh</mat-icon>
+        Refresh
+      </button>
+      <button
+        mat-flat-button
+        color="primary"
+        (click)="openCreate()"
+      >
+        <mat-icon>add_business</mat-icon>
+        Register Test Centre
+      </button>
+    </div>
+  </div>
+
+  <!-- KPI Metrics -->
+  <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+    <div class="bg-white p-4 rounded-xl border border-slate-200 flex items-center justify-between shadow-xs">
+      <div>
+        <span class="text-xs font-bold text-slate-400 uppercase tracking-wider block">Registered Venues</span>
+        <span class="text-2xl font-black text-slate-900">{{ totalCentresCount() }}</span>
+      </div>
+      <div class="w-10 h-10 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center">
+        <mat-icon>location_city</mat-icon>
+      </div>
+    </div>
+
+    <div class="bg-white p-4 rounded-xl border border-slate-200 flex items-center justify-between shadow-xs">
+      <div>
+        <span class="text-xs font-bold text-slate-400 uppercase tracking-wider block">Aggregate Seat Capacity</span>
+        <span class="text-2xl font-black text-purple-600">{{ totalCapacitySum() | number }}</span>
+      </div>
+      <div class="w-10 h-10 rounded-lg bg-purple-50 text-purple-600 flex items-center justify-center">
+        <mat-icon>chair</mat-icon>
+      </div>
+    </div>
+
+    <div class="bg-white p-4 rounded-xl border border-slate-200 flex items-center justify-between shadow-xs">
+      <div>
+        <span class="text-xs font-bold text-slate-400 uppercase tracking-wider block">Active Venues</span>
+        <span class="text-2xl font-black text-emerald-600">{{ activeCentresCount() }}</span>
+      </div>
+      <div class="w-10 h-10 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center">
+        <mat-icon>verified</mat-icon>
+      </div>
+    </div>
+  </div>
+
+  <!-- Search & Filters -->
+  <div class="bg-white p-4 rounded-xl border border-slate-200 flex flex-col md:flex-row items-center justify-between gap-4 shadow-xs">
+    <div class="flex items-center gap-2 w-full md:w-80 px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg">
+      <mat-icon class="text-slate-400 !text-lg">search</mat-icon>
+      <input
+        type="text"
+        [(ngModel)]="searchQuery"
+        placeholder="Filter by venue name, city, district..."
+        class="bg-transparent text-xs text-slate-800 placeholder:text-slate-400 focus:outline-none w-full font-medium"
+      />
+      @if (searchQuery().trim()) {
+        <button
+          type="button"
+          (click)="searchQuery.set('')"
+          class="text-slate-400 hover:text-slate-600"
+        >
+          <mat-icon class="!text-sm">close</mat-icon>
+        </button>
+      }
+    </div>
+
+    <div class="flex flex-wrap items-center gap-3 w-full md:w-auto">
+      <!-- State Selector -->
+      @if (uniqueStates().length > 0) {
+        <div class="flex items-center gap-1.5 text-xs font-semibold text-slate-600">
+          <span>State:</span>
+          <select
+            [(ngModel)]="stateFilter"
+            class="px-2.5 py-1.5 bg-slate-50 border border-slate-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-indigo-500 font-medium text-xs text-slate-800"
+          >
+            <option value="ALL">All States</option>
+            @for (st of uniqueStates(); track st) {
+              <option [value]="st">{{ st }}</option>
+            }
+          </select>
+        </div>
+      }
+
+      <!-- Status Filters -->
+      <div class="flex items-center gap-1 bg-slate-100 p-1 rounded-lg">
+        <button
+          type="button"
+          (click)="statusFilter.set('ALL')"
+          [class.bg-white]="statusFilter() === 'ALL'"
+          [class.shadow-xs]="statusFilter() === 'ALL'"
+          class="px-2.5 py-1 text-xs font-semibold rounded-md transition-all text-slate-700"
+        >
+          All
+        </button>
+        <button
+          type="button"
+          (click)="statusFilter.set('ACTIVE')"
+          [class.bg-white]="statusFilter() === 'ACTIVE'"
+          [class.shadow-xs]="statusFilter() === 'ACTIVE'"
+          class="px-2.5 py-1 text-xs font-semibold rounded-md transition-all text-slate-700"
+        >
+          Active
+        </button>
+        <button
+          type="button"
+          (click)="statusFilter.set('INACTIVE')"
+          [class.bg-white]="statusFilter() === 'INACTIVE'"
+          [class.shadow-xs]="statusFilter() === 'INACTIVE'"
+          class="px-2.5 py-1 text-xs font-semibold rounded-md transition-all text-slate-700"
+        >
+          Inactive
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Loading State -->
+  @if (loading()) {
+    <div class="p-12 bg-white rounded-2xl border border-slate-200 text-center space-y-3">
+      <mat-spinner diameter="40" class="mx-auto"></mat-spinner>
+      <p class="text-sm font-medium text-slate-500">Loading test centres from registry...</p>
+    </div>
+  }
+
+  <!-- Empty State -->
+  @if (!loading() && filteredCentres().length === 0) {
+    <div class="p-12 bg-white rounded-2xl border border-dashed border-slate-300 text-center space-y-3">
+      <mat-icon class="!text-4xl text-slate-300 leading-none">domain_disabled</mat-icon>
+      <h3 class="text-base font-bold text-slate-800">No Test Centres Found</h3>
+      <p class="text-xs text-slate-500 max-w-md mx-auto">
+        {{ searchQuery() || stateFilter() !== 'ALL' ? 'No venues match the selected filters.' : 'Register your first examination test centre to enable candidate seat allocations.' }}
+      </p>
+      @if (!searchQuery() && stateFilter() === 'ALL') {
+        <button
+          mat-flat-button
+          color="primary"
+          (click)="openCreate()"
+          class="mt-2"
+        >
+          <mat-icon>add_business</mat-icon>
+          Register First Centre
+        </button>
+      }
+    </div>
+  }
+
+  <!-- Test Centres Table -->
+  @if (!loading() && filteredCentres().length > 0) {
+    <div class="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-xs">
+      <table class="min-w-full divide-y divide-slate-200 text-left text-xs">
+        <thead class="bg-slate-50 text-slate-600 font-semibold uppercase tracking-wider">
+          <tr>
+            <th scope="col" class="px-5 py-3.5">Venue & Lab Details</th>
+            <th scope="col" class="px-5 py-3.5">Location & Region</th>
+            <th scope="col" class="px-5 py-3.5">Seat Capacity</th>
+            <th scope="col" class="px-5 py-3.5">Venue Status</th>
+            <th scope="col" class="px-5 py-3.5 text-right">Actions</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-slate-100 text-slate-700">
+          @for (centre of filteredCentres(); track centre.id) {
+            <tr class="hover:bg-slate-50/70 transition-colors">
+              <td class="px-5 py-4">
+                <div class="font-bold text-slate-900 text-sm flex items-center gap-1.5">
+                  <mat-icon class="text-indigo-600 !text-base">domain</mat-icon>
+                  <span>{{ centre.centreName }}</span>
+                </div>
+                <div class="text-slate-500 text-[11px] mt-0.5">
+                  @if (centre.building) {
+                    <span>{{ centre.building }}</span>
+                  }
+                  @if (centre.floor) {
+                    <span> &bull; Floor {{ centre.floor }}</span>
+                  }
+                  @if (centre.laboratoryIdentifier) {
+                    <span> &bull; Lab: {{ centre.laboratoryIdentifier }}</span>
+                  }
+                </div>
+              </td>
+
+              <td class="px-5 py-4">
+                <div class="font-semibold text-slate-800">
+                  {{ centre.cityName || centre.city }}, {{ centre.stateName || centre.state }}
+                </div>
+                @if (centre.district) {
+                  <div class="text-slate-400 text-[11px]">District: {{ centre.district }}</div>
+                }
+              </td>
+
+              <td class="px-5 py-4">
+                <div class="flex items-center gap-1.5 font-mono text-slate-900 font-bold">
+                  <mat-icon class="text-purple-600 !text-sm">event_seat</mat-icon>
+                  <span>{{ centre.totalCapacity }} terminals</span>
+                </div>
+              </td>
+
+              <td class="px-5 py-4">
+                @if (centre.active !== false) {
+                  <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 text-[10px] font-bold uppercase">
+                    <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                    Active
+                  </span>
+                } @else {
+                  <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-600 border border-slate-200 text-[10px] font-bold uppercase">
+                    <span class="w-1.5 h-1.5 rounded-full bg-slate-400"></span>
+                    Inactive
+                  </span>
+                }
+              </td>
+
+              <td class="px-5 py-4 text-right">
+                @if (centre.active !== false) {
+                  <button
+                    mat-button
+                    color="warn"
+                    (click)="deactivateCentre(centre)"
+                    class="!text-xs"
+                    matTooltip="Mark venue as inactive for future scheduling"
+                  >
+                    Deactivate
+                  </button>
+                } @else {
+                  <span class="text-slate-400 text-xs italic">Deactivated</span>
+                }
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  }
+
+  <!-- Create Centre Drawer Overlay -->
+  @if (drawerOpen()) {
+    <div class="fixed inset-0 bg-slate-900/50 backdrop-blur-xs z-50 flex justify-end animate-fadeIn">
+      <div class="w-full max-w-xl bg-white h-full shadow-2xl flex flex-col animate-slideLeft overflow-y-auto">
+        <!-- Header -->
+        <div class="p-6 border-b border-slate-200 flex items-center justify-between sticky top-0 bg-white z-10">
+          <div class="flex items-center gap-3">
+            <div class="w-10 h-10 rounded-lg bg-purple-50 text-purple-600 flex items-center justify-center">
+              <mat-icon>add_business</mat-icon>
+            </div>
+            <div>
+              <h2 class="text-base font-black text-slate-900">
+                Register New Test Centre
+              </h2>
+              <p class="text-xs text-slate-500">Add test venue with location hierarchy and terminal capacity</p>
+            </div>
+          </div>
+          <button
+            type="button"
+            (click)="closeDrawer()"
+            class="text-slate-400 hover:text-slate-600"
+          >
+            <mat-icon>close</mat-icon>
+          </button>
+        </div>
+
+        <!-- Form Body -->
+        <div class="p-6 space-y-4 flex-1">
+          <!-- Venue Name -->
+          <div>
+            <label for="centre-name" class="block text-xs font-semibold text-slate-700 uppercase mb-1">
+              Test Centre Name *
+            </label>
+            <input
+              id="centre-name"
+              type="text"
+              [(ngModel)]="formCentreName"
+              placeholder="e.g. National Institute of Technology - Digital Test Center"
+              class="w-full px-3 py-2 text-sm bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 font-medium"
+            />
+          </div>
+
+          <!-- Geographic Cascading Selection -->
+          <div class="space-y-3 pt-2">
+            <h3 class="text-xs font-bold text-purple-900 uppercase tracking-wider">Geographic Location</h3>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label for="centre-country" class="block text-[11px] font-semibold text-slate-700 uppercase mb-1">
+                  Country
+                </label>
+                <select
+                  id="centre-country"
+                  [(ngModel)]="formCountryId"
+                  (ngModelChange)="onCountryChange($event)"
+                  class="w-full px-3 py-2 text-xs bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 font-medium"
+                >
+                  @for (country of countries(); track country.id) {
+                    <option [value]="country.id">{{ country.name }}</option>
+                  }
+                </select>
+              </div>
+
+              <div>
+                <label for="centre-state-select" class="block text-[11px] font-semibold text-slate-700 uppercase mb-1">
+                  State *
+                </label>
+                @if (states().length > 0) {
+                  <select
+                    id="centre-state-select"
+                    [(ngModel)]="formStateId"
+                    (ngModelChange)="onStateChange($event)"
+                    class="w-full px-3 py-2 text-xs bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 font-medium"
+                  >
+                    <option [ngValue]="null">Select State</option>
+                    @for (st of states(); track st.id) {
+                      <option [value]="st.id">{{ st.name }}</option>
+                    }
+                  </select>
+                } @else {
+                  <input
+                    id="centre-state-input"
+                    type="text"
+                    [(ngModel)]="formStateName"
+                    placeholder="Enter State Name"
+                    class="w-full px-3 py-2 text-xs bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 font-medium"
+                  />
+                }
+              </div>
+
+              <div>
+                <label for="centre-city-select" class="block text-[11px] font-semibold text-slate-700 uppercase mb-1">
+                  City *
+                </label>
+                @if (cities().length > 0) {
+                  <select
+                    id="centre-city-select"
+                    [(ngModel)]="formCityId"
+                    (ngModelChange)="onCityChange($event)"
+                    class="w-full px-3 py-2 text-xs bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 font-medium"
+                  >
+                    <option [ngValue]="null">Select City</option>
+                    @for (c of cities(); track c.id) {
+                      <option [value]="c.id">{{ c.name }}</option>
+                    }
+                  </select>
+                } @else {
+                  <input
+                    id="centre-city-input"
+                    type="text"
+                    [(ngModel)]="formCityName"
+                    placeholder="Enter City Name"
+                    class="w-full px-3 py-2 text-xs bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 font-medium"
+                  />
+                }
+              </div>
+
+              <div>
+                <label for="centre-district" class="block text-[11px] font-semibold text-slate-700 uppercase mb-1">
+                  District (Optional)
+                </label>
+                <input
+                  id="centre-district"
+                  type="text"
+                  [(ngModel)]="formDistrict"
+                  placeholder="e.g. Central District"
+                  class="w-full px-3 py-2 text-xs bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 font-medium"
+                />
+              </div>
+            </div>
+          </div>
+
+          <!-- Building, Floor, Lab -->
+          <div class="space-y-3 pt-2">
+            <h3 class="text-xs font-bold text-purple-900 uppercase tracking-wider">Facility & Capacity</h3>
+
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div>
+                <label for="centre-bldg" class="block text-[11px] font-semibold text-slate-700 uppercase mb-1">
+                  Building
+                </label>
+                <input
+                  id="centre-bldg"
+                  type="text"
+                  [(ngModel)]="formBuilding"
+                  placeholder="e.g. Academic Block 4"
+                  class="w-full px-3 py-2 text-xs bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 font-medium"
+                />
+              </div>
+
+              <div>
+                <label for="centre-floor" class="block text-[11px] font-semibold text-slate-700 uppercase mb-1">
+                  Floor
+                </label>
+                <input
+                  id="centre-floor"
+                  type="text"
+                  [(ngModel)]="formFloor"
+                  placeholder="e.g. 2nd Floor"
+                  class="w-full px-3 py-2 text-xs bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 font-medium"
+                />
+              </div>
+
+              <div>
+                <label for="centre-lab" class="block text-[11px] font-semibold text-slate-700 uppercase mb-1">
+                  Lab Identifier
+                </label>
+                <input
+                  id="centre-lab"
+                  type="text"
+                  [(ngModel)]="formLabIdentifier"
+                  placeholder="e.g. LAB-201-A"
+                  class="w-full px-3 py-2 text-xs bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 font-mono font-medium"
+                />
+              </div>
+
+              <div class="sm:col-span-2">
+                <label for="centre-cap" class="block text-[11px] font-semibold text-slate-700 uppercase mb-1">
+                  Terminal Seat Capacity *
+                </label>
+                <input
+                  id="centre-cap"
+                  type="number"
+                  [(ngModel)]="formTotalCapacity"
+                  min="1"
+                  class="w-full px-3 py-2 text-xs bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 font-mono font-bold"
+                />
+              </div>
+
+              <div class="flex items-center pt-5">
+                <label class="flex items-center gap-2 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    [(ngModel)]="formActive"
+                    class="w-4 h-4 text-purple-600 rounded border-slate-300 focus:ring-purple-500"
+                  />
+                  <span class="text-xs font-bold text-slate-800">Venue Active</span>
+                </label>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="p-4 border-t border-slate-200 flex justify-end gap-3 sticky bottom-0 bg-white">
+          <button
+            mat-stroked-button
+            (click)="closeDrawer()"
+            class="!text-slate-600"
+          >
+            Cancel
+          </button>
+          <button
+            mat-flat-button
+            color="primary"
+            [disabled]="isSaving() || !formCentreName.trim()"
+            (click)="saveCentre()"
+          >
+            <mat-icon>{{ isSaving() ? 'hourglass_top' : 'save' }}</mat-icon>
+            {{ isSaving() ? 'Saving...' : 'Register Test Centre' }}
+          </button>
+        </div>
+      </div>
+    </div>
+  }
+</div>

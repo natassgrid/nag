@@ -84,11 +84,11 @@ export const appRoutes: Route[] = [
       ),
   },
   {
-    path: 'examinations/paper-gen',
+    path: 'examinations',
     canActivate: [authGuard],
     loadComponent: () =>
-      import('@nag-frontend-workspace/examinations-feature-paper-gen').then(
-        (m) => m.ExaminationsFeaturePaperGen
+      import('./examinations/exams/admin-exam-management.component').then(
+        (m) => m.AdminExamManagementComponent
       ),
   },
   {
@@ -97,6 +97,27 @@ export const appRoutes: Route[] = [
     loadComponent: () =>
       import('@nag-frontend-workspace/examinations-feature-scheduling').then(
         (m) => m.ExaminationsFeatureScheduling
+      ),
+  },
+  {
+    path: 'examinations/centres',
+    canActivate: [authGuard],
+    loadComponent: () =>
+      import('./examinations/centres/admin-centre-management.component').then(
+        (m) => m.AdminCentreManagementComponent
+      ),
+  },
+  {
+    path: 'examinations/centers',
+    redirectTo: 'examinations/centres',
+    pathMatch: 'full',
+  },
+  {
+    path: 'examinations/paper-gen',
+    canActivate: [authGuard],
+    loadComponent: () =>
+      import('@nag-frontend-workspace/examinations-feature-paper-gen').then(
+        (m) => m.ExaminationsFeaturePaperGen
       ),
   },
   {

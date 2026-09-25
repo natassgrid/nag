@@ -1,211 +1,827 @@
-<div class="exam-scheduling-container p-6 max-w-7xl mx-auto">
-  <nag-page-header
-    title="Examination Orchestration & Scheduling"
-    subtitle="Manage secure nationwide test schedules, center capacities, and multi-tenant slot quotas"
-    icon="event_note"
-  >
-    <div actions class="flex items-center gap-3">
-      <button mat-stroked-button (click)="refresh()" class="!rounded-lg">
+<div class="scheduling-container p-6 max-w-7xl mx-auto space-y-6">
+  <!-- Top Banner -->
+  <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-6 rounded-2xl border border-slate-200 shadow-xs">
+    <div class="flex items-center gap-4">
+      <div class="w-12 h-12 rounded-xl bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-600 shadow-xs">
+        <mat-icon class="!text-2xl leading-none">calendar_month</mat-icon>
+      </div>
+      <div>
+        <h1 class="text-xl font-black text-slate-900 tracking-tight flex items-center gap-2">
+          <span>Examination Scheduling & Shift Orchestrator</span>
+          <span class="text-xs font-semibold px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-200">
+            DPI Multi-Stage
+          </span>
+        </h1>
+        <p class="text-xs text-slate-500 font-medium mt-0.5">
+          Schedule examination dates, shifts, candidate seat quotas, version amendments, and approval governance
+        </p>
+      </div>
+    </div>
+
+    <!-- Top Action Buttons -->
+    <div class="flex items-center gap-3">
+      <button
+        mat-stroked-button
+        (click)="loadSchedules()"
+        [disabled]="loading()"
+        class="!text-slate-700 !border-slate-300"
+      >
         <mat-icon>refresh</mat-icon>
-        Sync
+        Refresh
       </button>
       <button
         mat-flat-button
         color="primary"
-        (click)="showCreateModal.set(true)"
-        class="!rounded-lg"
+        [disabled]="!selectedExamId()"
+        (click)="openCreateSchedule()"
       >
         <mat-icon>add</mat-icon>
-        Schedule Session
+        New Schedule Session
       </button>
     </div>
-  </nag-page-header>
-
-  <!-- KPI Summary Cards -->
-  <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-    <nag-stat-card
-      label="Total Sessions"
-      [value]="examService.schedules().length"
-      icon="event"
-      variant="primary"
-    />
-    <nag-stat-card
-      label="Total Candidate Capacity"
-      [value]="totalCapacity()"
-      icon="groups"
-      variant="accent"
-    />
-    <nag-stat-card
-      label="Registered Candidates"
-      [value]="totalRegistered()"
-      icon="how_to_reg"
-      variant="success"
-    />
-    <nag-stat-card
-      label="Utilization Rate"
-      [value]="utilizationRate() + '%'"
-      icon="pie_chart"
-      variant="info"
-    />
   </div>
 
-  <!-- Filter Bar -->
-  <div class="flex items-center justify-between gap-4 mb-6">
-    <nag-search-input
-      placeholder="Search by exam code, subject, or title..."
-      (searchChange)="searchFilter.set($event)"
-    />
-  </div>
-
-  <!-- Sessions Table -->
-  @if (examService.loading()) {
-    <div class="py-12 flex flex-col items-center justify-center text-slate-500 gap-3">
-      <mat-icon class="animate-spin !text-3xl">refresh</mat-icon>
-      <span class="text-sm">Loading exam schedules...</span>
-    </div>
-  } @else if (filteredSchedules().length === 0) {
-    <nag-empty-state
-      title="No scheduled exams found"
-      description="Create a new assessment session to orchestrate exam centers and slots."
-      icon="calendar_today"
-    >
-      <button
-        mat-flat-button
-        color="primary"
-        (click)="showCreateModal.set(true)"
-      >
-        Schedule Session
-      </button>
-    </nag-empty-state>
-  } @else {
-    <div class="bg-white rounded-xl border border-slate-200 shadow-xs overflow-hidden">
-      <table class="min-w-full divide-y divide-slate-200 text-left text-sm">
-        <thead class="bg-slate-50 text-slate-600 font-semibold text-xs uppercase tracking-wider">
-          <tr>
-            <th scope="col" class="px-5 py-3.5">Exam Code & Title</th>
-            <th scope="col" class="px-5 py-3.5">Subject</th>
-            <th scope="col" class="px-5 py-3.5">Session Date & Time</th>
-            <th scope="col" class="px-5 py-3.5">Slot Quota</th>
-            <th scope="col" class="px-5 py-3.5">Status</th>
-            <th scope="col" class="px-5 py-3.5 text-right">Actions</th>
-          </tr>
-        </thead>
-        <tbody class="divide-y divide-slate-100 text-slate-700">
-          @for (item of filteredSchedules(); track item.id) {
-            <tr class="hover:bg-slate-50/70 transition-colors">
-              <td class="px-5 py-4">
-                <div class="font-bold text-slate-900">{{ item.title }}</div>
-                <div class="text-xs font-mono text-slate-500">{{ item.examCode }}</div>
-              </td>
-              <td class="px-5 py-4 font-medium">{{ item.subject }}</td>
-              <td class="px-5 py-4">
-                <div>{{ item.sessionDate }}</div>
-                <div class="text-xs text-slate-500">{{ item.startTime }} - {{ item.endTime }}</div>
-              </td>
-              <td class="px-5 py-4">
-                <div class="flex items-center gap-2">
-                  <span class="font-semibold">{{ item.registeredCandidates }}</span>
-                  <span class="text-slate-400">/ {{ item.totalSlots }}</span>
-                </div>
-              </td>
-              <td class="px-5 py-4">
-                <nag-status-badge [variant]="statusVariant(item.status)" [label]="item.status" />
-              </td>
-              <td class="px-5 py-4 text-right">
-                <button
-                  mat-button
-                  color="primary"
-                  class="!text-xs"
-                  (click)="viewCenters()"
-                >
-                  View Centers
-                </button>
-              </td>
-            </tr>
+  <!-- Examination Selector & Session Stats -->
+  <div class="bg-white p-5 rounded-2xl border border-slate-200 space-y-4 shadow-xs">
+    <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div class="flex items-center gap-3 w-full md:w-auto">
+        <label for="active-exam-select" class="text-xs font-bold text-slate-500 uppercase tracking-wider whitespace-nowrap">
+          Target Examination:
+        </label>
+        <select
+          id="active-exam-select"
+          [ngModel]="selectedExamId()"
+          (ngModelChange)="selectExam($event)"
+          class="w-full md:w-96 px-3 py-2 text-xs bg-slate-50 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 font-bold text-slate-900"
+        >
+          @for (exam of exams(); track exam.id) {
+            <option [value]="exam.id">
+              {{ exam.name }} ({{ exam.code || 'NO-CODE' }}) &bull; {{ exam.status }}
+            </option>
           }
-        </tbody>
-      </table>
+        </select>
+      </div>
+
+      <!-- Tab Navigator -->
+      <div class="flex items-center bg-slate-100 p-1 rounded-xl">
+        <button
+          type="button"
+          (click)="currentTab.set('SCHEDULES')"
+          [class.bg-white]="currentTab() === 'SCHEDULES'"
+          [class.text-indigo-600]="currentTab() === 'SCHEDULES'"
+          [class.shadow-xs]="currentTab() === 'SCHEDULES'"
+          class="px-3.5 py-1.5 text-xs font-bold rounded-lg transition-all text-slate-600 flex items-center gap-1.5"
+        >
+          <mat-icon class="!text-sm">event_note</mat-icon>
+          Schedules ({{ totalSchedulesCount() }})
+        </button>
+
+        <button
+          type="button"
+          (click)="currentTab.set('SHIFTS')"
+          [disabled]="!selectedSchedule()"
+          [class.bg-white]="currentTab() === 'SHIFTS'"
+          [class.text-indigo-600]="currentTab() === 'SHIFTS'"
+          [class.shadow-xs]="currentTab() === 'SHIFTS'"
+          class="px-3.5 py-1.5 text-xs font-bold rounded-lg transition-all text-slate-600 flex items-center gap-1.5 disabled:opacity-40"
+        >
+          <mat-icon class="!text-sm">access_time</mat-icon>
+          Shifts ({{ totalShiftsCount() }})
+        </button>
+
+        <button
+          type="button"
+          (click)="currentTab.set('ALLOCATIONS')"
+          [disabled]="!selectedShift()"
+          [class.bg-white]="currentTab() === 'ALLOCATIONS'"
+          [class.text-indigo-600]="currentTab() === 'ALLOCATIONS'"
+          [class.shadow-xs]="currentTab() === 'ALLOCATIONS'"
+          class="px-3.5 py-1.5 text-xs font-bold rounded-lg transition-all text-slate-600 flex items-center gap-1.5 disabled:opacity-40"
+        >
+          <mat-icon class="!text-sm">airline_seat_recline_normal</mat-icon>
+          Seat Allocations ({{ allocations().length }})
+        </button>
+      </div>
+    </div>
+
+    <!-- Active Schedule Context Chip Banner -->
+    @if (selectedSchedule()) {
+      <div class="p-3 bg-indigo-50/60 rounded-xl border border-indigo-100 flex flex-wrap items-center justify-between gap-3 text-xs">
+        <div class="flex items-center gap-2">
+          <span class="font-extrabold text-indigo-950">Active Schedule:</span>
+          <span class="font-bold text-slate-800">{{ selectedSchedule()?.scheduleName }}</span>
+          <span class="font-mono text-[10px] px-2 py-0.5 rounded bg-indigo-100 text-indigo-800 font-bold">
+            v{{ selectedSchedule()?.scheduleVersion }}
+          </span>
+          <span class="text-slate-400">&bull;</span>
+          <span class="text-slate-600">Exam Date: <strong>{{ selectedSchedule()?.examDate }}</strong></span>
+          @if (selectedSchedule()?.reserveDate) {
+            <span class="text-slate-500">(Reserve: {{ selectedSchedule()?.reserveDate }})</span>
+          }
+        </div>
+
+        <div class="flex items-center gap-2">
+          <span class="text-[10px] font-extrabold uppercase px-2.5 py-0.5 rounded-full bg-slate-900 text-white">
+            {{ selectedSchedule()?.status }}
+          </span>
+          <button
+            type="button"
+            (click)="openTransitionModal(selectedSchedule()!)"
+            class="px-2.5 py-1 bg-white hover:bg-slate-50 border border-slate-300 rounded text-xs font-bold text-indigo-600 flex items-center gap-1 shadow-2xs"
+          >
+            <mat-icon class="!text-xs">swap_horiz</mat-icon>
+            Workflow Transition
+          </button>
+          <button
+            type="button"
+            (click)="openAmendModal(selectedSchedule()!)"
+            class="px-2.5 py-1 bg-white hover:bg-slate-50 border border-slate-300 rounded text-xs font-bold text-purple-600 flex items-center gap-1 shadow-2xs"
+          >
+            <mat-icon class="!text-xs">history_edu</mat-icon>
+            Amend Schedule
+          </button>
+        </div>
+      </div>
+    }
+  </div>
+
+  <!-- TAB 1: SCHEDULES LIST -->
+  @if (currentTab() === 'SCHEDULES') {
+    <div class="space-y-4">
+      @if (loading()) {
+        <div class="p-12 bg-white rounded-2xl border border-slate-200 text-center space-y-3">
+          <mat-spinner diameter="40" class="mx-auto"></mat-spinner>
+          <p class="text-sm font-medium text-slate-500">Loading schedules from DPI registry...</p>
+        </div>
+      } @else if (filteredSchedules().length === 0) {
+        <div class="p-12 bg-white rounded-2xl border border-dashed border-slate-300 text-center space-y-3">
+          <mat-icon class="!text-4xl text-slate-300 leading-none">event_busy</mat-icon>
+          <h3 class="text-base font-bold text-slate-800">No Schedules Configured</h3>
+          <p class="text-xs text-slate-500 max-w-md mx-auto">
+            There are no active examination schedules for this examination yet. Create a schedule to define test shifts and venue allocations.
+          </p>
+          <button
+            mat-flat-button
+            color="primary"
+            (click)="openCreateSchedule()"
+            class="mt-2"
+          >
+            <mat-icon>add</mat-icon>
+            Create First Schedule
+          </button>
+        </div>
+      } @else {
+        <div class="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-xs">
+          <table class="min-w-full divide-y divide-slate-200 text-left text-xs">
+            <thead class="bg-slate-50 text-slate-600 font-semibold uppercase tracking-wider">
+              <tr>
+                <th scope="col" class="px-5 py-3.5">Schedule Name & Version</th>
+                <th scope="col" class="px-5 py-3.5">Notification No.</th>
+                <th scope="col" class="px-5 py-3.5">Exam Date & Reserve</th>
+                <th scope="col" class="px-5 py-3.5">Approval Status</th>
+                <th scope="col" class="px-5 py-3.5 text-right">Actions</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-100 text-slate-700">
+              @for (sched of filteredSchedules(); track sched.id) {
+                <tr
+                  class="hover:bg-indigo-50/40 cursor-pointer transition-colors"
+                  [class.bg-indigo-50/30]="selectedSchedule()?.id === sched.id"
+                  (click)="selectSchedule(sched)"
+                >
+                  <td class="px-5 py-4">
+                    <div class="font-bold text-slate-900 text-sm flex items-center gap-2">
+                      <span>{{ sched.scheduleName }}</span>
+                      <span class="text-[10px] font-mono font-bold px-1.5 py-0.5 rounded bg-slate-100 text-slate-700 border border-slate-200">
+                        v{{ sched.scheduleVersion }}
+                      </span>
+                    </div>
+                    @if (sched.changeReason) {
+                      <div class="text-[11px] text-purple-700 mt-0.5 italic">
+                        Reason: {{ sched.changeReason }}
+                      </div>
+                    }
+                  </td>
+
+                  <td class="px-5 py-4 font-mono text-slate-600">
+                    {{ sched.notificationNumber || '—' }}
+                  </td>
+
+                  <td class="px-5 py-4">
+                    <div class="font-bold text-slate-800">{{ sched.examDate }}</div>
+                    @if (sched.reserveDate) {
+                      <div class="text-[11px] text-slate-400">Reserve: {{ sched.reserveDate }}</div>
+                    }
+                  </td>
+
+                  <td class="px-5 py-4">
+                    <span
+                      [class.bg-emerald-50]="sched.status === 'PUBLISHED'"
+                      [class.text-emerald-700]="sched.status === 'PUBLISHED'"
+                      [class.border-emerald-200]="sched.status === 'PUBLISHED'"
+                      [class.bg-amber-50]="sched.status.includes('REVIEW') || sched.status.includes('DRAFT')"
+                      [class.text-amber-700]="sched.status.includes('REVIEW') || sched.status.includes('DRAFT')"
+                      [class.border-amber-200]="sched.status.includes('REVIEW') || sched.status.includes('DRAFT')"
+                      [class.bg-blue-50]="sched.status.includes('APPROVED')"
+                      [class.text-blue-700]="sched.status.includes('APPROVED')"
+                      [class.border-blue-200]="sched.status.includes('APPROVED')"
+                      class="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full border"
+                    >
+                      {{ sched.status }}
+                    </span>
+                  </td>
+
+                  <td class="px-5 py-4 text-right space-x-1" (click)="$event.stopPropagation()">
+                    <button
+                      mat-button
+                      color="primary"
+                      (click)="selectSchedule(sched); currentTab.set('SHIFTS')"
+                      class="!text-xs"
+                    >
+                      <mat-icon class="!text-xs">access_time</mat-icon>
+                      Shifts
+                    </button>
+                    <button
+                      mat-button
+                      (click)="openTransitionModal(sched, $event)"
+                      class="!text-xs !text-indigo-600"
+                    >
+                      Transition
+                    </button>
+                    <button
+                      mat-button
+                      (click)="openAmendModal(sched, $event)"
+                      class="!text-xs !text-purple-600"
+                    >
+                      Amend
+                    </button>
+                  </td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      }
     </div>
   }
 
-  <!-- Simple Create Modal -->
-  @if (showCreateModal()) {
-    <div class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-xs p-4">
-      <div class="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl border border-slate-100 space-y-4">
-        <h3 class="text-lg font-bold text-slate-900">Schedule Examination Session</h3>
+  <!-- TAB 2: SHIFTS -->
+  @if (currentTab() === 'SHIFTS') {
+    <div class="space-y-4">
+      <div class="flex items-center justify-between">
+        <div>
+          <h2 class="text-sm font-bold text-slate-800 uppercase tracking-wide">
+            Test Shifts for {{ selectedSchedule()?.scheduleName }} (v{{ selectedSchedule()?.scheduleVersion }})
+          </h2>
+          <p class="text-xs text-slate-500">
+            Define daily candidate entry time, gate closing, login, exam duration, and buffer intervals
+          </p>
+        </div>
+        <button
+          mat-flat-button
+          color="primary"
+          (click)="openAddShift()"
+        >
+          <mat-icon>add</mat-icon>
+          Add Shift
+        </button>
+      </div>
+
+      @if (shifts().length === 0) {
+        <div class="p-12 bg-white rounded-2xl border border-dashed border-slate-300 text-center space-y-3">
+          <mat-icon class="!text-4xl text-slate-300 leading-none">schedule</mat-icon>
+          <h3 class="text-base font-bold text-slate-800">No Shifts Defined</h3>
+          <p class="text-xs text-slate-500 max-w-md mx-auto">
+            Add morning or afternoon shifts to allow candidates to sit for the examination.
+          </p>
+          <button
+            mat-flat-button
+            color="primary"
+            (click)="openAddShift()"
+          >
+            <mat-icon>add</mat-icon>
+            Add Shift 1
+          </button>
+        </div>
+      } @else {
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          @for (shift of shifts(); track shift.id) {
+            <div class="bg-white p-5 rounded-2xl border border-slate-200 space-y-4 shadow-xs hover:border-indigo-200 transition-all">
+              <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+                <div class="flex items-center gap-2">
+                  <span class="w-7 h-7 rounded-lg bg-indigo-600 text-white flex items-center justify-center font-bold text-xs">
+                    {{ shift.shiftNumber }}
+                  </span>
+                  <h3 class="text-sm font-bold text-slate-900">{{ shift.shiftName || ('Shift ' + shift.shiftNumber) }}</h3>
+                </div>
+                <div class="flex items-center gap-1">
+                  <button
+                    mat-icon-button
+                    (click)="openEditShift(shift)"
+                    class="!text-slate-400 hover:!text-indigo-600"
+                    matTooltip="Edit Shift Timing"
+                  >
+                    <mat-icon class="!text-base">edit</mat-icon>
+                  </button>
+                </div>
+              </div>
+
+              <!-- Shift Timing Grid -->
+              <div class="grid grid-cols-2 gap-2 text-xs">
+                <div class="bg-slate-50 p-2 rounded-lg">
+                  <span class="text-[10px] text-slate-400 font-semibold uppercase block">Reporting Time</span>
+                  <span class="font-mono font-bold text-slate-800">{{ shift.reportingTime }}</span>
+                </div>
+                <div class="bg-slate-50 p-2 rounded-lg">
+                  <span class="text-[10px] text-rose-500 font-semibold uppercase block">Gate Closing</span>
+                  <span class="font-mono font-bold text-rose-700">{{ shift.gateClosingTime }}</span>
+                </div>
+                <div class="bg-indigo-50 p-2 rounded-lg">
+                  <span class="text-[10px] text-indigo-600 font-semibold uppercase block">Exam Start</span>
+                  <span class="font-mono font-bold text-indigo-900">{{ shift.examStartTime }}</span>
+                </div>
+                <div class="bg-indigo-50 p-2 rounded-lg">
+                  <span class="text-[10px] text-indigo-600 font-semibold uppercase block">Exam End</span>
+                  <span class="font-mono font-bold text-indigo-900">{{ shift.examEndTime }}</span>
+                </div>
+              </div>
+
+              <!-- Footer -->
+              <div class="flex items-center justify-between pt-2 border-t border-slate-100 text-xs text-slate-500">
+                <span>Duration: <strong>{{ shift.durationMinutes }}m</strong> (+{{ shift.bufferMinutes }}m buffer)</span>
+                <button
+                  mat-flat-button
+                  color="accent"
+                  class="!text-xs"
+                  (click)="viewAllocations(shift)"
+                >
+                  <mat-icon class="!text-xs">airline_seat_recline_normal</mat-icon>
+                  Seat Quotas
+                </button>
+              </div>
+            </div>
+          }
+        </div>
+      }
+    </div>
+  }
+
+  <!-- TAB 3: SEAT ALLOCATIONS -->
+  @if (currentTab() === 'ALLOCATIONS') {
+    <div class="space-y-4">
+      <div class="flex items-center justify-between">
+        <div>
+          <h2 class="text-sm font-bold text-slate-800 uppercase tracking-wide">
+            Seat Allocations for {{ selectedShift()?.shiftName || ('Shift ' + selectedShift()?.shiftNumber) }}
+          </h2>
+          <p class="text-xs text-slate-500">
+            Allocate test center capacity, PwD disability terminals, emergency buffers, and category reservations
+          </p>
+        </div>
+        <button
+          mat-flat-button
+          color="primary"
+          (click)="openAddAllocation()"
+        >
+          <mat-icon>add</mat-icon>
+          Allocate Test Centre
+        </button>
+      </div>
+
+      @if (loadingAllocations()) {
+        <div class="p-12 bg-white rounded-2xl border border-slate-200 text-center space-y-3">
+          <mat-spinner diameter="40" class="mx-auto"></mat-spinner>
+          <p class="text-sm font-medium text-slate-500">Loading seat allocations for this shift...</p>
+        </div>
+      } @else if (allocations().length === 0) {
+        <div class="p-12 bg-white rounded-2xl border border-dashed border-slate-300 text-center space-y-3">
+          <mat-icon class="!text-4xl text-slate-300 leading-none">chair</mat-icon>
+          <h3 class="text-base font-bold text-slate-800">No Test Venues Allocated</h3>
+          <p class="text-xs text-slate-500 max-w-md mx-auto">
+            Select examination venues from the nationwide test centre directory to assign seats to this shift.
+          </p>
+          <button
+            mat-flat-button
+            color="primary"
+            (click)="openAddAllocation()"
+          >
+            <mat-icon>add</mat-icon>
+            Allocate First Centre
+          </button>
+        </div>
+      } @else {
+        <div class="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-xs">
+          <table class="min-w-full divide-y divide-slate-200 text-left text-xs">
+            <thead class="bg-slate-50 text-slate-600 font-semibold uppercase tracking-wider">
+              <tr>
+                <th scope="col" class="px-5 py-3.5">Assigned Test Venue</th>
+                <th scope="col" class="px-5 py-3.5">Total Capacity</th>
+                <th scope="col" class="px-5 py-3.5">Available Seats</th>
+                <th scope="col" class="px-5 py-3.5">Reserved Quota</th>
+                <th scope="col" class="px-5 py-3.5">PwD Seats</th>
+                <th scope="col" class="px-5 py-3.5">Emergency Buffer</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-100 text-slate-700">
+              @for (alloc of allocations(); track alloc.id) {
+                <tr class="hover:bg-slate-50/70">
+                  <td class="px-5 py-4 font-bold text-slate-900">
+                    {{ getCentreName(alloc.centreId) }}
+                  </td>
+                  <td class="px-5 py-4 font-mono font-bold text-indigo-700">
+                    {{ alloc.totalSeats }}
+                  </td>
+                  <td class="px-5 py-4 font-mono text-emerald-700 font-bold">
+                    {{ alloc.availableSeats }}
+                  </td>
+                  <td class="px-5 py-4 font-mono text-slate-600">
+                    {{ alloc.reservedSeats }}
+                  </td>
+                  <td class="px-5 py-4 font-mono text-purple-700">
+                    {{ alloc.pwdSeats }}
+                  </td>
+                  <td class="px-5 py-4 font-mono text-amber-700">
+                    {{ alloc.emergencyBufferSeats }}
+                  </td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      }
+    </div>
+  }
+
+  <!-- MODAL: CREATE SCHEDULE -->
+  @if (showCreateScheduleModal()) {
+    <div class="fixed inset-0 bg-slate-900/50 backdrop-blur-xs z-50 flex items-center justify-center p-4 animate-fadeIn">
+      <div class="bg-white rounded-2xl max-w-lg w-full p-6 space-y-4 shadow-2xl border border-slate-200 animate-scaleUp">
+        <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+          <h2 class="text-base font-black text-slate-900 flex items-center gap-2">
+            <mat-icon class="text-indigo-600">event_note</mat-icon>
+            Create Examination Schedule Session
+          </h2>
+          <button type="button" (click)="showCreateScheduleModal.set(false)" class="text-slate-400 hover:text-slate-600">
+            <mat-icon>close</mat-icon>
+          </button>
+        </div>
+
         <div class="space-y-3">
           <div>
-            <label for="new-exam-title" class="block text-xs font-semibold text-slate-700 uppercase mb-1">
-              Exam Title
-            </label>
+            <label for="new-sched-name" class="block text-xs font-semibold text-slate-700 uppercase mb-1">Schedule Name *</label>
             <input
-              id="new-exam-title"
+              id="new-sched-name"
               type="text"
-              [(ngModel)]="newTitle"
-              placeholder="e.g. National Eligibility Screening 2026"
-              class="w-full px-3 py-2 text-sm border rounded-lg focus:ring-2 focus:ring-indigo-500"
+              [(ngModel)]="newScheduleName"
+              class="w-full px-3 py-2 text-xs bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 font-medium"
             />
           </div>
+
           <div class="grid grid-cols-2 gap-3">
             <div>
-              <label for="new-exam-code" class="block text-xs font-semibold text-slate-700 uppercase mb-1">
-                Exam Code
-              </label>
+              <label for="new-sched-notif" class="block text-xs font-semibold text-slate-700 uppercase mb-1">Notification No.</label>
               <input
-                id="new-exam-code"
+                id="new-sched-notif"
                 type="text"
-                [(ngModel)]="newCode"
-                placeholder="NES-2026-S1"
-                class="w-full px-3 py-2 text-sm border rounded-lg focus:ring-2 focus:ring-indigo-500"
+                [(ngModel)]="newNotificationNumber"
+                class="w-full px-3 py-2 text-xs bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 font-mono font-medium"
               />
             </div>
             <div>
-              <label for="new-exam-subject" class="block text-xs font-semibold text-slate-700 uppercase mb-1">
-                Subject
-              </label>
+              <label for="new-sched-tz" class="block text-xs font-semibold text-slate-700 uppercase mb-1">Time Zone</label>
               <input
-                id="new-exam-subject"
+                id="new-sched-tz"
                 type="text"
-                [(ngModel)]="newSubject"
-                placeholder="Computer Science"
-                class="w-full px-3 py-2 text-sm border rounded-lg focus:ring-2 focus:ring-indigo-500"
+                [(ngModel)]="newTimeZone"
+                class="w-full px-3 py-2 text-xs bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 font-mono font-medium"
               />
             </div>
           </div>
+
           <div class="grid grid-cols-2 gap-3">
             <div>
-              <label for="new-exam-date" class="block text-xs font-semibold text-slate-700 uppercase mb-1">
-                Session Date
-              </label>
+              <label for="new-sched-date" class="block text-xs font-semibold text-slate-700 uppercase mb-1">Exam Date *</label>
               <input
-                id="new-exam-date"
+                id="new-sched-date"
                 type="date"
-                [(ngModel)]="newDate"
-                class="w-full px-3 py-2 text-sm border rounded-lg focus:ring-2 focus:ring-indigo-500"
+                [(ngModel)]="newExamDate"
+                class="w-full px-3 py-2 text-xs bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 font-medium"
               />
             </div>
             <div>
-              <label for="new-exam-slots" class="block text-xs font-semibold text-slate-700 uppercase mb-1">
-                Total Slots
-              </label>
+              <label for="new-sched-reserve" class="block text-xs font-semibold text-slate-700 uppercase mb-1">Reserve Date</label>
               <input
-                id="new-exam-slots"
-                type="number"
-                [(ngModel)]="newSlots"
-                class="w-full px-3 py-2 text-sm border rounded-lg focus:ring-2 focus:ring-indigo-500"
+                id="new-sched-reserve"
+                type="date"
+                [(ngModel)]="newReserveDate"
+                class="w-full px-3 py-2 text-xs bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 font-medium"
               />
             </div>
           </div>
         </div>
-        <div class="flex items-center justify-end gap-2 pt-3 border-t">
-          <button mat-button (click)="showCreateModal.set(false)">Cancel</button>
-          <button
-            mat-flat-button
-            color="primary"
-            (click)="submitSchedule()"
-            [disabled]="!newTitle || !newCode"
-          >
+
+        <div class="flex justify-end gap-3 pt-3 border-t border-slate-100">
+          <button mat-stroked-button (click)="showCreateScheduleModal.set(false)" class="!text-slate-600">Cancel</button>
+          <button mat-flat-button color="primary" [disabled]="!newScheduleName.trim() || !newExamDate" (click)="saveSchedule()">
             Create Schedule
+          </button>
+        </div>
+      </div>
+    </div>
+  }
+
+  <!-- MODAL: APPROVAL TRANSITION -->
+  @if (showTransitionModal()) {
+    <div class="fixed inset-0 bg-slate-900/50 backdrop-blur-xs z-50 flex items-center justify-center p-4 animate-fadeIn">
+      <div class="bg-white rounded-2xl max-w-md w-full p-6 space-y-4 shadow-2xl border border-slate-200 animate-scaleUp">
+        <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+          <h2 class="text-base font-black text-slate-900 flex items-center gap-2">
+            <mat-icon class="text-indigo-600">swap_horiz</mat-icon>
+            DPI Approval Workflow Transition
+          </h2>
+          <button type="button" (click)="showTransitionModal.set(false)" class="text-slate-400 hover:text-slate-600">
+            <mat-icon>close</mat-icon>
+          </button>
+        </div>
+
+        <div class="space-y-3 text-xs">
+          <div class="p-3 bg-slate-50 rounded-lg border border-slate-200">
+            <span class="text-slate-500 block">Current Status:</span>
+            <span class="font-black text-indigo-700 text-sm uppercase">{{ selectedSchedule()?.status }}</span>
+          </div>
+
+          <div>
+            <label for="target-status-select" class="block text-xs font-semibold text-slate-700 uppercase mb-1">Target Status *</label>
+            <select
+              id="target-status-select"
+              [(ngModel)]="targetStatus"
+              class="w-full px-3 py-2 text-xs bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 font-bold text-slate-900"
+            >
+              @for (st of getNextStatuses(selectedSchedule()?.status || ''); track st) {
+                <option [value]="st">{{ st }}</option>
+              }
+            </select>
+          </div>
+
+          <div>
+            <label for="transition-comment" class="block text-xs font-semibold text-slate-700 uppercase mb-1">Audit Comment (Optional)</label>
+            <textarea
+              id="transition-comment"
+              [(ngModel)]="transitionComment"
+              rows="2"
+              placeholder="e.g. Schedule verified and verified against examination centers."
+              class="w-full px-3 py-2 text-xs bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 font-medium"
+            ></textarea>
+          </div>
+        </div>
+
+        <div class="flex justify-end gap-3 pt-3 border-t border-slate-100">
+          <button mat-stroked-button (click)="showTransitionModal.set(false)" class="!text-slate-600">Cancel</button>
+          <button mat-flat-button color="primary" [disabled]="!targetStatus" (click)="submitTransition()">
+            Execute Transition
+          </button>
+        </div>
+      </div>
+    </div>
+  }
+
+  <!-- MODAL: AMEND SCHEDULE -->
+  @if (showAmendModal()) {
+    <div class="fixed inset-0 bg-slate-900/50 backdrop-blur-xs z-50 flex items-center justify-center p-4 animate-fadeIn">
+      <div class="bg-white rounded-2xl max-w-lg w-full p-6 space-y-4 shadow-2xl border border-slate-200 animate-scaleUp">
+        <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+          <h2 class="text-base font-black text-slate-900 flex items-center gap-2">
+            <mat-icon class="text-purple-600">history_edu</mat-icon>
+            Amend Schedule (Creates New Version)
+          </h2>
+          <button type="button" (click)="showAmendModal.set(false)" class="text-slate-400 hover:text-slate-600">
+            <mat-icon>close</mat-icon>
+          </button>
+        </div>
+
+        <div class="space-y-3">
+          <div>
+            <label for="amend-reason" class="block text-xs font-semibold text-slate-700 uppercase mb-1">Change Reason * (Audit Trail)</label>
+            <input
+              id="amend-reason"
+              type="text"
+              [(ngModel)]="amendReason"
+              placeholder="e.g. Center capacity expansion and date adjustment due to festival"
+              class="w-full px-3 py-2 text-xs bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 font-medium"
+            />
+          </div>
+
+          <div>
+            <label for="amend-sched-name" class="block text-xs font-semibold text-slate-700 uppercase mb-1">Schedule Name</label>
+            <input
+              id="amend-sched-name"
+              type="text"
+              [(ngModel)]="amendScheduleName"
+              class="w-full px-3 py-2 text-xs bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 font-medium"
+            />
+          </div>
+
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label for="amend-exam-date" class="block text-xs font-semibold text-slate-700 uppercase mb-1">New Exam Date</label>
+              <input
+                id="amend-exam-date"
+                type="date"
+                [(ngModel)]="amendExamDate"
+                class="w-full px-3 py-2 text-xs bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 font-medium"
+              />
+            </div>
+            <div>
+              <label for="amend-reserve-date" class="block text-xs font-semibold text-slate-700 uppercase mb-1">New Reserve Date</label>
+              <input
+                id="amend-reserve-date"
+                type="date"
+                [(ngModel)]="amendReserveDate"
+                class="w-full px-3 py-2 text-xs bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 font-medium"
+              />
+            </div>
+          </div>
+        </div>
+
+        <div class="flex justify-end gap-3 pt-3 border-t border-slate-100">
+          <button mat-stroked-button (click)="showAmendModal.set(false)" class="!text-slate-600">Cancel</button>
+          <button mat-flat-button color="primary" [disabled]="!amendReason.trim()" (click)="submitAmendment()">
+            Publish Amendment
+          </button>
+        </div>
+      </div>
+    </div>
+  }
+
+  <!-- MODAL: ADD / EDIT SHIFT -->
+  @if (showShiftModal()) {
+    <div class="fixed inset-0 bg-slate-900/50 backdrop-blur-xs z-50 flex items-center justify-center p-4 animate-fadeIn">
+      <div class="bg-white rounded-2xl max-w-lg w-full p-6 space-y-4 shadow-2xl border border-slate-200 animate-scaleUp">
+        <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+          <h2 class="text-base font-black text-slate-900 flex items-center gap-2">
+            <mat-icon class="text-indigo-600">access_time</mat-icon>
+            {{ editingShiftId ? 'Edit Shift Timing' : 'Add Test Shift' }}
+          </h2>
+          <button type="button" (click)="showShiftModal.set(false)" class="text-slate-400 hover:text-slate-600">
+            <mat-icon>close</mat-icon>
+          </button>
+        </div>
+
+        <div class="space-y-3">
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label for="shift-number" class="block text-xs font-semibold text-slate-700 uppercase mb-1">Shift Number</label>
+              <input
+                id="shift-number"
+                type="number"
+                [(ngModel)]="shiftNumber"
+                class="w-full px-3 py-2 text-xs bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 font-mono font-bold"
+              />
+            </div>
+            <div>
+              <label for="shift-name" class="block text-xs font-semibold text-slate-700 uppercase mb-1">Shift Name</label>
+              <input
+                id="shift-name"
+                type="text"
+                [(ngModel)]="shiftName"
+                placeholder="Morning Session"
+                class="w-full px-3 py-2 text-xs bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 font-medium"
+              />
+            </div>
+          </div>
+
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label for="shift-reporting" class="block text-xs font-semibold text-slate-700 uppercase mb-1">Reporting Time</label>
+              <input
+                id="shift-reporting"
+                type="text"
+                [(ngModel)]="reportingTime"
+                placeholder="07:30:00"
+                class="w-full px-3 py-2 text-xs bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 font-mono"
+              />
+            </div>
+            <div>
+              <label for="shift-gate-closing" class="block text-xs font-semibold text-slate-700 uppercase mb-1">Gate Closing</label>
+              <input
+                id="shift-gate-closing"
+                type="text"
+                [(ngModel)]="gateClosingTime"
+                placeholder="08:30:00"
+                class="w-full px-3 py-2 text-xs bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 font-mono"
+              />
+            </div>
+          </div>
+
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label for="shift-exam-start" class="block text-xs font-semibold text-slate-700 uppercase mb-1">Exam Start</label>
+              <input
+                id="shift-exam-start"
+                type="text"
+                [(ngModel)]="examStartTime"
+                placeholder="09:00:00"
+                class="w-full px-3 py-2 text-xs bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 font-mono"
+              />
+            </div>
+            <div>
+              <label for="shift-exam-end" class="block text-xs font-semibold text-slate-700 uppercase mb-1">Exam End</label>
+              <input
+                id="shift-exam-end"
+                type="text"
+                [(ngModel)]="examEndTime"
+                placeholder="12:00:00"
+                class="w-full px-3 py-2 text-xs bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 font-mono"
+              />
+            </div>
+          </div>
+        </div>
+
+        <div class="flex justify-end gap-3 pt-3 border-t border-slate-100">
+          <button mat-stroked-button (click)="showShiftModal.set(false)" class="!text-slate-600">Cancel</button>
+          <button mat-flat-button color="primary" (click)="saveShift()">
+            {{ editingShiftId ? 'Update Shift' : 'Save Shift' }}
+          </button>
+        </div>
+      </div>
+    </div>
+  }
+
+  <!-- MODAL: SEAT ALLOCATION -->
+  @if (showAllocationModal()) {
+    <div class="fixed inset-0 bg-slate-900/50 backdrop-blur-xs z-50 flex items-center justify-center p-4 animate-fadeIn">
+      <div class="bg-white rounded-2xl max-w-lg w-full p-6 space-y-4 shadow-2xl border border-slate-200 animate-scaleUp">
+        <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+          <h2 class="text-base font-black text-slate-900 flex items-center gap-2">
+            <mat-icon class="text-purple-600">airline_seat_recline_normal</mat-icon>
+            Allocate Test Venue & Seat Quotas
+          </h2>
+          <button type="button" (click)="showAllocationModal.set(false)" class="text-slate-400 hover:text-slate-600">
+            <mat-icon>close</mat-icon>
+          </button>
+        </div>
+
+        <div class="space-y-3">
+          <div>
+            <label for="alloc-centre-select" class="block text-xs font-semibold text-slate-700 uppercase mb-1">Select Examination Centre *</label>
+            <select
+              id="alloc-centre-select"
+              [(ngModel)]="allocCentreId"
+              class="w-full px-3 py-2 text-xs bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 font-medium"
+            >
+              @for (c of centres(); track c.id) {
+                <option [value]="c.id">{{ c.centreName }} &bull; {{ c.city }}, {{ c.state }} (Cap: {{ c.totalCapacity }})</option>
+              }
+            </select>
+          </div>
+
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label for="alloc-total-seats" class="block text-xs font-semibold text-slate-700 uppercase mb-1">Total Allocated Seats</label>
+              <input
+                id="alloc-total-seats"
+                type="number"
+                [(ngModel)]="allocTotalSeats"
+                class="w-full px-3 py-2 text-xs bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 font-mono font-bold"
+              />
+            </div>
+            <div>
+              <label for="alloc-avail-seats" class="block text-xs font-semibold text-slate-700 uppercase mb-1">Available Seats</label>
+              <input
+                id="alloc-avail-seats"
+                type="number"
+                [(ngModel)]="allocAvailableSeats"
+                class="w-full px-3 py-2 text-xs bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 font-mono font-bold text-emerald-700"
+              />
+            </div>
+          </div>
+
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label for="alloc-pwd-seats" class="block text-xs font-semibold text-slate-700 uppercase mb-1">PwD Disability Seats</label>
+              <input
+                id="alloc-pwd-seats"
+                type="number"
+                [(ngModel)]="allocPwdSeats"
+                class="w-full px-3 py-2 text-xs bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 font-mono"
+              />
+            </div>
+            <div>
+              <label for="alloc-buff-seats" class="block text-xs font-semibold text-slate-700 uppercase mb-1">Emergency Buffer Seats</label>
+              <input
+                id="alloc-buff-seats"
+                type="number"
+                [(ngModel)]="allocEmergencyBufferSeats"
+                class="w-full px-3 py-2 text-xs bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 font-mono"
+              />
+            </div>
+          </div>
+        </div>
+
+        <div class="flex justify-end gap-3 pt-3 border-t border-slate-100">
+          <button mat-stroked-button (click)="showAllocationModal.set(false)" class="!text-slate-600">Cancel</button>
+          <button mat-flat-button color="primary" [disabled]="!allocCentreId" (click)="saveAllocation()">
+            Save Allocation
           </button>
         </div>
       </div>
