@@ -36,36 +36,32 @@ export class AdminLoginComponent {
 
   handleLogin(): void {
     if (!this.username.trim() || !this.password.trim()) {
-      this.errorMessage.set('Please enter officer ID and access token.');
+      this.errorMessage.set('Please enter officer ID and access credentials.');
       return;
     }
 
     this.loading.set(true);
     this.errorMessage.set(null);
 
-    this.authService.login({
-      username: this.username,
-      password: this.password,
-    }).subscribe({
-      next: () => {
-        this.loading.set(false);
-        this.router.navigate(['/dashboard']);
-      },
-      error: () => {
-        // Fallback demo for local development
-        this.authService.storeTokens(
-          {
-            accessToken: 'admin-jwt-token-' + Date.now(),
-            refreshToken: 'admin-refresh-token',
-            expiresIn: 3600,
-            roles: ['SUPERADMIN', 'EXAM_CONTROLLER', 'QUESTION_AUTHOR', 'EVALUATOR'],
-            userId: 'admin-001',
-          },
-          this.username
-        );
-        this.loading.set(false);
-        this.router.navigate(['/dashboard']);
-      },
-    });
+    this.authService
+      .login({
+        username: this.username.trim(),
+        password: this.password,
+      })
+      .subscribe({
+        next: () => {
+          this.loading.set(false);
+          this.router.navigate(['/dashboard']);
+        },
+        error: (err) => {
+          this.loading.set(false);
+          const detail =
+            err?.error?.message ||
+            err?.error?.detail ||
+            (typeof err?.error === 'string' ? err.error : null) ||
+            'Authentication failed. Please check your credentials.';
+          this.errorMessage.set(detail);
+        },
+      });
   }
 }

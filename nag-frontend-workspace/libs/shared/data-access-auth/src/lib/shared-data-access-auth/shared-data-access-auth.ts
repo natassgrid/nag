@@ -28,6 +28,7 @@ export interface AuthUser {
   userName: string;
   roles: string[];
   email?: string;
+  tenantId?: string;
 }
 
 export interface TotpSetupData {
@@ -58,6 +59,7 @@ export class AuthService {
   private readonly TOKEN_KEY = 'exam_access_token';
   private readonly REFRESH_KEY = 'exam_refresh_token';
   private readonly USER_KEY = 'exam_user';
+  private readonly TENANT_KEY = 'exam_tenant_id';
 
   readonly isAuthenticated = signal<boolean>(this.checkInitialAuth());
   readonly currentUser = signal<AuthUser | null>(this.getInitialUser());
@@ -74,6 +76,26 @@ export class AuthService {
   getRefreshToken(): string | null {
     if (typeof localStorage === 'undefined') return null;
     return localStorage.getItem(this.REFRESH_KEY);
+  }
+
+  getTenantId(): string {
+    if (typeof localStorage !== 'undefined') {
+      const stored = localStorage.getItem(this.TENANT_KEY);
+      if (stored) return stored;
+    }
+    return this.currentUser()?.tenantId || 'default';
+  }
+
+  setTenantId(tenantId: string): void {
+    if (typeof localStorage !== 'undefined') {
+      localStorage.setItem(this.TENANT_KEY, tenantId);
+    }
+    const current = this.currentUser();
+    if (current) {
+      const updated = { ...current, tenantId };
+      this.currentUser.set(updated);
+      localStorage.setItem(this.USER_KEY, JSON.stringify(updated));
+    }
   }
 
   hasRole(role: string): boolean {
@@ -107,6 +129,7 @@ export class AuthService {
       userName,
       roles,
       email: payload?.email,
+      tenantId: this.getTenantId(),
     };
 
     localStorage.setItem(this.USER_KEY, JSON.stringify(userObj));
@@ -268,7 +291,7 @@ export class AuthService {
 }
 
 /**
- * Functional HTTP Interceptor for adding Authorization Bearer headers
+ * Functional HTTP Interceptor for adding Authorization Bearer & X-Tenant-Id headers
  * and handling automatic 401 token refresh.
  */
 export const authInterceptor: HttpInterceptorFn = (
@@ -276,16 +299,20 @@ export const authInterceptor: HttpInterceptorFn = (
   next: HttpHandlerFn
 ): Observable<HttpEvent<unknown>> => {
   const authService = inject(AuthService);
+  const router = inject(Router);
   const token = authService.getToken();
 
-  let modifiedReq = req;
+  const setHeaders: Record<string, string> = {};
   if (token && !req.headers.has('Authorization')) {
-    modifiedReq = req.clone({
-      setHeaders: {
-        Authorization: `Bearer ${token}`,
-      },
-    });
+    setHeaders['Authorization'] = `Bearer ${token}`;
   }
+  if (!req.headers.has('X-Tenant-Id')) {
+    setHeaders['X-Tenant-Id'] = authService.getTenantId();
+  }
+
+  const modifiedReq = Object.keys(setHeaders).length > 0
+    ? req.clone({ setHeaders })
+    : req;
 
   return next(modifiedReq).pipe(
     catchError((error: HttpErrorResponse) => {
@@ -295,6 +322,7 @@ export const authInterceptor: HttpInterceptorFn = (
             if (newToken?.accessToken) {
               const retryReq = req.clone({
                 setHeaders: {
+                  ...setHeaders,
                   Authorization: `Bearer ${newToken.accessToken}`,
                 },
               });
@@ -304,6 +332,7 @@ export const authInterceptor: HttpInterceptorFn = (
           }),
           catchError((refreshErr) => {
             authService.clearTokens();
+            router.navigate(['/login']);
             return throwError(() => refreshErr);
           })
         );

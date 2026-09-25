@@ -1,6 +1,7 @@
 import {
   Component,
   OnInit,
+  computed,
   inject,
   signal,
 } from '@angular/core';
@@ -49,16 +50,89 @@ export class QuestionsFeatureBank implements OnInit {
   vectorQueryPrompt = '';
   searchingVector = signal<boolean>(false);
 
+  selectedSubject = signal<string>('ALL');
+  selectedDifficulty = signal<string>('ALL');
+  selectedStatus = signal<string>('ALL');
+  searchQuery = signal<string>('');
+
+  readonly subjects = [
+    'ALL',
+    'Quantitative Aptitude / Mathematical Abilities',
+    'General Intelligence and Reasoning',
+    'English Language and Comprehension',
+    'General Awareness',
+    'Data Interpretation and Logical Analysis',
+  ];
+
+  readonly difficulties = ['ALL', 'EASY', 'MEDIUM', 'HARD'];
+  readonly statuses = ['ALL', 'APPROVED', 'REVIEW', 'DRAFT', 'REJECTED'];
+  readonly pageSizes = [10, 20, 50, 100];
+
+  readonly showingStart = computed(() => {
+    const total = this.questionService.total();
+    if (total === 0) return 0;
+    return this.questionService.currentPage() * this.questionService.pageSize() + 1;
+  });
+
+  readonly showingEnd = computed(() => {
+    const total = this.questionService.total();
+    return Math.min(
+      (this.questionService.currentPage() + 1) * this.questionService.pageSize(),
+      total
+    );
+  });
+
+  readonly hasActiveFilters = computed(() => {
+    return (
+      !!this.searchQuery() ||
+      this.selectedSubject() !== 'ALL' ||
+      this.selectedDifficulty() !== 'ALL' ||
+      this.selectedStatus() !== 'ALL'
+    );
+  });
+
   ngOnInit(): void {
-    this.questionService.loadQuestions().subscribe();
+    this.applyFilters(0);
   }
 
   onSearchTextChange(query: string): void {
-    if (!query) {
-      this.questionService.loadQuestions().subscribe();
-    } else {
-      this.questionService.loadQuestions({ query }).subscribe();
+    this.searchQuery.set(query);
+    this.applyFilters(0);
+  }
+
+  onSubjectChange(subject: string): void {
+    this.selectedSubject.set(subject);
+    this.applyFilters(0);
+  }
+
+  onDifficultyChange(difficulty: string): void {
+    this.selectedDifficulty.set(difficulty);
+    this.applyFilters(0);
+  }
+
+  onStatusChange(status: string): void {
+    this.selectedStatus.set(status);
+    this.applyFilters(0);
+  }
+
+  onPageSizeChange(sizeStr: string): void {
+    const size = parseInt(sizeStr, 10) || 20;
+    this.questionService.filter.update((f) => ({ ...f, size }));
+    this.applyFilters(0);
+  }
+
+  goToPage(page: number): void {
+    if (page >= 0 && page < this.questionService.totalPages()) {
+      this.applyFilters(page);
     }
+  }
+
+  resetFilters(): void {
+    this.searchQuery.set('');
+    this.selectedSubject.set('ALL');
+    this.selectedDifficulty.set('ALL');
+    this.selectedStatus.set('ALL');
+    this.applyFilters(0);
   }
 
   runVectorSearch(): void {
@@ -70,7 +144,7 @@ export class QuestionsFeatureBank implements OnInit {
           id: r.id,
           code: r.code,
           content: r.content,
-          type: 'MULTIPLE_CHOICE',
+          type: 'SINGLE_MCQ',
           difficulty: r.difficulty,
           status: 'APPROVED',
           marks: 4,
@@ -89,7 +163,9 @@ export class QuestionsFeatureBank implements OnInit {
   }
 
   onEditQuestion(card: QuestionCardData): void {
-    this.router.navigate(['/questions/authoring'], { queryParams: { id: card.id } });
+    this.router.navigate(['/questions/authoring'], {
+      queryParams: { id: card.id },
+    });
   }
 
   onDeleteQuestion(id: string): void {
@@ -115,5 +191,18 @@ export class QuestionsFeatureBank implements OnInit {
       negativeMarks: q.negativeMarks,
       tags: q.tags,
     };
+  }
+
+  private applyFilters(page = 0): void {
+    this.questionService
+      .loadQuestions({
+        search: this.searchQuery(),
+        subject: this.selectedSubject(),
+        difficulty: this.selectedDifficulty(),
+        state: this.selectedStatus(),
+        page,
+        size: this.questionService.filter().size || 20,
+      })
+      .subscribe();
   }
 }

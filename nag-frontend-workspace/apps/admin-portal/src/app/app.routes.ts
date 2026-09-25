@@ -1,4 +1,5 @@
 import { Route } from '@angular/router';
+import { authGuard } from '@nag-frontend-workspace/shared-data-access-auth';
 
 export const appRoutes: Route[] = [
   {
@@ -13,6 +14,7 @@ export const appRoutes: Route[] = [
   },
   {
     path: 'dashboard',
+    canActivate: [authGuard],
     loadComponent: () =>
       import('./dashboard/admin-dashboard.component').then(
         (m) => m.AdminDashboardComponent
@@ -20,6 +22,7 @@ export const appRoutes: Route[] = [
   },
   {
     path: 'questions',
+    canActivate: [authGuard],
     loadComponent: () =>
       import('@nag-frontend-workspace/questions-feature-bank').then(
         (m) => m.QuestionsFeatureBank
@@ -27,6 +30,7 @@ export const appRoutes: Route[] = [
   },
   {
     path: 'questions/authoring',
+    canActivate: [authGuard],
     loadComponent: () =>
       import('@nag-frontend-workspace/questions-feature-authoring').then(
         (m) => m.QuestionsFeatureAuthoring
@@ -34,6 +38,7 @@ export const appRoutes: Route[] = [
   },
   {
     path: 'assets',
+    canActivate: [authGuard],
     loadComponent: () =>
       import('./assets/admin-assets.component').then(
         (m) => m.AdminAssetsComponent
@@ -41,6 +46,7 @@ export const appRoutes: Route[] = [
   },
   {
     path: 'examinations/scheduling',
+    canActivate: [authGuard],
     loadComponent: () =>
       import('@nag-frontend-workspace/examinations-feature-scheduling').then(
         (m) => m.ExaminationsFeatureScheduling
@@ -48,6 +54,7 @@ export const appRoutes: Route[] = [
   },
   {
     path: 'examinations/paper-gen',
+    canActivate: [authGuard],
     loadComponent: () =>
       import('@nag-frontend-workspace/examinations-feature-paper-gen').then(
         (m) => m.ExaminationsFeaturePaperGen
@@ -55,6 +62,7 @@ export const appRoutes: Route[] = [
   },
   {
     path: 'evaluation/grading',
+    canActivate: [authGuard],
     loadComponent: () =>
       import('@nag-frontend-workspace/evaluation-feature-grading').then(
         (m) => m.EvaluationFeatureGrading
@@ -62,6 +70,7 @@ export const appRoutes: Route[] = [
   },
   {
     path: 'reports',
+    canActivate: [authGuard],
     loadComponent: () =>
       import('./reports/admin-reports.component').then(
         (m) => m.AdminReportsComponent
@@ -69,6 +78,7 @@ export const appRoutes: Route[] = [
   },
   {
     path: 'audit',
+    canActivate: [authGuard],
     loadComponent: () =>
       import('./audit/admin-audit-log.component').then(
         (m) => m.AdminAuditLogComponent
@@ -76,6 +86,7 @@ export const appRoutes: Route[] = [
   },
   {
     path: 'users',
+    canActivate: [authGuard],
     loadComponent: () =>
       import('./users/admin-user-management.component').then(
         (m) => m.AdminUserManagementComponent
@@ -83,6 +94,7 @@ export const appRoutes: Route[] = [
   },
   {
     path: 'settings',
+    canActivate: [authGuard],
     loadComponent: () =>
       import('./settings/admin-settings.component').then(
         (m) => m.AdminSettingsComponent

@@ -49,13 +49,30 @@
       </div>
 
       <div class="flex items-center gap-4">
-        <a
-          routerLink="/profile"
-          class="hidden sm:flex items-center gap-2 text-xs hover:text-indigo-300 transition-colors"
-        >
-          <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
-          <span class="text-slate-300 font-medium">{{ authService.userName() }}</span>
-        </a>
+        @if (authService.isAuthenticated()) {
+          <a
+            routerLink="/profile"
+            class="hidden sm:flex items-center gap-2 text-xs hover:text-indigo-300 transition-colors"
+          >
+            <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
+            <span class="text-slate-300 font-medium">{{ authService.userName() }}</span>
+          </a>
+          <button
+            mat-stroked-button
+            (click)="handleLogout()"
+            class="!text-slate-300 !border-slate-700 !text-xs hover:!text-white"
+          >
+            Sign Out
+          </button>
+        } @else {
+          <a
+            mat-stroked-button
+            routerLink="/login"
+            class="!text-slate-300 !border-slate-700 !text-xs hover:!text-white"
+          >
+            Sign In
+          </a>
+        }
         <a
           mat-flat-button
           routerLink="/delivery"

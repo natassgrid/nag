@@ -25,4 +25,8 @@ export class App {
       url.includes('/verify-otp')
     );
   }
+
+  handleLogout(): void {
+    this.authService.logout();
+  }
 }

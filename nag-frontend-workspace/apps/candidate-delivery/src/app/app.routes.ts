@@ -1,4 +1,5 @@
 import { Route } from '@angular/router';
+import { authGuard } from '@nag-frontend-workspace/shared-data-access-auth';
 
 export const appRoutes: Route[] = [
   {
@@ -23,6 +24,7 @@ export const appRoutes: Route[] = [
   },
   {
     path: 'dashboard',
+    canActivate: [authGuard],
     loadComponent: () =>
       import('./dashboard/candidate-dashboard.component').then(
         (m) => m.CandidateDashboardComponent
@@ -30,6 +32,7 @@ export const appRoutes: Route[] = [
   },
   {
     path: 'browse',
+    canActivate: [authGuard],
     loadComponent: () =>
       import('./browse/browse-exams.component').then(
         (m) => m.BrowseExamsComponent
@@ -37,6 +40,7 @@ export const appRoutes: Route[] = [
   },
   {
     path: 'profile',
+    canActivate: [authGuard],
     loadComponent: () =>
       import('./profile/candidate-profile.component').then(
         (m) => m.CandidateProfileComponent
@@ -44,6 +48,7 @@ export const appRoutes: Route[] = [
   },
   {
     path: 'delivery',
+    canActivate: [authGuard],
     loadComponent: () =>
       import('./exam-delivery/exam-delivery.component').then(
         (m) => m.ExamDeliveryComponent
@@ -51,6 +56,7 @@ export const appRoutes: Route[] = [
   },
   {
     path: 'review',
+    canActivate: [authGuard],
     loadComponent: () =>
       import('./review/candidate-review.component').then(
         (m) => m.CandidateReviewComponent
@@ -58,6 +64,7 @@ export const appRoutes: Route[] = [
   },
   {
     path: 'results',
+    canActivate: [authGuard],
     loadComponent: () =>
       import('./results/candidate-results.component').then(
         (m) => m.CandidateResultsComponent

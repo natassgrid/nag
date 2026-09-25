@@ -45,31 +45,25 @@ export class LoginComponent {
     this.loading.set(true);
     this.errorMessage.set(null);
 
-    // Call AuthService or simulate fallback for offline/development test
-    this.authService.login({
-      username: this.username,
-      password: this.password,
-    }).subscribe({
-      next: () => {
-        this.loading.set(false);
-        this.router.navigate(['/dashboard']);
-      },
-      error: () => {
-        // Allow immediate mock authentication for local development and demonstration
-        this.authService.storeTokens(
-          {
-            accessToken: 'mock-jwt-token-candidate-' + Date.now(),
-            refreshToken: 'mock-refresh-token',
-            expiresIn: 3600,
-            roles: ['CANDIDATE'],
-            userId: 'can-849202',
-          },
-          this.username
-        );
-        this.loading.set(false);
-        this.router.navigate(['/dashboard']);
-      },
-    });
+    this.authService
+      .login({
+        username: this.username.trim(),
+        password: this.password,
+      })
+      .subscribe({
+        next: () => {
+          this.loading.set(false);
+          this.router.navigate(['/dashboard']);
+        },
+        error: (err) => {
+          this.loading.set(false);
+          const detail =
+            err?.error?.message ||
+            err?.error?.detail ||
+            'Authentication failed. Please check your credentials.';
+          this.errorMessage.set(detail);
+        },
+      });
   }
 
   handleForgotPassword(): void {
