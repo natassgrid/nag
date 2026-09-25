@@ -1,28 +1,25 @@
-import { Component, OnInit, inject, signal, computed } from '@angular/core';
+import { Component, OnInit, inject, signal, computed, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormArray, FormBuilder, FormGroup, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router } from '@angular/router';
 import { MatIconModule } from '@angular/material/icon';
 import { MatButtonModule } from '@angular/material/button';
-import { MatCardModule } from '@angular/material/card';
-import { MatChipsModule } from '@angular/material/chips';
-import { MatTooltipModule } from '@angular/material/tooltip';
-import { MatFormFieldModule } from '@angular/material/form-field';
-import { MatInputModule } from '@angular/material/input';
-import { MatSelectModule } from '@angular/material/select';
-import { MatProgressBarModule } from '@angular/material/progress-bar';
-import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import {
   BlueprintTemplateService,
   BlueprintTemplateResponse,
   BlueprintTemplateRequest,
   BlueprintRule,
   BlueprintFeasibilityResponse,
-  RuleFeasibilityDetail,
   SubjectTopicService,
   Subject,
   SubjectHierarchy,
 } from '@nag-frontend-workspace/questions-data-access';
+import {
+  BlueprintStatsCardsComponent,
+  BlueprintGridListComponent,
+  BlueprintFormDrawerComponent,
+  BlueprintSufficiencyModalComponent,
+} from './components';
 
 @Component({
   selector: 'app-admin-blueprint-management',
@@ -33,17 +30,14 @@ import {
     ReactiveFormsModule,
     MatIconModule,
     MatButtonModule,
-    MatCardModule,
-    MatChipsModule,
-    MatTooltipModule,
-    MatFormFieldModule,
-    MatInputModule,
-    MatSelectModule,
-    MatProgressBarModule,
-    MatProgressSpinnerModule,
+    BlueprintStatsCardsComponent,
+    BlueprintGridListComponent,
+    BlueprintFormDrawerComponent,
+    BlueprintSufficiencyModalComponent,
   ],
   templateUrl: './admin-blueprint-management.component.html',
   styleUrl: './admin-blueprint-management.component.scss',
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class AdminBlueprintManagementComponent implements OnInit {
   private readonly blueprintService = inject(BlueprintTemplateService);
@@ -187,7 +181,6 @@ export class AdminBlueprintManagementComponent implements OnInit {
       },
       error: (err) => {
         console.warn('Failed to load blueprint templates from API, using fallback data:', err);
-        // Fallback default templates for instant interactive use
         this.templates.set(this.getDefaultTemplates());
         this.loading.set(false);
       },
@@ -256,7 +249,6 @@ export class AdminBlueprintManagementComponent implements OnInit {
           this.closeDrawer();
         },
         error: () => {
-          // Local fallback update
           const updatedLocal: BlueprintTemplateResponse = {
             ...current,
             ...req,
@@ -278,7 +270,6 @@ export class AdminBlueprintManagementComponent implements OnInit {
           this.closeDrawer();
         },
         error: () => {
-          // Local fallback creation
           const createdLocal: BlueprintTemplateResponse = {
             id: 'tpl-' + Math.random().toString(36).substring(2, 9),
             ...req,
@@ -320,7 +311,6 @@ export class AdminBlueprintManagementComponent implements OnInit {
         this.auditLoading.set(false);
       },
       error: () => {
-        // Fallback simulation
         const isFeasible = (tpl.rules || []).length <= 4;
         const simulated: BlueprintFeasibilityResponse = {
           feasible: isFeasible,
@@ -357,7 +347,7 @@ export class AdminBlueprintManagementComponent implements OnInit {
     });
   }
 
-  calculateTotalQuestions(rules: BlueprintRule[]): number {
+  calculateTotalQuestions(rules?: BlueprintRule[]): number {
     if (!rules || rules.length === 0) return 0;
     return rules.reduce((acc, r) => acc + (r.questionCount || r.targetCount || 0), 0);
   }

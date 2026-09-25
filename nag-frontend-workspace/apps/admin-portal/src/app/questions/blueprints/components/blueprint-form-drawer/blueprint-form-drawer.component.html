@@ -1,0 +1,184 @@
+@if (isOpen()) {
+  <div class="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-xs flex justify-end">
+    <div class="w-full max-w-3xl bg-white h-full shadow-2xl flex flex-col justify-between overflow-hidden">
+      <!-- Drawer Header -->
+      <div class="p-6 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
+        <div>
+          <span class="text-[10px] font-black uppercase tracking-wider text-indigo-600">Template Definition</span>
+          <h2 class="text-base font-bold text-slate-900">
+            {{ editingTemplate() ? 'Edit Blueprint: ' + editingTemplate()?.name : 'Create Algorithmic Blueprint' }}
+          </h2>
+        </div>
+        <button
+          mat-icon-button
+          (click)="closeDrawer.emit()"
+          class="!text-slate-400 hover:!text-slate-600 cursor-pointer"
+        >
+          <mat-icon>close</mat-icon>
+        </button>
+      </div>
+
+      <!-- Drawer Body / Form -->
+      <div class="p-6 overflow-y-auto space-y-6 flex-1" [formGroup]="form()">
+        <!-- Metadata Fields -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div class="space-y-1 sm:col-span-2">
+            <label class="block text-xs font-bold text-slate-700">Blueprint Title *</label>
+            <input
+              type="text"
+              formControlName="name"
+              placeholder="e.g. SSC CGL Tier 1 Standard Matrix"
+              class="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white"
+            />
+          </div>
+
+          <div class="space-y-1 sm:col-span-2">
+            <label class="block text-xs font-bold text-slate-700">Description</label>
+            <textarea
+              rows="2"
+              formControlName="description"
+              placeholder="Brief summary of syllabus coverage and quota logic..."
+              class="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white"
+            ></textarea>
+          </div>
+        </div>
+
+        <!-- Rules Matrix Section -->
+        <div class="space-y-3 pt-4 border-t border-slate-100">
+          <div class="flex items-center justify-between">
+            <div>
+              <h3 class="font-bold text-xs uppercase tracking-wider text-slate-800">Rule Matrix &amp; Quotas</h3>
+              <p class="text-[11px] text-slate-500">Each rule allocates target question count from specific subjects &amp; difficulties.</p>
+            </div>
+            <button
+              type="button"
+              mat-stroked-button
+              color="primary"
+              (click)="addRule.emit()"
+              class="!rounded-lg !text-xs !py-1 !px-2.5 flex items-center gap-1 font-semibold cursor-pointer"
+            >
+              <mat-icon class="!text-sm">add</mat-icon>
+              Add Rule
+            </button>
+          </div>
+
+          <!-- Rules Array Container -->
+          <div formArrayName="rules" class="space-y-3">
+            @for (rule of rulesArray.controls; track $index) {
+              <div [formGroupName]="$index" class="p-4 bg-slate-50/80 rounded-2xl border border-slate-200/80 space-y-3 relative">
+                <div class="flex items-center justify-between">
+                  <span class="text-[11px] font-black uppercase tracking-wider text-indigo-700">
+                    Rule #{{ $index + 1 }}
+                  </span>
+                  @if (rulesArray.length > 1) {
+                    <button
+                      type="button"
+                      mat-icon-button
+                      (click)="removeRule.emit($index)"
+                      class="!w-6 !h-6 !text-rose-400 hover:!text-rose-600 cursor-pointer"
+                    >
+                      <mat-icon class="!text-sm">delete</mat-icon>
+                    </button>
+                  }
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
+                  <!-- Subject (Dynamic from SubjectTopicService) -->
+                  <div class="space-y-1">
+                    <label class="block text-[10px] font-bold uppercase tracking-wider text-slate-600">Subject *</label>
+                    <select
+                      formControlName="subject"
+                      (change)="onSubjectChange($index)"
+                      class="w-full px-2.5 py-1.5 text-xs bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 font-medium"
+                    >
+                      @for (sub of taxonomySubjects(); track sub.id) {
+                        <option [value]="sub.name">{{ sub.name }}</option>
+                      }
+                      @if (taxonomySubjects().length === 0) {
+                        <option value="Quantitative Aptitude">Quantitative Aptitude</option>
+                        <option value="General Intelligence">General Intelligence</option>
+                        <option value="English Language">English Language</option>
+                        <option value="General Awareness">General Awareness</option>
+                      }
+                    </select>
+                  </div>
+
+                  <!-- Topic (Cascading from Subject) -->
+                  <div class="space-y-1">
+                    <label class="block text-[10px] font-bold uppercase tracking-wider text-slate-600">Topic</label>
+                    @if (getTopicsForSubject(rule.get('subject')?.value).length > 0) {
+                      <select
+                        formControlName="topic"
+                        class="w-full px-2.5 py-1.5 text-xs bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 font-medium"
+                      >
+                        <option value="">All Topics</option>
+                        @for (top of getTopicsForSubject(rule.get('subject')?.value); track top) {
+                          <option [value]="top">{{ top }}</option>
+                        }
+                      </select>
+                    } @else {
+                      <input
+                        type="text"
+                        formControlName="topic"
+                        placeholder="Topic / Chapter..."
+                        class="w-full px-2.5 py-1.5 text-xs bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 font-medium"
+                      />
+                    }
+                  </div>
+
+                  <!-- Difficulty -->
+                  <div class="space-y-1">
+                    <label class="block text-[10px] font-bold uppercase tracking-wider text-slate-600">Difficulty</label>
+                    <select
+                      formControlName="difficulty"
+                      class="w-full px-2.5 py-1.5 text-xs bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 font-medium"
+                    >
+                      <option value="EASY">Easy</option>
+                      <option value="MEDIUM">Medium</option>
+                      <option value="HARD">Hard</option>
+                    </select>
+                  </div>
+
+                  <!-- Quota Count -->
+                  <div class="space-y-1">
+                    <label class="block text-[10px] font-bold uppercase tracking-wider text-slate-600">Questions Count *</label>
+                    <input
+                      type="number"
+                      formControlName="questionCount"
+                      min="1"
+                      class="w-full px-2.5 py-1.5 text-xs bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 font-bold text-indigo-700"
+                    />
+                  </div>
+                </div>
+              </div>
+            }
+          </div>
+        </div>
+      </div>
+
+      <!-- Drawer Footer -->
+      <div class="p-4 bg-slate-50 border-t border-slate-100 flex items-center justify-end gap-3">
+        <button
+          mat-stroked-button
+          (click)="closeDrawer.emit()"
+          class="!rounded-xl text-xs font-semibold cursor-pointer"
+        >
+          Cancel
+        </button>
+        <button
+          mat-flat-button
+          color="primary"
+          (click)="save.emit()"
+          [disabled]="saving() || form().invalid"
+          class="!rounded-xl !bg-indigo-600 hover:!bg-indigo-700 !text-white text-xs font-bold !px-6 cursor-pointer"
+        >
+          @if (saving()) {
+            <span>Saving Blueprint...</span>
+          } @else {
+            <span>{{ editingTemplate() ? 'Update Blueprint' : 'Create Blueprint' }}</span>
+          }
+        </button>
+      </div>
+    </div>
+  </div>
+}

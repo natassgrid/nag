@@ -4,7 +4,7 @@
     <div class="space-y-1">
       <div class="flex items-center gap-2">
         <span class="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
-          Blueprints & Quotas
+          Blueprints &amp; Quotas
         </span>
         <span class="text-xs text-slate-400 font-medium">Algorithmic Assembly Engine</span>
       </div>
@@ -19,7 +19,7 @@
         mat-flat-button
         color="primary"
         (click)="openCreateDrawer()"
-        class="!rounded-xl !bg-indigo-500 hover:!bg-indigo-600 !text-white font-bold text-xs flex items-center gap-2 !px-4 !py-2.5 shadow-md shadow-indigo-500/20"
+        class="!rounded-xl !bg-indigo-500 hover:!bg-indigo-600 !text-white font-bold text-xs flex items-center gap-2 !px-4 !py-2.5 shadow-md shadow-indigo-500/20 cursor-pointer"
       >
         <mat-icon class="!text-sm">add</mat-icon>
         Create New Blueprint
@@ -28,37 +28,11 @@
   </div>
 
   <!-- Stats Grid -->
-  <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-    <div class="p-4 rounded-2xl bg-white border border-slate-200/80 shadow-xs flex items-center gap-4">
-      <div class="w-11 h-11 rounded-xl bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-600">
-        <mat-icon>schema</mat-icon>
-      </div>
-      <div>
-        <p class="text-[11px] font-bold uppercase tracking-wider text-slate-500">Active Blueprints</p>
-        <p class="text-xl font-black text-slate-900">{{ templates().length }}</p>
-      </div>
-    </div>
-
-    <div class="p-4 rounded-2xl bg-white border border-slate-200/80 shadow-xs flex items-center gap-4">
-      <div class="w-11 h-11 rounded-xl bg-emerald-50 border border-emerald-100 flex items-center justify-center text-emerald-600">
-        <mat-icon>calculate</mat-icon>
-      </div>
-      <div>
-        <p class="text-[11px] font-bold uppercase tracking-wider text-slate-500">Configured Item Quota</p>
-        <p class="text-xl font-black text-slate-900">{{ totalQuestionsCount() }} Items</p>
-      </div>
-    </div>
-
-    <div class="p-4 rounded-2xl bg-white border border-slate-200/80 shadow-xs flex items-center gap-4">
-      <div class="w-11 h-11 rounded-xl bg-amber-50 border border-amber-100 flex items-center justify-center text-amber-600">
-        <mat-icon>rule_settings</mat-icon>
-      </div>
-      <div>
-        <p class="text-[11px] font-bold uppercase tracking-wider text-slate-500">Taxonomy Subjects</p>
-        <p class="text-xl font-black text-slate-900">{{ taxonomySubjects().length }} Active</p>
-      </div>
-    </div>
-  </div>
+  <nag-blueprint-stats-cards
+    [activeBlueprintsCount]="templates().length"
+    [totalQuestionsCount]="totalQuestionsCount()"
+    [taxonomySubjectsCount]="taxonomySubjects().length"
+  ></nag-blueprint-stats-cards>
 
   <!-- Filter & Search Controls -->
   <div class="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-xs flex flex-col sm:flex-row items-center justify-between gap-4">
@@ -79,416 +53,38 @@
   </div>
 
   <!-- Templates Grid -->
-  @if (loading()) {
-    <div class="py-16 flex flex-col items-center justify-center space-y-3">
-      <mat-spinner diameter="36"></mat-spinner>
-      <p class="text-xs font-semibold text-slate-500">Loading blueprint templates...</p>
-    </div>
-  } @else if (filteredTemplates().length === 0) {
-    <div class="p-12 text-center bg-white rounded-3xl border border-dashed border-slate-200 space-y-3">
-      <div class="w-12 h-12 rounded-full bg-slate-100 flex items-center justify-center mx-auto text-slate-400">
-        <mat-icon>schema</mat-icon>
-      </div>
-      <h3 class="font-bold text-slate-800 text-sm">No Blueprint Templates Found</h3>
-      <p class="text-xs text-slate-500 max-w-sm mx-auto">
-        Create structured distribution matrices to automate high-stakes examination paper generation.
-      </p>
-      <button
-        mat-flat-button
-        color="primary"
-        (click)="openCreateDrawer()"
-        class="!rounded-xl !bg-indigo-600 !text-white text-xs font-semibold"
-      >
-        Create Blueprint
-      </button>
-    </div>
-  } @else {
-    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-      @for (tpl of filteredTemplates(); track tpl.id) {
-        <div class="bg-white rounded-2xl border border-slate-200/80 shadow-xs hover:shadow-md transition p-5 flex flex-col justify-between space-y-4">
-          <div class="space-y-3">
-            <div class="flex items-start justify-between gap-2">
-              <div>
-                <h3 class="font-bold text-slate-900 text-sm leading-snug">{{ tpl.name }}</h3>
-                @if (tpl.examName) {
-                  <span class="inline-block mt-1 text-[11px] font-semibold text-slate-500 bg-slate-100 px-2 py-0.5 rounded">
-                    Target: {{ tpl.examName }}
-                  </span>
-                }
-              </div>
-              <span class="px-2.5 py-1 rounded-full text-[10px] font-black bg-indigo-50 text-indigo-700 border border-indigo-200 whitespace-nowrap">
-                {{ (tpl.rules || []).length }} Rules
-              </span>
-            </div>
-
-            <p class="text-xs text-slate-500 line-clamp-2 leading-relaxed">
-              {{ tpl.description || 'Standard distribution template for high-stakes test assembly.' }}
-            </p>
-
-            <div class="pt-2 flex items-center gap-4 text-xs font-semibold text-slate-700">
-              <div class="flex items-center gap-1.5">
-                <mat-icon class="!text-sm text-indigo-500">quiz</mat-icon>
-                <span>{{ tpl.totalQuestions || calculateTotalQuestions(tpl.rules) }} Questions</span>
-              </div>
-              <div class="flex items-center gap-1.5">
-                <mat-icon class="!text-sm text-emerald-500">speed</mat-icon>
-                <span>Balanced Pool</span>
-              </div>
-            </div>
-
-            <!-- Rules Peek -->
-            <div class="space-y-1.5 pt-2 border-t border-slate-100">
-              <p class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Rule Allocation Peek</p>
-              <div class="flex flex-wrap gap-1.5">
-                @for (rule of (tpl.rules || []).slice(0, 4); track $index) {
-                  <span class="text-[10px] bg-slate-50 border border-slate-200/60 px-2 py-0.5 rounded text-slate-600 font-medium">
-                    {{ rule.subject }} ({{ rule.questionCount || rule.targetCount || 5 }})
-                  </span>
-                }
-                @if ((tpl.rules || []).length > 4) {
-                  <span class="text-[10px] text-slate-400 font-semibold self-center">
-                    +{{ (tpl.rules || []).length - 4 }} more
-                  </span>
-                }
-              </div>
-            </div>
-          </div>
-
-          <!-- Card Actions -->
-          <div class="pt-3 border-t border-slate-100 flex items-center justify-between gap-2">
-            <button
-              mat-stroked-button
-              color="primary"
-              (click)="openSufficiencyAudit(tpl)"
-              class="!rounded-lg !text-xs !py-1 !px-2.5 flex items-center gap-1 font-semibold"
-            >
-              <mat-icon class="!text-sm">verified</mat-icon>
-              Audit Inventory
-            </button>
-
-            <div class="flex items-center gap-1">
-              <button
-                mat-icon-button
-                (click)="openEditDrawer(tpl)"
-                matTooltip="Edit Blueprint"
-                class="!w-8 !h-8 !text-slate-500 hover:!text-indigo-600"
-              >
-                <mat-icon class="!text-base">edit</mat-icon>
-              </button>
-              <button
-                mat-icon-button
-                (click)="deleteTemplate(tpl)"
-                [disabled]="deletingId() === tpl.id"
-                matTooltip="Delete Blueprint"
-                class="!w-8 !h-8 !text-slate-400 hover:!text-rose-600"
-              >
-                <mat-icon class="!text-base">delete</mat-icon>
-              </button>
-            </div>
-          </div>
-        </div>
-      }
-    </div>
-  }
+  <nag-blueprint-grid-list
+    [templates]="filteredTemplates()"
+    [loading]="loading()"
+    [deletingId]="deletingId()"
+    (createBlueprint)="openCreateDrawer()"
+    (editBlueprint)="openEditDrawer($event)"
+    (deleteBlueprint)="deleteTemplate($event)"
+    (auditSufficiency)="openSufficiencyAudit($event)"
+  ></nag-blueprint-grid-list>
 
   <!-- Blueprint Creation/Editing Drawer -->
-  @if (drawerOpen()) {
-    <div class="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-xs flex justify-end">
-      <div class="w-full max-w-3xl bg-white h-full shadow-2xl flex flex-col justify-between overflow-hidden">
-        <!-- Drawer Header -->
-        <div class="p-6 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
-          <div>
-            <span class="text-[10px] font-black uppercase tracking-wider text-indigo-600">Template Definition</span>
-            <h2 class="text-base font-bold text-slate-900">
-              {{ editingTemplate() ? 'Edit Blueprint: ' + editingTemplate()?.name : 'Create Algorithmic Blueprint' }}
-            </h2>
-          </div>
-          <button mat-icon-button (click)="closeDrawer()" class="!text-slate-400 hover:!text-slate-600">
-            <mat-icon>close</mat-icon>
-          </button>
-        </div>
-
-        <!-- Drawer Body / Form -->
-        <div class="p-6 overflow-y-auto space-y-6 flex-1" [formGroup]="form">
-          <!-- Metadata Fields -->
-          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div class="space-y-1 sm:col-span-2">
-              <label class="block text-xs font-bold text-slate-700">Blueprint Title *</label>
-              <input
-                type="text"
-                formControlName="name"
-                placeholder="e.g. SSC CGL Tier 1 Standard Matrix"
-                class="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white"
-              />
-            </div>
-
-            <div class="space-y-1 sm:col-span-2">
-              <label class="block text-xs font-bold text-slate-700">Description</label>
-              <textarea
-                rows="2"
-                formControlName="description"
-                placeholder="Brief summary of syllabus coverage and quota logic..."
-                class="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white"
-              ></textarea>
-            </div>
-          </div>
-
-          <!-- Rules Matrix Section -->
-          <div class="space-y-3 pt-4 border-t border-slate-100">
-            <div class="flex items-center justify-between">
-              <div>
-                <h3 class="font-bold text-xs uppercase tracking-wider text-slate-800">Rule Matrix & Quotas</h3>
-                <p class="text-[11px] text-slate-500">Each rule allocates target question count from specific subjects & difficulties.</p>
-              </div>
-              <button
-                type="button"
-                mat-stroked-button
-                color="primary"
-                (click)="addRule()"
-                class="!rounded-lg !text-xs !py-1 !px-2.5 flex items-center gap-1 font-semibold"
-              >
-                <mat-icon class="!text-sm">add</mat-icon>
-                Add Rule
-              </button>
-            </div>
-
-            <!-- Rules Array Container -->
-            <div formArrayName="rules" class="space-y-3">
-              @for (rule of rulesArray.controls; track $index) {
-                <div [formGroupName]="$index" class="p-4 bg-slate-50/80 rounded-2xl border border-slate-200/80 space-y-3 relative">
-                  <div class="flex items-center justify-between">
-                    <span class="text-[11px] font-black uppercase tracking-wider text-indigo-700">
-                      Rule #{{ $index + 1 }}
-                    </span>
-                    @if (rulesArray.length > 1) {
-                      <button
-                        type="button"
-                        mat-icon-button
-                        (click)="removeRule($index)"
-                        class="!w-6 !h-6 !text-rose-400 hover:!text-rose-600"
-                      >
-                        <mat-icon class="!text-sm">delete</mat-icon>
-                      </button>
-                    }
-                  </div>
-
-                  <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
-                    <!-- Subject (Dynamic from SubjectTopicService) -->
-                    <div class="space-y-1">
-                      <label class="block text-[10px] font-bold uppercase tracking-wider text-slate-600">Subject *</label>
-                      <select
-                        formControlName="subject"
-                        (change)="onRuleSubjectChanged($index)"
-                        class="w-full px-2.5 py-1.5 text-xs bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 font-medium"
-                      >
-                        @for (sub of taxonomySubjects(); track sub.id) {
-                          <option [value]="sub.name">{{ sub.name }}</option>
-                        }
-                        @if (taxonomySubjects().length === 0) {
-                          <option value="Quantitative Aptitude">Quantitative Aptitude</option>
-                          <option value="General Intelligence">General Intelligence</option>
-                          <option value="English Language">English Language</option>
-                          <option value="General Awareness">General Awareness</option>
-                        }
-                      </select>
-                    </div>
-
-                    <!-- Topic (Cascading from Subject) -->
-                    <div class="space-y-1">
-                      <label class="block text-[10px] font-bold uppercase tracking-wider text-slate-600">Topic</label>
-                      @if (getTopicsForSubject(rule.get('subject')?.value).length > 0) {
-                        <select
-                          formControlName="topic"
-                          class="w-full px-2.5 py-1.5 text-xs bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 font-medium"
-                        >
-                          <option value="">All Topics</option>
-                          @for (top of getTopicsForSubject(rule.get('subject')?.value); track top) {
-                            <option [value]="top">{{ top }}</option>
-                          }
-                        </select>
-                      } @else {
-                        <input
-                          type="text"
-                          formControlName="topic"
-                          placeholder="Topic / Chapter..."
-                          class="w-full px-2.5 py-1.5 text-xs bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 font-medium"
-                        />
-                      }
-                    </div>
-
-                    <!-- Difficulty -->
-                    <div class="space-y-1">
-                      <label class="block text-[10px] font-bold uppercase tracking-wider text-slate-600">Difficulty</label>
-                      <select
-                        formControlName="difficulty"
-                        class="w-full px-2.5 py-1.5 text-xs bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 font-medium"
-                      >
-                        <option value="EASY">Easy</option>
-                        <option value="MEDIUM">Medium</option>
-                        <option value="HARD">Hard</option>
-                      </select>
-                    </div>
-
-                    <!-- Quota Count -->
-                    <div class="space-y-1">
-                      <label class="block text-[10px] font-bold uppercase tracking-wider text-slate-600">Questions Count *</label>
-                      <input
-                        type="number"
-                        formControlName="questionCount"
-                        min="1"
-                        class="w-full px-2.5 py-1.5 text-xs bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 font-bold text-indigo-700"
-                      />
-                    </div>
-                  </div>
-                </div>
-              }
-            </div>
-          </div>
-        </div>
-
-        <!-- Drawer Footer -->
-        <div class="p-4 bg-slate-50 border-t border-slate-100 flex items-center justify-end gap-3">
-          <button mat-stroked-button (click)="closeDrawer()" class="!rounded-xl text-xs font-semibold">
-            Cancel
-          </button>
-          <button
-            mat-flat-button
-            color="primary"
-            (click)="saveBlueprint()"
-            [disabled]="saving() || form.invalid"
-            class="!rounded-xl !bg-indigo-600 hover:!bg-indigo-700 !text-white text-xs font-bold !px-6"
-          >
-            @if (saving()) {
-              <span>Saving Blueprint...</span>
-            } @else {
-              <span>{{ editingTemplate() ? 'Update Blueprint' : 'Create Blueprint' }}</span>
-            }
-          </button>
-        </div>
-      </div>
-    </div>
-  }
+  <nag-blueprint-form-drawer
+    [isOpen]="drawerOpen()"
+    [editingTemplate]="editingTemplate()"
+    [saving]="saving()"
+    [form]="form"
+    [taxonomySubjects]="taxonomySubjects()"
+    [taxonomyHierarchy]="taxonomyHierarchy()"
+    (closeDrawer)="closeDrawer()"
+    (save)="saveBlueprint()"
+    (addRule)="addRule()"
+    (removeRule)="removeRule($event)"
+    (ruleSubjectChanged)="onRuleSubjectChanged($event)"
+  ></nag-blueprint-form-drawer>
 
   <!-- Sufficiency / Feasibility Audit Modal -->
-  @if (feasibilityModalOpen()) {
-    <div class="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
-      <div class="w-full max-w-2xl bg-white rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
-        <!-- Modal Header -->
-        <div class="p-6 bg-slate-50 border-b border-slate-100 flex items-center justify-between">
-          <div class="flex items-center gap-3">
-            <div class="w-10 h-10 rounded-xl bg-indigo-100 text-indigo-700 flex items-center justify-center">
-              <mat-icon>inventory_2</mat-icon>
-            </div>
-            <div>
-              <span class="text-[10px] font-black uppercase tracking-wider text-indigo-600">Inventory Verification</span>
-              <h3 class="font-bold text-slate-900 text-sm">
-                Sufficiency Audit: {{ selectedTemplateForAudit()?.name }}
-              </h3>
-            </div>
-          </div>
-          <button mat-icon-button (click)="closeSufficiencyModal()" class="!text-slate-400 hover:!text-slate-600">
-            <mat-icon>close</mat-icon>
-          </button>
-        </div>
-
-        <!-- Modal Body -->
-        <div class="p-6 overflow-y-auto space-y-5 flex-1">
-          @if (auditLoading()) {
-            <div class="py-12 flex flex-col items-center justify-center space-y-3 text-slate-500">
-              <mat-spinner diameter="32"></mat-spinner>
-              <p class="text-sm font-medium">Auditing Question Bank inventory against blueprint rules...</p>
-            </div>
-          } @else if (auditResult()) {
-            <!-- Feasibility Banner -->
-            <div
-              class="p-4 rounded-2xl flex items-center gap-4 border"
-              [ngClass]="{
-                'bg-emerald-50 border-emerald-200 text-emerald-900': auditResult()?.feasible,
-                'bg-rose-50 border-rose-200 text-rose-900': !auditResult()?.feasible
-              }"
-            >
-              <mat-icon class="!text-3xl" [ngClass]="auditResult()?.feasible ? 'text-emerald-600' : 'text-rose-600'">
-                {{ auditResult()?.feasible ? 'check_circle' : 'warning' }}
-              </mat-icon>
-              <div>
-                <h4 class="font-bold text-sm">
-                  {{ auditResult()?.feasible ? 'Question Inventory Fully Sufficient' : 'Question Deficit Identified' }}
-                </h4>
-                <p class="text-xs opacity-90 mt-0.5">
-                  {{ auditResult()?.summary || (auditResult()?.feasible ? 'All blueprint item quotas can be fulfilled.' : 'Question deficit identified.') }}
-                </p>
-              </div>
-            </div>
-
-            <!-- Rules Breakdown Table -->
-            <div class="space-y-3">
-              <h4 class="font-bold text-xs uppercase tracking-wider text-slate-600">Per-Rule Inventory Breakdown</h4>
-              <div class="border border-slate-200 rounded-2xl overflow-hidden">
-                <table class="w-full text-left text-xs">
-                  <thead class="bg-slate-50 text-slate-500 uppercase font-black tracking-wider text-[10px]">
-                    <tr>
-                      <th class="p-3">Subject & Topic</th>
-                      <th class="p-3">Difficulty</th>
-                      <th class="p-3 text-center">Required</th>
-                      <th class="p-3 text-center">Available</th>
-                      <th class="p-3 text-center">Status</th>
-                    </tr>
-                  </thead>
-                  <tbody class="divide-y divide-slate-100">
-                    @for (item of auditResult()?.rules || auditResult()?.ruleDetails || []; track $index) {
-                      <tr class="hover:bg-slate-50/50">
-                        <td class="p-3 font-semibold text-slate-900">
-                          {{ item.subject }} &rsaquo; {{ item.topic || 'All Topics' }}
-                        </td>
-                        <td class="p-3 text-slate-600">
-                          <span class="px-2 py-0.5 rounded bg-slate-100 font-medium text-[10px]">
-                            {{ item.difficulty }}
-                          </span>
-                        </td>
-                        <td class="p-3 text-center font-bold text-slate-800">
-                          {{ item.requested || item.targetCount || item.questionCount || 0 }}
-                        </td>
-                        <td class="p-3 text-center font-bold" [ngClass]="item.sufficient ? 'text-emerald-600' : 'text-rose-600'">
-                          {{ item.available || 0 }}
-                        </td>
-                        <td class="p-3 text-center">
-                          @if (item.sufficient) {
-                            <span class="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-600">
-                              <mat-icon class="!text-sm">done</mat-icon> OK
-                            </span>
-                          } @else {
-                            <span class="inline-flex items-center gap-1 text-[11px] font-bold text-rose-600">
-                              <mat-icon class="!text-sm">error</mat-icon> -{{ item.deficit || 0 }} Needed
-                            </span>
-                          }
-                        </td>
-                      </tr>
-                    }
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          }
-        </div>
-
-        <!-- Modal Footer -->
-        <div class="p-4 bg-slate-50 border-t border-slate-100 flex items-center justify-between">
-          <button mat-button (click)="closeSufficiencyModal()" class="!text-slate-600 font-semibold">
-            Close Audit
-          </button>
-          @if (auditResult()?.feasible) {
-            <button
-              mat-flat-button
-              color="primary"
-              (click)="navigateToPaperGen(selectedTemplateForAudit()!)"
-              class="!rounded-xl !bg-indigo-600 hover:!bg-indigo-700 !text-white text-xs font-bold flex items-center gap-2 !px-5"
-            >
-              <mat-icon class="!text-sm">auto_stories</mat-icon>
-              Assemble Paper From Matrix
-            </button>
-          }
-        </div>
-      </div>
-    </div>
-  }
+  <nag-blueprint-sufficiency-modal
+    [isOpen]="feasibilityModalOpen()"
+    [template]="selectedTemplateForAudit()"
+    [auditLoading]="auditLoading()"
+    [auditResult]="auditResult()"
+    (closeModal)="closeSufficiencyModal()"
+    (assemblePaper)="navigateToPaperGen($event)"
+  ></nag-blueprint-sufficiency-modal>
 </div>
