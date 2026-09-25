@@ -2,6 +2,7 @@ import {
   Component,
   inject,
   signal,
+  OnInit,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
@@ -23,7 +24,7 @@ import { AuthService } from '@nag-frontend-workspace/shared-data-access-auth';
   templateUrl: './admin-login.component.html',
   styleUrl: './admin-login.component.scss',
 })
-export class AdminLoginComponent {
+export class AdminLoginComponent implements OnInit {
   private readonly authService = inject(AuthService);
   private readonly router = inject(Router);
 
@@ -33,6 +34,12 @@ export class AdminLoginComponent {
   loading = signal<boolean>(false);
   errorMessage = signal<string | null>(null);
   showPassword = signal<boolean>(false);
+
+  ngOnInit(): void {
+    if (this.authService.isAuthenticated()) {
+      this.router.navigate(['/dashboard']);
+    }
+  }
 
   handleLogin(): void {
     if (!this.username.trim() || !this.password.trim()) {
@@ -58,10 +65,14 @@ export class AdminLoginComponent {
           const detail =
             err?.error?.message ||
             err?.error?.detail ||
-            (typeof err?.error === 'string' ? err.error : null) ||
-            'Authentication failed. Please check your credentials.';
+            err?.message ||
+            'Authentication failed. Please verify your officer credentials.';
           this.errorMessage.set(detail);
         },
       });
+  }
+
+  togglePasswordVisibility(): void {
+    this.showPassword.update((val) => !val);
   }
 }

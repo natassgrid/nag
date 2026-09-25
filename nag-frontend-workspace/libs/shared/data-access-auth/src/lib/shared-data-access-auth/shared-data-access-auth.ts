@@ -12,7 +12,7 @@ import {
   HttpEvent,
   HttpErrorResponse,
 } from '@angular/common/http';
-import { Router, CanActivateFn } from '@angular/router';
+import { Router, CanActivateFn, UrlTree } from '@angular/router';
 import { Observable, throwError, of } from 'rxjs';
 import { catchError, map, tap, switchMap, finalize, shareReplay } from 'rxjs/operators';
 
@@ -351,8 +351,9 @@ export const authInterceptor: HttpInterceptorFn = (
 
 /**
  * Functional Route Guard for protected routes.
+ * Returns true if authenticated, or redirects to /login via UrlTree.
  */
-export const authGuard: CanActivateFn = () => {
+export const authGuard: CanActivateFn = (): boolean | UrlTree => {
   const authService = inject(AuthService);
   const router = inject(Router);
 
@@ -360,6 +361,5 @@ export const authGuard: CanActivateFn = () => {
     return true;
   }
 
-  router.navigate(['/login']);
-  return false;
+  return router.createUrlTree(['/login']);
 };

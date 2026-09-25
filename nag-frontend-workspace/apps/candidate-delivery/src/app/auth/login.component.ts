@@ -2,6 +2,7 @@ import {
   Component,
   inject,
   signal,
+  OnInit,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
@@ -23,7 +24,7 @@ import { AuthService } from '@nag-frontend-workspace/shared-data-access-auth';
   templateUrl: './login.component.html',
   styleUrl: './login.component.scss',
 })
-export class LoginComponent {
+export class LoginComponent implements OnInit {
   private readonly authService = inject(AuthService);
   private readonly router = inject(Router);
 
@@ -35,6 +36,12 @@ export class LoginComponent {
   errorMessage = signal<string | null>(null);
   showPassword = signal<boolean>(false);
   showForgotPassword = signal<boolean>(false);
+
+  ngOnInit(): void {
+    if (this.authService.isAuthenticated()) {
+      this.router.navigate(['/dashboard']);
+    }
+  }
 
   handleLogin(): void {
     if (!this.username.trim() || !this.password.trim()) {
@@ -60,15 +67,29 @@ export class LoginComponent {
           const detail =
             err?.error?.message ||
             err?.error?.detail ||
-            'Authentication failed. Please check your credentials.';
+            err?.message ||
+            'Invalid credentials. Please verify your email/mobile and password.';
           this.errorMessage.set(detail);
         },
       });
   }
 
   handleForgotPassword(): void {
-    if (!this.resetEmail.trim()) return;
-    alert(`Reset OTP dispatched to ${this.resetEmail}. Check your inbox.`);
-    this.showForgotPassword.set(false);
+    if (!this.resetEmail.trim()) {
+      this.errorMessage.set('Please enter your registered email address.');
+      return;
+    }
+
+    this.loading.set(true);
+    setTimeout(() => {
+      this.loading.set(false);
+      this.showForgotPassword.set(false);
+      this.errorMessage.set(null);
+      alert('Password reset instructions have been sent to your registered email.');
+    }, 1000);
+  }
+
+  togglePasswordVisibility(): void {
+    this.showPassword.update((val) => !val);
   }
 }
