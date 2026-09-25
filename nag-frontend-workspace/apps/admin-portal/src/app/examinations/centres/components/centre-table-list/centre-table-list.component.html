@@ -1,0 +1,115 @@
+<!-- Loading State -->
+@if (loading()) {
+  <div class="p-12 bg-white rounded-2xl border border-slate-200 text-center space-y-3">
+    <mat-spinner diameter="40" class="mx-auto"></mat-spinner>
+    <p class="text-sm font-medium text-slate-500">Loading test centres from registry...</p>
+  </div>
+}
+
+<!-- Empty State -->
+@if (!loading() && centres().length === 0) {
+  <div class="p-12 bg-white rounded-2xl border border-dashed border-slate-300 text-center space-y-3">
+    <mat-icon class="!text-4xl text-slate-300 leading-none">domain_disabled</mat-icon>
+    <h3 class="text-base font-bold text-slate-800">No Test Centres Found</h3>
+    <p class="text-xs text-slate-500 max-w-md mx-auto">
+      {{ searchQuery() || stateFilter() !== 'ALL' ? 'No venues match the selected filters.' : 'Register your first examination test centre to enable candidate seat allocations.' }}
+    </p>
+    @if (!searchQuery() && stateFilter() === 'ALL') {
+      <button
+        mat-flat-button
+        color="primary"
+        (click)="registerFirst.emit()"
+        class="mt-2 cursor-pointer"
+      >
+        <mat-icon>add_business</mat-icon>
+        Register First Centre
+      </button>
+    }
+  </div>
+}
+
+<!-- Test Centres Table -->
+@if (!loading() && centres().length > 0) {
+  <div class="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-xs">
+    <table class="min-w-full divide-y divide-slate-200 text-left text-xs">
+      <thead class="bg-slate-50 text-slate-600 font-semibold uppercase tracking-wider">
+        <tr>
+          <th scope="col" class="px-5 py-3.5">Venue &amp; Lab Details</th>
+          <th scope="col" class="px-5 py-3.5">Location &amp; Region</th>
+          <th scope="col" class="px-5 py-3.5">Seat Capacity</th>
+          <th scope="col" class="px-5 py-3.5">Venue Status</th>
+          <th scope="col" class="px-5 py-3.5 text-right">Actions</th>
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-slate-100 text-slate-700">
+        @for (centre of centres(); track centre.id) {
+          <tr class="hover:bg-slate-50/70 transition-colors">
+            <td class="px-5 py-4">
+              <div class="font-bold text-slate-900 text-sm flex items-center gap-1.5">
+                <mat-icon class="text-indigo-600 !text-base">domain</mat-icon>
+                <span>{{ centre.centreName }}</span>
+              </div>
+              <div class="text-slate-500 text-[11px] mt-0.5">
+                @if (centre.building) {
+                  <span>{{ centre.building }}</span>
+                }
+                @if (centre.floor) {
+                  <span> &bull; Floor {{ centre.floor }}</span>
+                }
+                @if (centre.laboratoryIdentifier) {
+                  <span> &bull; Lab: {{ centre.laboratoryIdentifier }}</span>
+                }
+              </div>
+            </td>
+
+            <td class="px-5 py-4">
+              <div class="font-semibold text-slate-800">
+                {{ centre.cityName || centre.city }}, {{ centre.stateName || centre.state }}
+              </div>
+              @if (centre.district) {
+                <div class="text-slate-400 text-[11px]">District: {{ centre.district }}</div>
+              }
+            </td>
+
+            <td class="px-5 py-4">
+              <div class="flex items-center gap-1.5 font-mono text-slate-900 font-bold">
+                <mat-icon class="text-purple-600 !text-sm">event_seat</mat-icon>
+                <span>{{ centre.totalCapacity }} terminals</span>
+              </div>
+            </td>
+
+            <td class="px-5 py-4">
+              @if (centre.active !== false) {
+                <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 text-[10px] font-bold uppercase">
+                  <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                  Active
+                </span>
+              } @else {
+                <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-600 border border-slate-200 text-[10px] font-bold uppercase">
+                  <span class="w-1.5 h-1.5 rounded-full bg-slate-400"></span>
+                  Inactive
+                </span>
+              }
+            </td>
+
+            <td class="px-5 py-4 text-right">
+              @if (centre.active !== false) {
+                <button
+                  mat-button
+                  color="warn"
+                  (click)="deactivate.emit(centre)"
+                  class="!text-xs cursor-pointer"
+                  matTooltip="Mark venue as inactive for future scheduling"
+                >
+                  Deactivate
+                </button>
+              } @else {
+                <span class="text-slate-400 text-xs italic">Deactivated</span>
+              }
+            </td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  </div>
+}

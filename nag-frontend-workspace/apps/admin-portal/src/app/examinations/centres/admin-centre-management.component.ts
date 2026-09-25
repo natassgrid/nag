@@ -4,16 +4,14 @@ import {
   inject,
   signal,
   computed,
+  ViewChild,
   ChangeDetectionStrategy,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { FormsModule } from '@angular/forms';
 import { RouterModule } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
-import { MatTooltipModule } from '@angular/material/tooltip';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
-import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import {
   CentreManagementService,
   CentreResponse,
@@ -23,25 +21,34 @@ import {
   GeoState,
   GeoCity,
 } from '@nag-frontend-workspace/examinations-data-access';
+import {
+  CentreKpiCardsComponent,
+  CentreFilterBarComponent,
+  CentreTableListComponent,
+  CentreCreateDrawerComponent,
+} from './components';
 
 @Component({
   selector: 'nag-admin-centre-management',
   standalone: true,
   imports: [
     CommonModule,
-    FormsModule,
     RouterModule,
     MatButtonModule,
     MatIconModule,
-    MatTooltipModule,
     MatSnackBarModule,
-    MatProgressSpinnerModule,
+    CentreKpiCardsComponent,
+    CentreFilterBarComponent,
+    CentreTableListComponent,
+    CentreCreateDrawerComponent,
   ],
   templateUrl: './admin-centre-management.component.html',
   styleUrls: ['./admin-centre-management.component.scss'],
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class AdminCentreManagementComponent implements OnInit {
+  @ViewChild(CentreCreateDrawerComponent) createDrawerComponent?: CentreCreateDrawerComponent;
+
   private readonly centreService = inject(CentreManagementService);
   private readonly geoService = inject(GeoLocationService);
   private readonly snackBar = inject(MatSnackBar);
@@ -62,20 +69,6 @@ export class AdminCentreManagementComponent implements OnInit {
   readonly countries = signal<GeoCountry[]>([]);
   readonly states = signal<GeoState[]>([]);
   readonly cities = signal<GeoCity[]>([]);
-
-  // Form Fields
-  formCountryId: number | null = null;
-  formStateId: number | null = null;
-  formCityId: number | null = null;
-  formStateName = '';
-  formCityName = '';
-  formDistrict = '';
-  formCentreName = '';
-  formBuilding = '';
-  formFloor = '';
-  formLabIdentifier = '';
-  formTotalCapacity = 250;
-  formActive = true;
 
   // Computed KPIs
   readonly totalCentresCount = computed(() => (this.centres() || []).length);
@@ -144,10 +137,10 @@ export class AdminCentreManagementComponent implements OnInit {
       next: (list) => {
         const items = list || [];
         this.countries.set(items);
-        if (items.length > 0 && !this.formCountryId) {
+        if (items.length > 0 && this.createDrawerComponent && !this.createDrawerComponent.formCountryId) {
           const india = items.find((c) => c?.name && c.name.toLowerCase().includes('india')) || items[0];
           if (india) {
-            this.formCountryId = india.id;
+            this.createDrawerComponent.formCountryId = india.id;
             this.onCountryChange(india.id);
           }
         }
@@ -159,10 +152,6 @@ export class AdminCentreManagementComponent implements OnInit {
   onCountryChange(countryId: number | null): void {
     this.states.set([]);
     this.cities.set([]);
-    this.formStateId = null;
-    this.formCityId = null;
-    this.formStateName = '';
-    this.formCityName = '';
 
     if (countryId) {
       this.geoService.getStates(countryId).subscribe({
@@ -174,14 +163,8 @@ export class AdminCentreManagementComponent implements OnInit {
 
   onStateChange(stateId: number | null): void {
     this.cities.set([]);
-    this.formCityId = null;
-    this.formCityName = '';
 
     if (stateId) {
-      const selected = (this.states() || []).find((s) => s?.id === stateId);
-      if (selected) {
-        this.formStateName = selected.name;
-      }
       this.geoService.getCities(stateId).subscribe({
         next: (cities) => this.cities.set(cities || []),
         error: () => this.cities.set([]),
@@ -189,23 +172,18 @@ export class AdminCentreManagementComponent implements OnInit {
     }
   }
 
-  onCityChange(cityId: number | null): void {
-    if (cityId) {
-      const selected = (this.cities() || []).find((c) => c?.id === cityId);
-      if (selected) {
-        this.formCityName = selected.name;
-      }
-    }
+  onCityChange(_cityId: number | null): void {
+    // City selected
   }
 
   openCreate(): void {
-    this.resetForm();
+    this.createDrawerComponent?.reset();
     this.drawerOpen.set(true);
     const countryList = this.countries() || [];
-    if (countryList.length > 0 && !this.formCountryId) {
+    if (countryList.length > 0 && this.createDrawerComponent) {
       const india = countryList.find((c) => c?.name && c.name.toLowerCase().includes('india')) || countryList[0];
       if (india) {
-        this.formCountryId = india.id;
+        this.createDrawerComponent.formCountryId = india.id;
         this.onCountryChange(india.id);
       }
     }
@@ -215,35 +193,7 @@ export class AdminCentreManagementComponent implements OnInit {
     this.drawerOpen.set(false);
   }
 
-  saveCentre(): void {
-    if (!this.formCentreName.trim()) {
-      this.snackBar.open('Centre Name is required', 'Dismiss', { duration: 3000 });
-      return;
-    }
-    if (!this.formStateName.trim()) {
-      this.snackBar.open('State is required', 'Dismiss', { duration: 3000 });
-      return;
-    }
-    if (!this.formCityName.trim()) {
-      this.snackBar.open('City is required', 'Dismiss', { duration: 3000 });
-      return;
-    }
-
-    const payload: CreateCentreRequest = {
-      countryId: this.formCountryId || undefined,
-      stateId: this.formStateId || undefined,
-      cityId: this.formCityId || undefined,
-      state: this.formStateName.trim(),
-      district: this.formDistrict.trim() || undefined,
-      city: this.formCityName.trim(),
-      centreName: this.formCentreName.trim(),
-      building: this.formBuilding.trim() || undefined,
-      floor: this.formFloor.trim() || undefined,
-      laboratoryIdentifier: this.formLabIdentifier.trim() || undefined,
-      totalCapacity: this.formTotalCapacity,
-      active: this.formActive,
-    };
-
+  saveCentre(payload: CreateCentreRequest): void {
     this.isSaving.set(true);
     this.centreService.createCentre(payload).subscribe({
       next: () => {
@@ -279,18 +229,5 @@ export class AdminCentreManagementComponent implements OnInit {
         );
       },
     });
-  }
-
-  private resetForm(): void {
-    this.formCentreName = '';
-    this.formDistrict = '';
-    this.formBuilding = '';
-    this.formFloor = '';
-    this.formLabIdentifier = '';
-    this.formTotalCapacity = 250;
-    this.formActive = true;
-    if (this.formCountryId) {
-      this.onCountryChange(this.formCountryId);
-    }
   }
 }
