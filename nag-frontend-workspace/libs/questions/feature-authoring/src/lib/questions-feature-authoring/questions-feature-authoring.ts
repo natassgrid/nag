@@ -11,9 +11,6 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import {
   PageHeaderComponent,
-  MathRendererComponent,
-  StatusBadgeComponent,
-  StatusVariant,
 } from '@nag-frontend-workspace/shared-ui-components';
 import {
   QuestionBankService,
@@ -28,21 +25,15 @@ import {
   PassageRequest,
   SubQuestionRequest,
 } from '@nag-frontend-workspace/questions-data-access';
-
-export type AuthoringMode = 'STANDALONE' | 'PASSAGE';
-
-export interface AuthoringSubQuestion {
-  id?: string;
-  passageOrderIndex: number;
-  content: string;
-  questionType: QuestionType;
-  difficulty: DifficultyLevel;
-  cognitiveLevel: string;
-  marks: number;
-  negativeMarks: number;
-  explanation: string;
-  options: QuestionOption[];
-}
+import {
+  AuthoringMode,
+  AuthoringSubQuestion,
+} from '../models/authoring.model';
+import {
+  TaxonomySelectorComponent,
+  StandaloneQuestionFormComponent,
+  PassageAuthoringPanelComponent,
+} from '../components';
 
 @Component({
   selector: 'nag-questions-feature-authoring',
@@ -54,8 +45,9 @@ export interface AuthoringSubQuestion {
     MatButtonModule,
     MatIconModule,
     PageHeaderComponent,
-    MathRendererComponent,
-    StatusBadgeComponent,
+    TaxonomySelectorComponent,
+    StandaloneQuestionFormComponent,
+    PassageAuthoringPanelComponent,
   ],
   templateUrl: './questions-feature-authoring.component.html',
   styleUrl: './questions-feature-authoring.component.scss',
@@ -79,12 +71,6 @@ export class QuestionsFeatureAuthoring implements OnInit {
   selectedSubjectId: number | null = null;
   selectedTopicId: number | null = null;
   selectedSubtopicId: number | null = null;
-
-  // Quick Add Taxonomy
-  showNewSubject = false;
-  showNewTopic = false;
-  newSubjectName = '';
-  newTopicName = '';
 
   // Standalone Question Form
   cognitiveLevel = 'UNDERSTAND';
@@ -162,15 +148,6 @@ export class QuestionsFeatureAuthoring implements OnInit {
     },
   ];
 
-  readonly cognitiveLevels = [
-    { value: 'REMEMBER', label: 'Remember / Recall' },
-    { value: 'UNDERSTAND', label: 'Understand / Conceptual' },
-    { value: 'APPLY', label: 'Apply / Application' },
-    { value: 'ANALYZE', label: 'Analyze / Critical Thinking' },
-    { value: 'EVALUATE', label: 'Evaluate / Judgment' },
-    { value: 'CREATE', label: 'Create / Synthesis' },
-  ];
-
   ngOnInit(): void {
     this.loadTaxonomy();
   }
@@ -227,29 +204,24 @@ export class QuestionsFeatureAuthoring implements OnInit {
     }
   }
 
-  createQuickSubject(): void {
-    if (!this.newSubjectName.trim()) return;
-    this.subjectTopicService.createSubject({ name: this.newSubjectName.trim() }).subscribe({
+  createQuickSubject(name: string): void {
+    this.subjectTopicService.createSubject({ name }).subscribe({
       next: (sub) => {
         this.subjects.update((list) => [...list, sub]);
         this.selectedSubjectId = sub.id;
-        this.newSubjectName = '';
-        this.showNewSubject = false;
         this.onSubjectChange(sub.id);
       },
     });
   }
 
-  createQuickTopic(): void {
-    if (!this.newTopicName.trim() || !this.selectedSubjectId) return;
+  createQuickTopic(name: string): void {
+    if (!this.selectedSubjectId) return;
     this.subjectTopicService
-      .createTopic(this.selectedSubjectId, { name: this.newTopicName.trim() })
+      .createTopic(this.selectedSubjectId, { name })
       .subscribe({
         next: (top) => {
           this.topics.update((list) => [...list, top]);
           this.selectedTopicId = top.id;
-          this.newTopicName = '';
-          this.showNewTopic = false;
           this.onTopicChange(top.id);
         },
       });
@@ -260,126 +232,11 @@ export class QuestionsFeatureAuthoring implements OnInit {
     this.feedback.set(null);
   }
 
-  difficultyVariant(diff: string = this.difficulty): StatusVariant {
-    switch (diff) {
-      case 'EASY':
-        return 'success';
-      case 'MEDIUM':
-        return 'warn';
-      case 'HARD':
-      case 'EXPERT':
-        return 'error';
-      default:
-        return 'neutral';
-    }
-  }
-
-  // --- Standalone Option Helpers ---
-  addOption(): void {
-    const nextIdx = this.options.length;
-    this.options.push({
-      id: this.getOptionLetter(nextIdx),
-      text: '',
-      isCorrect: false,
+  onValidationError(message: string): void {
+    this.feedback.set({
+      type: 'error',
+      message,
     });
-  }
-
-  removeOption(index: number): void {
-    if (this.options.length > 2) {
-      this.options.splice(index, 1);
-      this.options.forEach((opt, idx) => {
-        opt.id = this.getOptionLetter(idx);
-      });
-    }
-  }
-
-  toggleCorrect(index: number): void {
-    if (this.type === 'MULTIPLE_CHOICE' || this.type === 'SINGLE_MCQ') {
-      this.options.forEach((opt, idx) => {
-        opt.isCorrect = idx === index;
-      });
-    } else {
-      this.options[index].isCorrect = !this.options[index].isCorrect;
-    }
-  }
-
-  // --- Sub-Question Passage Helpers ---
-  addSubQuestion(): void {
-    if (this.subQuestions.length >= 6) {
-      this.feedback.set({
-        type: 'error',
-        message: 'A comprehension passage can contain at most 6 sub-questions.',
-      });
-      return;
-    }
-    const nextIdx = this.subQuestions.length + 1;
-    this.subQuestions.push({
-      passageOrderIndex: nextIdx,
-      content: '',
-      questionType: 'MULTIPLE_CHOICE',
-      difficulty: 'MEDIUM',
-      cognitiveLevel: 'UNDERSTAND',
-      marks: 4,
-      negativeMarks: 1,
-      explanation: '',
-      options: [
-        { id: 'A', text: '', isCorrect: true },
-        { id: 'B', text: '', isCorrect: false },
-        { id: 'C', text: '', isCorrect: false },
-        { id: 'D', text: '', isCorrect: false },
-      ],
-    });
-    this.activeSubQuestionIndex = this.subQuestions.length - 1;
-  }
-
-  removeSubQuestion(index: number): void {
-    if (this.subQuestions.length <= 2) {
-      this.feedback.set({
-        type: 'error',
-        message: 'A comprehension passage requires a minimum of 2 sub-questions.',
-      });
-      return;
-    }
-    this.subQuestions.splice(index, 1);
-    this.subQuestions.forEach((sq, idx) => {
-      sq.passageOrderIndex = idx + 1;
-    });
-    if (this.activeSubQuestionIndex >= this.subQuestions.length) {
-      this.activeSubQuestionIndex = this.subQuestions.length - 1;
-    }
-  }
-
-  addSubQuestionOption(sqIndex: number): void {
-    const sq = this.subQuestions[sqIndex];
-    if (sq.options.length < 6) {
-      const nextIdx = sq.options.length;
-      sq.options.push({
-        id: this.getOptionLetter(nextIdx),
-        text: '',
-        isCorrect: false,
-      });
-    }
-  }
-
-  removeSubQuestionOption(sqIndex: number, optIndex: number): void {
-    const sq = this.subQuestions[sqIndex];
-    if (sq.options.length > 2) {
-      sq.options.splice(optIndex, 1);
-      sq.options.forEach((opt, idx) => {
-        opt.id = this.getOptionLetter(idx);
-      });
-    }
-  }
-
-  toggleSubQuestionCorrect(sqIndex: number, optIndex: number): void {
-    const sq = this.subQuestions[sqIndex];
-    if (sq.questionType === 'MULTIPLE_CHOICE' || sq.questionType === 'SINGLE_MCQ') {
-      sq.options.forEach((opt, idx) => {
-        opt.isCorrect = idx === optIndex;
-      });
-    } else {
-      sq.options[optIndex].isCorrect = !sq.options[optIndex].isCorrect;
-    }
   }
 
   getOptionLetter(index: number): string {
@@ -578,58 +435,65 @@ export class QuestionsFeatureAuthoring implements OnInit {
 
     const formattedSubQuestions: SubQuestionRequest[] = this.subQuestions.map((sq, idx) => {
       const correct = sq.options.filter((o) => o.isCorrect).map((o) => o.id).join(',');
+      const backendType =
+        sq.questionType === 'MULTIPLE_CHOICE'
+          ? 'SINGLE_MCQ'
+          : sq.questionType === 'MULTIPLE_SELECT'
+          ? 'MULTI_MCQ'
+          : sq.questionType;
+
       return {
         passageOrderIndex: idx + 1,
         content: sq.content.trim(),
-        questionType: sq.questionType === 'MULTIPLE_CHOICE' ? 'SINGLE_MCQ' : (sq.questionType === 'MULTIPLE_SELECT' ? 'MULTI_MCQ' : sq.questionType),
+        type: backendType,
         difficulty: sq.difficulty,
         cognitiveLevel: sq.cognitiveLevel,
         marks: sq.marks,
         negativeMarks: sq.negativeMarks,
-        explanation: sq.explanation.trim() || undefined,
-        answerKey: correct,
         options: sq.options.map((opt, oIdx) => ({
           id: this.getOptionLetter(oIdx),
           text: opt.text.trim(),
           isCorrect: opt.isCorrect,
         })),
+        answerKey: correct,
+        explanation: sq.explanation.trim() || undefined,
       };
     });
 
-    const request: PassageRequest = {
+    const passagePayload: PassageRequest = {
       title: this.passageTitle.trim() || undefined,
       content: this.passageContent.trim(),
-      contentFormat: 'MIXED',
-      subjectId: this.selectedSubjectId,
-      topicId: this.selectedTopicId || undefined,
       subject: selectedSub?.name || 'General',
       topic: selectedTop?.name || 'General',
       subtopic: selectedSubtop?.name || undefined,
+      subjectId: this.selectedSubjectId || undefined,
+      topicId: this.selectedTopicId || undefined,
+      subtopicId: this.selectedSubtopicId || undefined,
       subQuestions: formattedSubQuestions,
     };
 
     this.saving.set(true);
     this.feedback.set(null);
 
-    this.passageService.createPassage(request).subscribe({
+    this.passageService.createPassage(passagePayload).subscribe({
       next: (created) => {
         this.saving.set(false);
         this.feedback.set({
           type: 'success',
-          message: `Passage set "${created.title || created.id}" with ${created.subQuestions?.length || this.subQuestions.length} sub-questions successfully created!`,
+          message: `Passage Set ${created.id} with ${created.totalQuestions || formattedSubQuestions.length} sub-questions successfully registered!`,
         });
       },
       error: (err) => {
         this.saving.set(false);
         this.feedback.set({
           type: 'error',
-          message: err?.error?.message || 'Failed to save comprehension passage set. Please check fields and retry.',
+          message: err?.error?.message || 'Failed to persist passage set. Please verify all inputs and retry.',
         });
       },
     });
   }
 
   viewInBank(): void {
-    this.router.navigate(['/questions']);
+    this.router.navigate(['/questions/bank']);
   }
 }
