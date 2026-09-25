@@ -53,6 +53,13 @@
                   <span class="text-[10px] text-slate-500">MCQ, LaTeX equations & multi-part editor</span>
                 </div>
               </a>
+              <a mat-menu-item routerLink="/questions/ai-generate">
+                <mat-icon class="text-indigo-500">psychology</mat-icon>
+                <div class="inline-flex flex-col text-left">
+                  <span class="font-bold text-xs text-slate-900">AI Question Generator</span>
+                  <span class="text-[10px] text-slate-500">Cognitive-level synthesis, duplicate screening & batch</span>
+                </div>
+              </a>
               <a mat-menu-item routerLink="/questions/blueprints">
                 <mat-icon class="text-blue-600">rule</mat-icon>
                 <div class="inline-flex flex-col text-left">
@@ -180,8 +187,8 @@
     </header>
   }
 
-  <!-- Main Workspace Area -->
-  <main class="grow">
+  <!-- Main Content Area -->
+  <main class="flex-1 w-full flex flex-col">
     <router-outlet></router-outlet>
   </main>
 </div>

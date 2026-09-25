@@ -39,6 +39,14 @@ export const appRoutes: Route[] = [
       ),
   },
   {
+    path: 'questions/ai-generate',
+    canActivate: [authGuard],
+    loadComponent: () =>
+      import('./questions/ai-generation/admin-ai-question-generation.component').then(
+        (m) => m.AdminAiQuestionGenerationComponent
+      ),
+  },
+  {
     path: 'questions/blueprints',
     canActivate: [authGuard],
     loadComponent: () =>
@@ -63,14 +71,6 @@ export const appRoutes: Route[] = [
       ),
   },
   {
-    path: 'examinations/scheduling',
-    canActivate: [authGuard],
-    loadComponent: () =>
-      import('@nag-frontend-workspace/examinations-feature-scheduling').then(
-        (m) => m.ExaminationsFeatureScheduling
-      ),
-  },
-  {
     path: 'examinations/paper-gen',
     canActivate: [authGuard],
     loadComponent: () =>
@@ -79,11 +79,27 @@ export const appRoutes: Route[] = [
       ),
   },
   {
+    path: 'examinations/scheduling',
+    canActivate: [authGuard],
+    loadComponent: () =>
+      import('@nag-frontend-workspace/examinations-feature-scheduling').then(
+        (m) => m.ExaminationsFeatureScheduling
+      ),
+  },
+  {
     path: 'evaluation/grading',
     canActivate: [authGuard],
     loadComponent: () =>
       import('@nag-frontend-workspace/evaluation-feature-grading').then(
         (m) => m.EvaluationFeatureGrading
+      ),
+  },
+  {
+    path: 'users',
+    canActivate: [authGuard],
+    loadComponent: () =>
+      import('./users/admin-user-management.component').then(
+        (m) => m.AdminUserManagementComponent
       ),
   },
   {
@@ -103,14 +119,6 @@ export const appRoutes: Route[] = [
       ),
   },
   {
-    path: 'users',
-    canActivate: [authGuard],
-    loadComponent: () =>
-      import('./users/admin-user-management.component').then(
-        (m) => m.AdminUserManagementComponent
-      ),
-  },
-  {
     path: 'settings',
     canActivate: [authGuard],
     loadComponent: () =>
@@ -120,8 +128,6 @@ export const appRoutes: Route[] = [
   },
   {
     path: '**',
-    canActivate: [rootGuard],
-    loadComponent: () =>
-      import('./auth/admin-login.component').then((m) => m.AdminLoginComponent),
+    redirectTo: 'dashboard',
   },
 ];

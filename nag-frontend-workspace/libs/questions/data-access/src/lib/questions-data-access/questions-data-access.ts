@@ -650,3 +650,176 @@ export class TranslationService {
       .pipe(map((res) => ((res as any).data || res) as TranslationResponse));
   }
 }
+
+
+// ============================================================================
+// 3. AI QUESTION GENERATION MODELS & SERVICE (LiteLLM / Bedrock / RAG)
+// ============================================================================
+
+export interface ParagraphSetConfig {
+  passageWordLength?: number;
+  subQuestionCount?: number;
+  passageTheme?: string;
+}
+
+export interface QuestionGenerationRequest {
+  subject: string;
+  topic: string;
+  subtopic?: string;
+  difficulty: 'EASY' | 'MEDIUM' | 'HARD' | string;
+  cognitiveLevel:
+    | 'REMEMBER'
+    | 'UNDERSTAND'
+    | 'APPLY'
+    | 'ANALYZE'
+    | 'EVALUATE'
+    | 'CREATE'
+    | string;
+  questionType:
+    | 'SINGLE_MCQ'
+    | 'MULTI_MCQ'
+    | 'NUMERICAL'
+    | 'DESCRIPTIVE'
+    | 'PARAGRAPH_SET'
+    | string;
+  generationType?: 'STANDALONE' | 'PARAGRAPH_SET' | string;
+  paragraphSetConfig?: ParagraphSetConfig;
+  count: number;
+  avoidDuplicate?: boolean;
+  autoSave?: boolean;
+}
+
+export interface GeneratedQuestionValidation {
+  valid: boolean;
+  errors: string[];
+}
+
+export interface GeneratedQuestionDuplicate {
+  similarQuestionId?: string;
+  similarity: number;
+}
+
+export interface GeneratedQuestion {
+  content: string;
+  answerKey?: string;
+  explanation?: string;
+  options?: QuestionOption[];
+  difficulty: string;
+  cognitiveLevel: string;
+  questionType: string;
+  validation?: GeneratedQuestionValidation;
+  duplicate?: GeneratedQuestionDuplicate;
+  savedQuestionId?: string;
+}
+
+export interface QuestionGenerationResponse {
+  questions: GeneratedQuestion[];
+  modelUsed: string;
+  totalGenerated: number;
+  totalValid: number;
+  totalDuplicates: number;
+}
+
+export interface BatchItem {
+  subject: string;
+  topic: string;
+  subtopic?: string;
+  difficulty: string;
+  cognitiveLevel: string;
+  questionType: string;
+  count: number;
+}
+
+export interface BatchGenerationRequest {
+  items: BatchItem[];
+  avoidDuplicates?: boolean;
+}
+
+export interface BatchGenerationJob {
+  id: string;
+  status:
+    | 'PENDING'
+    | 'PROCESSING'
+    | 'COMPLETED'
+    | 'PARTIALLY_COMPLETED'
+    | 'FAILED'
+    | 'CANCELLED'
+    | string;
+  items?: string | BatchItem[];
+  totalRequested: number;
+  totalGenerated: number;
+  totalFailed: number;
+  totalDuplicates: number;
+  modelUsed?: string;
+  initiatedBy?: string;
+  createdAt: string;
+  startedAt?: string;
+  completedAt?: string;
+  errorMessage?: string;
+  progress?: number;
+}
+
+@Injectable({
+  providedIn: 'root',
+})
+export class QuestionAiService {
+  private readonly http = inject(HttpClient);
+  private readonly baseUrl = '/api/v1/questions';
+
+  generateQuestions(request: QuestionGenerationRequest): Observable<QuestionGenerationResponse> {
+    return this.http
+      .post<{ status?: string; message?: string; data?: QuestionGenerationResponse } | QuestionGenerationResponse>(
+        `${this.baseUrl}/generate`,
+        request
+      )
+      .pipe(map((res) => ((res as any)?.data || res) as QuestionGenerationResponse));
+  }
+
+  submitBatchJob(request: BatchGenerationRequest): Observable<BatchGenerationJob> {
+    return this.http
+      .post<{ status?: string; message?: string; data?: BatchGenerationJob } | BatchGenerationJob>(
+        `${this.baseUrl}/batch`,
+        request
+      )
+      .pipe(map((res) => ((res as any)?.data || res) as BatchGenerationJob));
+  }
+
+  getBatchJobStatus(jobId: string): Observable<BatchGenerationJob> {
+    return this.http
+      .get<{ status?: string; message?: string; data?: BatchGenerationJob } | BatchGenerationJob>(
+        `${this.baseUrl}/batch/${jobId}`
+      )
+      .pipe(map((res) => ((res as any)?.data || res) as BatchGenerationJob));
+  }
+
+  listBatchJobs(
+    page = 0,
+    size = 20
+  ): Observable<{ content: BatchGenerationJob[]; totalElements: number }> {
+    const params = new HttpParams().set('page', page.toString()).set('size', size.toString());
+    return this.http
+      .get<{ status?: string; message?: string; data?: any }>(`${this.baseUrl}/batch`, { params })
+      .pipe(
+        map((res) => {
+          const p = res?.data || res;
+          return {
+            content: p?.content || [],
+            totalElements: p?.totalElements || 0,
+          };
+        })
+      );
+  }
+
+  cancelBatchJob(jobId: string): Observable<BatchGenerationJob> {
+    return this.http
+      .post<{ status?: string; message?: string; data?: BatchGenerationJob } | BatchGenerationJob>(
+        `${this.baseUrl}/batch/${jobId}/cancel`,
+        {}
+      )
+      .pipe(map((res) => ((res as any)?.data || res) as BatchGenerationJob));
+  }
+
+  backfillEmbeddings(): Observable<any> {
+    return this.http.post(`${this.baseUrl}/embeddings/backfill`, {});
+  }
+}
