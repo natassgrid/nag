@@ -23,6 +23,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Import;
 import org.springframework.core.annotation.Order;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
@@ -33,8 +34,8 @@ import com.examplatform.shared.security.JwtAuthConfig;
 
 /**
  * Security configuration for asset-service.
- * OAuth2 Resource Server with JWT validation; permit actuator endpoints;
- * require authentication for all other requests.
+ * OAuth2 Resource Server with JWT validation; permit actuator endpoints and public binary downloads;
+ * require authentication for upload, metadata update, delete, and archive operations.
  */
 @Configuration
 @EnableWebSecurity
@@ -51,6 +52,7 @@ public class SecurityConfig {
             .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers("/actuator/health", "/actuator/health/**", "/actuator/info", "/actuator/prometheus").permitAll()
+                .requestMatchers(HttpMethod.GET, "/api/v1/assets/*/download", "/api/v1/assets/*/url").permitAll()
                 .anyRequest().authenticated()
             )
             .oauth2ResourceServer(oauth2 -> oauth2.jwt(jwt -> jwt.jwtAuthenticationConverter(jwtAuthenticationConverter)));

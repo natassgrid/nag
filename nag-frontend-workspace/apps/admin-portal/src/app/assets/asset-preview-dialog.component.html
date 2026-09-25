@@ -21,6 +21,26 @@
     </div>
 
     <div class="flex items-center gap-2">
+      <input #headerFileInput type="file" class="hidden" (change)="onFileSelected($event)" />
+      <button
+        mat-stroked-button
+        color="primary"
+        class="!text-xs !rounded-xl !h-8"
+        (click)="headerFileInput.click()"
+        [disabled]="replacing"
+        title="Upload a new file to replace this asset's binary"
+      >
+        <span class="flex items-center gap-1">
+          @if (replacing) {
+            <mat-spinner diameter="14"></mat-spinner>
+            <span>Updating...</span>
+          } @else {
+            <mat-icon class="!text-base mr-1">sync</mat-icon>
+            <span>Replace Binary</span>
+          }
+        </span>
+      </button>
+
       <button mat-icon-button (click)="copyUrl()" title="Copy direct URL">
         <mat-icon class="text-slate-600">content_copy</mat-icon>
       </button>
@@ -33,6 +53,16 @@
     </div>
   </div>
 
+  @if (replacing) {
+    <div class="mt-3">
+      <div class="flex justify-between text-xs text-indigo-600 font-medium mb-1">
+        <span>Uploading replacement binary...</span>
+        <span>{{ uploadProgress }}%</span>
+      </div>
+      <mat-progress-bar mode="determinate" [value]="uploadProgress"></mat-progress-bar>
+    </div>
+  }
+
   <!-- Dialog Media Content Area -->
   <div class="my-5 min-h-[300px] max-h-[500px] flex items-center justify-center bg-slate-950 rounded-2xl overflow-hidden border border-slate-800 p-4">
     @if (loading) {
@@ -41,12 +71,25 @@
         <span class="text-xs">Fetching media binary stream...</span>
       </div>
     } @else if (loadError) {
-      <div class="flex flex-col items-center gap-2 text-rose-400">
-        <mat-icon class="!text-5xl text-rose-500">broken_image</mat-icon>
-        <span class="text-xs font-semibold">Unable to stream asset media</span>
-        <button mat-stroked-button color="primary" class="mt-2 text-xs" (click)="loadMedia()">
-          Retry Stream
-        </button>
+      <div class="flex flex-col items-center gap-3 text-center max-w-md px-4 py-6">
+        <div class="w-16 h-16 rounded-2xl bg-rose-500/10 text-rose-500 flex items-center justify-center">
+          <mat-icon class="!text-4xl">broken_image</mat-icon>
+        </div>
+        <div>
+          <h4 class="text-sm font-bold text-rose-400">Media Stream Unavailable (HTTP 404)</h4>
+          <p class="text-xs text-slate-400 mt-1 leading-relaxed">
+            The binary file for this asset is missing from server storage volume. It may have been uploaded prior to storage volume initialization.
+          </p>
+        </div>
+        <div class="flex items-center gap-2 mt-2">
+          <button mat-stroked-button color="primary" class="!text-xs !rounded-xl" (click)="loadMedia()" [disabled]="replacing">
+            <mat-icon class="!text-base mr-1">refresh</mat-icon> Retry Stream
+          </button>
+          <input #errorFileInput type="file" class="hidden" (change)="onFileSelected($event)" />
+          <button mat-flat-button color="primary" class="!text-xs !rounded-xl" (click)="errorFileInput.click()" [disabled]="replacing">
+            <mat-icon class="!text-base mr-1">upload_file</mat-icon> Restore / Replace File
+          </button>
+        </div>
       </div>
     } @else {
       <!-- Image Rendering -->
@@ -80,7 +123,7 @@
       <!-- Document / Other -->
       @if (data.asset.assetType === 'DOCUMENT' || (!['IMAGE', 'AUDIO', 'VIDEO'].includes(data.asset.assetType))) {
         <div class="flex flex-col items-center gap-3 text-slate-300 py-8">
-          <mat-icon class="!text-6xl text-indigo-400">description</mat-icon>
+          <mat-icon class="!text-6xl text-indigo-400">insert_drive_file</mat-icon>
           <span class="text-sm font-semibold">{{ data.asset.originalFilename }}</span>
           <span class="text-xs text-slate-400">{{ data.asset.contentType }} • {{ assetService.formatFileSize(data.asset.fileSize) }}</span>
           <button mat-flat-button color="primary" (click)="download()" class="mt-2 text-xs !rounded-xl">
@@ -98,19 +141,24 @@
       <span class="font-semibold text-slate-800">{{ data.asset.assetType }}</span>
     </div>
     <div>
+      <span class="text-slate-400 font-bold block text-[10px] uppercase tracking-wider">MIME Type</span>
+      <span class="font-semibold text-slate-800 font-mono text-[11px]">{{ data.asset.contentType }}</span>
+    </div>
+    <div>
       <span class="text-slate-400 font-bold block text-[10px] uppercase tracking-wider">File Size</span>
       <span class="font-semibold text-slate-800">{{ assetService.formatFileSize(data.asset.fileSize) }}</span>
     </div>
     <div>
       <span class="text-slate-400 font-bold block text-[10px] uppercase tracking-wider">Status</span>
-      <span class="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-bold"
-        [ngClass]="data.asset.status === 'ACTIVE' ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'">
+      <span
+        class="inline-block px-2 py-0.5 rounded text-[10px] font-bold"
+        [class.bg-emerald-100]="data.asset.status === 'ACTIVE'"
+        [class.text-emerald-700]="data.asset.status === 'ACTIVE'"
+        [class.bg-amber-100]="data.asset.status === 'ARCHIVED'"
+        [class.text-amber-700]="data.asset.status === 'ARCHIVED'"
+      >
         {{ data.asset.status }}
       </span>
-    </div>
-    <div>
-      <span class="text-slate-400 font-bold block text-[10px] uppercase tracking-wider">MIME Content Type</span>
-      <span class="font-mono text-slate-700 truncate block">{{ data.asset.contentType }}</span>
     </div>
 
     @if (data.asset.width && data.asset.height) {
@@ -119,41 +167,44 @@
         <span class="font-semibold text-slate-800">{{ data.asset.width }} × {{ data.asset.height }} px</span>
       </div>
     }
+
     @if (data.asset.durationSeconds) {
       <div>
         <span class="text-slate-400 font-bold block text-[10px] uppercase tracking-wider">Duration</span>
         <span class="font-semibold text-slate-800">{{ assetService.formatDuration(data.asset.durationSeconds) }}</span>
       </div>
     }
-    @if (data.asset.storageProvider) {
+
+    @if (data.asset.codec) {
       <div>
-        <span class="text-slate-400 font-bold block text-[10px] uppercase tracking-wider">Storage Target</span>
-        <span class="font-semibold text-slate-800">{{ data.asset.storageProvider }}</span>
+        <span class="text-slate-400 font-bold block text-[10px] uppercase tracking-wider">Codec</span>
+        <span class="font-semibold text-slate-800">{{ data.asset.codec }}</span>
       </div>
     }
+
     @if (data.asset.sha256Hash) {
-      <div class="col-span-2">
-        <span class="text-slate-400 font-bold block text-[10px] uppercase tracking-wider">SHA-256 Digest</span>
-        <span class="font-mono text-[10px] text-slate-600 truncate block" [title]="data.asset.sha256Hash">
-          {{ data.asset.sha256Hash }}
-        </span>
-      </div>
-    }
-    @if (data.asset.tags) {
-      <div class="col-span-2">
-        <span class="text-slate-400 font-bold block text-[10px] uppercase tracking-wider">Search Tags</span>
-        <span class="text-slate-700">{{ data.asset.tags }}</span>
+      <div class="col-span-2 sm:col-span-4">
+        <span class="text-slate-400 font-bold block text-[10px] uppercase tracking-wider">SHA-256 Checksum</span>
+        <span class="font-mono text-[11px] text-slate-600 select-all break-all">{{ data.asset.sha256Hash }}</span>
       </div>
     }
   </div>
 
-  <!-- Dialog Actions -->
-  <div class="flex items-center justify-between pt-4 mt-2">
-    <span class="text-[11px] text-slate-400">
-      Uploaded {{ data.asset.createdAt | date:'medium' }}
-    </span>
-    <button mat-flat-button mat-dialog-close color="primary" class="!rounded-xl text-xs font-semibold">
-      Done
-    </button>
-  </div>
+  <!-- Tags & Description -->
+  @if (data.asset.description || (data.asset.tags && data.asset.tags.length)) {
+    <div class="mt-4 pt-4 border-t border-slate-200">
+      @if (data.asset.description) {
+        <p class="text-xs text-slate-600 mb-2 leading-relaxed">{{ data.asset.description }}</p>
+      }
+      @if (data.asset.tags && data.asset.tags.length) {
+        <div class="flex flex-wrap gap-1.5">
+          @for (tag of data.asset.tags; track tag) {
+            <span class="px-2 py-0.5 rounded-md bg-indigo-50 text-indigo-700 font-medium text-[11px]">
+              #{{ tag }}
+            </span>
+          }
+        </div>
+      }
+    </div>
+  }
 </div>

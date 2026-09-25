@@ -25,14 +25,27 @@ export class AssetService {
   /**
    * Upload an asset file with progress tracking events.
    */
-  uploadWithProgress(file: File): Observable<HttpEvent<ApiResponse<AssetUploadPayload>>> {
+  uploadWithProgress(file: File): Observable<HttpEvent<ApiResponse<AssetResponse>>> {
     const formData = new FormData();
     formData.append('file', file);
 
     const req = new HttpRequest('POST', this.baseUrl, formData, {
       reportProgress: true,
     });
-    return this.http.request<ApiResponse<AssetUploadPayload>>(req);
+    return this.http.request<ApiResponse<AssetResponse>>(req);
+  }
+
+  /**
+   * Replace binary content for an existing asset with progress tracking.
+   */
+  replaceContentWithProgress(id: string, file: File): Observable<HttpEvent<ApiResponse<AssetResponse>>> {
+    const formData = new FormData();
+    formData.append('file', file);
+
+    const req = new HttpRequest('POST', `${this.baseUrl}/${id}/content`, formData, {
+      reportProgress: true,
+    });
+    return this.http.request<ApiResponse<AssetResponse>>(req);
   }
 
   /**
@@ -164,5 +177,3 @@ export class AssetService {
     return m > 0 ? `${m}m ${s}s` : `${s}s`;
   }
 }
-
-export type AssetUploadPayload = AssetResponse;

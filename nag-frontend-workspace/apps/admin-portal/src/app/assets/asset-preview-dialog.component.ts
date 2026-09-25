@@ -7,7 +7,6 @@
 
 import {
   Component,
-  Inject,
   OnInit,
   OnDestroy,
   ChangeDetectorRef,
@@ -23,8 +22,9 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatChipsModule } from '@angular/material/chips';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
+import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpEventType } from '@angular/common/http';
 import { AssetResponse } from './asset.model';
 import { AssetService } from './asset.service';
 
@@ -42,6 +42,7 @@ export interface AssetPreviewDialogData {
     MatIconModule,
     MatChipsModule,
     MatProgressSpinnerModule,
+    MatProgressBarModule,
     MatSnackBarModule,
   ],
   templateUrl: './asset-preview-dialog.component.html',
@@ -59,6 +60,8 @@ export class AssetPreviewDialogComponent implements OnInit, OnDestroy {
   blobUrl: string | null = null;
   loading = true;
   loadError = false;
+  replacing = false;
+  uploadProgress = 0;
 
   constructor() {
     this.downloadUrl = this.assetService.getDownloadUrl(this.data.asset.id);
@@ -79,6 +82,9 @@ export class AssetPreviewDialogComponent implements OnInit, OnDestroy {
     this.loadError = false;
     this.http.get(this.downloadUrl, { responseType: 'blob' }).subscribe({
       next: (blob) => {
+        if (this.blobUrl) {
+          URL.revokeObjectURL(this.blobUrl);
+        }
         this.blobUrl = URL.createObjectURL(blob);
         this.loading = false;
         this.cdr.detectChanges();
@@ -86,6 +92,42 @@ export class AssetPreviewDialogComponent implements OnInit, OnDestroy {
       error: () => {
         this.loading = false;
         this.loadError = true;
+        this.cdr.detectChanges();
+      },
+    });
+  }
+
+  onFileSelected(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    if (!input.files || input.files.length === 0) return;
+
+    const file = input.files[0];
+    this.replacing = true;
+    this.uploadProgress = 0;
+
+    this.assetService.replaceContentWithProgress(this.data.asset.id, file).subscribe({
+      next: (httpEvent) => {
+        if (httpEvent.type === HttpEventType.UploadProgress && httpEvent.total) {
+          this.uploadProgress = Math.round((100 * httpEvent.loaded) / httpEvent.total);
+          this.cdr.detectChanges();
+        } else if (httpEvent.type === HttpEventType.Response) {
+          this.replacing = false;
+          if (httpEvent.body?.data) {
+            this.data.asset = httpEvent.body.data;
+          }
+          this.snackBar.open('Asset binary successfully replaced and verified!', 'Dismiss', {
+            duration: 3000,
+          });
+          this.loadMedia();
+        }
+      },
+      error: (err) => {
+        this.replacing = false;
+        this.snackBar.open(
+          err.error?.message || 'Failed to replace file content. Please check file format.',
+          'Dismiss',
+          { duration: 4000 }
+        );
         this.cdr.detectChanges();
       },
     });

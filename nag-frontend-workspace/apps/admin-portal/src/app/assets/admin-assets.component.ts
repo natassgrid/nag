@@ -20,6 +20,7 @@ import { MatDialog, MatDialogModule } from '@angular/material/dialog';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { MatMenuModule } from '@angular/material/menu';
+import { HttpEventType } from '@angular/common/http';
 import { PageHeaderComponent } from '@nag-frontend-workspace/shared-ui-components';
 import { AssetService } from './asset.service';
 import { AssetResponse, AssetType, AssetStatus } from './asset.model';
@@ -56,12 +57,15 @@ export class AdminAssetsComponent implements OnInit {
   currentPage = signal<number>(0);
   pageSize = signal<number>(12);
   loading = signal<boolean>(false);
+  failedImages = signal<Set<string>>(new Set<string>());
 
   // Filters & Controls
   searchQuery = signal<string>('');
   selectedType = signal<string>('ALL');
   selectedStatus = signal<string>('ACTIVE');
   viewMode = signal<'grid' | 'table'>('grid');
+
+  selectedAssetForReplace: AssetResponse | null = null;
 
   // Computed metrics
   totalStorageBytes = computed(() => {
@@ -119,7 +123,6 @@ export class AdminAssetsComponent implements OnInit {
         },
         error: (err) => {
           this.loading.set(false);
-          // Graceful fallback to avoid empty screen if backend has 0 assets
           this.assets.set([]);
           this.totalElements.set(0);
           this.totalPages.set(0);
@@ -132,6 +135,14 @@ export class AdminAssetsComponent implements OnInit {
           }
         },
       });
+  }
+
+  onImageError(id: string): void {
+    this.failedImages.update((s) => new Set(s).add(id));
+  }
+
+  isImageFailed(id: string): boolean {
+    return this.failedImages().has(id);
   }
 
   onSearchChange(query: string): void {
@@ -172,10 +183,52 @@ export class AdminAssetsComponent implements OnInit {
   }
 
   previewAsset(asset: AssetResponse): void {
-    this.dialog.open(AssetPreviewDialogComponent, {
+    const ref = this.dialog.open(AssetPreviewDialogComponent, {
       width: '760px',
       data: { asset },
     });
+
+    ref.afterClosed().subscribe(() => {
+      this.failedImages.update((s) => {
+        const copy = new Set(s);
+        copy.delete(asset.id);
+        return copy;
+      });
+      this.loadAssets();
+    });
+  }
+
+  triggerReplaceBinary(asset: AssetResponse, fileInput: HTMLInputElement): void {
+    this.selectedAssetForReplace = asset;
+    fileInput.click();
+  }
+
+  onBinaryFileSelected(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    if (!input.files || input.files.length === 0 || !this.selectedAssetForReplace) return;
+
+    const file = input.files[0];
+    const assetId = this.selectedAssetForReplace.id;
+    this.selectedAssetForReplace = null;
+
+    this.snackBar.open('Replacing media binary...', '', { duration: 2000 });
+    this.assetService.replaceContentWithProgress(assetId, file).subscribe({
+      next: (httpEvent) => {
+        if (httpEvent.type === HttpEventType.Response) {
+          this.snackBar.open('Asset binary successfully replaced and verified!', 'OK', { duration: 3000 });
+          this.failedImages.update((s) => {
+            const copy = new Set(s);
+            copy.delete(assetId);
+            return copy;
+          });
+          this.loadAssets();
+        }
+      },
+      error: (err) => {
+        this.snackBar.open(err?.error?.message || 'Failed to replace file content.', 'Dismiss', { duration: 4000 });
+      },
+    });
+    input.value = '';
   }
 
   editMetadata(asset: AssetResponse): void {
@@ -260,29 +313,18 @@ export class AdminAssetsComponent implements OnInit {
       },
       error: (err) => {
         this.snackBar.open(
-          err?.error?.message || 'Failed to delete asset. It may still be referenced in exam blueprints.',
+          err?.error?.message || 'Failed to delete asset. Ensure no questions reference it.',
           'Dismiss',
-          { duration: 5000 }
+          { duration: 4500 }
         );
       },
     });
   }
 
-  prevPage(): void {
-    if (this.currentPage() > 0) {
-      this.currentPage.update((p) => p - 1);
+  onPageChange(newPage: number): void {
+    if (newPage >= 0 && newPage < this.totalPages()) {
+      this.currentPage.set(newPage);
       this.loadAssets();
     }
-  }
-
-  nextPage(): void {
-    if (this.currentPage() < this.totalPages() - 1) {
-      this.currentPage.update((p) => p + 1);
-      this.loadAssets();
-    }
-  }
-
-  formatFileSize(bytes?: number): string {
-    return this.assetService.formatFileSize(bytes);
   }
 }

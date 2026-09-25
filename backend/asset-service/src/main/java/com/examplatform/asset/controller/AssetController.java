@@ -22,7 +22,6 @@ package com.examplatform.asset.controller;
 import com.examplatform.asset.domain.entity.MediaAsset;
 import com.examplatform.asset.domain.enums.AssetStatus;
 import com.examplatform.asset.domain.enums.AssetType;
-import com.examplatform.asset.domain.enums.ReferenceType;
 import com.examplatform.asset.dto.AssetMetadataUpdateRequest;
 import com.examplatform.asset.dto.AssetReferenceRequest;
 import com.examplatform.asset.dto.AssetReferenceResponse;
@@ -63,24 +62,7 @@ import java.util.Optional;
 import java.util.UUID;
 
 /**
- * REST controller for multimedia asset management.
- *
- * <p>Endpoints:
- * <pre>
- *   POST   /api/v1/assets              — Upload a new asset
- *   GET    /api/v1/assets/{id}         — Get asset metadata
- *   GET    /api/v1/assets              — List assets (paginated)
- *   PUT    /api/v1/assets/{id}/metadata— Update user metadata
- *   DELETE /api/v1/assets/{id}         — Soft-delete asset
- *   GET    /api/v1/assets/search       — Search with filters
- *   GET    /api/v1/assets/{id}/download— Download binary content
- *   GET    /api/v1/assets/{id}/url     — Get public/direct URL
- *   PUT    /api/v1/assets/{id}/archive — Archive asset
- *   PUT    /api/v1/assets/{id}/restore — Restore archived asset
- *   POST   /api/v1/assets/references   — Add reference
- *   GET    /api/v1/assets/{id}/references — List references for asset
- *   DELETE /api/v1/assets/references/{refId} — Remove reference
- * </pre>
+ * REST controller for asset upload, retrieval, metadata, references, and lifecycle.
  */
 @Slf4j
 @RestController
@@ -92,24 +74,39 @@ public class AssetController {
     private final ReferenceService referenceService;
 
     /**
-     * Upload a new multimedia asset.
+     * Upload a new media asset (multipart/form-data).
      */
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    @PreAuthorize("hasAnyRole('QUESTION_AUTHOR', 'ADMIN', 'CONTENT_MANAGER', 'CANDIDATE')")
+    @PreAuthorize("hasAnyRole('QUESTION_AUTHOR', 'ADMIN', 'CONTENT_MANAGER', 'CANDIDATE', 'SUPER_ADMIN')")
     public ResponseEntity<ApiResponse<AssetUploadResponse>> uploadAsset(
             @RequestParam("file") MultipartFile file,
             @AuthenticationPrincipal Jwt jwt,
-            @RequestHeader("X-Tenant-Id") String tenantId) throws IOException {
+            @RequestHeader(value = "X-Tenant-Id", defaultValue = "default") String tenantId) throws IOException {
 
         UUID userId = UUID.fromString(jwt.getSubject());
         AssetUploadResponse response = assetService.upload(file, userId, tenantId);
-        return ResponseEntity
-                .status(HttpStatus.CREATED)
+        return ResponseEntity.status(HttpStatus.CREATED)
                 .body(ApiResponse.success(response, "Asset uploaded successfully"));
     }
 
     /**
-     * Get asset metadata by ID.
+     * Replace the binary content of an existing asset.
+     */
+    @PostMapping(value = "/{id}/content", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @PreAuthorize("hasAnyRole('QUESTION_AUTHOR', 'CONTENT_MANAGER', 'ADMIN', 'SUPER_ADMIN')")
+    public ResponseEntity<ApiResponse<AssetUploadResponse>> replaceContent(
+            @PathVariable UUID id,
+            @RequestParam("file") MultipartFile file,
+            @AuthenticationPrincipal Jwt jwt,
+            @RequestHeader(value = "X-Tenant-Id", defaultValue = "default") String tenantId) throws IOException {
+
+        UUID userId = UUID.fromString(jwt.getSubject());
+        AssetUploadResponse response = assetService.replaceContent(id, file, userId, tenantId);
+        return ResponseEntity.ok(ApiResponse.success(response, "Asset content replaced successfully"));
+    }
+
+    /**
+     * Retrieve asset metadata by ID.
      */
     @GetMapping("/{id}")
     @PreAuthorize("hasAnyRole('QUESTION_AUTHOR', 'REVIEWER', 'APPROVER', 'ADMIN', 'CONTENT_MANAGER', 'CANDIDATE')")
@@ -126,14 +123,14 @@ public class AssetController {
     public ResponseEntity<ApiResponse<Page<AssetUploadResponse>>> listAssets(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size,
-            @RequestHeader("X-Tenant-Id") String tenantId) {
+            @RequestHeader(value = "X-Tenant-Id", defaultValue = "default") String tenantId) {
 
         Page<AssetUploadResponse> results = assetService.listAssets(page, size, tenantId);
         return ResponseEntity.ok(ApiResponse.success(results, "Assets retrieved successfully"));
     }
 
     /**
-     * Search assets with filters.
+     * Search and list assets with filters and pagination.
      */
     @GetMapping("/search")
     @PreAuthorize("hasAnyRole('QUESTION_AUTHOR', 'REVIEWER', 'APPROVER', 'ADMIN', 'CONTENT_MANAGER')")
@@ -150,7 +147,7 @@ public class AssetController {
             @RequestParam(required = false) String storageProvider,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size,
-            @RequestHeader("X-Tenant-Id") String tenantId) {
+            @RequestHeader(value = "X-Tenant-Id", defaultValue = "default") String tenantId) {
 
         AssetSearchRequest searchRequest = AssetSearchRequest.builder()
                 .filename(filename)
@@ -170,15 +167,15 @@ public class AssetController {
     }
 
     /**
-     * Update user-supplied metadata on an existing asset.
+     * Update user-supplied metadata for an asset.
      */
     @PutMapping("/{id}/metadata")
-    @PreAuthorize("hasAnyRole('QUESTION_AUTHOR', 'ADMIN', 'CONTENT_MANAGER')")
+    @PreAuthorize("hasAnyRole('QUESTION_AUTHOR', 'CONTENT_MANAGER', 'ADMIN')")
     public ResponseEntity<ApiResponse<AssetUploadResponse>> updateMetadata(
             @PathVariable UUID id,
             @Valid @RequestBody AssetMetadataUpdateRequest request,
             @AuthenticationPrincipal Jwt jwt,
-            @RequestHeader("X-Tenant-Id") String tenantId) {
+            @RequestHeader(value = "X-Tenant-Id", defaultValue = "default") String tenantId) {
 
         UUID userId = UUID.fromString(jwt.getSubject());
         AssetUploadResponse response = assetService.updateMetadata(id, request, userId, tenantId);
@@ -186,7 +183,44 @@ public class AssetController {
     }
 
     /**
-     * Soft-delete an asset. Fails if the asset is still referenced.
+     * Create a reference between an asset and a platform entity.
+     */
+    @PostMapping("/references")
+    @PreAuthorize("hasAnyRole('QUESTION_AUTHOR', 'ADMIN', 'CONTENT_MANAGER')")
+    public ResponseEntity<ApiResponse<AssetReferenceResponse>> addReference(
+            @Valid @RequestBody AssetReferenceRequest request,
+            @AuthenticationPrincipal Jwt jwt,
+            @RequestHeader(value = "X-Tenant-Id", defaultValue = "default") String tenantId) {
+
+        UUID userId = UUID.fromString(jwt.getSubject());
+        AssetReferenceResponse response = referenceService.addReference(request, userId, tenantId);
+        return ResponseEntity
+                .status(HttpStatus.CREATED)
+                .body(ApiResponse.success(response, "Reference created successfully"));
+    }
+
+    /**
+     * List all references for an asset.
+     */
+    @GetMapping("/{id}/references")
+    @PreAuthorize("hasAnyRole('QUESTION_AUTHOR', 'REVIEWER', 'APPROVER', 'ADMIN', 'CONTENT_MANAGER')")
+    public ResponseEntity<ApiResponse<List<AssetReferenceResponse>>> getReferences(@PathVariable UUID id) {
+        List<AssetReferenceResponse> references = referenceService.getReferencesForAsset(id);
+        return ResponseEntity.ok(ApiResponse.success(references, "References retrieved successfully"));
+    }
+
+    /**
+     * Delete a specific reference.
+     */
+    @DeleteMapping("/references/{refId}")
+    @PreAuthorize("hasAnyRole('ADMIN', 'CONTENT_MANAGER')")
+    public ResponseEntity<ApiResponse<Void>> removeReference(@PathVariable UUID refId) {
+        referenceService.removeReference(refId);
+        return ResponseEntity.ok(ApiResponse.success("Reference removed successfully"));
+    }
+
+    /**
+     * Soft-delete an asset. Rejected if the asset has active references.
      */
     @DeleteMapping("/{id}")
     @PreAuthorize("hasAnyRole('ADMIN', 'CONTENT_MANAGER')")
@@ -202,9 +236,10 @@ public class AssetController {
 
     /**
      * Download the binary content of an asset.
+     * Public access permitted so standard HTML <img>, <audio>, and <video> elements
+     * can stream media without custom auth headers.
      */
     @GetMapping("/{id}/download")
-    @PreAuthorize("hasAnyRole('QUESTION_AUTHOR', 'REVIEWER', 'APPROVER', 'ADMIN', 'CONTENT_MANAGER', 'CANDIDATE')")
     public ResponseEntity<InputStreamResource> downloadAsset(@PathVariable UUID id) {
         MediaAsset asset = assetService.getAssetEntity(id);
         Optional<InputStream> content = assetService.downloadAsset(id);
@@ -224,7 +259,6 @@ public class AssetController {
      * Get accessible public or direct URL for an asset.
      */
     @GetMapping("/{id}/url")
-    @PreAuthorize("hasAnyRole('QUESTION_AUTHOR', 'REVIEWER', 'APPROVER', 'ADMIN', 'CONTENT_MANAGER', 'CANDIDATE')")
     public ResponseEntity<ApiResponse<String>> getPublicUrl(@PathVariable UUID id) {
         String publicUrl = assetService.getPublicUrl(id);
         return ResponseEntity.ok(ApiResponse.success(publicUrl, "Asset URL resolved successfully"));
@@ -258,44 +292,5 @@ public class AssetController {
         UUID userId = UUID.fromString(jwt.getSubject());
         AssetUploadResponse response = assetService.restoreAsset(id, userId, tenantId);
         return ResponseEntity.ok(ApiResponse.success(response, "Asset restored successfully"));
-    }
-
-    // ── Reference Management ──────────────────────────────────────────────────
-
-    /**
-     * Create a reference between an asset and a platform entity.
-     */
-    @PostMapping("/references")
-    @PreAuthorize("hasAnyRole('QUESTION_AUTHOR', 'ADMIN', 'CONTENT_MANAGER')")
-    public ResponseEntity<ApiResponse<AssetReferenceResponse>> addReference(
-            @Valid @RequestBody AssetReferenceRequest request,
-            @AuthenticationPrincipal Jwt jwt,
-            @RequestHeader("X-Tenant-Id") String tenantId) {
-
-        UUID userId = UUID.fromString(jwt.getSubject());
-        AssetReferenceResponse response = referenceService.addReference(request, userId, tenantId);
-        return ResponseEntity
-                .status(HttpStatus.CREATED)
-                .body(ApiResponse.success(response, "Reference created successfully"));
-    }
-
-    /**
-     * List all references for a given asset.
-     */
-    @GetMapping("/{id}/references")
-    @PreAuthorize("hasAnyRole('QUESTION_AUTHOR', 'REVIEWER', 'APPROVER', 'ADMIN', 'CONTENT_MANAGER')")
-    public ResponseEntity<ApiResponse<List<AssetReferenceResponse>>> getReferences(@PathVariable UUID id) {
-        List<AssetReferenceResponse> references = referenceService.getReferencesForAsset(id);
-        return ResponseEntity.ok(ApiResponse.success(references, "References retrieved successfully"));
-    }
-
-    /**
-     * Remove a reference.
-     */
-    @DeleteMapping("/references/{refId}")
-    @PreAuthorize("hasAnyRole('ADMIN', 'CONTENT_MANAGER')")
-    public ResponseEntity<ApiResponse<Void>> removeReference(@PathVariable UUID refId) {
-        referenceService.removeReference(refId);
-        return ResponseEntity.ok(ApiResponse.success("Reference removed successfully"));
     }
 }
