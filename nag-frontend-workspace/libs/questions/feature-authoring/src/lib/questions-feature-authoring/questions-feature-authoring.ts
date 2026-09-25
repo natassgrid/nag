@@ -352,7 +352,7 @@ export class QuestionsFeatureAuthoring implements OnInit {
       subject: selectedSub?.name || 'General',
       topic: selectedTop?.name || 'General',
       subtopic: selectedSubtop?.name || '',
-      subjectId: this.selectedSubjectId || undefined,
+      subjectId: this.selectedSubjectId || 0,
       topicId: this.selectedTopicId || undefined,
       subtopicId: this.selectedSubtopicId || undefined,
       marks: this.marks,
@@ -466,7 +466,7 @@ export class QuestionsFeatureAuthoring implements OnInit {
       subject: selectedSub?.name || 'General',
       topic: selectedTop?.name || 'General',
       subtopic: selectedSubtop?.name || undefined,
-      subjectId: this.selectedSubjectId || undefined,
+      subjectId: this.selectedSubjectId || 0,
       topicId: this.selectedTopicId || undefined,
       subtopicId: this.selectedSubtopicId || undefined,
       subQuestions: formattedSubQuestions,
@@ -480,7 +480,7 @@ export class QuestionsFeatureAuthoring implements OnInit {
         this.saving.set(false);
         this.feedback.set({
           type: 'success',
-          message: `Passage Set ${created.id} with ${created.totalQuestions || formattedSubQuestions.length} sub-questions successfully registered!`,
+          message: `Passage Set ${created.id} with ${(created.subQuestionCount || created.subQuestions?.length) || formattedSubQuestions.length} sub-questions successfully registered!`,
         });
       },
       error: (err) => {
@@ -497,3 +497,4 @@ export class QuestionsFeatureAuthoring implements OnInit {
     this.router.navigate(['/questions/bank']);
   }
 }
+
