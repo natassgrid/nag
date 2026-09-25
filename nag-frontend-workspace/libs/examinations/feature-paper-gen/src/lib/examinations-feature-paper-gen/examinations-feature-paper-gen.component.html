@@ -1,186 +1,1014 @@
-<div class="paper-gen-container p-6 max-w-7xl mx-auto">
-  <nag-page-header
-    title="Algorithmic Question Paper Generation"
-    subtitle="Constrained automated test assembly with cryptographic Merkle tree ledger verification"
-    icon="auto_awesome"
-  >
-    <div actions class="flex items-center gap-3">
+<div class="paper-gen-page min-h-screen bg-slate-50 p-6">
+  <div class="max-w-7xl mx-auto space-y-6">
+    <!-- Header -->
+    <nag-page-header
+      title="Algorithmic Question Paper Generation"
+      subtitle="Constrained automated test assembly with cryptographic Merkle tree ledger verification"
+      icon="auto_awesome"
+    >
+      <div actions class="flex items-center gap-3">
+        <button
+          mat-stroked-button
+          (click)="checkFeasibility()"
+          [disabled]="isCheckingFeasibility()"
+          class="!rounded-xl !border-slate-300"
+        >
+          <mat-icon>{{ isCheckingFeasibility() ? 'hourglass_top' : 'rule' }}</mat-icon>
+          <span>{{ isCheckingFeasibility() ? 'Auditing...' : 'Check Feasibility' }}</span>
+        </button>
+        <button
+          mat-flat-button
+          color="primary"
+          (click)="currentTab.set('GENERATOR')"
+          class="!rounded-xl !bg-indigo-600 hover:!bg-indigo-700 !text-white"
+        >
+          <mat-icon>add</mat-icon>
+          <span>Assemble New Paper</span>
+        </button>
+      </div>
+    </nag-page-header>
+
+    <!-- KPI Summary Row -->
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div class="bg-white rounded-2xl p-5 border border-slate-200 shadow-xs flex items-center justify-between">
+        <div>
+          <div class="text-xs font-bold text-slate-500 uppercase tracking-wider">Total Papers</div>
+          <div class="text-2xl font-black text-slate-900 mt-1">{{ totalPapersCount() }}</div>
+        </div>
+        <div class="w-12 h-12 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center">
+          <mat-icon>description</mat-icon>
+        </div>
+      </div>
+
+      <div class="bg-white rounded-2xl p-5 border border-slate-200 shadow-xs flex items-center justify-between">
+        <div>
+          <div class="text-xs font-bold text-slate-500 uppercase tracking-wider">Approved & Encrypted</div>
+          <div class="text-2xl font-black text-emerald-600 mt-1">{{ approvedPapersCount() }}</div>
+        </div>
+        <div class="w-12 h-12 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
+          <mat-icon>verified</mat-icon>
+        </div>
+      </div>
+
+      <div class="bg-white rounded-2xl p-5 border border-slate-200 shadow-xs flex items-center justify-between">
+        <div>
+          <div class="text-xs font-bold text-slate-500 uppercase tracking-wider">Draft In-Review</div>
+          <div class="text-2xl font-black text-amber-600 mt-1">{{ draftPapersCount() }}</div>
+        </div>
+        <div class="w-12 h-12 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center">
+          <mat-icon>pending</mat-icon>
+        </div>
+      </div>
+
+      <div class="bg-white rounded-2xl p-5 border border-slate-200 shadow-xs flex items-center justify-between">
+        <div>
+          <div class="text-xs font-bold text-slate-500 uppercase tracking-wider">Practice Mode Papers</div>
+          <div class="text-2xl font-black text-purple-600 mt-1">{{ practicePapersCount() }}</div>
+        </div>
+        <div class="w-12 h-12 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center">
+          <mat-icon>school</mat-icon>
+        </div>
+      </div>
+    </div>
+
+    <!-- View Mode Tab Switcher -->
+    <div class="bg-white rounded-2xl border border-slate-200 p-2 flex items-center gap-2 shadow-xs">
       <button
-        mat-flat-button
-        color="primary"
-        (click)="generatePaper()"
-        [disabled]="generating()"
-        class="!rounded-lg"
+        type="button"
+        (click)="currentTab.set('PAPERS')"
+        [ngClass]="{
+          'bg-slate-900 text-white shadow-sm': currentTab() === 'PAPERS',
+          'text-slate-600 hover:bg-slate-100': currentTab() !== 'PAPERS'
+        }"
+        class="flex-1 py-2.5 px-4 rounded-xl font-bold text-xs flex items-center justify-center gap-2 transition-colors"
       >
-        <mat-icon>{{ generating() ? 'hourglass_top' : 'shield' }}</mat-icon>
-        {{ generating() ? 'Assembling Paper...' : 'Generate & Mint Proof' }}
+        <mat-icon class="!text-lg">inventory_2</mat-icon>
+        <span>Generated Papers Directory ({{ totalPapersCount() }})</span>
+      </button>
+
+      <button
+        type="button"
+        (click)="currentTab.set('GENERATOR')"
+        [ngClass]="{
+          'bg-slate-900 text-white shadow-sm': currentTab() === 'GENERATOR',
+          'text-slate-600 hover:bg-slate-100': currentTab() !== 'GENERATOR'
+        }"
+        class="flex-1 py-2.5 px-4 rounded-xl font-bold text-xs flex items-center justify-center gap-2 transition-colors"
+      >
+        <mat-icon class="!text-lg">tune</mat-icon>
+        <span>Algorithmic Assembly Engine</span>
+      </button>
+
+      <button
+        type="button"
+        (click)="currentTab.set('TEMPLATES')"
+        [ngClass]="{
+          'bg-slate-900 text-white shadow-sm': currentTab() === 'TEMPLATES',
+          'text-slate-600 hover:bg-slate-100': currentTab() !== 'TEMPLATES'
+        }"
+        class="flex-1 py-2.5 px-4 rounded-xl font-bold text-xs flex items-center justify-center gap-2 transition-colors"
+      >
+        <mat-icon class="!text-lg">rule</mat-icon>
+        <span>Blueprint Templates ({{ templates().length }})</span>
       </button>
     </div>
-  </nag-page-header>
 
-  <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-    <!-- Blueprint Configuration Column -->
-    <div class="lg:col-span-2 space-y-6 bg-white p-6 rounded-xl border border-slate-200 shadow-xs">
-      <h2 class="text-base font-bold text-slate-900 border-b pb-2 flex items-center gap-2">
-        <mat-icon class="text-indigo-600">settings_suggest</mat-icon>
-        Blueprint Constraints & Assembly Matrix
-      </h2>
-
-      <div class="grid grid-cols-2 gap-4">
-        <div>
-          <label for="exam-id-input" class="block text-xs font-semibold text-slate-700 uppercase mb-1">
-            Target Exam Code
-          </label>
-          <input
-            id="exam-id-input"
-            type="text"
-            [(ngModel)]="examCode"
-            placeholder="NES-2026-S1"
-            class="w-full px-3 py-2 text-sm border rounded-lg focus:ring-2 focus:ring-indigo-500"
-          />
-        </div>
-        <div>
-          <label for="total-q-input" class="block text-xs font-semibold text-slate-700 uppercase mb-1">
-            Total Items to Draw
-          </label>
-          <input
-            id="total-q-input"
-            type="number"
-            [(ngModel)]="totalQuestions"
-            class="w-full px-3 py-2 text-sm border rounded-lg focus:ring-2 focus:ring-indigo-500"
-          />
-        </div>
-      </div>
-
-      <!-- Difficulty Distribution Sliders -->
-      <div class="p-4 bg-slate-50 rounded-xl border border-slate-200 space-y-3">
-        <div class="flex items-center justify-between">
-          <span class="text-xs font-bold uppercase text-slate-700">
-            Difficulty Balance Distribution (%)
-          </span>
-          <span
-            class="text-xs font-bold px-2 py-0.5 rounded"
-            [ngClass]="{
-              'bg-emerald-100 text-emerald-800': easyPercent + medPercent + hardPercent === 100,
-              'bg-rose-100 text-rose-800': easyPercent + medPercent + hardPercent !== 100
-            }"
-          >
-            Sum: {{ easyPercent + medPercent + hardPercent }}%
-          </span>
-        </div>
-
-        <div class="space-y-2">
-          <div class="flex items-center gap-3">
-            <span class="text-xs font-medium w-16 text-slate-600">Easy ({{ easyPercent }}%)</span>
+    <!-- TAB 1: GENERATED PAPERS DIRECTORY -->
+    @if (currentTab() === 'PAPERS') {
+      <div class="bg-white rounded-2xl border border-slate-200 p-6 shadow-xs space-y-4">
+        <!-- Search & Filter Controls -->
+        <div class="flex flex-col md:flex-row gap-4 items-center justify-between">
+          <div class="relative w-full md:w-96">
             <input
-              type="range"
-              [(ngModel)]="easyPercent"
-              min="0"
-              max="100"
-              class="grow accent-emerald-600"
+              type="text"
+              [ngModel]="searchQuery()"
+              (ngModelChange)="searchQuery.set($event)"
+              placeholder="Search by paper name, exam code, or shift..."
+              class="w-full pl-10 pr-4 py-2 text-sm border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500"
             />
+            <mat-icon class="absolute left-3 top-2.5 !text-lg text-slate-400">search</mat-icon>
           </div>
-          <div class="flex items-center gap-3">
-            <span class="text-xs font-medium w-16 text-slate-600">Medium ({{ medPercent }}%)</span>
-            <input
-              type="range"
-              [(ngModel)]="medPercent"
-              min="0"
-              max="100"
-              class="grow accent-amber-600"
-            />
-          </div>
-          <div class="flex items-center gap-3">
-            <span class="text-xs font-medium w-16 text-slate-600">Hard ({{ hardPercent }}%)</span>
-            <input
-              type="range"
-              [(ngModel)]="hardPercent"
-              min="0"
-              max="100"
-              class="grow accent-rose-600"
-            />
-          </div>
-        </div>
-      </div>
 
-      <!-- Anti-collusion Shuffle Toggles -->
-      <div class="p-4 border rounded-xl space-y-2">
-        <span class="block text-xs font-bold uppercase text-slate-700 mb-2">
-          Anti-Collusion Dynamic Shuffling
-        </span>
-        <label class="flex items-center gap-2.5 text-sm text-slate-700 cursor-pointer">
-          <input
-            type="checkbox"
-            [(ngModel)]="shuffleQuestions"
-            class="h-4 w-4 rounded text-indigo-600 border-slate-300"
-          />
-          <span>Pseudorandom candidate-specific question permutation</span>
-        </label>
-        <label class="flex items-center gap-2.5 text-sm text-slate-700 cursor-pointer">
-          <input
-            type="checkbox"
-            [(ngModel)]="shuffleOptions"
-            class="h-4 w-4 rounded text-indigo-600 border-slate-300"
-          />
-          <span>Dynamic option key permutation (A, B, C, D rotation)</span>
-        </label>
-      </div>
-    </div>
+          <div class="flex flex-wrap items-center gap-3 w-full md:w-auto">
+            <!-- Exam Filter -->
+            <select
+              [ngModel]="selectedExamFilter()"
+              (ngModelChange)="selectedExamFilter.set($event)"
+              class="text-xs py-2 px-3 border border-slate-300 rounded-xl bg-white focus:ring-2 focus:ring-indigo-500"
+            >
+              <option value="ALL">All Examinations</option>
+              @for (exam of exams(); track exam.id) {
+                <option [value]="exam.id">{{ exam.name }} ({{ exam.code || 'NO-CODE' }})</option>
+              }
+            </select>
 
-    <!-- Ledger Integrity & Proof Column -->
-    <div class="space-y-6">
-      <div class="bg-white p-6 rounded-xl border border-slate-200 shadow-xs">
-        <h2 class="text-base font-bold text-slate-900 border-b pb-2 mb-4 flex items-center gap-2">
-          <mat-icon class="text-indigo-600">verified</mat-icon>
-          Cryptographic Ledger Proof
-        </h2>
-
-        @if (proofResult()) {
-          <div class="space-y-3">
-            <div class="p-3 bg-emerald-50 rounded-lg border border-emerald-200">
-              <div class="flex items-center gap-2 text-emerald-800 text-xs font-bold mb-1">
-                <mat-icon class="!text-sm leading-none">check_circle</mat-icon>
-                <span>Merkle Root Anchored</span>
-              </div>
-              <div class="text-[11px] font-mono text-emerald-950 break-all">
-                {{ proofResult()?.proofHash }}
-              </div>
+            <!-- Status Filter -->
+            <div class="flex bg-slate-100 p-1 rounded-xl">
+              <button
+                type="button"
+                (click)="statusFilter.set('ALL')"
+                [ngClass]="{
+                  'bg-white text-slate-900 shadow-xs font-bold': statusFilter() === 'ALL',
+                  'text-slate-600': statusFilter() !== 'ALL'
+                }"
+                class="px-3 py-1.5 rounded-lg text-xs transition-colors"
+              >
+                All
+              </button>
+              <button
+                type="button"
+                (click)="statusFilter.set('DRAFT')"
+                [ngClass]="{
+                  'bg-white text-amber-700 shadow-xs font-bold': statusFilter() === 'DRAFT',
+                  'text-slate-600': statusFilter() !== 'DRAFT'
+                }"
+                class="px-3 py-1.5 rounded-lg text-xs transition-colors"
+              >
+                Draft
+              </button>
+              <button
+                type="button"
+                (click)="statusFilter.set('APPROVED')"
+                [ngClass]="{
+                  'bg-white text-blue-700 shadow-xs font-bold': statusFilter() === 'APPROVED',
+                  'text-slate-600': statusFilter() !== 'APPROVED'
+                }"
+                class="px-3 py-1.5 rounded-lg text-xs transition-colors"
+              >
+                Approved
+              </button>
+              <button
+                type="button"
+                (click)="statusFilter.set('ENCRYPTED')"
+                [ngClass]="{
+                  'bg-white text-emerald-700 shadow-xs font-bold': statusFilter() === 'ENCRYPTED',
+                  'text-slate-600': statusFilter() !== 'ENCRYPTED'
+                }"
+                class="px-3 py-1.5 rounded-lg text-xs transition-colors"
+              >
+                Encrypted
+              </button>
             </div>
+          </div>
+        </div>
 
-            <div class="text-xs space-y-1.5 text-slate-600">
-              <div class="flex justify-between">
-                <span class="text-slate-400">Ledger Block:</span>
-                <span class="font-mono font-bold">#{{ proofResult()?.blockNumber }}</span>
-              </div>
-              <div class="flex justify-between">
-                <span class="text-slate-400">Timestamp:</span>
-                <span>{{ proofResult()?.timestamp }}</span>
-              </div>
-              <div class="flex justify-between">
-                <span class="text-slate-400">Merkle Root:</span>
-                <span class="font-mono text-[10px] truncate max-w-[140px]">
-                  {{ proofResult()?.merkleRoot }}
-                </span>
-              </div>
+        <!-- Papers Table -->
+        @if (loading()) {
+          <div class="py-16 flex flex-col items-center justify-center gap-3">
+            <mat-spinner diameter="36"></mat-spinner>
+            <span class="text-xs text-slate-500">Loading generated papers...</span>
+          </div>
+        } @else if (filteredPapers().length === 0) {
+          <div class="py-16 text-center space-y-3">
+            <div class="w-12 h-12 rounded-2xl bg-slate-100 text-slate-400 flex items-center justify-center mx-auto">
+              <mat-icon>description</mat-icon>
             </div>
+            <div class="text-sm font-bold text-slate-700">No question papers found</div>
+            <p class="text-xs text-slate-400 max-w-sm mx-auto">
+              Use the Algorithmic Assembly Engine to compose and mint randomized question papers for examination shifts.
+            </p>
+            <button
+              mat-flat-button
+              color="primary"
+              (click)="currentTab.set('GENERATOR')"
+              class="!rounded-xl !bg-indigo-600 hover:!bg-indigo-700 !text-white"
+            >
+              <mat-icon>add</mat-icon>
+              <span>Assemble First Paper</span>
+            </button>
           </div>
         } @else {
-          <div class="text-center py-8 text-slate-400">
-            <mat-icon class="!text-4xl text-slate-300 mb-2">lock_clock</mat-icon>
-            <p class="text-xs">No paper minted yet. Generate a paper to anchor its Merkle tree on the ledger.</p>
+          <div class="overflow-x-auto rounded-xl border border-slate-200">
+            <table class="w-full text-left text-sm">
+              <thead class="bg-slate-50 text-slate-600 text-[11px] uppercase font-bold tracking-wider border-b border-slate-200">
+                <tr>
+                  <th class="py-3 px-4">Paper Name & Identifier</th>
+                  <th class="py-3 px-4">Examination & Shift</th>
+                  <th class="py-3 px-4 text-center">Items / Marks</th>
+                  <th class="py-3 px-4 text-center">Difficulty Index</th>
+                  <th class="py-3 px-4 text-center">Lifecycle Status</th>
+                  <th class="py-3 px-4 text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-slate-100">
+                @for (paper of filteredPapers(); track paper.id) {
+                  <tr
+                    (click)="openSummaryDrawer(paper.id)"
+                    class="hover:bg-slate-50/80 cursor-pointer transition-colors"
+                  >
+                    <td class="py-3.5 px-4">
+                      <div class="font-bold text-slate-900 flex items-center gap-2">
+                        <span>{{ paper.name }}</span>
+                        @if (paper.isPractice) {
+                          <span class="text-[10px] bg-purple-100 text-purple-800 px-1.5 py-0.5 rounded font-bold">
+                            Practice
+                          </span>
+                        }
+                      </div>
+                      <div class="text-[11px] font-mono text-slate-400">
+                        ID: {{ paper.paperId || paper.id }}
+                      </div>
+                    </td>
+
+                    <td class="py-3.5 px-4">
+                      <div class="font-medium text-slate-800 text-xs">
+                        {{ paper.examName || getExamName(paper.examId) }}
+                      </div>
+                      <div class="text-[11px] text-slate-500">
+                        {{ paper.shiftName || 'Standard Session' }}
+                      </div>
+                    </td>
+
+                    <td class="py-3.5 px-4 text-center">
+                      <div class="font-bold text-slate-800 text-xs">
+                        {{ paper.totalQuestions || '--' }} Qs
+                      </div>
+                      <div class="text-[11px] text-slate-500">
+                        {{ paper.totalMarks || '--' }} Marks
+                      </div>
+                    </td>
+
+                    <td class="py-3.5 px-4 text-center">
+                      <div class="inline-flex items-center gap-1 text-xs font-mono font-bold px-2 py-0.5 rounded-lg bg-slate-100 text-slate-700">
+                        <mat-icon class="!text-sm text-indigo-500">tune</mat-icon>
+                        <span>{{ paper.difficultyScore ? (paper.difficultyScore | number: '1.2-2') : 'Balanced' }}</span>
+                      </div>
+                    </td>
+
+                    <td class="py-3.5 px-4 text-center">
+                      @if (paper.status === 'ENCRYPTED' || paper.status === 'PUBLISHED') {
+                        <span class="inline-flex items-center gap-1 text-[11px] font-bold px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
+                          <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                          Encrypted & Sealed
+                        </span>
+                      } @else if (paper.status === 'APPROVED') {
+                        <span class="inline-flex items-center gap-1 text-[11px] font-bold px-2.5 py-1 rounded-full bg-blue-50 text-blue-700 border border-blue-200">
+                          <span class="w-1.5 h-1.5 rounded-full bg-blue-500"></span>
+                          Controller Approved
+                        </span>
+                      } @else {
+                        <span class="inline-flex items-center gap-1 text-[11px] font-bold px-2.5 py-1 rounded-full bg-amber-50 text-amber-700 border border-amber-200">
+                          <span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
+                          Draft Review
+                        </span>
+                      }
+                    </td>
+
+                    <td class="py-3.5 px-4 text-right" (click)="$event.stopPropagation()">
+                      <div class="flex items-center justify-end gap-1.5">
+                        <button
+                          mat-icon-button
+                          (click)="openSummaryDrawer(paper.id, $event)"
+                          matTooltip="Inspect Question Paper & Distribution"
+                          class="!text-slate-500 hover:!text-indigo-600"
+                        >
+                          <mat-icon class="!text-lg">visibility</mat-icon>
+                        </button>
+
+                        @if (paper.status === 'DRAFT') {
+                          <button
+                            mat-stroked-button
+                            (click)="approvePaper(paper.id, $event)"
+                            matTooltip="Approve Question Paper (Controller Clearance)"
+                            class="!text-xs !py-1 !px-2.5 !rounded-lg !border-blue-300 !text-blue-700 hover:!bg-blue-50"
+                          >
+                            <mat-icon class="!text-sm">verified</mat-icon>
+                            <span>Approve</span>
+                          </button>
+                        }
+
+                        @if (paper.status === 'APPROVED') {
+                          <button
+                            mat-flat-button
+                            (click)="publishPaper(paper.id, $event)"
+                            matTooltip="Encrypt Package & Distribute Key"
+                            class="!text-xs !py-1 !px-2.5 !rounded-lg !bg-emerald-600 hover:!bg-emerald-700 !text-white"
+                          >
+                            <mat-icon class="!text-sm">lock</mat-icon>
+                            <span>Encrypt</span>
+                          </button>
+                        }
+                      </div>
+                    </td>
+                  </tr>
+                }
+              </tbody>
+            </table>
           </div>
         }
       </div>
+    }
 
-      <div class="bg-indigo-50/50 p-5 rounded-xl border border-indigo-100 text-xs text-indigo-950 space-y-2">
-        <h4 class="font-bold flex items-center gap-1.5">
-          <mat-icon class="!text-base text-indigo-600 leading-none">info</mat-icon>
-          Zero-Knowledge Verification
-        </h4>
-        <p class="text-indigo-800/80 leading-relaxed">
-          Once minted, the hash proof is permanently recorded. Candidate exam clients can independently verify that their test instances adhere to this exact blueprint.
-        </p>
+    <!-- TAB 2: ALGORITHMIC ASSEMBLY ENGINE -->
+    @if (currentTab() === 'GENERATOR') {
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <!-- Assembly Configuration Panel -->
+        <div class="lg:col-span-2 space-y-6">
+          <div class="bg-white rounded-2xl border border-slate-200 p-6 shadow-xs space-y-6">
+            <h2 class="text-base font-bold text-slate-900 border-b border-slate-100 pb-3 flex items-center gap-2">
+              <mat-icon class="text-indigo-600">settings_suggest</mat-icon>
+              <span>Target Examination & Shift Allocation</span>
+            </h2>
+
+            <!-- Exam, Schedule & Shift Selectors -->
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div>
+                <label for="exam-select" class="block text-xs font-bold text-slate-700 uppercase mb-1">
+                  Examination *
+                </label>
+                <select
+                  id="exam-select"
+                  [(ngModel)]="genExamId"
+                  (ngModelChange)="onExamChange($event)"
+                  class="w-full py-2.5 px-3 text-sm border border-slate-300 rounded-xl bg-white focus:ring-2 focus:ring-indigo-500"
+                >
+                  <option value="">-- Select Examination --</option>
+                  @for (exam of exams(); track exam.id) {
+                    <option [value]="exam.id">{{ exam.name }}</option>
+                  }
+                </select>
+              </div>
+
+              <div>
+                <label for="schedule-select" class="block text-xs font-bold text-slate-700 uppercase mb-1">
+                  Schedule Session *
+                </label>
+                <select
+                  id="schedule-select"
+                  [(ngModel)]="genScheduleId"
+                  (ngModelChange)="onScheduleChange($event)"
+                  [disabled]="!schedules().length"
+                  class="w-full py-2.5 px-3 text-sm border border-slate-300 rounded-xl bg-white focus:ring-2 focus:ring-indigo-500 disabled:bg-slate-100"
+                >
+                  <option value="">-- Select Schedule --</option>
+                  @for (sched of schedules(); track sched.id) {
+                    <option [value]="sched.id">
+                      {{ sched.scheduleName }} ({{ sched.examDate }})
+                    </option>
+                  }
+                </select>
+              </div>
+
+              <div>
+                <label for="shift-select" class="block text-xs font-bold text-slate-700 uppercase mb-1">
+                  Session Shift *
+                </label>
+                <select
+                  id="shift-select"
+                  [(ngModel)]="genShiftId"
+                  [disabled]="!shifts().length"
+                  class="w-full py-2.5 px-3 text-sm border border-slate-300 rounded-xl bg-white focus:ring-2 focus:ring-indigo-500 disabled:bg-slate-100"
+                >
+                  <option value="">-- Select Shift --</option>
+                  @for (shift of shifts(); track shift.id) {
+                    <option [value]="shift.id">
+                      {{ shift.shiftName || 'Shift ' + shift.shiftNumber }} ({{ shift.examStartTime }} - {{ shift.examEndTime }})
+                    </option>
+                  }
+                </select>
+              </div>
+            </div>
+
+            <!-- Paper Name & Mode -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label for="paper-name-input" class="block text-xs font-bold text-slate-700 uppercase mb-1">
+                  Generated Paper Title
+                </label>
+                <input
+                  id="paper-name-input"
+                  type="text"
+                  [(ngModel)]="genPaperName"
+                  placeholder="e.g. National Entrance Paper - Shift 1"
+                  class="w-full px-3 py-2 text-sm border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500"
+                />
+              </div>
+
+              <div class="flex items-center gap-4 pt-6">
+                <label class="flex items-center gap-2.5 text-xs font-bold text-slate-700 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    [(ngModel)]="genIsPractice"
+                    class="h-4 w-4 rounded text-purple-600 border-slate-300"
+                  />
+                  <span>Mark as Practice Paper (Mock Mode)</span>
+                </label>
+              </div>
+            </div>
+          </div>
+
+          <!-- Assembly Strategy Mode -->
+          <div class="bg-white rounded-2xl border border-slate-200 p-6 shadow-xs space-y-6">
+            <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+              <h2 class="text-base font-bold text-slate-900 flex items-center gap-2">
+                <mat-icon class="text-indigo-600">tune</mat-icon>
+                <span>Constraint Assembly Strategy</span>
+              </h2>
+
+              <div class="flex bg-slate-100 p-1 rounded-xl">
+                <button
+                  type="button"
+                  (click)="genUseTemplate = true"
+                  [ngClass]="{
+                    'bg-white text-indigo-700 shadow-xs font-bold': genUseTemplate,
+                    'text-slate-600': !genUseTemplate
+                  }"
+                  class="px-3 py-1.5 rounded-lg text-xs transition-colors"
+                >
+                  Blueprint Template
+                </button>
+                <button
+                  type="button"
+                  (click)="genUseTemplate = false"
+                  [ngClass]="{
+                    'bg-white text-indigo-700 shadow-xs font-bold': !genUseTemplate,
+                    'text-slate-600': genUseTemplate
+                  }"
+                  class="px-3 py-1.5 rounded-lg text-xs transition-colors"
+                >
+                  Custom Rule Matrix
+                </button>
+              </div>
+            </div>
+
+            <!-- Option A: Blueprint Template Selection -->
+            @if (genUseTemplate) {
+              <div class="space-y-4">
+                <div>
+                  <label for="template-select" class="block text-xs font-bold text-slate-700 uppercase mb-1">
+                    Select Standard Blueprint Template *
+                  </label>
+                  <select
+                    id="template-select"
+                    [(ngModel)]="genSelectedTemplateId"
+                    class="w-full py-2.5 px-3 text-sm border border-slate-300 rounded-xl bg-white focus:ring-2 focus:ring-indigo-500"
+                  >
+                    @for (tpl of templates(); track tpl.id) {
+                      <option [value]="tpl.id">
+                        {{ tpl.name }} ({{ tpl.rules.length }} Rules, {{ tpl.totalQuestions || 'Auto' }} Qs)
+                      </option>
+                    }
+                  </select>
+                </div>
+              </div>
+            } @else {
+              <!-- Option B: Custom Dynamic Rule Matrix -->
+              <div class="space-y-4">
+                <div class="flex items-center justify-between">
+                  <span class="text-xs font-bold text-slate-500 uppercase">
+                    Distribution Constraints Matrix ({{ genRules.length }} Rules)
+                  </span>
+                  <button
+                    type="button"
+                    (click)="addRule()"
+                    class="text-xs font-bold text-indigo-600 hover:text-indigo-800 flex items-center gap-1"
+                  >
+                    <mat-icon class="!text-sm">add_circle</mat-icon>
+                    <span>Add Rule</span>
+                  </button>
+                </div>
+
+                <div class="space-y-3">
+                  @for (rule of genRules; track $index) {
+                    <div class="p-4 bg-slate-50 rounded-xl border border-slate-200 grid grid-cols-1 md:grid-cols-6 gap-3 items-end">
+                      <div class="md:col-span-2">
+                        <label class="block text-[10px] font-bold text-slate-600 uppercase mb-1">Subject & Topic</label>
+                        <input
+                          type="text"
+                          [(ngModel)]="rule.subject"
+                          placeholder="Subject"
+                          class="w-full px-2.5 py-1.5 text-xs border rounded-lg bg-white mb-1.5"
+                        />
+                        <input
+                          type="text"
+                          [(ngModel)]="rule.topic"
+                          placeholder="Topic / Chapter"
+                          class="w-full px-2.5 py-1.5 text-xs border rounded-lg bg-white"
+                        />
+                      </div>
+
+                      <div>
+                        <label class="block text-[10px] font-bold text-slate-600 uppercase mb-1">Difficulty</label>
+                        <select
+                          [(ngModel)]="rule.difficulty"
+                          class="w-full px-2 py-1.5 text-xs border rounded-lg bg-white"
+                        >
+                          <option value="EASY">Easy</option>
+                          <option value="MEDIUM">Medium</option>
+                          <option value="HARD">Hard</option>
+                        </select>
+                      </div>
+
+                      <div>
+                        <label class="block text-[10px] font-bold text-slate-600 uppercase mb-1">Cognitive</label>
+                        <select
+                          [(ngModel)]="rule.cognitiveLevel"
+                          class="w-full px-2 py-1.5 text-xs border rounded-lg bg-white"
+                        >
+                          <option value="REMEMBER">Remember</option>
+                          <option value="UNDERSTAND">Understand</option>
+                          <option value="APPLY">Apply</option>
+                          <option value="ANALYZE">Analyze</option>
+                          <option value="EVALUATE">Evaluate</option>
+                        </select>
+                      </div>
+
+                      <div>
+                        <label class="block text-[10px] font-bold text-slate-600 uppercase mb-1">Draw Count</label>
+                        <input
+                          type="number"
+                          [(ngModel)]="rule.targetCount"
+                          min="1"
+                          class="w-full px-2.5 py-1.5 text-xs border rounded-lg bg-white font-mono"
+                        />
+                      </div>
+
+                      <div class="flex items-center justify-end">
+                        <button
+                          type="button"
+                          (click)="removeRule($index)"
+                          [disabled]="genRules.length === 1"
+                          class="p-1.5 text-rose-500 hover:text-rose-700 disabled:opacity-30"
+                        >
+                          <mat-icon class="!text-lg">delete</mat-icon>
+                        </button>
+                      </div>
+                    </div>
+                  }
+                </div>
+              </div>
+            }
+          </div>
+        </div>
+
+        <!-- Assembly Control & Verification Column -->
+        <div class="space-y-6">
+          <div class="bg-white rounded-2xl border border-slate-200 p-6 shadow-xs space-y-6">
+            <h2 class="text-base font-bold text-slate-900 border-b border-slate-100 pb-3 flex items-center gap-2">
+              <mat-icon class="text-indigo-600">security</mat-icon>
+              <span>Execution & Seal</span>
+            </h2>
+
+            <div class="space-y-3">
+              <div class="p-4 bg-indigo-50/50 rounded-xl border border-indigo-100 space-y-2">
+                <div class="flex items-center justify-between text-xs">
+                  <span class="text-slate-600">Total Items in Assembly:</span>
+                  <span class="font-bold text-indigo-950 font-mono">{{ totalRequestedQuestions() }} Qs</span>
+                </div>
+                <div class="flex items-center justify-between text-xs">
+                  <span class="text-slate-600">Algorithm:</span>
+                  <span class="font-mono text-[11px] text-slate-800">CSPRNG Shuffle + DPI Rule Solver</span>
+                </div>
+                <div class="flex items-center justify-between text-xs">
+                  <span class="text-slate-600">Cryptographic Seal:</span>
+                  <span class="font-mono text-[11px] text-slate-800">Merkle Root SHA-256</span>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                mat-stroked-button
+                (click)="checkFeasibility()"
+                [disabled]="isCheckingFeasibility()"
+                class="w-full !py-2.5 !rounded-xl !border-slate-300 font-bold"
+              >
+                <mat-icon>{{ isCheckingFeasibility() ? 'hourglass_top' : 'rule' }}</mat-icon>
+                <span>{{ isCheckingFeasibility() ? 'Auditing Question Inventory...' : 'Pre-flight Sufficiency Audit' }}</span>
+              </button>
+
+              <button
+                type="button"
+                mat-flat-button
+                color="primary"
+                (click)="generatePaper()"
+                [disabled]="isGenerating() || !genExamId || !genShiftId"
+                class="w-full !py-3 !rounded-xl font-bold shadow-md !bg-slate-900 hover:!bg-black !text-white"
+              >
+                <span class="flex items-center justify-center gap-2">
+                  <mat-icon>{{ isGenerating() ? 'hourglass_top' : 'auto_awesome' }}</mat-icon>
+                  <span>{{ isGenerating() ? 'Executing Assembly...' : 'Execute Algorithmic Assembly' }}</span>
+                </span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    }
+
+    <!-- TAB 3: BLUEPRINT TEMPLATES DIRECTORY -->
+    @if (currentTab() === 'TEMPLATES') {
+      <div class="bg-white rounded-2xl border border-slate-200 p-6 shadow-xs space-y-4">
+        <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+          <div>
+            <h2 class="text-base font-bold text-slate-900">Blueprint Templates Library</h2>
+            <p class="text-xs text-slate-500">Standardized subject and cognitive quota distribution templates</p>
+          </div>
+        </div>
+
+        @if (loadingTemplates()) {
+          <div class="py-16 flex flex-col items-center justify-center gap-3">
+            <mat-spinner diameter="36"></mat-spinner>
+            <span class="text-xs text-slate-500">Loading templates...</span>
+          </div>
+        } @else if (templates().length === 0) {
+          <div class="py-12 text-center text-xs text-slate-400">
+            No blueprint templates configured yet.
+          </div>
+        } @else {
+          <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            @for (tpl of templates(); track tpl.id) {
+              <div class="p-5 bg-slate-50 rounded-2xl border border-slate-200 space-y-4 flex flex-col justify-between hover:shadow-xs transition-shadow">
+                <div class="space-y-2">
+                  <div class="flex items-start justify-between gap-2">
+                    <h3 class="font-bold text-slate-900 text-sm">{{ tpl.name }}</h3>
+                    <span class="text-[10px] bg-indigo-100 text-indigo-800 px-2 py-0.5 rounded font-bold">
+                      {{ tpl.rules.length }} Rules
+                    </span>
+                  </div>
+                  @if (tpl.description) {
+                    <p class="text-xs text-slate-600 line-clamp-2">{{ tpl.description }}</p>
+                  }
+                  <div class="text-[11px] text-slate-500">
+                    Exam Target: <span class="font-semibold text-slate-800">{{ tpl.examName || 'Universal Standard' }}</span>
+                  </div>
+                </div>
+
+                <div class="pt-3 border-t border-slate-200 flex items-center justify-between">
+                  <span class="text-xs font-mono font-bold text-slate-700">
+                    {{ tpl.totalQuestions || 'Variable' }} Questions
+                  </span>
+                  <button
+                    type="button"
+                    (click)="genSelectedTemplateId = tpl.id; genUseTemplate = true; currentTab.set('GENERATOR')"
+                    class="text-xs font-bold text-indigo-600 hover:text-indigo-800 flex items-center gap-1"
+                  >
+                    <span>Use in Assembly</span>
+                    <mat-icon class="!text-sm">arrow_forward</mat-icon>
+                  </button>
+                </div>
+              </div>
+            }
+          </div>
+        }
+      </div>
+    }
+  </div>
+
+  <!-- SUMMARY & QUESTION INSPECTION DRAWER -->
+  @if (drawerOpen()) {
+    <div class="fixed inset-0 z-50 overflow-hidden bg-slate-900/50 flex justify-end">
+      <div class="w-full max-w-3xl bg-white h-full shadow-2xl flex flex-col animate-slide-in">
+        <!-- Drawer Header -->
+        <div class="px-6 py-4 border-b border-slate-200 flex items-center justify-between bg-slate-900 text-white">
+          <div class="flex items-center gap-3">
+            <div class="w-10 h-10 rounded-xl bg-indigo-600 flex items-center justify-center text-white">
+              <mat-icon>description</mat-icon>
+            </div>
+            <div>
+              <h2 class="font-bold text-base text-white">
+                {{ paperDetail()?.name || 'Question Paper Details' }}
+              </h2>
+              <div class="text-[11px] text-indigo-300 font-mono">
+                ID: {{ selectedPaperId() }}
+              </div>
+            </div>
+          </div>
+
+          <button
+            type="button"
+            (click)="closeDrawer()"
+            class="text-slate-400 hover:text-white p-1 rounded-lg hover:bg-slate-800 transition-colors"
+          >
+            <mat-icon>close</mat-icon>
+          </button>
+        </div>
+
+        <!-- Drawer Body -->
+        <div class="flex-1 overflow-y-auto p-6 space-y-6">
+          @if (loadingDetail()) {
+            <div class="py-20 flex flex-col items-center justify-center gap-3">
+              <mat-spinner diameter="36"></mat-spinner>
+              <span class="text-xs text-slate-500">Loading paper definition & questions...</span>
+            </div>
+          } @else if (paperDetail()) {
+            <!-- Status & Cryptographic Key Details -->
+            <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              <div class="p-3 bg-slate-50 rounded-xl border border-slate-200">
+                <div class="text-[10px] uppercase font-bold text-slate-500">Status</div>
+                <div class="text-xs font-bold text-slate-900 mt-1">{{ paperDetail()?.status }}</div>
+              </div>
+              <div class="p-3 bg-slate-50 rounded-xl border border-slate-200">
+                <div class="text-[10px] uppercase font-bold text-slate-500">Total Items</div>
+                <div class="text-xs font-bold text-slate-900 mt-1">{{ paperDetail()?.totalQuestions || paperDetail()?.questions?.length || 0 }} Qs</div>
+              </div>
+              <div class="p-3 bg-slate-50 rounded-xl border border-slate-200">
+                <div class="text-[10px] uppercase font-bold text-slate-500">Total Marks</div>
+                <div class="text-xs font-bold text-slate-900 mt-1">{{ paperDetail()?.totalMarks || 0 }} Marks</div>
+              </div>
+              <div class="p-3 bg-slate-50 rounded-xl border border-slate-200">
+                <div class="text-[10px] uppercase font-bold text-slate-500">Difficulty Index</div>
+                <div class="text-xs font-bold text-slate-900 mt-1 font-mono">
+                  {{ paperDetail()?.difficultyScore ? (paperDetail()?.difficultyScore | number: '1.2-2') : 'Balanced' }}
+                </div>
+              </div>
+            </div>
+
+            <!-- Cryptographic Package Seal -->
+            @if (paperDetail()?.encryptionKeyId || paperDetail()?.encryptedPackageRef) {
+              <div class="p-4 bg-emerald-50 rounded-xl border border-emerald-200 space-y-1.5">
+                <div class="flex items-center gap-2 text-emerald-800 text-xs font-bold">
+                  <mat-icon class="!text-base">lock</mat-icon>
+                  <span>Encrypted Payload Anchored</span>
+                </div>
+                <div class="text-[11px] font-mono text-emerald-950 break-all">
+                  Key ID: {{ paperDetail()?.encryptionKeyId }}
+                </div>
+              </div>
+            }
+
+            <!-- Indic AI Translation Trigger Sub-panel -->
+            <div class="p-5 bg-indigo-50/60 rounded-2xl border border-indigo-100 space-y-4">
+              <div class="flex items-center justify-between">
+                <div class="flex items-center gap-2">
+                  <mat-icon class="text-indigo-600">translate</mat-icon>
+                  <h3 class="font-bold text-xs text-indigo-950 uppercase tracking-wider">
+                    IndicTrans2 Multilingual Translation
+                  </h3>
+                </div>
+                @if (isTranslating()) {
+                  <span class="text-[11px] text-indigo-600 font-bold animate-pulse">Processing...</span>
+                }
+              </div>
+
+              <div class="flex flex-col sm:flex-row gap-3 items-end">
+                <div class="flex-1">
+                  <label for="drawer-lang-select" class="block text-[10px] font-bold text-indigo-900 uppercase mb-1">
+                    Target Indic Language
+                  </label>
+                  <select
+                    id="drawer-lang-select"
+                    [(ngModel)]="transTargetLanguage"
+                    class="w-full py-2 px-3 text-xs border border-indigo-200 rounded-xl bg-white focus:ring-2 focus:ring-indigo-500"
+                  >
+                    @for (lang of supportedLanguages; track lang.code) {
+                      <option [value]="lang.code">{{ lang.label }} ({{ lang.native }})</option>
+                    }
+                  </select>
+                </div>
+
+                <button
+                  type="button"
+                  mat-flat-button
+                  color="primary"
+                  (click)="startTranslation()"
+                  [disabled]="isTranslating()"
+                  class="!rounded-xl !text-xs !bg-indigo-600 hover:!bg-indigo-700 !text-white !py-2"
+                >
+                  <mat-icon class="!text-sm">auto_awesome</mat-icon>
+                  <span>Queue Batch Translation</span>
+                </button>
+              </div>
+
+              @if (activeTranslationJob()) {
+                <div class="pt-3 border-t border-indigo-100 space-y-2">
+                  <div class="flex items-center justify-between text-xs">
+                    <span class="text-indigo-900 font-semibold">
+                      Job {{ activeTranslationJob()?.jobId }}: {{ activeTranslationJob()?.status }}
+                    </span>
+                    <span class="font-mono text-indigo-700">
+                      {{ activeTranslationJob()?.processedQuestions }} / {{ activeTranslationJob()?.totalQuestions }} Qs
+                    </span>
+                  </div>
+                  <mat-progress-bar
+                    mode="determinate"
+                    [value]="activeTranslationJob()?.progressPercentage || 0"
+                  ></mat-progress-bar>
+                </div>
+              }
+            </div>
+
+            <!-- Questions Breakdown List -->
+            <div class="space-y-3">
+              <h3 class="font-bold text-slate-900 text-xs uppercase tracking-wider flex items-center justify-between">
+                <span>Included Questions ({{ paperDetail()?.questions?.length || 0 }})</span>
+              </h3>
+
+              <div class="space-y-3">
+                @for (q of paperDetail()?.questions || []; track q.questionId; let idx = $index) {
+                  <div class="p-4 bg-slate-50 rounded-xl border border-slate-200 space-y-2">
+                    <div class="flex items-start justify-between gap-3">
+                      <div class="flex items-center gap-2">
+                        <span class="w-6 h-6 rounded-lg bg-slate-200 text-slate-800 text-xs font-bold flex items-center justify-center font-mono">
+                          {{ idx + 1 }}
+                        </span>
+                        <span class="text-xs font-bold text-slate-700">{{ q.subject }} &rsaquo; {{ q.topic }}</span>
+                      </div>
+                      <div class="flex items-center gap-1.5">
+                        <span class="text-[10px] font-bold px-2 py-0.5 rounded bg-slate-200 text-slate-700">
+                          {{ q.difficulty }}
+                        </span>
+                        <span class="text-[10px] font-bold px-2 py-0.5 rounded bg-indigo-100 text-indigo-700">
+                          {{ q.cognitiveLevel }}
+                        </span>
+                        <span class="text-[10px] font-mono font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
+                          +{{ q.marks }} / -{{ q.negativeMarks }}
+                        </span>
+                      </div>
+                    </div>
+
+                    <p class="text-xs text-slate-800 leading-relaxed font-sans">{{ q.content }}</p>
+
+                    @if (q.options?.length) {
+                      <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
+                        @for (opt of q.options; track opt.id) {
+                          <div
+                            [ngClass]="{
+                              'bg-emerald-50 border-emerald-300 text-emerald-900 font-bold': opt.isCorrect,
+                              'bg-white border-slate-200 text-slate-700': !opt.isCorrect
+                            }"
+                            class="p-2 rounded-lg border text-[11px] flex items-center gap-2"
+                          >
+                            <span class="w-4 h-4 rounded-full bg-slate-100 text-slate-600 font-mono text-[9px] flex items-center justify-center font-bold">
+                              {{ opt.id }}
+                            </span>
+                            <span>{{ opt.text }}</span>
+                          </div>
+                        }
+                      </div>
+                    }
+
+                    @if (q.explanation) {
+                      <div class="text-[11px] text-slate-500 bg-white p-2.5 rounded-lg border border-slate-100">
+                        <span class="font-bold text-slate-700">Solution:</span> {{ q.explanation }}
+                      </div>
+                    }
+                  </div>
+                }
+              </div>
+            </div>
+          }
+        </div>
+
+        <!-- Drawer Footer -->
+        <div class="px-6 py-4 border-t border-slate-200 flex items-center justify-between bg-slate-50">
+          <button
+            type="button"
+            mat-stroked-button
+            (click)="closeDrawer()"
+            class="!rounded-xl !border-slate-300"
+          >
+            Close
+          </button>
+
+          <div class="flex items-center gap-2">
+            @if (paperDetail()?.status === 'DRAFT') {
+              <button
+                type="button"
+                mat-stroked-button
+                (click)="selectedPaperId() && approvePaper(selectedPaperId()!)"
+                class="!rounded-xl !border-blue-300 !text-blue-700 hover:!bg-blue-50"
+              >
+                <mat-icon>verified</mat-icon>
+                <span>Approve Paper</span>
+              </button>
+            }
+
+            @if (paperDetail()?.status === 'APPROVED') {
+              <button
+                type="button"
+                mat-flat-button
+                (click)="selectedPaperId() && publishPaper(selectedPaperId()!)"
+                class="!rounded-xl !bg-emerald-600 hover:!bg-emerald-700 !text-white"
+              >
+                <mat-icon>lock</mat-icon>
+                <span>Encrypt & Seal</span>
+              </button>
+            }
+          </div>
+        </div>
       </div>
     </div>
-  </div>
+  }
+
+  <!-- FEASIBILITY & DEFICIT AUDIT MODAL -->
+  @if (showFeasibilityModal()) {
+    <div class="fixed inset-0 z-50 overflow-y-auto bg-slate-900/60 flex items-center justify-center p-4">
+      <div class="bg-white rounded-3xl max-w-2xl w-full p-6 shadow-2xl space-y-6 animate-scale-up">
+        <div class="flex items-start justify-between">
+          <div class="flex items-center gap-3">
+            <div
+              [ngClass]="{
+                'bg-emerald-50 text-emerald-600': feasibilityResult()?.feasible,
+                'bg-rose-50 text-rose-600': !feasibilityResult()?.feasible
+              }"
+              class="w-12 h-12 rounded-2xl flex items-center justify-center"
+            >
+              <mat-icon>{{ feasibilityResult()?.feasible ? 'check_circle' : 'warning' }}</mat-icon>
+            </div>
+            <div>
+              <h2 class="text-lg font-bold text-slate-900">Blueprint Inventory Sufficiency Audit</h2>
+              <p class="text-xs text-slate-500">
+                Pre-flight validation of active question bank inventory against blueprint rules
+              </p>
+            </div>
+          </div>
+          <button
+            type="button"
+            (click)="closeFeasibilityModal()"
+            class="text-slate-400 hover:text-slate-600 p-1 rounded-lg"
+          >
+            <mat-icon>close</mat-icon>
+          </button>
+        </div>
+
+        @if (feasibilityResult()) {
+          <div class="space-y-4">
+            <div
+              [ngClass]="{
+                'bg-emerald-50 border-emerald-200 text-emerald-800': feasibilityResult()?.feasible,
+                'bg-rose-50 border-rose-200 text-rose-800': !feasibilityResult()?.feasible
+              }"
+              class="p-4 rounded-xl border text-xs leading-relaxed font-medium"
+            >
+              {{ feasibilityResult()?.summary || (feasibilityResult()?.feasible ? 'All blueprint quotas are 100% satisfied by the approved question repository.' : 'Deficits detected in question bank inventory.') }}
+            </div>
+
+            <!-- Gaps breakdown if any -->
+            @if (feasibilityResult()?.gaps?.length) {
+              <div class="space-y-2">
+                <div class="text-xs font-bold text-rose-900 uppercase tracking-wider">Inventory Deficits & Gaps:</div>
+                <div class="space-y-2 max-h-60 overflow-y-auto">
+                  @for (gap of feasibilityResult()?.gaps; track $index) {
+                    <div class="p-3 bg-rose-50/50 rounded-xl border border-rose-100 flex items-center justify-between text-xs">
+                      <div>
+                        <span class="font-bold text-slate-800">{{ gap.subject }} &rsaquo; {{ gap.topic }}</span>
+                        <div class="text-[11px] text-slate-500">
+                          {{ gap.difficulty }} | {{ gap.cognitiveLevel }}
+                        </div>
+                      </div>
+                      <div class="text-right font-mono text-[11px]">
+                        <span class="text-rose-600 font-bold">Deficit: -{{ gap.deficit || gap.needed }}</span>
+                        <div class="text-slate-400">Available: {{ gap.available || 0 }}</div>
+                      </div>
+                    </div>
+                  }
+                </div>
+              </div>
+            }
+          </div>
+        }
+
+        <div class="flex items-center justify-end gap-3 pt-4 border-t border-slate-100">
+          <button
+            type="button"
+            mat-stroked-button
+            (click)="closeFeasibilityModal()"
+            class="!rounded-xl !border-slate-300"
+          >
+            Dismiss
+          </button>
+        </div>
+      </div>
+    </div>
+  }
 </div>

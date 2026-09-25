@@ -259,8 +259,212 @@ export interface GeoCity {
 }
 
 // ============================================================================
-// 6. PAPER GENERATION & LEDGER MODELS
+// 6. QUESTION PAPER & BLUEPRINT MODELS
 // ============================================================================
+
+export interface BlueprintRule {
+  subject: string;
+  topic: string;
+  difficulty?: string;
+  cognitiveLevel?: string;
+  questionType?: string;
+  targetCount?: number;
+  questionCount?: number;
+}
+
+export interface PaperSummary {
+  id: string;
+  paperId?: string;
+  name: string;
+  examId?: string;
+  examName?: string;
+  shiftId?: string;
+  shiftName?: string;
+  status: string;
+  isPractice?: boolean;
+  totalMarks?: number;
+  totalQuestions?: number;
+  difficultyScore?: number;
+  generatedBy?: string;
+  approvedBy?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface QuestionDetail {
+  questionId: string;
+  content: string;
+  answerKey: string;
+  subject: string;
+  topic: string;
+  difficulty: string;
+  cognitiveLevel: string;
+  orderIndex: number;
+  marks: number;
+  negativeMarks: number;
+  explanation?: string;
+  options?: any[];
+  usageCount?: number;
+  lastUsedAt?: string;
+}
+
+export interface PaperDetail {
+  id?: string;
+  paperId?: string;
+  name?: string;
+  examId?: string;
+  examName?: string;
+  shiftId?: string;
+  shiftName?: string;
+  status?: string;
+  isPractice?: boolean;
+  totalMarks?: number;
+  difficultyScore?: number;
+  encryptedPackageRef?: string;
+  encryptionKeyId?: string;
+  generatedBy?: string;
+  createdAt?: string;
+  updatedAt?: string;
+  totalQuestions?: number;
+  topicDistribution?: Record<string, number>;
+  questions?: QuestionDetail[];
+  paperDefinitionJson?: string;
+}
+
+export interface PaperGenerationRequest {
+  examId: string;
+  shiftId: string;
+  name?: string;
+  paperName?: string;
+  isPractice?: boolean;
+  blueprintRules: BlueprintRule[];
+}
+
+export interface PaperGenerationResponse {
+  paperId: string;
+  name?: string;
+  status: string;
+  isPractice?: boolean;
+  message: string;
+}
+
+export interface PaperApprovalResponse {
+  paperId: string;
+  name?: string;
+  status: string;
+  isPractice?: boolean;
+  encryptionKeyId?: string;
+  message: string;
+}
+
+export interface PaperTranslateRequest {
+  targetLanguage?: string;
+  sourceLanguage?: string;
+  targetStatus?: string;
+  overwriteExisting?: boolean;
+  maxConcurrency?: number;
+  throttleDelayMs?: number;
+}
+
+export interface PaperTranslateResponse {
+  jobId: string;
+  paperId: string;
+  status: string;
+  sourceLanguage: string;
+  targetLanguage: string;
+  targetStatus: string;
+  overwriteExisting: boolean;
+  totalQuestions: number;
+  processedQuestions: number;
+  successfulQuestions: number;
+  failedQuestions: number;
+  progressPercentage: number;
+  errorMessage?: string;
+  message?: string;
+  createdAt?: string;
+  completedAt?: string;
+}
+
+export interface BlueprintTemplateRequest {
+  name: string;
+  description?: string;
+  examId?: string;
+  rules: BlueprintRule[];
+}
+
+export interface BlueprintTemplateResponse {
+  id: string;
+  name: string;
+  description?: string;
+  examId?: string;
+  examName?: string;
+  rules: BlueprintRule[];
+  totalQuestions?: number;
+  createdBy?: string;
+  createdAt?: string;
+  updatedAt?: string;
+  version?: number;
+}
+
+export interface GapDetail {
+  subject?: string;
+  topic?: string;
+  difficulty?: string;
+  cognitiveLevel?: string;
+  needed?: number;
+  available?: number;
+  deficit?: number;
+  message?: string;
+}
+
+export interface RuleFeasibility {
+  subject: string;
+  topic: string;
+  difficulty?: string;
+  cognitiveLevel?: string;
+  requested?: number;
+  available?: number;
+  needed?: number;
+  surplus?: number;
+  sufficient?: boolean;
+  status?: string;
+  deficit?: number;
+  targetCount?: number;
+  questionCount?: number;
+}
+
+export interface BlueprintFeasibilityRequest {
+  examId?: string;
+  shiftId?: string;
+  rules: BlueprintRule[];
+}
+
+export interface BlueprintFeasibilityResponse {
+  feasible: boolean;
+  totalRequested?: number;
+  totalAvailable?: number;
+  totalQuestionsNeeded?: number;
+  totalQuestionsAvailable?: number;
+  deficitRuleCount?: number;
+  summary?: string;
+  checkedAt?: string;
+  rules?: RuleFeasibility[];
+  insufficientRules?: RuleFeasibility[];
+  gaps?: GapDetail[];
+  overallSufficiency?: number;
+}
+
+export interface PaperListParams {
+  page?: number;
+  size?: number;
+  sort?: string;
+  order?: string;
+  search?: string;
+  status?: string;
+  examId?: string;
+  shiftId?: string;
+  isPractice?: boolean;
+}
 
 export interface PaperSectionConfig {
   id: string;
@@ -333,7 +537,7 @@ export class ExaminationService {
         }),
         tap({
           next: (list) => {
-            this.exams.set(list);
+            this.exams.set(list || []);
             this.loading.set(false);
           },
           error: () => this.loading.set(false),
@@ -381,7 +585,7 @@ export class ExaminationService {
         }),
         tap({
           next: (paged) => {
-            this.exams.set(paged.content);
+            this.exams.set(paged.content || []);
             this.loading.set(false);
           },
           error: () => this.loading.set(false),
@@ -389,59 +593,48 @@ export class ExaminationService {
       );
   }
 
-  getExam(id: string): Observable<ExaminationResponse> {
+  getExam(examId: string): Observable<ExaminationResponse> {
     return this.http
-      .get<ApiResponse<ExaminationResponse> | ExaminationResponse>(`${this.baseUrl}/${id}`)
+      .get<ApiResponse<ExaminationResponse> | ExaminationResponse>(`${this.baseUrl}/${examId}`)
       .pipe(map((res) => ((res as any)?.data ?? res) as ExaminationResponse));
   }
 
-  createExam(data: CreateExamRequest): Observable<ExaminationResponse> {
+  createExam(req: CreateExamRequest): Observable<ExaminationResponse> {
     return this.http
-      .post<ApiResponse<ExaminationResponse> | ExaminationResponse>(this.baseUrl, data)
+      .post<ApiResponse<ExaminationResponse> | ExaminationResponse>(this.baseUrl, req)
       .pipe(
         map((res) => ((res as any)?.data ?? res) as ExaminationResponse),
-        tap((created) => this.exams.update((list) => [created, ...list]))
+        tap((created) => this.exams.update((list) => [created, ...(list || [])]))
       );
   }
 
-  updateExam(id: string, data: CreateExamRequest): Observable<ExaminationResponse> {
+  updateExam(examId: string, req: CreateExamRequest): Observable<ExaminationResponse> {
     return this.http
-      .put<ApiResponse<ExaminationResponse> | ExaminationResponse>(`${this.baseUrl}/${id}`, data)
+      .put<ApiResponse<ExaminationResponse> | ExaminationResponse>(`${this.baseUrl}/${examId}`, req)
       .pipe(
         map((res) => ((res as any)?.data ?? res) as ExaminationResponse),
         tap((updated) =>
-          this.exams.update((list) => list.map((e) => (e.id === id ? updated : e)))
+          this.exams.update((list) =>
+            (list || []).map((e) => (e.id === examId ? updated : e))
+          )
         )
       );
   }
 
-  publishExam(id: string): Observable<ExaminationResponse> {
+  publishExam(examId: string): Observable<ExaminationResponse> {
     return this.http
-      .put<ApiResponse<ExaminationResponse> | ExaminationResponse>(
-        `${this.baseUrl}/${id}/publish`,
+      .post<ApiResponse<ExaminationResponse> | ExaminationResponse>(
+        `${this.baseUrl}/${examId}/publish`,
         {}
       )
       .pipe(
         map((res) => ((res as any)?.data ?? res) as ExaminationResponse),
         tap((updated) =>
-          this.exams.update((list) => list.map((e) => (e.id === id ? updated : e)))
+          this.exams.update((list) =>
+            (list || []).map((e) => (e.id === examId ? updated : e))
+          )
         )
       );
-  }
-
-  generatePaper(
-    config: PaperGenerationConfig
-  ): Observable<{ paperId: string; proofHash: string }> {
-    return this.http.post<{ paperId: string; proofHash: string }>(
-      `${this.baseUrl}/papers/generate`,
-      config
-    );
-  }
-
-  verifyLedgerProof(proofHash: string): Observable<LedgerProofResult> {
-    return this.http
-      .get<LedgerProofResult>(`${this.baseUrl}/ledger/verify/${proofHash}`)
-      .pipe(tap((proof) => this.activeProof.set(proof)));
   }
 }
 
@@ -467,7 +660,7 @@ export class SchedulingService {
       )
       .pipe(
         map((res) => ((res as any)?.data ?? res) as ScheduleResponse),
-        tap((created) => this.schedules.update((list) => [created, ...list]))
+        tap((created) => this.schedules.update((list) => [created, ...(list || [])]))
       );
   }
 
@@ -487,7 +680,7 @@ export class SchedulingService {
         }),
         tap({
           next: (list) => {
-            this.schedules.set(list);
+            this.schedules.set(list || []);
             this.loading.set(false);
           },
           error: () => this.loading.set(false),
@@ -520,7 +713,7 @@ export class SchedulingService {
         map((res) => ((res as any)?.data ?? res) as ScheduleResponse),
         tap((updated) => {
           this.schedules.update((list) =>
-            list.map((s) => (s.id === scheduleId ? updated : s))
+            (list || []).map((s) => (s.id === scheduleId ? updated : s))
           );
           if (this.currentSchedule()?.id === scheduleId) {
             this.currentSchedule.set(updated);
@@ -541,7 +734,7 @@ export class SchedulingService {
       )
       .pipe(
         map((res) => ((res as any)?.data ?? res) as ScheduleResponse),
-        tap((newVersion) => this.schedules.update((list) => [newVersion, ...list]))
+        tap((newVersion) => this.schedules.update((list) => [newVersion, ...(list || [])]))
       );
   }
 
@@ -570,7 +763,7 @@ export class SchedulingService {
       )
       .pipe(
         map((res) => ((res as any)?.data ?? res) as ShiftResponse),
-        tap((created) => this.shifts.update((list) => [...list, created]))
+        tap((created) => this.shifts.update((list) => [...(list || []), created]))
       );
   }
 
@@ -588,7 +781,9 @@ export class SchedulingService {
       .pipe(
         map((res) => ((res as any)?.data ?? res) as ShiftResponse),
         tap((updated) =>
-          this.shifts.update((list) => list.map((s) => (s.id === shiftId ? updated : s)))
+          this.shifts.update((list) =>
+            (list || []).map((s) => (s.id === shiftId ? updated : s))
+          )
         )
       );
   }
@@ -609,7 +804,7 @@ export class CentreManagementService {
       .post<ApiResponse<CentreResponse> | CentreResponse>(`${this.baseUrl}/centres`, req)
       .pipe(
         map((res) => ((res as any)?.data ?? res) as CentreResponse),
-        tap((created) => this.centres.update((list) => [created, ...list]))
+        tap((created) => this.centres.update((list) => [created, ...(list || [])]))
       );
   }
 
@@ -643,7 +838,7 @@ export class CentreManagementService {
         }),
         tap({
           next: (list) => {
-            this.centres.set(list);
+            this.centres.set(list || []);
             this.loading.set(false);
           },
           error: () => this.loading.set(false),
@@ -695,7 +890,7 @@ export class CentreManagementService {
         }),
         tap({
           next: (paged) => {
-            this.centres.set(paged.content);
+            this.centres.set(paged.content || []);
             this.loading.set(false);
           },
           error: () => this.loading.set(false),
@@ -720,7 +915,9 @@ export class CentreManagementService {
       .pipe(
         map((res) => ((res as any)?.data ?? res) as CentreResponse),
         tap((updated) =>
-          this.centres.update((list) => list.map((c) => (c.id === centreId ? updated : c)))
+          this.centres.update((list) =>
+            (list || []).map((c) => (c.id === centreId ? updated : c))
+          )
         )
       );
   }
@@ -799,5 +996,194 @@ export class GeoLocationService {
           return (Array.isArray(payload) ? payload : []) as GeoCity[];
         })
       );
+  }
+}
+
+@Injectable({
+  providedIn: 'root',
+})
+export class PaperService {
+  private readonly http = inject(HttpClient);
+  private readonly baseUrl = '/api/v1/papers';
+  private readonly templateBaseUrl = '/api/v1/papers/templates';
+
+  readonly papers = signal<PaperSummary[]>([]);
+  readonly loading = signal<boolean>(false);
+
+  getPapers(params?: PaperListParams): Observable<PagedResponse<PaperSummary>> {
+    this.loading.set(true);
+    let httpParams = new HttpParams();
+
+    if (params) {
+      if (params.page !== undefined) httpParams = httpParams.set('page', params.page.toString());
+      if (params.size !== undefined) httpParams = httpParams.set('size', params.size.toString());
+      if (params.sort) httpParams = httpParams.set('sort', params.sort);
+      if (params.order) httpParams = httpParams.set('order', params.order);
+      if (params.search) httpParams = httpParams.set('search', params.search.trim());
+      if (params.status) httpParams = httpParams.set('status', params.status);
+      if (params.examId) httpParams = httpParams.set('examId', params.examId);
+      if (params.shiftId) httpParams = httpParams.set('shiftId', params.shiftId);
+      if (params.isPractice !== undefined)
+        httpParams = httpParams.set('isPractice', params.isPractice.toString());
+    }
+
+    return this.http.get<any>(this.baseUrl, { params: httpParams }).pipe(
+      map((res) => {
+        const payload = res?.data ?? res;
+        const items = payload?.content || (Array.isArray(payload) ? payload : []);
+        const normalized: PaperSummary[] = items.map((p: any) => ({
+          ...p,
+          paperId: p.paperId || p.id,
+        }));
+        return {
+          content: normalized,
+          totalElements: payload?.totalElements ?? normalized.length,
+          totalPages: payload?.totalPages ?? 1,
+          size: payload?.size ?? (params?.size || 10),
+          number: payload?.number ?? (params?.page || 0),
+        };
+      }),
+      tap({
+        next: (paged) => {
+          this.papers.set(paged.content || []);
+          this.loading.set(false);
+        },
+        error: () => this.loading.set(false),
+      })
+    );
+  }
+
+  getPaper(paperId: string): Observable<PaperDetail> {
+    return this.http
+      .get<ApiResponse<PaperDetail> | PaperDetail>(`${this.baseUrl}/${paperId}`)
+      .pipe(map((res) => ((res as any)?.data ?? res) as PaperDetail));
+  }
+
+  generatePaper(request: PaperGenerationRequest): Observable<PaperGenerationResponse> {
+    return this.http
+      .post<ApiResponse<PaperGenerationResponse> | PaperGenerationResponse>(
+        `${this.baseUrl}/generate`,
+        request
+      )
+      .pipe(map((res) => ((res as any)?.data ?? res) as PaperGenerationResponse));
+  }
+
+  approvePaper(paperId: string): Observable<PaperApprovalResponse> {
+    return this.http
+      .post<ApiResponse<PaperApprovalResponse> | PaperApprovalResponse>(
+        `${this.baseUrl}/${paperId}/approve`,
+        {}
+      )
+      .pipe(map((res) => ((res as any)?.data ?? res) as PaperApprovalResponse));
+  }
+
+  publishPaper(paperId: string): Observable<PaperApprovalResponse> {
+    return this.http
+      .post<ApiResponse<PaperApprovalResponse> | PaperApprovalResponse>(
+        `${this.baseUrl}/${paperId}/publish`,
+        {}
+      )
+      .pipe(map((res) => ((res as any)?.data ?? res) as PaperApprovalResponse));
+  }
+
+  startTranslation(
+    paperId: string,
+    req: PaperTranslateRequest
+  ): Observable<PaperTranslateResponse> {
+    return this.http
+      .post<ApiResponse<PaperTranslateResponse> | PaperTranslateResponse>(
+        `${this.baseUrl}/${paperId}/translate`,
+        req
+      )
+      .pipe(map((res) => ((res as any)?.data ?? res) as PaperTranslateResponse));
+  }
+
+  getTranslationStatus(paperId: string): Observable<PaperTranslateResponse> {
+    return this.http
+      .get<ApiResponse<PaperTranslateResponse> | PaperTranslateResponse>(
+        `${this.baseUrl}/${paperId}/translation-status`
+      )
+      .pipe(map((res) => ((res as any)?.data ?? res) as PaperTranslateResponse));
+  }
+
+  getTranslationJob(jobId: string): Observable<PaperTranslateResponse> {
+    return this.http
+      .get<ApiResponse<PaperTranslateResponse> | PaperTranslateResponse>(
+        `${this.baseUrl}/translations/${jobId}`
+      )
+      .pipe(map((res) => ((res as any)?.data ?? res) as PaperTranslateResponse));
+  }
+
+  // --- Blueprint Templates ---
+
+  createTemplate(req: BlueprintTemplateRequest): Observable<BlueprintTemplateResponse> {
+    return this.http
+      .post<ApiResponse<BlueprintTemplateResponse> | BlueprintTemplateResponse>(
+        this.templateBaseUrl,
+        req
+      )
+      .pipe(map((res) => ((res as any)?.data ?? res) as BlueprintTemplateResponse));
+  }
+
+  listTemplates(examId?: string): Observable<BlueprintTemplateResponse[]> {
+    let params = new HttpParams();
+    if (examId) {
+      params = params.set('examId', examId);
+    }
+    return this.http
+      .get<ApiResponse<BlueprintTemplateResponse[]> | BlueprintTemplateResponse[]>(
+        this.templateBaseUrl,
+        { params }
+      )
+      .pipe(
+        map((res) => {
+          const payload = (res as any)?.data ?? res;
+          return (Array.isArray(payload) ? payload : []) as BlueprintTemplateResponse[];
+        })
+      );
+  }
+
+  getTemplate(templateId: string): Observable<BlueprintTemplateResponse> {
+    return this.http
+      .get<ApiResponse<BlueprintTemplateResponse> | BlueprintTemplateResponse>(
+        `${this.templateBaseUrl}/${templateId}`
+      )
+      .pipe(map((res) => ((res as any)?.data ?? res) as BlueprintTemplateResponse));
+  }
+
+  updateTemplate(
+    templateId: string,
+    req: BlueprintTemplateRequest
+  ): Observable<BlueprintTemplateResponse> {
+    return this.http
+      .put<ApiResponse<BlueprintTemplateResponse> | BlueprintTemplateResponse>(
+        `${this.templateBaseUrl}/${templateId}`,
+        req
+      )
+      .pipe(map((res) => ((res as any)?.data ?? res) as BlueprintTemplateResponse));
+  }
+
+  deleteTemplate(templateId: string): Observable<void> {
+    return this.http.delete<void>(`${this.templateBaseUrl}/${templateId}`);
+  }
+
+  checkFeasibility(req: BlueprintFeasibilityRequest): Observable<BlueprintFeasibilityResponse> {
+    return this.http
+      .post<ApiResponse<BlueprintFeasibilityResponse> | BlueprintFeasibilityResponse>(
+        `${this.templateBaseUrl}/feasibility`,
+        req
+      )
+      .pipe(map((res) => ((res as any)?.data ?? res) as BlueprintFeasibilityResponse));
+  }
+
+  checkTemplateSufficiency(templateId: string, notifyAdmin = false): Observable<any> {
+    return this.http.post<any>(
+      `${this.templateBaseUrl}/${templateId}/check-sufficiency`,
+      { notifyAdmin }
+    );
+  }
+
+  checkBlueprintSufficiency(request: any): Observable<any> {
+    return this.http.post<any>(`${this.templateBaseUrl}/check-sufficiency`, request);
   }
 }
