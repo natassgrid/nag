@@ -298,7 +298,7 @@
                       <div class="flex items-center justify-end gap-1.5">
                         <button
                           mat-icon-button
-                          (click)="openSummaryDrawer(paper.id, $event)"
+                          (click)="openSummaryDrawer(paper.id)"
                           matTooltip="Inspect Question Paper & Distribution"
                           class="!text-slate-500 hover:!text-indigo-600"
                         >
@@ -308,7 +308,7 @@
                         @if (paper.status === 'DRAFT') {
                           <button
                             mat-stroked-button
-                            (click)="approvePaper(paper.id, $event)"
+                            (click)="approvePaper()"
                             matTooltip="Approve Question Paper (Controller Clearance)"
                             class="!text-xs !py-1 !px-2.5 !rounded-lg !border-blue-300 !text-blue-700 hover:!bg-blue-50"
                           >
@@ -320,7 +320,7 @@
                         @if (paper.status === 'APPROVED') {
                           <button
                             mat-flat-button
-                            (click)="publishPaper(paper.id, $event)"
+                            (click)="publishPaper()"
                             matTooltip="Encrypt Package & Distribute Key"
                             class="!text-xs !py-1 !px-2.5 !rounded-lg !bg-emerald-600 hover:!bg-emerald-700 !text-white"
                           >
@@ -511,20 +511,51 @@
                 <div class="space-y-3">
                   @for (rule of genRules; track $index) {
                     <div class="p-4 bg-slate-50 rounded-xl border border-slate-200 grid grid-cols-1 md:grid-cols-6 gap-3 items-end">
-                      <div class="md:col-span-2">
-                        <label class="block text-[10px] font-bold text-slate-600 uppercase mb-1">Subject & Topic</label>
-                        <input
-                          type="text"
-                          [(ngModel)]="rule.subject"
-                          placeholder="Subject"
-                          class="w-full px-2.5 py-1.5 text-xs border rounded-lg bg-white mb-1.5"
-                        />
-                        <input
-                          type="text"
-                          [(ngModel)]="rule.topic"
-                          placeholder="Topic / Chapter"
-                          class="w-full px-2.5 py-1.5 text-xs border rounded-lg bg-white"
-                        />
+                      <div class="md:col-span-2 space-y-1.5">
+                        <div>
+                          <label class="block text-[10px] font-bold text-slate-600 uppercase mb-1">Subject</label>
+                          @if (taxonomySubjects().length > 0) {
+                            <select
+                              [(ngModel)]="rule.subject"
+                              (ngModelChange)="onRuleSubjectChange(rule)"
+                              class="w-full px-2.5 py-1.5 text-xs border rounded-lg bg-white"
+                            >
+                              <option value="">-- Select Subject --</option>
+                              @for (subj of taxonomySubjects(); track subj.id || subj.name) {
+                                <option [value]="subj.name">{{ subj.name }}</option>
+                              }
+                            </select>
+                          } @else {
+                            <input
+                              type="text"
+                              [(ngModel)]="rule.subject"
+                              placeholder="Subject"
+                              class="w-full px-2.5 py-1.5 text-xs border rounded-lg bg-white"
+                            />
+                          }
+                        </div>
+
+                        <div>
+                          <label class="block text-[10px] font-bold text-slate-600 uppercase mb-1">Topic / Domain</label>
+                          @if (getTopicsForSubject(rule.subject).length > 0) {
+                            <select
+                              [(ngModel)]="rule.topic"
+                              class="w-full px-2.5 py-1.5 text-xs border rounded-lg bg-white"
+                            >
+                              <option value="">-- All Topics in Subject --</option>
+                              @for (top of getTopicsForSubject(rule.subject); track top) {
+                                <option [value]="top">{{ top }}</option>
+                              }
+                            </select>
+                          } @else {
+                            <input
+                              type="text"
+                              [(ngModel)]="rule.topic"
+                              placeholder="Topic / Chapter"
+                              class="w-full px-2.5 py-1.5 text-xs border rounded-lg bg-white"
+                            />
+                          }
+                        </div>
                       </div>
 
                       <div>
@@ -899,97 +930,78 @@
           >
             Close
           </button>
-
-          <div class="flex items-center gap-2">
-            @if (paperDetail()?.status === 'DRAFT') {
-              <button
-                type="button"
-                mat-stroked-button
-                (click)="selectedPaperId() && approvePaper(selectedPaperId()!)"
-                class="!rounded-xl !border-blue-300 !text-blue-700 hover:!bg-blue-50"
-              >
-                <mat-icon>verified</mat-icon>
-                <span>Approve Paper</span>
-              </button>
-            }
-
-            @if (paperDetail()?.status === 'APPROVED') {
-              <button
-                type="button"
-                mat-flat-button
-                (click)="selectedPaperId() && publishPaper(selectedPaperId()!)"
-                class="!rounded-xl !bg-emerald-600 hover:!bg-emerald-700 !text-white"
-              >
-                <mat-icon>lock</mat-icon>
-                <span>Encrypt & Seal</span>
-              </button>
-            }
-          </div>
         </div>
       </div>
     </div>
   }
 
-  <!-- FEASIBILITY & DEFICIT AUDIT MODAL -->
+  <!-- FEASIBILITY & SUFFICIENCY MODAL -->
   @if (showFeasibilityModal()) {
-    <div class="fixed inset-0 z-50 overflow-y-auto bg-slate-900/60 flex items-center justify-center p-4">
-      <div class="bg-white rounded-3xl max-w-2xl w-full p-6 shadow-2xl space-y-6 animate-scale-up">
-        <div class="flex items-start justify-between">
+    <div class="fixed inset-0 z-50 overflow-y-auto bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4">
+      <div class="w-full max-w-2xl bg-white rounded-3xl shadow-2xl p-6 space-y-6 animate-scale-up">
+        <div class="flex items-center justify-between pb-4 border-b border-slate-200">
           <div class="flex items-center gap-3">
-            <div
-              [ngClass]="{
-                'bg-emerald-50 text-emerald-600': feasibilityResult()?.feasible,
-                'bg-rose-50 text-rose-600': !feasibilityResult()?.feasible
-              }"
-              class="w-12 h-12 rounded-2xl flex items-center justify-center"
-            >
-              <mat-icon>{{ feasibilityResult()?.feasible ? 'check_circle' : 'warning' }}</mat-icon>
+            <div class="w-10 h-10 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center">
+              <mat-icon>rule</mat-icon>
             </div>
             <div>
-              <h2 class="text-lg font-bold text-slate-900">Blueprint Inventory Sufficiency Audit</h2>
-              <p class="text-xs text-slate-500">
-                Pre-flight validation of active question bank inventory against blueprint rules
-              </p>
+              <h3 class="font-bold text-base text-slate-900">Blueprint Inventory Sufficiency Audit</h3>
+              <p class="text-xs text-slate-500">Pre-flight verification against database question bank items</p>
             </div>
           </div>
           <button
             type="button"
             (click)="closeFeasibilityModal()"
-            class="text-slate-400 hover:text-slate-600 p-1 rounded-lg"
+            class="text-slate-400 hover:text-slate-600"
           >
             <mat-icon>close</mat-icon>
           </button>
         </div>
 
-        @if (feasibilityResult()) {
+        @if (isCheckingFeasibility()) {
+          <div class="py-12 flex flex-col items-center justify-center gap-3">
+            <mat-spinner diameter="36"></mat-spinner>
+            <span class="text-xs text-slate-500">Checking inventory depth and constraint satisfaction...</span>
+          </div>
+        } @else if (feasibilityResult()) {
           <div class="space-y-4">
+            <!-- Overall Feasibility Banner -->
             <div
               [ngClass]="{
-                'bg-emerald-50 border-emerald-200 text-emerald-800': feasibilityResult()?.feasible,
-                'bg-rose-50 border-rose-200 text-rose-800': !feasibilityResult()?.feasible
+                'bg-emerald-50 border-emerald-200 text-emerald-900': feasibilityResult()?.feasible,
+                'bg-rose-50 border-rose-200 text-rose-900': !feasibilityResult()?.feasible
               }"
-              class="p-4 rounded-xl border text-xs leading-relaxed font-medium"
+              class="p-4 rounded-2xl border flex items-center gap-3"
             >
-              {{ feasibilityResult()?.summary || (feasibilityResult()?.feasible ? 'All blueprint quotas are 100% satisfied by the approved question repository.' : 'Deficits detected in question bank inventory.') }}
+              <mat-icon class="!text-2xl" [ngClass]="feasibilityResult()?.feasible ? 'text-emerald-600' : 'text-rose-600'">
+                {{ feasibilityResult()?.feasible ? 'check_circle' : 'warning' }}
+              </mat-icon>
+              <div>
+                <div class="font-bold text-sm">
+                  {{ feasibilityResult()?.feasible ? 'Question Inventory Sufficient' : 'Insufficient Question Inventory' }}
+                </div>
+                <div class="text-xs opacity-90">
+                  {{ feasibilityResult()?.message || (feasibilityResult()?.feasible ? 'All blueprint quotas can be satisfied by the active question bank pool.' : 'Some topic / difficulty quotas exceed available items in the bank.') }}
+                </div>
+              </div>
             </div>
 
-            <!-- Gaps breakdown if any -->
+            <!-- Gaps Listing -->
             @if (feasibilityResult()?.gaps?.length) {
               <div class="space-y-2">
-                <div class="text-xs font-bold text-rose-900 uppercase tracking-wider">Inventory Deficits & Gaps:</div>
-                <div class="space-y-2 max-h-60 overflow-y-auto">
+                <h4 class="text-xs font-bold text-slate-700 uppercase tracking-wider">Identified Inventory Gaps:</h4>
+                <div class="space-y-2 max-h-60 overflow-y-auto pr-1">
                   @for (gap of feasibilityResult()?.gaps; track $index) {
-                    <div class="p-3 bg-rose-50/50 rounded-xl border border-rose-100 flex items-center justify-between text-xs">
+                    <div class="p-3 bg-slate-50 rounded-xl border border-slate-200 flex items-center justify-between text-xs">
                       <div>
-                        <span class="font-bold text-slate-800">{{ gap.subject }} &rsaquo; {{ gap.topic }}</span>
+                        <span class="font-bold text-slate-800">{{ gap.subject }} &rsaquo; {{ gap.topic || 'All Topics' }}</span>
                         <div class="text-[11px] text-slate-500">
-                          {{ gap.difficulty }} | {{ gap.cognitiveLevel }}
+                          Difficulty: {{ gap.difficulty || 'ANY' }} &bull; Required: <strong class="text-slate-700">{{ gap.requiredCount }}</strong>, Available: <strong class="text-rose-600">{{ gap.availableCount }}</strong>
                         </div>
                       </div>
-                      <div class="text-right font-mono text-[11px]">
-                        <span class="text-rose-600 font-bold">Deficit: -{{ gap.deficit || gap.needed }}</span>
-                        <div class="text-slate-400">Available: {{ gap.available || 0 }}</div>
-                      </div>
+                      <span class="text-xs font-bold text-rose-600 bg-rose-50 px-2 py-1 rounded-lg border border-rose-200">
+                        Deficit: -{{ gap.deficit || (gap.requiredCount - gap.availableCount) }} Qs
+                      </span>
                     </div>
                   }
                 </div>
@@ -998,14 +1010,14 @@
           </div>
         }
 
-        <div class="flex items-center justify-end gap-3 pt-4 border-t border-slate-100">
+        <div class="pt-4 border-t border-slate-200 flex items-center justify-end">
           <button
             type="button"
             mat-stroked-button
             (click)="closeFeasibilityModal()"
-            class="!rounded-xl !border-slate-300"
+            class="!rounded-xl text-xs"
           >
-            Dismiss
+            Dismiss Audit
           </button>
         </div>
       </div>

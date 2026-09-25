@@ -17,6 +17,8 @@ import {
 } from '@nag-frontend-workspace/shared-ui-components';
 import {
   QuestionBankService,
+  SubjectTopicService,
+  Subject,
   Question,
   VectorSearchResult,
 } from '@nag-frontend-workspace/questions-data-access';
@@ -45,6 +47,7 @@ import {
 export class QuestionsFeatureBank implements OnInit {
   private readonly router = inject(Router);
   readonly questionService = inject(QuestionBankService);
+  private readonly subjectTopicService = inject(SubjectTopicService);
 
   showVectorDrawer = signal<boolean>(false);
   vectorQueryPrompt = '';
@@ -55,14 +58,14 @@ export class QuestionsFeatureBank implements OnInit {
   selectedStatus = signal<string>('ALL');
   searchQuery = signal<string>('');
 
-  readonly subjects = [
+  readonly subjects = signal<string[]>([
     'ALL',
     'Quantitative Aptitude / Mathematical Abilities',
     'General Intelligence and Reasoning',
     'English Language and Comprehension',
     'General Awareness',
     'Data Interpretation and Logical Analysis',
-  ];
+  ]);
 
   readonly difficulties = ['ALL', 'EASY', 'MEDIUM', 'HARD'];
   readonly statuses = ['ALL', 'APPROVED', 'REVIEW', 'DRAFT', 'REJECTED'];
@@ -92,7 +95,23 @@ export class QuestionsFeatureBank implements OnInit {
   });
 
   ngOnInit(): void {
+    this.loadSubjects();
     this.applyFilters(0);
+  }
+
+  loadSubjects(): void {
+    this.subjectTopicService.getSubjects().subscribe({
+      next: (subs: Subject[]) => {
+        if (subs && subs.length > 0) {
+          const names = subs.map((s) => s.name.trim()).filter((name) => !!name);
+          const uniqueNames = Array.from(new Set(names));
+          this.subjects.set(['ALL', ...uniqueNames]);
+        }
+      },
+      error: () => {
+        // Keep default fallback subjects
+      },
+    });
   }
 
   onSearchTextChange(query: string): void {
@@ -135,74 +154,75 @@ export class QuestionsFeatureBank implements OnInit {
     this.applyFilters(0);
   }
 
+  openVectorDrawer(): void {
+    this.showVectorDrawer.set(true);
+  }
+
   runVectorSearch(): void {
     if (!this.vectorQueryPrompt.trim()) return;
+
     this.searchingVector.set(true);
     this.questionService.searchVectorSimilar(this.vectorQueryPrompt).subscribe({
-      next: (results: VectorSearchResult[]) => {
-        const mappedQuestions: Question[] = results.map((r) => ({
-          id: r.id,
-          code: r.code,
-          content: r.content,
-          type: 'SINGLE_MCQ',
-          difficulty: r.difficulty,
-          status: 'APPROVED',
-          marks: 4,
-          negativeMarks: 1,
-          options: [],
-        }));
-        this.questionService.questions.set(mappedQuestions);
+      next: () => {
+        this.searchingVector.set(false);
+        this.showVectorDrawer.set(false);
+      },
+      error: () => {
         this.searchingVector.set(false);
       },
-      error: () => this.searchingVector.set(false),
     });
   }
 
-  triggerNewQuestion(): void {
-    this.router.navigate(['/questions/authoring']);
+  closeVectorDrawer(): void {
+    this.showVectorDrawer.set(false);
+  }
+
+  applyFilters(page: number): void {
+    const sub = this.selectedSubject();
+    const diff = this.selectedDifficulty();
+    const stat = this.selectedStatus();
+    const search = this.searchQuery();
+
+    this.questionService
+      .loadQuestions({
+        page,
+        size: this.questionService.pageSize(),
+        search: search ? search : undefined,
+        subject: sub !== 'ALL' ? sub : undefined,
+        difficulty: diff !== 'ALL' ? diff : undefined,
+        status: stat !== 'ALL' ? stat : undefined,
+        sort: 'createdAt',
+        order: 'desc',
+      })
+      .subscribe();
   }
 
   onEditQuestion(card: QuestionCardData): void {
     this.router.navigate(['/questions/authoring'], {
-      queryParams: { id: card.id },
+      queryParams: { edit: card.id },
     });
   }
 
   onDeleteQuestion(id: string): void {
-    if (confirm('Are you sure you want to delete this question?')) {
-      this.questionService.deleteQuestion(id).subscribe();
+    if (confirm('Are you sure you want to delete this question item?')) {
+      this.questionService.deleteQuestion(id).subscribe(() => {
+        this.applyFilters(this.questionService.currentPage());
+      });
     }
   }
 
-  toCardData(q: Question): QuestionCardData {
+  mapQuestionToCard(q: Question): QuestionCardData {
     return {
       id: q.id,
       code: q.code,
+      content: q.content,
       type: q.type,
       difficulty: q.difficulty,
       status: q.status,
-      content: q.content,
-      options: q.options?.map((opt) => ({
-        id: opt.id,
-        text: opt.text,
-        isCorrect: opt.isCorrect,
-      })),
       marks: q.marks,
       negativeMarks: q.negativeMarks,
+      options: q.options || [],
       tags: q.tags,
     };
-  }
-
-  private applyFilters(page = 0): void {
-    this.questionService
-      .loadQuestions({
-        search: this.searchQuery(),
-        subject: this.selectedSubject(),
-        difficulty: this.selectedDifficulty(),
-        state: this.selectedStatus(),
-        page,
-        size: this.questionService.filter().size || 20,
-      })
-      .subscribe();
   }
 }

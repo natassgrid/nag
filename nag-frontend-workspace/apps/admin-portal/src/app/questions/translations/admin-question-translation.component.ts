@@ -14,6 +14,8 @@ import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import {
   TranslationService,
   QuestionBankService,
+  SubjectTopicService,
+  Subject,
   Question,
   SUPPORTED_LANGUAGES,
   SupportedLanguage,
@@ -46,10 +48,14 @@ import {
 export class AdminQuestionTranslationComponent implements OnInit {
   private readonly translationService = inject(TranslationService);
   private readonly questionBankService = inject(QuestionBankService);
+  private readonly subjectTopicService = inject(SubjectTopicService);
 
   readonly languages = SUPPORTED_LANGUAGES;
   readonly selectedLanguage = signal<string>('hi');
   readonly currentTab = signal<'list' | 'batch'>('list');
+
+  // Dynamic Taxonomy
+  readonly taxonomySubjects = signal<Subject[]>([]);
 
   // Question List State
   readonly questions = signal<Question[]>([]);
@@ -103,15 +109,30 @@ export class AdminQuestionTranslationComponent implements OnInit {
 
   readonly availableSubjects = computed(() => {
     const set = new Set<string>();
+    this.taxonomySubjects().forEach((s) => {
+      if (s.name) set.add(s.name);
+    });
     this.questions().forEach((q) => {
       if (q.subject) set.add(q.subject);
     });
-    return Array.from(set);
+    return Array.from(set).sort();
   });
 
   ngOnInit(): void {
+    this.loadTaxonomySubjects();
     this.loadQuestions();
     this.loadBatchJobs();
+  }
+
+  loadTaxonomySubjects(): void {
+    this.subjectTopicService.getSubjects().subscribe({
+      next: (subs) => {
+        if (subs && subs.length > 0) {
+          this.taxonomySubjects.set(subs);
+        }
+      },
+      error: () => {},
+    });
   }
 
   setLanguage(code: string): void {
@@ -359,40 +380,40 @@ export class AdminQuestionTranslationComponent implements OnInit {
       {
         id: 'q-102',
         code: 'Q-SSC-002',
-        content: 'A train 240 m in length crosses a telegraph post in 16 seconds. What is the speed of the train in km/h?',
+        content: 'What is the sum of eigenvalues of a 3x3 matrix whose trace is 14 and determinant is 48?',
         type: 'SINGLE_MCQ',
-        difficulty: 'EASY',
+        difficulty: 'HARD',
         status: 'APPROVED',
         subject: 'Quantitative Aptitude',
-        topic: 'Time and Distance',
+        topic: 'Linear Algebra',
         marks: 2,
         negativeMarks: 0.5,
         options: [
-          { id: 'A', text: '54 km/h', isCorrect: true },
-          { id: 'B', text: '60 km/h', isCorrect: false },
-          { id: 'C', text: '48 km/h', isCorrect: false },
-          { id: 'D', text: '72 km/h', isCorrect: false },
+          { id: 'A', text: '14', isCorrect: true },
+          { id: 'B', text: '48', isCorrect: false },
+          { id: 'C', text: '7', isCorrect: false },
+          { id: 'D', text: '24', isCorrect: false },
         ],
-        explanation: 'Speed = Distance / Time = 240 / 16 = 15 m/s. In km/h: 15 * 18/5 = 54 km/h.',
+        explanation: 'The sum of all eigenvalues of any square matrix is equal to its trace (sum of diagonal entries). Hence sum = 14.',
       },
       {
         id: 'q-103',
         code: 'Q-SSC-003',
-        content: 'Find the odd pair out from the following alternatives: (A) 14 - 196 (B) 16 - 256 (C) 18 - 324 (D) 12 - 142',
+        content: 'Find the next term in the alphanumeric series: A1Z, C3X, E5V, G7T, ___',
         type: 'SINGLE_MCQ',
         difficulty: 'EASY',
         status: 'APPROVED',
-        subject: 'General Intelligence and Reasoning',
-        topic: 'Analogy',
+        subject: 'General Intelligence & Reasoning',
+        topic: 'Series Completion',
         marks: 2,
         negativeMarks: 0.5,
         options: [
-          { id: 'A', text: '14 - 196', isCorrect: false },
-          { id: 'B', text: '16 - 256', isCorrect: false },
-          { id: 'C', text: '18 - 324', isCorrect: false },
-          { id: 'D', text: '12 - 142', isCorrect: true },
+          { id: 'A', text: 'I9R', isCorrect: true },
+          { id: 'B', text: 'H9S', isCorrect: false },
+          { id: 'C', text: 'I8R', isCorrect: false },
+          { id: 'D', text: 'J9Q', isCorrect: false },
         ],
-        explanation: 'In options A, B, and C the second number is the square of the first (14^2=196, 16^2=256, 18^2=324). 12^2 is 144, not 142.',
+        explanation: 'First letter progresses +2 (A->C->E->G->I), number progresses odd numbers (+2: 1,3,5,7,9), third letter regresses -2 (Z->X->V->T->R). Hence I9R.',
       },
     ];
   }
@@ -400,29 +421,30 @@ export class AdminQuestionTranslationComponent implements OnInit {
   private getDefaultBatchJobs(): BatchTranslationJobResponse[] {
     return [
       {
-        id: 'job-9812',
+        id: 'job-hi-full',
         sourceLanguage: 'English',
         targetLanguage: 'Hindi (हिन्दी)',
         status: 'COMPLETED',
-        totalQuestions: 250,
-        processedQuestions: 250,
-        successfulQuestions: 248,
+        totalQuestions: 240,
+        processedQuestions: 240,
+        successfulQuestions: 238,
         failedQuestions: 2,
         progressPercentage: 100,
         createdAt: new Date(Date.now() - 3600000 * 4).toISOString(),
-        completedAt: new Date(Date.now() - 3600000 * 3).toISOString(),
+        updatedAt: new Date(Date.now() - 3600000 * 2).toISOString(),
       },
       {
-        id: 'job-9813',
+        id: 'job-te-csat',
         sourceLanguage: 'English',
-        targetLanguage: 'Bengali (বাংলা)',
+        targetLanguage: 'Telugu (తెలుగు)',
         status: 'RUNNING',
         totalQuestions: 150,
-        processedQuestions: 85,
-        successfulQuestions: 85,
+        processedQuestions: 105,
+        successfulQuestions: 105,
         failedQuestions: 0,
-        progressPercentage: 57,
+        progressPercentage: 70,
         createdAt: new Date(Date.now() - 1800000).toISOString(),
+        updatedAt: new Date(Date.now() - 300000).toISOString(),
       },
     ];
   }

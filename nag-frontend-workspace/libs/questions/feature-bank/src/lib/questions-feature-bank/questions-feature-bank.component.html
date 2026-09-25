@@ -1,40 +1,32 @@
-<div class="questions-bank-container p-6 max-w-7xl mx-auto space-y-6">
+<div class="p-6 md:p-8 space-y-6 max-w-7xl mx-auto">
   <!-- Page Header -->
   <nag-page-header
-    title="Question Bank"
-    subtitle="Manage secure, versioned assessment items with multi-subject filtering and full-text search"
-    icon="quiz"
+    title="Curated Item Bank"
+    description="Search, filter, inspect and govern high-stakes assessment items with strict taxonomy verification"
   >
     <div actions class="flex items-center gap-3">
       <a
-        mat-stroked-button
-        class="!rounded-lg !border-indigo-300 !text-indigo-600 hover:!bg-indigo-50 font-semibold"
-        routerLink="/questions/ai-generate"
-      >
-        <mat-icon class="!text-indigo-600">auto_awesome</mat-icon>
-        AI Question Generator
-      </a>
-      <a
+        routerLink="/questions/authoring"
         mat-flat-button
         color="primary"
-        class="!rounded-lg"
-        routerLink="/questions/authoring"
+        class="!rounded-xl flex items-center gap-2 !bg-indigo-600 hover:!bg-indigo-700 !text-white font-semibold text-xs"
       >
-        <mat-icon>add</mat-icon>
-        Author New Question
+        <mat-icon class="!text-base leading-none">add</mat-icon>
+        Author New Item
       </a>
     </div>
   </nag-page-header>
 
-  <!-- Filter & Search Panel -->
+  <!-- Filter & Action Controls Card -->
   <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs space-y-4">
-    <!-- Top Row: Search & Vector Search Button -->
+    <!-- Top Row: Search and Semantic Search Action -->
     <div class="flex flex-col md:flex-row gap-4 items-center justify-between">
-      <div class="w-full md:w-96">
+      <div class="w-full md:max-w-md">
         <nag-search-input
-          placeholder="Search questions by keyword or topic..."
+          placeholder="Search items by content, code or tags..."
+          [value]="searchQuery()"
           (searchChange)="onSearchTextChange($event)"
-        />
+        ></nag-search-input>
       </div>
 
       <div class="flex items-center gap-3 w-full md:w-auto">
@@ -75,7 +67,7 @@
           class="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-lg text-slate-700 font-medium focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white"
         >
           <option value="ALL">All Subjects</option>
-          @for (s of subjects; track s) {
+          @for (s of subjects(); track s) {
             @if (s !== 'ALL') {
               <option [value]="s">{{ s }}</option>
             }
@@ -104,7 +96,7 @@
       <!-- Status Filter -->
       <div>
         <label for="filter-status" class="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1">
-          Status
+          Lifecycle State
         </label>
         <select
           id="filter-status"
@@ -112,7 +104,7 @@
           (ngModelChange)="onStatusChange($event)"
           class="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-lg text-slate-700 font-medium focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white"
         >
-          <option value="ALL">All Statuses</option>
+          <option value="ALL">All States</option>
           <option value="APPROVED">Approved</option>
           <option value="REVIEW">In Review</option>
           <option value="DRAFT">Draft</option>
@@ -120,152 +112,140 @@
         </select>
       </div>
 
-      <!-- Page Size Selector -->
+      <!-- Page Size Filter -->
       <div>
-        <label for="filter-page-size" class="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1">
+        <label for="filter-size" class="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1">
           Items Per Page
         </label>
         <select
-          id="filter-page-size"
+          id="filter-size"
           [ngModel]="questionService.pageSize().toString()"
           (ngModelChange)="onPageSizeChange($event)"
           class="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-lg text-slate-700 font-medium focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white"
         >
           @for (sz of pageSizes; track sz) {
-            <option [value]="sz.toString()">{{ sz }} items per page</option>
+            <option [value]="sz.toString()">{{ sz }} items</option>
           }
         </select>
       </div>
     </div>
   </div>
 
-  <!-- Vector Similarity Query Drawer (Conditional) -->
-  @if (showVectorDrawer()) {
-    <div class="bg-indigo-50/70 border border-indigo-200 p-5 rounded-2xl space-y-3">
-      <div class="flex items-center justify-between">
-        <div class="flex items-center gap-2 text-indigo-900 font-semibold text-sm">
-          <mat-icon class="!text-lg leading-none">grain</mat-icon>
-          <span>Semantic Similarity Query (Cosine Distance via pgvector)</span>
-        </div>
-        <button
-          mat-icon-button
-          (click)="showVectorDrawer.set(false)"
-          class="!text-slate-500"
-        >
-          <mat-icon>close</mat-icon>
-        </button>
+  <!-- Main Content Area -->
+  @if (questionService.loading()) {
+    <div class="py-16 flex flex-col items-center justify-center space-y-3">
+      <div class="w-8 h-8 border-3 border-indigo-600 border-t-transparent rounded-full animate-spin"></div>
+      <p class="text-xs font-semibold text-slate-500">Retrieving items from assessment bank...</p>
+    </div>
+  } @else if (questionService.questions().length === 0) {
+    <nag-empty-state
+      icon="menu_book"
+      title="No Question Items Found"
+      description="No items match your filter criteria. Adjust the filters or start authoring a new assessment item."
+      actionLabel="Create First Question"
+      (actionClick)="resetFilters()"
+    ></nag-empty-state>
+  } @else {
+    <!-- Items Listing -->
+    <div class="space-y-4">
+      @for (item of questionService.questions(); track item.id) {
+        <nag-question-card
+          [data]="mapQuestionToCard(item)"
+          (cardEdit)="onEditQuestion($event)"
+          (cardDelete)="onDeleteQuestion($event)"
+        ></nag-question-card>
+      }
+    </div>
+
+    <!-- Pagination Footer -->
+    <div class="p-4 bg-white rounded-2xl border border-slate-200 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs font-medium text-slate-600">
+      <div>
+        Showing <span class="font-bold text-slate-900">{{ showingStart() }}</span> to
+        <span class="font-bold text-slate-900">{{ showingEnd() }}</span> of
+        <span class="font-bold text-slate-900">{{ questionService.total() }}</span> items
       </div>
 
-      <div class="flex gap-2">
-        <input
-          type="text"
-          [(ngModel)]="vectorQueryPrompt"
-          placeholder="e.g. Find questions involving solar energy or quantum computing..."
-          class="grow px-3 py-2 text-sm bg-white border border-indigo-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
-          (keyup.enter)="runVectorSearch()"
-        />
+      <div class="flex items-center gap-2">
         <button
-          mat-flat-button
-          color="primary"
-          (click)="runVectorSearch()"
-          [disabled]="searchingVector()"
-          class="!rounded-lg"
+          mat-stroked-button
+          [disabled]="questionService.currentPage() === 0"
+          (click)="goToPage(questionService.currentPage() - 1)"
+          class="!rounded-lg !text-xs !py-1 !px-3"
         >
-          {{ searchingVector() ? 'Searching...' : 'Find Matches' }}
+          Previous
+        </button>
+
+        <span class="px-3 py-1 bg-slate-100 rounded-lg text-slate-800 font-bold">
+          Page {{ questionService.currentPage() + 1 }} of {{ questionService.totalPages() || 1 }}
+        </span>
+
+        <button
+          mat-stroked-button
+          [disabled]="questionService.currentPage() + 1 >= questionService.totalPages()"
+          (click)="goToPage(questionService.currentPage() + 1)"
+          class="!rounded-lg !text-xs !py-1 !px-3"
+        >
+          Next
         </button>
       </div>
     </div>
   }
 
-  <!-- Results Count Bar -->
-  <div class="flex items-center justify-between px-1 text-xs text-slate-500">
-    <div class="font-medium">
-      @if (questionService.total() > 0) {
-        <span>Showing <strong class="text-slate-800">{{ showingStart() }}</strong> to <strong class="text-slate-800">{{ showingEnd() }}</strong> of <strong class="text-indigo-600">{{ questionService.total() }}</strong> questions</span>
-      } @else {
-        <span>No questions matching current criteria</span>
-      }
-    </div>
-
-    @if (questionService.totalPages() > 1) {
-      <div class="text-xs font-medium">
-        Page <span class="font-bold text-slate-700">{{ questionService.currentPage() + 1 }}</span> of <span class="font-bold text-slate-700">{{ questionService.totalPages() }}</span>
-      </div>
-    }
-  </div>
-
-  <!-- Questions Feed -->
-  @if (questionService.loading()) {
-    <div class="py-16 flex flex-col items-center justify-center text-slate-500 gap-3 bg-white rounded-2xl border border-slate-200">
-      <mat-icon class="animate-spin !text-3xl text-indigo-600">refresh</mat-icon>
-      <span class="text-sm font-medium">Loading questions from encrypted bank...</span>
-    </div>
-  } @else if (questionService.questions().length === 0) {
-    <nag-empty-state
-      title="No questions found"
-      description="No questions match your current search or filter criteria. Try adjusting your filters."
-      icon="menu_book"
-    />
-  } @else {
-    <div class="space-y-4">
-      @for (q of questionService.questions(); track q.id) {
-        <nag-question-card
-          [data]="toCardData(q)"
-          (cardEdit)="onEditQuestion($event)"
-          (cardDelete)="onDeleteQuestion($event)"
-        />
-      }
-    </div>
-
-    <!-- Pagination Controls -->
-    @if (questionService.totalPages() > 1) {
-      <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs flex flex-col sm:flex-row items-center justify-between gap-4 mt-6">
-        <div class="text-xs text-slate-500">
-          Showing {{ showingStart() }}-{{ showingEnd() }} of {{ questionService.total() }} total items
+  <!-- Semantic Vector Similarity Search Drawer -->
+  @if (showVectorDrawer()) {
+    <div class="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-xs flex justify-end">
+      <div class="w-full max-w-lg bg-white h-full shadow-2xl p-6 flex flex-col space-y-6">
+        <div class="flex items-center justify-between border-b border-slate-100 pb-4">
+          <div class="flex items-center gap-2">
+            <mat-icon class="text-indigo-600">saved_search</mat-icon>
+            <h3 class="font-bold text-slate-900 text-sm">Semantic Duplicate Screener</h3>
+          </div>
+          <button
+            mat-icon-button
+            (click)="closeVectorDrawer()"
+            class="!text-slate-400 hover:!text-slate-600"
+          >
+            <mat-icon>close</mat-icon>
+          </button>
         </div>
 
-        <div class="flex items-center gap-1">
-          <button
-            mat-stroked-button
-            (click)="goToPage(0)"
-            [disabled]="questionService.currentPage() === 0"
-            class="!text-xs !px-2.5 !min-w-0"
-            title="First Page"
-          >
-            <mat-icon class="!text-sm leading-none">first_page</mat-icon>
-          </button>
-          <button
-            mat-stroked-button
-            (click)="goToPage(questionService.currentPage() - 1)"
-            [disabled]="questionService.currentPage() === 0"
-            class="!text-xs !px-3"
-          >
-            Previous
-          </button>
+        <div class="space-y-4">
+          <p class="text-xs text-slate-500 leading-relaxed">
+            Enter question text or concepts below to execute high-dimensional cosine distance similarity against all indexed items across PostgreSQL pgvector clusters.
+          </p>
 
-          <span class="px-3 py-1.5 text-xs font-semibold text-slate-700 bg-slate-100 rounded-lg">
-            {{ questionService.currentPage() + 1 }} / {{ questionService.totalPages() }}
-          </span>
+          <div class="space-y-1.5">
+            <label for="semantic-query" class="block text-xs font-bold text-slate-700">
+              Question Content / Mathematical Statement
+            </label>
+            <textarea
+              id="semantic-query"
+              rows="4"
+              [(ngModel)]="vectorQueryPrompt"
+              placeholder="e.g. Find the eigenvalues of a given 2x2 matrix..."
+              class="w-full p-3 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white"
+            ></textarea>
+          </div>
 
           <button
-            mat-stroked-button
-            (click)="goToPage(questionService.currentPage() + 1)"
-            [disabled]="questionService.currentPage() >= questionService.totalPages() - 1"
-            class="!text-xs !px-3"
+            mat-flat-button
+            color="primary"
+            (click)="runVectorSearch()"
+            [disabled]="searchingVector() || !vectorQueryPrompt.trim()"
+            class="w-full !rounded-xl !py-3 !bg-indigo-600 hover:!bg-indigo-700 !text-white font-semibold text-xs flex items-center justify-center gap-2"
           >
-            Next
-          </button>
-          <button
-            mat-stroked-button
-            (click)="goToPage(questionService.totalPages() - 1)"
-            [disabled]="questionService.currentPage() >= questionService.totalPages() - 1"
-            class="!text-xs !px-2.5 !min-w-0"
-            title="Last Page"
-          >
-            <mat-icon class="!text-sm leading-none">last_page</mat-icon>
+            @if (searchingVector()) {
+              <div class="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+              <span>Querying Embedding Space...</span>
+            } @else {
+              <ng-container>
+                <mat-icon class="!text-sm">search</mat-icon>
+                <span>Execute Semantic Vector Match</span>
+              </ng-container>
+            }
           </button>
         </div>
       </div>
-    }
+    </div>
   }
 </div>
