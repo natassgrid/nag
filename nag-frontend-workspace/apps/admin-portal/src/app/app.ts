@@ -26,11 +26,13 @@ export class App {
   readonly authService = inject(AuthService);
 
   isLoginPage(): boolean {
-    return this.router.url.includes('/login');
+    const url = this.router.url || '';
+    return url.includes('/login');
   }
 
   isRouteActive(prefix: string): boolean {
-    return this.router.url.startsWith(prefix);
+    const url = this.router.url || '';
+    return url.startsWith(prefix);
   }
 
   handleLogout(): void {

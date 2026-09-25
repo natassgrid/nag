@@ -60,7 +60,7 @@ export class ExaminationsFeatureScheduling implements OnInit {
   readonly exams = this.examService.exams;
   readonly selectedExamId = signal<string>('');
   readonly selectedExam = computed(() =>
-    this.exams().find((e) => e.id === this.selectedExamId()) || null
+    (this.exams() || []).find((e) => e?.id === this.selectedExamId()) || null
   );
 
   // Schedules State
@@ -141,33 +141,37 @@ export class ExaminationsFeatureScheduling implements OnInit {
   };
 
   // Computed KPIs
-  readonly totalSchedulesCount = computed(() => this.schedules().length);
+  readonly totalSchedulesCount = computed(() => (this.schedules() || []).length);
   readonly publishedSchedulesCount = computed(
-    () => this.schedules().filter((s) => s.status === 'PUBLISHED').length
+    () => (this.schedules() || []).filter((s) => s?.status === 'PUBLISHED').length
   );
-  readonly totalShiftsCount = computed(() => this.shifts().length);
+  readonly totalShiftsCount = computed(() => (this.shifts() || []).length);
 
   readonly filteredSchedules = computed(() => {
+    const list = this.schedules() || [];
     const q = this.searchQuery().toLowerCase().trim();
-    if (!q) return this.schedules();
-    return this.schedules().filter(
-      (s) =>
-        s.scheduleName.toLowerCase().includes(q) ||
+    if (!q) return list;
+    return list.filter((s) => {
+      if (!s) return false;
+      return (
+        (s.scheduleName && s.scheduleName.toLowerCase().includes(q)) ||
         (s.notificationNumber && s.notificationNumber.toLowerCase().includes(q)) ||
-        s.examDate.includes(q)
-    );
+        (s.examDate && s.examDate.includes(q))
+      );
+    });
   });
 
   ngOnInit(): void {
     // Load exams list
     this.examService.getExams(0, 50).subscribe({
       next: (exams) => {
+        const list = exams || [];
         this.route.queryParams.subscribe((params) => {
           const paramExamId = params['examId'];
-          if (paramExamId && exams.some((e) => e.id === paramExamId)) {
+          if (paramExamId && list.some((e) => e?.id === paramExamId)) {
             this.selectExam(paramExamId);
-          } else if (exams.length > 0 && !this.selectedExamId()) {
-            this.selectExam(exams[0].id);
+          } else if (list.length > 0 && !this.selectedExamId()) {
+            this.selectExam(list[0].id);
           }
         });
       },
@@ -191,8 +195,9 @@ export class ExaminationsFeatureScheduling implements OnInit {
 
     this.scheduleService.listSchedules(examId, 0, 50).subscribe({
       next: (list) => {
-        if (list.length > 0 && !this.selectedSchedule()) {
-          this.selectSchedule(list[0]);
+        const items = list || [];
+        if (items.length > 0 && !this.selectedSchedule()) {
+          this.selectSchedule(items[0]);
         }
       },
       error: (err) => {
@@ -207,7 +212,9 @@ export class ExaminationsFeatureScheduling implements OnInit {
 
   selectSchedule(schedule: ScheduleResponse): void {
     this.selectedSchedule.set(schedule);
-    this.loadShifts(schedule.id);
+    if (schedule?.id) {
+      this.loadShifts(schedule.id);
+    }
   }
 
   loadShifts(scheduleId: string): void {
@@ -216,8 +223,9 @@ export class ExaminationsFeatureScheduling implements OnInit {
 
     this.scheduleService.listShifts(examId, scheduleId).subscribe({
       next: (shifts) => {
-        if (shifts.length > 0 && !this.selectedShift()) {
-          this.selectedShift.set(shifts[0]);
+        const items = shifts || [];
+        if (items.length > 0 && !this.selectedShift()) {
+          this.selectedShift.set(items[0]);
         }
       },
       error: () => {},
@@ -273,14 +281,15 @@ export class ExaminationsFeatureScheduling implements OnInit {
   }
 
   // --- Approval Transition Workflow ---
-  getNextStatuses(status: string): string[] {
+  getNextStatuses(status?: string): string[] {
+    if (!status) return [];
     return this.nextStatusMap[status] || [];
   }
 
   openTransitionModal(schedule: ScheduleResponse, event?: Event): void {
     if (event) event.stopPropagation();
     this.selectedSchedule.set(schedule);
-    const available = this.getNextStatuses(schedule.status);
+    const available = this.getNextStatuses(schedule?.status);
     this.targetStatus = available[0] || '';
     this.transitionComment = '';
     this.showTransitionModal.set(true);
@@ -319,9 +328,9 @@ export class ExaminationsFeatureScheduling implements OnInit {
     if (event) event.stopPropagation();
     this.selectedSchedule.set(schedule);
     this.amendReason = '';
-    this.amendScheduleName = schedule.scheduleName;
+    this.amendScheduleName = schedule.scheduleName || '';
     this.amendNotificationNumber = schedule.notificationNumber || '';
-    this.amendExamDate = schedule.examDate;
+    this.amendExamDate = schedule.examDate || '';
     this.amendReserveDate = schedule.reserveDate || '';
     this.amendEffectiveFrom = new Date().toISOString();
     this.amendTimeZone = schedule.timeZone || 'Asia/Kolkata';
@@ -372,7 +381,8 @@ export class ExaminationsFeatureScheduling implements OnInit {
   // --- Shift Management ---
   openAddShift(): void {
     this.editingShiftId = null;
-    const nextNum = this.shifts().length + 1;
+    const currentShifts = this.shifts() || [];
+    const nextNum = currentShifts.length + 1;
     this.shiftNumber = nextNum;
     this.shiftName = `Shift ${nextNum} (${nextNum === 1 ? 'Morning' : nextNum === 2 ? 'Afternoon' : 'Evening'})`;
     this.reportingTime = nextNum === 1 ? '07:30:00' : '13:00:00';
@@ -390,14 +400,14 @@ export class ExaminationsFeatureScheduling implements OnInit {
     this.editingShiftId = shift.id;
     this.shiftNumber = shift.shiftNumber;
     this.shiftName = shift.shiftName || '';
-    this.reportingTime = shift.reportingTime;
-    this.gateClosingTime = shift.gateClosingTime;
-    this.loginStartTime = shift.loginStartTime;
-    this.examStartTime = shift.examStartTime;
-    this.examEndTime = shift.examEndTime;
+    this.reportingTime = shift.reportingTime || '07:30:00';
+    this.gateClosingTime = shift.gateClosingTime || '08:30:00';
+    this.loginStartTime = shift.loginStartTime || '08:45:00';
+    this.examStartTime = shift.examStartTime || '09:00:00';
+    this.examEndTime = shift.examEndTime || '12:00:00';
     this.exitTime = shift.exitTime || '';
-    this.durationMinutes = shift.durationMinutes;
-    this.bufferMinutes = shift.bufferMinutes;
+    this.durationMinutes = shift.durationMinutes || 180;
+    this.bufferMinutes = shift.bufferMinutes || 30;
     this.showShiftModal.set(true);
   }
 
@@ -458,7 +468,9 @@ export class ExaminationsFeatureScheduling implements OnInit {
   viewAllocations(shift: ShiftResponse): void {
     this.selectedShift.set(shift);
     this.currentTab.set('ALLOCATIONS');
-    this.loadAllocations(shift.id);
+    if (shift?.id) {
+      this.loadAllocations(shift.id);
+    }
   }
 
   loadAllocations(shiftId: string): void {
@@ -477,8 +489,9 @@ export class ExaminationsFeatureScheduling implements OnInit {
   }
 
   openAddAllocation(): void {
-    if (this.centres().length > 0 && !this.allocCentreId) {
-      this.allocCentreId = this.centres()[0].id;
+    const centreList = this.centres() || [];
+    if (centreList.length > 0 && !this.allocCentreId) {
+      this.allocCentreId = centreList[0].id;
     }
     this.allocTotalSeats = 250;
     this.allocAvailableSeats = 220;
@@ -529,7 +542,7 @@ export class ExaminationsFeatureScheduling implements OnInit {
   }
 
   getCentreName(centreId: string): string {
-    const c = this.centres().find((item) => item.id === centreId);
+    const c = (this.centres() || []).find((item) => item?.id === centreId);
     return c ? `${c.centreName} (${c.city}, ${c.state})` : centreId;
   }
 }

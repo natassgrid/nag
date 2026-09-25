@@ -78,35 +78,40 @@ export class AdminCentreManagementComponent implements OnInit {
   formActive = true;
 
   // Computed KPIs
-  readonly totalCentresCount = computed(() => this.centres().length);
+  readonly totalCentresCount = computed(() => (this.centres() || []).length);
   readonly totalCapacitySum = computed(() =>
-    this.centres().reduce((sum, c) => sum + (c.totalCapacity || 0), 0)
+    (this.centres() || []).reduce((sum, c) => sum + (c?.totalCapacity || 0), 0)
   );
   readonly activeCentresCount = computed(
-    () => this.centres().filter((c) => c.active !== false).length
+    () => (this.centres() || []).filter((c) => c?.active !== false).length
   );
   readonly uniqueStates = computed(() => {
-    const list = this.centres().map((c) => c.stateName || c.state).filter(Boolean);
+    const list = (this.centres() || [])
+      .map((c) => c?.stateName || c?.state)
+      .filter((s): s is string => !!s);
     return Array.from(new Set(list));
   });
 
   readonly filteredCentres = computed(() => {
+    const list = this.centres() || [];
     const q = this.searchQuery().toLowerCase().trim();
     const stFilter = this.stateFilter();
     const statusF = this.statusFilter();
 
-    return this.centres().filter((c) => {
+    return list.filter((c) => {
+      if (!c) return false;
       const matchSearch =
         !q ||
-        c.centreName.toLowerCase().includes(q) ||
-        c.city.toLowerCase().includes(q) ||
+        (c.centreName && c.centreName.toLowerCase().includes(q)) ||
+        (c.city && c.city.toLowerCase().includes(q)) ||
         (c.cityName && c.cityName.toLowerCase().includes(q)) ||
-        c.state.toLowerCase().includes(q) ||
+        (c.state && c.state.toLowerCase().includes(q)) ||
         (c.district && c.district.toLowerCase().includes(q));
 
+      const stateVal = c.stateName || c.state || '';
       const matchState =
         stFilter === 'ALL' ||
-        (c.stateName || c.state).toLowerCase() === stFilter.toLowerCase();
+        (stateVal && stateVal.toLowerCase() === stFilter.toLowerCase());
 
       const matchStatus =
         statusF === 'ALL' ||
@@ -137,11 +142,14 @@ export class AdminCentreManagementComponent implements OnInit {
   loadCountries(): void {
     this.geoService.getCountries().subscribe({
       next: (list) => {
-        this.countries.set(list);
-        if (list.length > 0 && !this.formCountryId) {
-          const india = list.find((c) => c.name.toLowerCase().includes('india')) || list[0];
-          this.formCountryId = india.id;
-          this.onCountryChange(india.id);
+        const items = list || [];
+        this.countries.set(items);
+        if (items.length > 0 && !this.formCountryId) {
+          const india = items.find((c) => c?.name && c.name.toLowerCase().includes('india')) || items[0];
+          if (india) {
+            this.formCountryId = india.id;
+            this.onCountryChange(india.id);
+          }
         }
       },
       error: () => {},
@@ -157,8 +165,9 @@ export class AdminCentreManagementComponent implements OnInit {
     this.formCityName = '';
 
     if (countryId) {
-      this.geoService.getStates(countryId).subscribe((states) => {
-        this.states.set(states);
+      this.geoService.getStates(countryId).subscribe({
+        next: (states) => this.states.set(states || []),
+        error: () => this.states.set([]),
       });
     }
   }
@@ -169,19 +178,20 @@ export class AdminCentreManagementComponent implements OnInit {
     this.formCityName = '';
 
     if (stateId) {
-      const selected = this.states().find((s) => s.id === stateId);
+      const selected = (this.states() || []).find((s) => s?.id === stateId);
       if (selected) {
         this.formStateName = selected.name;
       }
-      this.geoService.getCities(stateId).subscribe((cities) => {
-        this.cities.set(cities);
+      this.geoService.getCities(stateId).subscribe({
+        next: (cities) => this.cities.set(cities || []),
+        error: () => this.cities.set([]),
       });
     }
   }
 
   onCityChange(cityId: number | null): void {
     if (cityId) {
-      const selected = this.cities().find((c) => c.id === cityId);
+      const selected = (this.cities() || []).find((c) => c?.id === cityId);
       if (selected) {
         this.formCityName = selected.name;
       }
@@ -191,10 +201,13 @@ export class AdminCentreManagementComponent implements OnInit {
   openCreate(): void {
     this.resetForm();
     this.drawerOpen.set(true);
-    if (this.countries().length > 0 && !this.formCountryId) {
-      const india = this.countries().find((c) => c.name.toLowerCase().includes('india')) || this.countries()[0];
-      this.formCountryId = india.id;
-      this.onCountryChange(india.id);
+    const countryList = this.countries() || [];
+    if (countryList.length > 0 && !this.formCountryId) {
+      const india = countryList.find((c) => c?.name && c.name.toLowerCase().includes('india')) || countryList[0];
+      if (india) {
+        this.formCountryId = india.id;
+        this.onCountryChange(india.id);
+      }
     }
   }
 

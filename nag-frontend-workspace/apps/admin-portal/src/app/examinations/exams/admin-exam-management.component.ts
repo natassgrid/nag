@@ -77,22 +77,24 @@ export class AdminExamManagementComponent implements OnInit {
   ];
 
   // Computed KPIs
-  readonly totalExamsCount = computed(() => this.exams().length);
+  readonly totalExamsCount = computed(() => (this.exams() || []).length);
   readonly publishedExamsCount = computed(
-    () => this.exams().filter((e) => e.status === 'PUBLISHED').length
+    () => (this.exams() || []).filter((e) => e?.status === 'PUBLISHED').length
   );
   readonly draftExamsCount = computed(
-    () => this.exams().filter((e) => e.status === 'DRAFT').length
+    () => (this.exams() || []).filter((e) => e?.status === 'DRAFT').length
   );
 
   readonly filteredExams = computed(() => {
+    const list = this.exams() || [];
     const q = this.searchQuery().toLowerCase().trim();
     const st = this.statusFilter();
 
-    return this.exams().filter((exam) => {
+    return list.filter((exam) => {
+      if (!exam) return false;
       const matchSearch =
         !q ||
-        exam.name.toLowerCase().includes(q) ||
+        (exam.name && exam.name.toLowerCase().includes(q)) ||
         (exam.code && exam.code.toLowerCase().includes(q)) ||
         (exam.conductingAuthority &&
           exam.conductingAuthority.toLowerCase().includes(q));
@@ -127,7 +129,7 @@ export class AdminExamManagementComponent implements OnInit {
 
   openEdit(exam: ExaminationResponse): void {
     this.editingExam.set(exam);
-    this.formName = exam.name;
+    this.formName = exam.name || '';
     this.formCode = exam.code || '';
     this.formAuthority = exam.conductingAuthority || '';
     this.formCategory = exam.category || '';
