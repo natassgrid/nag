@@ -1,0 +1,502 @@
+<div class="subject-mgmt-container p-6 max-w-7xl mx-auto space-y-6">
+  <!-- Page Header Banner -->
+  <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-6 rounded-2xl border border-slate-200 shadow-xs">
+    <div class="flex items-center gap-4">
+      <div class="w-12 h-12 rounded-xl bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-600 shadow-xs">
+        <mat-icon class="!text-2xl leading-none">account_tree</mat-icon>
+      </div>
+      <div>
+        <h1 class="text-xl font-black text-slate-900 tracking-tight flex items-center gap-2">
+          <span>Subject & Taxonomy Management</span>
+          <span class="text-xs font-semibold px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-200">
+            DPI Hierarchy
+          </span>
+        </h1>
+        <p class="text-xs text-slate-500 font-medium mt-0.5">
+          Manage 3-tier taxonomy (Subject &rsaquo; Topic &rsaquo; Subtopic) for syllabus mapping, blueprints, and question bank categorization
+        </p>
+      </div>
+    </div>
+
+    <!-- Action Buttons -->
+    <div class="flex items-center gap-3">
+      <button
+        mat-stroked-button
+        (click)="loadHierarchy()"
+        [disabled]="loading()"
+        class="!text-slate-700 !border-slate-300"
+      >
+        <mat-icon>refresh</mat-icon>
+        Refresh
+      </button>
+      <button
+        mat-flat-button
+        color="primary"
+        (click)="showAddSubject.set(!showAddSubject())"
+      >
+        <mat-icon>{{ showAddSubject() ? 'close' : 'add' }}</mat-icon>
+        {{ showAddSubject() ? 'Cancel' : 'New Subject' }}
+      </button>
+    </div>
+  </div>
+
+  <!-- Metric Quick Stats & Search Bar -->
+  <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+    <div class="bg-white p-4 rounded-xl border border-slate-200 flex items-center justify-between shadow-xs">
+      <div>
+        <span class="text-xs font-bold text-slate-400 uppercase tracking-wider block">Subjects</span>
+        <span class="text-2xl font-black text-slate-900">{{ totalSubjects() }}</span>
+      </div>
+      <div class="w-10 h-10 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center">
+        <mat-icon>menu_book</mat-icon>
+      </div>
+    </div>
+
+    <div class="bg-white p-4 rounded-xl border border-slate-200 flex items-center justify-between shadow-xs">
+      <div>
+        <span class="text-xs font-bold text-slate-400 uppercase tracking-wider block">Topics</span>
+        <span class="text-2xl font-black text-slate-900">{{ totalTopics() }}</span>
+      </div>
+      <div class="w-10 h-10 rounded-lg bg-purple-50 text-purple-600 flex items-center justify-center">
+        <mat-icon>topic</mat-icon>
+      </div>
+    </div>
+
+    <div class="bg-white p-4 rounded-xl border border-slate-200 flex items-center justify-between shadow-xs">
+      <div>
+        <span class="text-xs font-bold text-slate-400 uppercase tracking-wider block">Subtopics</span>
+        <span class="text-2xl font-black text-slate-900">{{ totalSubtopics() }}</span>
+      </div>
+      <div class="w-10 h-10 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center">
+        <mat-icon>label</mat-icon>
+      </div>
+    </div>
+
+    <!-- Search / Filter Input -->
+    <div class="bg-white p-3 rounded-xl border border-slate-200 flex items-center gap-2 shadow-xs">
+      <mat-icon class="text-slate-400">search</mat-icon>
+      <input
+        type="text"
+        [(ngModel)]="searchQuery"
+        placeholder="Filter subjects, topics, subtopics..."
+        class="w-full text-xs text-slate-800 placeholder:text-slate-400 focus:outline-none font-medium"
+      />
+      @if (searchQuery().trim()) {
+        <button
+          type="button"
+          (click)="searchQuery.set('')"
+          class="text-slate-400 hover:text-slate-600"
+        >
+          <mat-icon class="!text-sm">close</mat-icon>
+        </button>
+      }
+    </div>
+  </div>
+
+  <!-- Create New Subject Panel (Collapsible) -->
+  @if (showAddSubject()) {
+    <div class="bg-indigo-50/70 border-2 border-indigo-200 rounded-2xl p-6 space-y-4 shadow-sm transition-all animate-fadeIn">
+      <div class="flex items-center justify-between border-b border-indigo-100 pb-3">
+        <div class="flex items-center gap-2">
+          <mat-icon class="text-indigo-600">add_circle</mat-icon>
+          <h2 class="text-sm font-bold text-indigo-950 uppercase tracking-wide">
+            Add New Academic Subject
+          </h2>
+        </div>
+        <button
+          type="button"
+          (click)="showAddSubject.set(false)"
+          class="text-slate-400 hover:text-slate-600"
+        >
+          <mat-icon class="!text-sm">close</mat-icon>
+        </button>
+      </div>
+
+      <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div class="sm:col-span-2">
+          <label for="new-subj-name" class="block text-xs font-semibold text-slate-700 uppercase mb-1">
+            Subject Name *
+          </label>
+          <input
+            id="new-subj-name"
+            type="text"
+            [(ngModel)]="newSubjectName"
+            placeholder="e.g. Advanced Physics & Quantum Optics"
+            class="w-full px-3 py-2 text-sm bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 font-medium"
+          />
+        </div>
+
+        <div>
+          <label for="new-subj-code" class="block text-xs font-semibold text-slate-700 uppercase mb-1">
+            Subject Code (Optional)
+          </label>
+          <input
+            id="new-subj-code"
+            type="text"
+            [(ngModel)]="newSubjectCode"
+            placeholder="e.g. PHY-301"
+            class="w-full px-3 py-2 text-sm bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 font-mono font-medium"
+          />
+        </div>
+
+        <div class="sm:col-span-3">
+          <label for="new-subj-desc" class="block text-xs font-semibold text-slate-700 uppercase mb-1">
+            Curriculum Description / Scope
+          </label>
+          <input
+            id="new-subj-desc"
+            type="text"
+            [(ngModel)]="newSubjectDescription"
+            placeholder="e.g. Core curriculum covering semiconductor physics, wave mechanics, and optics."
+            class="w-full px-3 py-2 text-sm bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 font-medium"
+          />
+        </div>
+      </div>
+
+      <div class="flex justify-end gap-3 pt-2">
+        <button
+          mat-stroked-button
+          (click)="showAddSubject.set(false)"
+          class="!text-slate-600"
+        >
+          Cancel
+        </button>
+        <button
+          mat-flat-button
+          color="primary"
+          [disabled]="creating() || !newSubjectName.trim()"
+          (click)="createSubject()"
+        >
+          <mat-icon>save</mat-icon>
+          {{ creating() ? 'Creating...' : 'Save Subject' }}
+        </button>
+      </div>
+    </div>
+  }
+
+  <!-- Tree View Controls Header -->
+  <div class="flex items-center justify-between pt-2">
+    <span class="text-xs font-bold text-slate-500 uppercase tracking-wider">
+      Taxonomy Hierarchy Tree ({{ filteredHierarchy().length }} Subjects)
+    </span>
+    <div class="flex items-center gap-2">
+      <button
+        type="button"
+        (click)="expandAll()"
+        class="text-xs font-semibold text-indigo-600 hover:text-indigo-800 flex items-center gap-1"
+      >
+        <mat-icon class="!text-sm">unfold_more</mat-icon>
+        Expand All
+      </button>
+      <span class="text-slate-300">|</span>
+      <button
+        type="button"
+        (click)="collapseAll()"
+        class="text-xs font-semibold text-indigo-600 hover:text-indigo-800 flex items-center gap-1"
+      >
+        <mat-icon class="!text-sm">unfold_less</mat-icon>
+        Collapse All
+      </button>
+    </div>
+  </div>
+
+  <!-- Loading State -->
+  @if (loading()) {
+    <div class="p-12 bg-white rounded-2xl border border-slate-200 text-center space-y-3">
+      <mat-spinner diameter="40" class="mx-auto"></mat-spinner>
+      <p class="text-sm font-medium text-slate-500">Loading Subject Hierarchy & Syllabus Tree...</p>
+    </div>
+  }
+
+  <!-- Empty State -->
+  @if (!loading() && filteredHierarchy().length === 0) {
+    <div class="p-12 bg-white rounded-2xl border border-dashed border-slate-300 text-center space-y-3">
+      <mat-icon class="!text-4xl text-slate-300 leading-none">account_tree</mat-icon>
+      <h3 class="text-base font-bold text-slate-800">No Subjects Found</h3>
+      <p class="text-xs text-slate-500 max-w-md mx-auto">
+        {{ searchQuery() ? 'No taxonomy nodes matched your search term.' : 'Get started by creating your first academic subject.' }}
+      </p>
+      @if (!searchQuery()) {
+        <button
+          mat-flat-button
+          color="primary"
+          (click)="showAddSubject.set(true)"
+          class="mt-2"
+        >
+          <mat-icon>add</mat-icon>
+          Create First Subject
+        </button>
+      }
+    </div>
+  }
+
+  <!-- Subjects Accordion / List -->
+  @if (!loading() && filteredHierarchy().length > 0) {
+    <div class="space-y-4">
+      @for (subject of filteredHierarchy(); track subject.id) {
+        <div class="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-xs custom-card">
+          <!-- Subject Card Header -->
+          <div
+            class="p-5 flex items-center justify-between cursor-pointer select-none transition-colors hover:bg-slate-50/80"
+            (click)="toggleSubject(subject.id)"
+          >
+            <div class="flex items-center gap-3">
+              <div class="w-9 h-9 rounded-xl bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-600">
+                <mat-icon class="!text-lg">menu_book</mat-icon>
+              </div>
+              <div>
+                <div class="flex items-center gap-2">
+                  <h3 class="text-base font-black text-slate-900">
+                    {{ subject.name }}
+                  </h3>
+                  @if (subject.code) {
+                    <span class="text-[11px] font-mono font-bold px-2 py-0.5 rounded bg-slate-100 text-slate-700 border border-slate-200">
+                      {{ subject.code }}
+                    </span>
+                  }
+                </div>
+                @if (subject.description) {
+                  <p class="text-xs text-slate-500 mt-0.5 line-clamp-1">
+                    {{ subject.description }}
+                  </p>
+                }
+              </div>
+            </div>
+
+            <div class="flex items-center gap-3">
+              <span class="text-xs font-semibold px-2.5 py-1 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-200">
+                {{ subject.topics.length }} Topic(s)
+              </span>
+
+              <button
+                type="button"
+                (click)="$event.stopPropagation(); openAddTopic(subject.id)"
+                class="px-2.5 py-1 bg-white hover:bg-slate-100 border border-slate-300 rounded-lg text-xs font-bold text-indigo-600 flex items-center gap-1 transition-all"
+                title="Add Topic under this Subject"
+              >
+                <mat-icon class="!text-xs">add</mat-icon>
+                Add Topic
+              </button>
+
+              <mat-icon class="text-slate-400 transition-transform duration-200" [class.rotate-180]="isSubjectExpanded(subject.id)">
+                expand_more
+              </mat-icon>
+            </div>
+          </div>
+
+          <!-- Subject Body: Topics & Subtopics -->
+          @if (isSubjectExpanded(subject.id)) {
+            <div class="border-t border-slate-200 p-5 bg-slate-50/50 space-y-4">
+              <!-- Quick Add Topic Form inside this Subject -->
+              @if (addingTopicSubjectId() === subject.id) {
+                <div class="bg-purple-50 border border-purple-200 rounded-xl p-4 space-y-3">
+                  <div class="flex items-center justify-between">
+                    <span class="text-xs font-bold text-purple-900 uppercase">
+                      Add New Topic to {{ subject.name }}
+                    </span>
+                    <button
+                      type="button"
+                      (click)="closeAddTopic()"
+                      class="text-slate-400 hover:text-slate-600"
+                    >
+                      <mat-icon class="!text-sm">close</mat-icon>
+                    </button>
+                  </div>
+
+                  <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label [for]="'topic-name-' + subject.id" class="block text-[11px] font-semibold text-slate-700 uppercase mb-1">
+                        Topic Name *
+                      </label>
+                      <input
+                        [id]="'topic-name-' + subject.id"
+                        type="text"
+                        [(ngModel)]="newTopicName"
+                        placeholder="e.g. Thermodynamics & Heat Transfer"
+                        class="w-full px-3 py-1.5 text-xs bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 font-medium"
+                      />
+                    </div>
+                    <div>
+                      <label [for]="'topic-desc-' + subject.id" class="block text-[11px] font-semibold text-slate-700 uppercase mb-1">
+                        Topic Description
+                      </label>
+                      <input
+                        [id]="'topic-desc-' + subject.id"
+                        type="text"
+                        [(ngModel)]="newTopicDescription"
+                        placeholder="e.g. Laws of thermodynamics, entropy, and heat engines."
+                        class="w-full px-3 py-1.5 text-xs bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 font-medium"
+                      />
+                    </div>
+                  </div>
+
+                  <div class="flex justify-end gap-2">
+                    <button
+                      type="button"
+                      (click)="closeAddTopic()"
+                      class="px-3 py-1 text-xs text-slate-600 hover:text-slate-900"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="button"
+                      [disabled]="creating() || !newTopicName.trim()"
+                      (click)="createTopic(subject.id)"
+                      class="px-3 py-1 bg-purple-600 hover:bg-purple-700 disabled:opacity-50 text-white text-xs font-bold rounded-lg"
+                    >
+                      {{ creating() ? 'Saving...' : 'Add Topic' }}
+                    </button>
+                  </div>
+                </div>
+              }
+
+              <!-- Empty Topics Notice -->
+              @if (!subject.topics || subject.topics.length === 0) {
+                <div class="p-6 bg-white rounded-xl border border-dashed border-slate-300 text-center space-y-2">
+                  <p class="text-xs text-slate-500 font-medium">
+                    No topics created under this subject yet.
+                  </p>
+                  <button
+                    type="button"
+                    (click)="openAddTopic(subject.id)"
+                    class="text-xs font-bold text-indigo-600 hover:text-indigo-800"
+                  >
+                    + Add the first topic
+                  </button>
+                </div>
+              }
+
+              <!-- Topics List / Accordion -->
+              @if (subject.topics && subject.topics.length > 0) {
+                <div class="space-y-3">
+                  @for (topic of subject.topics; track topic.id) {
+                    <div class="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-2xs">
+                      <!-- Topic Header -->
+                      <div
+                        class="p-3.5 flex items-center justify-between cursor-pointer select-none hover:bg-slate-50"
+                        (click)="toggleTopic(topic.id)"
+                      >
+                        <div class="flex items-center gap-2.5">
+                          <div class="w-7 h-7 rounded-lg bg-purple-50 border border-purple-100 flex items-center justify-center text-purple-600">
+                            <mat-icon class="!text-sm">topic</mat-icon>
+                          </div>
+                          <div>
+                            <span class="text-sm font-bold text-slate-800">
+                              {{ topic.name }}
+                            </span>
+                            @if (topic.description) {
+                              <span class="text-xs text-slate-400 font-normal ml-2">
+                                — {{ topic.description }}
+                              </span>
+                            }
+                          </div>
+                        </div>
+
+                        <div class="flex items-center gap-2.5">
+                          <span class="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-purple-50 text-purple-700 border border-purple-200">
+                            {{ topic.subtopics.length }} Subtopic(s)
+                          </span>
+
+                          <button
+                            type="button"
+                            (click)="$event.stopPropagation(); openAddSubtopic(topic.id)"
+                            class="px-2 py-0.5 bg-white hover:bg-slate-100 border border-slate-300 rounded text-[11px] font-bold text-purple-600 flex items-center gap-0.5 transition-all"
+                            title="Add Subtopic"
+                          >
+                            <mat-icon class="!text-[10px]">add</mat-icon>
+                            Subtopic
+                          </button>
+
+                          <mat-icon class="text-slate-400 !text-base transition-transform duration-200" [class.rotate-180]="isTopicExpanded(topic.id)">
+                            expand_more
+                          </mat-icon>
+                        </div>
+                      </div>
+
+                      <!-- Topic Body: Subtopics -->
+                      @if (isTopicExpanded(topic.id)) {
+                        <div class="border-t border-slate-100 p-3.5 bg-slate-50/80 space-y-3">
+                          <!-- Quick Add Subtopic Form inside this Topic -->
+                          @if (addingSubtopicTopicId() === topic.id) {
+                            <div class="bg-emerald-50 border border-emerald-200 rounded-lg p-3 space-y-2">
+                              <div class="flex items-center justify-between">
+                                <span class="text-[11px] font-bold text-emerald-900 uppercase">
+                                  Add Subtopic to {{ topic.name }}
+                                </span>
+                                <button
+                                  type="button"
+                                  (click)="closeAddSubtopic()"
+                                  class="text-slate-400 hover:text-slate-600"
+                                >
+                                  <mat-icon class="!text-xs">close</mat-icon>
+                                </button>
+                              </div>
+
+                              <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                <input
+                                  type="text"
+                                  [(ngModel)]="newSubtopicName"
+                                  placeholder="Subtopic Name (e.g. Carnot Cycle & Efficiency)..."
+                                  class="px-2.5 py-1 text-xs bg-white border border-slate-300 rounded focus:outline-none focus:ring-2 focus:ring-emerald-500 font-medium"
+                                />
+                                <input
+                                  type="text"
+                                  [(ngModel)]="newSubtopicDescription"
+                                  placeholder="Subtopic Description (Optional)..."
+                                  class="px-2.5 py-1 text-xs bg-white border border-slate-300 rounded focus:outline-none focus:ring-2 focus:ring-emerald-500 font-medium"
+                                />
+                              </div>
+
+                              <div class="flex justify-end gap-2">
+                                <button
+                                  type="button"
+                                  (click)="closeAddSubtopic()"
+                                  class="px-2 py-0.5 text-xs text-slate-600 hover:text-slate-900"
+                                >
+                                  Cancel
+                                </button>
+                                <button
+                                  type="button"
+                                  [disabled]="creating() || !newSubtopicName.trim()"
+                                  (click)="createSubtopic(subject.id, topic.id)"
+                                  class="px-2.5 py-0.5 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white text-xs font-bold rounded"
+                                >
+                                  {{ creating() ? 'Saving...' : 'Add Subtopic' }}
+                                </button>
+                              </div>
+                            </div>
+                          }
+
+                          <!-- Subtopics Chips / Grid -->
+                          @if (!topic.subtopics || topic.subtopics.length === 0) {
+                            <p class="text-xs text-slate-400 italic">
+                              No subtopics under this topic yet.
+                            </p>
+                          }
+
+                          @if (topic.subtopics && topic.subtopics.length > 0) {
+                            <div class="flex flex-wrap gap-2">
+                              @for (st of topic.subtopics; track st.id) {
+                                <div
+                                  class="inline-flex items-center gap-1.5 px-2.5 py-1 bg-white border border-slate-200 rounded-lg text-xs font-medium text-slate-800 shadow-2xs"
+                                  [matTooltip]="st.description || ''"
+                                >
+                                  <mat-icon class="!text-xs text-emerald-600">label</mat-icon>
+                                  <span>{{ st.name }}</span>
+                                </div>
+                              }
+                            </div>
+                          }
+                        </div>
+                      }
+                    </div>
+                  }
+                </div>
+              }
+            </div>
+          }
+        </div>
+      }
+    </div>
+  }
+</div>

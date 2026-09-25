@@ -39,6 +39,19 @@ export const appRoutes: Route[] = [
       ),
   },
   {
+    path: 'questions/taxonomy',
+    canActivate: [authGuard],
+    loadComponent: () =>
+      import('./questions/taxonomy/admin-subject-management.component').then(
+        (m) => m.AdminSubjectManagementComponent
+      ),
+  },
+  {
+    path: 'questions/subjects',
+    redirectTo: 'questions/taxonomy',
+    pathMatch: 'full',
+  },
+  {
     path: 'questions/ai-generate',
     canActivate: [authGuard],
     loadComponent: () =>
@@ -119,15 +132,7 @@ export const appRoutes: Route[] = [
       ),
   },
   {
-    path: 'settings',
-    canActivate: [authGuard],
-    loadComponent: () =>
-      import('./settings/admin-settings.component').then(
-        (m) => m.AdminSettingsComponent
-      ),
-  },
-  {
     path: '**',
-    redirectTo: 'dashboard',
+    redirectTo: '',
   },
 ];
