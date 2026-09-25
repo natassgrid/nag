@@ -23,7 +23,31 @@
    - Always emit genuine whitespace line breaks in multiline code structures.
    - Always inspect `git diff` to verify no escaped `\n` sequences were injected into source code.
 
-4. **Frontend-Specific Preservation Rules**:
+4. **Frontend Root Layout & Shell Integrity Guards (CRITICAL)**:
+   - **Root Layout Protection (`app.html`, `app.component.html`, `main-layout.component.html`)**:
+     - **`<router-outlet>` is MANDATORY**: Never omit, delete, or comment out `<router-outlet></router-outlet>`. Without this tag, routed child pages will not render and the application will appear broken or blank.
+     - **Full Navigation Shell Preservation**: When adding or updating links in navigation menus, you MUST preserve the entire header structure, brand logo, user profile/logout controls, and **ALL sibling menu categories** (e.g., Dashboard, Question Bank, Examinations, Administration).
+     - **Isolated Diff Verification**: Always run `git diff <layout-file>` immediately after editing. Ensure that the diff ONLY affects the intended sub-menu items and that all opening/closing tags (`<header>`, `<nav>`, `<main>`, `<div>`) remain balanced and intact.
+
+5. **Component Signal & Template Null-Safety Guards**:
+   - **Reactive Computed Signals (`computed()`)**:
+     - NEVER call methods like `.toLowerCase()`, `.trim()`, `.includes()`, `.slice()`, or `.reduce()` directly on object properties that may be `null` or `undefined` (e.g., `item.name.toLowerCase()`).
+     - ALWAYS use optional chaining and defensive defaults:
+       ```typescript
+       readonly filteredItems = computed(() => {
+         const list = this.items() || [];
+         const q = this.searchQuery().toLowerCase().trim();
+         return list.filter(item => {
+           if (!item) return false;
+           return !q || (item.name && item.name.toLowerCase().includes(q));
+         });
+       });
+       ```
+     - Guard all computed KPI aggregates against empty arrays (e.g., `(this.items() || []).length`).
+   - **Template Null Safety**:
+     - When iterating over collections in Angular control flow (`@for (item of items(); track item.id)`), ensure inputs are non-null and safely handle optional nested fields using optional chaining (`item.section?.length`) or null-safe fallbacks.
+
+6. **Frontend-Specific Preservation Rules**:
    - **HTML Templates (`*.component.html`, `*.html`, `*.tsx`, `*.jsx`)**:
      - NEVER output only the inner child elements, updated form rows, or newly added modal/drawer tags.
      - ALWAYS preserve the full document structure: `<div class="page-layout">`, `<app-page-header>`, main table/cards container, `<app-paginated-table>`, action templates (`<ng-template #actionsTmpl>`), result banners, and all existing drawer/dialog components.
@@ -34,14 +58,20 @@
      - NEVER replace a component with just the new methods.
      - ALWAYS retain all existing imports, class properties, `@ViewChild` refs, lifecycle hooks (`ngOnInit`, `ngOnChanges`), constructor injections, and helper functions.
 
-5. **Mandatory Immediate `git diff` Verification**:
+7. **Mandatory Immediate `git diff` Verification**:
    - After writing to any file, IMMEDIATELY run `git diff <path>` to review the line-by-line diff.
    - If any unintended deletions, wiped sections, or missing template blocks are detected, restore and correct them immediately before proceeding.
 
-6. **Mandatory Post-Task Verification & Production Docker Builds (ALWAYS `--no-cache`)**:
+8. **Mandatory Post-Task Verification & Workspace Builds**:
    - Run `git status` prior to completing any task or reporting back to ensure no files were corrupted or accidentally overwritten.
-   - Run local build checks (`npm run build -- --configuration production` in `frontend/`, `npm run build` in `candidate-frontend/`, or Gradle compile) to verify the code compiles cleanly with 0 errors.
-   - **MANDATORY DOCKER BUILDS WITH `--no-cache`**: After task completion, ALWAYS execute clean Docker builds with `--no-cache` to ensure cached layers do not mask stale assets, missing files, or broken import paths:
+   - For `nag-frontend-workspace`, verify builds with:
+     ```bash
+     npx nx run-many -t build --skip-nx-cache
+     ```
+   - For legacy frontend projects:
+     - Angular: `npm run build -- --configuration production` in `frontend/`
+     - Vite/React: `npm run build` in `candidate-frontend/`
+   - **MANDATORY DOCKER BUILDS WITH `--no-cache`**: When performing docker-based verification, ALWAYS execute clean Docker builds with `--no-cache` to ensure cached layers do not mask stale assets, missing files, or broken import paths:
      1. **Angular Admin UI**: `docker build --no-cache -t exam-frontend:latest ./frontend`
      2. **React Candidate Engine**: `docker build --no-cache -t candidate-frontend:latest ./candidate-frontend`
      3. **Backend Monolith / Service**: `docker build --no-cache -f backend/Dockerfile -t exam-monolith:latest ./backend` (when backend code changed).
@@ -165,8 +195,12 @@ II. System $$\Psi$$ is not capable of executing Shor's algorithm for large integ
    - Primary: Use IntelliJ IDEA MCP `build_project` tool (`idea` server) for immediate compilation feedback and IDE index sync.
    - Terminal: Use WSL Ubuntu-24.04 (`wsl -d Ubuntu-24.04 -e bash -lic "cd /mnt/c/Users/sheel/IdeaProjects/nag && ./gradlew ..."`).
 
-2. **Frontend Builds (`frontend` - Angular & `candidate-frontend` - Vite/React)**:
-   - Always run through WSL Ubuntu 24.04 or native terminal:
+2. **Frontend Builds (`nag-frontend-workspace`, `frontend` - Angular & `candidate-frontend` - Vite/React)**:
+   - For `nag-frontend-workspace`:
+     ```bash
+     npx nx run-many -t build --skip-nx-cache
+     ```
+   - Legacy frontend projects:
      - Angular: `cd frontend && npm run build -- --configuration production` (or via WSL)
      - Vite/React: `cd candidate-frontend && npm run build` (or via WSL)
 
