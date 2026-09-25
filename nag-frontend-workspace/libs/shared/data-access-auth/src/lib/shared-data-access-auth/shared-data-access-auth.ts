@@ -13,7 +13,7 @@ import {
   HttpErrorResponse,
 } from '@angular/common/http';
 import { Router, CanActivateFn, UrlTree } from '@angular/router';
-import { Observable, throwError, of } from 'rxjs';
+import { Observable, throwError } from 'rxjs';
 import { catchError, map, tap, switchMap, finalize, shareReplay } from 'rxjs/operators';
 
 export interface UserToken {
@@ -192,7 +192,11 @@ export class AuthService {
         .pipe(
           finalize(() => {
             this.clearTokens();
-            this.router.navigate(['/login']);
+            if (typeof window !== 'undefined' && !window.location.pathname.includes('/login')) {
+              window.location.href = '/login';
+            } else {
+              this.router.navigate(['/login']);
+            }
           })
         )
         .subscribe({
@@ -202,7 +206,11 @@ export class AuthService {
         });
     } else {
       this.clearTokens();
-      this.router.navigate(['/login']);
+      if (typeof window !== 'undefined' && !window.location.pathname.includes('/login')) {
+        window.location.href = '/login';
+      } else {
+        this.router.navigate(['/login']);
+      }
     }
   }
 
@@ -288,7 +296,7 @@ export class AuthService {
 
 /**
  * Functional HTTP Interceptor for adding Authorization Bearer & X-Tenant-Id headers
- * and handling automatic 401 token refresh.
+ * and handling automatic 401 token refresh or redirect to login.
  */
 export const authInterceptor: HttpInterceptorFn = (
   req: HttpRequest<unknown>,
@@ -297,6 +305,17 @@ export const authInterceptor: HttpInterceptorFn = (
   const authService = inject(AuthService);
   const router = inject(Router);
   const token = authService.getToken();
+
+  const redirectToLogin = () => {
+    authService.clearTokens();
+    if (typeof window !== 'undefined') {
+      if (!window.location.pathname.includes('/login')) {
+        window.location.href = '/login';
+      }
+    } else {
+      router.navigate(['/login']);
+    }
+  };
 
   const setHeaders: Record<string, string> = {};
   if (token && !req.headers.has('Authorization')) {
@@ -312,12 +331,34 @@ export const authInterceptor: HttpInterceptorFn = (
 
   return next(modifiedReq).pipe(
     catchError((error: HttpErrorResponse) => {
-      // Do not attempt token refresh for auth token requests or logout requests
+      // 1. If 401 occurs during initial login credential submission, let component display invalid credentials message
       if (
         error.status === 401 &&
-        !req.url.includes('/auth/token') &&
-        !req.url.includes('/auth/logout')
+        (req.url.endsWith('/auth/token') || req.url.includes('/auth/token?'))
       ) {
+        return throwError(() => error);
+      }
+
+      // 2. If 401 occurs during token refresh or logout, immediately clear tokens and redirect to login
+      if (
+        error.status === 401 &&
+        (req.url.includes('/auth/token/refresh') || req.url.includes('/auth/logout'))
+      ) {
+        redirectToLogin();
+        return throwError(() => error);
+      }
+
+      // 3. For any other API call returning 401:
+      if (error.status === 401) {
+        const refreshToken = authService.getRefreshToken();
+
+        // If no refresh token exists, immediately move to login
+        if (!refreshToken) {
+          redirectToLogin();
+          return throwError(() => error);
+        }
+
+        // If refresh token exists, attempt refresh
         return authService.refreshToken().pipe(
           switchMap((newToken) => {
             if (newToken?.accessToken) {
@@ -329,19 +370,14 @@ export const authInterceptor: HttpInterceptorFn = (
               });
               return next(retryReq);
             }
+            redirectToLogin();
             return throwError(() => error);
           }),
           catchError((refreshErr) => {
-            authService.clearTokens();
-            router.navigate(['/login']);
+            redirectToLogin();
             return throwError(() => refreshErr);
           })
         );
-      }
-
-      if (error.status === 401 && req.url.includes('/auth/logout')) {
-        authService.clearTokens();
-        router.navigate(['/login']);
       }
 
       return throwError(() => error);
