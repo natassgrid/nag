@@ -1,52 +1,46 @@
 import {
   Injectable,
-  computed,
   inject,
   signal,
+  computed,
 } from '@angular/core';
 import {
   HttpClient,
   HttpInterceptorFn,
   HttpRequest,
   HttpHandlerFn,
-  HttpErrorResponse,
   HttpEvent,
+  HttpErrorResponse,
 } from '@angular/common/http';
 import { Router, CanActivateFn } from '@angular/router';
-import { Observable, catchError, finalize, map, shareReplay, switchMap, tap, throwError } from 'rxjs';
+import { Observable, throwError, of } from 'rxjs';
+import { catchError, map, tap, switchMap, finalize, shareReplay } from 'rxjs/operators';
 
 export interface UserToken {
   accessToken: string;
-  refreshToken: string;
-  expiresIn: number;
-  roles: string[];
-  userId: string;
+  refreshToken?: string;
+  expiresIn?: number;
+  tokenType?: string;
+  roles?: string[];
+  userId?: string;
 }
 
 export interface AuthUser {
   userId: string;
-  userName: string;
+  username: string;
   roles: string[];
-  email?: string;
-  tenantId?: string;
 }
 
 export interface TotpSetupData {
-  secret: string;
-  otpauthUri: string;
-  issuer: string;
-  username: string;
-  backupCodes: string[];
+  secretKey: string;
+  qrCodeUrl: string;
 }
 
 export interface ValidateInviteData {
-  valid: boolean;
+  invitationId: string;
   email: string;
   fullName: string;
-  roles: string[];
-  tenantId: string;
-  expiresAt: string;
-  message: string;
+  assignedRoles: string[];
 }
 
 @Injectable({
@@ -56,17 +50,26 @@ export class AuthService {
   private readonly http = inject(HttpClient);
   private readonly router = inject(Router);
 
-  private readonly TOKEN_KEY = 'exam_access_token';
-  private readonly REFRESH_KEY = 'exam_refresh_token';
-  private readonly USER_KEY = 'exam_user';
-  private readonly TENANT_KEY = 'exam_tenant_id';
+  private readonly TOKEN_KEY = 'nag_access_token';
+  private readonly REFRESH_TOKEN_KEY = 'nag_refresh_token';
+  private readonly USER_KEY = 'nag_auth_user';
+  private readonly TENANT_KEY = 'nag_tenant_id';
 
-  readonly isAuthenticated = signal<boolean>(this.checkInitialAuth());
   readonly currentUser = signal<AuthUser | null>(this.getInitialUser());
+  readonly isAuthenticated = signal<boolean>(this.checkInitialAuth());
   readonly userRoles = computed(() => this.currentUser()?.roles ?? []);
-  readonly userName = computed(() => this.currentUser()?.userName ?? 'Guest');
+  readonly userName = computed(() => this.currentUser()?.username ?? 'Guest');
 
   private refreshTokenInProgress$: Observable<UserToken> | null = null;
+
+  hasRole(role: string): boolean {
+    return this.userRoles().includes(role);
+  }
+
+  hasAnyRole(roles: string[]): boolean {
+    const current = this.userRoles();
+    return roles.some((r) => current.includes(r));
+  }
 
   getToken(): string | null {
     if (typeof localStorage === 'undefined') return null;
@@ -75,72 +78,53 @@ export class AuthService {
 
   getRefreshToken(): string | null {
     if (typeof localStorage === 'undefined') return null;
-    return localStorage.getItem(this.REFRESH_KEY);
+    return localStorage.getItem(this.REFRESH_TOKEN_KEY);
   }
 
   getTenantId(): string {
-    if (typeof localStorage !== 'undefined') {
-      const stored = localStorage.getItem(this.TENANT_KEY);
-      if (stored) return stored;
-    }
-    return this.currentUser()?.tenantId || 'default';
+    if (typeof localStorage === 'undefined') return 'default';
+    return localStorage.getItem(this.TENANT_KEY) || 'default';
   }
 
   setTenantId(tenantId: string): void {
     if (typeof localStorage !== 'undefined') {
       localStorage.setItem(this.TENANT_KEY, tenantId);
     }
-    const current = this.currentUser();
-    if (current) {
-      const updated = { ...current, tenantId };
-      this.currentUser.set(updated);
-      localStorage.setItem(this.USER_KEY, JSON.stringify(updated));
-    }
   }
 
-  hasRole(role: string): boolean {
-    return this.userRoles().includes(role);
-  }
+  storeTokens(token: UserToken, username?: string): void {
+    if (typeof localStorage === 'undefined') return;
 
-  hasAnyRole(roles: string[]): boolean {
-    const current = this.userRoles();
-    return roles.some((role) => current.includes(role));
-  }
-
-  storeTokens(tokenData: UserToken, fallbackUsername?: string): void {
-    if (typeof localStorage === 'undefined' || !tokenData?.accessToken) return;
-
-    localStorage.setItem(this.TOKEN_KEY, tokenData.accessToken);
-    if (tokenData.refreshToken) {
-      localStorage.setItem(this.REFRESH_KEY, tokenData.refreshToken);
+    if (token.accessToken) {
+      localStorage.setItem(this.TOKEN_KEY, token.accessToken);
+    }
+    if (token.refreshToken) {
+      localStorage.setItem(this.REFRESH_TOKEN_KEY, token.refreshToken);
     }
 
-    const payload = this.decodeJwtPayload(tokenData.accessToken);
-    const roles: string[] = payload?.realm_access?.roles || tokenData.roles || [];
-    const userId: string = payload?.sub || tokenData.userId || '';
+    const payload = token.accessToken
+      ? this.decodeJwtPayload(token.accessToken)
+      : null;
 
-    let userName = fallbackUsername || payload?.preferred_username || payload?.name || payload?.email || userId;
-    if (userName.includes('@')) {
-      userName = userName.split('@')[0];
-    }
-
-    const userObj: AuthUser = {
-      userId,
-      userName,
-      roles,
-      email: payload?.email,
-      tenantId: this.getTenantId(),
+    const user: AuthUser = {
+      userId: token.userId || payload?.sub || 'user-unknown',
+      username: username || payload?.preferred_username || payload?.sub || 'user',
+      roles:
+        token.roles ||
+        payload?.realm_access?.roles ||
+        payload?.roles ||
+        [],
     };
 
-    localStorage.setItem(this.USER_KEY, JSON.stringify(userObj));
-    this.currentUser.set(userObj);
+    localStorage.setItem(this.USER_KEY, JSON.stringify(user));
+    this.currentUser.set(user);
     this.isAuthenticated.set(true);
   }
 
   clearTokens(): void {
     if (typeof localStorage !== 'undefined') {
       localStorage.removeItem(this.TOKEN_KEY);
-      localStorage.removeItem(this.REFRESH_KEY);
+      localStorage.removeItem(this.REFRESH_TOKEN_KEY);
       localStorage.removeItem(this.USER_KEY);
     }
     this.currentUser.set(null);
@@ -195,16 +179,31 @@ export class AuthService {
   }
 
   logout(): void {
-    const user = this.currentUser();
-    if (user?.userId) {
-      this.http.delete('/api/v1/identity/auth/logout').subscribe({
-        error: () => {
-          /* ignore */
-        },
-      });
+    const token = this.getToken();
+    if (token) {
+      // Send DELETE /auth/logout while the token is still active
+      this.http
+        .delete('/api/v1/identity/auth/logout', {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'X-Tenant-Id': this.getTenantId(),
+          },
+        })
+        .pipe(
+          finalize(() => {
+            this.clearTokens();
+            this.router.navigate(['/login']);
+          })
+        )
+        .subscribe({
+          error: () => {
+            /* ignore network/backend errors on logout */
+          },
+        });
+    } else {
+      this.clearTokens();
+      this.router.navigate(['/login']);
     }
-    this.clearTokens();
-    this.router.navigate(['/login']);
   }
 
   verifyOtp(payload: {
@@ -233,20 +232,17 @@ export class AuthService {
   validateInvite(token: string): Observable<ValidateInviteData> {
     return this.http
       .get<{ data: ValidateInviteData }>(
-        `/api/v1/identity/admin/invite/validate?token=${encodeURIComponent(token)}`
+        `/api/v1/identity/invitations/validate?token=${encodeURIComponent(token)}`
       )
       .pipe(map((res) => res.data));
   }
 
   acceptInvite(payload: {
     token: string;
-    password: string;
-    totpSecret: string;
-    totpCode: string;
-    backupCodes?: string[];
+    password?: string;
   }): Observable<UserToken> {
     return this.http
-      .post<{ data: UserToken }>('/api/v1/identity/admin/invite/accept', payload)
+      .post<{ data: UserToken }>('/api/v1/identity/invitations/accept', payload)
       .pipe(
         map((res) => res.data),
         tap((token) => this.storeTokens(token))
@@ -316,7 +312,12 @@ export const authInterceptor: HttpInterceptorFn = (
 
   return next(modifiedReq).pipe(
     catchError((error: HttpErrorResponse) => {
-      if (error.status === 401 && !req.url.includes('/auth/token')) {
+      // Do not attempt token refresh for auth token requests or logout requests
+      if (
+        error.status === 401 &&
+        !req.url.includes('/auth/token') &&
+        !req.url.includes('/auth/logout')
+      ) {
         return authService.refreshToken().pipe(
           switchMap((newToken) => {
             if (newToken?.accessToken) {
@@ -337,6 +338,12 @@ export const authInterceptor: HttpInterceptorFn = (
           })
         );
       }
+
+      if (error.status === 401 && req.url.includes('/auth/logout')) {
+        authService.clearTokens();
+        router.navigate(['/login']);
+      }
+
       return throwError(() => error);
     })
   );
@@ -352,25 +359,7 @@ export const authGuard: CanActivateFn = () => {
   if (authService.isAuthenticated()) {
     return true;
   }
-  return router.createUrlTree(['/login']);
+
+  router.navigate(['/login']);
+  return false;
 };
-
-/**
- * Functional Role Guard factory for role-restricted routes.
- */
-export function roleGuard(allowedRoles: string[]): CanActivateFn {
-  return () => {
-    const authService = inject(AuthService);
-    const router = inject(Router);
-
-    if (!authService.isAuthenticated()) {
-      return router.createUrlTree(['/login']);
-    }
-
-    if (authService.hasAnyRole(allowedRoles)) {
-      return true;
-    }
-
-    return router.createUrlTree(['/unauthorized']);
-  };
-}
