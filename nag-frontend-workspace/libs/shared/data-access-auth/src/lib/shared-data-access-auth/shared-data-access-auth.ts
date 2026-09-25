@@ -259,7 +259,23 @@ export class AuthService {
 
   private checkInitialAuth(): boolean {
     if (typeof localStorage === 'undefined') return false;
-    return !!localStorage.getItem(this.TOKEN_KEY);
+    const token = localStorage.getItem(this.TOKEN_KEY);
+    if (!token) return false;
+
+    // Validate JWT structure and expiry
+    const payload = this.decodeJwtPayload(token);
+    if (!payload || !payload.exp) {
+      this.clearTokens();
+      return false;
+    }
+
+    const nowSec = Math.floor(Date.now() / 1000);
+    if (payload.exp <= nowSec) {
+      this.clearTokens();
+      return false;
+    }
+
+    return true;
   }
 
   private getInitialUser(): AuthUser | null {
@@ -397,5 +413,19 @@ export const authGuard: CanActivateFn = (): boolean | UrlTree => {
     return true;
   }
 
+  return router.createUrlTree(['/login']);
+};
+
+/**
+ * Functional Root Guard for root ('') and wildcard ('**') paths.
+ * Directly routes authenticated users to /dashboard and unauthenticated users to /login.
+ */
+export const rootGuard: CanActivateFn = (): UrlTree => {
+  const authService = inject(AuthService);
+  const router = inject(Router);
+
+  if (authService.isAuthenticated()) {
+    return router.createUrlTree(['/dashboard']);
+  }
   return router.createUrlTree(['/login']);
 };

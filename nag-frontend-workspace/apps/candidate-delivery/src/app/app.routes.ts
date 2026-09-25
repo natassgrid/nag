@@ -1,12 +1,13 @@
-import { inject } from '@angular/core';
 import { Route } from '@angular/router';
-import { AuthService, authGuard } from '@nag-frontend-workspace/shared-data-access-auth';
+import { authGuard, rootGuard } from '@nag-frontend-workspace/shared-data-access-auth';
 
 export const appRoutes: Route[] = [
   {
     path: '',
-    redirectTo: () => (inject(AuthService).isAuthenticated() ? 'dashboard' : 'login'),
     pathMatch: 'full',
+    canActivate: [rootGuard],
+    loadComponent: () =>
+      import('./auth/login.component').then((m) => m.LoginComponent),
   },
   {
     path: 'login',
@@ -73,6 +74,8 @@ export const appRoutes: Route[] = [
   },
   {
     path: '**',
-    redirectTo: () => (inject(AuthService).isAuthenticated() ? 'dashboard' : 'login'),
+    canActivate: [rootGuard],
+    loadComponent: () =>
+      import('./auth/login.component').then((m) => m.LoginComponent),
   },
 ];
