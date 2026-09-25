@@ -1,0 +1,142 @@
+<!-- Loading State -->
+@if (loading()) {
+  <div class="p-12 bg-white rounded-2xl border border-slate-200 text-center space-y-3">
+    <mat-spinner diameter="40" class="mx-auto"></mat-spinner>
+    <p class="text-sm font-medium text-slate-500">Loading examinations from DPI ledger...</p>
+  </div>
+}
+
+<!-- Empty State -->
+@if (!loading() && exams().length === 0) {
+  <div class="p-12 bg-white rounded-2xl border border-dashed border-slate-300 text-center space-y-3">
+    <mat-icon class="!text-4xl text-slate-300 leading-none">assignment_late</mat-icon>
+    <h3 class="text-base font-bold text-slate-800">No Examinations Found</h3>
+    <p class="text-xs text-slate-500 max-w-md mx-auto">
+      {{ hasSearchFilter() ? 'No examinations matched your search criteria.' : 'Create your first standardized examination to begin scheduling test slots.' }}
+    </p>
+    @if (!hasSearchFilter()) {
+      <button
+        mat-flat-button
+        color="primary"
+        (click)="onCreate()"
+        class="mt-2"
+      >
+        <mat-icon>add</mat-icon>
+        Create Examination
+      </button>
+    }
+  </div>
+}
+
+<!-- Examination Cards Grid -->
+@if (!loading() && exams().length > 0) {
+  <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+    @for (exam of exams(); track exam.id) {
+      <div class="bg-white rounded-2xl border border-slate-200 p-5 shadow-xs flex flex-col justify-between hover:shadow-md hover:border-indigo-200 transition-all">
+        <div class="space-y-3">
+          <!-- Card Header -->
+          <div class="flex items-start justify-between gap-2">
+            <div>
+              <div class="flex items-center gap-2">
+                <span
+                  [class.bg-emerald-50]="exam.status === 'PUBLISHED'"
+                  [class.text-emerald-700]="exam.status === 'PUBLISHED'"
+                  [class.border-emerald-200]="exam.status === 'PUBLISHED'"
+                  [class.bg-amber-50]="exam.status === 'DRAFT'"
+                  [class.text-amber-700]="exam.status === 'DRAFT'"
+                  [class.border-amber-200]="exam.status === 'DRAFT'"
+                  class="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full border"
+                >
+                  {{ exam.status }}
+                </span>
+                @if (exam.code) {
+                  <span class="text-[10px] font-mono font-bold px-1.5 py-0.5 rounded bg-slate-100 text-slate-600 border border-slate-200">
+                    {{ exam.code }}
+                  </span>
+                }
+              </div>
+              <h2 class="text-base font-black text-slate-900 mt-2 line-clamp-1">
+                {{ exam.name }}
+              </h2>
+            </div>
+
+            <div class="flex items-center gap-1">
+              <button
+                mat-icon-button
+                (click)="onEdit(exam)"
+                matTooltip="Edit Specification"
+                class="!text-slate-500 hover:!text-indigo-600"
+              >
+                <mat-icon class="!text-lg">edit</mat-icon>
+              </button>
+            </div>
+          </div>
+
+          <!-- Authority & Category -->
+          <p class="text-xs text-slate-500 font-medium">
+            {{ exam.conductingAuthority || 'National Assessment Agency' }}
+            @if (exam.academicYear) {
+              &bull; {{ exam.academicYear }}
+            }
+          </p>
+
+          <!-- Specification Badges -->
+          <div class="grid grid-cols-2 gap-2 pt-2 border-t border-slate-100 text-xs">
+            <div class="flex items-center gap-1.5 text-slate-600">
+              <mat-icon class="!text-sm text-indigo-500">timer</mat-icon>
+              <span><strong>{{ exam.durationMinutes }}</strong> mins</span>
+            </div>
+            <div class="flex items-center gap-1.5 text-slate-600">
+              <mat-icon class="!text-sm text-indigo-500">grade</mat-icon>
+              <span><strong>{{ exam.totalMarks }}</strong> marks</span>
+            </div>
+            <div class="flex items-center gap-1.5 text-slate-600">
+              <mat-icon class="!text-sm text-indigo-500">layers</mat-icon>
+              <span><strong>{{ exam.sections ? exam.sections.length : 1 }}</strong> section(s)</span>
+            </div>
+            <div class="flex items-center gap-1.5 text-slate-600">
+              <mat-icon class="!text-sm text-indigo-500">remove_circle_outline</mat-icon>
+              <span>{{ exam.negativeMarkingEnabled ? '-' + exam.negativeMarkingValue + ' neg' : 'No penalty' }}</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Card Actions -->
+        <div class="pt-4 mt-4 border-t border-slate-100 flex items-center justify-between gap-2">
+          <a
+            mat-stroked-button
+            [routerLink]="['/examinations/scheduling']"
+            [queryParams]="{ examId: exam.id }"
+            class="!text-xs !text-indigo-700 !border-indigo-200"
+          >
+            <mat-icon class="!text-xs">calendar_month</mat-icon>
+            Schedules
+          </a>
+
+          @if (exam.status === 'DRAFT') {
+            <button
+              mat-flat-button
+              color="primary"
+              class="!text-xs"
+              (click)="onPublish(exam, $event)"
+            >
+              <mat-icon class="!text-xs">publish</mat-icon>
+              Publish
+            </button>
+          } @else {
+            <a
+              mat-flat-button
+              color="accent"
+              [routerLink]="['/examinations/paper-gen']"
+              [queryParams]="{ examId: exam.id }"
+              class="!text-xs"
+            >
+              <mat-icon class="!text-xs">auto_awesome</mat-icon>
+              Assemble Paper
+            </a>
+          }
+        </div>
+      </div>
+    }
+  </div>
+}
