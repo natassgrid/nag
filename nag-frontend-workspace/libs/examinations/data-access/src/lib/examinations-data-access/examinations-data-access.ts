@@ -436,7 +436,10 @@ export interface RuleFeasibility {
 export interface BlueprintFeasibilityRequest {
   examId?: string;
   shiftId?: string;
-  rules: BlueprintRule[];
+  isPractice?: boolean;
+  blueprintRules?: BlueprintRule[];
+  rules?: BlueprintRule[];
+  notifyAdminOnDeficit?: boolean;
 }
 
 export interface BlueprintFeasibilityResponse {
@@ -449,9 +452,11 @@ export interface BlueprintFeasibilityResponse {
   summary?: string;
   checkedAt?: string;
   rules?: RuleFeasibility[];
+  ruleDetails?: RuleFeasibility[];
   insufficientRules?: RuleFeasibility[];
   gaps?: GapDetail[];
   overallSufficiency?: number;
+  notificationDispatched?: boolean;
 }
 
 export interface PaperListParams {
@@ -1005,7 +1010,7 @@ export class GeoLocationService {
 export class PaperService {
   private readonly http = inject(HttpClient);
   private readonly baseUrl = '/api/v1/papers';
-  private readonly templateBaseUrl = '/api/v1/papers/templates';
+  private readonly templateBaseUrl = '/api/v1/papers/blueprint-templates';
 
   readonly papers = signal<PaperSummary[]>([]);
   readonly loading = signal<boolean>(false);
@@ -1168,10 +1173,17 @@ export class PaperService {
   }
 
   checkFeasibility(req: BlueprintFeasibilityRequest): Observable<BlueprintFeasibilityResponse> {
+    const payload = {
+      examId: req.examId,
+      shiftId: req.shiftId,
+      isPractice: req.isPractice,
+      blueprintRules: req.blueprintRules || req.rules || [],
+      notifyAdminOnDeficit: req.notifyAdminOnDeficit ?? true,
+    };
     return this.http
       .post<ApiResponse<BlueprintFeasibilityResponse> | BlueprintFeasibilityResponse>(
-        `${this.templateBaseUrl}/feasibility`,
-        req
+        `${this.baseUrl}/blueprints/check-sufficiency`,
+        payload
       )
       .pipe(map((res) => ((res as any)?.data ?? res) as BlueprintFeasibilityResponse));
   }
@@ -1179,11 +1191,19 @@ export class PaperService {
   checkTemplateSufficiency(templateId: string, notifyAdmin = false): Observable<any> {
     return this.http.post<any>(
       `${this.templateBaseUrl}/${templateId}/check-sufficiency`,
-      { notifyAdmin }
+      {},
+      { params: new HttpParams().set('notifyAdmin', notifyAdmin.toString()) }
     );
   }
 
   checkBlueprintSufficiency(request: any): Observable<any> {
-    return this.http.post<any>(`${this.templateBaseUrl}/check-sufficiency`, request);
+    const payload = {
+      examId: request.examId,
+      shiftId: request.shiftId,
+      isPractice: request.isPractice,
+      blueprintRules: request.blueprintRules || request.rules || [],
+      notifyAdminOnDeficit: request.notifyAdminOnDeficit ?? true,
+    };
+    return this.http.post<any>(`${this.baseUrl}/blueprints/check-sufficiency`, payload);
   }
 }
