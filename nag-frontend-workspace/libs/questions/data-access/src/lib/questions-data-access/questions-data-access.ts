@@ -321,3 +321,332 @@ export class QuestionBankService {
     };
   }
 }
+
+// ============================================================================
+// 1. RULE BLUEPRINT MODELS & SERVICE
+// ============================================================================
+
+export interface BlueprintRule {
+  id?: string;
+  subject: string;
+  topic?: string;
+  subtopic?: string;
+  difficulty?: 'EASY' | 'MEDIUM' | 'HARD' | string;
+  cognitiveLevel?: string;
+  questionType?: string;
+  questionCount?: number;
+  targetCount?: number;
+  marksPerQuestion?: number;
+  negativeMarks?: number;
+}
+
+export interface BlueprintTemplateRequest {
+  name: string;
+  description?: string;
+  examId?: string;
+  rules: BlueprintRule[];
+}
+
+export interface BlueprintTemplateResponse {
+  id: string;
+  name: string;
+  description?: string;
+  examId?: string;
+  examName?: string;
+  rules: BlueprintRule[];
+  totalQuestions?: number;
+  totalMarks?: number;
+  createdBy?: string;
+  createdAt?: string;
+  updatedAt?: string;
+  version?: number;
+}
+
+export interface RuleFeasibilityDetail {
+  subject: string;
+  topic?: string;
+  difficulty?: string;
+  cognitiveLevel?: string;
+  requested?: number;
+  targetCount?: number;
+  questionCount?: number;
+  available?: number;
+  needed?: number;
+  deficit?: number;
+  surplus?: number;
+  sufficient?: boolean;
+  status?: string;
+}
+
+export interface BlueprintFeasibilityResponse {
+  feasible: boolean;
+  totalRequested?: number;
+  totalAvailable?: number;
+  totalQuestionsNeeded?: number;
+  totalQuestionsAvailable?: number;
+  deficitRuleCount?: number;
+  summary?: string;
+  checkedAt?: string;
+  rules?: RuleFeasibilityDetail[];
+  ruleDetails?: RuleFeasibilityDetail[];
+  insufficientRules?: RuleFeasibilityDetail[];
+  overallSufficiency?: number;
+}
+
+@Injectable({
+  providedIn: 'root',
+})
+export class BlueprintTemplateService {
+  private readonly http = inject(HttpClient);
+  private readonly baseUrl = '/api/v1/papers/blueprint-templates';
+
+  listTemplates(examId?: string): Observable<BlueprintTemplateResponse[]> {
+    let params = new HttpParams();
+    if (examId) {
+      params = params.set('examId', examId);
+    }
+    return this.http
+      .get<{ data?: BlueprintTemplateResponse[] } | BlueprintTemplateResponse[]>(this.baseUrl, { params })
+      .pipe(map((res) => (Array.isArray(res) ? res : (res as any)?.data || [])));
+  }
+
+  getTemplate(id: string): Observable<BlueprintTemplateResponse> {
+    return this.http
+      .get<{ data?: BlueprintTemplateResponse } | BlueprintTemplateResponse>(`${this.baseUrl}/${id}`)
+      .pipe(map((res) => ((res as any).data || res) as BlueprintTemplateResponse));
+  }
+
+  createTemplate(req: BlueprintTemplateRequest): Observable<BlueprintTemplateResponse> {
+    return this.http
+      .post<{ data?: BlueprintTemplateResponse } | BlueprintTemplateResponse>(this.baseUrl, req)
+      .pipe(map((res) => ((res as any).data || res) as BlueprintTemplateResponse));
+  }
+
+  updateTemplate(id: string, req: BlueprintTemplateRequest): Observable<BlueprintTemplateResponse> {
+    return this.http
+      .put<{ data?: BlueprintTemplateResponse } | BlueprintTemplateResponse>(`${this.baseUrl}/${id}`, req)
+      .pipe(map((res) => ((res as any).data || res) as BlueprintTemplateResponse));
+  }
+
+  deleteTemplate(id: string): Observable<void> {
+    return this.http.delete<void>(`${this.baseUrl}/${id}`);
+  }
+
+  checkSufficiency(id: string, notifyAdmin = false): Observable<BlueprintFeasibilityResponse> {
+    const params = new HttpParams().set('notifyAdmin', notifyAdmin.toString());
+    return this.http
+      .post<{ data?: BlueprintFeasibilityResponse } | BlueprintFeasibilityResponse>(
+        `${this.baseUrl}/${id}/check-sufficiency`,
+        {},
+        { params }
+      )
+      .pipe(map((res) => ((res as any).data || res) as BlueprintFeasibilityResponse));
+  }
+}
+
+// ============================================================================
+// 2. QUESTION TRANSLATION & INDIC AI MODELS & SERVICE
+// ============================================================================
+
+export type TranslationStatus = 'DRAFT' | 'PENDING_REVIEW' | 'APPROVED' | 'PUBLISHED' | 'REJECTED' | 'STALE';
+
+export interface SupportedLanguage {
+  code: string;
+  name: string;
+  nativeName: string;
+  script: string;
+}
+
+export const SUPPORTED_LANGUAGES: SupportedLanguage[] = [
+  { code: 'hi', name: 'Hindi', nativeName: 'हिन्दी', script: 'Devanagari' },
+  { code: 'bn', name: 'Bengali', nativeName: 'বাংলা', script: 'Bengali' },
+  { code: 'te', name: 'Telugu', nativeName: 'తెలుగు', script: 'Telugu' },
+  { code: 'mr', name: 'Marathi', nativeName: 'मराठी', script: 'Devanagari' },
+  { code: 'ta', name: 'Tamil', nativeName: 'தமிழ்', script: 'Tamil' },
+  { code: 'gu', name: 'Gujarati', nativeName: 'ગુજરાતી', script: 'Gujarati' },
+  { code: 'kn', name: 'Kannada', nativeName: 'ಕನ್ನಡ', script: 'Kannada' },
+  { code: 'ml', name: 'Malayalam', nativeName: 'മലയാളം', script: 'Malayalam' },
+  { code: 'or', name: 'Odia', nativeName: 'ଓଡ଼ିଆ', script: 'Odia' },
+  { code: 'pa', name: 'Punjabi', nativeName: 'ਪੰਜਾਬੀ', script: 'Gurmukhi' },
+  { code: 'as', name: 'Assamese', nativeName: 'অসমীয়া', script: 'Bengali' },
+  { code: 'ur', name: 'Urdu', nativeName: 'اردو', script: 'Perso-Arabic' },
+  { code: 'sa', name: 'Sanskrit', nativeName: 'संस्कृतम्', script: 'Devanagari' },
+  { code: 'en', name: 'English', nativeName: 'English', script: 'Latin' },
+];
+
+export interface TranslatedOptionDto {
+  id: string;
+  text: string;
+  imageUrl?: string;
+  imageAltText?: string;
+}
+
+export interface TranslationRequest {
+  questionId: string;
+  languageCode: string;
+  translatorId?: string;
+  translatedContent: string;
+  translatedOptions?: TranslatedOptionDto[];
+  translatedExplanation?: string;
+}
+
+export interface TranslationResponse {
+  translationId?: string;
+  id?: string;
+  questionId: string;
+  languageCode: string;
+  translatedContent: string;
+  translatedOptions?: TranslatedOptionDto[];
+  translatedExplanation?: string;
+  sourceVersion?: number;
+  status: TranslationStatus;
+  translatorId?: string;
+  reviewerId?: string;
+  reviewComments?: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface AutoTranslateResponse {
+  questionId: string;
+  languageCode?: string;
+  language?: string;
+  targetLangIndicTrans?: string;
+  translatedContent: string;
+  translatedOptions?: TranslatedOptionDto[];
+  translatedExplanation?: string;
+  model?: string;
+  confidenceScore?: number;
+}
+
+export interface BatchTranslationRequest {
+  sourceLanguage?: string;
+  targetLanguage?: string;
+  targetStatus?: string;
+  subject?: string;
+  overwriteExisting?: boolean;
+  batchSize?: number;
+  throttleDelayMs?: number;
+  maxConcurrency?: number;
+}
+
+export type BatchJobStatus = 'PENDING' | 'IN_PROGRESS' | 'RUNNING' | 'COMPLETED' | 'FAILED' | 'CANCELLED';
+
+export interface BatchTranslationJobResponse {
+  id: string;
+  jobId?: string;
+  tenantId?: string;
+  status: BatchJobStatus;
+  sourceLanguage: string;
+  targetLanguage: string;
+  targetStatus?: string;
+  subjectFilter?: string;
+  overwriteExisting?: boolean;
+  totalQuestions: number;
+  processedQuestions: number;
+  successfulQuestions: number;
+  translatedCount?: number;
+  failedQuestions: number;
+  progressPercentage: number;
+  failedQuestionIds?: string[];
+  batchSize?: number;
+  initiatedBy?: string;
+  startedAt?: string;
+  completedAt?: string;
+  errorMessage?: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+@Injectable({
+  providedIn: 'root',
+})
+export class TranslationService {
+  private readonly http = inject(HttpClient);
+  private readonly baseUrl = '/api/v1/translations';
+
+  getLanguage(code: string): SupportedLanguage | undefined {
+    return SUPPORTED_LANGUAGES.find(
+      (l) => l.code.toLowerCase() === (code || '').toLowerCase()
+    );
+  }
+
+  listTranslationsForQuestion(questionId: string): Observable<TranslationResponse[]> {
+    return this.http
+      .get<{ data?: TranslationResponse[] } | TranslationResponse[]>(`${this.baseUrl}/question/${questionId}`)
+      .pipe(map((res) => (Array.isArray(res) ? res : (res as any)?.data || [])));
+  }
+
+  getApprovedTranslation(questionId: string, lang: string): Observable<TranslationResponse> {
+    return this.http
+      .get<{ data?: TranslationResponse } | TranslationResponse>(
+        `${this.baseUrl}/question/${questionId}/language/${lang}`
+      )
+      .pipe(map((res) => ((res as any).data || res) as TranslationResponse));
+  }
+
+  autoTranslateQuestion(questionId: string, languageCode: string): Observable<AutoTranslateResponse> {
+    return this.http
+      .post<{ data?: AutoTranslateResponse } | AutoTranslateResponse>(
+        `${this.baseUrl}/question/${questionId}/auto-translate/${languageCode}`,
+        {}
+      )
+      .pipe(map((res) => ((res as any).data || res) as AutoTranslateResponse));
+  }
+
+  startBatchTranslation(request?: BatchTranslationRequest): Observable<BatchTranslationJobResponse> {
+    return this.http
+      .post<{ data?: BatchTranslationJobResponse } | BatchTranslationJobResponse>(
+        `${this.baseUrl}/batch/auto-translate`,
+        request || { sourceLanguage: 'en', targetLanguage: 'hi' }
+      )
+      .pipe(map((res) => ((res as any).data || res) as BatchTranslationJobResponse));
+  }
+
+  getBatchJobStatus(jobId: string): Observable<BatchTranslationJobResponse> {
+    return this.http
+      .get<{ data?: BatchTranslationJobResponse } | BatchTranslationJobResponse>(
+        `${this.baseUrl}/batch/${jobId}`
+      )
+      .pipe(map((res) => ((res as any).data || res) as BatchTranslationJobResponse));
+  }
+
+  listBatchJobs(): Observable<BatchTranslationJobResponse[]> {
+    return this.http
+      .get<{ data?: BatchTranslationJobResponse[] } | BatchTranslationJobResponse[]>(`${this.baseUrl}/batch`)
+      .pipe(map((res) => (Array.isArray(res) ? res : (res as any)?.data || [])));
+  }
+
+  cancelBatchJob(jobId: string): Observable<BatchTranslationJobResponse> {
+    return this.http
+      .post<{ data?: BatchTranslationJobResponse } | BatchTranslationJobResponse>(
+        `${this.baseUrl}/batch/${jobId}/cancel`,
+        {}
+      )
+      .pipe(map((res) => ((res as any).data || res) as BatchTranslationJobResponse));
+  }
+
+  saveTranslation(request: TranslationRequest): Observable<TranslationResponse> {
+    return this.http
+      .post<{ data?: TranslationResponse } | TranslationResponse>(this.baseUrl, request)
+      .pipe(map((res) => ((res as any).data || res) as TranslationResponse));
+  }
+
+  approveTranslation(translationId: string): Observable<TranslationResponse> {
+    return this.http
+      .post<{ data?: TranslationResponse } | TranslationResponse>(
+        `${this.baseUrl}/${translationId}/approve`,
+        {}
+      )
+      .pipe(map((res) => ((res as any).data || res) as TranslationResponse));
+  }
+
+  rejectTranslation(translationId: string, comments?: string): Observable<TranslationResponse> {
+    return this.http
+      .post<{ data?: TranslationResponse } | TranslationResponse>(
+        `${this.baseUrl}/${translationId}/reject`,
+        { comments: comments || 'Changes requested' }
+      )
+      .pipe(map((res) => ((res as any).data || res) as TranslationResponse));
+  }
+}

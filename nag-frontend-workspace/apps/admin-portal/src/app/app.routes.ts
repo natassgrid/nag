@@ -39,6 +39,22 @@ export const appRoutes: Route[] = [
       ),
   },
   {
+    path: 'questions/blueprints',
+    canActivate: [authGuard],
+    loadComponent: () =>
+      import('./questions/blueprints/admin-blueprint-management.component').then(
+        (m) => m.AdminBlueprintManagementComponent
+      ),
+  },
+  {
+    path: 'questions/translations',
+    canActivate: [authGuard],
+    loadComponent: () =>
+      import('./questions/translations/admin-question-translation.component').then(
+        (m) => m.AdminQuestionTranslationComponent
+      ),
+  },
+  {
     path: 'assets',
     canActivate: [authGuard],
     loadComponent: () =>

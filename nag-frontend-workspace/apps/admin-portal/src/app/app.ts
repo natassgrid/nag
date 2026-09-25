@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { RouterModule, Router, RouterLink, RouterLinkActive } from '@angular/router';
 import { MatIconModule } from '@angular/material/icon';
 import { MatButtonModule } from '@angular/material/button';
+import { MatMenuModule } from '@angular/material/menu';
 import { AuthService } from '@nag-frontend-workspace/shared-data-access-auth';
 
 @Component({
@@ -15,6 +16,7 @@ import { AuthService } from '@nag-frontend-workspace/shared-data-access-auth';
     RouterLinkActive,
     MatIconModule,
     MatButtonModule,
+    MatMenuModule,
   ],
   templateUrl: './app.html',
   styleUrl: './app.scss',
@@ -25,6 +27,10 @@ export class App {
 
   isLoginPage(): boolean {
     return this.router.url.includes('/login');
+  }
+
+  isRouteActive(prefix: string): boolean {
+    return this.router.url.startsWith(prefix);
   }
 
   handleLogout(): void {
