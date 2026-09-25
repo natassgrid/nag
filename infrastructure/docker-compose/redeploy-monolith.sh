@@ -15,6 +15,8 @@
 # Usage:
 #   ./redeploy-monolith.sh                  # Deploy Monolith + all 3 Nx Frontends
 #   ./redeploy-monolith.sh --backend-only   # Deploy only Backend Monolith + DB/Vault/Redis (Skip Frontend builds)
+#   ./redeploy-monolith.sh --frontend-only  # Deploy only Nx Frontends (Admin, Candidate, Verifier) without DB restart
+#   ./redeploy-monolith.sh --service <name> # Build and deploy ONE service (e.g. admin-portal)
 #   ./redeploy-monolith.sh --rabbit         # Deploy with RabbitMQ Broker
 #   ./redeploy-monolith.sh --clean-db       # Drop all volumes / fresh Postgres schema
 #   ./redeploy-monolith.sh --observability  # Start with Prometheus, Grafana, and Jaeger
@@ -33,6 +35,7 @@ PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 cd "$SCRIPT_DIR"
 
 NO_CACHE=""
+SERVICE=""
 RESTART_ONLY=false
 HEALTH_CHECK=false
 OBSERVABILITY=false
@@ -40,6 +43,7 @@ AI=false
 CLEAN_DB=false
 RABBIT=false
 BACKEND_ONLY=false
+FRONTEND_ONLY=false
 
 # If PLATFORM_MESSAGING_BROKER environment variable is pre-set to rabbit
 if [ "${PLATFORM_MESSAGING_BROKER:-}" = "rabbit" ]; then
@@ -53,6 +57,8 @@ while [[ $# -gt 0 ]]; do
         --health) HEALTH_CHECK=true; shift ;;
         --clean-db|--clean-volumes|--delete-db-volume|--reset-db|--drop-db) CLEAN_DB=true; shift ;;
         --backend-only|--monolith-only|--no-frontends) BACKEND_ONLY=true; shift ;;
+        --frontend-only|--frontends-only) FRONTEND_ONLY=true; shift ;;
+        --service) SERVICE="$2"; shift 2 ;;
         --rabbit|--with-rabbit) RABBIT=true; shift ;;
         --observability|--with-observability) OBSERVABILITY=true; shift ;;
         --ai|--with-ai) AI=true; shift ;;
@@ -89,8 +95,12 @@ echo "  Messaging:    RabbitMQ (exam-monolith-rabbitmq:5672)"
 else
 echo "  Messaging:    In-Memory Spring Events (Zero External Broker)"
 fi
-if [ "$BACKEND_ONLY" = true ]; then
-echo "  Frontends:    Skipped (--backend-only mode active)"
+if [ -n "$SERVICE" ]; then
+echo "  Target:       Single service: $SERVICE"
+elif [ "$FRONTEND_ONLY" = true ]; then
+echo "  Target:       Nx Frontend SPAs only (Admin:4200, Candidate:4300, Verifier:4400)"
+elif [ "$BACKEND_ONLY" = true ]; then
+echo "  Target:       Backend Monolith only (Frontends skipped)"
 else
 echo "  Frontends:    Nx Angular Apps (Admin:4200, Candidate:4300, Verifier:4400)"
 fi
@@ -107,7 +117,7 @@ echo "  AI Pipeline:   Enabled (Ollama, LiteLLM, IndicTrans2)"
 fi
 echo "============================================="
 
-# --- Ensure builder base image exists ---
+# --- Ensure builder base image exists (only required if building backend JVM) ---
 ensure_builder_base() {
     if ! docker image inspect exam/builder-base:latest >/dev/null 2>&1; then
         echo "🔧 Building builder base image (one-time)..."
@@ -118,7 +128,9 @@ ensure_builder_base() {
     fi
 }
 
-ensure_builder_base
+if [ "$FRONTEND_ONLY" = false ] && [[ "$SERVICE" != "admin-portal" && "$SERVICE" != "candidate-delivery" && "$SERVICE" != "public-verifier" ]]; then
+    ensure_builder_base
+fi
 
 # --- Health check mode ---
 if [ "$HEALTH_CHECK" = true ]; then
@@ -148,7 +160,11 @@ if [ "$HEALTH_CHECK" = true ]; then
 fi
 
 # --- Target app services to manage ---
-if [ "$BACKEND_ONLY" = true ]; then
+if [ -n "$SERVICE" ]; then
+    APP_TARGETS="$SERVICE"
+elif [ "$FRONTEND_ONLY" = true ]; then
+    APP_TARGETS="admin-portal candidate-delivery public-verifier"
+elif [ "$BACKEND_ONLY" = true ]; then
     APP_TARGETS="monolith-app"
 else
     APP_TARGETS="monolith-app admin-portal candidate-delivery public-verifier"
@@ -162,6 +178,36 @@ if [ "$RESTART_ONLY" = true ]; then
     $COMPOSE up -d $APP_TARGETS
     echo ""
     echo "✅ Monolith restarted."
+    exit 0
+fi
+
+# --- Targeted Service or Frontend Only Deploy Mode (keep infra running) ---
+if [ "$FRONTEND_ONLY" = true ] || [ -n "$SERVICE" ]; then
+    echo ""
+    echo "📦 Building targets: $APP_TARGETS..."
+    $COMPOSE build $NO_CACHE $APP_TARGETS
+
+    echo ""
+    echo "🚀 Updating and starting targets: $APP_TARGETS..."
+    $COMPOSE up -d --no-deps $APP_TARGETS
+
+    echo ""
+    echo "============================================="
+    echo "  🎉 Target deploy complete: $APP_TARGETS"
+    echo "============================================="
+    if [[ "$APP_TARGETS" == *"admin-portal"* ]] || [ "$FRONTEND_ONLY" = true ]; then
+        echo "  Admin Portal:        http://localhost:4200"
+    fi
+    if [[ "$APP_TARGETS" == *"candidate-delivery"* ]] || [ "$FRONTEND_ONLY" = true ]; then
+        echo "  Candidate Delivery:  http://localhost:4300"
+    fi
+    if [[ "$APP_TARGETS" == *"public-verifier"* ]] || [ "$FRONTEND_ONLY" = true ]; then
+        echo "  Public Verifier:     http://localhost:4400"
+    fi
+    if [[ "$APP_TARGETS" == *"monolith-app"* ]]; then
+        echo "  Monolith API:        http://localhost:9000"
+    fi
+    echo "============================================="
     exit 0
 fi
 

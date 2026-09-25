@@ -1,21 +1,31 @@
+/*
+ * SPDX-License-Identifier: AGPL-3.0-only
+ *
+ * National Assessment Grid (NAG) - Open Digital Public Infrastructure (DPI) Platform
+ * Copyright (C) 2025 NAG Contributors
+ */
+
 import {
   Component,
+  OnInit,
   signal,
   computed,
+  inject,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
+import { MatDialog, MatDialogModule } from '@angular/material/dialog';
+import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
+import { MatTooltipModule } from '@angular/material/tooltip';
+import { MatMenuModule } from '@angular/material/menu';
 import { PageHeaderComponent } from '@nag-frontend-workspace/shared-ui-components';
-
-export interface AssetRecord {
-  id: string;
-  name: string;
-  type: 'IMAGE' | 'FORMULA' | 'AUDIO';
-  size: string;
-  associatedQuestion?: string;
-}
+import { AssetService } from './asset.service';
+import { AssetResponse, AssetType, AssetStatus } from './asset.model';
+import { AssetUploadDialogComponent } from './asset-upload-dialog.component';
+import { AssetPreviewDialogComponent } from './asset-preview-dialog.component';
+import { AssetMetadataDialogComponent } from './asset-metadata-dialog.component';
 
 @Component({
   selector: 'app-admin-assets',
@@ -25,71 +35,254 @@ export interface AssetRecord {
     FormsModule,
     MatButtonModule,
     MatIconModule,
+    MatDialogModule,
+    MatSnackBarModule,
+    MatTooltipModule,
+    MatMenuModule,
     PageHeaderComponent,
   ],
   templateUrl: './admin-assets.component.html',
   styleUrl: './admin-assets.component.scss',
 })
-export class AdminAssetsComponent {
-  selectedType = 'ALL';
+export class AdminAssetsComponent implements OnInit {
+  readonly assetService = inject(AssetService);
+  private readonly dialog = inject(MatDialog);
+  private readonly snackBar = inject(MatSnackBar);
 
-  assets = signal<AssetRecord[]>([
-    {
-      id: 'AST-101',
-      name: 'Eigenvalue_Spectral_Decomp.svg',
-      type: 'IMAGE',
-      size: '42 KB',
-      associatedQuestion: 'Q-8492 (Linear Algebra)',
-    },
-    {
-      id: 'AST-102',
-      name: 'RISC_Pipeline_Forwarding_Unit.png',
-      type: 'IMAGE',
-      size: '128 KB',
-      associatedQuestion: 'Q-8493 (Computer Architecture)',
-    },
-    {
-      id: 'AST-103',
-      name: 'Benzene_Ring_Reaction_Mechanism.svg',
-      type: 'IMAGE',
-      size: '54 KB',
-      associatedQuestion: 'Q-3921 (Chemistry)',
-    },
-    {
-      id: 'AST-104',
-      name: 'Listening_Comprehension_Passage.mp3',
-      type: 'AUDIO',
-      size: '2.4 MB',
-      associatedQuestion: 'Q-7102 (English Linguistics)',
-    },
-  ]);
+  // Core State Signals
+  assets = signal<AssetResponse[]>([]);
+  totalElements = signal<number>(0);
+  totalPages = signal<number>(0);
+  currentPage = signal<number>(0);
+  pageSize = signal<number>(12);
+  loading = signal<boolean>(false);
 
-  filteredAssets = computed(() => {
-    const type = this.selectedType;
-    if (type === 'ALL') return this.assets();
-    return this.assets().filter((a) => a.type === type);
+  // Filters & Controls
+  searchQuery = signal<string>('');
+  selectedType = signal<string>('ALL');
+  selectedStatus = signal<string>('ACTIVE');
+  viewMode = signal<'grid' | 'table'>('grid');
+
+  // Computed metrics
+  totalStorageBytes = computed(() => {
+    return this.assets().reduce((acc, a) => acc + (a.fileSize || 0), 0);
   });
 
-  uploadAsset(): void {
-    const name = prompt('Enter filename of asset to anchor:');
-    if (name) {
-      this.assets.update((list) => [
-        {
-          id: 'AST-' + Math.floor(100 + Math.random() * 900),
-          name,
-          type: 'IMAGE',
-          size: '64 KB',
+  totalStorageFormatted = computed(() => {
+    return this.assetService.formatFileSize(this.totalStorageBytes());
+  });
+
+  imageCount = computed(() => {
+    return this.assets().filter((a) => a.assetType === 'IMAGE').length;
+  });
+
+  audioCount = computed(() => {
+    return this.assets().filter((a) => a.assetType === 'AUDIO').length;
+  });
+
+  videoCount = computed(() => {
+    return this.assets().filter((a) => a.assetType === 'VIDEO').length;
+  });
+
+  ngOnInit(): void {
+    this.loadAssets();
+  }
+
+  loadAssets(): void {
+    this.loading.set(true);
+
+    const typeFilter =
+      this.selectedType() === 'ALL'
+        ? undefined
+        : (this.selectedType() as AssetType);
+    const statusFilter =
+      this.selectedStatus() === 'ALL'
+        ? undefined
+        : (this.selectedStatus() as AssetStatus);
+
+    this.assetService
+      .searchAssets({
+        filename: this.searchQuery().trim() || undefined,
+        assetType: typeFilter,
+        status: statusFilter,
+        page: this.currentPage(),
+        size: this.pageSize(),
+        sort: 'createdAt',
+        order: 'desc',
+      })
+      .subscribe({
+        next: (res) => {
+          this.assets.set(res.content || []);
+          this.totalElements.set(res.totalElements || 0);
+          this.totalPages.set(res.totalPages || 0);
+          this.loading.set(false);
         },
-        ...list,
-      ]);
+        error: (err) => {
+          this.loading.set(false);
+          // Graceful fallback to avoid empty screen if backend has 0 assets
+          this.assets.set([]);
+          this.totalElements.set(0);
+          this.totalPages.set(0);
+          if (err?.status !== 404) {
+            this.snackBar.open(
+              err?.error?.message || 'Failed to load media assets from server.',
+              'Dismiss',
+              { duration: 4000 }
+            );
+          }
+        },
+      });
+  }
+
+  onSearchChange(query: string): void {
+    this.searchQuery.set(query);
+    this.currentPage.set(0);
+    this.loadAssets();
+  }
+
+  onTypeChange(type: string): void {
+    this.selectedType.set(type);
+    this.currentPage.set(0);
+    this.loadAssets();
+  }
+
+  onStatusChange(status: string): void {
+    this.selectedStatus.set(status);
+    this.currentPage.set(0);
+    this.loadAssets();
+  }
+
+  openUploadModal(): void {
+    const ref = this.dialog.open(AssetUploadDialogComponent, {
+      width: '560px',
+      disableClose: true,
+    });
+
+    ref.afterClosed().subscribe((result: AssetResponse | null) => {
+      if (result) {
+        this.snackBar.open(
+          `Asset "${result.originalFilename}" uploaded successfully.`,
+          'OK',
+          { duration: 3500 }
+        );
+        this.currentPage.set(0);
+        this.loadAssets();
+      }
+    });
+  }
+
+  previewAsset(asset: AssetResponse): void {
+    this.dialog.open(AssetPreviewDialogComponent, {
+      width: '760px',
+      data: { asset },
+    });
+  }
+
+  editMetadata(asset: AssetResponse): void {
+    const ref = this.dialog.open(AssetMetadataDialogComponent, {
+      width: '560px',
+      data: { asset },
+    });
+
+    ref.afterClosed().subscribe((updated: AssetResponse | null) => {
+      if (updated) {
+        this.snackBar.open('Asset metadata updated.', 'OK', {
+          duration: 3000,
+        });
+        this.loadAssets();
+      }
+    });
+  }
+
+  copyCdnUrl(asset: AssetResponse): void {
+    const url = `${window.location.origin}${this.assetService.getDownloadUrl(
+      asset.id
+    )}`;
+    navigator.clipboard.writeText(url).then(() => {
+      this.snackBar.open('Asset direct URL copied to clipboard', 'OK', {
+        duration: 2500,
+      });
+    });
+  }
+
+  archiveAsset(asset: AssetResponse): void {
+    this.assetService.archiveAsset(asset.id).subscribe({
+      next: () => {
+        this.snackBar.open(
+          `Asset "${asset.originalFilename}" archived.`,
+          'OK',
+          { duration: 3000 }
+        );
+        this.loadAssets();
+      },
+      error: (err) => {
+        this.snackBar.open(
+          err?.error?.message || 'Failed to archive asset.',
+          'Dismiss',
+          { duration: 4000 }
+        );
+      },
+    });
+  }
+
+  restoreAsset(asset: AssetResponse): void {
+    this.assetService.restoreAsset(asset.id).subscribe({
+      next: () => {
+        this.snackBar.open(
+          `Asset "${asset.originalFilename}" restored to active status.`,
+          'OK',
+          { duration: 3000 }
+        );
+        this.loadAssets();
+      },
+      error: (err) => {
+        this.snackBar.open(
+          err?.error?.message || 'Failed to restore asset.',
+          'Dismiss',
+          { duration: 4000 }
+        );
+      },
+    });
+  }
+
+  deleteAsset(asset: AssetResponse): void {
+    const confirmed = confirm(
+      `Are you sure you want to permanently delete "${asset.originalFilename}"?\nThis cannot be undone.`
+    );
+    if (!confirmed) return;
+
+    this.assetService.deleteAsset(asset.id).subscribe({
+      next: () => {
+        this.snackBar.open('Asset deleted successfully.', 'OK', {
+          duration: 3000,
+        });
+        this.loadAssets();
+      },
+      error: (err) => {
+        this.snackBar.open(
+          err?.error?.message || 'Failed to delete asset. It may still be referenced in exam blueprints.',
+          'Dismiss',
+          { duration: 5000 }
+        );
+      },
+    });
+  }
+
+  prevPage(): void {
+    if (this.currentPage() > 0) {
+      this.currentPage.update((p) => p - 1);
+      this.loadAssets();
     }
   }
 
-  previewAsset(asset: AssetRecord): void {
-    alert(`Asset Preview: ${asset.name} (${asset.type}, ${asset.size})`);
+  nextPage(): void {
+    if (this.currentPage() < this.totalPages() - 1) {
+      this.currentPage.update((p) => p + 1);
+      this.loadAssets();
+    }
   }
 
-  deleteAsset(id: string): void {
-    this.assets.update((list) => list.filter((a) => a.id !== id));
+  formatFileSize(bytes?: number): string {
+    return this.assetService.formatFileSize(bytes);
   }
 }

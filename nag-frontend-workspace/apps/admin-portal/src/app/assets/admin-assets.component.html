@@ -1,71 +1,415 @@
 <div class="admin-assets-page max-w-7xl mx-auto p-6 space-y-6">
+  <!-- Top Navigation & Action Header -->
   <nag-page-header
     title="Assessment Asset & Diagram Media Library"
-    subtitle="Manage scientific diagrams, KaTeX chemical structures, and vector graphics for exam blueprints"
+    subtitle="Centralized DPI asset repository for exam diagrams, KaTeX chemical structures, audio prompts, and PDFs"
     icon="perm_media"
   >
     <div actions class="flex items-center gap-3">
-      <button mat-flat-button color="primary" (click)="uploadAsset()" class="!rounded-xl font-semibold">
+      <button
+        mat-flat-button
+        color="primary"
+        (click)="openUploadModal()"
+        class="!rounded-xl font-semibold shadow-sm flex items-center gap-2"
+      >
         <mat-icon>cloud_upload</mat-icon>
         Upload New Asset
       </button>
     </div>
   </nag-page-header>
 
-  <!-- Filter and Search -->
-  <div class="flex items-center justify-between gap-4 bg-white p-4 rounded-2xl border border-slate-200">
-    <div class="flex items-center gap-2">
-      <span class="text-xs font-bold text-slate-400 uppercase">Type:</span>
-      <select [(ngModel)]="selectedType" class="text-xs px-3 py-1.5 border rounded-lg bg-slate-50">
-        <option value="ALL">All Media Types</option>
-        <option value="IMAGE">Diagrams & Images (SVG/PNG)</option>
-        <option value="FORMULA">LaTeX Complex Symbols</option>
-        <option value="AUDIO">Audio Listening Prompts</option>
-      </select>
+  <!-- Metrics Ribbon -->
+  <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
+    <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs flex items-center gap-3">
+      <div class="w-10 h-10 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center">
+        <mat-icon>folder</mat-icon>
+      </div>
+      <div>
+        <span class="text-xs text-slate-400 font-bold block uppercase tracking-wider">Total Assets</span>
+        <span class="text-lg font-bold text-slate-900">{{ totalElements() }}</span>
+      </div>
     </div>
-    <span class="text-xs text-slate-500 font-medium">
-      Showing {{ filteredAssets().length }} assets
-    </span>
+
+    <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs flex items-center gap-3">
+      <div class="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
+        <mat-icon>storage</mat-icon>
+      </div>
+      <div>
+        <span class="text-xs text-slate-400 font-bold block uppercase tracking-wider">Storage Used</span>
+        <span class="text-lg font-bold text-slate-900">{{ totalStorageFormatted() }}</span>
+      </div>
+    </div>
+
+    <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs flex items-center gap-3">
+      <div class="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center">
+        <mat-icon>image</mat-icon>
+      </div>
+      <div>
+        <span class="text-xs text-slate-400 font-bold block uppercase tracking-wider">Images & SVG</span>
+        <span class="text-lg font-bold text-slate-900">{{ imageCount() }}</span>
+      </div>
+    </div>
+
+    <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs flex items-center gap-3">
+      <div class="w-10 h-10 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center">
+        <mat-icon>audiotrack</mat-icon>
+      </div>
+      <div>
+        <span class="text-xs text-slate-400 font-bold block uppercase tracking-wider">Audio Prompts</span>
+        <span class="text-lg font-bold text-slate-900">{{ audioCount() }}</span>
+      </div>
+    </div>
   </div>
 
-  <!-- Asset Cards Grid -->
-  <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-    @for (asset of filteredAssets(); track asset.id) {
-      <div class="bg-white rounded-2xl border border-slate-200 p-4 shadow-xs hover:shadow-md transition-shadow flex flex-col justify-between space-y-4">
-        <div class="space-y-3">
-          <div class="h-32 rounded-xl bg-slate-100 flex items-center justify-center overflow-hidden border border-slate-200/80">
-            @if (asset.type === 'IMAGE') {
-              <mat-icon class="!text-5xl text-slate-400">image</mat-icon>
-            } @else if (asset.type === 'FORMULA') {
-              <mat-icon class="!text-5xl text-indigo-400">functions</mat-icon>
-            } @else {
-              <mat-icon class="!text-5xl text-amber-400">audiotrack</mat-icon>
-            }
-          </div>
+  <!-- Filters & Search Toolbar -->
+  <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs flex flex-wrap items-center justify-between gap-4">
+    <div class="flex flex-wrap items-center gap-3 flex-1 min-w-[280px]">
+      <!-- Search Input -->
+      <div class="relative flex-1 min-w-[220px]">
+        <mat-icon class="absolute left-3 top-2.5 text-slate-400 text-sm">search</mat-icon>
+        <input
+          type="text"
+          [ngModel]="searchQuery()"
+          (ngModelChange)="onSearchChange($event)"
+          placeholder="Filter by filename, title, or tags..."
+          class="w-full text-xs pl-9 pr-3 py-2 border rounded-xl bg-slate-50 border-slate-200 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+        />
+      </div>
 
-          <div>
-            <div class="flex items-center justify-between">
-              <span class="text-[10px] font-mono font-bold bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded">
-                {{ asset.id }}
-              </span>
-              <span class="text-[10px] font-bold text-slate-400 uppercase">{{ asset.size }}</span>
+      <!-- Type Filter -->
+      <div class="flex items-center gap-1.5">
+        <span class="text-[11px] font-bold text-slate-400 uppercase">Type:</span>
+        <select
+          [ngModel]="selectedType()"
+          (ngModelChange)="onTypeChange($event)"
+          class="text-xs px-3 py-2 border rounded-xl bg-slate-50 border-slate-200 focus:outline-none font-medium text-slate-700"
+        >
+          <option value="ALL">All Media Types</option>
+          <option value="IMAGE">Diagrams & Images (SVG/PNG)</option>
+          <option value="AUDIO">Audio Prompts (MP3/WAV)</option>
+          <option value="VIDEO">Video Clips (MP4)</option>
+          <option value="DOCUMENT">PDFs & Documents</option>
+        </select>
+      </div>
+
+      <!-- Status Filter -->
+      <div class="flex items-center gap-1.5">
+        <span class="text-[11px] font-bold text-slate-400 uppercase">Status:</span>
+        <select
+          [ngModel]="selectedStatus()"
+          (ngModelChange)="onStatusChange($event)"
+          class="text-xs px-3 py-2 border rounded-xl bg-slate-50 border-slate-200 focus:outline-none font-medium text-slate-700"
+        >
+          <option value="ALL">All Statuses</option>
+          <option value="ACTIVE">Active Only</option>
+          <option value="ARCHIVED">Archived</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- View Mode Switcher -->
+    <div class="flex items-center gap-2">
+      <div class="flex items-center bg-slate-100 p-0.5 rounded-xl border border-slate-200">
+        <button
+          type="button"
+          (click)="viewMode.set('grid')"
+          class="p-1.5 rounded-lg text-xs font-semibold flex items-center transition-colors"
+          [ngClass]="viewMode() === 'grid' ? 'bg-white shadow-xs text-indigo-600' : 'text-slate-500 hover:text-slate-800'"
+          title="Grid Card View"
+        >
+          <mat-icon class="!text-lg !w-5 !h-5">grid_view</mat-icon>
+        </button>
+        <button
+          type="button"
+          (click)="viewMode.set('table')"
+          class="p-1.5 rounded-lg text-xs font-semibold flex items-center transition-colors"
+          [ngClass]="viewMode() === 'table' ? 'bg-white shadow-xs text-indigo-600' : 'text-slate-500 hover:text-slate-800'"
+          title="Table List View"
+        >
+          <mat-icon class="!text-lg !w-5 !h-5">view_list</mat-icon>
+        </button>
+      </div>
+
+      <span class="text-xs text-slate-500 font-medium pl-2">
+        Showing {{ assets().length }} of {{ totalElements() }}
+      </span>
+    </div>
+  </div>
+
+  <!-- Loading State -->
+  @if (loading()) {
+    <div class="flex flex-col items-center justify-center p-16 bg-white rounded-2xl border border-slate-200 space-y-3">
+      <mat-icon class="!text-4xl text-indigo-500 animate-spin">refresh</mat-icon>
+      <span class="text-xs font-medium text-slate-500">Querying asset repository...</span>
+    </div>
+  } @else if (assets().length === 0) {
+    <!-- Empty State -->
+    <div class="flex flex-col items-center justify-center p-16 bg-white rounded-2xl border border-dashed border-slate-300 text-center space-y-4">
+      <div class="w-16 h-16 rounded-full bg-slate-100 text-slate-400 flex items-center justify-center">
+        <mat-icon class="!text-3xl">perm_media</mat-icon>
+      </div>
+      <div>
+        <h4 class="text-sm font-bold text-slate-900">No media assets found</h4>
+        <p class="text-xs text-slate-500 max-w-sm mt-1">
+          No files match your query. Upload your first diagram, audio clip, or formula asset to anchor it in questions.
+        </p>
+      </div>
+      <button mat-flat-button color="primary" (click)="openUploadModal()" class="!rounded-xl text-xs font-semibold">
+        <mat-icon>cloud_upload</mat-icon>
+        Upload First Asset
+      </button>
+    </div>
+  } @else {
+    <!-- GRID CARD VIEW -->
+    @if (viewMode() === 'grid') {
+      <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+        @for (asset of assets(); track asset.id) {
+          <div class="bg-white rounded-2xl border border-slate-200 p-4 shadow-xs hover:shadow-md transition-shadow flex flex-col justify-between space-y-3 group">
+            <div class="space-y-3">
+              <!-- Asset Thumbnail or Media Badge -->
+              <div
+                class="h-36 rounded-xl bg-slate-900 flex items-center justify-center overflow-hidden border border-slate-200/80 cursor-pointer relative group-hover:border-indigo-400 transition-colors"
+                (click)="previewAsset(asset)"
+              >
+                @if (asset.assetType === 'IMAGE') {
+                  <img
+                    [src]="assetService.getDownloadUrl(asset.id)"
+                    [alt]="asset.altText || asset.originalFilename"
+                    class="w-full h-full object-cover"
+                    loading="lazy"
+                    (error)="$event.target.style.display='none'"
+                  />
+                  <div class="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center text-white transition-opacity">
+                    <mat-icon>zoom_in</mat-icon>
+                  </div>
+                } @else if (asset.assetType === 'AUDIO') {
+                  <div class="flex flex-col items-center gap-2 text-amber-400">
+                    <mat-icon class="!text-5xl">audiotrack</mat-icon>
+                    <span class="text-[10px] uppercase font-bold text-amber-300">Audio Prompt</span>
+                  </div>
+                } @else if (asset.assetType === 'VIDEO') {
+                  <div class="flex flex-col items-center gap-2 text-purple-400">
+                    <mat-icon class="!text-5xl">videocam</mat-icon>
+                    <span class="text-[10px] uppercase font-bold text-purple-300">Video Clip</span>
+                  </div>
+                } @else {
+                  <div class="flex flex-col items-center gap-2 text-blue-400">
+                    <mat-icon class="!text-5xl">description</mat-icon>
+                    <span class="text-[10px] uppercase font-bold text-blue-300">Document</span>
+                  </div>
+                }
+              </div>
+
+              <div>
+                <div class="flex items-center justify-between gap-2">
+                  <span
+                    class="text-[10px] font-bold px-2 py-0.5 rounded"
+                    [ngClass]="asset.status === 'ACTIVE' ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-600'"
+                  >
+                    {{ asset.status }}
+                  </span>
+                  <span class="text-[10px] font-bold text-slate-400 uppercase">
+                    {{ formatFileSize(asset.fileSize) }}
+                  </span>
+                </div>
+
+                <h4 class="text-xs font-bold text-slate-900 mt-1 truncate" [title]="asset.originalFilename">
+                  {{ asset.title || asset.originalFilename }}
+                </h4>
+                <p class="text-[11px] text-slate-500 font-mono truncate" [title]="asset.originalFilename">
+                  {{ asset.originalFilename }}
+                </p>
+                @if (asset.tags) {
+                  <div class="mt-1.5 flex flex-wrap gap-1">
+                    @for (tag of asset.tags.split(','); track tag) {
+                      <span class="text-[9px] bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded font-medium">
+                        #{{ tag.trim() }}
+                      </span>
+                    }
+                  </div>
+                }
+              </div>
             </div>
-            <h4 class="text-xs font-bold text-slate-900 mt-1 truncate" [title]="asset.name">
-              {{ asset.name }}
-            </h4>
-            <span class="text-[10px] text-slate-500 block truncate">{{ asset.associatedQuestion || 'Unassigned' }}</span>
-          </div>
-        </div>
 
-        <div class="pt-2 border-t flex items-center justify-between text-xs">
-          <button mat-button color="primary" class="!text-xs !px-2" (click)="previewAsset(asset)">
-            Preview
-          </button>
-          <button mat-button color="warn" class="!text-xs !px-2" (click)="deleteAsset(asset.id)">
-            Delete
-          </button>
-        </div>
+            <!-- Card Action Footer -->
+            <div class="pt-2 border-t border-slate-100 flex items-center justify-between text-xs">
+              <button mat-button color="primary" class="!text-xs !px-2 font-semibold" (click)="previewAsset(asset)">
+                <mat-icon class="!text-sm !w-4 !h-4">visibility</mat-icon>
+                Preview
+              </button>
+
+              <button mat-icon-button [matMenuTriggerFor]="cardMenu" class="text-slate-400 hover:text-slate-700">
+                <mat-icon>more_vert</mat-icon>
+              </button>
+
+              <mat-menu #cardMenu="matMenu">
+                <button mat-menu-item (click)="editMetadata(asset)">
+                  <mat-icon>edit_note</mat-icon>
+                  <span>Edit Metadata</span>
+                </button>
+                <button mat-menu-item (click)="copyCdnUrl(asset)">
+                  <mat-icon>content_copy</mat-icon>
+                  <span>Copy CDN URL</span>
+                </button>
+                <a mat-menu-item [href]="assetService.getDownloadUrl(asset.id)" target="_blank">
+                  <mat-icon>download</mat-icon>
+                  <span>Download File</span>
+                </a>
+                @if (asset.status === 'ACTIVE') {
+                  <button mat-menu-item (click)="archiveAsset(asset)">
+                    <mat-icon>archive</mat-icon>
+                    <span>Archive Asset</span>
+                  </button>
+                } @else {
+                  <button mat-menu-item (click)="restoreAsset(asset)">
+                    <mat-icon>unarchive</mat-icon>
+                    <span>Restore Asset</span>
+                  </button>
+                }
+                <button mat-menu-item (click)="deleteAsset(asset)" class="text-rose-600">
+                  <mat-icon class="text-rose-600">delete</mat-icon>
+                  <span class="text-rose-600">Delete Asset</span>
+                </button>
+              </mat-menu>
+            </div>
+          </div>
+        }
       </div>
     }
-  </div>
+
+    <!-- TABULAR LIST VIEW -->
+    @if (viewMode() === 'table') {
+      <div class="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-xs">
+        <table class="w-full text-left border-collapse text-xs">
+          <thead>
+            <tr class="bg-slate-50 border-b border-slate-200 text-slate-500 font-bold uppercase tracking-wider text-[10px]">
+              <th class="py-3 px-4">Media</th>
+              <th class="py-3 px-4">Filename & Title</th>
+              <th class="py-3 px-4">Type</th>
+              <th class="py-3 px-4">Size</th>
+              <th class="py-3 px-4">Status</th>
+              <th class="py-3 px-4">Uploaded</th>
+              <th class="py-3 px-4 text-right">Actions</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-slate-100">
+            @for (asset of assets(); track asset.id) {
+              <tr class="hover:bg-slate-50/70 transition-colors">
+                <td class="py-2.5 px-4 w-12">
+                  <div
+                    class="w-10 h-10 rounded-lg bg-slate-900 flex items-center justify-center overflow-hidden cursor-pointer"
+                    (click)="previewAsset(asset)"
+                  >
+                    @if (asset.assetType === 'IMAGE') {
+                      <img
+                        [src]="assetService.getDownloadUrl(asset.id)"
+                        class="w-full h-full object-cover"
+                        loading="lazy"
+                        (error)="$event.target.style.display='none'"
+                      />
+                    } @else if (asset.assetType === 'AUDIO') {
+                      <mat-icon class="text-amber-400 !text-xl">audiotrack</mat-icon>
+                    } @else if (asset.assetType === 'VIDEO') {
+                      <mat-icon class="text-purple-400 !text-xl">videocam</mat-icon>
+                    } @else {
+                      <mat-icon class="text-blue-400 !text-xl">description</mat-icon>
+                    }
+                  </div>
+                </td>
+                <td class="py-2.5 px-4 max-w-xs">
+                  <span class="font-bold text-slate-900 block truncate" [title]="asset.title || asset.originalFilename">
+                    {{ asset.title || asset.originalFilename }}
+                  </span>
+                  <span class="text-[10px] text-slate-400 font-mono block truncate" [title]="asset.originalFilename">
+                    {{ asset.originalFilename }}
+                  </span>
+                </td>
+                <td class="py-2.5 px-4">
+                  <span class="font-medium text-slate-700">{{ asset.assetType }}</span>
+                </td>
+                <td class="py-2.5 px-4 font-mono text-slate-600">
+                  {{ formatFileSize(asset.fileSize) }}
+                </td>
+                <td class="py-2.5 px-4">
+                  <span
+                    class="text-[10px] font-bold px-2 py-0.5 rounded"
+                    [ngClass]="asset.status === 'ACTIVE' ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-600'"
+                  >
+                    {{ asset.status }}
+                  </span>
+                </td>
+                <td class="py-2.5 px-4 text-slate-500 text-[11px]">
+                  {{ asset.createdAt | date:'shortDate' }}
+                </td>
+                <td class="py-2.5 px-4 text-right">
+                  <div class="flex items-center justify-end gap-1">
+                    <button mat-icon-button (click)="previewAsset(asset)" title="Preview">
+                      <mat-icon class="text-slate-500">visibility</mat-icon>
+                    </button>
+                    <button mat-icon-button (click)="editMetadata(asset)" title="Edit Metadata">
+                      <mat-icon class="text-slate-500">edit_note</mat-icon>
+                    </button>
+                    <button mat-icon-button [matMenuTriggerFor]="rowMenu" title="More Actions">
+                      <mat-icon class="text-slate-500">more_vert</mat-icon>
+                    </button>
+                    <mat-menu #rowMenu="matMenu">
+                      <button mat-menu-item (click)="copyCdnUrl(asset)">
+                        <mat-icon>content_copy</mat-icon>
+                        <span>Copy CDN URL</span>
+                      </button>
+                      <a mat-menu-item [href]="assetService.getDownloadUrl(asset.id)" target="_blank">
+                        <mat-icon>download</mat-icon>
+                        <span>Download File</span>
+                      </a>
+                      @if (asset.status === 'ACTIVE') {
+                        <button mat-menu-item (click)="archiveAsset(asset)">
+                          <mat-icon>archive</mat-icon>
+                          <span>Archive Asset</span>
+                        </button>
+                      } @else {
+                        <button mat-menu-item (click)="restoreAsset(asset)">
+                          <mat-icon>unarchive</mat-icon>
+                          <span>Restore Asset</span>
+                        </button>
+                      }
+                      <button mat-menu-item (click)="deleteAsset(asset)">
+                        <mat-icon class="text-rose-600">delete</mat-icon>
+                        <span class="text-rose-600">Delete Asset</span>
+                      </button>
+                    </mat-menu>
+                  </div>
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    }
+
+    <!-- Pagination Footer -->
+    <div class="flex items-center justify-between bg-white px-4 py-3 rounded-2xl border border-slate-200 text-xs">
+      <span class="text-slate-500">
+        Page <span class="font-bold text-slate-800">{{ currentPage() + 1 }}</span> of <span class="font-bold text-slate-800">{{ totalPages() || 1 }}</span>
+      </span>
+
+      <div class="flex items-center gap-2">
+        <button
+          mat-stroked-button
+          [disabled]="currentPage() === 0"
+          (click)="prevPage()"
+          class="!rounded-xl text-xs !py-1 !px-3"
+        >
+          Previous
+        </button>
+        <button
+          mat-stroked-button
+          [disabled]="currentPage() >= totalPages() - 1"
+          (click)="nextPage()"
+          class="!rounded-xl text-xs !py-1 !px-3"
+        >
+          Next
+        </button>
+      </div>
+    </div>
+  }
 </div>

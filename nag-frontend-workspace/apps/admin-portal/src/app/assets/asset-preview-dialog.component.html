@@ -1,0 +1,159 @@
+<div class="asset-preview-modal p-6 max-w-4xl w-full">
+  <!-- Dialog Header -->
+  <div class="flex items-center justify-between pb-4 border-b border-slate-200">
+    <div class="flex items-center gap-3">
+      <div class="w-10 h-10 rounded-xl bg-indigo-50 flex items-center justify-center text-indigo-600">
+        @switch (data.asset.assetType) {
+          @case ('IMAGE') { <mat-icon>image</mat-icon> }
+          @case ('AUDIO') { <mat-icon>audiotrack</mat-icon> }
+          @case ('VIDEO') { <mat-icon>videocam</mat-icon> }
+          @default { <mat-icon>insert_drive_file</mat-icon> }
+        }
+      </div>
+      <div>
+        <h3 class="text-base font-bold text-slate-900 leading-tight">
+          {{ data.asset.originalFilename }}
+        </h3>
+        <p class="text-xs text-slate-500">
+          {{ data.asset.title || 'No descriptive title set' }}
+        </p>
+      </div>
+    </div>
+
+    <div class="flex items-center gap-2">
+      <button mat-icon-button (click)="copyUrl()" title="Copy direct URL">
+        <mat-icon class="text-slate-600">content_copy</mat-icon>
+      </button>
+      <button mat-icon-button (click)="download()" title="Download binary">
+        <mat-icon class="text-slate-600">download</mat-icon>
+      </button>
+      <button mat-icon-button mat-dialog-close title="Close">
+        <mat-icon class="text-slate-500">close</mat-icon>
+      </button>
+    </div>
+  </div>
+
+  <!-- Dialog Media Content Area -->
+  <div class="my-5 min-h-[300px] max-h-[500px] flex items-center justify-center bg-slate-950 rounded-2xl overflow-hidden border border-slate-800 p-4">
+    @if (loading) {
+      <div class="flex flex-col items-center gap-3 text-slate-400">
+        <mat-spinner diameter="36"></mat-spinner>
+        <span class="text-xs">Fetching media binary stream...</span>
+      </div>
+    } @else if (loadError) {
+      <div class="flex flex-col items-center gap-2 text-rose-400">
+        <mat-icon class="!text-5xl text-rose-500">broken_image</mat-icon>
+        <span class="text-xs font-semibold">Unable to stream asset media</span>
+        <button mat-stroked-button color="primary" class="mt-2 text-xs" (click)="loadMedia()">
+          Retry Stream
+        </button>
+      </div>
+    } @else {
+      <!-- Image Rendering -->
+      @if (data.asset.assetType === 'IMAGE' && blobUrl) {
+        <img
+          [src]="blobUrl"
+          [alt]="data.asset.altText || data.asset.originalFilename"
+          class="max-h-[460px] max-w-full object-contain rounded-lg shadow-lg"
+        />
+      }
+
+      <!-- Audio Player -->
+      @if (data.asset.assetType === 'AUDIO' && blobUrl) {
+        <div class="flex flex-col items-center gap-4 w-full max-w-md py-6">
+          <div class="w-20 h-20 rounded-full bg-indigo-500/20 text-indigo-400 flex items-center justify-center animate-pulse">
+            <mat-icon class="!text-5xl">audiotrack</mat-icon>
+          </div>
+          <audio controls [src]="blobUrl" class="w-full rounded-xl">
+            Your browser does not support audio playback.
+          </audio>
+        </div>
+      }
+
+      <!-- Video Player -->
+      @if (data.asset.assetType === 'VIDEO' && blobUrl) {
+        <video controls [src]="blobUrl" class="max-h-[460px] max-w-full rounded-lg shadow-lg">
+          Your browser does not support video playback.
+        </video>
+      }
+
+      <!-- Document / Other -->
+      @if (data.asset.assetType === 'DOCUMENT' || (!['IMAGE', 'AUDIO', 'VIDEO'].includes(data.asset.assetType))) {
+        <div class="flex flex-col items-center gap-3 text-slate-300 py-8">
+          <mat-icon class="!text-6xl text-indigo-400">description</mat-icon>
+          <span class="text-sm font-semibold">{{ data.asset.originalFilename }}</span>
+          <span class="text-xs text-slate-400">{{ data.asset.contentType }} • {{ assetService.formatFileSize(data.asset.fileSize) }}</span>
+          <button mat-flat-button color="primary" (click)="download()" class="mt-2 text-xs !rounded-xl">
+            Download Document
+          </button>
+        </div>
+      }
+    }
+  </div>
+
+  <!-- Technical Metadata Drawer -->
+  <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 bg-slate-50 p-4 rounded-2xl border border-slate-200 text-xs">
+    <div>
+      <span class="text-slate-400 font-bold block text-[10px] uppercase tracking-wider">Type</span>
+      <span class="font-semibold text-slate-800">{{ data.asset.assetType }}</span>
+    </div>
+    <div>
+      <span class="text-slate-400 font-bold block text-[10px] uppercase tracking-wider">File Size</span>
+      <span class="font-semibold text-slate-800">{{ assetService.formatFileSize(data.asset.fileSize) }}</span>
+    </div>
+    <div>
+      <span class="text-slate-400 font-bold block text-[10px] uppercase tracking-wider">Status</span>
+      <span class="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-bold"
+        [ngClass]="data.asset.status === 'ACTIVE' ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'">
+        {{ data.asset.status }}
+      </span>
+    </div>
+    <div>
+      <span class="text-slate-400 font-bold block text-[10px] uppercase tracking-wider">MIME Content Type</span>
+      <span class="font-mono text-slate-700 truncate block">{{ data.asset.contentType }}</span>
+    </div>
+
+    @if (data.asset.width && data.asset.height) {
+      <div>
+        <span class="text-slate-400 font-bold block text-[10px] uppercase tracking-wider">Dimensions</span>
+        <span class="font-semibold text-slate-800">{{ data.asset.width }} × {{ data.asset.height }} px</span>
+      </div>
+    }
+    @if (data.asset.durationSeconds) {
+      <div>
+        <span class="text-slate-400 font-bold block text-[10px] uppercase tracking-wider">Duration</span>
+        <span class="font-semibold text-slate-800">{{ assetService.formatDuration(data.asset.durationSeconds) }}</span>
+      </div>
+    }
+    @if (data.asset.storageProvider) {
+      <div>
+        <span class="text-slate-400 font-bold block text-[10px] uppercase tracking-wider">Storage Target</span>
+        <span class="font-semibold text-slate-800">{{ data.asset.storageProvider }}</span>
+      </div>
+    }
+    @if (data.asset.sha256Hash) {
+      <div class="col-span-2">
+        <span class="text-slate-400 font-bold block text-[10px] uppercase tracking-wider">SHA-256 Digest</span>
+        <span class="font-mono text-[10px] text-slate-600 truncate block" [title]="data.asset.sha256Hash">
+          {{ data.asset.sha256Hash }}
+        </span>
+      </div>
+    }
+    @if (data.asset.tags) {
+      <div class="col-span-2">
+        <span class="text-slate-400 font-bold block text-[10px] uppercase tracking-wider">Search Tags</span>
+        <span class="text-slate-700">{{ data.asset.tags }}</span>
+      </div>
+    }
+  </div>
+
+  <!-- Dialog Actions -->
+  <div class="flex items-center justify-between pt-4 mt-2">
+    <span class="text-[11px] text-slate-400">
+      Uploaded {{ data.asset.createdAt | date:'medium' }}
+    </span>
+    <button mat-flat-button mat-dialog-close color="primary" class="!rounded-xl text-xs font-semibold">
+      Done
+    </button>
+  </div>
+</div>
