@@ -1,0 +1,155 @@
+<div class="space-y-6">
+  <!-- Batch Queue Builder Box -->
+  <div class="bg-white rounded-3xl border border-slate-200 shadow-sm p-6 space-y-4">
+    <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+      <div>
+        <h2 class="text-base font-black text-slate-900">Asynchronous Batch Queue</h2>
+        <p class="text-xs text-slate-500">
+          Submit multi-topic question generation jobs to AWS Bedrock batch inference (up to 100 questions per job).
+        </p>
+      </div>
+
+      <button
+        type="button"
+        (click)="onSubmitBatch()"
+        [disabled]="batchItems().length === 0 || submittingBatch()"
+        class="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs flex items-center gap-2 shadow-sm cursor-pointer disabled:opacity-50"
+      >
+        @if (submittingBatch()) {
+          <mat-spinner diameter="16"></mat-spinner>
+        } @else {
+          <mat-icon class="!text-sm">send</mat-icon>
+        }
+        <span>Submit Batch Job ({{ totalBatchQuestions() }} Questions)</span>
+      </button>
+    </div>
+
+    @if (batchItems().length === 0) {
+      <div class="py-8 text-center text-xs text-slate-400">
+        No items in the batch queue. Switch to &quot;Real-Time Synthesis&quot; tab, configure parameters, and click &quot;Add to Batch Queue&quot;.
+      </div>
+    } @else {
+      <div class="divide-y divide-slate-100">
+        @for (item of batchItems(); track $index; let idx = $index) {
+          <div class="py-3 flex items-center justify-between text-xs">
+            <div class="space-y-0.5">
+              <div class="font-bold text-slate-900 flex items-center gap-2">
+                <span>{{ item.subject }}</span>
+                <span class="text-slate-400">&bull;</span>
+                <span>{{ item.topic }}</span>
+              </div>
+              <div class="text-slate-500 text-[11px] flex items-center gap-2">
+                <span class="px-1.5 py-0.5 bg-slate-100 rounded text-slate-700 font-semibold">{{ item.difficulty }}</span>
+                <span class="px-1.5 py-0.5 bg-slate-100 rounded text-slate-700 font-semibold">{{ item.cognitiveLevel }}</span>
+                <span class="px-1.5 py-0.5 bg-indigo-50 text-indigo-700 rounded font-semibold">{{ item.questionType }}</span>
+              </div>
+            </div>
+
+            <div class="flex items-center gap-3">
+              <span class="font-bold text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded-lg">
+                {{ item.count }} Questions
+              </span>
+              <button
+                type="button"
+                (click)="onRemoveBatchItem(idx)"
+                class="text-rose-500 hover:text-rose-700 cursor-pointer p-1"
+              >
+                <mat-icon class="!text-base">delete</mat-icon>
+              </button>
+            </div>
+          </div>
+        }
+      </div>
+    }
+  </div>
+
+  <!-- Historical / Active Batch Jobs List -->
+  <div class="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
+    <div class="p-5 border-b border-slate-100 bg-slate-50/50 flex items-center justify-between">
+      <div>
+        <h3 class="text-sm font-bold text-slate-900">Active &amp; Historical Batch Jobs</h3>
+        <p class="text-xs text-slate-500">Processed by AWS Bedrock asynchronous worker pool</p>
+      </div>
+      <button
+        type="button"
+        (click)="onLoadBatchJobs()"
+        [disabled]="loadingBatchJobs()"
+        class="px-3 py-1.5 rounded-xl border border-slate-300 text-slate-700 hover:bg-slate-100 font-bold text-xs flex items-center gap-1.5 cursor-pointer"
+      >
+        <mat-icon class="!text-sm">refresh</mat-icon> Refresh
+      </button>
+    </div>
+
+    @if (batchJobs().length === 0) {
+      <div class="p-8 text-center text-xs text-slate-400">
+        No batch generation jobs recorded for this tenant yet.
+      </div>
+    } @else {
+      <div class="divide-y divide-slate-100">
+        @for (job of batchJobs(); track job.id) {
+          <div class="p-4 space-y-3 hover:bg-slate-50/50 transition">
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs">
+              <div class="flex items-center gap-3">
+                <div class="w-9 h-9 rounded-xl bg-indigo-100 text-indigo-700 flex items-center justify-center font-bold">
+                  <mat-icon class="!text-lg">auto_awesome</mat-icon>
+                </div>
+                <div>
+                  <div class="font-bold text-slate-900 flex items-center gap-2">
+                    <span>Job #{{ job.id }}</span>
+                    <span class="text-[11px] text-slate-400 font-normal">
+                      Model: {{ job.modelUsed || 'Bedrock Batch' }}
+                    </span>
+                  </div>
+                  <div class="text-[11px] text-slate-400">
+                    Created: {{ job.createdAt | date:'short' }}
+                  </div>
+                </div>
+              </div>
+
+              <div class="flex items-center gap-3">
+                <span
+                  class="px-2.5 py-1 rounded-full text-xs font-bold"
+                  [ngClass]="{
+                    'bg-emerald-100 text-emerald-800': job.status === 'COMPLETED',
+                    'bg-indigo-100 text-indigo-800 animate-pulse': job.status === 'PROCESSING' || job.status === 'PENDING',
+                    'bg-slate-100 text-slate-800': job.status === 'CANCELLED',
+                    'bg-rose-100 text-rose-800': job.status === 'FAILED'
+                  }"
+                >
+                  {{ job.status }}
+                </span>
+
+                @if (job.status === 'PENDING' || job.status === 'PROCESSING') {
+                  <button
+                    type="button"
+                    (click)="onCancelBatchJob(job.id)"
+                    class="px-2.5 py-1 rounded-lg border border-rose-200 text-rose-600 hover:bg-rose-50 text-[11px] font-bold cursor-pointer"
+                  >
+                    Cancel
+                  </button>
+                }
+              </div>
+            </div>
+
+            <!-- Progress Bar -->
+            <div class="space-y-1">
+              <div class="flex justify-between text-xs font-semibold text-slate-600">
+                <span>Generated: {{ job.totalGenerated }} / {{ job.totalRequested }} Questions</span>
+                <span>{{ job.progress || 0 }}%</span>
+              </div>
+              <mat-progress-bar
+                mode="determinate"
+                [value]="job.progress || 0"
+                class="rounded-full"
+              ></mat-progress-bar>
+              <div class="flex justify-between text-[11px] text-slate-400 pt-1">
+                <span>Duplicates Filtered: {{ job.totalDuplicates }}</span>
+                <span class="text-rose-500">Failed: {{ job.totalFailed }}</span>
+              </div>
+            </div>
+          </div>
+        }
+      </div>
+    }
+  </div>
+</div>

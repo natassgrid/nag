@@ -1,0 +1,208 @@
+<div class="space-y-5">
+  <!-- Error Banner -->
+  @if (generationError()) {
+    <div class="p-4 rounded-2xl bg-rose-50 border border-rose-200 text-rose-800 text-xs flex items-start gap-3">
+      <mat-icon class="text-rose-600 shrink-0">error</mat-icon>
+      <div>
+        <div class="font-bold">Generation Error Encountered</div>
+        <p class="mt-0.5 text-rose-700">{{ generationError() }}</p>
+      </div>
+    </div>
+  }
+
+  <!-- Loading Skeleton -->
+  @if (generating()) {
+    <div class="bg-white rounded-3xl border border-slate-200 p-8 shadow-sm text-center space-y-4">
+      <div class="w-16 h-16 rounded-2xl bg-indigo-50 border border-indigo-100 flex items-center justify-center mx-auto text-indigo-600">
+        <mat-spinner diameter="36"></mat-spinner>
+      </div>
+      <div>
+        <h3 class="text-base font-bold text-slate-900">Querying Neural Model via LiteLLM</h3>
+        <p class="text-xs text-slate-500 max-w-md mx-auto mt-1">
+          Synthesizing {{ count() }} assessment items for {{ subject() }} ({{ topic() }}), validating schema, and screening vector duplicates...
+        </p>
+      </div>
+      <mat-progress-bar mode="indeterminate" class="max-w-xs mx-auto rounded-full"></mat-progress-bar>
+    </div>
+  }
+
+  <!-- Empty State (No output yet) -->
+  @if (!generating() && !response()) {
+    <div class="bg-white rounded-3xl border border-dashed border-slate-300 p-12 text-center space-y-3">
+      <div class="w-14 h-14 rounded-2xl bg-slate-100 flex items-center justify-center mx-auto text-slate-400">
+        <mat-icon class="!text-3xl">psychology</mat-icon>
+      </div>
+      <h3 class="text-sm font-bold text-slate-700">Awaiting AI Generation Trigger</h3>
+      <p class="text-xs text-slate-400 max-w-sm mx-auto">
+        Select your subject and cognitive parameters on the left and click &quot;Synthesize Questions Now&quot; to run real-time inference.
+      </p>
+    </div>
+  }
+
+  <!-- Active Result Cards -->
+  @if (response(); as res) {
+    <!-- Telemetry Summary Ribbon -->
+    <div class="bg-white rounded-2xl border border-slate-200 p-4 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+      <div>
+        <div class="text-xs font-bold text-slate-900 flex items-center gap-2">
+          <span class="w-2.5 h-2.5 rounded-full bg-emerald-500"></span>
+          <span>Model: {{ res.modelUsed || 'LiteLLM Routed' }}</span>
+        </div>
+        <div class="text-[11px] text-slate-500 mt-0.5">
+          Generated: {{ res.totalGenerated }} &bull; Valid: {{ res.totalValid }} &bull; Flagged Duplicates: {{ res.totalDuplicates }}
+        </div>
+      </div>
+
+      <button
+        type="button"
+        (click)="onSaveAllValid()"
+        class="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs flex items-center gap-1.5 transition cursor-pointer shadow-sm"
+      >
+        <mat-icon class="!text-sm">done_all</mat-icon> Save All Valid as Draft
+      </button>
+    </div>
+
+    <!-- Questions List -->
+    <div class="space-y-4">
+      @for (q of res.questions; track $index; let idx = $index) {
+        <div
+          class="bg-white rounded-3xl border shadow-sm p-6 space-y-4 transition-all"
+          [ngClass]="{
+            'border-emerald-300 ring-2 ring-emerald-500/10': savedQuestionIds().has(idx),
+            'border-slate-200': !savedQuestionIds().has(idx)
+          }"
+        >
+          <!-- Card Header -->
+          <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+            <div class="flex items-center gap-2">
+              <span class="px-2.5 py-0.5 rounded-lg text-xs font-black bg-indigo-50 text-indigo-700 border border-indigo-200">
+                Item #{{ idx + 1 }}
+              </span>
+              <span class="px-2.5 py-0.5 rounded-md text-[10px] font-bold bg-slate-100 text-slate-700 uppercase">
+                {{ q.questionType }}
+              </span>
+              <span class="px-2.5 py-0.5 rounded-md text-[10px] font-bold bg-slate-100 text-slate-700 uppercase">
+                {{ q.difficulty }}
+              </span>
+              <span class="px-2.5 py-0.5 rounded-md text-[10px] font-bold bg-indigo-50 text-indigo-800">
+                {{ q.cognitiveLevel }}
+              </span>
+            </div>
+
+            <!-- Validation & Duplicate Badges -->
+            <div class="flex items-center gap-2">
+              @if (q.duplicate && q.duplicate.similarity > 0.85) {
+                <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-50 text-rose-700 border border-rose-200 flex items-center gap-1">
+                  <mat-icon class="!text-xs">warning</mat-icon>
+                  {{ (q.duplicate.similarity * 100).toFixed(0) }}% Similar
+                </span>
+              } @else {
+                <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 flex items-center gap-1">
+                  <mat-icon class="!text-xs">verified</mat-icon> Unique
+                </span>
+              }
+
+              @if (q.validation && !q.validation.valid) {
+                <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200">
+                  Schema Warning
+                </span>
+              }
+            </div>
+          </div>
+
+          <!-- Question Statement -->
+          <div class="space-y-1">
+            <div class="text-[11px] font-bold uppercase tracking-wider text-slate-400">Question Statement</div>
+            <div class="text-sm font-semibold text-slate-900 leading-relaxed font-sans whitespace-pre-line">
+              {{ q.content }}
+            </div>
+          </div>
+
+          <!-- MCQ Options (if available) -->
+          @if (q.options && q.options.length > 0) {
+            <div class="space-y-2 pt-1">
+              <div class="text-[11px] font-bold uppercase tracking-wider text-slate-400">Options</div>
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+                @for (opt of q.options; track opt.id) {
+                  <div
+                    class="p-2.5 rounded-xl border flex items-center gap-2.5 transition"
+                    [ngClass]="{
+                      'bg-emerald-50 border-emerald-300 font-bold text-emerald-950': opt.isCorrect || q.answerKey === opt.id,
+                      'bg-slate-50 border-slate-200 text-slate-700': !opt.isCorrect && q.answerKey !== opt.id
+                    }"
+                  >
+                    <span
+                      class="w-6 h-6 rounded-lg flex items-center justify-center font-bold text-xs shrink-0"
+                      [ngClass]="{
+                        'bg-emerald-600 text-white': opt.isCorrect || q.answerKey === opt.id,
+                        'bg-white text-slate-600 border border-slate-200': !opt.isCorrect && q.answerKey !== opt.id
+                      }"
+                    >
+                      {{ opt.id }}
+                    </span>
+                    <span class="grow">{{ opt.text }}</span>
+                    @if (opt.isCorrect || q.answerKey === opt.id) {
+                      <mat-icon class="!text-sm text-emerald-600">check</mat-icon>
+                    }
+                  </div>
+                }
+              </div>
+            </div>
+          }
+
+          <!-- Answer Key & Explanation -->
+          @if (q.explanation || q.answerKey) {
+            <div class="p-3.5 bg-slate-50 rounded-2xl border border-slate-200 space-y-1 text-xs">
+              <div class="flex items-center gap-2">
+                <span class="font-bold text-slate-800">Correct Answer:</span>
+                <span class="font-black text-indigo-700">{{ q.answerKey || 'Refer to explanation' }}</span>
+              </div>
+              @if (q.explanation) {
+                <p class="text-slate-600 text-[11px] leading-relaxed mt-1">
+                  {{ q.explanation }}
+                </p>
+              }
+            </div>
+          }
+
+          <!-- Actions Ribbon -->
+          <div class="flex items-center justify-between border-t border-slate-100 pt-3">
+            <div class="text-[11px]">
+              @if (savedQuestionIds().has(idx)) {
+                <span class="font-bold text-emerald-700 flex items-center gap-1">
+                  <mat-icon class="!text-sm">check_circle</mat-icon> Saved in Question Bank
+                </span>
+              }
+            </div>
+
+            <div class="flex items-center gap-2">
+              <button
+                type="button"
+                (click)="onOpenAuthoring(q)"
+                class="px-3 py-1.5 rounded-xl border border-slate-300 text-slate-700 hover:bg-slate-50 font-bold text-xs flex items-center gap-1 cursor-pointer"
+              >
+                <mat-icon class="!text-sm">edit</mat-icon> Open in Authoring
+              </button>
+
+              @if (!savedQuestionIds().has(idx)) {
+                <button
+                  type="button"
+                  (click)="onSaveQuestion(q, idx)"
+                  [disabled]="savingIndices().has(idx)"
+                  class="px-3 py-1.5 rounded-xl bg-slate-900 hover:bg-indigo-600 text-white font-bold text-xs flex items-center gap-1.5 cursor-pointer disabled:opacity-60 transition"
+                >
+                  @if (savingIndices().has(idx)) {
+                    <mat-spinner diameter="14"></mat-spinner>
+                  } @else {
+                    <mat-icon class="!text-sm">save</mat-icon>
+                  }
+                  <span>Save as Draft</span>
+                </button>
+              }
+            </div>
+          </div>
+        </div>
+      }
+    </div>
+  }
+</div>

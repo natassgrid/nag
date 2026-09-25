@@ -1,11 +1,8 @@
-import { Component, inject, signal, OnInit, OnDestroy } from '@angular/core';
+import { Component, inject, signal, computed, OnInit, OnDestroy, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule, ReactiveFormsModule, FormBuilder, Validators } from '@angular/forms';
 import { RouterModule, Router } from '@angular/router';
 import { MatIconModule } from '@angular/material/icon';
-import { MatButtonModule } from '@angular/material/button';
-import { MatProgressBarModule } from '@angular/material/progress-bar';
-import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import {
   QuestionAiService,
@@ -19,6 +16,18 @@ import {
 } from '@nag-frontend-workspace/questions-data-access';
 import { Subscription, interval } from 'rxjs';
 import { switchMap, takeWhile } from 'rxjs/operators';
+import {
+  DEFAULT_AI_SUBJECTS,
+  DEFAULT_AI_DIFFICULTIES,
+  AI_COGNITIVE_LEVELS,
+  AI_QUESTION_TYPES,
+  DEFAULT_SUBJECT_TOPICS,
+} from './models';
+import {
+  AiPromptConfigFormComponent,
+  AiGenerationResultsComponent,
+  AiBatchJobsPanelComponent,
+} from './components';
 
 @Component({
   selector: 'nag-admin-ai-question-generation',
@@ -29,13 +38,14 @@ import { switchMap, takeWhile } from 'rxjs/operators';
     ReactiveFormsModule,
     RouterModule,
     MatIconModule,
-    MatButtonModule,
-    MatProgressBarModule,
-    MatProgressSpinnerModule,
     MatSnackBarModule,
+    AiPromptConfigFormComponent,
+    AiGenerationResultsComponent,
+    AiBatchJobsPanelComponent,
   ],
   templateUrl: './admin-ai-question-generation.component.html',
   styleUrls: ['./admin-ai-question-generation.component.scss'],
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class AdminAiQuestionGenerationComponent implements OnInit, OnDestroy {
   private readonly fb = inject(FormBuilder);
@@ -59,34 +69,11 @@ export class AdminAiQuestionGenerationComponent implements OnInit, OnDestroy {
   readonly submittingBatch = signal<boolean>(false);
   private pollSub: Subscription | null = null;
 
-  // Curated Subjects & Topics
-  readonly subjects = [
-    'Mathematics',
-    'Physics',
-    'Chemistry',
-    'Computer Science',
-    'General Knowledge & Indian History',
-    'Biology & Life Sciences',
-    'Logical Reasoning & Aptitude',
-  ];
-
-  readonly difficulties = ['EASY', 'MEDIUM', 'HARD'];
-
-  readonly cognitiveLevels = [
-    { value: 'REMEMBER', label: 'Remember (Recall facts & basic concepts)' },
-    { value: 'UNDERSTAND', label: 'Understand (Explain ideas or concepts)' },
-    { value: 'APPLY', label: 'Apply (Use information in new situations)' },
-    { value: 'ANALYZE', label: 'Analyze (Draw connections among ideas)' },
-    { value: 'EVALUATE', label: 'Evaluate (Justify a stand or decision)' },
-    { value: 'CREATE', label: 'Create (Produce new or original work)' },
-  ];
-
-  readonly questionTypes = [
-    { value: 'SINGLE_MCQ', label: 'Single Choice MCQ' },
-    { value: 'MULTI_MCQ', label: 'Multiple Correct (MSQ)' },
-    { value: 'NUMERICAL', label: 'Numerical / Decimal Answer' },
-    { value: 'DESCRIPTIVE', label: 'Descriptive / Long Answer' },
-  ];
+  // Curated Subjects, Difficulties, Bloom's & Types
+  readonly subjects = DEFAULT_AI_SUBJECTS;
+  readonly difficulties = DEFAULT_AI_DIFFICULTIES;
+  readonly cognitiveLevels = AI_COGNITIVE_LEVELS;
+  readonly questionTypes = AI_QUESTION_TYPES;
 
   // Reactive generation form
   readonly form = this.fb.group({
@@ -101,6 +88,10 @@ export class AdminAiQuestionGenerationComponent implements OnInit, OnDestroy {
     autoSave: [false],
   });
 
+  readonly totalBatchQuestions = computed(() =>
+    this.batchItems().reduce((acc, item) => acc + item.count, 0)
+  );
+
   ngOnInit(): void {
     this.loadBatchJobs();
   }
@@ -111,20 +102,11 @@ export class AdminAiQuestionGenerationComponent implements OnInit, OnDestroy {
 
   // Preset topic helper
   onSubjectChange(subject: string): void {
-    const defaultTopics: Record<string, { topic: string; subtopic: string }> = {
-      Mathematics: { topic: 'Linear Algebra & Matrices', subtopic: 'Eigenvalues and Eigenvectors' },
-      Physics: { topic: 'Electromagnetism & Waves', subtopic: 'Gauss Law and Flux' },
-      Chemistry: { topic: 'Organic Chemistry', subtopic: 'Electrophilic Aromatic Substitution' },
-      'Computer Science': { topic: 'Algorithms & Data Structures', subtopic: 'Graph Traversal & Shortest Path' },
-      'General Knowledge & Indian History': { topic: 'Indian Constitution', subtopic: 'Fundamental Rights & Directive Principles' },
-      'Biology & Life Sciences': { topic: 'Cell Biology & Genetics', subtopic: 'Mendelian Inheritance' },
-      'Logical Reasoning & Aptitude': { topic: 'Deductive Logic', subtopic: 'Syllogisms and Venn Diagrams' },
-    };
-
-    if (defaultTopics[subject]) {
+    const defaultTopic = DEFAULT_SUBJECT_TOPICS[subject];
+    if (defaultTopic) {
       this.form.patchValue({
-        topic: defaultTopics[subject].topic,
-        subtopic: defaultTopics[subject].subtopic,
+        topic: defaultTopic.topic,
+        subtopic: defaultTopic.subtopic,
       });
     }
   }
@@ -255,17 +237,13 @@ export class AdminAiQuestionGenerationComponent implements OnInit, OnDestroy {
     };
 
     this.batchItems.update((items) => [...items, item]);
-    this.snackBar.open(`Added item to batch queue (${this.totalBatchQuestions} total questions)`, 'OK', {
+    this.snackBar.open(`Added item to batch queue (${this.totalBatchQuestions()} total questions)`, 'OK', {
       duration: 2500,
     });
   }
 
   removeBatchItem(index: number): void {
     this.batchItems.update((items) => items.filter((_, i) => i !== index));
-  }
-
-  get totalBatchQuestions(): number {
-    return this.batchItems().reduce((acc, item) => acc + item.count, 0);
   }
 
   submitBatch(): void {

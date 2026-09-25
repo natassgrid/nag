@@ -3,7 +3,7 @@
   <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-200 pb-5">
     <div>
       <div class="inline-flex items-center gap-2 px-2.5 py-1 rounded-full text-xs font-semibold bg-indigo-50 text-indigo-700 mb-2">
-        <mat-icon class="!text-sm">psychology</mat-icon> AI Item Synthesis • LiteLLM & AWS Bedrock
+        <mat-icon class="!text-sm">psychology</mat-icon> AI Item Synthesis &bull; LiteLLM &amp; AWS Bedrock
       </div>
       <h1 class="text-2xl font-black text-slate-900 tracking-tight">AI Question Generator</h1>
       <p class="text-sm text-slate-500 mt-1">
@@ -35,540 +35,52 @@
   <!-- TAB 1: REAL-TIME SYNTHESIS -->
   @if (activeTab() === 'realtime') {
     <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-      <!-- Left Column: Parameter Form (4 cols) -->
-      <div class="lg:col-span-5 bg-white rounded-3xl border border-slate-200 shadow-sm p-6 space-y-5">
-        <div class="flex items-center justify-between border-b border-slate-100 pb-3">
-          <h2 class="text-sm font-black uppercase tracking-wider text-slate-800 flex items-center gap-2">
-            <mat-icon class="text-indigo-600 !text-lg">tune</mat-icon> Generation Parameters
-          </h2>
-          <span class="text-[11px] font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-600">
-            LiteLLM Router
-          </span>
-        </div>
-
-        <form [formGroup]="form" class="space-y-4 text-xs">
-          <!-- Subject -->
-          <div>
-            <label class="block font-bold uppercase text-slate-700 mb-1">Subject *</label>
-            <select
-              formControlName="subject"
-              (change)="onSubjectChange(form.value.subject!)"
-              class="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl font-medium focus:ring-2 focus:ring-indigo-500"
-            >
-              @for (sub of subjects; track sub) {
-                <option [value]="sub">{{ sub }}</option>
-              }
-            </select>
-          </div>
-
-          <!-- Topic & Subtopic -->
-          <div class="space-y-3">
-            <div>
-              <label class="block font-bold uppercase text-slate-700 mb-1">Topic *</label>
-              <input
-                type="text"
-                formControlName="topic"
-                placeholder="e.g. Linear Algebra, Thermodynamics"
-                class="w-full p-2.5 bg-white border border-slate-300 rounded-xl font-medium focus:ring-2 focus:ring-indigo-500"
-              />
-            </div>
-            <div>
-              <label class="block font-bold uppercase text-slate-700 mb-1">Subtopic / Focus Area</label>
-              <input
-                type="text"
-                formControlName="subtopic"
-                placeholder="e.g. Eigenvalues, Reaction Kinetics"
-                class="w-full p-2.5 bg-white border border-slate-300 rounded-xl font-medium focus:ring-2 focus:ring-indigo-500"
-              />
-            </div>
-          </div>
-
-          <!-- Difficulty & Question Type -->
-          <div class="grid grid-cols-2 gap-3">
-            <div>
-              <label class="block font-bold uppercase text-slate-700 mb-1">Difficulty *</label>
-              <select
-                formControlName="difficulty"
-                class="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl font-medium focus:ring-2 focus:ring-indigo-500"
-              >
-                @for (d of difficulties; track d) {
-                  <option [value]="d">{{ d }}</option>
-                }
-              </select>
-            </div>
-            <div>
-              <label class="block font-bold uppercase text-slate-700 mb-1">Question Type *</label>
-              <select
-                formControlName="questionType"
-                class="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl font-medium focus:ring-2 focus:ring-indigo-500"
-              >
-                @for (t of questionTypes; track t.value) {
-                  <option [value]="t.value">{{ t.label }}</option>
-                }
-              </select>
-            </div>
-          </div>
-
-          <!-- Bloom's Cognitive Level -->
-          <div>
-            <label class="block font-bold uppercase text-slate-700 mb-1">Bloom's Cognitive Level *</label>
-            <select
-              formControlName="cognitiveLevel"
-              class="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl font-medium focus:ring-2 focus:ring-indigo-500"
-            >
-              @for (c of cognitiveLevels; track c.value) {
-                <option [value]="c.value">{{ c.label }}</option>
-              }
-            </select>
-          </div>
-
-          <!-- Quantity / Count Slider -->
-          <div>
-            <div class="flex justify-between items-center mb-1">
-              <label class="font-bold uppercase text-slate-700">Questions to Generate</label>
-              <span class="font-black text-indigo-700 text-sm bg-indigo-50 px-2 py-0.5 rounded-lg border border-indigo-200">
-                {{ form.value.count }}
-              </span>
-            </div>
-            <input
-              type="range"
-              min="1"
-              max="5"
-              step="1"
-              formControlName="count"
-              class="w-full accent-indigo-600 cursor-pointer"
-            />
-            <div class="flex justify-between text-[10px] text-slate-400 mt-0.5">
-              <span>1 item</span>
-              <span>3 items (Default)</span>
-              <span>5 items (Max sync)</span>
-            </div>
-          </div>
-
-          <!-- Checkboxes: Avoid Duplicate & Auto Save -->
-          <div class="space-y-2 pt-2 border-t border-slate-100">
-            <label class="flex items-center gap-2 cursor-pointer p-2 rounded-xl hover:bg-slate-50 border border-transparent hover:border-slate-200">
-              <input
-                type="checkbox"
-                formControlName="avoidDuplicate"
-                class="w-4 h-4 rounded text-indigo-600 cursor-pointer"
-              />
-              <div>
-                <div class="font-bold text-slate-800">Avoid Semantic Duplicates</div>
-                <div class="text-[10px] text-slate-400">pgvector cosine threshold &gt; 0.92 check against live bank</div>
-              </div>
-            </label>
-
-            <label class="flex items-center gap-2 cursor-pointer p-2 rounded-xl hover:bg-slate-50 border border-transparent hover:border-slate-200">
-              <input
-                type="checkbox"
-                formControlName="autoSave"
-                class="w-4 h-4 rounded text-indigo-600 cursor-pointer"
-              />
-              <div>
-                <div class="font-bold text-slate-800">Auto-Save as Draft</div>
-                <div class="text-[10px] text-slate-400">Directly insert valid items into Question Bank with DRAFT status</div>
-              </div>
-            </label>
-          </div>
-
-          <!-- Submit Buttons -->
-          <div class="pt-3 space-y-2">
-            <button
-              type="button"
-              (click)="generateQuestions()"
-              [disabled]="generating() || form.invalid"
-              class="w-full py-3 px-4 rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white font-black text-sm flex items-center justify-center gap-2 shadow-lg shadow-indigo-600/20 transition cursor-pointer disabled:opacity-60"
-            >
-              @if (generating()) {
-                <mat-spinner diameter="18" class="inline-block"></mat-spinner>
-                <span>Synthesizing with LiteLLM...</span>
-              } @else {
-                <mat-icon>auto_awesome</mat-icon>
-                <span>Synthesize Questions Now</span>
-              }
-            </button>
-
-            <button
-              type="button"
-              (click)="addCurrentToBatch()"
-              class="w-full py-2 px-3 rounded-xl border border-slate-300 text-slate-700 hover:bg-slate-50 font-bold text-xs flex items-center justify-center gap-1.5 transition cursor-pointer"
-            >
-              <mat-icon class="!text-sm">playlist_add</mat-icon>
-              <span>Add to Batch Queue</span>
-            </button>
-          </div>
-        </form>
+      <!-- Left Column: Parameter Form (5 cols) -->
+      <div class="lg:col-span-5">
+        <nag-ai-prompt-config-form
+          [form]="form"
+          [generating]="generating()"
+          [subjects]="subjects"
+          [difficulties]="difficulties"
+          [cognitiveLevels]="cognitiveLevels"
+          [questionTypes]="questionTypes"
+          (subjectChange)="onSubjectChange($event)"
+          (generateQuestions)="generateQuestions()"
+          (addToBatch)="addCurrentToBatch()"
+        ></nag-ai-prompt-config-form>
       </div>
 
       <!-- Right Column: Results & Interactive Cards (7 cols) -->
-      <div class="lg:col-span-7 space-y-5">
-        <!-- Error Banner -->
-        @if (generationError()) {
-          <div class="p-4 rounded-2xl bg-rose-50 border border-rose-200 text-rose-800 text-xs flex items-start gap-3">
-            <mat-icon class="text-rose-600 shrink-0">error</mat-icon>
-            <div>
-              <div class="font-bold">Generation Error Encountered</div>
-              <p class="mt-0.5 text-rose-700">{{ generationError() }}</p>
-            </div>
-          </div>
-        }
-
-        <!-- Loading Skeleton -->
-        @if (generating()) {
-          <div class="bg-white rounded-3xl border border-slate-200 p-8 shadow-sm text-center space-y-4">
-            <div class="w-16 h-16 rounded-2xl bg-indigo-50 border border-indigo-100 flex items-center justify-center mx-auto text-indigo-600">
-              <mat-spinner diameter="36"></mat-spinner>
-            </div>
-            <div>
-              <h3 class="text-base font-bold text-slate-900">Querying Neural Model via LiteLLM</h3>
-              <p class="text-xs text-slate-500 max-w-md mx-auto mt-1">
-                Synthesizing {{ form.value.count }} assessment items for {{ form.value.subject }} ({{ form.value.topic }}), validating schema, and screening vector duplicates...
-              </p>
-            </div>
-            <mat-progress-bar mode="indeterminate" class="max-w-xs mx-auto rounded-full"></mat-progress-bar>
-          </div>
-        }
-
-        <!-- Empty State (No output yet) -->
-        @if (!generating() && !response()) {
-          <div class="bg-white rounded-3xl border border-dashed border-slate-300 p-12 text-center space-y-3">
-            <div class="w-14 h-14 rounded-2xl bg-slate-100 flex items-center justify-center mx-auto text-slate-400">
-              <mat-icon class="!text-3xl">psychology</mat-icon>
-            </div>
-            <h3 class="text-sm font-bold text-slate-700">Awaiting AI Generation Trigger</h3>
-            <p class="text-xs text-slate-400 max-w-sm mx-auto">
-              Select your subject and cognitive parameters on the left and click "Synthesize Questions Now" to run real-time inference.
-            </p>
-          </div>
-        }
-
-        <!-- Active Result Cards -->
-        @if (response(); as res) {
-          <!-- Telemetry Summary Ribbon -->
-          <div class="bg-white rounded-2xl border border-slate-200 p-4 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-            <div>
-              <div class="text-xs font-bold text-slate-900 flex items-center gap-2">
-                <span class="w-2.5 h-2.5 rounded-full bg-emerald-500"></span>
-                <span>Model: {{ res.modelUsed || 'LiteLLM Routed' }}</span>
-              </div>
-              <div class="text-[11px] text-slate-500 mt-0.5">
-                Generated: {{ res.totalGenerated }} • Valid: {{ res.totalValid }} • Flagged Duplicates: {{ res.totalDuplicates }}
-              </div>
-            </div>
-
-            <button
-              type="button"
-              (click)="saveAllValid()"
-              class="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs flex items-center gap-1.5 transition cursor-pointer shadow-sm"
-            >
-              <mat-icon class="!text-sm">done_all</mat-icon> Save All Valid as Draft
-            </button>
-          </div>
-
-          <!-- Questions List -->
-          <div class="space-y-4">
-            @for (q of res.questions; track $index; let idx = $index) {
-              <div
-                class="bg-white rounded-3xl border shadow-sm p-6 space-y-4 transition-all"
-                [ngClass]="{
-                  'border-emerald-300 ring-2 ring-emerald-500/10': savedQuestionIds().has(idx),
-                  'border-slate-200': !savedQuestionIds().has(idx)
-                }"
-              >
-                <!-- Card Header -->
-                <div class="flex items-center justify-between border-b border-slate-100 pb-3">
-                  <div class="flex items-center gap-2">
-                    <span class="px-2.5 py-0.5 rounded-lg text-xs font-black bg-indigo-50 text-indigo-700 border border-indigo-200">
-                      Item #{{ idx + 1 }}
-                    </span>
-                    <span class="px-2 py-0.5 rounded-md text-[10px] font-bold bg-slate-100 text-slate-700 uppercase">
-                      {{ q.questionType }}
-                    </span>
-                    <span class="px-2 py-0.5 rounded-md text-[10px] font-bold bg-slate-100 text-slate-700 uppercase">
-                      {{ q.difficulty }}
-                    </span>
-                    <span class="px-2 py-0.5 rounded-md text-[10px] font-bold bg-indigo-50 text-indigo-800">
-                      {{ q.cognitiveLevel }}
-                    </span>
-                  </div>
-
-                  <!-- Validation & Duplicate Badges -->
-                  <div class="flex items-center gap-2">
-                    @if (q.duplicate && q.duplicate.similarity > 0.85) {
-                      <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-50 text-rose-700 border border-rose-200 flex items-center gap-1">
-                        <mat-icon class="!text-xs">warning</mat-icon>
-                        {{ (q.duplicate.similarity * 100).toFixed(0) }}% Similar
-                      </span>
-                    } @else {
-                      <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 flex items-center gap-1">
-                        <mat-icon class="!text-xs">verified</mat-icon> Unique
-                      </span>
-                    }
-
-                    @if (q.validation && !q.validation.valid) {
-                      <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200">
-                        Schema Warning
-                      </span>
-                    }
-                  </div>
-                </div>
-
-                <!-- Question Statement -->
-                <div class="space-y-1">
-                  <div class="text-[11px] font-bold uppercase tracking-wider text-slate-400">Question Statement</div>
-                  <div class="text-sm font-semibold text-slate-900 leading-relaxed font-sans whitespace-pre-line">
-                    {{ q.content }}
-                  </div>
-                </div>
-
-                <!-- MCQ Options (if available) -->
-                @if (q.options && q.options.length > 0) {
-                  <div class="space-y-2 pt-1">
-                    <div class="text-[11px] font-bold uppercase tracking-wider text-slate-400">Options</div>
-                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
-                      @for (opt of q.options; track opt.id) {
-                        <div
-                          class="p-2.5 rounded-xl border flex items-center gap-2.5 transition"
-                          [ngClass]="{
-                            'bg-emerald-50 border-emerald-300 font-bold text-emerald-950': opt.isCorrect || q.answerKey === opt.id,
-                            'bg-slate-50 border-slate-200 text-slate-700': !opt.isCorrect && q.answerKey !== opt.id
-                          }"
-                        >
-                          <span
-                            class="w-6 h-6 rounded-lg flex items-center justify-center font-bold text-xs shrink-0"
-                            [ngClass]="{
-                              'bg-emerald-600 text-white': opt.isCorrect || q.answerKey === opt.id,
-                              'bg-white text-slate-600 border border-slate-200': !opt.isCorrect && q.answerKey !== opt.id
-                            }"
-                          >
-                            {{ opt.id }}
-                          </span>
-                          <span class="grow">{{ opt.text }}</span>
-                          @if (opt.isCorrect || q.answerKey === opt.id) {
-                            <mat-icon class="!text-sm text-emerald-600">check</mat-icon>
-                          }
-                        </div>
-                      }
-                    </div>
-                  </div>
-                }
-
-                <!-- Answer Key & Explanation -->
-                @if (q.explanation || q.answerKey) {
-                  <div class="p-3.5 bg-slate-50 rounded-2xl border border-slate-200 space-y-1 text-xs">
-                    <div class="flex items-center gap-2">
-                      <span class="font-bold text-slate-800">Correct Answer:</span>
-                      <span class="font-black text-indigo-700">{{ q.answerKey || 'Refer to explanation' }}</span>
-                    </div>
-                    @if (q.explanation) {
-                      <p class="text-slate-600 text-[11px] leading-relaxed mt-1">
-                        {{ q.explanation }}
-                      </p>
-                    }
-                  </div>
-                }
-
-                <!-- Actions Ribbon -->
-                <div class="flex items-center justify-between border-t border-slate-100 pt-3">
-                  <div class="text-[11px]">
-                    @if (savedQuestionIds().has(idx)) {
-                      <span class="font-bold text-emerald-700 flex items-center gap-1">
-                        <mat-icon class="!text-sm">check_circle</mat-icon> Saved in Question Bank
-                      </span>
-                    }
-                  </div>
-
-                  <div class="flex items-center gap-2">
-                    <button
-                      type="button"
-                      (click)="openInAuthoring(q)"
-                      class="px-3 py-1.5 rounded-xl border border-slate-300 text-slate-700 hover:bg-slate-50 font-bold text-xs flex items-center gap-1 cursor-pointer"
-                    >
-                      <mat-icon class="!text-sm">edit</mat-icon> Open in Authoring
-                    </button>
-
-                    @if (!savedQuestionIds().has(idx)) {
-                      <button
-                        type="button"
-                        (click)="saveQuestionToBank(q, idx)"
-                        [disabled]="savingIndices().has(idx)"
-                        class="px-3 py-1.5 rounded-xl bg-slate-900 hover:bg-indigo-600 text-white font-bold text-xs flex items-center gap-1.5 cursor-pointer disabled:opacity-60 transition"
-                      >
-                        @if (savingIndices().has(idx)) {
-                          <mat-spinner diameter="14"></mat-spinner>
-                        } @else {
-                          <mat-icon class="!text-sm">save</mat-icon>
-                        }
-                        <span>Save as Draft</span>
-                      </button>
-                    }
-                  </div>
-                </div>
-              </div>
-            }
-          </div>
-        }
+      <div class="lg:col-span-7">
+        <nag-ai-generation-results
+          [generating]="generating()"
+          [response]="response()"
+          [generationError]="generationError()"
+          [savedQuestionIds]="savedQuestionIds()"
+          [savingIndices]="savingIndices()"
+          [count]="form.value.count || 3"
+          [subject]="form.value.subject || 'Mathematics'"
+          [topic]="form.value.topic || 'Linear Algebra & Matrices'"
+          (saveQuestion)="saveQuestionToBank($event.question, $event.index)"
+          (saveAllValid)="saveAllValid()"
+          (openAuthoring)="openInAuthoring($event)"
+        ></nag-ai-generation-results>
       </div>
     </div>
   }
 
   <!-- TAB 2: HIGH-THROUGHPUT BATCH JOBS -->
   @if (activeTab() === 'batch') {
-    <div class="space-y-6">
-      <!-- Batch Queue Builder Box -->
-      <div class="bg-white rounded-3xl border border-slate-200 shadow-sm p-6 space-y-4">
-        <div class="flex items-center justify-between border-b border-slate-100 pb-3">
-          <div>
-            <h2 class="text-base font-black text-slate-900">Asynchronous Batch Queue</h2>
-            <p class="text-xs text-slate-500">
-              Submit multi-topic question generation jobs to AWS Bedrock batch inference (up to 100 questions per job).
-            </p>
-          </div>
-
-          <button
-            type="button"
-            (click)="submitBatch()"
-            [disabled]="batchItems().length === 0 || submittingBatch()"
-            class="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs flex items-center gap-2 shadow-sm cursor-pointer disabled:opacity-50"
-          >
-            @if (submittingBatch()) {
-              <mat-spinner diameter="16"></mat-spinner>
-            } @else {
-              <mat-icon class="!text-sm">send</mat-icon>
-            }
-            <span>Submit Batch Job ({{ totalBatchQuestions }} Questions)</span>
-          </button>
-        </div>
-
-        @if (batchItems().length === 0) {
-          <div class="py-8 text-center text-xs text-slate-400">
-            No items in the batch queue. Switch to "Real-Time Synthesis" tab, configure parameters, and click "Add to Batch Queue".
-          </div>
-        } @else {
-          <div class="divide-y divide-slate-100">
-            @for (item of batchItems(); track $index; let idx = $index) {
-              <div class="py-3 flex items-center justify-between text-xs">
-                <div class="space-y-0.5">
-                  <div class="font-bold text-slate-900 flex items-center gap-2">
-                    <span>{{ item.subject }}</span>
-                    <span class="text-slate-400">•</span>
-                    <span>{{ item.topic }}</span>
-                  </div>
-                  <div class="text-slate-500 text-[11px] flex items-center gap-2">
-                    <span class="px-1.5 py-0.5 bg-slate-100 rounded text-slate-700 font-semibold">{{ item.difficulty }}</span>
-                    <span class="px-1.5 py-0.5 bg-slate-100 rounded text-slate-700 font-semibold">{{ item.cognitiveLevel }}</span>
-                    <span class="px-1.5 py-0.5 bg-indigo-50 text-indigo-700 rounded font-semibold">{{ item.questionType }}</span>
-                  </div>
-                </div>
-
-                <div class="flex items-center gap-3">
-                  <span class="font-bold text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded-lg">
-                    {{ item.count }} Questions
-                  </span>
-                  <button
-                    type="button"
-                    (click)="removeBatchItem(idx)"
-                    class="text-rose-500 hover:text-rose-700 cursor-pointer p-1"
-                  >
-                    <mat-icon class="!text-base">delete</mat-icon>
-                  </button>
-                </div>
-              </div>
-            }
-          </div>
-        }
-      </div>
-
-      <!-- Historical / Active Batch Jobs List -->
-      <div class="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
-        <div class="p-5 border-b border-slate-100 bg-slate-50/50 flex items-center justify-between">
-          <div>
-            <h3 class="text-sm font-bold text-slate-900">Active & Historical Batch Jobs</h3>
-            <p class="text-xs text-slate-500">Processed by AWS Bedrock asynchronous worker pool</p>
-          </div>
-          <button
-            type="button"
-            (click)="loadBatchJobs()"
-            [disabled]="loadingBatchJobs()"
-            class="px-3 py-1.5 rounded-xl border border-slate-300 text-slate-700 hover:bg-slate-100 font-bold text-xs flex items-center gap-1.5 cursor-pointer"
-          >
-            <mat-icon class="!text-sm">refresh</mat-icon> Refresh
-          </button>
-        </div>
-
-        @if (batchJobs().length === 0) {
-          <div class="p-8 text-center text-xs text-slate-400">
-            No batch generation jobs recorded for this tenant yet.
-          </div>
-        } @else {
-          <div class="divide-y divide-slate-100">
-            @for (job of batchJobs(); track job.id) {
-              <div class="p-4 space-y-3 hover:bg-slate-50/50 transition">
-                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs">
-                  <div class="flex items-center gap-3">
-                    <div class="w-9 h-9 rounded-xl bg-indigo-100 text-indigo-700 flex items-center justify-center font-bold">
-                      <mat-icon class="!text-lg">auto_awesome</mat-icon>
-                    </div>
-                    <div>
-                      <div class="font-bold text-slate-900 flex items-center gap-2">
-                        <span>Job #{{ job.id }}</span>
-                        <span class="text-[11px] text-slate-400 font-normal">
-                          Model: {{ job.modelUsed || 'Bedrock Batch' }}
-                        </span>
-                      </div>
-                      <div class="text-[11px] text-slate-400">
-                        Created: {{ job.createdAt | date:'short' }}
-                      </div>
-                    </div>
-                  </div>
-
-                  <div class="flex items-center gap-3">
-                    <span
-                      class="px-2.5 py-1 rounded-full text-xs font-bold"
-                      [ngClass]="{
-                        'bg-emerald-100 text-emerald-800': job.status === 'COMPLETED',
-                        'bg-indigo-100 text-indigo-800 animate-pulse': job.status === 'PROCESSING' || job.status === 'PENDING',
-                        'bg-slate-100 text-slate-800': job.status === 'CANCELLED',
-                        'bg-rose-100 text-rose-800': job.status === 'FAILED'
-                      }"
-                    >
-                      {{ job.status }}
-                    </span>
-
-                    @if (job.status === 'PENDING' || job.status === 'PROCESSING') {
-                      <button
-                        type="button"
-                        (click)="cancelBatchJob(job.id)"
-                        class="px-2.5 py-1 rounded-lg border border-rose-200 text-rose-600 hover:bg-rose-50 text-[11px] font-bold cursor-pointer"
-                      >
-                        Cancel
-                      </button>
-                    }
-                  </div>
-                </div>
-
-                <!-- Progress Bar -->
-                <div class="space-y-1">
-                  <div class="flex justify-between text-xs font-semibold text-slate-600">
-                    <span>Generated: {{ job.totalGenerated }} / {{ job.totalRequested }} Questions</span>
-                    <span>{{ job.progress || 0 }}%</span>
-                  </div>
-                  <mat-progress-bar
-                    mode="determinate"
-                    [value]="job.progress || 0"
-                    class="rounded-full"
-                  ></mat-progress-bar>
-                  <div class="flex justify-between text-[11px] text-slate-400 pt-1">
-                    <span>Duplicates Filtered: {{ job.totalDuplicates }}</span>
-                    <span class="text-rose-500">Failed: {{ job.totalFailed }}</span>
-                  </div>
-                </div>
-              </div>
-            }
-          </div>
-        }
-      </div>
-    </div>
+    <nag-ai-batch-jobs-panel
+      [batchItems]="batchItems()"
+      [batchJobs]="batchJobs()"
+      [loadingBatchJobs]="loadingBatchJobs()"
+      [submittingBatch]="submittingBatch()"
+      [totalBatchQuestions]="totalBatchQuestions()"
+      (submitBatch)="submitBatch()"
+      (removeBatchItem)="removeBatchItem($event)"
+      (loadBatchJobs)="loadBatchJobs()"
+      (cancelBatchJob)="cancelBatchJob($event)"
+    ></nag-ai-batch-jobs-panel>
   }
 </div>
