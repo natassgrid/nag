@@ -39,6 +39,10 @@ import {
   BlueprintTemplateResponse,
 } from '@nag-frontend-workspace/questions-data-access';
 import {
+  SUPPORTED_LANGUAGES,
+  LanguageOption,
+} from '@nag-frontend-workspace/shared-util-i18n';
+import {
   BlueprintRuleBuilderComponent,
   PaperFeasibilityModalComponent,
   PaperInspectionDrawerComponent,
@@ -146,21 +150,10 @@ export class ExaminationsFeaturePaperGen implements OnInit {
     },
   ];
 
-  // Supported Indic Languages
-  readonly supportedLanguages = [
-    { code: 'hi', label: 'Hindi', native: 'हिन्दी' },
-    { code: 'ta', label: 'Tamil', native: 'தமிழ்' },
-    { code: 'te', label: 'Telugu', native: 'తెలుగు' },
-    { code: 'bn', label: 'Bengali', native: 'বাংলা' },
-    { code: 'mr', label: 'Marathi', native: 'मराठी' },
-    { code: 'gu', label: 'Gujarati', native: 'ગુજરાતી' },
-    { code: 'kn', label: 'Kannada', native: 'ಕನ್ನಡ' },
-    { code: 'ml', label: 'Malayalam', native: 'മലയാളം' },
-    { code: 'pa', label: 'Punjabi', native: 'ਪੰਜਾਬੀ' },
-    { code: 'or', label: 'Odia', native: 'ଓଡ଼ିଆ' },
-    { code: 'as', label: 'Assamese', native: 'অসমীয়া' },
-    { code: 'ur', label: 'Urdu', native: 'اردو' },
-  ];
+  // Supported Indic Languages imported from shared util-i18n (filtering for target translation languages)
+  readonly supportedLanguages: LanguageOption[] = SUPPORTED_LANGUAGES.filter(
+    (lang) => lang.code !== 'en'
+  );
 
   // Computed KPI counts
   readonly totalPapersCount = computed(() => this.papers().length);

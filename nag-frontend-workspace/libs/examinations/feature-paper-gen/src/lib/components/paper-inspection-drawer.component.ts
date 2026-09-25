@@ -9,12 +9,7 @@ import {
   PaperDetail,
   PaperTranslateResponse,
 } from '@nag-frontend-workspace/examinations-data-access';
-
-export interface IndicLanguageOption {
-  code: string;
-  label: string;
-  native: string;
-}
+import { LanguageOption } from '@nag-frontend-workspace/shared-util-i18n';
 
 @Component({
   selector: 'nag-paper-inspection-drawer',
@@ -37,7 +32,7 @@ export class PaperInspectionDrawerComponent {
   paperId = input<string | null>(null);
   isTranslating = input<boolean>(false);
   activeTranslationJob = input<PaperTranslateResponse | null>(null);
-  supportedLanguages = input<IndicLanguageOption[]>([]);
+  supportedLanguages = input<LanguageOption[]>([]);
 
   close = output<void>();
   startTranslation = output<{ targetLanguage: string; overwriteExisting: boolean }>();
