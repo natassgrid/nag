@@ -1,16 +1,14 @@
-import { Component, OnInit, inject, signal, computed } from '@angular/core';
+import {
+  Component,
+  OnInit,
+  inject,
+  signal,
+  computed,
+  ChangeDetectionStrategy,
+} from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { MatIconModule } from '@angular/material/icon';
 import { MatButtonModule } from '@angular/material/button';
-import { MatCardModule } from '@angular/material/card';
-import { MatChipsModule } from '@angular/material/chips';
-import { MatTooltipModule } from '@angular/material/tooltip';
-import { MatFormFieldModule } from '@angular/material/form-field';
-import { MatInputModule } from '@angular/material/input';
-import { MatSelectModule } from '@angular/material/select';
-import { MatProgressBarModule } from '@angular/material/progress-bar';
-import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import {
   TranslationService,
   QuestionBankService,
@@ -18,32 +16,34 @@ import {
   Subject,
   Question,
   INDIC_TRANSLATION_LANGUAGES,
-  IndicTranslationLanguage,
   BatchTranslationJobResponse,
-  TranslationResponse,
+  BatchTranslationRequest,
   AutoTranslateResponse,
 } from '@nag-frontend-workspace/questions-data-access';
+import {
+  TranslationLanguageStripComponent,
+  QuestionTranslationTableComponent,
+  BatchJobsListComponent,
+  TranslationWorkbenchDrawerComponent,
+  BatchTranslationModalComponent,
+} from './components';
 
 @Component({
   selector: 'app-admin-question-translation',
   standalone: true,
   imports: [
     CommonModule,
-    FormsModule,
-    ReactiveFormsModule,
     MatIconModule,
     MatButtonModule,
-    MatCardModule,
-    MatChipsModule,
-    MatTooltipModule,
-    MatFormFieldModule,
-    MatInputModule,
-    MatSelectModule,
-    MatProgressBarModule,
-    MatProgressSpinnerModule,
+    TranslationLanguageStripComponent,
+    QuestionTranslationTableComponent,
+    BatchJobsListComponent,
+    TranslationWorkbenchDrawerComponent,
+    BatchTranslationModalComponent,
   ],
   templateUrl: './admin-question-translation.component.html',
   styleUrl: './admin-question-translation.component.scss',
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class AdminQuestionTranslationComponent implements OnInit {
   private readonly translationService = inject(TranslationService);
@@ -99,10 +99,6 @@ export class AdminQuestionTranslationComponent implements OnInit {
   readonly batchModalOpen = signal<boolean>(false);
   readonly submittingBatch = signal<boolean>(false);
   readonly loadingBatchJobs = signal<boolean>(false);
-  readonly batchSourceLanguage = signal<string>('en');
-  readonly batchTargetLang = signal<string>('hi');
-  readonly batchSubject = signal<string>('ALL');
-  readonly batchOverwrite = signal<boolean>(false);
   readonly batchJobs = signal<BatchTranslationJobResponse[]>([]);
 
   readonly activeLanguageName = computed(() => {
@@ -167,10 +163,6 @@ export class AdminQuestionTranslationComponent implements OnInit {
     this.fetchExistingTranslation(question.id, this.selectedLanguage());
   }
 
-  openTranslationDrawer(question: Question): void {
-    this.openTranslationEditor(question);
-  }
-
   closeDrawer(): void {
     this.drawerOpen.set(false);
     this.activeQuestion.set(null);
@@ -218,6 +210,16 @@ export class AdminQuestionTranslationComponent implements OnInit {
     } else {
       this.translatedOptions.set([]);
     }
+  }
+
+  updateTranslatedOption(event: { index: number; text: string }): void {
+    this.translatedOptions.update((opts) => {
+      const copy = [...opts];
+      if (copy[event.index]) {
+        copy[event.index] = { ...copy[event.index], text: event.text };
+      }
+      return copy;
+    });
   }
 
   runIndicAiTranslation(): void {
@@ -287,15 +289,8 @@ export class AdminQuestionTranslationComponent implements OnInit {
     this.batchModalOpen.set(false);
   }
 
-  triggerBatchJob(): void {
+  triggerBatchJob(req: BatchTranslationRequest): void {
     this.submittingBatch.set(true);
-    const req = {
-      sourceLanguage: this.batchSourceLanguage(),
-      targetLanguage: this.batchTargetLang(),
-      subject: this.batchSubject() === 'ALL' ? undefined : this.batchSubject(),
-      overwriteExisting: this.batchOverwrite(),
-    };
-
     this.translationService.startBatchTranslation(req).subscribe({
       next: (job) => {
         this.batchJobs.update((jobs) => [job, ...jobs]);
