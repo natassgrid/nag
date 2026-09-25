@@ -5,12 +5,15 @@ import { Observable, map, tap } from 'rxjs';
 export type QuestionType =
   | 'SINGLE_MCQ'
   | 'MULTIPLE_MCQ'
+  | 'MULTI_MCQ'
   | 'MULTIPLE_CHOICE'
   | 'MULTIPLE_SELECT'
   | 'NUMERICAL'
-  | 'TEXT';
+  | 'TEXT'
+  | 'DESCRIPTIVE'
+  | 'PARAGRAPH_SET';
 
-export type DifficultyLevel = 'EASY' | 'MEDIUM' | 'HARD';
+export type DifficultyLevel = 'EASY' | 'MEDIUM' | 'HARD' | 'EXPERT';
 
 export type QuestionStatus =
   | 'DRAFT'
@@ -37,14 +40,17 @@ export interface Question {
   subject?: string;
   topic?: string;
   subtopic?: string;
-  subjectId?: string;
-  topicId?: string;
+  subjectId?: string | number;
+  topicId?: string | number;
+  subtopicId?: string | number;
   marks: number;
   negativeMarks: number;
   options: QuestionOption[];
   answerKey?: string;
   explanation?: string;
   tags?: string[];
+  passageId?: string;
+  passageOrderIndex?: number;
   createdAt?: string;
   updatedAt?: string;
 }
@@ -53,9 +59,9 @@ export interface QuestionFilter {
   query?: string;
   search?: string;
   subject?: string;
-  subjectId?: string;
+  subjectId?: string | number;
   topic?: string;
-  topicId?: string;
+  topicId?: string | number;
   difficulty?: string;
   state?: string;
   status?: string;
@@ -81,6 +87,378 @@ export interface PagedQuestionsResponse {
   number: number;
   size: number;
 }
+
+// ============================================================================
+// 1. SUBJECT & TOPIC TAXONOMY MODELS & SERVICE
+// ============================================================================
+
+export interface Subject {
+  id: number;
+  name: string;
+  code?: string;
+  description?: string;
+  topicCount?: number;
+  questionCount?: number;
+}
+
+export interface Topic {
+  id: number;
+  subjectId: number;
+  name: string;
+  description?: string;
+  subtopicCount?: number;
+  questionCount?: number;
+}
+
+export interface Subtopic {
+  id: number;
+  topicId: number;
+  name: string;
+  description?: string;
+  questionCount?: number;
+}
+
+export interface SubtopicNode {
+  id: number;
+  name: string;
+  description?: string;
+  questionCount?: number;
+}
+
+export interface TopicNode {
+  id: number;
+  name: string;
+  description?: string;
+  questionCount?: number;
+  subtopics: SubtopicNode[];
+}
+
+export interface SubjectHierarchy {
+  id: number;
+  name: string;
+  code?: string;
+  description?: string;
+  questionCount?: number;
+  topics: TopicNode[];
+}
+
+@Injectable({
+  providedIn: 'root',
+})
+export class SubjectTopicService {
+  private readonly http = inject(HttpClient);
+  private readonly baseUrl = '/api/v1/subjects';
+
+  getSubjects(): Observable<Subject[]> {
+    return this.http
+      .get<{ data?: Subject[] } | Subject[]>(this.baseUrl)
+      .pipe(map((res) => (Array.isArray(res) ? res : (res as any)?.data || [])));
+  }
+
+  getSubject(id: number): Observable<Subject> {
+    return this.http
+      .get<{ data?: Subject } | Subject>(`${this.baseUrl}/${id}`)
+      .pipe(map((res) => ((res as any)?.data || res) as Subject));
+  }
+
+  createSubject(data: { name: string; code?: string; description?: string }): Observable<Subject> {
+    return this.http
+      .post<{ data?: Subject } | Subject>(this.baseUrl, data)
+      .pipe(map((res) => ((res as any)?.data || res) as Subject));
+  }
+
+  updateSubject(id: number, data: { name: string; code?: string; description?: string }): Observable<Subject> {
+    return this.http
+      .put<{ data?: Subject } | Subject>(`${this.baseUrl}/${id}`, data)
+      .pipe(map((res) => ((res as any)?.data || res) as Subject));
+  }
+
+  deleteSubject(id: number): Observable<void> {
+    return this.http.delete<void>(`${this.baseUrl}/${id}`);
+  }
+
+  getTopics(subjectId: number): Observable<Topic[]> {
+    return this.http
+      .get<{ data?: Topic[] } | Topic[]>(`${this.baseUrl}/${subjectId}/topics`)
+      .pipe(map((res) => (Array.isArray(res) ? res : (res as any)?.data || [])));
+  }
+
+  createTopic(subjectId: number, data: { name: string; description?: string }): Observable<Topic> {
+    return this.http
+      .post<{ data?: Topic } | Topic>(`${this.baseUrl}/${subjectId}/topics`, data)
+      .pipe(map((res) => ((res as any)?.data || res) as Topic));
+  }
+
+  getSubtopics(subjectId: number, topicId: number): Observable<Subtopic[]> {
+    return this.http
+      .get<{ data?: Subtopic[] } | Subtopic[]>(`${this.baseUrl}/${subjectId}/topics/${topicId}/subtopics`)
+      .pipe(map((res) => (Array.isArray(res) ? res : (res as any)?.data || [])));
+  }
+
+  createSubtopic(subjectId: number, topicId: number, data: { name: string; description?: string }): Observable<Subtopic> {
+    return this.http
+      .post<{ data?: Subtopic } | Subtopic>(`${this.baseUrl}/${subjectId}/topics/${topicId}/subtopics`, data)
+      .pipe(map((res) => ((res as any)?.data || res) as Subtopic));
+  }
+
+  getHierarchy(): Observable<SubjectHierarchy[]> {
+    return this.http
+      .get<{ data?: SubjectHierarchy[] } | SubjectHierarchy[]>(`${this.baseUrl}/hierarchy`)
+      .pipe(map((res) => (Array.isArray(res) ? res : (res as any)?.data || [])));
+  }
+}
+
+// ============================================================================
+// 2. PASSAGE & COMPREHENSION SET MODELS & SERVICE
+// ============================================================================
+
+export interface SubQuestionRequest {
+  id?: string;
+  passageOrderIndex?: number;
+  content: string;
+  difficulty?: 'EASY' | 'MEDIUM' | 'HARD' | 'EXPERT' | string;
+  cognitiveLevel?: 'REMEMBER' | 'UNDERSTAND' | 'APPLY' | 'ANALYZE' | 'EVALUATE' | 'CREATE' | string;
+  questionType?: QuestionType | string;
+  options: QuestionOption[];
+  answerKey?: string;
+  explanation?: string;
+  marks?: number;
+  negativeMarks?: number;
+}
+
+export interface PassageRequest {
+  title?: string;
+  content: string;
+  contentFormat?: string;
+  subjectId: number;
+  topicId?: number;
+  subject?: string;
+  topic?: string;
+  subtopic?: string;
+  hasImages?: boolean;
+  subQuestions: SubQuestionRequest[];
+}
+
+export interface PassageResponse {
+  id: string;
+  title?: string;
+  content: string;
+  contentFormat?: string;
+  subjectId: number;
+  topicId?: number;
+  subject?: string;
+  topic?: string;
+  subtopic?: string;
+  hasImages?: boolean;
+  state: string;
+  authorId?: string;
+  reviewerId?: string;
+  subQuestions: Question[];
+  subQuestionCount?: number;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface PagedPassagesResponse {
+  content: PassageResponse[];
+  totalElements: number;
+  totalPages: number;
+  number: number;
+  size: number;
+}
+
+@Injectable({
+  providedIn: 'root',
+})
+export class PassageService {
+  private readonly http = inject(HttpClient);
+  private readonly baseUrl = '/api/v1/passages';
+
+  readonly passages = signal<PassageResponse[]>([]);
+  readonly total = signal<number>(0);
+  readonly loading = signal<boolean>(false);
+
+  listPassages(filters?: {
+    subjectId?: number;
+    state?: string;
+    search?: string;
+    page?: number;
+    size?: number;
+  }): Observable<PagedPassagesResponse> {
+    this.loading.set(true);
+    let params = new HttpParams()
+      .set('page', (filters?.page ?? 0).toString())
+      .set('size', (filters?.size ?? 20).toString());
+
+    if (filters?.subjectId) params = params.set('subjectId', filters.subjectId.toString());
+    if (filters?.state && filters.state !== 'ALL') params = params.set('state', filters.state);
+    if (filters?.search && filters.search.trim()) params = params.set('search', filters.search.trim());
+
+    return this.http
+      .get<{ status?: string; data?: any }>(this.baseUrl, { params })
+      .pipe(
+        map((res) => {
+          const page = res?.data || res;
+          const rawItems = Array.isArray(page?.content) ? page.content : (Array.isArray(page) ? page : []);
+          const items: PassageResponse[] = rawItems.map((raw: any) => this.mapToPassage(raw));
+          return {
+            content: items,
+            totalElements: page?.totalElements ?? items.length,
+            totalPages: page?.totalPages ?? 1,
+            number: page?.number ?? 0,
+            size: page?.size ?? 20,
+          };
+        }),
+        tap({
+          next: (res) => {
+            this.passages.set(res.content);
+            this.total.set(res.totalElements);
+            this.loading.set(false);
+          },
+          error: () => this.loading.set(false),
+        })
+      );
+  }
+
+  getPassage(id: string): Observable<PassageResponse> {
+    return this.http
+      .get<{ status?: string; data?: any }>(`${this.baseUrl}/${id}`)
+      .pipe(map((res) => this.mapToPassage(res?.data || res)));
+  }
+
+  createPassage(data: PassageRequest): Observable<PassageResponse> {
+    return this.http
+      .post<{ status?: string; data?: any }>(this.baseUrl, data)
+      .pipe(
+        map((res) => this.mapToPassage(res?.data || res)),
+        tap((created) => {
+          this.passages.update((list) => [created, ...list]);
+          this.total.update((t) => t + 1);
+        })
+      );
+  }
+
+  updatePassage(id: string, data: PassageRequest): Observable<PassageResponse> {
+    return this.http
+      .put<{ status?: string; data?: any }>(`${this.baseUrl}/${id}`, data)
+      .pipe(
+        map((res) => this.mapToPassage(res?.data || res)),
+        tap((updated) => {
+          this.passages.update((list) =>
+            list.map((item) => (item.id === id ? updated : item))
+          );
+        })
+      );
+  }
+
+  deletePassage(id: string): Observable<void> {
+    return this.http.delete<void>(`${this.baseUrl}/${id}`).pipe(
+      tap(() => {
+        this.passages.update((list) => list.filter((p) => p.id !== id));
+        this.total.update((t) => Math.max(0, t - 1));
+      })
+    );
+  }
+
+  submitForReview(id: string): Observable<PassageResponse> {
+    return this.http
+      .put<{ status?: string; data?: any }>(`${this.baseUrl}/${id}/submit`, {})
+      .pipe(
+        map((res) => this.mapToPassage(res?.data || res)),
+        tap((updated) => {
+          this.passages.update((list) =>
+            list.map((item) => (item.id === id ? updated : item))
+          );
+        })
+      );
+  }
+
+  approvePassage(id: string): Observable<PassageResponse> {
+    return this.http
+      .put<{ status?: string; data?: any }>(`${this.baseUrl}/${id}/approve`, {})
+      .pipe(
+        map((res) => this.mapToPassage(res?.data || res)),
+        tap((updated) => {
+          this.passages.update((list) =>
+            list.map((item) => (item.id === id ? updated : item))
+          );
+        })
+      );
+  }
+
+  rejectPassage(id: string, comments?: string): Observable<PassageResponse> {
+    return this.http
+      .put<{ status?: string; data?: any }>(`${this.baseUrl}/${id}/reject`, { comments })
+      .pipe(
+        map((res) => this.mapToPassage(res?.data || res)),
+        tap((updated) => {
+          this.passages.update((list) =>
+            list.map((item) => (item.id === id ? updated : item))
+          );
+        })
+      );
+  }
+
+  private mapToPassage(raw: any): PassageResponse {
+    const rawSubs = raw?.subQuestions || [];
+    const subQuestions: Question[] = rawSubs.map((sub: any, idx: number) => {
+      let options: QuestionOption[] = [];
+      if (Array.isArray(sub.options)) {
+        options = sub.options.map((opt: any, oIdx: number) => ({
+          id: opt.id || String.fromCharCode(65 + oIdx),
+          text: opt.text || '',
+          isCorrect: opt.isCorrect ?? (sub.answerKey === opt.id),
+          imageUrl: opt.imageUrl,
+          imageAltText: opt.imageAltText,
+        }));
+      }
+
+      return {
+        id: sub.id || `SQ-${idx + 1}`,
+        content: sub.content || '',
+        type: sub.questionType || sub.type || 'SINGLE_MCQ',
+        difficulty: (sub.difficulty || 'MEDIUM') as DifficultyLevel,
+        status: (sub.state || sub.status || raw.state || 'DRAFT') as QuestionStatus,
+        subject: raw.subject || '',
+        topic: raw.topic || '',
+        subtopic: raw.subtopic || '',
+        subjectId: raw.subjectId,
+        topicId: raw.topicId,
+        marks: sub.marks ?? 4,
+        negativeMarks: sub.negativeMarks ?? 1,
+        options,
+        answerKey: sub.answerKey,
+        explanation: sub.explanation,
+        passageId: raw.id,
+        passageOrderIndex: sub.passageOrderIndex ?? (idx + 1),
+      };
+    });
+
+    return {
+      id: raw.id,
+      title: raw.title || '',
+      content: raw.content || '',
+      contentFormat: raw.contentFormat || 'MIXED',
+      subjectId: raw.subjectId,
+      topicId: raw.topicId,
+      subject: raw.subject || '',
+      topic: raw.topic || '',
+      subtopic: raw.subtopic || '',
+      hasImages: !!raw.hasImages,
+      state: raw.state || 'DRAFT',
+      authorId: raw.authorId,
+      reviewerId: raw.reviewerId,
+      subQuestions,
+      subQuestionCount: raw.subQuestionCount ?? subQuestions.length,
+      createdAt: raw.createdAt,
+      updatedAt: raw.updatedAt,
+    };
+  }
+}
+
+// ============================================================================
+// 3. MAIN QUESTION BANK SERVICE
+// ============================================================================
 
 @Injectable({
   providedIn: 'root',
@@ -122,13 +500,16 @@ export class QuestionBankService {
       params = params.set('subject', current.subject);
     }
     if (current.subjectId) {
-      params = params.set('subjectId', current.subjectId);
+      params = params.set('subjectId', current.subjectId.toString());
     }
-    if (current.topic) {
+    if (current.topic && current.topic !== 'ALL') {
       params = params.set('topic', current.topic);
     }
     if (current.topicId) {
-      params = params.set('topicId', current.topicId);
+      params = params.set('topicId', current.topicId.toString());
+    }
+    if (current.type && current.type !== 'ALL') {
+      params = params.set('type', current.type);
     }
     if (current.sort) {
       params = params.set('sort', current.sort);
@@ -140,7 +521,7 @@ export class QuestionBankService {
       .pipe(
         map((res) => {
           const page = res?.data || res;
-          const rawItems = page?.content || [];
+          const rawItems = Array.isArray(page?.content) ? page.content : (Array.isArray(page) ? page : []);
           const items: Question[] = rawItems.map((raw: any) => this.mapToQuestion(raw));
           return {
             content: items,
@@ -310,12 +691,15 @@ export class QuestionBankService {
       subtopic: raw.subtopic || '',
       subjectId: raw.subjectId ? String(raw.subjectId) : undefined,
       topicId: raw.topicId ? String(raw.topicId) : undefined,
+      subtopicId: raw.subtopicId ? String(raw.subtopicId) : undefined,
       marks: raw.marks ?? 4,
       negativeMarks: raw.negativeMarks ?? 1,
       options: parsedOptions,
       answerKey: raw.answerKey,
       explanation: raw.explanation,
       tags: tags.length > 0 ? tags : (raw.tags || []),
+      passageId: raw.passageId,
+      passageOrderIndex: raw.passageOrderIndex,
       createdAt: raw.createdAt,
       updatedAt: raw.updatedAt,
     };
@@ -323,7 +707,7 @@ export class QuestionBankService {
 }
 
 // ============================================================================
-// 1. RULE BLUEPRINT MODELS & SERVICE
+// 4. RULE BLUEPRINT MODELS & SERVICE
 // ============================================================================
 
 export interface BlueprintRule {
@@ -445,7 +829,7 @@ export class BlueprintTemplateService {
 }
 
 // ============================================================================
-// 2. QUESTION TRANSLATION & INDIC AI MODELS & SERVICE
+// 5. QUESTION TRANSLATION & INDIC AI MODELS & SERVICE
 // ============================================================================
 
 export type TranslationStatus = 'DRAFT' | 'PENDING_REVIEW' | 'APPROVED' | 'PUBLISHED' | 'REJECTED' | 'STALE';
@@ -651,9 +1035,8 @@ export class TranslationService {
   }
 }
 
-
 // ============================================================================
-// 3. AI QUESTION GENERATION MODELS & SERVICE (LiteLLM / Bedrock / RAG)
+// 6. AI QUESTION GENERATION MODELS & SERVICE (LiteLLM / Bedrock / RAG)
 // ============================================================================
 
 export interface ParagraphSetConfig {

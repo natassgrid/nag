@@ -117,26 +117,34 @@ echo "  AI Pipeline:   Enabled (Ollama, LiteLLM, IndicTrans2)"
 fi
 echo "============================================="
 
-# --- Ensure builder base image exists (only required if building backend JVM) ---
-ensure_builder_base() {
-    if ! docker image inspect exam/builder-base:latest >/dev/null 2>&1; then
-        echo "🔧 Building builder base image (one-time)..."
-        cd "$PROJECT_ROOT"
-        docker build -f backend/Dockerfile.base -t exam/builder-base:latest .
-        cd "$SCRIPT_DIR"
-        echo "✅ Builder base image ready."
-    fi
-}
+# --- Target app services to manage ---
+if [ -n "$SERVICE" ]; then
+    APP_TARGETS="$SERVICE"
+elif [ "$FRONTEND_ONLY" = true ]; then
+    APP_TARGETS="admin-portal candidate-delivery public-verifier"
+elif [ "$BACKEND_ONLY" = true ]; then
+    APP_TARGETS="monolith-app"
+else
+    APP_TARGETS="monolith-app admin-portal candidate-delivery public-verifier"
+fi
 
-if [ "$FRONTEND_ONLY" = false ] && [[ "$SERVICE" != "admin-portal" && "$SERVICE" != "candidate-delivery" && "$SERVICE" != "public-verifier" ]]; then
-    ensure_builder_base
+# --- Infrastructure targets definition ---
+INFRA_TARGETS="postgres redis vault vault-init keycloak"
+if [ "$RABBIT" = true ]; then
+    INFRA_TARGETS="$INFRA_TARGETS rabbitmq"
+fi
+if [ "$OBSERVABILITY" = true ]; then
+    INFRA_TARGETS="$INFRA_TARGETS prometheus grafana jaeger"
+fi
+if [ "$AI" = true ]; then
+    INFRA_TARGETS="$INFRA_TARGETS ollama litellm indictrans2"
 fi
 
 # --- Health check mode ---
 if [ "$HEALTH_CHECK" = true ]; then
     echo ""
-    echo "🔍 Checking health status of monolith services..."
-    echo ""
+    echo "🔍 Checking Single JVM Monolith health..."
+    echo "--------------------------------------------------------"
 
     container="exam-monolith-app"
     if ! docker ps --format '{{.Names}}' | grep -q "^${container}$"; then
@@ -159,30 +167,40 @@ if [ "$HEALTH_CHECK" = true ]; then
     exit 0
 fi
 
-# --- Target app services to manage ---
-if [ -n "$SERVICE" ]; then
-    APP_TARGETS="$SERVICE"
-elif [ "$FRONTEND_ONLY" = true ]; then
-    APP_TARGETS="admin-portal candidate-delivery public-verifier"
-elif [ "$BACKEND_ONLY" = true ]; then
-    APP_TARGETS="monolith-app"
-else
-    APP_TARGETS="monolith-app admin-portal candidate-delivery public-verifier"
-fi
-
 # --- Restart only mode ---
 if [ "$RESTART_ONLY" = true ]; then
+    echo ""
+    echo "🚀 Ensuring infrastructure ($INFRA_TARGETS) is active..."
+    $COMPOSE up -d $INFRA_TARGETS
+    $COMPOSE up --wait -d postgres vault redis
+    if [ "$RABBIT" = true ]; then
+        $COMPOSE up --wait -d rabbitmq
+    fi
+    echo "  Ensuring Vault is unsealed and transit keys are initialized..."
+    $COMPOSE up -d vault-init
+
     echo ""
     echo "🔄 Restarting monolith services (no build)..."
     $COMPOSE stop $APP_TARGETS
     $COMPOSE up -d $APP_TARGETS
     echo ""
     echo "✅ Monolith restarted."
+    $COMPOSE ps --format "table {{.Name}}\t{{.Status}}\t{{.Ports}}" 2>/dev/null || $COMPOSE ps
     exit 0
 fi
 
 # --- Targeted Service or Frontend Only Deploy Mode (keep infra running) ---
 if [ "$FRONTEND_ONLY" = true ] || [ -n "$SERVICE" ]; then
+    echo ""
+    echo "🚀 Ensuring infrastructure ($INFRA_TARGETS) is active..."
+    $COMPOSE up -d $INFRA_TARGETS
+    $COMPOSE up --wait -d postgres vault redis
+    if [ "$RABBIT" = true ]; then
+        $COMPOSE up --wait -d rabbitmq
+    fi
+    echo "  Ensuring Vault is unsealed and transit keys are initialized..."
+    $COMPOSE up -d vault-init
+
     echo ""
     echo "📦 Building targets: $APP_TARGETS..."
     $COMPOSE build $NO_CACHE $APP_TARGETS
@@ -231,17 +249,6 @@ else
 fi
 
 echo ""
-INFRA_TARGETS="postgres redis vault vault-init keycloak"
-if [ "$RABBIT" = true ]; then
-    INFRA_TARGETS="$INFRA_TARGETS rabbitmq"
-fi
-if [ "$OBSERVABILITY" = true ]; then
-    INFRA_TARGETS="$INFRA_TARGETS prometheus grafana jaeger"
-fi
-if [ "$AI" = true ]; then
-    INFRA_TARGETS="$INFRA_TARGETS ollama litellm indictrans2"
-fi
-
 echo "🚀 Starting infrastructure ($INFRA_TARGETS)..."
 $COMPOSE up -d $INFRA_TARGETS
 echo "  Waiting for infrastructure to be healthy..."
