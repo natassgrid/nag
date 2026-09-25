@@ -38,6 +38,11 @@ import {
   BlueprintTemplateService,
   BlueprintTemplateResponse,
 } from '@nag-frontend-workspace/questions-data-access';
+import {
+  BlueprintRuleBuilderComponent,
+  PaperFeasibilityModalComponent,
+  PaperInspectionDrawerComponent,
+} from '../components';
 
 @Component({
   selector: 'nag-examinations-feature-paper-gen',
@@ -56,6 +61,9 @@ import {
     MatProgressSpinnerModule,
     MatSnackBarModule,
     PageHeaderComponent,
+    BlueprintRuleBuilderComponent,
+    PaperFeasibilityModalComponent,
+    PaperInspectionDrawerComponent,
   ],
   templateUrl: './examinations-feature-paper-gen.component.html',
   styleUrl: './examinations-feature-paper-gen.component.scss',
@@ -102,8 +110,6 @@ export class ExaminationsFeaturePaperGen implements OnInit {
 
   // Translation State
   readonly activeTranslationJob = signal<PaperTranslateResponse | null>(null);
-  transTargetLanguage = 'hi';
-  transOverwriteExisting = false;
 
   // Search & Filters
   readonly searchQuery = signal<string>('');
@@ -118,6 +124,7 @@ export class ExaminationsFeaturePaperGen implements OnInit {
   genIsPractice = false;
   genUseTemplate = true;
   genSelectedTemplateId = '';
+
   genRules: BlueprintRule[] = [
     {
       subject: 'Quantitative Aptitude',
@@ -514,14 +521,14 @@ export class ExaminationsFeaturePaperGen implements OnInit {
     });
   }
 
-  startTranslation(): void {
+  startTranslation(event: { targetLanguage: string; overwriteExisting: boolean }): void {
     const id = this.selectedPaperId();
     if (!id) return;
 
     this.isTranslating.set(true);
     const req: PaperTranslateRequest = {
-      targetLanguage: this.transTargetLanguage,
-      overwriteExisting: this.transOverwriteExisting,
+      targetLanguage: event.targetLanguage,
+      overwriteExisting: event.overwriteExisting,
     };
 
     this.paperService.startTranslation(id, req).subscribe({
@@ -529,7 +536,7 @@ export class ExaminationsFeaturePaperGen implements OnInit {
         this.activeTranslationJob.set(res);
         this.isTranslating.set(false);
         this.snackBar.open(
-          `IndicTrans2 batch pipeline initiated for (${this.transTargetLanguage.toUpperCase()})! Job ID: ${res.jobId}`,
+          `IndicTrans2 batch pipeline initiated for (${event.targetLanguage.toUpperCase()})! Job ID: ${res.jobId}`,
           'OK',
           { duration: 4500 }
         );
