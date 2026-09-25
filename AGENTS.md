@@ -1,4 +1,74 @@
-# AGENTS.md - NAG Project Setup & Build Directives
+# AGENTS.md - NAG Project Setup, Modular Architecture & Build Directives
+
+## Modular Code Architecture & Frontend Component Standards
+
+### 1. Component Granularity & Decomposition Rules
+- **No Monolithic Components**: Components should follow the Single Responsibility Principle (SRP). Any feature component with over 250 lines of HTML or 200 lines of TypeScript must be decomposed into focused, reusable sub-components.
+- **Dedicated Sub-Component Directories**: Every sub-component must reside in its own named kebab-case subdirectory under `components/` (e.g., `components/centre-kpi-cards/`, `components/asset-toolbar/`).
+- **Strict File Triad Separation**: Every Angular component MUST have separate `.ts`, `.html`, and `.scss` files:
+  - `templateUrl: './component-name.component.html'`
+  - `styleUrl: './component-name.component.scss'`
+  - Inline templates (`template: '...'`) and inline styles (`styles: [...]`) are strictly prohibited in feature sub-components.
+- **Explicit `:host` Display**: Component stylesheets must define host styling (typically `:host { display: block; }` or `:host { display: contents; }`).
+- **Standardized Feature Directory Structure**:
+  ```
+  feature-module/
+  ├── models/
+  │   ├── feature.model.ts        # Domain models, view states, filter interfaces
+  │   └── index.ts                # Barrel export for models
+  ├── components/
+  │   ├── feature-kpi-cards/      # Metric summaries & KPI counters
+  │   │   ├── feature-kpi-cards.component.ts
+  │   │   ├── feature-kpi-cards.component.html
+  │   │   └── feature-kpi-cards.component.scss
+  │   ├── feature-filter-bar/     # Search, filter pills, dropdowns, view switcher
+  │   │   ├── feature-filter-bar.component.ts
+  │   │   ├── feature-filter-bar.component.html
+  │   │   └── feature-filter-bar.component.scss
+  │   ├── feature-table-list/     # Tabular/grid list renderer & item actions
+  │   │   ├── feature-table-list.component.ts
+  │   │   ├── feature-table-list.component.html
+  │   │   └── feature-table-list.component.scss
+  │   ├── feature-form-drawer/    # Create / Edit side drawers & sliding panels
+  │   │   ├── feature-form-drawer.component.ts
+  │   │   ├── feature-form-drawer.component.html
+  │   │   └── feature-form-drawer.component.scss
+  │   └── index.ts                # Barrel export for all sub-components
+  ├── feature.component.ts        # Container / Orchestrator component
+  ├── feature.component.html      # Clean orchestrator template
+  └── feature.component.scss      # Feature-level page styling
+  ```
+
+### 2. Modern Angular Best Practices (Angular 19+ / 20+)
+- **Standalone Architecture**: All components, directives, and pipes must be standalone (`standalone: true`).
+- **OnPush Change Detection**: Always specify `changeDetection: ChangeDetectionStrategy.OnPush` on container and presentational components for optimal change detection performance.
+- **Signal-Based Reactivity**:
+  - Use `signal<T>()` for mutable state.
+  - Use `computed()` for derived state and metrics.
+  - Use `input<T>()` and `input.required<T>()` for component inputs (replacing legacy `@Input()`).
+  - Use `output<T>()` for component event emitters (replacing legacy `@Output()`).
+- **Function-Based Dependency Injection**: Use `inject(ServiceName)` instead of constructor parameter injection.
+- **Native Control Flow**:
+  - Use `@if`, `@else if`, `@else` for conditional rendering.
+  - Use `@for (item of items(); track item.id)` with explicit track keys.
+  - Use `@switch` and `@case` for multi-branch rendering.
+- **Reactive Forms with Signal Synergy**: Bind reactive forms (`[formGroup]="form()"`) cleanly into drawer and modal sub-components.
+
+### 3. Defensive Programming & Null Safety
+- **Signal Null-Safety**: Never call methods like `.toLowerCase()`, `.trim()`, `.includes()`, `.slice()`, or `.reduce()` directly on object properties that may be `null` or `undefined`.
+- **Safe Fallbacks**: Always provide defensive defaults:
+  ```typescript
+  readonly filteredItems = computed(() => {
+    const list = this.items() || [];
+    const q = (this.searchQuery() || '').toLowerCase().trim();
+    return list.filter(item => {
+      if (!item) return false;
+      return !q || (item.name && item.name.toLowerCase().includes(q));
+    });
+  });
+  ```
+
+---
 
 ## File Editing Safety Guards & Overwrite Prevention
 
@@ -29,40 +99,11 @@
      - **Full Navigation Shell Preservation**: When adding or updating links in navigation menus, you MUST preserve the entire header structure, brand logo, user profile/logout controls, and **ALL sibling menu categories** (e.g., Dashboard, Question Bank, Examinations, Administration).
      - **Isolated Diff Verification**: Always run `git diff <layout-file>` immediately after editing. Ensure that the diff ONLY affects the intended sub-menu items and that all opening/closing tags (`<header>`, `<nav>`, `<main>`, `<div>`) remain balanced and intact.
 
-5. **Component Signal & Template Null-Safety Guards**:
-   - **Reactive Computed Signals (`computed()`)**:
-     - NEVER call methods like `.toLowerCase()`, `.trim()`, `.includes()`, `.slice()`, or `.reduce()` directly on object properties that may be `null` or `undefined` (e.g., `item.name.toLowerCase()`).
-     - ALWAYS use optional chaining and defensive defaults:
-       ```typescript
-       readonly filteredItems = computed(() => {
-         const list = this.items() || [];
-         const q = this.searchQuery().toLowerCase().trim();
-         return list.filter(item => {
-           if (!item) return false;
-           return !q || (item.name && item.name.toLowerCase().includes(q));
-         });
-       });
-       ```
-     - Guard all computed KPI aggregates against empty arrays (e.g., `(this.items() || []).length`).
-   - **Template Null Safety**:
-     - When iterating over collections in Angular control flow (`@for (item of items(); track item.id)`), ensure inputs are non-null and safely handle optional nested fields using optional chaining (`item.section?.length`) or null-safe fallbacks.
-
-6. **Frontend-Specific Preservation Rules**:
-   - **HTML Templates (`*.component.html`, `*.html`, `*.tsx`, `*.jsx`)**:
-     - NEVER output only the inner child elements, updated form rows, or newly added modal/drawer tags.
-     - ALWAYS preserve the full document structure: `<div class="page-layout">`, `<app-page-header>`, main table/cards container, `<app-paginated-table>`, action templates (`<ng-template #actionsTmpl>`), result banners, and all existing drawer/dialog components.
-   - **Styles (`*.scss`, `*.css`)**:
-     - NEVER output only the newly added class selectors.
-     - ALWAYS retain all existing class rules, layout styles, themes, and media queries.
-   - **TypeScript Logic (`*.ts`, `*.service.ts`, `*.component.ts`)**:
-     - NEVER replace a component with just the new methods.
-     - ALWAYS retain all existing imports, class properties, `@ViewChild` refs, lifecycle hooks (`ngOnInit`, `ngOnChanges`), constructor injections, and helper functions.
-
-7. **Mandatory Immediate `git diff` Verification**:
+5. **Mandatory Immediate `git diff` Verification**:
    - After writing to any file, IMMEDIATELY run `git diff <path>` to review the line-by-line diff.
    - If any unintended deletions, wiped sections, or missing template blocks are detected, restore and correct them immediately before proceeding.
 
-8. **Mandatory Post-Task Verification & Workspace Builds**:
+6. **Mandatory Post-Task Verification & Workspace Builds**:
    - Run `git status` prior to completing any task or reporting back to ensure no files were corrupted or accidentally overwritten.
    - For `nag-frontend-workspace`, verify builds with:
      ```bash
@@ -71,7 +112,7 @@
    - For legacy frontend projects:
      - Angular: `npm run build -- --configuration production` in `frontend/`
      - Vite/React: `npm run build` in `candidate-frontend/`
-   - **MANDATORY DOCKER BUILDS WITH `--no-cache`**: When performing docker-based verification, ALWAYS execute clean Docker builds with `--no-cache` to ensure cached layers do not mask stale assets, missing files, or broken import paths:
+   - **MANDATORY DOCKER BUILDS WITH `--no-cache`**: When performing docker-based verification, ALWAYS execute clean Docker builds with `--no-cache`:
      1. **Angular Admin UI**: `docker build --no-cache -t exam-frontend:latest ./frontend`
      2. **React Candidate Engine**: `docker build --no-cache -t candidate-frontend:latest ./candidate-frontend`
      3. **Backend Monolith / Service**: `docker build --no-cache -f backend/Dockerfile -t exam-monolith:latest ./backend` (when backend code changed).
@@ -172,11 +213,6 @@ Structure multi-premise reasoning questions with clear Markdown headings and num
 I. System $$\Psi$$ does not have coherent qubit fidelity exceeding $$99.9\%$$.
 II. System $$\Psi$$ is not capable of executing Shor's algorithm for large integers.
 ```
-
-**Key rules:**
-- Separate `**Statements:**` and `**Conclusions:**` blocks with `\n\n` (double newline).
-- Each numbered/roman item uses `\n` before the marker — safe because digits and uppercase letters are safe separators.
-- Math variables like `$$\neg L$$`, `$$\det(A)$$`, `$$\neq 0$$` stay within `$$ ... $$` and are never split by a `\n`.
 
 ---
 

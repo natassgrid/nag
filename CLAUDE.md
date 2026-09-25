@@ -1,4 +1,74 @@
-# NAG Project Instructions & Build Setup
+# CLAUDE.md - NAG Project Instructions, Modular Architecture & Build Setup
+
+## Modular Code Architecture & Frontend Component Standards
+
+### 1. Component Granularity & Decomposition Rules
+- **No Monolithic Components**: Components should follow the Single Responsibility Principle (SRP). Any feature component with over 250 lines of HTML or 200 lines of TypeScript must be decomposed into focused, reusable sub-components.
+- **Dedicated Sub-Component Directories**: Every sub-component must reside in its own named kebab-case subdirectory under `components/` (e.g., `components/centre-kpi-cards/`, `components/asset-toolbar/`).
+- **Strict File Triad Separation**: Every Angular component MUST have separate `.ts`, `.html`, and `.scss` files:
+  - `templateUrl: './component-name.component.html'`
+  - `styleUrl: './component-name.component.scss'`
+  - Inline templates (`template: '...'`) and inline styles (`styles: [...]`) are strictly prohibited in feature sub-components.
+- **Explicit `:host` Display**: Component stylesheets must define host styling (typically `:host { display: block; }` or `:host { display: contents; }`).
+- **Standardized Feature Directory Structure**:
+  ```
+  feature-module/
+  ├── models/
+  │   ├── feature.model.ts        # Domain models, view states, filter interfaces
+  │   └── index.ts                # Barrel export for models
+  ├── components/
+  │   ├── feature-kpi-cards/      # Metric summaries & KPI counters
+  │   │   ├── feature-kpi-cards.component.ts
+  │   │   ├── feature-kpi-cards.component.html
+  │   │   └── feature-kpi-cards.component.scss
+  │   ├── feature-filter-bar/     # Search, filter pills, dropdowns, view switcher
+  │   │   ├── feature-filter-bar.component.ts
+  │   │   ├── feature-filter-bar.component.html
+  │   │   └── feature-filter-bar.component.scss
+  │   ├── feature-table-list/     # Tabular/grid list renderer & item actions
+  │   │   ├── feature-table-list.component.ts
+  │   │   ├── feature-table-list.component.html
+  │   │   └── feature-table-list.component.scss
+  │   ├── feature-form-drawer/    # Create / Edit side drawers & sliding panels
+  │   │   ├── feature-form-drawer.component.ts
+  │   │   ├── feature-form-drawer.component.html
+  │   │   └── feature-form-drawer.component.scss
+  │   └── index.ts                # Barrel export for all sub-components
+  ├── feature.component.ts        # Container / Orchestrator component
+  ├── feature.component.html      # Clean orchestrator template
+  └── feature.component.scss      # Feature-level page styling
+  ```
+
+### 2. Modern Angular Best Practices (Angular 19+ / 20+)
+- **Standalone Architecture**: All components, directives, and pipes must be standalone (`standalone: true`).
+- **OnPush Change Detection**: Always specify `changeDetection: ChangeDetectionStrategy.OnPush` on container and presentational components for optimal change detection performance.
+- **Signal-Based Reactivity**:
+  - Use `signal<T>()` for mutable state.
+  - Use `computed()` for derived state and metrics.
+  - Use `input<T>()` and `input.required<T>()` for component inputs (replacing legacy `@Input()`).
+  - Use `output<T>()` for component event emitters (replacing legacy `@Output()`).
+- **Function-Based Dependency Injection**: Use `inject(ServiceName)` instead of constructor parameter injection.
+- **Native Control Flow**:
+  - Use `@if`, `@else if`, `@else` for conditional rendering.
+  - Use `@for (item of items(); track item.id)` with explicit track keys.
+  - Use `@switch` and `@case` for multi-branch rendering.
+- **Reactive Forms with Signal Synergy**: Bind reactive forms (`[formGroup]="form()"`) cleanly into drawer and modal sub-components.
+
+### 3. Defensive Programming & Null Safety
+- **Signal Null-Safety**: Never call methods like `.toLowerCase()`, `.trim()`, `.includes()`, `.slice()`, or `.reduce()` directly on object properties that may be `null` or `undefined`.
+- **Safe Fallbacks**: Always provide defensive defaults:
+  ```typescript
+  readonly filteredItems = computed(() => {
+    const list = this.items() || [];
+    const q = (this.searchQuery() || '').toLowerCase().trim();
+    return list.filter(item => {
+      if (!item) return false;
+      return !q || (item.name && item.name.toLowerCase().includes(q));
+    });
+  });
+  ```
+
+---
 
 ## File Editing Safety Guards & Overwrite Prevention
 
@@ -24,8 +94,7 @@
    - Always inspect `git diff` to verify no escaped `\n` sequences were injected into source code.
 
 4. **Frontend-Specific Preservation Rules**:
-   - **HTML Templates (`*.component.html`, `*.html`, `*.tsx`, `*.jsx`)**:
-     - NEVER output only the inner child elements, updated form rows, or newly added modal/drawer tags.
+   - **HTML Templates (`*.component.html`, `*.html`, `*.tsx`, `*.jsx`)**:\n     - NEVER output only the inner child elements, updated form rows, or newly added modal/drawer tags.
      - ALWAYS preserve the full document structure: `<div class="page-layout">`, `<app-page-header>`, main table/cards container, `<app-paginated-table>`, action templates (`<ng-template #actionsTmpl>`), result banners, and all existing drawer/dialog components.
    - **Styles (`*.scss`, `*.css`)**:
      - NEVER output only the newly added class selectors.
@@ -38,9 +107,13 @@
    - After writing to any file, IMMEDIATELY run `git diff <path>` to review the line-by-line diff.
    - If any unintended deletions, wiped sections, or missing template blocks are detected, restore and correct them immediately before proceeding.
 
-6. **Mandatory Post-Task Verification & Docker Builds**:
+6. **Mandatory Post-Task Verification & Workspace Builds**:
    - Run `git status` prior to completing any task or reporting back to ensure no files were corrupted or accidentally overwritten.
    - Run local build checks (`npm run build`, `npm run lint`, unit tests, or Gradle compile) to verify the code compiles cleanly with 0 errors.
+   - **Nx Workspace Verification**:
+     ```bash
+     npx nx run-many -t build --skip-nx-cache
+     ```
    - **MANDATORY DOCKER BUILDS**: After task completion, ALWAYS execute Docker builds:
      1. **Backend Docker Build**: Run Docker build for the backend base and modified backend service / monolith.
      2. **UI Docker Builds**: After backend build completes, run Docker builds for the UI applications (`frontend` and `candidate-frontend`).
@@ -82,7 +155,7 @@ All AI agents, prompt generators, seed script creators, and backend services gen
 > `\n` followed by a lowercase letter is a LaTeX command, NOT a line break.
 > This is the second most common cause of broken rendering.
 
-The MathRenderer converts `\n` to a real newline **only when it is not immediately followed by a lowercase letter**. This prevents `\\neq`, `\\neg`, `\\rightarrow`, `\\text`, `\\tau`, `\\theta` from being split at the `\n`.
+The MathRenderer converts `\n` to a real newline **only when it is not immediately followed by a lowercase letter**. This prevents `\neq`, `\neg`, `\rightarrow`, `\text`, `\tau`, `\theta` from being split at the `\n`.
 
 **Safe separators in JSON strings:**
 
@@ -102,9 +175,9 @@ The MathRenderer converts `\n` to a real newline **only when it is not immediate
 
 **Rule:** Never use `\n` as a separator immediately before a lowercase LaTeX command word. Keep math commands inside `$$ ... $$` delimiters where they belong.
 
-#### 1d. Chemistry Notation (`\\ce{}` and `\\pu{}`)
+#### 1d. Chemistry Notation (`\ce{}` and `\pu{}`)
 
-The MathRenderer loads the KaTeX **mhchem** contrib extension. Use `\\ce{}` for chemical formulas and equations, `\\pu{}` for physical units — both wrapped in `$$ ... $$`:
+The MathRenderer loads the KaTeX **mhchem** contrib extension. Use `\ce{}` for chemical formulas and equations, `\pu{}` for physical units — both wrapped in `$$ ... $$`:
 
 | Concept | JSON value | Rendered |
 |---|---|---|
@@ -143,11 +216,6 @@ I. System $$\Psi$$ does not have coherent qubit fidelity exceeding $$99.9\%$$.
 II. System $$\Psi$$ is not capable of executing Shor's algorithm for large integers.
 ```
 
-**Key rules:**
-- Separate `**Statements:**` and `**Conclusions:**` blocks with `\n\n`.
-- Each numbered/roman item uses `\n` before the marker.
-- Math commands like `$$\neg L$$`, `$$\det(A)$$`, `$$\neq 0$$` stay inside `$$ ... $$` — they are never placed bare in the text where `\n` processing could split them.
-
 ---
 
 ### 4. Option Structure & Integrity
@@ -180,34 +248,18 @@ II. System $$\Psi$$ is not capable of executing Shor's algorithm for large integ
 
 ---
 
-### 2. Frontend Builds (`frontend` - Angular)
-- **All build, test, and lint commands MUST run through WSL Ubuntu 24.04 or native terminal**:
-  ```powershell
-  # Build production
-  cd frontend && npm run build
-
-  # Run lint
-  cd frontend && npm run lint
-
-  # Run tests (single run)
-  cd frontend && npm test -- --watch=false --browsers=ChromeHeadless
+### 2. Frontend Builds (`nag-frontend-workspace`, `frontend` - Angular & `candidate-frontend` - Vite/React)
+- **Nx Workspace Builds**:
+  ```bash
+  npx nx run-many -t build --skip-nx-cache
   ```
+- **Legacy frontend projects**:
+  - Angular: `cd frontend && npm run build`
+  - Vite/React: `cd candidate-frontend && npm run build`
 
 ---
 
-### 3. Candidate Frontend Builds (`candidate-frontend` - Vite/React)
-- **All build, test, and lint commands MUST run through WSL Ubuntu 24.04 or native terminal**:
-  ```powershell
-  # Build production
-  cd candidate-frontend && npm run build
-
-  # Run lint
-  cd candidate-frontend && npm run lint
-  ```
-
----
-
-### 4. Mandatory Post-Task Docker Builds (Backend & UI)
+### 3. Mandatory Post-Task Docker Builds (Backend & UI)
 
 Upon task completion, run Docker builds to verify container packaging parity:
 
@@ -234,15 +286,3 @@ docker build -t exam/candidate-frontend -f candidate-frontend/Dockerfile candida
 # Or build both UI services via Docker Compose
 docker compose -f infrastructure/docker-compose/docker-compose.yml -f infrastructure/docker-compose/docker-compose.monolith.yml build frontend candidate-frontend
 ```
-
----
-
-## Environment & Path Mapping
-- **Host OS**: Windows
-- **WSL Distribution**: `Ubuntu-24.04`
-- **Windows Root**: `C:\Users\sheel\IdeaProjects\nag` (or current repository root)
-- **WSL Root**: `/mnt/c/Users/sheel/IdeaProjects/nag`
-- **WSL Installed Toolchains**:
-  - Java: OpenJDK 21
-  - Node.js: v22.x
-  - Gradle: 8.14.5
