@@ -1,0 +1,48 @@
+@if (type() === 'MULTIPLE_CHOICE' || type() === 'MULTIPLE_SELECT') {
+  <div class="space-y-3 pt-3 border-t">
+    <div class="flex items-center justify-between">
+      <span class="block text-xs font-semibold text-slate-700 uppercase">
+        Options &amp; Correct Key (Check the correct option)
+      </span>
+      <button
+        type="button"
+        (click)="onAddOption()"
+        class="text-xs font-semibold text-indigo-600 hover:text-indigo-800 flex items-center gap-1"
+      >
+        <mat-icon class="!text-sm leading-none">add</mat-icon>
+        Add Option
+      </button>
+    </div>
+
+    @for (opt of options(); track opt.id; let idx = $index) {
+      <div class="flex items-center gap-2">
+        <input
+          type="checkbox"
+          [checked]="opt.isCorrect"
+          (change)="onToggleCorrect(idx)"
+          class="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+          [title]="'Mark Option ' + getOptionLetter(idx) + ' as correct'"
+        />
+        <span class="font-bold text-xs text-slate-500 w-4">
+          {{ getOptionLetter(idx) }}
+        </span>
+        <input
+          type="text"
+          [ngModel]="opt.text"
+          (ngModelChange)="onOptionTextChange(idx, $event)"
+          placeholder="Option text or LaTeX expression..."
+          class="grow px-3 py-1.5 text-sm bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+        />
+        @if (options().length > 2) {
+          <button
+            type="button"
+            (click)="onRemoveOption(idx)"
+            class="text-slate-400 hover:text-rose-600"
+          >
+            <mat-icon class="!text-sm">close</mat-icon>
+          </button>
+        }
+      </div>
+    }
+  </div>
+}

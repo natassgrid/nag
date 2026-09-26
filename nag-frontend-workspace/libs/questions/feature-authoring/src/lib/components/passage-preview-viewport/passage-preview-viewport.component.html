@@ -1,0 +1,88 @@
+<div class="space-y-4">
+  <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-xs sticky top-6 space-y-6 max-h-[85vh] overflow-y-auto">
+    <div class="flex items-center justify-between border-b pb-3">
+      <div class="flex items-center gap-2">
+        <mat-icon class="text-indigo-600">visibility</mat-icon>
+        <h2 class="text-base font-bold text-slate-900">Passage Set Preview</h2>
+      </div>
+      <span class="text-xs font-bold text-purple-700 bg-purple-50 px-2.5 py-1 rounded-full border border-purple-200">
+        {{ subQuestions().length }} Questions Attached
+      </span>
+    </div>
+
+    <!-- Passage Reading Text Preview Box -->
+    <div class="p-5 bg-amber-50/50 border border-amber-200 rounded-2xl space-y-2">
+      @if (passageTitle().trim()) {
+        <h3 class="text-sm font-bold text-amber-950 uppercase tracking-wide">
+          {{ passageTitle() }}
+        </h3>
+      }
+      <div class="text-sm text-slate-800 leading-relaxed font-serif">
+        <nag-math-renderer [content]="passageContent() || '(Enter passage text to preview...)'" />
+      </div>
+    </div>
+
+    <!-- Attached Sub-Questions Preview -->
+    <div class="space-y-5">
+      <h3 class="text-xs font-bold text-slate-500 uppercase tracking-wider border-b pb-2">
+        Comprehension Questions
+      </h3>
+
+      @for (sq of subQuestions(); track sq.passageOrderIndex; let idx = $index) {
+        <div
+          class="p-4 rounded-xl border transition-all"
+          [ngClass]="{
+            'ring-2 ring-indigo-500 border-indigo-300 bg-indigo-50/20': activeSubQuestionIndex() === idx,
+            'border-slate-200 bg-white': activeSubQuestionIndex() !== idx
+          }"
+        >
+          <div class="flex items-center justify-between mb-2">
+            <span class="text-xs font-bold text-indigo-700">
+              Question {{ idx + 1 }}
+            </span>
+            <div class="flex items-center gap-2">
+              <nag-status-badge [variant]="difficultyVariant(sq.difficulty)" [label]="sq.difficulty" />
+              <span class="text-xs font-bold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200">
+                +{{ sq.marks }} / -{{ sq.negativeMarks }}
+              </span>
+            </div>
+          </div>
+
+          <div class="text-sm font-medium text-slate-900 mb-3">
+            <nag-math-renderer [content]="sq.content || '(Empty sub-question)'" />
+          </div>
+
+          @if (sq.questionType === 'MULTIPLE_CHOICE' || sq.questionType === 'MULTIPLE_SELECT' || sq.questionType === 'SINGLE_MCQ' || sq.questionType === 'MULTI_MCQ') {
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              @for (opt of sq.options; track opt.id; let oIdx = $index) {
+                <div
+                  class="p-2 rounded-lg border text-xs flex items-center justify-between"
+                  [ngClass]="{
+                    'bg-emerald-50 border-emerald-300 text-emerald-950 font-bold': opt.isCorrect,
+                    'bg-slate-50 border-slate-200 text-slate-700': !opt.isCorrect
+                  }"
+                >
+                  <div class="flex items-center gap-2">
+                    <span
+                      class="h-5 w-5 rounded-full flex items-center justify-center text-[10px] font-bold"
+                      [ngClass]="{
+                        'bg-emerald-600 text-white': opt.isCorrect,
+                        'bg-slate-200 text-slate-600': !opt.isCorrect
+                      }"
+                    >
+                      {{ getOptionLetter(oIdx) }}
+                    </span>
+                    <nag-math-renderer [content]="opt.text || '-'" />
+                  </div>
+                  @if (opt.isCorrect) {
+                    <span class="text-[10px] text-emerald-700 font-bold">&#10003;</span>
+                  }
+                </div>
+              }
+            </div>
+          }
+        </div>
+      }
+    </div>
+  </div>
+</div>
