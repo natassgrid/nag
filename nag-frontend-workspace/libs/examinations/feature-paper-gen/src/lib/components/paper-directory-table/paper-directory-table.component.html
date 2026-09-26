@@ -1,79 +1,14 @@
 <div class="bg-white rounded-2xl border border-slate-200 p-6 shadow-xs space-y-4">
-  <!-- Search & Filter Controls -->
-  <div class="flex flex-col md:flex-row gap-4 items-center justify-between">
-    <div class="relative w-full md:w-96">
-      <input
-        type="text"
-        [ngModel]="searchQuery()"
-        (ngModelChange)="searchQueryChange.emit($event)"
-        placeholder="Search by paper name, exam code, or shift..."
-        class="w-full pl-10 pr-4 py-2 text-sm border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500"
-      />
-      <mat-icon class="absolute left-3 top-2.5 !text-lg text-slate-400">search</mat-icon>
-    </div>
-
-    <div class="flex flex-wrap items-center gap-3 w-full md:w-auto">
-      <!-- Exam Filter -->
-      <select
-        [ngModel]="selectedExamFilter()"
-        (ngModelChange)="examFilterChange.emit($event)"
-        class="text-xs py-2 px-3 border border-slate-300 rounded-xl bg-white focus:ring-2 focus:ring-indigo-500"
-      >
-        <option value="ALL">All Examinations</option>
-        @for (exam of exams(); track exam.id) {
-          <option [value]="exam.id">{{ exam.name }} ({{ exam.code || 'NO-CODE' }})</option>
-        }
-      </select>
-
-      <!-- Status Filter -->
-      <div class="flex bg-slate-100 p-1 rounded-xl">
-        <button
-          type="button"
-          (click)="statusFilterChange.emit('ALL')"
-          [ngClass]="{
-            'bg-white text-slate-900 shadow-xs font-bold': statusFilter() === 'ALL',
-            'text-slate-600': statusFilter() !== 'ALL'
-          }"
-          class="px-3 py-1.5 rounded-lg text-xs transition-colors"
-        >
-          All
-        </button>
-        <button
-          type="button"
-          (click)="statusFilterChange.emit('DRAFT')"
-          [ngClass]="{
-            'bg-white text-amber-700 shadow-xs font-bold': statusFilter() === 'DRAFT',
-            'text-slate-600': statusFilter() !== 'DRAFT'
-          }"
-          class="px-3 py-1.5 rounded-lg text-xs transition-colors"
-        >
-          Draft
-        </button>
-        <button
-          type="button"
-          (click)="statusFilterChange.emit('APPROVED')"
-          [ngClass]="{
-            'bg-white text-blue-700 shadow-xs font-bold': statusFilter() === 'APPROVED',
-            'text-slate-600': statusFilter() !== 'APPROVED'
-          }"
-          class="px-3 py-1.5 rounded-lg text-xs transition-colors"
-        >
-          Approved
-        </button>
-        <button
-          type="button"
-          (click)="statusFilterChange.emit('ENCRYPTED')"
-          [ngClass]="{
-            'bg-white text-emerald-700 shadow-xs font-bold': statusFilter() === 'ENCRYPTED',
-            'text-slate-600': statusFilter() !== 'ENCRYPTED'
-          }"
-          class="px-3 py-1.5 rounded-lg text-xs transition-colors"
-        >
-          Encrypted
-        </button>
-      </div>
-    </div>
-  </div>
+  <!-- Search & Filter Controls Sub-component -->
+  <nag-paper-table-toolbar
+    [searchQuery]="searchQuery()"
+    [selectedExamFilter]="selectedExamFilter()"
+    [statusFilter]="statusFilter()"
+    [exams]="exams()"
+    (searchQueryChange)="searchQueryChange.emit($event)"
+    (examFilterChange)="examFilterChange.emit($event)"
+    (statusFilterChange)="statusFilterChange.emit($event)"
+  ></nag-paper-table-toolbar>
 
   <!-- Papers Table -->
   @if (loading()) {
@@ -96,8 +31,10 @@
         (click)="assembleNew.emit()"
         class="!rounded-xl !bg-indigo-600 hover:!bg-indigo-700 !text-white"
       >
-        <mat-icon>add</mat-icon>
-        <span>Assemble First Paper</span>
+        <span class="flex items-center gap-1">
+          <mat-icon>add</mat-icon>
+          <span>Assemble First Paper</span>
+        </span>
       </button>
     </div>
   } @else {
@@ -195,8 +132,10 @@
                       matTooltip="Approve Question Paper (Controller Clearance)"
                       class="!text-xs !py-1 !px-2.5 !rounded-lg !border-blue-300 !text-blue-700 hover:!bg-blue-50"
                     >
-                      <mat-icon class="!text-sm">verified</mat-icon>
-                      <span>Approve</span>
+                      <span class="flex items-center gap-1">
+                        <mat-icon class="!text-sm">verified</mat-icon>
+                        <span>Approve</span>
+                      </span>
                     </button>
                   }
 
@@ -207,8 +146,10 @@
                       matTooltip="Encrypt Package & Distribute Key"
                       class="!text-xs !py-1 !px-2.5 !rounded-lg !bg-emerald-600 hover:!bg-emerald-700 !text-white"
                     >
-                      <mat-icon class="!text-sm">lock</mat-icon>
-                      <span>Encrypt</span>
+                      <span class="flex items-center gap-1">
+                        <mat-icon class="!text-sm">lock</mat-icon>
+                        <span>Encrypt</span>
+                      </span>
                     </button>
                   }
                 </div>

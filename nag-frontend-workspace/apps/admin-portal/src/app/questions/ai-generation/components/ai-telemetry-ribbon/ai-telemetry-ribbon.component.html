@@ -1,0 +1,19 @@
+<div class="bg-white rounded-2xl border border-slate-200 p-4 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+  <div>
+    <div class="text-xs font-bold text-slate-900 flex items-center gap-2">
+      <span class="w-2.5 h-2.5 rounded-full bg-emerald-500"></span>
+      <span>Model: {{ response().modelUsed || 'LiteLLM Routed' }}</span>
+    </div>
+    <div class="text-[11px] text-slate-500 mt-0.5">
+      Generated: {{ response().totalGenerated }} &bull; Valid: {{ response().totalValid }} &bull; Flagged Duplicates: {{ response().totalDuplicates }}
+    </div>
+  </div>
+
+  <button
+    type="button"
+    (click)="saveAllValid.emit()"
+    class="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs flex items-center gap-1.5 transition cursor-pointer shadow-sm"
+  >
+    <mat-icon class="!text-sm">done_all</mat-icon> Save All Valid as Draft
+  </button>
+</div>

@@ -5,7 +5,6 @@ import {
   output,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { FormsModule } from '@angular/forms';
 import { MatIconModule } from '@angular/material/icon';
 import { MatButtonModule } from '@angular/material/button';
 import { MatTooltipModule } from '@angular/material/tooltip';
@@ -15,17 +14,18 @@ import {
   ExaminationResponse,
 } from '@nag-frontend-workspace/examinations-data-access';
 import { PaperStatusFilter } from '../../models';
+import { PaperTableToolbarComponent } from '../paper-table-toolbar/paper-table-toolbar.component';
 
 @Component({
   selector: 'nag-paper-directory-table',
   standalone: true,
   imports: [
     CommonModule,
-    FormsModule,
     MatIconModule,
     MatButtonModule,
     MatTooltipModule,
     MatProgressSpinnerModule,
+    PaperTableToolbarComponent,
   ],
   templateUrl: './paper-directory-table.component.html',
   styleUrl: './paper-directory-table.component.scss',

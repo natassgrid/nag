@@ -1,29 +1,31 @@
-import { Component, input, output } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  input,
+  output,
+} from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { FormsModule } from '@angular/forms';
 import { MatIconModule } from '@angular/material/icon';
-import { MatButtonModule } from '@angular/material/button';
-import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import {
   PaperDetail,
   PaperTranslateResponse,
 } from '@nag-frontend-workspace/examinations-data-access';
 import { LanguageOption } from '@nag-frontend-workspace/shared-util-i18n';
+import { PaperTranslationSubpanelComponent } from '../paper-translation-subpanel/paper-translation-subpanel.component';
 
 @Component({
   selector: 'nag-paper-inspection-drawer',
   standalone: true,
   imports: [
     CommonModule,
-    FormsModule,
     MatIconModule,
-    MatButtonModule,
-    MatProgressBarModule,
     MatProgressSpinnerModule,
+    PaperTranslationSubpanelComponent,
   ],
   templateUrl: './paper-inspection-drawer.component.html',
   styleUrl: './paper-inspection-drawer.component.scss',
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class PaperInspectionDrawerComponent {
   open = input<boolean>(false);
@@ -37,17 +39,14 @@ export class PaperInspectionDrawerComponent {
   close = output<void>();
   startTranslation = output<{ targetLanguage: string; overwriteExisting: boolean }>();
 
-  targetLanguage = 'hi';
-  overwriteExisting = false;
-
   onClose(): void {
     this.close.emit();
   }
 
-  onStartTranslation(): void {
+  onStartTranslation(targetLanguage: string): void {
     this.startTranslation.emit({
-      targetLanguage: this.targetLanguage,
-      overwriteExisting: this.overwriteExisting,
+      targetLanguage,
+      overwriteExisting: false,
     });
   }
 }

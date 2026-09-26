@@ -1,0 +1,73 @@
+<div class="space-y-3 pt-2">
+  <h3 class="text-xs font-bold text-purple-900 uppercase tracking-wider">Facility &amp; Capacity</h3>
+
+  <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+    <div>
+      <label for="centre-bldg" class="block text-[11px] font-semibold text-slate-700 uppercase mb-1">
+        Building
+      </label>
+      <input
+        id="centre-bldg"
+        type="text"
+        [ngModel]="building()"
+        (ngModelChange)="buildingChange.emit($event)"
+        placeholder="e.g. Academic Block 4"
+        class="w-full px-3 py-2 text-xs bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 font-medium"
+      />
+    </div>
+
+    <div>
+      <label for="centre-floor" class="block text-[11px] font-semibold text-slate-700 uppercase mb-1">
+        Floor
+      </label>
+      <input
+        id="centre-floor"
+        type="text"
+        [ngModel]="floor()"
+        (ngModelChange)="floorChange.emit($event)"
+        placeholder="e.g. 2nd Floor"
+        class="w-full px-3 py-2 text-xs bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 font-medium"
+      />
+    </div>
+
+    <div>
+      <label for="centre-lab" class="block text-[11px] font-semibold text-slate-700 uppercase mb-1">
+        Lab Identifier
+      </label>
+      <input
+        id="centre-lab"
+        type="text"
+        [ngModel]="labIdentifier()"
+        (ngModelChange)="labIdentifierChange.emit($event)"
+        placeholder="e.g. LAB-201-A"
+        class="w-full px-3 py-2 text-xs bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 font-mono font-medium"
+      />
+    </div>
+
+    <div class="sm:col-span-2">
+      <label for="centre-cap" class="block text-[11px] font-semibold text-slate-700 uppercase mb-1">
+        Terminal Seat Capacity *
+      </label>
+      <input
+        id="centre-cap"
+        type="number"
+        [ngModel]="totalCapacity()"
+        (ngModelChange)="totalCapacityChange.emit($event)"
+        min="1"
+        class="w-full px-3 py-2 text-xs bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 font-mono font-bold"
+      />
+    </div>
+
+    <div class="flex items-center pt-5">
+      <label class="flex items-center gap-2 cursor-pointer select-none">
+        <input
+          type="checkbox"
+          [ngModel]="active()"
+          (ngModelChange)="activeChange.emit($event)"
+          class="w-4 h-4 text-purple-600 rounded border-slate-300 focus:ring-purple-500"
+        />
+        <span class="text-xs font-bold text-slate-800">Venue Active</span>
+      </label>
+    </div>
+  </div>
+</div>

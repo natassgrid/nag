@@ -39,165 +39,38 @@
           />
         </div>
 
-        <!-- Geographic Cascading Selection -->
-        <div class="space-y-3 pt-2">
-          <h3 class="text-xs font-bold text-purple-900 uppercase tracking-wider">Geographic Location</h3>
+        <!-- Geographic Cascading Selection Sub-component -->
+        <nag-centre-location-form
+          [countries]="countries()"
+          [states]="states()"
+          [cities]="cities()"
+          [countryId]="formCountryId"
+          [stateId]="formStateId"
+          [cityId]="formCityId"
+          [stateName]="formStateName"
+          [cityName]="formCityName"
+          [district]="formDistrict"
+          (countryChange)="onCountryChanged($event)"
+          (stateChange)="onStateChanged($event)"
+          (cityChange)="onCityChanged($event)"
+          (stateNameChange)="formStateName = $event"
+          (cityNameChange)="formCityName = $event"
+          (districtChange)="formDistrict = $event"
+        ></nag-centre-location-form>
 
-          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div>
-              <label for="centre-country" class="block text-[11px] font-semibold text-slate-700 uppercase mb-1">
-                Country
-              </label>
-              <select
-                id="centre-country"
-                [ngModel]="formCountryId"
-                (ngModelChange)="onCountryChanged($event)"
-                class="w-full px-3 py-2 text-xs bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 font-medium"
-              >
-                @for (country of countries(); track country.id) {
-                  <option [value]="country.id">{{ country.name }}</option>
-                }
-              </select>
-            </div>
-
-            <div>
-              <label for="centre-state-select" class="block text-[11px] font-semibold text-slate-700 uppercase mb-1">
-                State *
-              </label>
-              @if (states().length > 0) {
-                <select
-                  id="centre-state-select"
-                  [ngModel]="formStateId"
-                  (ngModelChange)="onStateChanged($event)"
-                  class="w-full px-3 py-2 text-xs bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 font-medium"
-                >
-                  <option [ngValue]="null">Select State</option>
-                  @for (st of states(); track st.id) {
-                    <option [value]="st.id">{{ st.name }}</option>
-                  }
-                </select>
-              } @else {
-                <input
-                  id="centre-state-input"
-                  type="text"
-                  [(ngModel)]="formStateName"
-                  placeholder="Enter State Name"
-                  class="w-full px-3 py-2 text-xs bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 font-medium"
-                />
-              }
-            </div>
-
-            <div>
-              <label for="centre-city-select" class="block text-[11px] font-semibold text-slate-700 uppercase mb-1">
-                City *
-              </label>
-              @if (cities().length > 0) {
-                <select
-                  id="centre-city-select"
-                  [ngModel]="formCityId"
-                  (ngModelChange)="onCityChanged($event)"
-                  class="w-full px-3 py-2 text-xs bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 font-medium"
-                >
-                  <option [ngValue]="null">Select City</option>
-                  @for (c of cities(); track c.id) {
-                    <option [value]="c.id">{{ c.name }}</option>
-                  }
-                </select>
-              } @else {
-                <input
-                  id="centre-city-input"
-                  type="text"
-                  [(ngModel)]="formCityName"
-                  placeholder="Enter City Name"
-                  class="w-full px-3 py-2 text-xs bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 font-medium"
-                />
-              }
-            </div>
-
-            <div>
-              <label for="centre-district" class="block text-[11px] font-semibold text-slate-700 uppercase mb-1">
-                District (Optional)
-              </label>
-              <input
-                id="centre-district"
-                type="text"
-                [(ngModel)]="formDistrict"
-                placeholder="e.g. Central District"
-                class="w-full px-3 py-2 text-xs bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 font-medium"
-              />
-            </div>
-          </div>
-        </div>
-
-        <!-- Building, Floor, Lab -->
-        <div class="space-y-3 pt-2">
-          <h3 class="text-xs font-bold text-purple-900 uppercase tracking-wider">Facility &amp; Capacity</h3>
-
-          <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
-            <div>
-              <label for="centre-bldg" class="block text-[11px] font-semibold text-slate-700 uppercase mb-1">
-                Building
-              </label>
-              <input
-                id="centre-bldg"
-                type="text"
-                [(ngModel)]="formBuilding"
-                placeholder="e.g. Academic Block 4"
-                class="w-full px-3 py-2 text-xs bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 font-medium"
-              />
-            </div>
-
-            <div>
-              <label for="centre-floor" class="block text-[11px] font-semibold text-slate-700 uppercase mb-1">
-                Floor
-              </label>
-              <input
-                id="centre-floor"
-                type="text"
-                [(ngModel)]="formFloor"
-                placeholder="e.g. 2nd Floor"
-                class="w-full px-3 py-2 text-xs bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 font-medium"
-              />
-            </div>
-
-            <div>
-              <label for="centre-lab" class="block text-[11px] font-semibold text-slate-700 uppercase mb-1">
-                Lab Identifier
-              </label>
-              <input
-                id="centre-lab"
-                type="text"
-                [(ngModel)]="formLabIdentifier"
-                placeholder="e.g. LAB-201-A"
-                class="w-full px-3 py-2 text-xs bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 font-mono font-medium"
-              />
-            </div>
-
-            <div class="sm:col-span-2">
-              <label for="centre-cap" class="block text-[11px] font-semibold text-slate-700 uppercase mb-1">
-                Terminal Seat Capacity *
-              </label>
-              <input
-                id="centre-cap"
-                type="number"
-                [(ngModel)]="formTotalCapacity"
-                min="1"
-                class="w-full px-3 py-2 text-xs bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 font-mono font-bold"
-              />
-            </div>
-
-            <div class="flex items-center pt-5">
-              <label class="flex items-center gap-2 cursor-pointer select-none">
-                <input
-                  type="checkbox"
-                  [(ngModel)]="formActive"
-                  class="w-4 h-4 text-purple-600 rounded border-slate-300 focus:ring-purple-500"
-                />
-                <span class="text-xs font-bold text-slate-800">Venue Active</span>
-              </label>
-            </div>
-          </div>
-        </div>
+        <!-- Facility & Capacity Sub-component -->
+        <nag-centre-facility-form
+          [building]="formBuilding"
+          [floor]="formFloor"
+          [labIdentifier]="formLabIdentifier"
+          [totalCapacity]="formTotalCapacity"
+          [active]="formActive"
+          (buildingChange)="formBuilding = $event"
+          (floorChange)="formFloor = $event"
+          (labIdentifierChange)="formLabIdentifier = $event"
+          (totalCapacityChange)="formTotalCapacity = $event"
+          (activeChange)="formActive = $event"
+        ></nag-centre-facility-form>
       </div>
 
       <!-- Footer -->
@@ -214,10 +87,12 @@
           color="primary"
           [disabled]="isSaving() || !formCentreName.trim()"
           (click)="onSave()"
-          class="cursor-pointer"
+          class="cursor-pointer !bg-purple-600 hover:!bg-purple-700 !text-white"
         >
-          <mat-icon>{{ isSaving() ? 'hourglass_top' : 'save' }}</mat-icon>
-          {{ isSaving() ? 'Saving...' : 'Register Test Centre' }}
+          <span class="flex items-center gap-1">
+            <mat-icon>{{ isSaving() ? 'hourglass_top' : 'save' }}</mat-icon>
+            <span>{{ isSaving() ? 'Saving...' : 'Register Test Centre' }}</span>
+          </span>
         </button>
       </div>
     </div>

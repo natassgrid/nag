@@ -13,6 +13,8 @@ import {
   QuestionGenerationResponse,
   GeneratedQuestion,
 } from '@nag-frontend-workspace/questions-data-access';
+import { AiTelemetryRibbonComponent } from '../ai-telemetry-ribbon/ai-telemetry-ribbon.component';
+import { AiGeneratedCardComponent } from '../ai-generated-card/ai-generated-card.component';
 
 @Component({
   selector: 'nag-ai-generation-results',
@@ -23,6 +25,8 @@ import {
     MatButtonModule,
     MatProgressBarModule,
     MatProgressSpinnerModule,
+    AiTelemetryRibbonComponent,
+    AiGeneratedCardComponent,
   ],
   templateUrl: './ai-generation-results.component.html',
   styleUrl: './ai-generation-results.component.scss',
@@ -42,8 +46,8 @@ export class AiGenerationResultsComponent {
   saveAllValid = output<void>();
   openAuthoring = output<GeneratedQuestion>();
 
-  onSaveQuestion(question: GeneratedQuestion, index: number): void {
-    this.saveQuestion.emit({ question, index });
+  onSaveQuestion(event: { question: GeneratedQuestion; index: number }): void {
+    this.saveQuestion.emit(event);
   }
 
   onSaveAllValid(): void {

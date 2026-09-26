@@ -3,7 +3,6 @@ import {
   ChangeDetectionStrategy,
   input,
   output,
-  signal,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
@@ -15,27 +14,36 @@ import {
   GeoState,
   GeoCity,
 } from '@nag-frontend-workspace/examinations-data-access';
+import { CentreLocationFormComponent } from '../centre-location-form/centre-location-form.component';
+import { CentreFacilityFormComponent } from '../centre-facility-form/centre-facility-form.component';
 
 @Component({
   selector: 'nag-centre-create-drawer',
   standalone: true,
-  imports: [CommonModule, FormsModule, MatButtonModule, MatIconModule],
+  imports: [
+    CommonModule,
+    FormsModule,
+    MatButtonModule,
+    MatIconModule,
+    CentreLocationFormComponent,
+    CentreFacilityFormComponent,
+  ],
   templateUrl: './centre-create-drawer.component.html',
   styleUrl: './centre-create-drawer.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class CentreCreateDrawerComponent {
-  isOpen = input<boolean>(false);
-  isSaving = input<boolean>(false);
-  countries = input<GeoCountry[]>([]);
-  states = input<GeoState[]>([]);
-  cities = input<GeoCity[]>([]);
+  readonly isOpen = input<boolean>(false);
+  readonly isSaving = input<boolean>(false);
+  readonly countries = input<GeoCountry[]>([]);
+  readonly states = input<GeoState[]>([]);
+  readonly cities = input<GeoCity[]>([]);
 
-  closeDrawer = output<void>();
-  save = output<CreateCentreRequest>();
-  countryChange = output<number | null>();
-  stateChange = output<number | null>();
-  cityChange = output<number | null>();
+  readonly closeDrawer = output<void>();
+  readonly save = output<CreateCentreRequest>();
+  readonly countryChange = output<number | null>();
+  readonly stateChange = output<number | null>();
+  readonly cityChange = output<number | null>();
 
   formCountryId: number | null = null;
   formStateId: number | null = null;

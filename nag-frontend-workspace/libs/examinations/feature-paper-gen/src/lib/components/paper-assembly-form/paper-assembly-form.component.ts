@@ -22,6 +22,7 @@ import {
   BlueprintTemplateResponse,
 } from '@nag-frontend-workspace/questions-data-access';
 import { BlueprintRuleBuilderComponent } from '../blueprint-rule-builder/blueprint-rule-builder.component';
+import { PaperTargetSelectorComponent } from '../paper-target-selector/paper-target-selector.component';
 import { PaperGenFormData } from '../../models';
 
 @Component({
@@ -33,6 +34,7 @@ import { PaperGenFormData } from '../../models';
     MatIconModule,
     MatButtonModule,
     BlueprintRuleBuilderComponent,
+    PaperTargetSelectorComponent,
   ],
   templateUrl: './paper-assembly-form.component.html',
   styleUrl: './paper-assembly-form.component.scss',
@@ -94,6 +96,11 @@ export class PaperAssemblyFormComponent {
     return this.genRules().reduce((acc, r) => acc + (r.questionCount || r.targetCount || 0), 0);
   });
 
+  setTemplate(templateId: string): void {
+    this.genUseTemplate.set(true);
+    this.genSelectedTemplateId.set(templateId);
+  }
+
   onExamSelected(examId: string): void {
     this.genExamId.set(examId);
     this.genScheduleId.set('');
@@ -119,34 +126,33 @@ export class PaperAssemblyFormComponent {
 
   onRuleSubjectChange(rule: BlueprintRule): void {
     const topics = this.getTopicsForSubject(rule.subject);
-    if (topics.length > 0) {
+    if (topics.length > 0 && !topics.includes(rule.topic)) {
       rule.topic = topics[0];
-    } else {
-      rule.topic = '';
     }
   }
 
   addRule(): void {
-    const defaultSubj = this.taxonomySubjects()[0]?.name || 'Quantitative Aptitude';
-    const updated = [...this.genRules()];
-    updated.push({
-      subject: defaultSubj,
-      topic: '',
-      difficulty: 'MEDIUM',
-      cognitiveLevel: 'APPLY',
-      questionType: 'SINGLE_MCQ',
-      targetCount: 10,
-      questionCount: 10,
-    });
-    this.genRules.set(updated);
+    const subjects = this.taxonomySubjects();
+    const defaultSubject = subjects.length > 0 ? subjects[0].name : '';
+    const topics = this.getTopicsForSubject(defaultSubject);
+    const defaultTopic = topics.length > 0 ? topics[0] : '';
+
+    this.genRules.update((rules) => [
+      ...rules,
+      {
+        subject: defaultSubject,
+        topic: defaultTopic,
+        difficulty: 'MEDIUM',
+        cognitiveLevel: 'UNDERSTAND',
+        questionType: 'SINGLE_MCQ',
+        targetCount: 10,
+        questionCount: 10,
+      },
+    ]);
   }
 
   removeRule(index: number): void {
-    const current = [...this.genRules()];
-    if (current.length > 1) {
-      current.splice(index, 1);
-      this.genRules.set(current);
-    }
+    this.genRules.update((rules) => rules.filter((_, i) => i !== index));
   }
 
   submitGenerate(): void {
@@ -160,10 +166,5 @@ export class PaperAssemblyFormComponent {
       selectedTemplateId: this.genSelectedTemplateId(),
       rules: this.genRules(),
     });
-  }
-
-  setTemplate(templateId: string): void {
-    this.genSelectedTemplateId.set(templateId);
-    this.genUseTemplate.set(true);
   }
 }
