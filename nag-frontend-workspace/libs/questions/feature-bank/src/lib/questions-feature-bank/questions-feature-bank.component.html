@@ -1,0 +1,64 @@
+<div class="p-6 md:p-8 space-y-6 max-w-7xl mx-auto">
+  <!-- Page Header -->
+  <nag-page-header
+    title="Curated Item Bank"
+    description="Search, filter, inspect and govern high-stakes assessment items with strict taxonomy verification"
+  >
+    <div actions class="flex items-center gap-3">
+      <a
+        routerLink="/questions/authoring"
+        mat-flat-button
+        color="primary"
+        class="!rounded-xl flex items-center gap-2 !bg-indigo-600 hover:!bg-indigo-700 !text-white font-semibold text-xs"
+      >
+        <mat-icon class="!text-base leading-none">add</mat-icon>
+        Author New Item
+      </a>
+    </div>
+  </nag-page-header>
+
+  <!-- Filter & Action Controls Card Sub-component -->
+  <nag-bank-filter-bar
+    [searchQuery]="searchQuery()"
+    [selectedSubject]="selectedSubject()"
+    [selectedDifficulty]="selectedDifficulty()"
+    [selectedStatus]="selectedStatus()"
+    [pageSize]="questionService.pageSize()"
+    [subjects]="subjects()"
+    [difficulties]="difficulties"
+    [statuses]="statuses"
+    [pageSizes]="pageSizes"
+    [hasActiveFilters]="hasActiveFilters()"
+    (searchChange)="onSearchTextChange($event)"
+    (subjectChange)="onSubjectChange($event)"
+    (difficultyChange)="onDifficultyChange($event)"
+    (statusChange)="onStatusChange($event)"
+    (pageSizeChange)="onPageSizeChange($event)"
+    (reset)="resetFilters()"
+    (toggleSemanticSearch)="showVectorDrawer.set(!showVectorDrawer())"
+  ></nag-bank-filter-bar>
+
+  <!-- Main Items List & Pagination Sub-component -->
+  <nag-bank-items-list
+    [questions]="questionService.questions()"
+    [loading]="questionService.loading()"
+    [currentPage]="questionService.currentPage()"
+    [totalPages]="questionService.totalPages()"
+    [pageSize]="questionService.pageSize()"
+    [total]="questionService.total()"
+    [showingStart]="showingStart()"
+    [showingEnd]="showingEnd()"
+    (pageChange)="goToPage($event)"
+    (editQuestion)="onEditQuestion($event)"
+    (deleteQuestion)="onDeleteQuestion($event)"
+    (createQuestion)="resetFilters()"
+  ></nag-bank-items-list>
+
+  <!-- Semantic Vector Similarity Search Drawer Sub-component -->
+  <nag-bank-semantic-search-drawer
+    [open]="showVectorDrawer()"
+    [searching]="searchingVector()"
+    (close)="showVectorDrawer.set(false)"
+    (search)="runVectorSearch($event)"
+  ></nag-bank-semantic-search-drawer>
+</div>

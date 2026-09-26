@@ -1,0 +1,57 @@
+@if (open()) {
+  <div class="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-xs flex justify-end">
+    <div class="w-full max-w-lg bg-white h-full shadow-2xl p-6 flex flex-col space-y-6">
+      <div class="flex items-center justify-between border-b border-slate-100 pb-4">
+        <div class="flex items-center gap-2">
+          <mat-icon class="text-indigo-600">saved_search</mat-icon>
+          <h3 class="font-bold text-slate-900 text-sm">Semantic Duplicate Screener</h3>
+        </div>
+        <button
+          mat-icon-button
+          (click)="onClose()"
+          class="!text-slate-400 hover:!text-slate-600"
+        >
+          <mat-icon>close</mat-icon>
+        </button>
+      </div>
+
+      <div class="space-y-4">
+        <p class="text-xs text-slate-500 leading-relaxed">
+          Enter question text or concepts below to execute high-dimensional cosine distance similarity against all indexed items across PostgreSQL pgvector clusters.
+        </p>
+
+        <div class="space-y-1.5">
+          <label for="semantic-query" class="block text-xs font-bold text-slate-700">
+            Question Content / Mathematical Statement
+          </label>
+          <textarea
+            id="semantic-query"
+            rows="4"
+            [ngModel]="queryPrompt()"
+            (ngModelChange)="queryPrompt.set($event)"
+            placeholder="e.g. Find the eigenvalues of a given 2x2 matrix..."
+            class="w-full p-3 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white"
+          ></textarea>
+        </div>
+
+        <button
+          mat-flat-button
+          color="primary"
+          (click)="onExecuteSearch()"
+          [disabled]="searching() || !queryPrompt().trim()"
+          class="w-full !rounded-xl !py-3 !bg-indigo-600 hover:!bg-indigo-700 !text-white font-semibold text-xs flex items-center justify-center gap-2"
+        >
+          @if (searching()) {
+            <div class="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+            <span>Querying Embedding Space...</span>
+          } @else {
+            <ng-container>
+              <mat-icon class="!text-sm">search</mat-icon>
+              <span>Execute Semantic Vector Match</span>
+            </ng-container>
+          }
+        </button>
+      </div>
+    </div>
+  </div>
+}

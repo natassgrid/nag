@@ -1,0 +1,78 @@
+<div class="exam-card bg-white rounded-2xl border border-slate-200 p-6 shadow-xs flex flex-col justify-between space-y-5 hover:shadow-md transition-shadow">
+  <div class="space-y-3">
+    <div class="flex items-start justify-between gap-3">
+      <div>
+        <span class="text-xs font-mono font-bold bg-indigo-50 text-indigo-700 px-2.5 py-0.5 rounded-md">
+          {{ exam().code }}
+        </span>
+        <h3 class="text-base font-bold text-slate-900 mt-1">
+          {{ exam().title }}
+        </h3>
+      </div>
+      <nag-status-badge
+        [variant]="exam().status === 'LIVE' ? 'warn' : exam().status === 'UPCOMING' ? 'info' : 'success'"
+        [label]="exam().status === 'LIVE' ? 'Exam Live Now' : exam().status"
+      />
+    </div>
+
+    <div class="grid grid-cols-2 gap-3 text-xs text-slate-600 bg-slate-50 p-3.5 rounded-xl border border-slate-100">
+      <div>
+        <span class="text-slate-400 block text-[10px] uppercase font-semibold">Scheduled Date</span>
+        <span class="font-medium">{{ exam().scheduledDate }} ({{ exam().scheduledTime }})</span>
+      </div>
+      <div>
+        <span class="text-slate-400 block text-[10px] uppercase font-semibold">Duration</span>
+        <span class="font-medium">{{ exam().durationMinutes }} Minutes</span>
+      </div>
+      <div class="col-span-2 pt-1 border-t border-slate-200/60">
+        <span class="text-slate-400 block text-[10px] uppercase font-semibold">Test Center</span>
+        <span class="font-medium truncate block">{{ exam().centerName }}</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Action Toolbar -->
+  <div class="flex items-center justify-between pt-2 border-t border-slate-100 gap-3">
+    <button
+      mat-stroked-button
+      color="primary"
+      (click)="openAdmitCard.emit(exam())"
+      [disabled]="!exam().admitCardReady"
+      class="!rounded-xl !text-xs font-semibold"
+    >
+      <mat-icon class="!text-sm leading-none">badge</mat-icon>
+      Admit Card
+    </button>
+
+    @if (exam().status === 'LIVE') {
+      <a
+        mat-flat-button
+        color="warn"
+        routerLink="/delivery"
+        class="!rounded-xl !text-xs font-bold !bg-rose-600 hover:!bg-rose-700"
+      >
+        <mat-icon class="!text-sm leading-none">lock_open</mat-icon>
+        Enter Live Exam
+      </a>
+    } @else if (exam().status === 'UPCOMING') {
+      <a
+        mat-flat-button
+        color="primary"
+        routerLink="/delivery"
+        class="!rounded-xl !text-xs font-semibold"
+      >
+        <mat-icon class="!text-sm leading-none">visibility</mat-icon>
+        Preview Runtime
+      </a>
+    } @else {
+      <a
+        mat-flat-button
+        routerLink="/results"
+        class="!rounded-xl !text-xs font-semibold !bg-slate-800 text-white"
+      >
+        <mat-icon class="!text-sm leading-none">assessment</mat-icon>
+        View Scorecard
+      </a>
+    }
+  </div>
+</div>

@@ -1,0 +1,39 @@
+<div class="submission-modal-backdrop fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4">
+  <div class="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl border border-slate-100 space-y-4">
+    <div class="w-12 h-12 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center mx-auto">
+      <mat-icon class="!text-3xl">verified</mat-icon>
+    </div>
+    <div class="text-center">
+      <h3 class="text-lg font-bold text-slate-900">Exam Successfully Submitted</h3>
+      <p class="text-xs text-slate-500 mt-1">
+        Your responses have been cryptographically sealed and committed to the tamper-evident audit ledger.
+      </p>
+    </div>
+
+    <div class="bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-2 text-xs font-mono">
+      <div>
+        <span class="text-slate-400 block text-[10px]">DIGITAL SIGNATURE PROOF:</span>
+        <span class="break-all text-slate-700">{{ receipt().signature }}</span>
+      </div>
+      <div>
+        <span class="text-slate-400 block text-[10px]">SHA-256 SUBMISSION HASH:</span>
+        <span class="break-all font-bold text-slate-900">{{ receipt().hash }}</span>
+      </div>
+      <div>
+        <span class="text-slate-400 block text-[10px]">TIMESTAMP:</span>
+        <span class="text-slate-700">{{ receipt().timestamp }}</span>
+      </div>
+    </div>
+
+    <div class="pt-2 text-center">
+      <a
+        mat-flat-button
+        color="primary"
+        routerLink="/results"
+        class="!w-full !rounded-xl !py-2.5 font-semibold cursor-pointer"
+      >
+        View Verified Scorecard &rarr;
+      </a>
+    </div>
+  </div>
+</div>

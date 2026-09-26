@@ -1,0 +1,55 @@
+<div class="candidate-profile-page max-w-5xl mx-auto p-6 space-y-6">
+  <nag-page-header
+    title="Candidate Profile & Identity Verification"
+    subtitle="Manage government KYC credentials, educational records, and regional exam preferences"
+    icon="badge"
+  >
+    <div actions class="flex items-center gap-3">
+      <a mat-stroked-button routerLink="/dashboard" class="!rounded-xl cursor-pointer">
+        &larr; Dashboard
+      </a>
+      <button
+        mat-flat-button
+        color="primary"
+        (click)="saveProfile()"
+        [disabled]="saving()"
+        class="!rounded-xl cursor-pointer"
+      >
+        <mat-icon>{{ saving() ? 'hourglass_top' : 'save' }}</mat-icon>
+        {{ saving() ? 'Saving...' : 'Save Profile' }}
+      </button>
+    </div>
+  </nag-page-header>
+
+  <!-- Top Overview Card -->
+  <nag-profile-overview-card [profile]="profile()" />
+
+  <!-- Tab Navigation -->
+  <nag-profile-tab-nav
+    [activeTab]="activeTab()"
+    [tabs]="tabs"
+    (tabChange)="onTabChange($event)"
+  />
+
+  <!-- Tab Contents Card -->
+  <div class="bg-white rounded-2xl border border-slate-200 p-6 shadow-xs space-y-6">
+    @switch (activeTab()) {
+      @case ('personal') {
+        <nag-personal-details-panel [(profile)]="profile" />
+      }
+      @case ('contact') {
+        <nag-contact-details-panel [(profile)]="profile" />
+      }
+      @case ('education') {
+        <nag-education-details-panel
+          [education]="profile().education"
+          (add)="addEducation()"
+          (remove)="removeEducation($event)"
+        />
+      }
+      @case ('documents') {
+        <nag-kyc-documents-panel [profile]="profile()" />
+      }
+    }
+  </div>
+</div>

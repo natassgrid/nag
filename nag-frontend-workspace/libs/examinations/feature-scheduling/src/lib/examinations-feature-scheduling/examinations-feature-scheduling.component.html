@@ -1,0 +1,92 @@
+<div class="scheduling-container p-6 max-w-7xl mx-auto space-y-6">
+  <!-- Toolbar Header Sub-component -->
+  <nag-schedule-toolbar-header
+    [exams]="exams()"
+    [selectedExamId]="selectedExamId()"
+    [selectedSchedule]="selectedSchedule()"
+    [selectedShift]="selectedShift()"
+    [currentTab]="currentTab()"
+    [loading]="loading()"
+    [totalSchedules]="totalSchedulesCount()"
+    [totalShifts]="totalShiftsCount()"
+    [totalAllocations]="allocations().length"
+    (refresh)="loadSchedules()"
+    (createSchedule)="openCreateSchedule()"
+    (examChange)="selectExam($event)"
+    (tabChange)="currentTab.set($event)"
+    (transitionClick)="openTransitionModal($event)"
+    (amendClick)="openAmendModal($event)"
+  ></nag-schedule-toolbar-header>
+
+  <!-- TAB 1: SCHEDULES LIST -->
+  @if (currentTab() === 'SCHEDULES') {
+    <nag-schedule-list-table
+      [schedules]="filteredSchedules()"
+      [selectedSchedule]="selectedSchedule()"
+      [loading]="loading()"
+      (scheduleSelect)="selectSchedule($event)"
+      (viewShifts)="selectSchedule($event); currentTab.set('SHIFTS')"
+      (transitionClick)="openTransitionModal($event)"
+      (amendClick)="openAmendModal($event)"
+      (createClick)="openCreateSchedule()"
+    ></nag-schedule-list-table>
+  }
+
+  <!-- TAB 2: SHIFTS -->
+  @if (currentTab() === 'SHIFTS') {
+    <nag-shift-matrix-grid
+      [shifts]="shifts()"
+      [selectedSchedule]="selectedSchedule()"
+      (addShiftClick)="openAddShift()"
+      (editShiftClick)="openEditShift($event)"
+      (viewAllocationsClick)="viewAllocations($event)"
+    ></nag-shift-matrix-grid>
+  }
+
+  <!-- TAB 3: SEAT ALLOCATIONS -->
+  @if (currentTab() === 'ALLOCATIONS') {
+    <nag-seat-allocation-panel
+      [allocations]="allocations()"
+      [selectedShift]="selectedShift()"
+      [loading]="loadingAllocations()"
+      [centres]="centres()"
+      (addAllocationClick)="openAddAllocation()"
+    ></nag-seat-allocation-panel>
+  }
+
+  <!-- MODALS -->
+  <nag-create-schedule-modal
+    [isOpen]="showCreateScheduleModal()"
+    [examName]="selectedExam()?.name || ''"
+    (closeModal)="showCreateScheduleModal.set(false)"
+    (submitSchedule)="handleCreateSchedule($event)"
+  ></nag-create-schedule-modal>
+
+  <nag-schedule-transition-modal
+    [isOpen]="showTransitionModal()"
+    [schedule]="selectedSchedule()"
+    (closeModal)="showTransitionModal.set(false)"
+    (submitTransition)="handleTransition($event)"
+  ></nag-schedule-transition-modal>
+
+  <nag-schedule-amend-modal
+    [isOpen]="showAmendModal()"
+    [schedule]="selectedSchedule()"
+    (closeModal)="showAmendModal.set(false)"
+    (submitAmend)="handleAmend($event)"
+  ></nag-schedule-amend-modal>
+
+  <nag-shift-edit-modal
+    [isOpen]="showShiftModal()"
+    [shift]="editingShift()"
+    (closeModal)="showShiftModal.set(false)"
+    (saveShift)="handleSaveShift($event)"
+  ></nag-shift-edit-modal>
+
+  <nag-seat-allocation-modal
+    [isOpen]="showAllocationModal()"
+    [centres]="centres()"
+    (closeModal)="showAllocationModal.set(false)"
+    (saveAllocation)="handleSaveAllocation($event)"
+  ></nag-seat-allocation-modal>
+</div>

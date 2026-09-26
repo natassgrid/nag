@@ -1,0 +1,40 @@
+<div class="asset-preview-modal p-6 max-w-4xl w-full">
+  <!-- Dialog Header Sub-component -->
+  <app-asset-preview-header
+    [asset]="data.asset"
+    [replacing]="replacing"
+    (fileSelected)="onFileSelected($event)"
+    (copyUrl)="copyUrl()"
+    (download)="download()"
+  ></app-asset-preview-header>
+
+  @if (replacing) {
+    <div class="mt-3">
+      <div class="flex justify-between text-xs text-indigo-600 font-medium mb-1">
+        <span>Uploading replacement binary...</span>
+        <span>{{ uploadProgress }}%</span>
+      </div>
+      <mat-progress-bar mode="determinate" [value]="uploadProgress"></mat-progress-bar>
+    </div>
+  }
+
+  <!-- Media Viewer Viewport Sub-component -->
+  <app-asset-preview-media-viewer
+    [asset]="data.asset"
+    [blobUrl]="blobUrl"
+    [loading]="loading"
+    [loadError]="loadError"
+    [replacing]="replacing"
+    [formattedSize]="assetService.formatFileSize(data.asset.fileSize)"
+    (retryStream)="loadMedia()"
+    (fileSelected)="onFileSelected($event)"
+    (download)="download()"
+  ></app-asset-preview-media-viewer>
+
+  <!-- Technical Metadata Sub-component -->
+  <app-asset-preview-metadata-ribbon
+    [asset]="data.asset"
+    [formattedSize]="assetService.formatFileSize(data.asset.fileSize)"
+    [formattedDuration]="assetService.formatDuration(data.asset.durationSeconds || 0)"
+  ></app-asset-preview-metadata-ribbon>
+</div>

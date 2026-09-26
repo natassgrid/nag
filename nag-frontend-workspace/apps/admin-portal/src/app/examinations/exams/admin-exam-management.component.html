@@ -1,0 +1,124 @@
+<div class="exam-mgmt-container p-6 max-w-7xl mx-auto space-y-6">
+  <!-- Top Banner -->
+  <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-6 rounded-2xl border border-slate-200 shadow-xs">
+    <div class="flex items-center gap-4">
+      <div class="w-12 h-12 rounded-xl bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-600 shadow-xs">
+        <mat-icon class="!text-2xl leading-none">assignment</mat-icon>
+      </div>
+      <div>
+        <h1 class="text-xl font-black text-slate-900 tracking-tight flex items-center gap-2">
+          <span>Examination Directory</span>
+          <span class="text-xs font-semibold px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-200">
+            DPI Engine
+          </span>
+        </h1>
+        <p class="text-xs text-slate-500 font-medium mt-0.5">
+          Configure national standardized assessment blueprints, sections, negative marking rules, and publication lifecycles
+        </p>
+      </div>
+    </div>
+
+    <div class="flex items-center gap-3">
+      <button
+        mat-stroked-button
+        (click)="loadExams()"
+        [disabled]="loading()"
+        class="!text-slate-700 !border-slate-300"
+      >
+        <mat-icon>refresh</mat-icon>
+        Refresh
+      </button>
+      <button
+        mat-flat-button
+        color="primary"
+        (click)="openCreate()"
+      >
+        <mat-icon>add</mat-icon>
+        Create Examination
+      </button>
+    </div>
+  </div>
+
+  <!-- KPI Metrics -->
+  <nag-exam-kpi-cards
+    [totalCount]="totalExamsCount()"
+    [publishedCount]="publishedExamsCount()"
+    [draftCount]="draftExamsCount()"
+  ></nag-exam-kpi-cards>
+
+  <!-- Search and Filter Bar -->
+  <div class="bg-white p-4 rounded-xl border border-slate-200 flex flex-col sm:flex-row items-center justify-between gap-4 shadow-xs">
+    <div class="flex items-center gap-2 w-full sm:w-80 px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg">
+      <mat-icon class="text-slate-400 !text-lg">search</mat-icon>
+      <input
+        type="text"
+        [ngModel]="searchQuery()"
+        (ngModelChange)="searchQuery.set($event)"
+        placeholder="Search by exam name, code, authority..."
+        class="bg-transparent text-xs text-slate-800 placeholder:text-slate-400 focus:outline-none w-full font-medium"
+      />
+      @if (searchQuery().trim()) {
+        <button
+          type="button"
+          (click)="searchQuery.set('')"
+          class="text-slate-400 hover:text-slate-600"
+        >
+          <mat-icon class="!text-sm">close</mat-icon>
+        </button>
+      }
+    </div>
+
+    <!-- Status Filters -->
+    <div class="flex items-center gap-2">
+      <span class="text-xs font-bold text-slate-400 uppercase">Status:</span>
+      <div class="flex items-center bg-slate-100 p-1 rounded-lg">
+        <button
+          type="button"
+          (click)="statusFilter.set('ALL')"
+          [class.bg-white]="statusFilter() === 'ALL'"
+          [class.shadow-xs]="statusFilter() === 'ALL'"
+          class="px-2.5 py-1 text-xs font-semibold rounded-md transition-all text-slate-700"
+        >
+          All
+        </button>
+        <button
+          type="button"
+          (click)="statusFilter.set('PUBLISHED')"
+          [class.bg-white]="statusFilter() === 'PUBLISHED'"
+          [class.shadow-xs]="statusFilter() === 'PUBLISHED'"
+          class="px-2.5 py-1 text-xs font-semibold rounded-md transition-all text-slate-700"
+        >
+          Published
+        </button>
+        <button
+          type="button"
+          (click)="statusFilter.set('DRAFT')"
+          [class.bg-white]="statusFilter() === 'DRAFT'"
+          [class.shadow-xs]="statusFilter() === 'DRAFT'"
+          class="px-2.5 py-1 text-xs font-semibold rounded-md transition-all text-slate-700"
+        >
+          Draft
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Examination Cards Grid -->
+  <nag-exam-grid-list
+    [exams]="filteredExams()"
+    [loading]="loading()"
+    [hasSearchFilter]="!!searchQuery().trim()"
+    (editExam)="openEdit($event)"
+    (publishExam)="handlePublishExam($event)"
+    (createExam)="openCreate()"
+  ></nag-exam-grid-list>
+
+  <!-- Create / Edit Drawer Overlay -->
+  <nag-exam-form-drawer
+    [isOpen]="drawerOpen()"
+    [editingExam]="editingExam()"
+    [isSaving]="isSaving()"
+    (closeDrawer)="closeDrawer()"
+    (saveExam)="handleSaveExam($event)"
+  ></nag-exam-form-drawer>
+</div>

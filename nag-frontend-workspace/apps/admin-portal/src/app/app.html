@@ -1,0 +1,215 @@
+<div class="min-h-screen bg-slate-50 flex flex-col text-slate-800">
+  <!-- Top Navigation Bar (Only displayed for authenticated officers outside the login screen) -->
+  @if (authService.isAuthenticated() && !isLoginPage()) {
+    <header class="bg-slate-900 text-white border-b border-slate-800 sticky top-0 z-40 shadow-sm">
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
+        <div class="flex items-center gap-6">
+          <a routerLink="/dashboard" class="flex items-center gap-3 font-bold text-lg tracking-tight hover:opacity-90">
+            <span class="w-8 h-8 rounded-lg bg-indigo-600 flex items-center justify-center text-white font-black text-sm">
+              NAG
+            </span>
+            <span>National Assessment Grid</span>
+            <span class="text-xs font-semibold px-2 py-0.5 rounded bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
+              Admin Console
+            </span>
+          </a>
+
+          <!-- Primary Navigation with Dropdown Sub-menus -->
+          <nav class="hidden md:flex items-center gap-1 text-sm font-medium">
+            <!-- 1. Direct Dashboard Link -->
+            <a
+              routerLink="/dashboard"
+              routerLinkActive="bg-slate-800 text-white font-semibold"
+              [routerLinkActiveOptions]="{ exact: true }"
+              class="px-3 py-2 rounded-lg text-slate-300 hover:text-white hover:bg-slate-800/60 transition-colors flex items-center gap-1.5"
+            >
+              <mat-icon class="!text-lg">dashboard</mat-icon>
+              <span>Dashboard</span>
+            </a>
+
+            <!-- 2. Question Bank Sub-Menu -->
+            <button
+              type="button"
+              [matMenuTriggerFor]="questionsMenu"
+              [ngClass]="{ 'bg-slate-800 text-white font-semibold': isRouteActive('/questions') }"
+              class="px-3 py-2 rounded-lg text-slate-300 hover:text-white hover:bg-slate-800/60 transition-colors flex items-center gap-1.5 focus:outline-none"
+            >
+              <mat-icon class="!text-lg">quiz</mat-icon>
+              <span>Question Bank</span>
+              <mat-icon class="!text-sm opacity-60">arrow_drop_down</mat-icon>
+            </button>
+            <mat-menu #questionsMenu="matMenu" class="custom-nav-menu">
+              <a mat-menu-item routerLink="/questions">
+                <mat-icon class="text-indigo-600">inventory_2</mat-icon>
+                <div class="inline-flex flex-col text-left">
+                  <span class="font-bold text-xs text-slate-900">Question Repository</span>
+                  <span class="text-[10px] text-slate-500">Search, filter, and review question bank</span>
+                </div>
+              </a>
+              <a mat-menu-item routerLink="/questions/authoring">
+                <mat-icon class="text-purple-600">edit_note</mat-icon>
+                <div class="inline-flex flex-col text-left">
+                  <span class="font-bold text-xs text-slate-900">Author Question & Passage</span>
+                  <span class="text-[10px] text-slate-500">MCQ, LaTeX equations & comprehension passage editor</span>
+                </div>
+              </a>
+              <a mat-menu-item routerLink="/questions/taxonomy">
+                <mat-icon class="text-amber-600">account_tree</mat-icon>
+                <div class="inline-flex flex-col text-left">
+                  <span class="font-bold text-xs text-slate-900">Taxonomy & Subjects</span>
+                  <span class="text-[10px] text-slate-500">Manage 3-tier Subject &rsaquo; Topic &rsaquo; Subtopic hierarchy</span>
+                </div>
+              </a>
+              <a mat-menu-item routerLink="/questions/ai-generate">
+                <mat-icon class="text-indigo-500">psychology</mat-icon>
+                <div class="inline-flex flex-col text-left">
+                  <span class="font-bold text-xs text-slate-900">AI Question Generator</span>
+                  <span class="text-[10px] text-slate-500">Cognitive-level synthesis, duplicate screening & batch</span>
+                </div>
+              </a>
+              <a mat-menu-item routerLink="/questions/blueprints">
+                <mat-icon class="text-blue-600">rule</mat-icon>
+                <div class="inline-flex flex-col text-left">
+                  <span class="font-bold text-xs text-slate-900">Rule Blueprints</span>
+                  <span class="text-[10px] text-slate-500">Quota distributions & inventory sufficiency audit</span>
+                </div>
+              </a>
+              <a mat-menu-item routerLink="/questions/translations">
+                <mat-icon class="text-emerald-600">translate</mat-icon>
+                <div class="inline-flex flex-col text-left">
+                  <span class="font-bold text-xs text-slate-900">Translation & Indic AI</span>
+                  <span class="text-[10px] text-slate-500">IndicTrans2 AI localization & batch workers</span>
+                </div>
+              </a>
+            </mat-menu>
+
+            <!-- 3. Examinations Sub-Menu -->
+            <button
+              type="button"
+              [matMenuTriggerFor]="examsMenu"
+              [ngClass]="{ 'bg-slate-800 text-white font-semibold': isRouteActive('/examinations') || isRouteActive('/evaluation') }"
+              class="px-3 py-2 rounded-lg text-slate-300 hover:text-white hover:bg-slate-800/60 transition-colors flex items-center gap-1.5 focus:outline-none"
+            >
+              <mat-icon class="!text-lg">assignment</mat-icon>
+              <span>Examinations</span>
+              <mat-icon class="!text-sm opacity-60">arrow_drop_down</mat-icon>
+            </button>
+            <mat-menu #examsMenu="matMenu" class="custom-nav-menu">
+              <a mat-menu-item routerLink="/examinations">
+                <mat-icon class="text-indigo-600">assignment</mat-icon>
+                <div class="inline-flex flex-col text-left">
+                  <span class="font-bold text-xs text-slate-900">Examination Directory</span>
+                  <span class="text-[10px] text-slate-500">Configure blueprints, marking rules & publish</span>
+                </div>
+              </a>
+              <a mat-menu-item routerLink="/examinations/scheduling">
+                <mat-icon class="text-purple-600">calendar_month</mat-icon>
+                <div class="inline-flex flex-col text-left">
+                  <span class="font-bold text-xs text-slate-900">Scheduling & Shifts</span>
+                  <span class="text-[10px] text-slate-500">Sessions, timing shifts, amendments & approvals</span>
+                </div>
+              </a>
+              <a mat-menu-item routerLink="/examinations/centres">
+                <mat-icon class="text-amber-600">domain</mat-icon>
+                <div class="inline-flex flex-col text-left">
+                  <span class="font-bold text-xs text-slate-900">Test Centre Registry</span>
+                  <span class="text-[10px] text-slate-500">Nationwide venues, labs & seat capacities</span>
+                </div>
+              </a>
+              <a mat-menu-item routerLink="/examinations/paper-gen">
+                <mat-icon class="text-blue-600">auto_awesome</mat-icon>
+                <div class="inline-flex flex-col text-left">
+                  <span class="font-bold text-xs text-slate-900">Paper Assembly Engine</span>
+                  <span class="text-[10px] text-slate-500">Automated paper generation & encrypted bundles</span>
+                </div>
+              </a>
+              <a mat-menu-item routerLink="/evaluation/grading">
+                <mat-icon class="text-emerald-600">grading</mat-icon>
+                <div class="inline-flex flex-col text-left">
+                  <span class="font-bold text-xs text-slate-900">Evaluation & Grading</span>
+                  <span class="text-[10px] text-slate-500">Automated grading, score normalization & ranking</span>
+                </div>
+              </a>
+            </mat-menu>
+
+            <!-- 4. Administration Sub-Menu -->
+            <button
+              type="button"
+              [matMenuTriggerFor]="adminMenu"
+              [ngClass]="{
+                'bg-slate-800 text-white font-semibold':
+                  isRouteActive('/users') ||
+                  isRouteActive('/assets') ||
+                  isRouteActive('/audit') ||
+                  isRouteActive('/reports') ||
+                  isRouteActive('/settings')
+              }"
+              class="px-3 py-2 rounded-lg text-slate-300 hover:text-white hover:bg-slate-800/60 transition-colors flex items-center gap-1.5 focus:outline-none"
+            >
+              <mat-icon class="!text-lg">shield</mat-icon>
+              <span>Administration</span>
+              <mat-icon class="!text-sm opacity-60">arrow_drop_down</mat-icon>
+            </button>
+            <mat-menu #adminMenu="matMenu" class="custom-nav-menu">
+              <a mat-menu-item routerLink="/users">
+                <mat-icon class="text-indigo-600">group</mat-icon>
+                <div class="inline-flex flex-col text-left">
+                  <span class="font-bold text-xs text-slate-900">User Management</span>
+                  <span class="text-[10px] text-slate-500">Officers, examiners & role-based access control</span>
+                </div>
+              </a>
+              <a mat-menu-item routerLink="/assets">
+                <mat-icon class="text-blue-600">perm_media</mat-icon>
+                <div class="inline-flex flex-col text-left">
+                  <span class="font-bold text-xs text-slate-900">Media Assets</span>
+                  <span class="text-[10px] text-slate-500">Exam diagrams, chemistry structures & media CDN</span>
+                </div>
+              </a>
+              <a mat-menu-item routerLink="/reports">
+                <mat-icon class="text-emerald-600">analytics</mat-icon>
+                <div class="inline-flex flex-col text-left">
+                  <span class="font-bold text-xs text-slate-900">Reports & Analytics</span>
+                  <span class="text-[10px] text-slate-500">Assessment metrics, passing rates & psychometrics</span>
+                </div>
+              </a>
+              <a mat-menu-item routerLink="/audit">
+                <mat-icon class="text-amber-600">history</mat-icon>
+                <div class="inline-flex flex-col text-left">
+                  <span class="font-bold text-xs text-slate-900">Audit Trail</span>
+                  <span class="text-[10px] text-slate-500">Immutable DPI telemetry & compliance activity logs</span>
+                </div>
+              </a>
+              <a mat-menu-item routerLink="/settings">
+                <mat-icon class="text-slate-600">settings</mat-icon>
+                <div class="inline-flex flex-col text-left">
+                  <span class="font-bold text-xs text-slate-900">System Settings</span>
+                  <span class="text-[10px] text-slate-500">Tenants, SSO Keycloak integration & security policies</span>
+                </div>
+              </a>
+            </mat-menu>
+          </nav>
+        </div>
+
+        <!-- Right Action Area -->
+        <div class="flex items-center gap-3">
+          <div class="hidden sm:flex items-center gap-2 text-xs">
+            <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
+            <span class="text-slate-300 font-mono">{{ authService.userName() }}</span>
+          </div>
+          <button
+            mat-stroked-button
+            (click)="handleLogout()"
+            class="!text-slate-300 !border-slate-700 !text-xs hover:!text-white"
+          >
+            Sign Out
+          </button>
+        </div>
+      </div>
+    </header>
+  }
+
+  <!-- Main Content Area -->
+  <main class="flex-1 w-full flex flex-col">
+    <router-outlet></router-outlet>
+  </main>
+</div>

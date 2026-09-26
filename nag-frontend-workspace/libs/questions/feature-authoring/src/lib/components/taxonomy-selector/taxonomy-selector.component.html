@@ -1,0 +1,131 @@
+<div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs space-y-4">
+  <div class="flex items-center justify-between">
+    <div class="flex items-center gap-2">
+      <mat-icon class="text-indigo-600">account_tree</mat-icon>
+      <h2 class="text-sm font-bold text-slate-900 uppercase tracking-wide">Taxonomy & Hierarchy Mapping</h2>
+    </div>
+    <div class="flex items-center gap-2">
+      <button
+        type="button"
+        (click)="showNewSubject = !showNewSubject"
+        class="text-xs font-bold text-indigo-600 hover:text-indigo-800 flex items-center gap-1"
+      >
+        <mat-icon class="!text-sm">add</mat-icon>
+        + New Subject
+      </button>
+      <span class="text-slate-300">|</span>
+      <button
+        type="button"
+        (click)="showNewTopic = !showNewTopic"
+        class="text-xs font-bold text-indigo-600 hover:text-indigo-800 flex items-center gap-1"
+        [disabled]="!selectedSubjectId()"
+      >
+        <mat-icon class="!text-sm">add</mat-icon>
+        + New Topic
+      </button>
+    </div>
+  </div>
+
+  <!-- Quick Add Input Panels -->
+  @if (showNewSubject) {
+    <div class="flex items-center gap-2 p-3 bg-indigo-50 border border-indigo-200 rounded-xl">
+      <input
+        type="text"
+        [(ngModel)]="newSubjectName"
+        placeholder="Enter new subject name..."
+        class="grow px-3 py-1.5 text-xs bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+      />
+      <button
+        type="button"
+        (click)="onCreateSubject()"
+        class="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-lg"
+      >
+        Create
+      </button>
+      <button
+        type="button"
+        (click)="showNewSubject = false"
+        class="text-slate-400 hover:text-slate-600"
+      >
+        <mat-icon class="!text-sm">close</mat-icon>
+      </button>
+    </div>
+  }
+
+  @if (showNewTopic) {
+    <div class="flex items-center gap-2 p-3 bg-purple-50 border border-purple-200 rounded-xl">
+      <input
+        type="text"
+        [(ngModel)]="newTopicName"
+        placeholder="Enter new topic name..."
+        class="grow px-3 py-1.5 text-xs bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+      />
+      <button
+        type="button"
+        (click)="onCreateTopic()"
+        class="px-3 py-1.5 bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold rounded-lg"
+      >
+        Create
+      </button>
+      <button
+        type="button"
+        (click)="showNewTopic = false"
+        class="text-slate-400 hover:text-slate-600"
+      >
+        <mat-icon class="!text-sm">close</mat-icon>
+      </button>
+    </div>
+  }
+
+  <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+    <div>
+      <label for="authoring-subject-select" class="block text-xs font-semibold text-slate-700 uppercase mb-1">
+        Subject *
+      </label>
+      <select
+        id="authoring-subject-select"
+        [ngModel]="selectedSubjectId()"
+        (ngModelChange)="onSubjectSelect($event)"
+        class="w-full px-3 py-2 text-sm bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 font-medium"
+      >
+        @for (s of subjects(); track s.id) {
+          <option [value]="s.id">{{ s.name }}</option>
+        }
+      </select>
+    </div>
+
+    <div>
+      <label for="authoring-topic-select" class="block text-xs font-semibold text-slate-700 uppercase mb-1">
+        Topic
+      </label>
+      <select
+        id="authoring-topic-select"
+        [ngModel]="selectedTopicId()"
+        (ngModelChange)="onTopicSelect($event)"
+        class="w-full px-3 py-2 text-sm bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 font-medium"
+      >
+        <option [ngValue]="null">-- Select Topic --</option>
+        @for (t of topics(); track t.id) {
+          <option [value]="t.id">{{ t.name }}</option>
+        }
+      </select>
+    </div>
+
+    <div>
+      <label for="authoring-subtopic-select" class="block text-xs font-semibold text-slate-700 uppercase mb-1">
+        Subtopic
+      </label>
+      <select
+        id="authoring-subtopic-select"
+        [ngModel]="selectedSubtopicId()"
+        (ngModelChange)="onSubtopicSelect($event)"
+        class="w-full px-3 py-2 text-sm bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 font-medium"
+      >
+        <option [ngValue]="null">-- Select Subtopic --</option>
+        @for (st of subtopics(); track st.id) {
+          <option [value]="st.id">{{ st.name }}</option>
+        }
+      </select>
+    </div>
+  </div>
+</div>

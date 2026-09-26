@@ -1,0 +1,16 @@
+<div class="flex items-center gap-2 border-b border-slate-200 pb-2">
+  @for (tab of tabs(); track tab.id) {
+    <button
+      type="button"
+      (click)="selectTab(tab.id)"
+      class="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-colors cursor-pointer"
+      [ngClass]="{
+        'bg-indigo-600 text-white shadow-xs': activeTab() === tab.id,
+        'text-slate-600 hover:bg-slate-100': activeTab() !== tab.id
+      }"
+    >
+      <mat-icon class="!text-base leading-none">{{ tab.icon }}</mat-icon>
+      {{ tab.label }}
+    </button>
+  }
+</div>

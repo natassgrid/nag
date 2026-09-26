@@ -8,11 +8,15 @@
 #   - 1 Redis 7 container
 #   - 1 HashiCorp Vault container
 #   - 1 Keycloak container
-#   - 1 Admin Frontend (React/Vite)
-#   - 1 Candidate Frontend (React/Vite)
+#   - 1 Admin Portal SPA (Nx Workspace / Angular 22 - Port 4200)
+#   - 1 Candidate Delivery SPA (Nx Workspace / Angular 22 - Port 4300)
+#   - 1 Public Verifier SPA (Nx Workspace / Angular 22 - Port 4400)
 #
 # Usage:
-#   ./redeploy-monolith.sh                  # Deploy with In-Memory Event Bus (Zero-Broker, Minimal RAM)
+#   ./redeploy-monolith.sh                  # Deploy Monolith + all 3 Nx Frontends
+#   ./redeploy-monolith.sh --backend-only   # Deploy only Backend Monolith + DB/Vault/Redis (Skip Frontend builds)
+#   ./redeploy-monolith.sh --frontend-only  # Deploy only Nx Frontends (Admin, Candidate, Verifier) without DB restart
+#   ./redeploy-monolith.sh --service <name> # Build and deploy ONE service (e.g. admin-portal)
 #   ./redeploy-monolith.sh --rabbit         # Deploy with RabbitMQ Broker
 #   ./redeploy-monolith.sh --clean-db       # Drop all volumes / fresh Postgres schema
 #   ./redeploy-monolith.sh --observability  # Start with Prometheus, Grafana, and Jaeger
@@ -23,17 +27,23 @@
 # =============================================================================
 set -e
 
+export BUILDX_NO_DEFAULT_ATTESTATIONS=1
+export DOCKER_BUILDKIT=1
+
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 cd "$SCRIPT_DIR"
 
 NO_CACHE=""
+SERVICE=""
 RESTART_ONLY=false
 HEALTH_CHECK=false
 OBSERVABILITY=false
 AI=false
 CLEAN_DB=false
 RABBIT=false
+BACKEND_ONLY=false
+FRONTEND_ONLY=false
 
 # If PLATFORM_MESSAGING_BROKER environment variable is pre-set to rabbit
 if [ "${PLATFORM_MESSAGING_BROKER:-}" = "rabbit" ]; then
@@ -46,6 +56,9 @@ while [[ $# -gt 0 ]]; do
         --restart) RESTART_ONLY=true; shift ;;
         --health) HEALTH_CHECK=true; shift ;;
         --clean-db|--clean-volumes|--delete-db-volume|--reset-db|--drop-db) CLEAN_DB=true; shift ;;
+        --backend-only|--monolith-only|--no-frontends) BACKEND_ONLY=true; shift ;;
+        --frontend-only|--frontends-only) FRONTEND_ONLY=true; shift ;;
+        --service) SERVICE="$2"; shift 2 ;;
         --rabbit|--with-rabbit) RABBIT=true; shift ;;
         --observability|--with-observability) OBSERVABILITY=true; shift ;;
         --ai|--with-ai) AI=true; shift ;;
@@ -82,6 +95,15 @@ echo "  Messaging:    RabbitMQ (exam-monolith-rabbitmq:5672)"
 else
 echo "  Messaging:    In-Memory Spring Events (Zero External Broker)"
 fi
+if [ -n "$SERVICE" ]; then
+echo "  Target:       Single service: $SERVICE"
+elif [ "$FRONTEND_ONLY" = true ]; then
+echo "  Target:       Nx Frontend SPAs only (Admin:4200, Candidate:4300, Verifier:4400)"
+elif [ "$BACKEND_ONLY" = true ]; then
+echo "  Target:       Backend Monolith only (Frontends skipped)"
+else
+echo "  Frontends:    Nx Angular Apps (Admin:4200, Candidate:4300, Verifier:4400)"
+fi
 if [ "$CLEAN_DB" = true ]; then
 echo "  Database:     Reset (Volumes will be deleted)"
 else
@@ -95,24 +117,34 @@ echo "  AI Pipeline:   Enabled (Ollama, LiteLLM, IndicTrans2)"
 fi
 echo "============================================="
 
-# --- Ensure builder base image exists ---
-ensure_builder_base() {
-    if ! docker image inspect exam/builder-base:latest >/dev/null 2>&1; then
-        echo "🔧 Building builder base image (one-time)..."
-        cd "$PROJECT_ROOT"
-        docker build -f backend/Dockerfile.base -t exam/builder-base:latest .
-        cd "$SCRIPT_DIR"
-        echo "✅ Builder base image ready."
-    fi
-}
+# --- Target app services to manage ---
+if [ -n "$SERVICE" ]; then
+    APP_TARGETS="$SERVICE"
+elif [ "$FRONTEND_ONLY" = true ]; then
+    APP_TARGETS="admin-portal candidate-delivery public-verifier"
+elif [ "$BACKEND_ONLY" = true ]; then
+    APP_TARGETS="monolith-app"
+else
+    APP_TARGETS="monolith-app admin-portal candidate-delivery public-verifier"
+fi
 
-ensure_builder_base
+# --- Infrastructure targets definition ---
+INFRA_TARGETS="postgres redis vault vault-init keycloak"
+if [ "$RABBIT" = true ]; then
+    INFRA_TARGETS="$INFRA_TARGETS rabbitmq"
+fi
+if [ "$OBSERVABILITY" = true ]; then
+    INFRA_TARGETS="$INFRA_TARGETS prometheus grafana jaeger"
+fi
+if [ "$AI" = true ]; then
+    INFRA_TARGETS="$INFRA_TARGETS ollama litellm indictrans2"
+fi
 
 # --- Health check mode ---
 if [ "$HEALTH_CHECK" = true ]; then
     echo ""
-    echo "🔍 Checking health status of monolith services..."
-    echo ""
+    echo "🔍 Checking Single JVM Monolith health..."
+    echo "--------------------------------------------------------"
 
     container="exam-monolith-app"
     if ! docker ps --format '{{.Names}}' | grep -q "^${container}$"; then
@@ -120,7 +152,7 @@ if [ "$HEALTH_CHECK" = true ]; then
         exit 1
     fi
 
-    health_url="http://localhost:8080/actuator/health"
+    health_url="http://localhost:9000/actuator/health"
     health_response=$(curl -s --connect-timeout 3 --max-time 5 "$health_url" 2>/dev/null || echo "")
 
     if [ -z "$health_response" ]; then
@@ -128,24 +160,72 @@ if [ "$HEALTH_CHECK" = true ]; then
     fi
 
     if echo "$health_response" | grep -q -E '"status":"UP"|healthy'; then
-        echo "  monolith-app: ✅ UP (Port 8080)"
+        echo "  monolith-app: ✅ UP (Port 9000)"
     else
         echo "  monolith-app: ⚠️ $health_response"
     fi
     exit 0
 fi
 
-# --- Target app services to manage ---
-APP_TARGETS="monolith-app frontend candidate-frontend"
-
 # --- Restart only mode ---
 if [ "$RESTART_ONLY" = true ]; then
+    echo ""
+    echo "🚀 Ensuring infrastructure ($INFRA_TARGETS) is active..."
+    $COMPOSE up -d $INFRA_TARGETS
+    $COMPOSE up --wait -d postgres vault redis
+    if [ "$RABBIT" = true ]; then
+        $COMPOSE up --wait -d rabbitmq
+    fi
+    echo "  Ensuring Vault is unsealed and transit keys are initialized..."
+    $COMPOSE up -d vault-init
+
     echo ""
     echo "🔄 Restarting monolith services (no build)..."
     $COMPOSE stop $APP_TARGETS
     $COMPOSE up -d $APP_TARGETS
     echo ""
     echo "✅ Monolith restarted."
+    $COMPOSE ps --format "table {{.Name}}\t{{.Status}}\t{{.Ports}}" 2>/dev/null || $COMPOSE ps
+    exit 0
+fi
+
+# --- Targeted Service or Frontend Only Deploy Mode (keep infra running) ---
+if [ "$FRONTEND_ONLY" = true ] || [ -n "$SERVICE" ]; then
+    echo ""
+    echo "🚀 Ensuring infrastructure ($INFRA_TARGETS) is active..."
+    $COMPOSE up -d $INFRA_TARGETS
+    $COMPOSE up --wait -d postgres vault redis
+    if [ "$RABBIT" = true ]; then
+        $COMPOSE up --wait -d rabbitmq
+    fi
+    echo "  Ensuring Vault is unsealed and transit keys are initialized..."
+    $COMPOSE up -d vault-init
+
+    echo ""
+    echo "📦 Building targets: $APP_TARGETS..."
+    $COMPOSE build $NO_CACHE $APP_TARGETS
+
+    echo ""
+    echo "🚀 Updating and starting targets: $APP_TARGETS..."
+    $COMPOSE up -d --no-deps $APP_TARGETS
+
+    echo ""
+    echo "============================================="
+    echo "  🎉 Target deploy complete: $APP_TARGETS"
+    echo "============================================="
+    if [[ "$APP_TARGETS" == *"admin-portal"* ]] || [ "$FRONTEND_ONLY" = true ]; then
+        echo "  Admin Portal:        http://localhost:4200"
+    fi
+    if [[ "$APP_TARGETS" == *"candidate-delivery"* ]] || [ "$FRONTEND_ONLY" = true ]; then
+        echo "  Candidate Delivery:  http://localhost:4300"
+    fi
+    if [[ "$APP_TARGETS" == *"public-verifier"* ]] || [ "$FRONTEND_ONLY" = true ]; then
+        echo "  Public Verifier:     http://localhost:4400"
+    fi
+    if [[ "$APP_TARGETS" == *"monolith-app"* ]]; then
+        echo "  Monolith API:        http://localhost:9000"
+    fi
+    echo "============================================="
     exit 0
 fi
 
@@ -169,17 +249,6 @@ else
 fi
 
 echo ""
-INFRA_TARGETS="postgres redis vault vault-init keycloak"
-if [ "$RABBIT" = true ]; then
-    INFRA_TARGETS="$INFRA_TARGETS rabbitmq"
-fi
-if [ "$OBSERVABILITY" = true ]; then
-    INFRA_TARGETS="$INFRA_TARGETS prometheus grafana jaeger"
-fi
-if [ "$AI" = true ]; then
-    INFRA_TARGETS="$INFRA_TARGETS ollama litellm indictrans2"
-fi
-
 echo "🚀 Starting infrastructure ($INFRA_TARGETS)..."
 $COMPOSE up -d $INFRA_TARGETS
 echo "  Waiting for infrastructure to be healthy..."
@@ -192,16 +261,26 @@ echo "  Ensuring Vault is unsealed and transit keys are initialized..."
 $COMPOSE up -d vault-init
 
 echo ""
-echo "📦 Building monolith-app and frontends..."
+echo "📦 Building targets: $APP_TARGETS..."
 $COMPOSE build $NO_CACHE $APP_TARGETS
 
 echo ""
-echo "🚀 Starting monolith stack..."
+echo "🚀 Starting monolith stack ($APP_TARGETS)..."
 $COMPOSE up -d $APP_TARGETS
 
 echo ""
 echo "============================================="
 echo "  🎉 Single JVM Monolith redeploy complete!"
+echo "============================================="
+echo "  Monolith API:        http://localhost:9000"
+echo "  Actuator Health:     http://localhost:9000/actuator/health"
+if [ "$BACKEND_ONLY" = false ]; then
+echo "  Admin Portal:        http://localhost:4200"
+echo "  Candidate Delivery:  http://localhost:4300"
+echo "  Public Verifier:     http://localhost:4400"
+fi
+echo "  Postgres Database:   localhost:5432"
+echo "  Redis Cache:         localhost:6379"
 echo "============================================="
 echo ""
 $COMPOSE ps --format "table {{.Name}}\t{{.Status}}\t{{.Ports}}" 2>/dev/null || $COMPOSE ps

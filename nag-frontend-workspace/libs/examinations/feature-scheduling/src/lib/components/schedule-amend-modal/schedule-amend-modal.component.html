@@ -1,0 +1,66 @@
+@if (isOpen()) {
+  <div class="fixed inset-0 bg-slate-900/50 backdrop-blur-xs z-50 flex items-center justify-center p-4 animate-fadeIn">
+    <div class="bg-white rounded-2xl max-w-lg w-full p-6 space-y-4 shadow-2xl border border-slate-200 animate-scaleUp">
+      <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+        <h2 class="text-base font-black text-slate-900 flex items-center gap-2">
+          <mat-icon class="text-purple-600">history_edu</mat-icon>
+          Amend Schedule (Creates New Version)
+        </h2>
+        <button type="button" (click)="onClose()" class="text-slate-400 hover:text-slate-600">
+          <mat-icon>close</mat-icon>
+        </button>
+      </div>
+
+      <div class="space-y-3">
+        <div>
+          <label for="amend-reason" class="block text-xs font-semibold text-slate-700 uppercase mb-1">Change Reason * (Audit Trail)</label>
+          <input
+            id="amend-reason"
+            type="text"
+            [(ngModel)]="amendReason"
+            placeholder="e.g. Center capacity expansion and date adjustment due to festival"
+            class="w-full px-3 py-2 text-xs bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 font-medium"
+          />
+        </div>
+
+        <div>
+          <label for="amend-sched-name" class="block text-xs font-semibold text-slate-700 uppercase mb-1">Schedule Name</label>
+          <input
+            id="amend-sched-name"
+            type="text"
+            [(ngModel)]="amendScheduleName"
+            class="w-full px-3 py-2 text-xs bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 font-medium"
+          />
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label for="amend-exam-date" class="block text-xs font-semibold text-slate-700 uppercase mb-1">New Exam Date</label>
+            <input
+              id="amend-exam-date"
+              type="date"
+              [(ngModel)]="amendExamDate"
+              class="w-full px-3 py-2 text-xs bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 font-medium"
+            />
+          </div>
+          <div>
+            <label for="amend-reserve-date" class="block text-xs font-semibold text-slate-700 uppercase mb-1">New Reserve Date</label>
+            <input
+              id="amend-reserve-date"
+              type="date"
+              [(ngModel)]="amendReserveDate"
+              class="w-full px-3 py-2 text-xs bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 font-medium"
+            />
+          </div>
+        </div>
+      </div>
+
+      <div class="flex justify-end gap-3 pt-3 border-t border-slate-100">
+        <button mat-stroked-button (click)="onClose()" class="!text-slate-600">Cancel</button>
+        <button mat-flat-button color="primary" [disabled]="!amendReason.trim()" (click)="onSubmit()">
+          Publish Amendment
+        </button>
+      </div>
+    </div>
+  </div>
+}

@@ -25,6 +25,7 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
 import org.springframework.context.annotation.Bean;
 import org.springframework.core.Ordered;
 import org.springframework.core.annotation.Order;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter;
@@ -49,7 +50,18 @@ public class SharedSecurityConfig {
             .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers("/actuator/health", "/actuator/health/**", "/actuator/info", "/actuator/prometheus").permitAll()
+                .requestMatchers(
+                    "/api/v1/identity/register",
+                    "/api/v1/identity/auth/**",
+                    "/api/v1/identity/otp/**",
+                    "/api/v1/identity/verify-otp",
+                    "/api/v1/identity/verify/**",
+                    "/api/v1/identity/resend/**",
+                    "/api/v1/identity/verification-status",
+                    "/api/v1/identity/admin/invite/**"
+                ).permitAll()
                 .requestMatchers("/api/v1/geo/**", "/api/v1/public/**").permitAll()
+                .requestMatchers(HttpMethod.GET, "/api/v1/assets/*/download", "/api/v1/assets/*/url").permitAll()
                 .anyRequest().authenticated()
             )
             .oauth2ResourceServer(oauth2 -> oauth2

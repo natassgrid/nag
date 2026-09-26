@@ -1,0 +1,74 @@
+<div class="flex flex-col md:flex-row gap-4 items-center justify-between">
+  <div class="relative w-full md:w-96">
+    <input
+      type="text"
+      [ngModel]="searchQuery()"
+      (ngModelChange)="searchQueryChange.emit($event)"
+      placeholder="Search by paper name, exam code, or shift..."
+      class="w-full pl-10 pr-4 py-2 text-sm border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500"
+    />
+    <mat-icon class="absolute left-3 top-2.5 !text-lg text-slate-400">search</mat-icon>
+  </div>
+
+  <div class="flex flex-wrap items-center gap-3 w-full md:w-auto">
+    <!-- Exam Filter -->
+    <select
+      [ngModel]="selectedExamFilter()"
+      (ngModelChange)="examFilterChange.emit($event)"
+      class="text-xs py-2 px-3 border border-slate-300 rounded-xl bg-white focus:ring-2 focus:ring-indigo-500"
+    >
+      <option value="ALL">All Examinations</option>
+      @for (exam of exams(); track exam.id) {
+        <option [value]="exam.id">{{ exam.name }} ({{ exam.code || 'NO-CODE' }})</option>
+      }
+    </select>
+
+    <!-- Status Filter -->
+    <div class="flex bg-slate-100 p-1 rounded-xl">
+      <button
+        type="button"
+        (click)="statusFilterChange.emit('ALL')"
+        [ngClass]="{
+          'bg-white text-slate-900 shadow-xs font-bold': statusFilter() === 'ALL',
+          'text-slate-600': statusFilter() !== 'ALL'
+        }"
+        class="px-3 py-1.5 rounded-lg text-xs transition-colors cursor-pointer"
+      >
+        All
+      </button>
+      <button
+        type="button"
+        (click)="statusFilterChange.emit('DRAFT')"
+        [ngClass]="{
+          'bg-white text-amber-700 shadow-xs font-bold': statusFilter() === 'DRAFT',
+          'text-slate-600': statusFilter() !== 'DRAFT'
+        }"
+        class="px-3 py-1.5 rounded-lg text-xs transition-colors cursor-pointer"
+      >
+        Draft
+      </button>
+      <button
+        type="button"
+        (click)="statusFilterChange.emit('APPROVED')"
+        [ngClass]="{
+          'bg-white text-blue-700 shadow-xs font-bold': statusFilter() === 'APPROVED',
+          'text-slate-600': statusFilter() !== 'APPROVED'
+        }"
+        class="px-3 py-1.5 rounded-lg text-xs transition-colors cursor-pointer"
+      >
+        Approved
+      </button>
+      <button
+        type="button"
+        (click)="statusFilterChange.emit('ENCRYPTED')"
+        [ngClass]="{
+          'bg-white text-emerald-700 shadow-xs font-bold': statusFilter() === 'ENCRYPTED',
+          'text-slate-600': statusFilter() !== 'ENCRYPTED'
+        }"
+        class="px-3 py-1.5 rounded-lg text-xs transition-colors cursor-pointer"
+      >
+        Encrypted
+      </button>
+    </div>
+  </div>
+</div>

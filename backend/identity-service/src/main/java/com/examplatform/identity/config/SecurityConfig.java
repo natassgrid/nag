@@ -14,8 +14,7 @@
  * GNU Affero General Public License for more details.
  *
  * You should have received a copy of the GNU Affero General Public License
- * along with this program. If not, see <https://www.gnu.org/licenses/>.
- */
+ * along with this program. If not, see <https://www.gnu.org/licenses/>.\n */
 
 package com.examplatform.identity.config;
 
@@ -53,6 +52,7 @@ public class SecurityConfig {
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers(HttpMethod.POST, "/api/v1/identity/register").permitAll()
                 .requestMatchers(HttpMethod.POST, "/api/v1/identity/otp/verify").permitAll()
+                .requestMatchers(HttpMethod.POST, "/api/v1/identity/verify-otp").permitAll()
                 .requestMatchers(HttpMethod.POST, "/api/v1/identity/otp/resend").permitAll()
                 .requestMatchers(HttpMethod.POST, "/api/v1/identity/verify/**").permitAll()
                 .requestMatchers(HttpMethod.POST, "/api/v1/identity/auth/verify/**").permitAll()

@@ -1,0 +1,140 @@
+<div class="max-w-7xl mx-auto p-6 space-y-8">
+  <!-- Page Header -->
+  <nag-page-header
+    title="User Access &amp; Role Management"
+    subtitle="Governance of assessment authority accounts, cryptographic key pairs, and fine-grained RBAC permission matrices"
+    icon="manage_accounts"
+  >
+    <div actions class="flex items-center gap-3">
+      @if (activeTab() === 'ROLES') {
+        <button
+          mat-flat-button
+          color="primary"
+          (click)="openCreateRole()"
+          class="!rounded-xl !bg-purple-600 hover:!bg-purple-700 !text-white"
+        >
+          <span class="flex items-center gap-1.5">
+            <mat-icon>add_moderator</mat-icon>
+            <span>Define Custom Role</span>
+          </span>
+        </button>
+      } @else {
+        <button
+          mat-flat-button
+          color="primary"
+          (click)="openInviteDrawer()"
+          class="!rounded-xl !bg-indigo-600 hover:!bg-indigo-700 !text-white"
+        >
+          <span class="flex items-center gap-1.5">
+            <mat-icon>person_add</mat-icon>
+            <span>Invite Authority User</span>
+          </span>
+        </button>
+      }
+    </div>
+  </nag-page-header>
+
+  <!-- KPI Overview Component -->
+  <nag-user-kpi-overview [stats]="kpiStats()"></nag-user-kpi-overview>
+
+  <!-- Navigation Tab Bar -->
+  <div class="flex items-center gap-2 border-b border-slate-200">
+    <button
+      type="button"
+      (click)="activeTab.set('USERS')"
+      [ngClass]="{
+        'border-indigo-600 text-indigo-600 font-bold border-b-2': activeTab() === 'USERS',
+        'text-slate-500 hover:text-slate-700 font-medium': activeTab() !== 'USERS'
+      }"
+      class="px-4 py-3 text-xs flex items-center gap-2 transition cursor-pointer -mb-px"
+    >
+      <mat-icon class="!text-lg">people</mat-icon>
+      <span>Authority Directory ({{ users().length }})</span>
+    </button>
+
+    <button
+      type="button"
+      (click)="activeTab.set('ROLES')"
+      [ngClass]="{
+        'border-purple-600 text-purple-600 font-bold border-b-2': activeTab() === 'ROLES',
+        'text-slate-500 hover:text-slate-700 font-medium': activeTab() !== 'ROLES'
+      }"
+      class="px-4 py-3 text-xs flex items-center gap-2 transition cursor-pointer -mb-px"
+    >
+      <mat-icon class="!text-lg">shield</mat-icon>
+      <span>Roles &amp; Permission Matrix ({{ roles().length }})</span>
+    </button>
+
+    <button
+      type="button"
+      (click)="activeTab.set('INVITATIONS')"
+      [ngClass]="{
+        'border-amber-600 text-amber-600 font-bold border-b-2': activeTab() === 'INVITATIONS',
+        'text-slate-500 hover:text-slate-700 font-medium': activeTab() !== 'INVITATIONS'
+      }"
+      class="px-4 py-3 text-xs flex items-center gap-2 transition cursor-pointer -mb-px"
+    >
+      <mat-icon class="!text-lg">mark_email_unread</mat-icon>
+      <span>Onboarding Invitations ({{ invitations().length }})</span>
+    </button>
+  </div>
+
+  <!-- Tab 1: Users Directory Table -->
+  @if (activeTab() === 'USERS') {
+    <nag-user-table-view
+      [users]="filteredUsers()"
+      [roles]="roles()"
+      [searchQuery]="searchQuery()"
+      [selectedRole]="selectedRole()"
+      [loading]="loading()"
+      (searchQueryChange)="searchQuery.set($event)"
+      (roleFilterChange)="selectedRole.set($event)"
+      (toggleStatus)="onToggleUserStatus($event)"
+      (resetMfa)="onResetMfa($event)"
+      (inviteUser)="openInviteDrawer()"
+    ></nag-user-table-view>
+  }
+
+  <!-- Tab 2: Role Management & Permission Matrix -->
+  @if (activeTab() === 'ROLES') {
+    <nag-role-matrix-view
+      [roles]="roles()"
+      [permissions]="permissions()"
+      [loading]="loading()"
+      (createRole)="openCreateRole()"
+      (editRole)="openEditRole($event)"
+      (deleteRole)="onDeleteRole($event)"
+    ></nag-role-matrix-view>
+  }
+
+  <!-- Tab 3: Onboarding Invitations -->
+  @if (activeTab() === 'INVITATIONS') {
+    <nag-invitation-table-view
+      [invitations]="invitations()"
+      [roles]="roles()"
+      [loading]="loading()"
+      (inviteNew)="openInviteDrawer()"
+      (resendInvite)="onResendInvite($event)"
+      (revokeInvite)="onRevokeInvite($event)"
+    ></nag-invitation-table-view>
+  }
+
+  <!-- User Invite Drawer -->
+  <nag-user-invite-drawer
+    [isOpen]="isInviteDrawerOpen()"
+    [isSubmitting]="isSubmittingInvite()"
+    [roles]="roles()"
+    (closeDrawer)="closeInviteDrawer()"
+    (submitInvite)="onSubmitInvite($event)"
+  ></nag-user-invite-drawer>
+
+  <!-- Role Create / Edit Drawer -->
+  <nag-role-create-drawer
+    [isOpen]="isRoleDrawerOpen()"
+    [isSubmitting]="isSubmittingRole()"
+    [permissions]="permissions()"
+    [editingRole]="editingRole()"
+    (closeDrawer)="closeRoleDrawer()"
+    (saveRole)="onSubmitRole($event)"
+  ></nag-role-create-drawer>
+</div>

@@ -1,0 +1,50 @@
+# Git & Version Control
+.git
+.gitignore
+.gitattributes
+
+# Environment & Secret Files
+.env
+.env.*
+*.env
+*.env.local
+
+# Gradle / Java Caches & Builds
+.gradle/
+build/
+**/build/
+target/
+**/target/
+.m2/
+**/.m2/
+*.class
+**/*.class
+*.jar
+**/*.jar
+
+# Keep build scripts & wrapper files
+!**/build.gradle
+!**/settings.gradle
+!**/gradle-wrapper.jar
+!**/gradle-8.14.5-bin.zip
+
+# IDEs & Editors
+.idea/
+**/.idea/
+.vscode/
+**/.vscode/
+*.iml
+
+# Logs & Temp
+*.log
+**/*.log
+tmp/
+**/tmp/
+temp/
+**/temp/
+.DS_Store
+Thumbs.db
+.agents/
+.gemini/
+.system_generated/
+brain/

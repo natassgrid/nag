@@ -1,0 +1,114 @@
+<div class="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-xs">
+  <table class="w-full text-left border-collapse text-xs">
+    <thead>
+      <tr class="bg-slate-50 border-b border-slate-200 text-slate-500 font-bold uppercase tracking-wider text-[10px]">
+        <th class="py-3 px-4">Media</th>
+        <th class="py-3 px-4">Filename &amp; Title</th>
+        <th class="py-3 px-4">Type</th>
+        <th class="py-3 px-4">Size</th>
+        <th class="py-3 px-4">Status</th>
+        <th class="py-3 px-4">Uploaded</th>
+        <th class="py-3 px-4 text-right">Actions</th>
+      </tr>
+    </thead>
+    <tbody class="divide-y divide-slate-100">
+      @for (asset of assets(); track asset.id) {
+        <tr class="hover:bg-slate-50/70 transition-colors">
+          <td class="py-2.5 px-4 w-12">
+            <div
+              class="w-10 h-10 rounded-lg bg-slate-900 flex items-center justify-center overflow-hidden cursor-pointer"
+              (click)="preview.emit(asset)"
+            >
+              @if (asset.assetType === 'IMAGE' && !isImageFailed(asset.id)) {
+                <img
+                  [src]="assetService.getDownloadUrl(asset.id)"
+                  class="w-full h-full object-cover"
+                  loading="lazy"
+                  (error)="imageError.emit(asset.id)"
+                />
+              } @else if (asset.assetType === 'IMAGE' && isImageFailed(asset.id)) {
+                <mat-icon class="text-rose-400 !text-xl" title="File Missing (404)">broken_image</mat-icon>
+              } @else if (asset.assetType === 'AUDIO') {
+                <mat-icon class="text-amber-400 !text-xl">audiotrack</mat-icon>
+              } @else if (asset.assetType === 'VIDEO') {
+                <mat-icon class="text-purple-400 !text-xl">videocam</mat-icon>
+              } @else {
+                <mat-icon class="text-blue-400 !text-xl">description</mat-icon>
+              }
+            </div>
+          </td>
+          <td class="py-2.5 px-4 max-w-xs">
+            <span class="font-bold text-slate-900 block truncate" [title]="asset.title || asset.originalFilename">
+              {{ asset.title || asset.originalFilename }}
+            </span>
+            <span class="text-[10px] text-slate-400 font-mono block truncate" [title]="asset.originalFilename">
+              {{ asset.originalFilename }}
+            </span>
+          </td>
+          <td class="py-2.5 px-4">
+            <span class="font-medium text-slate-700">{{ asset.assetType }}</span>
+          </td>
+          <td class="py-2.5 px-4 font-mono text-slate-600">
+            {{ assetService.formatFileSize(asset.fileSize) }}
+          </td>
+          <td class="py-2.5 px-4">
+            <span
+              class="text-[10px] font-bold px-2 py-0.5 rounded"
+              [ngClass]="asset.status === 'ACTIVE' ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-600'"
+            >
+              {{ asset.status }}
+            </span>
+          </td>
+          <td class="py-2.5 px-4 text-slate-500 text-[11px]">
+            {{ asset.createdAt | date:'shortDate' }}
+          </td>
+          <td class="py-2.5 px-4 text-right">
+            <div class="flex items-center justify-end gap-1">
+              <button mat-icon-button (click)="preview.emit(asset)" title="Preview" class="cursor-pointer">
+                <mat-icon class="text-slate-500">visibility</mat-icon>
+              </button>
+              <button mat-icon-button (click)="replaceBinary.emit(asset)" title="Replace File Content" class="cursor-pointer">
+                <mat-icon class="text-indigo-600">sync</mat-icon>
+              </button>
+              <button mat-icon-button (click)="editMetadata.emit(asset)" title="Edit Metadata" class="cursor-pointer">
+                <mat-icon class="text-slate-500">edit_note</mat-icon>
+              </button>
+              <button mat-icon-button [matMenuTriggerFor]="rowMenu" title="More Actions" class="cursor-pointer">
+                <mat-icon class="text-slate-500">more_vert</mat-icon>
+              </button>
+              <mat-menu #rowMenu="matMenu">
+                <button mat-menu-item (click)="replaceBinary.emit(asset)">
+                  <mat-icon class="text-indigo-600">sync</mat-icon>
+                  <span>Replace File Content</span>
+                </button>
+                <button mat-menu-item (click)="copyCdnUrl.emit(asset)">
+                  <mat-icon>content_copy</mat-icon>
+                  <span>Copy CDN URL</span>
+                </button>
+                <a mat-menu-item [href]="assetService.getDownloadUrl(asset.id)" target="_blank">
+                  <mat-icon>download</mat-icon>
+                  <span>Download File</span>
+                </a>
+                @if (asset.status === 'ACTIVE') {
+                  <button mat-menu-item (click)="archive.emit(asset)">
+                    <mat-icon>archive</mat-icon>
+                    <span>Archive Asset</span>
+                  </button>
+                } @else {
+                  <button mat-menu-item (click)="restore.emit(asset)">
+                    <mat-icon>unarchive</mat-icon>
+                    <span>Restore Asset</span>
+                  </button>
+                }
+                <button mat-menu-item (click)="delete.emit(asset)" class="text-rose-600">
+                  <mat-icon class="text-rose-600">delete</mat-icon>
+                  <span class="text-rose-600">Delete Asset</span>
+                </button>
+              </mat-menu>
+            </div>
+          </td>
+        </tr>
+      }
+    </tbody>
+  </table>
+</div>

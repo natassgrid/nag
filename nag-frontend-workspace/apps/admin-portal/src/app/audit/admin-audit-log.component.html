@@ -1,0 +1,39 @@
+<div class="max-w-7xl mx-auto p-6 space-y-8">
+  <!-- Page Header -->
+  <nag-page-header
+    title="Tamper-Evident Audit Ledger"
+    subtitle="Cryptographically sealed, hash-chained transaction trail for national assessment operations and security events"
+    icon="verified_user"
+  ></nag-page-header>
+
+  <!-- KPI Ribbon -->
+  <nag-audit-kpi-ribbon [stats]="kpiStats()"></nag-audit-kpi-ribbon>
+
+  <!-- Filter & Search Bar -->
+  <nag-audit-filter-bar
+    [searchQuery]="searchQuery()"
+    [selectedService]="selectedService()"
+    [selectedSeverity]="selectedSeverity()"
+    [selectedStatus]="selectedStatus()"
+    [verifyingLedger]="verifyingLedger()"
+    (searchChange)="searchQuery.set($event)"
+    (serviceChange)="selectedService.set($event)"
+    (severityChange)="selectedSeverity.set($event)"
+    (statusChange)="selectedStatus.set($event)"
+    (verifyLedger)="onVerifyLedger()"
+    (exportLogs)="onExportLogs()"
+  ></nag-audit-filter-bar>
+
+  <!-- Audit Table View -->
+  <nag-audit-table-view
+    [records]="filteredRecords()"
+    (inspectRecord)="onInspectRecord($event)"
+  ></nag-audit-table-view>
+
+  <!-- Detail Drawer Inspector -->
+  <nag-audit-detail-drawer
+    [isOpen]="isDetailDrawerOpen()"
+    [record]="selectedRecord()"
+    (closeDrawer)="onCloseDrawer()"
+  ></nag-audit-detail-drawer>
+</div>

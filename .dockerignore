@@ -1,32 +1,99 @@
-# Git
+# Git & Version Control
 .git
 .gitignore
+.gitattributes
 
-# IDE
-.idea
-.vscode
-*.iml
+# Environment & Secret Files
+.env
+.env.*
+*.env
+*.env.local
 
-# Node/Frontend (not needed for backend builds)
-frontend/node_modules
-frontend/dist
-frontend/.angular
+# Node / Frontend Caches & Dist
+node_modules
+**/node_modules
+.angular
+**/.angular
+.nx
+**/.nx
+dist
+**/dist
+coverage
+**/coverage
+.npm
+**/.npm
+.pnpm-store
+**/.pnpm-store
+*.tsbuildinfo
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+frontend
+candidate-frontend
+nag-frontend-workspace
 
-# Build outputs (we rebuild inside Docker)
-backend/*/build
+# Java / Gradle / Maven Caches & Compiled Binaries
 .gradle
+**/.gradle
 build
+**/build
+target
+**/target
+.m2
+**/.m2
+*.class
+**/*.class
+*.jar
+**/*.jar
 
-# Docker compose files themselves
-infrastructure/docker-compose
+# Keep critical build scripts & wrapper binaries
+!**/build.gradle
+!**/settings.gradle
+!**/gradle-wrapper.jar
+!**/gradle-8.14.5-bin.zip
 
-# Kiro specs
-.kiro
+# Python & AI caches
+__pycache__
+**/__pycache__
+*.pyc
+*.pyo
 
-# OS files
+# IDE / Editor Files
+.idea
+**/.idea
+.vscode
+**/.vscode
+*.iml
+**/*.iml
+*.ipr
+**/*.ipr
+*.iws
+**/*.iws
+.settings
+**/.settings
+.project
+**/.project
+.classpath
+**/.classpath
+
+# System / Temporary / Logs
 .DS_Store
 Thumbs.db
-
-# Env files (secrets should be passed via env vars)
-.env
-*.env.local
+*.log
+**/*.log
+tmp
+**/tmp
+temp
+**/temp
+.system_generated
+**/.system_generated
+.gemini
+**/.gemini
+.agents
+**/.agents
+brain
+**/brain
+infrastructure/local-data
+**/infrastructure/local-data
+infrastructure/vault/data
+**/infrastructure/vault/data

@@ -1,0 +1,82 @@
+<div class="bg-white rounded-2xl border border-slate-200 p-6 shadow-xs space-y-6">
+  <div>
+    <h3 class="text-base font-bold text-slate-900">National DPI &amp; AI Infrastructure Integrations</h3>
+    <p class="text-xs text-slate-500">Configure sovereign Digital Public Infrastructure connectors including DigiLocker and AI Pipelines</p>
+  </div>
+
+  <div class="space-y-4">
+    <!-- DigiLocker Integration -->
+    <div class="p-4 bg-slate-50 rounded-2xl border border-slate-200 flex items-center justify-between">
+      <div class="space-y-0.5">
+        <div class="text-xs font-bold text-slate-900 flex items-center gap-1.5">
+          <mat-icon class="!text-sm text-indigo-600">verified</mat-icon>
+          <span>DigiLocker Identity &amp; Credential Verification</span>
+        </div>
+        <p class="text-[11px] text-slate-500">Enable automatic candidate identity and educational qualification verification via National DigiLocker API</p>
+      </div>
+      <mat-slide-toggle
+        [checked]="settings().dpiDigilockerVerificationEnabled"
+        (change)="update('dpiDigilockerVerificationEnabled', $event.checked)"
+        color="primary"
+      ></mat-slide-toggle>
+    </div>
+
+    <!-- Threshold & AI Gateways -->
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
+      <!-- Biometric Match Threshold -->
+      <div class="p-4 bg-white rounded-2xl border border-slate-200 space-y-2">
+        <label for="face-thresh-input" class="block text-xs font-bold text-slate-700 uppercase">
+          Biometric Facial Match Threshold (%)
+        </label>
+        <div class="flex items-center gap-3">
+          <input
+            id="face-thresh-input"
+            type="number"
+            [ngModel]="settings().dpiFaceVerificationThreshold"
+            (ngModelChange)="update('dpiFaceVerificationThreshold', +$event)"
+            min="50"
+            max="99"
+            class="w-24 px-3 py-2 text-xs bg-slate-50 border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500 font-mono font-bold"
+          />
+          <span class="text-xs font-bold text-indigo-700 font-mono">
+            {{ settings().dpiFaceVerificationThreshold }}% Confidence
+          </span>
+        </div>
+        <p class="text-[10px] text-slate-400">Minimum confidence score required for candidate entry verification</p>
+      </div>
+
+      <!-- IndicTrans2 Translation Workers -->
+      <div class="p-4 bg-white rounded-2xl border border-slate-200 space-y-2">
+        <label for="workers-input" class="block text-xs font-bold text-slate-700 uppercase">
+          IndicTrans2 Worker Concurrency
+        </label>
+        <input
+          id="workers-input"
+          type="number"
+          [ngModel]="settings().aiIndicTrans2Workers"
+          (ngModelChange)="update('aiIndicTrans2Workers', +$event)"
+          min="1"
+          max="16"
+          class="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500 font-mono font-bold"
+        />
+        <p class="text-[10px] text-slate-400">Parallel GPU translation threads for 22 scheduled Indian languages</p>
+      </div>
+
+      <!-- LiteLLM AI Gateway Endpoint -->
+      <div class="p-4 bg-white rounded-2xl border border-slate-200 space-y-2 md:col-span-2">
+        <label for="gateway-url-input" class="block text-xs font-bold text-slate-700 uppercase">
+          LiteLLM Sovereign AI Gateway Endpoint
+        </label>
+        <input
+          id="gateway-url-input"
+          type="text"
+          [ngModel]="settings().aiLiteLlmGatewayUrl"
+          (ngModelChange)="update('aiLiteLlmGatewayUrl', $event)"
+          class="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500 font-mono"
+          placeholder="http://nag-ai-gateway:8000"
+        />
+        <p class="text-[10px] text-slate-400">Internal RPC endpoint for Ollama and on-premise LLM inference clusters</p>
+      </div>
+    </div>
+  </div>
+</div>

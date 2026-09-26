@@ -1,4 +1,4 @@
-# ── Build outputs ──────────────────────────────────────────────
+# ── Build outputs ────────────────────────────────────────────
 build/
 out/
 target/
@@ -81,7 +81,7 @@ desktop.ini
 vault-token
 vault-agent.log
 
-# ── Logs ─────────────────────────────────────────────────────
+# ── Logs ────────────────────────────────────────────────────
 *.log
 logs/
 log/
@@ -89,19 +89,20 @@ log/
 # ── Test & coverage reports ──────────────────────────────────
 .jacoco/
 jacoco.exec
-reports/
+/reports/
+**/build/reports/
 test-results/
 coverage/
 .jqwik-database/
 .jqwik-database
 
-# ── Python / ML ──────────────────────────────────────────────
+# ── Python / ML ─────────────────────────────────────────────
 __pycache__/
 *.py[cod]
 *$py.class
 .pytest_cache/
 
-# ── Node / Frontend ──────────────────────────────────────────
+# ── Node / Frontend ─────────────────────────────────────────
 node_modules/
 npm-debug.log*
 yarn-debug.log*
@@ -113,16 +114,16 @@ dist/
 .nx/
 frontend/.cache/
 
-# ── Docker ───────────────────────────────────────────────────
+# ── Docker ──────────────────────────────────────────────────
 .docker/
 
-# ── Kubernetes / Helm ────────────────────────────────────────
+# ── Kubernetes / Helm ───────────────────────────────────────
 *.kubeconfig
 kubeconfig
 charts/*/charts/
 charts/*/Chart.lock
 
-# ── Temporary files ──────────────────────────────────────────
+# ── Temporary files ─────────────────────────────────────────
 *.tmp
 *.temp
 *.swp
@@ -130,10 +131,10 @@ charts/*/Chart.lock
 *~
 .cache/
 
-# ── SonarQube / analysis ─────────────────────────────────────
+# ── SonarQube / analysis ────────────────────────────────────
 .sonar/
 .scannerwork/
 
-# ── SpotBugs ─────────────────────────────────────────────────
+# ── SpotBugs ────────────────────────────────────────────────
 spotbugs/
 /tmp/

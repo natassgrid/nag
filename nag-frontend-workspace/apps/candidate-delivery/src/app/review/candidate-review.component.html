@@ -1,0 +1,53 @@
+<div class="candidate-review-page max-w-7xl mx-auto p-6 space-y-6">
+  <nag-page-header
+    title="Post-Examination In-Depth Question Review"
+    subtitle="Question-by-question scoring breakdown, solution keys, and psychometric explanations"
+    icon="analytics"
+  >
+    <div actions class="flex items-center gap-3">
+      <a mat-stroked-button routerLink="/results" class="!rounded-xl">
+        &larr; Scorecard
+      </a>
+      <a mat-stroked-button routerLink="/dashboard" class="!rounded-xl">
+        Dashboard
+      </a>
+    </div>
+  </nag-page-header>
+
+  <!-- Summary Ribbon Sub-component -->
+  <app-review-summary-stats
+    [stats]="stats()"
+    [totalQuestions]="questions().length"
+  ></app-review-summary-stats>
+
+  <!-- Filter Bar Sub-component -->
+  <app-review-filter-bar
+    [statusFilter]="statusFilter()"
+    [totalQuestions]="questions().length"
+    [stats]="stats()"
+    (filterChange)="onFilterChange($event)"
+  ></app-review-filter-bar>
+
+  <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+    <!-- Question Detail Card Sub-component -->
+    <div class="lg:col-span-2 space-y-6">
+      @if (currentQuestion(); as q) {
+        <app-review-question-card
+          [question]="q"
+          [currentIndex]="currentIndex()"
+          [totalFiltered]="filteredQuestions().length"
+          (prev)="prevQuestion()"
+          (next)="nextQuestion()"
+          (dispute)="raiseDispute($event)"
+        ></app-review-question-card>
+      }
+    </div>
+
+    <!-- Question Palette Sub-component -->
+    <app-review-question-palette
+      [questions]="filteredQuestions()"
+      [currentIndex]="currentIndex()"
+      (selectQuestion)="currentIndex.set($event)"
+    ></app-review-question-palette>
+  </div>
+</div>

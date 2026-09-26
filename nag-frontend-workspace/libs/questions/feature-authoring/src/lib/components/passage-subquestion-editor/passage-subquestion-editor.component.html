@@ -1,0 +1,192 @@
+<div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-xs space-y-5">
+  <div class="flex items-center justify-between border-b pb-3">
+    <div class="flex items-center gap-2">
+      <mat-icon class="text-indigo-600">list_alt</mat-icon>
+      <h2 class="text-base font-bold text-slate-900">
+        Sub-Questions ({{ subQuestions().length }} of 6)
+      </h2>
+    </div>
+    <button
+      type="button"
+      (click)="onAddSubQuestion()"
+      [disabled]="subQuestions().length >= 6"
+      class="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white text-xs font-bold rounded-lg flex items-center gap-1"
+    >
+      <mat-icon class="!text-sm">add</mat-icon>
+      Add Sub-Question
+    </button>
+  </div>
+
+  <!-- Sub-Questions Navigation Tabs -->
+  <div class="flex flex-wrap gap-2 border-b pb-3">
+    @for (sq of subQuestions(); track sq.passageOrderIndex; let idx = $index) {
+      <button
+        type="button"
+        (click)="activeSubQuestionIndexChange.emit(idx)"
+        class="px-3 py-1.5 text-xs font-bold rounded-lg transition-all flex items-center gap-2"
+        [ngClass]="{
+          'bg-indigo-600 text-white shadow-xs': activeSubQuestionIndex() === idx,
+          'bg-slate-100 text-slate-700 hover:bg-slate-200': activeSubQuestionIndex() !== idx
+        }"
+      >
+        <span>Q{{ idx + 1 }}</span>
+        @if (subQuestions().length > 2) {
+          <span
+            (click)="$event.stopPropagation(); onRemoveSubQuestion(idx)"
+            class="hover:text-rose-300"
+            title="Remove sub-question"
+          >
+            &times;
+          </span>
+        }
+      </button>
+    }
+  </div>
+
+  <!-- Active Sub-Question Form -->
+  @if (subQuestions()[activeSubQuestionIndex()]; as activeSq) {
+    <div class="space-y-4">
+      <div class="flex items-center justify-between">
+        <span class="text-xs font-bold text-slate-400 uppercase tracking-wider">
+          Editing Sub-Question #{{ activeSubQuestionIndex() + 1 }}
+        </span>
+        <div class="flex items-center gap-2">
+          <nag-status-badge [variant]="difficultyVariant(activeSq.difficulty)" [label]="activeSq.difficulty" />
+        </div>
+      </div>
+
+      <!-- Sub-Q Type & Cognitive Level -->
+      <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div>
+          <label [for]="'subq-type-' + activeSubQuestionIndex()" class="block text-xs font-semibold text-slate-700 uppercase mb-1">
+            Question Type
+          </label>
+          <select
+            [id]="'subq-type-' + activeSubQuestionIndex()"
+            [ngModel]="activeSq.questionType"
+            (ngModelChange)="onSubQuestionFieldChange('questionType', $event)"
+            class="w-full px-3 py-2 text-xs bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 font-medium"
+          >
+            <option value="MULTIPLE_CHOICE">Single Correct (MCQ)</option>
+            <option value="MULTIPLE_SELECT">Multi Correct (MSQ)</option>
+            <option value="NUMERICAL">Numerical Response</option>
+            <option value="TEXT">Subjective / Text</option>
+          </select>
+        </div>
+
+        <div>
+          <label [for]="'subq-diff-' + activeSubQuestionIndex()" class="block text-xs font-semibold text-slate-700 uppercase mb-1">
+            Difficulty
+          </label>
+          <select
+            [id]="'subq-diff-' + activeSubQuestionIndex()"
+            [ngModel]="activeSq.difficulty"
+            (ngModelChange)="onSubQuestionFieldChange('difficulty', $event)"
+            class="w-full px-3 py-2 text-xs bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 font-medium"
+          >
+            <option value="EASY">Easy</option>
+            <option value="MEDIUM">Medium</option>
+            <option value="HARD">Hard</option>
+          </select>
+        </div>
+
+        <div>
+          <label [for]="'subq-cog-' + activeSubQuestionIndex()" class="block text-xs font-semibold text-slate-700 uppercase mb-1">
+            Bloom's Cognitive
+          </label>
+          <select
+            [id]="'subq-cog-' + activeSubQuestionIndex()"
+            [ngModel]="activeSq.cognitiveLevel"
+            (ngModelChange)="onSubQuestionFieldChange('cognitiveLevel', $event)"
+            class="w-full px-3 py-2 text-xs bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 font-medium"
+          >
+            @for (cog of cognitiveLevels; track cog.value) {
+              <option [value]="cog.value">{{ cog.label }}</option>
+            }
+          </select>
+        </div>
+      </div>
+
+      <!-- Sub-Q Prompt -->
+      <div>
+        <label [for]="'subq-content-' + activeSubQuestionIndex()" class="block text-xs font-semibold text-slate-700 uppercase mb-1">
+          Sub-Question Prompt (Markdown + LaTeX) *
+        </label>
+        <textarea
+          [id]="'subq-content-' + activeSubQuestionIndex()"
+          [ngModel]="activeSq.content"
+          (ngModelChange)="onSubQuestionFieldChange('content', $event)"
+          rows="3"
+          placeholder="Enter the sub-question prompt..."
+          class="w-full font-mono text-sm p-3 bg-slate-50 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+        ></textarea>
+      </div>
+
+      <!-- Sub-Q Options (For MCQ/MSQ) -->
+      @if (activeSq.questionType === 'MULTIPLE_CHOICE' || activeSq.questionType === 'MULTIPLE_SELECT' || activeSq.questionType === 'SINGLE_MCQ' || activeSq.questionType === 'MULTI_MCQ') {
+        <div class="space-y-3 pt-3 border-t">
+          <div class="flex items-center justify-between">
+            <span class="block text-xs font-semibold text-slate-700 uppercase">
+              Sub-Question Options & Key
+            </span>
+            <button
+              type="button"
+              (click)="onAddSubQuestionOption(activeSubQuestionIndex())"
+              [disabled]="activeSq.options.length >= 6"
+              class="text-xs font-semibold text-indigo-600 hover:text-indigo-800 flex items-center gap-1"
+            >
+              <mat-icon class="!text-sm">add</mat-icon>
+              Add Option
+            </button>
+          </div>
+
+          @for (opt of activeSq.options; track opt.id; let optIdx = $index) {
+            <div class="flex items-center gap-2">
+              <input
+                type="checkbox"
+                [checked]="opt.isCorrect"
+                (change)="onToggleSubQuestionCorrect(activeSubQuestionIndex(), optIdx)"
+                class="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                [title]="'Mark Option ' + getOptionLetter(optIdx) + ' as correct'"
+              />
+              <span class="font-bold text-xs text-slate-500 w-4">
+                {{ getOptionLetter(optIdx) }}
+              </span>
+              <input
+                type="text"
+                [ngModel]="opt.text"
+                (ngModelChange)="onSubQuestionOptionTextChange(activeSubQuestionIndex(), optIdx, $event)"
+                placeholder="Option text or LaTeX..."
+                class="grow px-3 py-1.5 text-xs bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              />
+              @if (activeSq.options.length > 2) {
+                <button
+                  type="button"
+                  (click)="onRemoveSubQuestionOption(activeSubQuestionIndex(), optIdx)"
+                  class="text-slate-400 hover:text-rose-600"
+                >
+                  <mat-icon class="!text-sm">close</mat-icon>
+                </button>
+              }
+            </div>
+          }
+        </div>
+      }
+
+      <!-- Sub-Q Explanation -->
+      <div class="pt-3 border-t">
+        <label [for]="'subq-expl-' + activeSubQuestionIndex()" class="block text-xs font-semibold text-slate-700 uppercase mb-1">
+          Sub-Question Solution & Explanation
+        </label>
+        <textarea
+          [id]="'subq-expl-' + activeSubQuestionIndex()"
+          [ngModel]="activeSq.explanation"
+          (ngModelChange)="onSubQuestionFieldChange('explanation', $event)"
+          rows="2"
+          placeholder="Rationale or reference..."
+          class="w-full font-mono text-xs p-2 bg-slate-50 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+        ></textarea>
+      </div>
+    </div>
+  }
+</div>

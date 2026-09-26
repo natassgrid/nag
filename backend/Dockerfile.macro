@@ -18,14 +18,14 @@ COPY backend/gradle/gradle-8.14.5-bin.zip /tmp/gradle-8.14.5-bin.zip
 
 RUN sed -i 's/\r$//' gradlew && \
     chmod +x gradlew && \
-    sed -i 's|distributionUrl=.*|distributionUrl=file\\:/tmp/gradle-8.14.5-bin.zip|' gradle/wrapper/gradle-wrapper.properties && \
-    ./gradlew --version
+    sed -i 's|distributionUrl=.*|distributionUrl=file\:/tmp/gradle-8.14.5-bin.zip|' gradle/wrapper/gradle-wrapper.properties && \
+    sh ./gradlew --version
 
 COPY backend/ backend/
 
 RUN --mount=type=cache,target=/root/.gradle/caches \
     --mount=type=cache,target=/root/.gradle/wrapper \
-    ./gradlew :backend:${APP_NAME}:bootJar -x test --no-daemon
+    sh ./gradlew :backend:${APP_NAME}:bootJar -x test --no-daemon
 
 # --- Stage 2: Runtime ---
 FROM eclipse-temurin:21-jre-alpine
@@ -49,4 +49,8 @@ USER appuser
 
 EXPOSE 8080
 
-ENTRYPOINT ["java", "-jar", "app.jar"]
+ENTRYPOINT ["java", \
+    "-XX:+UseG1GC", \
+    "-XX:MaxRAMPercentage=75.0", \
+    "-Djava.security.egd=file:/dev/./urandom", \
+    "-jar", "app.jar"]

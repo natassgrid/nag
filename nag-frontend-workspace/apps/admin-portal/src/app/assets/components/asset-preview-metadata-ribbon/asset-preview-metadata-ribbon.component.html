@@ -1,0 +1,74 @@
+<div class="space-y-4">
+  <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 bg-slate-50 p-4 rounded-2xl border border-slate-200 text-xs">
+    <div>
+      <span class="text-slate-400 font-bold block text-[10px] uppercase tracking-wider">Type</span>
+      <span class="font-semibold text-slate-800">{{ asset().assetType }}</span>
+    </div>
+    <div>
+      <span class="text-slate-400 font-bold block text-[10px] uppercase tracking-wider">MIME Type</span>
+      <span class="font-semibold text-slate-800 font-mono text-[11px]">{{ asset().contentType }}</span>
+    </div>
+    <div>
+      <span class="text-slate-400 font-bold block text-[10px] uppercase tracking-wider">File Size</span>
+      <span class="font-semibold text-slate-800">{{ formattedSize() }}</span>
+    </div>
+    <div>
+      <span class="text-slate-400 font-bold block text-[10px] uppercase tracking-wider">Status</span>
+      <span
+        class="inline-block px-2 py-0.5 rounded text-[10px] font-bold"
+        [class.bg-emerald-100]="asset().status === 'ACTIVE'"
+        [class.text-emerald-700]="asset().status === 'ACTIVE'"
+        [class.bg-amber-100]="asset().status === 'ARCHIVED'"
+        [class.text-amber-700]="asset().status === 'ARCHIVED'"
+      >
+        {{ asset().status }}
+      </span>
+    </div>
+
+    @if (asset().width && asset().height) {
+      <div>
+        <span class="text-slate-400 font-bold block text-[10px] uppercase tracking-wider">Dimensions</span>
+        <span class="font-semibold text-slate-800">{{ asset().width }} &times; {{ asset().height }} px</span>
+      </div>
+    }
+
+    @if (asset().durationSeconds) {
+      <div>
+        <span class="text-slate-400 font-bold block text-[10px] uppercase tracking-wider">Duration</span>
+        <span class="font-semibold text-slate-800">{{ formattedDuration() }}</span>
+      </div>
+    }
+
+    @if (asset().codec) {
+      <div>
+        <span class="text-slate-400 font-bold block text-[10px] uppercase tracking-wider">Codec</span>
+        <span class="font-semibold text-slate-800">{{ asset().codec }}</span>
+      </div>
+    }
+
+    @if (asset().sha256Hash) {
+      <div class="col-span-2 sm:col-span-4">
+        <span class="text-slate-400 font-bold block text-[10px] uppercase tracking-wider">SHA-256 Checksum</span>
+        <span class="font-mono text-[11px] text-slate-600 select-all break-all">{{ asset().sha256Hash }}</span>
+      </div>
+    }
+  </div>
+
+  <!-- Tags & Description -->
+  @if (asset().description || (asset().tags && (asset().tags?.length || 0) > 0)) {
+    <div class="pt-4 border-t border-slate-200">
+      @if (asset().description) {
+        <p class="text-xs text-slate-600 mb-2 leading-relaxed">{{ asset().description }}</p>
+      }
+      @if (asset().tags && (asset().tags?.length || 0) > 0) {
+        <div class="flex flex-wrap gap-1.5">
+          @for (tag of asset().tags; track tag) {
+            <span class="px-2 py-0.5 bg-slate-100 text-slate-600 rounded-md text-[11px] font-medium font-mono">
+              #{{ tag }}
+            </span>
+          }
+        </div>
+      }
+    </div>
+  }
+</div>

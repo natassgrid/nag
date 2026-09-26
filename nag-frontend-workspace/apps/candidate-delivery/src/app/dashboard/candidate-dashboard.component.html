@@ -1,0 +1,46 @@
+<div class="candidate-dashboard max-w-7xl mx-auto p-6 space-y-8">
+  <!-- Welcome Banner Sub-component -->
+  <app-dashboard-welcome-banner
+    [userName]="authService.userName()"
+  ></app-dashboard-welcome-banner>
+
+  <!-- Quick Stats Sub-component -->
+  <app-dashboard-kpi-stats
+    [totalRegistered]="enrolledExams().length"
+    [liveCount]="liveCount()"
+    [scorecardsCount]="1"
+  ></app-dashboard-kpi-stats>
+
+  <!-- Registered Assessments Section -->
+  <div class="space-y-4">
+    <div class="flex items-center justify-between">
+      <h2 class="text-lg font-bold text-slate-900 flex items-center gap-2">
+        <mat-icon class="text-indigo-600">event_available</mat-icon>
+        Your Scheduled Examinations
+      </h2>
+      <span class="text-xs text-slate-500">
+        Showing {{ enrolledExams().length }} registered exam(s)
+      </span>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+      @for (exam of enrolledExams(); track exam.id) {
+        <!-- Exam Card Sub-component -->
+        <app-enrolled-assessment-card
+          [exam]="exam"
+          (openAdmitCard)="openAdmitCard($event)"
+        ></app-enrolled-assessment-card>
+      }
+    </div>
+  </div>
+
+  <!-- Admit Card Dialog Sub-component -->
+  @if (selectedAdmitCard(); as card) {
+    <app-candidate-admit-card-dialog
+      [card]="card"
+      [candidateName]="authService.userName()"
+      (closeDialog)="closeAdmitCard()"
+      (printCard)="printAdmitCard()"
+    ></app-candidate-admit-card-dialog>
+  }
+</div>

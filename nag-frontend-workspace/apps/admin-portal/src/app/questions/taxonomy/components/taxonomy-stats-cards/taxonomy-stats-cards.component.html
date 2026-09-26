@@ -1,0 +1,31 @@
+<div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+  <div class="bg-white p-4 rounded-xl border border-slate-200 flex items-center justify-between shadow-xs">
+    <div>
+      <span class="text-xs font-bold text-slate-400 uppercase tracking-wider block">Subjects</span>
+      <span class="text-2xl font-black text-slate-900">{{ totalSubjects() }}</span>
+    </div>
+    <div class="w-10 h-10 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center">
+      <mat-icon>menu_book</mat-icon>
+    </div>
+  </div>
+
+  <div class="bg-white p-4 rounded-xl border border-slate-200 flex items-center justify-between shadow-xs">
+    <div>
+      <span class="text-xs font-bold text-slate-400 uppercase tracking-wider block">Topics</span>
+      <span class="text-2xl font-black text-slate-900">{{ totalTopics() }}</span>
+    </div>
+    <div class="w-10 h-10 rounded-lg bg-purple-50 text-purple-600 flex items-center justify-center">
+      <mat-icon>topic</mat-icon>
+    </div>
+  </div>
+
+  <div class="bg-white p-4 rounded-xl border border-slate-200 flex items-center justify-between shadow-xs">
+    <div>
+      <span class="text-xs font-bold text-slate-400 uppercase tracking-wider block">Subtopics</span>
+      <span class="text-2xl font-black text-slate-900">{{ totalSubtopics() }}</span>
+    </div>
+    <div class="w-10 h-10 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center">
+      <mat-icon>label</mat-icon>
+    </div>
+  </div>
+</div>

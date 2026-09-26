@@ -1,0 +1,162 @@
+<div class="subject-mgmt-container p-6 max-w-7xl mx-auto space-y-6">
+  <!-- Page Header Banner -->
+  <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-6 rounded-2xl border border-slate-200 shadow-xs">
+    <div class="flex items-center gap-4">
+      <div class="w-12 h-12 rounded-xl bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-600 shadow-xs">
+        <mat-icon class="!text-2xl leading-none">account_tree</mat-icon>
+      </div>
+      <div>
+        <h1 class="text-xl font-black text-slate-900 tracking-tight flex items-center gap-2">
+          <span>Subject &amp; Taxonomy Management</span>
+          <span class="text-xs font-semibold px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-200">
+            DPI Hierarchy
+          </span>
+        </h1>
+        <p class="text-xs text-slate-500 font-medium mt-0.5">
+          Manage 3-tier taxonomy (Subject &rsaquo; Topic &rsaquo; Subtopic) for syllabus mapping, blueprints, and question bank categorization
+        </p>
+      </div>
+    </div>
+
+    <!-- Action Buttons -->
+    <div class="flex items-center gap-3">
+      <button
+        mat-stroked-button
+        (click)="loadHierarchy()"
+        [disabled]="loading()"
+        class="!text-slate-700 !border-slate-300"
+      >
+        <mat-icon>refresh</mat-icon>
+        Refresh
+      </button>
+      <button
+        mat-flat-button
+        color="primary"
+        (click)="showAddSubject.set(!showAddSubject())"
+      >
+        <mat-icon>{{ showAddSubject() ? 'close' : 'add' }}</mat-icon>
+        {{ showAddSubject() ? 'Cancel' : 'New Subject' }}
+      </button>
+    </div>
+  </div>
+
+  <!-- Metric Quick Stats & Search Bar -->
+  <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+    <div class="md:col-span-3">
+      <nag-taxonomy-stats-cards
+        [totalSubjects]="totalSubjects()"
+        [totalTopics]="totalTopics()"
+        [totalSubtopics]="totalSubtopics()"
+      ></nag-taxonomy-stats-cards>
+    </div>
+
+    <!-- Search / Filter Input -->
+    <div class="bg-white p-3 rounded-xl border border-slate-200 flex items-center gap-2 shadow-xs">
+      <mat-icon class="text-slate-400">search</mat-icon>
+      <input
+        type="text"
+        [ngModel]="searchQuery()"
+        (ngModelChange)="searchQuery.set($event)"
+        placeholder="Filter subjects, topics, subtopics..."
+        class="w-full text-xs text-slate-800 placeholder:text-slate-400 focus:outline-none font-medium"
+      />
+      @if (searchQuery().trim()) {
+        <button
+          type="button"
+          (click)="searchQuery.set('')"
+          class="text-slate-400 hover:text-slate-600"
+        >
+          <mat-icon class="!text-sm">close</mat-icon>
+        </button>
+      }
+    </div>
+  </div>
+
+  <!-- Create New Subject Panel (Collapsible) -->
+  <nag-create-subject-card
+    [isOpen]="showAddSubject()"
+    [creating]="creating()"
+    (closeCard)="showAddSubject.set(false)"
+    (saveSubject)="handleCreateSubject($event)"
+  ></nag-create-subject-card>
+
+  <!-- Tree View Controls Header -->
+  <div class="flex items-center justify-between pt-2">
+    <span class="text-xs font-bold text-slate-500 uppercase tracking-wider">
+      Taxonomy Hierarchy Tree ({{ filteredHierarchy().length }} Subjects)
+    </span>
+    <div class="flex items-center gap-2">
+      <button
+        type="button"
+        (click)="expandAll()"
+        class="text-xs font-semibold text-indigo-600 hover:text-indigo-800 flex items-center gap-1 cursor-pointer"
+      >
+        <mat-icon class="!text-sm">unfold_more</mat-icon>
+        Expand All
+      </button>
+      <span class="text-slate-300">|</span>
+      <button
+        type="button"
+        (click)="collapseAll()"
+        class="text-xs font-semibold text-indigo-600 hover:text-indigo-800 flex items-center gap-1 cursor-pointer"
+      >
+        <mat-icon class="!text-sm">unfold_less</mat-icon>
+        Collapse All
+      </button>
+    </div>
+  </div>
+
+  <!-- Loading State -->
+  @if (loading()) {
+    <div class="p-12 bg-white rounded-2xl border border-slate-200 text-center space-y-3">
+      <mat-spinner diameter="40" class="mx-auto"></mat-spinner>
+      <p class="text-sm font-medium text-slate-500">Loading Subject Hierarchy &amp; Syllabus Tree...</p>
+    </div>
+  }
+
+  <!-- Empty State -->
+  @if (!loading() && filteredHierarchy().length === 0) {
+    <div class="p-12 bg-white rounded-2xl border border-dashed border-slate-300 text-center space-y-3">
+      <mat-icon class="!text-4xl text-slate-300 leading-none">account_tree</mat-icon>
+      <h3 class="text-base font-bold text-slate-800">No Subjects Found</h3>
+      <p class="text-xs text-slate-500 max-w-md mx-auto">
+        {{ searchQuery() ? 'No taxonomy nodes matched your search term.' : 'Get started by creating your first academic subject.' }}
+      </p>
+      @if (!searchQuery()) {
+        <button
+          mat-flat-button
+          color="primary"
+          (click)="showAddSubject.set(true)"
+          class="mt-2"
+        >
+          <mat-icon>add</mat-icon>
+          Create First Subject
+        </button>
+      }
+    </div>
+  }
+
+  <!-- Subjects Accordion / List -->
+  @if (!loading() && filteredHierarchy().length > 0) {
+    <div class="space-y-4">
+      @for (subject of filteredHierarchy(); track subject.id) {
+        <nag-subject-tree-node
+          [subject]="subject"
+          [isExpanded]="isSubjectExpanded(subject.id)"
+          [expandedTopics]="expandedTopics()"
+          [addingTopic]="addingTopicSubjectId() === subject.id"
+          [addingSubtopicTopicId]="addingSubtopicTopicId()"
+          [creating]="creating()"
+          (toggleSubject)="toggleSubject($event)"
+          (toggleTopic)="toggleTopic($event)"
+          (openAddTopic)="openAddTopic($event)"
+          (closeAddTopic)="closeAddTopic()"
+          (saveTopic)="handleCreateTopic($event)"
+          (openAddSubtopic)="openAddSubtopic($event)"
+          (closeAddSubtopic)="closeAddSubtopic()"
+          (saveSubtopic)="handleCreateSubtopic($event)"
+        ></nag-subject-tree-node>
+      }
+    </div>
+  }
+</div>

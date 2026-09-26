@@ -1,0 +1,56 @@
+<div class="admit-card-backdrop fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4">
+  <div class="bg-white rounded-3xl max-w-xl w-full p-8 shadow-2xl border border-slate-100 space-y-6">
+    <div class="flex items-center justify-between border-b pb-4">
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-xl bg-indigo-600 text-white flex items-center justify-center font-black">
+          NAG
+        </div>
+        <div>
+          <h3 class="text-base font-bold text-slate-900">National Assessment Admit Card</h3>
+          <span class="text-xs text-slate-500">Official Candidate Hall Ticket &amp; Proof</span>
+        </div>
+      </div>
+      <button mat-icon-button (click)="closeDialog.emit()">
+        <mat-icon>close</mat-icon>
+      </button>
+    </div>
+
+    <div class="flex flex-col sm:flex-row items-center justify-between gap-6 p-4 bg-slate-50 rounded-2xl border border-slate-200">
+      <div class="space-y-2 text-xs">
+        <div>
+          <span class="text-slate-400 text-[10px] uppercase font-bold block">Candidate Name</span>
+          <span class="text-sm font-bold text-slate-900">{{ candidateName() }}</span>
+        </div>
+        <div>
+          <span class="text-slate-400 text-[10px] uppercase font-bold block">Roll / Registration No.</span>
+          <span class="font-mono font-bold text-slate-800">{{ card().rollNumber }}</span>
+        </div>
+        <div>
+          <span class="text-slate-400 text-[10px] uppercase font-bold block">Test Center</span>
+          <span class="text-slate-700 font-medium">{{ card().centerName }}, {{ card().centerAddress }}</span>
+        </div>
+        <div>
+          <span class="text-slate-400 text-[10px] uppercase font-bold block">Reporting Time</span>
+          <span class="font-bold text-rose-700">{{ card().scheduledTime }} (Gate closes 30 mins prior)</span>
+        </div>
+      </div>
+
+      <!-- QR Code component for admit card -->
+      <nag-qr-code
+        [data]="'NAG|ROLL:' + card().rollNumber + '|EXAM:' + card().code"
+        [size]="130"
+        [label]="card().rollNumber"
+      />
+    </div>
+
+    <div class="flex items-center justify-end gap-3 pt-2">
+      <button mat-stroked-button (click)="closeDialog.emit()" class="!rounded-xl">
+        Close
+      </button>
+      <button mat-flat-button color="primary" (click)="printCard.emit()" class="!rounded-xl">
+        <mat-icon>print</mat-icon>
+        Print / Download PDF
+      </button>
+    </div>
+  </div>
+</div>

@@ -1,0 +1,45 @@
+<div
+  class="stat-card-widget bg-white rounded-xl p-5 border border-slate-200 shadow-sm hover:shadow-md transition-all flex items-start justify-between"
+>
+  <div class="flex flex-col gap-1">
+    <span class="text-xs font-semibold uppercase text-slate-500 tracking-wider">
+      {{ label() }}
+    </span>
+    <div class="flex items-baseline gap-1.5 mt-1">
+      <span class="text-2xl font-bold text-slate-900 tracking-tight">
+        {{ value() }}
+      </span>
+      @if (unit()) {
+        <span class="text-sm font-medium text-slate-500">{{ unit() }}</span>
+      }
+    </div>
+    @if (trendText()) {
+      <div
+        class="flex items-center gap-1 text-xs font-semibold mt-2"
+        [ngClass]="{
+          'text-emerald-600': trendDirection() === 'up',
+          'text-rose-600': trendDirection() === 'down',
+          'text-slate-500': trendDirection() === 'neutral'
+        }"
+      >
+        <mat-icon class="!w-4 !h-4 !text-base leading-none">
+          {{
+            trendDirection() === 'up'
+              ? 'trending_up'
+              : trendDirection() === 'down'
+              ? 'trending_down'
+              : 'remove'
+          }}
+        </mat-icon>
+        <span>{{ trendText() }}</span>
+      </div>
+    }
+  </div>
+
+  <div
+    class="w-12 h-12 rounded-xl flex items-center justify-center"
+    [ngClass]="iconBgClass()"
+  >
+    <mat-icon class="!text-2xl">{{ icon() }}</mat-icon>
+  </div>
+</div>

@@ -1,0 +1,130 @@
+<div class="question-authoring-container p-6 max-w-7xl mx-auto space-y-6">
+  <nag-page-header
+    title="Question & Passage Authoring Studio"
+    subtitle="Compose LaTeX-enabled standalone assessment items or multi-item comprehension passage sets with live mathematical rendering"
+    icon="edit_note"
+  >
+    <div actions class="flex items-center gap-3">
+      <!-- Mode Toggle Switch -->
+      <div class="flex items-center bg-slate-100 p-1 rounded-xl border border-slate-200">
+        <button
+          type="button"
+          (click)="setMode('STANDALONE')"
+          class="px-3 py-1.5 text-xs font-bold rounded-lg transition-all flex items-center gap-1.5"
+          [ngClass]="{
+            'bg-white text-indigo-600 shadow-xs': mode() === 'STANDALONE',
+            'text-slate-600 hover:text-slate-900': mode() !== 'STANDALONE'
+          }"
+        >
+          <mat-icon class="!text-sm leading-none">quiz</mat-icon>
+          Standalone Item
+        </button>
+        <button
+          type="button"
+          (click)="setMode('PASSAGE')"
+          class="px-3 py-1.5 text-xs font-bold rounded-lg transition-all flex items-center gap-1.5"
+          [ngClass]="{
+            'bg-white text-indigo-600 shadow-xs': mode() === 'PASSAGE',
+            'text-slate-600 hover:text-slate-900': mode() !== 'PASSAGE'
+          }"
+        >
+          <mat-icon class="!text-sm leading-none">auto_stories</mat-icon>
+          Comprehension / Passage Set
+        </button>
+      </div>
+
+      <button mat-stroked-button (click)="resetForm()">
+        Reset
+      </button>
+      <button
+        mat-flat-button
+        color="primary"
+        (click)="saveItem()"
+        [disabled]="saving() || (mode() === 'STANDALONE' ? !content.trim() : !passageContent.trim())"
+      >
+        <mat-icon>save</mat-icon>
+        {{ saving() ? 'Saving...' : (mode() === 'STANDALONE' ? 'Save Question' : 'Save Passage Set') }}
+      </button>
+    </div>
+  </nag-page-header>
+
+  <!-- Feedback Alert Banner -->
+  @if (feedback(); as fb) {
+    <div
+      class="p-4 rounded-xl border flex items-center justify-between transition-all"
+      [ngClass]="{
+        'bg-emerald-50 border-emerald-200 text-emerald-900': fb.type === 'success',
+        'bg-rose-50 border-rose-200 text-rose-900': fb.type === 'error'
+      }"
+    >
+      <div class="flex items-center gap-3">
+        <mat-icon class="!text-xl leading-none">
+          {{ fb.type === 'success' ? 'check_circle' : 'error' }}
+        </mat-icon>
+        <span class="text-sm font-medium">{{ fb.message }}</span>
+      </div>
+
+      @if (fb.type === 'success') {
+        <button
+          mat-stroked-button
+          (click)="viewInBank()"
+          class="!text-emerald-800 !border-emerald-300 hover:!bg-emerald-100 !text-xs font-semibold"
+        >
+          View in Bank
+        </button>
+      }
+    </div>
+  }
+
+  <!-- Taxonomy Selection Component -->
+  <nag-taxonomy-selector
+    [subjects]="subjects()"
+    [topics]="topics()"
+    [subtopics]="subtopics()"
+    [selectedSubjectId]="selectedSubjectId"
+    [selectedTopicId]="selectedTopicId"
+    [selectedSubtopicId]="selectedSubtopicId"
+    (subjectChange)="onSubjectChange($event)"
+    (topicChange)="onTopicChange($event)"
+    (subtopicChange)="selectedSubtopicId = $event"
+    (createSubject)="createQuickSubject($event)"
+    (createTopic)="createQuickTopic($event)"
+  />
+
+  <!-- 1. STANDALONE QUESTION AUTHORING MODE -->
+  @if (mode() === 'STANDALONE') {
+    <nag-standalone-question-form
+      [cognitiveLevel]="cognitiveLevel"
+      [difficulty]="difficulty"
+      [type]="type"
+      [marks]="marks"
+      [negativeMarks]="negativeMarks"
+      [content]="content"
+      [explanation]="explanation"
+      [options]="options"
+      (cognitiveLevelChange)="cognitiveLevel = $event"
+      (difficultyChange)="difficulty = $event"
+      (typeChange)="type = $event"
+      (marksChange)="marks = $event"
+      (negativeMarksChange)="negativeMarks = $event"
+      (contentChange)="content = $event"
+      (explanationChange)="explanation = $event"
+      (optionsChange)="options = $event"
+    />
+  }
+
+  <!-- 2. PASSAGE / COMPREHENSION SET AUTHORING MODE -->
+  @if (mode() === 'PASSAGE') {
+    <nag-passage-authoring-panel
+      [passageTitle]="passageTitle"
+      [passageContent]="passageContent"
+      [subQuestions]="subQuestions"
+      [activeSubQuestionIndex]="activeSubQuestionIndex"
+      (passageTitleChange)="passageTitle = $event"
+      (passageContentChange)="passageContent = $event"
+      (subQuestionsChange)="subQuestions = $event"
+      (activeSubQuestionIndexChange)="activeSubQuestionIndex = $event"
+      (validationError)="onValidationError($event)"
+    />
+  }
+</div>

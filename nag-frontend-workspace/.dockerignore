@@ -1,0 +1,50 @@
+# Git & Version Control
+.git
+.gitignore
+.gitattributes
+
+# Environment & Secret Files
+.env
+.env.*
+*.env
+*.env.local
+
+# Node & Package Managers
+node_modules/
+**/node_modules/
+dist/
+**/dist/
+.angular/
+**/.angular/
+.nx/
+**/.nx/
+coverage/
+**/coverage/
+.npm/
+**/.npm/
+.pnpm-store/
+**/.pnpm-store/
+*.tsbuildinfo
+
+# Logs
+*.log
+**/*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+nx-debug.log*
+
+# IDE & Editor Files
+.idea/
+**/.idea/
+.vscode/
+**/.vscode/
+*.iml
+
+# OS & Temp
+.DS_Store
+Thumbs.db
+tmp/
+**/tmp/
+temp/
+**/temp/

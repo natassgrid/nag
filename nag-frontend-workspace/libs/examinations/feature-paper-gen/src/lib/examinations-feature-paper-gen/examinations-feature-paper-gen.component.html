@@ -1,0 +1,150 @@
+<div class="paper-gen-page min-h-screen bg-slate-50 p-6">
+  <div class="max-w-7xl mx-auto space-y-6">
+    <!-- Header -->
+    <nag-page-header
+      title="Algorithmic Question Paper Generation"
+      subtitle="Constrained automated test assembly with cryptographic Merkle tree ledger verification"
+      icon="auto_awesome"
+    >
+      <div actions class="flex items-center gap-3">
+        <button
+          mat-stroked-button
+          (click)="checkFeasibility()"
+          [disabled]="isCheckingFeasibility()"
+          class="!rounded-xl !border-slate-300"
+        >
+          <mat-icon>{{ isCheckingFeasibility() ? 'hourglass_top' : 'rule' }}</mat-icon>
+          <span>{{ isCheckingFeasibility() ? 'Auditing...' : 'Check Feasibility' }}</span>
+        </button>
+        <button
+          mat-flat-button
+          color="primary"
+          (click)="currentTab.set('GENERATOR')"
+          class="!rounded-xl !bg-indigo-600 hover:!bg-indigo-700 !text-white"
+        >
+          <mat-icon>add</mat-icon>
+          <span>Assemble New Paper</span>
+        </button>
+      </div>
+    </nag-page-header>
+
+    <!-- KPI Summary Row -->
+    <nag-paper-kpi-summary
+      [totalCount]="totalPapersCount()"
+      [approvedCount]="approvedPapersCount()"
+      [draftCount]="draftPapersCount()"
+      [practiceCount]="practicePapersCount()"
+    ></nag-paper-kpi-summary>
+
+    <!-- View Mode Tab Switcher -->
+    <div class="bg-white rounded-2xl border border-slate-200 p-2 flex items-center gap-2 shadow-xs">
+      <button
+        type="button"
+        (click)="currentTab.set('PAPERS')"
+        [ngClass]="{
+          'bg-slate-900 text-white shadow-sm': currentTab() === 'PAPERS',
+          'text-slate-600 hover:bg-slate-100': currentTab() !== 'PAPERS'
+        }"
+        class="flex-1 py-2.5 px-4 rounded-xl font-bold text-xs flex items-center justify-center gap-2 transition-colors"
+      >
+        <mat-icon class="!text-lg">inventory_2</mat-icon>
+        <span>Generated Papers Directory ({{ totalPapersCount() }})</span>
+      </button>
+
+      <button
+        type="button"
+        (click)="currentTab.set('GENERATOR')"
+        [ngClass]="{
+          'bg-slate-900 text-white shadow-sm': currentTab() === 'GENERATOR',
+          'text-slate-600 hover:bg-slate-100': currentTab() !== 'GENERATOR'
+        }"
+        class="flex-1 py-2.5 px-4 rounded-xl font-bold text-xs flex items-center justify-center gap-2 transition-colors"
+      >
+        <mat-icon class="!text-lg">tune</mat-icon>
+        <span>Algorithmic Assembly Engine</span>
+      </button>
+
+      <button
+        type="button"
+        (click)="currentTab.set('TEMPLATES')"
+        [ngClass]="{
+          'bg-slate-900 text-white shadow-sm': currentTab() === 'TEMPLATES',
+          'text-slate-600 hover:bg-slate-100': currentTab() !== 'TEMPLATES'
+        }"
+        class="flex-1 py-2.5 px-4 rounded-xl font-bold text-xs flex items-center justify-center gap-2 transition-colors"
+      >
+        <mat-icon class="!text-lg">rule</mat-icon>
+        <span>Blueprint Templates ({{ templates().length }})</span>
+      </button>
+    </div>
+
+    <!-- TAB 1: GENERATED PAPERS DIRECTORY -->
+    @if (currentTab() === 'PAPERS') {
+      <nag-paper-directory-table
+        [papers]="filteredPapers()"
+        [exams]="exams()"
+        [loading]="loading()"
+        [searchQuery]="searchQuery()"
+        [selectedExamFilter]="selectedExamFilter()"
+        [statusFilter]="statusFilter()"
+        (searchQueryChange)="searchQuery.set($event)"
+        (examFilterChange)="selectedExamFilter.set($event)"
+        (statusFilterChange)="statusFilter.set($event)"
+        (inspectPaper)="openSummaryDrawer($event)"
+        (approvePaper)="approvePaper($event)"
+        (publishPaper)="publishPaper($event)"
+        (assembleNew)="currentTab.set('GENERATOR')"
+      ></nag-paper-directory-table>
+    }
+
+    <!-- TAB 2: ALGORITHMIC ASSEMBLY ENGINE -->
+    @if (currentTab() === 'GENERATOR') {
+      <nag-paper-assembly-form
+        [exams]="exams()"
+        [schedules]="schedules()"
+        [shifts]="shifts()"
+        [templates]="templates()"
+        [taxonomySubjects]="taxonomySubjects()"
+        [taxonomyHierarchy]="taxonomyHierarchy()"
+        [isGenerating]="isGenerating()"
+        [isCheckingFeasibility]="isCheckingFeasibility()"
+        (examChange)="onExamChange($event)"
+        (scheduleChange)="onScheduleChange($event)"
+        (checkFeasibility)="checkFeasibility()"
+        (generate)="onGeneratePaper($event)"
+      ></nag-paper-assembly-form>
+    }
+
+    <!-- TAB 3: BLUEPRINT TEMPLATES DIRECTORY -->
+    @if (currentTab() === 'TEMPLATES') {
+      <nag-paper-templates-panel
+        [templates]="templates()"
+        [loading]="loadingTemplates()"
+        (selectTemplate)="onUseTemplateInAssembly($event)"
+      ></nag-paper-templates-panel>
+    }
+  </div>
+
+  <!-- MODULAR SUMMARY & QUESTION INSPECTION DRAWER -->
+  <nag-paper-inspection-drawer
+    [open]="drawerOpen()"
+    [loading]="loadingDetail()"
+    [paperDetail]="paperDetail()"
+    [paperId]="selectedPaperId()"
+    [isTranslating]="isTranslating()"
+    [activeTranslationJob]="activeTranslationJob()"
+    [supportedLanguages]="supportedLanguages"
+    (close)="closeDrawer()"
+    (approve)="approvePaper()"
+    (publish)="publishPaper()"
+    (startTranslation)="startTranslation($event)"
+  ></nag-paper-inspection-drawer>
+
+  <!-- PRE-FLIGHT SUFFICIENCY AUDIT MODAL -->
+  <nag-paper-feasibility-modal
+    [open]="showFeasibilityModal()"
+    [loading]="isCheckingFeasibility()"
+    [result]="feasibilityResult()"
+    (close)="closeFeasibilityModal()"
+  ></nag-paper-feasibility-modal>
+</div>

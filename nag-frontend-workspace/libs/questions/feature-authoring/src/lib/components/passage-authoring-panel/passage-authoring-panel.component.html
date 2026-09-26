@@ -1,0 +1,29 @@
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+  <!-- Passage & Sub-Questions Form Column -->
+  <div class="space-y-6">
+    <!-- Passage Common Reading Text Box Sub-component -->
+    <nag-passage-text-box
+      [passageTitle]="passageTitle()"
+      [passageContent]="passageContent()"
+      (passageTitleChange)="passageTitleChange.emit($event)"
+      (passageContentChange)="passageContentChange.emit($event)"
+    ></nag-passage-text-box>
+
+    <!-- Sub-Questions Editor Sub-component -->
+    <nag-passage-subquestion-editor
+      [subQuestions]="subQuestions()"
+      [activeSubQuestionIndex]="activeSubQuestionIndex()"
+      (subQuestionsChange)="subQuestionsChange.emit($event)"
+      (activeSubQuestionIndexChange)="activeSubQuestionIndexChange.emit($event)"
+      (validationError)="validationError.emit($event)"
+    ></nag-passage-subquestion-editor>
+  </div>
+
+  <!-- Passage Live Preview Column Sub-component -->
+  <nag-passage-preview-viewport
+    [passageTitle]="passageTitle()"
+    [passageContent]="passageContent()"
+    [subQuestions]="subQuestions()"
+    [activeSubQuestionIndex]="activeSubQuestionIndex()"
+  ></nag-passage-preview-viewport>
+</div>

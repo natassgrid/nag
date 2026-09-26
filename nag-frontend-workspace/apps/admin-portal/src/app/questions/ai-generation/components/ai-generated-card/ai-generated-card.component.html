@@ -1,0 +1,133 @@
+<div
+  class="bg-white rounded-3xl border shadow-sm p-6 space-y-4 transition-all"
+  [ngClass]="{
+    'border-emerald-300 ring-2 ring-emerald-500/10': isSaved(),
+    'border-slate-200': !isSaved()
+  }"
+>
+  <!-- Card Header -->
+  <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+    <div class="flex items-center gap-2">
+      <span class="px-2.5 py-0.5 rounded-lg text-xs font-black bg-indigo-50 text-indigo-700 border border-indigo-200">
+        Item #{{ index() + 1 }}
+      </span>
+      <span class="px-2.5 py-0.5 rounded-md text-[10px] font-bold bg-slate-100 text-slate-700 uppercase">
+        {{ question().questionType }}
+      </span>
+      <span class="px-2.5 py-0.5 rounded-md text-[10px] font-bold bg-slate-100 text-slate-700 uppercase">
+        {{ question().difficulty }}
+      </span>
+      <span class="px-2.5 py-0.5 rounded-md text-[10px] font-bold bg-indigo-50 text-indigo-800">
+        {{ question().cognitiveLevel }}
+      </span>
+    </div>
+
+    <!-- Validation & Duplicate Badges -->
+    <div class="flex items-center gap-2">
+      @if (question().duplicate && question().duplicate!.similarity > 0.85) {
+        <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-50 text-rose-700 border border-rose-200 flex items-center gap-1">
+          <mat-icon class="!text-xs">warning</mat-icon>
+          {{ (question().duplicate!.similarity * 100).toFixed(0) }}% Similar
+        </span>
+      } @else {
+        <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 flex items-center gap-1">
+          <mat-icon class="!text-xs">verified</mat-icon> Unique
+        </span>
+      }
+
+      @if (question().validation && !question().validation!.valid) {
+        <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200">
+          Schema Warning
+        </span>
+      }
+    </div>
+  </div>
+
+  <!-- Question Statement -->
+  <div class="space-y-1">
+    <div class="text-[11px] font-bold uppercase tracking-wider text-slate-400">Question Statement</div>
+    <div class="text-sm font-semibold text-slate-900 leading-relaxed font-sans whitespace-pre-line">
+      {{ question().content }}
+    </div>
+  </div>
+
+  <!-- MCQ Options (if available) -->
+  @if (question().options && question().options!.length > 0) {
+    <div class="space-y-2 pt-1">
+      <div class="text-[11px] font-bold uppercase tracking-wider text-slate-400">Options</div>
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+        @for (opt of question().options!; track opt.id) {
+          <div
+            class="p-2.5 rounded-xl border flex items-center gap-2.5 transition"
+            [ngClass]="{
+              'bg-emerald-50 border-emerald-300 font-bold text-emerald-950': opt.isCorrect || question().answerKey === opt.id,
+              'bg-slate-50 border-slate-200 text-slate-700': !opt.isCorrect && question().answerKey !== opt.id
+            }"
+          >
+            <span
+              class="w-6 h-6 rounded-lg flex items-center justify-center font-bold text-xs shrink-0"
+              [ngClass]="{
+                'bg-emerald-600 text-white': opt.isCorrect || question().answerKey === opt.id,
+                'bg-white text-slate-600 border border-slate-200': !opt.isCorrect && question().answerKey !== opt.id
+              }"
+            >
+              {{ opt.id }}
+            </span>
+            <span class="grow">{{ opt.text }}</span>
+            @if (opt.isCorrect || question().answerKey === opt.id) {
+              <mat-icon class="!text-sm text-emerald-600">check</mat-icon>
+            }
+          </div>
+        }
+      </div>
+    </div>
+  }
+
+  <!-- Answer Key & Explanation -->
+  @if (question().explanation || question().answerKey) {
+    <div class="p-3.5 bg-slate-50 rounded-2xl border border-slate-200 space-y-1 text-xs">
+      <div class="flex items-center gap-2">
+        <span class="font-bold text-slate-800">Correct Answer:</span>
+        <span class="font-black text-indigo-700">{{ question().answerKey || 'Refer to explanation' }}</span>
+      </div>
+      @if (question().explanation) {
+        <p class="text-slate-600 text-[11px] leading-relaxed mt-1">
+          {{ question().explanation }}
+        </p>
+      }
+    </div>
+  }
+
+  <!-- Actions Ribbon -->
+  <div class="flex items-center justify-between border-t border-slate-100 pt-3">
+    <div class="text-[11px]">
+      @if (isSaved()) {
+        <span class="font-bold text-emerald-700 flex items-center gap-1">
+          <mat-icon class="!text-sm">check_circle</mat-icon> Saved in Question Bank
+        </span>
+      }
+    </div>
+
+    <div class="flex items-center gap-2">
+      <button
+        type="button"
+        (click)="onOpen()"
+        class="px-3 py-1.5 rounded-xl border border-slate-300 text-slate-700 hover:bg-slate-50 font-bold text-xs flex items-center gap-1 cursor-pointer"
+      >
+        <mat-icon class="!text-sm">edit</mat-icon> Open in Authoring
+      </button>
+
+      @if (!isSaved()) {
+        <button
+          type="button"
+          (click)="onSave()"
+          [disabled]="isSaving()"
+          class="px-3 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs flex items-center gap-1 transition cursor-pointer shadow-sm disabled:opacity-50"
+        >
+          <mat-icon class="!text-sm">{{ isSaving() ? 'hourglass_top' : 'add_task' }}</mat-icon>
+          {{ isSaving() ? 'Saving...' : 'Save to Bank' }}
+        </button>
+      }
+    </div>
+  </div>
+</div>

@@ -1,0 +1,28 @@
+<div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+  <nag-stat-card
+    label="Pending Items"
+    [value]="pendingTasksCount()"
+    icon="pending_actions"
+    variant="warn"
+  />
+  <nag-stat-card
+    label="Open Disputes"
+    [value]="openDisputesCount()"
+    icon="gavel"
+    variant="accent"
+  />
+  <nag-stat-card
+    label="Mean Cohort Score"
+    [value]="meanCohortScore()"
+    unit="/100"
+    icon="speed"
+    variant="primary"
+  />
+  <nag-stat-card
+    label="Scoring Reliability"
+    [value]="scoringReliability()"
+    unit="Cronbach's α"
+    icon="verified"
+    variant="success"
+  />
+</div>

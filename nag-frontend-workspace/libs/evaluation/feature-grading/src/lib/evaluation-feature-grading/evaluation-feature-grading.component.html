@@ -1,0 +1,83 @@
+<div class="grading-console-container p-6 max-w-7xl mx-auto">
+  <!-- Header -->
+  <nag-page-header
+    title="Candidate Response Evaluation & Dispute Desk"
+    subtitle="Double-blind subjective scoring, dispute adjudication, and psychometric rubric enforcement"
+    icon="fact_check"
+  >
+    <div actions class="flex items-center gap-3">
+      <div class="bg-slate-100 p-1 rounded-xl flex items-center gap-1 text-xs font-semibold">
+        <button
+          type="button"
+          (click)="activeTab.set('grading')"
+          class="px-3 py-1.5 rounded-lg transition-colors"
+          [ngClass]="{
+            'bg-white text-indigo-700 shadow-xs': activeTab() === 'grading',
+            'text-slate-600 hover:text-slate-900': activeTab() !== 'grading'
+          }"
+        >
+          Pending Grading ({{ evalService.tasks().length }})
+        </button>
+        <button
+          type="button"
+          (click)="activeTab.set('disputes')"
+          class="px-3 py-1.5 rounded-lg transition-colors"
+          [ngClass]="{
+            'bg-white text-indigo-700 shadow-xs': activeTab() === 'disputes',
+            'text-slate-600 hover:text-slate-900': activeTab() !== 'disputes'
+          }"
+        >
+          Candidate Disputes ({{ evalService.disputes().length }})
+        </button>
+      </div>
+    </div>
+  </nag-page-header>
+
+  <!-- KPI Metrics Sub-component -->
+  <nag-evaluation-kpi-summary
+    [pendingTasksCount]="evalService.tasks().length"
+    [openDisputesCount]="evalService.disputes().length"
+  ></nag-evaluation-kpi-summary>
+
+  <!-- Grading Mode -->
+  @if (activeTab() === 'grading') {
+    @if (evalService.loading()) {
+      <div class="py-12 flex flex-col items-center justify-center text-slate-500 gap-3">
+        <mat-icon class="animate-spin !text-3xl">refresh</mat-icon>
+        <span class="text-sm">Loading pending evaluation items...</span>
+      </div>
+    } @else if (evalService.tasks().length === 0) {
+      <nag-empty-state
+        title="All candidate submissions graded"
+        description="There are currently no outstanding subjective responses awaiting evaluation."
+        icon="task_alt"
+      />
+    } @else {
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <!-- Task Queue List Sub-component -->
+        <nag-evaluation-task-list
+          [tasks]="evalService.tasks()"
+          [selectedTask]="selectedTask()"
+          (selectTask)="selectedTask.set($event)"
+        ></nag-evaluation-task-list>
+
+        <!-- Scoring Workspace Sub-component -->
+        <div class="lg:col-span-2">
+          <nag-evaluation-scoring-workspace
+            [task]="selectedTask()"
+            [submitting]="submittingScore()"
+            (commitGrade)="handleSubmitGrade($event)"
+          ></nag-evaluation-scoring-workspace>
+        </div>
+      </div>
+    }
+  }
+
+  <!-- Disputes Mode Sub-component -->
+  @if (activeTab() === 'disputes') {
+    <nag-evaluation-disputes-table
+      [disputes]="evalService.disputes()"
+      (resolve)="handleResolveDispute($event)"
+    ></nag-evaluation-disputes-table>
+  }
+</div>
