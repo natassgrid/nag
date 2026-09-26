@@ -1,0 +1,51 @@
+<div class="space-y-4">
+  <div class="flex items-center justify-between">
+    <h3 class="text-sm font-bold text-slate-900 uppercase tracking-wider flex items-center gap-2">
+      <mat-icon class="text-indigo-600 !text-lg">school</mat-icon>
+      Academic Qualifications
+    </h3>
+    <button mat-stroked-button color="primary" class="!rounded-xl !text-xs cursor-pointer" (click)="onAdd()">
+      <mat-icon class="!text-sm">add</mat-icon>
+      Add Degree
+    </button>
+  </div>
+
+  <div class="space-y-3">
+    @for (edu of education(); track edu.id; let idx = $index) {
+      <div class="p-4 rounded-xl border border-slate-200 bg-slate-50/50 flex items-start justify-between gap-4 transition-colors hover:bg-slate-50">
+        <div class="grid grid-cols-1 sm:grid-cols-4 gap-3 grow">
+          <div>
+            <span class="block text-[10px] uppercase font-bold text-slate-400">Qualification</span>
+            <span class="text-sm font-bold text-slate-900">{{ edu.qualification }}</span>
+          </div>
+          <div>
+            <span class="block text-[10px] uppercase font-bold text-slate-400">Board / University</span>
+            <span class="text-sm text-slate-700">{{ edu.boardOrUniversity }}</span>
+          </div>
+          <div>
+            <span class="block text-[10px] uppercase font-bold text-slate-400">Passing Year</span>
+            <span class="text-sm font-mono text-slate-700">{{ edu.passingYear }}</span>
+          </div>
+          <div>
+            <span class="block text-[10px] uppercase font-bold text-slate-400">Score / CGPA</span>
+            <span class="text-sm font-bold text-indigo-700">{{ edu.percentageOrCgpa }}</span>
+          </div>
+        </div>
+        <button
+          type="button"
+          (click)="onRemove(idx)"
+          class="text-rose-600 hover:text-rose-800 p-1.5 rounded-lg hover:bg-rose-50 cursor-pointer transition-colors"
+          title="Remove Degree"
+        >
+          <mat-icon class="!text-base">delete</mat-icon>
+        </button>
+      </div>
+    } @empty {
+      <div class="p-8 text-center text-slate-500 bg-slate-50 rounded-xl border border-dashed border-slate-200">
+        <mat-icon class="text-slate-400 !text-3xl mb-1">school</mat-icon>
+        <p class="text-xs font-semibold">No academic qualifications listed yet.</p>
+        <p class="text-[11px] text-slate-400">Click &ldquo;Add Degree&rdquo; to insert your academic history.</p>
+      </div>
+    }
+  </div>
+</div>

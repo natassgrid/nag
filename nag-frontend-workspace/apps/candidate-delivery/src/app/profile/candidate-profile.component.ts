@@ -1,74 +1,66 @@
 import {
+  ChangeDetectionStrategy,
   Component,
   inject,
   signal,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { FormsModule } from '@angular/forms';
 import { RouterModule } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
-import {
-  PageHeaderComponent,
-  StatusBadgeComponent,
-} from '@nag-frontend-workspace/shared-ui-components';
+import { PageHeaderComponent } from '@nag-frontend-workspace/shared-ui-components';
 import { AuthService } from '@nag-frontend-workspace/shared-data-access-auth';
+import {
+  CandidateProfile,
+  EducationEntry,
+  ProfileTab,
+  ProfileTabOption,
+} from './models';
+import {
+  ProfileOverviewCardComponent,
+  ProfileTabNavComponent,
+  PersonalDetailsPanelComponent,
+  ContactDetailsPanelComponent,
+  EducationDetailsPanelComponent,
+  KycDocumentsPanelComponent,
+} from './components';
 
-export interface EducationEntry {
-  id: string;
-  qualification: string;
-  boardOrUniversity: string;
-  passingYear: number;
-  percentageOrCgpa: string;
-}
-
-export interface CandidateProfile {
-  candidateId: string;
-  fullName: string;
-  dateOfBirth: string;
-  gender: 'MALE' | 'FEMALE' | 'OTHER';
-  nationality: string;
-  category: 'GENERAL' | 'OBC' | 'SC' | 'ST' | 'EWS';
-  identityDocType: 'AADHAAR' | 'PAN' | 'PASSPORT' | 'VOTER_ID' | 'DRIVING_LICENSE';
-  identityDocNumber: string;
-  mobile: string;
-  email: string;
-  address: string;
-  state: string;
-  pinCode: string;
-  kycStatus: 'VERIFIED' | 'PENDING' | 'REJECTED';
-  education: EducationEntry[];
-}
+export * from './models';
 
 @Component({
   selector: 'app-candidate-profile',
   standalone: true,
   imports: [
     CommonModule,
-    FormsModule,
     RouterModule,
     MatButtonModule,
     MatIconModule,
     PageHeaderComponent,
-    StatusBadgeComponent,
+    ProfileOverviewCardComponent,
+    ProfileTabNavComponent,
+    PersonalDetailsPanelComponent,
+    ContactDetailsPanelComponent,
+    EducationDetailsPanelComponent,
+    KycDocumentsPanelComponent,
   ],
   templateUrl: './candidate-profile.component.html',
   styleUrl: './candidate-profile.component.scss',
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class CandidateProfileComponent {
   readonly authService = inject(AuthService);
 
-  activeTab = signal<'personal' | 'contact' | 'education' | 'documents'>('personal');
-  saving = signal<boolean>(false);
+  readonly activeTab = signal<ProfileTab>('personal');
+  readonly saving = signal<boolean>(false);
 
-  tabs = [
-    { id: 'personal' as const, label: 'Personal Details', icon: 'person' },
-    { id: 'contact' as const, label: 'Contact & Address', icon: 'pin_drop' },
-    { id: 'education' as const, label: 'Educational Details', icon: 'school' },
-    { id: 'documents' as const, label: 'KYC & Uploads', icon: 'cloud_upload' },
+  readonly tabs: ProfileTabOption[] = [
+    { id: 'personal', label: 'Personal Details', icon: 'person' },
+    { id: 'contact', label: 'Contact & Address', icon: 'pin_drop' },
+    { id: 'education', label: 'Educational Details', icon: 'school' },
+    { id: 'documents', label: 'KYC & Uploads', icon: 'cloud_upload' },
   ];
 
-  profile = signal<CandidateProfile>({
+  readonly profile = signal<CandidateProfile>({
     candidateId: 'NAG-CAN-849202',
     fullName: 'Rahul Sharma',
     dateOfBirth: '2001-04-18',
@@ -100,6 +92,10 @@ export class CandidateProfileComponent {
       },
     ],
   });
+
+  onTabChange(tabId: ProfileTab): void {
+    this.activeTab.set(tabId);
+  }
 
   addEducation(): void {
     this.profile.update((p) => ({

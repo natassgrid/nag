@@ -1,0 +1,37 @@
+<div class="bg-white rounded-2xl border border-slate-200 p-6 shadow-xs flex flex-col md:flex-row items-center justify-between gap-6">
+  <div class="flex items-center gap-5">
+    <div class="w-20 h-20 rounded-2xl bg-indigo-600 text-white flex items-center justify-center font-black text-2xl shadow-inner uppercase">
+      {{ initials() }}
+    </div>
+    <div>
+      <div class="flex items-center gap-3">
+        <h2 class="text-xl font-bold text-slate-900">{{ profile().fullName }}</h2>
+        <nag-status-badge
+          [variant]="isKycVerified() ? 'success' : 'warn'"
+          [label]="isKycVerified() ? 'KYC Verified' : 'KYC Pending'"
+        />
+      </div>
+      <div class="flex items-center gap-4 text-xs text-slate-500 mt-1 font-mono">
+        <span>ID: <b>{{ profile().candidateId }}</b></span>
+        <span>&bull;</span>
+        <span class="inline-flex items-center gap-1">
+          DigiLocker: <b class="text-emerald-700">Anchored</b>
+          <mat-icon class="!text-xs leading-none text-emerald-600">verified</mat-icon>
+        </span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Quick Stats Counter -->
+  <div class="flex items-center gap-6 text-xs text-slate-600 bg-slate-50 px-5 py-3 rounded-xl border border-slate-100">
+    <div class="text-center">
+      <span class="block text-slate-400 font-semibold uppercase text-[10px]">Registered</span>
+      <span class="text-base font-bold text-slate-900">2 Exams</span>
+    </div>
+    <div class="h-8 w-px bg-slate-200"></div>
+    <div class="text-center">
+      <span class="block text-slate-400 font-semibold uppercase text-[10px]">Completed</span>
+      <span class="text-base font-bold text-slate-900">1 Exam</span>
+    </div>
+  </div>
+</div>
