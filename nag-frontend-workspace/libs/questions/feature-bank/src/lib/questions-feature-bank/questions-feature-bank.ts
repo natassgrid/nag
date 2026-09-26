@@ -1,4 +1,5 @@
 import {
+  ChangeDetectionStrategy,
   Component,
   OnInit,
   computed,
@@ -6,57 +7,51 @@ import {
   signal,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { FormsModule } from '@angular/forms';
 import { RouterModule, Router } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
-import {
-  PageHeaderComponent,
-  SearchInputComponent,
-  EmptyStateComponent,
-} from '@nag-frontend-workspace/shared-ui-components';
+import { PageHeaderComponent } from '@nag-frontend-workspace/shared-ui-components';
 import {
   QuestionBankService,
   SubjectTopicService,
   Subject,
-  Question,
-  VectorSearchResult,
 } from '@nag-frontend-workspace/questions-data-access';
+import { QuestionCardData } from '@nag-frontend-workspace/questions-ui-question-card';
 import {
-  QuestionsUiQuestionCard,
-  QuestionCardData,
-} from '@nag-frontend-workspace/questions-ui-question-card';
+  BankFilterBarComponent,
+  BankItemsListComponent,
+  BankSemanticSearchDrawerComponent,
+} from '../components';
 
 @Component({
   selector: 'nag-questions-feature-bank',
   standalone: true,
   imports: [
     CommonModule,
-    FormsModule,
     RouterModule,
     MatButtonModule,
     MatIconModule,
     PageHeaderComponent,
-    SearchInputComponent,
-    EmptyStateComponent,
-    QuestionsUiQuestionCard,
+    BankFilterBarComponent,
+    BankItemsListComponent,
+    BankSemanticSearchDrawerComponent,
   ],
   templateUrl: './questions-feature-bank.component.html',
   styleUrl: './questions-feature-bank.component.scss',
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class QuestionsFeatureBank implements OnInit {
   private readonly router = inject(Router);
   readonly questionService = inject(QuestionBankService);
   private readonly subjectTopicService = inject(SubjectTopicService);
 
-  showVectorDrawer = signal<boolean>(false);
-  vectorQueryPrompt = '';
-  searchingVector = signal<boolean>(false);
+  readonly showVectorDrawer = signal<boolean>(false);
+  readonly searchingVector = signal<boolean>(false);
 
-  selectedSubject = signal<string>('ALL');
-  selectedDifficulty = signal<string>('ALL');
-  selectedStatus = signal<string>('ALL');
-  searchQuery = signal<string>('');
+  readonly selectedSubject = signal<string>('ALL');
+  readonly selectedDifficulty = signal<string>('ALL');
+  readonly selectedStatus = signal<string>('ALL');
+  readonly searchQuery = signal<string>('');
 
   readonly subjects = signal<string[]>([
     'ALL',
@@ -134,8 +129,7 @@ export class QuestionsFeatureBank implements OnInit {
     this.applyFilters(0);
   }
 
-  onPageSizeChange(sizeStr: string): void {
-    const size = parseInt(sizeStr, 10) || 20;
+  onPageSizeChange(size: number): void {
     this.questionService.filter.update((f) => ({ ...f, size }));
     this.applyFilters(0);
   }
@@ -154,15 +148,11 @@ export class QuestionsFeatureBank implements OnInit {
     this.applyFilters(0);
   }
 
-  openVectorDrawer(): void {
-    this.showVectorDrawer.set(true);
-  }
-
-  runVectorSearch(): void {
-    if (!this.vectorQueryPrompt.trim()) return;
+  runVectorSearch(prompt: string): void {
+    if (!prompt.trim()) return;
 
     this.searchingVector.set(true);
-    this.questionService.searchVectorSimilar(this.vectorQueryPrompt).subscribe({
+    this.questionService.searchVectorSimilar(prompt).subscribe({
       next: () => {
         this.searchingVector.set(false);
         this.showVectorDrawer.set(false);
@@ -171,10 +161,6 @@ export class QuestionsFeatureBank implements OnInit {
         this.searchingVector.set(false);
       },
     });
-  }
-
-  closeVectorDrawer(): void {
-    this.showVectorDrawer.set(false);
   }
 
   applyFilters(page: number): void {
@@ -209,20 +195,5 @@ export class QuestionsFeatureBank implements OnInit {
         this.applyFilters(this.questionService.currentPage());
       });
     }
-  }
-
-  mapQuestionToCard(q: Question): QuestionCardData {
-    return {
-      id: q.id,
-      code: q.code,
-      content: q.content,
-      type: q.type,
-      difficulty: q.difficulty,
-      status: q.status,
-      marks: q.marks,
-      negativeMarks: q.negativeMarks,
-      options: q.options || [],
-      tags: q.tags,
-    };
   }
 }
