@@ -24,10 +24,12 @@ import com.examplatform.shared.api.ApiResponse;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
+import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.multipart.MaxUploadSizeExceededException;
 
@@ -36,6 +38,7 @@ import org.springframework.web.multipart.MaxUploadSizeExceededException;
  */
 @Slf4j
 @RestControllerAdvice(basePackages = "com.examplatform.asset")
+@RequestMapping(produces = MediaType.APPLICATION_JSON_VALUE)
 public class AssetExceptionHandler {
 
     @ExceptionHandler(AccessDeniedException.class)
@@ -43,6 +46,7 @@ public class AssetExceptionHandler {
         log.warn("Access denied: {}", ex.getMessage());
         return ResponseEntity
                 .status(HttpStatus.FORBIDDEN)
+                .contentType(MediaType.APPLICATION_JSON)
                 .body(ApiResponse.error("Access denied"));
     }
 
@@ -51,6 +55,7 @@ public class AssetExceptionHandler {
         log.warn("Asset validation failed: {}", ex.getMessage());
         return ResponseEntity
                 .status(HttpStatus.BAD_REQUEST)
+                .contentType(MediaType.APPLICATION_JSON)
                 .body(ApiResponse.error(ex.getMessage()));
     }
 
@@ -59,6 +64,7 @@ public class AssetExceptionHandler {
         log.warn("Entity not found: {}", ex.getMessage());
         return ResponseEntity
                 .status(HttpStatus.NOT_FOUND)
+                .contentType(MediaType.APPLICATION_JSON)
                 .body(ApiResponse.error(ex.getMessage()));
     }
 
@@ -67,6 +73,7 @@ public class AssetExceptionHandler {
         log.warn("Upload size exceeded: {}", ex.getMessage());
         return ResponseEntity
                 .status(HttpStatus.PAYLOAD_TOO_LARGE)
+                .contentType(MediaType.APPLICATION_JSON)
                 .body(ApiResponse.error("File size exceeds maximum allowed upload size"));
     }
 
@@ -79,6 +86,7 @@ public class AssetExceptionHandler {
         log.warn("Request validation failed: {}", message);
         return ResponseEntity
                 .status(HttpStatus.BAD_REQUEST)
+                .contentType(MediaType.APPLICATION_JSON)
                 .body(ApiResponse.error(message));
     }
 
@@ -87,6 +95,7 @@ public class AssetExceptionHandler {
         log.warn("Illegal argument: {}", ex.getMessage());
         return ResponseEntity
                 .status(HttpStatus.BAD_REQUEST)
+                .contentType(MediaType.APPLICATION_JSON)
                 .body(ApiResponse.error(ex.getMessage()));
     }
 
@@ -95,6 +104,7 @@ public class AssetExceptionHandler {
         log.error("Unhandled exception: {}", ex.getMessage(), ex);
         return ResponseEntity
                 .status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .contentType(MediaType.APPLICATION_JSON)
                 .body(ApiResponse.error("An unexpected error occurred"));
     }
 }

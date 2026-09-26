@@ -248,9 +248,18 @@ public class AssetController {
             return ResponseEntity.notFound().build();
         }
 
+        MediaType mediaType;
+        try {
+            mediaType = (asset.getContentType() != null && !asset.getContentType().isBlank())
+                    ? MediaType.parseMediaType(asset.getContentType())
+                    : MediaType.APPLICATION_OCTET_STREAM;
+        } catch (Exception e) {
+            mediaType = MediaType.APPLICATION_OCTET_STREAM;
+        }
+
         return ResponseEntity.ok()
                 .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + asset.getOriginalFilename() + "\"")
-                .contentType(MediaType.parseMediaType(asset.getContentType()))
+                .contentType(mediaType)
                 .contentLength(asset.getFileSize())
                 .body(new InputStreamResource(content.get()));
     }
