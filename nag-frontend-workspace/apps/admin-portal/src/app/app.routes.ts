@@ -153,6 +153,14 @@ export const appRoutes: Route[] = [
       ),
   },
   {
+    path: 'settings',
+    canActivate: [authGuard],
+    loadComponent: () =>
+      import('./settings/admin-settings.component').then(
+        (m) => m.AdminSettingsComponent
+      ),
+  },
+  {
     path: '**',
     redirectTo: '',
   },
