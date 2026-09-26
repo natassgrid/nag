@@ -31,12 +31,13 @@ import org.springframework.security.web.server.authentication.ServerAuthenticati
 import reactor.core.publisher.Mono;
 
 /**
- * Reactive security configuration for the API Gateway.
- * Uses OAuth2 Resource Server with JWT validation via Keycloak JWKS endpoint.
- * Permits actuator endpoints and requires authentication for all API routes.
+ * Spring Cloud Gateway security configuration.
  *
- * <p><strong>mTLS via Istio (production):</strong> In production Kubernetes deployments,
- * Istio service mesh provides mutual TLS (mTLS) between all services via
+ * <p>All external traffic must pass JWT validation at the gateway level.
+ * Public endpoints (login, registration, actuator health) are explicitly permitted.
+ * All other routes require a valid Bearer token issued by Keycloak.</p>
+ *
+ * <p>In production (Kubernetes/Istio), inter-service mTLS is enforced via Istio
  * PeerAuthentication policies. This ensures transport-layer identity verification
  * using SPIFFE identities, complementing the application-layer JWT validation
  * performed here. See {@link ZeroTrustConfig} for the full Zero Trust architecture.</p>
@@ -53,6 +54,11 @@ public class SecurityConfig {
             if (path.startsWith("/api/v1/identity/auth/") ||
                 path.startsWith("/api/v1/identity/register") ||
                 path.startsWith("/api/v1/identity/otp/") ||
+                path.startsWith("/api/v1/identity/verify-otp") ||
+                path.startsWith("/api/v1/identity/verify/") ||
+                path.startsWith("/api/v1/identity/resend/") ||
+                path.startsWith("/api/v1/identity/verification-status") ||
+                path.startsWith("/api/v1/identity/admin/invite/") ||
                 path.startsWith("/api/v1/examinations/public/") ||
                 path.startsWith("/api/v1/geo/") ||
                 path.startsWith("/api/v1/public/") ||
@@ -85,7 +91,17 @@ public class SecurityConfig {
             .csrf(ServerHttpSecurity.CsrfSpec::disable)
             .authorizeExchange(exchanges -> exchanges
                 .pathMatchers("/actuator/health", "/actuator/info", "/actuator/prometheus").permitAll()
-                .pathMatchers("/api/v1/identity/register", "/api/v1/identity/auth/**", "/api/v1/identity/otp/**", "/api/v1/examinations/public/**").permitAll()
+                .pathMatchers(
+                    "/api/v1/identity/register",
+                    "/api/v1/identity/auth/**",
+                    "/api/v1/identity/otp/**",
+                    "/api/v1/identity/verify-otp",
+                    "/api/v1/identity/verify/**",
+                    "/api/v1/identity/resend/**",
+                    "/api/v1/identity/verification-status",
+                    "/api/v1/identity/admin/invite/**",
+                    "/api/v1/examinations/public/**"
+                ).permitAll()
                 .pathMatchers("/api/v1/geo/**", "/api/v1/public/**").permitAll()
                 .pathMatchers(HttpMethod.GET, "/api/v1/assets/*/download", "/api/v1/assets/*/url", "/api/v1/assets/**/download", "/api/v1/assets/**/url").permitAll()
                 .anyExchange().authenticated()

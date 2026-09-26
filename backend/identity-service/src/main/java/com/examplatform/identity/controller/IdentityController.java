@@ -200,7 +200,7 @@ public class IdentityController {
     /**
      * Verify OTP and activate the pending account (backward-compatible).
      */
-    @PostMapping("/otp/verify")
+    @PostMapping({"/otp/verify", "/verify-otp"})
     public ResponseEntity<ApiResponse<AuthTokenResponse>> verifyOtp(
             @Valid @RequestBody OtpVerifyRequest request,
             @RequestHeader(value = "X-Tenant-Id", defaultValue = "default") String tenantId) {

@@ -4,7 +4,7 @@
   "projectType": "application",
   "prefix": "app",
   "sourceRoot": "apps/public-verifier/src",
-  "tags": ["scope:verifier", "type:app"],
+  "tags": ["scope:public", "type:app"],
   "targets": {
     "build": {
       "executor": "@angular/build:application",
@@ -55,6 +55,9 @@
       "continuous": true,
       "executor": "@angular/build:dev-server",
       "defaultConfiguration": "development",
+      "options": {
+        "proxyConfig": "apps/public-verifier/proxy.conf.json"
+      },
       "configurations": {
         "production": {
           "buildTarget": "public-verifier:build:production"

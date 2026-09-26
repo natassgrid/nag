@@ -55,6 +55,9 @@
       "continuous": true,
       "executor": "@angular/build:dev-server",
       "defaultConfiguration": "development",
+      "options": {
+        "proxyConfig": "apps/admin-portal/proxy.conf.json"
+      },
       "configurations": {
         "production": {
           "buildTarget": "admin-portal:build:production"

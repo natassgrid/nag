@@ -48,7 +48,7 @@ public class OtpVerificationService {
 
     /**
      * Full OTP verification and account activation flow:
-     * 1. Hash mobile → find PENDING_VERIFICATION account
+     * 1. Hash mobile / email / lookup userId → find PENDING_VERIFICATION account
      * 2. Verify OTP (throws InvalidOtpException on failure)
      * 3. Set account status to ACTIVE
      * 4. Activate user in Keycloak
@@ -69,11 +69,18 @@ public class OtpVerificationService {
                 .findByMobileHashAndTenantId(mobileHash, tenantId)
                 .orElseThrow(() -> new AccountNotFoundException(
                     "No pending account found for the provided mobile number."));
+        } else if (request.getEmail() != null && !request.getEmail().isBlank()) {
+            String emailHash = hashingService.sha256(request.getEmail().trim().toLowerCase());
+            account = userAccountRepository
+                .findByEmailHashAndTenantId(emailHash, tenantId)
+                .orElseThrow(() -> new AccountNotFoundException(
+                    "No pending account found for the provided email address."));
         } else {
-            throw new IllegalArgumentException("Either userId or mobile must be provided for OTP verification.");
+            throw new IllegalArgumentException("Either userId, mobile, or email must be provided for OTP verification.");
         }
 
         String mobileHash = account.getMobileHash();
+        String emailHash = account.getEmailHash();
 
         if (account.getAccountStatus() == AccountStatus.ACTIVE) {
             throw new InvalidOtpException("Account is already activated. Please login instead.");
@@ -84,8 +91,14 @@ public class OtpVerificationService {
                 "Account cannot be activated in its current state: " + account.getAccountStatus());
         }
 
-        // 2. Verify OTP
-        boolean valid = otpService.verifyOtp(mobileHash, request.getOtp());
+        // 2. Verify OTP (check mobile OTP first, then email OTP)
+        boolean valid = false;
+        if (mobileHash != null && !mobileHash.isBlank()) {
+            valid = otpService.verifyOtp(mobileHash, request.getOtp());
+        }
+        if (!valid && emailHash != null && !emailHash.isBlank()) {
+            valid = otpService.verifyEmailOtp(account.getId(), emailHash, request.getOtp());
+        }
         if (!valid) {
             throw new InvalidOtpException("Invalid or expired OTP. Please request a new OTP.");
         }
