@@ -6,15 +6,24 @@ import {
   signal,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { FormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { CandidateProfile, DigiLockerClaim } from '../../models';
+import {
+  DigiLockerClaimCardComponent,
+  DigiLockerConsentModalComponent,
+} from './components';
 
 @Component({
   selector: 'nag-digilocker-panel',
   standalone: true,
-  imports: [CommonModule, FormsModule, MatButtonModule, MatIconModule],
+  imports: [
+    CommonModule,
+    MatButtonModule,
+    MatIconModule,
+    DigiLockerClaimCardComponent,
+    DigiLockerConsentModalComponent,
+  ],
   templateUrl: './digilocker-panel.component.html',
   styleUrl: './digilocker-panel.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -27,8 +36,8 @@ export class DigiLockerPanelComponent {
   readonly otpStep = signal<boolean>(false);
   readonly otpValue = signal<string>('948210');
 
-  readonly isVerified = computed(() => this.profile().digiLockerStatus === 'VERIFIED');
-  readonly claims = computed(() => this.profile().digiLockerClaims || []);
+  readonly isVerified = computed(() => this.profile()?.digiLockerStatus === 'VERIFIED');
+  readonly claims = computed(() => this.profile()?.digiLockerClaims || []);
 
   openConnectFlow(): void {
     this.otpStep.set(false);
@@ -37,6 +46,14 @@ export class DigiLockerPanelComponent {
 
   proceedToOtp(): void {
     this.otpStep.set(true);
+  }
+
+  setOtpValue(val: string): void {
+    this.otpValue.set(val);
+  }
+
+  closeConsentModal(): void {
+    this.showConsentModal.set(false);
   }
 
   verifyAndSync(): void {

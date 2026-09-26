@@ -1,0 +1,103 @@
+<div class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/70 backdrop-blur-xs p-4 animate-fade-in">
+  <div class="bg-white w-full max-w-md rounded-2xl shadow-2xl border border-slate-200 overflow-hidden flex flex-col">
+
+    <!-- Header -->
+    <div class="px-6 py-4 bg-gradient-to-r from-blue-700 to-indigo-700 text-white flex items-center justify-between">
+      <div class="flex items-center gap-2">
+        <mat-icon class="text-sky-300">security</mat-icon>
+        <div>
+          <h4 class="text-sm font-bold text-white">DigiLocker Consent Gateway</h4>
+          <p class="text-[10px] text-sky-100">MeitY Govt. of India Auth Gateway</p>
+        </div>
+      </div>
+      <button
+        type="button"
+        (click)="onClose()"
+        class="text-white/70 hover:text-white cursor-pointer"
+      >
+        <mat-icon class="!text-base">close</mat-icon>
+      </button>
+    </div>
+
+    <!-- Body -->
+    <div class="p-6 space-y-4">
+      @if (!otpStep()) {
+        <div class="space-y-3 text-xs text-slate-600">
+          <div class="p-3 bg-blue-50 border border-blue-200 rounded-xl text-blue-950">
+            <div class="font-bold flex items-center gap-1.5">
+              <mat-icon class="!text-sm text-blue-600">info</mat-icon> Candidate Consent Request
+            </div>
+            <p class="text-[11px] text-blue-900 mt-1">
+              National Assessment Grid (NAG) is requesting one-time read consent to fetch:
+            </p>
+            <ul class="list-disc list-inside text-[11px] text-blue-900 mt-1 space-y-0.5 pl-1">
+              <li>Aadhaar e-KYC Identity Profile</li>
+              <li>Class X & XII Secondary Education Certificates</li>
+              <li>Cryptographic XML Signature Verification Proof</li>
+            </ul>
+          </div>
+
+          <p class="text-[11px] text-slate-500">
+            By proceeding, you authorize DigiLocker to transmit digital credentials to NAG for examination identity anchoring.
+          </p>
+        </div>
+      } @else {
+        <div class="space-y-3">
+          <div class="text-center space-y-1">
+            <div class="w-10 h-10 rounded-full bg-indigo-50 text-indigo-600 flex items-center justify-center mx-auto">
+              <mat-icon class="!text-lg">sms</mat-icon>
+            </div>
+            <h5 class="text-xs font-bold text-slate-900">Enter 6-Digit Aadhaar OTP</h5>
+            <p class="text-[11px] text-slate-500">Sent to registered mobile number ending with <b>**8921</b></p>
+          </div>
+
+          <div>
+            <input
+              type="text"
+              maxlength="6"
+              [ngModel]="otpValue()"
+              (ngModelChange)="onOtpChange($event)"
+              class="w-full text-center text-xl font-mono font-bold tracking-widest px-4 py-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:outline-hidden"
+            />
+          </div>
+
+          <p class="text-[10px] text-center text-slate-400">Demo Simulated OTP prefilled for instantaneous sandbox testing</p>
+        </div>
+      }
+    </div>
+
+    <!-- Footer -->
+    <div class="px-6 py-3.5 bg-slate-50 border-t border-slate-100 flex items-center justify-between">
+      <button
+        mat-button
+        (click)="onClose()"
+        class="!text-xs text-slate-600"
+      >
+        Cancel
+      </button>
+
+      @if (!otpStep()) {
+        <button
+          mat-flat-button
+          color="primary"
+          (click)="onProceed()"
+          class="!text-xs !rounded-xl !px-5"
+        >
+          Grant Consent &rarr;
+        </button>
+      } @else {
+        <button
+          mat-flat-button
+          color="primary"
+          (click)="onVerify()"
+          [disabled]="isConnecting()"
+          class="!text-xs !rounded-xl !px-6"
+        >
+          <mat-icon class="!text-sm">{{ isConnecting() ? 'hourglass_top' : 'verified' }}</mat-icon>
+          {{ isConnecting() ? 'Verifying & Fetching...' : 'Verify & Import Claims' }}
+        </button>
+      }
+    </div>
+
+  </div>
+</div>

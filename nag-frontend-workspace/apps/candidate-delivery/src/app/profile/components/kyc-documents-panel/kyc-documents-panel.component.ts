@@ -7,21 +7,27 @@ import {
   signal,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { CandidateProfile } from '../../models';
 import { WebcamCaptureModalComponent } from '../webcam-capture-modal/webcam-capture-modal.component';
 import { ImageCropperModalComponent, CropMode } from '../image-cropper-modal/image-cropper-modal.component';
+import {
+  KycPhotoCardComponent,
+  KycSignatureCardComponent,
+  KycIdentityProofCardComponent,
+} from './components';
 
 @Component({
   selector: 'nag-kyc-documents-panel',
   standalone: true,
   imports: [
     CommonModule,
-    MatButtonModule,
     MatIconModule,
     WebcamCaptureModalComponent,
     ImageCropperModalComponent,
+    KycPhotoCardComponent,
+    KycSignatureCardComponent,
+    KycIdentityProofCardComponent,
   ],
   templateUrl: './kyc-documents-panel.component.html',
   styleUrl: './kyc-documents-panel.component.scss',
