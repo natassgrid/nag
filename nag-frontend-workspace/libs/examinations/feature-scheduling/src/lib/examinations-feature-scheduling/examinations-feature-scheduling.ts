@@ -27,6 +27,7 @@ import {
 } from '@nag-frontend-workspace/examinations-data-access';
 import { SchedulingTab } from '../models';
 import {
+  ScheduleToolbarHeaderComponent,
   ScheduleListTableComponent,
   ShiftMatrixGridComponent,
   SeatAllocationPanelComponent,
@@ -47,6 +48,7 @@ import {
     MatButtonModule,
     MatIconModule,
     MatSnackBarModule,
+    ScheduleToolbarHeaderComponent,
     ScheduleListTableComponent,
     ShiftMatrixGridComponent,
     SeatAllocationPanelComponent,
@@ -92,57 +94,44 @@ export class ExaminationsFeatureScheduling implements OnInit {
   readonly allocations = signal<SeatAllocationResponse[]>([]);
   readonly loadingAllocations = signal<boolean>(false);
 
-  // Search Filter
-  readonly searchQuery = signal<string>('');
-
-  // Modals & Drawers
+  // Modals & Drawers Visibility
   readonly showCreateScheduleModal = signal<boolean>(false);
   readonly showTransitionModal = signal<boolean>(false);
   readonly showAmendModal = signal<boolean>(false);
   readonly showShiftModal = signal<boolean>(false);
   readonly showAllocationModal = signal<boolean>(false);
 
-  // Computed KPIs
-  readonly totalSchedulesCount = computed(() => (this.schedules() || []).length);
-  readonly totalShiftsCount = computed(() => (this.shifts() || []).length);
-
-  readonly filteredSchedules = computed(() => {
-    const list = this.schedules() || [];
-    const q = this.searchQuery().toLowerCase().trim();
-    if (!q) return list;
-    return list.filter((s) => {
-      if (!s) return false;
-      return (
-        (s.scheduleName && s.scheduleName.toLowerCase().includes(q)) ||
-        (s.notificationNumber && s.notificationNumber.toLowerCase().includes(q)) ||
-        (s.examDate && s.examDate.includes(q))
-      );
-    });
-  });
+  // Computeds
+  readonly totalSchedulesCount = computed(() => this.schedules().length);
+  readonly totalShiftsCount = computed(() => this.shifts().length);
+  readonly filteredSchedules = computed(() => this.schedules());
 
   ngOnInit(): void {
-    this.examService.getExams(0, 50).subscribe({
-      next: (exams) => {
-        const list = exams || [];
-        this.route.queryParams.subscribe((params) => {
-          const paramExamId = params['examId'];
-          if (paramExamId && list.some((e) => e?.id === paramExamId)) {
-            this.selectExam(paramExamId);
-          } else if (list.length > 0 && !this.selectedExamId()) {
-            this.selectExam(list[0].id);
-          }
-        });
-      },
+    this.examService.getExams(0, 100).subscribe((exams) => {
+      if (exams && exams.length > 0) {
+        this.selectedExamId.set(exams[0].id);
+        this.loadSchedules();
+      }
     });
 
-    this.centreService.listCentres(undefined, undefined, 0, 100).subscribe();
+    this.centreService.listCentres().subscribe();
+
+    this.route.queryParams.subscribe((params) => {
+      if (params['examId']) {
+        this.selectedExamId.set(params['examId']);
+        this.loadSchedules();
+      }
+      if (params['tab']) {
+        this.currentTab.set(params['tab']);
+      }
+    });
   }
 
   selectExam(examId: string): void {
     this.selectedExamId.set(examId);
     this.selectedSchedule.set(null);
     this.selectedShift.set(null);
-    this.currentTab.set('SCHEDULES');
+    this.allocations.set([]);
     this.loadSchedules();
   }
 
@@ -150,67 +139,53 @@ export class ExaminationsFeatureScheduling implements OnInit {
     const examId = this.selectedExamId();
     if (!examId) return;
 
-    this.scheduleService.listSchedules(examId, 0, 50).subscribe({
-      next: (list) => {
-        const items = list || [];
-        if (items.length > 0 && !this.selectedSchedule()) {
-          this.selectSchedule(items[0]);
-        }
-      },
-      error: (err) => {
-        this.snackBar.open(
-          err?.error?.message || 'Failed to load schedules for examination',
-          'Dismiss',
-          { duration: 4000 }
-        );
-      },
+    this.scheduleService.listSchedules(examId, 0, 50).subscribe((schedules) => {
+      if (schedules && schedules.length > 0) {
+        this.selectSchedule(schedules[0]);
+      } else {
+        this.selectedSchedule.set(null);
+        this.selectedShift.set(null);
+      }
     });
   }
 
   selectSchedule(schedule: ScheduleResponse): void {
     this.selectedSchedule.set(schedule);
-    if (schedule?.id) {
-      this.loadShifts(schedule.id);
-    }
+    this.selectedShift.set(null);
+    this.allocations.set([]);
+    this.loadShifts(schedule.id);
   }
 
   loadShifts(scheduleId: string): void {
     const examId = this.selectedExamId();
     if (!examId || !scheduleId) return;
 
-    this.scheduleService.listShifts(examId, scheduleId).subscribe({
-      next: (shifts) => {
-        const items = shifts || [];
-        if (items.length > 0 && !this.selectedShift()) {
-          this.selectedShift.set(items[0]);
-        }
-      },
-      error: () => {},
+    this.scheduleService.listShifts(examId, scheduleId).subscribe((shifts) => {
+      if (shifts && shifts.length > 0) {
+        this.selectedShift.set(shifts[0]);
+      }
     });
   }
 
+  // Action Triggers
   openCreateSchedule(): void {
     this.showCreateScheduleModal.set(true);
   }
 
-  handleCreateSchedule(payload: CreateScheduleRequest): void {
+  handleCreateSchedule(formData: CreateScheduleRequest): void {
     const examId = this.selectedExamId();
     if (!examId) return;
 
-    this.scheduleService.createSchedule(examId, payload).subscribe({
-      next: (created) => {
+    this.scheduleService.createSchedule(examId, formData).subscribe({
+      next: (res) => {
+        this.snackBar.open(`Schedule "${res.scheduleName}" created!`, 'OK', { duration: 3000 });
         this.showCreateScheduleModal.set(false);
-        this.selectSchedule(created);
-        this.snackBar.open('Examination Schedule created successfully', 'OK', {
-          duration: 3000,
-        });
+        this.loadSchedules();
       },
-      error: (err) => {
-        this.snackBar.open(
-          err?.error?.message || 'Failed to create schedule',
-          'Dismiss',
-          { duration: 4000 }
-        );
+      error: (err: any) => {
+        this.snackBar.open(err?.error?.message || 'Failed to create schedule session', 'Dismiss', {
+          duration: 4000,
+        });
       },
     });
   }
@@ -222,23 +197,21 @@ export class ExaminationsFeatureScheduling implements OnInit {
 
   handleTransition(req: ScheduleTransitionRequest): void {
     const examId = this.selectedExamId();
-    const sched = this.selectedSchedule();
-    if (!examId || !sched) return;
+    const scheduleId = this.selectedSchedule()?.id;
+    if (!examId || !scheduleId) return;
 
-    this.scheduleService.transitionSchedule(examId, sched.id, req).subscribe({
-      next: (updated) => {
-        this.showTransitionModal.set(false);
-        this.snackBar.open(`Schedule transitioned to ${updated.status}`, 'OK', {
+    this.scheduleService.transitionSchedule(examId, scheduleId, req).subscribe({
+      next: (res) => {
+        this.snackBar.open(`Schedule status transitioned to ${res.status}`, 'OK', {
           duration: 3000,
         });
+        this.showTransitionModal.set(false);
         this.loadSchedules();
       },
-      error: (err) => {
-        this.snackBar.open(
-          err?.error?.message || 'Transition rejected by DPI validation rules',
-          'Dismiss',
-          { duration: 4000 }
-        );
+      error: (err: any) => {
+        this.snackBar.open(err?.error?.message || 'Status transition rejected', 'Dismiss', {
+          duration: 4000,
+        });
       },
     });
   }
@@ -250,26 +223,21 @@ export class ExaminationsFeatureScheduling implements OnInit {
 
   handleAmend(req: AmendScheduleRequest): void {
     const examId = this.selectedExamId();
-    const sched = this.selectedSchedule();
-    if (!examId || !sched) return;
+    const scheduleId = this.selectedSchedule()?.id;
+    if (!examId || !scheduleId) return;
 
-    this.scheduleService.amendSchedule(examId, sched.id, req).subscribe({
-      next: (newVersion) => {
+    this.scheduleService.amendSchedule(examId, scheduleId, req).subscribe({
+      next: (res) => {
+        this.snackBar.open(`Schedule amended to version ${res.scheduleVersion}`, 'OK', {
+          duration: 3000,
+        });
         this.showAmendModal.set(false);
-        this.selectSchedule(newVersion);
-        this.snackBar.open(
-          `Schedule amended! Created new Version ${newVersion.scheduleVersion}`,
-          'OK',
-          { duration: 3000 }
-        );
         this.loadSchedules();
       },
-      error: (err) => {
-        this.snackBar.open(
-          err?.error?.message || 'Failed to amend schedule',
-          'Dismiss',
-          { duration: 4000 }
-        );
+      error: (err: any) => {
+        this.snackBar.open(err?.error?.message || 'Schedule amendment failed', 'Dismiss', {
+          duration: 4000,
+        });
       },
     });
   }
@@ -286,64 +254,47 @@ export class ExaminationsFeatureScheduling implements OnInit {
 
   handleSaveShift(event: { shiftId: string | null; request: CreateShiftRequest }): void {
     const examId = this.selectedExamId();
-    const sched = this.selectedSchedule();
-    if (!examId || !sched) return;
+    const scheduleId = this.selectedSchedule()?.id;
+    if (!examId || !scheduleId) return;
 
-    if (event.shiftId) {
-      this.scheduleService
-        .updateShift(examId, sched.id, event.shiftId, event.request)
-        .subscribe({
-          next: () => {
-            this.showShiftModal.set(false);
-            this.snackBar.open('Shift updated successfully', 'OK', { duration: 3000 });
-            this.loadShifts(sched.id);
-          },
-          error: (err) => {
-            this.snackBar.open(
-              err?.error?.message || 'Failed to update shift',
-              'Dismiss',
-              { duration: 4000 }
-            );
-          },
+    const op$ = event.shiftId
+      ? this.scheduleService.updateShift(examId, scheduleId, event.shiftId, event.request)
+      : this.scheduleService.addShift(examId, scheduleId, event.request);
+
+    op$.subscribe({
+      next: () => {
+        this.snackBar.open('Shift session saved successfully!', 'OK', { duration: 3000 });
+        this.showShiftModal.set(false);
+        this.loadShifts(scheduleId);
+      },
+      error: (err: any) => {
+        this.snackBar.open(err?.error?.message || 'Shift save failed', 'Dismiss', {
+          duration: 4000,
         });
-    } else {
-      this.scheduleService.addShift(examId, sched.id, event.request).subscribe({
-        next: () => {
-          this.showShiftModal.set(false);
-          this.snackBar.open('Shift added successfully', 'OK', { duration: 3000 });
-          this.loadShifts(sched.id);
-        },
-        error: (err) => {
-          this.snackBar.open(
-            err?.error?.message || 'Failed to add shift',
-            'Dismiss',
-            { duration: 4000 }
-          );
-        },
-      });
-    }
+      },
+    });
   }
 
   viewAllocations(shift: ShiftResponse): void {
     this.selectedShift.set(shift);
     this.currentTab.set('ALLOCATIONS');
-    if (shift?.id) {
-      this.loadAllocations(shift.id);
-    }
+    this.loadAllocations(shift.id);
   }
 
   loadAllocations(shiftId: string): void {
     const examId = this.selectedExamId();
-    const sched = this.selectedSchedule();
-    if (!examId || !sched || !shiftId) return;
+    const scheduleId = this.selectedSchedule()?.id;
+    if (!examId || !scheduleId || !shiftId) return;
 
     this.loadingAllocations.set(true);
-    this.centreService.listAllocations(examId, sched.id, shiftId).subscribe({
-      next: (list) => {
-        this.allocations.set(list || []);
+    this.centreService.listAllocations(examId, scheduleId, shiftId).subscribe({
+      next: (allocations: SeatAllocationResponse[]) => {
+        this.allocations.set(allocations || []);
         this.loadingAllocations.set(false);
       },
-      error: () => this.loadingAllocations.set(false),
+      error: () => {
+        this.loadingAllocations.set(false);
+      },
     });
   }
 
@@ -351,26 +302,22 @@ export class ExaminationsFeatureScheduling implements OnInit {
     this.showAllocationModal.set(true);
   }
 
-  handleSaveAllocation(payload: SeatAllocationRequest): void {
+  handleSaveAllocation(req: SeatAllocationRequest): void {
     const examId = this.selectedExamId();
-    const sched = this.selectedSchedule();
-    const shift = this.selectedShift();
-    if (!examId || !sched || !shift) return;
+    const scheduleId = this.selectedSchedule()?.id;
+    const shiftId = this.selectedShift()?.id;
+    if (!examId || !scheduleId || !shiftId) return;
 
-    this.centreService.upsertAllocation(examId, sched.id, shift.id, payload).subscribe({
+    this.centreService.upsertAllocation(examId, scheduleId, shiftId, req).subscribe({
       next: () => {
+        this.snackBar.open('Seat quota allocated successfully!', 'OK', { duration: 3000 });
         this.showAllocationModal.set(false);
-        this.snackBar.open('Seat Allocation updated successfully', 'OK', {
-          duration: 3000,
-        });
-        this.loadAllocations(shift.id);
+        this.loadAllocations(shiftId);
       },
-      error: (err) => {
-        this.snackBar.open(
-          err?.error?.message || 'Failed to save seat allocation',
-          'Dismiss',
-          { duration: 4000 }
-        );
+      error: (err: any) => {
+        this.snackBar.open(err?.error?.message || 'Seat allocation failed', 'Dismiss', {
+          duration: 4000,
+        });
       },
     });
   }

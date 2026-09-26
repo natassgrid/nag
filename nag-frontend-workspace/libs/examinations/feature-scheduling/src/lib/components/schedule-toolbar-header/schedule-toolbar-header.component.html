@@ -1,0 +1,145 @@
+<!-- Top Banner -->
+<div class="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-6 rounded-2xl border border-slate-200 shadow-xs">
+  <div class="flex items-center gap-4">
+    <div class="w-12 h-12 rounded-xl bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-600 shadow-xs">
+      <mat-icon class="!text-2xl leading-none">calendar_month</mat-icon>
+    </div>
+    <div>
+      <h1 class="text-xl font-black text-slate-900 tracking-tight flex items-center gap-2">
+        <span>Examination Scheduling &amp; Shift Orchestrator</span>
+        <span class="text-xs font-semibold px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-200">
+          DPI Multi-Stage
+        </span>
+      </h1>
+      <p class="text-xs text-slate-500 font-medium mt-0.5">
+        Schedule examination dates, shifts, candidate seat quotas, version amendments, and approval governance
+      </p>
+    </div>
+  </div>
+
+  <!-- Top Action Buttons -->
+  <div class="flex items-center gap-3">
+    <button
+      mat-stroked-button
+      (click)="refresh.emit()"
+      [disabled]="loading()"
+      class="!text-slate-700 !border-slate-300"
+    >
+      <mat-icon>refresh</mat-icon>
+      Refresh
+    </button>
+    <button
+      mat-flat-button
+      color="primary"
+      [disabled]="!selectedExamId()"
+      (click)="createSchedule.emit()"
+    >
+      <mat-icon>add</mat-icon>
+      New Schedule Session
+    </button>
+  </div>
+</div>
+
+<!-- Examination Selector & Session Stats -->
+<div class="bg-white p-5 rounded-2xl border border-slate-200 space-y-4 shadow-xs">
+  <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+    <div class="flex items-center gap-3 w-full md:w-auto">
+      <label for="active-exam-select" class="text-xs font-bold text-slate-500 uppercase tracking-wider whitespace-nowrap">
+        Target Examination:
+      </label>
+      <select
+        id="active-exam-select"
+        [ngModel]="selectedExamId()"
+        (ngModelChange)="examChange.emit($event)"
+        class="w-full md:w-96 px-3 py-2 text-xs bg-slate-50 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 font-bold text-slate-900"
+      >
+        @for (exam of exams(); track exam.id) {
+          <option [value]="exam.id">
+            {{ exam.name }} ({{ exam.code || 'NO-CODE' }}) &bull; {{ exam.status }}
+          </option>
+        }
+      </select>
+    </div>
+
+    <!-- Tab Navigator -->
+    <div class="flex items-center bg-slate-100 p-1 rounded-xl">
+      <button
+        type="button"
+        (click)="tabChange.emit('SCHEDULES')"
+        [class.bg-white]="currentTab() === 'SCHEDULES'"
+        [class.text-indigo-600]="currentTab() === 'SCHEDULES'"
+        [class.shadow-xs]="currentTab() === 'SCHEDULES'"
+        class="px-3.5 py-1.5 text-xs font-bold rounded-lg transition-all text-slate-600 flex items-center gap-1.5"
+      >
+        <mat-icon class="!text-sm">event_note</mat-icon>
+        Schedules ({{ totalSchedules() }})
+      </button>
+
+      <button
+        type="button"
+        (click)="tabChange.emit('SHIFTS')"
+        [disabled]="!selectedSchedule()"
+        [class.bg-white]="currentTab() === 'SHIFTS'"
+        [class.text-indigo-600]="currentTab() === 'SHIFTS'"
+        [class.shadow-xs]="currentTab() === 'SHIFTS'"
+        class="px-3.5 py-1.5 text-xs font-bold rounded-lg transition-all text-slate-600 flex items-center gap-1.5 disabled:opacity-40"
+      >
+        <mat-icon class="!text-sm">access_time</mat-icon>
+        Shifts ({{ totalShifts() }})
+      </button>
+
+      <button
+        type="button"
+        (click)="tabChange.emit('ALLOCATIONS')"
+        [disabled]="!selectedShift()"
+        [class.bg-white]="currentTab() === 'ALLOCATIONS'"
+        [class.text-indigo-600]="currentTab() === 'ALLOCATIONS'"
+        [class.shadow-xs]="currentTab() === 'ALLOCATIONS'"
+        class="px-3.5 py-1.5 text-xs font-bold rounded-lg transition-all text-slate-600 flex items-center gap-1.5 disabled:opacity-40"
+      >
+        <mat-icon class="!text-sm">airline_seat_recline_normal</mat-icon>
+        Seat Allocations ({{ totalAllocations() }})
+      </button>
+    </div>
+  </div>
+
+  <!-- Active Schedule Context Chip Banner -->
+  @if (selectedSchedule(); as sched) {
+    <div class="p-3 bg-indigo-50/60 rounded-xl border border-indigo-100 flex flex-wrap items-center justify-between gap-3 text-xs">
+      <div class="flex items-center gap-2">
+        <span class="font-extrabold text-indigo-950">Active Schedule:</span>
+        <span class="font-bold text-slate-800">{{ sched.scheduleName }}</span>
+        <span class="font-mono text-[10px] px-2 py-0.5 rounded bg-indigo-100 text-indigo-800 font-bold">
+          v{{ sched.scheduleVersion }}
+        </span>
+        <span class="text-slate-400">&bull;</span>
+        <span class="text-slate-600">Exam Date: <strong>{{ sched.examDate }}</strong></span>
+        @if (sched.reserveDate) {
+          <span class="text-slate-500">(Reserve: {{ sched.reserveDate }})</span>
+        }
+      </div>
+
+      <div class="flex items-center gap-2">
+        <span class="text-[10px] font-extrabold uppercase px-2.5 py-0.5 rounded-full bg-slate-900 text-white">
+          {{ sched.status }}
+        </span>
+        <button
+          type="button"
+          (click)="transitionClick.emit(sched)"
+          class="px-2.5 py-1 bg-white hover:bg-slate-50 border border-slate-300 rounded text-xs font-bold text-indigo-600 flex items-center gap-1 shadow-2xs"
+        >
+          <mat-icon class="!text-xs">swap_horiz</mat-icon>
+          Workflow Transition
+        </button>
+        <button
+          type="button"
+          (click)="amendClick.emit(sched)"
+          class="px-2.5 py-1 bg-white hover:bg-slate-50 border border-slate-300 rounded text-xs font-bold text-purple-600 flex items-center gap-1 shadow-2xs"
+        >
+          <mat-icon class="!text-xs">history_edu</mat-icon>
+          Amend Schedule
+        </button>
+      </div>
+    </div>
+  }
+</div>
