@@ -64,9 +64,29 @@ export class LoginComponent implements OnInit {
         },
         error: (err) => {
           this.loading.set(false);
+
+          // Intercept unverified accounts and redirect to verification flow
+          const errData = err?.error;
+          if (
+            errData?.pendingVerification ||
+            errData?.title === 'Account Not Verified' ||
+            (errData?.detail && errData.detail.toLowerCase().includes('not yet verified'))
+          ) {
+            const userId = errData?.userId || '';
+            const email = errData?.email || this.username.trim();
+            this.router.navigate(['/verify-otp'], {
+              queryParams: {
+                userId,
+                email,
+                pending: 'true',
+              },
+            });
+            return;
+          }
+
           const detail =
-            err?.error?.message ||
-            err?.error?.detail ||
+            errData?.message ||
+            errData?.detail ||
             err?.message ||
             'Invalid credentials. Please verify your email/mobile and password.';
           this.errorMessage.set(detail);

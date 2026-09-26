@@ -7,29 +7,49 @@
           NAG
         </div>
         <div class="text-left">
-          <h1 class="text-2xl font-black text-white tracking-tight">Two-Factor OTP</h1>
-          <p class="text-xs text-indigo-300 uppercase tracking-widest font-semibold">Account Verification</p>
+          <h1 class="text-2xl font-black text-white tracking-tight">Email Verification</h1>
+          <p class="text-xs text-indigo-300 uppercase tracking-widest font-semibold">Candidate Account Activation</p>
         </div>
       </div>
       <p class="text-slate-400 text-xs">
         Enter the 6-digit verification code sent to
-        <b class="text-white font-mono">{{ email() || 'your registered mobile' }}</b>
+        <b class="text-white font-mono">{{ email() || 'your registered email' }}</b>
       </p>
     </div>
 
-    <!-- OTP Card -->
+    <!-- Main OTP Card -->
     <div class="bg-white rounded-3xl border border-slate-200 p-8 shadow-2xl space-y-6">
+      <!-- Pending Login Notification Banner -->
+      @if (isPendingLogin()) {
+        <div class="p-3.5 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 text-xs font-medium flex items-start gap-2.5">
+          <mat-icon class="!text-lg text-amber-600 shrink-0 mt-0.5">info</mat-icon>
+          <div>
+            <strong class="font-bold block text-amber-800">Verification Required</strong>
+            <span>Your account is pending verification. Please enter the OTP code sent to your email or click resend below.</span>
+          </div>
+        </div>
+      }
+
+      <!-- Error Message Banner -->
       @if (errorMessage()) {
         <div class="p-3.5 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs font-medium flex items-center gap-2">
-          <mat-icon class="!text-base leading-none">error_outline</mat-icon>
+          <mat-icon class="!text-base leading-none text-rose-600">error_outline</mat-icon>
           <span>{{ errorMessage() }}</span>
+        </div>
+      }
+
+      <!-- Success Message Banner -->
+      @if (successMessage()) {
+        <div class="p-3.5 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-medium flex items-center gap-2">
+          <mat-icon class="!text-base leading-none text-emerald-600">check_circle</mat-icon>
+          <span>{{ successMessage() }}</span>
         </div>
       }
 
       <form (ngSubmit)="handleVerifyOtp()" class="space-y-6">
         <div>
           <label for="otp-code" class="block text-xs font-bold text-slate-700 uppercase mb-2 text-center">
-            6-Digit Security Code
+            6-Digit Verification Code
           </label>
           <input
             id="otp-code"
@@ -52,22 +72,42 @@
         >
           <span class="flex items-center justify-center gap-2">
             <mat-icon class="!text-base">{{ loading() ? 'hourglass_top' : 'verified_user' }}</mat-icon>
-            {{ loading() ? 'Verifying OTP...' : 'Verify & Complete Activation' }}
+            {{ loading() ? 'Verifying Code...' : 'Verify & Activate Account' }}
           </span>
         </button>
       </form>
 
-      <div class="flex items-center justify-between text-xs text-slate-500 pt-2 border-t border-slate-100">
-        <a routerLink="/login" class="text-slate-500 hover:text-slate-700 font-semibold">
+      <!-- Testing bypass button in non-production/dev environments -->
+      <div class="text-center pt-1">
+        <button
+          type="button"
+          (click)="fillTestBypassOtp()"
+          class="text-[11px] font-semibold text-slate-400 hover:text-indigo-600 transition-colors"
+        >
+          Use Test OTP (000000)
+        </button>
+      </div>
+
+      <div class="flex items-center justify-between text-xs text-slate-500 pt-3 border-t border-slate-100">
+        <a routerLink="/login" class="text-slate-500 hover:text-slate-700 font-semibold flex items-center gap-1">
           &larr; Back to Sign In
         </a>
         <button
           type="button"
           (click)="resendOtp()"
-          [disabled]="resendCountdown() > 0"
-          class="font-bold text-indigo-600 hover:underline disabled:text-slate-400 disabled:no-underline"
+          [disabled]="resendCountdown() > 0 || resending()"
+          class="font-bold text-indigo-600 hover:underline disabled:text-slate-400 disabled:no-underline flex items-center gap-1"
         >
-          {{ resendCountdown() > 0 ? 'Resend in ' + resendCountdown() + 's' : 'Resend Code' }}
+          @if (resending()) {
+            <mat-icon class="!text-sm animate-spin">refresh</mat-icon>
+            Sending...
+          } @else if (resendCountdown() > 0) {
+            <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 font-mono text-[11px]">
+              Resend in {{ resendCountdown() }}s
+            </span>
+          } @else {
+            Resend Code
+          }
         </button>
       </div>
     </div>

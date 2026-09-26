@@ -116,14 +116,22 @@ public class RegistrationService {
     }
 
     /**
-     * Resends Email OTP to a candidate awaiting verification.
+     * Resends Email OTP to a candidate awaiting verification, looking up by userId or email.
+     */
+    @Transactional
+    public void resendEmailOtp(UUID userId, String email, String tenantId) {
+        UserAccount account = findPendingAccount(userId, email, tenantId);
+        otpService.sendEmailOtp(account.getId(), account.getEmailHash(), account.getUsername(), null, tenantId);
+        publishAuditEventAsync(account.getId().toString(), tenantId);
+        log.info("Email OTP resent for user [{}] in tenant [{}]", account.getId(), tenantId);
+    }
+
+    /**
+     * Resends Email OTP to a candidate awaiting verification by userId.
      */
     @Transactional
     public void resendEmailOtp(UUID userId, String tenantId) {
-        UserAccount account = findPendingAccount(userId, tenantId);
-        otpService.sendEmailOtp(account.getId(), account.getEmailHash(), account.getUsername(), null, tenantId);
-        publishAuditEventAsync(account.getId().toString(), tenantId);
-        log.info("Email OTP resent for user [{}] in tenant [{}]", userId, tenantId);
+        resendEmailOtp(userId, null, tenantId);
     }
 
     /**
@@ -131,7 +139,7 @@ public class RegistrationService {
      */
     @Transactional
     public void resendSmsOtp(UUID userId, String tenantId) {
-        UserAccount account = findPendingAccount(userId, tenantId);
+        UserAccount account = findPendingAccount(userId, null, tenantId);
         otpService.sendSmsOtp(account.getId(), account.getMobileHash(), null, tenantId);
         publishAuditEventAsync(account.getId().toString(), tenantId);
         log.info("SMS OTP resent for user [{}] in tenant [{}]", userId, tenantId);
@@ -145,15 +153,27 @@ public class RegistrationService {
         resendSmsOtp(userId, tenantId);
     }
 
-    private UserAccount findPendingAccount(UUID userId, String tenantId) {
-        UserAccount account = userAccountRepository.findById(userId)
-                .orElseThrow(() -> new AccountNotFoundException("Account not found for user: " + userId));
-
-        if (!tenantId.equals(account.getTenantId())) {
-            throw new AccountNotFoundException("No account found for user in this tenant.");
+    private UserAccount findPendingAccount(UUID userId, String email, String tenantId) {
+        UserAccount account = null;
+        if (userId != null) {
+            account = userAccountRepository.findById(userId).orElse(null);
+        }
+        if (account == null && email != null && !email.isBlank()) {
+            String emailHash = hashingService.sha256(email.trim().toLowerCase());
+            account = userAccountRepository.findByEmailHashAndTenantId(emailHash, tenantId)
+                    .or(() -> userAccountRepository.findByUsernameIgnoreCaseAndTenantId(email.trim(), tenantId))
+                    .orElse(null);
         }
 
-        if (account.getAccountStatus() == AccountStatus.ACTIVE || (account.isEmailVerified() && account.isMobileVerified())) {
+        if (account == null) {
+            throw new AccountNotFoundException("Account not found for user: " + (userId != null ? userId : email));
+        }
+
+        if (!tenantId.equals(account.getTenantId())) {
+            throw new AccountNotFoundException("No account found for user in this tenant: " + (userId != null ? userId : email));
+        }
+
+        if (account.getAccountStatus() == AccountStatus.ACTIVE) {
             throw new InvalidOtpException("Account is already verified. Please login instead.");
         }
 

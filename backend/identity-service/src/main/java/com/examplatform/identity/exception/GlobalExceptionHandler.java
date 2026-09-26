@@ -14,8 +14,7 @@
  * GNU Affero General Public License for more details.
  *
  * You should have received a copy of the GNU Affero General Public License
- * along with this program. If not, see <https://www.gnu.org/licenses/>.
- */
+ * along with this program. If not, see <https://www.gnu.org/licenses/>.\n */
 
 package com.examplatform.identity.exception;
 
@@ -40,6 +39,23 @@ import java.util.Map;
 @Slf4j
 @RestControllerAdvice(basePackages = "com.examplatform.identity")
 public class GlobalExceptionHandler {
+
+    /**
+     * Handle unverified account login attempts.
+     * Returns HTTP 401 Unauthorized with pendingVerification details.
+     */
+    @ExceptionHandler(AccountNotVerifiedException.class)
+    public ResponseEntity<ProblemDetail> handleAccountNotVerified(AccountNotVerifiedException ex) {
+        ProblemDetail pd = ProblemDetailBuilder.forStatus(HttpStatus.UNAUTHORIZED)
+                .withTitle("Account Not Verified")
+                .withDetail(ex.getMessage())
+                .withProperty("pendingVerification", true)
+                .withProperty("userId", ex.getUserId() != null ? ex.getUserId().toString() : null)
+                .withProperty("email", ex.getEmail())
+                .build();
+        log.debug("Account not verified login intercept for user [{}]: {}", ex.getUserId(), ex.getMessage());
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(pd);
+    }
 
     /**
      * Handle authentication failures (bad credentials, locked/deactivated account, device mismatch).
@@ -217,7 +233,7 @@ public class GlobalExceptionHandler {
     }
 
     /**
-     * Handle rate limit exceeded (too many auth attempts from the same IP).
+     * Handle rate limit exceeded (too many auth attempts or OTP requests).
      * Returns HTTP 429 Too Many Requests with a Retry-After header.
      *
      * @param ex the rate limit exceeded exception

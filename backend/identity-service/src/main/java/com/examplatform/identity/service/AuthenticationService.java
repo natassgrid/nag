@@ -27,6 +27,7 @@ import com.examplatform.identity.dto.AuthTokenRequest;
 import com.examplatform.identity.dto.AuthTokenResponse;
 import com.examplatform.identity.dto.RefreshTokenRequest;
 import com.examplatform.identity.exception.AccountNotFoundException;
+import com.examplatform.identity.exception.AccountNotVerifiedException;
 import com.examplatform.identity.exception.AuthenticationException;
 import com.examplatform.identity.exception.MfaRequiredException;
 import com.examplatform.identity.repository.ActiveSessionRepository;
@@ -96,7 +97,11 @@ public class AuthenticationService {
             case DEACTIVATED ->
                 throw new AuthenticationException("Account has been deactivated.");
             case PENDING_VERIFICATION ->
-                throw new AuthenticationException("Account not yet verified. Please complete verification.");
+                throw new AccountNotVerifiedException(
+                    "Account not yet verified. Please complete verification.",
+                    account.getId(),
+                    account.getUsername()
+                );
             case PENDING_SETUP ->
                 throw new AuthenticationException("Account setup is pending. Please use your email invitation link.");
             case ACTIVE -> { /* proceed */ }

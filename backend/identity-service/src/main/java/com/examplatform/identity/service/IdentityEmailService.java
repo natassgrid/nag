@@ -27,6 +27,10 @@ import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.stereotype.Service;
 
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
+import java.util.UUID;
+
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -40,12 +44,20 @@ public class IdentityEmailService {
     @Value("${app.frontend.admin-url:http://localhost:4200}")
     private String adminPortalUrl;
 
+    @Value("${app.frontend.candidate-url:http://localhost:4200}")
+    private String candidatePortalUrl;
+
     /**
-     * Sends candidate email OTP verification email.
+     * Sends candidate email OTP verification email with direct verification link.
      */
-    public boolean sendCandidateEmailOtp(String recipientEmail, String otpCode, String candidateName) {
+    public boolean sendCandidateEmailOtp(String recipientEmail, String otpCode, String candidateName, UUID userId) {
         String subject = "National Assessment Grid - Verify Your Email Address";
         String displayName = (candidateName != null && !candidateName.isBlank()) ? candidateName : "Candidate";
+
+        String encodedEmail = URLEncoder.encode(recipientEmail, StandardCharsets.UTF_8);
+        String directVerifyUrl = candidatePortalUrl + "/verify-otp?email=" + encodedEmail
+                + (userId != null ? "&userId=" + userId : "")
+                + "&otp=" + otpCode;
 
         String htmlContent = """
             <!DOCTYPE html>
@@ -61,8 +73,10 @@ public class IdentityEmailService {
                 .header h1 { margin: 0; font-size: 20px; font-weight: 700; letter-spacing: 0.5px; }
                 .header p { margin: 6px 0 0 0; font-size: 13px; opacity: 0.85; }
                 .content { padding: 32px 28px; color: #334155; }
-                .otp-box { background: #f1f5f9; border: 2px dashed #94a3b8; border-radius: 8px; padding: 18px; text-align: center; margin: 24px 0; }
+                .otp-box { background: #f1f5f9; border: 2px dashed #94a3b8; border-radius: 8px; padding: 18px; text-align: center; margin: 20px 0; }
                 .otp-code { font-family: monospace; font-size: 32px; font-weight: 800; letter-spacing: 8px; color: #1e3a8a; margin: 0; }
+                .btn-container { text-align: center; margin: 24px 0; }
+                .btn { display: inline-block; background: #4f46e5; color: #ffffff !important; text-decoration: none; padding: 12px 28px; border-radius: 8px; font-weight: 600; font-size: 14px; }
                 .warning { background: #fef2f2; border-left: 4px solid #ef4444; padding: 12px 16px; margin: 20px 0; border-radius: 0 6px 6px 0; font-size: 13px; color: #991b1b; }
                 .footer { background: #f8fafc; padding: 16px; text-align: center; font-size: 12px; color: #94a3b8; border-top: 1px solid #e2e8f0; }
               </style>
@@ -75,9 +89,12 @@ public class IdentityEmailService {
                 </div>
                 <div class="content">
                   <p>Dear <strong>%s</strong>,</p>
-                  <p>Thank you for registering on the National Assessment Grid. Please use the following One-Time Password (OTP) to verify your email address:</p>
+                  <p>Thank you for registering on the National Assessment Grid. Please use the following One-Time Password (OTP) to verify your email address and activate your account:</p>
                   <div class="otp-box">
                     <div class="otp-code">%s</div>
+                  </div>
+                  <div class="btn-container">
+                    <a href="%s" class="btn">Verify Email Directly</a>
                   </div>
                   <p>This verification code is valid for <strong>10 minutes</strong>.</p>
                   <div class="warning">
@@ -91,15 +108,23 @@ public class IdentityEmailService {
               </div>
             </body>
             </html>
-            """.formatted(escapeHtml(displayName), escapeHtml(otpCode));
+            """.formatted(escapeHtml(displayName), escapeHtml(otpCode), escapeHtml(directVerifyUrl));
 
         String textContent = "Dear " + displayName + ",\n\n"
                 + "Your National Assessment Grid (NAG) email verification OTP is: " + otpCode + "\n\n"
+                + "You can also verify directly using this link:\n" + directVerifyUrl + "\n\n"
                 + "This OTP is valid for 10 minutes.\n"
                 + "Security Notice: Never share this OTP with anyone.\n\n"
                 + "If you did not request this, please disregard this email.\n";
 
         return sendMimeEmail(recipientEmail, subject, htmlContent, textContent);
+    }
+
+    /**
+     * Overload without userId.
+     */
+    public boolean sendCandidateEmailOtp(String recipientEmail, String otpCode, String candidateName) {
+        return sendCandidateEmailOtp(recipientEmail, otpCode, candidateName, null);
     }
 
     /**

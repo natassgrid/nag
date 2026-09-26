@@ -191,9 +191,17 @@ export class AuthService {
     }
   }
 
+  resendEmailOtp(payload: { userId?: string; email?: string }): Observable<any> {
+    return this.http.post<{ status?: string; message?: string }>(
+      '/api/v1/identity/resend/email-otp',
+      payload
+    );
+  }
+
   verifyOtp(payload: {
     registrationId?: string;
     userId?: string;
+    email?: string;
     mobile?: string;
     otp: string;
   }): Observable<UserToken> {
@@ -204,7 +212,11 @@ export class AuthService {
       )
       .pipe(
         map((res) => res.data || (res as UserToken)),
-        tap((token) => this.storeTokens(token))
+        tap((token) => {
+          if (token && (token.accessToken || token.userId)) {
+            this.storeTokens(token, payload.email);
+          }
+        })
       );
   }
 
@@ -248,8 +260,8 @@ export class AuthService {
       return false;
     }
 
-    const nowSec = Math.floor(Date.now() / 1000);
-    if (payload.exp <= nowSec) {
+    const isExpired = payload.exp * 1000 < Date.now();
+    if (isExpired) {
       localStorage.removeItem(this.TOKEN_KEY);
       localStorage.removeItem(this.REFRESH_TOKEN_KEY);
       localStorage.removeItem(this.USER_KEY);
@@ -261,10 +273,10 @@ export class AuthService {
 
   private getInitialUser(): AuthUser | null {
     if (typeof localStorage === 'undefined') return null;
-    const raw = localStorage.getItem(this.USER_KEY);
-    if (!raw) return null;
+    const userStr = localStorage.getItem(this.USER_KEY);
+    if (!userStr) return null;
     try {
-      return JSON.parse(raw) as AuthUser;
+      return JSON.parse(userStr);
     } catch {
       return null;
     }
@@ -273,18 +285,16 @@ export class AuthService {
   private decodeJwtPayload(token: string): any {
     try {
       const parts = token.split('.');
-      if (parts.length !== 3) return null;
-      let base64 = parts[1].replace(/-/g, '+').replace(/_/g, '/');
-      const pad = base64.length % 4;
-      if (pad === 2) base64 += '==';
-      else if (pad === 3) base64 += '=';
-      const jsonStr = decodeURIComponent(
+      if (parts.length < 2) return null;
+      const base64Url = parts[1];
+      const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+      const jsonPayload = decodeURIComponent(
         atob(base64)
           .split('')
           .map((c) => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
           .join('')
       );
-      return JSON.parse(jsonStr);
+      return JSON.parse(jsonPayload);
     } catch {
       return null;
     }

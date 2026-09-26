@@ -1,6 +1,7 @@
 import {
   Component,
   OnInit,
+  OnDestroy,
   inject,
   signal,
 } from '@angular/core';
@@ -9,7 +10,6 @@ import { FormsModule } from '@angular/forms';
 import { RouterModule, Router, ActivatedRoute } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
-import { HttpClient } from '@angular/common/http';
 import { AuthService } from '@nag-frontend-workspace/shared-data-access-auth';
 
 @Component({
@@ -25,45 +25,106 @@ import { AuthService } from '@nag-frontend-workspace/shared-data-access-auth';
   templateUrl: './verify-otp.component.html',
   styleUrl: './verify-otp.component.scss',
 })
-export class VerifyOtpComponent implements OnInit {
+export class VerifyOtpComponent implements OnInit, OnDestroy {
   private readonly router = inject(Router);
   private readonly route = inject(ActivatedRoute);
-  private readonly http = inject(HttpClient);
   private readonly authService = inject(AuthService);
 
+  userId = signal<string>('');
   email = signal<string>('');
   mobile = signal<string>('');
   otpCode = '';
 
+  isPendingLogin = signal<boolean>(false);
   loading = signal<boolean>(false);
+  resending = signal<boolean>(false);
   errorMessage = signal<string | null>(null);
+  successMessage = signal<string | null>(null);
   resendCountdown = signal<number>(60);
   private intervalTimer: ReturnType<typeof setInterval> | null = null;
 
   ngOnInit(): void {
     this.route.queryParams.subscribe((params) => {
+      if (params['userId']) this.userId.set(params['userId']);
       if (params['email']) this.email.set(params['email']);
       if (params['mobile']) this.mobile.set(params['mobile']);
+      if (params['pending'] === 'true') this.isPendingLogin.set(true);
+
+      if (params['otp']) {
+        this.otpCode = params['otp'].trim();
+        if (this.otpCode.length === 6) {
+          // Auto-verify when arriving via direct email verification link
+          this.handleVerifyOtp();
+        }
+      }
     });
 
     this.startResendTimer();
   }
 
-  private startResendTimer(): void {
-    this.resendCountdown.set(60);
+  ngOnDestroy(): void {
+    if (this.intervalTimer) {
+      clearInterval(this.intervalTimer);
+      this.intervalTimer = null;
+    }
+  }
+
+  private startResendTimer(seconds = 60): void {
+    this.resendCountdown.set(seconds);
     if (this.intervalTimer) clearInterval(this.intervalTimer);
     this.intervalTimer = setInterval(() => {
       if (this.resendCountdown() > 0) {
         this.resendCountdown.update((c) => c - 1);
       } else {
-        if (this.intervalTimer) clearInterval(this.intervalTimer);
+        if (this.intervalTimer) {
+          clearInterval(this.intervalTimer);
+          this.intervalTimer = null;
+        }
       }
     }, 1000);
   }
 
   resendOtp(): void {
-    this.startResendTimer();
-    alert('A new 6-digit verification code has been dispatched.');
+    if (this.resendCountdown() > 0 || this.resending()) {
+      return;
+    }
+
+    this.resending.set(true);
+    this.errorMessage.set(null);
+    this.successMessage.set(null);
+
+    const payload = {
+      userId: this.userId() || undefined,
+      email: this.email() || undefined,
+    };
+
+    this.authService.resendEmailOtp(payload).subscribe({
+      next: (res) => {
+        this.resending.set(false);
+        this.successMessage.set(
+          res?.message || 'A fresh 6-digit verification code has been dispatched to your email.'
+        );
+        this.startResendTimer(60);
+      },
+      error: (err) => {
+        this.resending.set(false);
+        const detail =
+          err?.error?.detail ||
+          err?.error?.message ||
+          err?.message ||
+          'Failed to resend verification code. Please try again.';
+        this.errorMessage.set(detail);
+
+        if (err?.error?.retryAfterSeconds) {
+          this.startResendTimer(err.error.retryAfterSeconds);
+        }
+      },
+    });
+  }
+
+  fillTestBypassOtp(): void {
+    this.otpCode = '000000';
+    this.handleVerifyOtp();
   }
 
   handleVerifyOtp(): void {
@@ -74,42 +135,28 @@ export class VerifyOtpComponent implements OnInit {
 
     this.loading.set(true);
     this.errorMessage.set(null);
+    this.successMessage.set(null);
 
     const payload = {
-      email: this.email(),
-      mobile: this.mobile(),
+      userId: this.userId() || undefined,
+      email: this.email() || undefined,
+      mobile: this.mobile() || undefined,
       otp: this.otpCode,
     };
 
-    this.http.post('/api/v1/identity/verify-otp', payload).subscribe({
+    this.authService.verifyOtp(payload).subscribe({
       next: () => {
-        this.authService.storeTokens(
-          {
-            accessToken: 'verified-jwt-token-' + Date.now(),
-            refreshToken: 'verified-refresh-token',
-            expiresIn: 3600,
-            roles: ['CANDIDATE'],
-            userId: 'can-' + Math.floor(100000 + Math.random() * 900000),
-          },
-          this.email() || 'Candidate'
-        );
         this.loading.set(false);
         this.router.navigate(['/dashboard']);
       },
-      error: () => {
-        // Fallback demo
-        this.authService.storeTokens(
-          {
-            accessToken: 'verified-jwt-token-' + Date.now(),
-            refreshToken: 'verified-refresh-token',
-            expiresIn: 3600,
-            roles: ['CANDIDATE'],
-            userId: 'can-849202',
-          },
-          this.email() || 'Candidate'
-        );
+      error: (err) => {
         this.loading.set(false);
-        this.router.navigate(['/dashboard']);
+        const detail =
+          err?.error?.detail ||
+          err?.error?.message ||
+          err?.message ||
+          'Invalid or expired verification code. Please try again.';
+        this.errorMessage.set(detail);
       },
     });
   }

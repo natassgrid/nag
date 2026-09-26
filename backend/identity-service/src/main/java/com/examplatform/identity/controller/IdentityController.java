@@ -164,19 +164,27 @@ public class IdentityController {
     }
 
     /**
-     * Resend candidate Email OTP.
+     * Resend candidate Email OTP (supports userId and/or email).
      */
-    @PostMapping("/resend/email-otp")
+    @PostMapping({"/resend/email-otp", "/otp/resend/email"})
     public ResponseEntity<ApiResponse<Void>> resendEmailOtp(
-            @Valid @RequestBody OtpResendRequest request,
+            @RequestBody OtpResendRequest request,
             @RequestHeader(value = "X-Tenant-Id", defaultValue = "default") String tenantId) {
-        UUID userId;
-        try {
-            userId = UUID.fromString(request.getUserId().trim());
-        } catch (IllegalArgumentException e) {
-            throw new AccountNotFoundException("Invalid user ID format: " + request.getUserId());
+        UUID userId = null;
+        if (request.getUserId() != null && !request.getUserId().isBlank()) {
+            try {
+                userId = UUID.fromString(request.getUserId().trim());
+            } catch (IllegalArgumentException ignored) {}
         }
-        registrationService.resendEmailOtp(userId, tenantId);
+        String email = (request.getEmail() != null && !request.getEmail().isBlank())
+                ? request.getEmail().trim()
+                : (userId == null && request.getUserId() != null ? request.getUserId().trim() : null);
+
+        if (userId == null && (email == null || email.isBlank())) {
+            throw new AccountNotFoundException("Either userId or email must be provided.");
+        }
+
+        registrationService.resendEmailOtp(userId, email, tenantId);
         return ResponseEntity.ok(ApiResponse.success(null, "Email OTP resent successfully."));
     }
 
