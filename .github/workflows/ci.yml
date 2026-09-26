@@ -1,8 +1,12 @@
 name: CI Pipeline
 
 on:
-  workflow_dispatch:  # All jobs are manual-trigger only
+  workflow_dispatch:
   push:
+    branches:
+      - main
+      - develop
+  pull_request:
     branches:
       - main
       - develop
@@ -18,7 +22,6 @@ jobs:
   build:
     name: Build
     runs-on: ubuntu-latest
-    if: github.event_name == 'workflow_dispatch'
     steps:
       - name: Checkout source
         uses: actions/checkout@v4
@@ -49,8 +52,11 @@ jobs:
   unit-test:
     name: Unit Tests
     runs-on: ubuntu-latest
-    if: github.event_name == 'workflow_dispatch'
     needs: build
+    permissions:
+      contents: read
+      checks: write
+      pull-requests: write
     steps:
       - name: Checkout source
         uses: actions/checkout@v4
@@ -91,8 +97,11 @@ jobs:
   integration-test:
     name: Integration Tests
     runs-on: ubuntu-latest
-    if: github.event_name == 'workflow_dispatch'
     needs: build
+    permissions:
+      contents: read
+      checks: write
+      pull-requests: write
     steps:
       - name: Checkout source
         uses: actions/checkout@v4
@@ -125,7 +134,6 @@ jobs:
   sast:
     name: SAST (SpotBugs + Semgrep)
     runs-on: ubuntu-latest
-    if: github.event_name == 'workflow_dispatch'
     needs: build
     permissions:
       security-events: write
@@ -149,6 +157,7 @@ jobs:
 
       - name: Run SpotBugs
         run: ./gradlew spotbugsMain --no-daemon
+        continue-on-error: true
 
       - name: Upload SpotBugs HTML reports
         uses: actions/upload-artifact@v4
@@ -174,7 +183,6 @@ jobs:
   dependency-check:
     name: OWASP Dependency-Check
     runs-on: ubuntu-latest
-    if: github.event_name == 'workflow_dispatch'
     needs: build
     steps:
       - name: Checkout source
@@ -217,7 +225,7 @@ jobs:
   dast:
     name: DAST (OWASP ZAP)
     runs-on: ubuntu-latest
-    if: github.event_name == 'workflow_dispatch' && vars.STAGING_URL != ''
+    if: vars.STAGING_URL != ''
     needs: build
     steps:
       - name: Checkout source
@@ -246,8 +254,10 @@ jobs:
   container-build:
     name: Container Build & Scan
     runs-on: ubuntu-latest
-    if: github.event_name == 'workflow_dispatch'
     needs: [unit-test, sast, dependency-check]
+    permissions:
+      contents: read
+      security-events: write
     strategy:
       fail-fast: false
       matrix:
@@ -266,6 +276,8 @@ jobs:
           - notification-service
           - admin-service
           - analytics-service
+          - asset-service
+          - monolith-app
           - api-gateway
     steps:
       - name: Checkout source
@@ -284,6 +296,10 @@ jobs:
       - name: Grant execute permission for gradlew
         run: chmod +x ./gradlew
 
+      - name: Build Builder Base Image
+        run: |
+          docker build -f backend/Dockerfile.base -t exam/builder-base:latest .
+
       - name: Build JAR for ${{ matrix.service }}
         run: ./gradlew :backend:${{ matrix.service }}:bootJar --no-daemon
         continue-on-error: true
@@ -300,7 +316,7 @@ jobs:
       - name: Run Trivy image scan for ${{ matrix.service }}
         uses: aquasecurity/trivy-action@0.20.0
         with:
-          image-ref: 'examplatform/${{ matrix.service }}:${{ github.sha }}'
+          image-ref: 'examplatform/${{ matrix.service }}:${{ github.sha }}'\
           format: 'sarif'
           output: 'trivy-${{ matrix.service }}.sarif'
           severity: 'CRITICAL,HIGH'
@@ -320,7 +336,7 @@ jobs:
   deploy:
     name: Deploy to Staging
     runs-on: ubuntu-latest
-    if: github.event_name == 'workflow_dispatch'
+    if: github.event_name == 'workflow_dispatch' && vars.STAGING_URL != ''
     needs: [unit-test, integration-test, sast, container-build]
     environment:
       name: staging
