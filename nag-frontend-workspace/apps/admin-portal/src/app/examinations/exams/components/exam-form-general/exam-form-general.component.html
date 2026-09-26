@@ -1,0 +1,75 @@
+<div class="space-y-3">
+  <h3 class="text-xs font-bold text-indigo-900 uppercase tracking-wider">General Information</h3>
+
+  <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+    <div class="sm:col-span-2">
+      <label for="exam-name-input" class="block text-xs font-semibold text-slate-700 uppercase mb-1">
+        Examination Name *
+      </label>
+      <input
+        id="exam-name-input"
+        type="text"
+        [ngModel]="name()"
+        (ngModelChange)="nameChange.emit($event)"
+        placeholder="e.g. National Entrance Exam for Engineering 2026"
+        class="w-full px-3 py-2 text-sm bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 font-medium"
+      />
+    </div>
+
+    <div>
+      <label for="exam-code-input" class="block text-xs font-semibold text-slate-700 uppercase mb-1">
+        Examination Code
+      </label>
+      <input
+        id="exam-code-input"
+        type="text"
+        [ngModel]="code()"
+        (ngModelChange)="codeChange.emit($event)"
+        placeholder="e.g. NEEE-2026-UG"
+        class="w-full px-3 py-2 text-sm bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 font-mono font-medium"
+      />
+    </div>
+
+    <div>
+      <label for="exam-auth-input" class="block text-xs font-semibold text-slate-700 uppercase mb-1">
+        Conducting Authority
+      </label>
+      <input
+        id="exam-auth-input"
+        type="text"
+        [ngModel]="authority()"
+        (ngModelChange)="authorityChange.emit($event)"
+        placeholder="e.g. National Testing Agency"
+        class="w-full px-3 py-2 text-sm bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 font-medium"
+      />
+    </div>
+
+    <div>
+      <label for="exam-cat-input" class="block text-xs font-semibold text-slate-700 uppercase mb-1">
+        Exam Category
+      </label>
+      <input
+        id="exam-cat-input"
+        type="text"
+        [ngModel]="category()"
+        (ngModelChange)="categoryChange.emit($event)"
+        placeholder="e.g. Higher Education Entrance"
+        class="w-full px-3 py-2 text-sm bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 font-medium"
+      />
+    </div>
+
+    <div>
+      <label for="exam-acad-year-input" class="block text-xs font-semibold text-slate-700 uppercase mb-1">
+        Academic Year
+      </label>
+      <input
+        id="exam-acad-year-input"
+        type="text"
+        [ngModel]="academicYear()"
+        (ngModelChange)="academicYearChange.emit($event)"
+        placeholder="e.g. 2025-2026"
+        class="w-full px-3 py-2 text-sm bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 font-medium"
+      />
+    </div>
+  </div>
+</div>

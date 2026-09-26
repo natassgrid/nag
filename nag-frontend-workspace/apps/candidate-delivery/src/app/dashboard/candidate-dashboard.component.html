@@ -1,52 +1,15 @@
 <div class="candidate-dashboard max-w-7xl mx-auto p-6 space-y-8">
-  <!-- Welcome Header -->
-  <div class="bg-gradient-to-r from-indigo-900 via-indigo-800 to-slate-900 text-white rounded-2xl p-8 shadow-lg flex flex-col md:flex-row items-center justify-between gap-6">
-    <div class="space-y-2">
-      <div class="inline-flex items-center gap-2 px-2.5 py-1 rounded-full bg-indigo-500/30 text-indigo-200 text-xs font-semibold">
-        <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-        Session Active &bull; National Assessment Grid
-      </div>
-      <h1 class="text-2xl md:text-3xl font-black tracking-tight">
-        Welcome, {{ authService.userName() }}
-      </h1>
-      <p class="text-indigo-200 text-xs md:text-sm max-w-xl">
-        Access your registered national assessments, download hall tickets, and launch secure candidate runtimes.
-      </p>
-    </div>
+  <!-- Welcome Banner Sub-component -->
+  <app-dashboard-welcome-banner
+    [userName]="authService.userName()"
+  ></app-dashboard-welcome-banner>
 
-    <div class="flex items-center gap-3">
-      <a
-        mat-flat-button
-        routerLink="/browse"
-        class="!bg-emerald-500 hover:!bg-emerald-600 !text-slate-950 font-bold !rounded-xl !py-2.5 !px-5"
-      >
-        <mat-icon>search</mat-icon>
-        Browse Available Exams
-      </a>
-    </div>
-  </div>
-
-  <!-- Quick Stats -->
-  <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
-    <nag-stat-card
-      label="Registered Assessments"
-      [value]="enrolledExams().length"
-      icon="assignment"
-      variant="primary"
-    />
-    <nag-stat-card
-      label="Active / Live Exams"
-      [value]="liveCount()"
-      icon="play_circle"
-      variant="warn"
-    />
-    <nag-stat-card
-      label="Scorecards Released"
-      [value]="1"
-      icon="verified"
-      variant="success"
-    />
-  </div>
+  <!-- Quick Stats Sub-component -->
+  <app-dashboard-kpi-stats
+    [totalRegistered]="enrolledExams().length"
+    [liveCount]="liveCount()"
+    [scorecardsCount]="1"
+  ></app-dashboard-kpi-stats>
 
   <!-- Registered Assessments Section -->
   <div class="space-y-4">
@@ -62,145 +25,22 @@
 
     <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
       @for (exam of enrolledExams(); track exam.id) {
-        <div class="exam-card bg-white rounded-2xl border border-slate-200 p-6 shadow-xs flex flex-col justify-between space-y-5 hover:shadow-md transition-shadow">
-          <div class="space-y-3">
-            <div class="flex items-start justify-between gap-3">
-              <div>
-                <span class="text-xs font-mono font-bold bg-indigo-50 text-indigo-700 px-2.5 py-0.5 rounded-md">
-                  {{ exam.code }}
-                </span>
-                <h3 class="text-base font-bold text-slate-900 mt-1">
-                  {{ exam.title }}
-                </h3>
-              </div>
-              <nag-status-badge
-                [variant]="exam.status === 'LIVE' ? 'warn' : exam.status === 'UPCOMING' ? 'info' : 'success'"
-                [label]="exam.status === 'LIVE' ? 'Exam Live Now' : exam.status"
-              />
-            </div>
-
-            <div class="grid grid-cols-2 gap-3 text-xs text-slate-600 bg-slate-50 p-3.5 rounded-xl border border-slate-100">
-              <div>
-                <span class="text-slate-400 block text-[10px] uppercase font-semibold">Scheduled Date</span>
-                <span class="font-medium">{{ exam.scheduledDate }} ({{ exam.scheduledTime }})</span>
-              </div>
-              <div>
-                <span class="text-slate-400 block text-[10px] uppercase font-semibold">Duration</span>
-                <span class="font-medium">{{ exam.durationMinutes }} Minutes</span>
-              </div>
-              <div class="col-span-2 pt-1 border-t border-slate-200/60">
-                <span class="text-slate-400 block text-[10px] uppercase font-semibold">Test Center</span>
-                <span class="font-medium truncate block">{{ exam.centerName }}</span>
-              </div>
-            </div>
-          </div>
-
-          <!-- Action Toolbar -->
-          <div class="flex items-center justify-between pt-2 border-t border-slate-100 gap-3">
-            <button
-              mat-stroked-button
-              color="primary"
-              (click)="openAdmitCard(exam)"
-              [disabled]="!exam.admitCardReady"
-              class="!rounded-xl !text-xs font-semibold"
-            >
-              <mat-icon class="!text-sm leading-none">badge</mat-icon>
-              Admit Card
-            </button>
-
-            @if (exam.status === 'LIVE') {
-              <a
-                mat-flat-button
-                color="warn"
-                routerLink="/delivery"
-                class="!rounded-xl !text-xs font-bold !bg-rose-600 hover:!bg-rose-700"
-              >
-                <mat-icon class="!text-sm leading-none">lock_open</mat-icon>
-                Enter Live Exam
-              </a>
-            } @else if (exam.status === 'UPCOMING') {
-              <a
-                mat-flat-button
-                color="primary"
-                routerLink="/delivery"
-                class="!rounded-xl !text-xs font-semibold"
-              >
-                <mat-icon class="!text-sm leading-none">visibility</mat-icon>
-                Preview Runtime
-              </a>
-            } @else {
-              <a
-                mat-flat-button
-                routerLink="/results"
-                class="!rounded-xl !text-xs font-semibold !bg-slate-800 text-white"
-              >
-                <mat-icon class="!text-sm leading-none">assessment</mat-icon>
-                View Scorecard
-              </a>
-            }
-          </div>
-        </div>
+        <!-- Exam Card Sub-component -->
+        <app-enrolled-assessment-card
+          [exam]="exam"
+          (openAdmitCard)="openAdmitCard($event)"
+        ></app-enrolled-assessment-card>
       }
     </div>
   </div>
 
-  <!-- Admit Card Modal -->
+  <!-- Admit Card Dialog Sub-component -->
   @if (selectedAdmitCard(); as card) {
-    <div class="admit-card-backdrop fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4">
-      <div class="bg-white rounded-3xl max-w-xl w-full p-8 shadow-2xl border border-slate-100 space-y-6">
-        <div class="flex items-center justify-between border-b pb-4">
-          <div class="flex items-center gap-3">
-            <div class="w-10 h-10 rounded-xl bg-indigo-600 text-white flex items-center justify-center font-black">
-              NAG
-            </div>
-            <div>
-              <h3 class="text-base font-bold text-slate-900">National Assessment Admit Card</h3>
-              <span class="text-xs text-slate-500">Official Candidate Hall Ticket & Proof</span>
-            </div>
-          </div>
-          <button mat-icon-button (click)="selectedAdmitCard.set(null)">
-            <mat-icon>close</mat-icon>
-          </button>
-        </div>
-
-        <div class="flex flex-col sm:flex-row items-center justify-between gap-6 p-4 bg-slate-50 rounded-2xl border border-slate-200">
-          <div class="space-y-2 text-xs">
-            <div>
-              <span class="text-slate-400 text-[10px] uppercase font-bold block">Candidate Name</span>
-              <span class="text-sm font-bold text-slate-900">{{ authService.userName() }}</span>
-            </div>
-            <div>
-              <span class="text-slate-400 text-[10px] uppercase font-bold block">Roll / Registration No.</span>
-              <span class="font-mono font-bold text-slate-800">{{ card.rollNumber }}</span>
-            </div>
-            <div>
-              <span class="text-slate-400 text-[10px] uppercase font-bold block">Test Center</span>
-              <span class="text-slate-700 font-medium">{{ card.centerName }}, {{ card.centerAddress }}</span>
-            </div>
-            <div>
-              <span class="text-slate-400 text-[10px] uppercase font-bold block">Reporting Time</span>
-              <span class="font-bold text-rose-700">{{ card.scheduledTime }} (Gate closes 30 mins prior)</span>
-            </div>
-          </div>
-
-          <!-- QR Code component for admit card -->
-          <nag-qr-code
-            [data]="'NAG|ROLL:' + card.rollNumber + '|EXAM:' + card.code"
-            [size]="130"
-            [label]="card.rollNumber"
-          />
-        </div>
-
-        <div class="flex items-center justify-end gap-3 pt-2">
-          <button mat-stroked-button (click)="selectedAdmitCard.set(null)" class="!rounded-xl">
-            Close
-          </button>
-          <button mat-flat-button color="primary" (click)="printAdmitCard()" class="!rounded-xl">
-            <mat-icon>print</mat-icon>
-            Print / Download PDF
-          </button>
-        </div>
-      </div>
-    </div>
+    <app-candidate-admit-card-dialog
+      [card]="card"
+      [candidateName]="authService.userName()"
+      (closeDialog)="closeAdmitCard()"
+      (printCard)="printAdmitCard()"
+    ></app-candidate-admit-card-dialog>
   }
 </div>

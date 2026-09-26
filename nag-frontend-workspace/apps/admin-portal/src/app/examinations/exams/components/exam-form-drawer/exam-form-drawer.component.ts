@@ -7,7 +7,6 @@ import {
   SimpleChanges,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { FormsModule } from '@angular/forms';
 import { MatIconModule } from '@angular/material/icon';
 import { MatButtonModule } from '@angular/material/button';
 import {
@@ -15,22 +14,32 @@ import {
   CreateExamRequest,
   ExamSection,
 } from '@nag-frontend-workspace/examinations-data-access';
+import { ExamFormGeneralComponent } from '../exam-form-general/exam-form-general.component';
+import { ExamFormRulesComponent } from '../exam-form-rules/exam-form-rules.component';
+import { ExamFormSectionsComponent } from '../exam-form-sections/exam-form-sections.component';
 
 @Component({
   selector: 'nag-exam-form-drawer',
   standalone: true,
-  imports: [CommonModule, FormsModule, MatIconModule, MatButtonModule],
+  imports: [
+    CommonModule,
+    MatIconModule,
+    MatButtonModule,
+    ExamFormGeneralComponent,
+    ExamFormRulesComponent,
+    ExamFormSectionsComponent,
+  ],
   templateUrl: './exam-form-drawer.component.html',
   styleUrl: './exam-form-drawer.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class ExamFormDrawerComponent implements OnChanges {
-  isOpen = input<boolean>(false);
-  editingExam = input<ExaminationResponse | null>(null);
-  isSaving = input<boolean>(false);
+  readonly isOpen = input<boolean>(false);
+  readonly editingExam = input<ExaminationResponse | null>(null);
+  readonly isSaving = input<boolean>(false);
 
-  closeDrawer = output<void>();
-  saveExam = output<CreateExamRequest>();
+  readonly closeDrawer = output<void>();
+  readonly saveExam = output<CreateExamRequest>();
 
   formName = '';
   formCode = '';
@@ -86,16 +95,19 @@ export class ExamFormDrawerComponent implements OnChanges {
   }
 
   addSection(): void {
-    this.formSections.push({
-      name: `Section ${this.formSections.length + 1}`,
-      questionCount: 20,
-      marksPerQuestion: 4,
-    });
+    this.formSections = [
+      ...this.formSections,
+      {
+        name: `Section ${this.formSections.length + 1}`,
+        questionCount: 20,
+        marksPerQuestion: 4,
+      },
+    ];
   }
 
   removeSection(index: number): void {
     if (this.formSections.length > 1) {
-      this.formSections.splice(index, 1);
+      this.formSections = this.formSections.filter((_, idx) => idx !== index);
     }
   }
 

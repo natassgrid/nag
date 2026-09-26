@@ -10,6 +10,7 @@ import {
   OnInit,
   OnDestroy,
   ChangeDetectorRef,
+  ChangeDetectionStrategy,
   inject,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
@@ -18,15 +19,16 @@ import {
   MatDialogModule,
   MatDialogRef,
 } from '@angular/material/dialog';
-import { MatButtonModule } from '@angular/material/button';
-import { MatIconModule } from '@angular/material/icon';
-import { MatChipsModule } from '@angular/material/chips';
-import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { HttpClient, HttpEventType } from '@angular/common/http';
 import { AssetResponse } from './asset.model';
 import { AssetService } from './asset.service';
+import {
+  AssetPreviewHeaderComponent,
+  AssetPreviewMediaViewerComponent,
+  AssetPreviewMetadataRibbonComponent,
+} from './components';
 
 export interface AssetPreviewDialogData {
   asset: AssetResponse;
@@ -38,15 +40,15 @@ export interface AssetPreviewDialogData {
   imports: [
     CommonModule,
     MatDialogModule,
-    MatButtonModule,
-    MatIconModule,
-    MatChipsModule,
-    MatProgressSpinnerModule,
     MatProgressBarModule,
     MatSnackBarModule,
+    AssetPreviewHeaderComponent,
+    AssetPreviewMediaViewerComponent,
+    AssetPreviewMetadataRibbonComponent,
   ],
   templateUrl: './asset-preview-dialog.component.html',
   styleUrls: ['./asset-preview-dialog.component.scss'],
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class AssetPreviewDialogComponent implements OnInit, OnDestroy {
   readonly dialogRef = inject(MatDialogRef<AssetPreviewDialogComponent>);

@@ -3,51 +3,40 @@ import {
   inject,
   signal,
   computed,
+  ChangeDetectionStrategy,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { RouterModule } from '@angular/router';
-import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
-import {
-  StatCardComponent,
-  StatusBadgeComponent,
-  QrCodeComponent,
-} from '@nag-frontend-workspace/shared-ui-components';
 import { AuthService } from '@nag-frontend-workspace/shared-data-access-auth';
+import { EnrolledExam } from './models';
+import {
+  DashboardWelcomeBannerComponent,
+  DashboardKpiStatsComponent,
+  EnrolledAssessmentCardComponent,
+  CandidateAdmitCardDialogComponent,
+} from './components';
 
-export interface EnrolledExam {
-  id: string;
-  code: string;
-  title: string;
-  scheduledDate: string;
-  scheduledTime: string;
-  durationMinutes: number;
-  centerName: string;
-  centerAddress: string;
-  rollNumber: string;
-  status: 'LIVE' | 'UPCOMING' | 'COMPLETED';
-  admitCardReady: boolean;
-}
+export * from './models';
 
 @Component({
   selector: 'app-candidate-dashboard',
   standalone: true,
   imports: [
     CommonModule,
-    RouterModule,
-    MatButtonModule,
     MatIconModule,
-    StatCardComponent,
-    StatusBadgeComponent,
-    QrCodeComponent,
+    DashboardWelcomeBannerComponent,
+    DashboardKpiStatsComponent,
+    EnrolledAssessmentCardComponent,
+    CandidateAdmitCardDialogComponent,
   ],
   templateUrl: './candidate-dashboard.component.html',
   styleUrl: './candidate-dashboard.component.scss',
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class CandidateDashboardComponent {
   readonly authService = inject(AuthService);
 
-  enrolledExams = signal<EnrolledExam[]>([
+  readonly enrolledExams = signal<EnrolledExam[]>([
     {
       id: 'exam-1',
       code: 'NES-2026-S1',
@@ -76,11 +65,11 @@ export class CandidateDashboardComponent {
     },
   ]);
 
-  liveCount = computed(
+  readonly liveCount = computed(
     () => this.enrolledExams().filter((e) => e.status === 'LIVE').length
   );
 
-  selectedAdmitCard = signal<EnrolledExam | null>(null);
+  readonly selectedAdmitCard = signal<EnrolledExam | null>(null);
 
   openAdmitCard(exam: EnrolledExam): void {
     this.selectedAdmitCard.set(exam);

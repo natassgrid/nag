@@ -1,0 +1,20 @@
+<div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+  <nag-stat-card
+    label="Registered Assessments"
+    [value]="totalRegistered()"
+    icon="assignment"
+    variant="primary"
+  />
+  <nag-stat-card
+    label="Active / Live Exams"
+    [value]="liveCount()"
+    icon="play_circle"
+    variant="warn"
+  />
+  <nag-stat-card
+    label="Scorecards Released"
+    [value]="scorecardsCount()"
+    icon="verified"
+    variant="success"
+  />
+</div>

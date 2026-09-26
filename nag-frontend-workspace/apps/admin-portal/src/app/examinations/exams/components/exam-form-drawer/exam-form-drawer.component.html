@@ -23,264 +23,78 @@
         </button>
       </div>
 
-      <!-- Drawer Body Form -->
+      <!-- Drawer Body Form Sub-components -->
       <div class="p-6 space-y-5 flex-1">
-        <!-- Basic Details -->
-        <div class="space-y-3">
-          <h3 class="text-xs font-bold text-indigo-900 uppercase tracking-wider">General Information</h3>
+        <!-- General Info Sub-component -->
+        <nag-exam-form-general
+          [name]="formName"
+          [code]="formCode"
+          [authority]="formAuthority"
+          [category]="formCategory"
+          [academicYear]="formAcademicYear"
+          (nameChange)="formName = $event"
+          (codeChange)="formCode = $event"
+          (authorityChange)="formAuthority = $event"
+          (categoryChange)="formCategory = $event"
+          (academicYearChange)="formAcademicYear = $event"
+        ></nag-exam-form-general>
 
-          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div class="sm:col-span-2">
-              <label for="exam-name" class="block text-xs font-semibold text-slate-700 uppercase mb-1">
-                Examination Name *
-              </label>
-              <input
-                id="exam-name"
-                type="text"
-                [(ngModel)]="formName"
-                placeholder="e.g. National Entrance Exam for Engineering 2026"
-                class="w-full px-3 py-2 text-sm bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 font-medium"
-              />
-            </div>
+        <!-- Rules and Policies Sub-component -->
+        <nag-exam-form-rules
+          [duration]="formDuration"
+          [totalMarks]="formTotalMarks"
+          [navPolicy]="formNavPolicy"
+          [calcPolicy]="formCalcPolicy"
+          [negMarking]="formNegMarking"
+          [negMarkingValue]="formNegMarkingValue"
+          [reviewFlag]="formReviewFlag"
+          [isPractice]="formIsPractice"
+          (durationChange)="formDuration = $event"
+          (totalMarksChange)="formTotalMarks = $event"
+          (navPolicyChange)="formNavPolicy = $event"
+          (calcPolicyChange)="formCalcPolicy = $event"
+          (negMarkingChange)="formNegMarking = $event"
+          (negMarkingValueChange)="formNegMarkingValue = $event"
+          (reviewFlagChange)="formReviewFlag = $event"
+          (isPracticeChange)="formIsPractice = $event"
+        ></nag-exam-form-rules>
 
-            <div>
-              <label for="exam-code" class="block text-xs font-semibold text-slate-700 uppercase mb-1">
-                Examination Code
-              </label>
-              <input
-                id="exam-code"
-                type="text"
-                [(ngModel)]="formCode"
-                placeholder="e.g. NEEE-2026-UG"
-                class="w-full px-3 py-2 text-sm bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 font-mono font-medium"
-              />
-            </div>
-
-            <div>
-              <label for="exam-auth" class="block text-xs font-semibold text-slate-700 uppercase mb-1">
-                Conducting Authority
-              </label>
-              <input
-                id="exam-auth"
-                type="text"
-                [(ngModel)]="formAuthority"
-                placeholder="e.g. National Testing Agency"
-                class="w-full px-3 py-2 text-sm bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 font-medium"
-              />
-            </div>
-
-            <div>
-              <label for="exam-cat" class="block text-xs font-semibold text-slate-700 uppercase mb-1">
-                Exam Category
-              </label>
-              <input
-                id="exam-cat"
-                type="text"
-                [(ngModel)]="formCategory"
-                placeholder="e.g. Higher Education Entrance"
-                class="w-full px-3 py-2 text-sm bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 font-medium"
-              />
-            </div>
-
-            <div>
-              <label for="exam-acad-year" class="block text-xs font-semibold text-slate-700 uppercase mb-1">
-                Academic Year
-              </label>
-              <input
-                id="exam-acad-year"
-                type="text"
-                [(ngModel)]="formAcademicYear"
-                placeholder="e.g. 2025-2026"
-                class="w-full px-3 py-2 text-sm bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 font-medium"
-              />
-            </div>
-          </div>
-        </div>
-
-        <!-- Assessment Rules & Policies -->
-        <div class="space-y-3 pt-3 border-t border-slate-200">
-          <h3 class="text-xs font-bold text-indigo-900 uppercase tracking-wider">Assessment Rules &amp; Timing</h3>
-
-          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
-              <label for="exam-dur" class="block text-xs font-semibold text-slate-700 uppercase mb-1">
-                Duration (Minutes) *
-              </label>
-              <input
-                id="exam-dur"
-                type="number"
-                [(ngModel)]="formDuration"
-                min="1"
-                class="w-full px-3 py-2 text-sm bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 font-medium"
-              />
-            </div>
-
-            <div>
-              <label for="exam-tot-marks" class="block text-xs font-semibold text-slate-700 uppercase mb-1">
-                Total Marks *
-              </label>
-              <input
-                id="exam-tot-marks"
-                type="number"
-                [(ngModel)]="formTotalMarks"
-                min="1"
-                class="w-full px-3 py-2 text-sm bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 font-medium"
-              />
-            </div>
-
-            <div>
-              <label for="exam-nav-policy" class="block text-xs font-semibold text-slate-700 uppercase mb-1">
-                Navigation Policy
-              </label>
-              <select
-                id="exam-nav-policy"
-                [(ngModel)]="formNavPolicy"
-                class="w-full px-3 py-2 text-sm bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 font-medium"
-              >
-                <option value="FREE_NAVIGATION">Free Navigation (Candidates jump freely)</option>
-                <option value="SECTION_LOCKED">Section Locked (Sequential per section)</option>
-                <option value="STRICT_SEQUENTIAL">Strict Sequential (No back-tracking)</option>
-              </select>
-            </div>
-
-            <div>
-              <label for="exam-calc-policy" class="block text-xs font-semibold text-slate-700 uppercase mb-1">
-                Calculator Policy
-              </label>
-              <select
-                id="exam-calc-policy"
-                [(ngModel)]="formCalcPolicy"
-                class="w-full px-3 py-2 text-sm bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 font-medium"
-              >
-                <option value="NONE">No Calculator Allowed</option>
-                <option value="VIRTUAL_BASIC">Virtual Basic Calculator</option>
-                <option value="VIRTUAL_SCIENTIFIC">Virtual Scientific Calculator</option>
-              </select>
-            </div>
-          </div>
-
-          <!-- Negative Marking & Toggles -->
-          <div class="bg-slate-50 p-4 rounded-xl space-y-3 border border-slate-200">
-            <label class="flex items-center gap-2 cursor-pointer select-none">
-              <input
-                type="checkbox"
-                [(ngModel)]="formNegMarking"
-                class="w-4 h-4 text-indigo-600 rounded border-slate-300 focus:ring-indigo-500"
-              />
-              <span class="text-xs font-bold text-slate-800">Enable Negative Marking Deduction</span>
-            </label>
-
-            @if (formNegMarking) {
-              <div class="pt-2 pl-6">
-                <label for="exam-neg-val" class="block text-[11px] font-semibold text-slate-600 uppercase mb-1">
-                  Marks Deducted per Incorrect Answer
-                </label>
-                <input
-                  id="exam-neg-val"
-                  type="number"
-                  step="0.25"
-                  [(ngModel)]="formNegMarkingValue"
-                  class="w-36 px-3 py-1.5 text-xs bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 font-mono font-medium"
-                />
-              </div>
-            }
-
-            <div class="flex items-center gap-6 pt-2">
-              <label class="flex items-center gap-2 cursor-pointer select-none">
-                <input
-                  type="checkbox"
-                  [(ngModel)]="formReviewFlag"
-                  class="w-4 h-4 text-indigo-600 rounded border-slate-300 focus:ring-indigo-500"
-                />
-                <span class="text-xs font-semibold text-slate-700">Allow &quot;Mark for Review&quot; Flagging</span>
-              </label>
-
-              <label class="flex items-center gap-2 cursor-pointer select-none">
-                <input
-                  type="checkbox"
-                  [(ngModel)]="formIsPractice"
-                  class="w-4 h-4 text-indigo-600 rounded border-slate-300 focus:ring-indigo-500"
-                />
-                <span class="text-xs font-semibold text-slate-700">Practice / Mock Exam</span>
-              </label>
-            </div>
-          </div>
-        </div>
-
-        <!-- Section Configuration -->
-        <div class="space-y-3 pt-3 border-t border-slate-200">
-          <div class="flex items-center justify-between">
-            <h3 class="text-xs font-bold text-indigo-900 uppercase tracking-wider">
-              Exam Sections Breakdown ({{ formSections.length }})
-            </h3>
-            <button
-              type="button"
-              (click)="addSection()"
-              class="text-xs font-bold text-indigo-600 hover:text-indigo-800 flex items-center gap-1"
-            >
-              <mat-icon class="!text-xs">add</mat-icon>
-              Add Section
-            </button>
-          </div>
-
-          <div class="space-y-2">
-            @for (sec of formSections; track $index; let idx = $index) {
-              <div class="flex items-center gap-2 bg-slate-50 p-2.5 rounded-lg border border-slate-200">
-                <input
-                  type="text"
-                  [(ngModel)]="sec.name"
-                  placeholder="Section Name"
-                  class="flex-1 px-2.5 py-1 text-xs bg-white border border-slate-300 rounded focus:outline-none focus:ring-1 focus:ring-indigo-500 font-medium"
-                />
-                <div class="w-24">
-                  <input
-                    type="number"
-                    [(ngModel)]="sec.questionCount"
-                    placeholder="Questions"
-                    title="Number of Questions"
-                    class="w-full px-2 py-1 text-xs bg-white border border-slate-300 rounded focus:outline-none focus:ring-1 focus:ring-indigo-500 font-mono text-center"
-                  />
-                </div>
-                <div class="w-24">
-                  <input
-                    type="number"
-                    [(ngModel)]="sec.marksPerQuestion"
-                    placeholder="Marks/Q"
-                    title="Marks per Question"
-                    class="w-full px-2 py-1 text-xs bg-white border border-slate-300 rounded focus:outline-none focus:ring-1 focus:ring-indigo-500 font-mono text-center"
-                  />
-                </div>
-                <button
-                  type="button"
-                  (click)="removeSection(idx)"
-                  [disabled]="formSections.length <= 1"
-                  class="text-slate-400 hover:text-rose-600 disabled:opacity-30"
-                >
-                  <mat-icon class="!text-base">delete</mat-icon>
-                </button>
-              </div>
-            }
-          </div>
-        </div>
+        <!-- Sections Breakdown Sub-component -->
+        <nag-exam-form-sections
+          [sections]="formSections"
+          (addSection)="addSection()"
+          (removeSection)="removeSection($event)"
+        ></nag-exam-form-sections>
       </div>
 
       <!-- Drawer Footer Actions -->
-      <div class="p-4 border-t border-slate-200 flex justify-end gap-3 sticky bottom-0 bg-white">
+      <div class="p-4 border-t border-slate-200 bg-slate-50 flex items-center justify-end gap-3 sticky bottom-0 z-10">
         <button
+          type="button"
           mat-stroked-button
           (click)="onClose()"
-          class="!text-slate-600"
+          [disabled]="isSaving()"
+          class="!border-slate-300 !text-slate-700 !rounded-xl"
         >
           Cancel
         </button>
         <button
+          type="button"
           mat-flat-button
           color="primary"
-          [disabled]="isSaving() || !formName.trim()"
           (click)="onSave()"
+          [disabled]="isSaving() || !formName.trim()"
+          class="!rounded-xl"
         >
-          <mat-icon>{{ isSaving() ? 'hourglass_top' : 'save' }}</mat-icon>
-          {{ isSaving() ? 'Saving...' : (editingExam() ? 'Update Blueprint' : 'Create Examination') }}
+          <span class="flex items-center gap-1.5">
+            @if (isSaving()) {
+              <mat-icon class="animate-spin !text-sm leading-none">refresh</mat-icon>
+              <span>Saving...</span>
+            } @else {
+              <mat-icon class="!text-sm leading-none">save</mat-icon>
+              <span>{{ editingExam() ? 'Update Blueprint' : 'Create Examination' }}</span>
+            }
+          </span>
         </button>
       </div>
     </div>
