@@ -1,0 +1,220 @@
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+  <!-- Assembly Configuration Panel -->
+  <div class="lg:col-span-2 space-y-6">
+    <div class="bg-white rounded-2xl border border-slate-200 p-6 shadow-xs space-y-6">
+      <h2 class="text-base font-bold text-slate-900 border-b border-slate-100 pb-3 flex items-center gap-2">
+        <mat-icon class="text-indigo-600">settings_suggest</mat-icon>
+        <span>Target Examination & Shift Allocation</span>
+      </h2>
+
+      <!-- Exam, Schedule & Shift Selectors -->
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div>
+          <label for="exam-select" class="block text-xs font-bold text-slate-700 uppercase mb-1">
+            Examination *
+          </label>
+          <select
+            id="exam-select"
+            [ngModel]="genExamId()"
+            (ngModelChange)="onExamSelected($event)"
+            class="w-full py-2.5 px-3 text-sm border border-slate-300 rounded-xl bg-white focus:ring-2 focus:ring-indigo-500"
+          >
+            <option value="">-- Select Examination --</option>
+            @for (exam of exams(); track exam.id) {
+              <option [value]="exam.id">{{ exam.name }}</option>
+            }
+          </select>
+        </div>
+
+        <div>
+          <label for="schedule-select" class="block text-xs font-bold text-slate-700 uppercase mb-1">
+            Schedule Session *
+          </label>
+          <select
+            id="schedule-select"
+            [ngModel]="genScheduleId()"
+            (ngModelChange)="onScheduleSelected($event)"
+            [disabled]="!schedules().length"
+            class="w-full py-2.5 px-3 text-sm border border-slate-300 rounded-xl bg-white focus:ring-2 focus:ring-indigo-500 disabled:bg-slate-100"
+          >
+            <option value="">-- Select Schedule --</option>
+            @for (sched of schedules(); track sched.id) {
+              <option [value]="sched.id">
+                {{ sched.scheduleName }} ({{ sched.examDate }})
+              </option>
+            }
+          </select>
+        </div>
+
+        <div>
+          <label for="shift-select" class="block text-xs font-bold text-slate-700 uppercase mb-1">
+            Session Shift *
+          </label>
+          <select
+            id="shift-select"
+            [ngModel]="genShiftId()"
+            (ngModelChange)="genShiftId.set($event)"
+            [disabled]="!shifts().length"
+            class="w-full py-2.5 px-3 text-sm border border-slate-300 rounded-xl bg-white focus:ring-2 focus:ring-indigo-500 disabled:bg-slate-100"
+          >
+            <option value="">-- Select Shift --</option>
+            @for (shift of shifts(); track shift.id) {
+              <option [value]="shift.id">
+                {{ shift.shiftName || 'Shift ' + shift.shiftNumber }} ({{ shift.examStartTime }} - {{ shift.examEndTime }})
+              </option>
+            }
+          </select>
+        </div>
+      </div>
+
+      <!-- Paper Name & Mode -->
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div>
+          <label for="paper-name-input" class="block text-xs font-bold text-slate-700 uppercase mb-1">
+            Generated Paper Title
+          </label>
+          <input
+            id="paper-name-input"
+            type="text"
+            [ngModel]="genPaperName()"
+            (ngModelChange)="genPaperName.set($event)"
+            placeholder="e.g. National Entrance Paper - Shift 1"
+            class="w-full px-3 py-2 text-sm border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500"
+          />
+        </div>
+
+        <div class="flex items-center gap-4 pt-6">
+          <label class="flex items-center gap-2.5 text-xs font-bold text-slate-700 cursor-pointer">
+            <input
+              type="checkbox"
+              [ngModel]="genIsPractice()"
+              (ngModelChange)="genIsPractice.set($event)"
+              class="h-4 w-4 rounded text-purple-600 border-slate-300"
+            />
+            <span>Mark as Practice Paper (Mock Mode)</span>
+          </label>
+        </div>
+      </div>
+    </div>
+
+    <!-- Assembly Strategy Mode -->
+    <div class="bg-white rounded-2xl border border-slate-200 p-6 shadow-xs space-y-6">
+      <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+        <h2 class="text-base font-bold text-slate-900 flex items-center gap-2">
+          <mat-icon class="text-indigo-600">tune</mat-icon>
+          <span>Constraint Assembly Strategy</span>
+        </h2>
+
+        <div class="flex bg-slate-100 p-1 rounded-xl">
+          <button
+            type="button"
+            (click)="genUseTemplate.set(true)"
+            [ngClass]="{
+              'bg-white text-indigo-700 shadow-xs font-bold': genUseTemplate(),
+              'text-slate-600': !genUseTemplate()
+            }"
+            class="px-3 py-1.5 rounded-lg text-xs transition-colors"
+          >
+            Blueprint Template
+          </button>
+          <button
+            type="button"
+            (click)="genUseTemplate.set(false)"
+            [ngClass]="{
+              'bg-white text-indigo-700 shadow-xs font-bold': !genUseTemplate(),
+              'text-slate-600': genUseTemplate()
+            }"
+            class="px-3 py-1.5 rounded-lg text-xs transition-colors"
+          >
+            Custom Rule Matrix
+          </button>
+        </div>
+      </div>
+
+      <!-- Option A: Blueprint Template Selection -->
+      @if (genUseTemplate()) {
+        <div class="space-y-4">
+          <div>
+            <label for="template-select" class="block text-xs font-bold text-slate-700 uppercase mb-1">
+              Select Standard Blueprint Template *
+            </label>
+            <select
+              id="template-select"
+              [ngModel]="genSelectedTemplateId()"
+              (ngModelChange)="genSelectedTemplateId.set($event)"
+              class="w-full py-2.5 px-3 text-sm border border-slate-300 rounded-xl bg-white focus:ring-2 focus:ring-indigo-500"
+            >
+              @for (tpl of templates(); track tpl.id) {
+                <option [value]="tpl.id">
+                  {{ tpl.name }} ({{ tpl.rules.length }} Rules, {{ tpl.totalQuestions || 'Auto' }} Qs)
+                </option>
+              }
+            </select>
+          </div>
+        </div>
+      } @else {
+        <!-- Option B: Custom Dynamic Rule Matrix -->
+        <nag-blueprint-rule-builder
+          [rules]="genRules()"
+          [taxonomySubjects]="taxonomySubjects()"
+          [taxonomyHierarchy]="taxonomyHierarchy()"
+          (addRule)="addRule()"
+          (removeRule)="removeRule($event)"
+          (ruleSubjectChange)="onRuleSubjectChange($event)"
+        ></nag-blueprint-rule-builder>
+      }
+    </div>
+  </div>
+
+  <!-- Assembly Control & Verification Column -->
+  <div class="space-y-6">
+    <div class="bg-white rounded-2xl border border-slate-200 p-6 shadow-xs space-y-6">
+      <h2 class="text-base font-bold text-slate-900 border-b border-slate-100 pb-3 flex items-center gap-2">
+        <mat-icon class="text-indigo-600">security</mat-icon>
+        <span>Execution & Seal</span>
+      </h2>
+
+      <div class="space-y-3">
+        <div class="p-4 bg-indigo-50/50 rounded-xl border border-indigo-100 space-y-2">
+          <div class="flex items-center justify-between text-xs">
+            <span class="text-slate-600">Total Items in Assembly:</span>
+            <span class="font-bold text-indigo-950 font-mono">{{ totalRequestedQuestions() }} Qs</span>
+          </div>
+          <div class="flex items-center justify-between text-xs">
+            <span class="text-slate-600">Algorithm:</span>
+            <span class="font-mono text-[11px] text-slate-800">CSPRNG Shuffle + DPI Rule Solver</span>
+          </div>
+          <div class="flex items-center justify-between text-xs">
+            <span class="text-slate-600">Cryptographic Seal:</span>
+            <span class="font-mono text-[11px] text-slate-800">Merkle Root SHA-256</span>
+          </div>
+        </div>
+
+        <button
+          type="button"
+          mat-stroked-button
+          (click)="checkFeasibility.emit()"
+          [disabled]="isCheckingFeasibility()"
+          class="w-full !py-2.5 !rounded-xl !border-slate-300 font-bold"
+        >
+          <mat-icon>{{ isCheckingFeasibility() ? 'hourglass_top' : 'rule' }}</mat-icon>
+          <span>{{ isCheckingFeasibility() ? 'Auditing Question Inventory...' : 'Pre-flight Sufficiency Audit' }}</span>
+        </button>
+
+        <button
+          type="button"
+          mat-flat-button
+          color="primary"
+          (click)="submitGenerate()"
+          [disabled]="isGenerating() || !genExamId() || !genShiftId()"
+          class="w-full !py-3 !rounded-xl font-bold shadow-md !bg-slate-900 hover:!bg-black !text-white"
+        >
+          <span class="flex items-center justify-center gap-2">
+            <mat-icon>{{ isGenerating() ? 'hourglass_top' : 'auto_awesome' }}</mat-icon>
+            <span>{{ isGenerating() ? 'Executing Assembly...' : 'Execute Algorithmic Assembly' }}</span>
+          </span>
+        </button>
+      </div>
+    </div>
+  </div>
+</div>

@@ -1,0 +1,222 @@
+<div class="bg-white rounded-2xl border border-slate-200 p-6 shadow-xs space-y-4">
+  <!-- Search & Filter Controls -->
+  <div class="flex flex-col md:flex-row gap-4 items-center justify-between">
+    <div class="relative w-full md:w-96">
+      <input
+        type="text"
+        [ngModel]="searchQuery()"
+        (ngModelChange)="searchQueryChange.emit($event)"
+        placeholder="Search by paper name, exam code, or shift..."
+        class="w-full pl-10 pr-4 py-2 text-sm border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500"
+      />
+      <mat-icon class="absolute left-3 top-2.5 !text-lg text-slate-400">search</mat-icon>
+    </div>
+
+    <div class="flex flex-wrap items-center gap-3 w-full md:w-auto">
+      <!-- Exam Filter -->
+      <select
+        [ngModel]="selectedExamFilter()"
+        (ngModelChange)="examFilterChange.emit($event)"
+        class="text-xs py-2 px-3 border border-slate-300 rounded-xl bg-white focus:ring-2 focus:ring-indigo-500"
+      >
+        <option value="ALL">All Examinations</option>
+        @for (exam of exams(); track exam.id) {
+          <option [value]="exam.id">{{ exam.name }} ({{ exam.code || 'NO-CODE' }})</option>
+        }
+      </select>
+
+      <!-- Status Filter -->
+      <div class="flex bg-slate-100 p-1 rounded-xl">
+        <button
+          type="button"
+          (click)="statusFilterChange.emit('ALL')"
+          [ngClass]="{
+            'bg-white text-slate-900 shadow-xs font-bold': statusFilter() === 'ALL',
+            'text-slate-600': statusFilter() !== 'ALL'
+          }"
+          class="px-3 py-1.5 rounded-lg text-xs transition-colors"
+        >
+          All
+        </button>
+        <button
+          type="button"
+          (click)="statusFilterChange.emit('DRAFT')"
+          [ngClass]="{
+            'bg-white text-amber-700 shadow-xs font-bold': statusFilter() === 'DRAFT',
+            'text-slate-600': statusFilter() !== 'DRAFT'
+          }"
+          class="px-3 py-1.5 rounded-lg text-xs transition-colors"
+        >
+          Draft
+        </button>
+        <button
+          type="button"
+          (click)="statusFilterChange.emit('APPROVED')"
+          [ngClass]="{
+            'bg-white text-blue-700 shadow-xs font-bold': statusFilter() === 'APPROVED',
+            'text-slate-600': statusFilter() !== 'APPROVED'
+          }"
+          class="px-3 py-1.5 rounded-lg text-xs transition-colors"
+        >
+          Approved
+        </button>
+        <button
+          type="button"
+          (click)="statusFilterChange.emit('ENCRYPTED')"
+          [ngClass]="{
+            'bg-white text-emerald-700 shadow-xs font-bold': statusFilter() === 'ENCRYPTED',
+            'text-slate-600': statusFilter() !== 'ENCRYPTED'
+          }"
+          class="px-3 py-1.5 rounded-lg text-xs transition-colors"
+        >
+          Encrypted
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Papers Table -->
+  @if (loading()) {
+    <div class="py-16 flex flex-col items-center justify-center gap-3">
+      <mat-spinner diameter="36"></mat-spinner>
+      <span class="text-xs text-slate-500">Loading generated papers...</span>
+    </div>
+  } @else if (papers().length === 0) {
+    <div class="py-16 text-center space-y-3">
+      <div class="w-12 h-12 rounded-2xl bg-slate-100 text-slate-400 flex items-center justify-center mx-auto">
+        <mat-icon>description</mat-icon>
+      </div>
+      <div class="text-sm font-bold text-slate-700">No question papers found</div>
+      <p class="text-xs text-slate-400 max-w-sm mx-auto">
+        Use the Algorithmic Assembly Engine to compose and mint randomized question papers for examination shifts.
+      </p>
+      <button
+        mat-flat-button
+        color="primary"
+        (click)="assembleNew.emit()"
+        class="!rounded-xl !bg-indigo-600 hover:!bg-indigo-700 !text-white"
+      >
+        <mat-icon>add</mat-icon>
+        <span>Assemble First Paper</span>
+      </button>
+    </div>
+  } @else {
+    <div class="overflow-x-auto rounded-xl border border-slate-200">
+      <table class="w-full text-left text-sm">
+        <thead class="bg-slate-50 text-slate-600 text-[11px] uppercase font-bold tracking-wider border-b border-slate-200">
+          <tr>
+            <th class="py-3 px-4">Paper Name & Identifier</th>
+            <th class="py-3 px-4">Examination & Shift</th>
+            <th class="py-3 px-4 text-center">Items / Marks</th>
+            <th class="py-3 px-4 text-center">Difficulty Index</th>
+            <th class="py-3 px-4 text-center">Lifecycle Status</th>
+            <th class="py-3 px-4 text-right">Actions</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-slate-100">
+          @for (paper of papers(); track paper.id) {
+            <tr
+              (click)="inspectPaper.emit(paper.id)"
+              class="hover:bg-slate-50/80 cursor-pointer transition-colors"
+            >
+              <td class="py-3.5 px-4">
+                <div class="font-bold text-slate-900 flex items-center gap-2">
+                  <span>{{ paper.name }}</span>
+                  @if (paper.isPractice) {
+                    <span class="text-[10px] bg-purple-100 text-purple-800 px-1.5 py-0.5 rounded font-bold">
+                      Practice
+                    </span>
+                  }
+                </div>
+                <div class="text-[11px] font-mono text-slate-400">
+                  ID: {{ paper.paperId || paper.id }}
+                </div>
+              </td>
+
+              <td class="py-3.5 px-4">
+                <div class="font-medium text-slate-800 text-xs">
+                  {{ paper.examName || getExamName(paper.examId) }}
+                </div>
+                <div class="text-[11px] text-slate-500">
+                  {{ paper.shiftName || 'Standard Session' }}
+                </div>
+              </td>
+
+              <td class="py-3.5 px-4 text-center">
+                <div class="font-bold text-slate-800 text-xs">
+                  {{ paper.totalQuestions || '--' }} Qs
+                </div>
+                <div class="text-[11px] text-slate-500">
+                  {{ paper.totalMarks || '--' }} Marks
+                </div>
+              </td>
+
+              <td class="py-3.5 px-4 text-center">
+                <div class="inline-flex items-center gap-1 text-xs font-mono font-bold px-2 py-0.5 rounded-lg bg-slate-100 text-slate-700">
+                  <mat-icon class="!text-sm text-indigo-500">tune</mat-icon>
+                  <span>{{ paper.difficultyScore ? (paper.difficultyScore | number: '1.2-2') : 'Balanced' }}</span>
+                </div>
+              </td>
+
+              <td class="py-3.5 px-4 text-center">
+                @if (paper.status === 'ENCRYPTED' || paper.status === 'PUBLISHED') {
+                  <span class="inline-flex items-center gap-1 text-[11px] font-bold px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
+                    <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                    Encrypted & Sealed
+                  </span>
+                } @else if (paper.status === 'APPROVED') {
+                  <span class="inline-flex items-center gap-1 text-[11px] font-bold px-2.5 py-1 rounded-full bg-blue-50 text-blue-700 border border-blue-200">
+                    <span class="w-1.5 h-1.5 rounded-full bg-blue-500"></span>
+                    Controller Approved
+                  </span>
+                } @else {
+                  <span class="inline-flex items-center gap-1 text-[11px] font-bold px-2.5 py-1 rounded-full bg-amber-50 text-amber-700 border border-amber-200">
+                    <span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
+                    Draft Review
+                  </span>
+                }
+              </td>
+
+              <td class="py-3.5 px-4 text-right" (click)="$event.stopPropagation()">
+                <div class="flex items-center justify-end gap-1.5">
+                  <button
+                    mat-icon-button
+                    (click)="inspectPaper.emit(paper.id)"
+                    matTooltip="Inspect Question Paper & Distribution"
+                    class="!text-slate-500 hover:!text-indigo-600"
+                  >
+                    <mat-icon class="!text-lg">visibility</mat-icon>
+                  </button>
+
+                  @if (paper.status === 'DRAFT') {
+                    <button
+                      mat-stroked-button
+                      (click)="approvePaper.emit(paper.id)"
+                      matTooltip="Approve Question Paper (Controller Clearance)"
+                      class="!text-xs !py-1 !px-2.5 !rounded-lg !border-blue-300 !text-blue-700 hover:!bg-blue-50"
+                    >
+                      <mat-icon class="!text-sm">verified</mat-icon>
+                      <span>Approve</span>
+                    </button>
+                  }
+
+                  @if (paper.status === 'APPROVED') {
+                    <button
+                      mat-flat-button
+                      (click)="publishPaper.emit(paper.id)"
+                      matTooltip="Encrypt Package & Distribute Key"
+                      class="!text-xs !py-1 !px-2.5 !rounded-lg !bg-emerald-600 hover:!bg-emerald-700 !text-white"
+                    >
+                      <mat-icon class="!text-sm">lock</mat-icon>
+                      <span>Encrypt</span>
+                    </button>
+                  }
+                </div>
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  }
+</div>

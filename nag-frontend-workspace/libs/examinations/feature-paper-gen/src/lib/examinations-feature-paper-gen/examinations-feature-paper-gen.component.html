@@ -29,47 +29,12 @@
     </nag-page-header>
 
     <!-- KPI Summary Row -->
-    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-      <div class="bg-white rounded-2xl p-5 border border-slate-200 shadow-xs flex items-center justify-between">
-        <div>
-          <div class="text-xs font-bold text-slate-500 uppercase tracking-wider">Total Papers</div>
-          <div class="text-2xl font-black text-slate-900 mt-1">{{ totalPapersCount() }}</div>
-        </div>
-        <div class="w-12 h-12 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center">
-          <mat-icon>description</mat-icon>
-        </div>
-      </div>
-
-      <div class="bg-white rounded-2xl p-5 border border-slate-200 shadow-xs flex items-center justify-between">
-        <div>
-          <div class="text-xs font-bold text-slate-500 uppercase tracking-wider">Approved & Encrypted</div>
-          <div class="text-2xl font-black text-emerald-600 mt-1">{{ approvedPapersCount() }}</div>
-        </div>
-        <div class="w-12 h-12 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
-          <mat-icon>verified</mat-icon>
-        </div>
-      </div>
-
-      <div class="bg-white rounded-2xl p-5 border border-slate-200 shadow-xs flex items-center justify-between">
-        <div>
-          <div class="text-xs font-bold text-slate-500 uppercase tracking-wider">Draft In-Review</div>
-          <div class="text-2xl font-black text-amber-600 mt-1">{{ draftPapersCount() }}</div>
-        </div>
-        <div class="w-12 h-12 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center">
-          <mat-icon>pending</mat-icon>
-        </div>
-      </div>
-
-      <div class="bg-white rounded-2xl p-5 border border-slate-200 shadow-xs flex items-center justify-between">
-        <div>
-          <div class="text-xs font-bold text-slate-500 uppercase tracking-wider">Practice Mode Papers</div>
-          <div class="text-2xl font-black text-purple-600 mt-1">{{ practicePapersCount() }}</div>
-        </div>
-        <div class="w-12 h-12 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center">
-          <mat-icon>school</mat-icon>
-        </div>
-      </div>
-    </div>
+    <nag-paper-kpi-summary
+      [totalCount]="totalPapersCount()"
+      [approvedCount]="approvedPapersCount()"
+      [draftCount]="draftPapersCount()"
+      [practiceCount]="practicePapersCount()"
+    ></nag-paper-kpi-summary>
 
     <!-- View Mode Tab Switcher -->
     <div class="bg-white rounded-2xl border border-slate-200 p-2 flex items-center gap-2 shadow-xs">
@@ -115,506 +80,48 @@
 
     <!-- TAB 1: GENERATED PAPERS DIRECTORY -->
     @if (currentTab() === 'PAPERS') {
-      <div class="bg-white rounded-2xl border border-slate-200 p-6 shadow-xs space-y-4">
-        <!-- Search & Filter Controls -->
-        <div class="flex flex-col md:flex-row gap-4 items-center justify-between">
-          <div class="relative w-full md:w-96">
-            <input
-              type="text"
-              [ngModel]="searchQuery()"
-              (ngModelChange)="searchQuery.set($event)"
-              placeholder="Search by paper name, exam code, or shift..."
-              class="w-full pl-10 pr-4 py-2 text-sm border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500"
-            />
-            <mat-icon class="absolute left-3 top-2.5 !text-lg text-slate-400">search</mat-icon>
-          </div>
-
-          <div class="flex flex-wrap items-center gap-3 w-full md:w-auto">
-            <!-- Exam Filter -->
-            <select
-              [ngModel]="selectedExamFilter()"
-              (ngModelChange)="selectedExamFilter.set($event)"
-              class="text-xs py-2 px-3 border border-slate-300 rounded-xl bg-white focus:ring-2 focus:ring-indigo-500"
-            >
-              <option value="ALL">All Examinations</option>
-              @for (exam of exams(); track exam.id) {
-                <option [value]="exam.id">{{ exam.name }} ({{ exam.code || 'NO-CODE' }})</option>
-              }
-            </select>
-
-            <!-- Status Filter -->
-            <div class="flex bg-slate-100 p-1 rounded-xl">
-              <button
-                type="button"
-                (click)="statusFilter.set('ALL')"
-                [ngClass]="{
-                  'bg-white text-slate-900 shadow-xs font-bold': statusFilter() === 'ALL',
-                  'text-slate-600': statusFilter() !== 'ALL'
-                }"
-                class="px-3 py-1.5 rounded-lg text-xs transition-colors"
-              >
-                All
-              </button>
-              <button
-                type="button"
-                (click)="statusFilter.set('DRAFT')"
-                [ngClass]="{
-                  'bg-white text-amber-700 shadow-xs font-bold': statusFilter() === 'DRAFT',
-                  'text-slate-600': statusFilter() !== 'DRAFT'
-                }"
-                class="px-3 py-1.5 rounded-lg text-xs transition-colors"
-              >
-                Draft
-              </button>
-              <button
-                type="button"
-                (click)="statusFilter.set('APPROVED')"
-                [ngClass]="{
-                  'bg-white text-blue-700 shadow-xs font-bold': statusFilter() === 'APPROVED',
-                  'text-slate-600': statusFilter() !== 'APPROVED'
-                }"
-                class="px-3 py-1.5 rounded-lg text-xs transition-colors"
-              >
-                Approved
-              </button>
-              <button
-                type="button"
-                (click)="statusFilter.set('ENCRYPTED')"
-                [ngClass]="{
-                  'bg-white text-emerald-700 shadow-xs font-bold': statusFilter() === 'ENCRYPTED',
-                  'text-slate-600': statusFilter() !== 'ENCRYPTED'
-                }"
-                class="px-3 py-1.5 rounded-lg text-xs transition-colors"
-              >
-                Encrypted
-              </button>
-            </div>
-          </div>
-        </div>
-
-        <!-- Papers Table -->
-        @if (loading()) {
-          <div class="py-16 flex flex-col items-center justify-center gap-3">
-            <mat-spinner diameter="36"></mat-spinner>
-            <span class="text-xs text-slate-500">Loading generated papers...</span>
-          </div>
-        } @else if (filteredPapers().length === 0) {
-          <div class="py-16 text-center space-y-3">
-            <div class="w-12 h-12 rounded-2xl bg-slate-100 text-slate-400 flex items-center justify-center mx-auto">
-              <mat-icon>description</mat-icon>
-            </div>
-            <div class="text-sm font-bold text-slate-700">No question papers found</div>
-            <p class="text-xs text-slate-400 max-w-sm mx-auto">
-              Use the Algorithmic Assembly Engine to compose and mint randomized question papers for examination shifts.
-            </p>
-            <button
-              mat-flat-button
-              color="primary"
-              (click)="currentTab.set('GENERATOR')"
-              class="!rounded-xl !bg-indigo-600 hover:!bg-indigo-700 !text-white"
-            >
-              <mat-icon>add</mat-icon>
-              <span>Assemble First Paper</span>
-            </button>
-          </div>
-        } @else {
-          <div class="overflow-x-auto rounded-xl border border-slate-200">
-            <table class="w-full text-left text-sm">
-              <thead class="bg-slate-50 text-slate-600 text-[11px] uppercase font-bold tracking-wider border-b border-slate-200">
-                <tr>
-                  <th class="py-3 px-4">Paper Name & Identifier</th>
-                  <th class="py-3 px-4">Examination & Shift</th>
-                  <th class="py-3 px-4 text-center">Items / Marks</th>
-                  <th class="py-3 px-4 text-center">Difficulty Index</th>
-                  <th class="py-3 px-4 text-center">Lifecycle Status</th>
-                  <th class="py-3 px-4 text-right">Actions</th>
-                </tr>
-              </thead>
-              <tbody class="divide-y divide-slate-100">
-                @for (paper of filteredPapers(); track paper.id) {
-                  <tr
-                    (click)="openSummaryDrawer(paper.id)"
-                    class="hover:bg-slate-50/80 cursor-pointer transition-colors"
-                  >
-                    <td class="py-3.5 px-4">
-                      <div class="font-bold text-slate-900 flex items-center gap-2">
-                        <span>{{ paper.name }}</span>
-                        @if (paper.isPractice) {
-                          <span class="text-[10px] bg-purple-100 text-purple-800 px-1.5 py-0.5 rounded font-bold">
-                            Practice
-                          </span>
-                        }
-                      </div>
-                      <div class="text-[11px] font-mono text-slate-400">
-                        ID: {{ paper.paperId || paper.id }}
-                      </div>
-                    </td>
-
-                    <td class="py-3.5 px-4">
-                      <div class="font-medium text-slate-800 text-xs">
-                        {{ paper.examName || getExamName(paper.examId) }}
-                      </div>
-                      <div class="text-[11px] text-slate-500">
-                        {{ paper.shiftName || 'Standard Session' }}
-                      </div>
-                    </td>
-
-                    <td class="py-3.5 px-4 text-center">
-                      <div class="font-bold text-slate-800 text-xs">
-                        {{ paper.totalQuestions || '--' }} Qs
-                      </div>
-                      <div class="text-[11px] text-slate-500">
-                        {{ paper.totalMarks || '--' }} Marks
-                      </div>
-                    </td>
-
-                    <td class="py-3.5 px-4 text-center">
-                      <div class="inline-flex items-center gap-1 text-xs font-mono font-bold px-2 py-0.5 rounded-lg bg-slate-100 text-slate-700">
-                        <mat-icon class="!text-sm text-indigo-500">tune</mat-icon>
-                        <span>{{ paper.difficultyScore ? (paper.difficultyScore | number: '1.2-2') : 'Balanced' }}</span>
-                      </div>
-                    </td>
-
-                    <td class="py-3.5 px-4 text-center">
-                      @if (paper.status === 'ENCRYPTED' || paper.status === 'PUBLISHED') {
-                        <span class="inline-flex items-center gap-1 text-[11px] font-bold px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
-                          <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
-                          Encrypted & Sealed
-                        </span>
-                      } @else if (paper.status === 'APPROVED') {
-                        <span class="inline-flex items-center gap-1 text-[11px] font-bold px-2.5 py-1 rounded-full bg-blue-50 text-blue-700 border border-blue-200">
-                          <span class="w-1.5 h-1.5 rounded-full bg-blue-500"></span>
-                          Controller Approved
-                        </span>
-                      } @else {
-                        <span class="inline-flex items-center gap-1 text-[11px] font-bold px-2.5 py-1 rounded-full bg-amber-50 text-amber-700 border border-amber-200">
-                          <span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
-                          Draft Review
-                        </span>
-                      }
-                    </td>
-
-                    <td class="py-3.5 px-4 text-right" (click)="$event.stopPropagation()">
-                      <div class="flex items-center justify-end gap-1.5">
-                        <button
-                          mat-icon-button
-                          (click)="openSummaryDrawer(paper.id)"
-                          matTooltip="Inspect Question Paper & Distribution"
-                          class="!text-slate-500 hover:!text-indigo-600"
-                        >
-                          <mat-icon class="!text-lg">visibility</mat-icon>
-                        </button>
-
-                        @if (paper.status === 'DRAFT') {
-                          <button
-                            mat-stroked-button
-                            (click)="approvePaper()"
-                            matTooltip="Approve Question Paper (Controller Clearance)"
-                            class="!text-xs !py-1 !px-2.5 !rounded-lg !border-blue-300 !text-blue-700 hover:!bg-blue-50"
-                          >
-                            <mat-icon class="!text-sm">verified</mat-icon>
-                            <span>Approve</span>
-                          </button>
-                        }
-
-                        @if (paper.status === 'APPROVED') {
-                          <button
-                            mat-flat-button
-                            (click)="publishPaper()"
-                            matTooltip="Encrypt Package & Distribute Key"
-                            class="!text-xs !py-1 !px-2.5 !rounded-lg !bg-emerald-600 hover:!bg-emerald-700 !text-white"
-                          >
-                            <mat-icon class="!text-sm">lock</mat-icon>
-                            <span>Encrypt</span>
-                          </button>
-                        }
-                      </div>
-                    </td>
-                  </tr>
-                }
-              </tbody>
-            </table>
-          </div>
-        }
-      </div>
+      <nag-paper-directory-table
+        [papers]="filteredPapers()"
+        [exams]="exams()"
+        [loading]="loading()"
+        [searchQuery]="searchQuery()"
+        [selectedExamFilter]="selectedExamFilter()"
+        [statusFilter]="statusFilter()"
+        (searchQueryChange)="searchQuery.set($event)"
+        (examFilterChange)="selectedExamFilter.set($event)"
+        (statusFilterChange)="statusFilter.set($event)"
+        (inspectPaper)="openSummaryDrawer($event)"
+        (approvePaper)="approvePaper($event)"
+        (publishPaper)="publishPaper($event)"
+        (assembleNew)="currentTab.set('GENERATOR')"
+      ></nag-paper-directory-table>
     }
 
     <!-- TAB 2: ALGORITHMIC ASSEMBLY ENGINE -->
     @if (currentTab() === 'GENERATOR') {
-      <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <!-- Assembly Configuration Panel -->
-        <div class="lg:col-span-2 space-y-6">
-          <div class="bg-white rounded-2xl border border-slate-200 p-6 shadow-xs space-y-6">
-            <h2 class="text-base font-bold text-slate-900 border-b border-slate-100 pb-3 flex items-center gap-2">
-              <mat-icon class="text-indigo-600">settings_suggest</mat-icon>
-              <span>Target Examination & Shift Allocation</span>
-            </h2>
-
-            <!-- Exam, Schedule & Shift Selectors -->
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div>
-                <label for="exam-select" class="block text-xs font-bold text-slate-700 uppercase mb-1">
-                  Examination *
-                </label>
-                <select
-                  id="exam-select"
-                  [(ngModel)]="genExamId"
-                  (ngModelChange)="onExamChange($event)"
-                  class="w-full py-2.5 px-3 text-sm border border-slate-300 rounded-xl bg-white focus:ring-2 focus:ring-indigo-500"
-                >
-                  <option value="">-- Select Examination --</option>
-                  @for (exam of exams(); track exam.id) {
-                    <option [value]="exam.id">{{ exam.name }}</option>
-                  }
-                </select>
-              </div>
-
-              <div>
-                <label for="schedule-select" class="block text-xs font-bold text-slate-700 uppercase mb-1">
-                  Schedule Session *
-                </label>
-                <select
-                  id="schedule-select"
-                  [(ngModel)]="genScheduleId"
-                  (ngModelChange)="onScheduleChange($event)"
-                  [disabled]="!schedules().length"
-                  class="w-full py-2.5 px-3 text-sm border border-slate-300 rounded-xl bg-white focus:ring-2 focus:ring-indigo-500 disabled:bg-slate-100"
-                >
-                  <option value="">-- Select Schedule --</option>
-                  @for (sched of schedules(); track sched.id) {
-                    <option [value]="sched.id">
-                      {{ sched.scheduleName }} ({{ sched.examDate }})
-                    </option>
-                  }
-                </select>
-              </div>
-
-              <div>
-                <label for="shift-select" class="block text-xs font-bold text-slate-700 uppercase mb-1">
-                  Session Shift *
-                </label>
-                <select
-                  id="shift-select"
-                  [(ngModel)]="genShiftId"
-                  [disabled]="!shifts().length"
-                  class="w-full py-2.5 px-3 text-sm border border-slate-300 rounded-xl bg-white focus:ring-2 focus:ring-indigo-500 disabled:bg-slate-100"
-                >
-                  <option value="">-- Select Shift --</option>
-                  @for (shift of shifts(); track shift.id) {
-                    <option [value]="shift.id">
-                      {{ shift.shiftName || 'Shift ' + shift.shiftNumber }} ({{ shift.examStartTime }} - {{ shift.examEndTime }})
-                    </option>
-                  }
-                </select>
-              </div>
-            </div>
-
-            <!-- Paper Name & Mode -->
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label for="paper-name-input" class="block text-xs font-bold text-slate-700 uppercase mb-1">
-                  Generated Paper Title
-                </label>
-                <input
-                  id="paper-name-input"
-                  type="text"
-                  [(ngModel)]="genPaperName"
-                  placeholder="e.g. National Entrance Paper - Shift 1"
-                  class="w-full px-3 py-2 text-sm border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500"
-                />
-              </div>
-
-              <div class="flex items-center gap-4 pt-6">
-                <label class="flex items-center gap-2.5 text-xs font-bold text-slate-700 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    [(ngModel)]="genIsPractice"
-                    class="h-4 w-4 rounded text-purple-600 border-slate-300"
-                  />
-                  <span>Mark as Practice Paper (Mock Mode)</span>
-                </label>
-              </div>
-            </div>
-          </div>
-
-          <!-- Assembly Strategy Mode -->
-          <div class="bg-white rounded-2xl border border-slate-200 p-6 shadow-xs space-y-6">
-            <div class="flex items-center justify-between border-b border-slate-100 pb-3">
-              <h2 class="text-base font-bold text-slate-900 flex items-center gap-2">
-                <mat-icon class="text-indigo-600">tune</mat-icon>
-                <span>Constraint Assembly Strategy</span>
-              </h2>
-
-              <div class="flex bg-slate-100 p-1 rounded-xl">
-                <button
-                  type="button"
-                  (click)="genUseTemplate = true"
-                  [ngClass]="{
-                    'bg-white text-indigo-700 shadow-xs font-bold': genUseTemplate,
-                    'text-slate-600': !genUseTemplate
-                  }"
-                  class="px-3 py-1.5 rounded-lg text-xs transition-colors"
-                >
-                  Blueprint Template
-                </button>
-                <button
-                  type="button"
-                  (click)="genUseTemplate = false"
-                  [ngClass]="{
-                    'bg-white text-indigo-700 shadow-xs font-bold': !genUseTemplate,
-                    'text-slate-600': genUseTemplate
-                  }"
-                  class="px-3 py-1.5 rounded-lg text-xs transition-colors"
-                >
-                  Custom Rule Matrix
-                </button>
-              </div>
-            </div>
-
-            <!-- Option A: Blueprint Template Selection -->
-            @if (genUseTemplate) {
-              <div class="space-y-4">
-                <div>
-                  <label for="template-select" class="block text-xs font-bold text-slate-700 uppercase mb-1">
-                    Select Standard Blueprint Template *
-                  </label>
-                  <select
-                    id="template-select"
-                    [(ngModel)]="genSelectedTemplateId"
-                    class="w-full py-2.5 px-3 text-sm border border-slate-300 rounded-xl bg-white focus:ring-2 focus:ring-indigo-500"
-                  >
-                    @for (tpl of templates(); track tpl.id) {
-                      <option [value]="tpl.id">
-                        {{ tpl.name }} ({{ tpl.rules.length }} Rules, {{ tpl.totalQuestions || 'Auto' }} Qs)
-                      </option>
-                    }
-                  </select>
-                </div>
-              </div>
-            } @else {
-              <!-- Option B: Custom Dynamic Rule Matrix (Sub-component) -->
-              <nag-blueprint-rule-builder
-                [rules]="genRules"
-                [taxonomySubjects]="taxonomySubjects()"
-                [taxonomyHierarchy]="taxonomyHierarchy()"
-                (addRule)="addRule()"
-                (removeRule)="removeRule($event)"
-                (ruleSubjectChange)="onRuleSubjectChange($event)"
-              ></nag-blueprint-rule-builder>
-            }
-          </div>
-        </div>
-
-        <!-- Assembly Control & Verification Column -->
-        <div class="space-y-6">
-          <div class="bg-white rounded-2xl border border-slate-200 p-6 shadow-xs space-y-6">
-            <h2 class="text-base font-bold text-slate-900 border-b border-slate-100 pb-3 flex items-center gap-2">
-              <mat-icon class="text-indigo-600">security</mat-icon>
-              <span>Execution & Seal</span>
-            </h2>
-
-            <div class="space-y-3">
-              <div class="p-4 bg-indigo-50/50 rounded-xl border border-indigo-100 space-y-2">
-                <div class="flex items-center justify-between text-xs">
-                  <span class="text-slate-600">Total Items in Assembly:</span>
-                  <span class="font-bold text-indigo-950 font-mono">{{ totalRequestedQuestions() }} Qs</span>
-                </div>
-                <div class="flex items-center justify-between text-xs">
-                  <span class="text-slate-600">Algorithm:</span>
-                  <span class="font-mono text-[11px] text-slate-800">CSPRNG Shuffle + DPI Rule Solver</span>
-                </div>
-                <div class="flex items-center justify-between text-xs">
-                  <span class="text-slate-600">Cryptographic Seal:</span>
-                  <span class="font-mono text-[11px] text-slate-800">Merkle Root SHA-256</span>
-                </div>
-              </div>
-
-              <button
-                type="button"
-                mat-stroked-button
-                (click)="checkFeasibility()"
-                [disabled]="isCheckingFeasibility()"
-                class="w-full !py-2.5 !rounded-xl !border-slate-300 font-bold"
-              >
-                <mat-icon>{{ isCheckingFeasibility() ? 'hourglass_top' : 'rule' }}</mat-icon>
-                <span>{{ isCheckingFeasibility() ? 'Auditing Question Inventory...' : 'Pre-flight Sufficiency Audit' }}</span>
-              </button>
-
-              <button
-                type="button"
-                mat-flat-button
-                color="primary"
-                (click)="generatePaper()"
-                [disabled]="isGenerating() || !genExamId || !genShiftId"
-                class="w-full !py-3 !rounded-xl font-bold shadow-md !bg-slate-900 hover:!bg-black !text-white"
-              >
-                <span class="flex items-center justify-center gap-2">
-                  <mat-icon>{{ isGenerating() ? 'hourglass_top' : 'auto_awesome' }}</mat-icon>
-                  <span>{{ isGenerating() ? 'Executing Assembly...' : 'Execute Algorithmic Assembly' }}</span>
-                </span>
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
+      <nag-paper-assembly-form
+        [exams]="exams()"
+        [schedules]="schedules()"
+        [shifts]="shifts()"
+        [templates]="templates()"
+        [taxonomySubjects]="taxonomySubjects()"
+        [taxonomyHierarchy]="taxonomyHierarchy()"
+        [isGenerating]="isGenerating()"
+        [isCheckingFeasibility]="isCheckingFeasibility()"
+        (examChange)="onExamChange($event)"
+        (scheduleChange)="onScheduleChange($event)"
+        (checkFeasibility)="checkFeasibility()"
+        (generate)="onGeneratePaper($event)"
+      ></nag-paper-assembly-form>
     }
 
     <!-- TAB 3: BLUEPRINT TEMPLATES DIRECTORY -->
     @if (currentTab() === 'TEMPLATES') {
-      <div class="bg-white rounded-2xl border border-slate-200 p-6 shadow-xs space-y-4">
-        <div class="flex items-center justify-between border-b border-slate-100 pb-3">
-          <div>
-            <h2 class="text-base font-bold text-slate-900">Blueprint Templates Library</h2>
-            <p class="text-xs text-slate-500">Standardized subject and cognitive quota distribution templates</p>
-          </div>
-        </div>
-
-        @if (loadingTemplates()) {
-          <div class="py-16 flex flex-col items-center justify-center gap-3">
-            <mat-spinner diameter="36"></mat-spinner>
-            <span class="text-xs text-slate-500">Loading templates...</span>
-          </div>
-        } @else if (templates().length === 0) {
-          <div class="py-12 text-center text-xs text-slate-400">
-            No blueprint templates configured yet.
-          </div>
-        } @else {
-          <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            @for (tpl of templates(); track tpl.id) {
-              <div class="p-5 bg-slate-50 rounded-2xl border border-slate-200 space-y-4 flex flex-col justify-between hover:shadow-xs transition-shadow">
-                <div class="space-y-2">
-                  <div class="flex items-start justify-between gap-2">
-                    <h3 class="font-bold text-slate-900 text-sm">{{ tpl.name }}</h3>
-                    <span class="text-[10px] bg-indigo-100 text-indigo-800 px-2 py-0.5 rounded font-bold">
-                      {{ tpl.rules.length }} Rules
-                    </span>
-                  </div>
-                  @if (tpl.description) {
-                    <p class="text-xs text-slate-600 line-clamp-2">{{ tpl.description }}</p>
-                  }
-                  <div class="text-[11px] text-slate-500">
-                    Exam Target: <span class="font-semibold text-slate-800">{{ tpl.examName || 'Universal Standard' }}</span>
-                  </div>
-                </div>
-
-                <div class="pt-3 border-t border-slate-200 flex items-center justify-between">
-                  <span class="text-xs font-mono font-bold text-slate-700">
-                    {{ tpl.totalQuestions || 'Variable' }} Questions
-                  </span>
-                  <button
-                    type="button"
-                    (click)="genSelectedTemplateId = tpl.id; genUseTemplate = true; currentTab.set('GENERATOR')"
-                    class="text-xs font-bold text-indigo-600 hover:text-indigo-800 flex items-center gap-1"
-                  >
-                    <span>Use in Assembly</span>
-                    <mat-icon class="!text-sm">arrow_forward</mat-icon>
-                  </button>
-                </div>
-              </div>
-            }
-          </div>
-        }
-      </div>
+      <nag-paper-templates-panel
+        [templates]="templates()"
+        [loading]="loadingTemplates()"
+        (selectTemplate)="onUseTemplateInAssembly($event)"
+      ></nag-paper-templates-panel>
     }
   </div>
 
@@ -628,10 +135,12 @@
     [activeTranslationJob]="activeTranslationJob()"
     [supportedLanguages]="supportedLanguages"
     (close)="closeDrawer()"
+    (approve)="approvePaper()"
+    (publish)="publishPaper()"
     (startTranslation)="startTranslation($event)"
   ></nag-paper-inspection-drawer>
 
-  <!-- MODULAR FEASIBILITY & SUFFICIENCY MODAL -->
+  <!-- PRE-FLIGHT SUFFICIENCY AUDIT MODAL -->
   <nag-paper-feasibility-modal
     [open]="showFeasibilityModal()"
     [loading]="isCheckingFeasibility()"

@@ -4,17 +4,13 @@ import {
   inject,
   signal,
   computed,
+  ViewChild,
+  ChangeDetectionStrategy,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterModule } from '@angular/router';
 import { MatIconModule } from '@angular/material/icon';
 import { MatButtonModule } from '@angular/material/button';
-import { MatCardModule } from '@angular/material/card';
-import { MatChipsModule } from '@angular/material/chips';
-import { MatTooltipModule } from '@angular/material/tooltip';
-import { MatProgressBarModule } from '@angular/material/progress-bar';
-import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { PageHeaderComponent } from '@nag-frontend-workspace/shared-ui-components';
 import {
@@ -29,7 +25,6 @@ import {
   PaperGenerationRequest,
   PaperTranslateRequest,
   PaperTranslateResponse,
-  BlueprintRule,
 } from '@nag-frontend-workspace/examinations-data-access';
 import {
   SubjectTopicService,
@@ -43,36 +38,39 @@ import {
   LanguageOption,
 } from '@nag-frontend-workspace/shared-util-i18n';
 import {
-  BlueprintRuleBuilderComponent,
   PaperFeasibilityModalComponent,
   PaperInspectionDrawerComponent,
+  PaperKpiSummaryComponent,
+  PaperDirectoryTableComponent,
+  PaperAssemblyFormComponent,
+  PaperTemplatesPanelComponent,
 } from '../components';
+import { PaperTabType, PaperStatusFilter, PaperGenFormData } from '../models';
 
 @Component({
   selector: 'nag-examinations-feature-paper-gen',
   standalone: true,
   imports: [
     CommonModule,
-    FormsModule,
-    ReactiveFormsModule,
     RouterModule,
     MatIconModule,
     MatButtonModule,
-    MatCardModule,
-    MatChipsModule,
-    MatTooltipModule,
-    MatProgressBarModule,
-    MatProgressSpinnerModule,
     MatSnackBarModule,
     PageHeaderComponent,
-    BlueprintRuleBuilderComponent,
     PaperFeasibilityModalComponent,
     PaperInspectionDrawerComponent,
+    PaperKpiSummaryComponent,
+    PaperDirectoryTableComponent,
+    PaperAssemblyFormComponent,
+    PaperTemplatesPanelComponent,
   ],
   templateUrl: './examinations-feature-paper-gen.component.html',
   styleUrl: './examinations-feature-paper-gen.component.scss',
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class ExaminationsFeaturePaperGen implements OnInit {
+  @ViewChild(PaperAssemblyFormComponent) assemblyForm?: PaperAssemblyFormComponent;
+
   private readonly paperService = inject(PaperService);
   private readonly examService = inject(ExaminationService);
   private readonly schedulingService = inject(SchedulingService);
@@ -83,7 +81,7 @@ export class ExaminationsFeaturePaperGen implements OnInit {
   private readonly router = inject(Router);
 
   // Tab State
-  readonly currentTab = signal<'PAPERS' | 'GENERATOR' | 'TEMPLATES'>('PAPERS');
+  readonly currentTab = signal<PaperTabType>('PAPERS');
 
   // Data Signals
   readonly papers = signal<PaperSummary[]>([]);
@@ -118,39 +116,9 @@ export class ExaminationsFeaturePaperGen implements OnInit {
   // Search & Filters
   readonly searchQuery = signal<string>('');
   readonly selectedExamFilter = signal<string>('ALL');
-  readonly statusFilter = signal<string>('ALL');
+  readonly statusFilter = signal<PaperStatusFilter>('ALL');
 
-  // Generator Form Fields
-  genExamId = '';
-  genScheduleId = '';
-  genShiftId = '';
-  genPaperName = '';
-  genIsPractice = false;
-  genUseTemplate = true;
-  genSelectedTemplateId = '';
-
-  genRules: BlueprintRule[] = [
-    {
-      subject: 'Quantitative Aptitude',
-      topic: 'Arithmetic',
-      difficulty: 'MEDIUM',
-      cognitiveLevel: 'APPLY',
-      questionType: 'SINGLE_MCQ',
-      targetCount: 15,
-      questionCount: 15,
-    },
-    {
-      subject: 'General Intelligence',
-      topic: 'Reasoning',
-      difficulty: 'EASY',
-      cognitiveLevel: 'UNDERSTAND',
-      questionType: 'SINGLE_MCQ',
-      targetCount: 15,
-      questionCount: 15,
-    },
-  ];
-
-  // Supported Indic Languages imported from shared util-i18n (filtering for target translation languages)
+  // Supported Indic Languages
   readonly supportedLanguages: LanguageOption[] = SUPPORTED_LANGUAGES.filter(
     (lang) => lang.code !== 'en'
   );
@@ -166,17 +134,6 @@ export class ExaminationsFeaturePaperGen implements OnInit {
   readonly practicePapersCount = computed(() =>
     this.papers().filter((p) => p.isPractice).length
   );
-
-  readonly totalRequestedQuestions = computed(() => {
-    if (this.genUseTemplate) {
-      const tpl = this.templates().find((t) => t.id === this.genSelectedTemplateId);
-      if (tpl && tpl.rules) {
-        return tpl.rules.reduce((acc, r) => acc + (r.questionCount || r.targetCount || 0), 0);
-      }
-      return 0;
-    }
-    return this.genRules.reduce((acc, r) => acc + (r.questionCount || r.targetCount || 0), 0);
-  });
 
   readonly filteredPapers = computed(() => {
     let list = this.papers();
@@ -213,9 +170,10 @@ export class ExaminationsFeaturePaperGen implements OnInit {
         this.openSummaryDrawer(params['paperId']);
       }
       if (params['templateId']) {
-        this.genSelectedTemplateId = params['templateId'];
-        this.genUseTemplate = true;
         this.currentTab.set('GENERATOR');
+        setTimeout(() => {
+          this.assemblyForm?.setTemplate(params['templateId']);
+        }, 100);
       }
     });
   }
@@ -234,23 +192,10 @@ export class ExaminationsFeaturePaperGen implements OnInit {
       next: (subs) => {
         if (subs && subs.length > 0) {
           this.taxonomySubjects.set(subs);
-          if (this.genRules.length > 0 && !this.genRules[0].subject) {
-            this.genRules[0].subject = subs[0].name;
-          }
         }
       },
       error: () => {},
     });
-  }
-
-  getTopicsForSubject(subjectName: string): string[] {
-    const node = this.taxonomyHierarchy().find(
-      (h) => h.name.toLowerCase() === (subjectName || '').toLowerCase()
-    );
-    if (node && node.topics && node.topics.length > 0) {
-      return node.topics.map((t) => t.name);
-    }
-    return [];
   }
 
   loadPapers(): void {
@@ -270,7 +215,7 @@ export class ExaminationsFeaturePaperGen implements OnInit {
     this.examService.getExams(0, 100).subscribe({
       next: (exams) => {
         this.exams.set(exams || []);
-        if (exams && exams.length > 0 && !this.genExamId) {
+        if (exams && exams.length > 0) {
           this.onExamChange(exams[0].id);
         }
       },
@@ -283,9 +228,6 @@ export class ExaminationsFeaturePaperGen implements OnInit {
     this.blueprintService.listTemplates().subscribe({
       next: (data) => {
         this.templates.set(data || []);
-        if (data && data.length > 0 && !this.genSelectedTemplateId) {
-          this.genSelectedTemplateId = data[0].id;
-        }
         this.loadingTemplates.set(false);
       },
       error: () => {
@@ -295,9 +237,6 @@ export class ExaminationsFeaturePaperGen implements OnInit {
   }
 
   onExamChange(examId: string): void {
-    this.genExamId = examId;
-    this.genScheduleId = '';
-    this.genShiftId = '';
     this.schedules.set([]);
     this.shifts.set([]);
 
@@ -307,57 +246,25 @@ export class ExaminationsFeaturePaperGen implements OnInit {
       next: (schedules) => {
         this.schedules.set(schedules || []);
         if (schedules && schedules.length > 0) {
-          this.onScheduleChange(schedules[0].id);
+          this.onScheduleChange(schedules[0].id, examId);
         }
       },
       error: () => {},
     });
   }
 
-  onScheduleChange(scheduleId: string): void {
-    this.genScheduleId = scheduleId;
-    this.genShiftId = '';
+  onScheduleChange(scheduleId: string, examId?: string): void {
     this.shifts.set([]);
+    const targetExamId = examId || this.assemblyForm?.genExamId() || (this.exams()[0]?.id ?? '');
 
-    if (!this.genExamId || !scheduleId) return;
+    if (!targetExamId || !scheduleId) return;
 
-    this.schedulingService.listShifts(this.genExamId, scheduleId).subscribe({
+    this.schedulingService.listShifts(targetExamId, scheduleId).subscribe({
       next: (shifts) => {
         this.shifts.set(shifts || []);
-        if (shifts && shifts.length > 0) {
-          this.genShiftId = shifts[0].id;
-        }
       },
       error: () => {},
     });
-  }
-
-  onRuleSubjectChange(rule: BlueprintRule): void {
-    const topics = this.getTopicsForSubject(rule.subject);
-    if (topics.length > 0) {
-      rule.topic = topics[0];
-    } else {
-      rule.topic = '';
-    }
-  }
-
-  addRule(): void {
-    const defaultSubj = this.taxonomySubjects()[0]?.name || 'Quantitative Aptitude';
-    this.genRules.push({
-      subject: defaultSubj,
-      topic: '',
-      difficulty: 'MEDIUM',
-      cognitiveLevel: 'APPLY',
-      questionType: 'SINGLE_MCQ',
-      targetCount: 10,
-      questionCount: 10,
-    });
-  }
-
-  removeRule(index: number): void {
-    if (this.genRules.length > 1) {
-      this.genRules.splice(index, 1);
-    }
   }
 
   checkFeasibility(): void {
@@ -365,7 +272,9 @@ export class ExaminationsFeaturePaperGen implements OnInit {
     this.showFeasibilityModal.set(true);
     this.feasibilityResult.set(null);
 
-    const templateId = this.genUseTemplate ? this.genSelectedTemplateId : undefined;
+    const useTemplate = this.assemblyForm?.genUseTemplate() ?? true;
+    const templateId = useTemplate ? this.assemblyForm?.genSelectedTemplateId() : undefined;
+
     if (templateId) {
       this.blueprintService.checkSufficiency(templateId).subscribe({
         next: (res) => {
@@ -373,7 +282,6 @@ export class ExaminationsFeaturePaperGen implements OnInit {
           this.isCheckingFeasibility.set(false);
         },
         error: () => {
-          // Fallback simulation
           this.feasibilityResult.set({
             feasible: true,
             message: 'All configured distribution rules are fully satisfied by active items in the Question Bank.',
@@ -396,17 +304,17 @@ export class ExaminationsFeaturePaperGen implements OnInit {
     this.showFeasibilityModal.set(false);
   }
 
-  generatePaper(): void {
-    if (!this.genExamId || !this.genShiftId) {
+  onGeneratePaper(formData: PaperGenFormData): void {
+    if (!formData.examId || !formData.shiftId) {
       this.snackBar.open('Please select an Examination and Shift session first.', 'Dismiss', {
         duration: 3500,
       });
       return;
     }
 
-    let rulesToUse: BlueprintRule[] = [];
-    if (this.genUseTemplate) {
-      const selectedTpl = this.templates().find((t) => t.id === this.genSelectedTemplateId);
+    let rulesToUse = formData.rules;
+    if (formData.useTemplate) {
+      const selectedTpl = this.templates().find((t) => t.id === formData.selectedTemplateId);
       if (!selectedTpl || !selectedTpl.rules || selectedTpl.rules.length === 0) {
         this.snackBar.open('Selected blueprint template has no rules defined.', 'Dismiss', {
           duration: 3500,
@@ -422,16 +330,14 @@ export class ExaminationsFeaturePaperGen implements OnInit {
         targetCount: r.questionCount || r.targetCount || 5,
         questionCount: r.questionCount || r.targetCount || 5,
       }));
-    } else {
-      rulesToUse = this.genRules;
     }
 
     this.isGenerating.set(true);
     const req: PaperGenerationRequest = {
-      examId: this.genExamId,
-      shiftId: this.genShiftId,
-      paperName: this.genPaperName || `Paper-${new Date().toISOString().substring(0, 10)}`,
-      isPractice: this.genIsPractice,
+      examId: formData.examId,
+      shiftId: formData.shiftId,
+      paperName: formData.paperName || `Paper-${new Date().toISOString().substring(0, 10)}`,
+      isPractice: formData.isPractice,
       blueprintRules: rulesToUse,
     };
 
@@ -450,6 +356,13 @@ export class ExaminationsFeaturePaperGen implements OnInit {
         this.snackBar.open(err?.error?.message || 'Paper generation failed.', 'Dismiss', { duration: 5000 });
       },
     });
+  }
+
+  onUseTemplateInAssembly(templateId: string): void {
+    this.currentTab.set('GENERATOR');
+    setTimeout(() => {
+      this.assemblyForm?.setTemplate(templateId);
+    }, 50);
   }
 
   openSummaryDrawer(paperId: string): void {
@@ -476,8 +389,8 @@ export class ExaminationsFeaturePaperGen implements OnInit {
     this.selectedPaperId.set(null);
   }
 
-  approvePaper(): void {
-    const id = this.selectedPaperId();
+  approvePaper(paperId?: string): void {
+    const id = paperId || this.selectedPaperId();
     if (!id) return;
 
     this.isApproving.set(true);
@@ -495,8 +408,8 @@ export class ExaminationsFeaturePaperGen implements OnInit {
     });
   }
 
-  publishPaper(): void {
-    const id = this.selectedPaperId();
+  publishPaper(paperId?: string): void {
+    const id = paperId || this.selectedPaperId();
     if (!id) return;
 
     this.isPublishing.set(true);
@@ -543,11 +456,5 @@ export class ExaminationsFeaturePaperGen implements OnInit {
         );
       },
     });
-  }
-
-  getExamName(examId?: string): string {
-    if (!examId) return 'General Assessment';
-    const found = (this.exams() || []).find((e) => e?.id === examId);
-    return found ? found.name : examId;
   }
 }
