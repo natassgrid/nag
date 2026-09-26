@@ -1,33 +1,24 @@
 import {
+  ChangeDetectionStrategy,
   Component,
-  signal,
   computed,
+  signal,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
-import { MatIconModule } from '@angular/material/icon';
+import { PageHeaderComponent } from '@nag-frontend-workspace/shared-ui-components';
 import {
-  PageHeaderComponent,
-  StatusBadgeComponent,
-  MathRendererComponent,
-} from '@nag-frontend-workspace/shared-ui-components';
-
-export interface ReviewOption {
-  id: string;
-  text: string;
-  isCorrect: boolean;
-}
-
-export interface ReviewQuestionItem {
-  id: string;
-  subject: string;
-  content: string;
-  explanation: string;
-  options: ReviewOption[];
-  userChoice?: string;
-  isCorrect: boolean;
-}
+  ReviewStatusFilter,
+  ReviewQuestionItem,
+  ReviewStats,
+} from './models';
+import {
+  ReviewSummaryStatsComponent,
+  ReviewFilterBarComponent,
+  ReviewQuestionCardComponent,
+  ReviewQuestionPaletteComponent,
+} from './components';
 
 @Component({
   selector: 'app-candidate-review',
@@ -36,19 +27,21 @@ export interface ReviewQuestionItem {
     CommonModule,
     RouterModule,
     MatButtonModule,
-    MatIconModule,
     PageHeaderComponent,
-    StatusBadgeComponent,
-    MathRendererComponent,
+    ReviewSummaryStatsComponent,
+    ReviewFilterBarComponent,
+    ReviewQuestionCardComponent,
+    ReviewQuestionPaletteComponent,
   ],
   templateUrl: './candidate-review.component.html',
   styleUrl: './candidate-review.component.scss',
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class CandidateReviewComponent {
-  statusFilter = signal<'ALL' | 'CORRECT' | 'INCORRECT' | 'UNATTEMPTED'>('ALL');
-  currentIndex = signal<number>(0);
+  readonly statusFilter = signal<ReviewStatusFilter>('ALL');
+  readonly currentIndex = signal<number>(0);
 
-  questions = signal<ReviewQuestionItem[]>([
+  readonly questions = signal<ReviewQuestionItem[]>([
     {
       id: 'q-1',
       subject: 'Algorithms & Data Structures',
@@ -115,15 +108,15 @@ export class CandidateReviewComponent {
     },
   ]);
 
-  stats = computed(() => {
+  readonly stats = computed<ReviewStats>(() => {
     const list = this.questions();
     const correct = list.filter((q) => q.isCorrect).length;
     const incorrect = list.filter((q) => !q.isCorrect && q.userChoice !== undefined).length;
     const unattempted = list.filter((q) => q.userChoice === undefined).length;
-    return { correct, incorrect, unattempted };
+    return { correct, incorrect, unattempted, avgTimePerItem: '1m 18s' };
   });
 
-  filteredQuestions = computed(() => {
+  readonly filteredQuestions = computed(() => {
     const filter = this.statusFilter();
     return this.questions().filter((q) => {
       if (filter === 'CORRECT') return q.isCorrect;
@@ -133,14 +126,15 @@ export class CandidateReviewComponent {
     });
   });
 
-  currentQuestion = computed(() => {
+  readonly currentQuestion = computed(() => {
     const list = this.filteredQuestions();
     const idx = this.currentIndex();
     return list[idx] || list[0] || null;
   });
 
-  getOptionLetter(index: number): string {
-    return String.fromCharCode(65 + index);
+  onFilterChange(filter: ReviewStatusFilter): void {
+    this.statusFilter.set(filter);
+    this.currentIndex.set(0);
   }
 
   nextQuestion(): void {
@@ -155,10 +149,7 @@ export class CandidateReviewComponent {
     }
   }
 
-  raiseDispute(q: ReviewQuestionItem): void {
-    const reason = prompt(`Enter challenge reason for Question ${q.id}:`, 'Answer key is incorrect based on reference textbook standard.');
-    if (reason) {
-      alert(`Dispute for ${q.id} logged onto ledger with reason: "${reason}". Evaluator desk notified.`);
-    }
+  raiseDispute(question: ReviewQuestionItem): void {
+    window.alert(`Dispute grievance logged for question reference: ${question.id}`);
   }
 }

@@ -1,0 +1,101 @@
+<div class="bg-white rounded-2xl border border-slate-200 p-6 shadow-xs space-y-6">
+  <div class="flex items-center justify-between border-b pb-4">
+    <div class="flex items-center gap-3">
+      <span class="px-2.5 py-1 rounded bg-slate-100 text-slate-800 text-xs font-mono font-bold">
+        Q {{ currentIndex() + 1 }} of {{ totalFiltered() }}
+      </span>
+      <span class="text-xs text-slate-500 font-semibold">{{ question().subject }}</span>
+    </div>
+
+    <nag-status-badge
+      [variant]="question().isCorrect ? 'success' : question().userChoice ? 'error' : 'neutral'"
+      [label]="question().isCorrect ? 'Correct (+4)' : question().userChoice ? 'Incorrect (-1)' : 'Unattempted (0)'"
+    />
+  </div>
+
+  <!-- Problem Stem -->
+  <div class="text-base text-slate-900 leading-relaxed font-sans">
+    <nag-math-renderer [content]="question().content" />
+  </div>
+
+  <!-- Options Matrix -->
+  <div class="space-y-3">
+    @for (opt of question().options; track opt.id; let idx = $index) {
+      <div
+        class="p-4 rounded-xl border text-sm flex items-start justify-between gap-4 transition-colors"
+        [ngClass]="{
+          'border-emerald-500 bg-emerald-50/50 text-emerald-950 font-medium': opt.isCorrect,
+          'border-rose-300 bg-rose-50/40 text-rose-950 font-medium': !opt.isCorrect && question().userChoice === opt.id,
+          'border-slate-200 bg-white text-slate-700': !opt.isCorrect && question().userChoice !== opt.id
+        }"
+      >
+        <div class="flex items-start gap-3 grow">
+          <span class="w-6 h-6 rounded-md flex items-center justify-center font-bold text-xs bg-white/80 border border-current shrink-0">
+            {{ getOptionLetter(idx) }}
+          </span>
+          <div class="grow">
+            <nag-math-renderer [content]="opt.text" [inline]="true" />
+          </div>
+        </div>
+
+        <div class="shrink-0 flex items-center gap-1.5 text-xs font-bold">
+          @if (opt.isCorrect) {
+            <span class="text-emerald-700 flex items-center gap-1">
+              <mat-icon class="!text-sm">check_circle</mat-icon> Correct Key
+            </span>
+          }
+          @if (!opt.isCorrect && question().userChoice === opt.id) {
+            <span class="text-rose-700 flex items-center gap-1">
+              <mat-icon class="!text-sm">cancel</mat-icon> Your Choice
+            </span>
+          }
+        </div>
+      </div>
+    }
+  </div>
+
+  <!-- Solution Explanation -->
+  <div class="bg-indigo-50/40 rounded-2xl p-5 border border-indigo-100 space-y-2">
+    <div class="flex items-center justify-between text-xs font-bold text-indigo-900 uppercase">
+      <span class="flex items-center gap-1.5">
+        <mat-icon class="!text-base text-indigo-600">lightbulb</mat-icon>
+        Detailed Explanation & Derivation
+      </span>
+      <button
+        mat-button
+        color="warn"
+        class="!text-[11px] !h-7 !px-2"
+        (click)="dispute.emit(question())"
+      >
+        <mat-icon class="!text-sm">gavel</mat-icon>
+        Raise Dispute
+      </button>
+    </div>
+    <div class="text-xs text-indigo-950 leading-relaxed font-sans">
+      <nag-math-renderer [content]="question().explanation" />
+    </div>
+  </div>
+
+  <!-- Bottom Navigation Buttons -->
+  <div class="flex items-center justify-between pt-2 border-t">
+    <button
+      mat-stroked-button
+      (click)="prev.emit()"
+      [disabled]="currentIndex() === 0"
+      class="!rounded-xl"
+    >
+      <mat-icon>chevron_left</mat-icon>
+      Previous
+    </button>
+    <button
+      mat-flat-button
+      color="primary"
+      (click)="next.emit()"
+      [disabled]="currentIndex() === totalFiltered() - 1"
+      class="!rounded-xl"
+    >
+      Next
+      <mat-icon>chevron_right</mat-icon>
+    </button>
+  </div>
+</div>
