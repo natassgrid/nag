@@ -22,6 +22,7 @@ package com.examplatform.gateway.config;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Profile;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.config.annotation.web.reactive.EnableWebFluxSecurity;
 import org.springframework.security.config.web.server.ServerHttpSecurity;
 import org.springframework.security.oauth2.server.resource.authentication.BearerTokenAuthenticationToken;
@@ -52,7 +53,10 @@ public class SecurityConfig {
             if (path.startsWith("/api/v1/identity/auth/") ||
                 path.startsWith("/api/v1/identity/register") ||
                 path.startsWith("/api/v1/identity/otp/") ||
-                path.startsWith("/api/v1/examinations/public/")) {
+                path.startsWith("/api/v1/examinations/public/") ||
+                path.startsWith("/api/v1/geo/") ||
+                path.startsWith("/api/v1/public/") ||
+                (exchange.getRequest().getMethod() == HttpMethod.GET && path.startsWith("/api/v1/assets/") && (path.endsWith("/download") || path.endsWith("/url")))) {
                 return Mono.empty();
             }
 
@@ -82,6 +86,8 @@ public class SecurityConfig {
             .authorizeExchange(exchanges -> exchanges
                 .pathMatchers("/actuator/health", "/actuator/info", "/actuator/prometheus").permitAll()
                 .pathMatchers("/api/v1/identity/register", "/api/v1/identity/auth/**", "/api/v1/identity/otp/**", "/api/v1/examinations/public/**").permitAll()
+                .pathMatchers("/api/v1/geo/**", "/api/v1/public/**").permitAll()
+                .pathMatchers(HttpMethod.GET, "/api/v1/assets/*/download", "/api/v1/assets/*/url", "/api/v1/assets/**/download", "/api/v1/assets/**/url").permitAll()
                 .anyExchange().authenticated()
             )
             .oauth2ResourceServer(oauth2 -> oauth2
