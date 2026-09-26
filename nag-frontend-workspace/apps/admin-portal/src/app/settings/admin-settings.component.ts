@@ -1,7 +1,9 @@
 import {
   ChangeDetectionStrategy,
   Component,
+  OnInit,
   computed,
+  inject,
   signal,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
@@ -19,6 +21,7 @@ import {
   SettingsEvaluationTabComponent,
   SettingsMaintenanceTabComponent,
 } from './components';
+import { AdminSettingsService } from './services/admin-settings.service';
 
 export type SettingsTabId =
   | 'security'
@@ -45,8 +48,11 @@ export type SettingsTabId =
   styleUrl: './admin-settings.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class AdminSettingsComponent {
+export class AdminSettingsComponent implements OnInit {
+  private readonly settingsService = inject(AdminSettingsService);
+
   activeTab = signal<SettingsTabId>('security');
+  loading = signal<boolean>(false);
   saving = signal<boolean>(false);
 
   currentSettings = signal<SystemSettingsState>({ ...DEFAULT_SYSTEM_SETTINGS });
@@ -67,22 +73,56 @@ export class AdminSettingsComponent {
     );
   });
 
+  ngOnInit(): void {
+    this.loadSettings();
+  }
+
+  loadSettings(): void {
+    this.loading.set(true);
+    this.settingsService.getSettings().subscribe({
+      next: (data) => {
+        this.currentSettings.set({ ...data });
+        this.savedSettings.set({ ...data });
+        this.loading.set(false);
+      },
+      error: () => {
+        this.loading.set(false);
+      },
+    });
+  }
+
   onSettingsUpdate(updated: SystemSettingsState): void {
     this.currentSettings.set(updated);
   }
 
   resetDefaults(): void {
     if (confirm('Are you sure you want to reset all configurations to platform defaults?')) {
-      this.currentSettings.set({ ...DEFAULT_SYSTEM_SETTINGS });
+      this.saving.set(true);
+      this.settingsService.resetDefaults().subscribe({
+        next: (defaults) => {
+          this.currentSettings.set({ ...defaults });
+          this.savedSettings.set({ ...defaults });
+          this.saving.set(false);
+          alert('System configurations have been reset to platform defaults.');
+        },
+        error: () => {
+          this.saving.set(false);
+        },
+      });
     }
   }
 
   saveSettings(): void {
     this.saving.set(true);
-    setTimeout(() => {
-      this.savedSettings.set({ ...this.currentSettings() });
-      this.saving.set(false);
-      alert('System configuration policies successfully saved and distributed across cluster nodes.');
-    }, 600);
+    this.settingsService.saveSettings(this.currentSettings()).subscribe({
+      next: (saved) => {
+        this.savedSettings.set({ ...saved });
+        this.saving.set(false);
+        alert('System configuration policies successfully saved and distributed across cluster nodes.');
+      },
+      error: () => {
+        this.saving.set(false);
+      },
+    });
   }
 }
