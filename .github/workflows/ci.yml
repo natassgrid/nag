@@ -316,7 +316,7 @@ jobs:
       - name: Run Trivy image scan for ${{ matrix.service }}
         uses: aquasecurity/trivy-action@0.20.0
         with:
-          image-ref: 'examplatform/${{ matrix.service }}:${{ github.sha }}'\
+          image-ref: 'examplatform/${{ matrix.service }}:${{ github.sha }}'
           format: 'sarif'
           output: 'trivy-${{ matrix.service }}.sarif'
           severity: 'CRITICAL,HIGH'
