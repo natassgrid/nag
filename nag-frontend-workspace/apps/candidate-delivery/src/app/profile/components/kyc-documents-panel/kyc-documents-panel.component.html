@@ -1,34 +1,237 @@
-<div class="space-y-4">
-  <h3 class="text-sm font-bold text-slate-900 uppercase tracking-wider flex items-center gap-2">
-    <mat-icon class="text-indigo-600 !text-lg">cloud_upload</mat-icon>
-    Document Uploads & Cryptographic Anchoring
-  </h3>
+<div class="space-y-6">
 
-  <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-    <div class="p-4 rounded-xl border border-dashed border-slate-300 bg-slate-50 flex items-center gap-4 transition-colors hover:border-indigo-300 hover:bg-indigo-50/20">
-      <div class="w-12 h-12 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center font-bold shrink-0">
-        <mat-icon>photo_camera</mat-icon>
-      </div>
-      <div class="space-y-1 grow">
-        <div class="text-xs font-bold text-slate-900">Passport Photograph</div>
-        <div class="text-[11px] text-slate-500">Verified & Securely Stored</div>
-        <span class="inline-block text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded">
-          Uploaded (JPEG)
-        </span>
-      </div>
-    </div>
-
-    <div class="p-4 rounded-xl border border-dashed border-slate-300 bg-slate-50 flex items-center gap-4 transition-colors hover:border-indigo-300 hover:bg-indigo-50/20">
-      <div class="w-12 h-12 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center font-bold shrink-0">
-        <mat-icon>draw</mat-icon>
-      </div>
-      <div class="space-y-1 grow">
-        <div class="text-xs font-bold text-slate-900">Candidate Signature</div>
-        <div class="text-[11px] text-slate-500">Signature Stamp Attached</div>
-        <span class="inline-block text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded">
-          Uploaded (PNG)
-        </span>
-      </div>
+  <div class="flex items-center justify-between">
+    <div>
+      <h3 class="text-sm font-bold text-slate-900 uppercase tracking-wider flex items-center gap-2">
+        <mat-icon class="text-indigo-600 !text-lg">cloud_upload</mat-icon>
+        KYC Document Uploads & Cryptographic Anchoring
+      </h3>
+      <p class="text-xs text-slate-500 mt-0.5">
+        Upload official candidate credentials or capture live webcam photo for admit card validation.
+      </p>
     </div>
   </div>
+
+  @if (uploadFeedback()) {
+    <div class="p-3 bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-xl text-xs flex items-center gap-2 animate-fade-in">
+      <mat-icon class="text-emerald-600 !text-sm">check_circle</mat-icon>
+      <span>{{ uploadFeedback() }}</span>
+    </div>
+  }
+
+  <!-- Upload Cards Grid -->
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+
+    <!-- 1. Passport Photograph -->
+    <div class="p-5 rounded-2xl border border-slate-200 bg-slate-50/50 hover:bg-white hover:border-indigo-200 transition-all flex flex-col justify-between space-y-4 shadow-2xs">
+      <div class="flex items-start gap-4">
+        <div class="w-24 h-24 rounded-2xl bg-slate-100 border border-slate-300 overflow-hidden flex items-center justify-center shrink-0 shadow-inner">
+          @if (profile().photoUrl) {
+            <img [src]="profile().photoUrl" alt="Passport Photo" class="w-full h-full object-cover" />
+          } @else {
+            <mat-icon class="!text-3xl text-slate-400">person</mat-icon>
+          }
+        </div>
+        <div class="space-y-1 grow">
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-bold text-slate-900">Passport Photograph</span>
+            @if (profile().photoUrl) {
+              <span class="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full">
+                <mat-icon class="!text-[10px] leading-none text-emerald-600">verified</mat-icon> Ready
+              </span>
+            } @else {
+              <span class="text-[10px] font-bold text-amber-700 bg-amber-50 px-2 py-0.5 rounded-full">Required</span>
+            }
+          </div>
+          <p class="text-[11px] text-slate-500">
+            Clear white background portrait (35mm x 45mm), max 2MB JPEG/PNG.
+          </p>
+          <div class="text-[10px] font-mono text-slate-400">
+            {{ profile().photoAssetId ? 'Vault ID: ' + profile().photoAssetId : 'Not yet uploaded' }}
+          </div>
+        </div>
+      </div>
+
+      <div class="pt-2 border-t border-slate-200/60 flex items-center justify-between gap-2">
+        <div class="flex items-center gap-2">
+          <button
+            mat-flat-button
+            color="primary"
+            (click)="openWebcam()"
+            class="!text-xs !rounded-xl !px-3 cursor-pointer"
+          >
+            <mat-icon class="!text-sm">videocam</mat-icon> Live Webcam
+          </button>
+          <button
+            mat-stroked-button
+            (click)="triggerPhotoUpload()"
+            class="!text-xs !rounded-xl !px-3 cursor-pointer"
+          >
+            <mat-icon class="!text-sm">upload_file</mat-icon> Upload File
+          </button>
+        </div>
+
+        @if (profile().photoUrl) {
+          <button
+            type="button"
+            (click)="removeDocument('photo')"
+            class="text-rose-500 hover:text-rose-700 text-xs p-1.5 rounded-lg transition cursor-pointer"
+            title="Remove Photograph"
+          >
+            <mat-icon class="!text-sm">delete_outline</mat-icon>
+          </button>
+        }
+      </div>
+    </div>
+
+    <!-- 2. Candidate Signature -->
+    <div class="p-5 rounded-2xl border border-slate-200 bg-slate-50/50 hover:bg-white hover:border-indigo-200 transition-all flex flex-col justify-between space-y-4 shadow-2xs">
+      <div class="flex items-start gap-4">
+        <div class="w-32 h-20 rounded-2xl bg-slate-100 border border-slate-300 overflow-hidden flex items-center justify-center shrink-0 shadow-inner">
+          @if (profile().signatureUrl) {
+            <img [src]="profile().signatureUrl" alt="Candidate Signature" class="w-full h-full object-contain p-1" />
+          } @else {
+            <mat-icon class="!text-3xl text-slate-400">draw</mat-icon>
+          }
+        </div>
+        <div class="space-y-1 grow">
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-bold text-slate-900">Candidate Signature</span>
+            @if (profile().signatureUrl) {
+              <span class="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full">
+                <mat-icon class="!text-[10px] leading-none text-emerald-600">verified</mat-icon> Ready
+              </span>
+            } @else {
+              <span class="text-[10px] font-bold text-amber-700 bg-amber-50 px-2 py-0.5 rounded-full">Required</span>
+            }
+          </div>
+          <p class="text-[11px] text-slate-500">
+            Black/Blue ink signature on white sheet (3:1 aspect ratio), max 1MB.
+          </p>
+          <div class="text-[10px] font-mono text-slate-400">
+            {{ profile().signatureAssetId ? 'Vault ID: ' + profile().signatureAssetId : 'Not yet uploaded' }}
+          </div>
+        </div>
+      </div>
+
+      <div class="pt-2 border-t border-slate-200/60 flex items-center justify-between gap-2">
+        <button
+          mat-stroked-button
+          color="primary"
+          (click)="triggerSignatureUpload()"
+          class="!text-xs !rounded-xl !px-4 cursor-pointer"
+        >
+          <mat-icon class="!text-sm">upload_file</mat-icon> Upload & Crop Signature
+        </button>
+
+        @if (profile().signatureUrl) {
+          <button
+            type="button"
+            (click)="removeDocument('signature')"
+            class="text-rose-500 hover:text-rose-700 text-xs p-1.5 rounded-lg transition cursor-pointer"
+            title="Remove Signature"
+          >
+            <mat-icon class="!text-sm">delete_outline</mat-icon>
+          </button>
+        }
+      </div>
+    </div>
+
+    <!-- 3. Government Identity Proof Document -->
+    <div class="p-5 rounded-2xl border border-slate-200 bg-slate-50/50 hover:bg-white hover:border-indigo-200 transition-all flex flex-col justify-between space-y-4 shadow-2xs md:col-span-2">
+      <div class="flex items-start justify-between gap-4">
+        <div class="flex items-start gap-3.5">
+          <div class="w-12 h-12 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center shrink-0">
+            <mat-icon>badge</mat-icon>
+          </div>
+          <div>
+            <div class="flex items-center gap-2">
+              <h4 class="text-xs font-bold text-slate-900">Official Identity Proof Scan ({{ profile().identityDocType }})</h4>
+              <span class="text-[10px] font-mono bg-slate-200/70 text-slate-700 px-2 py-0.5 rounded font-semibold">
+                {{ profile().identityDocNumber }}
+              </span>
+            </div>
+            <p class="text-[11px] text-slate-500 mt-0.5">
+              Government issued photo identity proof (Aadhaar / Passport / Voter ID / Driving License) in PDF or high-res JPG.
+            </p>
+          </div>
+        </div>
+
+        @if (profile().idProofUrl) {
+          <span class="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-full">
+            <mat-icon class="!text-[10px] leading-none text-emerald-600">verified</mat-icon> Stored in Secure Vault
+          </span>
+        } @else {
+          <span class="text-[10px] font-bold text-amber-700 bg-amber-50 px-2.5 py-1 rounded-full">Pending Upload</span>
+        }
+      </div>
+
+      <div class="pt-2 border-t border-slate-200/60 flex items-center justify-between gap-2">
+        <div class="flex items-center gap-2">
+          <button
+            mat-stroked-button
+            (click)="triggerIdProofUpload()"
+            class="!text-xs !rounded-xl !px-4 cursor-pointer"
+          >
+            <mat-icon class="!text-sm">file_upload</mat-icon> Attach ID Proof File
+          </button>
+        </div>
+
+        @if (profile().idProofUrl) {
+          <button
+            type="button"
+            (click)="removeDocument('idProof')"
+            class="text-rose-500 hover:text-rose-700 text-xs p-1.5 rounded-lg transition cursor-pointer"
+            title="Remove ID Proof"
+          >
+            <mat-icon class="!text-sm">delete_outline</mat-icon>
+          </button>
+        }
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Hidden File Inputs -->
+  <input
+    #photoFileInput
+    type="file"
+    accept="image/jpeg,image/png,image/webp"
+    class="hidden"
+    (change)="onFileSelected($event, 'photo')"
+  />
+  <input
+    #signatureFileInput
+    type="file"
+    accept="image/jpeg,image/png,image/webp"
+    class="hidden"
+    (change)="onFileSelected($event, 'signature')"
+  />
+  <input
+    #idProofFileInput
+    type="file"
+    accept="image/jpeg,image/png,application/pdf"
+    class="hidden"
+    (change)="onFileSelected($event, 'idProof')"
+  />
+
+  <!-- Webcam Capture Modal -->
+  @if (showWebcamModal()) {
+    <nag-webcam-capture-modal
+      (captured)="onWebcamSnapshot($event)"
+      (closed)="showWebcamModal.set(false)"
+    />
+  }
+
+  <!-- Image Cropper Modal -->
+  @if (showCropperModal() && cropperRawImage()) {
+    <nag-image-cropper-modal
+      [imageSrc]="cropperRawImage()!"
+      [mode]="cropperMode()"
+      [title]="cropperTarget() === 'photo' ? 'Crop Passport Photograph' : 'Crop Candidate Signature'"
+      (cropped)="onCroppedImage($event)"
+      (cancelled)="showCropperModal.set(false); cropperRawImage.set(null)"
+    />
+  }
+
 </div>

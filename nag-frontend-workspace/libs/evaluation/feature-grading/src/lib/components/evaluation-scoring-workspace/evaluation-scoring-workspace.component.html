@@ -1,74 +1,315 @@
-<div class="bg-white rounded-xl border border-slate-200 shadow-xs p-6 space-y-6">
+<div class="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
   @if (task(); as current) {
-    <div class="flex items-center justify-between border-b pb-3">
-      <div>
-        <span class="text-xs font-mono font-bold text-indigo-600">{{ current.questionCode }}</span>
-        <h3 class="text-base font-bold text-slate-900 mt-0.5">Subjective Response Evaluation</h3>
-      </div>
-      <span class="text-xs font-semibold px-2.5 py-1 rounded bg-slate-100 text-slate-700">
-        Max Marks: {{ current.maxMarks }}
-      </span>
-    </div>
 
-    <div class="space-y-2">
-      <span class="text-xs font-bold uppercase text-slate-500">Problem Statement</span>
-      <div class="p-3 bg-slate-50 rounded-lg border border-slate-200 text-sm">
-        <nag-math-renderer [content]="current.questionContent" />
+    <!-- Workspace Header Bar -->
+    <div class="px-6 py-4 bg-slate-50 border-b border-slate-200 flex flex-wrap items-center justify-between gap-4">
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-xl bg-indigo-100 text-indigo-600 flex items-center justify-center font-bold font-mono text-sm">
+          {{ current.questionCode.slice(0, 3) }}
+        </div>
+        <div>
+          <div class="flex items-center gap-2">
+            <span class="text-xs font-mono font-bold text-indigo-600 uppercase">{{ current.questionCode }}</span>
+            <span class="text-slate-300">&bull;</span>
+            <span class="text-xs text-slate-500 font-mono">Candidate: <b>{{ current.candidateRoll }}</b></span>
+          </div>
+          <h3 class="text-sm font-bold text-slate-900">Subjective Response Evaluation & Moderation</h3>
+        </div>
       </div>
-    </div>
 
-    <div class="space-y-2">
-      <span class="text-xs font-bold uppercase text-slate-500">Candidate Response</span>
-      <div class="p-4 bg-amber-50/40 rounded-lg border border-amber-200 text-sm font-mono whitespace-pre-wrap">
-        {{ current.candidateResponse }}
-      </div>
-    </div>
+      <div class="flex items-center gap-3">
+        <div class="text-right">
+          <div class="text-[10px] uppercase font-bold text-slate-400">Total Computed Marks</div>
+          <div class="text-lg font-black text-indigo-600 font-mono">
+            {{ totalAwardedMarks() }} <span class="text-xs text-slate-400 font-normal">/ {{ current.maxMarks }}</span>
+          </div>
+        </div>
 
-    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-4 border-t">
-      <div>
-        <label for="award-marks-input" class="block text-xs font-bold uppercase text-slate-700 mb-1">
-          Awarded Marks (0 - {{ current.maxMarks }})
-        </label>
-        <input
-          id="award-marks-input"
-          type="number"
-          [ngModel]="awardedMarks()"
-          (ngModelChange)="awardedMarks.set($event)"
-          [max]="current.maxMarks"
-          min="0"
-          class="w-full px-3 py-2 text-sm border rounded-lg focus:ring-2 focus:ring-indigo-500"
-        />
-      </div>
-      <div>
-        <label for="evaluator-remarks-input" class="block text-xs font-bold uppercase text-slate-700 mb-1">
-          Evaluator Remarks & Rubric Notes
-        </label>
-        <input
-          id="evaluator-remarks-input"
-          type="text"
-          [ngModel]="comments()"
-          (ngModelChange)="comments.set($event)"
-          placeholder="e.g. Correct derivation with minor sign flaw"
-          class="w-full px-3 py-2 text-sm border rounded-lg focus:ring-2 focus:ring-indigo-500"
-        />
+        <button
+          mat-flat-button
+          color="primary"
+          (click)="onSubmit()"
+          [disabled]="submitting()"
+          class="!rounded-xl !px-5 cursor-pointer shadow-sm"
+        >
+          <mat-icon class="!text-sm">verified</mat-icon>
+          {{ submitting() ? 'Submitting...' : 'Commit Grade' }}
+        </button>
       </div>
     </div>
 
-    <div class="flex items-center justify-end gap-3 pt-2">
-      <button
-        mat-flat-button
-        color="primary"
-        (click)="onSubmit()"
-        [disabled]="submitting()"
-      >
-        <mat-icon>check</mat-icon>
-        Commit Grade
-      </button>
+    <!-- Split-Pane Container -->
+    <div class="grid grid-cols-1 lg:grid-cols-12 divide-y lg:divide-y-0 lg:divide-x divide-slate-200 min-h-[620px]">
+
+      <!-- LEFT PANE: Problem Statement & Dynamic Rubric Sliders (5 cols) -->
+      <div class="lg:col-span-5 p-6 space-y-6 overflow-y-auto max-h-[85vh] bg-slate-50/40">
+
+        <!-- Problem Statement -->
+        <div class="space-y-2">
+          <div class="flex items-center justify-between">
+            <h4 class="text-xs font-bold uppercase tracking-wider text-slate-700 flex items-center gap-1.5">
+              <mat-icon class="!text-sm text-indigo-500">help_outline</mat-icon> Problem Statement
+            </h4>
+            <span class="text-[10px] font-mono bg-slate-200/80 text-slate-700 px-2 py-0.5 rounded font-bold">
+              Max: {{ current.maxMarks }} pts
+            </span>
+          </div>
+          <div class="p-4 bg-white rounded-xl border border-slate-200 text-xs leading-relaxed text-slate-800 shadow-2xs">
+            <nag-math-renderer [content]="current.questionContent" />
+          </div>
+        </div>
+
+        <!-- Rubric Criteria Scoring Sliders -->
+        <div class="space-y-4">
+          <div class="flex items-center justify-between">
+            <h4 class="text-xs font-bold uppercase tracking-wider text-slate-700 flex items-center gap-1.5">
+              <mat-icon class="!text-sm text-indigo-500">tune</mat-icon> Rubric Criteria Breakdown
+            </h4>
+            <span class="text-[10px] text-slate-400 font-mono">Dynamic Weighted Points</span>
+          </div>
+
+          <div class="space-y-3">
+            @for (criterion of rubricCriteria(); track criterion.id) {
+              <div class="p-3.5 bg-white rounded-xl border border-slate-200 shadow-2xs space-y-2.5">
+                <div class="flex items-start justify-between gap-2">
+                  <div>
+                    <h5 class="text-xs font-bold text-slate-900">{{ criterion.name }}</h5>
+                    <p class="text-[10px] text-slate-500 mt-0.5 leading-tight">{{ criterion.description }}</p>
+                  </div>
+                  <div class="text-right shrink-0">
+                    <span class="text-xs font-mono font-black text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded-lg border border-indigo-100">
+                      {{ criterion.awardedMarks }} / {{ criterion.maxMarks }}
+                    </span>
+                  </div>
+                </div>
+
+                <!-- Slider Control -->
+                <div class="flex items-center gap-3 pt-1">
+                  <span class="text-[10px] font-mono text-slate-400">0</span>
+                  <input
+                    type="range"
+                    min="0"
+                    [max]="criterion.maxMarks"
+                    step="0.5"
+                    [ngModel]="criterion.awardedMarks"
+                    (ngModelChange)="updateCriterionScore(criterion.id, $event)"
+                    class="w-full accent-indigo-600 h-1.5 bg-slate-200 rounded-lg cursor-pointer"
+                  />
+                  <span class="text-[10px] font-mono text-slate-600 font-bold">{{ criterion.maxMarks }}</span>
+                </div>
+              </div>
+            }
+          </div>
+        </div>
+
+        <!-- General Evaluator Remarks -->
+        <div class="space-y-2">
+          <label for="evaluator-comments" class="text-xs font-bold uppercase tracking-wider text-slate-700 flex items-center gap-1.5">
+            <mat-icon class="!text-sm text-indigo-500">rate_review</mat-icon> Evaluator Overall Remarks
+          </label>
+          <textarea
+            id="evaluator-comments"
+            rows="3"
+            [(ngModel)]="comments"
+            placeholder="Add comprehensive feedback for candidate or dispute review..."
+            class="w-full text-xs p-3 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:outline-hidden"
+          ></textarea>
+        </div>
+
+      </div>
+
+      <!-- RIGHT PANE: Response Viewer & Inline Annotation / Moderation (7 cols) -->
+      <div class="lg:col-span-7 p-6 space-y-6 overflow-y-auto max-h-[85vh] bg-white flex flex-col justify-between">
+
+        <div class="space-y-6">
+          <!-- Split-pane Header -->
+          <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+            <div class="flex items-center gap-2">
+              <h4 class="text-xs font-bold uppercase tracking-wider text-slate-700 flex items-center gap-1.5">
+                <mat-icon class="!text-sm text-indigo-500">code</mat-icon> Candidate Response & Derivations
+              </h4>
+              <span class="text-[10px] bg-slate-100 text-slate-600 px-2 py-0.5 rounded font-mono">
+                Click line # to annotate
+              </span>
+            </div>
+
+            <div class="flex items-center gap-2">
+              <span class="text-[11px] text-slate-500">
+                Comments: <b>{{ inlineComments().length }}</b>
+              </span>
+            </div>
+          </div>
+
+          <!-- Code / Essay Line-by-Line Viewer -->
+          <div class="rounded-xl border border-slate-200 bg-slate-900 text-slate-100 font-mono text-xs overflow-hidden shadow-inner">
+            <div class="divide-y divide-slate-800">
+              @for (line of responseLines(); track $index) {
+                <div
+                  class="flex items-start group hover:bg-slate-800/80 transition-colors"
+                  [class.bg-indigo-950]="selectedCommentLine() === ($index + 1)"
+                >
+                  <!-- Line Number / Comment Trigger Button -->
+                  <button
+                    type="button"
+                    (click)="selectLineForComment($index)"
+                    class="w-12 py-1 px-2 text-right select-none text-slate-500 group-hover:text-indigo-400 font-mono text-[11px] border-r border-slate-800 cursor-pointer hover:bg-slate-800 transition"
+                    title="Click to add inline comment on line {{ $index + 1 }}"
+                  >
+                    {{ $index + 1 }}
+                    @if (getCommentsForLine($index + 1).length > 0) {
+                      <span class="inline-block w-1.5 h-1.5 rounded-full bg-amber-400 ml-0.5"></span>
+                    }
+                  </button>
+
+                  <!-- Line Content -->
+                  <div class="py-1 px-3 grow whitespace-pre-wrap break-all leading-relaxed font-mono select-text">
+                    {{ line || ' ' }}
+                  </div>
+                </div>
+
+                <!-- Render Inline Comments Attached to this Line -->
+                @for (c of getCommentsForLine($index + 1); track c.id) {
+                  <div class="bg-amber-950/40 border-l-4 border-amber-400 px-4 py-2 text-[11px] font-sans flex items-start justify-between gap-2">
+                    <div class="space-y-0.5">
+                      <div class="flex items-center gap-2">
+                        <span class="text-[9px] font-bold font-mono px-1.5 py-0.2 bg-amber-500/20 text-amber-300 rounded uppercase">
+                          {{ c.tag || 'NOTE' }}
+                        </span>
+                        <span class="font-bold text-amber-200">{{ c.author }}</span>
+                        <span class="text-[10px] text-slate-400">{{ c.timestamp }}</span>
+                      </div>
+                      <p class="text-slate-200">{{ c.text }}</p>
+                    </div>
+                    <button
+                      type="button"
+                      (click)="removeInlineComment(c.id)"
+                      class="text-slate-400 hover:text-rose-400 p-1 cursor-pointer"
+                      title="Delete Comment"
+                    >
+                      <mat-icon class="!text-xs leading-none">close</mat-icon>
+                    </button>
+                  </div>
+                }
+              }
+            </div>
+          </div>
+
+          <!-- Add Inline Comment Form Box -->
+          <div class="p-4 bg-slate-50 rounded-xl border border-slate-200 space-y-3">
+            <div class="flex items-center justify-between">
+              <span class="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                <mat-icon class="!text-sm text-indigo-500">add_comment</mat-icon>
+                Add Inline Evaluator Comment
+                @if (selectedCommentLine()) {
+                  <span class="text-[10px] font-mono bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded font-bold">
+                    Line {{ selectedCommentLine() }}
+                  </span>
+                } @else {
+                  <span class="text-[10px] font-mono bg-slate-200 text-slate-600 px-2 py-0.5 rounded">
+                    General Snippet
+                  </span>
+                }
+              </span>
+
+              <!-- Tag Selector -->
+              <div class="flex items-center gap-1">
+                @for (tag of ['ACCURACY', 'METHODOLOGY', 'SYNTAX_LOGIC', 'FORMATTING']; track tag) {
+                  <button
+                    type="button"
+                    (click)="selectedCommentTag.set($any(tag))"
+                    class="text-[9px] font-bold font-mono px-2 py-0.5 rounded-full transition cursor-pointer"
+                    [ngClass]="{
+                      'bg-indigo-600 text-white': selectedCommentTag() === tag,
+                      'bg-slate-200/80 text-slate-600 hover:bg-slate-300': selectedCommentTag() !== tag
+                    }"
+                  >
+                    {{ tag }}
+                  </button>
+                }
+              </div>
+            </div>
+
+            <div class="flex gap-2">
+              <input
+                type="text"
+                [(ngModel)]="newCommentText"
+                (keydown.enter)="addInlineComment()"
+                placeholder="Write specific feedback on candidate logic, edge cases, or syntax..."
+                class="grow text-xs px-3 py-2 bg-white border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-hidden"
+              />
+              <button
+                mat-flat-button
+                color="primary"
+                (click)="addInlineComment()"
+                [disabled]="!newCommentText().trim()"
+                class="!text-xs !rounded-lg"
+              >
+                Post
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Moderation Sign-Off Section -->
+        <div class="pt-4 border-t border-slate-200 space-y-3">
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-2">
+              <input
+                id="moderation-checkbox"
+                type="checkbox"
+                [ngModel]="moderationRequired()"
+                (ngModelChange)="moderationRequired.set($event)"
+                class="w-4 h-4 accent-indigo-600 rounded cursor-pointer"
+              />
+              <label for="moderation-checkbox" class="text-xs font-bold text-slate-900 cursor-pointer">
+                Chief Moderator Sign-Off & Verification
+              </label>
+            </div>
+            <span class="text-[10px] text-slate-400 font-mono">Dual-Evaluator Protocol</span>
+          </div>
+
+          @if (moderationRequired()) {
+            <div class="p-4 bg-indigo-50/50 rounded-xl border border-indigo-200 space-y-3 animate-fade-in">
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label class="block text-[11px] font-bold text-slate-700 mb-1">Moderation Verdict</label>
+                  <select
+                    [ngModel]="moderationVerdict()"
+                    (ngModelChange)="moderationVerdict.set($event)"
+                    class="w-full text-xs px-3 py-1.5 bg-white border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
+                  >
+                    <option value="APPROVED">APPROVED (Concur with Evaluator)</option>
+                    <option value="REQUIRES_REVALUATION">REQUIRES REVALUATION (Discrepancy Found)</option>
+                    <option value="ESCALATED">ESCALATE TO HEAD EXAMINER</option>
+                  </select>
+                </div>
+                <div>
+                  <label class="block text-[11px] font-bold text-slate-700 mb-1">Moderator Audit Note</label>
+                  <input
+                    type="text"
+                    [(ngModel)]="moderationNotes"
+                    placeholder="e.g. Verified rubric weights against official key"
+                    class="w-full text-xs px-3 py-1.5 bg-white border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
+                  />
+                </div>
+              </div>
+            </div>
+          }
+        </div>
+
+      </div>
+
     </div>
+
   } @else {
-    <div class="text-center py-16 text-slate-400">
-      <mat-icon class="!text-4xl mb-2">touch_app</mat-icon>
-      <p class="text-sm">Select a candidate submission from the left queue to evaluate.</p>
+    <div class="text-center py-20 text-slate-400 space-y-3">
+      <div class="w-14 h-14 mx-auto rounded-2xl bg-slate-100 text-slate-400 flex items-center justify-center">
+        <mat-icon class="!text-3xl">touch_app</mat-icon>
+      </div>
+      <div>
+        <p class="text-sm font-bold text-slate-700">No Submission Selected</p>
+        <p class="text-xs text-slate-400 mt-0.5">Select a candidate submission from the queue to start grading.</p>
+      </div>
     </div>
   }
 </div>
