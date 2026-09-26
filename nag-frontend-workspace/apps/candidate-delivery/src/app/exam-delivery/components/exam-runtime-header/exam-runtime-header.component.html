@@ -1,0 +1,53 @@
+<header class="bg-slate-900 text-white px-6 py-3 flex items-center justify-between border-b border-slate-800 shrink-0">
+  <div class="flex items-center gap-4">
+    <div class="flex items-center gap-2">
+      <span class="w-7 h-7 rounded bg-indigo-600 flex items-center justify-center font-black text-xs">
+        NAG
+      </span>
+      <span class="font-bold text-sm tracking-wide">SECURE CANDIDATE RUNTIME</span>
+    </div>
+    <span class="text-xs px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 flex items-center gap-1.5 font-mono">
+      <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+      PROCTOR HEARTBEAT: ENCRYPTED
+    </span>
+  </div>
+
+  <div class="flex items-center gap-6">
+    <!-- Multilingual Selector -->
+    <div class="flex items-center gap-2 text-xs">
+      <label for="candidate-lang-select" class="text-slate-400">Language:</label>
+      <select
+        id="candidate-lang-select"
+        [ngModel]="currentLanguage()"
+        (ngModelChange)="onLanguageSelect($event)"
+        class="bg-slate-800 text-slate-200 border border-slate-700 rounded px-2 py-1 text-xs focus:ring-1 focus:ring-indigo-500 focus:outline-hidden cursor-pointer"
+      >
+        @for (lang of supportedLanguages(); track lang.code) {
+          <option [value]="lang.code">{{ lang.nativeLabel }} ({{ lang.label }})</option>
+        }
+      </select>
+    </div>
+
+    <!-- Countdown Timer Ribbon -->
+    <div
+      class="flex items-center gap-2 px-3 py-1 rounded-lg font-mono font-bold text-sm"
+      [ngClass]="{
+        'bg-rose-950 text-rose-300 border border-rose-800 animate-pulse': isWarningTimer(),
+        'bg-slate-800 text-slate-200 border border-slate-700': !isWarningTimer()
+      }"
+    >
+      <mat-icon class="!text-base leading-none">timer</mat-icon>
+      <span>{{ formattedTime() }}</span>
+    </div>
+
+    <!-- Submit Trigger Button -->
+    <button
+      mat-flat-button
+      color="warn"
+      (click)="onSubmit()"
+      class="!text-xs !py-1 !px-3 font-semibold !rounded-lg cursor-pointer"
+    >
+      Submit Exam
+    </button>
+  </div>
+</header>

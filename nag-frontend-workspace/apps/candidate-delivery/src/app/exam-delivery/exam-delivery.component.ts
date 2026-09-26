@@ -1,4 +1,5 @@
 import {
+  ChangeDetectionStrategy,
   Component,
   OnInit,
   OnDestroy,
@@ -7,13 +8,6 @@ import {
   computed,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { FormsModule } from '@angular/forms';
-import { RouterModule } from '@angular/router';
-import { MatButtonModule } from '@angular/material/button';
-import { MatIconModule } from '@angular/material/icon';
-import {
-  MathRendererComponent,
-} from '@nag-frontend-workspace/shared-ui-components';
 import {
   hashSha256,
   signSubmissionHash,
@@ -22,42 +16,47 @@ import {
   I18nService,
   SUPPORTED_LANGUAGES,
 } from '@nag-frontend-workspace/shared-util-i18n';
+import {
+  ExamItem,
+  ExamSubmissionReceipt,
+  ExamSessionMetadata,
+} from './models';
+import {
+  ExamRuntimeHeaderComponent,
+  ExamQuestionCardComponent,
+  ExamQuestionPaletteComponent,
+  ExamSubmissionModalComponent,
+} from './components';
 
-export interface ExamItem {
-  id: string;
-  order: number;
-  questionCode: string;
-  content: string;
-  options: Array<{ id: string; text: string }>;
-  marks: number;
-  negativeMarks: number;
-  selectedOptionId?: string;
-  isFlagged?: boolean;
-  isVisited?: boolean;
-}
+export * from './models';
 
 @Component({
   selector: 'app-exam-delivery',
   standalone: true,
   imports: [
     CommonModule,
-    FormsModule,
-    RouterModule,
-    MatButtonModule,
-    MatIconModule,
-    MathRendererComponent,
+    ExamRuntimeHeaderComponent,
+    ExamQuestionCardComponent,
+    ExamQuestionPaletteComponent,
+    ExamSubmissionModalComponent,
   ],
   templateUrl: './exam-delivery.component.html',
   styleUrl: './exam-delivery.component.scss',
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class ExamDeliveryComponent implements OnInit, OnDestroy {
   readonly i18nService = inject(I18nService);
   readonly supportedLanguages = SUPPORTED_LANGUAGES;
 
-  remainingSeconds = signal<number>(5400); // 90 minutes
+  readonly sessionMeta = signal<ExamSessionMetadata>({
+    sessionId: 'NES-2026-A48',
+    candidateId: '849202',
+  });
+
+  readonly remainingSeconds = signal<number>(5400); // 90 minutes
   private timerInterval: any = null;
 
-  questions = signal<ExamItem[]>([
+  readonly questions = signal<ExamItem[]>([
     {
       id: 'q-1',
       order: 1,
@@ -106,21 +105,17 @@ export class ExamDeliveryComponent implements OnInit, OnDestroy {
     },
   ]);
 
-  currentIndex = signal<number>(0);
+  readonly currentIndex = signal<number>(0);
 
-  currentItem = computed(() => {
+  readonly currentItem = computed(() => {
     const list = this.questions();
     const idx = this.currentIndex();
     return list[idx] || null;
   });
 
-  submissionReceipt = signal<{
-    signature: string;
-    hash: string;
-    timestamp: string;
-  } | null>(null);
+  readonly submissionReceipt = signal<ExamSubmissionReceipt | null>(null);
 
-  formattedTime = computed(() => {
+  readonly formattedTime = computed(() => {
     const s = this.remainingSeconds();
     const hrs = Math.floor(s / 3600);
     const mins = Math.floor((s % 3600) / 60);
@@ -130,13 +125,13 @@ export class ExamDeliveryComponent implements OnInit, OnDestroy {
       .padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   });
 
-  countAnswered = computed(
+  readonly countAnswered = computed(
     () => this.questions().filter((q) => q.selectedOptionId).length
   );
-  countFlagged = computed(
+  readonly countFlagged = computed(
     () => this.questions().filter((q) => q.isFlagged).length
   );
-  countUnvisited = computed(
+  readonly countUnvisited = computed(
     () => this.questions().filter((q) => !q.isVisited && !q.selectedOptionId).length
   );
 
@@ -194,10 +189,6 @@ export class ExamDeliveryComponent implements OnInit, OnDestroy {
 
   prevQuestion(): void {
     this.goToQuestion(this.currentIndex() - 1);
-  }
-
-  getLetter(idx: number): string {
-    return String.fromCharCode(65 + idx);
   }
 
   async confirmSubmission(): Promise<void> {
