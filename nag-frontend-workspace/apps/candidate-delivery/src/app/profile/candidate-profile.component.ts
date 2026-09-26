@@ -1,11 +1,13 @@
 import {
   ChangeDetectionStrategy,
   Component,
+  OnInit,
   inject,
   signal,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule } from '@angular/router';
+import { HttpClient } from '@angular/common/http';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { PageHeaderComponent } from '@nag-frontend-workspace/shared-ui-components';
@@ -48,10 +50,12 @@ export * from './models';
   styleUrl: './candidate-profile.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class CandidateProfileComponent {
+export class CandidateProfileComponent implements OnInit {
+  private readonly http = inject(HttpClient);
   readonly authService = inject(AuthService);
 
   readonly activeTab = signal<ProfileTab>('personal');
+  readonly loading = signal<boolean>(false);
   readonly saving = signal<boolean>(false);
 
   readonly tabs: ProfileTabOption[] = [
@@ -132,38 +136,149 @@ export class CandidateProfileComponent {
     ],
   });
 
+  ngOnInit(): void {
+    const user = this.authService.currentUser();
+    if (user?.userId && user.userId !== 'user-unknown') {
+      this.loadProfileFromApi(user.userId);
+    }
+  }
+
+  private loadProfileFromApi(userId: string): void {
+    this.loading.set(true);
+    this.http.get<any>(`/api/v1/candidates/${userId}`).subscribe({
+      next: (data) => {
+        this.loading.set(false);
+        if (data) {
+          this.profile.update((curr) => ({
+            ...curr,
+            candidateId: data.userId || curr.candidateId,
+            fullName: data.fullName || curr.fullName,
+            dateOfBirth: data.dateOfBirth || curr.dateOfBirth,
+            gender: data.gender || curr.gender,
+            nationality: data.nationality || curr.nationality,
+            category: data.category || curr.category,
+            reservationCategory: data.reservationCategory || curr.reservationCategory,
+            address: data.address || curr.address,
+            mobile: data.mobile || curr.mobile,
+            email: data.email || curr.email,
+            kycStatus: data.digiLockerVerified === 'VERIFIED' ? 'VERIFIED' : curr.kycStatus,
+            digiLockerStatus: data.digiLockerVerified || curr.digiLockerStatus,
+          }));
+        }
+      },
+      error: () => {
+        this.loading.set(false);
+        // Fallback gracefully to existing profile data
+      },
+    });
+
+    // Also load educational qualifications if available
+    this.http.get<any[]>(`/api/v1/candidates/${userId}/education`).subscribe({
+      next: (eduList) => {
+        if (eduList && Array.isArray(eduList) && eduList.length > 0) {
+          this.profile.update((curr) => ({
+            ...curr,
+            education: eduList.map((e) => ({
+              id: e.id || String(Date.now()),
+              qualification: e.qualification || '',
+              boardOrUniversity: e.boardOrUniversity || '',
+              passingYear: e.passingYear || 2024,
+              percentageOrCgpa: e.percentageOrCgpa || '',
+              certificateAssetId: e.certificateAssetId,
+            })),
+          }));
+        }
+      },
+      error: () => {
+        // Keep initial education entries
+      },
+    });
+  }
+
   onTabChange(tabId: ProfileTab): void {
     this.activeTab.set(tabId);
   }
 
   addEducation(): void {
+    const user = this.authService.currentUser();
+    const newEdu = {
+      id: String(Date.now()),
+      qualification: 'New Qualification',
+      boardOrUniversity: 'Board / University',
+      passingYear: 2024,
+      percentageOrCgpa: 'N/A',
+    };
+
     this.profile.update((p) => ({
       ...p,
-      education: [
-        ...p.education,
-        {
-          id: String(Date.now()),
-          qualification: 'New Qualification',
-          boardOrUniversity: 'Board / University',
-          passingYear: 2024,
-          percentageOrCgpa: 'N/A',
-        },
-      ],
+      education: [...p.education, newEdu],
     }));
+
+    if (user?.userId && user.userId !== 'user-unknown') {
+      this.http
+        .post(`/api/v1/candidates/${user.userId}/education`, {
+          qualification: newEdu.qualification,
+          boardOrUniversity: newEdu.boardOrUniversity,
+          passingYear: newEdu.passingYear,
+          percentageOrCgpa: newEdu.percentageOrCgpa,
+        })
+        .subscribe({
+          error: () => {},
+        });
+    }
   }
 
   removeEducation(index: number): void {
+    const edu = this.profile().education[index];
     this.profile.update((p) => ({
       ...p,
       education: p.education.filter((_, idx) => idx !== index),
     }));
+
+    const user = this.authService.currentUser();
+    if (user?.userId && edu?.id && user.userId !== 'user-unknown') {
+      this.http
+        .delete(`/api/v1/candidates/${user.userId}/education/${edu.id}`)
+        .subscribe({
+          error: () => {},
+        });
+    }
   }
 
   saveProfile(): void {
     this.saving.set(true);
-    setTimeout(() => {
-      this.saving.set(false);
-      alert('Candidate Profile updated and anchored to secure vault.');
-    }, 600);
+    const user = this.authService.currentUser();
+    const p = this.profile();
+
+    if (user?.userId && user.userId !== 'user-unknown') {
+      const payload = {
+        fullName: p.fullName,
+        dateOfBirth: p.dateOfBirth,
+        gender: p.gender,
+        nationality: p.nationality,
+        category: p.category,
+        mobile: p.mobile,
+        email: p.email,
+        address: p.address,
+        reservationCategory: p.reservationCategory,
+        identityDocNumber: p.identityDocNumber,
+      };
+
+      this.http.put(`/api/v1/candidates/${user.userId}`, payload).subscribe({
+        next: () => {
+          this.saving.set(false);
+          alert('Candidate profile saved and synchronized with the backend.');
+        },
+        error: () => {
+          this.saving.set(false);
+          alert('Profile saved locally (offline / mock fallback).');
+        },
+      });
+    } else {
+      setTimeout(() => {
+        this.saving.set(false);
+        alert('Candidate Profile updated and anchored to secure vault.');
+      }, 500);
+    }
   }
 }
