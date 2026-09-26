@@ -29,6 +29,31 @@ import {
 
 export * from './models';
 
+function createEmptyProfile(userId = '', username = ''): CandidateProfile {
+  const isEmail = username.includes('@');
+  return {
+    candidateId: userId || 'NAG-CAN-NEW',
+    fullName: isEmail ? '' : username,
+    dateOfBirth: '',
+    gender: 'MALE',
+    nationality: 'Indian',
+    category: 'GENERAL',
+    reservationCategory: '',
+    identityDocType: 'AADHAAR',
+    identityDocNumber: '',
+    mobile: '',
+    email: isEmail ? username : '',
+    address: '',
+    state: '',
+    pinCode: '',
+    kycStatus: 'PENDING',
+    digiLockerStatus: 'NOT_LINKED',
+    digiLockerUri: '',
+    digiLockerClaims: [],
+    education: [],
+  };
+}
+
 @Component({
   selector: 'app-candidate-profile',
   standalone: true,
@@ -57,6 +82,7 @@ export class CandidateProfileComponent implements OnInit {
   readonly activeTab = signal<ProfileTab>('personal');
   readonly loading = signal<boolean>(false);
   readonly saving = signal<boolean>(false);
+  readonly existsOnServer = signal<boolean>(false);
 
   readonly tabs: ProfileTabOption[] = [
     { id: 'personal', label: 'Personal Details', icon: 'person' },
@@ -66,88 +92,25 @@ export class CandidateProfileComponent implements OnInit {
     { id: 'digilocker', label: 'DigiLocker Claims', icon: 'verified_user', badge: 'DPI' },
   ];
 
-  readonly profile = signal<CandidateProfile>({
-    candidateId: 'NAG-CAN-849202',
-    fullName: 'Rahul Sharma',
-    dateOfBirth: '2001-04-18',
-    gender: 'MALE',
-    nationality: 'Indian',
-    category: 'GENERAL',
-    identityDocType: 'AADHAAR',
-    identityDocNumber: 'XXXX-XXXX-8921',
-    mobile: '+91 98765 43210',
-    email: 'rahul.sharma@example.gov.in',
-    address: 'Flat 402, Block C, Pragati Vihar, Hauz Khas',
-    state: 'Delhi',
-    pinCode: '110016',
-    kycStatus: 'VERIFIED',
-    digiLockerStatus: 'VERIFIED',
-    digiLockerUri: 'in.gov.digilocker:user:849201:claims',
-    digiLockerClaims: [
-      {
-        id: 'dl-claim-1',
-        docType: 'AADHAAR',
-        docName: 'Aadhaar e-KYC Identity Claim',
-        issuerName: 'Unique Identification Authority of India (UIDAI)',
-        docNumber: 'XXXXXXXX8921',
-        issuedDate: '2018-05-12',
-        verifiedAt: '2026-09-26T10:00:00Z',
-        status: 'VERIFIED',
-        hashDigest: 'sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855',
-      },
-      {
-        id: 'dl-claim-2',
-        docType: 'CLASS_X_CERT',
-        docName: 'Secondary School Examination (Class X) Certificate',
-        issuerName: 'Central Board of Secondary Education (CBSE)',
-        docNumber: 'CBSE-X-2018-918230',
-        issuedDate: '2018-06-15',
-        verifiedAt: '2026-09-26T10:00:00Z',
-        status: 'VERIFIED',
-        hashDigest: 'sha256:4a5b6c7d8e9f0123456789abcdef0123456789abcdef0123456789abcdef0123',
-      },
-      {
-        id: 'dl-claim-3',
-        docType: 'CLASS_XII_CERT',
-        docName: 'Senior School Certificate Examination (Class XII)',
-        issuerName: 'Central Board of Secondary Education (CBSE)',
-        docNumber: 'CBSE-XII-2020-582910',
-        issuedDate: '2020-07-20',
-        verifiedAt: '2026-09-26T10:00:00Z',
-        status: 'VERIFIED',
-        hashDigest: 'sha256:7b8c9d0e1f23456789abcdef0123456789abcdef0123456789abcdef01234567',
-      },
-    ],
-    education: [
-      {
-        id: '1',
-        qualification: 'B.Tech in Computer Science',
-        boardOrUniversity: 'Delhi Technological University (DTU)',
-        passingYear: 2024,
-        percentageOrCgpa: '8.85 CGPA',
-      },
-      {
-        id: '2',
-        qualification: 'Senior Secondary (12th Class)',
-        boardOrUniversity: 'CBSE',
-        passingYear: 2020,
-        percentageOrCgpa: '94.2%',
-      },
-    ],
-  });
+  readonly profile = signal<CandidateProfile>(createEmptyProfile());
 
   ngOnInit(): void {
     const user = this.authService.currentUser();
     if (user?.userId && user.userId !== 'user-unknown') {
+      // Clear forms and initialize with authenticated user identity details
+      this.profile.set(createEmptyProfile(user.userId, user.username));
       this.loadProfileFromApi(user.userId);
     }
   }
 
   private loadProfileFromApi(userId: string): void {
     this.loading.set(true);
+    const user = this.authService.currentUser();
+
     this.http.get<any>(`/api/v1/candidates/${userId}`).subscribe({
       next: (data) => {
         this.loading.set(false);
+        this.existsOnServer.set(true);
         if (data) {
           this.profile.update((curr) => ({
             ...curr,
@@ -168,7 +131,9 @@ export class CandidateProfileComponent implements OnInit {
       },
       error: () => {
         this.loading.set(false);
-        // Fallback gracefully to existing profile data
+        this.existsOnServer.set(false);
+        // On 404 or missing profile, clear all profile form fields completely
+        this.profile.set(createEmptyProfile(userId, user?.username || ''));
       },
     });
 
@@ -187,10 +152,12 @@ export class CandidateProfileComponent implements OnInit {
               certificateAssetId: e.certificateAssetId,
             })),
           }));
+        } else {
+          this.profile.update((curr) => ({ ...curr, education: [] }));
         }
       },
       error: () => {
-        // Keep initial education entries
+        this.profile.update((curr) => ({ ...curr, education: [] }));
       },
     });
   }
@@ -203,10 +170,10 @@ export class CandidateProfileComponent implements OnInit {
     const user = this.authService.currentUser();
     const newEdu = {
       id: String(Date.now()),
-      qualification: 'New Qualification',
-      boardOrUniversity: 'Board / University',
-      passingYear: 2024,
-      percentageOrCgpa: 'N/A',
+      qualification: '',
+      boardOrUniversity: '',
+      passingYear: new Date().getFullYear(),
+      percentageOrCgpa: '',
     };
 
     this.profile.update((p) => ({
@@ -214,7 +181,7 @@ export class CandidateProfileComponent implements OnInit {
       education: [...p.education, newEdu],
     }));
 
-    if (user?.userId && user.userId !== 'user-unknown') {
+    if (user?.userId && user.userId !== 'user-unknown' && this.existsOnServer()) {
       this.http
         .post(`/api/v1/candidates/${user.userId}/education`, {
           qualification: newEdu.qualification,
@@ -236,7 +203,7 @@ export class CandidateProfileComponent implements OnInit {
     }));
 
     const user = this.authService.currentUser();
-    if (user?.userId && edu?.id && user.userId !== 'user-unknown') {
+    if (user?.userId && edu?.id && user.userId !== 'user-unknown' && this.existsOnServer()) {
       this.http
         .delete(`/api/v1/candidates/${user.userId}/education/${edu.id}`)
         .subscribe({
@@ -251,34 +218,66 @@ export class CandidateProfileComponent implements OnInit {
     const p = this.profile();
 
     if (user?.userId && user.userId !== 'user-unknown') {
-      const payload = {
-        fullName: p.fullName,
-        dateOfBirth: p.dateOfBirth,
-        gender: p.gender,
-        nationality: p.nationality,
-        category: p.category,
-        mobile: p.mobile,
-        email: p.email,
-        address: p.address,
-        reservationCategory: p.reservationCategory,
-        identityDocNumber: p.identityDocNumber,
-      };
+      if (this.existsOnServer()) {
+        const updatePayload = {
+          fullName: p.fullName,
+          dateOfBirth: p.dateOfBirth,
+          gender: p.gender,
+          nationality: p.nationality,
+          category: p.category,
+          mobile: p.mobile,
+          email: p.email,
+          address: p.address,
+          reservationCategory: p.reservationCategory,
+          identityDocNumber: p.identityDocNumber,
+        };
 
-      this.http.put(`/api/v1/candidates/${user.userId}`, payload).subscribe({
-        next: () => {
-          this.saving.set(false);
-          alert('Candidate profile saved and synchronized with the backend.');
-        },
-        error: () => {
-          this.saving.set(false);
-          alert('Profile saved locally (offline / mock fallback).');
-        },
-      });
+        this.http.put(`/api/v1/candidates/${user.userId}`, updatePayload).subscribe({
+          next: () => {
+            this.saving.set(false);
+            alert('Candidate profile updated successfully.');
+          },
+          error: () => {
+            // If PUT fails because profile doesn't exist, attempt POST create
+            this.createProfile(user.userId, p);
+          },
+        });
+      } else {
+        this.createProfile(user.userId, p);
+      }
     } else {
       setTimeout(() => {
         this.saving.set(false);
-        alert('Candidate Profile updated and anchored to secure vault.');
+        alert('Candidate profile updated locally (offline mode).');
       }, 500);
     }
+  }
+
+  private createProfile(userId: string, p: CandidateProfile): void {
+    const createPayload = {
+      userId: userId,
+      fullName: p.fullName || 'Candidate',
+      dateOfBirth: p.dateOfBirth || '2000-01-01',
+      gender: p.gender || 'MALE',
+      nationality: p.nationality || 'Indian',
+      category: p.category || 'GENERAL',
+      mobile: p.mobile || '0000000000',
+      email: p.email || 'candidate@example.com',
+      address: p.address || '',
+      reservationCategory: p.reservationCategory || '',
+      identityDocNumber: p.identityDocNumber || 'NOT_PROVIDED',
+    };
+
+    this.http.post('/api/v1/candidates', createPayload).subscribe({
+      next: () => {
+        this.saving.set(false);
+        this.existsOnServer.set(true);
+        alert('Candidate profile created successfully.');
+      },
+      error: () => {
+        this.saving.set(false);
+        alert('Profile saved locally (offline / mock fallback).');
+      },
+    });
   }
 }
