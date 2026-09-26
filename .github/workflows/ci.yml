@@ -285,13 +285,13 @@ jobs:
           category: 'trivy-${{ matrix.service }}'
 
   # ─────────────────────────────────────────────────────────────────────────────
-  # Job 7: Deploy to staging (only on develop push)
+  # Job 7: Deploy to staging (Disabled for now)
   # ─────────────────────────────────────────────────────────────────────────────
   deploy-staging:
     name: Deploy to Staging
     runs-on: ubuntu-latest
     needs: container-build
-    if: github.ref == 'refs/heads/develop' && github.event_name == 'push'
+    if: false # Disabled for now
     environment:
       name: staging
       url: ${{ vars.STAGING_URL }}
