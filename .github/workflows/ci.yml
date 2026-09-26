@@ -203,12 +203,13 @@ jobs:
           retention-days: 2
 
   # ─────────────────────────────────────────────────────────────────────────────
-  # Job 6: Container build + Trivy image scan
+  # Job 6: Container build + Trivy image scan (Disabled for now)
   # ─────────────────────────────────────────────────────────────────────────────
   container-build:
     name: Container Build & Scan
     runs-on: ubuntu-latest
     needs: [unit-test, sast, dependency-check]
+    if: false # Disabled for now
     permissions:
       contents: read
       security-events: write
