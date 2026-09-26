@@ -1,0 +1,89 @@
+<div class="bg-white rounded-2xl border border-slate-200 p-6 shadow-xs space-y-6">
+  <div>
+    <h3 class="text-base font-bold text-slate-900">Cluster Operations, Maintenance Mode &amp; Emergency Broadcasts</h3>
+    <p class="text-xs text-slate-500">Configure real-time platform availability, global notifications, and incident alerting webhooks</p>
+  </div>
+
+  <div class="space-y-4">
+    <!-- Platform Maintenance Mode Toggle -->
+    <div
+      class="p-4 rounded-2xl border transition-colors flex items-center justify-between"
+      [ngClass]="settings().platformMaintenanceMode ? 'bg-rose-50 border-rose-300' : 'bg-slate-50 border-slate-200'"
+    >
+      <div class="space-y-0.5">
+        <div class="text-xs font-bold flex items-center gap-1.5" [ngClass]="settings().platformMaintenanceMode ? 'text-rose-900' : 'text-slate-900'">
+          <mat-icon class="!text-sm" [ngClass]="settings().platformMaintenanceMode ? 'text-rose-600' : 'text-slate-600'">warning</mat-icon>
+          <span>Emergency Platform Maintenance Mode</span>
+        </div>
+        <p class="text-[11px]" [ngClass]="settings().platformMaintenanceMode ? 'text-rose-700' : 'text-slate-500'">
+          When enabled, all non-admin logins and exam starts will be blocked with a sovereign maintenance screen
+        </p>
+      </div>
+      <mat-slide-toggle
+        [checked]="settings().platformMaintenanceMode"
+        (change)="update('platformMaintenanceMode', $event.checked)"
+        color="warn"
+      ></mat-slide-toggle>
+    </div>
+
+    <!-- System Banner Broadcast -->
+    <div class="p-4 bg-white rounded-2xl border border-slate-200 space-y-2">
+      <label for="banner-msg-input" class="block text-xs font-bold text-slate-700 uppercase">
+        Global Broadcast Banner Message
+      </label>
+      <input
+        id="banner-msg-input"
+        type="text"
+        [ngModel]="settings().platformBannerMessage"
+        (ngModelChange)="update('platformBannerMessage', $event)"
+        class="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500"
+        placeholder="e.g. Scheduled system maintenance today at 23:00 IST for 30 minutes."
+      />
+      <p class="text-[10px] text-slate-400">Displayed at top of Candidate Delivery and Admin Portals</p>
+    </div>
+
+    <!-- Alerting Webhook & Email Distribution -->
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
+      <div class="p-4 bg-white rounded-2xl border border-slate-200 space-y-2">
+        <div class="flex items-center justify-between">
+          <label for="webhook-url-input" class="text-xs font-bold text-slate-700 uppercase">
+            SecOps Webhook Endpoint
+          </label>
+          <button
+            type="button"
+            (click)="testWebhook()"
+            [disabled]="testingWebhook()"
+            class="text-[11px] font-bold text-indigo-600 hover:text-indigo-800 flex items-center gap-1 cursor-pointer"
+          >
+            <mat-icon class="!text-xs leading-none">send</mat-icon>
+            <span>Test Ping</span>
+          </button>
+        </div>
+        <input
+          id="webhook-url-input"
+          type="text"
+          [ngModel]="settings().alertCriticalErrorWebhook"
+          (ngModelChange)="update('alertCriticalErrorWebhook', $event)"
+          class="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500 font-mono"
+          placeholder="https://ops.nag.gov.in/webhooks/security"
+        />
+        <p class="text-[10px] text-slate-400">HTTP POST payload on critical tamper alerts and security spikes</p>
+      </div>
+
+      <div class="p-4 bg-white rounded-2xl border border-slate-200 space-y-2">
+        <label for="email-recip-input" class="block text-xs font-bold text-slate-700 uppercase">
+          SecOps Email Notification List
+        </label>
+        <input
+          id="email-recip-input"
+          type="text"
+          [ngModel]="settings().alertEmailRecipients"
+          (ngModelChange)="update('alertEmailRecipients', $event)"
+          class="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500 font-mono"
+          placeholder="sec-ops@nag.gov.in, admin@nag.gov.in"
+        />
+        <p class="text-[10px] text-slate-400">Comma-separated email addresses for security notifications</p>
+      </div>
+    </div>
+  </div>
+</div>

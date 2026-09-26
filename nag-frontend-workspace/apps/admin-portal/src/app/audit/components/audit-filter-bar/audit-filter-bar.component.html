@@ -1,0 +1,93 @@
+<div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs space-y-4">
+  <!-- Row 1: Search & Action Buttons -->
+  <div class="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4">
+    <div class="grow max-w-md">
+      <nag-search-input
+        [value]="searchQuery()"
+        placeholder="Search by actor, action type, target ID, IP, or hash..."
+        (searchChange)="searchChange.emit($event)"
+      ></nag-search-input>
+    </div>
+
+    <div class="flex flex-wrap items-center gap-2.5">
+      <button
+        mat-stroked-button
+        [disabled]="verifyingLedger()"
+        (click)="verifyLedger.emit()"
+        class="!rounded-xl !border-indigo-200 !text-indigo-700 hover:!bg-indigo-50 !text-xs !py-1.5"
+      >
+        <span class="flex items-center gap-1.5">
+          <mat-icon class="!text-sm leading-none" [class.animate-spin]="verifyingLedger()">
+            {{ verifyingLedger() ? 'sync' : 'verified_user' }}
+          </mat-icon>
+          <span>{{ verifyingLedger() ? 'Verifying Merkle Tree...' : 'Verify Cryptographic Ledger' }}</span>
+        </span>
+      </button>
+
+      <button
+        mat-stroked-button
+        (click)="exportLogs.emit()"
+        class="!rounded-xl !border-slate-300 !text-slate-700 hover:!bg-slate-50 !text-xs !py-1.5"
+      >
+        <span class="flex items-center gap-1.5">
+          <mat-icon class="!text-sm leading-none">download</mat-icon>
+          <span>Export Audit Trail</span>
+        </span>
+      </button>
+    </div>
+  </div>
+
+  <!-- Row 2: Selectors and Category Filter Chips -->
+  <div class="pt-3 border-t border-slate-100 flex flex-wrap items-center justify-between gap-3">
+    <!-- Service Filter Dropdown -->
+    <div class="flex items-center gap-2">
+      <label for="audit-service-select" class="text-xs font-bold text-slate-500 uppercase">Service:</label>
+      <select
+        id="audit-service-select"
+        [value]="selectedService()"
+        (change)="serviceChange.emit($any($event.target).value)"
+        class="text-xs bg-slate-50 border border-slate-200 rounded-xl px-3 py-1.5 font-bold text-slate-700 focus:ring-2 focus:ring-indigo-500 focus:outline-hidden"
+      >
+        @for (s of services; track s.value) {
+          <option [value]="s.value">{{ s.label }}</option>
+        }
+      </select>
+    </div>
+
+    <!-- Severity Filter Chips -->
+    <div class="flex items-center gap-1.5">
+      <span class="text-xs font-bold text-slate-500 uppercase mr-1">Severity:</span>
+      @for (sev of severities; track sev) {
+        <button
+          type="button"
+          (click)="severityChange.emit(sev)"
+          [ngClass]="{
+            'bg-slate-900 text-white font-bold shadow-xs': selectedSeverity() === sev && sev === 'ALL',
+            'bg-emerald-600 text-white font-bold shadow-xs': selectedSeverity() === sev && sev === 'INFO',
+            'bg-amber-600 text-white font-bold shadow-xs': selectedSeverity() === sev && sev === 'WARN',
+            'bg-rose-600 text-white font-bold shadow-xs': selectedSeverity() === sev && (sev === 'ERROR' || sev === 'CRITICAL'),
+            'bg-slate-100 text-slate-600 hover:bg-slate-200': selectedSeverity() !== sev
+          }"
+          class="px-2.5 py-1 rounded-lg text-[11px] uppercase transition cursor-pointer"
+        >
+          {{ sev }}
+        </button>
+      }
+    </div>
+
+    <!-- Status Filter Filter -->
+    <div class="flex items-center gap-2">
+      <label for="audit-status-select" class="text-xs font-bold text-slate-500 uppercase">Outcome:</label>
+      <select
+        id="audit-status-select"
+        [value]="selectedStatus()"
+        (change)="statusChange.emit($any($event.target).value)"
+        class="text-xs bg-slate-50 border border-slate-200 rounded-xl px-3 py-1.5 font-bold text-slate-700 focus:ring-2 focus:ring-indigo-500 focus:outline-hidden"
+      >
+        @for (st of statuses; track st) {
+          <option [value]="st">{{ st }}</option>
+        }
+      </select>
+    </div>
+  </div>
+</div>

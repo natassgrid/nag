@@ -1,0 +1,107 @@
+<div class="bg-white rounded-2xl border border-slate-200 p-6 shadow-xs space-y-6">
+  <div>
+    <h3 class="text-base font-bold text-slate-900">Zero-Trust Authentication &amp; Vault Encryption</h3>
+    <p class="text-xs text-slate-500">Configure multi-factor authentication requirements, session lifecycles, and HashiCorp Vault transit keys</p>
+  </div>
+
+  <div class="space-y-4">
+    <!-- MFA Enforcement -->
+    <div class="p-4 bg-slate-50 rounded-2xl border border-slate-200 flex items-center justify-between">
+      <div class="space-y-0.5">
+        <div class="text-xs font-bold text-slate-900 flex items-center gap-1.5">
+          <mat-icon class="!text-sm text-indigo-600">phonelink_lock</mat-icon>
+          <span>Mandatory TOTP Multi-Factor Authentication</span>
+        </div>
+        <p class="text-[11px] text-slate-500">Require all administrator and examination authority accounts to use Authenticator TOTP</p>
+      </div>
+      <mat-slide-toggle
+        [checked]="settings().authMfaEnforced"
+        (change)="update('authMfaEnforced', $event.checked)"
+        color="primary"
+      ></mat-slide-toggle>
+    </div>
+
+    <!-- Vault Transit Key Auto-Rotation -->
+    <div class="p-4 bg-slate-50 rounded-2xl border border-slate-200 flex items-center justify-between">
+      <div class="space-y-0.5">
+        <div class="text-xs font-bold text-slate-900 flex items-center gap-1.5">
+          <mat-icon class="!text-sm text-indigo-600">vpn_key</mat-icon>
+          <span>Vault Transit Key Auto-Rotation</span>
+        </div>
+        <p class="text-[11px] text-slate-500">Automatically rotate AES-256-GCM paper packaging master keys every 30 days</p>
+      </div>
+      <mat-slide-toggle
+        [checked]="settings().vaultTransitKeyAutoRotate"
+        (change)="update('vaultTransitKeyAutoRotate', $event.checked)"
+        color="primary"
+      ></mat-slide-toggle>
+    </div>
+
+    <!-- Session & Lockout Controls -->
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
+      <div class="p-4 bg-white rounded-2xl border border-slate-200 space-y-2">
+        <label for="sess-timeout-input" class="block text-xs font-bold text-slate-700 uppercase">
+          Session Inactivity Timeout (Minutes)
+        </label>
+        <input
+          id="sess-timeout-input"
+          type="number"
+          [ngModel]="settings().authSessionTimeoutMinutes"
+          (ngModelChange)="update('authSessionTimeoutMinutes', +$event)"
+          min="5"
+          max="120"
+          class="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500 font-mono font-bold"
+        />
+        <p class="text-[10px] text-slate-400">Tokens expire automatically upon user inactivity</p>
+      </div>
+
+      <div class="p-4 bg-white rounded-2xl border border-slate-200 space-y-2">
+        <label for="max-attempts-input" class="block text-xs font-bold text-slate-700 uppercase">
+          Maximum Failed Login Attempts
+        </label>
+        <input
+          id="max-attempts-input"
+          type="number"
+          [ngModel]="settings().authMaxLoginAttempts"
+          (ngModelChange)="update('authMaxLoginAttempts', +$event)"
+          min="3"
+          max="10"
+          class="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500 font-mono font-bold"
+        />
+        <p class="text-[10px] text-slate-400">Triggers IP and account rate-limiting lockouts</p>
+      </div>
+
+      <div class="p-4 bg-white rounded-2xl border border-slate-200 space-y-2">
+        <label for="lockout-dur-input" class="block text-xs font-bold text-slate-700 uppercase">
+          Account Lockout Duration (Minutes)
+        </label>
+        <input
+          id="lockout-dur-input"
+          type="number"
+          [ngModel]="settings().authLockoutDurationMinutes"
+          (ngModelChange)="update('authLockoutDurationMinutes', +$event)"
+          min="5"
+          max="60"
+          class="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500 font-mono font-bold"
+        />
+        <p class="text-[10px] text-slate-400">Cool-off period before credential retry is allowed</p>
+      </div>
+
+      <div class="p-4 bg-white rounded-2xl border border-slate-200 space-y-2">
+        <label for="pass-len-input" class="block text-xs font-bold text-slate-700 uppercase">
+          Minimum Password Length (Characters)
+        </label>
+        <input
+          id="pass-len-input"
+          type="number"
+          [ngModel]="settings().authPasswordMinLength"
+          (ngModelChange)="update('authPasswordMinLength', +$event)"
+          min="8"
+          max="32"
+          class="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500 font-mono font-bold"
+        />
+        <p class="text-[10px] text-slate-400">Enforces high entropy passwords across all roles</p>
+      </div>
+    </div>
+  </div>
+</div>

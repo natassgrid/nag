@@ -1,87 +1,39 @@
-<div class="admin-audit-page max-w-7xl mx-auto p-6 space-y-8">
+<div class="max-w-7xl mx-auto p-6 space-y-8">
+  <!-- Page Header -->
   <nag-page-header
-    title="Immutable Ledger Audit Console"
-    subtitle="Cryptographically sealed, append-only event trail of all administrative and examination events"
-    icon="security"
-  >
-    <div actions class="flex items-center gap-3">
-      <button mat-stroked-button (click)="verifyLedgerIntegrity()" [disabled]="verifyingLedger()" class="!rounded-xl">
-        <mat-icon>{{ verifyingLedger() ? 'sync' : 'verified' }}</mat-icon>
-        {{ verifyingLedger() ? 'Verifying Merkle Roots...' : 'Verify Ledger Integrity' }}
-      </button>
-      <button mat-flat-button color="primary" (click)="exportAuditLog()" class="!rounded-xl">
-        <mat-icon>download</mat-icon>
-        Export Audit Proof
-      </button>
-    </div>
-  </nag-page-header>
+    title="Tamper-Evident Audit Ledger"
+    subtitle="Cryptographically sealed, hash-chained transaction trail for national assessment operations and security events"
+    icon="verified_user"
+  ></nag-page-header>
+
+  <!-- KPI Ribbon -->
+  <nag-audit-kpi-ribbon [stats]="kpiStats()"></nag-audit-kpi-ribbon>
 
   <!-- Filter & Search Bar -->
-  <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs flex flex-col md:flex-row items-center justify-between gap-4">
-    <div class="w-full md:w-96">
-      <nag-search-input
-        placeholder="Filter by Actor, Resource, or Event Type..."
-        (searchChange)="searchQuery.set($event)"
-      />
-    </div>
+  <nag-audit-filter-bar
+    [searchQuery]="searchQuery()"
+    [selectedService]="selectedService()"
+    [selectedSeverity]="selectedSeverity()"
+    [selectedStatus]="selectedStatus()"
+    [verifyingLedger]="verifyingLedger()"
+    (searchChange)="searchQuery.set($event)"
+    (serviceChange)="selectedService.set($event)"
+    (severityChange)="selectedSeverity.set($event)"
+    (statusChange)="selectedStatus.set($event)"
+    (verifyLedger)="onVerifyLedger()"
+    (exportLogs)="onExportLogs()"
+  ></nag-audit-filter-bar>
 
-    <div class="flex items-center gap-3 w-full md:w-auto">
-      <label for="audit-service-select" class="text-xs text-slate-500 font-semibold">Service:</label>
-      <select
-        id="audit-service-select"
-        [ngModel]="selectedService()"
-        (ngModelChange)="selectedService.set($event)"
-        class="px-3 py-2 text-xs border border-slate-300 rounded-xl bg-slate-50 focus:ring-2 focus:ring-indigo-500"
-      >
-        <option value="ALL">All Services</option>
-        <option value="EXAM_DELIVERY">Exam Delivery</option>
-        <option value="QUESTION_BANK">Question Bank</option>
-        <option value="PAPER_GENERATION">Paper Generation</option>
-        <option value="EVALUATION">Evaluation & Grading</option>
-        <option value="IDENTITY_ACCESS">Identity & Access</option>
-      </select>
-    </div>
-  </div>
+  <!-- Audit Table View -->
+  <nag-audit-table-view
+    [records]="filteredRecords()"
+    (inspectRecord)="onInspectRecord($event)"
+  ></nag-audit-table-view>
 
-  <!-- Audit Table -->
-  <div class="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
-    <div class="overflow-x-auto">
-      <table class="w-full text-xs text-left">
-        <thead class="bg-slate-50 text-slate-600 uppercase font-semibold border-b">
-          <tr>
-            <th class="p-4">Block #</th>
-            <th class="p-4">Timestamp (UTC)</th>
-            <th class="p-4">Service Domain</th>
-            <th class="p-4">Actor</th>
-            <th class="p-4">Action</th>
-            <th class="p-4">Target Entity</th>
-            <th class="p-4">Cryptographic Hash</th>
-          </tr>
-        </thead>
-        <tbody class="divide-y divide-slate-100 font-mono text-[11px]">
-          @for (log of filteredLogs(); track log.id) {
-            <tr class="hover:bg-slate-50/70 transition-colors">
-              <td class="p-4 font-bold text-indigo-700">#{{ log.blockNumber }}</td>
-              <td class="p-4 text-slate-500 font-sans">{{ log.timestamp }}</td>
-              <td class="p-4 font-sans">
-                <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-700 border border-slate-200">
-                  {{ log.service }}
-                </span>
-              </td>
-              <td class="p-4 font-sans font-semibold text-slate-800">{{ log.actor }}</td>
-              <td class="p-4 font-sans">
-                <span class="px-2 py-0.5 rounded font-semibold text-[10px] bg-indigo-50 text-indigo-700">
-                  {{ log.action }}
-                </span>
-              </td>
-              <td class="p-4 text-slate-700 font-sans">{{ log.target }}</td>
-              <td class="p-4 text-slate-400 max-w-[220px] truncate" [title]="log.hash">
-                {{ log.hash }}
-              </td>
-            </tr>
-          }
-        </tbody>
-      </table>
-    </div>
-  </div>
+  <!-- Detail Drawer Inspector -->
+  <nag-audit-detail-drawer
+    [isOpen]="isDetailDrawerOpen()"
+    [record]="selectedRecord()"
+    (closeDrawer)="onCloseDrawer()"
+  ></nag-audit-detail-drawer>
 </div>

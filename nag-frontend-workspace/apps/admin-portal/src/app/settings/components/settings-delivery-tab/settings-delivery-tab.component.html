@@ -1,0 +1,107 @@
+<div class="bg-white rounded-2xl border border-slate-200 p-6 shadow-xs space-y-6">
+  <div>
+    <h3 class="text-base font-bold text-slate-900">Exam Delivery Engine &amp; Candidate Kiosk Lockdown</h3>
+    <p class="text-xs text-slate-500">Tune anti-tamper heuristics, response caching intervals, and terminal heartbeat frequencies</p>
+  </div>
+
+  <div class="space-y-4">
+    <!-- Kiosk Lockdown -->
+    <div class="p-4 bg-slate-50 rounded-2xl border border-slate-200 flex items-center justify-between">
+      <div class="space-y-0.5">
+        <div class="text-xs font-bold text-slate-900 flex items-center gap-1.5">
+          <mat-icon class="!text-sm text-indigo-600">fullscreen</mat-icon>
+          <span>Fullscreen Kiosk Mode Enforcement</span>
+        </div>
+        <p class="text-[11px] text-slate-500">Lock candidate browsers into fullscreen; disable keyboard shortcuts (Ctrl+C, Ctrl+V, Alt+Tab)</p>
+      </div>
+      <mat-slide-toggle
+        [checked]="settings().deliveryKioskModeEnforced"
+        (change)="update('deliveryKioskModeEnforced', $event.checked)"
+        color="primary"
+      ></mat-slide-toggle>
+    </div>
+
+    <!-- Tamper Detection -->
+    <div class="p-4 bg-slate-50 rounded-2xl border border-slate-200 flex items-center justify-between">
+      <div class="space-y-0.5">
+        <div class="text-xs font-bold text-slate-900 flex items-center gap-1.5">
+          <mat-icon class="!text-sm text-indigo-600">visibility_off</mat-icon>
+          <span>Tab-Switch &amp; Window Blur Incident Recording</span>
+        </div>
+        <p class="text-[11px] text-slate-500">Automatically flag proctor telemetry on candidate window blur or multi-monitor disconnection</p>
+      </div>
+      <mat-slide-toggle
+        [checked]="settings().deliveryTamperDetectionEnabled"
+        (change)="update('deliveryTamperDetectionEnabled', $event.checked)"
+        color="primary"
+      ></mat-slide-toggle>
+    </div>
+
+    <!-- Retest Authorization Requirement -->
+    <div class="p-4 bg-slate-50 rounded-2xl border border-slate-200 flex items-center justify-between">
+      <div class="space-y-0.5">
+        <div class="text-xs font-bold text-slate-900 flex items-center gap-1.5">
+          <mat-icon class="!text-sm text-indigo-600">how_to_reg</mat-icon>
+          <span>Invigilator Approval for Terminal Re-authentication</span>
+        </div>
+        <p class="text-[11px] text-slate-500">Require invigilator master PIN before candidate can resume after hardware interruption</p>
+      </div>
+      <mat-slide-toggle
+        [checked]="settings().deliveryRetestAuthorizationRequired"
+        (change)="update('deliveryRetestAuthorizationRequired', $event.checked)"
+        color="primary"
+      ></mat-slide-toggle>
+    </div>
+
+    <!-- Interval Controls -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 pt-2">
+      <div class="p-4 bg-white rounded-2xl border border-slate-200 space-y-2">
+        <label for="telemetry-hb-input" class="block text-xs font-bold text-slate-700 uppercase">
+          Telemetry Heartbeat (Seconds)
+        </label>
+        <input
+          id="telemetry-hb-input"
+          type="number"
+          [ngModel]="settings().deliveryTelemetryHeartbeatSeconds"
+          (ngModelChange)="update('deliveryTelemetryHeartbeatSeconds', +$event)"
+          min="5"
+          max="60"
+          class="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500 font-mono font-bold"
+        />
+        <p class="text-[10px] text-slate-400">Ping cadence from terminal to backend</p>
+      </div>
+
+      <div class="p-4 bg-white rounded-2xl border border-slate-200 space-y-2">
+        <label for="autosave-int-input" class="block text-xs font-bold text-slate-700 uppercase">
+          Response Autosave Interval (Seconds)
+        </label>
+        <input
+          id="autosave-int-input"
+          type="number"
+          [ngModel]="settings().deliveryAutosaveIntervalSeconds"
+          (ngModelChange)="update('deliveryAutosaveIntervalSeconds', +$event)"
+          min="5"
+          max="60"
+          class="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500 font-mono font-bold"
+        />
+        <p class="text-[10px] text-slate-400">IndexedDB buffer flush frequency</p>
+      </div>
+
+      <div class="p-4 bg-white rounded-2xl border border-slate-200 space-y-2">
+        <label for="grace-sec-input" class="block text-xs font-bold text-slate-700 uppercase">
+          Disconnect Grace Period (Seconds)
+        </label>
+        <input
+          id="grace-sec-input"
+          type="number"
+          [ngModel]="settings().deliveryMaxDisconnectGraceSeconds"
+          (ngModelChange)="update('deliveryMaxDisconnectGraceSeconds', +$event)"
+          min="30"
+          max="600"
+          class="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500 font-mono font-bold"
+        />
+        <p class="text-[10px] text-slate-400">Allowed network disruption window</p>
+      </div>
+    </div>
+  </div>
+</div>
