@@ -30,6 +30,7 @@ import com.examplatform.asset.dto.AssetUploadResponse;
 import com.examplatform.asset.service.AssetService;
 import com.examplatform.asset.service.ReferenceService;
 import com.examplatform.shared.api.ApiResponse;
+import jakarta.persistence.EntityNotFoundException;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -240,9 +241,22 @@ public class AssetController {
      * can stream media without custom auth headers.
      */
     @GetMapping("/{id}/download")
-    public ResponseEntity<InputStreamResource> downloadAsset(@PathVariable UUID id) {
-        MediaAsset asset = assetService.getAssetEntity(id);
-        Optional<InputStream> content = assetService.downloadAsset(id);
+    public ResponseEntity<?> downloadAsset(@PathVariable UUID id) {
+        MediaAsset asset;
+        try {
+            asset = assetService.getAssetEntity(id);
+        } catch (EntityNotFoundException e) {
+            log.debug("Asset not found for download: {}", id);
+            return ResponseEntity.notFound().build();
+        }
+
+        Optional<InputStream> content;
+        try {
+            content = assetService.downloadAsset(id);
+        } catch (Exception e) {
+            log.error("Failed to load binary stream for asset {}: {}", id, e.getMessage(), e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
 
         if (content.isEmpty()) {
             return ResponseEntity.notFound().build();
