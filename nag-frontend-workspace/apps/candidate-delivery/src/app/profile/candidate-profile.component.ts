@@ -12,7 +12,6 @@ import { PageHeaderComponent } from '@nag-frontend-workspace/shared-ui-component
 import { AuthService } from '@nag-frontend-workspace/shared-data-access-auth';
 import {
   CandidateProfile,
-  EducationEntry,
   ProfileTab,
   ProfileTabOption,
 } from './models';
@@ -23,6 +22,7 @@ import {
   ContactDetailsPanelComponent,
   EducationDetailsPanelComponent,
   KycDocumentsPanelComponent,
+  DigiLockerPanelComponent,
 } from './components';
 
 export * from './models';
@@ -42,6 +42,7 @@ export * from './models';
     ContactDetailsPanelComponent,
     EducationDetailsPanelComponent,
     KycDocumentsPanelComponent,
+    DigiLockerPanelComponent,
   ],
   templateUrl: './candidate-profile.component.html',
   styleUrl: './candidate-profile.component.scss',
@@ -58,6 +59,7 @@ export class CandidateProfileComponent {
     { id: 'contact', label: 'Contact & Address', icon: 'pin_drop' },
     { id: 'education', label: 'Educational Details', icon: 'school' },
     { id: 'documents', label: 'KYC & Uploads', icon: 'cloud_upload' },
+    { id: 'digilocker', label: 'DigiLocker Claims', icon: 'verified_user', badge: 'DPI' },
   ];
 
   readonly profile = signal<CandidateProfile>({
@@ -75,6 +77,43 @@ export class CandidateProfileComponent {
     state: 'Delhi',
     pinCode: '110016',
     kycStatus: 'VERIFIED',
+    digiLockerStatus: 'VERIFIED',
+    digiLockerUri: 'in.gov.digilocker:user:849201:claims',
+    digiLockerClaims: [
+      {
+        id: 'dl-claim-1',
+        docType: 'AADHAAR',
+        docName: 'Aadhaar e-KYC Identity Claim',
+        issuerName: 'Unique Identification Authority of India (UIDAI)',
+        docNumber: 'XXXXXXXX8921',
+        issuedDate: '2018-05-12',
+        verifiedAt: '2026-09-26T10:00:00Z',
+        status: 'VERIFIED',
+        hashDigest: 'sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855',
+      },
+      {
+        id: 'dl-claim-2',
+        docType: 'CLASS_X_CERT',
+        docName: 'Secondary School Examination (Class X) Certificate',
+        issuerName: 'Central Board of Secondary Education (CBSE)',
+        docNumber: 'CBSE-X-2018-918230',
+        issuedDate: '2018-06-15',
+        verifiedAt: '2026-09-26T10:00:00Z',
+        status: 'VERIFIED',
+        hashDigest: 'sha256:4a5b6c7d8e9f0123456789abcdef0123456789abcdef0123456789abcdef0123',
+      },
+      {
+        id: 'dl-claim-3',
+        docType: 'CLASS_XII_CERT',
+        docName: 'Senior School Certificate Examination (Class XII)',
+        issuerName: 'Central Board of Secondary Education (CBSE)',
+        docNumber: 'CBSE-XII-2020-582910',
+        issuedDate: '2020-07-20',
+        verifiedAt: '2026-09-26T10:00:00Z',
+        status: 'VERIFIED',
+        hashDigest: 'sha256:7b8c9d0e1f23456789abcdef0123456789abcdef0123456789abcdef01234567',
+      },
+    ],
     education: [
       {
         id: '1',

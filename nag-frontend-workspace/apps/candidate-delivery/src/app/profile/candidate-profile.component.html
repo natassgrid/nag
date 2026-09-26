@@ -48,7 +48,10 @@
         />
       }
       @case ('documents') {
-        <nag-kyc-documents-panel [profile]="profile()" />
+        <nag-kyc-documents-panel [(profile)]="profile" />
+      }
+      @case ('digilocker') {
+        <nag-digilocker-panel [(profile)]="profile" />
       }
     }
   </div>

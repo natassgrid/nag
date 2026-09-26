@@ -1,0 +1,151 @@
+<div class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/70 backdrop-blur-xs p-4 animate-fade-in">
+  <div class="bg-white w-full max-w-xl rounded-2xl shadow-2xl border border-slate-200 overflow-hidden flex flex-col max-h-[90vh]">
+
+    <!-- Modal Header -->
+    <div class="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/80">
+      <div class="flex items-center gap-2.5">
+        <div class="w-8 h-8 rounded-lg bg-indigo-100 text-indigo-600 flex items-center justify-center">
+          <mat-icon class="!text-lg leading-none">videocam</mat-icon>
+        </div>
+        <div>
+          <h3 class="text-sm font-bold text-slate-900">Live Webcam Identity Capture</h3>
+          <p class="text-[11px] text-slate-500">Capture your live photograph for exam admit card & biometric audit</p>
+        </div>
+      </div>
+      <button
+        type="button"
+        (click)="onClose()"
+        class="text-slate-400 hover:text-slate-600 rounded-lg p-1.5 transition cursor-pointer"
+        aria-label="Close dialog"
+      >
+        <mat-icon class="!text-lg">close</mat-icon>
+      </button>
+    </div>
+
+    <!-- Modal Body -->
+    <div class="p-6 space-y-4 overflow-y-auto grow flex flex-col items-center justify-center bg-slate-950/5 min-h-[340px]">
+
+      @if (errorMessage() && !capturedImage()) {
+        <div class="w-full p-4 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 space-y-3">
+          <div class="flex items-start gap-3">
+            <mat-icon class="text-amber-600 shrink-0">videocam_off</mat-icon>
+            <div class="text-xs leading-relaxed">
+              <div class="font-bold">Camera Inactive or Not Accessible</div>
+              <p class="text-amber-800 mt-0.5">{{ errorMessage() }}</p>
+            </div>
+          </div>
+          <div class="flex justify-end gap-2 pt-1">
+            <button
+              mat-stroked-button
+              (click)="startCamera()"
+              class="!text-xs !rounded-lg"
+            >
+              <mat-icon class="!text-sm">refresh</mat-icon> Retry Camera
+            </button>
+            <button
+              mat-flat-button
+              color="primary"
+              (click)="useSimulatedSnapshot()"
+              class="!text-xs !rounded-lg"
+            >
+              <mat-icon class="!text-sm">smart_toy</mat-icon> Capture Simulated Photo
+            </button>
+          </div>
+        </div>
+      }
+
+      <!-- Live Video Feed Container -->
+      @if (cameraActive() && !capturedImage()) {
+        <div class="relative w-full max-w-md aspect-4/3 bg-black rounded-xl overflow-hidden shadow-inner border border-slate-700 flex items-center justify-center group">
+          <video
+            #videoPlayer
+            autoplay
+            playsinline
+            muted
+            class="w-full h-full object-cover scale-x-[-1]"
+          ></video>
+
+          <!-- Framing Guide Overlay -->
+          <div class="absolute inset-0 pointer-events-none flex items-center justify-center">
+            <div class="w-48 h-60 border-2 border-dashed border-white/60 rounded-full flex items-center justify-center">
+              <span class="text-[10px] text-white/70 font-semibold uppercase bg-black/40 px-2 py-0.5 rounded-full">
+                Center Face Here
+              </span>
+            </div>
+          </div>
+
+          <!-- Countdown Overlay -->
+          @if (countdown() !== null) {
+            <div class="absolute inset-0 bg-black/40 flex items-center justify-center z-10 animate-scale-in">
+              <span class="text-7xl font-black text-white drop-shadow-lg animate-pulse">
+                {{ countdown() }}
+              </span>
+            </div>
+          }
+        </div>
+      }
+
+      <!-- Captured Image Review -->
+      @if (capturedImage(); as image) {
+        <div class="relative w-full max-w-sm aspect-4/3 rounded-xl overflow-hidden shadow-md border-2 border-indigo-500 flex items-center justify-center bg-slate-900">
+          <img [src]="image" alt="Captured snapshot" class="w-full h-full object-cover" />
+          <div class="absolute top-2 right-2 bg-emerald-600 text-white text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1 shadow">
+            <mat-icon class="!text-xs leading-none">check_circle</mat-icon> Captured
+          </div>
+          @if (isSimulated()) {
+            <div class="absolute bottom-2 left-2 bg-slate-900/80 text-white text-[10px] font-mono px-2 py-0.5 rounded">
+              Verified Mock Portrait
+            </div>
+          }
+        </div>
+      }
+
+      <canvas #canvasSnapshot class="hidden"></canvas>
+    </div>
+
+    <!-- Modal Footer Actions -->
+    <div class="px-6 py-3.5 border-t border-slate-100 bg-white flex items-center justify-between gap-3">
+      <button
+        mat-button
+        (click)="onClose()"
+        class="!text-xs !rounded-lg text-slate-600"
+      >
+        Cancel
+      </button>
+
+      <div class="flex items-center gap-2">
+        @if (cameraActive() && !capturedImage()) {
+          <button
+            mat-flat-button
+            color="primary"
+            (click)="triggerCountdownCapture()"
+            [disabled]="countdown() !== null"
+            class="!text-xs !rounded-lg !px-5"
+          >
+            <mat-icon class="!text-sm">camera</mat-icon>
+            {{ countdown() !== null ? 'Capturing...' : 'Capture Photo' }}
+          </button>
+        }
+
+        @if (capturedImage()) {
+          <button
+            mat-stroked-button
+            (click)="retake()"
+            class="!text-xs !rounded-lg"
+          >
+            <mat-icon class="!text-sm">refresh</mat-icon> Retake
+          </button>
+          <button
+            mat-flat-button
+            color="primary"
+            (click)="acceptSnapshot()"
+            class="!text-xs !rounded-lg !px-5"
+          >
+            <mat-icon class="!text-sm">crop</mat-icon> Proceed to Crop
+          </button>
+        }
+      </div>
+    </div>
+
+  </div>
+</div>

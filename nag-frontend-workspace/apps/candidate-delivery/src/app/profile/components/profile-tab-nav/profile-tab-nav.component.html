@@ -1,16 +1,27 @@
-<div class="flex items-center gap-2 border-b border-slate-200 pb-2">
+<div class="flex items-center gap-2 border-b border-slate-200 pb-2 overflow-x-auto">
   @for (tab of tabs(); track tab.id) {
     <button
       type="button"
       (click)="selectTab(tab.id)"
-      class="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-colors cursor-pointer"
+      class="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-colors cursor-pointer shrink-0"
       [ngClass]="{
         'bg-indigo-600 text-white shadow-xs': activeTab() === tab.id,
         'text-slate-600 hover:bg-slate-100': activeTab() !== tab.id
       }"
     >
       <mat-icon class="!text-base leading-none">{{ tab.icon }}</mat-icon>
-      {{ tab.label }}
+      <span>{{ tab.label }}</span>
+      @if (tab.badge) {
+        <span
+          class="text-[9px] font-mono font-black px-1.5 py-0.5 rounded-full uppercase leading-none"
+          [ngClass]="{
+            'bg-white text-indigo-700': activeTab() === tab.id,
+            'bg-indigo-100 text-indigo-700': activeTab() !== tab.id
+          }"
+        >
+          {{ tab.badge }}
+        </span>
+      }
     </button>
   }
 </div>

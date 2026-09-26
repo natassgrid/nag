@@ -1,74 +1,95 @@
-<div class="bg-white rounded-xl border border-slate-200 shadow-xs p-6 space-y-6">
+<div class="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
   @if (task(); as current) {
-    <div class="flex items-center justify-between border-b pb-3">
-      <div>
-        <span class="text-xs font-mono font-bold text-indigo-600">{{ current.questionCode }}</span>
-        <h3 class="text-base font-bold text-slate-900 mt-0.5">Subjective Response Evaluation</h3>
+
+    <!-- Workspace Header Bar -->
+    <div class="px-6 py-4 bg-slate-50 border-b border-slate-200 flex flex-wrap items-center justify-between gap-4">
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-xl bg-indigo-100 text-indigo-600 flex items-center justify-center font-bold font-mono text-sm">
+          {{ current.questionCode.slice(0, 3) }}
+        </div>
+        <div>
+          <div class="flex items-center gap-2">
+            <span class="text-xs font-mono font-bold text-indigo-600 uppercase">{{ current.questionCode }}</span>
+            <span class="text-slate-300">&bull;</span>
+            <span class="text-xs text-slate-500 font-mono">Candidate: <b>{{ current.candidateRoll }}</b></span>
+          </div>
+          <h3 class="text-sm font-bold text-slate-900">Subjective Response Evaluation & Moderation</h3>
+        </div>
       </div>
-      <span class="text-xs font-semibold px-2.5 py-1 rounded bg-slate-100 text-slate-700">
-        Max Marks: {{ current.maxMarks }}
-      </span>
+
+      <div class="flex items-center gap-3">
+        <div class="text-right">
+          <div class="text-[10px] uppercase font-bold text-slate-400">Total Computed Marks</div>
+          <div class="text-lg font-black text-indigo-600 font-mono">
+            {{ totalAwardedMarks() }} <span class="text-xs text-slate-400 font-normal">/ {{ current.maxMarks }}</span>
+          </div>
+        </div>
+
+        <button
+          mat-flat-button
+          color="primary"
+          (click)="onSubmit()"
+          [disabled]="submitting()"
+          class="!rounded-xl !px-5 cursor-pointer shadow-sm"
+        >
+          <mat-icon class="!text-sm">verified</mat-icon>
+          {{ submitting() ? 'Submitting...' : 'Commit Grade' }}
+        </button>
+      </div>
     </div>
 
-    <div class="space-y-2">
-      <span class="text-xs font-bold uppercase text-slate-500">Problem Statement</span>
-      <div class="p-3 bg-slate-50 rounded-lg border border-slate-200 text-sm">
-        <nag-math-renderer [content]="current.questionContent" />
-      </div>
-    </div>
+    <!-- Split-Pane Container -->
+    <div class="grid grid-cols-1 lg:grid-cols-12 divide-y lg:divide-y-0 lg:divide-x divide-slate-200 min-h-[620px]">
 
-    <div class="space-y-2">
-      <span class="text-xs font-bold uppercase text-slate-500">Candidate Response</span>
-      <div class="p-4 bg-amber-50/40 rounded-lg border border-amber-200 text-sm font-mono whitespace-pre-wrap">
-        {{ current.candidateResponse }}
-      </div>
-    </div>
-
-    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-4 border-t">
-      <div>
-        <label for="award-marks-input" class="block text-xs font-bold uppercase text-slate-700 mb-1">
-          Awarded Marks (0 - {{ current.maxMarks }})
-        </label>
-        <input
-          id="award-marks-input"
-          type="number"
-          [ngModel]="awardedMarks()"
-          (ngModelChange)="awardedMarks.set($event)"
-          [max]="current.maxMarks"
-          min="0"
-          class="w-full px-3 py-2 text-sm border rounded-lg focus:ring-2 focus:ring-indigo-500"
+      <!-- LEFT PANE: Problem Statement & Dynamic Rubric Sliders (5 cols) -->
+      <div class="lg:col-span-5 p-6 space-y-6 overflow-y-auto max-h-[85vh] bg-slate-50/40">
+        <nag-evaluation-rubric-panel
+          [questionContent]="current.questionContent"
+          [maxMarks]="current.maxMarks"
+          [rubricCriteria]="rubricCriteria()"
+          [comments]="comments()"
+          (criterionScoreChange)="updateCriterionScore($event)"
+          (commentsChange)="setComments($event)"
         />
       </div>
-      <div>
-        <label for="evaluator-remarks-input" class="block text-xs font-bold uppercase text-slate-700 mb-1">
-          Evaluator Remarks & Rubric Notes
-        </label>
-        <input
-          id="evaluator-remarks-input"
-          type="text"
-          [ngModel]="comments()"
-          (ngModelChange)="comments.set($event)"
-          placeholder="e.g. Correct derivation with minor sign flaw"
-          class="w-full px-3 py-2 text-sm border rounded-lg focus:ring-2 focus:ring-indigo-500"
+
+      <!-- RIGHT PANE: Response Viewer & Inline Annotation / Moderation (7 cols) -->
+      <div class="lg:col-span-7 p-6 space-y-6 overflow-y-auto max-h-[85vh] bg-white flex flex-col justify-between">
+        <nag-evaluation-response-viewer
+          [responseLines]="responseLines()"
+          [inlineComments]="inlineComments()"
+          [selectedCommentLine]="selectedCommentLine()"
+          [selectedCommentTag]="selectedCommentTag()"
+          [newCommentText]="newCommentText()"
+          (selectLine)="selectLineForComment($event)"
+          (tagChange)="setCommentTag($event)"
+          (commentTextChange)="setCommentText($event)"
+          (addComment)="addInlineComment()"
+          (removeComment)="removeInlineComment($event)"
+        />
+
+        <!-- Moderation Sign-Off Section -->
+        <nag-evaluation-moderation-card
+          [moderationRequired]="moderationRequired()"
+          [moderationVerdict]="moderationVerdict()"
+          [moderationNotes]="moderationNotes()"
+          (moderationRequiredChange)="setModerationRequired($event)"
+          (moderationVerdictChange)="setModerationVerdict($event)"
+          (moderationNotesChange)="setModerationNotes($event)"
         />
       </div>
+
     </div>
 
-    <div class="flex items-center justify-end gap-3 pt-2">
-      <button
-        mat-flat-button
-        color="primary"
-        (click)="onSubmit()"
-        [disabled]="submitting()"
-      >
-        <mat-icon>check</mat-icon>
-        Commit Grade
-      </button>
-    </div>
   } @else {
-    <div class="text-center py-16 text-slate-400">
-      <mat-icon class="!text-4xl mb-2">touch_app</mat-icon>
-      <p class="text-sm">Select a candidate submission from the left queue to evaluate.</p>
+    <div class="text-center py-20 text-slate-400 space-y-3">
+      <div class="w-14 h-14 mx-auto rounded-2xl bg-slate-100 text-slate-400 flex items-center justify-center">
+        <mat-icon class="!text-3xl">touch_app</mat-icon>
+      </div>
+      <div>
+        <p class="text-sm font-bold text-slate-700">No Submission Selected</p>
+        <p class="text-xs text-slate-400 mt-0.5">Select a candidate submission from the queue to start grading.</p>
+      </div>
     </div>
   }
 </div>
