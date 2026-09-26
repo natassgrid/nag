@@ -107,7 +107,7 @@ public class DevSecurityConfig {
                     "/api/v1/examinations/public/**"
                 ).permitAll()
                 .pathMatchers("/api/v1/geo/**", "/api/v1/public/**").permitAll()
-                .pathMatchers(HttpMethod.GET, "/api/v1/assets/*/download", "/api/v1/assets/*/url", "/api/v1/assets/**/download", "/api/v1/assets/**/url").permitAll()
+                .pathMatchers(HttpMethod.GET, "/api/v1/assets/*/download", "/api/v1/assets/*/url").permitAll()
                 .anyExchange().authenticated()
             )
             .oauth2ResourceServer(oauth2 -> oauth2

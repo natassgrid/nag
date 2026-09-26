@@ -31,11 +31,9 @@ import org.springframework.security.web.server.authentication.ServerAuthenticati
 import reactor.core.publisher.Mono;
 
 /**
- * Spring Cloud Gateway security configuration.
- *
- * <p>All external traffic must pass JWT validation at the gateway level.
- * Public endpoints (login, registration, actuator health) are explicitly permitted.
- * All other routes require a valid Bearer token issued by Keycloak.</p>
+ * Standard security configuration for API Gateway.
+ * Validates JWT tokens against Keycloak (production mode).
+ * Active when neither 'dev' nor 'docker' profile is active.
  *
  * <p>In production (Kubernetes/Istio), inter-service mTLS is enforced via Istio
  * PeerAuthentication policies. This ensures transport-layer identity verification
@@ -103,7 +101,7 @@ public class SecurityConfig {
                     "/api/v1/examinations/public/**"
                 ).permitAll()
                 .pathMatchers("/api/v1/geo/**", "/api/v1/public/**").permitAll()
-                .pathMatchers(HttpMethod.GET, "/api/v1/assets/*/download", "/api/v1/assets/*/url", "/api/v1/assets/**/download", "/api/v1/assets/**/url").permitAll()
+                .pathMatchers(HttpMethod.GET, "/api/v1/assets/*/download", "/api/v1/assets/*/url").permitAll()
                 .anyExchange().authenticated()
             )
             .oauth2ResourceServer(oauth2 -> oauth2

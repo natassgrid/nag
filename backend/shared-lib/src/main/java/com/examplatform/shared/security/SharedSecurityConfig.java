@@ -61,7 +61,7 @@ public class SharedSecurityConfig {
                     "/api/v1/identity/admin/invite/**"
                 ).permitAll()
                 .requestMatchers("/api/v1/geo/**", "/api/v1/public/**").permitAll()
-                .requestMatchers(HttpMethod.GET, "/api/v1/assets/*/download", "/api/v1/assets/*/url", "/api/v1/assets/**/download", "/api/v1/assets/**/url").permitAll()
+                .requestMatchers(HttpMethod.GET, "/api/v1/assets/*/download", "/api/v1/assets/*/url").permitAll()
                 .anyRequest().authenticated()
             )
             .oauth2ResourceServer(oauth2 -> oauth2
