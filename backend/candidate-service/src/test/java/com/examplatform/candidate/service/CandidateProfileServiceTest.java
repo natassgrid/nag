@@ -267,14 +267,20 @@ class CandidateProfileServiceTest {
         }
 
         @Test
-        @DisplayName("throws ProfileNotFoundException when not found")
-        void throwsWhenNotFound() {
+        @DisplayName("auto-initializes default candidate profile when not found")
+        void autoInitializesWhenNotFound() {
             when(candidateProfileRepository.findByUserIdAndTenantId(USER_ID, TENANT_ID))
                     .thenReturn(Optional.empty());
+            when(candidateProfileRepository.save(any(CandidateProfile.class)))
+                    .thenAnswer(invocation -> invocation.getArgument(0));
 
-            assertThatThrownBy(() -> candidateProfileService.getByUserId(USER_ID, TENANT_ID))
-                    .isInstanceOf(ProfileNotFoundException.class)
-                    .hasMessageContaining("not found");
+            CandidateProfileResponse response = candidateProfileService.getByUserId(USER_ID, TENANT_ID);
+
+            assertThat(response.getUserId()).isEqualTo(USER_ID);
+            ArgumentCaptor<CandidateProfile> captor = ArgumentCaptor.forClass(CandidateProfile.class);
+            verify(candidateProfileRepository).save(captor.capture());
+            assertThat(captor.getValue().getUserId()).isEqualTo(USER_ID);
+            assertThat(captor.getValue().getEncryptionKeyId()).isEqualTo("candidate-dek-" + USER_ID);
         }
     }
 

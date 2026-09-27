@@ -126,13 +126,25 @@ public class CandidateProfileService {
 
     /**
      * Retrieves a candidate profile by userId and tenant, returning masked PII.
+     * Auto-provisions a default profile if one does not exist yet.
      */
-    @Transactional(readOnly = true)
     public CandidateProfileResponse getByUserId(UUID userId, String tenantId) {
         CandidateProfile profile = candidateProfileRepository
                 .findByUserIdAndTenantId(userId, tenantId)
-                .orElseThrow(() -> new ProfileNotFoundException(
-                        "Candidate profile not found for userId=" + userId));
+                .orElseGet(() -> {
+                    log.info("No profile found for userId={}. Auto-initializing default profile in tenant={}", userId, tenantId);
+                    String dekKeyName = DEK_PREFIX + userId;
+                    CandidateProfile newProfile = CandidateProfile.builder()
+                            .userId(userId)
+                            .encryptionKeyId(dekKeyName)
+                            .mobileHash("PENDING-" + userId)
+                            .identityDocHash("PENDING-" + userId)
+                            .identityDocHmac("PENDING-" + userId)
+                            .consentRecorded(false)
+                            .build();
+                    newProfile.setTenantId(tenantId);
+                    return candidateProfileRepository.save(newProfile);
+                });
         return toResponse(profile);
     }
 
