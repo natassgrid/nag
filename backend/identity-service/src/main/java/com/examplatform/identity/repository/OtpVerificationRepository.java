@@ -34,11 +34,19 @@ public interface OtpVerificationRepository extends JpaRepository<OtpVerification
 
     Optional<OtpVerification> findTopByMobileHashAndVerifiedFalseOrderByCreatedAtDesc(String mobileHash);
 
+    Optional<OtpVerification> findTopByMobileHashAndTenantIdAndVerifiedFalseOrderByCreatedAtDesc(String mobileHash, String tenantId);
+
     Optional<OtpVerification> findTopByUserIdAndOtpTypeAndVerifiedFalseOrderByCreatedAtDesc(UUID userId, String otpType);
+
+    Optional<OtpVerification> findTopByUserIdAndOtpTypeAndTenantIdAndVerifiedFalseOrderByCreatedAtDesc(UUID userId, String otpType, String tenantId);
 
     Optional<OtpVerification> findTopByEmailHashAndOtpTypeAndVerifiedFalseOrderByCreatedAtDesc(String emailHash, String otpType);
 
+    Optional<OtpVerification> findTopByEmailHashAndOtpTypeAndTenantIdAndVerifiedFalseOrderByCreatedAtDesc(String emailHash, String otpType, String tenantId);
+
     Optional<OtpVerification> findTopByMobileHashAndOtpTypeAndVerifiedFalseOrderByCreatedAtDesc(String mobileHash, String otpType);
+
+    Optional<OtpVerification> findTopByMobileHashAndOtpTypeAndTenantIdAndVerifiedFalseOrderByCreatedAtDesc(String mobileHash, String otpType, String tenantId);
 
     @Query("SELECT COUNT(o) FROM OtpVerification o WHERE o.userId = :userId AND o.channel = :channel AND o.createdAt >= :after")
     long countByUserIdAndChannelAndCreatedAtAfter(@Param("userId") UUID userId,

@@ -13,7 +13,7 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
  * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU Affero General Public License
+ * You should have received a copy of the GNU标识 Affero General Public License
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
 
@@ -92,8 +92,8 @@ class CandidateVerificationServiceTest {
         account.setTenantId("default");
         ReflectionTestUtils.setField(account, "id", userId);
 
-        when(userAccountRepository.findById(userId)).thenReturn(Optional.of(account));
-        when(otpService.verifyEmailOtp(userId, "emailHash123", "123456")).thenReturn(true);
+        when(userAccountRepository.findByIdAndTenantId(userId, "default")).thenReturn(Optional.of(account));
+        when(otpService.verifyEmailOtp(userId, "emailHash123", "123456", "default")).thenReturn(true);
         when(msg91SmsService.getRemainingSmsCount(any(), any())).thenReturn(3);
 
         EmailVerifyRequest request = new EmailVerifyRequest();
@@ -124,8 +124,8 @@ class CandidateVerificationServiceTest {
         account.setTenantId("default");
         ReflectionTestUtils.setField(account, "id", userId);
 
-        when(userAccountRepository.findById(userId)).thenReturn(Optional.of(account));
-        when(otpService.verifyMobileOtp(userId, "mobileHash123", "654321")).thenReturn(true);
+        when(userAccountRepository.findByIdAndTenantId(userId, "default")).thenReturn(Optional.of(account));
+        when(otpService.verifyMobileOtp(userId, "mobileHash123", "654321", "default")).thenReturn(true);
         when(msg91SmsService.getRemainingSmsCount(any(), any())).thenReturn(2);
 
         MobileVerifyRequest request = new MobileVerifyRequest();
@@ -151,8 +151,8 @@ class CandidateVerificationServiceTest {
         account.setTenantId("default");
         ReflectionTestUtils.setField(account, "id", userId);
 
-        when(userAccountRepository.findById(userId)).thenReturn(Optional.of(account));
-        when(otpService.verifyEmailOtp(userId, "emailHash123", "000000")).thenReturn(false);
+        when(userAccountRepository.findByIdAndTenantId(userId, "default")).thenReturn(Optional.of(account));
+        when(otpService.verifyEmailOtp(userId, "emailHash123", "000000", "default")).thenReturn(false);
 
         EmailVerifyRequest request = new EmailVerifyRequest();
         request.setUserId(userId.toString());

@@ -120,21 +120,20 @@ public class AdminInvitationService {
         invitation.setTenantId(tenantId);
         AdminInvitation saved = invitationRepository.save(invitation);
 
-        // Pre-create or update UserAccount in PENDING_SETUP state
+        // Pre-create or link user account in PENDING_SETUP state
         UserAccount account = existingOpt.orElseGet(() -> {
-            UserAccount acc = UserAccount.builder()
+            UserAccount fresh = UserAccount.builder()
                     .username(email)
                     .emailHash(emailHash)
-                    .mobileHash(hashingService.sha256("invited-" + UUID.randomUUID()))
+                    .mobileHash(hashingService.sha256("admin-" + UUID.randomUUID()))
                     .accountStatus(AccountStatus.PENDING_SETUP)
-                    .specialization(request.getSpecialization())
-                    .mfaEnabled(false)
-                    .emailVerified(true)
+                    .emailVerified(false)
                     .mobileVerified(false)
+                    .mfaEnabled(false)
                     .failedAttemptCount(0)
                     .build();
-            acc.setTenantId(tenantId);
-            return acc;
+            fresh.setTenantId(tenantId);
+            return fresh;
         });
         account.setAccountStatus(AccountStatus.PENDING_SETUP);
         UserAccount savedAccount = userAccountRepository.save(account);
@@ -231,6 +230,17 @@ public class AdminInvitationService {
      * Checks if TOTP 2FA is enabled for a user.
      */
     @Transactional(readOnly = true)
+    public boolean isTotpEnabled(UUID userId, String tenantId) {
+        String effectiveTenant = (tenantId != null && !tenantId.isBlank()) ? tenantId : "default";
+        return userAccountRepository.findByIdAndTenantId(userId, effectiveTenant)
+                .map(UserAccount::isMfaEnabled)
+                .orElse(false);
+    }
+
+    /**
+     * Checks if TOTP 2FA is enabled for a user (backward-compatible).
+     */
+    @Transactional(readOnly = true)
     public boolean isTotpEnabled(UUID userId) {
         return userAccountRepository.findById(userId)
                 .map(UserAccount::isMfaEnabled)
@@ -242,8 +252,9 @@ public class AdminInvitationService {
      */
     @Transactional
     public void verifyAndEnableTotp(UUID userId, TotpVerifySetupRequest request, String tenantId) {
-        UserAccount account = userAccountRepository.findById(userId)
-                .orElseThrow(() -> new AccountNotFoundException("User not found: " + userId));
+        String effectiveTenant = (tenantId != null && !tenantId.isBlank()) ? tenantId : "default";
+        UserAccount account = userAccountRepository.findByIdAndTenantId(userId, effectiveTenant)
+                .orElseThrow(() -> new AccountNotFoundException("User not found: " + userId + " in tenant: " + effectiveTenant));
 
         boolean valid = totpService.verifyTotpCode(request.getSecret(), request.getCode());
         if (!valid) {
@@ -261,7 +272,7 @@ public class AdminInvitationService {
                 userId.toString(),
                 "identity:users/" + userId,
                 null, null,
-                Map.of("action", "TOTP_2FA_ENABLED", "username", account.getUsername(), "tenantId", tenantId)
+                Map.of("action", "TOTP_2FA_ENABLED", "username", account.getUsername(), "tenantId", effectiveTenant)
         );
     }
 
@@ -270,8 +281,9 @@ public class AdminInvitationService {
      */
     @Transactional
     public void disableTotp(UUID userId, String tenantId) {
-        UserAccount account = userAccountRepository.findById(userId)
-                .orElseThrow(() -> new AccountNotFoundException("User not found: " + userId));
+        String effectiveTenant = (tenantId != null && !tenantId.isBlank()) ? tenantId : "default";
+        UserAccount account = userAccountRepository.findByIdAndTenantId(userId, effectiveTenant)
+                .orElseThrow(() -> new AccountNotFoundException("User not found: " + userId + " in tenant: " + effectiveTenant));
         account.setMfaEnabled(false);
         account.setTotpSecret(null);
         account.setBackupCodes(null);
@@ -282,7 +294,7 @@ public class AdminInvitationService {
                 userId.toString(),
                 "identity:users/" + userId,
                 null, null,
-                Map.of("action", "TOTP_2FA_DISABLED", "username", account.getUsername(), "tenantId", tenantId)
+                Map.of("action", "TOTP_2FA_DISABLED", "username", account.getUsername(), "tenantId", effectiveTenant)
         );
     }
 
@@ -343,7 +355,7 @@ public class AdminInvitationService {
                 account.getId().toString(),
                 "identity:users/" + account.getId(),
                 null, null,
-                Map.of("action", "ADMIN_INVITE_ACCEPTED_2FA_ENABLED", "username", account.getUsername())
+                Map.of("action", "ADMIN_INVITE_ACCEPTED_2FA_ENABLED", "username", account.getUsername(), "tenantId", invitation.getTenantId())
         );
 
         // Return authenticated tokens

@@ -56,22 +56,19 @@ public class CandidateVerificationService {
      */
     @Transactional
     public VerificationStatusResponse verifyEmailOtp(EmailVerifyRequest request, String tenantId) {
+        String effectiveTenant = (tenantId != null && !tenantId.isBlank()) ? tenantId : "default";
         UUID userId = parseUserId(request.getUserId());
-        UserAccount account = userAccountRepository.findById(userId)
-                .orElseThrow(() -> new AccountNotFoundException("Account not found for user: " + userId));
+        UserAccount account = userAccountRepository.findByIdAndTenantId(userId, effectiveTenant)
+                .orElseThrow(() -> new AccountNotFoundException("Account not found for user: " + userId + " in tenant: " + effectiveTenant));
 
-        if (!tenantId.equals(account.getTenantId())) {
-            throw new AccountNotFoundException("Account not found in this tenant.");
-        }
-
-        boolean valid = otpService.verifyEmailOtp(userId, account.getEmailHash(), request.getOtp());
+        boolean valid = otpService.verifyEmailOtp(userId, account.getEmailHash(), request.getOtp(), effectiveTenant);
         if (!valid) {
             throw new InvalidOtpException("Invalid or expired email verification OTP.");
         }
 
         account.setEmailVerified(true);
 
-        checkAndActivateAccount(account, tenantId, "email-otp-verified");
+        checkAndActivateAccount(account, effectiveTenant, "email-otp-verified");
 
         userAccountRepository.save(account);
 
@@ -84,22 +81,19 @@ public class CandidateVerificationService {
      */
     @Transactional
     public VerificationStatusResponse verifyMobileOtp(MobileVerifyRequest request, String tenantId) {
+        String effectiveTenant = (tenantId != null && !tenantId.isBlank()) ? tenantId : "default";
         UUID userId = parseUserId(request.getUserId());
-        UserAccount account = userAccountRepository.findById(userId)
-                .orElseThrow(() -> new AccountNotFoundException("Account not found for user: " + userId));
+        UserAccount account = userAccountRepository.findByIdAndTenantId(userId, effectiveTenant)
+                .orElseThrow(() -> new AccountNotFoundException("Account not found for user: " + userId + " in tenant: " + effectiveTenant));
 
-        if (!tenantId.equals(account.getTenantId())) {
-            throw new AccountNotFoundException("Account not found in this tenant.");
-        }
-
-        boolean valid = otpService.verifyMobileOtp(userId, account.getMobileHash(), request.getOtp());
+        boolean valid = otpService.verifyMobileOtp(userId, account.getMobileHash(), request.getOtp(), effectiveTenant);
         if (!valid) {
             throw new InvalidOtpException("Invalid or expired mobile verification OTP.");
         }
 
         account.setMobileVerified(true);
 
-        checkAndActivateAccount(account, tenantId, "mobile-otp-verified");
+        checkAndActivateAccount(account, effectiveTenant, "mobile-otp-verified");
 
         userAccountRepository.save(account);
 
@@ -111,12 +105,9 @@ public class CandidateVerificationService {
      */
     @Transactional(readOnly = true)
     public VerificationStatusResponse getVerificationStatus(UUID userId, String tenantId) {
-        UserAccount account = userAccountRepository.findById(userId)
-                .orElseThrow(() -> new AccountNotFoundException("Account not found for user: " + userId));
-
-        if (!tenantId.equals(account.getTenantId())) {
-            throw new AccountNotFoundException("Account not found in this tenant.");
-        }
+        String effectiveTenant = (tenantId != null && !tenantId.isBlank()) ? tenantId : "default";
+        UserAccount account = userAccountRepository.findByIdAndTenantId(userId, effectiveTenant)
+                .orElseThrow(() -> new AccountNotFoundException("Account not found for user: " + userId + " in tenant: " + effectiveTenant));
 
         return buildStatusResponse(account);
     }

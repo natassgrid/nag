@@ -38,6 +38,7 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 
+import java.time.ZoneId;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -57,12 +58,14 @@ public class RoleDefinitionService {
 
     private final RoleDefinitionRepository roleDefinitionRepository;
     private final PermissionRepository permissionRepository;
+    private final TenantBootstrapService tenantBootstrapService;
     private final AuditEventPublisher auditEventPublisher;
 
     /**
      * List all role definitions for a tenant with pagination and search.
      */
     public Page<RoleDefinitionResponse> listRoles(String tenantId, int page, int size, String search) {
+        tenantBootstrapService.ensureTenantBootstrapped(tenantId);
         PageRequest pageRequest = PageRequest.of(page, size, Sort.by(Sort.Direction.ASC, "name"));
         Page<RoleDefinition> roles = roleDefinitionRepository.findByTenantIdAndSearch(tenantId, search, pageRequest);
         return roles.map(this::toResponse);
@@ -72,6 +75,7 @@ public class RoleDefinitionService {
      * Get a single role definition by ID.
      */
     public RoleDefinitionResponse getRole(UUID roleId, String tenantId) {
+        tenantBootstrapService.ensureTenantBootstrapped(tenantId);
         RoleDefinition role = roleDefinitionRepository.findByIdAndTenantId(roleId, tenantId)
                 .orElseThrow(() -> new AccountNotFoundException("Role not found: " + roleId));
         return toResponse(role);
@@ -81,6 +85,7 @@ public class RoleDefinitionService {
      * Create a new custom role definition.
      */
     public RoleDefinitionResponse createRole(CreateRoleRequest request, String actorId, String tenantId) {
+        tenantBootstrapService.ensureTenantBootstrapped(tenantId);
         // Check for code uniqueness
         if (roleDefinitionRepository.existsByCodeAndTenantId(request.getCode(), tenantId)) {
             throw new DuplicateIdentityException("Role with code '" + request.getCode() + "' already exists.");
@@ -190,6 +195,7 @@ public class RoleDefinitionService {
      * Get all available permissions for a tenant (for assignment UI).
      */
     public Page<PermissionResponse> listPermissions(String tenantId, int page, int size, String search) {
+        tenantBootstrapService.ensureTenantBootstrapped(tenantId);
         PageRequest pageRequest = PageRequest.of(page, size, Sort.by(Sort.Direction.ASC, "module", "name"));
         Page<Permission> permissions = permissionRepository.findByTenantIdAndSearch(tenantId, search, pageRequest);
         return permissions.map(this::toPermissionResponse);
@@ -202,7 +208,7 @@ public class RoleDefinitionService {
     private RoleDefinitionResponse toResponse(RoleDefinition role) {
         List<PermissionResponse> permissionResponses = role.getPermissions().stream()
                 .map(this::toPermissionResponse)
-                .collect(Collectors.toList());
+                .toList();
 
         return RoleDefinitionResponse.builder()
                 .id(role.getId())
@@ -212,8 +218,8 @@ public class RoleDefinitionService {
                 .active(role.isActive())
                 .systemRole(role.isSystemRole())
                 .permissions(permissionResponses)
-                .createdAt(role.getCreatedAt())
-                .updatedAt(role.getUpdatedAt())
+                .createdAt(role.getCreatedAt() != null ? role.getCreatedAt().atZone(ZoneId.systemDefault()).toInstant() : null)
+                .updatedAt(role.getUpdatedAt() != null ? role.getUpdatedAt().atZone(ZoneId.systemDefault()).toInstant() : null)
                 .build();
     }
 

@@ -72,16 +72,11 @@ public class RoleManagementService {
      */
     public RoleAssignmentResponse manageRole(UUID targetUserId, RoleAssignmentRequest request,
                                               String actorId, String tenantId) {
-        // 1. Verify target user exists
-        UserAccount targetAccount = userAccountRepository.findById(targetUserId)
+        // 1. Verify target user exists within tenant boundary
+        UserAccount targetAccount = userAccountRepository.findByIdAndTenantId(targetUserId, tenantId)
                 .orElseThrow(() -> new AccountNotFoundException("User not found: " + targetUserId));
 
-        // 2. Verify tenant match
-        if (!tenantId.equals(targetAccount.getTenantId())) {
-            throw new AuthenticationException("Cross-tenant role management is not allowed.");
-        }
-
-        // 3. Execute action
+        // 2. Execute action
         if (request.getAction() == RoleAction.ASSIGN) {
             // Check if already assigned
             List<UserRoleAssignment> existing = roleAssignmentRepository
@@ -111,7 +106,7 @@ public class RoleManagementService {
                     targetUserId, request.getRole(), tenantId);
         }
 
-        // 4. Publish audit event
+        // 3. Publish audit event
         auditEventPublisher.publish(
                 AuditEventType.ROLE_CHANGE,
                 actorId,
@@ -161,7 +156,7 @@ public class RoleManagementService {
         }
 
         List<UUID> userIds = accounts.stream().map(UserAccount::getId).toList();
-        List<UserRoleAssignment> allAssignments = roleAssignmentRepository.findByUserIdIn(userIds);
+        List<UserRoleAssignment> allAssignments = roleAssignmentRepository.findByUserIdInAndTenantId(userIds, tenantId);
 
         Map<UUID, List<String>> rolesByUser = allAssignments.stream()
                 .collect(Collectors.groupingBy(
@@ -207,7 +202,7 @@ public class RoleManagementService {
             return Collections.emptyList();
         }
 
-        List<UserRoleAssignment> assignments = roleAssignmentRepository.findByUserIdIn(activeUserIds);
+        List<UserRoleAssignment> assignments = roleAssignmentRepository.findByUserIdInAndTenantId(activeUserIds, effectiveTenant);
         Map<UUID, List<String>> rolesByUser = assignments.stream()
                 .collect(Collectors.groupingBy(
                         UserRoleAssignment::getUserId,
@@ -230,9 +225,9 @@ public class RoleManagementService {
                 .map(a -> ReviewerResponse.builder()
                         .id(a.getId())
                         .username(a.getUsername())
-                        .specialization(a.getSpecialization())
-                        .accountStatus(a.getAccountStatus().name())
+                        .accountStatus(a.getAccountStatus() != null ? a.getAccountStatus().name() : null)
                         .roles(rolesByUser.getOrDefault(a.getId(), Collections.emptyList()))
+                        .specialization(a.getSpecialization())
                         .build())
                 .toList();
 
@@ -240,25 +235,11 @@ public class RoleManagementService {
             return allReviewers;
         }
 
-        String targetSubject = subject.trim().toLowerCase();
-
-        // 1. Exact or partial match on specialization
-        List<ReviewerResponse> specialists = allReviewers.stream()
-                .filter(r -> r.getSpecialization() != null && matchesSubject(r.getSpecialization(), targetSubject))
+        List<ReviewerResponse> subjectMatched = allReviewers.stream()
+                .filter(r -> r.getSpecialization() != null &&
+                        r.getSpecialization().equalsIgnoreCase(subject.trim()))
                 .toList();
 
-        if (!specialists.isEmpty()) {
-            return specialists;
-        }
-
-        // 2. If no specialist, return general reviewers / exam controllers as fallback pool
-        return allReviewers;
-    }
-
-    private boolean matchesSubject(String specialization, String subject) {
-        if (specialization == null || subject == null) return false;
-        String s1 = specialization.trim().toLowerCase();
-        String s2 = subject.trim().toLowerCase();
-        return s1.equals(s2) || s1.contains(s2) || s2.contains(s1);
+        return subjectMatched.isEmpty() ? allReviewers : subjectMatched;
     }
 }
