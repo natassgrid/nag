@@ -6,7 +6,7 @@ export interface EducationFormState {
   institutionName: string;
   passingYear: number;
   scoreType: 'PERCENTAGE' | 'CGPA';
-  scoreValue: string;
+  scoreValue: string | number;
   specialization: string;
   rollNumber: string;
   certificateAssetId?: string;

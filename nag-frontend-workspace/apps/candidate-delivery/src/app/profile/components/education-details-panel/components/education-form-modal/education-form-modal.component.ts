@@ -45,10 +45,11 @@ export class EducationFormModalComponent {
       if (open) {
         this.formError.set(null);
         if (editing && data) {
+          const scoreStr = String(data.percentageOrCgpa || '');
           const isCgpa =
-            data.percentageOrCgpa?.toLowerCase().includes('cgpa') ||
-            (Number(data.percentageOrCgpa) > 0 && Number(data.percentageOrCgpa) <= 10);
-          const rawScore = (data.percentageOrCgpa || '').replace(/[^0-9.]/g, '');
+            scoreStr.toLowerCase().includes('cgpa') ||
+            (Number(scoreStr) > 0 && Number(scoreStr) <= 10);
+          const rawScore = scoreStr.replace(/[^0-9.]/g, '');
 
           this.form.set({
             id: data.id,
@@ -108,31 +109,39 @@ export class EducationFormModalComponent {
     const current = this.form();
     this.formError.set(null);
 
+    const qualification = String(current.qualification ?? '').trim();
+    const boardOrUniversity = String(current.boardOrUniversity ?? '').trim();
+    const courseName = String(current.courseName ?? '').trim();
+    const institutionName = String(current.institutionName ?? '').trim();
+    const specialization = String(current.specialization ?? '').trim();
+    const rollNumber = String(current.rollNumber ?? '').trim();
+    const scoreValueStr = String(current.scoreValue ?? '').trim();
+
     // Validation
-    if (!current.qualification || !current.qualification.trim()) {
+    if (!qualification) {
       this.formError.set('Please select or specify a qualification level.');
       return;
     }
-    if (!current.boardOrUniversity || !current.boardOrUniversity.trim()) {
+    if (!boardOrUniversity) {
       this.formError.set('Board or University name is required.');
       return;
     }
     if (
       !current.passingYear ||
-      current.passingYear < 1950 ||
-      current.passingYear > this.currentYear + 5
+      Number(current.passingYear) < 1950 ||
+      Number(current.passingYear) > this.currentYear + 5
     ) {
       this.formError.set(
         `Passing year must be between 1950 and ${this.currentYear + 5}.`
       );
       return;
     }
-    if (!current.scoreValue || !current.scoreValue.trim()) {
+    if (!scoreValueStr) {
       this.formError.set('Percentage or CGPA score is required.');
       return;
     }
 
-    const numScore = parseFloat(current.scoreValue);
+    const numScore = parseFloat(scoreValueStr);
     if (isNaN(numScore)) {
       this.formError.set('Please enter a valid numeric score.');
       return;
@@ -155,14 +164,14 @@ export class EducationFormModalComponent {
 
     const entry: EducationEntry = {
       id: current.id || `edu-${Date.now()}`,
-      qualification: current.qualification.trim(),
-      courseName: current.courseName?.trim() || undefined,
-      boardOrUniversity: current.boardOrUniversity.trim(),
-      institutionName: current.institutionName?.trim() || undefined,
+      qualification,
+      courseName: courseName || undefined,
+      boardOrUniversity,
+      institutionName: institutionName || undefined,
       passingYear: Number(current.passingYear),
       percentageOrCgpa: formattedScore,
-      specialization: current.specialization?.trim() || undefined,
-      rollNumber: current.rollNumber?.trim() || undefined,
+      specialization: specialization || undefined,
+      rollNumber: rollNumber || undefined,
       certificateAssetId: current.certificateAssetId || undefined,
       certificateFileName: current.certificateFileName || undefined,
     };
