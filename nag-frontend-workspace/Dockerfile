@@ -1,6 +1,8 @@
+# syntax=docker/dockerfile:1.7
 # =============================================================================
 # Multi-stage Dockerfile for Nx Frontend Workspace Applications
 # Builds specified Angular/Nx app and serves with high-performance Nginx
+# Uses persistent BuildKit cache mounts for NPM packages and Nx build cache
 # =============================================================================
 
 # --- Stage 1: Dependency Installation (Shared Cache Layer) ---
@@ -11,8 +13,9 @@ WORKDIR /app
 # Copy package manifests first for maximum Docker layer caching
 COPY package.json package-lock.json* ./
 
-# Install workspace dependencies once (cached across all apps)
-RUN npm ci --legacy-peer-deps --ignore-scripts --prefer-offline
+# Install workspace dependencies using persistent Docker BuildKit npm cache
+RUN --mount=type=cache,target=/root/.npm,sharing=shared \
+    npm ci --legacy-peer-deps --ignore-scripts --prefer-offline
 
 # Copy full workspace source code
 COPY . .
@@ -22,8 +25,10 @@ FROM deps AS builder
 
 ARG APP_NAME=admin-portal
 
-# Build targeted production application bundle
-RUN npx nx build ${APP_NAME} --configuration=production
+# Build targeted production application bundle using persistent Nx cache
+RUN --mount=type=cache,target=/root/.npm,sharing=shared \
+    --mount=type=cache,target=/app/.nx/cache,sharing=shared \
+    npx nx build ${APP_NAME} --configuration=production
 
 # --- Stage 3: Serve with Nginx ---
 FROM nginx:alpine
