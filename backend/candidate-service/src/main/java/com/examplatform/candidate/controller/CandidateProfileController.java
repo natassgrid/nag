@@ -60,7 +60,7 @@ import java.util.UUID;
  */
 @Slf4j
 @RestController
-@RequestMapping("/api/v1/candidates")
+@RequestMapping({"/api/v1/candidates", "/api/v1/candidate/profile", "/api/v1/candidate"})
 @RequiredArgsConstructor
 public class CandidateProfileController {
 
@@ -86,29 +86,47 @@ public class CandidateProfileController {
     /**
      * Get candidate profile. CANDIDATE can get own profile, SUPER_ADMIN can get any.
      */
-    @GetMapping("/{userId}")
+    @GetMapping({"/{userId}", ""})
     @PreAuthorize("hasAnyRole('CANDIDATE', 'SUPER_ADMIN')")
     public ResponseEntity<CandidateProfileResponse> getByUserId(
-            @PathVariable UUID userId,
+            @PathVariable(required = false) UUID userId,
             @AuthenticationPrincipal Jwt jwt) {
-        enforceOwnershipOrAdmin(userId, jwt);
+        UUID effectiveUserId = userId;
+        if (effectiveUserId == null && jwt != null && jwt.getSubject() != null) {
+            try {
+                effectiveUserId = UUID.fromString(jwt.getSubject());
+            } catch (IllegalArgumentException ignored) {}
+        }
+        if (effectiveUserId == null) {
+            throw new AccessDeniedException("User ID is required");
+        }
+        enforceOwnershipOrAdmin(effectiveUserId, jwt);
         String tenantId = getTenantId();
-        CandidateProfileResponse response = candidateProfileService.getByUserId(userId, tenantId);
+        CandidateProfileResponse response = candidateProfileService.getByUserId(effectiveUserId, tenantId);
         return ResponseEntity.ok(response);
     }
 
     /**
      * Update candidate profile. CANDIDATE can update own profile only.
      */
-    @PutMapping("/{userId}")
+    @PutMapping({"/{userId}", ""})
     @PreAuthorize("hasRole('CANDIDATE')")
     public ResponseEntity<CandidateProfileResponse> update(
-            @PathVariable UUID userId,
+            @PathVariable(required = false) UUID userId,
             @RequestBody UpdateCandidateProfileRequest request,
             @AuthenticationPrincipal Jwt jwt) {
-        enforceOwnership(userId, jwt);
+        UUID effectiveUserId = userId;
+        if (effectiveUserId == null && jwt != null && jwt.getSubject() != null) {
+            try {
+                effectiveUserId = UUID.fromString(jwt.getSubject());
+            } catch (IllegalArgumentException ignored) {}
+        }
+        if (effectiveUserId == null) {
+            throw new AccessDeniedException("User ID is required");
+        }
+        enforceOwnership(effectiveUserId, jwt);
         String tenantId = getTenantId();
-        CandidateProfileResponse response = candidateProfileService.update(userId, request, tenantId);
+        CandidateProfileResponse response = candidateProfileService.update(effectiveUserId, request, tenantId);
         return ResponseEntity.ok(response);
     }
 
@@ -243,18 +261,24 @@ public class CandidateProfileController {
         return TenantContext.get() != null ? TenantContext.get() : "default";
     }
 
-    // ── Private helpers ─────────────────────────────────────────────────────────
+    // ── Private helpers ──────────────────────────────────────────────────────
 
     private void enforceOwnership(UUID userId, Jwt jwt) {
+        if (jwt == null) return;
         String sub = jwt.getSubject();
-        if (!userId.toString().equals(sub)) {
+        if (sub != null && !userId.toString().equals(sub)) {
+            var authorities = jwt.getClaimAsStringList("realm_access.roles");
+            if (authorities != null && authorities.contains("SUPER_ADMIN")) {
+                return;
+            }
             throw new AccessDeniedException("You can only access your own profile");
         }
     }
 
     private void enforceOwnershipOrAdmin(UUID userId, Jwt jwt) {
+        if (jwt == null) return;
         String sub = jwt.getSubject();
-        if (userId.toString().equals(sub)) {
+        if (sub != null && userId.toString().equals(sub)) {
             return; // Owner access
         }
         // Check if user has SUPER_ADMIN role

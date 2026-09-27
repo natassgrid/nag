@@ -1,4 +1,10 @@
-export type UserAccountStatus = 'ACTIVE' | 'REVOKED' | 'PENDING_VERIFICATION' | 'LOCKED';
+export type UserAccountStatus =
+  | 'ACTIVE'
+  | 'REVOKED'
+  | 'PENDING_SETUP'
+  | 'PENDING_VERIFICATION'
+  | 'LOCKED'
+  | 'DEACTIVATED';
 
 export interface AdminUserAccount {
   id: string;
@@ -66,17 +72,15 @@ export interface UpdateRolePayload {
   permissions?: string[];
 }
 
-export type InvitationStatus = 'PENDING' | 'ACCEPTED' | 'EXPIRED' | 'REVOKED';
-
 export interface AdminInvitationItem {
   id: string;
   email: string;
   fullName: string;
   assignedRoles: string[];
-  status: InvitationStatus;
+  status: 'PENDING' | 'ACCEPTED' | 'EXPIRED' | 'REVOKED';
   expiresAt: string;
   createdAt: string;
-  invitationToken?: string;
+  invitationToken: string;
 }
 
 export interface AdminInvitePayload {

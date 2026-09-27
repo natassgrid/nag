@@ -1,0 +1,224 @@
+<div class="space-y-6">
+  <!-- Status Alert Messages -->
+  @if (errorMsg()) {
+    <div class="p-4 bg-rose-50 border border-rose-200 rounded-2xl flex items-start gap-3">
+      <mat-icon class="text-rose-600 shrink-0">error</mat-icon>
+      <div class="flex-1 text-xs text-rose-800 font-medium">
+        {{ errorMsg() }}
+      </div>
+      <button mat-icon-button (click)="errorMsg.set(null)" class="text-rose-400 hover:text-rose-700">
+        <mat-icon class="!text-sm">close</mat-icon>
+      </button>
+    </div>
+  }
+
+  @if (successMsg()) {
+    <div class="p-4 bg-emerald-50 border border-emerald-200 rounded-2xl flex items-start gap-3">
+      <mat-icon class="text-emerald-600 shrink-0">check_circle</mat-icon>
+      <div class="flex-1 text-xs text-emerald-800 font-medium">
+        {{ successMsg() }}
+      </div>
+      <button mat-icon-button (click)="successMsg.set(null)" class="text-emerald-400 hover:text-emerald-700">
+        <mat-icon class="!text-sm">close</mat-icon>
+      </button>
+    </div>
+  }
+
+  <!-- Loading Bar -->
+  @if (loading() || verifying() || disabling()) {
+    <mat-progress-bar mode="indeterminate" class="rounded-full"></mat-progress-bar>
+  }
+
+  <!-- Security Overview Card -->
+  <div class="bg-white rounded-2xl border border-slate-200 p-6 shadow-xs space-y-6">
+    <div class="flex items-center justify-between">
+      <div class="space-y-1">
+        <h3 class="text-base font-bold text-slate-900 flex items-center gap-2">
+          <mat-icon class="text-indigo-600">phonelink_lock</mat-icon>
+          <span>Two-Factor Authentication (TOTP 2FA)</span>
+        </h3>
+        <p class="text-xs text-slate-500">
+          Protect your candidate account using an Authenticator App (Google Authenticator, Microsoft Authenticator, Authy, etc.).
+        </p>
+      </div>
+
+      <span
+        class="px-3 py-1 text-xs font-bold rounded-full flex items-center gap-1.5"
+        [ngClass]="isMfaActive() ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-100 text-slate-600'"
+      >
+        <span class="w-2 h-2 rounded-full" [ngClass]="isMfaActive() ? 'bg-emerald-500' : 'bg-slate-400'"></span>
+        {{ isMfaActive() ? '2FA ENABLED' : '2FA NOT CONFIGURED' }}
+      </span>
+    </div>
+
+    <!-- Step: IDLE / ENROLLED STATUS -->
+    @if (setupStep() === 'idle') {
+      <div class="p-5 bg-slate-50 rounded-2xl border border-slate-200 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+        <div class="space-y-1 max-w-xl">
+          <h4 class="text-xs font-bold text-slate-800 uppercase tracking-wider">
+            Authenticator App Verification
+          </h4>
+          <p class="text-xs text-slate-600 leading-relaxed">
+            When 2FA is active, you will be prompted for a 6-digit one-time code from your authenticator app each time you sign in to NAG or start high-stakes examinations.
+          </p>
+        </div>
+
+        <div class="flex items-center gap-3 shrink-0">
+          @if (!isMfaActive()) {
+            <button
+              mat-flat-button
+              color="primary"
+              (click)="startEnrollment()"
+              [disabled]="loading()"
+              class="!rounded-xl !text-xs !font-bold"
+            >
+              <mat-icon class="!text-sm mr-1">qr_code_scanner</mat-icon>
+              Enable 2FA Authenticator
+            </button>
+          } @else {
+            <button
+              mat-stroked-button
+              color="warn"
+              (click)="disableMfa()"
+              [disabled]="disabling()"
+              class="!rounded-xl !text-xs !font-bold"
+            >
+              <mat-icon class="!text-sm mr-1">lock_open</mat-icon>
+              Disable 2FA
+            </button>
+            <button
+              mat-stroked-button
+              (click)="startEnrollment()"
+              [disabled]="loading()"
+              class="!rounded-xl !text-xs !font-bold text-indigo-600 border-indigo-200"
+            >
+              <mat-icon class="!text-sm mr-1">refresh</mat-icon>
+              Reconfigure
+            </button>
+          }
+        </div>
+      </div>
+    }
+
+    <!-- Step: ENROLL (QR Code & Code Input) -->
+    @if (setupStep() === 'enroll' && totpData()) {
+      <div class="space-y-6 pt-2">
+        <div class="border-t border-slate-200 pt-4">
+          <h4 class="text-sm font-bold text-slate-900 mb-1">Step 1: Scan QR Code with Authenticator App</h4>
+          <p class="text-xs text-slate-500 mb-4">
+            Open Google Authenticator, Microsoft Authenticator, or Bitwarden on your mobile phone and scan this QR code.
+          </p>
+
+          <div class="flex flex-col sm:flex-row items-center gap-6 p-6 bg-slate-50 rounded-2xl border border-slate-200">
+            <div class="bg-white p-3 rounded-2xl shadow-xs border border-slate-200 shrink-0">
+              <nag-qr-code
+                [data]="totpData()?.otpauthUri || totpData()?.qrCodeUrl || totpData()?.secret || ''"
+                [size]="160"
+              ></nag-qr-code>
+            </div>
+
+            <div class="space-y-3 flex-1">
+              <div class="text-xs font-bold text-slate-700">Can't scan the QR code? Enter the secret key manually:</div>
+              <div class="flex items-center gap-2">
+                <code class="px-3 py-2 bg-white border border-slate-300 rounded-xl text-xs font-mono font-bold text-indigo-700 tracking-wider select-all break-all">
+                  {{ totpData()?.secret || totpData()?.secretKey }}
+                </code>
+                <button
+                  mat-stroked-button
+                  (click)="copySecret()"
+                  class="!rounded-xl !text-xs shrink-0"
+                >
+                  <mat-icon class="!text-sm">{{ copiedSecret() ? 'done' : 'content_copy' }}</mat-icon>
+                  {{ copiedSecret() ? 'Copied' : 'Copy' }}
+                </button>
+              </div>
+              <p class="text-[11px] text-slate-400">Account Type: Time-based One-Time Password (TOTP, RFC 6238)</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="border-t border-slate-200 pt-4 space-y-4">
+          <h4 class="text-sm font-bold text-slate-900 mb-1">Step 2: Enter the 6-Digit Code to Verify</h4>
+          <p class="text-xs text-slate-500">
+            Enter the code shown in your authenticator app to confirm setup.
+          </p>
+
+          <div class="flex flex-col sm:flex-row items-center gap-3 max-w-md">
+            <input
+              type="text"
+              maxlength="6"
+              placeholder="000000"
+              [ngModel]="verifyCode()"
+              (ngModelChange)="verifyCode.set($event)"
+              class="w-full sm:w-48 text-center px-4 py-2.5 text-lg font-mono font-bold tracking-widest bg-white border-2 border-slate-300 rounded-xl focus:border-indigo-600 focus:outline-none"
+            />
+            <button
+              mat-flat-button
+              color="primary"
+              (click)="confirmTotpSetup()"
+              [disabled]="verifying() || verifyCode().length !== 6"
+              class="!rounded-xl !text-xs !font-bold w-full sm:w-auto !py-2.5"
+            >
+              <mat-icon class="!text-sm mr-1">check_circle</mat-icon>
+              {{ verifying() ? 'Verifying...' : 'Activate 2FA' }}
+            </button>
+            <button
+              mat-stroked-button
+              (click)="finishSetup()"
+              class="!rounded-xl !text-xs w-full sm:w-auto"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      </div>
+    }
+
+    <!-- Step: BACKUP CODES DISPLAY AFTER ACTIVATION -->
+    @if (setupStep() === 'backup_codes') {
+      <div class="space-y-5 pt-2 border-t border-slate-200">
+        <div class="p-4 bg-emerald-50 border border-emerald-200 rounded-2xl">
+          <h4 class="text-sm font-bold text-emerald-900 flex items-center gap-2">
+            <mat-icon class="text-emerald-600">verified</mat-icon>
+            <span>2FA Successfully Activated! Save Your Recovery Backup Codes</span>
+          </h4>
+          <p class="text-xs text-emerald-700 mt-1">
+            If you ever lose access to your authenticator device, you can sign in using one of these single-use recovery codes. Store them in a secure password manager or print them.
+          </p>
+        </div>
+
+        @if (totpData()?.backupCodes?.length) {
+          <div class="p-4 bg-slate-50 border border-slate-200 rounded-2xl space-y-3">
+            <div class="text-xs font-bold text-slate-700 uppercase tracking-wider">Single-Use Backup Codes:</div>
+            <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
+              @for (code of totpData()?.backupCodes; track code) {
+                <div class="px-3 py-2 bg-white border border-slate-200 rounded-xl text-center font-mono font-bold text-xs text-slate-800 shadow-2xs">
+                  {{ code }}
+                </div>
+              }
+            </div>
+          </div>
+        }
+
+        <div class="flex items-center gap-3 pt-2">
+          <button
+            mat-flat-button
+            color="primary"
+            (click)="downloadBackupCodes()"
+            class="!rounded-xl !text-xs !font-bold"
+          >
+            <mat-icon class="!text-sm mr-1">download</mat-icon>
+            Download Backup Codes (.txt)
+          </button>
+          <button
+            mat-stroked-button
+            (click)="finishSetup()"
+            class="!rounded-xl !text-xs !font-bold"
+          >
+            I've Saved My Codes
+          </button>
+        </div>
+      </div>
+    }
+  </div>
+</div>

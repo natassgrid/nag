@@ -14,8 +14,27 @@ export interface AuthUser {
 }
 
 export interface TotpSetupData {
-  secretKey: string;
-  qrCodeUrl: string;
+  secret?: string;
+  secretKey?: string;
+  otpauthUri?: string;
+  qrCodeUrl?: string;
+  issuer?: string;
+  username?: string;
+  backupCodes?: string[];
+}
+
+export interface TotpVerifySetupRequest {
+  userId?: string;
+  secret: string;
+  code: string;
+  backupCodes?: string[];
+}
+
+export interface MfaPolicySettings {
+  adminMfaPolicy: 'DISABLED' | 'OPTIONAL' | 'ENFORCED';
+  candidateMfaPolicy: 'DISABLED' | 'OPTIONAL' | 'ENFORCED';
+  allowedMethods: string[];
+  globalMfaEnforced: boolean;
 }
 
 export interface ValidateInviteData {
@@ -33,4 +52,10 @@ export interface VerificationStatusData {
   smsRemainingThisWeek: number;
   nextSmsAvailableAt?: string;
   fullyVerified: boolean;
+  mfaEnabled?: boolean;
+}
+
+export interface TotpStatusData {
+  userId: string;
+  mfaEnabled: boolean;
 }

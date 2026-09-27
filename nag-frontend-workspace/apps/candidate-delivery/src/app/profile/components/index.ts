@@ -7,3 +7,4 @@ export * from './kyc-documents-panel/kyc-documents-panel.component';
 export * from './webcam-capture-modal/webcam-capture-modal.component';
 export * from './image-cropper-modal/image-cropper-modal.component';
 export * from './digilocker-panel/digilocker-panel.component';
+export * from './security-mfa-panel/security-mfa-panel.component';

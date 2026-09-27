@@ -228,6 +228,16 @@ public class AdminInvitationService {
     }
 
     /**
+     * Checks if TOTP 2FA is enabled for a user.
+     */
+    @Transactional(readOnly = true)
+    public boolean isTotpEnabled(UUID userId) {
+        return userAccountRepository.findById(userId)
+                .map(UserAccount::isMfaEnabled)
+                .orElse(false);
+    }
+
+    /**
      * Verifies the pairing code and enables TOTP for a user.
      */
     @Transactional
@@ -252,6 +262,27 @@ public class AdminInvitationService {
                 "identity:users/" + userId,
                 null, null,
                 Map.of("action", "TOTP_2FA_ENABLED", "username", account.getUsername(), "tenantId", tenantId)
+        );
+    }
+
+    /**
+     * Disables TOTP 2FA for a user.
+     */
+    @Transactional
+    public void disableTotp(UUID userId, String tenantId) {
+        UserAccount account = userAccountRepository.findById(userId)
+                .orElseThrow(() -> new AccountNotFoundException("User not found: " + userId));
+        account.setMfaEnabled(false);
+        account.setTotpSecret(null);
+        account.setBackupCodes(null);
+        userAccountRepository.save(account);
+
+        auditEventPublisher.publish(
+                AuditEventType.LOGIN,
+                userId.toString(),
+                "identity:users/" + userId,
+                null, null,
+                Map.of("action", "TOTP_2FA_DISABLED", "username", account.getUsername(), "tenantId", tenantId)
         );
     }
 

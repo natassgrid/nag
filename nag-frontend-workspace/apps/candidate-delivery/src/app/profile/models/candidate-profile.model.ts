@@ -65,7 +65,7 @@ export interface CandidateProfile {
   education: EducationEntry[];
 }
 
-export type ProfileTab = 'personal' | 'contact' | 'education' | 'documents' | 'digilocker';
+export type ProfileTab = 'personal' | 'contact' | 'education' | 'documents' | 'digilocker' | 'security';
 
 export interface ProfileTabOption {
   id: ProfileTab;

@@ -1,6 +1,9 @@
 export interface SystemSettingsState {
   // Security & Zero-Trust MFA
   authMfaEnforced: boolean;
+  authMfaAdminPolicy: 'DISABLED' | 'OPTIONAL' | 'ENFORCED';
+  authMfaCandidatePolicy: 'DISABLED' | 'OPTIONAL' | 'ENFORCED';
+  authMfaAllowedMethods: string;
   authSessionTimeoutMinutes: number;
   authMaxLoginAttempts: number;
   authLockoutDurationMinutes: number;
@@ -36,7 +39,10 @@ export interface SystemSettingsState {
 }
 
 export const DEFAULT_SYSTEM_SETTINGS: SystemSettingsState = {
-  authMfaEnforced: true,
+  authMfaEnforced: false,
+  authMfaAdminPolicy: 'OPTIONAL',
+  authMfaCandidatePolicy: 'OPTIONAL',
+  authMfaAllowedMethods: 'TOTP,EMAIL_OTP,RECOVERY_CODES',
   authSessionTimeoutMinutes: 30,
   authMaxLoginAttempts: 5,
   authLockoutDurationMinutes: 15,

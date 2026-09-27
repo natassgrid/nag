@@ -17,26 +17,13 @@
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
 
-package com.examplatform.identity.dto;
+package com.examplatform.admin.dto;
 
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+import java.util.List;
 
-import java.time.LocalDateTime;
-
-@Data
-@Builder
-@NoArgsConstructor
-@AllArgsConstructor
-public class VerificationStatusResponse {
-    private String userId;
-    private boolean emailVerified;
-    private boolean mobileVerified;
-    private String accountStatus;
-    private int smsRemainingThisWeek;
-    private LocalDateTime nextSmsAvailableAt;
-    private boolean fullyVerified;
-    private boolean mfaEnabled;
-}
+public record MfaPolicySettingsRequest(
+        String adminMfaPolicy,
+        String candidateMfaPolicy,
+        List<String> allowedMethods,
+        Boolean globalMfaEnforced
+) {}
