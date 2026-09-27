@@ -92,6 +92,7 @@ export class VerifyOtpComponent implements OnInit, OnDestroy {
     this.resending.set(true);
     this.errorMessage.set(null);
     this.successMessage.set(null);
+    this.otpCode = '';
 
     const payload = {
       userId: this.userId() || undefined,

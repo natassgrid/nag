@@ -43,6 +43,8 @@ function createEmptyProfile(userId = '', username = ''): CandidateProfile {
     identityDocNumber: '',
     mobile: '',
     email: isEmail ? username : '',
+    emailVerified: false,
+    mobileVerified: false,
     address: '',
     state: '',
     pinCode: '',
@@ -134,6 +136,22 @@ export class CandidateProfileComponent implements OnInit {
         this.existsOnServer.set(false);
         // On 404 or missing profile, clear all profile form fields completely
         this.profile.set(createEmptyProfile(userId, user?.username || ''));
+      },
+    });
+
+    // Also fetch verification status
+    this.authService.getVerificationStatus(userId).subscribe({
+      next: (status) => {
+        if (status) {
+          this.profile.update((curr) => ({
+            ...curr,
+            emailVerified: status.emailVerified,
+            mobileVerified: status.mobileVerified,
+          }));
+        }
+      },
+      error: () => {
+        // Verification status endpoint failure is non-blocking
       },
     });
 
@@ -261,14 +279,14 @@ export class CandidateProfileComponent implements OnInit {
       gender: p.gender || 'MALE',
       nationality: p.nationality || 'Indian',
       category: p.category || 'GENERAL',
-      mobile: p.mobile || '0000000000',
-      email: p.email || 'candidate@example.com',
+      mobile: p.mobile || '',
+      email: p.email || '',
       address: p.address || '',
       reservationCategory: p.reservationCategory || '',
-      identityDocNumber: p.identityDocNumber || 'NOT_PROVIDED',
+      identityDocNumber: p.identityDocNumber || '',
     };
 
-    this.http.post('/api/v1/candidates', createPayload).subscribe({
+    this.http.post(`/api/v1/candidates`, createPayload).subscribe({
       next: () => {
         this.saving.set(false);
         this.existsOnServer.set(true);
@@ -276,7 +294,7 @@ export class CandidateProfileComponent implements OnInit {
       },
       error: () => {
         this.saving.set(false);
-        alert('Profile saved locally (offline / mock fallback).');
+        alert('Failed to save profile on server.');
       },
     });
   }

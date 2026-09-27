@@ -24,3 +24,13 @@ export interface ValidateInviteData {
   fullName: string;
   assignedRoles: string[];
 }
+
+export interface VerificationStatusData {
+  userId: string;
+  emailVerified: boolean;
+  mobileVerified: boolean;
+  accountStatus: string;
+  smsRemainingThisWeek: number;
+  nextSmsAvailableAt?: string;
+  fullyVerified: boolean;
+}

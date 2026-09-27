@@ -13,6 +13,7 @@ import {
   AuthUser,
   TotpSetupData,
   ValidateInviteData,
+  VerificationStatusData,
 } from '../models/auth.model';
 
 @Injectable({
@@ -138,8 +139,8 @@ export class AuthService {
     }
 
     this.refreshTokenInProgress$ = this.http
-      .post<{ status?: string; data?: UserToken } & UserToken>(
-        '/api/v1/identity/auth/token/refresh',
+      .post<{ status?: string; data?: UserToken } & UserToken>
+        ('/api/v1/identity/auth/token/refresh',
         { refreshToken }
       )
       .pipe(
@@ -198,6 +199,13 @@ export class AuthService {
     );
   }
 
+  resendSmsOtp(payload: { userId: string }): Observable<any> {
+    return this.http.post<{ status?: string; message?: string }>(
+      '/api/v1/identity/resend/sms-otp',
+      payload
+    );
+  }
+
   verifyOtp(payload: {
     registrationId?: string;
     userId?: string;
@@ -220,6 +228,32 @@ export class AuthService {
       );
   }
 
+  verifyEmail(payload: { userId: string; otp: string }): Observable<VerificationStatusData> {
+    return this.http
+      .post<{ status?: string; data: VerificationStatusData }>(
+        '/api/v1/identity/verify/email',
+        payload
+      )
+      .pipe(map((res) => res.data));
+  }
+
+  verifyMobile(payload: { userId: string; otp: string }): Observable<VerificationStatusData> {
+    return this.http
+      .post<{ status?: string; data: VerificationStatusData }>(
+        '/api/v1/identity/verify/mobile',
+        payload
+      )
+      .pipe(map((res) => res.data));
+  }
+
+  getVerificationStatus(userId: string): Observable<VerificationStatusData> {
+    return this.http
+      .get<{ status?: string; data: VerificationStatusData }>(
+        `/api/v1/identity/verification-status?userId=${encodeURIComponent(userId)}`
+      )
+      .pipe(map((res) => res.data));
+  }
+
   setupTotp(): Observable<TotpSetupData> {
     return this.http
       .post<{ data: TotpSetupData }>('/api/v1/identity/auth/2fa/setup', {})
@@ -228,8 +262,8 @@ export class AuthService {
 
   validateInvite(token: string): Observable<ValidateInviteData> {
     return this.http
-      .get<{ data: ValidateInviteData }>(
-        `/api/v1/identity/invitations/validate?token=${encodeURIComponent(token)}`
+      .get<{ data: ValidateInviteData }>
+        (`/api/v1/identity/invitations/validate?token=${encodeURIComponent(token)}`
       )
       .pipe(map((res) => res.data));
   }

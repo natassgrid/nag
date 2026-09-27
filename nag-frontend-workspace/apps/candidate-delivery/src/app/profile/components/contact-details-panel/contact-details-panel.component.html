@@ -5,24 +5,74 @@
   </h3>
 
   <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-    <div>
-      <label for="prof-mobile" class="block text-xs font-semibold text-slate-700 uppercase mb-1">Mobile Number</label>
-      <input
-        id="prof-mobile"
-        type="tel"
-        [(ngModel)]="profile().mobile"
-        class="w-full px-3.5 py-2 text-sm border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:outline-hidden"
-      />
+    <!-- Mobile Field -->
+    <div class="space-y-1.5">
+      <div class="flex items-center justify-between">
+        <label for="prof-mobile" class="block text-xs font-semibold text-slate-700 uppercase">
+          Mobile Number
+        </label>
+        @if (profile().mobileVerified) {
+          <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 text-[10px] font-semibold border border-emerald-200">
+            <mat-icon class="!text-xs leading-none">check_circle</mat-icon> Verified
+          </span>
+        } @else {
+          <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 text-[10px] font-semibold border border-amber-200">
+            <mat-icon class="!text-xs leading-none">warning</mat-icon> Unverified
+          </span>
+        }
+      </div>
+      <div class="relative flex items-center">
+        <input
+          id="prof-mobile"
+          type="tel"
+          [(ngModel)]="profile().mobile"
+          placeholder="e.g. 9876543210"
+          class="w-full px-3.5 py-2 text-sm border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:outline-hidden pr-24"
+        />
+        <button
+          type="button"
+          (click)="openMobileModal()"
+          class="absolute right-1.5 px-2.5 py-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-xs font-semibold rounded-lg transition-colors border border-indigo-200"
+        >
+          {{ profile().mobileVerified ? 'Revalidate' : 'Verify SMS' }}
+        </button>
+      </div>
     </div>
-    <div>
-      <label for="prof-email" class="block text-xs font-semibold text-slate-700 uppercase mb-1">Email Address</label>
-      <input
-        id="prof-email"
-        type="email"
-        [(ngModel)]="profile().email"
-        class="w-full px-3.5 py-2 text-sm border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:outline-hidden"
-      />
+
+    <!-- Email Field -->
+    <div class="space-y-1.5">
+      <div class="flex items-center justify-between">
+        <label for="prof-email" class="block text-xs font-semibold text-slate-700 uppercase">
+          Email Address
+        </label>
+        @if (profile().emailVerified) {
+          <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 text-[10px] font-semibold border border-emerald-200">
+            <mat-icon class="!text-xs leading-none">check_circle</mat-icon> Verified
+          </span>
+        } @else {
+          <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 text-[10px] font-semibold border border-amber-200">
+            <mat-icon class="!text-xs leading-none">warning</mat-icon> Unverified
+          </span>
+        }
+      </div>
+      <div class="relative flex items-center">
+        <input
+          id="prof-email"
+          type="email"
+          [(ngModel)]="profile().email"
+          readonly
+          class="w-full px-3.5 py-2 text-sm border border-slate-200 bg-slate-50 text-slate-600 rounded-xl focus:outline-hidden pr-24 cursor-not-allowed"
+        />
+        <button
+          type="button"
+          (click)="openEmailModal()"
+          class="absolute right-1.5 px-2.5 py-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-xs font-semibold rounded-lg transition-colors border border-indigo-200"
+        >
+          Update Email
+        </button>
+      </div>
     </div>
+
     <div class="sm:col-span-2">
       <label for="prof-address" class="block text-xs font-semibold text-slate-700 uppercase mb-1">Full Postal Address</label>
       <textarea
@@ -52,3 +102,279 @@
     </div>
   </div>
 </div>
+
+<!-- ========================================================= -->
+<!-- 1. Mobile Revalidation SMS OTP Modal                       -->
+<!-- ========================================================= -->
+@if (isMobileModalOpen()) {
+  <div class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/70 backdrop-blur-xs p-4 animate-fade-in">
+    <div class="bg-white w-full max-w-md rounded-2xl shadow-2xl border border-slate-200 overflow-hidden flex flex-col">
+      <!-- Header -->
+      <div class="px-6 py-4 bg-gradient-to-r from-indigo-700 to-slate-800 text-white flex items-center justify-between">
+        <div class="flex items-center gap-2">
+          <mat-icon class="text-indigo-300">sms</mat-icon>
+          <div>
+            <h4 class="text-sm font-bold text-white">Mobile SMS OTP Verification</h4>
+            <p class="text-[10px] text-indigo-200">Verify phone number via secure OTP</p>
+          </div>
+        </div>
+        <button
+          type="button"
+          (click)="closeMobileModal()"
+          class="text-white/70 hover:text-white cursor-pointer"
+        >
+          <mat-icon class="!text-base">close</mat-icon>
+        </button>
+      </div>
+
+      <!-- Body -->
+      <div class="p-6 space-y-4">
+        <div class="text-center space-y-1">
+          <p class="text-xs text-slate-600">
+            Enter the 6-digit verification code sent to your mobile:
+          </p>
+          <p class="text-sm font-bold font-mono text-slate-900">
+            {{ profile().mobile || 'Registered Mobile' }}
+          </p>
+        </div>
+
+        <!-- Feedback Banners -->
+        @if (mobileError()) {
+          <div class="p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs flex items-center gap-2">
+            <mat-icon class="!text-sm text-rose-600">error_outline</mat-icon>
+            <span>{{ mobileError() }}</span>
+          </div>
+        }
+        @if (mobileSuccess()) {
+          <div class="p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs flex items-center gap-2">
+            <mat-icon class="!text-sm text-emerald-600">check_circle</mat-icon>
+            <span>{{ mobileSuccess() }}</span>
+          </div>
+        }
+
+        <div>
+          <label for="sms-otp-input" class="block text-[11px] font-bold text-slate-700 uppercase mb-1.5 text-center">
+            6-Digit SMS Code
+          </label>
+          <input
+            id="sms-otp-input"
+            type="text"
+            maxlength="6"
+            [ngModel]="mobileOtp()"
+            (ngModelChange)="mobileOtp.set($event)"
+            placeholder="• • • • • •"
+            class="w-full py-3 text-center text-2xl font-mono tracking-[0.4em] font-bold border-2 border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 focus:outline-hidden"
+          />
+        </div>
+
+        <div class="text-center">
+          <button
+            type="button"
+            (click)="fillTestMobileOtp()"
+            class="text-[11px] font-semibold text-slate-400 hover:text-indigo-600 transition-colors"
+          >
+            Use Test OTP (000000)
+          </button>
+        </div>
+      </div>
+
+      <!-- Footer -->
+      <div class="px-6 py-3.5 bg-slate-50 border-t border-slate-100 flex items-center justify-between text-xs">
+        <button
+          type="button"
+          (click)="triggerSendMobileOtp()"
+          [disabled]="mobileResendCountdown() > 0 || mobileResending()"
+          class="font-semibold text-indigo-600 hover:underline disabled:text-slate-400 disabled:no-underline"
+        >
+          @if (mobileResending()) {
+            Sending...
+          } @else if (mobileResendCountdown() > 0) {
+            Resend in {{ mobileResendCountdown() }}s
+          } @else {
+            Resend SMS OTP
+          }
+        </button>
+
+        <div class="flex items-center gap-2">
+          <button
+            mat-button
+            (click)="closeMobileModal()"
+            class="!text-xs text-slate-600"
+          >
+            Cancel
+          </button>
+          <button
+            mat-flat-button
+            color="primary"
+            (click)="verifyMobileOtp()"
+            [disabled]="mobileLoading() || mobileOtp().length < 6"
+            class="!text-xs !rounded-xl !px-5 !bg-indigo-600 hover:!bg-indigo-700 !text-white"
+          >
+            <span class="flex items-center gap-1.5">
+              <mat-icon class="!text-sm">{{ mobileLoading() ? 'hourglass_top' : 'verified' }}</mat-icon>
+              {{ mobileLoading() ? 'Verifying...' : 'Verify Mobile' }}
+            </span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+}
+
+<!-- ========================================================= -->
+<!-- 2. Email Update & OTP Verification Modal                   -->
+<!-- ========================================================= -->
+@if (isEmailModalOpen()) {
+  <div class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/70 backdrop-blur-xs p-4 animate-fade-in">
+    <div class="bg-white w-full max-w-md rounded-2xl shadow-2xl border border-slate-200 overflow-hidden flex flex-col">
+      <!-- Header -->
+      <div class="px-6 py-4 bg-gradient-to-r from-blue-700 to-indigo-800 text-white flex items-center justify-between">
+        <div class="flex items-center gap-2">
+          <mat-icon class="text-blue-200">mail</mat-icon>
+          <div>
+            <h4 class="text-sm font-bold text-white">Update Email Address</h4>
+            <p class="text-[10px] text-blue-200">Requires 2-step OTP verification</p>
+          </div>
+        </div>
+        <button
+          type="button"
+          (click)="closeEmailModal()"
+          class="text-white/70 hover:text-white cursor-pointer"
+        >
+          <mat-icon class="!text-base">close</mat-icon>
+        </button>
+      </div>
+
+      <!-- Body -->
+      <div class="p-6 space-y-4">
+        <!-- Feedback Banners -->
+        @if (emailError()) {
+          <div class="p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs flex items-center gap-2">
+            <mat-icon class="!text-sm text-rose-600">error_outline</mat-icon>
+            <span>{{ emailError() }}</span>
+          </div>
+        }
+        @if (emailSuccess()) {
+          <div class="p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs flex items-center gap-2">
+            <mat-icon class="!text-sm text-emerald-600">check_circle</mat-icon>
+            <span>{{ emailSuccess() }}</span>
+          </div>
+        }
+
+        @if (emailStep() === 'input') {
+          <div class="space-y-3">
+            <div class="p-3 bg-slate-50 border border-slate-200 rounded-xl text-slate-600 text-xs space-y-1">
+              <span class="font-bold text-slate-800">Current Email:</span> {{ profile().email || 'Not configured' }}
+            </div>
+
+            <div>
+              <label for="new-email-input" class="block text-xs font-semibold text-slate-700 uppercase mb-1">
+                New Email Address
+              </label>
+              <input
+                id="new-email-input"
+                type="email"
+                [ngModel]="newEmail()"
+                (ngModelChange)="newEmail.set($event)"
+                placeholder="e.g. candidate.new@example.com"
+                class="w-full px-3.5 py-2.5 text-sm border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:outline-hidden"
+              />
+            </div>
+          </div>
+        } @else {
+          <div class="space-y-3">
+            <div class="text-center space-y-1">
+              <p class="text-xs text-slate-600">Enter verification code sent to:</p>
+              <p class="text-sm font-bold font-mono text-slate-900">{{ newEmail() }}</p>
+            </div>
+
+            <div>
+              <label for="email-otp-input" class="block text-[11px] font-bold text-slate-700 uppercase mb-1.5 text-center">
+                6-Digit Email Code
+              </label>
+              <input
+                id="email-otp-input"
+                type="text"
+                maxlength="6"
+                [ngModel]="emailOtp()"
+                (ngModelChange)="emailOtp.set($event)"
+                placeholder="• • • • • •"
+                class="w-full py-3 text-center text-2xl font-mono tracking-[0.4em] font-bold border-2 border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 focus:outline-hidden"
+              />
+            </div>
+
+            <div class="text-center">
+              <button
+                type="button"
+                (click)="fillTestEmailOtp()"
+                class="text-[11px] font-semibold text-slate-400 hover:text-indigo-600 transition-colors"
+              >
+                Use Test OTP (000000)
+              </button>
+            </div>
+          </div>
+        }
+      </div>
+
+      <!-- Footer -->
+      <div class="px-6 py-3.5 bg-slate-50 border-t border-slate-100 flex items-center justify-between text-xs">
+        @if (emailStep() === 'otp') {
+          <button
+            type="button"
+            (click)="requestEmailUpdateOtp()"
+            [disabled]="emailResendCountdown() > 0 || emailResending()"
+            class="font-semibold text-indigo-600 hover:underline disabled:text-slate-400 disabled:no-underline"
+          >
+            @if (emailResending()) {
+              Sending...
+            } @else if (emailResendCountdown() > 0) {
+              Resend in {{ emailResendCountdown() }}s
+            } @else {
+              Resend Code
+            }
+          </button>
+        } @else {
+          <div></div>
+        }
+
+        <div class="flex items-center gap-2">
+          <button
+            mat-button
+            (click)="closeEmailModal()"
+            class="!text-xs text-slate-600"
+          >
+            Cancel
+          </button>
+
+          @if (emailStep() === 'input') {
+            <button
+              mat-flat-button
+              color="primary"
+              (click)="requestEmailUpdateOtp()"
+              [disabled]="emailResending() || !newEmail()"
+              class="!text-xs !rounded-xl !px-5 !bg-indigo-600 hover:!bg-indigo-700 !text-white"
+            >
+              <span class="flex items-center gap-1.5">
+                <mat-icon class="!text-sm">{{ emailResending() ? 'hourglass_top' : 'send' }}</mat-icon>
+                {{ emailResending() ? 'Sending OTP...' : 'Send OTP' }}
+              </span>
+            </button>
+          } @else {
+            <button
+              mat-flat-button
+              color="primary"
+              (click)="verifyEmailUpdateOtp()"
+              [disabled]="emailLoading() || emailOtp().length < 6"
+              class="!text-xs !rounded-xl !px-5 !bg-indigo-600 hover:!bg-indigo-700 !text-white"
+            >
+              <span class="flex items-center gap-1.5">
+                <mat-icon class="!text-sm">{{ emailLoading() ? 'hourglass_top' : 'verified' }}</mat-icon>
+                {{ emailLoading() ? 'Verifying...' : 'Verify & Update' }}
+              </span>
+            </button>
+          }
+        </div>
+      </div>
+    </div>
+  </div>
+}
