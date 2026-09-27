@@ -36,7 +36,9 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 
 /**
@@ -69,52 +71,54 @@ public class CandidateProfileService {
         // 1. Generate per-candidate DEK key name
         String dekKeyName = DEK_PREFIX + request.getUserId();
 
-        // 2. Hash mobile (SHA-256) for uniqueness check
+        // 2. Hash mobile (SHA-256) for uniqueness check against OTHER candidates
         String mobileHash = hashingService.sha256(request.getMobile().trim());
-        candidateProfileRepository.findByMobileHashAndTenantId(mobileHash, tenantId)
-                .ifPresent(existing -> {
-                    throw new DuplicateProfileException(
-                            "A profile with this mobile number already exists");
-                });
+        List<CandidateProfile> existingByMobile = candidateProfileRepository.findByMobileHashAndTenantId(mobileHash, tenantId);
+        boolean duplicateMobile = existingByMobile.stream().anyMatch(e -> !e.getUserId().equals(request.getUserId()));
+        if (duplicateMobile) {
+            throw new DuplicateProfileException(
+                    "A profile with this mobile number already exists");
+        }
 
         // 3. Hash + HMAC identity doc for duplicate detection
         String normalizedDoc = request.getIdentityDocNumber().trim().toUpperCase();
         String docHash = hashingService.sha256(normalizedDoc);
         String docHmac = hashingService.hmac(normalizedDoc, HMAC_KEY_PREFIX + tenantId);
 
-        if (candidateProfileRepository.existsByIdentityDocHashAndTenantId(docHash, tenantId)) {
+        // If checking doc hash, only throw duplicate if it belongs to another user
+        Optional<CandidateProfile> existingUserOpt = candidateProfileRepository.findByUserIdAndTenantId(request.getUserId(), tenantId);
+        if (existingUserOpt.isEmpty() && candidateProfileRepository.existsByIdentityDocHashAndTenantId(docHash, tenantId)) {
             throw new DuplicateProfileException(
                     "A profile with this identity document already exists");
         }
 
-        // 4. Build CandidateProfile entity (PII fields auto-encrypted by EncryptedFieldConverter)
-        CandidateProfile profile = CandidateProfile.builder()
+        // 4. If profile already exists for this user, update it idempotently
+        CandidateProfile profile = existingUserOpt.orElseGet(() -> CandidateProfile.builder()
                 .userId(request.getUserId())
-                .fullName(request.getFullName())
-                .dateOfBirth(request.getDateOfBirth())
-                .gender(request.getGender())
-                .nationality(request.getNationality())
-                .category(request.getCategory())
-                .mobile(request.getMobile())
-                .email(request.getEmail())
-                .address(request.getAddress())
-                .reservationCategory(request.getReservationCategory())
-                .identityDocNumber(request.getIdentityDocNumber())
-                .mobileHash(mobileHash)
-                .identityDocHash(docHash)
-                .identityDocHmac(docHmac)
                 .encryptionKeyId(dekKeyName)
                 .consentRecorded(false)
-                .build();
+                .build());
 
-        // 5. Set tenant
+        profile.setFullName(request.getFullName());
+        profile.setDateOfBirth(request.getDateOfBirth());
+        profile.setGender(request.getGender());
+        profile.setNationality(request.getNationality());
+        profile.setCategory(request.getCategory());
+        profile.setMobile(request.getMobile());
+        profile.setEmail(request.getEmail());
+        profile.setAddress(request.getAddress());
+        profile.setReservationCategory(request.getReservationCategory());
+        profile.setIdentityDocNumber(request.getIdentityDocNumber());
+        profile.setMobileHash(mobileHash);
+        profile.setIdentityDocHash(docHash);
+        profile.setIdentityDocHmac(docHmac);
         profile.setTenantId(tenantId);
 
-        // 6. Save
+        // 5. Save
         CandidateProfile saved = candidateProfileRepository.save(profile);
-        log.info("Created candidate profile for userId={} in tenant={}", request.getUserId(), tenantId);
+        log.info("Created / saved candidate profile for userId={} in tenant={}", request.getUserId(), tenantId);
 
-        // 7. Publish audit event (fire-and-forget — never blocks profile creation)
+        // 6. Publish audit event (fire-and-forget — never blocks profile creation)
         publishAuditEvent(AuditEventType.CANDIDATE_PROFILE_CREATED, request.getUserId().toString(), tenantId);
 
         return toResponse(saved);
@@ -135,52 +139,77 @@ public class CandidateProfileService {
     /**
      * Partially updates a candidate profile. Only non-null fields from the request are applied.
      * Recomputes hashes if mobile or identity doc changes.
+     * Auto-provisions profile if not already present.
      */
     public CandidateProfileResponse update(UUID userId, UpdateCandidateProfileRequest request, String tenantId) {
         CandidateProfile profile = candidateProfileRepository
                 .findByUserIdAndTenantId(userId, tenantId)
-                .orElseThrow(() -> new ProfileNotFoundException(
-                        "Candidate profile not found for userId=" + userId));
+                .orElseGet(() -> {
+                    log.info("Auto-initializing candidate profile during update for userId={} in tenant={}", userId, tenantId);
+                    String dekKeyName = DEK_PREFIX + userId;
+                    CandidateProfile newProfile = CandidateProfile.builder()
+                            .userId(userId)
+                            .encryptionKeyId(dekKeyName)
+                            .mobileHash("PENDING-" + userId)
+                            .identityDocHash("PENDING-" + userId)
+                            .identityDocHmac("PENDING-" + userId)
+                            .consentRecorded(false)
+                            .build();
+                    newProfile.setTenantId(tenantId);
+                    return newProfile;
+                });
 
         if (request.getFullName() != null) {
-            profile.setFullName(request.getFullName());
+            profile.setFullName(request.getFullName().trim());
         }
         if (request.getDateOfBirth() != null) {
-            profile.setDateOfBirth(request.getDateOfBirth());
+            profile.setDateOfBirth(request.getDateOfBirth().trim());
         }
         if (request.getGender() != null) {
-            profile.setGender(request.getGender());
+            profile.setGender(request.getGender().trim());
         }
         if (request.getNationality() != null) {
-            profile.setNationality(request.getNationality());
+            profile.setNationality(request.getNationality().trim());
         }
         if (request.getCategory() != null) {
-            profile.setCategory(request.getCategory());
+            profile.setCategory(request.getCategory().trim());
         }
-        if (request.getMobile() != null) {
-            // Recompute mobileHash
+        if (request.getMobile() != null && !request.getMobile().isBlank()) {
+            // Recompute mobileHash and check uniqueness against OTHER candidates
             String mobileHash = hashingService.sha256(request.getMobile().trim());
-            profile.setMobile(request.getMobile());
+            List<CandidateProfile> existingByMobile = candidateProfileRepository.findByMobileHashAndTenantId(mobileHash, tenantId);
+            boolean duplicate = existingByMobile.stream().anyMatch(e -> !e.getUserId().equals(userId));
+            if (duplicate) {
+                throw new DuplicateProfileException("A profile with this mobile number already exists");
+            }
+            profile.setMobile(request.getMobile().trim());
             profile.setMobileHash(mobileHash);
+        } else if (profile.getMobileHash() == null) {
+            profile.setMobileHash("PENDING-" + userId);
         }
+
         if (request.getEmail() != null) {
-            profile.setEmail(request.getEmail());
+            profile.setEmail(request.getEmail().trim());
         }
         if (request.getAddress() != null) {
-            profile.setAddress(request.getAddress());
+            profile.setAddress(request.getAddress().trim());
         }
         if (request.getReservationCategory() != null) {
-            profile.setReservationCategory(request.getReservationCategory());
+            profile.setReservationCategory(request.getReservationCategory().trim());
         }
-        if (request.getIdentityDocNumber() != null) {
+        if (request.getIdentityDocNumber() != null && !request.getIdentityDocNumber().isBlank()) {
             // Recompute docHash + docHmac
             String normalizedDoc = request.getIdentityDocNumber().trim().toUpperCase();
             String docHash = hashingService.sha256(normalizedDoc);
             String docHmac = hashingService.hmac(normalizedDoc, HMAC_KEY_PREFIX + tenantId);
-            profile.setIdentityDocNumber(request.getIdentityDocNumber());
+            profile.setIdentityDocNumber(request.getIdentityDocNumber().trim());
             profile.setIdentityDocHash(docHash);
             profile.setIdentityDocHmac(docHmac);
+        } else if (profile.getIdentityDocHash() == null) {
+            profile.setIdentityDocHash("PENDING-" + userId);
+            profile.setIdentityDocHmac("PENDING-" + userId);
         }
+
         if (request.getPhotoAssetId() != null) {
             profile.setPhotoAssetId(request.getPhotoAssetId());
         }
@@ -257,7 +286,7 @@ public class CandidateProfileService {
         log.info("Consent recorded for userId={} at {}", userId, profile.getConsentTimestamp());
     }
 
-    // ── Private helpers ─────────────────────────────────────────────────────────
+    // ── Private helpers ──────────────────────────────────────────────────────
 
     private void publishAuditEvent(AuditEventType type, String actorId, String tenantId) {
         try {

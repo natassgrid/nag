@@ -22,20 +22,23 @@ package com.examplatform.candidate.service;
 import com.examplatform.candidate.domain.CandidateProfile;
 import com.examplatform.candidate.dto.CandidateProfileResponse;
 import com.examplatform.candidate.dto.CreateCandidateProfileRequest;
+import com.examplatform.candidate.dto.UpdateCandidateProfileRequest;
 import com.examplatform.candidate.exception.DuplicateProfileException;
 import com.examplatform.candidate.exception.ProfileNotFoundException;
 import com.examplatform.candidate.repository.CandidateEducationRepository;
 import com.examplatform.candidate.repository.CandidateProfileRepository;
 import com.examplatform.shared.messaging.EventPublisher;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
@@ -49,53 +52,57 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-/**
- * Unit tests for {@link CandidateProfileService}.
- *
- * <p><strong>Validates: Requirements 1.6, 25.2</strong>
- */
 @ExtendWith(MockitoExtension.class)
-@DisplayName("CandidateProfileService")
+@DisplayName("CandidateProfileService Unit Tests")
 class CandidateProfileServiceTest {
 
     @Mock
-    CandidateProfileRepository candidateProfileRepository;
+    private CandidateProfileRepository candidateProfileRepository;
 
     @Mock
-    CandidateEducationRepository candidateEducationRepository;
+    private CandidateEducationRepository candidateEducationRepository;
 
     @Mock
-    HashingService hashingService;
+    private HashingService hashingService;
 
     @Mock
-    VaultCryptoService vaultCryptoService;
+    private VaultCryptoService vaultCryptoService;
 
     @Mock
-    EventPublisher eventPublisher;
+    private EventPublisher eventPublisher;
 
-    @InjectMocks
-    CandidateProfileService candidateProfileService;
+    private CandidateProfileService candidateProfileService;
 
     private static final String TENANT_ID = "default";
-    private static final UUID USER_ID = UUID.fromString("11111111-1111-1111-1111-111111111111");
+    private static final UUID USER_ID = UUID.fromString("018f4e2a-0000-7000-8000-000000000001");
     private static final String MOBILE = "9876543210";
-    private static final String EMAIL = "candidate@example.com";
+    private static final String MOBILE_HASH = "mocked-mobile-hash-64chars-long-value-00000000000000000000000000000";
     private static final String IDENTITY_DOC = "ABCDE1234F";
-    private static final String MOBILE_HASH = "a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2";
-    private static final String DOC_HASH = "b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3";
-    private static final String DOC_HMAC = "c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4";
+    private static final String DOC_HASH = "mocked-doc-hash-64chars-long-value-00000000000000000000000000000000";
+    private static final String DOC_HMAC = "mocked-doc-hmac-64chars-long-value-0000000000000000000000000000000";
+
+    @BeforeEach
+    void setUp() {
+        candidateProfileService = new CandidateProfileService(
+                candidateProfileRepository,
+                candidateEducationRepository,
+                hashingService,
+                vaultCryptoService,
+                eventPublisher
+        );
+    }
 
     private CreateCandidateProfileRequest validCreateRequest() {
         return CreateCandidateProfileRequest.builder()
                 .userId(USER_ID)
                 .fullName("Test Candidate")
-                .dateOfBirth("1995-01-15")
+                .dateOfBirth("2000-01-01")
                 .gender("Male")
                 .nationality("Indian")
                 .category("General")
                 .mobile(MOBILE)
-                .email(EMAIL)
-                .address("123 Test Street")
+                .email("candidate@example.com")
+                .address("123 Main St, New Delhi")
                 .reservationCategory("None")
                 .identityDocNumber(IDENTITY_DOC)
                 .build();
@@ -105,13 +112,13 @@ class CandidateProfileServiceTest {
         CandidateProfile profile = CandidateProfile.builder()
                 .userId(USER_ID)
                 .fullName("Test Candidate")
-                .dateOfBirth("1995-01-15")
+                .dateOfBirth("2000-01-01")
                 .gender("Male")
                 .nationality("Indian")
                 .category("General")
                 .mobile(MOBILE)
-                .email(EMAIL)
-                .address("123 Test Street")
+                .email("candidate@example.com")
+                .address("123 Main St, New Delhi")
                 .reservationCategory("None")
                 .identityDocNumber(IDENTITY_DOC)
                 .mobileHash(MOBILE_HASH)
@@ -139,6 +146,8 @@ class CandidateProfileServiceTest {
             when(hashingService.sha256(IDENTITY_DOC)).thenReturn(DOC_HASH);
             when(hashingService.hmac(eq(IDENTITY_DOC), anyString())).thenReturn(DOC_HMAC);
             when(candidateProfileRepository.findByMobileHashAndTenantId(MOBILE_HASH, TENANT_ID))
+                    .thenReturn(Collections.emptyList());
+            when(candidateProfileRepository.findByUserIdAndTenantId(USER_ID, TENANT_ID))
                     .thenReturn(Optional.empty());
             when(candidateProfileRepository.existsByIdentityDocHashAndTenantId(DOC_HASH, TENANT_ID))
                     .thenReturn(false);
@@ -173,6 +182,8 @@ class CandidateProfileServiceTest {
             when(hashingService.sha256(IDENTITY_DOC)).thenReturn(DOC_HASH);
             when(hashingService.hmac(eq(IDENTITY_DOC), anyString())).thenReturn(DOC_HMAC);
             when(candidateProfileRepository.findByMobileHashAndTenantId(MOBILE_HASH, TENANT_ID))
+                    .thenReturn(Collections.emptyList());
+            when(candidateProfileRepository.findByUserIdAndTenantId(USER_ID, TENANT_ID))
                     .thenReturn(Optional.empty());
             when(candidateProfileRepository.existsByIdentityDocHashAndTenantId(DOC_HASH, TENANT_ID))
                     .thenReturn(false);
@@ -192,13 +203,15 @@ class CandidateProfileServiceTest {
         }
 
         @Test
-        @DisplayName("throws DuplicateProfileException when mobile already exists")
+        @DisplayName("throws DuplicateProfileException when mobile already exists for another user")
         void throwsOnDuplicateMobile() {
             CreateCandidateProfileRequest request = validCreateRequest();
+            CandidateProfile existingOther = savedProfile();
+            existingOther.setUserId(UUID.randomUUID()); // Different user
 
             when(hashingService.sha256(MOBILE)).thenReturn(MOBILE_HASH);
             when(candidateProfileRepository.findByMobileHashAndTenantId(MOBILE_HASH, TENANT_ID))
-                    .thenReturn(Optional.of(savedProfile()));
+                    .thenReturn(List.of(existingOther));
 
             assertThatThrownBy(() -> candidateProfileService.create(request, TENANT_ID))
                     .isInstanceOf(DuplicateProfileException.class)
@@ -208,12 +221,14 @@ class CandidateProfileServiceTest {
         }
 
         @Test
-        @DisplayName("throws DuplicateProfileException when identity doc already exists")
+        @DisplayName("throws DuplicateProfileException when identity doc already exists for another user")
         void throwsOnDuplicateIdentityDoc() {
             CreateCandidateProfileRequest request = validCreateRequest();
 
             when(hashingService.sha256(MOBILE)).thenReturn(MOBILE_HASH);
             when(candidateProfileRepository.findByMobileHashAndTenantId(MOBILE_HASH, TENANT_ID))
+                    .thenReturn(Collections.emptyList());
+            when(candidateProfileRepository.findByUserIdAndTenantId(USER_ID, TENANT_ID))
                     .thenReturn(Optional.empty());
             when(hashingService.sha256(IDENTITY_DOC)).thenReturn(DOC_HASH);
             when(hashingService.hmac(eq(IDENTITY_DOC), anyString())).thenReturn(DOC_HMAC);
