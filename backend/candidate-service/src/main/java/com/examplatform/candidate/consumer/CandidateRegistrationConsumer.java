@@ -38,6 +38,7 @@ import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.stereotype.Component;
 
 import java.nio.charset.StandardCharsets;
+import java.util.Optional;
 import java.util.UUID;
 
 /**
@@ -122,7 +123,7 @@ public class CandidateRegistrationConsumer {
                 return;
             }
 
-            String actorId = root.path("actorId").asText(root.path("userId").asText(""));
+            String actorId = root.hasNonNull("actorId") ? root.path("actorId").asText("") : root.path("userId").asText("");
             if (actorId.isBlank()) {
                 return;
             }
@@ -135,38 +136,53 @@ public class CandidateRegistrationConsumer {
             }
 
             JsonNode details = root.path("details");
-            String tenantId = details.path("tenantId").asText(root.path("tenantId").asText("default"));
-            String fullName = details.path("fullName").asText("");
-            String email = details.path("email").asText("");
-            String mobile = details.path("mobile").asText("");
-            String docNumber = details.path("identityDocNumber").asText("");
+            String tenantId = root.hasNonNull("tenantId") ? root.path("tenantId").asText("default") : details.path("tenantId").asText("default");
+            String fullName = root.hasNonNull("fullName") ? root.path("fullName").asText("") : details.path("fullName").asText("");
+            String email = root.hasNonNull("email") ? root.path("email").asText("") : details.path("email").asText("");
+            String mobile = root.hasNonNull("mobile") ? root.path("mobile").asText("") : details.path("mobile").asText("");
+            String docNumber = root.hasNonNull("identityDocNumber") ? root.path("identityDocNumber").asText("") : details.path("identityDocNumber").asText("");
 
-            if (candidateProfileRepository.findByUserIdAndTenantId(userId, tenantId).isPresent()) {
-                log.debug("Candidate profile already exists for userId={} in tenant={}", userId, tenantId);
-                return;
-            }
-
+            Optional<CandidateProfile> existingOpt = candidateProfileRepository.findByUserIdAndTenantId(userId, tenantId);
             String dekKeyName = DEK_PREFIX + userId;
             String mobileHash = !mobile.isBlank() ? hashingService.sha256(mobile.trim()) : "PENDING-" + userId;
             String docHash = !docNumber.isBlank() ? hashingService.sha256(docNumber.trim().toUpperCase()) : "PENDING-" + userId;
             String docHmac = !docNumber.isBlank() ? hashingService.hmac(docNumber.trim().toUpperCase(), HMAC_KEY_PREFIX + tenantId) : "PENDING-" + userId;
 
-            CandidateProfile profile = CandidateProfile.builder()
-                    .userId(userId)
-                    .fullName(!fullName.isBlank() ? fullName : null)
-                    .email(!email.isBlank() ? email : null)
-                    .mobile(!mobile.isBlank() ? mobile : null)
-                    .identityDocNumber(!docNumber.isBlank() ? docNumber : null)
-                    .encryptionKeyId(dekKeyName)
-                    .mobileHash(mobileHash)
-                    .identityDocHash(docHash)
-                    .identityDocHmac(docHmac)
-                    .consentRecorded(false)
-                    .build();
-            profile.setTenantId(tenantId);
+            CandidateProfile profile;
+            if (existingOpt.isPresent()) {
+                profile = existingOpt.get();
+                if (!fullName.isBlank()) profile.setFullName(fullName);
+                if (!email.isBlank()) profile.setEmail(email);
+                if (!mobile.isBlank()) {
+                    profile.setMobile(mobile);
+                    profile.setMobileHash(mobileHash);
+                }
+                if (!docNumber.isBlank()) {
+                    profile.setIdentityDocNumber(docNumber);
+                    profile.setIdentityDocHash(docHash);
+                    profile.setIdentityDocHmac(docHmac);
+                }
+                if (profile.getEncryptionKeyId() == null) {
+                    profile.setEncryptionKeyId(dekKeyName);
+                }
+            } else {
+                profile = CandidateProfile.builder()
+                        .userId(userId)
+                        .fullName(!fullName.isBlank() ? fullName : null)
+                        .email(!email.isBlank() ? email : null)
+                        .mobile(!mobile.isBlank() ? mobile : null)
+                        .identityDocNumber(!docNumber.isBlank() ? docNumber : null)
+                        .encryptionKeyId(dekKeyName)
+                        .mobileHash(mobileHash)
+                        .identityDocHash(docHash)
+                        .identityDocHmac(docHmac)
+                        .consentRecorded(false)
+                        .build();
+                profile.setTenantId(tenantId);
+            }
 
             candidateProfileRepository.save(profile);
-            log.info("Successfully provisioned CandidateProfile on registration for userId={} in tenant={}", userId, tenantId);
+            log.info("Successfully provisioned / updated CandidateProfile from registration event for userId={} in tenant={}", userId, tenantId);
         } catch (Exception e) {
             log.warn("Could not auto-provision candidate profile from registration event: {}", e.getMessage());
         }

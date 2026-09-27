@@ -31,6 +31,8 @@ import com.examplatform.shared.audit.AuditEventType;
 import com.examplatform.shared.messaging.EventPublisher;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -62,6 +64,9 @@ public class CandidateProfileService {
     private final HashingService hashingService;
     private final VaultCryptoService vaultCryptoService;
     private final EventPublisher eventPublisher;
+
+    @Autowired(required = false)
+    private JdbcTemplate jdbcTemplate;
 
     /**
      * Creates a new candidate profile with per-candidate DEK reference,
@@ -125,7 +130,7 @@ public class CandidateProfileService {
     }
 
     /**
-     * Retrieves a candidate profile by userId and tenant, returning masked PII.
+     * Retrieves a candidate profile by userId and tenant.
      * Auto-provisions a default profile if one does not exist yet.
      */
     public CandidateProfileResponse getByUserId(UUID userId, String tenantId) {
@@ -145,6 +150,29 @@ public class CandidateProfileService {
                     newProfile.setTenantId(tenantId);
                     return candidateProfileRepository.save(newProfile);
                 });
+
+        // Backfill email / username from identity_service.user_account if email is missing
+        if (jdbcTemplate != null && (profile.getEmail() == null || profile.getEmail().isBlank())) {
+            try {
+                String username = jdbcTemplate.queryForObject(
+                        "SELECT username FROM identity_service.user_account WHERE id = ?",
+                        String.class,
+                        userId
+                );
+                if (username != null && !username.isBlank()) {
+                    profile.setEmail(username);
+                    if (profile.getFullName() == null || profile.getFullName().isBlank()) {
+                        if (!username.contains("@")) {
+                            profile.setFullName(username);
+                        }
+                    }
+                    candidateProfileRepository.save(profile);
+                }
+            } catch (Exception e) {
+                log.debug("Could not lookup user_account for candidate profile backfill: {}", e.getMessage());
+            }
+        }
+
         return toResponse(profile);
     }
 
@@ -323,8 +351,8 @@ public class CandidateProfileService {
                 .gender(profile.getGender())
                 .nationality(profile.getNationality())
                 .category(profile.getCategory())
-                .mobile(maskMobile(profile.getMobile()))
-                .email(maskEmail(profile.getEmail()))
+                .mobile(profile.getMobile())
+                .email(profile.getEmail())
                 .address(profile.getAddress())
                 .reservationCategory(profile.getReservationCategory())
                 .digiLockerVerified(profile.getDigiLockerVerified())
@@ -334,23 +362,5 @@ public class CandidateProfileService {
                 .signatureAssetId(profile.getSignatureAssetId())
                 .idProofAssetId(profile.getIdProofAssetId())
                 .build();
-    }
-
-    private String maskMobile(String mobile) {
-        if (mobile == null || mobile.length() <= 4) {
-            return mobile;
-        }
-        return "****" + mobile.substring(mobile.length() - 4);
-    }
-
-    private String maskEmail(String email) {
-        if (email == null || !email.contains("@")) {
-            return email;
-        }
-        int atIndex = email.indexOf('@');
-        if (atIndex <= 2) {
-            return "**" + email.substring(atIndex);
-        }
-        return email.substring(0, 2) + "****" + email.substring(atIndex);
     }
 }

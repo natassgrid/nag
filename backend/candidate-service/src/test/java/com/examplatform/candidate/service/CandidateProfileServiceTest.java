@@ -167,8 +167,9 @@ class CandidateProfileServiceTest {
             assertThat(saved.getUserId()).isEqualTo(USER_ID);
             assertThat(saved.getTenantId()).isEqualTo(TENANT_ID);
 
-            // Response has masked mobile
-            assertThat(response.getMobile()).isEqualTo("****3210");
+            // Response has profile mobile & email
+            assertThat(response.getMobile()).isEqualTo(MOBILE);
+            assertThat(response.getEmail()).isEqualTo("candidate@example.com");
             assertThat(response.getUserId()).isEqualTo(USER_ID);
         }
 
@@ -248,8 +249,8 @@ class CandidateProfileServiceTest {
     class GetByUserId {
 
         @Test
-        @DisplayName("returns decrypted and masked response")
-        void returnsDecryptedMaskedResponse() {
+        @DisplayName("returns full profile response")
+        void returnsFullProfileResponse() {
             CandidateProfile profile = savedProfile();
 
             when(candidateProfileRepository.findByUserIdAndTenantId(USER_ID, TENANT_ID))
@@ -259,10 +260,8 @@ class CandidateProfileServiceTest {
 
             assertThat(response.getUserId()).isEqualTo(USER_ID);
             assertThat(response.getFullName()).isEqualTo("Test Candidate");
-            // Mobile is masked: last 4 digits only
-            assertThat(response.getMobile()).isEqualTo("****3210");
-            // Email is masked
-            assertThat(response.getEmail()).isEqualTo("ca****@example.com");
+            assertThat(response.getMobile()).isEqualTo(MOBILE);
+            assertThat(response.getEmail()).isEqualTo("candidate@example.com");
             assertThat(response.getGender()).isEqualTo("Male");
         }
 
