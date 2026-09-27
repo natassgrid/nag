@@ -1,10 +1,17 @@
 export interface EducationEntry {
   id: string;
   qualification: string;
+  courseName?: string;
   boardOrUniversity: string;
+  institutionName?: string;
   passingYear: number;
   percentageOrCgpa: string;
+  gradeOrDivision?: string;
+  specialization?: string;
+  rollNumber?: string;
   certificateAssetId?: string;
+  certificateFileName?: string;
+  verifiedViaDigiLocker?: boolean;
 }
 
 export type ProfileGender = 'MALE' | 'FEMALE' | 'OTHER';

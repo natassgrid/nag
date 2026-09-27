@@ -1,0 +1,210 @@
+@if (isOpen()) {
+  <div class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4 animate-fadeIn">
+    <div class="bg-white rounded-2xl shadow-xl w-full max-w-lg border border-slate-200 overflow-hidden flex flex-col max-h-[90vh]">
+      <!-- Modal Header -->
+      <div class="px-6 py-4 bg-slate-900 text-white flex items-center justify-between">
+        <div class="flex items-center gap-2.5">
+          <mat-icon class="text-indigo-400">{{ isEditing() ? 'edit' : 'school' }}</mat-icon>
+          <h4 class="font-bold text-sm">
+            {{ isEditing() ? 'Edit Academic Qualification' : 'Add Academic Qualification' }}
+          </h4>
+        </div>
+        <button (click)="onClose()" class="text-slate-400 hover:text-white cursor-pointer p-1">
+          <mat-icon class="!text-lg">close</mat-icon>
+        </button>
+      </div>
+
+      <!-- Modal Form Body -->
+      <div class="p-6 overflow-y-auto space-y-4">
+        @if (formError()) {
+          <div class="p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-xs font-medium flex items-center gap-2">
+            <mat-icon class="!text-base text-rose-600">error</mat-icon>
+            <span>{{ formError() }}</span>
+          </div>
+        }
+
+        <!-- Qualification Level -->
+        <div>
+          <label class="block text-xs font-bold text-slate-700 mb-1">
+            Qualification Level <span class="text-rose-500">*</span>
+          </label>
+          <select
+            [(ngModel)]="form().qualification"
+            class="w-full px-3 py-2 text-xs rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white"
+          >
+            @for (opt of qualificationOptions; track opt) {
+              <option [value]="opt">{{ opt }}</option>
+            }
+          </select>
+        </div>
+
+        <!-- Course / Degree Name -->
+        <div>
+          <label class="block text-xs font-bold text-slate-700 mb-1">
+            Degree / Course Title
+          </label>
+          <input
+            type="text"
+            [(ngModel)]="form().courseName"
+            placeholder="e.g. B.Tech in Computer Science, CBSE Class 12 Science"
+            class="w-full px-3 py-2 text-xs rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+          />
+        </div>
+
+        <!-- Board / University & Institution -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-bold text-slate-700 mb-1">
+              Board / University <span class="text-rose-500">*</span>
+            </label>
+            <input
+              type="text"
+              [(ngModel)]="form().boardOrUniversity"
+              placeholder="e.g. CBSE, Delhi University, Anna Univ"
+              class="w-full px-3 py-2 text-xs rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            />
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-slate-700 mb-1">
+              School / College Name
+            </label>
+            <input
+              type="text"
+              [(ngModel)]="form().institutionName"
+              placeholder="e.g. DPS R.K. Puram, IIT Delhi"
+              class="w-full px-3 py-2 text-xs rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            />
+          </div>
+        </div>
+
+        <!-- Passing Year & Specialization -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-bold text-slate-700 mb-1">
+              Passing Year <span class="text-rose-500">*</span>
+            </label>
+            <input
+              type="number"
+              [(ngModel)]="form().passingYear"
+              min="1950"
+              [max]="currentYear + 5"
+              class="w-full px-3 py-2 text-xs rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            />
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-slate-700 mb-1">
+              Specialization / Major
+            </label>
+            <input
+              type="text"
+              [(ngModel)]="form().specialization"
+              placeholder="e.g. Science, PCM, Artificial Intelligence"
+              class="w-full px-3 py-2 text-xs rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            />
+          </div>
+        </div>
+
+        <!-- Grading Format & Score -->
+        <div class="p-3.5 rounded-xl bg-slate-50 border border-slate-200 space-y-2.5">
+          <div class="flex items-center justify-between">
+            <label class="text-xs font-bold text-slate-800">
+              Grading System <span class="text-rose-500">*</span>
+            </label>
+            <div class="flex items-center bg-slate-200 p-0.5 rounded-lg text-[11px] font-semibold">
+              <button
+                type="button"
+                (click)="onScoreTypeChange('PERCENTAGE')"
+                [class.bg-white]="form().scoreType === 'PERCENTAGE'"
+                [class.text-indigo-700]="form().scoreType === 'PERCENTAGE'"
+                [class.shadow-xs]="form().scoreType === 'PERCENTAGE'"
+                class="px-2.5 py-1 rounded-md transition-all cursor-pointer"
+              >
+                Percentage (%)
+              </button>
+              <button
+                type="button"
+                (click)="onScoreTypeChange('CGPA')"
+                [class.bg-white]="form().scoreType === 'CGPA'"
+                [class.text-indigo-700]="form().scoreType === 'CGPA'"
+                [class.shadow-xs]="form().scoreType === 'CGPA'"
+                class="px-2.5 py-1 rounded-md transition-all cursor-pointer"
+              >
+                CGPA (10-Point)
+              </button>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label class="block text-[11px] font-semibold text-slate-600 mb-1">
+                {{ form().scoreType === 'PERCENTAGE' ? 'Percentage Score (e.g. 85.5)' : 'CGPA Score (e.g. 8.75)' }}
+              </label>
+              <input
+                type="number"
+                step="0.01"
+                [(ngModel)]="form().scoreValue"
+                [placeholder]="form().scoreType === 'PERCENTAGE' ? '85.5' : '8.75'"
+                class="w-full px-3 py-2 text-xs rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white"
+              />
+            </div>
+            <div>
+              <label class="block text-[11px] font-semibold text-slate-600 mb-1">
+                Roll / Registration No (Optional)
+              </label>
+              <input
+                type="text"
+                [(ngModel)]="form().rollNumber"
+                placeholder="e.g. 210489201"
+                class="w-full px-3 py-2 text-xs rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white"
+              />
+            </div>
+          </div>
+        </div>
+
+        <!-- Document / Certificate Attachment -->
+        <div>
+          <label class="block text-xs font-bold text-slate-700 mb-1">
+            Upload Marksheet / Degree Certificate (PDF / JPG / PNG)
+          </label>
+          <div class="flex items-center gap-3">
+            <label class="flex items-center gap-1.5 px-3 py-2 bg-slate-100 hover:bg-slate-200 border border-slate-300 text-slate-700 rounded-xl text-xs font-semibold cursor-pointer transition-colors">
+              <mat-icon class="!text-sm">upload_file</mat-icon>
+              <span>Choose File</span>
+              <input type="file" (change)="onCertificateSelected($event)" accept=".pdf,.png,.jpg,.jpeg" class="hidden" />
+            </label>
+            @if (form().certificateFileName) {
+              <span class="text-xs font-semibold text-indigo-700 flex items-center gap-1">
+                <mat-icon class="!text-xs">check_circle</mat-icon>
+                {{ form().certificateFileName }}
+              </span>
+            } @else {
+              <span class="text-xs text-slate-400">No certificate chosen yet</span>
+            }
+          </div>
+        </div>
+      </div>
+
+      <!-- Modal Footer -->
+      <div class="px-6 py-3.5 bg-slate-50 border-t border-slate-200 flex items-center justify-end gap-2.5">
+        <button
+          type="button"
+          mat-stroked-button
+          (click)="onClose()"
+          class="!rounded-xl !text-xs cursor-pointer"
+        >
+          Cancel
+        </button>
+        <button
+          type="button"
+          mat-flat-button
+          color="primary"
+          (click)="submitForm()"
+          [disabled]="saving()"
+          class="!rounded-xl !text-xs cursor-pointer"
+        >
+          {{ saving() ? 'Saving...' : (isEditing() ? 'Update Qualification' : 'Save Qualification') }}
+        </button>
+      </div>
+    </div>
+  </div>
+}
