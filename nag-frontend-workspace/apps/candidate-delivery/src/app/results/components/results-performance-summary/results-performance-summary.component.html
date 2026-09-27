@@ -1,0 +1,64 @@
+<div class="scorecard-certificate bg-white rounded-3xl border border-slate-200 shadow-xs p-6 sm:p-8 space-y-6">
+  <!-- Certificate Banner -->
+  <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-b border-slate-100 pb-6">
+    <div class="flex items-center gap-4">
+      <div class="w-14 h-14 rounded-2xl bg-indigo-900 text-white flex items-center justify-center font-black text-xl shadow-xs">
+        NAG
+      </div>
+      <div>
+        <div class="flex items-center gap-2">
+          <span class="text-xs font-mono font-bold text-indigo-700 bg-indigo-50 px-2.5 py-0.5 rounded border border-indigo-100">
+            {{ scorecard().examCode }}
+          </span>
+          <span class="text-xs font-bold text-slate-500">
+            Declared: {{ scorecard().declaredDate }}
+          </span>
+        </div>
+        <h2 class="text-lg sm:text-xl font-black text-slate-900 mt-1">
+          {{ scorecard().examTitle }}
+        </h2>
+        <div class="flex flex-wrap items-center gap-4 text-xs text-slate-500 mt-1 font-medium">
+          <span>Candidate: <b class="text-slate-800">{{ scorecard().candidateName }}</b></span>
+          <span>Roll No: <b class="font-mono text-slate-800">{{ scorecard().rollNumber }}</b></span>
+          <span>Category: <b class="text-slate-800">{{ scorecard().category }}</b></span>
+        </div>
+      </div>
+    </div>
+
+    <nag-status-badge
+      [variant]="scorecard().qualifyingStatus === 'QUALIFIED' ? 'success' : 'error'"
+      [label]="scorecard().qualifyingStatus === 'QUALIFIED' ? 'Qualified for Allocation' : 'Did Not Qualify'"
+    />
+  </div>
+
+  <!-- KPI Grid -->
+  <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+    <nag-stat-card
+      label="Total Score"
+      [value]="scorecard().totalScore"
+      [unit]="'/' + scorecard().maxScore"
+      icon="score"
+      variant="primary"
+    />
+    <nag-stat-card
+      label="National Percentile"
+      [value]="scorecard().percentile + '%'"
+      icon="trending_up"
+      variant="success"
+    />
+    <nag-stat-card
+      label="All India Rank (AIR)"
+      [value]="'#' + scorecard().nationalRank"
+      [trendText]="'of ' + scorecard().totalAppeared.toLocaleString() + ' candidates'"
+      icon="leaderboard"
+      variant="warn"
+    />
+    <nag-stat-card
+      label="Category Rank"
+      [value]="'#' + scorecard().categoryRank"
+      [trendText]="'Cutoff: ' + scorecard().qualifyingCutoff + ' M'"
+      icon="verified"
+      variant="accent"
+    />
+  </div>
+</div>

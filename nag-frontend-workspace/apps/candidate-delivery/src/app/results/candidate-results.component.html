@@ -1,139 +1,107 @@
-<div class="candidate-results-page max-w-6xl mx-auto p-6 space-y-8">
+<div class="candidate-results-page max-w-6xl mx-auto p-4 sm:p-6 lg:p-8 space-y-6 sm:space-y-8 animate-fade-in">
+  <!-- Page Header -->
   <nag-page-header
-    title="Official Candidate Scorecard & Performance Analytics"
-    subtitle="Verifiable national performance metrics with immutable ledger audit trail"
+    title="Official Candidate Scorecard & Verification Analytics"
+    subtitle="Verifiable national examination performance metrics with immutable ledger audit trail"
     icon="military_tech"
   >
     <div actions class="flex items-center gap-3">
-      <a mat-stroked-button routerLink="/dashboard" class="!rounded-xl">
-        &larr; Dashboard
+      <a
+        mat-stroked-button
+        routerLink="/dashboard"
+        class="!rounded-xl !text-xs font-semibold"
+      >
+        <mat-icon class="!text-sm">dashboard</mat-icon>
+        Dashboard
       </a>
-      <a mat-stroked-button routerLink="/review" color="primary" class="!rounded-xl">
-        <mat-icon>quiz</mat-icon>
-        Review Questions & Solutions
+      <a
+        mat-stroked-button
+        routerLink="/review"
+        color="primary"
+        class="!rounded-xl !text-xs font-semibold"
+      >
+        <mat-icon class="!text-sm">quiz</mat-icon>
+        Question Solutions & Key
       </a>
-      <button mat-flat-button color="primary" (click)="downloadScorecard()" class="!rounded-xl">
-        <mat-icon>file_download</mat-icon>
-        Download PDF
-      </button>
     </div>
   </nag-page-header>
 
-  @if (scorecard(); as sc) {
-    <!-- Scorecard Certificate Banner -->
-    <div class="scorecard-certificate bg-white rounded-3xl border border-slate-200 shadow-md p-8 space-y-6">
-      <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-b border-slate-100 pb-6">
-        <div class="flex items-center gap-4">
-          <div class="w-14 h-14 rounded-2xl bg-indigo-600 text-white flex items-center justify-center font-black text-xl">
-            NAG
-          </div>
-          <div>
-            <span class="text-xs font-mono font-bold text-indigo-700 bg-indigo-50 px-2.5 py-0.5 rounded">
-              {{ sc.examCode }}
-            </span>
-            <h2 class="text-xl font-black text-slate-900 mt-1">
-              {{ sc.examTitle }}
-            </h2>
-            <div class="flex items-center gap-4 text-xs text-slate-500 mt-0.5 font-medium">
-              <span>Candidate: <b class="text-slate-800">{{ sc.candidateName }}</b></span>
-              <span>Roll: <b class="font-mono text-slate-800">{{ sc.rollNumber }}</b></span>
-            </div>
-          </div>
-        </div>
+  <!-- Multi-Exam Selector -->
+  @if (resultsService.scorecards().length > 1) {
+    <nag-results-exam-selector
+      [scorecards]="resultsService.scorecards()"
+      [selected]="resultsService.selectedScorecard()"
+      (selectScorecard)="onSelectScorecard($event)"
+    />
+  }
 
-        <nag-status-badge
-          [variant]="sc.qualifyingStatus === 'QUALIFIED' ? 'success' : 'error'"
-          [label]="sc.qualifyingStatus === 'QUALIFIED' ? 'Qualified for Allocation' : 'Did Not Qualify'"
-        />
+  <!-- Loading State -->
+  @if (resultsService.loading()) {
+    <div class="space-y-6 animate-pulse">
+      <div class="h-48 bg-white rounded-3xl border border-slate-200"></div>
+      <div class="h-64 bg-white rounded-3xl border border-slate-200"></div>
+    </div>
+  }
+
+  <!-- Error State -->
+  @if (resultsService.error(); as err) {
+    <div class="p-6 bg-rose-50 rounded-2xl border border-rose-200 text-center space-y-3">
+      <div class="w-12 h-12 bg-rose-100 text-rose-700 rounded-full flex items-center justify-center mx-auto">
+        <mat-icon>error_outline</mat-icon>
       </div>
+      <h3 class="text-sm font-bold text-rose-900">Unable to Fetch Scorecards</h3>
+      <p class="text-xs text-rose-700">{{ err }}</p>
+      <button
+        type="button"
+        mat-flat-button
+        color="warn"
+        (click)="retryLoad()"
+        class="!rounded-xl !text-xs font-semibold"
+      >
+        <mat-icon class="!text-sm">refresh</mat-icon>
+        Retry
+      </button>
+    </div>
+  }
 
-      <!-- KPI Cards -->
-      <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
-        <nag-stat-card
-          label="Total Score"
-          [value]="sc.totalScore"
-          [unit]="'/' + sc.maxScore"
-          icon="score"
-          variant="primary"
-        />
-        <nag-stat-card
-          label="National Percentile"
-          [value]="sc.percentile + '%'"
-          icon="trending_up"
-          variant="success"
-        />
-        <nag-stat-card
-          label="All India Rank (AIR)"
-          [value]="'#' + sc.nationalRank"
-          [trendText]="'of ' + sc.totalAppeared + ' candidates'"
-          icon="leaderboard"
-          variant="warn"
-        />
-        <nag-stat-card
-          label="Ledger Block"
-          [value]="'#' + sc.blockHeight"
-          icon="layers"
-          variant="info"
-        />
+  <!-- Main Scorecard View -->
+  @if (!resultsService.loading() && resultsService.selectedScorecard(); as sc) {
+    <!-- Certificate Banner & Top KPIs -->
+    <nag-results-performance-summary [scorecard]="sc" />
+
+    <!-- Section-wise Performance Breakdown -->
+    <nag-results-section-table [subjectScores]="sc.subjectScores" />
+
+    <!-- Cryptographic Seal Box with QR Code & DigiLocker Push -->
+    <nag-results-cryptographic-proof
+      [scorecard]="sc"
+      [pushingDigiLocker]="resultsService.pushingDigiLocker()"
+      (pushDigiLocker)="onPushDigiLocker($event)"
+      (downloadPdf)="downloadScorecard()"
+    />
+  }
+
+  <!-- Empty State -->
+  @if (!resultsService.loading() && resultsService.scorecards().length === 0) {
+    <div class="bg-white rounded-3xl border border-slate-200 p-12 text-center space-y-4 shadow-xs">
+      <div class="w-16 h-16 bg-indigo-50 text-indigo-600 rounded-3xl flex items-center justify-center mx-auto">
+        <mat-icon class="!text-3xl">hourglass_empty</mat-icon>
       </div>
-
-      <!-- Subject Breakdown -->
-      <div class="space-y-3">
-        <h3 class="text-sm font-bold uppercase tracking-wider text-slate-700">
-          Subject-Wise Breakdown
-        </h3>
-        <div class="overflow-x-auto border border-slate-200 rounded-2xl">
-          <table class="w-full text-xs text-left">
-            <thead class="bg-slate-50 text-slate-600 uppercase font-semibold border-b">
-              <tr>
-                <th class="p-3.5">Subject / Module</th>
-                <th class="p-3.5 text-center">Marks Obtained</th>
-                <th class="p-3.5 text-center">Max Marks</th>
-                <th class="p-3.5 text-center">Accuracy Rate</th>
-                <th class="p-3.5 text-right">Performance Status</th>
-              </tr>
-            </thead>
-            <tbody class="divide-y divide-slate-100">
-              @for (sub of sc.subjectScores; track sub.subject) {
-                <tr class="hover:bg-slate-50/50">
-                  <td class="p-3.5 font-bold text-slate-900">{{ sub.subject }}</td>
-                  <td class="p-3.5 text-center font-semibold text-indigo-700">{{ sub.marksObtained }}</td>
-                  <td class="p-3.5 text-center text-slate-500">{{ sub.maxMarks }}</td>
-                  <td class="p-3.5 text-center font-mono font-medium">{{ sub.accuracyRate }}%</td>
-                  <td class="p-3.5 text-right">
-                    <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                      Top 1% Tier
-                    </span>
-                  </td>
-                </tr>
-              }
-            </tbody>
-          </table>
-        </div>
+      <div class="space-y-1">
+        <h3 class="text-base font-bold text-slate-900">No Examination Results Declared Yet</h3>
+        <p class="text-xs text-slate-500 max-w-md mx-auto">
+          Your completed assessments are currently undergoing automated evaluation and merit ranking. Declared results will appear here automatically.
+        </p>
       </div>
-
-      <!-- Cryptographic Seal Box with QR Code -->
-      <div class="bg-slate-50 rounded-2xl p-6 border border-slate-200 flex flex-col md:flex-row items-center justify-between gap-6">
-        <div class="space-y-2 text-xs font-mono grow">
-          <div class="flex items-center gap-2 text-slate-900 font-bold uppercase text-[11px] pb-1 border-b border-slate-200">
-            <mat-icon class="!text-sm leading-none text-indigo-600">verified</mat-icon>
-            <span>Cryptographic Proof & Ledger Commitment</span>
-          </div>
-          <div>
-            <span class="text-slate-400 block text-[10px]">SUBMISSION HASH:</span>
-            <span class="break-all font-bold text-slate-800">{{ sc.ledgerProofHash }}</span>
-          </div>
-          <div>
-            <span class="text-slate-400 block text-[10px]">MERKLE ROOT ANCHOR:</span>
-            <span class="break-all text-slate-600">{{ sc.merkleRoot }}</span>
-          </div>
-        </div>
-
-        <nag-qr-code
-          [data]="'https://nag.gov.in/verify?hash=' + sc.ledgerProofHash"
-          [size]="110"
-          label="Scan to Verify"
-        />
+      <div>
+        <a
+          mat-flat-button
+          color="primary"
+          routerLink="/dashboard"
+          class="!rounded-xl !text-xs font-bold !px-6"
+        >
+          Return to Dashboard
+        </a>
       </div>
     </div>
   }
