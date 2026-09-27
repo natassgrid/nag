@@ -3,23 +3,17 @@
  *
  * National Assessment Grid (NAG) - Open Digital Public Infrastructure (DPI) Platform
  * Copyright (C) 2025 NAG Contributors
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU Affero General Public License as published
- * by the Free Software Foundation, version 3 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU Affero General Public License for more details.
- *
- * You should have received a copy of the GNU Affero General Public License
- * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
 
 package com.examplatform.examination.controller;
 
-import com.examplatform.examination.dto.*;
+import com.examplatform.examination.domain.enums.CalculatorPolicy;
+import com.examplatform.examination.domain.enums.NavigationPolicy;
+import com.examplatform.examination.dto.AdmitCardResponse;
+import com.examplatform.examination.dto.ExamApplicationRequest;
+import com.examplatform.examination.dto.ExamApplicationResponse;
+import com.examplatform.examination.dto.ExaminationResponse;
+import com.examplatform.examination.dto.PublicCentreResponse;
 import com.examplatform.examination.exception.ExaminationNotFoundException;
 import com.examplatform.examination.service.ExamApplicationService;
 import com.examplatform.examination.service.ExaminationService;
@@ -35,15 +29,19 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.util.List;
 import java.util.UUID;
 
-import static org.mockito.ArgumentMatchers.*;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @DisplayName("PublicExaminationController REST Endpoints E2E Tests (MockMvc)")
 class PublicExaminationControllerIntegrationTest extends AbstractIntegrationTest {
@@ -54,19 +52,31 @@ class PublicExaminationControllerIntegrationTest extends AbstractIntegrationTest
     @MockitoBean
     private ExamApplicationService examApplicationService;
 
-    private static final String TENANT_ID = "default";
     private static final UUID EXAM_ID = UUID.fromString("11111111-1111-1111-1111-111111111111");
     private static final UUID CANDIDATE_ID = UUID.fromString("22222222-2222-2222-2222-222222222222");
     private static final UUID APPLICATION_ID = UUID.fromString("33333333-3333-3333-3333-333333333333");
+    private static final UUID CENTRE_ID = UUID.fromString("44444444-4444-4444-4444-444444444444");
 
     private ExaminationResponse sampleExamResponse() {
         return ExaminationResponse.builder()
                 .id(EXAM_ID)
                 .name("Civil Services Examination 2026")
                 .code("CSE-2026")
-                .status("PUBLISHED")
+                .conductingAuthority("UPSC")
+                .category("ALL_INDIA_CIVIL_SERVICES")
+                .examinationType("COMPETITIVE")
+                .academicYear("2026")
+                .examinationMode("HYBRID_CBT")
                 .durationMinutes(120)
                 .totalMarks(200)
+                .negativeMarkingEnabled(true)
+                .negativeMarkingValue(0.33)
+                .navigationPolicy(NavigationPolicy.FLEXIBLE.name())
+                .calculatorPolicy(CalculatorPolicy.NONE.name())
+                .reviewFlagEnabled(true)
+                .isPractice(false)
+                .sections(List.of())
+                .status("PUBLISHED")
                 .build();
     }
 
@@ -75,10 +85,12 @@ class PublicExaminationControllerIntegrationTest extends AbstractIntegrationTest
                 .applicationId(APPLICATION_ID)
                 .examId(EXAM_ID)
                 .candidateId(CANDIDATE_ID)
-                .status("APPLIED")
-                .applicationDate(LocalDateTime.now())
                 .examName("Civil Services Examination 2026")
                 .examCode("CSE-2026")
+                .hallTicketNumber("HT-2026-99999")
+                .status("APPLIED")
+                .applicationDate(LocalDateTime.now())
+                .allocatedCentreId(CENTRE_ID)
                 .build();
     }
 
@@ -91,8 +103,26 @@ class PublicExaminationControllerIntegrationTest extends AbstractIntegrationTest
                 .examId(EXAM_ID)
                 .examName("Civil Services Examination 2026")
                 .examCode("CSE-2026")
-                .examDate(LocalDate.of(2026, 7, 20))
-                .shiftName("Morning Shift")
+                .conductingAuthority("UPSC")
+                .examinationMode("HYBRID_CBT")
+                .durationMinutes(120)
+                .totalMarks(200)
+                .examDate(LocalDate.now().plusDays(10))
+                .shiftName("Morning Shift (09:00 AM - 11:00 AM)")
+                .shiftNumber(1)
+                .reportingTime(LocalTime.of(8, 0))
+                .gateClosingTime(LocalTime.of(8, 45))
+                .loginStartTime(LocalTime.of(8, 50))
+                .examStartTime(LocalTime.of(9, 0))
+                .examEndTime(LocalTime.of(11, 0))
+                .centreId(CENTRE_ID)
+                .centreName("National Assessment Centre Delhi")
+                .building("Main Academic Block")
+                .floor("2nd Floor")
+                .city("New Delhi")
+                .state("Delhi")
+                .laboratoryIdentifier("LAB-CBT-01")
+                .qrData("{\"ht\":\"HT-2026-99999\"}")
                 .build();
     }
 
@@ -106,7 +136,7 @@ class PublicExaminationControllerIntegrationTest extends AbstractIntegrationTest
         @Test
         @DisplayName("+ve: Public access to listPublished() returns 200 OK without JWT")
         void publicCanListPublishedExams() throws Exception {
-            when(examinationService.listPublishedPaged(any(), any(), anyInt(), anyInt()))
+            when(examinationService.listPublishedPaged(any(), any(), any(), anyInt(), anyInt()))
                     .thenReturn(new PageImpl<>(List.of(sampleExamResponse())));
 
             mockMvc.perform(get("/api/v1/examinations/public"))
@@ -239,7 +269,7 @@ class PublicExaminationControllerIntegrationTest extends AbstractIntegrationTest
         }
 
         @Test
-        @DisplayName("+ve: CANDIDATE retrieves application status for single exam - returns 200 OK")
+        @DisplayName("+ve: CANDIDATE retrieves specific exam application via /{examId}/my-application - returns 200 OK")
         void candidateCanGetMyApplicationForExam() throws Exception {
             when(examApplicationService.getMyApplication(eq(EXAM_ID), eq(CANDIDATE_ID), any()))
                     .thenReturn(sampleApplicationResponse());
@@ -249,7 +279,7 @@ class PublicExaminationControllerIntegrationTest extends AbstractIntegrationTest
                                     .jwt(j -> j.subject(CANDIDATE_ID.toString()))))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.status").value("success"))
-                    .andExpect(jsonPath("$.data.examId").value(EXAM_ID.toString()));
+                    .andExpect(jsonPath("$.data.applicationId").value(APPLICATION_ID.toString()));
         }
     }
 

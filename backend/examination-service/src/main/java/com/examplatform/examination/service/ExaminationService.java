@@ -102,31 +102,28 @@ public class ExaminationService {
         });
     }
 
-    public Page<ExaminationResponse> listByTenantPaged(
-            String tenantId, String search, int page, int size) {
-        return listByTenantPaged(tenantId, search, null, "desc", page, size);
+    /**
+     * Retrieves a single examination by its unique ID.
+     */
+    public ExaminationResponse getById(UUID examId) {
+        Examination exam = examinationRepository.findById(examId)
+                .orElseThrow(() -> new ExaminationNotFoundException(examId));
+        List<Section> sections = deserializeSections(exam.getSectionsJson());
+        return toResponse(exam, sections);
     }
 
     /**
-     * Lists PUBLISHED examinations for the given tenant with pagination, search, and category filters.
-     * Used by the candidate-facing public endpoint — no admin role required.
-     *
-     * @param tenantId tenant identifier
-     * @param search   optional search term matched against exam name
-     * @param category optional examination category (e.g. "ENGINEERING", "CIVIL_SERVICES")
-     * @param page     zero-based page number
-     * @param size     page size
-     * @return paginated list of published examinations
+     * Lists all published examinations for candidates/public discovery, with optional search and category filters.
      */
     public Page<ExaminationResponse> listPublishedPaged(
             String tenantId, String search, String category, int page, int size) {
-        Pageable pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
+        Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
 
+        boolean hasCategory = category != null && !category.isBlank() && !"ALL".equalsIgnoreCase(category);
         boolean hasSearch = search != null && !search.isBlank();
-        boolean hasCategory = category != null && !category.isBlank() && !category.equalsIgnoreCase("ALL");
 
         Page<Examination> examPage;
-        if (hasSearch && hasCategory) {
+        if (hasCategory && hasSearch) {
             examPage = examinationRepository.findByStatusAndTenantIdAndCategoryIgnoreCaseAndNameContainingIgnoreCase(
                     "PUBLISHED", tenantId, category.trim(), search.trim(), pageable);
         } else if (hasCategory) {
@@ -180,21 +177,27 @@ public class ExaminationService {
                 .calculatorPolicy(request.getCalculatorPolicy() != null ? request.getCalculatorPolicy().name() : CalculatorPolicy.NONE.name())
                 .reviewFlagEnabled(Boolean.TRUE.equals(request.getReviewFlagEnabled()))
                 .isPractice(Boolean.TRUE.equals(request.getIsPractice()))
-                .sectionsJson(sectionsJson)
                 .status("DRAFT")
+                .sectionsJson(sectionsJson)
                 .build();
 
         examination.setTenantId(tenantId);
-
         Examination saved = examinationRepository.save(examination);
-        log.info("Created examination '{}' with id={} for tenant={}", saved.getName(), saved.getId(), tenantId);
+        log.info("Created examination id={} name='{}' for tenant={}", saved.getId(), saved.getName(), tenantId);
 
-        return toResponse(saved, request.getSections());
+        publishAuditEvent("EXAM_CREATED", saved.getId().toString(), tenantId, Map.of(
+                "examId", saved.getId().toString(),
+                "name", saved.getName(),
+                "totalMarks", saved.getTotalMarks()
+        ));
+
+        List<Section> sections = deserializeSections(saved.getSectionsJson());
+        return toResponse(saved, sections);
     }
 
     /**
-     * Updates an existing examination. Re-validates section marks.
-     * Throws if not found or tenant mismatch.
+     * Updates an existing examination.
+     * Only permitted if status is DRAFT.
      */
     public ExaminationResponse update(UUID examId, CreateExaminationRequest request, String tenantId) {
         Examination examination = examinationRepository.findById(examId)
@@ -204,9 +207,12 @@ public class ExaminationService {
             throw new AccessDeniedException("Cannot update examination belonging to another tenant");
         }
 
-        validateSectionMarks(request);
+        if (!"DRAFT".equals(examination.getStatus())) {
+            throw new IllegalStateException(
+                    "Examination cannot be modified once published (current status: " + examination.getStatus() + ")");
+        }
 
-        String sectionsJson = serializeSections(request.getSections());
+        validateSectionMarks(request);
 
         boolean isNegMarking = Boolean.TRUE.equals(request.getNegativeMarkingEnabled());
         double negValue = (isNegMarking && request.getNegativeMarkingValue() != null)
@@ -227,35 +233,23 @@ public class ExaminationService {
         examination.setNavigationPolicy(request.getNavigationPolicy() != null ? request.getNavigationPolicy().name() : NavigationPolicy.FLEXIBLE.name());
         examination.setCalculatorPolicy(request.getCalculatorPolicy() != null ? request.getCalculatorPolicy().name() : CalculatorPolicy.NONE.name());
         examination.setReviewFlagEnabled(Boolean.TRUE.equals(request.getReviewFlagEnabled()));
-        if (request.getIsPractice() != null) {
-            examination.setPractice(request.getIsPractice());
-        }
-        examination.setSectionsJson(sectionsJson);
+        examination.setPractice(Boolean.TRUE.equals(request.getIsPractice()));
+        examination.setSectionsJson(serializeSections(request.getSections()));
 
         Examination saved = examinationRepository.save(examination);
         log.info("Updated examination id={} for tenant={}", saved.getId(), tenantId);
 
-        return toResponse(saved, request.getSections());
+        publishAuditEvent("EXAM_UPDATED", saved.getId().toString(), tenantId, Map.of(
+                "examId", saved.getId().toString(),
+                "name", saved.getName()
+        ));
+
+        List<Section> sections = deserializeSections(saved.getSectionsJson());
+        return toResponse(saved, sections);
     }
 
     /**
-     * Retrieves an examination by its identifier.
-     * Deserializes sectionsJson back into a List of Section objects.
-     */
-    public ExaminationResponse getById(UUID examId) {
-        Examination examination = examinationRepository.findById(examId)
-                .orElseThrow(() -> new ExaminationNotFoundException(examId));
-
-        List<Section> sections = deserializeSections(examination.getSectionsJson());
-        return toResponse(examination, sections);
-    }
-
-    /**
-     * Publishes an examination: sets status to PUBLISHED and emits EXAM_PUBLISHED audit event.
-     *
-     * @param examId   the exam UUID
-     * @param tenantId the tenant identifier
-     * @return the updated examination response
+     * Publishes a DRAFT examination, transitioning it to PUBLISHED status.
      */
     public ExaminationResponse publish(UUID examId, String tenantId) {
         Examination examination = examinationRepository.findById(examId)
@@ -265,28 +259,26 @@ public class ExaminationService {
             throw new AccessDeniedException("Cannot publish examination belonging to another tenant");
         }
 
+        if (!"DRAFT".equals(examination.getStatus())) {
+            throw new IllegalStateException(
+                    "Only DRAFT examinations can be published (current status: " + examination.getStatus() + ")");
+        }
+
         examination.setStatus("PUBLISHED");
         Examination saved = examinationRepository.save(examination);
         log.info("Published examination id={} for tenant={}", saved.getId(), tenantId);
 
-        // Publish EXAM_PUBLISHED audit event (fire-and-forget)
-        try {
-            Map<String, Object> event = new HashMap<>();
-            event.put("eventType", "EXAM_PUBLISHED");
-            event.put("examId", saved.getId().toString());
-            event.put("tenantId", tenantId);
-            event.put("timestamp", Instant.now().toEpochMilli());
-            eventPublisher.publish(AUDIT_TOPIC, saved.getId().toString(), event);
-        } catch (Exception ex) {
-            log.warn("Failed to publish EXAM_PUBLISHED audit event for examId={}: {}", saved.getId(), ex.getMessage());
-        }
+        publishAuditEvent("EXAM_PUBLISHED", saved.getId().toString(), tenantId, Map.of(
+                "examId", saved.getId().toString(),
+                "name", saved.getName()
+        ));
 
         List<Section> sections = deserializeSections(saved.getSectionsJson());
         return toResponse(saved, sections);
     }
 
     /**
-     * Closes an examination: sets status to CLOSED.
+     * Closes an active examination.
      */
     public ExaminationResponse close(UUID examId, String tenantId) {
         Examination examination = examinationRepository.findById(examId)
@@ -320,7 +312,7 @@ public class ExaminationService {
         int declaredTotal = request.getTotalMarks() != null ? request.getTotalMarks() : 0;
 
         if (Math.abs(computedTotal - declaredTotal) > 0.001) {
-            throw new SectionMarksValidationException((int) Math.round(computedTotal), declaredTotal);
+            throw new SectionMarksValidationException(declaredTotal, computedTotal);
         }
     }
 
@@ -383,5 +375,18 @@ public class ExaminationService {
                 .sections(sections != null ? sections : List.of())
                 .status(exam.getStatus())
                 .build();
+    }
+
+    private void publishAuditEvent(String eventType, String entityId, String tenantId, Map<String, Object> details) {
+        try {
+            Map<String, Object> payload = new HashMap<>(details);
+            payload.put("eventType", eventType);
+            payload.put("entityId", entityId);
+            payload.put("tenantId", tenantId);
+            payload.put("timestamp", LocalDateTime.ofInstant(Instant.now(), ZoneOffset.UTC).toString());
+            eventPublisher.publish(AUDIT_TOPIC, entityId, payload);
+        } catch (Exception e) {
+            log.warn("Failed to publish audit event {}: {}", eventType, e.getMessage());
+        }
     }
 }
