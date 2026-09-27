@@ -281,13 +281,13 @@ public class IdentityController {
     /**
      * Initiate TOTP 2FA setup (returns secret, otpauth URI, backup codes).
      */
-    @PostMapping("/auth/2fa/setup")
+    @PostMapping({"/auth/2fa/setup", "/auth/mfa/totp/setup"})
     public ResponseEntity<ApiResponse<TotpSetupResponse>> setup2fa(
             @RequestParam(required = false) String username,
             @AuthenticationPrincipal Jwt jwt) {
         String targetUsername = (jwt != null) ? jwt.getClaimAsString("preferred_username") : username;
         if (targetUsername == null || targetUsername.isBlank()) {
-            targetUsername = (jwt != null) ? jwt.getSubject() : "admin-user";
+            targetUsername = (jwt != null) ? jwt.getSubject() : "user";
         }
         TotpSetupResponse setup = adminInvitationService.generateTotpSetup(targetUsername);
         return ResponseEntity.ok(ApiResponse.success(setup, "TOTP 2FA setup credentials generated."));
@@ -296,7 +296,7 @@ public class IdentityController {
     /**
      * Verify and activate TOTP 2FA setup for user.
      */
-    @PostMapping("/auth/2fa/verify-setup")
+    @PostMapping({"/auth/2fa/verify-setup", "/auth/mfa/totp/verify-setup"})
     public ResponseEntity<ApiResponse<Void>> verify2faSetup(
             @Valid @RequestBody TotpVerifySetupRequest request,
             @AuthenticationPrincipal Jwt jwt,
@@ -308,6 +308,23 @@ public class IdentityController {
         UUID userId = UUID.fromString(userIdStr.trim());
         adminInvitationService.verifyAndEnableTotp(userId, request, tenantId);
         return ResponseEntity.ok(ApiResponse.success(null, "2FA TOTP configured and activated successfully."));
+    }
+
+    /**
+     * Disable TOTP 2FA for authenticated user.
+     */
+    @PostMapping({"/auth/2fa/disable", "/auth/mfa/totp/disable"})
+    public ResponseEntity<ApiResponse<Void>> disable2fa(
+            @RequestParam(required = false) String userId,
+            @AuthenticationPrincipal Jwt jwt,
+            @RequestHeader(value = "X-Tenant-Id", defaultValue = "default") String tenantId) {
+        String targetUserId = (jwt != null) ? jwt.getSubject() : userId;
+        if (targetUserId == null || targetUserId.isBlank()) {
+            throw new AccountNotFoundException("User ID is required to disable 2FA.");
+        }
+        UUID id = UUID.fromString(targetUserId.trim());
+        adminInvitationService.disableTotp(id, tenantId);
+        return ResponseEntity.ok(ApiResponse.success(null, "2FA TOTP has been disabled."));
     }
 
     /**

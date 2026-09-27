@@ -30,10 +30,12 @@ export class AdminLoginComponent implements OnInit {
 
   username = 'superadmin';
   password = '';
+  otpCode = '';
 
   loading = signal<boolean>(false);
   errorMessage = signal<string | null>(null);
   showPassword = signal<boolean>(false);
+  mfaStepRequired = signal<boolean>(false);
 
   ngOnInit(): void {
     if (this.authService.isAuthenticated()) {
@@ -47,29 +49,58 @@ export class AdminLoginComponent implements OnInit {
       return;
     }
 
+    if (this.mfaStepRequired() && !this.otpCode.trim()) {
+      this.errorMessage.set('Please enter your 6-digit Authenticator OTP code.');
+      return;
+    }
+
     this.loading.set(true);
     this.errorMessage.set(null);
 
-    this.authService
-      .login({
-        username: this.username.trim(),
-        password: this.password,
-      })
-      .subscribe({
-        next: () => {
-          this.loading.set(false);
-          this.router.navigate(['/dashboard']);
-        },
-        error: (err) => {
-          this.loading.set(false);
-          const detail =
-            err?.error?.message ||
-            err?.error?.detail ||
-            err?.message ||
-            'Authentication failed. Please verify your officer credentials.';
-          this.errorMessage.set(detail);
-        },
-      });
+    const payload: { username: string; password: string; otpCode?: string } = {
+      username: this.username.trim(),
+      password: this.password,
+    };
+
+    if (this.mfaStepRequired() && this.otpCode.trim()) {
+      payload.otpCode = this.otpCode.trim();
+    }
+
+    this.authService.login(payload).subscribe({
+      next: () => {
+        this.loading.set(false);
+        this.router.navigate(['/dashboard']);
+      },
+      error: (err) => {
+        this.loading.set(false);
+
+        const msg = err?.error?.message || err?.error?.detail || err?.message || '';
+        if (
+          err.status === 403 &&
+          (msg.toLowerCase().includes('mfa') ||
+           msg.toLowerCase().includes('2fa') ||
+           msg.toLowerCase().includes('authenticator') ||
+           msg.toLowerCase().includes('otp'))
+        ) {
+          this.mfaStepRequired.set(true);
+          this.errorMessage.set('Command Clearance: Two-Factor Authentication required. Enter the 6-digit code from your Authenticator app.');
+          return;
+        }
+
+        const detail =
+          err?.error?.message ||
+          err?.error?.detail ||
+          err?.message ||
+          'Authentication failed. Please verify your officer credentials.';
+        this.errorMessage.set(detail);
+      },
+    });
+  }
+
+  cancelMfa(): void {
+    this.mfaStepRequired.set(false);
+    this.otpCode = '';
+    this.errorMessage.set(null);
   }
 
   togglePasswordVisibility(): void {

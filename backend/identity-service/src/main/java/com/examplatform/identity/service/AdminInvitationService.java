@@ -256,6 +256,27 @@ public class AdminInvitationService {
     }
 
     /**
+     * Disables TOTP 2FA for a user.
+     */
+    @Transactional
+    public void disableTotp(UUID userId, String tenantId) {
+        UserAccount account = userAccountRepository.findById(userId)
+                .orElseThrow(() -> new AccountNotFoundException("User not found: " + userId));
+        account.setMfaEnabled(false);
+        account.setTotpSecret(null);
+        account.setBackupCodes(null);
+        userAccountRepository.save(account);
+
+        auditEventPublisher.publish(
+                AuditEventType.LOGIN,
+                userId.toString(),
+                "identity:users/" + userId,
+                null, null,
+                Map.of("action", "TOTP_2FA_DISABLED", "username", account.getUsername(), "tenantId", tenantId)
+        );
+    }
+
+    /**
      * Accepts an invitation: sets password, verifies and stores TOTP secret, activates account, and returns JWT tokens.
      */
     @Transactional

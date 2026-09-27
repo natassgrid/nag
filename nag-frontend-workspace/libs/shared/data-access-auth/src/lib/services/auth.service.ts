@@ -12,6 +12,7 @@ import {
   UserToken,
   AuthUser,
   TotpSetupData,
+  TotpVerifySetupRequest,
   ValidateInviteData,
   VerificationStatusData,
 } from '../models/auth.model';
@@ -254,10 +255,28 @@ export class AuthService {
       .pipe(map((res) => res.data));
   }
 
-  setupTotp(): Observable<TotpSetupData> {
+  setupTotp(username?: string): Observable<TotpSetupData> {
+    const url = username
+      ? `/api/v1/identity/auth/2fa/setup?username=${encodeURIComponent(username)}`
+      : '/api/v1/identity/auth/2fa/setup';
     return this.http
-      .post<{ data: TotpSetupData }>('/api/v1/identity/auth/2fa/setup', {})
+      .post<{ data: TotpSetupData }>(url, {})
       .pipe(map((res) => res.data));
+  }
+
+  verifyTotpSetup(payload: TotpVerifySetupRequest): Observable<void> {
+    return this.http
+      .post<{ status?: string }>('/api/v1/identity/auth/2fa/verify-setup', payload)
+      .pipe(map(() => void 0));
+  }
+
+  disableTotp(userId?: string): Observable<void> {
+    const url = userId
+      ? `/api/v1/identity/auth/2fa/disable?userId=${encodeURIComponent(userId)}`
+      : '/api/v1/identity/auth/2fa/disable';
+    return this.http
+      .post<{ status?: string }>(url, {})
+      .pipe(map(() => void 0));
   }
 
   validateInvite(token: string): Observable<ValidateInviteData> {

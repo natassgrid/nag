@@ -31,6 +31,7 @@ import com.examplatform.identity.exception.AuthenticationException;
 import com.examplatform.identity.exception.MfaRequiredException;
 import com.examplatform.identity.repository.ActiveSessionRepository;
 import com.examplatform.identity.repository.UserAccountRepository;
+import com.examplatform.identity.repository.UserRoleAssignmentRepository;
 import com.examplatform.shared.audit.AuditEventType;
 import com.examplatform.shared.config.DynamicConfigService;
 import org.junit.jupiter.api.BeforeEach;
@@ -44,6 +45,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -78,6 +80,9 @@ class AuthenticationServiceTest {
 
     @Mock
     private UserAccountRepository userAccountRepository;
+
+    @Mock
+    private UserRoleAssignmentRepository userRoleAssignmentRepository;
 
     @Mock
     private ActiveSessionRepository activeSessionRepository;
@@ -122,9 +127,11 @@ class AuthenticationServiceTest {
     void setUp() {
         lenient().when(hashingService.sha256(anyString())).thenReturn(EMAIL_HASH);
         lenient().when(dynamicConfigService.getInt(anyString(), anyString(), anyInt())).thenReturn(30);
+        lenient().when(dynamicConfigService.getString(anyString(), anyString(), anyString())).thenReturn("OPTIONAL");
         lenient().when(dynamicConfigService.getBoolean(eq("auth.mfa.enforced"), anyString(), anyBoolean())).thenReturn(false);
         lenient().when(dynamicConfigService.getBoolean(eq("auth.stepup.enforced"), anyString(), anyBoolean())).thenReturn(false);
         lenient().when(appSecurityProperties.getSessionIdleTimeoutSeconds()).thenReturn(1800);
+        lenient().when(userRoleAssignmentRepository.findByUserIdAndTenantId(any(), any())).thenReturn(List.of());
     }
 
     private UserAccount activeAccount() {

@@ -64,6 +64,9 @@ export class AdminSettingsService {
 
     return {
       authMfaEnforced: map['auth.mfa.enforced'] === 'true',
+      authMfaAdminPolicy: (map['auth.mfa.admin.policy'] as any) || 'OPTIONAL',
+      authMfaCandidatePolicy: (map['auth.mfa.candidate.policy'] as any) || 'OPTIONAL',
+      authMfaAllowedMethods: map['auth.mfa.allowed.methods'] || 'TOTP,EMAIL_OTP,RECOVERY_CODES',
       authSessionTimeoutMinutes: parseInt(map['auth.session.timeout.minutes'] || '30', 10),
       authMaxLoginAttempts: parseInt(map['auth.max.login.attempts'] || '5', 10),
       authLockoutDurationMinutes: parseInt(map['auth.lockout.duration.minutes'] || '15', 10),
@@ -98,6 +101,9 @@ export class AdminSettingsService {
   private mapToBackend(state: SystemSettingsState): Record<string, string> {
     return {
       'auth.mfa.enforced': String(state.authMfaEnforced),
+      'auth.mfa.admin.policy': state.authMfaAdminPolicy,
+      'auth.mfa.candidate.policy': state.authMfaCandidatePolicy,
+      'auth.mfa.allowed.methods': state.authMfaAllowedMethods,
       'auth.session.timeout.minutes': String(state.authSessionTimeoutMinutes),
       'auth.max.login.attempts': String(state.authMaxLoginAttempts),
       'auth.lockout.duration.minutes': String(state.authLockoutDurationMinutes),

@@ -38,6 +38,9 @@ public final class DefaultPlatformConfigs {
 
         // Security & Authentication
         m.put("auth.mfa.enforced", "false");
+        m.put("auth.mfa.admin.policy", "OPTIONAL");
+        m.put("auth.mfa.candidate.policy", "OPTIONAL");
+        m.put("auth.mfa.allowed.methods", "TOTP,EMAIL_OTP,RECOVERY_CODES");
         m.put("auth.stepup.enforced", "false");
         m.put("auth.session.timeout.minutes", "30");
         m.put("auth.max.login.attempts", "5");
