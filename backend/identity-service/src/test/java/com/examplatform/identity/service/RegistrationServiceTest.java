@@ -29,15 +29,18 @@ import com.examplatform.identity.exception.AccountNotFoundException;
 import com.examplatform.identity.exception.DuplicateIdentityException;
 import com.examplatform.identity.exception.InvalidOtpException;
 import com.examplatform.identity.repository.UserAccountRepository;
+import com.examplatform.shared.audit.AuditEventType;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.test.util.ReflectionTestUtils;
 
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -96,9 +99,10 @@ class RegistrationServiceTest {
             when(userAccountRepository.existsByEmailHashAndTenantId(any(), any())).thenReturn(false);
             when(userAccountRepository.existsByIdentityDocHashAndTenantId(any(), any())).thenReturn(false);
 
+            UUID userId = UUID.randomUUID();
             UserAccount saved = UserAccount.builder().build();
             saved.setTenantId("default");
-            ReflectionTestUtils.setField(saved, "id", UUID.randomUUID());
+            ReflectionTestUtils.setField(saved, "id", userId);
             when(userAccountRepository.save(any())).thenReturn(saved);
 
             // when
@@ -110,6 +114,23 @@ class RegistrationServiceTest {
                     () -> verify(otpService).sendEmailOtp(any(), any(), any(), any(), any()),
                     () -> verify(otpService).sendSmsOtp(any(), any(), any(), any())
             );
+
+            ArgumentCaptor<Map<String, Object>> extraCaptor = ArgumentCaptor.forClass(Map.class);
+            verify(auditEventPublisher).publish(
+                    eq(AuditEventType.CANDIDATE_PROFILE_CREATED),
+                    eq(userId.toString()),
+                    eq("identity:registration"),
+                    eq(null),
+                    eq(null),
+                    extraCaptor.capture()
+            );
+
+            Map<String, Object> extra = extraCaptor.getValue();
+            assertThat(extra.get("fullName")).isEqualTo("Test User");
+            assertThat(extra.get("email")).isEqualTo("test@example.com");
+            assertThat(extra.get("mobile")).isEqualTo("9876543210");
+            assertThat(extra.get("identityDocType")).isEqualTo("AADHAAR");
+            assertThat(extra.get("identityDocNumber")).isEqualTo("123456789012");
         }
 
         @Test
@@ -269,7 +290,7 @@ class RegistrationServiceTest {
         }
 
         @Test
-        @DisplayName("throws InvalidOtpException when account is already active")
+        @DisplayName("throws InvalidOtpException when account is already ACTIVE")
         void throwsWhenAlreadyActive() {
             UserAccount account = UserAccount.builder()
                     .accountStatus(AccountStatus.ACTIVE)

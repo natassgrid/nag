@@ -36,6 +36,8 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.test.util.ReflectionTestUtils;
 
 import java.util.Collections;
 import java.util.List;
@@ -48,9 +50,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
 @DisplayName("CandidateProfileService Unit Tests")
@@ -71,6 +71,9 @@ class CandidateProfileServiceTest {
     @Mock
     private EventPublisher eventPublisher;
 
+    @Mock
+    private JdbcTemplate jdbcTemplate;
+
     private CandidateProfileService candidateProfileService;
 
     private static final String TENANT_ID = "default";
@@ -90,6 +93,7 @@ class CandidateProfileServiceTest {
                 vaultCryptoService,
                 eventPublisher
         );
+        ReflectionTestUtils.setField(candidateProfileService, "jdbcTemplate", jdbcTemplate);
     }
 
     private CreateCandidateProfileRequest validCreateRequest() {
@@ -204,6 +208,33 @@ class CandidateProfileServiceTest {
         }
 
         @Test
+        @DisplayName("updates existing candidate profile idempotently without conflict")
+        void updatesExistingCandidateProfileIdempotently() {
+            CreateCandidateProfileRequest request = validCreateRequest();
+            CandidateProfile existing = CandidateProfile.builder()
+                    .userId(USER_ID)
+                    .encryptionKeyId("candidate-dek-" + USER_ID)
+                    .build();
+            existing.setTenantId(TENANT_ID);
+
+            when(hashingService.sha256(MOBILE)).thenReturn(MOBILE_HASH);
+            when(hashingService.sha256(IDENTITY_DOC)).thenReturn(DOC_HASH);
+            when(hashingService.hmac(eq(IDENTITY_DOC), anyString())).thenReturn(DOC_HMAC);
+            when(candidateProfileRepository.findByMobileHashAndTenantId(MOBILE_HASH, TENANT_ID))
+                    .thenReturn(List.of(existing));
+            when(candidateProfileRepository.findByUserIdAndTenantId(USER_ID, TENANT_ID))
+                    .thenReturn(Optional.of(existing));
+            when(candidateProfileRepository.save(any(CandidateProfile.class)))
+                    .thenAnswer(invocation -> invocation.getArgument(0));
+
+            CandidateProfileResponse response = candidateProfileService.create(request, TENANT_ID);
+
+            assertThat(response.getFullName()).isEqualTo("Test Candidate");
+            assertThat(response.getMobile()).isEqualTo(MOBILE);
+            assertThat(response.getEmail()).isEqualTo("candidate@example.com");
+        }
+
+        @Test
         @DisplayName("throws DuplicateProfileException when mobile already exists for another user")
         void throwsOnDuplicateMobile() {
             CreateCandidateProfileRequest request = validCreateRequest();
@@ -280,6 +311,85 @@ class CandidateProfileServiceTest {
             verify(candidateProfileRepository).save(captor.capture());
             assertThat(captor.getValue().getUserId()).isEqualTo(USER_ID);
             assertThat(captor.getValue().getEncryptionKeyId()).isEqualTo("candidate-dek-" + USER_ID);
+        }
+
+        @Test
+        @DisplayName("backfills email and username from identity_service.user_account when missing")
+        void backfillsMissingEmailFromUserAccount() {
+            CandidateProfile profileWithoutEmail = CandidateProfile.builder()
+                    .userId(USER_ID)
+                    .fullName(null)
+                    .email(null)
+                    .mobile(MOBILE)
+                    .build();
+            profileWithoutEmail.setTenantId(TENANT_ID);
+
+            when(candidateProfileRepository.findByUserIdAndTenantId(USER_ID, TENANT_ID))
+                    .thenReturn(Optional.of(profileWithoutEmail));
+            when(jdbcTemplate.queryForObject(anyString(), eq(String.class), eq(USER_ID)))
+                    .thenReturn("sheel.prabhakar@gmail.com");
+            when(candidateProfileRepository.save(any(CandidateProfile.class)))
+                    .thenAnswer(invocation -> invocation.getArgument(0));
+
+            CandidateProfileResponse response = candidateProfileService.getByUserId(USER_ID, TENANT_ID);
+
+            assertThat(response.getEmail()).isEqualTo("sheel.prabhakar@gmail.com");
+            verify(candidateProfileRepository).save(profileWithoutEmail);
+        }
+    }
+
+    @Nested
+    @DisplayName("update")
+    class Update {
+
+        @Test
+        @DisplayName("auto-initializes and updates candidate profile when profile did not exist")
+        void autoInitializesAndUpdatesWhenNotFound() {
+            UpdateCandidateProfileRequest request = UpdateCandidateProfileRequest.builder()
+                    .fullName("Updated Candidate")
+                    .mobile("9123456780")
+                    .build();
+
+            when(candidateProfileRepository.findByUserIdAndTenantId(USER_ID, TENANT_ID))
+                    .thenReturn(Optional.empty());
+            when(hashingService.sha256("9123456780")).thenReturn("new-mobile-hash");
+            when(candidateProfileRepository.findByMobileHashAndTenantId("new-mobile-hash", TENANT_ID))
+                    .thenReturn(Collections.emptyList());
+            when(candidateProfileRepository.save(any(CandidateProfile.class)))
+                    .thenAnswer(invocation -> invocation.getArgument(0));
+
+            CandidateProfileResponse response = candidateProfileService.update(USER_ID, request, TENANT_ID);
+
+            assertThat(response.getFullName()).isEqualTo("Updated Candidate");
+            assertThat(response.getMobile()).isEqualTo("9123456780");
+        }
+
+        @Test
+        @DisplayName("recomputes hashes when identity doc or mobile is updated")
+        void recomputesHashesOnUpdate() {
+            CandidateProfile profile = savedProfile();
+
+            UpdateCandidateProfileRequest request = UpdateCandidateProfileRequest.builder()
+                    .mobile("9111111111")
+                    .identityDocNumber("XYZ9876543")
+                    .build();
+
+            when(candidateProfileRepository.findByUserIdAndTenantId(USER_ID, TENANT_ID))
+                    .thenReturn(Optional.of(profile));
+            when(hashingService.sha256("9111111111")).thenReturn("new-mobile-hash");
+            when(hashingService.sha256("XYZ9876543")).thenReturn("new-doc-hash");
+            when(hashingService.hmac(eq("XYZ9876543"), anyString())).thenReturn("new-doc-hmac");
+            when(candidateProfileRepository.findByMobileHashAndTenantId("new-mobile-hash", TENANT_ID))
+                    .thenReturn(List.of(profile)); // belongs to same user
+            when(candidateProfileRepository.save(any(CandidateProfile.class)))
+                    .thenAnswer(invocation -> invocation.getArgument(0));
+
+            CandidateProfileResponse response = candidateProfileService.update(USER_ID, request, TENANT_ID);
+
+            assertThat(response.getMobile()).isEqualTo("9111111111");
+            assertThat(profile.getMobileHash()).isEqualTo("new-mobile-hash");
+            assertThat(profile.getIdentityDocHash()).isEqualTo("new-doc-hash");
+            assertThat(profile.getIdentityDocHmac()).isEqualTo("new-doc-hmac");
         }
     }
 
