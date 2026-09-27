@@ -1,0 +1,384 @@
+<div class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4 overflow-y-auto" role="dialog" aria-modal="true">
+  <div class="bg-white rounded-3xl max-w-xl w-full p-6 sm:p-8 shadow-2xl border border-slate-100 space-y-6 animate-fade-in relative my-auto">
+    <!-- Modal Header -->
+    <div class="flex items-center justify-between border-b border-slate-100 pb-4">
+      <div>
+        <div class="flex items-center gap-2">
+          <span class="text-xs font-mono font-bold bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded border border-indigo-100">
+            {{ exam().code }}
+          </span>
+          <span class="text-xs font-bold text-slate-500">Step {{ currentStep() }} of 4</span>
+        </div>
+        <h3 class="text-base sm:text-lg font-black text-slate-900 mt-1">
+          Candidate Examination Enrollment
+        </h3>
+      </div>
+
+      @if (!submitting() && !submissionReceipt()) {
+        <button
+          type="button"
+          (click)="closeDialog.emit()"
+          class="p-2 text-slate-400 hover:text-slate-700 rounded-xl hover:bg-slate-100 transition-colors cursor-pointer"
+        >
+          <mat-icon>close</mat-icon>
+        </button>
+      }
+    </div>
+
+    <!-- Stepper Indicator -->
+    <div class="grid grid-cols-4 gap-2">
+      <div
+        class="h-1.5 rounded-full transition-all duration-300"
+        [ngClass]="currentStep() >= 1 ? 'bg-indigo-600' : 'bg-slate-200'"
+      ></div>
+      <div
+        class="h-1.5 rounded-full transition-all duration-300"
+        [ngClass]="currentStep() >= 2 ? 'bg-indigo-600' : 'bg-slate-200'"
+      ></div>
+      <div
+        class="h-1.5 rounded-full transition-all duration-300"
+        [ngClass]="currentStep() >= 3 ? 'bg-indigo-600' : 'bg-slate-200'"
+      ></div>
+      <div
+        class="h-1.5 rounded-full transition-all duration-300"
+        [ngClass]="currentStep() >= 4 ? 'bg-emerald-500' : 'bg-slate-200'"
+      ></div>
+    </div>
+
+    <!-- Step 1: Candidate KYC & Profile Verification -->
+    @if (currentStep() === 1) {
+      <div class="space-y-4 text-xs">
+        <div class="p-4 bg-indigo-50/60 rounded-2xl border border-indigo-100 space-y-2">
+          <div class="flex items-center justify-between">
+            <span class="font-bold text-indigo-950 text-sm">{{ exam().title }}</span>
+          </div>
+          <p class="text-slate-600 leading-relaxed font-medium">
+            Conducting Authority: <span class="font-bold text-slate-800">{{ exam().conductingAuthority }}</span>
+          </p>
+        </div>
+
+        <div class="p-4 bg-slate-50 rounded-2xl border border-slate-200 space-y-3">
+          <div class="flex items-center justify-between">
+            <span class="font-bold text-slate-900 text-xs flex items-center gap-1.5">
+              <mat-icon class="!text-sm text-emerald-600">verified_user</mat-icon>
+              Identity & DigiLocker Profile
+            </span>
+            <span class="text-[10px] font-bold bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-md">
+              KYC Verified
+            </span>
+          </div>
+
+          <div class="grid grid-cols-2 gap-3 text-slate-700">
+            <div>
+              <span class="text-slate-400 block text-[11px]">Full Name:</span>
+              <span class="font-bold text-slate-900">{{ candidateUser().name }}</span>
+            </div>
+            <div>
+              <span class="text-slate-400 block text-[11px]">Email ID:</span>
+              <span class="font-bold text-slate-900">{{ candidateUser().email }}</span>
+            </div>
+            <div>
+              <span class="text-slate-400 block text-[11px]">Mobile Number:</span>
+              <span class="font-bold text-slate-900">{{ candidateUser().mobile }}</span>
+            </div>
+            <div>
+              <span class="text-slate-400 block text-[11px]">Aadhaar Auth:</span>
+              <span class="font-bold text-slate-900">XXXX-XXXX-{{ candidateUser().aadhaarLast4 }}</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="space-y-1.5">
+          <label for="profile-category-select" class="block font-bold text-slate-800">
+            Reservation / Social Category (For Concession & Norms):
+          </label>
+          <select
+            id="profile-category-select"
+            [ngModel]="selectedCategory()"
+            (ngModelChange)="selectedCategory.set($event)"
+            class="w-full px-3 py-2.5 border border-slate-300 rounded-xl bg-white text-xs font-semibold focus:ring-2 focus:ring-indigo-500 focus:outline-none cursor-pointer"
+          >
+            <option value="GENERAL">General (Unreserved)</option>
+            <option value="OBC">Other Backward Classes (OBC-NCL - 25% Fee Concession)</option>
+            <option value="EWS">Economically Weaker Section (EWS - 25% Fee Concession)</option>
+            <option value="SC">Scheduled Castes (SC - 100% Fee Exemption)</option>
+            <option value="ST">Scheduled Tribes (ST - 100% Fee Exemption)</option>
+            <option value="PWD">Persons with Benchmark Disabilities (PwBD - 100% Exemption)</option>
+          </select>
+        </div>
+      </div>
+    }
+
+    <!-- Step 2: Center Preference Selection -->
+    @if (currentStep() === 2) {
+      <div class="space-y-4 text-xs">
+        <p class="text-slate-600 font-medium leading-relaxed">
+          Select your preferred examination test centers in order of priority. NAG allocation engines optimize for candidate proximity and transit ease.
+        </p>
+
+        <!-- 1st Choice -->
+        <div class="space-y-1.5">
+          <label for="center-pref-1" class="block font-bold text-slate-800 flex items-center justify-between">
+            <span>1st Choice Examination City / Center: *</span>
+            <span class="text-[10px] text-indigo-600 font-bold">Highest Priority</span>
+          </label>
+          <select
+            id="center-pref-1"
+            [ngModel]="firstChoiceCentreId()"
+            (ngModelChange)="firstChoiceCentreId.set($event)"
+            class="w-full px-3 py-2.5 border border-slate-300 rounded-xl bg-white text-xs font-semibold focus:ring-2 focus:ring-indigo-500 focus:outline-none cursor-pointer"
+          >
+            @for (c of centres(); track c.id) {
+              <option [value]="c.id">{{ c.city }} &mdash; {{ c.centreName }} ({{ c.state }})</option>
+            }
+          </select>
+        </div>
+
+        <!-- 2nd Choice -->
+        <div class="space-y-1.5">
+          <label for="center-pref-2" class="block font-bold text-slate-800">
+            2nd Choice Examination City / Center:
+          </label>
+          <select
+            id="center-pref-2"
+            [ngModel]="secondChoiceCentreId()"
+            (ngModelChange)="secondChoiceCentreId.set($event)"
+            class="w-full px-3 py-2.5 border border-slate-300 rounded-xl bg-white text-xs font-semibold focus:ring-2 focus:ring-indigo-500 focus:outline-none cursor-pointer"
+          >
+            @for (c of centres(); track c.id) {
+              <option [value]="c.id">{{ c.city }} &mdash; {{ c.centreName }} ({{ c.state }})</option>
+            }
+          </select>
+        </div>
+
+        <!-- 3rd Choice -->
+        <div class="space-y-1.5">
+          <label for="center-pref-3" class="block font-bold text-slate-800">
+            3rd Choice Examination City / Center:
+          </label>
+          <select
+            id="center-pref-3"
+            [ngModel]="thirdChoiceCentreId()"
+            (ngModelChange)="thirdChoiceCentreId.set($event)"
+            class="w-full px-3 py-2.5 border border-slate-300 rounded-xl bg-white text-xs font-semibold focus:ring-2 focus:ring-indigo-500 focus:outline-none cursor-pointer"
+          >
+            @for (c of centres(); track c.id) {
+              <option [value]="c.id">{{ c.city }} &mdash; {{ c.centreName }} ({{ c.state }})</option>
+            }
+          </select>
+        </div>
+
+        <!-- PwD & Scribe Accommodation -->
+        <div class="p-4 bg-slate-50 rounded-2xl border border-slate-200 space-y-2">
+          <span class="font-bold text-slate-900 block text-xs">Accessibility & Scribe Support</span>
+          <div class="flex items-center gap-2">
+            <input
+              type="checkbox"
+              id="chk-pwd"
+              [checked]="isPwdRequired()"
+              (change)="isPwdRequired.set(!isPwdRequired())"
+              class="rounded text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+            />
+            <label for="chk-pwd" class="text-xs text-slate-700 cursor-pointer font-medium">
+              I require PwD accommodation / ground-floor seating assistance
+            </label>
+          </div>
+
+          @if (isPwdRequired()) {
+            <div class="flex items-center gap-2 pl-4 pt-1">
+              <input
+                type="checkbox"
+                id="chk-scribe"
+                [checked]="isScribeRequired()"
+                (change)="isScribeRequired.set(!isScribeRequired())"
+                class="rounded text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+              />
+              <label for="chk-scribe" class="text-xs text-slate-700 cursor-pointer font-medium">
+                I require an authorized Scribe / Compensatory time (+20 mins per hr)
+              </label>
+            </div>
+          }
+        </div>
+      </div>
+    }
+
+    <!-- Step 3: Fee Breakdown & Concession -->
+    @if (currentStep() === 3) {
+      <div class="space-y-4 text-xs">
+        <div class="p-4 bg-slate-50 rounded-2xl border border-slate-200 space-y-3">
+          <h4 class="font-bold text-slate-900 text-xs uppercase tracking-wider">Fee Calculation Breakdown</h4>
+
+          <div class="space-y-2 text-slate-700">
+            <div class="flex justify-between">
+              <span>Standard Registration Fee:</span>
+              <span class="font-bold text-slate-900">&#8377; {{ exam().feeAmount }}</span>
+            </div>
+            <div class="flex justify-between text-indigo-700 font-medium">
+              <span>Category Applied:</span>
+              <span>{{ selectedCategory() }}</span>
+            </div>
+            @if (calculatedFee() < exam().feeAmount) {
+              <div class="flex justify-between text-emerald-700 font-bold">
+                <span>Government DPI Concession / Waiver:</span>
+                <span>- &#8377; {{ exam().feeAmount - calculatedFee() }}</span>
+              </div>
+            }
+            <div class="flex justify-between pt-2 border-t border-slate-300 text-sm font-black text-slate-900">
+              <span>Net Payable Amount:</span>
+              <span class="text-indigo-700">&#8377; {{ calculatedFee() }}</span>
+            </div>
+          </div>
+        </div>
+
+        @if (calculatedFee() > 0) {
+          <div class="space-y-2">
+            <label class="block font-bold text-slate-800">Select Digital Payment Gateway:</label>
+            <div class="grid grid-cols-3 gap-2">
+              <button
+                type="button"
+                (click)="paymentMethod.set('UPI')"
+                class="p-3 rounded-xl border text-center font-bold text-xs transition-all cursor-pointer"
+                [ngClass]="paymentMethod() === 'UPI' ? 'bg-indigo-50 border-indigo-600 text-indigo-700 ring-2 ring-indigo-500/20' : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'"
+              >
+                UPI / QR
+              </button>
+              <button
+                type="button"
+                (click)="paymentMethod.set('NET_BANKING')"
+                class="p-3 rounded-xl border text-center font-bold text-xs transition-all cursor-pointer"
+                [ngClass]="paymentMethod() === 'NET_BANKING' ? 'bg-indigo-50 border-indigo-600 text-indigo-700 ring-2 ring-indigo-500/20' : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'"
+              >
+                Net Banking
+              </button>
+              <button
+                type="button"
+                (click)="paymentMethod.set('CARD')"
+                class="p-3 rounded-xl border text-center font-bold text-xs transition-all cursor-pointer"
+                [ngClass]="paymentMethod() === 'CARD' ? 'bg-indigo-50 border-indigo-600 text-indigo-700 ring-2 ring-indigo-500/20' : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'"
+              >
+                Debit / Card
+              </button>
+            </div>
+          </div>
+        } @else {
+          <div class="p-3.5 bg-emerald-50 rounded-2xl border border-emerald-200 text-emerald-800 font-bold flex items-center gap-2">
+            <mat-icon class="!text-base">check_circle</mat-icon>
+            <span>Complete fee exemption granted under Government of India public education norms.</span>
+          </div>
+        }
+
+        <p class="text-[11px] text-slate-500 leading-relaxed">
+          By submitting this application, you declare that all information entered is true and verified against DigiLocker DPI records.
+        </p>
+      </div>
+    }
+
+    <!-- Step 4: Digital Application Confirmation & Receipt -->
+    @if (currentStep() === 4 && submissionReceipt(); as receipt) {
+      <div class="space-y-5 text-xs">
+        <div class="text-center space-y-1.5 py-2">
+          <div class="w-12 h-12 bg-emerald-100 text-emerald-700 rounded-2xl flex items-center justify-center mx-auto shadow-xs">
+            <mat-icon class="!text-2xl">task_alt</mat-icon>
+          </div>
+          <h4 class="text-base font-black text-slate-900">Application Submitted Successfully!</h4>
+          <p class="text-slate-500">Your examination registration is officially recorded on the National Assessment Grid.</p>
+        </div>
+
+        <!-- Receipt Box -->
+        <div class="p-5 bg-slate-50 rounded-2xl border border-slate-200 space-y-3 print:border-none print:shadow-none">
+          <div class="flex items-center justify-between border-b border-slate-200 pb-2">
+            <span class="font-bold text-slate-900 uppercase tracking-wider text-[11px]">Application Receipt</span>
+            <span class="font-mono font-bold text-indigo-700">{{ receipt.applicationNumber }}</span>
+          </div>
+
+          <div class="grid grid-cols-2 gap-2.5 text-slate-700">
+            <div>
+              <span class="text-slate-400 block text-[10px]">Examination:</span>
+              <span class="font-bold text-slate-900">{{ receipt.examTitle }}</span>
+            </div>
+            <div>
+              <span class="text-slate-400 block text-[10px]">Exam Code:</span>
+              <span class="font-mono font-bold text-slate-900">{{ receipt.examCode }}</span>
+            </div>
+            <div>
+              <span class="text-slate-400 block text-[10px]">Candidate Name:</span>
+              <span class="font-bold text-slate-900">{{ receipt.candidateName }}</span>
+            </div>
+            <div>
+              <span class="text-slate-400 block text-[10px]">Category & Fee Paid:</span>
+              <span class="font-bold text-slate-900">{{ receipt.category }} (&#8377; {{ receipt.feePaid }})</span>
+            </div>
+            <div class="col-span-2">
+              <span class="text-slate-400 block text-[10px]">Allocated Center Choice 1:</span>
+              <span class="font-bold text-slate-900">{{ receipt.firstChoiceCentreName }}</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="flex items-center justify-between gap-3 pt-2">
+          <button
+            type="button"
+            mat-stroked-button
+            (click)="printReceipt()"
+            class="!rounded-xl !text-xs font-semibold"
+          >
+            <mat-icon class="!text-sm">print</mat-icon>
+            Print Receipt
+          </button>
+
+          <a
+            mat-flat-button
+            color="primary"
+            routerLink="/dashboard"
+            (click)="closeDialog.emit()"
+            class="!rounded-xl !text-xs font-bold !px-6"
+          >
+            Go to Candidate Dashboard &rarr;
+          </a>
+        </div>
+      </div>
+    }
+
+    <!-- Modal Footer Controls (Steps 1 to 3) -->
+    @if (currentStep() < 4) {
+      <div class="flex items-center justify-between gap-3 pt-2 border-t border-slate-100">
+        <button
+          type="button"
+          mat-stroked-button
+          (click)="currentStep() === 1 ? closeDialog.emit() : goToPreviousStep()"
+          [disabled]="submitting()"
+          class="!rounded-xl !text-xs font-semibold"
+        >
+          {{ currentStep() === 1 ? 'Cancel' : '&larr; Back' }}
+        </button>
+
+        @if (currentStep() < 3) {
+          <button
+            type="button"
+            mat-flat-button
+            color="primary"
+            (click)="goToNextStep()"
+            class="!rounded-xl !text-xs font-bold !px-6"
+          >
+            Continue &rarr;
+          </button>
+        } @else {
+          <button
+            type="button"
+            mat-flat-button
+            color="primary"
+            (click)="submitApplication()"
+            [disabled]="submitting()"
+            class="!rounded-xl !text-xs font-bold !px-6"
+          >
+            @if (submitting()) {
+              <span>Submitting Application...</span>
+            } @else {
+              <span>Confirm & Pay &#8377; {{ calculatedFee() }} &rarr;</span>
+            }
+          </button>
+        }
+      </div>
+    }
+  </div>
+</div>
