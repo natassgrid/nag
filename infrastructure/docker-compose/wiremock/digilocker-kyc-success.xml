@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  WireMock response body — DigiLocker KYC Success
+  Used by: wiremock/mappings/digilocker-kyc-verify.json
+  Represents a successful Aadhaar-linked DigiLocker document verification.
+  All values are synthetic test data; the UID is masked per UIDAI guidelines.
+-->
+<AadhaarVerificationResponse>
+  <Status>Y</Status>
+  <Name>E2E Test Candidate</Name>
+  <DOB>1995-06-15</DOB>
+  <Gender>M</Gender>
+  <Address>123 Test Street, Test City, TS 400001</Address>
+  <UID>XXXX-XXXX-1234</UID>
+</AadhaarVerificationResponse>

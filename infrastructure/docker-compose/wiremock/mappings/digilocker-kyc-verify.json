@@ -1,0 +1,15 @@
+{
+  "id": "e2e-digilocker-kyc-verify",
+  "name": "DigiLocker KYC Verify Success",
+  "request": {
+    "method": "GET",
+    "urlPattern": "/digilocker/v2/documents/.*"
+  },
+  "response": {
+    "status": 200,
+    "headers": {
+      "Content-Type": "application/xml"
+    },
+    "bodyFileName": "digilocker-kyc-success.xml"
+  }
+}

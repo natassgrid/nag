@@ -1,0 +1,19 @@
+{
+  "id": "e2e-sms-otp-send",
+  "name": "SMS OTP Send Mock",
+  "request": {
+    "method": "POST",
+    "urlPattern": "/api/v5/flow/.*"
+  },
+  "response": {
+    "status": 200,
+    "headers": {
+      "Content-Type": "application/json"
+    },
+    "jsonBody": {
+      "type": "success",
+      "message": "3",
+      "request_id": "e2e-mock-request-id"
+    }
+  }
+}

@@ -59,6 +59,7 @@
     "angular-eslint": "^22.1.0",
     "eslint": "^9.8.0",
     "eslint-config-prettier": "^10.0.0",
+    "@playwright/test": "^1.48.0",
     "nx": "23.2.1",
     "prettier": "~3.6.2",
     "tslib": "^2.3.0",

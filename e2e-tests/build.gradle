@@ -1,0 +1,50 @@
+/*
+ * SPDX-License-Identifier: AGPL-3.0-only
+ *
+ * National Assessment Grid (NAG) — Open Digital Public Infrastructure (DPI) Platform
+ * Copyright (C) 2025 NAG Contributors
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as published
+ * by the Free Software Foundation, version 3 of the License.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU Affero General Public License for more details.
+ */
+plugins {
+    id 'java'
+}
+
+version = '0.0.1-SNAPSHOT'
+
+dependencies {
+    testImplementation 'io.rest-assured:rest-assured:5.5.0'
+    testImplementation 'io.rest-assured:json-path:5.5.0'
+    testImplementation 'io.rest-assured:json-schema-validator:5.5.0'
+    testImplementation 'org.junit.jupiter:junit-jupiter:5.11.4'
+    testImplementation 'org.junit.platform:junit-platform-launcher:1.11.4'
+    testImplementation 'org.assertj:assertj-core:3.27.3'
+    testImplementation 'com.github.tomakehurst:wiremock-standalone:3.10.0'
+    testImplementation 'org.postgresql:postgresql:42.7.4'
+    testImplementation 'com.fasterxml.jackson.core:jackson-databind:2.18.2'
+    testImplementation 'com.fasterxml.jackson.datatype:jackson-datatype-jsr310:2.18.2'
+    testImplementation 'io.lettuce:lettuce-core:6.5.0.RELEASE'
+    testImplementation 'org.keycloak:keycloak-admin-client:26.0.7'
+    testImplementation 'org.slf4j:slf4j-api:2.0.16'
+    testImplementation 'ch.qos.logback:logback-classic:1.5.12'
+}
+
+test {
+    useJUnitPlatform()
+    testLogging {
+        events 'passed', 'skipped', 'failed'
+        showStandardStreams = false
+    }
+    // Tests require running Docker stack — skip in standard unit test phase
+    // Run explicitly with: ./gradlew :e2e-tests:test -PrunE2E
+    if (!project.hasProperty('runE2E')) {
+        exclude '**/*E2ETest*'
+    }
+}

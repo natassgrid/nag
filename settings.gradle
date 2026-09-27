@@ -41,3 +41,7 @@ include 'backend:post-exam-app'
 
 // ── Single JVM Monolith (All modules in 1 process / zero-broker mode) ───────
 include 'backend:monolith-app'
+
+// ── End-to-end integration test suite ───────────────────────────────────────
+// Run with: ./gradlew :e2e-tests:test -PrunE2E
+include 'e2e-tests'

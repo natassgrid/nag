@@ -1,0 +1,3 @@
+# Playwright auth state — do NOT commit these token files
+admin.json
+candidate.json
