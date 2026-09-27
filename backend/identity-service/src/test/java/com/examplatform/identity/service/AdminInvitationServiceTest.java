@@ -168,9 +168,6 @@ class AdminInvitationServiceTest {
         when(totpService.verifyTotpCode(eq("SECRET_KEY"), eq("123456"))).thenReturn(true);
         when(userAccountRepository.findByUsernameAndTenantId("priya@example.gov.in", "default")).thenReturn(Optional.of(account));
         when(totpService.encodeHashedBackupCodes(any())).thenReturn("hashed1,hashed2");
-        when(keycloakService.getTokens(anyString(), anyString(), anyString())).thenReturn(
-                AuthTokenResponse.builder().accessToken("token123").userId(userId.toString()).build()
-        );
 
         AcceptInviteRequest request = new AcceptInviteRequest();
         request.setToken(rawToken);

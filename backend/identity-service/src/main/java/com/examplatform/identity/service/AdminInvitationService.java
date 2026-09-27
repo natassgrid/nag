@@ -344,7 +344,10 @@ public class AdminInvitationService {
 
         // Activate user in Keycloak (set permanent password)
         try {
-            keycloakService.activateInvitedUser(invitation.getEmail(), request.getPassword(), invitation.getTenantId());
+            if (account.getKeycloakUserId() != null) {
+                keycloakService.resetPassword(account.getKeycloakUserId(), request.getPassword());
+                keycloakService.activateUser(account.getKeycloakUserId());
+            }
         } catch (Exception e) {
             log.warn("Could not synchronize password update to Keycloak (offline mode?): {}", e.getMessage());
         }
@@ -361,23 +364,12 @@ public class AdminInvitationService {
                 Map.of("action", "ADMIN_INVITATION_ACCEPTED", "email", invitation.getEmail(), "tenantId", invitation.getTenantId())
         );
 
-        // Fetch user roles for token response
-        List<String> assignedRoles = userRoleAssignmentRepository.findByUserIdAndTenantId(account.getId(), invitation.getTenantId())
-                .stream()
-                .map(a -> a.getRole().name())
-                .collect(Collectors.toList());
-
         return AuthTokenResponse.builder()
                 .accessToken("mock-invite-jwt-access-token-" + account.getId())
                 .refreshToken("mock-invite-jwt-refresh-token-" + account.getId())
                 .tokenType("Bearer")
                 .expiresIn(3600L)
-                .refreshExpiresIn(86400L)
-                .userId(account.getId())
-                .username(account.getUsername())
-                .roles(assignedRoles)
-                .requiresMfa(false)
-                .tenantId(invitation.getTenantId())
+                .userId(account.getId().toString())
                 .build();
     }
 
