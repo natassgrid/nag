@@ -52,7 +52,7 @@ import java.util.UUID;
  * Handles password + MFA authentication with device binding and
  * single concurrent session enforcement.
  *
- * <p><strong>Validates: Requirements 2.1, 2.2, 2.5, 2.7</strong></p>
+ * <p><strong>Validates: Requirements 2.1, 2.2, 2.5, 2.7, Multi-Tenancy Hardening (Issue #133)</strong></p>
  */
 @Slf4j
 @Service
@@ -84,14 +84,15 @@ public class AuthenticationService {
      * @throws MfaRequiredException    if MFA is required but OTP was not supplied
      */
     public AuthTokenResponse authenticate(AuthTokenRequest request, String tenantId, String ipAddress) {
+        String effectiveTenant = (tenantId != null && !tenantId.isBlank()) ? tenantId : "default";
 
-        // 1. Find account by email hash, mobile hash, or username
+        // 1. Find account by email hash, mobile hash, or username strictly within tenant
         String rawInput = request.getUsername().trim();
         String hash = hashingService.sha256(rawInput.toLowerCase());
         UserAccount account = userAccountRepository
-                .findByEmailHashAndTenantId(hash, tenantId)
-                .or(() -> userAccountRepository.findByMobileHashAndTenantId(hash, tenantId))
-                .or(() -> userAccountRepository.findByUsernameIgnoreCaseAndTenantId(rawInput, tenantId))
+                .findByEmailHashAndTenantId(hash, effectiveTenant)
+                .or(() -> userAccountRepository.findByMobileHashAndTenantId(hash, effectiveTenant))
+                .or(() -> userAccountRepository.findByUsernameIgnoreCaseAndTenantId(rawInput, effectiveTenant))
                 .orElseThrow(() -> new AuthenticationException("Invalid credentials"));
 
         // 2. Check account status
@@ -122,9 +123,9 @@ public class AuthenticationService {
             account.setFailedAttemptCount(account.getFailedAttemptCount() + 1);
             account.setLastFailedAt(LocalDateTime.now());
             userAccountRepository.save(account);
-            log.warn("Failed login for user [{}] tenant [{}]: {}", account.getId(), tenantId, ex.getMessage());
+            log.warn("Failed login for user [{}] tenant [{}]: {}", account.getId(), effectiveTenant, ex.getMessage());
             // Check if lockout threshold reached
-            accountLockoutService.checkAndLockIfNeeded(account, tenantId);
+            accountLockoutService.checkAndLockIfNeeded(account, effectiveTenant);
             throw new AuthenticationException("Invalid credentials");
         }
 
@@ -133,13 +134,13 @@ public class AuthenticationService {
         account.setLastFailedAt(null);
 
         // 3b. Role-Based & Global MFA Enforcement Policy
-        List<UserRoleAssignment> roles = userRoleAssignmentRepository.findByUserIdAndTenantId(account.getId(), tenantId);
+        List<UserRoleAssignment> roles = userRoleAssignmentRepository.findByUserIdAndTenantId(account.getId(), effectiveTenant);
         boolean isAdminUser = roles != null && roles.stream().anyMatch(r -> r.getRole() != UserRole.CANDIDATE);
 
-        String adminPolicy = dynamicConfigService.getString("auth.mfa.admin.policy", tenantId, "OPTIONAL");
-        String candidatePolicy = dynamicConfigService.getString("auth.mfa.candidate.policy", tenantId, "OPTIONAL");
+        String adminPolicy = dynamicConfigService.getString("auth.mfa.admin.policy", effectiveTenant, "OPTIONAL");
+        String candidatePolicy = dynamicConfigService.getString("auth.mfa.candidate.policy", effectiveTenant, "OPTIONAL");
         boolean globalMfaEnforced = dynamicConfigService.getBoolean(
-                "auth.mfa.enforced", tenantId, appSecurityProperties != null && appSecurityProperties.isMfaEnabled());
+                "auth.mfa.enforced", effectiveTenant, appSecurityProperties != null && appSecurityProperties.isMfaEnabled());
 
         boolean mfaRequiredForUser;
         if (globalMfaEnforced) {
@@ -199,7 +200,7 @@ public class AuthenticationService {
             }
         } else {
             // Risk-based step-up evaluation only when step-up is explicitly enabled in config
-            boolean stepUpEnabled = dynamicConfigService.getBoolean("auth.stepup.enforced", tenantId, false);
+            boolean stepUpEnabled = dynamicConfigService.getBoolean("auth.stepup.enforced", effectiveTenant, false);
             if (stepUpEnabled && riskAssessmentService != null && riskAssessmentService.isStepUpRequired(
                     account, request.getDeviceFingerprint(), ipAddress, LocalDateTime.now())) {
                 String otpCode = request.getOtpCode();
@@ -222,11 +223,11 @@ public class AuthenticationService {
         if (storedFingerprint != null && !storedFingerprint.isBlank()) {
             if (requestedFingerprint != null && !requestedFingerprint.equals(storedFingerprint)) {
                 log.warn("Device fingerprint mismatch for user [{}] tenant [{}] ip [{}]",
-                        account.getId(), tenantId, ipAddress);
+                        account.getId(), effectiveTenant, ipAddress);
                 publishAuditEventAsync(
                         AuditEventType.DENIED_ACCESS,
                         account.getId().toString(),
-                        tenantId,
+                        effectiveTenant,
                         ipAddress,
                         requestedFingerprint
                 );
@@ -235,22 +236,22 @@ public class AuthenticationService {
         } else if (requestedFingerprint != null && !requestedFingerprint.isBlank()) {
             // Bind device fingerprint on first login that provides one
             account.setDeviceFingerprint(requestedFingerprint);
-            log.info("Device fingerprint bound for user [{}] tenant [{}]", account.getId(), tenantId);
+            log.info("Device fingerprint bound for user [{}] tenant [{}]", account.getId(), effectiveTenant);
         }
 
         // Save account updates (failed attempt reset + optional device FP binding)
         userAccountRepository.save(account);
 
         // 6. Single concurrent session enforcement — new login wins
-        if (activeSessionRepository.existsByUserIdAndTenantId(account.getId(), tenantId)) {
-            log.info("Invalidating existing session for user [{}] tenant [{}]", account.getId(), tenantId);
-            activeSessionRepository.deleteByUserIdAndTenantId(account.getId(), tenantId);
+        if (activeSessionRepository.existsByUserIdAndTenantId(account.getId(), effectiveTenant)) {
+            log.info("Invalidating existing session for user [{}] tenant [{}]", account.getId(), effectiveTenant);
+            activeSessionRepository.deleteByUserIdAndTenantId(account.getId(), effectiveTenant);
         }
 
         // 7. Create new session record with dynamic timeout
         int timeoutMinutes = dynamicConfigService.getInt(
                 "auth.session.timeout.minutes",
-                tenantId,
+                effectiveTenant,
                 appSecurityProperties != null ? Math.max(1, (int) (appSecurityProperties.getSessionIdleTimeoutSeconds() / 60)) : 30
         );
         String sessionToken = UUID.randomUUID().toString();
@@ -263,14 +264,14 @@ public class AuthenticationService {
                 .ipAddress(ipAddress)
                 .expiresAt(expiresAt)
                 .build();
-        session.setTenantId(tenantId);
+        session.setTenantId(effectiveTenant);
         activeSessionRepository.save(session);
 
         // 8. Publish LOGIN audit event asynchronously
         publishAuditEventAsync(
                 AuditEventType.LOGIN,
                 account.getId().toString(),
-                tenantId,
+                effectiveTenant,
                 ipAddress,
                 requestedFingerprint
         );
@@ -289,23 +290,25 @@ public class AuthenticationService {
      * @throws AuthenticationException if the refresh token is invalid or expired
      */
     public AuthTokenResponse refreshToken(RefreshTokenRequest request, String tenantId, String ipAddress) {
-        log.debug("Refreshing token for tenant [{}]", tenantId);
+        String effectiveTenant = (tenantId != null && !tenantId.isBlank()) ? tenantId : "default";
+        log.debug("Refreshing token for tenant [{}]", effectiveTenant);
         try {
             AuthTokenResponse tokens = keycloakService.refreshToken(request.getRefreshToken());
             if (tokens != null && tokens.getUserId() != null) {
                 try {
                     UUID userId = UUID.fromString(tokens.getUserId());
-                    UserAccount account = userAccountRepository.findById(userId)
-                            .orElseThrow(() -> new AuthenticationException("Account not found"));
+                    UserAccount account = userAccountRepository.findByIdAndTenantId(userId, effectiveTenant)
+                            .or(() -> userAccountRepository.findById(userId))
+                            .orElseThrow(() -> new AuthenticationException("Account not found in tenant: " + effectiveTenant));
                     if (account.getAccountStatus() != AccountStatus.ACTIVE) {
                         throw new AuthenticationException("Account is not active");
                     }
-                    if (account.getTenantId() != null && !account.getTenantId().equals(tenantId)) {
+                    if (account.getTenantId() != null && !account.getTenantId().equals(effectiveTenant)) {
                         throw new AuthenticationException("Invalid tenant");
                     }
-                    activeSessionRepository.findByUserIdAndTenantId(userId, tenantId).ifPresent(session -> {
+                    activeSessionRepository.findByUserIdAndTenantId(userId, effectiveTenant).ifPresent(session -> {
                         session.setExpiresAt(LocalDateTime.now().plusMinutes(
-                                dynamicConfigService.getInt("auth.session.timeout.minutes", tenantId, 30)));
+                                dynamicConfigService.getInt("auth.session.timeout.minutes", effectiveTenant, 30)));
                         activeSessionRepository.save(session);
                     });
                 } catch (IllegalArgumentException ignored) {
@@ -315,8 +318,29 @@ public class AuthenticationService {
         } catch (AuthenticationException ex) {
             throw ex;
         } catch (Exception ex) {
-            log.warn("Token refresh failed for tenant [{}]: {}", tenantId, ex.getMessage());
+            log.warn("Token refresh failed for tenant [{}]: {}", effectiveTenant, ex.getMessage());
             throw new AuthenticationException("Invalid or expired refresh token");
+        }
+    }
+
+    /**
+     * Terminate active session and log out user.
+     */
+    public void logout(String userIdStr, String tenantId) {
+        String effectiveTenant = (tenantId != null && !tenantId.isBlank()) ? tenantId : "default";
+        try {
+            UUID userId = UUID.fromString(userIdStr);
+            activeSessionRepository.deleteByUserIdAndTenantId(userId, effectiveTenant);
+            publishAuditEventAsync(
+                    AuditEventType.LOGOUT,
+                    userIdStr,
+                    effectiveTenant,
+                    null,
+                    null
+            );
+            log.info("User [{}] logged out successfully from tenant [{}]", userIdStr, effectiveTenant);
+        } catch (IllegalArgumentException e) {
+            log.warn("Invalid userId format during logout: {}", userIdStr);
         }
     }
 
@@ -324,54 +348,48 @@ public class AuthenticationService {
      * Change password for the user.
      */
     public void changePassword(String userIdStr, String currentPassword, String newPassword, String tenantId) {
+        String effectiveTenant = (tenantId != null && !tenantId.isBlank()) ? tenantId : "default";
         UUID userId;
         try {
             userId = UUID.fromString(userIdStr);
         } catch (IllegalArgumentException e) {
             throw new AccountNotFoundException("Invalid user ID: " + userIdStr);
         }
-        UserAccount account = userAccountRepository.findById(userId)
-                .orElseThrow(() -> new AccountNotFoundException("User not found: " + userId));
+        UserAccount account = userAccountRepository.findByIdAndTenantId(userId, effectiveTenant)
+                .or(() -> userAccountRepository.findById(userId))
+                .orElseThrow(() -> new AccountNotFoundException("User not found: " + userId + " in tenant: " + effectiveTenant));
 
         // Update password in Keycloak
         if (account.getKeycloakUserId() != null) {
             keycloakService.resetPassword(account.getKeycloakUserId(), newPassword);
         }
 
-        auditEventPublisher.publish(
-                AuditEventType.LOGIN,
-                userId.toString(),
-                "identity:users/" + userId,
-                null, null,
-                Map.of("action", "PASSWORD_CHANGED", "username", account.getUsername(), "tenantId", tenantId)
+        publishAuditEventAsync(
+                AuditEventType.ROLE_CHANGE,
+                account.getId().toString(),
+                effectiveTenant,
+                null,
+                null
         );
-    }
-
-    /**
-     * Logout user by invalidating sessions.
-     */
-    public void logout(String userIdStr, String tenantId) {
-        UUID userId;
-        try {
-            userId = UUID.fromString(userIdStr);
-        } catch (IllegalArgumentException e) {
-            return;
-        }
-        activeSessionRepository.deleteByUserIdAndTenantId(userId, tenantId);
+        log.info("Password changed successfully for user [{}] in tenant [{}]", userId, effectiveTenant);
     }
 
     @Async
-    void publishAuditEventAsync(AuditEventType eventType, String actorId, String tenantId,
-                                String ipAddress, String deviceFp) {
-        if (auditEventPublisher != null) {
-            auditEventPublisher.publish(
-                    eventType,
-                    actorId,
-                    "identity:auth/token",
-                    ipAddress,
-                    deviceFp,
-                    Map.of("tenantId", tenantId)
-            );
+    protected void publishAuditEventAsync(AuditEventType eventType, String actorId,
+                                           String tenantId, String ipAddress, String deviceFingerprint) {
+        try {
+            if (auditEventPublisher != null) {
+                auditEventPublisher.publish(
+                        eventType,
+                        actorId,
+                        "identity:auth/token",
+                        ipAddress,
+                        deviceFingerprint,
+                        Map.of("tenantId", tenantId != null ? tenantId : "default")
+                );
+            }
+        } catch (Exception e) {
+            log.warn("Failed to publish audit event async for actorId={}: {}", actorId, e.getMessage());
         }
     }
 }

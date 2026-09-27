@@ -30,6 +30,10 @@ import java.util.UUID;
 @Repository
 public interface UserAccountRepository extends JpaRepository<UserAccount, UUID> {
 
+    Optional<UserAccount> findByIdAndTenantId(UUID id, String tenantId);
+
+    boolean existsByIdAndTenantId(UUID id, String tenantId);
+
     Optional<UserAccount> findByEmailHashAndTenantId(String emailHash, String tenantId);
 
     Optional<UserAccount> findByIdentityDocHashAndTenantId(String identityDocHash, String tenantId);
@@ -43,6 +47,8 @@ public interface UserAccountRepository extends JpaRepository<UserAccount, UUID> 
     Optional<UserAccount> findByUsernameIgnoreCaseAndTenantId(String username, String tenantId);
 
     Optional<UserAccount> findByUsernameAndTenantId(String username, String tenantId);
+
+    Optional<UserAccount> findByEmailHashAndMobileHashAndTenantId(String emailHash, String mobileHash, String tenantId);
 
     List<UserAccount> findByTenantId(String tenantId);
 }

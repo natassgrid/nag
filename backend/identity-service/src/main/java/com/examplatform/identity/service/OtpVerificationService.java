@@ -57,22 +57,23 @@ public class OtpVerificationService {
      */
     @Transactional
     public AuthTokenResponse verifyOtpAndActivate(OtpVerifyRequest request, String tenantId) {
+        String effectiveTenant = (tenantId != null && !tenantId.isBlank()) ? tenantId : "default";
         UserAccount account;
         if (request.getUserId() != null && !request.getUserId().isBlank()) {
             UUID uid = UUID.fromString(request.getUserId().trim());
-            account = userAccountRepository.findById(uid)
+            account = userAccountRepository.findByIdAndTenantId(uid, effectiveTenant)
                 .orElseThrow(() -> new AccountNotFoundException(
                     "No pending account found for the provided user ID."));
         } else if (request.getMobile() != null && !request.getMobile().isBlank()) {
             String mobileHash = hashingService.sha256(request.getMobile().trim());
             account = userAccountRepository
-                .findByMobileHashAndTenantId(mobileHash, tenantId)
+                .findByMobileHashAndTenantId(mobileHash, effectiveTenant)
                 .orElseThrow(() -> new AccountNotFoundException(
                     "No pending account found for the provided mobile number."));
         } else if (request.getEmail() != null && !request.getEmail().isBlank()) {
             String emailHash = hashingService.sha256(request.getEmail().trim().toLowerCase());
             account = userAccountRepository
-                .findByEmailHashAndTenantId(emailHash, tenantId)
+                .findByEmailHashAndTenantId(emailHash, effectiveTenant)
                 .orElseThrow(() -> new AccountNotFoundException(
                     "No pending account found for the provided email address."));
         } else {
@@ -94,10 +95,10 @@ public class OtpVerificationService {
         // 2. Verify OTP (check mobile OTP first, then email OTP)
         boolean valid = false;
         if (mobileHash != null && !mobileHash.isBlank()) {
-            valid = otpService.verifyOtp(mobileHash, request.getOtp());
+            valid = otpService.verifyMobileOtp(account.getId(), mobileHash, request.getOtp(), effectiveTenant);
         }
         if (!valid && emailHash != null && !emailHash.isBlank()) {
-            valid = otpService.verifyEmailOtp(account.getId(), emailHash, request.getOtp());
+            valid = otpService.verifyEmailOtp(account.getId(), emailHash, request.getOtp(), effectiveTenant);
         }
         if (!valid) {
             throw new InvalidOtpException("Invalid or expired OTP. Please request a new OTP.");
@@ -108,7 +109,7 @@ public class OtpVerificationService {
         account.setMobileVerified(true);
         account.setAccountStatus(AccountStatus.ACTIVE);
         userAccountRepository.save(account);
-        log.info("Account {} activated for tenant {}", account.getId(), tenantId);
+        log.info("Account {} activated for tenant {}", account.getId(), effectiveTenant);
 
         // 4. Activate in Keycloak (best-effort — account is already active locally)
         try {
@@ -142,7 +143,7 @@ public class OtpVerificationService {
             String.valueOf(account.getId()),
             "identity:otp-activation",
             null, null,
-            Map.of("tenantId", tenantId, "event", "otp-activation")
+            Map.of("tenantId", effectiveTenant, "event", "otp-activation")
         );
 
         return tokens;

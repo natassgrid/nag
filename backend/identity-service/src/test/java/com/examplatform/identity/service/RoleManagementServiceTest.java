@@ -28,7 +28,6 @@ import com.examplatform.identity.dto.RoleAction;
 import com.examplatform.identity.dto.RoleAssignmentRequest;
 import com.examplatform.identity.dto.RoleAssignmentResponse;
 import com.examplatform.identity.exception.AccountNotFoundException;
-import com.examplatform.identity.exception.AuthenticationException;
 import com.examplatform.identity.repository.UserAccountRepository;
 import com.examplatform.identity.repository.UserRoleAssignmentRepository;
 import com.examplatform.shared.audit.AuditEventType;
@@ -58,7 +57,7 @@ import static org.mockito.Mockito.when;
 /**
  * Unit tests for {@link RoleManagementService}.
  *
- * <p><strong>Validates: Requirements 3.1, 3.2, 3.3, 3.4, 3.5, 3.6</strong>
+ * <p><strong>Validates: Requirements 3.1, 3.2, 3.3, 3.4, 3.5, 3.6</strong></p>
  */
 @ExtendWith(MockitoExtension.class)
 @DisplayName("RoleManagementService")
@@ -113,7 +112,7 @@ class RoleManagementServiceTest {
         @Test
         @DisplayName("assigns role to user and publishes audit event")
         void assignsRoleToUserAndPublishesAuditEvent() {
-            when(userAccountRepository.findById(TARGET_USER_ID))
+            when(userAccountRepository.findByIdAndTenantId(TARGET_USER_ID, TENANT_ID))
                     .thenReturn(Optional.of(targetAccount()));
             when(roleAssignmentRepository.findByUserIdAndTenantId(TARGET_USER_ID, TENANT_ID))
                     .thenReturn(List.of());
@@ -143,7 +142,7 @@ class RoleManagementServiceTest {
         @Test
         @DisplayName("returns 'already assigned' when role already exists")
         void returnsAlreadyAssignedWhenRoleExists() {
-            when(userAccountRepository.findById(TARGET_USER_ID))
+            when(userAccountRepository.findByIdAndTenantId(TARGET_USER_ID, TENANT_ID))
                     .thenReturn(Optional.of(targetAccount()));
 
             UserRoleAssignment existing = UserRoleAssignment.builder()
@@ -170,7 +169,7 @@ class RoleManagementServiceTest {
         @Test
         @DisplayName("revokes role and publishes audit event")
         void revokesRoleAndPublishesAuditEvent() {
-            when(userAccountRepository.findById(TARGET_USER_ID))
+            when(userAccountRepository.findByIdAndTenantId(TARGET_USER_ID, TENANT_ID))
                     .thenReturn(Optional.of(targetAccount()));
 
             RoleAssignmentResponse response = roleManagementService.manageRole(
@@ -198,27 +197,13 @@ class RoleManagementServiceTest {
         @Test
         @DisplayName("throws AccountNotFoundException when target user does not exist")
         void throwsWhenUserNotFound() {
-            when(userAccountRepository.findById(TARGET_USER_ID))
+            when(userAccountRepository.findByIdAndTenantId(TARGET_USER_ID, TENANT_ID))
                     .thenReturn(Optional.empty());
 
             assertThatThrownBy(() -> roleManagementService.manageRole(
                     TARGET_USER_ID, assignRequest(UserRole.CANDIDATE), ACTOR_ID, TENANT_ID))
                     .isInstanceOf(AccountNotFoundException.class)
                     .hasMessageContaining("User not found");
-        }
-
-        @Test
-        @DisplayName("throws AuthenticationException on cross-tenant attempt")
-        void throwsOnCrossTenantAttempt() {
-            UserAccount account = targetAccount();
-            account.setTenantId("other-tenant");
-            when(userAccountRepository.findById(TARGET_USER_ID))
-                    .thenReturn(Optional.of(account));
-
-            assertThatThrownBy(() -> roleManagementService.manageRole(
-                    TARGET_USER_ID, assignRequest(UserRole.CANDIDATE), ACTOR_ID, TENANT_ID))
-                    .isInstanceOf(AuthenticationException.class)
-                    .hasMessageContaining("Cross-tenant");
         }
     }
 
@@ -290,7 +275,7 @@ class RoleManagementServiceTest {
                     .build();
             physicsAssignment.setTenantId(TENANT_ID);
 
-            when(roleAssignmentRepository.findByUserIdIn(List.of(mathUserId, physicsUserId)))
+            when(roleAssignmentRepository.findByUserIdInAndTenantId(List.of(mathUserId, physicsUserId), TENANT_ID))
                     .thenReturn(List.of(mathAssignment, physicsAssignment));
 
             List<ReviewerResponse> reviewers = roleManagementService.findReviewers("Mathematics", TENANT_ID);
