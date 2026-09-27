@@ -108,16 +108,37 @@
               </td>
 
               <td class="py-3.5 px-4 text-center">
-                @if (user.status === 'ACTIVE') {
-                  <span class="inline-flex items-center gap-1 text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
-                    <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
-                    Active
-                  </span>
-                } @else {
-                  <span class="inline-flex items-center gap-1 text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-rose-50 text-rose-700 border border-rose-200">
-                    <span class="w-1.5 h-1.5 rounded-full bg-rose-500"></span>
-                    Revoked
-                  </span>
+                @switch (user.status) {
+                  @case ('ACTIVE') {
+                    <span class="inline-flex items-center gap-1 text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
+                      <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                      Active
+                    </span>
+                  }
+                  @case ('PENDING_SETUP') {
+                    <span class="inline-flex items-center gap-1 text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200">
+                      <span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
+                      Pending Setup
+                    </span>
+                  }
+                  @case ('PENDING_VERIFICATION') {
+                    <span class="inline-flex items-center gap-1 text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200">
+                      <span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
+                      Pending Verification
+                    </span>
+                  }
+                  @case ('LOCKED') {
+                    <span class="inline-flex items-center gap-1 text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-orange-50 text-orange-700 border border-orange-200">
+                      <span class="w-1.5 h-1.5 rounded-full bg-orange-500"></span>
+                      Locked
+                    </span>
+                  }
+                  @default {
+                    <span class="inline-flex items-center gap-1 text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-rose-50 text-rose-700 border border-rose-200">
+                      <span class="w-1.5 h-1.5 rounded-full bg-rose-500"></span>
+                      Revoked
+                    </span>
+                  }
                 }
               </td>
 

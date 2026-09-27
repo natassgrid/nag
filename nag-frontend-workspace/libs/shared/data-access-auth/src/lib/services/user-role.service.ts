@@ -204,7 +204,22 @@ export class UserRoleService {
     return this.http.get<{ data: AdminUserAccount[] } | AdminUserAccount[]>('/api/v1/identity/users').pipe(
       map((res) => {
         const list = (res as any)?.data ?? res;
-        return Array.isArray(list) && list.length > 0 ? list : this.mockUsers;
+        if (Array.isArray(list) && list.length > 0) {
+          return list.map((u: any) => ({
+            id: u.id,
+            username: u.username || (u.email ? u.email.split('@')[0] : ''),
+            email: u.email || (u.username?.includes('@') ? u.username : `${u.username || 'user'}@nag.gov.in`),
+            fullName: u.fullName || u.username || 'Authority User',
+            phoneNumber: u.phoneNumber || '',
+            roles: Array.isArray(u.roles) ? u.roles : [],
+            status: ((u.status || u.accountStatus || 'ACTIVE') as string).toUpperCase() as any,
+            twoFactorEnabled: u.twoFactorEnabled ?? u.mfaEnabled ?? false,
+            twoFactorMethod: u.twoFactorMethod || 'TOTP',
+            lastLoginAt: u.lastLoginAt || '',
+            createdAt: u.createdAt || '',
+          }));
+        }
+        return this.mockUsers;
       }),
       catchError(() => of([...this.mockUsers]))
     );
