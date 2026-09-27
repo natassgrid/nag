@@ -1,0 +1,99 @@
+<div class="exam-catalog-card bg-white rounded-2xl border border-slate-200 p-6 shadow-xs flex flex-col justify-between space-y-5 hover:shadow-lg hover:border-indigo-200 transition-all duration-200">
+  <div class="space-y-4">
+    <!-- Top Metadata Badges -->
+    <div class="flex items-start justify-between gap-2">
+      <div class="flex flex-wrap items-center gap-1.5">
+        <span class="text-xs font-mono font-bold bg-slate-100 text-slate-700 px-2.5 py-1 rounded-lg border border-slate-200">
+          {{ exam().code }}
+        </span>
+        @let catBadge = getCategoryBadge(exam().category);
+        <span class="text-[11px] font-bold px-2 py-0.5 rounded-md border" [ngClass]="catBadge.bg + ' ' + catBadge.text">
+          {{ catBadge.label }}
+        </span>
+      </div>
+
+      <nag-status-badge
+        [variant]="exam().applied ? 'success' : (exam().status === 'CLOSING_SOON' ? 'warn' : 'primary')"
+        [label]="exam().applied ? 'Enrolled' : (exam().status === 'CLOSING_SOON' ? 'Closing Soon' : 'Registration Open')"
+      />
+    </div>
+
+    <!-- Title & Conducting Authority -->
+    <div>
+      <h3 class="text-base font-bold text-slate-900 leading-snug hover:text-indigo-600 transition-colors">
+        {{ exam().title }}
+      </h3>
+      <p class="text-xs text-slate-500 mt-1 flex items-center gap-1">
+        <mat-icon class="!text-xs text-slate-400">account_balance</mat-icon>
+        <span>{{ exam().conductingAuthority }}</span>
+      </p>
+    </div>
+
+    <!-- Eligibility Snippet -->
+    <div class="bg-slate-50/70 p-3 rounded-xl border border-slate-100 text-xs text-slate-600 space-y-1">
+      <div class="flex items-start gap-1.5">
+        <mat-icon class="!text-sm text-indigo-500 shrink-0 mt-0.5">school</mat-icon>
+        <p class="line-clamp-2 leading-relaxed font-medium">
+          {{ exam().eligibility }}
+        </p>
+      </div>
+    </div>
+
+    <!-- Key Schedule & Fee Matrix -->
+    <div class="grid grid-cols-2 gap-2 text-xs bg-slate-50 p-3 rounded-xl border border-slate-100">
+      <div>
+        <span class="text-[11px] font-medium text-slate-400 block">Exam Date:</span>
+        <span class="font-bold text-slate-800">{{ exam().examDate }}</span>
+      </div>
+      <div>
+        <span class="text-[11px] font-medium text-slate-400 block">Reg. Deadline:</span>
+        <span class="font-bold" [ngClass]="exam().status === 'CLOSING_SOON' ? 'text-rose-600' : 'text-slate-800'">
+          {{ exam().applicationDeadline }}
+        </span>
+      </div>
+      <div class="pt-1.5 border-t border-slate-200/60">
+        <span class="text-[11px] font-medium text-slate-400 block">Registration Fee:</span>
+        <span class="font-bold text-indigo-950">&#8377; {{ exam().feeAmount }}</span>
+      </div>
+      <div class="pt-1.5 border-t border-slate-200/60">
+        <span class="text-[11px] font-medium text-slate-400 block">Duration / Marks:</span>
+        <span class="font-bold text-slate-800">{{ exam().durationMinutes }} mins / {{ exam().totalMarks }} M</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Action Footer -->
+  <div class="flex items-center gap-2 pt-3 border-t border-slate-100">
+    <button
+      type="button"
+      mat-stroked-button
+      (click)="viewDetails.emit(exam())"
+      class="!flex-1 !rounded-xl !text-xs font-semibold"
+    >
+      <mat-icon class="!text-sm">visibility</mat-icon>
+      View Details
+    </button>
+
+    @if (exam().applied) {
+      <a
+        mat-flat-button
+        routerLink="/dashboard"
+        class="!flex-1 !rounded-xl !text-xs font-semibold !bg-emerald-600 !text-white"
+      >
+        <mat-icon class="!text-sm">check_circle</mat-icon>
+        View in Dashboard
+      </a>
+    } @else {
+      <button
+        type="button"
+        mat-flat-button
+        color="primary"
+        (click)="applyNow.emit(exam())"
+        class="!flex-1 !rounded-xl !text-xs font-semibold"
+      >
+        <mat-icon class="!text-sm">how_to_reg</mat-icon>
+        Apply Now &rarr;
+      </button>
+    }
+  </div>
+</div>
