@@ -38,7 +38,7 @@ describe('CandidateResultsService', () => {
 
     service.pushToDigiLocker(target.id).subscribe((res) => {
       expect(res.status).toBe('ISSUED');
-      expect(service.selectedScorecard()?.digiLockerPushed).toBeTrue();
+      expect(service.selectedScorecard()?.digiLockerPushed).toBe(true);
       done();
     });
 

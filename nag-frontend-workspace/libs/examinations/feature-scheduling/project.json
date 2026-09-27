@@ -2,10 +2,17 @@
   "name": "examinations-feature-scheduling",
   "$schema": "../../../node_modules/nx/schemas/project-schema.json",
   "sourceRoot": "libs/examinations/feature-scheduling/src",
-  "prefix": "lib",
+  "prefix": "nag",
   "projectType": "library",
   "tags": ["scope:examinations", "type:feature"],
   "targets": {
+    "test": {
+      "executor": "@nx/jest:jest",
+      "outputs": ["{workspaceRoot}/coverage/{projectRoot}"],
+      "options": {
+        "jestConfig": "libs/examinations/feature-scheduling/jest.config.ts"
+      }
+    },
     "lint": {
       "executor": "@nx/eslint:lint"
     }

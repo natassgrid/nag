@@ -1,0 +1,127 @@
+import {
+  hashSha256,
+  hashSha512,
+  generateClientSalt,
+  generateDeviceFingerprint,
+  encryptPayloadWebCrypto,
+  decryptPayloadWebCrypto,
+  signSubmissionHash,
+} from './shared-util-crypto';
+
+describe('shared-util-crypto', () => {
+  it('should compute valid sha256 hash', async () => {
+    const hash = await hashSha256('test-string');
+    expect(hash).toBeDefined();
+    expect(hash.length).toBe(64);
+  });
+
+  it('should compute valid sha512 hash', async () => {
+    const hash = await hashSha512('test-string');
+    expect(hash).toBeDefined();
+    expect(hash.length).toBe(128);
+  });
+
+  it('should generate client salt of expected length', () => {
+    const salt16 = generateClientSalt(16);
+    expect(salt16).toBeDefined();
+    expect(salt16.length).toBe(32);
+
+    const saltDefault = generateClientSalt();
+    expect(saltDefault.length).toBe(32);
+  });
+
+  it('should generate device fingerprint with default and overridden navigator and screen', async () => {
+    const fp1 = await generateDeviceFingerprint();
+    expect(fp1).toBeDefined();
+    expect(fp1.length).toBe(64);
+
+    const origNavigator = globalThis.navigator;
+    const origScreen = globalThis.screen;
+    const origIntl = globalThis.Intl;
+    try {
+      Object.defineProperty(globalThis, 'navigator', {
+        value: {
+          userAgent: 'custom-agent',
+          language: 'en-US',
+          hardwareConcurrency: 8,
+        },
+        configurable: true,
+      });
+      Object.defineProperty(globalThis, 'screen', {
+        value: { width: 1920, height: 1080, colorDepth: 24 },
+        configurable: true,
+      });
+      const fp2 = await generateDeviceFingerprint();
+      expect(fp2).toBeDefined();
+
+      Object.defineProperty(globalThis, 'navigator', {
+        value: { userAgent: '', language: '', hardwareConcurrency: '' },
+        configurable: true,
+      });
+      Object.defineProperty(globalThis, 'screen', {
+        value: { width: 0, height: 0, colorDepth: '' },
+        configurable: true,
+      });
+      Object.defineProperty(globalThis, 'Intl', {
+        value: { DateTimeFormat: () => ({ resolvedOptions: () => ({ timeZone: '' }) }) },
+        configurable: true,
+      });
+      const fp3 = await generateDeviceFingerprint();
+      expect(fp3).toBeDefined();
+    } finally {
+      Object.defineProperty(globalThis, 'navigator', {
+        value: origNavigator,
+        configurable: true,
+      });
+      Object.defineProperty(globalThis, 'screen', {
+        value: origScreen,
+        configurable: true,
+      });
+      Object.defineProperty(globalThis, 'Intl', {
+        value: origIntl,
+        configurable: true,
+      });
+    }
+  });
+
+  it('should encrypt and decrypt payload with AES-GCM', async () => {
+    const rawKeyHex = '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef';
+    const payload = JSON.stringify({ student: 'John Doe', score: 98 });
+
+    const encrypted = await encryptPayloadWebCrypto(payload, rawKeyHex);
+    expect(encrypted.cipherText).toBeDefined();
+    expect(encrypted.iv).toBeDefined();
+
+    const decrypted = await decryptPayloadWebCrypto(
+      encrypted.cipherText,
+      encrypted.iv,
+      rawKeyHex
+    );
+    expect(decrypted).toBe(payload);
+    const parsed = JSON.parse(decrypted);
+    expect(parsed.score).toBe(98);
+  });
+
+  it('should sign submission hash with and without full metadata', async () => {
+    const sig1 = await signSubmissionHash('cand-123');
+    expect(sig1).toBeDefined();
+    expect(sig1.length).toBe(64);
+
+    const sig2 = await signSubmissionHash(
+      'cand-123',
+      'exam-456',
+      '{"q1":"A"}',
+      '2026-09-27T10:00:00Z'
+    );
+    expect(sig2).toBeDefined();
+    expect(sig2.length).toBe(64);
+    expect(sig2).not.toEqual(sig1);
+
+    const sig3 = await signSubmissionHash('cand-123', 'exam-456');
+    expect(sig3).toBeDefined();
+    expect(sig3.length).toBe(64);
+
+    const sig4 = await signSubmissionHash('cand-123', 'exam-456', '{"q1":"A"}');
+    expect(sig4).toBeDefined();
+  });
+});
