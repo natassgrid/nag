@@ -4,39 +4,44 @@
 
 ### 1. Component Granularity & Decomposition Rules
 - **No Monolithic Components**: Components should follow the Single Responsibility Principle (SRP). Any feature component with over 250 lines of HTML or 200 lines of TypeScript must be decomposed into focused, reusable sub-components.
-- **Dedicated Sub-Component Directories**: Every sub-component must reside in its own named kebab-case subdirectory under `components/` (e.g., `components/centre-kpi-cards/`, `components/asset-toolbar/`).
+- **Dedicated Sub-Component Directories**: Every sub-component must reside in its own named kebab-case subdirectory under `components/` (e.g., `components/centre-kpi-cards/`, `components/asset-toolbar/`, `components/education-item-card/`, `components/education-form-modal/`).
 - **Strict File Triad Separation**: Every Angular component MUST have separate `.ts`, `.html`, and `.scss` files:
   - `templateUrl: './component-name.component.html'`
   - `styleUrl: './component-name.component.scss'`
   - Inline templates (`template: '...'`) and inline styles (`styles: [...]`) are strictly prohibited in feature sub-components.
 - **Explicit `:host` Display**: Component stylesheets must define host styling (typically `:host { display: block; }` or `:host { display: contents; }`).
-- **Standardized Feature Directory Structure**:
+- **Standardized Feature & Sub-Panel Directory Structure**:
   ```
-  feature-module/
+  feature-module/ (or complex sub-panel, e.g., education-details-panel/)
   ├── models/
-  │   ├── feature.model.ts        # Domain models, view states, filter interfaces
+  │   ├── feature.model.ts        # Domain models, form state interfaces, constants
   │   └── index.ts                # Barrel export for models
   ├── components/
   │   ├── feature-kpi-cards/      # Metric summaries & KPI counters
   │   │   ├── feature-kpi-cards.component.ts
   │   │   ├── feature-kpi-cards.component.html
   │   │   └── feature-kpi-cards.component.scss
-  │   ├── feature-filter-bar/     # Search, filter pills, dropdowns, view switcher
-  │   │   ├── feature-filter-bar.component.ts
-  │   │   ├── feature-filter-bar.component.html
-  │   │   └── feature-filter-bar.component.scss
-  │   ├── feature-table-list/     # Tabular/grid list renderer & item actions
-  │   │   ├── feature-table-list.component.ts
-  │   │   ├── feature-table-list.component.html
-  │   │   └── feature-table-list.component.scss
-  │   ├── feature-form-drawer/    # Create / Edit side drawers & sliding panels
-  │   │   ├── feature-form-drawer.component.ts
-  │   │   ├── feature-form-drawer.component.html
-  │   │   └── feature-form-drawer.component.scss
+  │   ├── feature-item-card/      # Individual item/card view
+  │   │   ├── feature-item-card.component.ts
+  │   │   ├── feature-item-card.component.html
+  │   │   └── feature-item-card.component.scss
+  │   ├── feature-empty-state/    # Contextual empty state placeholder & call-to-action
+  │   │   ├── feature-empty-state.component.ts
+  │   │   ├── feature-empty-state.component.html
+  │   │   └── feature-empty-state.component.scss
+  │   ├── feature-form-modal/     # Add / Edit form dialog or drawer
+  │   │   ├── feature-form-modal.component.ts
+  │   │   ├── feature-form-modal.component.html
+  │   │   └── feature-form-modal.component.scss
+  │   ├── feature-delete-dialog/  # Deletion confirmation dialog
+  │   │   ├── feature-delete-dialog.component.ts
+  │   │   ├── feature-delete-dialog.component.html
+  │   │   └── feature-delete-dialog.component.scss
   │   └── index.ts                # Barrel export for all sub-components
   ├── feature.component.ts        # Container / Orchestrator component
-  ├── feature.component.html      # Clean orchestrator template
-  └── feature.component.scss      # Feature-level page styling
+  ├── feature.component.html      # Clean orchestrator template consuming sub-components
+  ├── feature.component.scss      # Feature-level page styling
+  └── index.ts                    # Public module barrel export
   ```
 
 ### 2. Modern Angular Best Practices (Angular 19+ / 20+)
@@ -94,7 +99,8 @@
    - Always inspect `git diff` to verify no escaped `\n` sequences were injected into source code.
 
 4. **Frontend-Specific Preservation Rules**:
-   - **HTML Templates (`*.component.html`, `*.html`, `*.tsx`, `*.jsx`)**:\n     - NEVER output only the inner child elements, updated form rows, or newly added modal/drawer tags.
+   - **HTML Templates (`*.component.html`, `*.html`, `*.tsx`, `*.jsx`)**:
+     - NEVER output only the inner child elements, updated form rows, or newly added modal/drawer tags.
      - ALWAYS preserve the full document structure: `<div class="page-layout">`, `<app-page-header>`, main table/cards container, `<app-paginated-table>`, action templates (`<ng-template #actionsTmpl>`), result banners, and all existing drawer/dialog components.
    - **Styles (`*.scss`, `*.css`)**:
      - NEVER output only the newly added class selectors.
@@ -119,170 +125,3 @@
      2. **UI Docker Builds**: After backend build completes, run Docker builds for the UI applications (`frontend` and `candidate-frontend`).
 
 ---
-
-## Question Generation & Formatting Standards (Markdown, LaTeX & Newline Rules)
-
-All AI agents, prompt generators, seed script creators, and backend services generating or manipulating examination questions MUST adhere to these strict standards:
-
-### 1. LaTeX Math Formatting
-
-- **Enclosing Delimiters**: Enclose ALL mathematical, chemical, and physical formulas, expressions, variables, powers, fractions, square roots, matrices, angles, and numbers with units in `$$ ... $$` delimiters.
-- **Strictly Prohibited Delimiters**: NEVER use single `$ ... $`, `\( ... \)`, or `\[ ... \]`.
-- **Field Ubiquity**: `$$ ... $$` MUST be applied in ALL text fields:
-  - `content` (question stem)
-  - `options[].text` (every single option)
-  - `answerKey` (if formulaic/algebraic/numerical)
-  - `explanation` (step-by-step solution derivation)
-
-#### 1a. Backslash Escaping — Critical Rules
-
-> [!CAUTION]
-> Incorrect backslash escaping is the single most common cause of broken LaTeX rendering.
-> Follow these rules exactly depending on context.
-
-| Context | Required escaping | Example |
-|---|---|---|
-| Human-readable `.md` / display strings | Single backslash | `$$\frac{a}{b}$$`, `$$\neq 0$$`, `$$\neg L$$` |
-| JSON field value (API payload, seed script) | Double backslash (`\\`) | `"$$\\frac{a}{b}$$"`, `"$$\\neq 0$$"`, `"$$\\neg L$$"` |
-| SQL string literal inside a migration file | Double backslash (`\\`) | `'$$\det(A) \\neq 0$$'` |
-| Java/Kotlin string literal | Double backslash (`\\`) | `"$$\\frac{a}{b}$$"` |
-
-**Why this matters for the renderer:** The MathRenderer receives the *parsed* JSON value (single backslash). It normalises over-escaped chains (e.g. `\\\\det` → `\det`) before passing to KaTeX. Never emit more than two consecutive backslashes (`\\`) before a LaTeX command in a JSON value — triple or quadruple escaping (`\\\\`) produces raw token output even after normalisation.
-
-#### 1b. Newline Sequences — Critical Rules
-
-> [!CAUTION]
-> `\n` followed by a lowercase letter is a LaTeX command, NOT a line break.
-> This is the second most common cause of broken rendering.
-
-The MathRenderer converts `\n` to a real newline **only when it is not immediately followed by a lowercase letter**. This prevents `\neq`, `\neg`, `\rightarrow`, `\text`, `\tau`, `\theta` from being split at the `\n`.
-
-**Safe separators in JSON strings:**
-
-```json
-"**Statements:**\n1. Statement one.\n2. Statement two.\n\n**Conclusions:**\nI. Conclusion one.\nII. Conclusion two."
-```
-
-| Sequence | Safe? | Why |
-|---|---|---|
-| `\n1.` | ✅ safe | digit follows |
-| `\nI.` | ✅ safe | uppercase letter follows |
-| `\nII.` | ✅ safe | uppercase letter follows |
-| `\n\n` | ✅ safe | another `\n` follows |
-| `\neq` | ❌ NOT a newline | `eq` is lowercase → LaTeX `\neq` command |
-| `\neg` | ❌ NOT a newline | `eg` is lowercase → LaTeX `\neg` command |
-| `\nrightarrow` | ❌ NOT a newline | `rightarrow` is lowercase → LaTeX command |
-
-**Rule:** Never use `\n` as a separator immediately before a lowercase LaTeX command word. Keep math commands inside `$$ ... $$` delimiters where they belong.
-
-#### 1d. Chemistry Notation (`\ce{}` and `\pu{}`)
-
-The MathRenderer loads the KaTeX **mhchem** contrib extension. Use `\ce{}` for chemical formulas and equations, `\pu{}` for physical units — both wrapped in `$$ ... $$`:
-
-| Concept | JSON value | Rendered |
-|---|---|---|
-| Molecular formula | `"$$\\ce{H2SO4}$$"` | H₂SO₄ |
-| Reaction equation | `"$$\\ce{2H2 + O2 -> 2H2O}$$"` | balanced equation with arrow |
-| Ion | `"$$\\ce{Fe^{2+}}$$" | Fe²⁺ |
-| Physical unit | `"$$\\pu{6.022e23 mol-1}$$"` | Avogadro's number |
-
-No new npm dependency — mhchem ships inside the `katex` package. Does **not** support 2D structural diagrams (benzene rings etc.).
-
-### 2. General Formatting Rules
-
-- **Standard Markdown (GFM)**: Use `**bold**`, `*italic*`, `` `code` ``, fenced code blocks, and pipe tables.
-- **Paragraph separation**: Use `\n\n` between headings, statement groups, and conclusion groups.
-- **List items**: Use `\n` before each `1.`/`2.` or `I.`/`II.` marker — safe because digits and uppercase letters never start LaTeX command names.
-- **Inline vs display math**: Formulas on list-item lines render inline (no unwanted block breaks). A formula alone on its own line renders as a centred display block. Always keep math expressions on the same line as the surrounding item text.
-
----
-
-### 3. Reasoning & Syllogism Questions (Statements & Conclusions)
-
-**Correct JSON string value (double-backslash escaped, ready for API/SQL):**
-```json
-"**Statements:**\n1. All quantum computers capable of Shor's algorithm ($$Q$$) require coherent qubits with fidelity exceeding $$99.9\\%$$ ($$F$$).\n2. No noisy intermediate-scale quantum ($$NISQ$$) system achieves coherent qubit fidelity exceeding $$99.9\\%$$.\n3. System $$\\Psi$$ is a $$NISQ$$ system.\n\n**Conclusions:**\nI. System $$\\Psi$$ does not have coherent qubit fidelity exceeding $$99.9\\%$$.\nII. System $$\\Psi$$ is not capable of executing Shor's algorithm for large integers."
-```
-
-**What this renders as:**
-```
-**Statements:**
-1. All quantum computers capable of Shor's algorithm ($$Q$$) require coherent qubits with fidelity exceeding $$99.9\%$$ ($$F$$).
-2. No noisy intermediate-scale quantum ($$NISQ$$) system achieves coherent qubit fidelity exceeding $$99.9\%$$.
-3. System $$\Psi$$ is a $$NISQ$$ system.
-
-**Conclusions:**
-I. System $$\Psi$$ does not have coherent qubit fidelity exceeding $$99.9\%$$.
-II. System $$\Psi$$ is not capable of executing Shor's algorithm for large integers.
-```
-
----
-
-### 4. Option Structure & Integrity
-
-- **`SINGLE_MCQ`**: Exactly 4 options (`A`, `B`, `C`, `D`). Exactly ONE option with `isCorrect: true`, exactly THREE with `isCorrect: false`. `answerKey` MUST equal the correct option ID (`"A"`, `"B"`, `"C"`, or `"D"`).
-- **`MULTI_MCQ`**: Exactly 4 options (`A`, `B`, `C`, `D`) with 2 or more having `isCorrect: true`.
-- **`NUMERICAL`**: `options` is `null` or `[]`, `answerKey` contains the numeric string value.
-- **`DESCRIPTIVE`**: `options` is `null`, `answerKey` contains the comprehensive model answer/scoring rubric.
-
----
-
-## Build & Environment Rules
-
-### 1. Java / Backend Builds
-- **Primary Method (IntelliJ IDEA Integration)**: Use the IntelliJ IDEA build feature (`build_project` tool via `idea` MCP server) to build the project or compile files and check for compilation errors/warnings.
-- **CLI / Gradle Method (via WSL)**: When running Gradle commands from the terminal, ALWAYS route through WSL Ubuntu 24.04:
-  ```powershell
-  # Compile all Java services (skip tests)
-  wsl -d Ubuntu-24.04 -e bash -lic "cd /mnt/c/Users/sheel/IdeaProjects/nag && ./gradlew build -x test --parallel --build-cache"
-
-  # Fast compile check for a single service
-  wsl -d Ubuntu-24.04 -e bash -lic "cd /mnt/c/Users/sheel/IdeaProjects/nag && ./gradlew :backend:<service-name>:compileJava"
-
-  # Run tests for a single service
-  wsl -d Ubuntu-24.04 -e bash -lic "cd /mnt/c/Users/sheel/IdeaProjects/nag && ./gradlew :backend:<service-name>:test --parallel"
-
-  # Clean build
-  wsl -d Ubuntu-24.04 -e bash -lic "cd /mnt/c/Users/sheel/IdeaProjects/nag && ./gradlew clean build --parallel --build-cache"
-  ```
-
----
-
-### 2. Frontend Builds (`nag-frontend-workspace`, `frontend` - Angular & `candidate-frontend` - Vite/React)
-- **Nx Workspace Builds**:
-  ```bash
-  npx nx run-many -t build --skip-nx-cache
-  ```
-- **Legacy frontend projects**:
-  - Angular: `cd frontend && npm run build`
-  - Vite/React: `cd candidate-frontend && npm run build`
-
----
-
-### 3. Mandatory Post-Task Docker Builds (Backend & UI)
-
-Upon task completion, run Docker builds to verify container packaging parity:
-
-#### Step 1: Backend Docker Build
-```bash
-# Build base builder image (required if not cached)
-docker build -f backend/Dockerfile.base -t exam/builder-base .
-
-# Build target backend service (e.g. monolith-app or modified service)
-docker build -f backend/Dockerfile --build-arg SERVICE_NAME=monolith-app -t exam/monolith-app .
-
-# Or build via Docker Compose
-docker compose -f infrastructure/docker-compose/docker-compose.yml -f infrastructure/docker-compose/docker-compose.monolith.yml build monolith-app
-```
-
-#### Step 2: UI Docker Builds (After Backend Build)
-```bash
-# 1. Build Angular Admin/Authoring Frontend Docker image
-docker build -t exam/frontend -f frontend/Dockerfile frontend
-
-# 2. Build Candidate Delivery Frontend (React/Vite) Docker image
-docker build -t exam/candidate-frontend -f candidate-frontend/Dockerfile candidate-frontend
-
-# Or build both UI services via Docker Compose
-docker compose -f infrastructure/docker-compose/docker-compose.yml -f infrastructure/docker-compose/docker-compose.monolith.yml build frontend candidate-frontend
-```

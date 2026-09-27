@@ -1,0 +1,19 @@
+<div class="p-10 text-center text-slate-500 bg-slate-50 rounded-2xl border border-dashed border-slate-200">
+  <div class="w-14 h-14 mx-auto rounded-full bg-indigo-50 text-indigo-600 flex items-center justify-center mb-3 shadow-xs">
+    <mat-icon class="!text-2xl">school</mat-icon>
+  </div>
+  <p class="text-sm font-bold text-slate-800">No Academic Qualifications Added</p>
+  <p class="text-xs text-slate-500 mt-1 max-w-sm mx-auto">
+    Please add your educational milestones (10th, 12th, Bachelor's, Master's) to qualify for upcoming assessments.
+  </p>
+  <button
+    type="button"
+    mat-stroked-button
+    color="primary"
+    class="!rounded-xl !text-xs mt-4 cursor-pointer"
+    (click)="onAdd()"
+  >
+    <mat-icon class="!text-sm">add</mat-icon>
+    Add First Qualification
+  </button>
+</div>
