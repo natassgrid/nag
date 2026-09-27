@@ -28,7 +28,7 @@ describe('BrowseExamsComponent', () => {
   });
 
   it('should filter exams by search query', () => {
-    component.onSearchChange('GATE');
+    component.onSearchChange('GATE-DPI');
     expect(component.filteredExams().length).toBe(1);
     expect(component.filteredExams()[0].code).toBe('GATE-DPI-2026');
   });
@@ -42,7 +42,7 @@ describe('BrowseExamsComponent', () => {
   it('should filter exams by status APPLIED', () => {
     component.onStatusChange('APPLIED');
     const appliedExams = component.filteredExams();
-    expect(appliedExams.every((e) => e.applied)).toBeTrue();
+    expect(appliedExams.every((e) => e.applied)).toBe(true);
   });
 
   it('should sort exams by fee low to high', () => {

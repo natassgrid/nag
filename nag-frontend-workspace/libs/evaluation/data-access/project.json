@@ -6,6 +6,13 @@
   "projectType": "library",
   "tags": ["scope:evaluation", "type:data-access"],
   "targets": {
+    "test": {
+      "executor": "@nx/jest:jest",
+      "outputs": ["{workspaceRoot}/coverage/{projectRoot}"],
+      "options": {
+        "jestConfig": "libs/evaluation/data-access/jest.config.ts"
+      }
+    },
     "lint": {
       "executor": "@nx/eslint:lint"
     }

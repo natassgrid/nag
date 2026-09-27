@@ -1,6 +1,6 @@
 import { TestBed } from '@angular/core/testing';
 import { HttpClientTestingModule, HttpTestingController } from '@angular/common/http/testing';
-import { CandidateBrowseService, DEFAULT_MOCK_EXAMS, DEFAULT_MOCK_CENTRES } from './candidate-browse.service';
+import { CandidateBrowseService, DEFAULT_MOCK_EXAMS } from './candidate-browse.service';
 import { ApplyExamPayload } from '../models';
 
 describe('CandidateBrowseService', () => {
@@ -30,7 +30,7 @@ describe('CandidateBrowseService', () => {
   it('should fallback to default catalog with applied status when public API returns empty', (done) => {
     service.loadPublicCatalog().subscribe((exams) => {
       expect(exams.length).toBe(DEFAULT_MOCK_EXAMS.length);
-      expect(service.loading()).toBeFalse();
+      expect(service.loading()).toBe(false);
       done();
     });
 
@@ -61,7 +61,7 @@ describe('CandidateBrowseService', () => {
     service.loadPublicCatalog().subscribe((exams) => {
       expect(exams.length).toBe(1);
       expect(exams[0].code).toBe('NCEA-2026');
-      expect(exams[0].applied).toBeTrue();
+      expect(exams[0].applied).toBe(true);
       done();
     });
 
@@ -105,7 +105,7 @@ describe('CandidateBrowseService', () => {
       expect(receipt).toBeTruthy();
       expect(receipt.status).toBe('CONFIRMED');
       const updated = service.catalog().find((e) => e.id === 'exam-2');
-      expect(updated?.applied).toBeTrue();
+      expect(updated?.applied).toBe(true);
       done();
     });
 

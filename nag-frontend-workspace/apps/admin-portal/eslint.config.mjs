@@ -35,6 +35,12 @@ export default [
       '@angular-eslint/template/click-events-have-key-events': 'off',
       '@angular-eslint/template/interactive-supports-focus': 'off',
       '@angular-eslint/template/alt-text': 'off',
+      '@angular-eslint/template/no-autofocus': 'off',
     },
+  },
+  {
+    files: ['**/*.ts', '**/*.js'],
+    // Override or add rules here
+    rules: {},
   },
 ];

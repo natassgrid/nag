@@ -57,26 +57,35 @@ function mapBackendPermission(p: any): PermissionDefinition {
 export class UserRoleService {
   private readonly http = inject(HttpClient);
 
-  // ── Users API ─────────────────────────────────────────────────────────────
+  // ─── Users API ────────────────────────────────────────────────────────────
 
   getUsers(): Observable<AdminUserAccount[]> {
     return this.http.get<{ data: any[] } | any[]>('/api/v1/identity/users').pipe(
       map((res) => {
-        const list = (res as any)?.data ?? res;
+        const list = (res as any)?.data?.content ?? (res as any)?.data ?? res;
         if (Array.isArray(list)) {
-          return list.map((u: any) => ({
-            id: u.id ? String(u.id) : '',
-            username: u.username || (u.email ? u.email.split('@')[0] : ''),
-            email: u.email || (u.username?.includes('@') ? u.username : `${u.username || 'user'}@nag.gov.in`),
-            fullName: u.fullName || u.username || 'Authority User',
-            phoneNumber: u.phoneNumber || '',
-            roles: Array.isArray(u.roles) ? u.roles : [],
-            status: ((u.status || u.accountStatus || 'ACTIVE') as string).toUpperCase() as any,
-            twoFactorEnabled: u.twoFactorEnabled ?? u.mfaEnabled ?? false,
-            twoFactorMethod: u.twoFactorMethod || 'TOTP',
-            lastLoginAt: u.lastLoginAt || '',
-            createdAt: u.createdAt || '',
-          }));
+          return list.map((u: any): AdminUserAccount => {
+            const roleList = Array.isArray(u.roles)
+              ? u.roles.map((r: any) => (typeof r === 'string' ? r : r.code || r.name))
+              : Array.isArray(u.assignedRoles)
+              ? u.assignedRoles
+              : [];
+            return {
+              id: u.id ? String(u.id) : '',
+              username: u.username || u.email,
+              email: u.email,
+              fullName: u.fullName || `${u.firstName || ''} ${u.lastName || ''}`.trim() || u.username,
+              phoneNumber: u.phoneNumber,
+              roles: roleList,
+              status: u.status || (u.active === false ? 'DEACTIVATED' : 'ACTIVE'),
+              twoFactorEnabled: Boolean(u.twoFactorEnabled ?? u.mfaEnabled),
+              twoFactorMethod: u.twoFactorMethod || 'TOTP',
+              lastLoginAt: u.lastLoginAt,
+              createdAt: u.createdAt || '',
+              updatedAt: u.updatedAt,
+              tenantId: u.tenantId,
+            };
+          });
         }
         return [];
       }),
@@ -88,17 +97,25 @@ export class UserRoleService {
     return this.http.post<{ data: any } | any>('/api/v1/identity/users', payload).pipe(
       map((res) => {
         const u = (res as any)?.data ?? res;
+        const roleList = Array.isArray(u.roles)
+          ? u.roles.map((r: any) => (typeof r === 'string' ? r : r.code || r.name))
+          : Array.isArray(payload.roles)
+          ? payload.roles
+          : [];
         return {
           id: u.id ? String(u.id) : '',
-          username: u.username || payload.email.split('@')[0],
+          username: u.username || payload.email,
           email: u.email || payload.email,
           fullName: u.fullName || payload.fullName,
-          phoneNumber: u.phoneNumber || payload.phoneNumber || '',
-          roles: u.roles || payload.roles,
-          status: 'ACTIVE',
-          twoFactorEnabled: u.twoFactorEnabled ?? false,
+          phoneNumber: u.phoneNumber || payload.phoneNumber,
+          roles: roleList,
+          status: u.status || 'ACTIVE',
+          twoFactorEnabled: Boolean(u.twoFactorEnabled ?? u.mfaEnabled),
           twoFactorMethod: u.twoFactorMethod || 'TOTP',
+          lastLoginAt: u.lastLoginAt,
           createdAt: u.createdAt || new Date().toISOString(),
+          updatedAt: u.updatedAt,
+          tenantId: u.tenantId,
         };
       })
     );
@@ -108,28 +125,36 @@ export class UserRoleService {
     return this.http.put<{ data: any } | any>(`/api/v1/identity/users/${userId}`, payload).pipe(
       map((res) => {
         const u = (res as any)?.data ?? res;
+        const roleList = Array.isArray(u.roles)
+          ? u.roles.map((r: any) => (typeof r === 'string' ? r : r.code || r.name))
+          : Array.isArray(payload.roles)
+          ? payload.roles
+          : [];
         return {
           id: u.id ? String(u.id) : userId,
           username: u.username || '',
           email: u.email || '',
           fullName: u.fullName || payload.fullName || '',
-          phoneNumber: u.phoneNumber || payload.phoneNumber || '',
-          roles: u.roles || payload.roles || [],
-          status: ((u.status || u.accountStatus || payload.status || 'ACTIVE') as string).toUpperCase() as any,
-          twoFactorEnabled: u.twoFactorEnabled ?? payload.twoFactorEnabled ?? false,
+          phoneNumber: u.phoneNumber || payload.phoneNumber,
+          roles: roleList,
+          status: (u.status || payload.status || 'ACTIVE'),
+          twoFactorEnabled: Boolean(u.twoFactorEnabled ?? u.mfaEnabled ?? payload.twoFactorEnabled ?? false),
           twoFactorMethod: u.twoFactorMethod || 'TOTP',
+          lastLoginAt: u.lastLoginAt,
           createdAt: u.createdAt || '',
+          updatedAt: u.updatedAt,
+          tenantId: u.tenantId,
         };
       })
     );
   }
 
-  toggleUserStatus(userId: string, currentStatus: string = 'ACTIVE'): Observable<AdminUserAccount> {
+  toggleUserStatus(userId: string, currentStatus = 'ACTIVE'): Observable<AdminUserAccount> {
     const newStatus = currentStatus === 'ACTIVE' ? 'DEACTIVATED' : 'ACTIVE';
     return this.updateUser(userId, { status: newStatus as any });
   }
 
-  // ── Roles API (Direct from backend /api/v1/identity/roles/definitions) ────
+  // ─── Roles API (Direct from backend /api/v1/identity/roles/definitions) ────
 
   getRoles(): Observable<RoleDefinition[]> {
     return this.http.get<{ data: any } | any>('/api/v1/identity/roles/definitions?page=0&size=100').pipe(
@@ -178,7 +203,7 @@ export class UserRoleService {
     );
   }
 
-  // ── Permissions API (Direct from backend /api/v1/identity/roles/permissions)
+  // ─── Permissions API (Direct from backend /api/v1/identity/roles/permissions)
 
   getPermissions(): Observable<PermissionDefinition[]> {
     return this.http.get<{ data: any } | any>('/api/v1/identity/roles/permissions?page=0&size=100').pipe(
@@ -193,7 +218,7 @@ export class UserRoleService {
     );
   }
 
-  // ── Invitations API ────────────────────────────────────────────────────────
+  // ─── Invitations API ──────────────────────────────────────────────────────
 
   getInvitations(): Observable<AdminInvitationItem[]> {
     return this.http.get<{ data: any[] } | any[]>('/api/v1/identity/invitations').pipe(

@@ -43,5 +43,13 @@
     "@nx/angular:component": {
       "style": "scss"
     }
-  }
+  },
+  "plugins": [
+    {
+      "plugin": "@nx/playwright/plugin",
+      "options": {
+        "targetName": "e2e"
+      }
+    }
+  ]
 }
