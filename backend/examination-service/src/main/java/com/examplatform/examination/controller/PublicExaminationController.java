@@ -130,6 +130,10 @@ public class PublicExaminationController {
             log.warn("Candidate {} already applied for exam {}", candidateId, examId);
             return ResponseEntity.status(HttpStatus.CONFLICT)
                     .body(ApiResponse.error(e.getMessage()));
+        } catch (IllegalStateException | IllegalArgumentException e) {
+            log.warn("Application failed for candidate {} exam {}: {}", candidateId, examId, e.getMessage());
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(ApiResponse.error(e.getMessage()));
         }
     }
 
@@ -182,6 +186,24 @@ public class PublicExaminationController {
         log.info("Candidate {} requesting admit card for exam {}", candidateId, examId);
 
         AdmitCardResponse response = examApplicationService.getAdmitCard(examId, candidateId, tenantId);
+        return ResponseEntity.ok(ApiResponse.success(response, "Admit card retrieved successfully"));
+    }
+
+    /**
+     * Retrieve digital hall ticket / admit card by application ID.
+     */
+    @GetMapping("/applications/{applicationId}/admit-card")
+    @PreAuthorize("hasRole('CANDIDATE') or hasRole('EXAM_CONTROLLER') or hasRole('SUPER_ADMIN')")
+    public ResponseEntity<ApiResponse<AdmitCardResponse>> getAdmitCardByApplicationId(
+            @PathVariable UUID applicationId,
+            @AuthenticationPrincipal Jwt jwt) {
+
+        UUID userId = UUID.fromString(jwt.getSubject());
+        String tenantId = TenantContext.get() != null ? TenantContext.get() : "default";
+
+        log.info("User {} requesting admit card for application {}", userId, applicationId);
+
+        AdmitCardResponse response = examApplicationService.getAdmitCardByApplicationId(applicationId, userId, tenantId);
         return ResponseEntity.ok(ApiResponse.success(response, "Admit card retrieved successfully"));
     }
 }

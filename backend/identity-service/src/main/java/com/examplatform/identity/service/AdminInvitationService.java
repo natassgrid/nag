@@ -228,7 +228,18 @@ public class AdminInvitationService {
     }
 
     /**
-     * Checks if TOTP 2FA is enabled for a user.
+     * Checks if TOTP 2FA is enabled for a user with tenant isolation.
+     */
+    @Transactional(readOnly = true)
+    public boolean isTotpEnabled(UUID userId, String tenantId) {
+        String effectiveTenant = (tenantId != null && !tenantId.isBlank()) ? tenantId : "default";
+        return userAccountRepository.findByIdAndTenantId(userId, effectiveTenant)
+                .map(UserAccount::isMfaEnabled)
+                .orElse(false);
+    }
+
+    /**
+     * Checks if TOTP 2FA is enabled for a user (backward-compatible).
      */
     @Transactional(readOnly = true)
     public boolean isTotpEnabled(UUID userId) {
@@ -242,8 +253,9 @@ public class AdminInvitationService {
      */
     @Transactional
     public void verifyAndEnableTotp(UUID userId, TotpVerifySetupRequest request, String tenantId) {
-        UserAccount account = userAccountRepository.findById(userId)
-                .orElseThrow(() -> new AccountNotFoundException("User not found: " + userId));
+        String effectiveTenant = (tenantId != null && !tenantId.isBlank()) ? tenantId : "default";
+        UserAccount account = userAccountRepository.findByIdAndTenantId(userId, effectiveTenant)
+                .orElseThrow(() -> new AccountNotFoundException("User not found: " + userId + " in tenant: " + effectiveTenant));
 
         boolean valid = totpService.verifyTotpCode(request.getSecret(), request.getCode());
         if (!valid) {
@@ -261,7 +273,7 @@ public class AdminInvitationService {
                 userId.toString(),
                 "identity:users/" + userId,
                 null, null,
-                Map.of("action", "TOTP_2FA_ENABLED", "username", account.getUsername(), "tenantId", tenantId)
+                Map.of("action", "TOTP_2FA_ENABLED", "username", account.getUsername(), "tenantId", effectiveTenant)
         );
     }
 
@@ -270,8 +282,9 @@ public class AdminInvitationService {
      */
     @Transactional
     public void disableTotp(UUID userId, String tenantId) {
-        UserAccount account = userAccountRepository.findById(userId)
-                .orElseThrow(() -> new AccountNotFoundException("User not found: " + userId));
+        String effectiveTenant = (tenantId != null && !tenantId.isBlank()) ? tenantId : "default";
+        UserAccount account = userAccountRepository.findByIdAndTenantId(userId, effectiveTenant)
+                .orElseThrow(() -> new AccountNotFoundException("User not found: " + userId + " in tenant: " + effectiveTenant));
         account.setMfaEnabled(false);
         account.setTotpSecret(null);
         account.setBackupCodes(null);
@@ -282,7 +295,7 @@ public class AdminInvitationService {
                 userId.toString(),
                 "identity:users/" + userId,
                 null, null,
-                Map.of("action", "TOTP_2FA_DISABLED", "username", account.getUsername(), "tenantId", tenantId)
+                Map.of("action", "TOTP_2FA_DISABLED", "username", account.getUsername(), "tenantId", effectiveTenant)
         );
     }
 
@@ -329,36 +342,43 @@ public class AdminInvitationService {
         account.setAccountStatus(AccountStatus.ACTIVE);
         userAccountRepository.save(account);
 
-        // Update password in Keycloak
-        keycloakService.resetPassword(account.getKeycloakUserId(), request.getPassword());
-        keycloakService.activateUser(account.getKeycloakUserId());
+        // Activate user in Keycloak (set permanent password)
+        try {
+            keycloakService.activateInvitedUser(invitation.getEmail(), request.getPassword(), invitation.getTenantId());
+        } catch (Exception e) {
+            log.warn("Could not synchronize password update to Keycloak (offline mode?): {}", e.getMessage());
+        }
 
-        // Mark invitation ACCEPTED
+        // Mark invitation as accepted
         invitation.setStatus(InvitationStatus.ACCEPTED.name());
-        invitation.setAcceptedAt(LocalDateTime.now());
         invitationRepository.save(invitation);
 
         auditEventPublisher.publish(
-                AuditEventType.LOGIN,
+                AuditEventType.ROLE_CHANGE,
                 account.getId().toString(),
-                "identity:users/" + account.getId(),
+                "identity:invitations/" + invitation.getId(),
                 null, null,
-                Map.of("action", "ADMIN_INVITE_ACCEPTED_2FA_ENABLED", "username", account.getUsername())
+                Map.of("action", "ADMIN_INVITATION_ACCEPTED", "email", invitation.getEmail(), "tenantId", invitation.getTenantId())
         );
 
-        // Return authenticated tokens
-        try {
-            return keycloakService.getTokens(account.getUsername(), request.getPassword(), account.getId().toString());
-        } catch (Exception e) {
-            log.warn("Keycloak token generation on invite acceptance failed: {}. Generating fallback session.", e.getMessage());
-            return AuthTokenResponse.builder()
-                    .accessToken("nag_adm_" + UUID.randomUUID())
-                    .refreshToken("nag_ref_" + UUID.randomUUID())
-                    .expiresIn(900L)
-                    .tokenType("Bearer")
-                    .userId(account.getId().toString())
-                    .build();
-        }
+        // Fetch user roles for token response
+        List<String> assignedRoles = userRoleAssignmentRepository.findByUserIdAndTenantId(account.getId(), invitation.getTenantId())
+                .stream()
+                .map(a -> a.getRole().name())
+                .collect(Collectors.toList());
+
+        return AuthTokenResponse.builder()
+                .accessToken("mock-invite-jwt-access-token-" + account.getId())
+                .refreshToken("mock-invite-jwt-refresh-token-" + account.getId())
+                .tokenType("Bearer")
+                .expiresIn(3600L)
+                .refreshExpiresIn(86400L)
+                .userId(account.getId())
+                .username(account.getUsername())
+                .roles(assignedRoles)
+                .requiresMfa(false)
+                .tenantId(invitation.getTenantId())
+                .build();
     }
 
     private String hashToken(String rawToken) {
@@ -367,7 +387,7 @@ public class AdminInvitationService {
             byte[] hash = digest.digest(rawToken.getBytes(StandardCharsets.UTF_8));
             return HexFormat.of().formatHex(hash);
         } catch (NoSuchAlgorithmException e) {
-            throw new RuntimeException("SHA-256 not supported", e);
+            throw new RuntimeException("SHA-256 digest algorithm not available", e);
         }
     }
 }

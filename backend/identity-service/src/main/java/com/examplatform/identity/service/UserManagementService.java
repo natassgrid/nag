@@ -47,7 +47,7 @@ import java.util.stream.Collectors;
  * Service for admin-initiated user management operations:
  * create, update, and deactivate user accounts.
  *
- * Validates: Requirements 29.1, 29.2, 29.3
+ * Validates: Requirements 29.1, 29.2, 29.3, Multi-Tenancy Hardening (Issue #133)
  */
 @Slf4j
 @Service
@@ -65,10 +65,11 @@ public class UserManagementService {
      * in ACTIVE status, bypassing OTP verification.
      */
     public UserAccountResponse createUser(AdminCreateUserRequest request, String actorId, String tenantId) {
+        String effectiveTenant = (tenantId != null && !tenantId.isBlank()) ? tenantId : "default";
         String emailHash = hashingService.sha256(request.getEmail().toLowerCase().trim());
 
-        // Check for duplicate email
-        if (userAccountRepository.existsByEmailHashAndTenantId(emailHash, tenantId)) {
+        // Check for duplicate email within tenant
+        if (userAccountRepository.existsByEmailHashAndTenantId(emailHash, effectiveTenant)) {
             throw new DuplicateIdentityException("An account with this email already exists.");
         }
 
@@ -82,10 +83,10 @@ public class UserManagementService {
                 .mfaEnabled(false)
                 .failedAttemptCount(0)
                 .build();
-        account.setTenantId(tenantId);
+        account.setTenantId(effectiveTenant);
 
         UserAccount saved = userAccountRepository.save(account);
-        log.info("Admin {} created user {} in tenant {}", actorId, saved.getId(), tenantId);
+        log.info("Admin {} created user {} in tenant {}", actorId, saved.getId(), effectiveTenant);
 
         // Assign roles if provided
         List<String> assignedRoles = Collections.emptyList();
@@ -97,7 +98,7 @@ public class UserManagementService {
                         .assignedBy(UUID.fromString(actorId))
                         .assignedAt(LocalDateTime.now())
                         .build();
-                assignment.setTenantId(tenantId);
+                assignment.setTenantId(effectiveTenant);
                 roleAssignmentRepository.save(assignment);
                 return role.name();
             }).toList();
@@ -109,7 +110,7 @@ public class UserManagementService {
                 actorId,
                 "identity:users/" + saved.getId(),
                 null, null,
-                Map.of("tenantId", tenantId, "action", "ADMIN_CREATE_USER",
+                Map.of("tenantId", effectiveTenant, "action", "ADMIN_CREATE_USER",
                         "targetUsername", request.getEmail())
         );
 
@@ -130,12 +131,9 @@ public class UserManagementService {
      */
     public UserAccountResponse updateUser(UUID userId, AdminUpdateUserRequest request,
                                           String actorId, String tenantId) {
-        UserAccount account = userAccountRepository.findById(userId)
-                .orElseThrow(() -> new AccountNotFoundException("User not found: " + userId));
-
-        if (!tenantId.equals(account.getTenantId())) {
-            throw new AccountNotFoundException("User not found in this tenant.");
-        }
+        String effectiveTenant = (tenantId != null && !tenantId.isBlank()) ? tenantId : "default";
+        UserAccount account = userAccountRepository.findByIdAndTenantId(userId, effectiveTenant)
+                .orElseThrow(() -> new AccountNotFoundException("User not found: " + userId + " in tenant: " + effectiveTenant));
 
         // Apply updates
         if (request.getFullName() != null) {
@@ -152,10 +150,10 @@ public class UserManagementService {
         }
 
         userAccountRepository.save(account);
-        log.info("Admin {} updated user {} in tenant {}", actorId, userId, tenantId);
+        log.info("Admin {} updated user {} in tenant {}", actorId, userId, effectiveTenant);
 
         // Get current roles
-        List<String> roles = roleAssignmentRepository.findByUserIdAndTenantId(userId, tenantId)
+        List<String> roles = roleAssignmentRepository.findByUserIdAndTenantId(userId, effectiveTenant)
                 .stream()
                 .map(a -> a.getRole().name())
                 .toList();
@@ -166,7 +164,7 @@ public class UserManagementService {
                 actorId,
                 "identity:users/" + userId,
                 null, null,
-                Map.of("tenantId", tenantId, "action", "ADMIN_UPDATE_USER")
+                Map.of("tenantId", effectiveTenant, "action", "ADMIN_UPDATE_USER")
         );
 
         return UserAccountResponse.builder()
@@ -184,16 +182,13 @@ public class UserManagementService {
      * Deactivates a user account by setting status to DEACTIVATED.
      */
     public void deactivateUser(UUID userId, String actorId, String tenantId) {
-        UserAccount account = userAccountRepository.findById(userId)
-                .orElseThrow(() -> new AccountNotFoundException("User not found: " + userId));
-
-        if (!tenantId.equals(account.getTenantId())) {
-            throw new AccountNotFoundException("User not found in this tenant.");
-        }
+        String effectiveTenant = (tenantId != null && !tenantId.isBlank()) ? tenantId : "default";
+        UserAccount account = userAccountRepository.findByIdAndTenantId(userId, effectiveTenant)
+                .orElseThrow(() -> new AccountNotFoundException("User not found: " + userId + " in tenant: " + effectiveTenant));
 
         account.setAccountStatus(AccountStatus.DEACTIVATED);
         userAccountRepository.save(account);
-        log.info("Admin {} deactivated user {} in tenant {}", actorId, userId, tenantId);
+        log.info("Admin {} deactivated user {} in tenant {}", actorId, userId, effectiveTenant);
 
         // Audit event
         auditEventPublisher.publish(
@@ -201,8 +196,7 @@ public class UserManagementService {
                 actorId,
                 "identity:users/" + userId,
                 null, null,
-                Map.of("tenantId", tenantId, "action", "ADMIN_DEACTIVATE_USER",
-                        "targetUserId", userId.toString())
+                Map.of("tenantId", effectiveTenant, "action", "ADMIN_DEACTIVATE_USER")
         );
     }
 }

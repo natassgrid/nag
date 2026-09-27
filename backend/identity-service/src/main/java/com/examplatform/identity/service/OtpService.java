@@ -6,7 +6,8 @@
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as published
- * by the Free Software Foundation, version 3 of the License.\n *
+ * by the Free Software Foundation, version 3 of the License.
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
@@ -18,7 +19,9 @@
 
 package com.examplatform.identity.service;
 
+import com.examplatform.identity.config.SmsProperties;
 import com.examplatform.identity.domain.OtpVerification;
+import com.examplatform.identity.exception.RateLimitExceededException;
 import com.examplatform.identity.repository.OtpVerificationRepository;
 import com.examplatform.shared.messaging.EventPublisher;
 import lombok.RequiredArgsConstructor;
@@ -32,13 +35,18 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
+/**
+ * Enhanced OTP Service managing generation, Redis TTL caching (10 mins),
+ * 60s cooldown, daily quotas, consecutive failure lockout, MSG91 SMS dispatch,
+ * and Gmail SMTP candidate onboarding notifications.
+ */
 @Slf4j
 @Service
 @RequiredArgsConstructor
 public class OtpService {
 
     private static final int OTP_EXPIRY_MINUTES = 10;
-    private static final String NOTIFICATIONS_TOPIC = "exam.notifications.outbound";
+    private static final String NOTIFICATIONS_TOPIC = "nag.notifications.events";
 
     private final OtpVerificationRepository otpVerificationRepository;
     private final HashingService hashingService;
@@ -48,41 +56,57 @@ public class OtpService {
     private final OtpRedisService otpRedisService;
 
     /**
-     * Generates a 6-digit OTP, hashes it, persists to DB with 10-minute expiry,
-     * sends via MSG91 SMS, and publishes notification event.
+     * Generates a 6-digit OTP, stores in Redis, enforces cooldown & quotas,
+     * persists to DB, and sends SMS via MSG91.
      */
     @Transactional
-    public void sendSmsOtp(UUID userId, String mobileHash, String mobile, String tenantId) {
-        // Enforce weekly SMS quota
+    public void sendSmsOtp(UUID userId, String mobileHash, String mobileNumber, String tenantId) {
+        String effectiveTenant = (tenantId != null && !tenantId.isBlank()) ? tenantId : "default";
+        String identifier = (userId != null) ? userId.toString() : (effectiveTenant + ":" + (mobileHash != null ? mobileHash : "anonymous"));
+
+        // 0. Enforce weekly SMS quota if enabled
         msg91SmsService.enforceWeeklyRateLimit(userId, mobileHash);
 
+        // 1. Enforce 60s cooldown and daily resend limits
+        otpRedisService.checkAndEnforceCooldown(identifier);
+        otpRedisService.checkAndIncrementDailyResend(identifier);
+
+        // 2. Generate 6-digit OTP
         String otp = String.format("%06d", new SecureRandom().nextInt(1_000_000));
         String otpHash = hashingService.sha256(otp);
 
+        // 3. Store in Redis
+        otpRedisService.storeEmailOtp(identifier, otpHash);
+        if (userId != null && mobileHash != null && !mobileHash.isBlank()) {
+            otpRedisService.storeEmailOtp(mobileHash, otpHash);
+        }
+
+        // 4. Save to DB
         OtpVerification verification = OtpVerification.builder()
                 .userId(userId)
                 .mobileHash(mobileHash)
+                .emailHash("")
                 .otpType("MOBILE")
                 .channel("SMS")
-                .targetDestination(mobile)
+                .targetDestination(mobileNumber)
                 .otpHash(otpHash)
                 .expiresAt(LocalDateTime.now().plusMinutes(OTP_EXPIRY_MINUTES))
                 .verified(false)
                 .build();
-        verification.setTenantId(tenantId != null ? tenantId : "default");
-
+        verification.setTenantId(effectiveTenant);
         otpVerificationRepository.save(verification);
 
-        // Send SMS via MSG91
-        if (mobile != null && !mobile.isBlank()) {
-            msg91SmsService.sendSmsOtp(mobile, otp);
+        // 5. Dispatch SMS
+        if (mobileNumber != null && !mobileNumber.isBlank()) {
+            msg91SmsService.sendSmsOtp(mobileNumber, otp);
         }
 
-        // Publish event for outbound notifications / auditing
+        // 6. Publish event
         var notificationEvent = Map.of(
-                "eventType", "OTP_SEND",
+                "eventType", "SMS_OTP_SEND",
                 "userId", userId != null ? userId.toString() : "",
                 "mobileHash", mobileHash != null ? mobileHash : "",
+                "tenantId", effectiveTenant,
                 "channel", "SMS",
                 "otpHash", otpHash,
                 "expiresAt", verification.getExpiresAt().toString()
@@ -93,8 +117,8 @@ public class OtpService {
             log.error("Failed to publish SMS OTP notification for user {}", userId, ex);
         }
 
-        log.info("SMS OTP dispatched for user [{}], remaining weekly SMS: {}",
-                userId, msg91SmsService.getRemainingSmsCount(userId, mobileHash));
+        log.info("SMS OTP dispatched for user [{}] in tenant [{}], remaining weekly SMS: {}",
+                userId, effectiveTenant, msg91SmsService.getRemainingSmsCount(userId, mobileHash));
     }
 
     /**
@@ -104,7 +128,8 @@ public class OtpService {
      */
     @Transactional
     public void sendEmailOtp(UUID userId, String emailHash, String email, String candidateName, String tenantId) {
-        String identifier = (userId != null) ? userId.toString() : emailHash;
+        String effectiveTenant = (tenantId != null && !tenantId.isBlank()) ? tenantId : "default";
+        String identifier = (userId != null) ? userId.toString() : (effectiveTenant + ":" + (emailHash != null ? emailHash : "anonymous"));
 
         // 1. Enforce 60s resend cooldown and 5/24h daily quota in Redis
         otpRedisService.checkAndEnforceCooldown(identifier);
@@ -132,7 +157,7 @@ public class OtpService {
                 .expiresAt(LocalDateTime.now().plusMinutes(OTP_EXPIRY_MINUTES))
                 .verified(false)
                 .build();
-        verification.setTenantId(tenantId != null ? tenantId : "default");
+        verification.setTenantId(effectiveTenant);
 
         otpVerificationRepository.save(verification);
 
@@ -145,6 +170,7 @@ public class OtpService {
                 "eventType", "EMAIL_OTP_SEND",
                 "userId", userId != null ? userId.toString() : "",
                 "emailHash", emailHash != null ? emailHash : "",
+                "tenantId", effectiveTenant,
                 "channel", "EMAIL",
                 "otpHash", otpHash,
                 "expiresAt", verification.getExpiresAt().toString()
@@ -155,7 +181,7 @@ public class OtpService {
             log.error("Failed to publish Email OTP notification for user {}", userId, ex);
         }
 
-        log.info("Email OTP dispatched for user [{}] / identifier [{}]", userId, identifier);
+        log.info("Email OTP dispatched for user [{}] / identifier [{}] in tenant [{}]", userId, identifier, effectiveTenant);
     }
 
     /**
@@ -171,58 +197,59 @@ public class OtpService {
      * falling back to DB record if Redis key has rotated.
      */
     @Transactional
-    public boolean verifyEmailOtp(UUID userId, String emailHash, String otpCode) {
-        String identifier = (userId != null) ? userId.toString() : emailHash;
+    public boolean verifyEmailOtp(UUID userId, String emailHash, String otpCode, String tenantId) {
+        String effectiveTenant = (tenantId != null && !tenantId.isBlank()) ? tenantId : "default";
+        String identifier = (userId != null) ? userId.toString() : (effectiveTenant + ":" + (emailHash != null ? emailHash : "anonymous"));
 
-        // 1. Check if user is locked out due to consecutive failed attempts (5 failures = 15m lock)
-        otpRedisService.checkVerificationLockout(identifier);
-
-        // 2. Test bypass code 000000 support
+        // Developer test bypass code 000000
         if ("000000".equals(otpCode != null ? otpCode.trim() : "")) {
-            log.info("Testing OTP 000000 accepted for email verification (userId={})", userId);
-            otpRedisService.clearFailedAttempts(identifier);
-            otpRedisService.removeEmailOtp(identifier);
-            if (emailHash != null) {
-                otpRedisService.removeEmailOtp(emailHash);
-            }
+            log.info("Testing OTP 000000 accepted for email verification (userId={}, tenant={})", userId, effectiveTenant);
             Optional<OtpVerification> opt = userId != null ?
-                    otpVerificationRepository.findTopByUserIdAndOtpTypeAndVerifiedFalseOrderByCreatedAtDesc(userId, "EMAIL") :
-                    otpVerificationRepository.findTopByEmailHashAndOtpTypeAndVerifiedFalseOrderByCreatedAtDesc(emailHash, "EMAIL");
+                    otpVerificationRepository.findTopByUserIdAndOtpTypeAndTenantIdAndVerifiedFalseOrderByCreatedAtDesc(userId, "EMAIL", effectiveTenant)
+                            .or(() -> otpVerificationRepository.findTopByUserIdAndOtpTypeAndVerifiedFalseOrderByCreatedAtDesc(userId, "EMAIL")) :
+                    otpVerificationRepository.findTopByEmailHashAndOtpTypeAndTenantIdAndVerifiedFalseOrderByCreatedAtDesc(emailHash, "EMAIL", effectiveTenant)
+                            .or(() -> otpVerificationRepository.findTopByEmailHashAndOtpTypeAndVerifiedFalseOrderByCreatedAtDesc(emailHash, "EMAIL"));
             opt.ifPresent(v -> {
                 v.setVerified(true);
                 otpVerificationRepository.save(v);
             });
+            otpRedisService.removeEmailOtp(identifier);
+            otpRedisService.clearFailedAttempts(identifier);
             return true;
         }
 
+        // 1. Check if user is locked out due to >= 5 failed attempts
+        otpRedisService.checkVerificationLockout(identifier);
+
+        // 2. Compute SHA-256 of candidate OTP
         String candidateHash = hashingService.sha256(otpCode != null ? otpCode.trim() : "");
 
-        // 3. Fast Redis TTL check
+        // 3. Try reading from Redis
         String storedRedisHash = otpRedisService.getStoredEmailOtp(identifier);
         if (storedRedisHash == null && emailHash != null) {
             storedRedisHash = otpRedisService.getStoredEmailOtp(emailHash);
         }
 
         if (storedRedisHash != null) {
-            if (storedRedisHash.equals(candidateHash)) {
-                // Success: clear lockout and remove OTP
-                otpRedisService.clearFailedAttempts(identifier);
+            if (candidateHash.equals(storedRedisHash)) {
+                // Success: clean up Redis and mark verified in DB
                 otpRedisService.removeEmailOtp(identifier);
                 if (emailHash != null) {
                     otpRedisService.removeEmailOtp(emailHash);
                 }
+                otpRedisService.clearFailedAttempts(identifier);
 
-                // Update DB audit record
-                Optional<OtpVerification> opt = userId != null ?
-                        otpVerificationRepository.findTopByUserIdAndOtpTypeAndVerifiedFalseOrderByCreatedAtDesc(userId, "EMAIL") :
-                        otpVerificationRepository.findTopByEmailHashAndOtpTypeAndVerifiedFalseOrderByCreatedAtDesc(emailHash, "EMAIL");
-                opt.ifPresent(v -> {
+                Optional<OtpVerification> optVerification = userId != null ?
+                        otpVerificationRepository.findTopByUserIdAndOtpTypeAndTenantIdAndVerifiedFalseOrderByCreatedAtDesc(userId, "EMAIL", effectiveTenant)
+                                .or(() -> otpVerificationRepository.findTopByUserIdAndOtpTypeAndVerifiedFalseOrderByCreatedAtDesc(userId, "EMAIL")) :
+                        otpVerificationRepository.findTopByEmailHashAndOtpTypeAndTenantIdAndVerifiedFalseOrderByCreatedAtDesc(emailHash, "EMAIL", effectiveTenant)
+                                .or(() -> otpVerificationRepository.findTopByEmailHashAndOtpTypeAndVerifiedFalseOrderByCreatedAtDesc(emailHash, "EMAIL"));
+                optVerification.ifPresent(v -> {
                     v.setVerified(true);
                     otpVerificationRepository.save(v);
                 });
                 return true;
             } else {
-                // Mismatch: record failure
                 otpRedisService.recordFailedAttempt(identifier);
                 log.warn("Email OTP mismatch from Redis for identifier [{}]", identifier);
                 return false;
@@ -231,25 +258,27 @@ public class OtpService {
 
         // 4. Fallback to PostgreSQL DB if Redis key expired or not set
         Optional<OtpVerification> optVerification = userId != null ?
-                otpVerificationRepository.findTopByUserIdAndOtpTypeAndVerifiedFalseOrderByCreatedAtDesc(userId, "EMAIL") :
-                otpVerificationRepository.findTopByEmailHashAndOtpTypeAndVerifiedFalseOrderByCreatedAtDesc(emailHash, "EMAIL");
+                otpVerificationRepository.findTopByUserIdAndOtpTypeAndTenantIdAndVerifiedFalseOrderByCreatedAtDesc(userId, "EMAIL", effectiveTenant)
+                                .or(() -> otpVerificationRepository.findTopByUserIdAndOtpTypeAndVerifiedFalseOrderByCreatedAtDesc(userId, "EMAIL")) :
+                otpVerificationRepository.findTopByEmailHashAndOtpTypeAndTenantIdAndVerifiedFalseOrderByCreatedAtDesc(emailHash, "EMAIL", effectiveTenant)
+                                .or(() -> otpVerificationRepository.findTopByEmailHashAndOtpTypeAndVerifiedFalseOrderByCreatedAtDesc(emailHash, "EMAIL"));
 
         if (optVerification.isEmpty()) {
             otpRedisService.recordFailedAttempt(identifier);
-            log.warn("No pending Email OTP found in DB for userId={}, emailHash={}", userId, emailHash);
+            log.warn("No pending Email OTP found in DB for userId={}, emailHash={}, tenant={}", userId, emailHash, effectiveTenant);
             return false;
         }
 
         OtpVerification verification = optVerification.get();
         if (LocalDateTime.now().isAfter(verification.getExpiresAt())) {
             otpRedisService.recordFailedAttempt(identifier);
-            log.warn("Email OTP expired in DB for userId={}", userId);
+            log.warn("Email OTP expired in DB for userId={}, tenant={}", userId, effectiveTenant);
             return false;
         }
 
         if (!candidateHash.equals(verification.getOtpHash())) {
             otpRedisService.recordFailedAttempt(identifier);
-            log.warn("Email OTP mismatch in DB for userId={}", userId);
+            log.warn("Email OTP mismatch in DB for userId={}, tenant={}", userId, effectiveTenant);
             return false;
         }
 
@@ -261,60 +290,113 @@ public class OtpService {
     }
 
     /**
+     * Backward-compatible verifyEmailOtp.
+     */
+    @Transactional
+    public boolean verifyEmailOtp(UUID userId, String emailHash, String otpCode) {
+        return verifyEmailOtp(userId, emailHash, otpCode, "default");
+    }
+
+    /**
      * Verifies Mobile OTP code.
      */
     @Transactional
-    public boolean verifyMobileOtp(UUID userId, String mobileHash, String otpCode) {
+    public boolean verifyMobileOtp(UUID userId, String mobileHash, String otpCode, String tenantId) {
+        String effectiveTenant = (tenantId != null && !tenantId.isBlank()) ? tenantId : "default";
+        String identifier = (userId != null) ? userId.toString() : (effectiveTenant + ":" + (mobileHash != null ? mobileHash : "anonymous"));
+
         if ("000000".equals(otpCode != null ? otpCode.trim() : "")) {
-            log.info("Testing OTP 000000 accepted for mobile verification (userId={})", userId);
+            log.info("Testing OTP 000000 accepted for mobile verification (userId={}, tenant={})", userId, effectiveTenant);
             Optional<OtpVerification> opt = userId != null ?
-                    otpVerificationRepository.findTopByUserIdAndOtpTypeAndVerifiedFalseOrderByCreatedAtDesc(userId, "MOBILE") :
-                    otpVerificationRepository.findTopByMobileHashAndOtpTypeAndVerifiedFalseOrderByCreatedAtDesc(mobileHash, "MOBILE");
+                    otpVerificationRepository.findTopByUserIdAndOtpTypeAndTenantIdAndVerifiedFalseOrderByCreatedAtDesc(userId, "MOBILE", effectiveTenant)
+                            .or(() -> otpVerificationRepository.findTopByUserIdAndOtpTypeAndVerifiedFalseOrderByCreatedAtDesc(userId, "MOBILE")) :
+                    otpVerificationRepository.findTopByMobileHashAndOtpTypeAndTenantIdAndVerifiedFalseOrderByCreatedAtDesc(mobileHash, "MOBILE", effectiveTenant)
+                            .or(() -> otpVerificationRepository.findTopByMobileHashAndOtpTypeAndVerifiedFalseOrderByCreatedAtDesc(mobileHash, "MOBILE"));
             if (opt.isEmpty() && mobileHash != null) {
-                opt = otpVerificationRepository.findTopByMobileHashAndVerifiedFalseOrderByCreatedAtDesc(mobileHash);
+                opt = otpVerificationRepository.findTopByMobileHashAndTenantIdAndVerifiedFalseOrderByCreatedAtDesc(mobileHash, effectiveTenant)
+                        .or(() -> otpVerificationRepository.findTopByMobileHashAndVerifiedFalseOrderByCreatedAtDesc(mobileHash));
             }
             opt.ifPresent(v -> {
                 v.setVerified(true);
                 otpVerificationRepository.save(v);
             });
+            otpRedisService.removeEmailOtp(identifier);
+            otpRedisService.clearFailedAttempts(identifier);
             return true;
         }
 
-        Optional<OtpVerification> optVerification = userId != null ?
-                otpVerificationRepository.findTopByUserIdAndOtpTypeAndVerifiedFalseOrderByCreatedAtDesc(userId, "MOBILE") :
-                otpVerificationRepository.findTopByMobileHashAndOtpTypeAndVerifiedFalseOrderByCreatedAtDesc(mobileHash, "MOBILE");
-
-        if (optVerification.isEmpty() && mobileHash != null) {
-            optVerification = otpVerificationRepository.findTopByMobileHashAndVerifiedFalseOrderByCreatedAtDesc(mobileHash);
-        }
-
-        if (optVerification.isEmpty()) {
-            log.warn("No pending Mobile OTP found for userId={}, mobileHash={}", userId, mobileHash);
-            return false;
-        }
-
-        OtpVerification verification = optVerification.get();
-        if (LocalDateTime.now().isAfter(verification.getExpiresAt())) {
-            log.warn("Mobile OTP expired for userId={}", userId);
-            return false;
-        }
-
+        otpRedisService.checkVerificationLockout(identifier);
         String candidateHash = hashingService.sha256(otpCode != null ? otpCode.trim() : "");
-        if (!candidateHash.equals(verification.getOtpHash())) {
-            log.warn("Mobile OTP mismatch for userId={}", userId);
+
+        String storedRedisHash = otpRedisService.getStoredEmailOtp(identifier);
+        if (storedRedisHash != null) {
+            if (candidateHash.equals(storedRedisHash)) {
+                otpRedisService.removeEmailOtp(identifier);
+                otpRedisService.clearFailedAttempts(identifier);
+
+                Optional<OtpVerification> opt = userId != null ?
+                        otpVerificationRepository.findTopByUserIdAndOtpTypeAndTenantIdAndVerifiedFalseOrderByCreatedAtDesc(userId, "MOBILE", effectiveTenant)
+                                .or(() -> otpVerificationRepository.findTopByUserIdAndOtpTypeAndVerifiedFalseOrderByCreatedAtDesc(userId, "MOBILE")) :
+                        otpVerificationRepository.findTopByMobileHashAndOtpTypeAndTenantIdAndVerifiedFalseOrderByCreatedAtDesc(mobileHash, "MOBILE", effectiveTenant)
+                                .or(() -> otpVerificationRepository.findTopByMobileHashAndOtpTypeAndVerifiedFalseOrderByCreatedAtDesc(mobileHash, "MOBILE"));
+                if (opt.isEmpty() && mobileHash != null) {
+                    opt = otpVerificationRepository.findTopByMobileHashAndTenantIdAndVerifiedFalseOrderByCreatedAtDesc(mobileHash, effectiveTenant)
+                            .or(() -> otpVerificationRepository.findTopByMobileHashAndVerifiedFalseOrderByCreatedAtDesc(mobileHash));
+                }
+                opt.ifPresent(v -> {
+                    v.setVerified(true);
+                    otpVerificationRepository.save(v);
+                });
+                return true;
+            } else {
+                otpRedisService.recordFailedAttempt(identifier);
+                return false;
+            }
+        }
+
+        // DB Fallback
+        Optional<OtpVerification> opt = userId != null ?
+                otpVerificationRepository.findTopByUserIdAndOtpTypeAndTenantIdAndVerifiedFalseOrderByCreatedAtDesc(userId, "MOBILE", effectiveTenant)
+                        .or(() -> otpVerificationRepository.findTopByUserIdAndOtpTypeAndVerifiedFalseOrderByCreatedAtDesc(userId, "MOBILE")) :
+                otpVerificationRepository.findTopByMobileHashAndOtpTypeAndTenantIdAndVerifiedFalseOrderByCreatedAtDesc(mobileHash, "MOBILE", effectiveTenant)
+                        .or(() -> otpVerificationRepository.findTopByMobileHashAndOtpTypeAndVerifiedFalseOrderByCreatedAtDesc(mobileHash, "MOBILE"));
+        if (opt.isEmpty() && mobileHash != null) {
+            opt = otpVerificationRepository.findTopByMobileHashAndTenantIdAndVerifiedFalseOrderByCreatedAtDesc(mobileHash, effectiveTenant)
+                    .or(() -> otpVerificationRepository.findTopByMobileHashAndVerifiedFalseOrderByCreatedAtDesc(mobileHash));
+        }
+
+        if (opt.isEmpty()) {
+            otpRedisService.recordFailedAttempt(identifier);
             return false;
         }
 
-        verification.setVerified(true);
-        otpVerificationRepository.save(verification);
+        OtpVerification v = opt.get();
+        if (LocalDateTime.now().isAfter(v.getExpiresAt())) {
+            otpRedisService.recordFailedAttempt(identifier);
+            return false;
+        }
+
+        if (!candidateHash.equals(v.getOtpHash())) {
+            otpRedisService.recordFailedAttempt(identifier);
+            return false;
+        }
+
+        otpRedisService.clearFailedAttempts(identifier);
+        v.setVerified(true);
+        otpVerificationRepository.save(v);
         return true;
     }
 
     /**
-     * Backward-compatible verifyOtp method.
+     * Backward-compatible verifyMobileOtp/verifyOtp.
      */
     @Transactional
     public boolean verifyOtp(String mobileHash, String otpCode) {
-        return verifyMobileOtp(null, mobileHash, otpCode);
+        return verifyMobileOtp(null, mobileHash, otpCode, "default");
+    }
+
+    @Transactional
+    public boolean verifyMobileOtp(UUID userId, String mobileHash, String otpCode) {
+        return verifyMobileOtp(userId, mobileHash, otpCode, "default");
     }
 }
