@@ -20,20 +20,36 @@ plugins {
 version = '0.0.1-SNAPSHOT'
 
 dependencies {
+    // REST Assured — HTTP client for E2E API assertions
     testImplementation 'io.rest-assured:rest-assured:5.5.0'
     testImplementation 'io.rest-assured:json-path:5.5.0'
     testImplementation 'io.rest-assured:json-schema-validator:5.5.0'
+
+    // JUnit 5 + AssertJ
     testImplementation 'org.junit.jupiter:junit-jupiter:5.11.4'
     testImplementation 'org.junit.platform:junit-platform-launcher:1.11.4'
     testImplementation 'org.assertj:assertj-core:3.27.3'
-    testImplementation 'com.github.tomakehurst:wiremock-standalone:3.10.0'
+
+    // PostgreSQL JDBC — for DbResetUtil direct DB access
     testImplementation 'org.postgresql:postgresql:42.7.4'
+
+    // Jackson — JSON serialisation for request/response bodies
     testImplementation 'com.fasterxml.jackson.core:jackson-databind:2.18.2'
     testImplementation 'com.fasterxml.jackson.datatype:jackson-datatype-jsr310:2.18.2'
+
+    // Lettuce — Redis client for DbResetUtil e2e:* key flush
     testImplementation 'io.lettuce:lettuce-core:6.5.0.RELEASE'
-    testImplementation 'org.keycloak:keycloak-admin-client:26.0.7'
+
+    // Logging
     testImplementation 'org.slf4j:slf4j-api:2.0.16'
     testImplementation 'ch.qos.logback:logback-classic:1.5.12'
+
+    // NOTE: WireMock runs as a Docker container (docker-compose.e2e.yml).
+    //       No WireMock Java library is needed — DbResetUtil resets it via
+    //       plain HTTP (java.net.http.HttpClient POST /__admin/scenarios/reset).
+    //
+    // NOTE: Keycloak admin client not needed — ApiClient authenticates via
+    //       REST Assured ROPC form POST to the Keycloak token endpoint directly.
 }
 
 test {
