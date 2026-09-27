@@ -108,7 +108,7 @@ export class ContactDetailsPanelComponent implements OnDestroy {
         this.mobileSuccess.set('Verification code dispatched to your mobile number.');
         this.startMobileCountdown(60);
       },
-      error: (err) => {
+      error: (err: any) => {
         this.mobileResending.set(false);
         const detail = err?.error?.detail || err?.error?.message || err?.message || 'Failed to send SMS OTP.';
         this.mobileError.set(detail);
@@ -136,7 +136,7 @@ export class ContactDetailsPanelComponent implements OnDestroy {
         this.mobileSuccess.set('Mobile number verified successfully!');
         setTimeout(() => this.closeMobileModal(), 1200);
       },
-      error: (err) => {
+      error: (err: any) => {
         this.mobileLoading.set(false);
         const detail = err?.error?.detail || err?.error?.message || err?.message || 'Invalid or expired OTP.';
         this.mobileError.set(detail);
@@ -201,7 +201,7 @@ export class ContactDetailsPanelComponent implements OnDestroy {
         this.emailSuccess.set(`Verification code sent to ${email}`);
         this.startEmailCountdown(60);
       },
-      error: (err) => {
+      error: (err: any) => {
         this.emailLoading.set(false);
         const detail = err?.error?.detail || err?.error?.message || err?.message || 'Failed to dispatch email OTP.';
         this.emailError.set(detail);
@@ -234,7 +234,7 @@ export class ContactDetailsPanelComponent implements OnDestroy {
         this.emailSuccess.set('Email address updated and verified!');
         setTimeout(() => this.closeEmailModal(), 1200);
       },
-      error: (err) => {
+      error: (err: any) => {
         this.emailLoading.set(false);
         const detail = err?.error?.detail || err?.error?.message || err?.message || 'Invalid or expired OTP.';
         this.emailError.set(detail);

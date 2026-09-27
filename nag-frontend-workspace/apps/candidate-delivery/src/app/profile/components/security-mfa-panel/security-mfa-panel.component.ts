@@ -47,13 +47,29 @@ export class SecurityMfaPanelComponent implements OnInit {
   readonly copiedSecret = signal<boolean>(false);
 
   ngOnInit(): void {
+    this.refreshMfaStatus();
+  }
+
+  refreshMfaStatus(): void {
     const user = this.authService.currentUser();
-    if (user?.userId) {
-      this.authService.getVerificationStatus(user.userId).subscribe({
+    if (user?.userId && user.userId !== 'user-unknown') {
+      this.authService.getTotpStatus(user.userId).subscribe({
         next: (status) => {
-          // Status check
+          if (status && status.mfaEnabled !== undefined) {
+            this.isMfaActive.set(status.mfaEnabled);
+          }
         },
-        error: () => {},
+        error: () => {
+          // Fallback check via verification-status endpoint
+          this.authService.getVerificationStatus(user.userId).subscribe({
+            next: (vStatus) => {
+              if (vStatus?.mfaEnabled !== undefined) {
+                this.isMfaActive.set(vStatus.mfaEnabled);
+              }
+            },
+            error: () => {},
+          });
+        },
       });
     }
   }
@@ -158,36 +174,29 @@ export class SecurityMfaPanelComponent implements OnInit {
     }
   }
 
-  downloadBackupCodes(): void {
-    const codes = this.totpData()?.backupCodes || [];
-    if (codes.length === 0) return;
-
-    const content = [
-      '========================================',
-      'NAG PLATFORM - 2FA RECOVERY BACKUP CODES',
-      '========================================',
-      `Account: ${this.authService.currentUser()?.username || 'Candidate'}`,
-      `Generated: ${new Date().toISOString()}`,
-      '',
-      'Keep these single-use recovery codes in a safe place.',
-      'Each code can only be used once if you lose access to your authenticator app.',
-      '',
-      ...codes.map((c, i) => `${i + 1}. ${c}`),
-      '========================================',
-    ].join('\n');
-
-    const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `nag-recovery-backup-codes-${Date.now()}.txt`;
-    a.click();
-    URL.revokeObjectURL(url);
-  }
-
   finishSetup(): void {
     this.setupStep.set('idle');
     this.totpData.set(null);
     this.verifyCode.set('');
+    this.refreshMfaStatus();
+  }
+
+  downloadBackupCodes(): void {
+    const codes = this.totpData()?.backupCodes || [];
+    if (!codes.length || typeof document === 'undefined') return;
+
+    const content = `NAG Platform - Two-Factor Authentication Backup Codes\nGenerated at: ${new Date().toISOString()}\n\nKeep these single-use codes secure:\n` +
+      codes.map((c, i) => `${i + 1}. ${c}`).join('\n') +
+      '\n\nEach code can only be used once if you lose access to your authenticator application.\n';
+
+    const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'nag-2fa-backup-codes.txt';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
   }
 }

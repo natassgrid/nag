@@ -154,6 +154,7 @@ public class CandidateVerificationService {
                 .smsRemainingThisWeek(smsRemaining)
                 .nextSmsAvailableAt(nextSmsAt)
                 .fullyVerified(fullyVerified)
+                .mfaEnabled(account.isMfaEnabled())
                 .build();
     }
 

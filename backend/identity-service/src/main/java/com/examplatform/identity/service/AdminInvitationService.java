@@ -228,6 +228,16 @@ public class AdminInvitationService {
     }
 
     /**
+     * Checks if TOTP 2FA is enabled for a user.
+     */
+    @Transactional(readOnly = true)
+    public boolean isTotpEnabled(UUID userId) {
+        return userAccountRepository.findById(userId)
+                .map(UserAccount::isMfaEnabled)
+                .orElse(false);
+    }
+
+    /**
      * Verifies the pairing code and enables TOTP for a user.
      */
     @Transactional

@@ -52,4 +52,10 @@ export interface VerificationStatusData {
   smsRemainingThisWeek: number;
   nextSmsAvailableAt?: string;
   fullyVerified: boolean;
+  mfaEnabled?: boolean;
+}
+
+export interface TotpStatusData {
+  userId: string;
+  mfaEnabled: boolean;
 }

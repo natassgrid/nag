@@ -13,6 +13,7 @@ import {
   AuthUser,
   TotpSetupData,
   TotpVerifySetupRequest,
+  TotpStatusData,
   ValidateInviteData,
   VerificationStatusData,
 } from '../models/auth.model';
@@ -41,8 +42,23 @@ export class AuthService {
   }
 
   hasAnyRole(roles: string[]): boolean {
-    const current = this.userRoles();
-    return roles.some((r) => current.includes(r));
+    return roles.some((role) => this.hasRole(role));
+  }
+
+  isSuperAdmin(): boolean {
+    return this.hasRole('SUPER_ADMIN');
+  }
+
+  isQuestionAuthor(): boolean {
+    return this.hasRole('QUESTION_AUTHOR');
+  }
+
+  isExamController(): boolean {
+    return this.hasRole('EXAM_CONTROLLER');
+  }
+
+  isCandidate(): boolean {
+    return this.hasRole('CANDIDATE');
   }
 
   getToken(): string | null {
@@ -66,7 +82,7 @@ export class AuthService {
     }
   }
 
-  storeTokens(token: UserToken, username?: string): void {
+  storeTokens(token: UserToken): void {
     if (typeof localStorage === 'undefined') return;
 
     if (token.accessToken) {
@@ -76,18 +92,27 @@ export class AuthService {
       localStorage.setItem(this.REFRESH_TOKEN_KEY, token.refreshToken);
     }
 
-    const payload = token.accessToken
-      ? this.decodeJwtPayload(token.accessToken)
-      : null;
+    const payload = token.accessToken ? this.decodeJwtPayload(token.accessToken) : null;
+    const resolvedRoles: string[] =
+      token.roles ||
+      (payload && payload.realm_access && payload.realm_access.roles) ||
+      (payload && payload.roles) ||
+      [];
+
+    const resolvedUserId: string =
+      token.userId ||
+      (payload && payload.sub) ||
+      (payload && payload.userId) ||
+      'user-unknown';
+
+    const resolvedUsername: string =
+      (payload && (payload.preferred_username || payload.username || payload.email)) ||
+      'Authenticated User';
 
     const user: AuthUser = {
-      userId: token.userId || payload?.sub || 'user-unknown',
-      username: username || payload?.preferred_username || payload?.sub || 'user',
-      roles:
-        token.roles ||
-        payload?.realm_access?.roles ||
-        payload?.roles ||
-        [],
+      userId: resolvedUserId,
+      username: resolvedUsername,
+      roles: resolvedRoles,
     };
 
     localStorage.setItem(this.USER_KEY, JSON.stringify(user));
@@ -95,36 +120,19 @@ export class AuthService {
     this.isAuthenticated.set(true);
   }
 
-  clearTokens(): void {
-    if (typeof localStorage !== 'undefined') {
-      localStorage.removeItem(this.TOKEN_KEY);
-      localStorage.removeItem(this.REFRESH_TOKEN_KEY);
-      localStorage.removeItem(this.USER_KEY);
-    }
-    if (this.currentUser) {
-      this.currentUser.set(null);
-    }
-    if (this.isAuthenticated) {
-      this.isAuthenticated.set(false);
-    }
-  }
-
   login(credentials: {
     username: string;
-    password: string;
-    otpCode?: string;
-    deviceFingerprint?: string;
+    password?: string;
+    totpCode?: string;
   }): Observable<UserToken> {
-    this.clearTokens();
-    const payload = { ...credentials };
     return this.http
-      .post<{ status?: string; data?: UserToken } & UserToken>(
-        '/api/v1/identity/auth/token',
-        payload
+      .post<{ data?: UserToken } & UserToken>(
+        '/api/v1/identity/auth/login',
+        credentials
       )
       .pipe(
-        map((res) => res.data || (res as UserToken)),
-        tap((token) => this.storeTokens(token, credentials.username))
+        map((response) => response.data || (response as UserToken)),
+        tap((token) => this.storeTokens(token))
       );
   }
 
@@ -135,7 +143,6 @@ export class AuthService {
 
     const refreshToken = this.getRefreshToken();
     if (!refreshToken) {
-      this.clearTokens();
       return throwError(() => new Error('No refresh token available'));
     }
 
@@ -207,6 +214,18 @@ export class AuthService {
     );
   }
 
+  verifyEmail(payload: { userId: string; otp: string }): Observable<VerificationStatusData> {
+    return this.http
+      .post<{ data: VerificationStatusData }>('/api/v1/identity/verify/email', payload)
+      .pipe(map((res) => res.data));
+  }
+
+  verifyMobile(payload: { userId: string; otp: string }): Observable<VerificationStatusData> {
+    return this.http
+      .post<{ data: VerificationStatusData }>('/api/v1/identity/verify/mobile', payload)
+      .pipe(map((res) => res.data));
+  }
+
   verifyOtp(payload: {
     registrationId?: string;
     userId?: string;
@@ -220,31 +239,9 @@ export class AuthService {
         payload
       )
       .pipe(
-        map((res) => res.data || (res as UserToken)),
-        tap((token) => {
-          if (token && (token.accessToken || token.userId)) {
-            this.storeTokens(token, payload.email);
-          }
-        })
+        map((response) => response.data || (response as UserToken)),
+        tap((token) => this.storeTokens(token))
       );
-  }
-
-  verifyEmail(payload: { userId: string; otp: string }): Observable<VerificationStatusData> {
-    return this.http
-      .post<{ status?: string; data: VerificationStatusData }>(
-        '/api/v1/identity/verify/email',
-        payload
-      )
-      .pipe(map((res) => res.data));
-  }
-
-  verifyMobile(payload: { userId: string; otp: string }): Observable<VerificationStatusData> {
-    return this.http
-      .post<{ status?: string; data: VerificationStatusData }>(
-        '/api/v1/identity/verify/mobile',
-        payload
-      )
-      .pipe(map((res) => res.data));
   }
 
   getVerificationStatus(userId: string): Observable<VerificationStatusData> {
@@ -261,6 +258,15 @@ export class AuthService {
       : '/api/v1/identity/auth/2fa/setup';
     return this.http
       .post<{ data: TotpSetupData }>(url, {})
+      .pipe(map((res) => res.data));
+  }
+
+  getTotpStatus(userId?: string): Observable<TotpStatusData> {
+    const url = userId
+      ? `/api/v1/identity/auth/2fa/status?userId=${encodeURIComponent(userId)}`
+      : '/api/v1/identity/auth/2fa/status';
+    return this.http
+      .get<{ data: TotpStatusData }>(url)
       .pipe(map((res) => res.data));
   }
 
@@ -333,6 +339,16 @@ export class AuthService {
     } catch {
       return null;
     }
+  }
+
+  clearTokens(): void {
+    if (typeof localStorage !== 'undefined') {
+      localStorage.removeItem(this.TOKEN_KEY);
+      localStorage.removeItem(this.REFRESH_TOKEN_KEY);
+      localStorage.removeItem(this.USER_KEY);
+    }
+    this.currentUser.set(null);
+    this.isAuthenticated.set(false);
   }
 
   private decodeJwtPayload(token: string): any {

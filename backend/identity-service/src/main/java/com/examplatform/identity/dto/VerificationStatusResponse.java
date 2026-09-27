@@ -38,4 +38,5 @@ public class VerificationStatusResponse {
     private int smsRemainingThisWeek;
     private LocalDateTime nextSmsAvailableAt;
     private boolean fullyVerified;
+    private boolean mfaEnabled;
 }
