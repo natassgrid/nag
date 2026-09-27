@@ -51,11 +51,20 @@
       <input
         id="exam-cat-input"
         type="text"
+        list="exam-categories-list"
         [ngModel]="category()"
         (ngModelChange)="categoryChange.emit($event)"
-        placeholder="e.g. Higher Education Entrance"
+        placeholder="e.g. ENGINEERING / CIVIL_SERVICES"
         class="w-full px-3 py-2 text-sm bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 font-medium"
       />
+      <datalist id="exam-categories-list">
+        <option value="ENGINEERING">Engineering & Technology</option>
+        <option value="CIVIL_SERVICES">Civil & Public Administration</option>
+        <option value="BANKING">Banking & Finance</option>
+        <option value="DEFENSE">Defense & Security</option>
+        <option value="MEDICAL">Medical & Healthcare</option>
+        <option value="GENERAL">General Recruitment</option>
+      </datalist>
     </div>
 
     <div>

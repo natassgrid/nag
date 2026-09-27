@@ -66,14 +66,16 @@ public class PublicExaminationController {
     @GetMapping("/public")
     public ResponseEntity<ApiResponse<Page<ExaminationResponse>>> listPublished(
             @RequestParam(required = false) String search,
+            @RequestParam(required = false) String category,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {
 
         String tenantId = TenantContext.get() != null ? TenantContext.get() : "default";
 
-        log.debug("Public exam listing request: search={}, page={}, size={}, tenant={}", search, page, size, tenantId);
+        log.debug("Public exam listing request: search={}, category={}, page={}, size={}, tenant={}",
+                search, category, page, size, tenantId);
 
-        Page<ExaminationResponse> responses = examinationService.listPublishedPaged(tenantId, search, page, size);
+        Page<ExaminationResponse> responses = examinationService.listPublishedPaged(tenantId, search, category, page, size);
 
         return ResponseEntity.ok(ApiResponse.success(responses, "Published examinations retrieved successfully"));
     }
@@ -118,17 +120,15 @@ public class PublicExaminationController {
         UUID candidateId = UUID.fromString(jwt.getSubject());
         String tenantId = TenantContext.get() != null ? TenantContext.get() : "default";
 
-        log.info("Exam application: candidate={}, exam={}, tenant={}", candidateId, examId, tenantId);
+        log.info("Candidate {} applying for exam {} with center preferences", candidateId, examId);
 
         try {
             ExamApplicationResponse response = examApplicationService.apply(examId, candidateId, tenantId, request);
             return ResponseEntity.status(HttpStatus.CREATED)
                     .body(ApiResponse.success(response, "Application submitted successfully"));
         } catch (DuplicateKeyException e) {
+            log.warn("Candidate {} already applied for exam {}", candidateId, examId);
             return ResponseEntity.status(HttpStatus.CONFLICT)
-                    .body(ApiResponse.error("Already applied for this examination"));
-        } catch (IllegalStateException e) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                     .body(ApiResponse.error(e.getMessage()));
         }
     }
@@ -138,21 +138,18 @@ public class PublicExaminationController {
      */
     @GetMapping("/my-exams")
     @PreAuthorize("hasRole('CANDIDATE')")
-    public ResponseEntity<ApiResponse<List<ExamApplicationResponse>>> getMyExams(
+    public ResponseEntity<ApiResponse<List<ExamApplicationResponse>>> getMyApplications(
             @AuthenticationPrincipal Jwt jwt) {
 
         UUID candidateId = UUID.fromString(jwt.getSubject());
         String tenantId = TenantContext.get() != null ? TenantContext.get() : "default";
 
-        log.debug("My exams request: candidate={}, tenant={}", candidateId, tenantId);
-
-        List<ExamApplicationResponse> applications = examApplicationService.getMyApplications(candidateId, tenantId);
-
-        return ResponseEntity.ok(ApiResponse.success(applications, "Applications retrieved successfully"));
+        List<ExamApplicationResponse> responses = examApplicationService.getMyApplications(candidateId, tenantId);
+        return ResponseEntity.ok(ApiResponse.success(responses, "Candidate applications retrieved successfully"));
     }
 
     /**
-     * Get the application status for a specific examination for the authenticated candidate.
+     * Check application status for a specific exam for the authenticated candidate.
      */
     @GetMapping("/{examId}/my-application")
     @PreAuthorize("hasRole('CANDIDATE')")
@@ -163,15 +160,15 @@ public class PublicExaminationController {
         UUID candidateId = UUID.fromString(jwt.getSubject());
         String tenantId = TenantContext.get() != null ? TenantContext.get() : "default";
 
-        log.debug("My application status request: candidate={}, exam={}, tenant={}", candidateId, examId, tenantId);
-
-        ExamApplicationResponse application = examApplicationService.getMyApplication(examId, candidateId, tenantId);
-
-        return ResponseEntity.ok(ApiResponse.success(application, "Application retrieved successfully"));
+        ExamApplicationResponse response = examApplicationService.getMyApplication(examId, candidateId, tenantId);
+        if (response == null) {
+            return ResponseEntity.notFound().build();
+        }
+        return ResponseEntity.ok(ApiResponse.success(response, "Application status retrieved"));
     }
 
     /**
-     * Get the Admit Card / Hall Ticket for the authenticated candidate by Exam ID.
+     * Retrieve digital hall ticket / admit card for a registered examination.
      */
     @GetMapping("/{examId}/admit-card")
     @PreAuthorize("hasRole('CANDIDATE')")
@@ -182,23 +179,9 @@ public class PublicExaminationController {
         UUID candidateId = UUID.fromString(jwt.getSubject());
         String tenantId = TenantContext.get() != null ? TenantContext.get() : "default";
 
-        AdmitCardResponse admitCard = examApplicationService.getAdmitCard(examId, candidateId, tenantId);
-        return ResponseEntity.ok(ApiResponse.success(admitCard, "Admit card retrieved successfully"));
-    }
+        log.info("Candidate {} requesting admit card for exam {}", candidateId, examId);
 
-    /**
-     * Get the Admit Card / Hall Ticket for an application by Application ID.
-     */
-    @GetMapping("/applications/{applicationId}/admit-card")
-    @PreAuthorize("hasAnyRole('CANDIDATE', 'EXAM_CONTROLLER', 'SUPER_ADMIN')")
-    public ResponseEntity<ApiResponse<AdmitCardResponse>> getAdmitCardByApplicationId(
-            @PathVariable UUID applicationId,
-            @AuthenticationPrincipal Jwt jwt) {
-
-        UUID candidateId = UUID.fromString(jwt.getSubject());
-        String tenantId = TenantContext.get() != null ? TenantContext.get() : "default";
-
-        AdmitCardResponse admitCard = examApplicationService.getAdmitCardByApplicationId(applicationId, candidateId, tenantId);
-        return ResponseEntity.ok(ApiResponse.success(admitCard, "Admit card retrieved successfully"));
+        AdmitCardResponse response = examApplicationService.getAdmitCard(examId, candidateId, tenantId);
+        return ResponseEntity.ok(ApiResponse.success(response, "Admit card retrieved successfully"));
     }
 }
