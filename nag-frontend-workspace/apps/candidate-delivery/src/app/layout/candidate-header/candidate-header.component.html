@@ -1,0 +1,84 @@
+<nav
+  class="bg-slate-900 text-white px-4 sm:px-6 py-3 flex items-center justify-between border-b border-slate-800 shrink-0 sticky top-0 z-40"
+  role="navigation"
+  aria-label="Main Application Header"
+>
+  <div class="flex items-center gap-3 sm:gap-6">
+    <!-- Mobile Hamburger Toggle Button -->
+    <button
+      type="button"
+      (click)="toggleDrawer.emit()"
+      [attr.aria-expanded]="isDrawerOpen()"
+      aria-label="Toggle navigation menu"
+      aria-controls="mobile-nav-drawer"
+      class="flex md:hidden items-center justify-center w-11 h-11 -ml-1.5 rounded-xl text-slate-300 hover:text-white hover:bg-slate-800 transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer"
+    >
+      <mat-icon class="!text-2xl">{{ isDrawerOpen() ? 'close' : 'menu' }}</mat-icon>
+    </button>
+
+    <!-- Logo & Brand Title -->
+    <a routerLink="/dashboard" class="flex items-center gap-2.5 focus:outline-none focus:ring-2 focus:ring-indigo-500 rounded-lg p-0.5">
+      <span class="w-8 h-8 rounded-lg bg-indigo-600 flex items-center justify-center font-black text-sm text-white shadow-xs">
+        NAG
+      </span>
+      <div class="flex flex-col">
+        <span class="font-bold text-sm tracking-wide text-white leading-tight">
+          National Assessment Grid
+        </span>
+        <span class="text-[10px] text-slate-400 font-medium hidden sm:inline-block">Candidate Examination Portal</span>
+      </div>
+    </a>
+
+    <!-- Desktop Navigation Links -->
+    <div class="hidden md:flex items-center gap-1 text-xs font-semibold ml-2">
+      @for (item of navItems(); track item.id) {
+        <a
+          [routerLink]="item.route"
+          routerLinkActive="bg-slate-800 text-white"
+          [routerLinkActiveOptions]="{ exact: !!item.exact }"
+          class="px-3 py-1.5 rounded-lg text-slate-300 hover:text-white hover:bg-slate-800/60 transition-colors cursor-pointer"
+        >
+          {{ item.label }}
+        </a>
+      }
+    </div>
+  </div>
+
+  <!-- Right Side Actions -->
+  <div class="flex items-center gap-2 sm:gap-4">
+    @if (isAuthenticated()) {
+      <a
+        routerLink="/profile"
+        class="hidden sm:flex items-center gap-2 text-xs hover:text-indigo-300 transition-colors"
+      >
+        <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
+        <span class="text-slate-300 font-medium">{{ userName() }}</span>
+      </a>
+      <button
+        mat-stroked-button
+        (click)="logout.emit()"
+        class="hidden sm:inline-flex !text-slate-300 !border-slate-700 !text-xs hover:!text-white cursor-pointer"
+      >
+        Sign Out
+      </button>
+    } @else {
+      <a
+        mat-stroked-button
+        routerLink="/login"
+        class="!text-slate-300 !border-slate-700 !text-xs hover:!text-white cursor-pointer"
+      >
+        Sign In
+      </a>
+    }
+
+    <a
+      mat-flat-button
+      routerLink="/delivery"
+      class="!bg-rose-600 hover:!bg-rose-700 !text-white !text-xs font-bold !rounded-lg !px-3 sm:!px-4 cursor-pointer"
+    >
+      <mat-icon class="!text-sm leading-none">play_arrow</mat-icon>
+      <span class="hidden xs:inline">Live Exam Runtime</span>
+      <span class="xs:hidden">Live Exam</span>
+    </a>
+  </div>
+</nav>

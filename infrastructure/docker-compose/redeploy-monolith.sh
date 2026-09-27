@@ -28,6 +28,7 @@
 set -e
 
 export BUILDX_NO_DEFAULT_ATTESTATIONS=1
+export BUILDX_NO_DEFAULT_LOAD=1
 export DOCKER_BUILDKIT=1
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -203,7 +204,7 @@ if [ "$FRONTEND_ONLY" = true ] || [ -n "$SERVICE" ]; then
 
     echo ""
     echo "📦 Building targets: $APP_TARGETS..."
-    $COMPOSE build $NO_CACHE $APP_TARGETS
+    $COMPOSE build --provenance=false --sbom=false $NO_CACHE $APP_TARGETS
 
     echo ""
     echo "🚀 Updating and starting targets: $APP_TARGETS..."
@@ -262,7 +263,7 @@ $COMPOSE up -d vault-init
 
 echo ""
 echo "📦 Building targets: $APP_TARGETS..."
-$COMPOSE build $NO_CACHE $APP_TARGETS
+$COMPOSE build --provenance=false --sbom=false $NO_CACHE $APP_TARGETS
 
 echo ""
 echo "🚀 Starting monolith stack ($APP_TARGETS)..."

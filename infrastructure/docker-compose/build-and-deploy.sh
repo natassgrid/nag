@@ -15,6 +15,10 @@
 # =============================================================================
 set -e
 
+export BUILDX_NO_DEFAULT_ATTESTATIONS=1
+export BUILDX_NO_DEFAULT_LOAD=1
+export DOCKER_BUILDKIT=1
+
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 
@@ -79,7 +83,7 @@ $COMPOSE up -d registry
 echo ""
 if [ -n "$SERVICE" ]; then
     echo "▶ Building and starting service: $SERVICE"
-    $COMPOSE build $NO_CACHE "$SERVICE"
+    $COMPOSE build --provenance=false --sbom=false $NO_CACHE "$SERVICE"
     $COMPOSE up -d "$SERVICE"
 else
     echo "▶ Building all application services sequentially (shared Gradle cache)..."
@@ -92,7 +96,7 @@ else
     )
     for svc in "${SERVICES[@]}"; do
         echo "  Building $svc..."
-        $COMPOSE build $NO_CACHE "$svc"
+        $COMPOSE build --provenance=false --sbom=false $NO_CACHE "$svc"
     done
     echo ""
     echo "▶ Starting all application services..."
@@ -118,44 +122,3 @@ done
 
 echo ""
 echo "============================================="
-echo "  ✓ Deployment complete!"
-echo "============================================="
-echo ""
-echo "Service endpoints:"
-echo "  API Gateway:     http://localhost:9000"
-echo "  Admin UI (Web):  http://localhost:4200"
-echo "  Candidate UI:    http://localhost:4300"
-echo "  Identity:        http://localhost:8081"
-echo "  Candidate API:   http://localhost:8082"
-echo "  Question Bank:   http://localhost:8083"
-echo "  Examination:     http://localhost:8085"
-echo "  Paper Generator: http://localhost:8086"
-echo "  Delivery:        http://localhost:8087"
-echo "  Response:        http://localhost:8088"
-echo "  Evaluation:      http://localhost:8089"
-echo "  Result:          http://localhost:8090"
-echo "  Audit:           http://localhost:8091"
-echo "  Notification:    http://localhost:8092"
-echo "  Admin:           http://localhost:8093"
-echo "  Analytics:       http://localhost:8094"
-echo "  Asset:           http://localhost:8095"
-echo ""
-echo "Infrastructure:"
-echo "  Keycloak:        http://localhost:8080"
-echo "  Vault:           http://localhost:8200"
-if [ "$OBSERVABILITY" = true ]; then
-echo "  Prometheus:      http://localhost:9090"
-echo "  Grafana:         http://localhost:3000"
-echo "  Jaeger:          http://localhost:16686"
-fi
-if [ "$AI" = true ]; then
-echo "  Ollama:          http://localhost:11434"
-echo "  LiteLLM:         http://localhost:4000"
-echo "  IndicTrans2:     http://localhost:7860"
-fi
-echo "  Docker Registry: http://localhost:5000"
-echo ""
-echo "Useful commands:"
-echo "  docker compose -f docker-compose.yml -f docker-compose.services.yml logs -f <service>"
-echo "  docker compose -f docker-compose.yml -f docker-compose.services.yml ps"
-echo "  docker compose -f docker-compose.yml -f docker-compose.services.yml down"

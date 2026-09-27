@@ -1,0 +1,127 @@
+@if (isOpen()) {
+  <!-- Backdrop Overlay -->
+  <div
+    class="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-xs transition-opacity duration-300 md:hidden"
+    (click)="onBackdropClick()"
+    aria-hidden="true"
+  ></div>
+
+  <!-- Drawer Container -->
+  <aside
+    class="fixed inset-y-0 left-0 z-50 w-72 max-w-[85vw] bg-slate-900 text-white shadow-2xl flex flex-col transform transition-transform duration-300 ease-out md:hidden"
+    role="dialog"
+    aria-modal="true"
+    aria-label="Mobile Navigation Menu"
+  >
+    <!-- Header: Branding & Close Button -->
+    <div class="px-5 py-4 border-b border-slate-800 flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <span class="w-8 h-8 rounded-lg bg-indigo-600 flex items-center justify-center font-black text-sm text-white shadow-xs">
+          NAG
+        </span>
+        <div class="flex flex-col">
+          <span class="font-bold text-sm tracking-tight leading-none text-white">NAG Candidate</span>
+          <span class="text-[10px] text-slate-400 font-medium mt-0.5">Examination Grid</span>
+        </div>
+      </div>
+
+      <button
+        type="button"
+        (click)="closeDrawer.emit()"
+        class="w-11 h-11 flex items-center justify-center rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer"
+        aria-label="Close navigation menu"
+      >
+        <mat-icon class="!text-xl">close</mat-icon>
+      </button>
+    </div>
+
+    <!-- Candidate Profile Status Banner -->
+    <div class="p-4 bg-slate-800/60 border-b border-slate-800/80">
+      @if (isAuthenticated()) {
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 rounded-full bg-indigo-600/30 border border-indigo-500/40 text-indigo-300 font-bold text-sm flex items-center justify-center shrink-0 shadow-inner">
+            {{ getUserInitials() }}
+          </div>
+          <div class="flex flex-col min-w-0">
+            <span class="text-xs font-bold text-white truncate">{{ userName() }}</span>
+            <span class="text-[10px] text-emerald-400 flex items-center gap-1 mt-0.5 font-medium">
+              <span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
+              Verified Candidate
+            </span>
+          </div>
+        </div>
+      } @else {
+        <div class="flex items-center justify-between gap-2">
+          <div class="flex flex-col">
+            <span class="text-xs font-semibold text-slate-200">Welcome, Guest</span>
+            <span class="text-[10px] text-slate-400">Sign in to access your dashboard</span>
+          </div>
+          <a
+            routerLink="/login"
+            (click)="onItemClick()"
+            mat-stroked-button
+            class="!text-xs !border-indigo-500/50 !text-indigo-300 hover:!bg-indigo-950/40 !min-h-[36px]"
+          >
+            Sign In
+          </a>
+        </div>
+      }
+    </div>
+
+    <!-- Main Navigation List -->
+    <nav class="flex-1 overflow-y-auto px-3 py-4 space-y-1" aria-label="Mobile Menu Links">
+      @for (item of navItems(); track item.id) {
+        <a
+          [routerLink]="item.route"
+          routerLinkActive="bg-indigo-600 text-white font-bold shadow-sm"
+          [routerLinkActiveOptions]="{ exact: !!item.exact }"
+          (click)="onItemClick()"
+          class="flex items-center gap-3.5 px-3.5 py-3 rounded-xl text-slate-300 hover:text-white hover:bg-slate-800/70 transition-colors min-h-[44px] text-sm font-medium focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer"
+        >
+          <mat-icon class="!text-xl text-slate-400 group-hover:text-white">{{ item.icon }}</mat-icon>
+          <span class="grow">{{ item.label }}</span>
+          @if (item.badge) {
+            <span class="px-2 py-0.5 text-[10px] font-bold rounded-full bg-indigo-500/30 text-indigo-200 border border-indigo-500/40">
+              {{ item.badge }}
+            </span>
+          }
+        </a>
+      }
+
+      <!-- Quick Action: Live Exam Runtime -->
+      <div class="pt-3 mt-3 border-t border-slate-800">
+        <a
+          routerLink="/delivery"
+          (click)="onItemClick()"
+          class="flex items-center justify-center gap-2 w-full py-3 px-4 rounded-xl bg-gradient-to-r from-rose-600 to-rose-700 hover:from-rose-500 hover:to-rose-600 text-white font-bold text-xs shadow-md transition-all active:scale-[0.98] min-h-[44px] cursor-pointer"
+        >
+          <mat-icon class="!text-lg">play_arrow</mat-icon>
+          <span>Live Exam Runtime</span>
+        </a>
+      </div>
+    </nav>
+
+    <!-- Footer: Auth Action -->
+    <div class="p-4 border-t border-slate-800 bg-slate-950/40">
+      @if (isAuthenticated()) {
+        <button
+          type="button"
+          (click)="onLogoutClick()"
+          class="w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl border border-slate-700 hover:border-slate-600 hover:bg-slate-800/80 text-slate-300 hover:text-white text-xs font-semibold transition-colors min-h-[44px] cursor-pointer"
+        >
+          <mat-icon class="!text-base">logout</mat-icon>
+          <span>Sign Out</span>
+        </button>
+      } @else {
+        <a
+          routerLink="/login"
+          (click)="onItemClick()"
+          class="w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold transition-colors min-h-[44px] cursor-pointer"
+        >
+          <mat-icon class="!text-base">login</mat-icon>
+          <span>Sign In / Register</span>
+        </a>
+      }
+    </div>
+  </aside>
+}

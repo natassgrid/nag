@@ -24,6 +24,10 @@
 # =============================================================================
 set -e
 
+export BUILDX_NO_DEFAULT_ATTESTATIONS=1
+export BUILDX_NO_DEFAULT_LOAD=1
+export DOCKER_BUILDKIT=1
+
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 cd "$SCRIPT_DIR"
@@ -49,7 +53,7 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
-PROFILES_ARGS=(--profile kafka --profile micro)
+PROFILES_ARGS=()
 if [ "$OBSERVABILITY" = true ]; then
     PROFILES_ARGS+=(--profile observability)
 fi
@@ -57,14 +61,42 @@ if [ "$AI" = true ]; then
     PROFILES_ARGS+=(--profile ai)
 fi
 
-COMPOSE="docker compose ${PROFILES_ARGS[*]} -f docker-compose.yml -f docker-compose.services.yml"
+COMPOSE="docker compose ${PROFILES_ARGS[*]} -f docker-compose.yml"
 
 ALL_SERVICES=(
-    identity-service candidate-service question-bank-service
-    examination-service paper-generator delivery-service response-service
-    evaluation-service result-service audit-service notification-service
-    admin-service analytics-service asset-service api-gateway
+    identity-service
+    candidate-service
+    admin-service
+    question-bank-service
+    examination-service
+    delivery-service
+    response-service
+    evaluation-service
+    result-service
+    analytics-service
+    audit-service
+    notification-service
+    paper-generator
+    api-gateway
+    frontend
+    candidate-frontend
 )
+
+# Service name → source paths for change detection
+get_service_src_paths() {
+    local svc="$1"
+    case "$svc" in
+        frontend)
+            echo "frontend/src frontend/package.json"
+            ;;
+        candidate-frontend)
+            echo "candidate-frontend/src candidate-frontend/package.json"
+            ;;
+        *)
+            echo "backend/${svc}/src backend/shared-lib/src build.gradle settings.gradle"
+            ;;
+    esac
+}
 
 # --- Detect which services have code changes (git-based) ---
 get_changed_services() {
@@ -72,11 +104,12 @@ get_changed_services() {
     cd "$PROJECT_ROOT"
 
     for svc in "${ALL_SERVICES[@]}"; do
-        # Check if service source files changed since last image was built
-        # Compare against the git hash stored in a marker file
         local marker="/tmp/.exam-build-marker-${svc}"
+        local paths
+        paths=$(get_service_src_paths "$svc")
         local current_hash
-        current_hash=$(git log -1 --format="%H" -- "backend/${svc}/src" "backend/shared-lib/src" "build.gradle" 2>/dev/null || echo "none")
+        # shellcheck disable=SC2086
+        current_hash=$(git log -1 --format="%H" -- $paths 2>/dev/null || echo "none")
 
         if [ -f "$marker" ]; then
             local last_hash
@@ -98,12 +131,16 @@ get_changed_services() {
 mark_built() {
     local svc="$1"
     cd "$PROJECT_ROOT"
-    git log -1 --format="%H" -- "backend/${svc}/src" "backend/shared-lib/src" "build.gradle" 2>/dev/null > "/tmp/.exam-build-marker-${svc}"
+    local paths
+    paths=$(get_service_src_paths "$svc")
+    # shellcheck disable=SC2086
+    git log -1 --format="%H" -- $paths 2>/dev/null > "/tmp/.exam-build-marker-${svc}"
     cd "$SCRIPT_DIR"
 }
 
 echo "============================================="
 echo "  NAG Platform — Microservices Redeploy"
+echo "  Architecture: 14 Microservices + Gateway"
 if [ "$OBSERVABILITY" = true ]; then
 echo "  Observability: Enabled (Prometheus, Grafana, Jaeger)"
 fi
@@ -117,7 +154,7 @@ ensure_builder_base() {
     if ! docker image inspect exam/builder-base:latest >/dev/null 2>&1; then
         echo "▶ Building builder base image (one-time)..."
         cd "$PROJECT_ROOT"
-        docker build -f backend/Dockerfile.base -t exam/builder-base:latest .
+        docker build --provenance=false --sbom=false -f backend/Dockerfile.base -t exam/builder-base:latest .
         cd "$SCRIPT_DIR"
         echo "✓ Builder base image ready."
     fi
@@ -135,19 +172,20 @@ if [ "$HEALTH_CHECK" = true ]; then
     declare -A SERVICE_PORTS=(
         [identity-service]=8081
         [candidate-service]=8082
+        [admin-service]=8080
         [question-bank-service]=8083
-        [examination-service]=8085
-        [paper-generator]=8086
+        [examination-service]=8084
         [delivery-service]=8087
         [response-service]=8088
         [evaluation-service]=8089
         [result-service]=8090
+        [analytics-service]=8092
         [audit-service]=8091
-        [notification-service]=8092
-        [admin-service]=8093
-        [analytics-service]=8094
-        [asset-service]=8095
+        [notification-service]=8086
+        [paper-generator]=8085
         [api-gateway]=9000
+        [frontend]=4200
+        [candidate-frontend]=4300
     )
 
     HEALTHY=0
@@ -164,12 +202,12 @@ if [ "$HEALTH_CHECK" = true ]; then
 
         # Check if container is running
         if ! docker ps --format '{{.Names}}' | grep -q "^${container}$"; then
-            printf "  %-25s %-12s %-8s %s\n" "$svc" "⬇ DOWN" "$port" "Container not running"
-            DOWN=$((DOWN + 1))\
+            printf "  %-25s %-12s %-8s %s\n" "$svc" "✗ DOWN" "$port" "Container not running"
+            DOWN=$((DOWN + 1))
             continue
         fi
 
-        # First check Docker's own healthcheck status (most reliable)
+        # First check Docker's own healthcheck status
         docker_health=$(docker inspect --format='{{.State.Health.Status}}' "$container" 2>/dev/null || echo "none")
 
         if [ "$docker_health" = "starting" ]; then
@@ -178,32 +216,34 @@ if [ "$HEALTH_CHECK" = true ]; then
             continue
         fi
 
-        # Query health endpoint — try host first, fallback to docker exec
-        health_response=$(curl -s --connect-timeout 3 --max-time 5 "http://localhost:${port}/actuator/health" 2>/dev/null || echo "")
+        # Query health endpoint
+        health_url="http://localhost:${port}/actuator/health"
+        if [[ "$svc" == *"frontend"* ]]; then
+            health_url="http://localhost:${port}/health"
+        fi
+
+        health_response=$(curl -s --connect-timeout 3 --max-time 5 "$health_url" 2>/dev/null || echo "")
 
         if [ -z "$health_response" ]; then
-            health_response=$(docker exec "$container" wget -qO- "http://localhost:${port}/actuator/health" 2>/dev/null || echo "")
+            health_response=$(docker exec "$container" wget -qO- "$health_url" 2>/dev/null || echo "")
         fi
 
         if [ -z "$health_response" ]; then
-            printf "  %-25s %-12s %-8s %s\n" "$svc" "⚠ NO RESP" "$port" "No response from actuator"
+            printf "  %-25s %-12s %-8s %s\n" "$svc" "⚠ NO RESP" "$port" "No response from health endpoint"
             UNHEALTHY=$((UNHEALTHY + 1))
             continue
         fi
 
-        # Parse top-level status from JSON (last "status" field or the one after "groups")
-        # The top-level status in Spring Boot actuator is the outermost "status" field
-        status=$(echo "$health_response" | grep -o '"status":"[^"]*"' | tail -1 | cut -d'"' -f4)
+        status=$(echo "$health_response" | grep -o '"status":"[^"]*"' | head -1 | cut -d'"' -f4)
 
         if [ "$status" = "UP" ]; then
-            # Get component statuses
             components=$(echo "$health_response" | grep -o '"[a-zA-Z]*":{"status":"[^"]*"' | \
-                sed 's/"\([^"]*\)":{"status":"\([^"]*\)"/\1:\2/g' | tr '\n' ' ')
+                sed 's/"\([^\"]*\)":{"status":"\([^\"]*\)"/\1:\2/g' | tr '\n' ' ')
             printf "  %-25s %-12s %-8s %s\n" "$svc" "✓ UP" "$port" "$components"
             HEALTHY=$((HEALTHY + 1))
         elif [ "$status" = "DOWN" ]; then
             components=$(echo "$health_response" | grep -o '"[a-zA-Z]*":{"status":"DOWN"' | \
-                sed 's/"\([^"]*\)":{"status":"DOWN"/\1:DOWN/g' | tr '\n' ' ')
+                sed 's/"\([^\"]*\)":{"status":"DOWN"/\1:DOWN/g' | tr '\n' ' ')
             printf "  %-25s %-12s %-8s %s\n" "$svc" "✗ DOWN" "$port" "$components"
             UNHEALTHY=$((UNHEALTHY + 1))
         else
@@ -232,7 +272,7 @@ if [ -n "$SERVICE" ]; then
     fi
 
     echo "▶ Rebuilding service: $SERVICE"
-    $COMPOSE build $NO_CACHE "$SERVICE"
+    $COMPOSE build --provenance=false --sbom=false $NO_CACHE "$SERVICE"
     echo ""
     echo "▶ Restarting service: $SERVICE"
     $COMPOSE up -d --force-recreate "$SERVICE"
@@ -262,7 +302,7 @@ if [ "$SMART" = true ]; then
     for svc in "${CHANGED[@]}"; do
         built=$((built + 1))
         echo "▶ [$built/$total] Building $svc... ($(( total - built )) remaining)"
-        $COMPOSE build $NO_CACHE "$svc"
+        $COMPOSE build --provenance=false --sbom=false $NO_CACHE "$svc"
         mark_built "$svc"
     done
 
@@ -326,7 +366,7 @@ BUILT=0
 for svc in "${ALL_SERVICES[@]}"; do
     BUILT=$((BUILT + 1))
     echo "  [$BUILT/$TOTAL] Building $svc... ($((TOTAL - BUILT)) remaining)"
-    $COMPOSE build $NO_CACHE "$svc"
+    $COMPOSE build --provenance=false --sbom=false $NO_CACHE "$svc"
     mark_built "$svc"
 done
 
