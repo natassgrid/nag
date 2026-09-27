@@ -10,6 +10,7 @@ import { RouterModule, Router } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { AuthService } from '@nag-frontend-workspace/shared-data-access-auth';
+import { NotificationService } from '@nag-frontend-workspace/shared-ui-components';
 import { AuthBrandHeaderComponent } from '../auth-brand-header/auth-brand-header.component';
 import { AuthFlowService } from '../../services/auth-flow.service';
 
@@ -31,6 +32,7 @@ export class LoginComponent implements OnInit {
   private readonly authService = inject(AuthService);
   private readonly authFlowService = inject(AuthFlowService);
   private readonly router = inject(Router);
+  private readonly notificationService = inject(NotificationService);
 
   username = '';
   password = '';
@@ -103,7 +105,10 @@ export class LoginComponent implements OnInit {
       this.loading.set(false);
       this.showForgotPassword.set(false);
       this.errorMessage.set(null);
-      alert('Password reset instructions have been sent to your registered email.');
+      this.notificationService.success(
+        'Password Reset Email Sent',
+        'Password reset instructions have been sent to your registered email.'
+      );
     }, 1000);
   }
 

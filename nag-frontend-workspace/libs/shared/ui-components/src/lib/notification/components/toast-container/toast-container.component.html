@@ -1,0 +1,35 @@
+<aside
+  class="fixed top-5 right-5 z-50 flex flex-col gap-3 w-full max-w-sm sm:max-w-md pointer-events-none px-4 sm:px-0"
+  aria-live="polite"
+  aria-atomic="true"
+>
+  @for (toast of toasts(); track toast.id) {
+    <div
+      role="alert"
+      class="pointer-events-auto rounded-xl border p-4 transition-all duration-300 transform translate-y-0 opacity-100 flex items-start gap-3 relative overflow-hidden {{ getToastClasses(toast.type) }}"
+    >
+      <!-- Color indicator bar -->
+      <div class="absolute left-0 top-0 bottom-0 w-1.5 {{ getBarClasses(toast.type) }}"></div>
+
+      <div class="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 {{ getIconClasses(toast.type) }}">
+        <mat-icon class="!text-lg">{{ getToastIcon(toast.type) }}</mat-icon>
+      </div>
+
+      <div class="grow pr-2 space-y-0.5">
+        <h4 class="text-xs font-bold text-slate-900 leading-snug">{{ toast.title }}</h4>
+        @if (toast.message) {
+          <p class="text-xs text-slate-600 leading-relaxed">{{ toast.message }}</p>
+        }
+      </div>
+
+      <button
+        type="button"
+        (click)="notificationService.removeToast(toast.id)"
+        class="text-slate-400 hover:text-slate-700 p-1 rounded-md transition-colors cursor-pointer"
+        aria-label="Dismiss notification"
+      >
+        <mat-icon class="!text-sm">close</mat-icon>
+      </button>
+    </div>
+  }
+</aside>

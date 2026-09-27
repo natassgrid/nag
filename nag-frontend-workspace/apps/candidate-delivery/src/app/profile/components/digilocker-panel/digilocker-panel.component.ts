@@ -2,12 +2,14 @@ import {
   ChangeDetectionStrategy,
   Component,
   computed,
+  inject,
   model,
   signal,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
+import { NotificationService } from '@nag-frontend-workspace/shared-ui-components';
 import { CandidateProfile, DigiLockerClaim } from '../../models';
 import {
   DigiLockerClaimCardComponent,
@@ -29,6 +31,8 @@ import {
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class DigiLockerPanelComponent {
+  private readonly notificationService = inject(NotificationService);
+
   readonly profile = model.required<CandidateProfile>();
 
   readonly isConnecting = signal<boolean>(false);
@@ -59,6 +63,7 @@ export class DigiLockerPanelComponent {
   verifyAndSync(): void {
     this.isConnecting.set(true);
     setTimeout(() => {
+      const p = this.profile();
       const mockClaims: DigiLockerClaim[] = [
         {
           id: 'dl-claim-1',
@@ -95,26 +100,43 @@ export class DigiLockerPanelComponent {
         },
       ];
 
-      this.profile.update((p) => ({
-        ...p,
+      this.profile.update((prof) => ({
+        ...prof,
         digiLockerStatus: 'VERIFIED',
-        digiLockerUri: `in.gov.digilocker:user:${p.candidateId}:claims`,
+        digiLockerUri: `in.gov.digilocker:user:${prof?.candidateId || 'cand'}:claims`,
         digiLockerClaims: mockClaims,
       }));
 
       this.isConnecting.set(false);
       this.showConsentModal.set(false);
+      this.notificationService.success(
+        'DigiLocker Linked Successfully',
+        'Verified government identity and academic credentials have been synchronized.'
+      );
     }, 900);
   }
 
-  disconnectDigiLocker(): void {
-    if (confirm('Are you sure you want to disconnect DigiLocker credentials?')) {
+  async disconnectDigiLocker(): Promise<void> {
+    const confirmed = await this.notificationService.confirm({
+      title: 'Disconnect DigiLocker Credentials?',
+      message:
+        'Are you sure you want to disconnect DigiLocker credentials? Verified claim digests will be unlinked from your candidate profile.',
+      confirmText: 'Disconnect DigiLocker',
+      cancelText: 'Keep Connected',
+      type: 'danger',
+    });
+
+    if (confirmed) {
       this.profile.update((p) => ({
         ...p,
         digiLockerStatus: 'NOT_LINKED',
         digiLockerUri: undefined,
         digiLockerClaims: [],
       }));
+      this.notificationService.info(
+        'DigiLocker Disconnected',
+        'DigiLocker credentials have been removed from this profile session.'
+      );
     }
   }
 }

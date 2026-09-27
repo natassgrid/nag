@@ -2,12 +2,16 @@ import {
   ChangeDetectionStrategy,
   Component,
   computed,
+  inject,
   signal,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
-import { PageHeaderComponent } from '@nag-frontend-workspace/shared-ui-components';
+import {
+  NotificationService,
+  PageHeaderComponent,
+} from '@nag-frontend-workspace/shared-ui-components';
 import {
   ReviewStatusFilter,
   ReviewQuestionItem,
@@ -38,6 +42,8 @@ import {
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class CandidateReviewComponent {
+  private readonly notificationService = inject(NotificationService);
+
   readonly statusFilter = signal<ReviewStatusFilter>('ALL');
   readonly currentIndex = signal<number>(0);
 
@@ -118,12 +124,18 @@ export class CandidateReviewComponent {
 
   readonly filteredQuestions = computed(() => {
     const filter = this.statusFilter();
-    return this.questions().filter((q) => {
-      if (filter === 'CORRECT') return q.isCorrect;
-      if (filter === 'INCORRECT') return !q.isCorrect && q.userChoice !== undefined;
-      if (filter === 'UNATTEMPTED') return q.userChoice === undefined;
-      return true;
-    });
+    const list = this.questions();
+    switch (filter) {
+      case 'CORRECT':
+        return list.filter((q) => q.isCorrect);
+      case 'INCORRECT':
+        return list.filter((q) => !q.isCorrect && q.userChoice !== undefined);
+      case 'UNATTEMPTED':
+        return list.filter((q) => q.userChoice === undefined);
+      case 'ALL':
+      default:
+        return list;
+    }
   });
 
   readonly currentQuestion = computed(() => {
@@ -150,6 +162,9 @@ export class CandidateReviewComponent {
   }
 
   raiseDispute(question: ReviewQuestionItem): void {
-    window.alert(`Dispute grievance logged for question reference: ${question.id}`);
+    this.notificationService.info(
+      'Grievance Dispute Logged',
+      `Dispute reference logged for question: ${question.id}. A review will be performed by subject matter experts.`
+    );
   }
 }

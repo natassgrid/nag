@@ -16,6 +16,7 @@ import {
   I18nService,
   SUPPORTED_LANGUAGES,
 } from '@nag-frontend-workspace/shared-util-i18n';
+import { NotificationService } from '@nag-frontend-workspace/shared-ui-components';
 import {
   ExamItem,
   ExamSubmissionReceipt,
@@ -46,6 +47,7 @@ export * from './models';
 })
 export class ExamDeliveryComponent implements OnInit, OnDestroy {
   readonly i18nService = inject(I18nService);
+  private readonly notificationService = inject(NotificationService);
   readonly supportedLanguages = SUPPORTED_LANGUAGES;
 
   readonly sessionMeta = signal<ExamSessionMetadata>({
@@ -194,17 +196,25 @@ export class ExamDeliveryComponent implements OnInit, OnDestroy {
   async confirmSubmission(): Promise<void> {
     const answered = this.countAnswered();
     const total = this.questions().length;
-    if (
-      confirm(
-        `You have answered ${answered} of ${total} questions. Are you sure you want to finalize and cryptographically submit your exam?`
-      )
-    ) {
+    const confirmed = await this.notificationService.confirm({
+      title: 'Finalize and Submit Exam Responses?',
+      message: `You have answered ${answered} of ${total} questions.\nOnce submitted, your responses will be cryptographically hashed, sealed, and cannot be modified.`,
+      confirmText: 'Submit & Seal Exam',
+      cancelText: 'Return to Test',
+      type: 'warning',
+    });
+
+    if (confirmed) {
       await this.performSubmission();
     }
   }
 
   private async autoSubmit(): Promise<void> {
-    alert('Exam timer has expired! System is sealing and submitting responses.');
+    this.notificationService.warning(
+      'Exam Timer Expired',
+      'The allocated examination duration has ended. The system is sealing and submitting your responses.',
+      6000
+    );
     await this.performSubmission();
   }
 

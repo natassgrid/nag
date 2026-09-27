@@ -9,7 +9,10 @@ import {
 import { CommonModule } from '@angular/common';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
-import { PageHeaderComponent } from '@nag-frontend-workspace/shared-ui-components';
+import {
+  NotificationService,
+  PageHeaderComponent,
+} from '@nag-frontend-workspace/shared-ui-components';
 import {
   DEFAULT_SYSTEM_SETTINGS,
   SystemSettingsState,
@@ -50,6 +53,7 @@ export type SettingsTabId =
 })
 export class AdminSettingsComponent implements OnInit {
   private readonly settingsService = inject(AdminSettingsService);
+  private readonly notificationService = inject(NotificationService);
 
   activeTab = signal<SettingsTabId>('security');
   loading = signal<boolean>(false);
@@ -87,6 +91,7 @@ export class AdminSettingsComponent implements OnInit {
       },
       error: () => {
         this.loading.set(false);
+        this.notificationService.error('Failed to load system settings');
       },
     });
   }
@@ -95,18 +100,34 @@ export class AdminSettingsComponent implements OnInit {
     this.currentSettings.set(updated);
   }
 
-  resetDefaults(): void {
-    if (confirm('Are you sure you want to reset all configurations to platform defaults?')) {
+  async resetDefaults(): Promise<void> {
+    const confirmed = await this.notificationService.confirm({
+      title: 'Reset Configuration to Defaults?',
+      message:
+        'Are you sure you want to reset all configurations to platform defaults? Any unsaved changes across tabs will be reverted.',
+      confirmText: 'Reset Defaults',
+      cancelText: 'Cancel',
+      type: 'warning',
+    });
+
+    if (confirmed) {
       this.saving.set(true);
       this.settingsService.resetDefaults().subscribe({
         next: (defaults) => {
           this.currentSettings.set({ ...defaults });
           this.savedSettings.set({ ...defaults });
           this.saving.set(false);
-          alert('System configurations have been reset to platform defaults.');
+          this.notificationService.success(
+            'Configurations Reset',
+            'System configurations have been reset to platform defaults.'
+          );
         },
         error: () => {
           this.saving.set(false);
+          this.notificationService.error(
+            'Reset Failed',
+            'Failed to reset system configuration policies.'
+          );
         },
       });
     }
@@ -118,10 +139,17 @@ export class AdminSettingsComponent implements OnInit {
       next: (saved) => {
         this.savedSettings.set({ ...saved });
         this.saving.set(false);
-        alert('System configuration policies successfully saved and distributed across cluster nodes.');
+        this.notificationService.success(
+          'Settings Saved',
+          'System configuration policies successfully saved and distributed across cluster nodes.'
+        );
       },
       error: () => {
         this.saving.set(false);
+        this.notificationService.error(
+          'Save Failed',
+          'Failed to save system settings.'
+        );
       },
     });
   }

@@ -5,6 +5,7 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatButtonModule } from '@angular/material/button';
 import { MatMenuModule } from '@angular/material/menu';
 import { AuthService } from '@nag-frontend-workspace/shared-data-access-auth';
+import { GlobalNotificationComponent } from '@nag-frontend-workspace/shared-ui-components';
 
 @Component({
   selector: 'app-root',
@@ -17,6 +18,7 @@ import { AuthService } from '@nag-frontend-workspace/shared-data-access-auth';
     MatIconModule,
     MatButtonModule,
     MatMenuModule,
+    GlobalNotificationComponent,
   ],
   templateUrl: './app.html',
   styleUrl: './app.scss',

@@ -1,6 +1,7 @@
 import {
   ChangeDetectionStrategy,
   Component,
+  inject,
   input,
   output,
   signal,
@@ -10,6 +11,7 @@ import { FormsModule } from '@angular/forms';
 import { MatIconModule } from '@angular/material/icon';
 import { MatButtonModule } from '@angular/material/button';
 import { MatSlideToggleModule } from '@angular/material/slide-toggle';
+import { NotificationService } from '@nag-frontend-workspace/shared-ui-components';
 import { SystemSettingsState } from '../../models/settings.model';
 
 @Component({
@@ -27,6 +29,8 @@ import { SystemSettingsState } from '../../models/settings.model';
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class SettingsMaintenanceTabComponent {
+  private readonly notificationService = inject(NotificationService);
+
   readonly settings = input.required<SystemSettingsState>();
   readonly settingsChange = output<SystemSettingsState>();
 
@@ -43,7 +47,10 @@ export class SettingsMaintenanceTabComponent {
     this.testingWebhook.set(true);
     setTimeout(() => {
       this.testingWebhook.set(false);
-      alert('Test security alert successfully dispatched to ' + this.settings().alertCriticalErrorWebhook);
+      this.notificationService.success(
+        'Webhook Dispatched',
+        `Test security alert successfully dispatched to ${this.settings().alertCriticalErrorWebhook}`
+      );
     }, 600);
   }
 }

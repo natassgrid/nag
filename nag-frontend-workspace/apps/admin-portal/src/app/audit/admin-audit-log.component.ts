@@ -7,7 +7,10 @@ import {
   signal,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { PageHeaderComponent } from '@nag-frontend-workspace/shared-ui-components';
+import {
+  NotificationService,
+  PageHeaderComponent,
+} from '@nag-frontend-workspace/shared-ui-components';
 import {
   AuditKpiRibbonComponent,
   AuditFilterBarComponent,
@@ -34,6 +37,7 @@ import { AdminAuditService } from './services/admin-audit.service';
 })
 export class AdminAuditLogComponent implements OnInit {
   private readonly auditService = inject(AdminAuditService);
+  private readonly notificationService = inject(NotificationService);
 
   searchQuery = signal<string>('');
   selectedService = signal<string>('ALL');
@@ -63,7 +67,7 @@ export class AdminAuditLogComponent implements OnInit {
   });
 
   readonly filteredRecords = computed(() => {
-    const q = this.searchQuery().toLowerCase().trim();
+    const q = (this.searchQuery() || '').toLowerCase().trim();
     const serviceFilter = this.selectedService();
     const severityFilter = this.selectedSeverity();
     const statusFilter = this.selectedStatus();
@@ -71,10 +75,10 @@ export class AdminAuditLogComponent implements OnInit {
     return this.records().filter((item) => {
       const matchQuery =
         !q ||
-        item.actor.toLowerCase().includes(q) ||
-        item.action.toLowerCase().includes(q) ||
-        item.target.toLowerCase().includes(q) ||
-        item.hash.toLowerCase().includes(q) ||
+        (item.actor && item.actor.toLowerCase().includes(q)) ||
+        (item.action && item.action.toLowerCase().includes(q)) ||
+        (item.target && item.target.toLowerCase().includes(q)) ||
+        (item.hash && item.hash.toLowerCase().includes(q)) ||
         (item.ipAddress && item.ipAddress.toLowerCase().includes(q));
 
       const matchService =
@@ -101,6 +105,7 @@ export class AdminAuditLogComponent implements OnInit {
       },
       error: () => {
         this.loading.set(false);
+        this.notificationService.error('Failed to load audit trail events');
       },
     });
   }
@@ -119,7 +124,8 @@ export class AdminAuditLogComponent implements OnInit {
     this.verifyingLedger.set(true);
     setTimeout(() => {
       this.verifyingLedger.set(false);
-      alert(
+      this.notificationService.success(
+        'Merkle Tree Integrity Verified',
         'All 1,849,202 Merkle root proofs verified with 0 cryptographic anomalies. Ledger is 100% intact.'
       );
     }, 700);
@@ -135,5 +141,6 @@ export class AdminAuditLogComponent implements OnInit {
     document.body.appendChild(downloadAnchor);
     downloadAnchor.click();
     downloadAnchor.remove();
+    this.notificationService.info('Export Started', 'Audit log JSON export downloaded.');
   }
 }
