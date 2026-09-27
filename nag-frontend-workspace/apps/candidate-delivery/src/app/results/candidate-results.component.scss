@@ -1,10 +1,31 @@
-.candidate-results-page {
-  .scorecard-certificate {
-    background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+:host {
+  display: block;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@media print {
+  nag-page-header,
+  nag-results-exam-selector,
+  .print\\:hidden {
+    display: none !important;
   }
 
-  table {
-    border-collapse: separate;
-    border-spacing: 0;
+  .candidate-results-page {
+    padding: 0 !important;
+    max-width: 100% !important;
   }
 }

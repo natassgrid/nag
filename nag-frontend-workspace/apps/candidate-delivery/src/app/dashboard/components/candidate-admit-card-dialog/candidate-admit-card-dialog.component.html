@@ -1,55 +1,128 @@
-<div class="admit-card-backdrop fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4">
-  <div class="bg-white rounded-3xl max-w-xl w-full p-8 shadow-2xl border border-slate-100 space-y-6">
-    <div class="flex items-center justify-between border-b pb-4">
+<div class="admit-card-backdrop fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4 overflow-y-auto" role="dialog" aria-modal="true">
+  <div class="bg-white rounded-3xl max-w-2xl w-full p-6 sm:p-8 shadow-2xl border border-slate-200 space-y-6 animate-fade-in my-auto print:border-none print:shadow-none print:p-0">
+    <!-- Header -->
+    <div class="flex items-center justify-between border-b border-slate-200 pb-4 print:pb-2">
       <div class="flex items-center gap-3">
-        <div class="w-10 h-10 rounded-xl bg-indigo-600 text-white flex items-center justify-center font-black">
+        <div class="w-12 h-12 rounded-2xl bg-indigo-900 text-white flex items-center justify-center font-black text-base shadow-sm print:border print:border-slate-800">
           NAG
         </div>
         <div>
-          <h3 class="text-base font-bold text-slate-900">National Assessment Admit Card</h3>
-          <span class="text-xs text-slate-500">Official Candidate Hall Ticket &amp; Proof</span>
+          <div class="flex items-center gap-2">
+            <span class="text-[10px] font-bold uppercase tracking-wider text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded border border-indigo-100">
+              Official e-Admit Card
+            </span>
+            <span class="text-xs font-mono font-bold text-slate-500">
+              {{ card().examCode }}
+            </span>
+          </div>
+          <h3 class="text-base sm:text-lg font-black text-slate-900 mt-0.5">
+            {{ card().examTitle }}
+          </h3>
+          <p class="text-xs text-slate-500 font-medium">
+            {{ card().conductingAuthority }} &bull; Government of India
+          </p>
         </div>
       </div>
-      <button mat-icon-button (click)="closeDialog.emit()">
+
+      <button
+        type="button"
+        (click)="closeDialog.emit()"
+        class="p-2 text-slate-400 hover:text-slate-700 rounded-xl hover:bg-slate-100 transition-colors cursor-pointer print:hidden"
+        aria-label="Close dialog"
+      >
         <mat-icon>close</mat-icon>
       </button>
     </div>
 
-    <div class="flex flex-col sm:flex-row items-center justify-between gap-6 p-4 bg-slate-50 rounded-2xl border border-slate-200">
-      <div class="space-y-2 text-xs">
-        <div>
-          <span class="text-slate-400 text-[10px] uppercase font-bold block">Candidate Name</span>
-          <span class="text-sm font-bold text-slate-900">{{ candidateName() }}</span>
+    <!-- Main Hall Ticket Body -->
+    <div class="space-y-4">
+      <!-- Candidate & QR Row -->
+      <div class="flex flex-col sm:flex-row items-center justify-between gap-6 p-5 bg-slate-50 rounded-2xl border border-slate-200 print:bg-white print:border-slate-300">
+        <div class="grid grid-cols-2 gap-3 text-xs w-full text-slate-700">
+          <div>
+            <span class="text-slate-400 text-[10px] uppercase font-bold block">Candidate Name</span>
+            <span class="text-sm font-bold text-slate-900">{{ card().candidateName }}</span>
+          </div>
+          <div>
+            <span class="text-slate-400 text-[10px] uppercase font-bold block">Roll Number</span>
+            <span class="font-mono text-sm font-black text-indigo-700">{{ card().rollNumber }}</span>
+          </div>
+          <div>
+            <span class="text-slate-400 text-[10px] uppercase font-bold block">Application Number</span>
+            <span class="font-mono font-bold text-slate-800">{{ card().applicationId }}</span>
+          </div>
+          <div>
+            <span class="text-slate-400 text-[10px] uppercase font-bold block">Category</span>
+            <span class="font-bold text-slate-800">{{ card().candidateCategory }}</span>
+          </div>
+          <div class="col-span-2 pt-1 border-t border-slate-200/80">
+            <span class="text-slate-400 text-[10px] uppercase font-bold block">Date of Examination</span>
+            <span class="font-bold text-slate-900">{{ card().scheduledDate }} ({{ card().examTime }})</span>
+          </div>
         </div>
-        <div>
-          <span class="text-slate-400 text-[10px] uppercase font-bold block">Roll / Registration No.</span>
-          <span class="font-mono font-bold text-slate-800">{{ card().rollNumber }}</span>
-        </div>
-        <div>
-          <span class="text-slate-400 text-[10px] uppercase font-bold block">Test Center</span>
-          <span class="text-slate-700 font-medium">{{ card().centerName }}, {{ card().centerAddress }}</span>
-        </div>
-        <div>
-          <span class="text-slate-400 text-[10px] uppercase font-bold block">Reporting Time</span>
-          <span class="font-bold text-rose-700">{{ card().scheduledTime }} (Gate closes 30 mins prior)</span>
+
+        <!-- Verification QR Block -->
+        <div class="shrink-0 flex flex-col items-center justify-center p-3 bg-white rounded-xl border border-slate-200 shadow-2xs">
+          <nag-qr-code
+            [data]="card().qrVerificationToken"
+            [size]="110"
+            [label]="card().rollNumber"
+          />
+          <span class="text-[9px] font-bold text-slate-400 mt-1 uppercase tracking-wider">
+            Biometric QR Token
+          </span>
         </div>
       </div>
 
-      <!-- QR Code component for admit card -->
-      <nag-qr-code
-        [data]="'NAG|ROLL:' + card().rollNumber + '|EXAM:' + card().code"
-        [size]="130"
-        [label]="card().rollNumber"
-      />
+      <!-- Test Center & Gate Timings -->
+      <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <div class="p-3.5 bg-rose-50/70 rounded-xl border border-rose-200 text-xs space-y-1">
+          <span class="text-[10px] font-bold uppercase text-rose-800 tracking-wider block">Reporting Time</span>
+          <span class="font-black text-rose-900 text-sm block">{{ card().reportingTime }}</span>
+          <span class="text-[10px] text-rose-700 font-medium block">Gate Closes: {{ card().gateClosingTime }}</span>
+        </div>
+
+        <div class="sm:col-span-2 p-3.5 bg-slate-50 rounded-xl border border-slate-200 text-xs space-y-1">
+          <span class="text-[10px] font-bold uppercase text-slate-500 tracking-wider block">Allocated Center & Code</span>
+          <span class="font-bold text-slate-900 block">{{ card().centerName }} ({{ card().centerCode }})</span>
+          <span class="text-[11px] text-slate-600 block">{{ card().centerAddress }}</span>
+        </div>
+      </div>
+
+      <!-- Instructions List -->
+      <div class="p-4 bg-slate-50 rounded-2xl border border-slate-200 space-y-2 text-xs">
+        <span class="font-bold text-slate-900 uppercase tracking-wider text-[11px] flex items-center gap-1.5">
+          <mat-icon class="!text-sm text-indigo-600">info</mat-icon>
+          Key Instructions for Candidate
+        </span>
+        <ul class="list-disc list-inside space-y-1 text-slate-600 leading-relaxed font-medium">
+          @for (instr of card().instructions; track instr) {
+            <li>{{ instr }}</li>
+          }
+        </ul>
+      </div>
     </div>
 
-    <div class="flex items-center justify-end gap-3 pt-2">
-      <button mat-stroked-button (click)="closeDialog.emit()" class="!rounded-xl">
+    <!-- Actions -->
+    <div class="flex items-center justify-end gap-3 pt-2 border-t border-slate-100 print:hidden">
+      <button
+        type="button"
+        mat-stroked-button
+        (click)="closeDialog.emit()"
+        class="!rounded-xl !text-xs font-semibold"
+      >
         Close
       </button>
-      <button mat-flat-button color="primary" (click)="printCard.emit()" class="!rounded-xl">
-        <mat-icon>print</mat-icon>
-        Print / Download PDF
+
+      <button
+        type="button"
+        mat-flat-button
+        color="primary"
+        (click)="printCard.emit()"
+        class="!rounded-xl !text-xs font-bold !px-6"
+      >
+        <mat-icon class="!text-sm">print</mat-icon>
+        Print / Download Admit Card
       </button>
     </div>
   </div>

@@ -1,0 +1,66 @@
+<div class="bg-white rounded-3xl border border-slate-200 p-6 sm:p-8 shadow-xs space-y-4">
+  <div class="flex items-center justify-between">
+    <h3 class="text-sm font-bold uppercase tracking-wider text-slate-900 flex items-center gap-2">
+      <mat-icon class="!text-base text-indigo-600">table_chart</mat-icon>
+      Sectional Score Breakdown & Module Accuracy
+    </h3>
+  </div>
+
+  <div class="overflow-x-auto border border-slate-200 rounded-2xl">
+    <table class="w-full text-xs text-left">
+      <thead class="bg-slate-50 text-slate-600 uppercase font-bold border-b border-slate-200">
+        <tr>
+          <th class="p-4">Subject / Module</th>
+          <th class="p-4 text-center">Attempted / Total</th>
+          <th class="p-4 text-center">Marks Obtained</th>
+          <th class="p-4 text-center">Max Marks</th>
+          <th class="p-4 text-center">Accuracy Rate</th>
+          <th class="p-4 text-right">Sectional Status</th>
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-slate-100">
+        @for (sub of subjectScores(); track sub.subject) {
+          <tr class="hover:bg-slate-50/70 transition-colors">
+            <td class="p-4 font-bold text-slate-900">{{ sub.subject }}</td>
+            <td class="p-4 text-center font-mono text-slate-600">
+              {{ sub.questionsAttempted }} / {{ sub.questionsTotal }}
+            </td>
+            <td class="p-4 text-center font-black text-indigo-700 text-sm">
+              {{ sub.marksObtained }}
+            </td>
+            <td class="p-4 text-center text-slate-500 font-medium">
+              {{ sub.maxMarks }}
+            </td>
+            <td class="p-4 text-center">
+              <div class="flex items-center justify-center gap-2">
+                <div class="w-16 bg-slate-200 rounded-full h-2 overflow-hidden">
+                  <div
+                    class="h-2 rounded-full transition-all duration-300"
+                    [ngClass]="sub.accuracyRate >= 80 ? 'bg-emerald-500' : (sub.accuracyRate >= 60 ? 'bg-amber-500' : 'bg-rose-500')"
+                    [style.width.%]="sub.accuracyRate"
+                  ></div>
+                </div>
+                <span class="font-mono font-bold text-slate-800">{{ sub.accuracyRate }}%</span>
+              </div>
+            </td>
+            <td class="p-4 text-right">
+              @if (sub.cutoffMarks && sub.marksObtained >= sub.cutoffMarks) {
+                <span class="px-2.5 py-1 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                  Cleared Cutoff (&ge;{{ sub.cutoffMarks }} M)
+                </span>
+              } @else if (sub.cutoffMarks) {
+                <span class="px-2.5 py-1 rounded-full text-[10px] font-bold bg-rose-50 text-rose-700 border border-rose-200">
+                  Below Cutoff
+                </span>
+              } @else {
+                <span class="px-2.5 py-1 rounded-full text-[10px] font-bold bg-slate-100 text-slate-700">
+                  Completed
+                </span>
+              }
+            </td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  </div>
+</div>
