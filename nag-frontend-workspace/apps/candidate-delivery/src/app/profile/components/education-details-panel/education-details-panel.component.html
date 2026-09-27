@@ -1,51 +1,374 @@
-<div class="space-y-4">
-  <div class="flex items-center justify-between">
-    <h3 class="text-sm font-bold text-slate-900 uppercase tracking-wider flex items-center gap-2">
-      <mat-icon class="text-indigo-600 !text-lg">school</mat-icon>
-      Academic Qualifications
-    </h3>
-    <button mat-stroked-button color="primary" class="!rounded-xl !text-xs cursor-pointer" (click)="onAdd()">
-      <mat-icon class="!text-sm">add</mat-icon>
-      Add Degree
+<div class="space-y-5">
+  <!-- Section Header -->
+  <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-100">
+    <div>
+      <h3 class="text-sm font-bold text-slate-900 uppercase tracking-wider flex items-center gap-2">
+        <mat-icon class="text-indigo-600 !text-lg">school</mat-icon>
+        Academic Qualifications & History
+      </h3>
+      <p class="text-xs text-slate-500 mt-0.5">
+        Add all secondary, higher secondary, graduation degrees, and professional certifications.
+      </p>
+    </div>
+    <button
+      type="button"
+      mat-flat-button
+      color="primary"
+      class="!rounded-xl !text-xs cursor-pointer flex items-center gap-1.5 shadow-xs"
+      (click)="openAddModal()"
+    >
+      <mat-icon class="!text-sm">add_circle</mat-icon>
+      Add Qualification
     </button>
   </div>
 
-  <div class="space-y-3">
+  <!-- Qualifications List -->
+  <div class="space-y-3.5">
     @for (edu of education(); track edu.id; let idx = $index) {
-      <div class="p-4 rounded-xl border border-slate-200 bg-slate-50/50 flex items-start justify-between gap-4 transition-colors hover:bg-slate-50">
-        <div class="grid grid-cols-1 sm:grid-cols-4 gap-3 grow">
-          <div>
-            <span class="block text-[10px] uppercase font-bold text-slate-400">Qualification</span>
-            <span class="text-sm font-bold text-slate-900">{{ edu.qualification }}</span>
+      <div class="p-4 rounded-xl border border-slate-200 bg-white hover:border-indigo-200 hover:shadow-xs transition-all flex flex-col sm:flex-row items-start justify-between gap-4">
+        <div class="flex items-start gap-3.5 grow">
+          <div class="w-10 h-10 rounded-xl bg-indigo-50 text-indigo-700 flex items-center justify-center shrink-0 mt-0.5">
+            <mat-icon class="!text-xl">history_edu</mat-icon>
           </div>
-          <div>
-            <span class="block text-[10px] uppercase font-bold text-slate-400">Board / University</span>
-            <span class="text-sm text-slate-700">{{ edu.boardOrUniversity }}</span>
-          </div>
-          <div>
-            <span class="block text-[10px] uppercase font-bold text-slate-400">Passing Year</span>
-            <span class="text-sm font-mono text-slate-700">{{ edu.passingYear }}</span>
-          </div>
-          <div>
-            <span class="block text-[10px] uppercase font-bold text-slate-400">Score / CGPA</span>
-            <span class="text-sm font-bold text-indigo-700">{{ edu.percentageOrCgpa }}</span>
+
+          <div class="space-y-1.5 grow">
+            <div class="flex flex-wrap items-center gap-2">
+              <span class="text-sm font-bold text-slate-900">{{ edu.qualification }}</span>
+              @if (edu.courseName) {
+                <span class="text-xs font-semibold text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded-md">
+                  {{ edu.courseName }}
+                </span>
+              }
+              @if (edu.specialization) {
+                <span class="text-xs font-medium text-slate-600 bg-slate-100 px-2 py-0.5 rounded-md">
+                  {{ edu.specialization }}
+                </span>
+              }
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-x-4 gap-y-1 text-xs text-slate-600">
+              <div>
+                <span class="text-slate-400 font-medium">Board/University:</span>
+                <span class="font-semibold text-slate-800 ml-1">{{ edu.boardOrUniversity }}</span>
+              </div>
+              @if (edu.institutionName) {
+                <div>
+                  <span class="text-slate-400 font-medium">Institution:</span>
+                  <span class="text-slate-700 ml-1">{{ edu.institutionName }}</span>
+                </div>
+              }
+              <div>
+                <span class="text-slate-400 font-medium">Passing Year:</span>
+                <span class="font-mono font-semibold text-slate-800 ml-1">{{ edu.passingYear }}</span>
+              </div>
+              <div>
+                <span class="text-slate-400 font-medium">Marks / Grade:</span>
+                <span class="font-bold text-emerald-700 ml-1">{{ edu.percentageOrCgpa }}</span>
+              </div>
+              @if (edu.rollNumber) {
+                <div>
+                  <span class="text-slate-400 font-medium">Roll / Reg No:</span>
+                  <span class="font-mono text-slate-700 ml-1">{{ edu.rollNumber }}</span>
+                </div>
+              }
+              @if (edu.certificateFileName || edu.certificateAssetId) {
+                <div class="flex items-center gap-1 text-indigo-600 font-medium">
+                  <mat-icon class="!text-xs">attachment</mat-icon>
+                  <span class="truncate max-w-[150px]">{{ edu.certificateFileName || 'Attached Document' }}</span>
+                </div>
+              }
+            </div>
           </div>
         </div>
-        <button
-          type="button"
-          (click)="onRemove(idx)"
-          class="text-rose-600 hover:text-rose-800 p-1.5 rounded-lg hover:bg-rose-50 cursor-pointer transition-colors"
-          title="Remove Degree"
-        >
-          <mat-icon class="!text-base">delete</mat-icon>
-        </button>
+
+        <!-- Action Buttons -->
+        <div class="flex items-center gap-1.5 shrink-0 self-end sm:self-start">
+          <button
+            type="button"
+            (click)="openEditModal(edu)"
+            class="text-slate-500 hover:text-indigo-600 p-1.5 rounded-lg hover:bg-slate-100 cursor-pointer transition-colors"
+            title="Edit Qualification"
+          >
+            <mat-icon class="!text-base">edit</mat-icon>
+          </button>
+          <button
+            type="button"
+            (click)="promptDelete(edu)"
+            class="text-slate-400 hover:text-rose-600 p-1.5 rounded-lg hover:bg-rose-50 cursor-pointer transition-colors"
+            title="Delete Qualification"
+          >
+            <mat-icon class="!text-base">delete</mat-icon>
+          </button>
+        </div>
       </div>
     } @empty {
-      <div class="p-8 text-center text-slate-500 bg-slate-50 rounded-xl border border-dashed border-slate-200">
-        <mat-icon class="text-slate-400 !text-3xl mb-1">school</mat-icon>
-        <p class="text-xs font-semibold">No academic qualifications listed yet.</p>
-        <p class="text-[11px] text-slate-400">Click &ldquo;Add Degree&rdquo; to insert your academic history.</p>
+      <div class="p-10 text-center text-slate-500 bg-slate-50 rounded-2xl border border-dashed border-slate-200">
+        <div class="w-14 h-14 mx-auto rounded-full bg-indigo-50 text-indigo-600 flex items-center justify-center mb-3 shadow-xs">
+          <mat-icon class="!text-2xl">school</mat-icon>
+        </div>
+        <p class="text-sm font-bold text-slate-800">No Academic Qualifications Added</p>
+        <p class="text-xs text-slate-500 mt-1 max-w-sm mx-auto">
+          Please add your educational milestones (10th, 12th, Bachelor's, Master's) to qualify for upcoming assessments.
+        </p>
+        <button
+          type="button"
+          mat-stroked-button
+          color="primary"
+          class="!rounded-xl !text-xs mt-4 cursor-pointer"
+          (click)="openAddModal()"
+        >
+          <mat-icon class="!text-sm">add</mat-icon>
+          Add First Qualification
+        </button>
       </div>
     }
   </div>
+
+  <!-- Add / Edit Modal -->
+  @if (isModalOpen()) {
+    <div class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4 animate-fadeIn">
+      <div class="bg-white rounded-2xl shadow-xl w-full max-w-lg border border-slate-200 overflow-hidden flex flex-col max-h-[90vh]">
+        <!-- Modal Header -->
+        <div class="px-6 py-4 bg-slate-900 text-white flex items-center justify-between">
+          <div class="flex items-center gap-2.5">
+            <mat-icon class="text-indigo-400">{{ isEditing() ? 'edit' : 'school' }}</mat-icon>
+            <h4 class="font-bold text-sm">
+              {{ isEditing() ? 'Edit Academic Qualification' : 'Add Academic Qualification' }}
+            </h4>
+          </div>
+          <button (click)="closeModal()" class="text-slate-400 hover:text-white cursor-pointer p-1">
+            <mat-icon class="!text-lg">close</mat-icon>
+          </button>
+        </div>
+
+        <!-- Modal Form Body -->
+        <div class="p-6 overflow-y-auto space-y-4">
+          @if (formError()) {
+            <div class="p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-xs font-medium flex items-center gap-2">
+              <mat-icon class="!text-base text-rose-600">error</mat-icon>
+              <span>{{ formError() }}</span>
+            </div>
+          }
+
+          <!-- Qualification Level -->
+          <div>
+            <label class="block text-xs font-bold text-slate-700 mb-1">
+              Qualification Level <span class="text-rose-500">*</span>
+            </label>
+            <select
+              [(ngModel)]="form().qualification"
+              class="w-full px-3 py-2 text-xs rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white"
+            >
+              @for (opt of qualificationOptions; track opt) {
+                <option [value]="opt">{{ opt }}</option>
+              }
+            </select>
+          </div>
+
+          <!-- Course / Degree Name -->
+          <div>
+            <label class="block text-xs font-bold text-slate-700 mb-1">
+              Degree / Course Title
+            </label>
+            <input
+              type="text"
+              [(ngModel)]="form().courseName"
+              placeholder="e.g. B.Tech in Computer Science, CBSE Class 12 Science"
+              class="w-full px-3 py-2 text-xs rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            />
+          </div>
+
+          <!-- Board / University & Institution -->
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label class="block text-xs font-bold text-slate-700 mb-1">
+                Board / University <span class="text-rose-500">*</span>
+              </label>
+              <input
+                type="text"
+                [(ngModel)]="form().boardOrUniversity"
+                placeholder="e.g. CBSE, Delhi University, Anna Univ"
+                class="w-full px-3 py-2 text-xs rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              />
+            </div>
+            <div>
+              <label class="block text-xs font-bold text-slate-700 mb-1">
+                School / College Name
+              </label>
+              <input
+                type="text"
+                [(ngModel)]="form().institutionName"
+                placeholder="e.g. DPS R.K. Puram, IIT Delhi"
+                class="w-full px-3 py-2 text-xs rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              />
+            </div>
+          </div>
+
+          <!-- Passing Year & Specialization -->
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label class="block text-xs font-bold text-slate-700 mb-1">
+                Passing Year <span class="text-rose-500">*</span>
+              </label>
+              <input
+                type="number"
+                [(ngModel)]="form().passingYear"
+                min="1950"
+                [max]="currentYear + 5"
+                class="w-full px-3 py-2 text-xs rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              />
+            </div>
+            <div>
+              <label class="block text-xs font-bold text-slate-700 mb-1">
+                Specialization / Major
+              </label>
+              <input
+                type="text"
+                [(ngModel)]="form().specialization"
+                placeholder="e.g. Science, PCM, Artificial Intelligence"
+                class="w-full px-3 py-2 text-xs rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              />
+            </div>
+          </div>
+
+          <!-- Grading Format & Score -->
+          <div class="p-3.5 rounded-xl bg-slate-50 border border-slate-200 space-y-2.5">
+            <div class="flex items-center justify-between">
+              <label class="text-xs font-bold text-slate-800">
+                Grading System <span class="text-rose-500">*</span>
+              </label>
+              <div class="flex items-center bg-slate-200 p-0.5 rounded-lg text-[11px] font-semibold">
+                <button
+                  type="button"
+                  (click)="onScoreTypeChange('PERCENTAGE')"
+                  [class.bg-white]="form().scoreType === 'PERCENTAGE'"
+                  [class.text-indigo-700]="form().scoreType === 'PERCENTAGE'"
+                  [class.shadow-xs]="form().scoreType === 'PERCENTAGE'"
+                  class="px-2.5 py-1 rounded-md transition-all cursor-pointer"
+                >
+                  Percentage (%)
+                </button>
+                <button
+                  type="button"
+                  (click)="onScoreTypeChange('CGPA')"
+                  [class.bg-white]="form().scoreType === 'CGPA'"
+                  [class.text-indigo-700]="form().scoreType === 'CGPA'"
+                  [class.shadow-xs]="form().scoreType === 'CGPA'"
+                  class="px-2.5 py-1 rounded-md transition-all cursor-pointer"
+                >
+                  CGPA (10-Point)
+                </button>
+              </div>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label class="block text-[11px] font-semibold text-slate-600 mb-1">
+                  {{ form().scoreType === 'PERCENTAGE' ? 'Percentage Score (e.g. 85.5)' : 'CGPA Score (e.g. 8.75)' }}
+                </label>
+                <input
+                  type="number"
+                  step="0.01"
+                  [(ngModel)]="form().scoreValue"
+                  [placeholder]="form().scoreType === 'PERCENTAGE' ? '85.5' : '8.75'"
+                  class="w-full px-3 py-2 text-xs rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white"
+                />
+              </div>
+              <div>
+                <label class="block text-[11px] font-semibold text-slate-600 mb-1">
+                  Roll / Registration No (Optional)
+                </label>
+                <input
+                  type="text"
+                  [(ngModel)]="form().rollNumber"
+                  placeholder="e.g. 210489201"
+                  class="w-full px-3 py-2 text-xs rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white"
+                />
+              </div>
+            </div>
+          </div>
+
+          <!-- Document / Certificate Attachment -->
+          <div>
+            <label class="block text-xs font-bold text-slate-700 mb-1">
+              Upload Marksheet / Degree Certificate (PDF / JPG / PNG)
+            </label>
+            <div class="flex items-center gap-3">
+              <label class="flex items-center gap-1.5 px-3 py-2 bg-slate-100 hover:bg-slate-200 border border-slate-300 text-slate-700 rounded-xl text-xs font-semibold cursor-pointer transition-colors">
+                <mat-icon class="!text-sm">upload_file</mat-icon>
+                <span>Choose File</span>
+                <input type="file" (change)="onCertificateSelected($event)" accept=".pdf,.png,.jpg,.jpeg" class="hidden" />
+              </label>
+              @if (form().certificateFileName) {
+                <span class="text-xs font-semibold text-indigo-700 flex items-center gap-1">
+                  <mat-icon class="!text-xs">check_circle</mat-icon>
+                  {{ form().certificateFileName }}
+                </span>
+              } @else {
+                <span class="text-xs text-slate-400">No certificate chosen yet</span>
+              }
+            </div>
+          </div>
+        </div>
+
+        <!-- Modal Footer -->
+        <div class="px-6 py-3.5 bg-slate-50 border-t border-slate-200 flex items-center justify-end gap-2.5">
+          <button
+            type="button"
+            mat-stroked-button
+            (click)="closeModal()"
+            class="!rounded-xl !text-xs cursor-pointer"
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            mat-flat-button
+            color="primary"
+            (click)="submitForm()"
+            [disabled]="saving()"
+            class="!rounded-xl !text-xs cursor-pointer"
+          >
+            {{ saving() ? 'Saving...' : (isEditing() ? 'Update Qualification' : 'Save Qualification') }}
+          </button>
+        </div>
+      </div>
+    </div>
+  }
+
+  <!-- Delete Confirmation Modal -->
+  @if (isDeleteConfirmOpen()) {
+    <div class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4 animate-fadeIn">
+      <div class="bg-white rounded-2xl shadow-xl w-full max-w-sm border border-slate-200 p-6 space-y-4">
+        <div class="w-12 h-12 rounded-full bg-rose-50 text-rose-600 flex items-center justify-center mx-auto">
+          <mat-icon class="!text-2xl">delete_outline</mat-icon>
+        </div>
+        <div class="text-center space-y-1">
+          <h4 class="font-bold text-slate-900 text-sm">Delete Academic Record</h4>
+          <p class="text-xs text-slate-500">
+            Are you sure you want to remove <strong class="text-slate-800">{{ entryToDelete()?.qualification }}</strong>? This action cannot be undone.
+          </p>
+        </div>
+        <div class="flex items-center justify-end gap-2.5 pt-2">
+          <button
+            type="button"
+            mat-stroked-button
+            (click)="cancelDelete()"
+            class="!rounded-xl !text-xs grow cursor-pointer"
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            mat-flat-button
+            color="warn"
+            (click)="confirmDelete()"
+            class="!rounded-xl !text-xs !bg-rose-600 !text-white grow cursor-pointer"
+          >
+            Delete
+          </button>
+        </div>
+      </div>
+    </div>
+  }
 </div>

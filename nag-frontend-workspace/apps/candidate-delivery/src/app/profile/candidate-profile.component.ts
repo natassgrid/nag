@@ -14,6 +14,7 @@ import { PageHeaderComponent } from '@nag-frontend-workspace/shared-ui-component
 import { AuthService } from '@nag-frontend-workspace/shared-data-access-auth';
 import {
   CandidateProfile,
+  EducationEntry,
   ProfileTab,
   ProfileTabOption,
 } from './models';
@@ -135,7 +136,6 @@ export class CandidateProfileComponent implements OnInit {
       error: () => {
         this.loading.set(false);
         this.existsOnServer.set(false);
-        // Retain user identity if profile is missing on server
         this.profile.update((curr) => ({
           ...curr,
           candidateId: userId,
@@ -160,27 +160,33 @@ export class CandidateProfileComponent implements OnInit {
       },
     });
 
-    // Also load educational qualifications if available
+    // Load educational qualifications
+    this.loadEducationList(userId);
+  }
+
+  private loadEducationList(userId: string): void {
     this.http.get<any[]>(`/api/v1/candidates/${userId}/education`).subscribe({
       next: (eduList) => {
-        if (eduList && Array.isArray(eduList) && eduList.length > 0) {
+        if (eduList && Array.isArray(eduList)) {
           this.profile.update((curr) => ({
             ...curr,
             education: eduList.map((e) => ({
               id: e.id || String(Date.now()),
               qualification: e.qualification || '',
+              courseName: e.courseName || undefined,
               boardOrUniversity: e.boardOrUniversity || '',
+              institutionName: e.institutionName || undefined,
               passingYear: e.passingYear || 2024,
-              percentageOrCgpa: e.percentageOrCgpa || '',
-              certificateAssetId: e.certificateAssetId,
+              percentageOrCgpa: e.percentageOrCgpa ? String(e.percentageOrCgpa) : '',
+              specialization: e.specialization || undefined,
+              rollNumber: e.rollNumber || undefined,
+              certificateAssetId: e.certificateAssetId || undefined,
             })),
           }));
-        } else {
-          this.profile.update((curr) => ({ ...curr, education: [] }));
         }
       },
       error: () => {
-        this.profile.update((curr) => ({ ...curr, education: [] }));
+        // Educational records loading failure handled silently
       },
     });
   }
@@ -189,49 +195,106 @@ export class CandidateProfileComponent implements OnInit {
     this.activeTab.set(tabId);
   }
 
-  addEducation(): void {
+  handleSaveEducation(event: { isNew: boolean; data: EducationEntry }): void {
     const user = this.authService.currentUser();
-    const newEdu = {
-      id: String(Date.now()),
-      qualification: '',
-      boardOrUniversity: '',
-      passingYear: new Date().getFullYear(),
-      percentageOrCgpa: '',
+    const userId = user?.userId && user.userId !== 'user-unknown' ? user.userId : this.profile().candidateId;
+
+    if (!userId || userId === 'user-unknown' || userId === 'NAG-CAN-NEW') {
+      // Optimistically store in local state if user profile is local
+      if (event.isNew) {
+        this.profile.update((p) => ({ ...p, education: [...p.education, event.data] }));
+      } else {
+        this.profile.update((p) => ({
+          ...p,
+          education: p.education.map((e) => (e.id === event.data.id ? event.data : e)),
+        }));
+      }
+      this.successMessage.set('Academic qualification saved.');
+      return;
+    }
+
+    // Convert string score (e.g. "85.50%" or "8.50 CGPA") to BigDecimal numeric format
+    const rawScore = event.data.percentageOrCgpa.replace(/[^0-9.]/g, '');
+    const numScore = rawScore ? parseFloat(rawScore) : null;
+
+    const payload: any = {
+      qualification: event.data.qualification,
+      courseName: event.data.courseName || null,
+      boardOrUniversity: event.data.boardOrUniversity,
+      institutionName: event.data.institutionName || null,
+      passingYear: event.data.passingYear,
+      percentageOrCgpa: numScore,
+      gradeOrDivision: event.data.gradeOrDivision || null,
+      specialization: event.data.specialization || null,
+      rollNumber: event.data.rollNumber || null,
+      certificateAssetId: event.data.certificateAssetId && event.data.certificateAssetId.startsWith('asset-') ? null : event.data.certificateAssetId,
     };
 
-    this.profile.update((p) => ({
-      ...p,
-      education: [...p.education, newEdu],
-    }));
-
-    if (user?.userId && user.userId !== 'user-unknown' && this.existsOnServer()) {
-      this.http
-        .post(`/api/v1/candidates/${user.userId}/education`, {
-          qualification: newEdu.qualification,
-          boardOrUniversity: newEdu.boardOrUniversity,
-          passingYear: newEdu.passingYear,
-          percentageOrCgpa: newEdu.percentageOrCgpa,
-        })
-        .subscribe({
-          error: () => {},
-        });
+    if (event.isNew) {
+      this.http.post<any>(`/api/v1/candidates/${userId}/education`, payload).subscribe({
+        next: (saved) => {
+          const newEntry: EducationEntry = {
+            id: saved.id || event.data.id,
+            qualification: saved.qualification || event.data.qualification,
+            courseName: saved.courseName || event.data.courseName,
+            boardOrUniversity: saved.boardOrUniversity || event.data.boardOrUniversity,
+            institutionName: saved.institutionName || event.data.institutionName,
+            passingYear: saved.passingYear || event.data.passingYear,
+            percentageOrCgpa: event.data.percentageOrCgpa,
+            specialization: saved.specialization || event.data.specialization,
+            rollNumber: saved.rollNumber || event.data.rollNumber,
+            certificateAssetId: saved.certificateAssetId || event.data.certificateAssetId,
+            certificateFileName: event.data.certificateFileName,
+          };
+          this.profile.update((p) => ({ ...p, education: [...p.education, newEntry] }));
+          this.successMessage.set('Academic qualification added successfully!');
+          this.errorMessage.set(null);
+        },
+        error: (err) => {
+          const detail = err.error?.message || err.error?.error || 'Failed to add qualification record.';
+          this.errorMessage.set(detail);
+        },
+      });
+    } else {
+      this.http.put<any>(`/api/v1/candidates/${userId}/education/${event.data.id}`, payload).subscribe({
+        next: () => {
+          this.profile.update((p) => ({
+            ...p,
+            education: p.education.map((e) => (e.id === event.data.id ? event.data : e)),
+          }));
+          this.successMessage.set('Academic qualification updated successfully!');
+          this.errorMessage.set(null);
+        },
+        error: (err) => {
+          const detail = err.error?.message || err.error?.error || 'Failed to update qualification record.';
+          this.errorMessage.set(detail);
+        },
+      });
     }
   }
 
-  removeEducation(index: number): void {
-    const edu = this.profile().education[index];
+  handleDeleteEducation(educationId: string): void {
+    const user = this.authService.currentUser();
+    const userId = user?.userId && user.userId !== 'user-unknown' ? user.userId : this.profile().candidateId;
+
     this.profile.update((p) => ({
       ...p,
-      education: p.education.filter((_, idx) => idx !== index),
+      education: p.education.filter((e) => e.id !== educationId),
     }));
 
-    const user = this.authService.currentUser();
-    if (user?.userId && edu?.id && user.userId !== 'user-unknown' && this.existsOnServer()) {
-      this.http
-        .delete(`/api/v1/candidates/${user.userId}/education/${edu.id}`)
-        .subscribe({
-          error: () => {},
-        });
+    if (userId && userId !== 'user-unknown' && userId !== 'NAG-CAN-NEW' && !educationId.startsWith('edu-')) {
+      this.http.delete(`/api/v1/candidates/${userId}/education/${educationId}`).subscribe({
+        next: () => {
+          this.successMessage.set('Academic record removed.');
+          this.errorMessage.set(null);
+        },
+        error: (err) => {
+          const detail = err.error?.message || 'Failed to delete record from server.';
+          this.errorMessage.set(detail);
+        },
+      });
+    } else {
+      this.successMessage.set('Academic record removed.');
     }
   }
 
@@ -258,88 +321,63 @@ export class CandidateProfileComponent implements OnInit {
 
     const userId = user?.userId && user.userId !== 'user-unknown' ? user.userId : p.candidateId;
     if (userId && userId !== 'user-unknown' && userId !== 'NAG-CAN-NEW') {
-      const updatePayload = {
-        fullName: p.fullName.trim(),
-        dateOfBirth: p.dateOfBirth || '2000-01-01',
-        gender: p.gender || 'MALE',
+      const payload = {
+        fullName: p.fullName,
+        dateOfBirth: p.dateOfBirth || null,
+        gender: p.gender,
         nationality: p.nationality || 'Indian',
         category: p.category || 'GENERAL',
-        mobile: p.mobile.trim(),
-        email: p.email || (user?.username?.includes('@') ? user.username : ''),
-        address: p.address || '',
-        reservationCategory: p.reservationCategory || '',
-        identityDocNumber: p.identityDocNumber || '',
+        reservationCategory: p.reservationCategory || null,
+        address: p.address || null,
+        mobile: p.mobile,
+        email: p.email,
+        identityDocType: p.identityDocType || 'AADHAAR',
+        identityDocNumber: p.identityDocNumber || null,
+        preferredRegionalLanguage: p.preferredRegionalLanguage || 'en',
       };
 
-      if (this.existsOnServer()) {
-        this.http.put(`/api/v1/candidates/${userId}`, updatePayload).subscribe({
-          next: () => {
-            this.saving.set(false);
-            this.successMessage.set('Candidate profile updated successfully.');
-            this.errorMessage.set(null);
-          },
-          error: (err) => {
-            if (err.status === 404) {
-              this.createProfile(userId, p);
-            } else {
-              this.saving.set(false);
-              this.handleApiError(err, 'Failed to update candidate profile.');
+      this.http.put(`/api/v1/candidates/${userId}`, payload).subscribe({
+        next: () => {
+          this.saving.set(false);
+          this.existsOnServer.set(true);
+          this.successMessage.set('Candidate profile successfully saved and updated!');
+        },
+        error: (err) => {
+          this.saving.set(false);
+          if (err.status === 404 || !this.existsOnServer()) {
+            this.http.post('/api/v1/candidates', { ...payload, userId }).subscribe({
+              next: () => {
+                this.existsOnServer.set(true);
+                this.successMessage.set('Candidate profile created successfully!');
+              },
+              error: (createErr) => {
+                const createMsg = createErr.error?.message || createErr.error?.error || 'Failed to create candidate profile.';
+                this.errorMessage.set(createMsg);
+              },
+            });
+          } else {
+            let detail = 'Failed to update candidate profile.';
+            if (err.error) {
+              if (err.error.fieldErrors && typeof err.error.fieldErrors === 'object') {
+                const errors = Object.entries(err.error.fieldErrors)
+                  .map(([field, msg]) => `${field}: ${msg}`)
+                  .join(', ');
+                detail = `Validation Failed: ${errors}`;
+              } else if (err.error.message) {
+                detail = err.error.message;
+              } else if (typeof err.error === 'string') {
+                detail = err.error;
+              }
             }
-          },
-        });
-      } else {
-        this.createProfile(userId, p);
-      }
+            this.errorMessage.set(detail);
+          }
+        },
+      });
     } else {
       setTimeout(() => {
         this.saving.set(false);
-        this.successMessage.set('Candidate profile updated locally (offline mode).');
-      }, 500);
+        this.successMessage.set('Profile saved locally.');
+      }, 400);
     }
-  }
-
-  private createProfile(userId: string, p: CandidateProfile): void {
-    const createPayload = {
-      userId: userId,
-      fullName: p.fullName?.trim() || 'Candidate',
-      dateOfBirth: p.dateOfBirth || '2000-01-01',
-      gender: p.gender || 'MALE',
-      nationality: p.nationality || 'Indian',
-      category: p.category || 'GENERAL',
-      mobile: p.mobile?.trim() || '',
-      email: p.email || '',
-      address: p.address || '',
-      reservationCategory: p.reservationCategory || '',
-      identityDocNumber: p.identityDocNumber || 'DOC' + Date.now(),
-    };
-
-    this.http.post(`/api/v1/candidates`, createPayload).subscribe({
-      next: () => {
-        this.saving.set(false);
-        this.existsOnServer.set(true);
-        this.successMessage.set('Candidate profile created successfully.');
-        this.errorMessage.set(null);
-      },
-      error: (err) => {
-        this.saving.set(false);
-        this.handleApiError(err, 'Failed to save candidate profile on server.');
-      },
-    });
-  }
-
-  private handleApiError(err: any, fallbackMessage: string): void {
-    const fieldErrors = err?.error?.fieldErrors;
-    const detail = err?.error?.detail || err?.error?.message || err?.error?.error;
-    if (fieldErrors && typeof fieldErrors === 'object' && Object.keys(fieldErrors).length > 0) {
-      const messages = Object.entries(fieldErrors)
-        .map(([field, msg]) => `${field}: ${msg}`)
-        .join(', ');
-      this.errorMessage.set(`Validation Failed: ${messages}`);
-    } else if (detail && typeof detail === 'string') {
-      this.errorMessage.set(detail);
-    } else {
-      this.errorMessage.set(fallbackMessage);
-    }
-    this.successMessage.set(null);
   }
 }

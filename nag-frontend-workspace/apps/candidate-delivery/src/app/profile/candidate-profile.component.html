@@ -67,8 +67,9 @@
       @case ('education') {
         <nag-education-details-panel
           [education]="profile().education"
-          (add)="addEducation()"
-          (remove)="removeEducation($event)"
+          [saving]="saving()"
+          (saveEducation)="handleSaveEducation($event)"
+          (deleteEducation)="handleDeleteEducation($event)"
         />
       }
       @case ('documents') {
