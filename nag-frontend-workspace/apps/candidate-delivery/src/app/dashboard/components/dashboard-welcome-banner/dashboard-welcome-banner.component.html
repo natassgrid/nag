@@ -1,25 +1,47 @@
-<div class="bg-gradient-to-r from-indigo-900 via-indigo-800 to-slate-900 text-white rounded-2xl p-8 shadow-lg flex flex-col md:flex-row items-center justify-between gap-6">
-  <div class="space-y-2">
-    <div class="inline-flex items-center gap-2 px-2.5 py-1 rounded-full bg-indigo-500/30 text-indigo-200 text-xs font-semibold">
-      <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-      Session Active &bull; National Assessment Grid
+<div class="bg-gradient-to-r from-indigo-900 via-indigo-800 to-slate-900 text-white rounded-3xl p-6 sm:p-8 shadow-xl flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6 relative overflow-hidden">
+  <!-- Subtle decorative ambient background glow -->
+  <div class="absolute -right-20 -bottom-20 w-80 h-80 bg-indigo-500/20 rounded-full blur-3xl pointer-events-none"></div>
+
+  <div class="space-y-3 z-10 max-w-2xl">
+    <div class="flex flex-wrap items-center gap-2.5">
+      <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 backdrop-blur-xs text-indigo-100 text-xs font-bold border border-white/10">
+        <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+        <span>National Assessment Grid &bull; Candidate Portal</span>
+      </div>
+
+      @if (kycVerified()) {
+        <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-emerald-500/20 text-emerald-300 text-[11px] font-bold border border-emerald-400/30">
+          <mat-icon class="!text-xs leading-none">verified</mat-icon>
+          <span>DigiLocker KYC Verified</span>
+        </span>
+      }
     </div>
-    <h1 class="text-2xl md:text-3xl font-black tracking-tight">
-      Welcome, {{ userName() }}
+
+    <h1 class="text-2xl sm:text-3xl lg:text-4xl font-black tracking-tight text-white">
+      Welcome back, {{ userName() }}
     </h1>
-    <p class="text-indigo-200 text-xs md:text-sm max-w-xl">
-      Access your registered national assessments, download hall tickets, and launch secure candidate runtimes.
+    <p class="text-indigo-200 text-xs sm:text-sm font-medium leading-relaxed">
+      Monitor your registered national assessments, access cryptographically signed admit cards, and launch secure candidate test environments.
     </p>
   </div>
 
-  <div class="flex items-center gap-3">
+  <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 z-10 w-full lg:w-auto shrink-0">
+    <a
+      mat-flat-button
+      routerLink="/profile"
+      class="!bg-white/15 hover:!bg-white/25 !text-white font-bold !rounded-xl !py-2.5 !px-4 !text-xs text-center border border-white/10"
+    >
+      <mat-icon class="!text-sm">person</mat-icon>
+      Candidate Profile
+    </a>
+
     <a
       mat-flat-button
       routerLink="/browse"
-      class="!bg-emerald-500 hover:!bg-emerald-600 !text-slate-950 font-bold !rounded-xl !py-2.5 !px-5"
+      class="!bg-emerald-500 hover:!bg-emerald-400 !text-slate-950 font-black !rounded-xl !py-2.5 !px-5 !text-xs text-center shadow-lg shadow-emerald-950/20 transition-all hover:scale-102"
     >
-      <mat-icon>search</mat-icon>
-      Browse Available Exams
+      <mat-icon class="!text-sm">search</mat-icon>
+      Browse Exams Catalog &rarr;
     </a>
   </div>
 </div>

@@ -1,14 +1,18 @@
 import {
   Component,
+  OnInit,
   inject,
   signal,
   computed,
   ChangeDetectionStrategy,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { RouterModule } from '@angular/router';
+import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { AuthService } from '@nag-frontend-workspace/shared-data-access-auth';
-import { EnrolledExam } from './models';
+import { EnrolledExam, DigitalAdmitCard } from './models';
+import { CandidateDashboardService } from './services';
 import {
   DashboardWelcomeBannerComponent,
   DashboardKpiStatsComponent,
@@ -17,12 +21,16 @@ import {
 } from './components';
 
 export * from './models';
+export * from './services';
+export * from './components';
 
 @Component({
   selector: 'app-candidate-dashboard',
   standalone: true,
   imports: [
     CommonModule,
+    RouterModule,
+    MatButtonModule,
     MatIconModule,
     DashboardWelcomeBannerComponent,
     DashboardKpiStatsComponent,
@@ -33,46 +41,37 @@ export * from './models';
   styleUrl: './candidate-dashboard.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class CandidateDashboardComponent {
+export class CandidateDashboardComponent implements OnInit {
   readonly authService = inject(AuthService);
+  readonly dashboardService = inject(CandidateDashboardService);
 
-  readonly enrolledExams = signal<EnrolledExam[]>([
-    {
-      id: 'exam-1',
-      code: 'NES-2026-S1',
-      title: 'National Eligibility Screening (Computer Science & AI)',
-      scheduledDate: '2026-09-28',
-      scheduledTime: '09:00 AM - 12:00 PM',
-      durationMinutes: 180,
-      centerName: 'Zone 4 - Center 102 (IIT Delhi Sector 6)',
-      centerAddress: 'Hauz Khas, New Delhi - 110016',
-      rollNumber: '849202',
-      status: 'LIVE',
-      admitCardReady: true,
-    },
-    {
-      id: 'exam-2',
-      code: 'GATE-DPI-2026',
-      title: 'Graduate Assessment for Open DPI Engineering',
-      scheduledDate: '2026-10-15',
-      scheduledTime: '02:00 PM - 05:00 PM',
-      durationMinutes: 180,
-      centerName: 'Zone 1 - Center 044 (Bangalore Tech Hub)',
-      centerAddress: 'Electronic City, Bangalore - 560100',
-      rollNumber: '310948',
-      status: 'UPCOMING',
-      admitCardReady: false,
-    },
-  ]);
+  readonly activeFilter = signal<'ALL' | 'LIVE' | 'UPCOMING' | 'COMPLETED'>('ALL');
+  readonly selectedAdmitCard = signal<DigitalAdmitCard | null>(null);
 
-  readonly liveCount = computed(
-    () => this.enrolledExams().filter((e) => e.status === 'LIVE').length
-  );
+  readonly candidateName = computed(() => {
+    return this.authService.currentUser()?.username || 'Aryan Sharma';
+  });
 
-  readonly selectedAdmitCard = signal<EnrolledExam | null>(null);
+  readonly filteredExams = computed(() => {
+    const filter = this.activeFilter();
+    const list = this.dashboardService.enrolledExams();
+    if (filter === 'ALL') return list;
+    if (filter === 'UPCOMING') return list.filter((e) => e.status === 'UPCOMING' || e.status === 'SCHEDULED');
+    return list.filter((e) => e.status === filter);
+  });
+
+  ngOnInit(): void {
+    this.dashboardService.loadEnrolledExams().subscribe();
+  }
+
+  setFilter(filter: 'ALL' | 'LIVE' | 'UPCOMING' | 'COMPLETED'): void {
+    this.activeFilter.set(filter);
+  }
 
   openAdmitCard(exam: EnrolledExam): void {
-    this.selectedAdmitCard.set(exam);
+    this.dashboardService
+      .getAdmitCard(exam, this.candidateName())
+      .subscribe((card) => this.selectedAdmitCard.set(card));
   }
 
   closeAdmitCard(): void {
@@ -81,5 +80,9 @@ export class CandidateDashboardComponent {
 
   printAdmitCard(): void {
     window.print();
+  }
+
+  retryLoad(): void {
+    this.dashboardService.loadEnrolledExams().subscribe();
   }
 }

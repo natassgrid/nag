@@ -14,4 +14,6 @@ import { MatIconModule } from '@angular/material/icon';
 })
 export class DashboardWelcomeBannerComponent {
   readonly userName = input<string>('Candidate');
+  readonly kycVerified = input<boolean>(true);
+  readonly profileCompleteness = input<number>(95);
 }

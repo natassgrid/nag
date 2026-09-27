@@ -13,5 +13,6 @@ import { StatCardComponent } from '@nag-frontend-workspace/shared-ui-components'
 export class DashboardKpiStatsComponent {
   readonly totalRegistered = input<number>(0);
   readonly liveCount = input<number>(0);
-  readonly scorecardsCount = input<number>(1);
+  readonly upcomingCount = input<number>(0);
+  readonly scorecardsCount = input<number>(0);
 }
