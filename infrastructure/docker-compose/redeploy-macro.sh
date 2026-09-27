@@ -22,6 +22,10 @@
 # =============================================================================
 set -e
 
+export BUILDX_NO_DEFAULT_ATTESTATIONS=1
+export BUILDX_NO_DEFAULT_LOAD=1
+export DOCKER_BUILDKIT=1
+
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 cd "$SCRIPT_DIR"
@@ -158,7 +162,7 @@ ensure_builder_base() {
     if ! docker image inspect exam/builder-base:latest >/dev/null 2>&1; then
         echo "🔧 Building builder base image (one-time)..."
         cd "$PROJECT_ROOT"
-        docker build -f backend/Dockerfile.base -t exam/builder-base:latest .
+        docker build --provenance=false --sbom=false -f backend/Dockerfile.base -t exam/builder-base:latest .
         cd "$SCRIPT_DIR"
         echo "✅ Builder base image ready."
     fi
@@ -232,12 +236,12 @@ if [ "$HEALTH_CHECK" = true ]; then
 
         if echo "$health_response" | grep -q -E '"status":"UP"|healthy'; then
             components=$(echo "$health_response" | grep -o '"[a-zA-Z]*":{"status":"[^"]*"' | \
-                sed 's/"\([^"]*\)":{"status":"\([^"]*\)"/\1:\2/g' | tr '\n' ' ')
+                sed 's/"\([^\"]*\)":{"status":"\([^\"]*\)"/\1:\2/g' | tr '\n' ' ')
             printf "  %-25s %-12s %-8s %s\n" "$svc" "✅ UP" "$port" "$components"
             HEALTHY=$((HEALTHY + 1))
         elif echo "$health_response" | grep -q -E '"status":"DOWN"|unhealthy'; then
             components=$(echo "$health_response" | grep -o '"[a-zA-Z]*":{"status":"DOWN"' | \
-                sed 's/"\([^"]*\)":{"status":"DOWN"/\1:DOWN/g' | tr '\n' ' ')
+                sed 's/"\([^\"]*\)":{"status":"DOWN"/\1:DOWN/g' | tr '\n' ' ')
             printf "  %-25s %-12s %-8s %s\n" "$svc" "❌ DOWN" "$port" "$components"
             UNHEALTHY=$((UNHEALTHY + 1))
         else
@@ -266,7 +270,7 @@ if [ -n "$SERVICE" ]; then
     fi
 
     echo "📦 Rebuilding service: $SERVICE"
-    $COMPOSE build $NO_CACHE "$SERVICE"
+    $COMPOSE build --provenance=false --sbom=false $NO_CACHE "$SERVICE"
     echo ""
     echo "🚀 Restarting service: $SERVICE"
     $COMPOSE up -d --force-recreate "$SERVICE"
@@ -296,7 +300,7 @@ if [ "$SMART" = true ]; then
     for svc in "${CHANGED[@]}"; do
         built=$((built + 1))
         echo "📦 [$built/$total] Building $svc... ($(( total - built )) remaining)"
-        $COMPOSE build $NO_CACHE "$svc"
+        $COMPOSE build --provenance=false --sbom=false $NO_CACHE "$svc"
         mark_built "$svc"
     done
 
@@ -364,7 +368,7 @@ BUILT=0
 for svc in "${ALL_SERVICES[@]}"; do
     BUILT=$((BUILT + 1))
     echo "  [$BUILT/$TOTAL] Building $svc... ($((TOTAL - BUILT)) remaining)"
-    $COMPOSE build $NO_CACHE "$svc"
+    $COMPOSE build --provenance=false --sbom=false $NO_CACHE "$svc"
     mark_built "$svc"
 done
 
