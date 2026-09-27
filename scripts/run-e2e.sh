@@ -14,6 +14,20 @@ COMPOSE_E2E="-f $ROOT_DIR/infrastructure/docker-compose/docker-compose.e2e.yml"
 
 command=${1:---all}
 
+# ---------------------------------------------------------------------------
+# fix_java_home: unset JAVA_HOME when it points to a path that does not exist
+# in the current shell (common in WSL when an IDE like IntelliJ exports a
+# Windows-style /mnt/<drive>/... path into the environment).
+# Gradle will then locate Java via its own toolchain resolution or PATH.
+# ---------------------------------------------------------------------------
+fix_java_home() {
+  if [[ -n "${JAVA_HOME:-}" ]] && [[ ! -d "$JAVA_HOME" ]]; then
+    echo "[E2E] WARN: JAVA_HOME='$JAVA_HOME' does not exist in this shell — clearing it."
+    echo "[E2E]       Gradle will locate Java via toolchain / PATH instead."
+    unset JAVA_HOME
+  fi
+}
+
 start_stack() {
   echo "[E2E] Starting Docker Compose E2E stack..."
   # Do NOT use --wait: it blocks until every container is healthy, which
@@ -38,12 +52,19 @@ start_stack() {
 
 seed_data() {
   echo "[E2E] Seeding E2E data..."
-  docker exec exam-postgres psql -U exam_admin -d exam_platform \
-    -f /docker-entrypoint-initdb.d/e2e-seed-data.sql || true
+  # Pipe the SQL file from the host via stdin — avoids the need to mount it
+  # inside the container or use docker cp.
+  docker exec -i exam-postgres psql \
+    -U exam_admin \
+    -d exam_platform \
+    < "$ROOT_DIR/infrastructure/docker-compose/e2e-seed-data.sql" \
+    && echo "[E2E] E2E seed data applied." \
+    || echo "[E2E] WARN: Seed may have partially applied (idempotent ON CONFLICT — safe to ignore)."
 }
 
 run_backend_e2e() {
   echo "[E2E] Running backend E2E tests..."
+  fix_java_home
   cd "$ROOT_DIR"
   ./gradlew :e2e-tests:test -PrunE2E --info
   echo "[E2E] Backend report: e2e-tests/build/reports/tests/test/index.html"
