@@ -43,6 +43,8 @@ function createEmptyProfile(userId = '', username = ''): CandidateProfile {
     identityDocNumber: '',
     mobile: '',
     email: isEmail ? username : '',
+    emailVerified: false,
+    mobileVerified: false,
     address: '',
     state: '',
     pinCode: '',
@@ -83,6 +85,8 @@ export class CandidateProfileComponent implements OnInit {
   readonly loading = signal<boolean>(false);
   readonly saving = signal<boolean>(false);
   readonly existsOnServer = signal<boolean>(false);
+  readonly errorMessage = signal<string | null>(null);
+  readonly successMessage = signal<string | null>(null);
 
   readonly tabs: ProfileTabOption[] = [
     { id: 'personal', label: 'Personal Details', icon: 'person' },
@@ -97,7 +101,6 @@ export class CandidateProfileComponent implements OnInit {
   ngOnInit(): void {
     const user = this.authService.currentUser();
     if (user?.userId && user.userId !== 'user-unknown') {
-      // Clear forms and initialize with authenticated user identity details
       this.profile.set(createEmptyProfile(user.userId, user.username));
       this.loadProfileFromApi(user.userId);
     }
@@ -123,7 +126,7 @@ export class CandidateProfileComponent implements OnInit {
             reservationCategory: data.reservationCategory || curr.reservationCategory,
             address: data.address || curr.address,
             mobile: data.mobile || curr.mobile,
-            email: data.email || curr.email,
+            email: data.email || (user?.username?.includes('@') ? user.username : curr.email),
             kycStatus: data.digiLockerVerified === 'VERIFIED' ? 'VERIFIED' : curr.kycStatus,
             digiLockerStatus: data.digiLockerVerified || curr.digiLockerStatus,
           }));
@@ -132,8 +135,28 @@ export class CandidateProfileComponent implements OnInit {
       error: () => {
         this.loading.set(false);
         this.existsOnServer.set(false);
-        // On 404 or missing profile, clear all profile form fields completely
-        this.profile.set(createEmptyProfile(userId, user?.username || ''));
+        // Retain user identity if profile is missing on server
+        this.profile.update((curr) => ({
+          ...curr,
+          candidateId: userId,
+          email: user?.username?.includes('@') ? user.username : curr.email,
+        }));
+      },
+    });
+
+    // Also fetch verification status
+    this.authService.getVerificationStatus(userId).subscribe({
+      next: (status) => {
+        if (status) {
+          this.profile.update((curr) => ({
+            ...curr,
+            emailVerified: status.emailVerified,
+            mobileVerified: status.mobileVerified,
+          }));
+        }
+      },
+      error: () => {
+        // Verification status endpoint failure is non-blocking
       },
     });
 
@@ -214,41 +237,63 @@ export class CandidateProfileComponent implements OnInit {
 
   saveProfile(): void {
     this.saving.set(true);
+    this.errorMessage.set(null);
+    this.successMessage.set(null);
     const user = this.authService.currentUser();
     const p = this.profile();
 
-    if (user?.userId && user.userId !== 'user-unknown') {
-      if (this.existsOnServer()) {
-        const updatePayload = {
-          fullName: p.fullName,
-          dateOfBirth: p.dateOfBirth,
-          gender: p.gender,
-          nationality: p.nationality,
-          category: p.category,
-          mobile: p.mobile,
-          email: p.email,
-          address: p.address,
-          reservationCategory: p.reservationCategory,
-          identityDocNumber: p.identityDocNumber,
-        };
+    if (!p.fullName || !p.fullName.trim()) {
+      this.saving.set(false);
+      this.errorMessage.set('Full Name is required.');
+      this.activeTab.set('personal');
+      return;
+    }
 
-        this.http.put(`/api/v1/candidates/${user.userId}`, updatePayload).subscribe({
+    if (!p.mobile || !p.mobile.trim()) {
+      this.saving.set(false);
+      this.errorMessage.set('Mobile number is required.');
+      this.activeTab.set('contact');
+      return;
+    }
+
+    const userId = user?.userId && user.userId !== 'user-unknown' ? user.userId : p.candidateId;
+    if (userId && userId !== 'user-unknown' && userId !== 'NAG-CAN-NEW') {
+      const updatePayload = {
+        fullName: p.fullName.trim(),
+        dateOfBirth: p.dateOfBirth || '2000-01-01',
+        gender: p.gender || 'MALE',
+        nationality: p.nationality || 'Indian',
+        category: p.category || 'GENERAL',
+        mobile: p.mobile.trim(),
+        email: p.email || (user?.username?.includes('@') ? user.username : ''),
+        address: p.address || '',
+        reservationCategory: p.reservationCategory || '',
+        identityDocNumber: p.identityDocNumber || '',
+      };
+
+      if (this.existsOnServer()) {
+        this.http.put(`/api/v1/candidates/${userId}`, updatePayload).subscribe({
           next: () => {
             this.saving.set(false);
-            alert('Candidate profile updated successfully.');
+            this.successMessage.set('Candidate profile updated successfully.');
+            this.errorMessage.set(null);
           },
-          error: () => {
-            // If PUT fails because profile doesn't exist, attempt POST create
-            this.createProfile(user.userId, p);
+          error: (err) => {
+            if (err.status === 404) {
+              this.createProfile(userId, p);
+            } else {
+              this.saving.set(false);
+              this.handleApiError(err, 'Failed to update candidate profile.');
+            }
           },
         });
       } else {
-        this.createProfile(user.userId, p);
+        this.createProfile(userId, p);
       }
     } else {
       setTimeout(() => {
         this.saving.set(false);
-        alert('Candidate profile updated locally (offline mode).');
+        this.successMessage.set('Candidate profile updated locally (offline mode).');
       }, 500);
     }
   }
@@ -256,28 +301,45 @@ export class CandidateProfileComponent implements OnInit {
   private createProfile(userId: string, p: CandidateProfile): void {
     const createPayload = {
       userId: userId,
-      fullName: p.fullName || 'Candidate',
+      fullName: p.fullName?.trim() || 'Candidate',
       dateOfBirth: p.dateOfBirth || '2000-01-01',
       gender: p.gender || 'MALE',
       nationality: p.nationality || 'Indian',
       category: p.category || 'GENERAL',
-      mobile: p.mobile || '0000000000',
-      email: p.email || 'candidate@example.com',
+      mobile: p.mobile?.trim() || '',
+      email: p.email || '',
       address: p.address || '',
       reservationCategory: p.reservationCategory || '',
-      identityDocNumber: p.identityDocNumber || 'NOT_PROVIDED',
+      identityDocNumber: p.identityDocNumber || 'DOC' + Date.now(),
     };
 
-    this.http.post('/api/v1/candidates', createPayload).subscribe({
+    this.http.post(`/api/v1/candidates`, createPayload).subscribe({
       next: () => {
         this.saving.set(false);
         this.existsOnServer.set(true);
-        alert('Candidate profile created successfully.');
+        this.successMessage.set('Candidate profile created successfully.');
+        this.errorMessage.set(null);
       },
-      error: () => {
+      error: (err) => {
         this.saving.set(false);
-        alert('Profile saved locally (offline / mock fallback).');
+        this.handleApiError(err, 'Failed to save candidate profile on server.');
       },
     });
+  }
+
+  private handleApiError(err: any, fallbackMessage: string): void {
+    const fieldErrors = err?.error?.fieldErrors;
+    const detail = err?.error?.detail || err?.error?.message || err?.error?.error;
+    if (fieldErrors && typeof fieldErrors === 'object' && Object.keys(fieldErrors).length > 0) {
+      const messages = Object.entries(fieldErrors)
+        .map(([field, msg]) => `${field}: ${msg}`)
+        .join(', ');
+      this.errorMessage.set(`Validation Failed: ${messages}`);
+    } else if (detail && typeof detail === 'string') {
+      this.errorMessage.set(detail);
+    } else {
+      this.errorMessage.set(fallbackMessage);
+    }
+    this.successMessage.set(null);
   }
 }

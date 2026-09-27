@@ -37,6 +37,8 @@ export interface CandidateProfile {
   identityDocNumber: string;
   mobile: string;
   email: string;
+  emailVerified?: boolean;
+  mobileVerified?: boolean;
   address: string;
   state: string;
   pinCode: string;

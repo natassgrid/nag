@@ -35,6 +35,7 @@ import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 
@@ -101,8 +102,9 @@ public class RegistrationService {
         otpService.sendEmailOtp(saved.getId(), emailHash, emailClean, request.getIdentityDocNumber(), tenantId);
         otpService.sendSmsOtp(saved.getId(), mobileHash, mobileClean, tenantId);
 
-        // 5. Publish audit event asynchronously
-        publishAuditEventAsync(saved.getId().toString(), tenantId);
+        // 5. Publish audit event asynchronously with registration details for candidate profile provisioning
+        String docTypeName = request.getIdentityDocType() != null ? request.getIdentityDocType().name() : null;
+        publishRegistrationAuditEvent(saved.getId().toString(), tenantId, request.getFullName(), emailClean, mobileClean, docTypeName, request.getIdentityDocNumber());
 
         long elapsed = System.currentTimeMillis() - start;
         if (elapsed > 1500) {
@@ -181,11 +183,24 @@ public class RegistrationService {
     }
 
     @Async
-    public void publishAuditEventAsync(String userId, String tenantId) {
+    public void publishRegistrationAuditEvent(String userId, String tenantId, String fullName, String email, String mobile, String docType, String docNumber) {
+        Map<String, Object> extra = new HashMap<>();
+        extra.put("tenantId", tenantId);
+        if (fullName != null) extra.put("fullName", fullName);
+        if (email != null) extra.put("email", email);
+        if (mobile != null) extra.put("mobile", mobile);
+        if (docType != null) extra.put("identityDocType", docType);
+        if (docNumber != null) extra.put("identityDocNumber", docNumber);
+
         auditEventPublisher.publish(
             AuditEventType.CANDIDATE_PROFILE_CREATED,
             userId, "identity:registration", null, null,
-            Map.of("tenantId", tenantId)
+            extra
         );
+    }
+
+    @Async
+    public void publishAuditEventAsync(String userId, String tenantId) {
+        publishRegistrationAuditEvent(userId, tenantId, null, null, null, null, null);
     }
 }
