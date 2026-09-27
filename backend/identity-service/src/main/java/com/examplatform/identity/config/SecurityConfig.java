@@ -14,7 +14,8 @@
  * GNU Affero General Public License for more details.
  *
  * You should have received a copy of the GNU Affero General Public License
- * along with this program. If not, see <https://www.gnu.org/licenses/>.\n */
+ * along with this program. If not, see <https://www.gnu.org/licenses/>.
+ */
 
 package com.examplatform.identity.config;
 
@@ -58,13 +59,12 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.POST, "/api/v1/identity/auth/verify/**").permitAll()
                 .requestMatchers(HttpMethod.POST, "/api/v1/identity/resend/**").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/v1/identity/verification-status").permitAll()
-                .requestMatchers(HttpMethod.GET, "/api/v1/identity/admin/invite/validate").permitAll()
-                .requestMatchers(HttpMethod.POST, "/api/v1/identity/admin/invite/accept").permitAll()
-                .requestMatchers(HttpMethod.POST, "/api/v1/identity/auth/2fa/setup").permitAll()
-                .requestMatchers(HttpMethod.POST, "/api/v1/identity/auth/2fa/verify-setup").permitAll()
-                .requestMatchers(HttpMethod.POST, "/api/v1/identity/auth/token").permitAll()
-                .requestMatchers(HttpMethod.POST, "/api/v1/identity/auth/token/refresh").permitAll()
-                .requestMatchers(HttpMethod.POST, "/api/v1/identity/auth/refresh").permitAll()
+                .requestMatchers(HttpMethod.GET, "/api/v1/identity/admin/invite/validate", "/api/v1/identity/invitations/validate").permitAll()
+                .requestMatchers(HttpMethod.POST, "/api/v1/identity/admin/invite/accept", "/api/v1/identity/invitations/accept").permitAll()
+                .requestMatchers(HttpMethod.POST, "/api/v1/identity/auth/2fa/**", "/api/v1/identity/auth/mfa/**").permitAll()
+                .requestMatchers(HttpMethod.GET, "/api/v1/identity/auth/2fa/**", "/api/v1/identity/auth/mfa/**").permitAll()
+                .requestMatchers(HttpMethod.POST, "/api/v1/identity/auth/token", "/api/v1/identity/auth/login").permitAll()
+                .requestMatchers(HttpMethod.POST, "/api/v1/identity/auth/token/refresh", "/api/v1/identity/auth/refresh").permitAll()
                 .requestMatchers(HttpMethod.POST, "/api/v1/identity/auth/webauthn").permitAll()
                 .requestMatchers("/actuator/health", "/actuator/health/**", "/actuator/info", "/actuator/prometheus").permitAll()
                 .anyRequest().authenticated()

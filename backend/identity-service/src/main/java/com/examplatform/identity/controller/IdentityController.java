@@ -237,9 +237,9 @@ public class IdentityController {
     }
 
     /**
-     * Authenticate with username/password and optional MFA OTP.
+     * Authenticate with username/password and optional MFA OTP / TOTP code.
      */
-    @PostMapping("/auth/token")
+    @PostMapping({"/auth/token", "/auth/login"})
     public ResponseEntity<ApiResponse<AuthTokenResponse>> token(
             @Valid @RequestBody AuthTokenRequest request,
             @RequestHeader(value = "X-Tenant-Id", defaultValue = "default") String tenantId,
