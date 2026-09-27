@@ -85,6 +85,26 @@ public class CandidateProfile extends BaseEntity {
     private String address;
 
     @Convert(converter = EncryptedFieldConverter.class)
+    @Column(name = "country")
+    private String country;
+
+    @Convert(converter = EncryptedFieldConverter.class)
+    @Column(name = "state")
+    private String state;
+
+    @Convert(converter = EncryptedFieldConverter.class)
+    @Column(name = "district")
+    private String district;
+
+    @Convert(converter = EncryptedFieldConverter.class)
+    @Column(name = "city")
+    private String city;
+
+    @Convert(converter = EncryptedFieldConverter.class)
+    @Column(name = "pin_code")
+    private String pinCode;
+
+    @Convert(converter = EncryptedFieldConverter.class)
     @Column(name = "reservation_category")
     private String reservationCategory;
 

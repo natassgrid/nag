@@ -112,6 +112,11 @@ public class CandidateProfileService {
         profile.setMobile(request.getMobile());
         profile.setEmail(request.getEmail());
         profile.setAddress(request.getAddress());
+        profile.setCountry(request.getCountry());
+        profile.setState(request.getState());
+        profile.setDistrict(request.getDistrict());
+        profile.setCity(request.getCity());
+        profile.setPinCode(request.getPinCode());
         profile.setReservationCategory(request.getReservationCategory());
         profile.setIdentityDocNumber(request.getIdentityDocNumber());
         profile.setMobileHash(mobileHash);
@@ -234,6 +239,21 @@ public class CandidateProfileService {
         if (request.getAddress() != null) {
             profile.setAddress(request.getAddress().trim());
         }
+        if (request.getCountry() != null) {
+            profile.setCountry(request.getCountry().trim());
+        }
+        if (request.getState() != null) {
+            profile.setState(request.getState().trim());
+        }
+        if (request.getDistrict() != null) {
+            profile.setDistrict(request.getDistrict().trim());
+        }
+        if (request.getCity() != null) {
+            profile.setCity(request.getCity().trim());
+        }
+        if (request.getPinCode() != null) {
+            profile.setPinCode(request.getPinCode().trim());
+        }
         if (request.getReservationCategory() != null) {
             profile.setReservationCategory(request.getReservationCategory().trim());
         }
@@ -285,6 +305,11 @@ public class CandidateProfileService {
         profile.setMobile(null);
         profile.setEmail(null);
         profile.setAddress(null);
+        profile.setCountry(null);
+        profile.setState(null);
+        profile.setDistrict(null);
+        profile.setCity(null);
+        profile.setPinCode(null);
         profile.setReservationCategory(null);
         profile.setIdentityDocNumber(null);
 
@@ -354,6 +379,11 @@ public class CandidateProfileService {
                 .mobile(profile.getMobile())
                 .email(profile.getEmail())
                 .address(profile.getAddress())
+                .country(profile.getCountry())
+                .state(profile.getState())
+                .district(profile.getDistrict())
+                .city(profile.getCity())
+                .pinCode(profile.getPinCode())
                 .reservationCategory(profile.getReservationCategory())
                 .digiLockerVerified(profile.getDigiLockerVerified())
                 .faceVerificationStatus(profile.getFaceVerificationStatus())
