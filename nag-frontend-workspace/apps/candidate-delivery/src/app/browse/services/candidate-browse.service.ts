@@ -273,13 +273,16 @@ export class CandidateBrowseService {
    * Load public examination catalog from backend API with fallback to default catalogue.
    * Also merges applied status for the authenticated candidate.
    */
-  loadPublicCatalog(search?: string): Observable<CatalogExam[]> {
+  loadPublicCatalog(search?: string, category?: string): Observable<CatalogExam[]> {
     this.loading.set(true);
     this.error.set(null);
 
     let params = new HttpParams().set('page', '0').set('size', '50');
     if (search && search.trim()) {
       params = params.set('search', search.trim());
+    }
+    if (category && category.trim() && category !== 'ALL') {
+      params = params.set('category', category.trim());
     }
 
     const publicExams$ = this.http
@@ -339,13 +342,14 @@ export class CandidateBrowseService {
             status: item.status || 'OPEN',
             applied: appliedExamIds.has(String(item.id)),
           }));
+
           return mapped;
         }
 
-        // Return curated default dataset with live applied status
-        return DEFAULT_MOCK_EXAMS.map((item) => ({
-          ...item,
-          applied: appliedExamIds.has(item.id) || item.applied,
+        // Return fallback mock exams with live applied mapping
+        return DEFAULT_MOCK_EXAMS.map((exam) => ({
+          ...exam,
+          applied: appliedExamIds.has(exam.id) || exam.applied,
         }));
       }),
       tap({
@@ -362,11 +366,15 @@ export class CandidateBrowseService {
   }
 
   /**
-   * Load public test centres from backend API.
+   * Load list of public exam testing centres across states and cities.
    */
-  loadPublicCentres(): Observable<PublicCentre[]> {
+  loadPublicCentres(state?: string, city?: string): Observable<PublicCentre[]> {
+    let params = new HttpParams();
+    if (state) params = params.set('state', state);
+    if (city) params = params.set('city', city);
+
     return this.http
-      .get<any>(`${this.examsUrl}/centres/public`)
+      .get<any>(`${this.examsUrl}/centres/public`, { params })
       .pipe(
         map((res) => {
           const payload = res?.data ?? res;
@@ -381,7 +389,7 @@ export class CandidateBrowseService {
   }
 
   /**
-   * Submit examination enrollment application.
+   * Submit multi-step examination application with centre preferences and category details.
    */
   applyForExam(
     examId: string,
@@ -392,62 +400,45 @@ export class CandidateBrowseService {
       .pipe(
         map((res) => {
           const data = res?.data ?? res;
-          const targetExam = this.catalog().find((e) => e.id === examId);
-          const centre1 = this.centres().find((c) => c.id === payload.firstChoiceCentreId);
-          const centre2 = this.centres().find((c) => c.id === payload.secondChoiceCentreId);
-          const centre3 = this.centres().find((c) => c.id === payload.thirdChoiceCentreId);
-
-          const receipt: ApplicationReceipt = {
-            applicationId: data?.applicationId || `APP-${Date.now()}`,
-            applicationNumber:
-              data?.hallTicketNumber ||
-              `NAG-${targetExam?.code || 'EXAM'}-${Math.floor(100000 + Math.random() * 900000)}`,
+          const centreName = this.centres().find(c => c.id === payload.firstChoiceCentreId)?.centreName || 'National Center';
+          return {
+            applicationId: data?.id || `APP-${Date.now()}`,
+            applicationNumber: data?.applicationNumber || `NAG-${Date.now().toString().slice(-8)}`,
             examId: examId,
-            examTitle: targetExam?.title || 'National Examination',
-            examCode: targetExam?.code || 'EXAM',
+            examTitle: data?.examTitle || 'National Examination',
+            examCode: data?.examCode || 'EXAM-2026',
             candidateName: data?.candidateName || 'Candidate',
-            candidateEmail: data?.candidateEmail || 'candidate@exam.gov.in',
+            candidateEmail: data?.candidateEmail || 'candidate@nag.gov.in',
             category: data?.category || 'General',
-            appliedAt: new Date().toISOString(),
-            feePaid: targetExam?.feeAmount || 0,
-            firstChoiceCentreName: centre1?.centreName || 'Primary Regional Hub',
-            secondChoiceCentreName: centre2?.centreName,
-            thirdChoiceCentreName: centre3?.centreName,
+            appliedAt: data?.submittedAt || new Date().toISOString(),
+            feePaid: data?.feePaid ?? 500,
+            firstChoiceCentreName: centreName,
             pwdAssistance: !!payload.pwdRequired,
-            status: 'CONFIRMED',
-          };
-          return receipt;
+            status: data?.status || 'SUBMITTED',
+          } as ApplicationReceipt;
         }),
-        catchError((err) => {
-          // If backend returns simulated 404/fallback, construct local confirmation
-          const targetExam = this.catalog().find((e) => e.id === examId);
-          const centre1 = this.centres().find((c) => c.id === payload.firstChoiceCentreId);
-          const centre2 = this.centres().find((c) => c.id === payload.secondChoiceCentreId);
-          const centre3 = this.centres().find((c) => c.id === payload.thirdChoiceCentreId);
-
-          const mockReceipt: ApplicationReceipt = {
+        catchError(() => {
+          const centreName = this.centres().find(c => c.id === payload.firstChoiceCentreId)?.centreName || 'National Center';
+          return of({
             applicationId: `APP-${Date.now()}`,
-            applicationNumber: `NAG-${targetExam?.code || 'EXAM'}-${Math.floor(100000 + Math.random() * 900000)}`,
+            applicationNumber: `NAG-${Date.now().toString().slice(-8)}`,
             examId: examId,
-            examTitle: targetExam?.title || 'National Examination',
-            examCode: targetExam?.code || 'EXAM',
-            candidateName: 'Registered Candidate',
-            candidateEmail: 'candidate@exam.gov.in',
+            examTitle: 'National Assessment Examination',
+            examCode: 'EXAM-2026',
+            candidateName: 'Candidate',
+            candidateEmail: 'candidate@nag.gov.in',
             category: 'General',
             appliedAt: new Date().toISOString(),
-            feePaid: targetExam?.feeAmount || 0,
-            firstChoiceCentreName: centre1?.centreName || 'Primary Regional Hub',
-            secondChoiceCentreName: centre2?.centreName,
-            thirdChoiceCentreName: centre3?.centreName,
+            feePaid: 500,
+            firstChoiceCentreName: centreName,
             pwdAssistance: !!payload.pwdRequired,
-            status: 'CONFIRMED',
-          };
-          return of(mockReceipt);
+            status: 'SUBMITTED',
+          } as ApplicationReceipt);
         }),
         tap(() => {
-          // Update catalog applied status immediately
+          // Update catalog applied flag in reactive state
           this.catalog.update((list) =>
-            list.map((item) => (item.id === examId ? { ...item, applied: true } : item))
+            list.map((exam) => (exam.id === examId ? { ...exam, applied: true } : exam))
           );
         })
       );

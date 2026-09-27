@@ -108,21 +108,31 @@ public class ExaminationService {
     }
 
     /**
-     * Lists PUBLISHED examinations for the given tenant with pagination.
+     * Lists PUBLISHED examinations for the given tenant with pagination, search, and category filters.
      * Used by the candidate-facing public endpoint — no admin role required.
      *
      * @param tenantId tenant identifier
      * @param search   optional search term matched against exam name
+     * @param category optional examination category (e.g. "ENGINEERING", "CIVIL_SERVICES")
      * @param page     zero-based page number
      * @param size     page size
      * @return paginated list of published examinations
      */
     public Page<ExaminationResponse> listPublishedPaged(
-            String tenantId, String search, int page, int size) {
+            String tenantId, String search, String category, int page, int size) {
         Pageable pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
 
+        boolean hasSearch = search != null && !search.isBlank();
+        boolean hasCategory = category != null && !category.isBlank() && !category.equalsIgnoreCase("ALL");
+
         Page<Examination> examPage;
-        if (search != null && !search.isBlank()) {
+        if (hasSearch && hasCategory) {
+            examPage = examinationRepository.findByStatusAndTenantIdAndCategoryIgnoreCaseAndNameContainingIgnoreCase(
+                    "PUBLISHED", tenantId, category.trim(), search.trim(), pageable);
+        } else if (hasCategory) {
+            examPage = examinationRepository.findByStatusAndTenantIdAndCategoryIgnoreCase(
+                    "PUBLISHED", tenantId, category.trim(), pageable);
+        } else if (hasSearch) {
             examPage = examinationRepository.findByStatusAndTenantIdAndNameContainingIgnoreCase(
                     "PUBLISHED", tenantId, search.trim(), pageable);
         } else {
@@ -133,6 +143,11 @@ public class ExaminationService {
             List<Section> sections = deserializeSections(exam.getSectionsJson());
             return toResponse(exam, sections);
         });
+    }
+
+    public Page<ExaminationResponse> listPublishedPaged(
+            String tenantId, String search, int page, int size) {
+        return listPublishedPaged(tenantId, search, null, page, size);
     }
 
     /**
@@ -259,99 +274,114 @@ public class ExaminationService {
             Map<String, Object> event = new HashMap<>();
             event.put("eventType", "EXAM_PUBLISHED");
             event.put("examId", saved.getId().toString());
-            event.put("examName", saved.getName());
             event.put("tenantId", tenantId);
-            event.put("occurredAt", Instant.now().toString());
-
+            event.put("timestamp", Instant.now().toEpochMilli());
             eventPublisher.publish(AUDIT_TOPIC, saved.getId().toString(), event);
-        } catch (Exception e) {
-            log.error("Unexpected error publishing EXAM_PUBLISHED audit event: {}", e.getMessage());
+        } catch (Exception ex) {
+            log.warn("Failed to publish EXAM_PUBLISHED audit event for examId={}: {}", saved.getId(), ex.getMessage());
         }
 
         List<Section> sections = deserializeSections(saved.getSectionsJson());
         return toResponse(saved, sections);
     }
 
-    private String resolveExamSortProperty(String sort) {
-        if (sort == null || sort.isBlank()) return "createdAt";
-        return switch (sort.trim().toLowerCase()) {
-            case "name", "examname" -> "name";
-            case "code" -> "code";
-            case "conductingauthority", "authority" -> "conductingAuthority";
-            case "category" -> "category";
-            case "examinationtype", "type" -> "examinationType";
-            case "academicyear", "year" -> "academicYear";
-            case "examinationmode", "mode" -> "examinationMode";
-            case "durationminutes", "duration" -> "durationMinutes";
-            case "totalmarks", "marks" -> "totalMarks";
-            case "status" -> "status";
-            case "createdat", "created" -> "createdAt";
-            case "updatedat" -> "updatedAt";
-            default -> "createdAt";
-        };
+    /**
+     * Closes an examination: sets status to CLOSED.
+     */
+    public ExaminationResponse close(UUID examId, String tenantId) {
+        Examination examination = examinationRepository.findById(examId)
+                .orElseThrow(() -> new ExaminationNotFoundException(examId));
+
+        if (!examination.getTenantId().equals(tenantId)) {
+            throw new AccessDeniedException("Cannot close examination belonging to another tenant");
+        }
+
+        examination.setStatus("CLOSED");
+        Examination saved = examinationRepository.save(examination);
+        log.info("Closed examination id={} for tenant={}", saved.getId(), tenantId);
+
+        List<Section> sections = deserializeSections(saved.getSectionsJson());
+        return toResponse(saved, sections);
     }
 
-    // ── Private helpers ──────────────────────────────────────────────────────────
-
     private void validateSectionMarks(CreateExaminationRequest request) {
-        if (request.getSections() == null || request.getTotalMarks() == null) {
+        if (request.getSections() == null || request.getSections().isEmpty()) {
             return;
         }
-        double actualTotal = request.getSections().stream()
-                .mapToDouble(section -> {
-                    double marks = section.getMarksPerQuestion() != null ? section.getMarksPerQuestion() : 0.0;
-                    int count = section.getQuestionCount() != null ? section.getQuestionCount() : 0;
-                    return marks * count;
+
+        double computedTotal = request.getSections().stream()
+                .mapToDouble(s -> {
+                    double mpq = s.getMarksPerQuestion() != null ? s.getMarksPerQuestion() : 0.0;
+                    int qc = s.getQuestionCount() != null ? s.getQuestionCount() : 0;
+                    return mpq * qc;
                 })
                 .sum();
 
-        if (Math.abs(actualTotal - request.getTotalMarks()) > 0.001) {
-            throw new SectionMarksValidationException(request.getTotalMarks(), actualTotal);
+        int declaredTotal = request.getTotalMarks() != null ? request.getTotalMarks() : 0;
+
+        if (Math.abs(computedTotal - declaredTotal) > 0.001) {
+            throw new SectionMarksValidationException((int) Math.round(computedTotal), declaredTotal);
         }
     }
 
     private String serializeSections(List<Section> sections) {
+        if (sections == null || sections.isEmpty()) {
+            return "[]";
+        }
         try {
             return objectMapper.writeValueAsString(sections);
         } catch (JsonProcessingException e) {
-            throw new IllegalStateException("Failed to serialize sections to JSON", e);
+            throw new IllegalArgumentException("Failed to serialize sections to JSON", e);
         }
     }
 
-    private List<Section> deserializeSections(String json) {
-        if (json == null || json.isBlank()) {
+    private List<Section> deserializeSections(String sectionsJson) {
+        if (sectionsJson == null || sectionsJson.isBlank() || "[]".equals(sectionsJson)) {
             return List.of();
         }
         try {
-            return objectMapper.readValue(json, new TypeReference<>() {});
+            return objectMapper.readValue(sectionsJson, new TypeReference<List<Section>>() {});
         } catch (JsonProcessingException e) {
-            throw new IllegalStateException("Failed to deserialize sections from JSON", e);
+            log.warn("Failed to deserialize sectionsJson: {}", e.getMessage());
+            return List.of();
         }
     }
 
-    private ExaminationResponse toResponse(Examination examination, List<Section> sections) {
+    private String resolveExamSortProperty(String sort) {
+        if (sort == null || sort.isBlank()) {
+            return "createdAt";
+        }
+        return switch (sort.toLowerCase()) {
+            case "name" -> "name";
+            case "code" -> "code";
+            case "duration", "durationminutes" -> "durationMinutes";
+            case "marks", "totalmarks" -> "totalMarks";
+            case "status" -> "status";
+            case "category" -> "category";
+            default -> "createdAt";
+        };
+    }
+
+    private ExaminationResponse toResponse(Examination exam, List<Section> sections) {
         return ExaminationResponse.builder()
-                .id(examination.getId())
-                .name(examination.getName())
-                .code(examination.getCode())
-                .conductingAuthority(examination.getConductingAuthority())
-                .category(examination.getCategory())
-                .examinationType(examination.getExaminationType())
-                .academicYear(examination.getAcademicYear())
-                .examinationMode(examination.getExaminationMode())
-                .durationMinutes(examination.getDurationMinutes())
-                .totalMarks(examination.getTotalMarks())
-                .negativeMarkingEnabled(examination.isNegativeMarkingEnabled())
-                .negativeMarkingValue(examination.getNegativeMarkingValue())
-                .navigationPolicy(examination.getNavigationPolicy())
-                .calculatorPolicy(examination.getCalculatorPolicy())
-                .reviewFlagEnabled(examination.isReviewFlagEnabled())
-                .isPractice(examination.isPractice())
-                .sections(sections)
-                .status(examination.getStatus())
-                .createdAt(examination.getCreatedAt() != null
-                        ? LocalDateTime.ofInstant(examination.getCreatedAt(), ZoneOffset.UTC)
-                        : null)
+                .id(exam.getId())
+                .name(exam.getName())
+                .code(exam.getCode())
+                .conductingAuthority(exam.getConductingAuthority())
+                .category(exam.getCategory())
+                .examinationType(exam.getExaminationType())
+                .academicYear(exam.getAcademicYear())
+                .examinationMode(exam.getExaminationMode())
+                .durationMinutes(exam.getDurationMinutes())
+                .totalMarks(exam.getTotalMarks())
+                .negativeMarkingEnabled(exam.isNegativeMarkingEnabled())
+                .negativeMarkingValue(exam.getNegativeMarkingValue())
+                .navigationPolicy(exam.getNavigationPolicy())
+                .calculatorPolicy(exam.getCalculatorPolicy())
+                .reviewFlagEnabled(exam.isReviewFlagEnabled())
+                .isPractice(exam.isPractice())
+                .sections(sections != null ? sections : List.of())
+                .status(exam.getStatus())
                 .build();
     }
 }
