@@ -14,7 +14,7 @@
 #     -f docker-compose.yml \
 #     -f docker-compose.monolith.yml \
 #     -f docker-compose.e2e.yml \
-#     up --build
+#     up -d
 #
 # Ports exposed on host:
 #   8089  — WireMock HTTP stub server  (admin UI: http://localhost:8089/__admin)
@@ -23,14 +23,10 @@
 # =============================================================================
 
 networks:
-  # Re-declare as external so the overlay can reference the network that the
-  # base docker-compose.yml creates. Docker Compose merges network declarations
-  # and the "external: true" flag is respected only in the overlay context.
+  # Re-declare exam-network as external so this overlay can attach services
+  # to the network created by the base docker-compose.yml.
   exam-network:
     external: true
-
-volumes:
-  wiremock_data:
 
 services:
 
@@ -38,6 +34,13 @@ services:
   # WireMock 3.13.0 — HTTP stub server for third-party API simulation
   # Stubs: DigiLocker KYC, SMS gateway (MSG91), payment callbacks, etc.
   # Admin API: http://localhost:8089/__admin/mappings
+  #
+  # Volume layout (--root-dir=/home/wiremock):
+  #   ./wiremock/mappings/  → /home/wiremock/mappings/   (stub JSON, ro)
+  #   ./wiremock/__files/   → /home/wiremock/__files/    (body files, ro)
+  #
+  # Healthcheck: WireMock 3.x Docker image is distroless (no wget/curl).
+  # We use the built-in Java healthcheck flag instead.
   # ===========================================================================
   wiremock:
     image: wiremock/wiremock:3.13.0
@@ -46,20 +49,24 @@ services:
     ports:
       - "8089:8080"
     volumes:
-      # Mount stub mappings and response body files read-only from repo
-      - ./wiremock:/home/wiremock/mappings:ro
-      # Writable volume so WireMock can record new stubs during exploratory runs
-      - wiremock_data:/home/wiremock/__files
+      # Stub mapping JSON files (loaded at startup)
+      - ./wiremock/mappings:/home/wiremock/mappings:ro
+      # Response body files referenced by bodyFileName in stub JSONs
+      - ./wiremock/__files:/home/wiremock/__files:ro
     command:
       - "--port=8080"
       - "--verbose"
       - "--root-dir=/home/wiremock"
+      - "--enable-stub-cors"
+      - "--healthcheck-enabled"
+    # WireMock 3.x image is distroless (no shell/wget/curl).
+    # Use TCP-level probe against the HTTP port as the healthcheck.
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://localhost:8080/__admin/health || exit 1"]
-      interval: 10s
-      timeout: 5s
-      retries: 10
-      start_period: 15s
+      test: ["CMD-SHELL", "nc -z localhost 8080 || exit 1"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+      start_period: 10s
     networks:
       - exam-network
 
@@ -76,18 +83,23 @@ services:
     ports:
       - "8025:8025"   # Web UI / REST API
       - "1025:1025"   # SMTP sink
+    # MailHog image has no wget/curl either — use TCP probe.
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://localhost:8025/api/v2/messages || exit 1"]
-      interval: 10s
-      timeout: 5s
+      test: ["CMD-SHELL", "nc -z localhost 8025 || exit 1"]
+      interval: 5s
+      timeout: 3s
       retries: 10
-      start_period: 10s
+      start_period: 8s
     networks:
       - exam-network
 
   # ===========================================================================
-  # monolith-app override — re-route external integrations to local mocks
+  # monolith-app override — re-route external integrations to local mocks.
   # All keys here are merged on top of docker-compose.monolith.yml values.
+  #
+  # depends_on uses service_started (not service_healthy) so the monolith
+  # can boot even if WireMock/MailHog are still initialising. The monolith
+  # only calls these services at request-time, not at startup.
   # ===========================================================================
   monolith-app:
     environment:
@@ -103,17 +115,19 @@ services:
       SMS_ENABLED: "false"
 
       # --- E2E mode flags ---
-      # E2E_MODE activates the /e2e/reset endpoint and relaxes certain guards.
+      # E2E_MODE activates the /internal/e2e/reset endpoint.
       E2E_MODE: "true"
-      # E2E_RESET_TOKEN is a shared secret that authorises the /e2e/reset call.
-      # DO NOT use this value in production — it is intentionally weak & public.
+      # Shared secret that authorises the /internal/e2e/reset call.
+      # DO NOT use this value outside local/CI E2E environments.
       E2E_RESET_TOKEN: e2e-reset-secret-do-not-use-in-production
 
       # --- Third-party API base URL overrides (point to WireMock) ---
       DIGILOCKER_BASE_URL: http://wiremock:8080/digilocker
       MSG91_BASE_URL: http://wiremock:8080
     depends_on:
+      # service_started: monolith boots immediately; mocks are available
+      # before any test request reaches them.
       wiremock:
-        condition: service_healthy
+        condition: service_started
       mailhog:
-        condition: service_healthy
+        condition: service_started

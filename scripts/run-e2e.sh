@@ -16,13 +16,22 @@ command=${1:---all}
 
 start_stack() {
   echo "[E2E] Starting Docker Compose E2E stack..."
-  docker compose $COMPOSE_BASE $COMPOSE_MONOLITH $COMPOSE_E2E up -d --wait
-  echo "[E2E] Stack is up. Waiting for monolith health..."
-  for i in $(seq 1 30); do
+  # Do NOT use --wait: it blocks until every container is healthy, which
+  # fails if WireMock/MailHog take longer than their start_period.
+  # The monolith poll loop below is the real readiness gate.
+  docker compose $COMPOSE_BASE $COMPOSE_MONOLITH $COMPOSE_E2E up -d
+  echo "[E2E] Stack started. Waiting for monolith to become healthy..."
+  for i in $(seq 1 36); do
     if curl -sf http://localhost:9000/actuator/health > /dev/null 2>&1; then
       echo "[E2E] Monolith healthy after $((i * 5))s"
       break
     fi
+    if [ "$i" -eq 36 ]; then
+      echo "[E2E] ERROR: Monolith did not become healthy within 180s. Dumping logs:"
+      docker compose $COMPOSE_BASE $COMPOSE_MONOLITH $COMPOSE_E2E logs --tail=100 monolith-app
+      exit 1
+    fi
+    echo "[E2E] Attempt $i/36 — waiting 5s..."
     sleep 5
   done
 }
