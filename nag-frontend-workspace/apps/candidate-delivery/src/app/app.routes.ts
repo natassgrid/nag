@@ -7,22 +7,26 @@ export const appRoutes: Route[] = [
     pathMatch: 'full',
     canActivate: [rootGuard],
     loadComponent: () =>
-      import('./auth/login.component').then((m) => m.LoginComponent),
+      import('./auth/components/login/login.component').then((m) => m.LoginComponent),
   },
   {
     path: 'login',
     loadComponent: () =>
-      import('./auth/login.component').then((m) => m.LoginComponent),
+      import('./auth/components/login/login.component').then((m) => m.LoginComponent),
   },
   {
     path: 'register',
     loadComponent: () =>
-      import('./auth/register.component').then((m) => m.RegisterComponent),
+      import('./auth/components/register/register.component').then((m) => m.RegisterComponent),
   },
   {
     path: 'verify-otp',
     loadComponent: () =>
-      import('./auth/verify-otp.component').then((m) => m.VerifyOtpComponent),
+      import('./auth/components/verify-otp/verify-otp.component').then((m) => m.VerifyOtpComponent),
+  },
+  {
+    path: 'auth',
+    loadChildren: () => import('./auth/auth.routes').then((m) => m.authRoutes),
   },
   {
     path: 'dashboard',
@@ -76,6 +80,6 @@ export const appRoutes: Route[] = [
     path: '**',
     canActivate: [rootGuard],
     loadComponent: () =>
-      import('./auth/login.component').then((m) => m.LoginComponent),
+      import('./auth/components/login/login.component').then((m) => m.LoginComponent),
   },
 ];
