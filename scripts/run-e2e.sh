@@ -15,16 +15,25 @@ COMPOSE_E2E="-f $ROOT_DIR/infrastructure/docker-compose/docker-compose.e2e.yml"
 command=${1:---all}
 
 # ---------------------------------------------------------------------------
-# fix_java_home: unset JAVA_HOME when it points to a path that does not exist
-# in the current shell (common in WSL when an IDE like IntelliJ exports a
-# Windows-style /mnt/<drive>/... path into the environment).
-# Gradle will then locate Java via its own toolchain resolution or PATH.
+# fix_java_home: clear JAVA_HOME when it is not a usable Linux JDK.
+#
+# Two WSL scenarios this handles:
+#   1. Path does not exist at all (e.g. a stale Windows env var).
+#   2. Path exists via /mnt/<drive>/... but is a Windows JDK — its binaries
+#      are .exe (PE format), not ELF, so they cannot execute natively in Linux.
+#      The -d test passes, but $JAVA_HOME/bin/java is absent (only java.exe).
+#
+# When JAVA_HOME is cleared, Gradle uses its toolchain resolver to locate
+# a JDK 21 installed under the Linux filesystem (e.g. via SDKMAN or apt).
 # ---------------------------------------------------------------------------
 fix_java_home() {
-  if [[ -n "${JAVA_HOME:-}" ]] && [[ ! -d "$JAVA_HOME" ]]; then
-    echo "[E2E] WARN: JAVA_HOME='$JAVA_HOME' does not exist in this shell — clearing it."
-    echo "[E2E]       Gradle will locate Java via toolchain / PATH instead."
-    unset JAVA_HOME
+  if [[ -n "${JAVA_HOME:-}" ]]; then
+    if [[ ! -x "$JAVA_HOME/bin/java" ]]; then
+      echo "[E2E] WARN: JAVA_HOME='$JAVA_HOME' has no executable bin/java"
+      echo "[E2E]       (Windows JDK mounted via /mnt/<drive> is not runnable in Linux)"
+      echo "[E2E]       Clearing JAVA_HOME — Gradle will resolve JDK 21 via toolchain."
+      unset JAVA_HOME
+    fi
   fi
 }
 

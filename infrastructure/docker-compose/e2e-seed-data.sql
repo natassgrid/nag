@@ -144,7 +144,7 @@ INSERT INTO identity_service.user_role_assignment (
 
 -- E2E admin → SUPER_ADMIN (self-bootstrapped, no assigned_by)
 (
-    'e2e0rl00-0001-0000-0000-000000000001',
+    'e2e04100-0001-0000-0000-000000000001',
     'default',
     'e2e0ad00-0001-0000-0000-000000000001',
     'SUPER_ADMIN',
@@ -154,7 +154,7 @@ INSERT INTO identity_service.user_role_assignment (
 
 -- E2E candidate → CANDIDATE (assigned by e2e-admin)
 (
-    'e2e0rl00-0001-0000-0000-000000000002',
+    'e2e04100-0001-0000-0000-000000000002',
     'default',
     'e2e0ca00-0001-0000-0000-000000000001',
     'CANDIDATE',
@@ -171,6 +171,10 @@ ON CONFLICT (id) DO NOTHING;
 -- |----------------|----------------------------|-------------|---------------|
 -- | e2e-admin      | e2e0ad00-0001-0000-…-0001  | SUPER_ADMIN | E2eAdmin@123  |
 -- | e2e-candidate  | e2e0ca00-0001-0000-…-0001  | CANDIDATE   | E2eCand@123   |
+-- | role-admin     | e2e04100-0001-0000-…-0001  | —           | —             |
+-- | role-candidate | e2e04100-0001-0000-…-0002  | —           | —             |
+-- NOTE: UUID segments must use hex chars only (0-9, a-f). Letters like r, l
+--       are NOT valid hex and will cause "invalid input syntax for type uuid".
 -- =============================================================================
 
 -- =============================================================================
