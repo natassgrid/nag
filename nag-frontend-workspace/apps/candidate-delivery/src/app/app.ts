@@ -4,11 +4,18 @@ import { RouterModule, Router } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { AuthService } from '@nag-frontend-workspace/shared-data-access-auth';
+import { GlobalNotificationComponent } from '@nag-frontend-workspace/shared-ui-components';
 
 @Component({
   selector: 'app-root',
   standalone: true,
-  imports: [CommonModule, RouterModule, MatButtonModule, MatIconModule],
+  imports: [
+    CommonModule,
+    RouterModule,
+    MatButtonModule,
+    MatIconModule,
+    GlobalNotificationComponent,
+  ],
   templateUrl: './app.html',
   styleUrl: './app.scss',
 })

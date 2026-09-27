@@ -1,12 +1,16 @@
 import {
   Component,
+  inject,
   signal,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
-import { PageHeaderComponent } from '@nag-frontend-workspace/shared-ui-components';
+import {
+  NotificationService,
+  PageHeaderComponent,
+} from '@nag-frontend-workspace/shared-ui-components';
 
 @Component({
   selector: 'app-admin-reports',
@@ -22,6 +26,8 @@ import { PageHeaderComponent } from '@nag-frontend-workspace/shared-ui-component
   styleUrl: './admin-reports.component.scss',
 })
 export class AdminReportsComponent {
+  private readonly notificationService = inject(NotificationService);
+
   selectedExam = 'NES-2026-S1';
   reportType = 'RESULTS';
   exporting = signal<boolean>(false);
@@ -30,7 +36,10 @@ export class AdminReportsComponent {
     this.exporting.set(true);
     setTimeout(() => {
       this.exporting.set(false);
-      alert(`Exported ${this.reportType} for ${this.selectedExam} as signed .${format.toUpperCase()} package.`);
+      this.notificationService.success(
+        'Report Exported',
+        `Exported ${this.reportType} for ${this.selectedExam} as signed .${format.toUpperCase()} package.`
+      );
     }, 800);
   }
 }

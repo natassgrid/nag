@@ -10,7 +10,10 @@ import { CommonModule } from '@angular/common';
 import { RouterModule, Router } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
-import { PageHeaderComponent } from '@nag-frontend-workspace/shared-ui-components';
+import {
+  NotificationService,
+  PageHeaderComponent,
+} from '@nag-frontend-workspace/shared-ui-components';
 import {
   QuestionBankService,
   SubjectTopicService,
@@ -44,6 +47,7 @@ export class QuestionsFeatureBank implements OnInit {
   private readonly router = inject(Router);
   readonly questionService = inject(QuestionBankService);
   private readonly subjectTopicService = inject(SubjectTopicService);
+  private readonly notificationService = inject(NotificationService);
 
   readonly showVectorDrawer = signal<boolean>(false);
   readonly searchingVector = signal<boolean>(false);
@@ -189,10 +193,19 @@ export class QuestionsFeatureBank implements OnInit {
     });
   }
 
-  onDeleteQuestion(id: string): void {
-    if (confirm('Are you sure you want to delete this question item?')) {
+  async onDeleteQuestion(id: string): Promise<void> {
+    const confirmed = await this.notificationService.confirm({
+      title: 'Delete Question Item?',
+      message: 'Are you sure you want to delete this question item? This action will remove it from active item pools.',
+      confirmText: 'Delete Question',
+      cancelText: 'Cancel',
+      type: 'danger',
+    });
+
+    if (confirmed) {
       this.questionService.deleteQuestion(id).subscribe(() => {
         this.applyFilters(this.questionService.currentPage());
+        this.notificationService.success('Question Deleted', 'Question item was successfully removed.');
       });
     }
   }

@@ -21,7 +21,10 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatDialog, MatDialogModule } from '@angular/material/dialog';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { HttpEventType } from '@angular/common/http';
-import { PageHeaderComponent } from '@nag-frontend-workspace/shared-ui-components';
+import {
+  NotificationService,
+  PageHeaderComponent,
+} from '@nag-frontend-workspace/shared-ui-components';
 import { AssetService } from './asset.service';
 import { AssetResponse, AssetType, AssetStatus } from './asset.model';
 import {
@@ -61,6 +64,7 @@ export class AdminAssetsComponent implements OnInit {
   readonly assetService = inject(AssetService);
   private readonly dialog = inject(MatDialog);
   private readonly snackBar = inject(MatSnackBar);
+  private readonly notificationService = inject(NotificationService);
 
   // Core State Signals
   readonly assets = signal<AssetResponse[]>([]);
@@ -302,10 +306,15 @@ export class AdminAssetsComponent implements OnInit {
     });
   }
 
-  deleteAsset(asset: AssetResponse): void {
-    const confirmed = confirm(
-      `Are you sure you want to permanently delete "${asset.originalFilename}"?\nThis cannot be undone.`
-    );
+  async deleteAsset(asset: AssetResponse): Promise<void> {
+    const confirmed = await this.notificationService.confirm({
+      title: 'Permanently Delete Asset?',
+      message: `Are you sure you want to permanently delete "${asset.originalFilename}"?\nThis action cannot be undone.`,
+      confirmText: 'Delete Permanently',
+      cancelText: 'Cancel',
+      type: 'danger',
+    });
+
     if (!confirmed) return;
 
     this.assetService.deleteAsset(asset.id).subscribe({

@@ -14,6 +14,7 @@ import {
   Subject,
   SubjectHierarchy,
 } from '@nag-frontend-workspace/questions-data-access';
+import { NotificationService } from '@nag-frontend-workspace/shared-ui-components';
 import {
   BlueprintStatsCardsComponent,
   BlueprintGridListComponent,
@@ -44,6 +45,7 @@ export class AdminBlueprintManagementComponent implements OnInit {
   private readonly subjectTopicService = inject(SubjectTopicService);
   private readonly fb = inject(FormBuilder);
   private readonly router = inject(Router);
+  private readonly notificationService = inject(NotificationService);
 
   readonly templates = signal<BlueprintTemplateResponse[]>([]);
   readonly loading = signal<boolean>(false);
@@ -66,17 +68,17 @@ export class AdminBlueprintManagementComponent implements OnInit {
   form!: FormGroup;
 
   readonly filteredTemplates = computed(() => {
-    const q = this.searchQuery().toLowerCase().trim();
+    const q = (this.searchQuery() || '').toLowerCase().trim();
     const list = this.templates();
     if (!q) return list;
     return list.filter(
       (t) =>
-        t.name.toLowerCase().includes(q) ||
+        (t.name && t.name.toLowerCase().includes(q)) ||
         (t.description && t.description.toLowerCase().includes(q)) ||
         (t.rules &&
           t.rules.some(
             (r) =>
-              r.subject.toLowerCase().includes(q) ||
+              (r.subject && r.subject.toLowerCase().includes(q)) ||
               (r.topic && r.topic.toLowerCase().includes(q))
           ))
     );
@@ -247,6 +249,7 @@ export class AdminBlueprintManagementComponent implements OnInit {
           );
           this.saving.set(false);
           this.closeDrawer();
+          this.notificationService.success('Blueprint Updated', `Blueprint "${req.name}" saved.`);
         },
         error: () => {
           const updatedLocal: BlueprintTemplateResponse = {
@@ -260,6 +263,7 @@ export class AdminBlueprintManagementComponent implements OnInit {
           );
           this.saving.set(false);
           this.closeDrawer();
+          this.notificationService.success('Blueprint Updated', `Blueprint "${req.name}" updated locally.`);
         },
       });
     } else {
@@ -268,6 +272,7 @@ export class AdminBlueprintManagementComponent implements OnInit {
           this.templates.update((list) => [created, ...list]);
           this.saving.set(false);
           this.closeDrawer();
+          this.notificationService.success('Blueprint Created', `Blueprint "${req.name}" created.`);
         },
         error: () => {
           const createdLocal: BlueprintTemplateResponse = {
@@ -279,22 +284,34 @@ export class AdminBlueprintManagementComponent implements OnInit {
           this.templates.update((list) => [createdLocal, ...list]);
           this.saving.set(false);
           this.closeDrawer();
+          this.notificationService.success('Blueprint Created', `Blueprint "${req.name}" created locally.`);
         },
       });
     }
   }
 
-  deleteTemplate(tpl: BlueprintTemplateResponse): void {
-    if (!confirm(`Are you sure you want to delete blueprint "${tpl.name}"?`)) return;
+  async deleteTemplate(tpl: BlueprintTemplateResponse): Promise<void> {
+    const confirmed = await this.notificationService.confirm({
+      title: 'Delete Blueprint Template?',
+      message: `Are you sure you want to delete blueprint template "${tpl.name}"?\nAny examination assemblies referencing this matrix must be re-associated.`,
+      confirmText: 'Delete Blueprint',
+      cancelText: 'Cancel',
+      type: 'danger',
+    });
+
+    if (!confirmed) return;
+
     this.deletingId.set(tpl.id);
     this.blueprintService.deleteTemplate(tpl.id).subscribe({
       next: () => {
         this.templates.update((list) => list.filter((i) => i.id !== tpl.id));
         this.deletingId.set(null);
+        this.notificationService.success('Blueprint Deleted', `Blueprint "${tpl.name}" removed.`);
       },
       error: () => {
         this.templates.update((list) => list.filter((i) => i.id !== tpl.id));
         this.deletingId.set(null);
+        this.notificationService.success('Blueprint Deleted', `Blueprint "${tpl.name}" removed locally.`);
       },
     });
   }

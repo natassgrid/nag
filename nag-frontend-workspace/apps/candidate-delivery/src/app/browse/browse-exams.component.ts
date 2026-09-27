@@ -1,5 +1,6 @@
 import {
   Component,
+  inject,
   signal,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
@@ -8,6 +9,7 @@ import { RouterModule } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import {
+  NotificationService,
   PageHeaderComponent,
   SearchInputComponent,
   StatusBadgeComponent,
@@ -43,6 +45,8 @@ export interface PublicExamListing {
   styleUrl: './browse-exams.component.scss',
 })
 export class BrowseExamsComponent {
+  private readonly notificationService = inject(NotificationService);
+
   searchQuery = signal<string>('');
   selectedCategory = signal<string>('ALL');
 
@@ -101,7 +105,7 @@ export class BrowseExamsComponent {
   ]);
 
   filteredExams = () => {
-    const q = this.searchQuery().toLowerCase().trim();
+    const q = (this.searchQuery() || '').toLowerCase().trim();
     return this.exams().filter((e) => {
       const matchQuery =
         !q ||
@@ -125,6 +129,9 @@ export class BrowseExamsComponent {
       list.map((item) => (item.id === exam.id ? { ...item, applied: true } : item))
     );
     this.selectedApplyExam.set(null);
-    alert(`Successfully registered for ${exam.title}! Your admit card will be generated in your dashboard.`);
+    this.notificationService.success(
+      'Application Submitted Successfully',
+      `Registered for ${exam.title}! Your admit card is now accessible in your dashboard.`
+    );
   }
 }
