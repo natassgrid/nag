@@ -48,6 +48,8 @@ export interface CandidateProfile {
   mobileVerified?: boolean;
   address: string;
   state: string;
+  district?: string;
+  city?: string;
   pinCode: string;
   preferredRegionalLanguage?: string;
   kycStatus: ProfileKycStatus;
@@ -70,4 +72,5 @@ export interface ProfileTabOption {
   label: string;
   icon: string;
   badge?: string;
+  badgeVariant?: 'primary' | 'success' | 'warn' | 'info';
 }

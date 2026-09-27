@@ -48,6 +48,8 @@ function createEmptyProfile(userId = '', username = ''): CandidateProfile {
     mobileVerified: false,
     address: '',
     state: '',
+    district: '',
+    city: '',
     pinCode: '',
     kycStatus: 'PENDING',
     digiLockerStatus: 'NOT_LINKED',
@@ -126,6 +128,10 @@ export class CandidateProfileComponent implements OnInit {
             category: data.category || curr.category,
             reservationCategory: data.reservationCategory || curr.reservationCategory,
             address: data.address || curr.address,
+            state: data.state || curr.state,
+            district: data.district || curr.district,
+            city: data.city || curr.city,
+            pinCode: data.pinCode || curr.pinCode,
             mobile: data.mobile || curr.mobile,
             email: data.email || (user?.username?.includes('@') ? user.username : curr.email),
             kycStatus: data.digiLockerVerified === 'VERIFIED' ? 'VERIFIED' : curr.kycStatus,
@@ -329,6 +335,11 @@ export class CandidateProfileComponent implements OnInit {
         category: p.category || 'GENERAL',
         reservationCategory: p.reservationCategory || null,
         address: p.address || null,
+        state: p.state || null,
+        district: p.district || null,
+        city: p.city || p.district || null,
+        pinCode: p.pinCode || null,
+        country: p.nationality || 'India',
         mobile: p.mobile,
         email: p.email,
         identityDocType: p.identityDocType || 'AADHAAR',
@@ -340,44 +351,17 @@ export class CandidateProfileComponent implements OnInit {
         next: () => {
           this.saving.set(false);
           this.existsOnServer.set(true);
-          this.successMessage.set('Candidate profile successfully saved and updated!');
+          this.successMessage.set('Candidate profile successfully updated and synchronized.');
         },
         error: (err) => {
           this.saving.set(false);
-          if (err.status === 404 || !this.existsOnServer()) {
-            this.http.post('/api/v1/candidates', { ...payload, userId }).subscribe({
-              next: () => {
-                this.existsOnServer.set(true);
-                this.successMessage.set('Candidate profile created successfully!');
-              },
-              error: (createErr) => {
-                const createMsg = createErr.error?.message || createErr.error?.error || 'Failed to create candidate profile.';
-                this.errorMessage.set(createMsg);
-              },
-            });
-          } else {
-            let detail = 'Failed to update candidate profile.';
-            if (err.error) {
-              if (err.error.fieldErrors && typeof err.error.fieldErrors === 'object') {
-                const errors = Object.entries(err.error.fieldErrors)
-                  .map(([field, msg]) => `${field}: ${msg}`)
-                  .join(', ');
-                detail = `Validation Failed: ${errors}`;
-              } else if (err.error.message) {
-                detail = err.error.message;
-              } else if (typeof err.error === 'string') {
-                detail = err.error;
-              }
-            }
-            this.errorMessage.set(detail);
-          }
+          const detail = err.error?.message || err.error?.error || 'Failed to update profile.';
+          this.errorMessage.set(detail);
         },
       });
     } else {
-      setTimeout(() => {
-        this.saving.set(false);
-        this.successMessage.set('Profile saved locally.');
-      }, 400);
+      this.saving.set(false);
+      this.successMessage.set('Profile changes saved in local session.');
     }
   }
 }

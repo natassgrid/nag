@@ -2,6 +2,7 @@ import {
   ChangeDetectionStrategy,
   Component,
   OnDestroy,
+  computed,
   inject,
   model,
   signal,
@@ -12,6 +13,7 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { AuthService } from '@nag-frontend-workspace/shared-data-access-auth';
 import { CandidateProfile } from '../../models';
+import { INDIAN_STATES_AND_DISTRICTS } from '../../data/indian-states-cities';
 
 @Component({
   selector: 'nag-contact-details-panel',
@@ -25,6 +27,27 @@ export class ContactDetailsPanelComponent implements OnDestroy {
   private readonly authService = inject(AuthService);
 
   readonly profile = model.required<CandidateProfile>();
+
+  // Indian States and Cascading Districts
+  readonly stateList = INDIAN_STATES_AND_DISTRICTS.map((s) => s.state);
+
+  readonly availableDistricts = computed(() => {
+    const currentState = (this.profile()?.state || '').trim().toLowerCase();
+    if (!currentState) return [];
+    const matched = INDIAN_STATES_AND_DISTRICTS.find(
+      (s) => s.state.toLowerCase() === currentState
+    );
+    return matched ? matched.districts : [];
+  });
+
+  onStateChange(newState: string): void {
+    this.profile.update((p) => ({
+      ...p,
+      state: newState,
+      district: '',
+      city: p.city || '',
+    }));
+  }
 
   // Mobile Revalidation Modal State
   readonly isMobileModalOpen = signal<boolean>(false);
@@ -100,33 +123,25 @@ export class ContactDetailsPanelComponent implements OnDestroy {
       return;
     }
 
-    const userId = this.profile().candidateId;
     this.mobileLoading.set(true);
     this.mobileError.set(null);
 
-    this.authService.verifyMobile({ userId, otp }).subscribe({
+    this.authService.verifyMobile({
+      userId: this.profile().candidateId,
+      otp,
+    }).subscribe({
       next: () => {
         this.mobileLoading.set(false);
+        this.profile.update((p) => ({ ...p, mobileVerified: true }));
         this.mobileSuccess.set('Mobile number verified successfully!');
-        this.profile.update((curr) => ({
-          ...curr,
-          mobileVerified: true,
-        }));
-        setTimeout(() => {
-          this.closeMobileModal();
-        }, 1200);
+        setTimeout(() => this.closeMobileModal(), 1200);
       },
       error: (err) => {
         this.mobileLoading.set(false);
-        const detail = err?.error?.detail || err?.error?.message || err?.message || 'Invalid or expired OTP code.';
+        const detail = err?.error?.detail || err?.error?.message || err?.message || 'Invalid or expired OTP.';
         this.mobileError.set(detail);
       },
     });
-  }
-
-  fillTestMobileOtp(): void {
-    this.mobileOtp.set('000000');
-    this.verifyMobileOtp();
   }
 
   private startMobileCountdown(seconds = 60): void {
@@ -149,7 +164,7 @@ export class ContactDetailsPanelComponent implements OnDestroy {
   }
 
   // ----------------------------------------------------
-  // Email Update & Verification Flows
+  // Email Update & Revalidation Flows
   // ----------------------------------------------------
   openEmailModal(): void {
     this.isEmailModalOpen.set(true);
@@ -165,74 +180,66 @@ export class ContactDetailsPanelComponent implements OnDestroy {
     this.clearEmailTimer();
   }
 
-  requestEmailUpdateOtp(): void {
-    const targetEmail = this.newEmail().trim().toLowerCase();
-    if (!targetEmail || !targetEmail.includes('@') || !targetEmail.includes('.')) {
-      this.emailError.set('Please enter a valid email address.');
+  requestEmailOtp(): void {
+    const email = this.newEmail().trim().toLowerCase();
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!email || !emailRegex.test(email)) {
+      this.emailError.set('Please provide a valid email address.');
       return;
     }
-
-    if (targetEmail === this.profile().email?.toLowerCase()?.trim()) {
-      this.emailError.set('New email must be different from current email.');
-      return;
-    }
-
-    const userId = this.profile().candidateId;
-    this.emailResending.set(true);
-    this.emailError.set(null);
-
-    this.authService.resendEmailOtp({ userId, email: targetEmail }).subscribe({
-      next: () => {
-        this.emailResending.set(false);
-        this.emailStep.set('otp');
-        this.emailSuccess.set(`A 6-digit verification code has been sent to ${targetEmail}.`);
-        this.startEmailCountdown(60);
-      },
-      error: (err) => {
-        this.emailResending.set(false);
-        const detail = err?.error?.detail || err?.error?.message || err?.message || 'Failed to dispatch email verification code.';
-        this.emailError.set(detail);
-      },
-    });
-  }
-
-  verifyEmailUpdateOtp(): void {
-    const otp = this.emailOtp().trim();
-    if (otp.length !== 6) {
-      this.emailError.set('Please enter a valid 6-digit OTP code.');
-      return;
-    }
-
-    const userId = this.profile().candidateId;
-    const targetEmail = this.newEmail().trim().toLowerCase();
 
     this.emailLoading.set(true);
     this.emailError.set(null);
 
-    this.authService.verifyEmail({ userId, otp }).subscribe({
+    this.authService.resendEmailOtp({
+      userId: this.profile().candidateId,
+      email,
+    }).subscribe({
       next: () => {
         this.emailLoading.set(false);
-        this.emailSuccess.set('Email updated and verified successfully!');
-        this.profile.update((curr) => ({
-          ...curr,
-          email: targetEmail,
-          emailVerified: true,
-        }));
-        setTimeout(() => {
-          this.closeEmailModal();
-        }, 1200);
+        this.emailStep.set('otp');
+        this.emailSuccess.set(`Verification code sent to ${email}`);
+        this.startEmailCountdown(60);
       },
       error: (err) => {
         this.emailLoading.set(false);
-        const detail = err?.error?.detail || err?.error?.message || err?.message || 'Invalid or expired OTP code.';
+        const detail = err?.error?.detail || err?.error?.message || err?.message || 'Failed to dispatch email OTP.';
         this.emailError.set(detail);
       },
     });
   }
 
-  fillTestEmailOtp(): void {
-    this.emailOtp.set('000000');
-    this.verifyEmailUpdateOtp();
+  verifyEmailOtp(): void {
+    const otp = this.emailOtp().trim();
+    if (otp.length !== 6) {
+      this.emailError.set('Please enter the 6-digit OTP.');
+      return;
+    }
+
+    this.emailLoading.set(true);
+    this.emailError.set(null);
+
+    this.authService.verifyEmail({
+      userId: this.profile().candidateId,
+      otp,
+    }).subscribe({
+      next: () => {
+        this.emailLoading.set(false);
+        const updatedEmail = this.newEmail().trim().toLowerCase();
+        this.profile.update((p) => ({
+          ...p,
+          email: updatedEmail,
+          emailVerified: true,
+        }));
+        this.emailSuccess.set('Email address updated and verified!');
+        setTimeout(() => this.closeEmailModal(), 1200);
+      },
+      error: (err) => {
+        this.emailLoading.set(false);
+        const detail = err?.error?.detail || err?.error?.message || err?.message || 'Invalid or expired OTP.';
+        this.emailError.set(detail);
+      },
+    });
   }
 
   private startEmailCountdown(seconds = 60): void {

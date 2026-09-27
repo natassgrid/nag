@@ -42,6 +42,11 @@ public class CandidateProfileResponse {
     private String mobile;       // masked: last 4 digits only
     private String email;        // masked
     private String address;
+    private String country;
+    private String state;
+    private String district;
+    private String city;
+    private String pinCode;
     private String reservationCategory;
     private String digiLockerVerified;
     private String faceVerificationStatus;
