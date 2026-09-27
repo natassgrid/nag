@@ -114,12 +114,12 @@ export class CandidateProfileComponent implements OnInit {
 
   loadProfileFromApi(userId: string): void {
     this.loading.set(true);
-    this.http.get<{ data: any }>(`/api/v1/candidate/profile/${userId}`).subscribe({
+    this.http.get<any>(`/api/v1/candidates/${userId}`).subscribe({
       next: (res) => {
         this.loading.set(false);
-        if (res?.data) {
+        const d = (res as any)?.data ?? res;
+        if (d && (d.userId || d.candidateId || d.fullName || d.email || d.mobile)) {
           this.existsOnServer.set(true);
-          const d = res.data;
           this.profile.update((prev) => ({
             ...prev,
             fullName: d.fullName || prev.fullName,
@@ -177,8 +177,8 @@ export class CandidateProfileComponent implements OnInit {
     };
 
     const req$ = this.existsOnServer()
-      ? this.http.put(`/api/v1/candidate/profile/${prof.candidateId}`, payload)
-      : this.http.post('/api/v1/candidate/profile', payload);
+      ? this.http.put(`/api/v1/candidates/${prof.candidateId}`, payload)
+      : this.http.post('/api/v1/candidates', payload);
 
     req$.subscribe({
       next: () => {

@@ -21,10 +21,10 @@ import {
 export class UserRoleService {
   private readonly http = inject(HttpClient);
 
-  // Initial Mock Data for seamless offline/standalone admin experience
+  // Initial Mock Data for seamless offline/standalone admin experience with valid UUID format
   private mockUsers: AdminUserAccount[] = [
     {
-      id: 'u-101',
+      id: '018f4e2a-0000-7000-8000-000000000101',
       username: 'amitabh.verma',
       email: 'exam_controller@nag.gov.in',
       fullName: 'Dr. Amitabh Verma',
@@ -37,7 +37,7 @@ export class UserRoleService {
       createdAt: '2026-01-10 09:00:00',
     },
     {
-      id: 'u-102',
+      id: '018f4e2a-0000-7000-8000-000000000102',
       username: 'sunita.sharma',
       email: 'author_sharma@nag.gov.in',
       fullName: 'Prof. Sunita Sharma',
@@ -50,7 +50,7 @@ export class UserRoleService {
       createdAt: '2026-02-14 11:20:00',
     },
     {
-      id: 'u-103',
+      id: '018f4e2a-0000-7000-8000-000000000103',
       username: 'ks.reddy',
       email: 'evaluator_reddy@nag.gov.in',
       fullName: 'Dr. K. S. Reddy',
@@ -63,7 +63,7 @@ export class UserRoleService {
       createdAt: '2026-03-01 14:00:00',
     },
     {
-      id: 'u-104',
+      id: '018f4e2a-0000-7000-8000-000000000104',
       username: 'priya.sundaram',
       email: 'auditor_sundaram@nag.gov.in',
       fullName: 'Priya Sundaram',
@@ -76,7 +76,7 @@ export class UserRoleService {
       createdAt: '2026-04-12 08:30:00',
     },
     {
-      id: 'u-105',
+      id: '018f4e2a-0000-7000-8000-000000000105',
       username: 'admin.root',
       email: 'admin_root@nag.gov.in',
       fullName: 'Chief Information Security Officer',
@@ -92,7 +92,7 @@ export class UserRoleService {
 
   private mockRoles: RoleDefinition[] = [
     {
-      id: 'r-1',
+      id: '018f4e2a-0000-7000-8000-000000000201',
       name: 'SUPER_ADMIN',
       displayName: 'Super Administrator',
       description: 'Full unconstrained cryptographic authority over all clusters, nodes, and keys.',
@@ -102,7 +102,7 @@ export class UserRoleService {
       createdAt: '2026-01-01 00:00:00',
     },
     {
-      id: 'r-2',
+      id: '018f4e2a-0000-7000-8000-000000000202',
       name: 'EXAM_CONTROLLER',
       displayName: 'Examination Controller',
       description: 'Authority to schedule exams, approve blueprint matrices, and mint encrypted papers.',
@@ -115,7 +115,7 @@ export class UserRoleService {
       createdAt: '2026-01-01 00:00:00',
     },
     {
-      id: 'r-3',
+      id: '018f4e2a-0000-7000-8000-000000000203',
       name: 'QUESTION_AUTHOR',
       displayName: 'Subject Matter Question Author',
       description: 'Create and submit taxonomy-tagged questions, LaTeX equations, and AI-prompted drafts.',
@@ -128,7 +128,7 @@ export class UserRoleService {
       createdAt: '2026-01-01 00:00:00',
     },
     {
-      id: 'r-4',
+      id: '018f4e2a-0000-7000-8000-000000000204',
       name: 'EVALUATOR',
       displayName: 'Double-Blind Grading Evaluator',
       description: 'Perform confidential objective and subjective evaluation of candidate answer sheets.',
@@ -138,7 +138,7 @@ export class UserRoleService {
       createdAt: '2026-01-01 00:00:00',
     },
     {
-      id: 'r-5',
+      id: '018f4e2a-0000-7000-8000-000000000205',
       name: 'AUDITOR',
       displayName: 'Compliance & Cryptographic Auditor',
       description: 'Inspect Merkle logs, immutable audit trails, and biometric tamper verification records.',
@@ -178,7 +178,7 @@ export class UserRoleService {
 
   private mockInvitations: AdminInvitationItem[] = [
     {
-      id: 'inv-901',
+      id: '018f4e2a-0000-7000-8000-000000000301',
       email: 'dr.sharma.physics@nag.edu.in',
       fullName: 'Dr. Ramesh Sharma',
       assignedRoles: ['QUESTION_AUTHOR'],
@@ -188,7 +188,7 @@ export class UserRoleService {
       invitationToken: 'inv_tok_98234710293847',
     },
     {
-      id: 'inv-902',
+      id: '018f4e2a-0000-7000-8000-000000000302',
       email: 'controller.delhi@nag.gov.in',
       fullName: 'Anita Deshmukh',
       assignedRoles: ['EXAM_CONTROLLER'],
@@ -230,7 +230,7 @@ export class UserRoleService {
       map((res) => ((res as any)?.data ?? res) as AdminUserAccount),
       catchError(() => {
         const newUser: AdminUserAccount = {
-          id: `u-${Date.now()}`,
+          id: typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : '018f4e2a-0000-7000-8000-' + Math.random().toString(16).substring(2, 14).padEnd(12, '0'),
           username: payload.email.split('@')[0],
           email: payload.email,
           fullName: payload.fullName,
@@ -284,7 +284,7 @@ export class UserRoleService {
       map((res) => ((res as any)?.data ?? res) as RoleDefinition),
       catchError(() => {
         const newRole: RoleDefinition = {
-          id: `r-${Date.now()}`,
+          id: typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : '018f4e2a-0000-7000-8000-' + Math.random().toString(16).substring(2, 14).padEnd(12, '0'),
           name: payload.name.toUpperCase().replace(/\s+/g, '_'),
           displayName: payload.displayName,
           description: payload.description,
@@ -352,7 +352,7 @@ export class UserRoleService {
         const expiry = new Date();
         expiry.setDate(expiry.getDate() + (payload.expiryDays || 5));
         const newInv: AdminInvitationItem = {
-          id: `inv-${Date.now()}`,
+          id: typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : '018f4e2a-0000-7000-8000-' + Math.random().toString(16).substring(2, 14).padEnd(12, '0'),
           email: payload.email,
           fullName: payload.fullName,
           assignedRoles: payload.assignedRoles,
