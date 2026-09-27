@@ -1,0 +1,86 @@
+<div class="p-6 max-w-7xl mx-auto space-y-6">
+  <!-- Header Bar -->
+  <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-200 pb-5">
+    <div>
+      <div class="inline-flex items-center gap-2 px-2.5 py-1 rounded-full text-xs font-semibold bg-indigo-50 text-indigo-700 mb-2">
+        <mat-icon class="!text-sm">psychology</mat-icon> AI Item Synthesis &bull; LiteLLM &amp; AWS Bedrock
+      </div>
+      <h1 class="text-2xl font-black text-slate-900 tracking-tight">AI Question Generator</h1>
+      <p class="text-sm text-slate-500 mt-1">
+        RAG-augmented question synthesis with Bloom's Taxonomy cognitive control, LaTeX formula preservation, and pgvector semantic duplicate filtering.
+      </p>
+    </div>
+
+    <!-- Mode Selector -->
+    <div class="flex items-center gap-2 bg-slate-100 p-1 rounded-2xl border border-slate-200">
+      <button
+        type="button"
+        (click)="activeTab.set('realtime')"
+        class="px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2"
+        [ngClass]="activeTab() === 'realtime' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-600 hover:text-slate-900'"
+      >
+        <mat-icon class="!text-sm">bolt</mat-icon> Real-Time Synthesis
+      </button>
+      <button
+        type="button"
+        (click)="activeTab.set('batch')"
+        class="px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2"
+        [ngClass]="activeTab() === 'batch' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-600 hover:text-slate-900'"
+      >
+        <mat-icon class="!text-sm">dynamic_feed</mat-icon> High-Throughput Batch ({{ batchItems().length }})
+      </button>
+    </div>
+  </div>
+
+  <!-- TAB 1: REAL-TIME SYNTHESIS -->
+  @if (activeTab() === 'realtime') {
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+      <!-- Left Column: Parameter Form (5 cols) -->
+      <div class="lg:col-span-5">
+        <nag-ai-prompt-config-form
+          [form]="form"
+          [generating]="generating()"
+          [subjects]="subjects"
+          [difficulties]="difficulties"
+          [cognitiveLevels]="cognitiveLevels"
+          [questionTypes]="questionTypes"
+          (subjectChange)="onSubjectChange($event)"
+          (generateQuestions)="generateQuestions()"
+          (addToBatch)="addCurrentToBatch()"
+        ></nag-ai-prompt-config-form>
+      </div>
+
+      <!-- Right Column: Results & Interactive Cards (7 cols) -->
+      <div class="lg:col-span-7">
+        <nag-ai-generation-results
+          [generating]="generating()"
+          [response]="response()"
+          [generationError]="generationError()"
+          [savedQuestionIds]="savedQuestionIds()"
+          [savingIndices]="savingIndices()"
+          [count]="form.value.count || 3"
+          [subject]="form.value.subject || 'Mathematics'"
+          [topic]="form.value.topic || 'Linear Algebra & Matrices'"
+          (saveQuestion)="saveQuestionToBank($event.question, $event.index)"
+          (saveAllValid)="saveAllValid()"
+          (openAuthoring)="openInAuthoring($event)"
+        ></nag-ai-generation-results>
+      </div>
+    </div>
+  }
+
+  <!-- TAB 2: HIGH-THROUGHPUT BATCH JOBS -->
+  @if (activeTab() === 'batch') {
+    <nag-ai-batch-jobs-panel
+      [batchItems]="batchItems()"
+      [batchJobs]="batchJobs()"
+      [loadingBatchJobs]="loadingBatchJobs()"
+      [submittingBatch]="submittingBatch()"
+      [totalBatchQuestions]="totalBatchQuestions()"
+      (submitBatch)="submitBatch()"
+      (removeBatchItem)="removeBatchItem($event)"
+      (loadBatchJobs)="loadBatchJobs()"
+      (cancelBatchJob)="cancelBatchJob($event)"
+    ></nag-ai-batch-jobs-panel>
+  }
+</div>

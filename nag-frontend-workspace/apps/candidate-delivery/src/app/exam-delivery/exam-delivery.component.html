@@ -1,0 +1,49 @@
+<div class="exam-runtime-container h-screen flex flex-col bg-slate-100 text-slate-800 select-none">
+  <!-- High Security Proctoring & Telemetry Bar -->
+  <nag-exam-runtime-header
+    [remainingSeconds]="remainingSeconds()"
+    [formattedTime]="formattedTime()"
+    [currentLanguage]="i18nService.currentLanguage()"
+    [supportedLanguages]="supportedLanguages"
+    (languageChange)="i18nService.setLanguage($event)"
+    (submit)="confirmSubmission()"
+  />
+
+  <!-- Exam Workspace -->
+  <div class="grow flex overflow-hidden">
+    <!-- Main Question Area -->
+    <main class="grow p-6 overflow-y-auto flex flex-col justify-between">
+      @if (currentItem(); as item) {
+        <nag-exam-question-card
+          [item]="item"
+          [currentIndex]="currentIndex()"
+          [totalQuestions]="questions().length"
+          (selectOption)="selectOption(item, $event)"
+          (clearResponse)="clearResponse(item)"
+          (toggleFlag)="toggleFlag(item)"
+          (previous)="prevQuestion()"
+          (next)="nextQuestion()"
+        />
+      }
+    </main>
+
+    <!-- Right Side Palette Sidebar -->
+    <nag-exam-question-palette
+      [questions]="questions()"
+      [currentIndex]="currentIndex()"
+      [countAnswered]="countAnswered()"
+      [countFlagged]="countFlagged()"
+      [countUnvisited]="countUnvisited()"
+      [sessionMeta]="sessionMeta()"
+      (selectQuestion)="goToQuestion($event)"
+    />
+  </div>
+
+  <!-- Submission Ledger Receipt Modal -->
+  @if (submissionReceipt(); as receipt) {
+    <nag-exam-submission-modal
+      [receipt]="receipt"
+      (close)="submissionReceipt.set(null)"
+    />
+  }
+</div>

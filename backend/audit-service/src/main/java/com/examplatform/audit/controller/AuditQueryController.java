@@ -41,7 +41,7 @@ import java.util.UUID;
 /**
  * REST controller for querying audit events.
  * Provides paginated, filterable access to the audit trail.
- * Accessible only to users with the AUDITOR role.
+ * Accessible to AUDITOR, ADMIN, SUPER_ADMIN, and SECURITY_ADMIN roles.
  *
  * Validates: Requirements 15.3
  */
@@ -68,7 +68,7 @@ public class AuditQueryController {
      * @return paginated audit events
      */
     @GetMapping
-    @PreAuthorize("hasRole('AUDITOR')")
+    @PreAuthorize("hasAnyRole('AUDITOR', 'ADMIN', 'SUPER_ADMIN', 'SECURITY_ADMIN')")
     public ResponseEntity<Page<AuditEvent>> queryAuditEvents(
             @RequestParam(required = false) UUID userId,
             @RequestParam(required = false) String examId,

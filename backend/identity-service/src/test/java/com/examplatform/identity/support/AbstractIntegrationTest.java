@@ -140,6 +140,7 @@ public abstract class AbstractIntegrationTest {
             registry.add("spring.flyway.password", POSTGRES_CONTAINER::getPassword);
             registry.add("spring.flyway.schemas", () -> "identity_service");
             registry.add("spring.flyway.default-schema", () -> "identity_service");
+            registry.add("spring.flyway.table", () -> "flyway_schema_history_identity");
             registry.add("spring.flyway.enabled", () -> "true");
         } else {
             registry.add("spring.datasource.url", () -> "jdbc:postgresql://localhost:5432/mock_db");
@@ -170,7 +171,8 @@ public abstract class AbstractIntegrationTest {
                         "SELECT table_name FROM information_schema.tables " +
                                 "WHERE table_schema = 'identity_service' " +
                                 "AND table_type = 'BASE TABLE' " +
-                                "AND table_name NOT IN ('flyway_schema_history')",
+                                "AND table_name NOT LIKE 'flyway%' " +
+                                "AND table_name NOT IN ('role_definition', 'permission', 'role_permission')",
                         String.class
                 );
 
@@ -193,21 +195,20 @@ public abstract class AbstractIntegrationTest {
 
     /**
      * Test configuration providing mock replacements for external enterprise systems (Vault, Keycloak JWKs)
-     * so integration tests remain self-contained within the Testcontainers boundary.
      */
     @TestConfiguration
     public static class TestInfrastructureOverrideConfig {
 
         @Bean
         @Primary
-        public VaultTemplate mockVaultTemplate() {
-            return Mockito.mock(VaultTemplate.class);
+        public JwtDecoder jwtDecoder() {
+            return Mockito.mock(JwtDecoder.class);
         }
 
         @Bean
         @Primary
-        public JwtDecoder mockJwtDecoder() {
-            return Mockito.mock(JwtDecoder.class);
+        public VaultTemplate vaultTemplate() {
+            return Mockito.mock(VaultTemplate.class);
         }
     }
 }

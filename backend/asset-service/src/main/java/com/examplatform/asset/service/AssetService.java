@@ -98,6 +98,19 @@ public class AssetService {
         if (existing.isPresent()) {
             MediaAsset existingAsset = existing.get();
             if (existingAsset.getStatus() != AssetStatus.DELETED) {
+                if (existingAsset.getStorageProvider() != null && existingAsset.getStorageLocation() != null && storageProviderRegistry != null) {
+                    try {
+                        StorageProvider provider = storageProviderRegistry.requireProvider(existingAsset.getStorageProvider());
+                        if (provider != null && !provider.exists(existingAsset.getStorageLocation())) {
+                            log.warn("Duplicate asset metadata found for {} ({}), but binary was missing from storage. Restoring binary to {}",
+                                    existingAsset.getId(), existingAsset.getOriginalFilename(), existingAsset.getStorageLocation());
+                            provider.upload(existingAsset.getStorageLocation(), new ByteArrayInputStream(fileBytes),
+                                    validationResult.getDetectedContentType(), fileBytes.length);
+                        }
+                    } catch (Exception e) {
+                        log.debug("Duplicate asset storage verification skipped: {}", e.getMessage());
+                    }
+                }
                 log.info("Duplicate asset detected: existingId={}, hash={}", existingAsset.getId(), sha256Hash);
                 return mapToResponse(existingAsset);
             }
@@ -146,6 +159,55 @@ public class AssetService {
         publishAuditEvent("ASSET_UPLOADED", asset.getId(), userId, tenantId);
 
         log.info("Asset uploaded successfully: id={}, type={}, size={}", asset.getId(), asset.getAssetType(), asset.getFileSize());
+        return mapToResponse(asset);
+    }
+
+    /**
+     * Replace binary content for an existing asset.
+     */
+    @Transactional
+    public AssetUploadResponse replaceContent(UUID assetId, MultipartFile file, UUID userId, String tenantId) throws IOException {
+        MediaAsset asset = findAssetOrThrow(assetId);
+        byte[] fileBytes = file.getBytes();
+
+        SecurityValidationPipeline.ValidationResult validationResult = validationPipeline.validate(
+                file.getOriginalFilename(),
+                file.getContentType(),
+                file.getSize(),
+                new ByteArrayInputStream(fileBytes));
+
+        String sha256Hash = SecurityValidationPipeline.computeSha256(fileBytes);
+        MediaMetadata metadata = metadataExtractionService.extract(
+                validationResult.getAssetType(),
+                new ByteArrayInputStream(fileBytes),
+                validationResult.getDetectedContentType());
+
+        StorageProvider provider = storageProviderRegistry.requireProvider(asset.getStorageProvider());
+        String storagePath = buildStoragePath(tenantId, validationResult.getSanitizedFilename(), sha256Hash);
+        String storageLocation = provider.upload(storagePath, new ByteArrayInputStream(fileBytes),
+                validationResult.getDetectedContentType(), fileBytes.length);
+
+        asset.setOriginalFilename(validationResult.getSanitizedFilename());
+        asset.setContentType(validationResult.getDetectedContentType());
+        asset.setExtension(validationResult.getExtension());
+        asset.setFileSize((long) fileBytes.length);
+        asset.setSha256Hash(sha256Hash);
+        asset.setAssetType(validationResult.getAssetType());
+        asset.setWidth(metadata.getWidth());
+        asset.setHeight(metadata.getHeight());
+        asset.setDpi(metadata.getDpi());
+        asset.setOrientation(metadata.getOrientation());
+        asset.setDurationSeconds(metadata.getDurationSeconds());
+        asset.setCodec(metadata.getCodec());
+        asset.setBitrate(metadata.getBitrate());
+        asset.setSampleRate(metadata.getSampleRate());
+        asset.setChannels(metadata.getChannels());
+        asset.setFrameRate(metadata.getFrameRate());
+        asset.setStorageLocation(storageLocation);
+        asset = assetRepository.save(asset);
+
+        publishAuditEvent("ASSET_CONTENT_REPLACED", asset.getId(), userId, tenantId);
+        log.info("Asset content replaced successfully: id={}, type={}, size={}", asset.getId(), asset.getAssetType(), asset.getFileSize());
         return mapToResponse(asset);
     }
 

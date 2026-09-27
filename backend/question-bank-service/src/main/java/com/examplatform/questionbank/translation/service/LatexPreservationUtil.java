@@ -36,20 +36,24 @@ public final class LatexPreservationUtil {
     private static final String PLACEHOLDER_PREFIX = "__NAG_MATH_";
     private static final String PLACEHOLDER_SUFFIX = "__";
 
-    // Combined pattern matching all LaTeX, KaTeX, mhchem, and code blocks in order of precedence:
+    // Combined pattern matching all LaTeX, KaTeX, mhchem, SMILES, and code blocks in order of precedence:
     // 1. Markdown code blocks ```...```
-    // 2. SVG tags <svg>...</svg>
-    // 3. HTML code tags <code>...</code>
-    // 4. Display Math $$...$$
-    // 5. LaTeX Display Brackets \[...\] (accepting 1-4 backslashes)
-    // 6. LaTeX Environments \begin{matrix|pmatrix|...}...\end{...}
-    // 7. LaTeX Inline Brackets \(...\)
-    // 8. Inline Dollar Math $...$ (not preceded or followed by $)
-    // 9. LaTeX Chemistry / Physics macros \ce{...}, \pu{...}
-    // 10. LaTeX Structural Commands \frac{...}{...}, \sqrt{...}, etc.
-    // 11. Standalone LaTeX Greek / Math Symbols \alpha, \beta, \theta, \int, \infty, etc.
+    // 2. SMILES chemical structures <smiles>...</smiles>  (Issue #126)
+    // 3. Fenced SMILES code blocks ```smiles\n...\n```   (Issue #126)
+    // 4. SVG tags <svg>...</svg>
+    // 5. HTML code tags <code>...</code>
+    // 6. Display Math $$...$$
+    // 7. LaTeX Display Brackets \[...\] (accepting 1-4 backslashes)
+    // 8. LaTeX Environments \begin{matrix|pmatrix|...}...\end{...}
+    // 9. LaTeX Inline Brackets \(...\)
+    // 10. Inline Dollar Math $...$ (not preceded or followed by $)
+    // 11. LaTeX Chemistry / Physics macros \ce{...}, \pu{...}
+    // 12. LaTeX Structural Commands \frac{...}{...}, \sqrt{...}, etc.
+    // 13. Standalone LaTeX Greek / Math Symbols \alpha, \beta, \theta, \int, \infty, etc.
     private static final Pattern PRESERVED_PATTERN = Pattern.compile(
             "```[\\s\\S]*?```" +
+            "|<smiles>[\\s\\S]*?</smiles>" +
+            "|```smiles[\\s\\S]*?```" +
             "|!\\[[^\\]]*\\]\\([^)]*\\)" +
             "|<img[^>]*>" +
             "|<svg[\\s\\S]*?</svg>" +

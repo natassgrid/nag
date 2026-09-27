@@ -1,0 +1,83 @@
+<div class="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
+  <!-- Search & Filter Controls -->
+  <div class="p-4 border-b border-slate-200 flex flex-col sm:flex-row gap-4 items-center justify-between bg-slate-50/50">
+    <div class="relative w-full sm:w-80">
+      <mat-icon class="absolute left-3 top-2 text-slate-400 !text-xl">search</mat-icon>
+      <input
+        type="text"
+        [ngModel]="searchQuery()"
+        (ngModelChange)="searchQueryChange.emit($event)"
+        placeholder="Search questions by text or code..."
+        class="w-full pl-10 pr-4 py-1.5 text-xs bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500"
+      />
+    </div>
+    <div class="flex items-center gap-3 w-full sm:w-auto">
+      <select
+        [ngModel]="selectedSubject()"
+        (ngModelChange)="selectedSubjectChange.emit($event)"
+        class="px-3 py-1.5 text-xs bg-white border border-slate-200 rounded-xl focus:outline-none font-medium cursor-pointer"
+      >
+        <option value="ALL">All Subjects</option>
+        @for (s of availableSubjects(); track s) {
+          <option [value]="s">{{ s }}</option>
+        }
+      </select>
+      <span class="text-xs text-slate-500 whitespace-nowrap font-medium">
+        {{ questions().length }} questions
+      </span>
+    </div>
+  </div>
+
+  <!-- Question Table -->
+  <div class="overflow-x-auto">
+    <table class="w-full text-left border-collapse text-xs">
+      <thead class="bg-slate-100/75 border-b border-slate-200 font-bold text-slate-600 uppercase tracking-wider text-[11px]">
+        <tr>
+          <th class="p-3 w-28">Code</th>
+          <th class="p-3">Source Question (English)</th>
+          <th class="p-3 w-44">Subject / Topic</th>
+          <th class="p-3 w-32 text-center">{{ activeLanguageName() }} Status</th>
+          <th class="p-3 w-28 text-right">Action</th>
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-slate-100">
+        @for (q of questions(); track q.id) {
+          <tr class="hover:bg-slate-50/75 transition-colors">
+            <td class="p-3 font-mono font-bold text-indigo-700">
+              {{ q.code || q.id.substring(0, 8) }}
+            </td>
+            <td class="p-3">
+              <div class="font-medium text-slate-800 line-clamp-2 max-w-xl">
+                {{ q.content }}
+              </div>
+              <div class="flex items-center gap-2 mt-1 text-[11px] text-slate-400">
+                <span>{{ q.options.length }} Options</span>
+                <span>&bull;</span>
+                <span>Difficulty: {{ q.difficulty }}</span>
+              </div>
+            </td>
+            <td class="p-3">
+              <div class="font-semibold text-slate-700">{{ q.subject }}</div>
+              <div class="text-[11px] text-slate-400">{{ q.topic || 'General' }}</div>
+            </td>
+            <td class="p-3 text-center">
+              <span class="px-2.5 py-1 rounded-full text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200">
+                Ready for AI
+              </span>
+            </td>
+            <td class="p-3 text-right">
+              <button
+                mat-flat-button
+                color="primary"
+                (click)="openTranslation.emit(q)"
+                class="!text-xs !bg-slate-900 hover:!bg-indigo-600 !text-white !font-semibold !px-3 cursor-pointer"
+              >
+                <mat-icon class="!text-sm">translate</mat-icon> Translate
+              </button>
+            </td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  </div>
+</div>

@@ -52,4 +52,14 @@ public class BlueprintRule {
     private String cognitiveLevel;
 
     private int questionCount;
+
+    /**
+     * Optional count of paragraph/passage sets for this rule.
+     */
+    private Integer paragraphQuestionCount;
+
+    /**
+     * Optional expected sub-questions per passage (defaults to 3-5).
+     */
+    private Integer subQuestionsPerPassage;
 }

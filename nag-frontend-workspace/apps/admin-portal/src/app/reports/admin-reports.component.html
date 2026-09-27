@@ -1,0 +1,70 @@
+<div class="admin-reports-page max-w-5xl mx-auto p-6 space-y-6">
+  <nag-page-header
+    title="Assessment Reports & Ledger Cryptographic Export"
+    subtitle="Export certified merit lists, item difficulty psychometrics, and tamper-proof ledger audit records"
+    icon="download_for_offline"
+  >
+  </nag-page-header>
+
+  <div class="bg-white rounded-2xl border border-slate-200 p-8 shadow-xs space-y-6">
+    <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
+      <div>
+        <label for="rep-exam" class="block text-xs font-bold text-slate-700 uppercase mb-2">Select Examination</label>
+        <select
+          id="rep-exam"
+          [(ngModel)]="selectedExam"
+          class="w-full px-4 py-2.5 text-sm border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500 bg-white"
+        >
+          <option value="NES-2026-S1">NES-2026-S1 &bull; National Eligibility Screening</option>
+          <option value="GATE-DPI-2026">GATE-DPI-2026 &bull; Graduate Assessment for Open DPI</option>
+          <option value="ALL">All Completed Examinations</option>
+        </select>
+      </div>
+
+      <div>
+        <label for="rep-type" class="block text-xs font-bold text-slate-700 uppercase mb-2">Report Classification</label>
+        <select
+          id="rep-type"
+          [(ngModel)]="reportType"
+          class="w-full px-4 py-2.5 text-sm border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500 bg-white"
+        >
+          <option value="RESULTS">National Merit List & Percentiles</option>
+          <option value="ITEM_ANALYSIS">Psychometric Item Difficulty & Discrimination (IRT)</option>
+          <option value="AUDIT_LEDGER">Immutable Cryptographic Merkle Proof Trail</option>
+          <option value="CENTER_ATTENDANCE">Center Attendance & Biometric Verification Log</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- Export Action Buttons -->
+    <div class="p-6 rounded-2xl bg-slate-50 border border-slate-200 flex flex-col sm:flex-row items-center justify-between gap-4">
+      <div class="space-y-1 text-xs text-slate-600">
+        <span class="font-bold text-slate-900 block">Signed Cryptographic Package</span>
+        <p>All exported files include SHA-256 integrity checksums verifiable on the public ledger explorer.</p>
+      </div>
+
+      <div class="flex items-center gap-3">
+        <button
+          mat-stroked-button
+          color="primary"
+          (click)="exportData('csv')"
+          [disabled]="exporting()"
+          class="!rounded-xl font-semibold"
+        >
+          <mat-icon>table_view</mat-icon>
+          Export CSV / Excel
+        </button>
+        <button
+          mat-flat-button
+          color="primary"
+          (click)="exportData('pdf')"
+          [disabled]="exporting()"
+          class="!rounded-xl font-semibold"
+        >
+          <mat-icon>picture_as_pdf</mat-icon>
+          Export Signed PDF
+        </button>
+      </div>
+    </div>
+  </div>
+</div>

@@ -1,0 +1,31 @@
+<div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+  <div class="p-4 rounded-2xl bg-white border border-slate-200/80 shadow-xs flex items-center gap-4">
+    <div class="w-11 h-11 rounded-xl bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-600">
+      <mat-icon>schema</mat-icon>
+    </div>
+    <div>
+      <p class="text-[11px] font-bold uppercase tracking-wider text-slate-500">Active Blueprints</p>
+      <p class="text-xl font-black text-slate-900">{{ activeBlueprintsCount() }}</p>
+    </div>
+  </div>
+
+  <div class="p-4 rounded-2xl bg-white border border-slate-200/80 shadow-xs flex items-center gap-4">
+    <div class="w-11 h-11 rounded-xl bg-emerald-50 border border-emerald-100 flex items-center justify-center text-emerald-600">
+      <mat-icon>calculate</mat-icon>
+    </div>
+    <div>
+      <p class="text-[11px] font-bold uppercase tracking-wider text-slate-500">Configured Item Quota</p>
+      <p class="text-xl font-black text-slate-900">{{ totalQuestionsCount() }} Items</p>
+    </div>
+  </div>
+
+  <div class="p-4 rounded-2xl bg-white border border-slate-200/80 shadow-xs flex items-center gap-4">
+    <div class="w-11 h-11 rounded-xl bg-amber-50 border border-amber-100 flex items-center justify-center text-amber-600">
+      <mat-icon>rule_settings</mat-icon>
+    </div>
+    <div>
+      <p class="text-[11px] font-bold uppercase tracking-wider text-slate-500">Taxonomy Subjects</p>
+      <p class="text-xl font-black text-slate-900">{{ taxonomySubjectsCount() }} Active</p>
+    </div>
+  </div>
+</div>

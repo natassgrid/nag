@@ -1,0 +1,123 @@
+<div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+  @for (asset of assets(); track asset.id) {
+    <div class="bg-white rounded-2xl border border-slate-200 p-4 shadow-xs hover:shadow-md transition-shadow flex flex-col justify-between space-y-3 group">
+      <div class="space-y-3">
+        <!-- Asset Thumbnail or Media Badge -->
+        <div
+          class="h-36 rounded-xl bg-slate-900 flex items-center justify-center overflow-hidden border border-slate-200/80 cursor-pointer relative group-hover:border-indigo-400 transition-colors"
+          (click)="preview.emit(asset)"
+        >
+          @if (asset.assetType === 'IMAGE' && !isImageFailed(asset.id)) {
+            <img
+              [src]="assetService.getDownloadUrl(asset.id)"
+              [alt]="asset.altText || asset.originalFilename"
+              class="w-full h-full object-cover"
+              loading="lazy"
+              (error)="imageError.emit(asset.id)"
+            />
+            <div class="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center text-white transition-opacity">
+              <mat-icon>zoom_in</mat-icon>
+            </div>
+          } @else if (asset.assetType === 'IMAGE' && isImageFailed(asset.id)) {
+            <div class="flex flex-col items-center gap-1.5 text-rose-400 p-2 text-center">
+              <mat-icon class="!text-3xl text-rose-400">broken_image</mat-icon>
+              <span class="text-[10px] uppercase font-bold text-rose-300">File Missing (404)</span>
+              <span class="text-[9px] text-slate-400">Click to preview / replace</span>
+            </div>
+          } @else if (asset.assetType === 'AUDIO') {
+            <div class="flex flex-col items-center gap-2 text-amber-400">
+              <mat-icon class="!text-5xl">audiotrack</mat-icon>
+              <span class="text-[10px] uppercase font-bold text-amber-300">Audio Prompt</span>
+            </div>
+          } @else if (asset.assetType === 'VIDEO') {
+            <div class="flex flex-col items-center gap-2 text-purple-400">
+              <mat-icon class="!text-5xl">videocam</mat-icon>
+              <span class="text-[10px] uppercase font-bold text-purple-300">Video Clip</span>
+            </div>
+          } @else {
+            <div class="flex flex-col items-center gap-2 text-blue-400">
+              <mat-icon class="!text-5xl">description</mat-icon>
+              <span class="text-[10px] uppercase font-bold text-blue-300">Document</span>
+            </div>
+          }
+        </div>
+
+        <div>
+          <div class="flex items-center justify-between gap-2">
+            <span
+              class="text-[10px] font-bold px-2 py-0.5 rounded"
+              [ngClass]="asset.status === 'ACTIVE' ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-600'"
+            >
+              {{ asset.status }}
+            </span>
+            <span class="text-[10px] font-bold text-slate-400 uppercase">
+              {{ assetService.formatFileSize(asset.fileSize) }}
+            </span>
+          </div>
+
+          <h4 class="text-xs font-bold text-slate-900 mt-1 truncate" [title]="asset.title || asset.originalFilename">
+            {{ asset.title || asset.originalFilename }}
+          </h4>
+          <p class="text-[11px] text-slate-500 font-mono truncate" [title]="asset.originalFilename">
+            {{ asset.originalFilename }}
+          </p>
+          @if (asset.tags) {
+            <div class="mt-1.5 flex flex-wrap gap-1">
+              @for (tag of asset.tags.split(','); track tag) {
+                <span class="text-[9px] bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded font-medium">
+                  #{{ tag.trim() }}
+                </span>
+              }
+            </div>
+          }
+        </div>
+      </div>
+
+      <!-- Card Action Footer -->
+      <div class="pt-2 border-t border-slate-100 flex items-center justify-between text-xs">
+        <button mat-button color="primary" class="!text-xs !px-2 font-semibold cursor-pointer" (click)="preview.emit(asset)">
+          <mat-icon class="!text-sm !w-4 !h-4">visibility</mat-icon>
+          Preview
+        </button>
+
+        <button mat-icon-button [matMenuTriggerFor]="cardMenu" class="text-slate-400 hover:text-slate-700 cursor-pointer">
+          <mat-icon>more_vert</mat-icon>
+        </button>
+
+        <mat-menu #cardMenu="matMenu">
+          <button mat-menu-item (click)="replaceBinary.emit(asset)">
+            <mat-icon class="text-indigo-600">sync</mat-icon>
+            <span>Replace File Content</span>
+          </button>
+          <button mat-menu-item (click)="editMetadata.emit(asset)">
+            <mat-icon>edit_note</mat-icon>
+            <span>Edit Metadata</span>
+          </button>
+          <button mat-menu-item (click)="copyCdnUrl.emit(asset)">
+            <mat-icon>content_copy</mat-icon>
+            <span>Copy CDN URL</span>
+          </button>
+          <a mat-menu-item [href]="assetService.getDownloadUrl(asset.id)" target="_blank">
+            <mat-icon>download</mat-icon>
+            <span>Download File</span>
+          </a>
+          @if (asset.status === 'ACTIVE') {
+            <button mat-menu-item (click)="archive.emit(asset)">
+              <mat-icon>archive</mat-icon>
+              <span>Archive Asset</span>
+            </button>
+          } @else {
+            <button mat-menu-item (click)="restore.emit(asset)">
+              <mat-icon>unarchive</mat-icon>
+              <span>Restore Asset</span>
+            </button>
+          }
+          <button mat-menu-item (click)="delete.emit(asset)" class="text-rose-600">
+            <mat-icon class="text-rose-600">delete</mat-icon>
+            <span class="text-rose-600">Delete Asset</span>
+          </button>
+        </mat-menu>
+      </div>
+    </div>
+  }
+</div>

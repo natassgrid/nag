@@ -1,0 +1,84 @@
+<div class="centre-mgmt-container p-6 max-w-7xl mx-auto space-y-6">
+  <!-- Top Banner -->
+  <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-6 rounded-2xl border border-slate-200 shadow-xs">
+    <div class="flex items-center gap-4">
+      <div class="w-12 h-12 rounded-xl bg-purple-50 border border-purple-100 flex items-center justify-center text-purple-600 shadow-xs">
+        <mat-icon class="!text-2xl leading-none">domain</mat-icon>
+      </div>
+      <div>
+        <h1 class="text-xl font-black text-slate-900 tracking-tight flex items-center gap-2">
+          <span>Examination Centre Directory</span>
+          <span class="text-xs font-semibold px-2 py-0.5 rounded-full bg-purple-50 text-purple-700 border border-purple-200">
+            Nationwide Infrastructure
+          </span>
+        </h1>
+        <p class="text-xs text-slate-500 font-medium mt-0.5">
+          Manage secure test venues, building labs, terminal seat capacities, and geographic location hierarchies
+        </p>
+      </div>
+    </div>
+
+    <div class="flex items-center gap-3">
+      <button
+        mat-stroked-button
+        (click)="loadCentres()"
+        [disabled]="loading()"
+        class="!text-slate-700 !border-slate-300 cursor-pointer"
+      >
+        <mat-icon>refresh</mat-icon>
+        Refresh
+      </button>
+      <button
+        mat-flat-button
+        color="primary"
+        (click)="openCreate()"
+        class="cursor-pointer"
+      >
+        <mat-icon>add_business</mat-icon>
+        Register Test Centre
+      </button>
+    </div>
+  </div>
+
+  <!-- KPI Metrics -->
+  <nag-centre-kpi-cards
+    [totalCentresCount]="totalCentresCount()"
+    [totalCapacitySum]="totalCapacitySum()"
+    [activeCentresCount]="activeCentresCount()"
+  ></nag-centre-kpi-cards>
+
+  <!-- Search & Filters -->
+  <nag-centre-filter-bar
+    [searchQuery]="searchQuery()"
+    [stateFilter]="stateFilter()"
+    [statusFilter]="statusFilter()"
+    [uniqueStates]="uniqueStates()"
+    (searchQueryChange)="searchQuery.set($event)"
+    (stateFilterChange)="stateFilter.set($event)"
+    (statusFilterChange)="statusFilter.set($event)"
+  ></nag-centre-filter-bar>
+
+  <!-- Test Centres Table -->
+  <nag-centre-table-list
+    [centres]="filteredCentres()"
+    [loading]="loading()"
+    [searchQuery]="searchQuery()"
+    [stateFilter]="stateFilter()"
+    (registerFirst)="openCreate()"
+    (deactivate)="deactivateCentre($event)"
+  ></nag-centre-table-list>
+
+  <!-- Create Centre Drawer Overlay -->
+  <nag-centre-create-drawer
+    [isOpen]="drawerOpen()"
+    [isSaving]="isSaving()"
+    [countries]="countries()"
+    [states]="states()"
+    [cities]="cities()"
+    (closeDrawer)="closeDrawer()"
+    (save)="saveCentre($event)"
+    (countryChange)="onCountryChange($event)"
+    (stateChange)="onStateChange($event)"
+    (cityChange)="onCityChange($event)"
+  ></nag-centre-create-drawer>
+</div>

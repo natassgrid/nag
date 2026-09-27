@@ -1,0 +1,27 @@
+<div class="candidate-app-shell min-h-screen flex flex-col bg-slate-100 text-slate-900">
+  <nag-global-notification />
+
+  <!-- Navigation Bar (Hidden during full-screen exam runtime and auth views) -->
+  @if (!isExamRuntime()) {
+    <nag-candidate-header
+      [isDrawerOpen]="isDrawerOpen()"
+      [userName]="authService.userName()"
+      [isAuthenticated]="authService.isAuthenticated()"
+      (toggleDrawer)="toggleDrawer()"
+      (logout)="handleLogout()"
+    />
+
+    <nag-candidate-drawer
+      [isOpen]="isDrawerOpen()"
+      [userName]="authService.userName()"
+      [isAuthenticated]="authService.isAuthenticated()"
+      (closeDrawer)="closeDrawer()"
+      (logout)="handleLogout()"
+    />
+  }
+
+  <!-- Main View Outlet -->
+  <main class="flex-1">
+    <router-outlet></router-outlet>
+  </main>
+</div>

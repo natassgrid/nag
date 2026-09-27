@@ -1,0 +1,26 @@
+<div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+  <nag-stat-card
+    label="Total Enrollments"
+    [value]="totalRegistered()"
+    icon="assignment"
+    variant="primary"
+  />
+  <nag-stat-card
+    label="Live Exams (Active)"
+    [value]="liveCount()"
+    icon="play_circle"
+    variant="warn"
+  />
+  <nag-stat-card
+    label="Scheduled Upcoming"
+    [value]="upcomingCount()"
+    icon="event"
+    variant="accent"
+  />
+  <nag-stat-card
+    label="Scorecards & Results"
+    [value]="scorecardsCount()"
+    icon="verified"
+    variant="success"
+  />
+</div>

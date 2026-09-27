@@ -51,6 +51,17 @@ public class QuestionDeliveryDto {
     private String topic;
     private Integer correctOptionIndex;
     private String explanation;
+    private String questionType;
+
+    /** UUID of the comprehension passage stimulus if this question is part of a paragraph set */
+    private String passageId;
+
+    /** Decrypted content of the stimulus/passage */
+    private String passageContent;
+
+    /** 0-based position of this sub-question within the passage group */
+    private Integer passageOrderIndex;
+
     @Builder.Default
     private Map<String, TranslatedQuestionDeliveryDto> translations = new HashMap<>();
 }

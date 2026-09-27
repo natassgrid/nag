@@ -1,0 +1,82 @@
+<div class="seat-allocation-container space-y-4">
+  <div class="flex items-center justify-between">
+    <div>
+      <h2 class="text-sm font-bold text-slate-800 uppercase tracking-wide">
+        Seat Allocations for {{ selectedShift()?.shiftName || ('Shift ' + selectedShift()?.shiftNumber) }}
+      </h2>
+      <p class="text-xs text-slate-500">
+        Allocate test center capacity, PwD disability terminals, emergency buffers, and category reservations
+      </p>
+    </div>
+    <button
+      mat-flat-button
+      color="primary"
+      (click)="onAddAllocation()"
+    >
+      <mat-icon>add</mat-icon>
+      Allocate Test Centre
+    </button>
+  </div>
+
+  @if (loading()) {
+    <div class="p-12 bg-white rounded-2xl border border-slate-200 text-center space-y-3">
+      <mat-spinner diameter="40" class="mx-auto"></mat-spinner>
+      <p class="text-sm font-medium text-slate-500">Loading seat allocations for this shift...</p>
+    </div>
+  } @else if (allocations().length === 0) {
+    <div class="p-12 bg-white rounded-2xl border border-dashed border-slate-300 text-center space-y-3">
+      <mat-icon class="!text-4xl text-slate-300 leading-none">chair</mat-icon>
+      <h3 class="text-base font-bold text-slate-800">No Test Venues Allocated</h3>
+      <p class="text-xs text-slate-500 max-w-md mx-auto">
+        Select examination venues from the nationwide test centre directory to assign seats to this shift.
+      </p>
+      <button
+        mat-flat-button
+        color="primary"
+        (click)="onAddAllocation()"
+      >
+        <mat-icon>add</mat-icon>
+        Allocate First Centre
+      </button>
+    </div>
+  } @else {
+    <div class="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-xs">
+      <table class="min-w-full divide-y divide-slate-200 text-left text-xs">
+        <thead class="bg-slate-50 text-slate-600 font-semibold uppercase tracking-wider">
+          <tr>
+            <th scope="col" class="px-5 py-3.5">Assigned Test Venue</th>
+            <th scope="col" class="px-5 py-3.5">Total Capacity</th>
+            <th scope="col" class="px-5 py-3.5">Available Seats</th>
+            <th scope="col" class="px-5 py-3.5">Reserved Quota</th>
+            <th scope="col" class="px-5 py-3.5">PwD Seats</th>
+            <th scope="col" class="px-5 py-3.5">Emergency Buffer</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-slate-100 text-slate-700">
+          @for (alloc of allocations(); track alloc.id) {
+            <tr class="hover:bg-slate-50/70">
+              <td class="px-5 py-4 font-bold text-slate-900">
+                {{ getCentreName(alloc.centreId) }}
+              </td>
+              <td class="px-5 py-4 font-mono font-bold text-indigo-700">
+                {{ alloc.totalSeats }}
+              </td>
+              <td class="px-5 py-4 font-mono text-emerald-700 font-bold">
+                {{ alloc.availableSeats }}
+              </td>
+              <td class="px-5 py-4 font-mono text-slate-600">
+                {{ alloc.reservedSeats }}
+              </td>
+              <td class="px-5 py-4 font-mono text-purple-700">
+                {{ alloc.pwdSeats }}
+              </td>
+              <td class="px-5 py-4 font-mono text-amber-700">
+                {{ alloc.emergencyBufferSeats }}
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  }
+</div>

@@ -1,0 +1,48 @@
+<div class="pt-4 border-t border-slate-200 space-y-3">
+  <div class="flex items-center justify-between">
+    <div class="flex items-center gap-2">
+      <input
+        id="moderation-checkbox"
+        type="checkbox"
+        [ngModel]="moderationRequired()"
+        (ngModelChange)="onRequiredToggle($event)"
+        class="w-4 h-4 accent-indigo-600 rounded cursor-pointer"
+      />
+      <label for="moderation-checkbox" class="text-xs font-bold text-slate-900 cursor-pointer">
+        Chief Moderator Sign-Off & Verification
+      </label>
+    </div>
+    <span class="text-[10px] text-slate-400 font-mono">Dual-Evaluator Protocol</span>
+  </div>
+
+  @if (moderationRequired()) {
+    <div class="p-4 bg-indigo-50/50 rounded-xl border border-indigo-200 space-y-3 animate-fade-in">
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <div>
+          <label for="moderation-verdict-select" class="block text-[11px] font-bold text-slate-700 mb-1">Moderation Verdict</label>
+          <select
+            id="moderation-verdict-select"
+            [ngModel]="moderationVerdict()"
+            (ngModelChange)="onVerdictSelect($event)"
+            class="w-full text-xs px-3 py-1.5 bg-white border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
+          >
+            <option value="APPROVED">APPROVED (Concur with Evaluator)</option>
+            <option value="REQUIRES_REVALUATION">REQUIRES REVALUATION (Discrepancy Found)</option>
+            <option value="ESCALATED">ESCALATE TO HEAD EXAMINER</option>
+          </select>
+        </div>
+        <div>
+          <label for="moderator-audit-note-input" class="block text-[11px] font-bold text-slate-700 mb-1">Moderator Audit Note</label>
+          <input
+            id="moderator-audit-note-input"
+            type="text"
+            [ngModel]="moderationNotes()"
+            (ngModelChange)="onNotesInput($event)"
+            placeholder="e.g. Verified rubric weights against official key"
+            class="w-full text-xs px-3 py-1.5 bg-white border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
+          />
+        </div>
+      </div>
+    </div>
+  }
+</div>

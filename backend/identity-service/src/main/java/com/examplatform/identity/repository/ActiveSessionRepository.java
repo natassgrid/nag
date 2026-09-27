@@ -33,6 +33,8 @@ public interface ActiveSessionRepository extends JpaRepository<ActiveSession, UU
 
     Optional<ActiveSession> findByUserIdAndTenantId(UUID userId, String tenantId);
 
+    Optional<ActiveSession> findBySessionTokenAndTenantId(String sessionToken, String tenantId);
+
     void deleteByUserIdAndTenantId(UUID userId, String tenantId);
 
     boolean existsByUserIdAndTenantId(UUID userId, String tenantId);

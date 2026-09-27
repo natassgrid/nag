@@ -1,0 +1,17 @@
+.admin-dashboard-page {
+  .dashboard-action-card {
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+
+    &:hover {
+      transform: translateY(-2px);
+    }
+  }
+
+  .telemetry-node {
+    transition: background-color 0.15s ease-in-out;
+
+    &:hover {
+      background-color: #f1f5f9;
+    }
+  }
+}

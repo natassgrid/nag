@@ -35,6 +35,7 @@ import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 
@@ -52,16 +53,19 @@ public class RegistrationService {
     private final AppSecurityProperties securityProperties;
 
     /**
-     * Registers a new candidate account. Must complete within 2 seconds.
-     * Audit event is published asynchronously to stay within SLA.
+     * Registers a new candidate account.
+     * Sets emailVerified = false, mobileVerified = false, and accountStatus = PENDING_VERIFICATION.
+     * Dispatches verification OTP via Gmail SMTP and MSG91 SMS.
      */
     @Transactional
     public RegistrationResponse register(RegistrationRequest request, String tenantId) {
         long start = System.currentTimeMillis();
 
         // 1. Hash sensitive fields
-        String emailHash = hashingService.sha256(request.getEmail().toLowerCase().trim());
-        String mobileHash = hashingService.sha256(request.getMobile().trim());
+        String emailClean = request.getEmail().toLowerCase().trim();
+        String mobileClean = request.getMobile().trim();
+        String emailHash = hashingService.sha256(emailClean);
+        String mobileHash = hashingService.sha256(mobileClean);
         String docHash = hashingService.sha256(request.getIdentityDocNumber().trim().toUpperCase());
         String docHmac = hashingService.hmac(request.getIdentityDocNumber().trim().toUpperCase(),
             HMAC_KEY_PREFIX + tenantId);
@@ -76,16 +80,17 @@ public class RegistrationService {
                 "An account with this identity document already exists.");
         }
 
-        // 3. Persist account in PENDING_VERIFICATION state
-        // Note: tenantId is on BaseEntity and not in Lombok @Builder — set explicitly after build
+        // 3. Persist account in PENDING_VERIFICATION state with emailVerified = false, mobileVerified = false
         UserAccount account = UserAccount.builder()
-            .username(request.getEmail().toLowerCase().trim())
+            .username(emailClean)
             .emailHash(emailHash)
             .mobileHash(mobileHash)
             .identityDocType(request.getIdentityDocType())
             .identityDocHash(docHash)
             .identityDocHmac(docHmac)
             .accountStatus(AccountStatus.PENDING_VERIFICATION)
+            .emailVerified(false)
+            .mobileVerified(false)
             .mfaEnabled(false)
             .failedAttemptCount(0)
             .build();
@@ -93,11 +98,13 @@ public class RegistrationService {
 
         UserAccount saved = userAccountRepository.save(account);
 
-        // 4. Send OTP (synchronous — required for 2-second response)
-        otpService.sendOtp(saved.getId(), mobileHash, request.getMobile());
+        // 4. Send Email OTP (Gmail SMTP) & SMS OTP (MSG91)
+        otpService.sendEmailOtp(saved.getId(), emailHash, emailClean, request.getIdentityDocNumber(), tenantId);
+        otpService.sendSmsOtp(saved.getId(), mobileHash, mobileClean, tenantId);
 
-        // 5. Publish audit event asynchronously to avoid blocking
-        publishAuditEventAsync(saved.getId().toString(), tenantId);
+        // 5. Publish audit event asynchronously with registration details for candidate profile provisioning
+        String docTypeName = request.getIdentityDocType() != null ? request.getIdentityDocType().name() : null;
+        publishRegistrationAuditEvent(saved.getId().toString(), tenantId, request.getFullName(), emailClean, mobileClean, docTypeName, request.getIdentityDocNumber());
 
         long elapsed = System.currentTimeMillis() - start;
         if (elapsed > 1500) {
@@ -105,46 +112,95 @@ public class RegistrationService {
         }
 
         return RegistrationResponse.builder()
-            .message("Registration successful. OTP sent to registered mobile number.")
+            .message("Registration successful. Verification OTP sent to your registered email and mobile number.")
             .userId(saved.getId().toString())
             .build();
     }
 
     /**
-     * Resends an OTP to a candidate awaiting account verification.
-     *
-     * @param userId   the user account identifier
-     * @param tenantId the tenant identifier
+     * Resends Email OTP to a candidate awaiting verification, looking up by userId or email.
+     */
+    @Transactional
+    public void resendEmailOtp(UUID userId, String email, String tenantId) {
+        UserAccount account = findPendingAccount(userId, email, tenantId);
+        otpService.sendEmailOtp(account.getId(), account.getEmailHash(), account.getUsername(), null, tenantId);
+        publishAuditEventAsync(account.getId().toString(), tenantId);
+        log.info("Email OTP resent for user [{}] in tenant [{}]", account.getId(), tenantId);
+    }
+
+    /**
+     * Resends Email OTP to a candidate awaiting verification by userId.
+     */
+    @Transactional
+    public void resendEmailOtp(UUID userId, String tenantId) {
+        resendEmailOtp(userId, null, tenantId);
+    }
+
+    /**
+     * Resends SMS OTP to a candidate awaiting verification with weekly rate limit enforcement.
+     */
+    @Transactional
+    public void resendSmsOtp(UUID userId, String tenantId) {
+        UserAccount account = findPendingAccount(userId, null, tenantId);
+        otpService.sendSmsOtp(account.getId(), account.getMobileHash(), null, tenantId);
+        publishAuditEventAsync(account.getId().toString(), tenantId);
+        log.info("SMS OTP resent for user [{}] in tenant [{}]", userId, tenantId);
+    }
+
+    /**
+     * Backward-compatible OTP resend.
      */
     @Transactional
     public void resendOtp(UUID userId, String tenantId) {
-        UserAccount account = userAccountRepository.findById(userId)
-                .orElseThrow(() -> new AccountNotFoundException("Account not found for user: " + userId));
+        resendSmsOtp(userId, tenantId);
+    }
+
+    private UserAccount findPendingAccount(UUID userId, String email, String tenantId) {
+        UserAccount account = null;
+        if (userId != null) {
+            account = userAccountRepository.findById(userId).orElse(null);
+        }
+        if (account == null && email != null && !email.isBlank()) {
+            String emailHash = hashingService.sha256(email.trim().toLowerCase());
+            account = userAccountRepository.findByEmailHashAndTenantId(emailHash, tenantId)
+                    .or(() -> userAccountRepository.findByUsernameIgnoreCaseAndTenantId(email.trim(), tenantId))
+                    .orElse(null);
+        }
+
+        if (account == null) {
+            throw new AccountNotFoundException("Account not found for user: " + (userId != null ? userId : email));
+        }
 
         if (!tenantId.equals(account.getTenantId())) {
-            throw new AccountNotFoundException("No account found for user in this tenant.");
+            throw new AccountNotFoundException("No account found for user in this tenant: " + (userId != null ? userId : email));
         }
 
         if (account.getAccountStatus() == AccountStatus.ACTIVE) {
             throw new InvalidOtpException("Account is already verified. Please login instead.");
         }
 
-        if (account.getAccountStatus() != AccountStatus.PENDING_VERIFICATION) {
-            throw new AccountNotFoundException(
-                    "Cannot resend OTP for account in status: " + account.getAccountStatus());
-        }
+        return account;
+    }
 
-        otpService.sendOtp(account.getId(), account.getMobileHash(), null);
-        publishAuditEventAsync(account.getId().toString(), tenantId);
-        log.info("OTP resent for user [{}] in tenant [{}]", userId, tenantId);
+    @Async
+    public void publishRegistrationAuditEvent(String userId, String tenantId, String fullName, String email, String mobile, String docType, String docNumber) {
+        Map<String, Object> extra = new HashMap<>();
+        extra.put("tenantId", tenantId);
+        if (fullName != null) extra.put("fullName", fullName);
+        if (email != null) extra.put("email", email);
+        if (mobile != null) extra.put("mobile", mobile);
+        if (docType != null) extra.put("identityDocType", docType);
+        if (docNumber != null) extra.put("identityDocNumber", docNumber);
+
+        auditEventPublisher.publish(
+            AuditEventType.CANDIDATE_PROFILE_CREATED,
+            userId, "identity:registration", null, null,
+            extra
+        );
     }
 
     @Async
     public void publishAuditEventAsync(String userId, String tenantId) {
-        auditEventPublisher.publish(
-            AuditEventType.CANDIDATE_PROFILE_CREATED,
-            userId, "identity:registration", null, null,
-            Map.of("tenantId", tenantId)
-        );
+        publishRegistrationAuditEvent(userId, tenantId, null, null, null, null, null);
     }
 }

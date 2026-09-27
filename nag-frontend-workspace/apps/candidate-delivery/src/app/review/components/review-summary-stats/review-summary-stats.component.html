@@ -1,0 +1,41 @@
+<div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
+  <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-xs flex items-center gap-3">
+    <div class="w-10 h-10 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center font-bold">
+      <mat-icon>check_circle</mat-icon>
+    </div>
+    <div>
+      <span class="block text-[10px] font-bold uppercase text-slate-400">Correct Answers</span>
+      <span class="text-lg font-bold text-emerald-700">{{ stats().correct }} / {{ totalQuestions() }}</span>
+    </div>
+  </div>
+
+  <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-xs flex items-center gap-3">
+    <div class="w-10 h-10 rounded-lg bg-rose-50 text-rose-600 flex items-center justify-center font-bold">
+      <mat-icon>cancel</mat-icon>
+    </div>
+    <div>
+      <span class="block text-[10px] font-bold uppercase text-slate-400">Incorrect Answers</span>
+      <span class="text-lg font-bold text-rose-700">{{ stats().incorrect }}</span>
+    </div>
+  </div>
+
+  <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-xs flex items-center gap-3">
+    <div class="w-10 h-10 rounded-lg bg-slate-100 text-slate-500 flex items-center justify-center font-bold">
+      <mat-icon>help_outline</mat-icon>
+    </div>
+    <div>
+      <span class="block text-[10px] font-bold uppercase text-slate-400">Unattempted</span>
+      <span class="text-lg font-bold text-slate-700">{{ stats().unattempted }}</span>
+    </div>
+  </div>
+
+  <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-xs flex items-center gap-3">
+    <div class="w-10 h-10 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center font-bold">
+      <mat-icon>timer</mat-icon>
+    </div>
+    <div>
+      <span class="block text-[10px] font-bold uppercase text-slate-400">Avg Time / Item</span>
+      <span class="text-lg font-bold text-indigo-700">{{ avgTime() }}</span>
+    </div>
+  </div>
+</div>

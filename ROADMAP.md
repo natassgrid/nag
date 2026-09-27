@@ -99,6 +99,19 @@ Status: Planned
 
 ---
 
+# Version 0.8 - Mobile Candidate Platform (Android & iOS)
+
+- Mobile Candidate Self-Service & Profile Management
+- Offline Digital Hall Ticket / Admit Card Wallet with Cryptographic QR Verification
+- Multi-step Exam Application & Centre Preference Selection
+- Push Notifications & Alerts (Shift timings, Gate reporting, Centre updates)
+- Offline Practice / Mock CBT Engine with KaTeX Math & SMILES Chemistry
+- Single-App Lockdown Mode & Mobile Proctoring Security Guard (ADR 0008)
+
+Status: 🚧 Planned
+
+---
+
 # Version 1.0 - Production Ready
 
 - Government Scale Deployment
@@ -120,6 +133,5 @@ Target:
 - Digital Credentials
 - Adaptive Testing
 - Internationalization
-- Mobile Applications
 - Blockchain Verification
 - Plugin Marketplace

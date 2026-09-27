@@ -1,0 +1,149 @@
+@if (isOpen()) {
+  <div class="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-xs flex justify-end">
+    <div class="w-full max-w-3xl bg-white h-full shadow-2xl flex flex-col animate-slide-left">
+      <!-- Header -->
+      <div class="p-6 border-b border-slate-200 flex items-center justify-between bg-slate-900 text-white">
+        <div>
+          <div class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[11px] font-bold bg-indigo-500/20 text-indigo-300 mb-1 border border-indigo-500/30">
+            <mat-icon class="!text-xs">translate</mat-icon> {{ activeLanguageName() }} Translation
+          </div>
+          <h2 class="text-lg font-bold">
+            Question Localization: {{ activeQuestion()?.code || activeQuestion()?.id?.substring(0, 8) }}
+          </h2>
+        </div>
+        <button mat-icon-button (click)="closeDrawer.emit()" class="!text-slate-400 hover:!text-white cursor-pointer">
+          <mat-icon>close</mat-icon>
+        </button>
+      </div>
+
+      <!-- Drawer Body -->
+      <div class="p-6 overflow-y-auto grow space-y-6">
+        <!-- AI Action Ribbon -->
+        <div class="p-4 rounded-2xl bg-indigo-50 border border-indigo-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div>
+            <div class="font-bold text-sm text-indigo-950 flex items-center gap-2">
+              <mat-icon class="text-indigo-600">psychology</mat-icon> IndicTrans2 Model Ready
+            </div>
+            <p class="text-xs text-indigo-700 mt-0.5">
+              Automatically convert English question, mathematical formulas, and options to {{ activeLanguageName() }}.
+            </p>
+          </div>
+          <button
+            type="button"
+            (click)="runAiTranslate.emit()"
+            [disabled]="aiTranslating()"
+            class="px-4 py-2 rounded-xl text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 transition flex items-center gap-2 shadow-xs shrink-0 cursor-pointer disabled:opacity-60"
+          >
+            @if (aiTranslating()) {
+              <mat-spinner diameter="16" class="inline-block"></mat-spinner>
+              <span>Translating...</span>
+            } @else {
+              <mat-icon class="!text-sm">auto_awesome</mat-icon>
+              <span>Auto-Translate with AI</span>
+            }
+          </button>
+        </div>
+
+        <!-- Side by Side Preview / Editor -->
+        <div class="space-y-4">
+          <!-- Source English -->
+          <div class="p-4 bg-slate-50 rounded-2xl border border-slate-200 space-y-2">
+            <span class="text-[11px] font-bold uppercase text-slate-500 tracking-wider">Source (English)</span>
+            <p class="text-sm font-semibold text-slate-900 leading-relaxed">{{ activeQuestion()?.content }}</p>
+            <div class="grid grid-cols-2 gap-2 pt-2 text-xs">
+              @for (opt of activeQuestion()?.options; track opt.id) {
+                <div class="p-2 bg-white rounded-lg border border-slate-200 flex items-center gap-2">
+                  <span class="w-5 h-5 rounded bg-slate-100 text-slate-700 flex items-center justify-center font-bold text-[10px]">
+                    {{ opt.id }}
+                  </span>
+                  <span class="text-slate-700">{{ opt.text }}</span>
+                </div>
+              }
+            </div>
+          </div>
+
+          <!-- Target Language Editor -->
+          <div class="space-y-3">
+            <label class="block text-xs font-bold uppercase text-slate-700">
+              Translated Question Text ({{ activeLanguageName() }}) *
+            </label>
+            <textarea
+              [ngModel]="translatedContent()"
+              (ngModelChange)="contentChange.emit($event)"
+              rows="4"
+              placeholder="Click 'Auto-Translate with AI' above or enter manual translation..."
+              class="w-full p-3 text-sm border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500 font-sans"
+            ></textarea>
+          </div>
+
+          <!-- Translated Options -->
+          <div class="space-y-3">
+            <label class="block text-xs font-bold uppercase text-slate-700">
+              Translated MCQ Options
+            </label>
+            <div class="space-y-2">
+              @for (opt of translatedOptions(); track opt.id; let idx = $index) {
+                <div class="flex items-center gap-2">
+                  <span class="w-7 h-7 rounded-lg bg-indigo-100 text-indigo-700 flex items-center justify-center font-bold text-xs shrink-0">
+                    {{ opt.id }}
+                  </span>
+                  <input
+                    type="text"
+                    [ngModel]="opt.text"
+                    (ngModelChange)="updateOption(idx, $event)"
+                    placeholder="Option {{ opt.id }} translation..."
+                    class="w-full px-3 py-2 text-xs border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500 bg-white"
+                  />
+                </div>
+              }
+            </div>
+          </div>
+
+          <!-- Translated Explanation -->
+          <div class="space-y-2">
+            <label class="block text-xs font-bold uppercase text-slate-700">
+              Translated Explanation / Solution (Optional)
+            </label>
+            <textarea
+              [ngModel]="translatedExplanation()"
+              (ngModelChange)="explanationChange.emit($event)"
+              rows="2"
+              placeholder="Optional solution breakdown in target language..."
+              class="w-full p-3 text-xs border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500"
+            ></textarea>
+          </div>
+        </div>
+      </div>
+
+      <!-- Drawer Footer -->
+      <div class="p-4 bg-slate-50 border-t border-slate-200 flex items-center justify-between">
+        <div class="flex items-center gap-2">
+          <span class="text-xs text-slate-500">Status:</span>
+          <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-indigo-100 text-indigo-800">
+            {{ translationStatus() }}
+          </span>
+        </div>
+        <div class="flex items-center gap-3">
+          <button mat-button (click)="closeDrawer.emit()" class="!text-slate-600 cursor-pointer">Close</button>
+          <button
+            mat-stroked-button
+            (click)="saveDraft.emit()"
+            [disabled]="savingTranslation() || !translatedContent()"
+            class="!border-slate-300 cursor-pointer"
+          >
+            Save Draft
+          </button>
+          <button
+            mat-flat-button
+            color="primary"
+            (click)="approveTranslation.emit()"
+            [disabled]="!translatedContent()"
+            class="!bg-emerald-600 !text-white !font-bold cursor-pointer"
+          >
+            <mat-icon>check_circle</mat-icon> Approve Translation
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+}

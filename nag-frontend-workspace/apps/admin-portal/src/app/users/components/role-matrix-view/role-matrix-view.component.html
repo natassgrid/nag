@@ -1,0 +1,169 @@
+<div class="space-y-6">
+  <!-- Top Bar: Header & Add Role Trigger -->
+  <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+    <div>
+      <h3 class="text-base font-bold text-slate-900">Role-Based Access Control (RBAC)</h3>
+      <p class="text-xs text-slate-500">Fine-grained operational permissions anchored across DPI assessment modules</p>
+    </div>
+
+    <button
+      mat-flat-button
+      color="primary"
+      (click)="createRole.emit()"
+      class="!rounded-xl !bg-purple-600 hover:!bg-purple-700 !text-white !text-xs !py-1.5"
+    >
+      <span class="flex items-center gap-1">
+        <mat-icon class="!text-sm">add_moderator</mat-icon>
+        <span>Define Custom Role</span>
+      </span>
+    </button>
+  </div>
+
+  <!-- Role Cards Grid -->
+  <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+    @for (role of roles(); track role.id) {
+      <div class="bg-white rounded-2xl border border-slate-200 p-5 shadow-xs flex flex-col justify-between space-y-4 hover:border-purple-300 transition-colors">
+        <div class="space-y-2">
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-2">
+              <span class="w-8 h-8 rounded-lg bg-purple-50 text-purple-600 flex items-center justify-center font-bold text-xs">
+                <mat-icon class="!text-lg">shield</mat-icon>
+              </span>
+              <div>
+                <h4 class="font-bold text-sm text-slate-900 leading-tight">{{ role.displayName }}</h4>
+                <span class="text-[10px] font-mono text-slate-400">{{ role.name }}</span>
+              </div>
+            </div>
+
+            @if (role.systemRole) {
+              <span class="text-[9px] font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 border border-slate-200">
+                SYSTEM
+              </span>
+            } @else {
+              <span class="text-[9px] font-bold px-2 py-0.5 rounded-full bg-purple-50 text-purple-700 border border-purple-200">
+                CUSTOM
+              </span>
+            }
+          </div>
+
+          <p class="text-xs text-slate-600 leading-relaxed min-h-[36px]">
+            {{ role.description }}
+          </p>
+        </div>
+
+        <div class="pt-3 border-t border-slate-100 flex items-center justify-between">
+          <div class="text-[11px] text-slate-500">
+            <span class="font-bold text-slate-800">{{ role.userCount ?? 0 }}</span> Assigned Users
+          </div>
+
+          <div class="flex items-center gap-1">
+            @if (!role.systemRole) {
+              <button
+                mat-icon-button
+                (click)="editRole.emit(role)"
+                matTooltip="Edit Custom Role"
+                class="!text-slate-500 hover:!text-purple-600"
+              >
+                <mat-icon class="!text-base">edit</mat-icon>
+              </button>
+              <button
+                mat-icon-button
+                (click)="deleteRole.emit(role)"
+                matTooltip="Delete Custom Role"
+                class="!text-slate-500 hover:!text-rose-600"
+              >
+                <mat-icon class="!text-base">delete</mat-icon>
+              </button>
+            } @else {
+              <span class="text-[10px] text-slate-400 font-medium italic">Immutable System Core</span>
+            }
+          </div>
+        </div>
+      </div>
+    }
+  </div>
+
+  <!-- Permission Matrix Section -->
+  <div class="bg-white rounded-2xl border border-slate-200 p-6 shadow-xs space-y-4">
+    <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pb-3 border-b border-slate-100">
+      <div>
+        <h4 class="font-bold text-sm text-slate-900">Privilege &amp; Permission Matrix</h4>
+        <p class="text-xs text-slate-500">Cross-reference role authorizations across platform capabilities</p>
+      </div>
+
+      <!-- Category Filter Pills -->
+      <div class="flex flex-wrap gap-1.5 bg-slate-100 p-1 rounded-xl">
+        <button
+          type="button"
+          (click)="selectedCategory.set('ALL')"
+          [ngClass]="{
+            'bg-white text-purple-900 shadow-xs font-bold': selectedCategory() === 'ALL',
+            'text-slate-600': selectedCategory() !== 'ALL'
+          }"
+          class="px-2.5 py-1 rounded-lg text-xs transition cursor-pointer"
+        >
+          All ({{ permissions().length }})
+        </button>
+        @for (cat of categories(); track cat) {
+          <button
+            type="button"
+            (click)="selectedCategory.set(cat)"
+            [ngClass]="{
+              'bg-white text-purple-900 shadow-xs font-bold': selectedCategory() === cat,
+              'text-slate-600': selectedCategory() !== cat
+            }"
+            class="px-2.5 py-1 rounded-lg text-xs transition cursor-pointer uppercase text-[11px]"
+          >
+            {{ cat }}
+          </button>
+        }
+      </div>
+    </div>
+
+    <!-- Matrix Table -->
+    <div class="overflow-x-auto rounded-xl border border-slate-200">
+      <table class="w-full text-xs text-left">
+        <thead class="bg-slate-50 text-slate-700 font-bold border-b border-slate-200 text-[10px] uppercase tracking-wider">
+          <tr>
+            <th class="py-3 px-4 min-w-[220px]">Permission Capability</th>
+            <th class="py-3 px-4">Category</th>
+            @for (role of roles(); track role.id) {
+              <th class="py-3 px-3 text-center whitespace-nowrap">{{ role.displayName }}</th>
+            }
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-slate-100">
+          @for (perm of filteredPermissions(); track perm.id) {
+            <tr class="hover:bg-slate-50/70 transition-colors">
+              <td class="py-3 px-4">
+                <div class="font-bold text-slate-900 text-xs">{{ perm.displayName }}</div>
+                <div class="text-[10px] text-slate-400 font-mono">{{ perm.name }}</div>
+                <p class="text-[11px] text-slate-500 mt-0.5">{{ perm.description }}</p>
+              </td>
+
+              <td class="py-3 px-4 whitespace-nowrap">
+                <span class="px-2 py-0.5 rounded-md text-[10px] font-bold bg-slate-100 text-slate-700 font-mono">
+                  {{ perm.category }}
+                </span>
+              </td>
+
+              @for (role of roles(); track role.id) {
+                <td class="py-3 px-3 text-center">
+                  @if (hasPermission(role, perm.name)) {
+                    <span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-emerald-100 text-emerald-700 font-bold">
+                      <mat-icon class="!text-sm leading-none">check</mat-icon>
+                    </span>
+                  } @else {
+                    <span class="inline-flex items-center justify-center w-6 h-6 rounded-full text-slate-300">
+                      &bull;
+                    </span>
+                  }
+                </td>
+              }
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>

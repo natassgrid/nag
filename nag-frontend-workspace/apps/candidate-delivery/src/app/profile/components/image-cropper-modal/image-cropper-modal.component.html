@@ -1,0 +1,140 @@
+<div class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/70 backdrop-blur-xs p-4 animate-fade-in">
+  <div class="bg-white w-full max-w-lg rounded-2xl shadow-2xl border border-slate-200 overflow-hidden flex flex-col max-h-[92vh]">
+
+    <!-- Modal Header -->
+    <div class="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/80">
+      <div class="flex items-center gap-2.5">
+        <div class="w-8 h-8 rounded-lg bg-indigo-100 text-indigo-600 flex items-center justify-center">
+          <mat-icon class="!text-lg leading-none">crop</mat-icon>
+        </div>
+        <div>
+          <h3 class="text-sm font-bold text-slate-900">{{ title() }}</h3>
+          <p class="text-[11px] text-slate-500">
+            {{ mode() === 'signature' ? 'Crop candidate signature (3:1 aspect ratio)' : 'Crop passport photograph (1:1 aspect ratio)' }}
+          </p>
+        </div>
+      </div>
+      <button
+        type="button"
+        (click)="onCancel()"
+        class="text-slate-400 hover:text-slate-600 rounded-lg p-1.5 transition cursor-pointer"
+        aria-label="Close dialog"
+      >
+        <mat-icon class="!text-lg">close</mat-icon>
+      </button>
+    </div>
+
+    <!-- Cropper Viewport & Canvas -->
+    <div class="p-6 space-y-4 overflow-y-auto grow flex flex-col items-center justify-center bg-slate-900">
+      <div
+        class="relative overflow-hidden rounded-xl border-2 border-indigo-400 shadow-2xl bg-black cursor-grab active:cursor-grabbing select-none"
+        [class.w-72]="mode() === 'photo'"
+        [class.h-72]="mode() === 'photo'"
+        [class.w-80]="mode() === 'signature'"
+        [class.h-28]="mode() === 'signature'"
+        (mousedown)="startDrag($event)"
+        (mousemove)="onDrag($event)"
+        (mouseup)="endDrag()"
+        (mouseleave)="endDrag()"
+        (touchstart)="startDrag($event)"
+        (touchmove)="onDrag($event)"
+        (touchend)="endDrag()"
+      >
+        <canvas
+          #previewCanvas
+          [width]="mode() === 'signature' ? 320 : 288"
+          [height]="mode() === 'signature' ? 112 : 288"
+          class="w-full h-full block"
+        ></canvas>
+
+        <!-- Rule of thirds grid -->
+        <div class="absolute inset-0 pointer-events-none grid grid-cols-3 grid-rows-3 border border-white/20">
+          <div class="border-r border-b border-white/20"></div>
+          <div class="border-r border-b border-white/20"></div>
+          <div class="border-b border-white/20"></div>
+          <div class="border-r border-b border-white/20"></div>
+          <div class="border-r border-b border-white/20"></div>
+          <div class="border-b border-white/20"></div>
+          <div class="border-r border-b border-white/20"></div>
+          <div class="border-r border-b border-white/20"></div>
+          <div></div>
+        </div>
+      </div>
+
+      <p class="text-[11px] text-slate-400 flex items-center gap-1">
+        <mat-icon class="!text-xs leading-none">pan_tool</mat-icon> Click and drag inside box to adjust position
+      </p>
+    </div>
+
+    <!-- Controls Bar -->
+    <div class="px-6 py-3 bg-slate-50 border-t border-slate-200 space-y-3">
+      <!-- Zoom Slider -->
+      <div class="flex items-center gap-3">
+        <mat-icon class="text-slate-400 !text-sm leading-none">zoom_out</mat-icon>
+        <div class="grow flex items-center">
+          <input
+            type="range"
+            min="0.5"
+            max="2.5"
+            step="0.05"
+            [ngModel]="zoom()"
+            (ngModelChange)="onZoomChange($event)"
+            class="w-full accent-indigo-600 h-1.5 bg-slate-200 rounded-lg cursor-pointer"
+          />
+        </div>
+        <mat-icon class="text-slate-400 !text-sm leading-none">zoom_in</mat-icon>
+        <span class="text-[11px] font-mono text-slate-600 w-10 text-right">{{ zoom().toFixed(2) }}x</span>
+      </div>
+
+      <!-- Quick Action Buttons -->
+      <div class="flex items-center justify-between pt-1">
+        <div class="flex items-center gap-1">
+          <button
+            type="button"
+            (click)="rotate(-90)"
+            class="px-2.5 py-1 text-xs text-slate-700 bg-white border border-slate-200 rounded-lg hover:bg-slate-100 flex items-center gap-1 cursor-pointer"
+            title="Rotate 90 degrees counter-clockwise"
+          >
+            <mat-icon class="!text-xs leading-none">rotate_left</mat-icon> -90&deg;
+          </button>
+          <button
+            type="button"
+            (click)="rotate(90)"
+            class="px-2.5 py-1 text-xs text-slate-700 bg-white border border-slate-200 rounded-lg hover:bg-slate-100 flex items-center gap-1 cursor-pointer"
+            title="Rotate 90 degrees clockwise"
+          >
+            <mat-icon class="!text-xs leading-none">rotate_right</mat-icon> +90&deg;
+          </button>
+          <button
+            type="button"
+            (click)="resetAdjustments()"
+            class="px-2.5 py-1 text-xs text-slate-700 bg-white border border-slate-200 rounded-lg hover:bg-slate-100 flex items-center gap-1 cursor-pointer"
+            title="Reset all zoom & pan"
+          >
+            <mat-icon class="!text-xs leading-none">restart_alt</mat-icon> Reset
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal Footer Actions -->
+    <div class="px-6 py-3.5 border-t border-slate-200 bg-white flex items-center justify-between gap-3">
+      <button
+        mat-button
+        (click)="onCancel()"
+        class="!text-xs !rounded-lg text-slate-600"
+      >
+        Cancel
+      </button>
+      <button
+        mat-flat-button
+        color="primary"
+        (click)="applyCrop()"
+        class="!text-xs !rounded-lg !px-6"
+      >
+        <mat-icon class="!text-sm">check</mat-icon> Apply & Save
+      </button>
+    </div>
+
+  </div>
+</div>

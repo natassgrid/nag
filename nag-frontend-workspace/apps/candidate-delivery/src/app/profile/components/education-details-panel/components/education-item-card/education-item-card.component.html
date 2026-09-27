@@ -1,0 +1,76 @@
+<div class="p-4 rounded-xl border border-slate-200 bg-white hover:border-indigo-200 hover:shadow-xs transition-all flex flex-col sm:flex-row items-start justify-between gap-4">
+  <div class="flex items-start gap-3.5 grow">
+    <div class="w-10 h-10 rounded-xl bg-indigo-50 text-indigo-700 flex items-center justify-center shrink-0 mt-0.5">
+      <mat-icon class="!text-xl">history_edu</mat-icon>
+    </div>
+
+    <div class="space-y-1.5 grow">
+      <div class="flex flex-wrap items-center gap-2">
+        <span class="text-sm font-bold text-slate-900">{{ entry().qualification }}</span>
+        @if (entry().courseName) {
+          <span class="text-xs font-semibold text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded-md">
+            {{ entry().courseName }}
+          </span>
+        }
+        @if (entry().specialization) {
+          <span class="text-xs font-medium text-slate-600 bg-slate-100 px-2 py-0.5 rounded-md">
+            {{ entry().specialization }}
+          </span>
+        }
+      </div>
+
+      <div class="grid grid-cols-1 sm:grid-cols-3 gap-x-4 gap-y-1 text-xs text-slate-600">
+        <div>
+          <span class="text-slate-400 font-medium">Board/University:</span>
+          <span class="font-semibold text-slate-800 ml-1">{{ entry().boardOrUniversity }}</span>
+        </div>
+        @if (entry().institutionName) {
+          <div>
+            <span class="text-slate-400 font-medium">Institution:</span>
+            <span class="text-slate-700 ml-1">{{ entry().institutionName }}</span>
+          </div>
+        }
+        <div>
+          <span class="text-slate-400 font-medium">Passing Year:</span>
+          <span class="font-mono font-semibold text-slate-800 ml-1">{{ entry().passingYear }}</span>
+        </div>
+        <div>
+          <span class="text-slate-400 font-medium">Marks / Grade:</span>
+          <span class="font-bold text-emerald-700 ml-1">{{ entry().percentageOrCgpa }}</span>
+        </div>
+        @if (entry().rollNumber) {
+          <div>
+            <span class="text-slate-400 font-medium">Roll / Reg No:</span>
+            <span class="font-mono text-slate-700 ml-1">{{ entry().rollNumber }}</span>
+          </div>
+        }
+        @if (entry().certificateFileName || entry().certificateAssetId) {
+          <div class="flex items-center gap-1 text-indigo-600 font-medium">
+            <mat-icon class="!text-xs">attachment</mat-icon>
+            <span class="truncate max-w-[150px]">{{ entry().certificateFileName || 'Attached Document' }}</span>
+          </div>
+        }
+      </div>
+    </div>
+  </div>
+
+  <!-- Action Buttons -->
+  <div class="flex items-center gap-1.5 shrink-0 self-end sm:self-start">
+    <button
+      type="button"
+      (click)="onEdit()"
+      class="text-slate-500 hover:text-indigo-600 p-1.5 rounded-lg hover:bg-slate-100 cursor-pointer transition-colors"
+      title="Edit Qualification"
+    >
+      <mat-icon class="!text-base">edit</mat-icon>
+    </button>
+    <button
+      type="button"
+      (click)="onDelete()"
+      class="text-slate-400 hover:text-rose-600 p-1.5 rounded-lg hover:bg-rose-50 cursor-pointer transition-colors"
+      title="Delete Qualification"
+    >
+      <mat-icon class="!text-base">delete</mat-icon>
+    </button>
+  </div>
+</div>

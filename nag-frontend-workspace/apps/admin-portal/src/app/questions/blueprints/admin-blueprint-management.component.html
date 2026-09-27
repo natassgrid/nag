@@ -1,0 +1,90 @@
+<div class="p-6 md:p-8 space-y-6 max-w-7xl mx-auto">
+  <!-- Header Banner -->
+  <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 p-6 rounded-3xl text-white shadow-xl">
+    <div class="space-y-1">
+      <div class="flex items-center gap-2">
+        <span class="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
+          Blueprints &amp; Quotas
+        </span>
+        <span class="text-xs text-slate-400 font-medium">Algorithmic Assembly Engine</span>
+      </div>
+      <h1 class="text-2xl font-black tracking-tight text-white">Blueprint Matrix Management</h1>
+      <p class="text-xs text-slate-300 max-w-2xl leading-relaxed">
+        Define multi-subject distribution rules, cognitive level quotas (Bloom's Taxonomy), and difficulty matrices for automated question paper generation.
+      </p>
+    </div>
+
+    <div class="flex items-center gap-3">
+      <button
+        mat-flat-button
+        color="primary"
+        (click)="openCreateDrawer()"
+        class="!rounded-xl !bg-indigo-500 hover:!bg-indigo-600 !text-white font-bold text-xs flex items-center gap-2 !px-4 !py-2.5 shadow-md shadow-indigo-500/20 cursor-pointer"
+      >
+        <mat-icon class="!text-sm">add</mat-icon>
+        Create New Blueprint
+      </button>
+    </div>
+  </div>
+
+  <!-- Stats Grid -->
+  <nag-blueprint-stats-cards
+    [activeBlueprintsCount]="templates().length"
+    [totalQuestionsCount]="totalQuestionsCount()"
+    [taxonomySubjectsCount]="taxonomySubjects().length"
+  ></nag-blueprint-stats-cards>
+
+  <!-- Filter & Search Controls -->
+  <div class="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-xs flex flex-col sm:flex-row items-center justify-between gap-4">
+    <div class="relative w-full sm:max-w-md">
+      <mat-icon class="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 !text-sm leading-none">search</mat-icon>
+      <input
+        type="text"
+        [ngModel]="searchQuery()"
+        (ngModelChange)="searchQuery.set($event)"
+        placeholder="Filter blueprints by name, subject, topic..."
+        class="w-full pl-9 pr-4 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white"
+      />
+    </div>
+
+    <div class="flex items-center gap-2 text-xs text-slate-500 font-semibold">
+      <span>Showing {{ filteredTemplates().length }} of {{ templates().length }} templates</span>
+    </div>
+  </div>
+
+  <!-- Templates Grid -->
+  <nag-blueprint-grid-list
+    [templates]="filteredTemplates()"
+    [loading]="loading()"
+    [deletingId]="deletingId()"
+    (createBlueprint)="openCreateDrawer()"
+    (editBlueprint)="openEditDrawer($event)"
+    (deleteBlueprint)="deleteTemplate($event)"
+    (auditSufficiency)="openSufficiencyAudit($event)"
+  ></nag-blueprint-grid-list>
+
+  <!-- Blueprint Creation/Editing Drawer -->
+  <nag-blueprint-form-drawer
+    [isOpen]="drawerOpen()"
+    [editingTemplate]="editingTemplate()"
+    [saving]="saving()"
+    [form]="form"
+    [taxonomySubjects]="taxonomySubjects()"
+    [taxonomyHierarchy]="taxonomyHierarchy()"
+    (closeDrawer)="closeDrawer()"
+    (save)="saveBlueprint()"
+    (addRule)="addRule()"
+    (removeRule)="removeRule($event)"
+    (ruleSubjectChanged)="onRuleSubjectChanged($event)"
+  ></nag-blueprint-form-drawer>
+
+  <!-- Sufficiency / Feasibility Audit Modal -->
+  <nag-blueprint-sufficiency-modal
+    [isOpen]="feasibilityModalOpen()"
+    [template]="selectedTemplateForAudit()"
+    [auditLoading]="auditLoading()"
+    [auditResult]="auditResult()"
+    (closeModal)="closeSufficiencyModal()"
+    (assemblePaper)="navigateToPaperGen($event)"
+  ></nag-blueprint-sufficiency-modal>
+</div>

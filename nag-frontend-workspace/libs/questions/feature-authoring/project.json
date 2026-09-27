@@ -1,0 +1,13 @@
+{
+  "name": "questions-feature-authoring",
+  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "libs/questions/feature-authoring/src",
+  "prefix": "lib",
+  "projectType": "library",
+  "tags": ["scope:questions", "type:feature"],
+  "targets": {
+    "lint": {
+      "executor": "@nx/eslint:lint"
+    }
+  }
+}

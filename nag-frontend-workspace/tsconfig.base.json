@@ -1,0 +1,60 @@
+{
+  "compileOnSave": false,
+  "compilerOptions": {
+    "rootDir": ".",
+    "sourceMap": true,
+    "declaration": false,
+    "moduleResolution": "bundler",
+    "emitDecoratorMetadata": true,
+    "experimentalDecorators": true,
+    "importHelpers": true,
+    "target": "es2015",
+    "module": "esnext",
+    "lib": ["es2020", "dom"],
+    "skipLibCheck": true,
+    "skipDefaultLibCheck": true,
+    "strict": false,
+    "paths": {
+      "@nag-frontend-workspace/shared-ui-components": [
+        "./libs/shared/ui-components/src/index.ts"
+      ],
+      "@nag-frontend-workspace/shared-data-access-auth": [
+        "./libs/shared/data-access-auth/src/index.ts"
+      ],
+      "@nag-frontend-workspace/shared-util-crypto": [
+        "./libs/shared/util-crypto/src/index.ts"
+      ],
+      "@nag-frontend-workspace/shared-util-i18n": [
+        "./libs/shared/util-i18n/src/index.ts"
+      ],
+      "@nag-frontend-workspace/questions-feature-authoring": [
+        "./libs/questions/feature-authoring/src/index.ts"
+      ],
+      "@nag-frontend-workspace/questions-feature-bank": [
+        "./libs/questions/feature-bank/src/index.ts"
+      ],
+      "@nag-frontend-workspace/questions-data-access": [
+        "./libs/questions/data-access/src/index.ts"
+      ],
+      "@nag-frontend-workspace/questions-ui-question-card": [
+        "./libs/questions/ui-question-card/src/index.ts"
+      ],
+      "@nag-frontend-workspace/examinations-feature-scheduling": [
+        "./libs/examinations/feature-scheduling/src/index.ts"
+      ],
+      "@nag-frontend-workspace/examinations-feature-paper-gen": [
+        "./libs/examinations/feature-paper-gen/src/index.ts"
+      ],
+      "@nag-frontend-workspace/examinations-data-access": [
+        "./libs/examinations/data-access/src/index.ts"
+      ],
+      "@nag-frontend-workspace/evaluation-feature-grading": [
+        "./libs/evaluation/feature-grading/src/index.ts"
+      ],
+      "@nag-frontend-workspace/evaluation-data-access": [
+        "./libs/evaluation/data-access/src/index.ts"
+      ]
+    }
+  },
+  "exclude": ["node_modules", "tmp"]
+}

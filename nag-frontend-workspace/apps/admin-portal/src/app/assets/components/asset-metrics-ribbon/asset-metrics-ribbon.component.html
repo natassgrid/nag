@@ -1,0 +1,41 @@
+<div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
+  <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs flex items-center gap-3">
+    <div class="w-10 h-10 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center">
+      <mat-icon>folder</mat-icon>
+    </div>
+    <div>
+      <span class="text-xs text-slate-400 font-bold block uppercase tracking-wider">Total Assets</span>
+      <span class="text-lg font-bold text-slate-900">{{ totalElements() }}</span>
+    </div>
+  </div>
+
+  <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs flex items-center gap-3">
+    <div class="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
+      <mat-icon>storage</mat-icon>
+    </div>
+    <div>
+      <span class="text-xs text-slate-400 font-bold block uppercase tracking-wider">Storage Used</span>
+      <span class="text-lg font-bold text-slate-900">{{ totalStorageFormatted() }}</span>
+    </div>
+  </div>
+
+  <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs flex items-center gap-3">
+    <div class="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center">
+      <mat-icon>image</mat-icon>
+    </div>
+    <div>
+      <span class="text-xs text-slate-400 font-bold block uppercase tracking-wider">Images &amp; SVG</span>
+      <span class="text-lg font-bold text-slate-900">{{ imageCount() }}</span>
+    </div>
+  </div>
+
+  <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs flex items-center gap-3">
+    <div class="w-10 h-10 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center">
+      <mat-icon>audiotrack</mat-icon>
+    </div>
+    <div>
+      <span class="text-xs text-slate-400 font-bold block uppercase tracking-wider">Audio Prompts</span>
+      <span class="text-lg font-bold text-slate-900">{{ audioCount() }}</span>
+    </div>
+  </div>
+</div>

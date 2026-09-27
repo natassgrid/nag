@@ -1,0 +1,95 @@
+<div class="p-6 max-w-7xl mx-auto space-y-6">
+  <!-- Header Bar -->
+  <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-200 pb-5">
+    <div>
+      <div class="inline-flex items-center gap-2 px-2.5 py-1 rounded-full text-xs font-semibold bg-blue-50 text-blue-700 mb-2">
+        <mat-icon class="!text-sm">translate</mat-icon> AI Multilingual Engine &bull; IndicTrans2
+      </div>
+      <h1 class="text-2xl font-black text-slate-900 tracking-tight">Question Translation &amp; AI Localization</h1>
+      <p class="text-sm text-slate-500 mt-1">
+        Neural machine translation across 22 Scheduled Indian languages with LaTeX equation preservation and human-in-the-loop review.
+      </p>
+    </div>
+    <div class="flex items-center gap-3">
+      <button
+        mat-stroked-button
+        (click)="currentTab.set('batch')"
+        class="!border-slate-300 cursor-pointer"
+        [ngClass]="{ '!bg-slate-900 !text-white': currentTab() === 'batch' }"
+      >
+        <mat-icon>dynamic_feed</mat-icon> Batch Jobs ({{ batchJobs().length }})
+      </button>
+      <button
+        mat-flat-button
+        color="primary"
+        (click)="openBatchModal()"
+        class="!bg-indigo-600 !text-white !font-bold cursor-pointer"
+      >
+        <mat-icon>auto_awesome</mat-icon> Trigger AI Batch Translation
+      </button>
+    </div>
+  </div>
+
+  <!-- Indic Languages Filter Strip -->
+  <nag-translation-language-strip
+    [languages]="languages"
+    [selectedLanguage]="selectedLanguage()"
+    [activeLanguageName]="activeLanguageName()"
+    (selectLanguage)="setLanguage($event)"
+  ></nag-translation-language-strip>
+
+  <!-- TAB 1: QUESTION DIRECTORY VIEW -->
+  @if (currentTab() === 'list') {
+    <nag-question-translation-table
+      [questions]="filteredQuestions()"
+      [availableSubjects]="availableSubjects()"
+      [searchQuery]="searchQuery()"
+      [selectedSubject]="selectedSubject()"
+      [activeLanguageName]="activeLanguageName()"
+      (searchQueryChange)="searchQuery.set($event)"
+      (selectedSubjectChange)="selectedSubject.set($event)"
+      (openTranslation)="openTranslationEditor($event)"
+    ></nag-question-translation-table>
+  }
+
+  <!-- TAB 2: BATCH AI TRANSLATION JOBS -->
+  @if (currentTab() === 'batch') {
+    <nag-batch-jobs-list
+      [batchJobs]="batchJobs()"
+      [loadingBatchJobs]="loadingBatchJobs()"
+      (backToQuestions)="currentTab.set('list')"
+      (refreshJobs)="loadBatchJobs()"
+      (cancelJob)="cancelJob($event)"
+    ></nag-batch-jobs-list>
+  }
+
+  <!-- SIDE DRAWER: TRANSLATION & AI AUTO-TRANSLATE -->
+  <nag-translation-workbench-drawer
+    [isOpen]="drawerOpen()"
+    [activeQuestion]="activeQuestion()"
+    [activeLanguageName]="activeLanguageName()"
+    [aiTranslating]="aiTranslating()"
+    [savingTranslation]="savingTranslation()"
+    [translatedContent]="translatedContent()"
+    [translatedOptions]="translatedOptions()"
+    [translatedExplanation]="translatedExplanation()"
+    [translationStatus]="translationStatus()"
+    (closeDrawer)="closeDrawer()"
+    (runAiTranslate)="runIndicAiTranslation()"
+    (saveDraft)="saveTranslation('DRAFT')"
+    (approveTranslation)="approveCurrentTranslation()"
+    (contentChange)="translatedContent.set($event)"
+    (explanationChange)="translatedExplanation.set($event)"
+    (optionChange)="updateTranslatedOption($event)"
+  ></nag-translation-workbench-drawer>
+
+  <!-- MODAL: BATCH AI TRANSLATION LAUNCHER -->
+  <nag-batch-translation-modal
+    [isOpen]="batchModalOpen()"
+    [languages]="languages"
+    [availableSubjects]="availableSubjects()"
+    [submittingBatch]="submittingBatch()"
+    (closeModal)="closeBatchModal()"
+    (triggerJob)="triggerBatchJob($event)"
+  ></nag-batch-translation-modal>
+</div>

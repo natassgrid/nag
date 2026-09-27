@@ -1,0 +1,116 @@
+<div class="schedule-list-container space-y-4">
+  @if (loading()) {
+    <div class="p-12 bg-white rounded-2xl border border-slate-200 text-center space-y-3">
+      <mat-spinner diameter="40" class="mx-auto"></mat-spinner>
+      <p class="text-sm font-medium text-slate-500">Loading schedules from DPI registry...</p>
+    </div>
+  } @else if (schedules().length === 0) {
+    <div class="p-12 bg-white rounded-2xl border border-dashed border-slate-300 text-center space-y-3">
+      <mat-icon class="!text-4xl text-slate-300 leading-none">event_busy</mat-icon>
+      <h3 class="text-base font-bold text-slate-800">No Schedules Configured</h3>
+      <p class="text-xs text-slate-500 max-w-md mx-auto">
+        There are no active examination schedules for this examination yet. Create a schedule to define test shifts and venue allocations.
+      </p>
+      <button
+        mat-flat-button
+        color="primary"
+        (click)="onCreate()"
+        class="mt-2"
+      >
+        <mat-icon>add</mat-icon>
+        Create First Schedule
+      </button>
+    </div>
+  } @else {
+    <div class="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-xs">
+      <table class="min-w-full divide-y divide-slate-200 text-left text-xs">
+        <thead class="bg-slate-50 text-slate-600 font-semibold uppercase tracking-wider">
+          <tr>
+            <th scope="col" class="px-5 py-3.5">Schedule Name &amp; Version</th>
+            <th scope="col" class="px-5 py-3.5">Notification No.</th>
+            <th scope="col" class="px-5 py-3.5">Exam Date &amp; Reserve</th>
+            <th scope="col" class="px-5 py-3.5">Approval Status</th>
+            <th scope="col" class="px-5 py-3.5 text-right">Actions</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-slate-100 text-slate-700">
+          @for (sched of schedules(); track sched.id) {
+            <tr
+              class="hover:bg-indigo-50/40 cursor-pointer transition-colors"
+              [class.bg-indigo-50/30]="selectedSchedule()?.id === sched.id"
+              (click)="onSelect(sched)"
+            >
+              <td class="px-5 py-4">
+                <div class="font-bold text-slate-900 text-sm flex items-center gap-2">
+                  <span>{{ sched.scheduleName }}</span>
+                  <span class="text-[10px] font-mono font-bold px-1.5 py-0.5 rounded bg-slate-100 text-slate-700 border border-slate-200">
+                    v{{ sched.scheduleVersion }}
+                  </span>
+                </div>
+                @if (sched.changeReason) {
+                  <div class="text-[11px] text-purple-700 mt-0.5 italic">
+                    Reason: {{ sched.changeReason }}
+                  </div>
+                }
+              </td>
+
+              <td class="px-5 py-4 font-mono text-slate-600">
+                {{ sched.notificationNumber || '—' }}
+              </td>
+
+              <td class="px-5 py-4">
+                <div class="font-bold text-slate-800">{{ sched.examDate }}</div>
+                @if (sched.reserveDate) {
+                  <div class="text-[11px] text-slate-400">Reserve: {{ sched.reserveDate }}</div>
+                }
+              </td>
+
+              <td class="px-5 py-4">
+                <span
+                  [class.bg-emerald-50]="sched.status === 'PUBLISHED'"
+                  [class.text-emerald-700]="sched.status === 'PUBLISHED'"
+                  [class.border-emerald-200]="sched.status === 'PUBLISHED'"
+                  [class.bg-amber-50]="sched.status.includes('REVIEW') || sched.status.includes('DRAFT')"
+                  [class.text-amber-700]="sched.status.includes('REVIEW') || sched.status.includes('DRAFT')"
+                  [class.border-amber-200]="sched.status.includes('REVIEW') || sched.status.includes('DRAFT')"
+                  [class.bg-blue-50]="sched.status.includes('APPROVED')"
+                  [class.text-blue-700]="sched.status.includes('APPROVED')"
+                  [class.border-blue-200]="sched.status.includes('APPROVED')"
+                  class="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full border"
+                >
+                  {{ sched.status }}
+                </span>
+              </td>
+
+              <td class="px-5 py-4 text-right space-x-1">
+                <button
+                  mat-button
+                  color="primary"
+                  (click)="onViewShifts(sched, $event)"
+                  class="!text-xs"
+                >
+                  <mat-icon class="!text-xs">access_time</mat-icon>
+                  Shifts
+                </button>
+                <button
+                  mat-button
+                  (click)="onTransition(sched, $event)"
+                  class="!text-xs !text-indigo-600"
+                >
+                  Transition
+                </button>
+                <button
+                  mat-button
+                  (click)="onAmend(sched, $event)"
+                  class="!text-xs !text-purple-600"
+                >
+                  Amend
+                </button>
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  }
+</div>

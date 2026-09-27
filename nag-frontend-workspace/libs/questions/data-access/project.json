@@ -1,0 +1,13 @@
+{
+  "name": "questions-data-access",
+  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "libs/questions/data-access/src",
+  "prefix": "lib",
+  "projectType": "library",
+  "tags": ["scope:questions", "type:data-access"],
+  "targets": {
+    "lint": {
+      "executor": "@nx/eslint:lint"
+    }
+  }
+}

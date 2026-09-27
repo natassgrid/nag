@@ -1,0 +1,69 @@
+<div class="my-5 min-h-[300px] max-h-[500px] flex items-center justify-center bg-slate-950 rounded-2xl overflow-hidden border border-slate-800 p-4">
+  @if (loading()) {
+    <div class="flex flex-col items-center gap-3 text-slate-400">
+      <mat-spinner diameter="36"></mat-spinner>
+      <span class="text-xs">Fetching media binary stream...</span>
+    </div>
+  } @else if (loadError()) {
+    <div class="flex flex-col items-center gap-3 text-center max-w-md px-4 py-6">
+      <div class="w-16 h-16 rounded-2xl bg-rose-500/10 text-rose-500 flex items-center justify-center">
+        <mat-icon class="!text-4xl">broken_image</mat-icon>
+      </div>
+      <div>
+        <h4 class="text-sm font-bold text-rose-400">Media Stream Unavailable (HTTP 404)</h4>
+        <p class="text-xs text-slate-400 mt-1 leading-relaxed">
+          The binary file for this asset is missing from server storage volume. It may have been uploaded prior to storage volume initialization.
+        </p>
+      </div>
+      <div class="flex items-center gap-2 mt-2">
+        <button mat-stroked-button color="primary" class="!text-xs !rounded-xl" (click)="retryStream.emit()" [disabled]="replacing()">
+          <mat-icon class="!text-base mr-1">refresh</mat-icon> Retry Stream
+        </button>
+        <input #errorFileInput type="file" class="hidden" (change)="fileSelected.emit($event)" />
+        <button mat-flat-button color="primary" class="!text-xs !rounded-xl" (click)="errorFileInput.click()" [disabled]="replacing()">
+          <mat-icon class="!text-base mr-1">upload_file</mat-icon> Restore / Replace File
+        </button>
+      </div>
+    </div>
+  } @else {
+    <!-- Image Rendering -->
+    @if (asset().assetType === 'IMAGE' && blobUrl()) {
+      <img
+        [src]="blobUrl()"
+        [alt]="asset().altText || asset().originalFilename"
+        class="max-h-[460px] max-w-full object-contain rounded-lg shadow-lg"
+      />
+    }
+
+    <!-- Audio Player -->
+    @if (asset().assetType === 'AUDIO' && blobUrl()) {
+      <div class="flex flex-col items-center gap-4 w-full max-w-md py-6">
+        <div class="w-20 h-20 rounded-full bg-indigo-500/20 text-indigo-400 flex items-center justify-center animate-pulse">
+          <mat-icon class="!text-5xl">audiotrack</mat-icon>
+        </div>
+        <audio controls [src]="blobUrl()" class="w-full rounded-xl">
+          Your browser does not support audio playback.
+        </audio>
+      </div>
+    }
+
+    <!-- Video Player -->
+    @if (asset().assetType === 'VIDEO' && blobUrl()) {
+      <video controls [src]="blobUrl()" class="max-h-[460px] max-w-full rounded-lg shadow-lg">
+        Your browser does not support video playback.
+      </video>
+    }
+
+    <!-- Document / Other -->
+    @if (asset().assetType === 'DOCUMENT' || (!['IMAGE', 'AUDIO', 'VIDEO'].includes(asset().assetType))) {
+      <div class="flex flex-col items-center gap-3 text-slate-300 py-8">
+        <mat-icon class="!text-6xl text-indigo-400">insert_drive_file</mat-icon>
+        <span class="text-sm font-semibold">{{ asset().originalFilename }}</span>
+        <span class="text-xs text-slate-400">{{ asset().contentType }} &bull; {{ formattedSize() }}</span>
+        <button mat-flat-button color="primary" (click)="download.emit()" class="mt-2 text-xs !rounded-xl">
+          Download Document
+        </button>
+      </div>
+    }
+  }
+</div>

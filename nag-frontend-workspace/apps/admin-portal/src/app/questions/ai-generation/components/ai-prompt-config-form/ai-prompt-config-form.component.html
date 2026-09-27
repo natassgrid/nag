@@ -1,0 +1,164 @@
+<div class="bg-white rounded-3xl border border-slate-200 shadow-sm p-6 space-y-5">
+  <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+    <h2 class="text-sm font-black uppercase tracking-wider text-slate-800 flex items-center gap-2">
+      <mat-icon class="text-indigo-600 !text-lg">tune</mat-icon> Generation Parameters
+    </h2>
+    <span class="text-[11px] font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-600">
+      LiteLLM Router
+    </span>
+  </div>
+
+  <form [formGroup]="form()" class="space-y-4 text-xs">
+    <!-- Subject -->
+    <div>
+      <label class="block font-bold uppercase text-slate-700 mb-1">Subject *</label>
+      <select
+        formControlName="subject"
+        (change)="onSubjectSelect($event)"
+        class="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl font-medium focus:ring-2 focus:ring-indigo-500"
+      >
+        @for (sub of subjects(); track sub) {
+          <option [value]="sub">{{ sub }}</option>
+        }
+      </select>
+    </div>
+
+    <!-- Topic & Subtopic -->
+    <div class="space-y-3">
+      <div>
+        <label class="block font-bold uppercase text-slate-700 mb-1">Topic *</label>
+        <input
+          type="text"
+          formControlName="topic"
+          placeholder="e.g. Linear Algebra, Thermodynamics"
+          class="w-full p-2.5 bg-white border border-slate-300 rounded-xl font-medium focus:ring-2 focus:ring-indigo-500"
+        />
+      </div>
+      <div>
+        <label class="block font-bold uppercase text-slate-700 mb-1">Subtopic / Focus Area</label>
+        <input
+          type="text"
+          formControlName="subtopic"
+          placeholder="e.g. Eigenvalues, Reaction Kinetics"
+          class="w-full p-2.5 bg-white border border-slate-300 rounded-xl font-medium focus:ring-2 focus:ring-indigo-500"
+        />
+      </div>
+    </div>
+
+    <!-- Difficulty & Question Type -->
+    <div class="grid grid-cols-2 gap-3">
+      <div>
+        <label class="block font-bold uppercase text-slate-700 mb-1">Difficulty *</label>
+        <select
+          formControlName="difficulty"
+          class="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl font-medium focus:ring-2 focus:ring-indigo-500"
+        >
+          @for (d of difficulties(); track d) {
+            <option [value]="d">{{ d }}</option>
+          }
+        </select>
+      </div>
+      <div>
+        <label class="block font-bold uppercase text-slate-700 mb-1">Question Type *</label>
+        <select
+          formControlName="questionType"
+          class="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl font-medium focus:ring-2 focus:ring-indigo-500"
+        >
+          @for (t of questionTypes(); track t.value) {
+            <option [value]="t.value">{{ t.label }}</option>
+          }
+        </select>
+      </div>
+    </div>
+
+    <!-- Bloom's Cognitive Level -->
+    <div>
+      <label class="block font-bold uppercase text-slate-700 mb-1">Bloom's Cognitive Level *</label>
+      <select
+        formControlName="cognitiveLevel"
+        class="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl font-medium focus:ring-2 focus:ring-indigo-500"
+      >
+        @for (c of cognitiveLevels(); track c.value) {
+          <option [value]="c.value">{{ c.label }}</option>
+        }
+      </select>
+    </div>
+
+    <!-- Quantity / Count Slider -->
+    <div>
+      <div class="flex justify-between items-center mb-1">
+        <label class="font-bold uppercase text-slate-700">Questions to Generate</label>
+        <span class="font-black text-indigo-700 text-sm bg-indigo-50 px-2 py-0.5 rounded-lg border border-indigo-200">
+          {{ form().get('count')?.value }}
+        </span>
+      </div>
+      <input
+        type="range"
+        min="1"
+        max="5"
+        step="1"
+        formControlName="count"
+        class="w-full accent-indigo-600 cursor-pointer"
+      />
+      <div class="flex justify-between text-[10px] text-slate-400 mt-0.5">
+        <span>1 item</span>
+        <span>3 items (Default)</span>
+        <span>5 items (Max sync)</span>
+      </div>
+    </div>
+
+    <!-- Checkboxes: Avoid Duplicate & Auto Save -->
+    <div class="space-y-2 pt-2 border-t border-slate-100">
+      <label class="flex items-center gap-2 cursor-pointer p-2 rounded-xl hover:bg-slate-50 border border-transparent hover:border-slate-200">
+        <input
+          type="checkbox"
+          formControlName="avoidDuplicate"
+          class="w-4 h-4 rounded text-indigo-600 cursor-pointer"
+        />
+        <div>
+          <div class="font-bold text-slate-800">Avoid Semantic Duplicates</div>
+          <div class="text-[10px] text-slate-400">pgvector cosine threshold &gt; 0.92 check against live bank</div>
+        </div>
+      </label>
+
+      <label class="flex items-center gap-2 cursor-pointer p-2 rounded-xl hover:bg-slate-50 border border-transparent hover:border-slate-200">
+        <input
+          type="checkbox"
+          formControlName="autoSave"
+          class="w-4 h-4 rounded text-indigo-600 cursor-pointer"
+        />
+        <div>
+          <div class="font-bold text-slate-800">Auto-Save as Draft</div>
+          <div class="text-[10px] text-slate-400">Directly insert valid items into Question Bank with DRAFT status</div>
+        </div>
+      </label>
+    </div>
+
+    <!-- Submit Buttons -->
+    <div class="pt-3 space-y-2">
+      <button
+        type="button"
+        (click)="onGenerate()"
+        [disabled]="generating() || form().invalid"
+        class="w-full py-3 px-4 rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white font-black text-sm flex items-center justify-center gap-2 shadow-lg shadow-indigo-600/20 transition cursor-pointer disabled:opacity-60"
+      >
+        @if (generating()) {
+          <mat-spinner diameter="18" class="inline-block"></mat-spinner>
+          <span>Synthesizing with LiteLLM...</span>
+        } @else {
+          <mat-icon>auto_awesome</mat-icon>
+          <span>Synthesize Questions Now</span>
+        }
+      </button>
+
+      <button
+        type="button"
+        (click)="onAddToBatch()"
+        class="w-full py-2 px-3 rounded-xl border border-slate-300 text-slate-700 hover:bg-slate-50 font-bold text-xs flex items-center justify-center gap-1.5 transition cursor-pointer"
+      >
+        <mat-icon class="!text-sm">playlist_add</mat-icon>
+        <span>Add to Batch Queue</span>
+      </button>
+    </div>
+  </form>
+</div>

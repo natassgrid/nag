@@ -144,20 +144,22 @@ public class QuestionBankClientImpl implements QuestionBankClient {
         try {
             // First attempt: exact match on subject, topic, difficulty, and cognitive level
             String sql = """
-                SELECT id, subject, topic, difficulty, cognitive_level, usage_count, last_used_at, content
+                SELECT id, subject, topic, difficulty, cognitive_level, usage_count, last_used_at, content, passage_id, passage_order_index
                 FROM question_service.question
                 WHERE tenant_id = ?
                   AND UPPER(TRIM(subject)) = UPPER(?)
                   AND UPPER(TRIM(topic)) = UPPER(?)
                   AND state = 'APPROVED'
-                  AND (? IS NULL OR UPPER(TRIM(difficulty)) = UPPER(?))\
-                  AND (? IS NULL OR UPPER(TRIM(cognitive_level)) = UPPER(?))\
+                  AND (? IS NULL OR UPPER(TRIM(difficulty)) = UPPER(?))
+                  AND (? IS NULL OR UPPER(TRIM(cognitive_level)) = UPPER(?))
                 ORDER BY RANDOM()
                 """;
 
             List<QuestionSummary> questions = jdbcTemplate.query(sql, (rs, rowNum) -> {
                 Timestamp ts = rs.getTimestamp("last_used_at");
                 Instant lastUsedAt = ts != null ? ts.toInstant() : null;
+                UUID passageId = rs.getObject("passage_id", UUID.class);
+                Integer passageOrderIndex = (Integer) rs.getObject("passage_order_index");
                 return QuestionSummary.builder()
                         .questionId(rs.getObject("id", UUID.class))
                         .subject(rs.getString("subject"))
@@ -168,6 +170,8 @@ public class QuestionBankClientImpl implements QuestionBankClient {
                         .lastUsedAt(lastUsedAt)
                         .reusePolicy("1_YEAR")
                         .content(rs.getString("content"))
+                        .passageId(passageId)
+                        .passageOrderIndex(passageOrderIndex)
                         .build();
             }, effectiveTenant, cleanSubject, cleanTopic, cleanDifficulty, cleanDifficulty, cleanCognitiveLevel, cleanCognitiveLevel);
 
@@ -182,19 +186,21 @@ public class QuestionBankClientImpl implements QuestionBankClient {
                 log.info("No questions with cognitiveLevel='{}'; falling back to difficulty-only for subject='{}', topic='{}'",
                         cleanCognitiveLevel, cleanSubject, cleanTopic);
                 String fallbackSql = """
-                    SELECT id, subject, topic, difficulty, cognitive_level, usage_count, last_used_at, content
+                    SELECT id, subject, topic, difficulty, cognitive_level, usage_count, last_used_at, content, passage_id, passage_order_index
                     FROM question_service.question
                     WHERE tenant_id = ?
                       AND UPPER(TRIM(subject)) = UPPER(?)
                       AND UPPER(TRIM(topic)) = UPPER(?)
                       AND state = 'APPROVED'
-                      AND (? IS NULL OR UPPER(TRIM(difficulty)) = UPPER(?))\
+                      AND (? IS NULL OR UPPER(TRIM(difficulty)) = UPPER(?))
                     ORDER BY RANDOM()
                     """;
 
                 List<QuestionSummary> fallbackQuestions = jdbcTemplate.query(fallbackSql, (rs, rowNum) -> {
                     Timestamp ts = rs.getTimestamp("last_used_at");
                     Instant lastUsedAt = ts != null ? ts.toInstant() : null;
+                    UUID passageId = rs.getObject("passage_id", UUID.class);
+                    Integer passageOrderIndex = (Integer) rs.getObject("passage_order_index");
                     return QuestionSummary.builder()
                             .questionId(rs.getObject("id", UUID.class))
                             .subject(rs.getString("subject"))
@@ -205,6 +211,8 @@ public class QuestionBankClientImpl implements QuestionBankClient {
                             .lastUsedAt(lastUsedAt)
                             .reusePolicy("1_YEAR")
                             .content(rs.getString("content"))
+                            .passageId(passageId)
+                            .passageOrderIndex(passageOrderIndex)
                             .build();
                 }, effectiveTenant, cleanSubject, cleanTopic, cleanDifficulty, cleanDifficulty);
 
@@ -259,7 +267,7 @@ public class QuestionBankClientImpl implements QuestionBankClient {
         try {
             String inSql = String.join(",", Collections.nCopies(questionIds.size(), "?"));
             String sql = String.format("""
-                SELECT id, subject, topic, difficulty, cognitive_level, usage_count, last_used_at, content
+                SELECT id, subject, topic, difficulty, cognitive_level, usage_count, last_used_at, content, passage_id, passage_order_index
                 FROM question_service.question
                 WHERE (tenant_id = ? OR tenant_id = 'default')
                   AND id IN (%s)
@@ -274,6 +282,8 @@ public class QuestionBankClientImpl implements QuestionBankClient {
                 UUID id = rs.getObject("id", UUID.class);
                 Timestamp ts = rs.getTimestamp("last_used_at");
                 Instant lastUsedAt = ts != null ? ts.toInstant() : null;
+                UUID passageId = rs.getObject("passage_id", UUID.class);
+                Integer passageOrderIndex = (Integer) rs.getObject("passage_order_index");
                 QuestionSummary qs = QuestionSummary.builder()
                         .questionId(id)
                         .subject(rs.getString("subject"))
@@ -283,6 +293,8 @@ public class QuestionBankClientImpl implements QuestionBankClient {
                         .usageCount(rs.getInt("usage_count"))
                         .lastUsedAt(lastUsedAt)
                         .content(rs.getString("content"))
+                        .passageId(passageId)
+                        .passageOrderIndex(passageOrderIndex)
                         .build();
                 map.put(id, qs);
             }, params.toArray());
@@ -349,7 +361,7 @@ public class QuestionBankClientImpl implements QuestionBankClient {
     @Override
     public BatchTranslationJobResponseDto getBatchTranslationStatus(UUID jobId, String tenantId) {
         String effectiveTenant = (tenantId != null && !tenantId.isBlank()) ? tenantId : "default";
-        String url = questionBankServiceUrl + "/api/v1/translations/batch/" + jobId;
+        String url = questionBankServiceUrl + "/api/v1/translations/batch/" + jobId + "/status";
 
         try {
             RestClient.RequestHeadersSpec<?> spec = restClient.get()
@@ -361,21 +373,27 @@ public class QuestionBankClientImpl implements QuestionBankClient {
                     .retrieve()
                     .body(BatchTranslationJobResponseDto.class);
         } catch (Exception e) {
-            log.error("Failed to query translation job status from {}: {}", url, e.getMessage());
-            throw new IllegalStateException("Unable to connect to question-bank-service at " + questionBankServiceUrl +
-                    ". Please ensure question-bank-service is running. Details: " + e.getMessage(), e);
+            log.error("Failed to get batch translation status for jobId={} from {}: {}", jobId, url, e.getMessage());
+            throw new IllegalStateException("Unable to get batch translation status: " + e.getMessage(), e);
+        }
+    }
+
+    private void attachAuthHeader(RestClient.RequestBodySpec spec) {
+        String token = resolveAuthToken();
+        if (token != null) {
+            spec.header(HttpHeaders.AUTHORIZATION, token);
         }
     }
 
     private void attachAuthHeader(RestClient.RequestHeadersSpec<?> spec) {
-        String authHeader = resolveAuthorizationHeader();
-        if (authHeader != null && !authHeader.isBlank()) {
-            spec.header(HttpHeaders.AUTHORIZATION, authHeader);
+        String token = resolveAuthToken();
+        if (token != null) {
+            spec.header(HttpHeaders.AUTHORIZATION, token);
         }
     }
 
-    private String resolveAuthorizationHeader() {
-        // 1. Check incoming HTTP request in current thread context
+    private String resolveAuthToken() {
+        // 1. Propagate token from inbound request if present
         RequestAttributes requestAttributes = RequestContextHolder.getRequestAttributes();
         if (requestAttributes instanceof ServletRequestAttributes servletAttrs) {
             String authHeader = servletAttrs.getRequest().getHeader(HttpHeaders.AUTHORIZATION);
@@ -459,6 +477,8 @@ public class QuestionBankClientImpl implements QuestionBankClient {
                 .usageCount(0)
                 .reusePolicy("1_YEAR")
                 .content(dto.getContent())
+                .passageId(dto.getPassageId())
+                .passageOrderIndex(dto.getPassageOrderIndex())
                 .build();
     }
 
@@ -483,5 +503,7 @@ public class QuestionBankClientImpl implements QuestionBankClient {
         private String difficulty;
         private String cognitiveLevel;
         private String content;
+        private UUID passageId;
+        private Integer passageOrderIndex;
     }
 }

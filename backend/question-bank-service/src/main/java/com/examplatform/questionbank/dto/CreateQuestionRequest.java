@@ -30,6 +30,8 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.util.UUID;
+
 /**
  * Request payload for creating a new question.
  * Supports rich content types: HTML5, SVG, LaTeX, MathML, or references to media files.
@@ -92,4 +94,10 @@ public class CreateQuestionRequest {
     /** Options for MCQ/MSQ questions (2-6 items, A-F) */
     @Valid
     private java.util.List<QuestionOption> options;
+
+    /** Optional passage FK if this question belongs to a comprehension group */
+    private UUID passageId;
+
+    /** 0-based order index within its passage group */
+    private Integer passageOrderIndex;
 }

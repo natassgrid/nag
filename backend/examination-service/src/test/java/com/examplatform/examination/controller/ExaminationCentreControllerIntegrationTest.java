@@ -182,7 +182,7 @@ class ExaminationCentreControllerIntegrationTest extends AbstractIntegrationTest
         @Test
         @DisplayName("+ve: SECURITY_ADMIN lists centres - returns 200 OK")
         void securityAdminCanListCentres() throws Exception {
-            when(centreService.listCentresPaged(eq(TENANT_ID), any(), any(), any(), anyInt(), anyInt()))
+            when(centreService.listCentresPaged(eq(TENANT_ID), any(), any(), any(), any(), any(), anyInt(), anyInt()))
                     .thenReturn(new PageImpl<>(List.of(sampleCentreResponse())));
 
             mockMvc.perform(get("/api/v1/examinations/centres")

@@ -41,6 +41,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.jupiter.api.Assertions.assertAll;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -97,7 +98,7 @@ class OtpVerificationServiceTest {
             when(hashingService.sha256(any())).thenReturn("mobileHash");
             when(userAccountRepository.findByMobileHashAndTenantId("mobileHash", "default"))
                 .thenReturn(Optional.of(account));
-            when(otpService.verifyOtp("mobileHash", "123456")).thenReturn(true);
+            when(otpService.verifyMobileOtp(any(), eq("mobileHash"), eq("123456"), eq("default"))).thenReturn(true);
             when(keycloakService.getTokens(any(), any(), any())).thenReturn(
                 AuthTokenResponse.builder().accessToken("token").expiresIn(900).build());
 
@@ -126,7 +127,7 @@ class OtpVerificationServiceTest {
             when(hashingService.sha256(any())).thenReturn("mobileHash");
             when(userAccountRepository.findByMobileHashAndTenantId(any(), any()))
                 .thenReturn(Optional.of(account));
-            when(otpService.verifyOtp(any(), any())).thenReturn(false);
+            when(otpService.verifyMobileOtp(any(), any(), any(), any())).thenReturn(false);
 
             assertThatThrownBy(() -> otpVerificationService.verifyOtpAndActivate(request, "default"))
                 .isInstanceOf(InvalidOtpException.class);

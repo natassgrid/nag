@@ -1,0 +1,131 @@
+<div class="bg-white rounded-2xl border border-slate-200 p-6 shadow-xs space-y-4">
+  <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pb-3 border-b border-slate-100">
+    <div>
+      <h3 class="text-base font-bold text-slate-900">Authority Onboarding Invitations</h3>
+      <p class="text-xs text-slate-500">Track dispatched cryptographic onboarding links and TOTP 2FA registrations</p>
+    </div>
+
+    <button
+      mat-flat-button
+      color="primary"
+      (click)="inviteNew.emit()"
+      class="!rounded-xl !bg-indigo-600 hover:!bg-indigo-700 !text-white !text-xs !py-1.5"
+    >
+      <span class="flex items-center gap-1">
+        <mat-icon class="!text-sm">send</mat-icon>
+        <span>Send New Invite</span>
+      </span>
+    </button>
+  </div>
+
+  <!-- Invitations Table -->
+  <div class="overflow-x-auto rounded-xl border border-slate-200">
+    <table class="w-full text-left text-xs">
+      <thead class="bg-slate-50 text-slate-600 uppercase font-bold tracking-wider text-[10px] border-b border-slate-200">
+        <tr>
+          <th class="py-3 px-4">Invited Authority</th>
+          <th class="py-3 px-4">Assigned Roles</th>
+          <th class="py-3 px-4">Invitation Status</th>
+          <th class="py-3 px-4">Dispatched At</th>
+          <th class="py-3 px-4">Expires At</th>
+          <th class="py-3 px-4 text-right">Actions</th>
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-slate-100">
+        @if (invitations().length === 0) {
+          <tr>
+            <td colspan="6" class="py-12 text-center text-slate-400">
+              <mat-icon class="!text-4xl mx-auto block mb-2 text-slate-300">mail_outline</mat-icon>
+              <span>No pending or past invitations found</span>
+            </td>
+          </tr>
+        } @else {
+          @for (inv of invitations(); track inv.id) {
+            <tr class="hover:bg-slate-50/70 transition-colors">
+              <td class="py-3.5 px-4">
+                <div class="font-bold text-slate-900 text-sm">{{ inv.fullName }}</div>
+                <div class="text-[11px] text-slate-500 font-mono">{{ inv.email }}</div>
+                @if (inv.invitationToken) {
+                  <div class="flex items-center gap-1 mt-1">
+                    <span class="text-[10px] text-slate-400 font-mono truncate max-w-[140px]">
+                      {{ inv.invitationToken }}
+                    </span>
+                    <button
+                      type="button"
+                      (click)="copyToken(inv.invitationToken)"
+                      matTooltip="Copy Onboarding Token"
+                      class="text-slate-400 hover:text-indigo-600 p-0.5"
+                    >
+                      <mat-icon class="!text-xs leading-none">content_copy</mat-icon>
+                    </button>
+                  </div>
+                }
+              </td>
+
+              <td class="py-3.5 px-4">
+                <div class="flex flex-wrap gap-1">
+                  @for (role of inv.assignedRoles; track role) {
+                    <span class="px-2 py-0.5 rounded-md text-[10px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-100">
+                      {{ getRoleName(role) }}
+                    </span>
+                  }
+                </div>
+              </td>
+
+              <td class="py-3.5 px-4">
+                @if (inv.status === 'PENDING') {
+                  <span class="inline-flex items-center gap-1 text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200">
+                    <span class="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span>
+                    Pending Acceptance
+                  </span>
+                } @else if (inv.status === 'ACCEPTED') {
+                  <span class="inline-flex items-center gap-1 text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
+                    <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                    Enrolled
+                  </span>
+                } @else if (inv.status === 'EXPIRED') {
+                  <span class="inline-flex items-center gap-1 text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-600 border border-slate-200">
+                    Expired
+                  </span>
+                } @else {
+                  <span class="inline-flex items-center gap-1 text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-rose-50 text-rose-700 border border-rose-200">
+                    Revoked
+                  </span>
+                }
+              </td>
+
+              <td class="py-3.5 px-4 text-slate-600 font-mono text-[11px]">
+                {{ inv.createdAt }}
+              </td>
+
+              <td class="py-3.5 px-4 text-slate-600 font-mono text-[11px]">
+                {{ inv.expiresAt }}
+              </td>
+
+              <td class="py-3.5 px-4 text-right">
+                <div class="flex items-center justify-end gap-2">
+                  @if (inv.status === 'PENDING') {
+                    <button
+                      mat-stroked-button
+                      (click)="resendInvite.emit(inv)"
+                      class="!text-[11px] !py-0.5 !px-2 !rounded-lg !border-indigo-200 !text-indigo-700 hover:!bg-indigo-50"
+                    >
+                      Resend
+                    </button>
+                    <button
+                      mat-stroked-button
+                      (click)="revokeInvite.emit(inv)"
+                      class="!text-[11px] !py-0.5 !px-2 !rounded-lg !border-rose-200 !text-rose-700 hover:!bg-rose-50"
+                    >
+                      Revoke
+                    </button>
+                  }
+                </div>
+              </td>
+            </tr>
+          }
+        }
+      </tbody>
+    </table>
+  </div>
+</div>

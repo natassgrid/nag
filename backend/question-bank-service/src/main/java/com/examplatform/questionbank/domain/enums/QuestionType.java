@@ -20,6 +20,7 @@
 package com.examplatform.questionbank.domain.enums;
 
 import com.fasterxml.jackson.annotation.JsonAlias;
+import com.fasterxml.jackson.annotation.JsonCreator;
 
 public enum QuestionType {
 
@@ -36,5 +37,31 @@ public enum QuestionType {
     MATRIX_MATCH,
     ASSERTION_REASON,
     CODING,
-    CASE_STUDY
+    CASE_STUDY;
+
+    @JsonCreator
+    public static QuestionType fromString(String value) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+        String normalized = value.trim().toUpperCase();
+        return switch (normalized) {
+            case "MCQ", "SINGLE_MCQ", "SCQ" -> SINGLE_MCQ;
+            case "MSQ", "MULTI_MCQ", "MULTIPLE_MCQ" -> MULTI_MCQ;
+            case "NUMERICAL", "NAT" -> NUMERICAL;
+            case "DESCRIPTIVE", "ESSAY" -> DESCRIPTIVE;
+            case "MATRIX_MATCH", "MATCH_THE_FOLLOWING" -> MATRIX_MATCH;
+            case "ASSERTION_REASON", "AR" -> ASSERTION_REASON;
+            case "CODING" -> CODING;
+            case "CASE_STUDY", "PASSAGE" -> CASE_STUDY;
+            default -> {
+                for (QuestionType type : values()) {
+                    if (type.name().equalsIgnoreCase(normalized)) {
+                        yield type;
+                    }
+                }
+                throw new IllegalArgumentException("Unknown question type: " + value);
+            }
+        };
+    }
 }

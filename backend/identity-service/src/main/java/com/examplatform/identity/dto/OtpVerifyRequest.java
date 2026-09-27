@@ -36,6 +36,8 @@ public class OtpVerifyRequest {
 
     private String mobile;
 
+    private String email;
+
     @NotBlank(message = "OTP is required")
     @Size(min = 6, max = 6, message = "OTP must be 6 digits")
     private String otp;

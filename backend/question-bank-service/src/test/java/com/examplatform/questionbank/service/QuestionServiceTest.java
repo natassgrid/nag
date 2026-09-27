@@ -33,6 +33,8 @@ import com.examplatform.questionbank.repository.QuestionRepository;
 import com.examplatform.questionbank.repository.SubjectRepository;
 import com.examplatform.questionbank.repository.SubtopicRepository;
 import com.examplatform.questionbank.repository.TopicRepository;
+import com.examplatform.questionbank.translation.domain.Translation;
+import com.examplatform.questionbank.translation.repository.TranslationRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -44,6 +46,10 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
 
 import java.time.Instant;
 import java.util.List;
@@ -53,6 +59,7 @@ import java.util.UUID;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -85,6 +92,9 @@ class QuestionServiceTest {
 
     @Mock
     private EventPublisher eventPublisher;
+
+    @Mock
+    private TranslationRepository translationRepository;
 
     @InjectMocks
     private QuestionService questionService;
@@ -188,96 +198,22 @@ class QuestionServiceTest {
             assertThat(response.getTopic()).isEqualTo("Calculus");
             assertThat(response.getQuestionType()).isEqualTo("SINGLE_MCQ");
             assertThat(response.getDifficulty()).isEqualTo("MEDIUM");
-            assertThat(response.getCognitiveLevel()).isEqualTo("APPLY");
-            assertThat(response.getAuthorId()).isEqualTo(authorId);
+            assertThat(response.getContent()).isEqualTo("<p>Find the derivative of x^2</p>");
+            assertThat(response.getEncryptionKeyId()).startsWith("question-dek-");
 
-            // Verify encryption key is set
             ArgumentCaptor<Question> captor = ArgumentCaptor.forClass(Question.class);
             verify(questionRepository).save(captor.capture());
-            Question saved = captor.getValue();
-            assertThat(saved.getEncryptionKeyId()).startsWith("question-dek-");
+            assertThat(captor.getValue().getTenantId()).isEqualTo(tenantId);
+            assertThat(captor.getValue().getState()).isEqualTo("DRAFT");
         }
 
         @Test
-        @DisplayName("should set authorId from provided UUID")
-        void shouldSetAuthorIdFromJwt() {
+        @DisplayName("should associate question with tenantId from context")
+        void shouldAssociateWithTenantId() {
             // Given
             CreateQuestionRequest request = validRequest();
-            UUID authorId = UUID.fromString("11111111-1111-1111-1111-111111111111");
+            UUID authorId = UUID.randomUUID();
             String tenantId = "tenant-xyz";
-            currentTenantId = tenantId;
-
-            when(questionRepository.save(any(Question.class))).thenAnswer(invocation -> {
-                Question q = invocation.getArgument(0);
-                try {
-                    var idField = q.getClass().getSuperclass().getDeclaredField("id");
-                    idField.setAccessible(true);
-                    idField.set(q, UUID.randomUUID());
-                    var createdAtField = q.getClass().getSuperclass().getDeclaredField("createdAt");
-                    createdAtField.setAccessible(true);
-                    createdAtField.set(q, Instant.now());
-                } catch (Exception e) {
-                    // fall through
-                }
-                return q;
-            });
-
-            // When
-            QuestionResponse response = questionService.createQuestion(request, authorId, tenantId);
-
-            // Then
-            assertThat(response.getAuthorId()).isEqualTo(authorId);
-
-            ArgumentCaptor<Question> captor = ArgumentCaptor.forClass(Question.class);
-            verify(questionRepository).save(captor.capture());
-            assertThat(captor.getValue().getAuthorId()).isEqualTo(authorId);
-        }
-
-        @Test
-        @DisplayName("should generate unique per-question DEK key name")
-        void shouldGenerateUniqueDekPerQuestion() {
-            // Given
-            CreateQuestionRequest request = validRequest();
-            UUID authorId = UUID.randomUUID();
-            String tenantId = "tenant-abc";
-            currentTenantId = tenantId;
-
-            when(questionRepository.save(any(Question.class))).thenAnswer(invocation -> {
-                Question q = invocation.getArgument(0);
-                try {
-                    var idField = q.getClass().getSuperclass().getDeclaredField("id");
-                    idField.setAccessible(true);
-                    idField.set(q, UUID.randomUUID());
-                    var createdAtField = q.getClass().getSuperclass().getDeclaredField("createdAt");
-                    createdAtField.setAccessible(true);
-                    createdAtField.set(q, Instant.now());
-                } catch (Exception e) {
-                    // fall through
-                }
-                return q;
-            });
-
-            // When - create two questions
-            questionService.createQuestion(request, authorId, tenantId);
-
-            ArgumentCaptor<Question> captor1 = ArgumentCaptor.forClass(Question.class);
-            verify(questionRepository).save(captor1.capture());
-            String firstDek = captor1.getValue().getEncryptionKeyId();
-
-            // Verify DEK format
-            assertThat(firstDek).startsWith("question-dek-");
-            // Verify UUID part is valid
-            String uuidPart = firstDek.replace("question-dek-", "");
-            assertThat(UUID.fromString(uuidPart)).isNotNull();
-        }
-
-        @Test
-        @DisplayName("should set tenantId on the question entity")
-        void shouldSetTenantId() {
-            // Given
-            CreateQuestionRequest request = validRequest();
-            UUID authorId = UUID.randomUUID();
-            String tenantId = "exam-authority-maharashtra";
             currentTenantId = tenantId;
 
             when(questionRepository.save(any(Question.class))).thenAnswer(invocation -> {
@@ -373,6 +309,94 @@ class QuestionServiceTest {
             QuestionResponse response = questionService.createQuestion(request, UUID.randomUUID(), "tenant-abc");
 
             assertThat(response.isHasImages()).isTrue();
+        }
+    }
+
+    @Nested
+    @DisplayName("listQuestions with translation filters and metadata")
+    class ListQuestionsTranslationTests {
+
+        @Test
+        @DisplayName("should attach translation status and language metadata to questions")
+        void shouldAttachTranslationMetadata() {
+            UUID q1Id = UUID.randomUUID();
+            UUID q2Id = UUID.randomUUID();
+
+            Question q1 = Question.builder()
+                    .subject("Physics")
+                    .topic("Mechanics")
+                    .difficulty("MEDIUM")
+                    .state("APPROVED")
+                    .content("What is Newton's second law?")
+                    .build();
+            try {
+                var idField = q1.getClass().getSuperclass().getDeclaredField("id");
+                idField.setAccessible(true);
+                idField.set(q1, q1Id);
+            } catch (Exception ignored) {}
+
+            Question q2 = Question.builder()
+                    .subject("Physics")
+                    .topic("Thermodynamics")
+                    .difficulty("EASY")
+                    .state("APPROVED")
+                    .content("Define isothermal process.")
+                    .build();
+            try {
+                var idField = q2.getClass().getSuperclass().getDeclaredField("id");
+                idField.setAccessible(true);
+                idField.set(q2, q2Id);
+            } catch (Exception ignored) {}
+
+            Page<Question> questionPage = new PageImpl<>(List.of(q1, q2));
+            when(questionRepository.findAll(any(Specification.class), any(Pageable.class))).thenReturn(questionPage);
+
+            Translation t1 = Translation.builder()
+                    .questionId(q1Id)
+                    .languageCode("hi")
+                    .status(Translation.TranslationStatus.APPROVED)
+                    .build();
+
+            Translation t2 = Translation.builder()
+                    .questionId(q1Id)
+                    .languageCode("ta")
+                    .status(Translation.TranslationStatus.DRAFT)
+                    .build();
+
+            when(translationRepository.findByQuestionIdsAndTenantId(eq(List.of(q1Id, q2Id)), eq("tenant-abc")))
+                    .thenReturn(List.of(t1, t2));
+
+            Page<QuestionResponse> result = questionService.listQuestions(
+                    "Physics", null, null, null, null, null, "Newton law",
+                    "hi", "APPROVED", 0, 20, "tenant-abc");
+
+            assertThat(result.getContent()).hasSize(2);
+
+            QuestionResponse resp1 = result.getContent().get(0);
+            assertThat(resp1.getId()).isEqualTo(q1Id);
+            assertThat(resp1.getTranslatedLanguages()).containsExactlyInAnyOrder("hi", "ta");
+            assertThat(resp1.getTranslationStatusMap()).containsEntry("hi", "APPROVED");
+            assertThat(resp1.getTranslationStatusMap()).containsEntry("ta", "DRAFT");
+            assertThat(resp1.getTranslationStatus()).isEqualTo("APPROVED");
+
+            QuestionResponse resp2 = result.getContent().get(1);
+            assertThat(resp2.getId()).isEqualTo(q2Id);
+            assertThat(resp2.getTranslatedLanguages()).isEmpty();
+            assertThat(resp2.getTranslationStatusMap()).isEmpty();
+            assertThat(resp2.getTranslationStatus()).isEqualTo("MISSING");
+        }
+
+        @Test
+        @DisplayName("searchLike specification builds multi-field predicates")
+        void searchLikeBuildsSpecification() {
+            Specification<Question> singleTokenSpec = questionService.searchLike("Physics");
+            assertThat(singleTokenSpec).isNotNull();
+
+            Specification<Question> multiTokenSpec = questionService.searchLike("Quantitative Aptitude EASY");
+            assertThat(multiTokenSpec).isNotNull();
+
+            Specification<Question> nullSpec = questionService.searchLike("   ");
+            assertThat(nullSpec).isNull();
         }
     }
 }

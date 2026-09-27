@@ -1,0 +1,72 @@
+<div class="bg-white rounded-2xl border border-slate-200 p-6 shadow-xs space-y-6">
+  <div>
+    <h3 class="text-base font-bold text-slate-900">Question Authoring, Review &amp; Evaluation Governance</h3>
+    <p class="text-xs text-slate-500">Configure content security, dual-reviewer governance rules, and double-blind grading anonymization</p>
+  </div>
+
+  <div class="space-y-4">
+    <!-- Dual Review Sign-off -->
+    <div class="p-4 bg-slate-50 rounded-2xl border border-slate-200 flex items-center justify-between">
+      <div class="space-y-0.5">
+        <div class="text-xs font-bold text-slate-900 flex items-center gap-1.5">
+          <mat-icon class="!text-sm text-indigo-600">group_add</mat-icon>
+          <span>Dual Reviewer Approval Policy</span>
+        </div>
+        <p class="text-[11px] text-slate-500">Requires 2 independent SME approvals before any question or paper blueprint can be published</p>
+      </div>
+      <mat-slide-toggle
+        [checked]="settings().questionDualReviewRequired"
+        (change)="update('questionDualReviewRequired', $event.checked)"
+        color="primary"
+      ></mat-slide-toggle>
+    </div>
+
+    <!-- AI Generation Assistance -->
+    <div class="p-4 bg-slate-50 rounded-2xl border border-slate-200 flex items-center justify-between">
+      <div class="space-y-0.5">
+        <div class="text-xs font-bold text-slate-900 flex items-center gap-1.5">
+          <mat-icon class="!text-sm text-indigo-600">auto_fix_high</mat-icon>
+          <span>AI-Assisted Question &amp; Distractor Generation</span>
+        </div>
+        <p class="text-[11px] text-slate-500">Permit authors to use on-premise AI models to generate distractors and bloom-taxonomy tagged items</p>
+      </div>
+      <mat-slide-toggle
+        [checked]="settings().questionAiGenerationEnabled"
+        (change)="update('questionAiGenerationEnabled', $event.checked)"
+        color="primary"
+      ></mat-slide-toggle>
+    </div>
+
+    <!-- Double-Blind Candidate Anonymization -->
+    <div class="p-4 bg-slate-50 rounded-2xl border border-slate-200 flex items-center justify-between">
+      <div class="space-y-0.5">
+        <div class="text-xs font-bold text-slate-900 flex items-center gap-1.5">
+          <mat-icon class="!text-sm text-indigo-600">visibility_off</mat-icon>
+          <span>Double-Blind Candidate Sheet Anonymization</span>
+        </div>
+        <p class="text-[11px] text-slate-500">Mask all candidate names, photos, roll numbers, and examination centres from subjective evaluators</p>
+      </div>
+      <mat-slide-toggle
+        [checked]="settings().evaluationAnonymizeCandidateSheets"
+        (change)="update('evaluationAnonymizeCandidateSheets', $event.checked)"
+        color="primary"
+      ></mat-slide-toggle>
+    </div>
+
+    <!-- Instant Auto-Grading -->
+    <div class="p-4 bg-slate-50 rounded-2xl border border-slate-200 flex items-center justify-between">
+      <div class="space-y-0.5">
+        <div class="text-xs font-bold text-slate-900 flex items-center gap-1.5">
+          <mat-icon class="!text-sm text-indigo-600">bolt</mat-icon>
+          <span>Immediate Objective Auto-Grading Pipeline</span>
+        </div>
+        <p class="text-[11px] text-slate-500">Compute candidate raw scores instantly upon final exam submission using cryptographic key matrix</p>
+      </div>
+      <mat-slide-toggle
+        [checked]="settings().evaluationAutoGradeInstant"
+        (change)="update('evaluationAutoGradeInstant', $event.checked)"
+        color="primary"
+      ></mat-slide-toggle>
+    </div>
+  </div>
+</div>

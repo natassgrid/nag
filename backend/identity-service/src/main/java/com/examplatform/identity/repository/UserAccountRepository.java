@@ -14,8 +14,7 @@
  * GNU Affero General Public License for more details.
  *
  * You should have received a copy of the GNU Affero General Public License
- * along with this program. If not, see <https://www.gnu.org/licenses/>.
- */
+ * along with this program. If not, see <https://www.gnu.org/licenses/>.\n */
 
 package com.examplatform.identity.repository;
 
@@ -30,6 +29,10 @@ import java.util.UUID;
 @Repository
 public interface UserAccountRepository extends JpaRepository<UserAccount, UUID> {
 
+    Optional<UserAccount> findByIdAndTenantId(UUID id, String tenantId);
+
+    boolean existsByIdAndTenantId(UUID id, String tenantId);
+
     Optional<UserAccount> findByEmailHashAndTenantId(String emailHash, String tenantId);
 
     Optional<UserAccount> findByIdentityDocHashAndTenantId(String identityDocHash, String tenantId);
@@ -41,6 +44,10 @@ public interface UserAccountRepository extends JpaRepository<UserAccount, UUID> 
     Optional<UserAccount> findByMobileHashAndTenantId(String mobileHash, String tenantId);
 
     Optional<UserAccount> findByUsernameIgnoreCaseAndTenantId(String username, String tenantId);
+
+    Optional<UserAccount> findByUsernameAndTenantId(String username, String tenantId);
+
+    Optional<UserAccount> findByEmailHashAndMobileHashAndTenantId(String emailHash, String mobileHash, String tenantId);
 
     List<UserAccount> findByTenantId(String tenantId);
 }

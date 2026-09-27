@@ -57,9 +57,16 @@ public class QuestionGenerationRequest {
     @NotBlank(message = "Cognitive level is required")
     private String cognitiveLevel;
 
-    /** Type of question: SINGLE_MCQ, MULTI_MCQ, NUMERICAL, DESCRIPTIVE. */
+    /** Type of question: SINGLE_MCQ, MULTI_MCQ, NUMERICAL, DESCRIPTIVE, PARAGRAPH_SET. */
     @NotBlank(message = "Question type is required")
     private String questionType;
+
+    /** Optional generation mode: "STANDALONE", "PARAGRAPH_SET". */
+    @Builder.Default
+    private String generationType = "STANDALONE";
+
+    /** Configuration for paragraph set / reading comprehension generation. */
+    private ParagraphSetConfig paragraphSetConfig;
 
     /** Number of questions to generate (1–5). */
     @Min(value = 1, message = "Count must be at least 1")
@@ -74,4 +81,16 @@ public class QuestionGenerationRequest {
     /** Whether to auto-save generated questions as DRAFT (false = preview-only mode). */
     @Builder.Default
     private boolean autoSave = false;
+
+    @Data
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class ParagraphSetConfig {
+        @Builder.Default
+        private int passageWordLength = 250;
+        @Builder.Default
+        private int subQuestionCount = 3;
+        private String passageTheme;
+    }
 }

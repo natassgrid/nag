@@ -1,0 +1,100 @@
+<div class="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-xs custom-card">
+  <!-- Subject Card Header -->
+  <div
+    class="p-5 flex items-center justify-between cursor-pointer select-none transition-colors hover:bg-slate-50/80"
+    (click)="onToggleSubject()"
+  >
+    <div class="flex items-center gap-3">
+      <div class="w-9 h-9 rounded-xl bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-600">
+        <mat-icon class="!text-lg">menu_book</mat-icon>
+      </div>
+      <div>
+        <div class="flex items-center gap-2">
+          <h3 class="text-base font-black text-slate-900">
+            {{ subject().name }}
+          </h3>
+          @if (subject().code) {
+            <span class="text-[11px] font-mono font-bold px-2 py-0.5 rounded bg-slate-100 text-slate-700 border border-slate-200">
+              {{ subject().code }}
+            </span>
+          }
+        </div>
+        @if (subject().description) {
+          <p class="text-xs text-slate-500 mt-0.5 line-clamp-1">
+            {{ subject().description }}
+          </p>
+        }
+      </div>
+    </div>
+
+    <div class="flex items-center gap-3">
+      <span class="text-xs font-semibold px-2.5 py-1 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-200">
+        {{ subject().topics.length }} Topic(s)
+      </span>
+
+      <button
+        type="button"
+        (click)="$event.stopPropagation(); onOpenAddTopic()"
+        class="px-2.5 py-1 bg-white hover:bg-slate-100 border border-slate-300 rounded-lg text-xs font-bold text-indigo-600 flex items-center gap-1 transition-all cursor-pointer"
+        title="Add Topic under this Subject"
+      >
+        <mat-icon class="!text-xs">add</mat-icon>
+        Add Topic
+      </button>
+
+      <mat-icon class="text-slate-400 transition-transform duration-200" [class.rotate-180]="isExpanded()">
+        expand_more
+      </mat-icon>
+    </div>
+  </div>
+
+  <!-- Subject Body: Topics & Subtopics -->
+  @if (isExpanded()) {
+    <div class="border-t border-slate-200 p-5 bg-slate-50/50 space-y-4">
+      <!-- Quick Add Topic Form Sub-component -->
+      @if (addingTopic()) {
+        <nag-subject-topic-form
+          [subjectId]="subject().id"
+          [subjectName]="subject().name"
+          [creating]="creating()"
+          (closeForm)="onCloseAddTopic()"
+          (saveTopic)="onSaveTopic($event)"
+        ></nag-subject-topic-form>
+      }
+
+      <!-- Empty Topics Notice -->
+      @if (!subject().topics || subject().topics.length === 0) {
+        <div class="p-6 bg-white rounded-xl border border-dashed border-slate-300 text-center space-y-2">
+          <p class="text-xs text-slate-500 font-medium">
+            No topics created under this subject yet.
+          </p>
+          <button
+            type="button"
+            (click)="onOpenAddTopic()"
+            class="text-xs font-bold text-indigo-600 hover:text-indigo-800 cursor-pointer"
+          >
+            + Add the first topic
+          </button>
+        </div>
+      }
+
+      <!-- Topics List / Sub-components -->
+      @if (subject().topics && subject().topics.length > 0) {
+        <div class="space-y-3">
+          @for (topic of subject().topics; track topic.id) {
+            <nag-subject-topic-node
+              [topic]="topic"
+              [isExpanded]="isTopicExpanded(topic.id)"
+              [isAddingSubtopic]="addingSubtopicTopicId() === topic.id"
+              [creating]="creating()"
+              (toggleTopic)="onToggleTopic($event)"
+              (openAddSubtopic)="onOpenAddSubtopic($event)"
+              (closeAddSubtopic)="onCloseAddSubtopic()"
+              (saveSubtopic)="onSaveSubtopic($event)"
+            ></nag-subject-topic-node>
+          }
+        </div>
+      }
+    </div>
+  }
+</div>

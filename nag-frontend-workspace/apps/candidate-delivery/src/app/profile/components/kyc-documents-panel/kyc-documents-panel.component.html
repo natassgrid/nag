@@ -1,0 +1,95 @@
+<div class="space-y-6">
+
+  <div class="flex items-center justify-between">
+    <div>
+      <h3 class="text-sm font-bold text-slate-900 uppercase tracking-wider flex items-center gap-2">
+        <mat-icon class="text-indigo-600 !text-lg">cloud_upload</mat-icon>
+        KYC Document Uploads & Cryptographic Anchoring
+      </h3>
+      <p class="text-xs text-slate-500 mt-0.5">
+        Upload official candidate credentials or capture live webcam photo for admit card validation.
+      </p>
+    </div>
+  </div>
+
+  @if (uploadFeedback(); as feedback) {
+    <div class="p-3 bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-xl text-xs flex items-center gap-2 animate-fade-in">
+      <mat-icon class="text-emerald-600 !text-sm">check_circle</mat-icon>
+      <span>{{ feedback }}</span>
+    </div>
+  }
+
+  <!-- Upload Cards Grid -->
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+
+    <!-- 1. Passport Photograph -->
+    <nag-kyc-photo-card
+      [photoUrl]="profile().photoUrl"
+      [photoAssetId]="profile().photoAssetId"
+      (openWebcam)="openWebcam()"
+      (uploadFile)="triggerPhotoUpload()"
+      (removePhoto)="removeDocument('photo')"
+    />
+
+    <!-- 2. Candidate Signature -->
+    <nag-kyc-signature-card
+      [signatureUrl]="profile().signatureUrl"
+      [signatureAssetId]="profile().signatureAssetId"
+      (uploadSignature)="triggerSignatureUpload()"
+      (removeSignature)="removeDocument('signature')"
+    />
+
+    <!-- 3. Government Identity Proof Document -->
+    <nag-kyc-identity-proof-card
+      [identityDocType]="profile().identityDocType"
+      [identityDocNumber]="profile().identityDocNumber"
+      [idProofUrl]="profile().idProofUrl"
+      (uploadIdProof)="triggerIdProofUpload()"
+      (removeIdProof)="removeDocument('idProof')"
+    />
+
+  </div>
+
+  <!-- Hidden File Inputs -->
+  <input
+    #photoFileInput
+    type="file"
+    accept="image/jpeg,image/png,image/webp"
+    class="hidden"
+    (change)="onFileSelected($event, 'photo')"
+  />
+  <input
+    #signatureFileInput
+    type="file"
+    accept="image/jpeg,image/png,image/webp"
+    class="hidden"
+    (change)="onFileSelected($event, 'signature')"
+  />
+  <input
+    #idProofFileInput
+    type="file"
+    accept="image/jpeg,image/png,application/pdf"
+    class="hidden"
+    (change)="onFileSelected($event, 'idProof')"
+  />
+
+  <!-- Webcam Capture Modal -->
+  @if (showWebcamModal()) {
+    <nag-webcam-capture-modal
+      (captured)="onWebcamSnapshot($event)"
+      (closed)="showWebcamModal.set(false)"
+    />
+  }
+
+  <!-- Image Cropper Modal -->
+  @if (showCropperModal() && cropperRawImage()) {
+    <nag-image-cropper-modal
+      [imageSrc]="cropperRawImage()!"
+      [mode]="cropperMode()"
+      [title]="cropperTarget() === 'photo' ? 'Crop Passport Photograph' : 'Crop Candidate Signature'"
+      (cropped)="onCroppedImage($event)"
+      (cancelled)="showCropperModal.set(false); cropperRawImage.set(null)"
+    />
+  }
+
+</div>

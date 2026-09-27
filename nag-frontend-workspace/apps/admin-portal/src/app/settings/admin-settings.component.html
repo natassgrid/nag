@@ -1,0 +1,100 @@
+<div class="max-w-6xl mx-auto p-6 space-y-6">
+  <!-- Header -->
+  <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+    <nag-page-header
+      title="Platform Policies &amp; Configuration"
+      subtitle="Manage enterprise-grade security policies, exam delivery lockdown rules, DPI integration, and alert pipelines"
+      icon="tune"
+    ></nag-page-header>
+
+    <!-- Save / Action Toolbar -->
+    <div class="flex items-center gap-2.5 self-start sm:self-auto">
+      <button
+        mat-stroked-button
+        (click)="resetDefaults()"
+        class="!rounded-xl !border-slate-300 !text-slate-700 hover:!bg-slate-50 !text-xs !py-1.5"
+      >
+        <span class="flex items-center gap-1.5">
+          <mat-icon class="!text-sm leading-none">restart_alt</mat-icon>
+          <span>Reset Defaults</span>
+        </span>
+      </button>
+
+      <button
+        mat-flat-button
+        color="primary"
+        [disabled]="saving() || !isDirty()"
+        (click)="saveSettings()"
+        class="!rounded-xl !bg-indigo-600 !text-white !text-xs !py-1.5 shadow-xs"
+      >
+        <span class="flex items-center gap-1.5">
+          <mat-icon class="!text-sm leading-none">{{ isDirty() ? 'save' : 'check' }}</mat-icon>
+          <span>{{ saving() ? 'Saving Policies...' : isDirty() ? 'Save Changes' : 'Saved' }}</span>
+        </span>
+      </button>
+    </div>
+  </div>
+
+  @if (isDirty()) {
+    <div class="p-3 bg-amber-50 border border-amber-200 rounded-xl flex items-center justify-between text-xs text-amber-800 animate-fadeIn">
+      <div class="flex items-center gap-2">
+        <mat-icon class="!text-sm text-amber-600">info</mat-icon>
+        <span class="font-bold">You have unsaved policy modifications. Remember to click "Save Changes" to apply them cluster-wide.</span>
+      </div>
+    </div>
+  }
+
+  <!-- Tab Navigation Bar -->
+  <div class="flex border-b border-slate-200 gap-2 overflow-x-auto">
+    @for (tab of tabs; track tab.id) {
+      <button
+        type="button"
+        (click)="activeTab.set(tab.id)"
+        [ngClass]="{
+          'border-indigo-600 text-indigo-700 bg-indigo-50/50 font-bold': activeTab() === tab.id,
+          'border-transparent text-slate-500 hover:text-slate-800 hover:border-slate-300': activeTab() !== tab.id
+        }"
+        class="flex items-center gap-2 px-4 py-3 border-b-2 text-xs transition-colors whitespace-nowrap cursor-pointer rounded-t-xl"
+      >
+        <mat-icon class="!text-base leading-none">{{ tab.icon }}</mat-icon>
+        <span>{{ tab.label }}</span>
+      </button>
+    }
+  </div>
+
+  <!-- Tab Panels -->
+  <div>
+    @switch (activeTab()) {
+      @case ('security') {
+        <nag-settings-security-tab
+          [settings]="currentSettings()"
+          (settingsChange)="onSettingsUpdate($event)"
+        ></nag-settings-security-tab>
+      }
+      @case ('delivery') {
+        <nag-settings-delivery-tab
+          [settings]="currentSettings()"
+          (settingsChange)="onSettingsUpdate($event)"
+        ></nag-settings-delivery-tab>
+      }
+      @case ('dpi') {
+        <nag-settings-dpi-tab
+          [settings]="currentSettings()"
+          (settingsChange)="onSettingsUpdate($event)"
+        ></nag-settings-dpi-tab>
+      }
+      @case ('evaluation') {
+        <nag-settings-evaluation-tab
+          [settings]="currentSettings()"
+          (settingsChange)="onSettingsUpdate($event)"
+        ></nag-settings-evaluation-tab>
+      }
+      @case ('maintenance') {
+        <nag-settings-maintenance-tab
+          [settings]="currentSettings()"
+          (settingsChange)="onSettingsUpdate($event)"
+        ></nag-settings-maintenance-tab>
+      }
+    }
+  </div>
+</div>

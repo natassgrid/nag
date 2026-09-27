@@ -1,0 +1,126 @@
+<div class="browse-exams-page max-w-7xl mx-auto p-4 sm:p-6 lg:p-8 space-y-6 sm:space-y-8 animate-fade-in">
+  <!-- Page Header -->
+  <nag-page-header
+    title="National Examination Catalog"
+    subtitle="Discover active government assessments, eligibility criteria, test centers, and submit digital applications"
+    icon="travel_explore"
+  >
+    <div actions class="flex items-center gap-3">
+      <a
+        mat-stroked-button
+        routerLink="/dashboard"
+        class="!rounded-xl !text-xs font-semibold"
+      >
+        <mat-icon class="!text-sm">dashboard</mat-icon>
+        My Dashboard
+      </a>
+    </div>
+  </nag-page-header>
+
+  <!-- Filter & Search Toolbar -->
+  <nag-browse-filter-bar
+    [filters]="filters()"
+    [totalMatches]="totalMatches()"
+    (searchChange)="onSearchChange($event)"
+    (categoryChange)="onCategoryChange($event)"
+    (statusChange)="onStatusChange($event)"
+    (sortChange)="onSortChange($event)"
+    (resetFilters)="resetFilters()"
+  />
+
+  <!-- Loading State -->
+  @if (browseService.loading()) {
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      @for (i of [1, 2, 3, 4, 5, 6]; track i) {
+        <div class="bg-white rounded-2xl border border-slate-200 p-6 space-y-4 animate-pulse">
+          <div class="flex justify-between items-center">
+            <div class="h-5 w-24 bg-slate-200 rounded"></div>
+            <div class="h-5 w-20 bg-slate-200 rounded-full"></div>
+          </div>
+          <div class="h-6 w-3/4 bg-slate-200 rounded"></div>
+          <div class="h-4 w-1/2 bg-slate-200 rounded"></div>
+          <div class="h-20 bg-slate-100 rounded-xl"></div>
+          <div class="h-10 bg-slate-200 rounded-xl"></div>
+        </div>
+      }
+    </div>
+  }
+
+  <!-- Error State -->
+  @if (browseService.error(); as err) {
+    <div class="p-6 bg-rose-50 rounded-2xl border border-rose-200 text-center space-y-3">
+      <div class="w-12 h-12 bg-rose-100 text-rose-700 rounded-full flex items-center justify-center mx-auto">
+        <mat-icon>error_outline</mat-icon>
+      </div>
+      <h3 class="text-sm font-bold text-rose-900">Failed to Load Examination Catalog</h3>
+      <p class="text-xs text-rose-700">{{ err }}</p>
+      <button
+        mat-flat-button
+        color="warn"
+        (click)="retryLoad()"
+        class="!rounded-xl !text-xs font-semibold"
+      >
+        <mat-icon class="!text-sm">refresh</mat-icon>
+        Retry Loading
+      </button>
+    </div>
+  }
+
+  <!-- Catalog Grid -->
+  @if (!browseService.loading()) {
+    @if (filteredExams().length > 0) {
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        @for (exam of filteredExams(); track exam.id) {
+          <nag-exam-catalog-card
+            [exam]="exam"
+            (viewDetails)="openDetails($event)"
+            (applyNow)="openApplyModal($event)"
+          />
+        }
+      </div>
+    } @else {
+      <!-- Empty Filter State -->
+      <div class="bg-white rounded-2xl border border-slate-200 p-12 text-center space-y-4 shadow-xs">
+        <div class="w-16 h-16 bg-indigo-50 text-indigo-600 rounded-3xl flex items-center justify-center mx-auto">
+          <mat-icon class="!text-3xl">search_off</mat-icon>
+        </div>
+        <div class="space-y-1">
+          <h3 class="text-base font-bold text-slate-900">No Examinations Found</h3>
+          <p class="text-xs text-slate-500 max-w-md mx-auto">
+            No active examinations match your current search query or filter selection. Try adjusting your filters.
+          </p>
+        </div>
+        <div>
+          <button
+            type="button"
+            mat-stroked-button
+            color="primary"
+            (click)="resetFilters()"
+            class="!rounded-xl !text-xs font-semibold"
+          >
+            Clear All Filters
+          </button>
+        </div>
+      </div>
+    }
+  }
+
+  <!-- Details Slide-Over Drawer -->
+  @if (selectedDetailExam(); as exam) {
+    <nag-exam-details-drawer
+      [exam]="exam"
+      (closeDrawer)="selectedDetailExam.set(null)"
+      (applyExam)="openApplyModal($event)"
+    />
+  }
+
+  <!-- Multi-step Application Modal -->
+  @if (selectedApplyExam(); as exam) {
+    <nag-exam-apply-dialog
+      [exam]="exam"
+      [centres]="browseService.centres()"
+      (closeDialog)="selectedApplyExam.set(null)"
+      (applicationCompleted)="onApplicationCompleted($event)"
+    />
+  }
+</div>

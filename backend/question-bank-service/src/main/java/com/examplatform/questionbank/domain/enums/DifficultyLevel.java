@@ -19,8 +19,37 @@
 
 package com.examplatform.questionbank.domain.enums;
 
+import com.fasterxml.jackson.annotation.JsonAlias;
+import com.fasterxml.jackson.annotation.JsonCreator;
+
 public enum DifficultyLevel {
+    @JsonAlias({"BEGINNER", "SIMPLE"})
     EASY,
+
+    @JsonAlias({"INTERMEDIATE", "MODERATE", "NORMAL"})
     MEDIUM,
-    HARD
+
+    @JsonAlias({"ADVANCED", "EXPERT", "DIFFICULT"})
+    HARD;
+
+    @JsonCreator
+    public static DifficultyLevel fromString(String value) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+        String normalized = value.trim().toUpperCase();
+        return switch (normalized) {
+            case "EASY", "BEGINNER", "SIMPLE" -> EASY;
+            case "MEDIUM", "INTERMEDIATE", "MODERATE", "NORMAL" -> MEDIUM;
+            case "HARD", "ADVANCED", "EXPERT", "DIFFICULT" -> HARD;
+            default -> {
+                for (DifficultyLevel level : values()) {
+                    if (level.name().equalsIgnoreCase(normalized)) {
+                        yield level;
+                    }
+                }
+                throw new IllegalArgumentException("Unknown difficulty level: " + value);
+            }
+        };
+    }
 }

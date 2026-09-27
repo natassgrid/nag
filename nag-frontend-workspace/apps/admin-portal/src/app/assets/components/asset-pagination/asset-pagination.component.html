@@ -1,0 +1,35 @@
+<div class="flex items-center justify-between bg-white px-4 py-3 rounded-2xl border border-slate-200 text-xs">
+  <div class="text-slate-500">
+    Showing
+    <span class="font-bold text-slate-800">{{ fromItem() }}</span>
+    to
+    <span class="font-bold text-slate-800">{{ toItem() }}</span>
+    of
+    <span class="font-bold text-slate-800">{{ totalElements() }}</span>
+    assets
+  </div>
+
+  <div class="flex items-center gap-2">
+    <button
+      mat-icon-button
+      [disabled]="currentPage() === 0"
+      (click)="pageChange.emit(currentPage() - 1)"
+      class="!w-8 !h-8 !rounded-lg cursor-pointer"
+      title="Previous Page"
+    >
+      <mat-icon class="!text-sm">chevron_left</mat-icon>
+    </button>
+    <span class="text-slate-600 font-semibold px-2">
+      Page {{ currentPage() + 1 }} of {{ totalPages() || 1 }}
+    </span>
+    <button
+      mat-icon-button
+      [disabled]="currentPage() + 1 >= totalPages()"
+      (click)="pageChange.emit(currentPage() + 1)"
+      class="!w-8 !h-8 !rounded-lg cursor-pointer"
+      title="Next Page"
+    >
+      <mat-icon class="!text-sm">chevron_right</mat-icon>
+    </button>
+  </div>
+</div>

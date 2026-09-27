@@ -1,0 +1,91 @@
+<div class="space-y-3 pt-2">
+  <h3 class="text-xs font-bold text-purple-900 uppercase tracking-wider">Geographic Location</h3>
+
+  <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+    <div>
+      <label for="centre-country" class="block text-[11px] font-semibold text-slate-700 uppercase mb-1">
+        Country
+      </label>
+      <select
+        id="centre-country"
+        [ngModel]="countryId()"
+        (ngModelChange)="onCountryChanged($event)"
+        class="w-full px-3 py-2 text-xs bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 font-medium"
+      >
+        @for (country of countries(); track country.id) {
+          <option [value]="country.id">{{ country.name }}</option>
+        }
+      </select>
+    </div>
+
+    <div>
+      <label for="centre-state-select" class="block text-[11px] font-semibold text-slate-700 uppercase mb-1">
+        State *
+      </label>
+      @if (states().length > 0) {
+        <select
+          id="centre-state-select"
+          [ngModel]="stateId()"
+          (ngModelChange)="onStateChanged($event)"
+          class="w-full px-3 py-2 text-xs bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 font-medium"
+        >
+          <option [ngValue]="null">Select State</option>
+          @for (st of states(); track st.id) {
+            <option [value]="st.id">{{ st.name }}</option>
+          }
+        </select>
+      } @else {
+        <input
+          id="centre-state-input"
+          type="text"
+          [ngModel]="stateName()"
+          (ngModelChange)="stateNameChange.emit($event)"
+          placeholder="Enter State Name"
+          class="w-full px-3 py-2 text-xs bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 font-medium"
+        />
+      }
+    </div>
+
+    <div>
+      <label for="centre-city-select" class="block text-[11px] font-semibold text-slate-700 uppercase mb-1">
+        City *
+      </label>
+      @if (cities().length > 0) {
+        <select
+          id="centre-city-select"
+          [ngModel]="cityId()"
+          (ngModelChange)="onCityChanged($event)"
+          class="w-full px-3 py-2 text-xs bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 font-medium"
+        >
+          <option [ngValue]="null">Select City</option>
+          @for (c of cities(); track c.id) {
+            <option [value]="c.id">{{ c.name }}</option>
+          }
+        </select>
+      } @else {
+        <input
+          id="centre-city-input"
+          type="text"
+          [ngModel]="cityName()"
+          (ngModelChange)="cityNameChange.emit($event)"
+          placeholder="Enter City Name"
+          class="w-full px-3 py-2 text-xs bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 font-medium"
+        />
+      }
+    </div>
+
+    <div>
+      <label for="centre-district" class="block text-[11px] font-semibold text-slate-700 uppercase mb-1">
+        District (Optional)
+      </label>
+      <input
+        id="centre-district"
+        type="text"
+        [ngModel]="district()"
+        (ngModelChange)="districtChange.emit($event)"
+        placeholder="e.g. Central District"
+        class="w-full px-3 py-2 text-xs bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 font-medium"
+      />
+    </div>
+  </div>
+</div>

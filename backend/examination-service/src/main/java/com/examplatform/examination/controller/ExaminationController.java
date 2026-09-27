@@ -5,7 +5,7 @@
  * Copyright (C) 2025 NAG Contributors
  *
  * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU Affero General Public License as published
+ * it under the terms of the GNU标识 Affero General Public License as published
  * by the Free Software Foundation, version 3 of the License.
  *
  * This program is distributed in the hope that it will be useful,
@@ -68,9 +68,11 @@ public class ExaminationController {
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size,
             @RequestParam(required = false) String search,
+            @RequestParam(required = false) String sort,
+            @RequestParam(defaultValue = "desc") String order,
             @AuthenticationPrincipal Jwt jwt) {
         org.springframework.data.domain.Page<ExaminationResponse> responses =
-                examinationService.listByTenantPaged(tenantId, search, page, size);
+                examinationService.listByTenantPaged(tenantId, search, sort, order, page, size);
         return ResponseEntity.ok(ApiResponse.success(responses, "Examinations retrieved successfully"));
     }
 

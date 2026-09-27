@@ -1,0 +1,150 @@
+<div class="asset-upload-modal p-6 max-w-xl w-full">
+  <div class="flex items-center justify-between pb-4 border-b border-slate-200">
+    <div class="flex items-center gap-3">
+      <div class="w-10 h-10 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center">
+        <mat-icon>cloud_upload</mat-icon>
+      </div>
+      <div>
+        <h3 class="text-base font-bold text-slate-900 leading-tight">Upload Media Asset</h3>
+        <p class="text-xs text-slate-500">Add diagram, KaTeX formula, audio prompt, or document to library</p>
+      </div>
+    </div>
+    <button mat-icon-button mat-dialog-close [disabled]="uploading">
+      <mat-icon class="text-slate-400">close</mat-icon>
+    </button>
+  </div>
+
+  <div class="my-5 space-y-4">
+    <!-- Drag & Drop Dropzone -->
+    <div
+      class="border-2 border-dashed rounded-2xl p-6 text-center cursor-pointer transition-colors"
+      [ngClass]="{
+        'border-indigo-500 bg-indigo-50/50': dragOver,
+        'border-slate-300 hover:border-slate-400 bg-slate-50/50': !dragOver && !selectedFile,
+        'border-emerald-500 bg-emerald-50/30': !!selectedFile
+      }"
+      (dragover)="onDragOver($event)"
+      (dragleave)="onDragLeave($event)"
+      (drop)="onDrop($event)"
+      (click)="fileInput.click()"
+    >
+      <input
+        #fileInput
+        type="file"
+        hidden
+        (change)="onFileSelected($event)"
+        accept="image/png,image/jpeg,image/webp,image/svg+xml,audio/mpeg,audio/aac,audio/wav,video/mp4,application/pdf"
+      />
+
+      @if (!selectedFile) {
+        <div class="flex flex-col items-center gap-2">
+          <div class="w-12 h-12 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center">
+            <mat-icon>upload_file</mat-icon>
+          </div>
+          <p class="text-sm font-semibold text-slate-700">Drag & drop files here or click to browse</p>
+          <span class="text-xs text-slate-400">
+            Supported: PNG, JPEG, SVG, WebP, MP3, AAC, WAV, MP4, PDF (up to 100 MB)
+          </span>
+        </div>
+      } @else {
+        <div class="flex items-center justify-between bg-white p-3 rounded-xl border border-emerald-200">
+          <div class="flex items-center gap-3">
+            <div class="w-10 h-10 rounded-lg bg-emerald-100 text-emerald-700 flex items-center justify-center">
+              <mat-icon>check_circle</mat-icon>
+            </div>
+            <div class="text-left">
+              <h4 class="text-xs font-bold text-slate-900 truncate max-w-xs">{{ selectedFile.name }}</h4>
+              <p class="text-[11px] text-slate-500">{{ formatSize(selectedFile.size) }} • {{ selectedFile.type || 'Binary' }}</p>
+            </div>
+          </div>
+          <button
+            mat-stroked-button
+            class="text-xs !py-1 !px-2"
+            (click)="$event.stopPropagation(); selectedFile = null"
+            [disabled]="uploading"
+          >
+            Change
+          </button>
+        </div>
+      }
+    </div>
+
+    <!-- Upload Progress -->
+    @if (uploading) {
+      <div class="space-y-1.5 bg-indigo-50 p-3 rounded-xl border border-indigo-100">
+        <div class="flex items-center justify-between text-xs font-semibold text-indigo-900">
+          <span>Streaming payload...</span>
+          <span>{{ progress }}%</span>
+        </div>
+        <mat-progress-bar mode="determinate" [value]="progress" class="rounded-full"></mat-progress-bar>
+      </div>
+    }
+
+    <!-- Error Alert -->
+    @if (errorMessage) {
+      <div class="p-3 rounded-xl bg-rose-50 border border-rose-200 text-xs text-rose-700 flex items-center gap-2">
+        <mat-icon class="text-rose-500 text-sm">error_outline</mat-icon>
+        <span>{{ errorMessage }}</span>
+      </div>
+    }
+
+    <!-- Optional Metadata Form -->
+    <form [formGroup]="metadataForm" class="space-y-3 pt-2">
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <div>
+          <label class="text-xs font-bold text-slate-600 block mb-1">Asset Title</label>
+          <input
+            type="text"
+            formControlName="title"
+            placeholder="e.g. Spectral Waveform Diagram"
+            class="w-full text-xs px-3 py-2 border rounded-xl bg-white border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+          />
+        </div>
+        <div>
+          <label class="text-xs font-bold text-slate-600 block mb-1">Alt Text (Accessibility)</label>
+          <input
+            type="text"
+            formControlName="altText"
+            placeholder="Screen reader description"
+            class="w-full text-xs px-3 py-2 border rounded-xl bg-white border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+          />
+        </div>
+      </div>
+
+      <div>
+        <label class="text-xs font-bold text-slate-600 block mb-1">Tags (Comma-separated)</label>
+        <input
+          type="text"
+          formControlName="tags"
+          placeholder="physics, optics, refraction, blueprint-104"
+          class="w-full text-xs px-3 py-2 border rounded-xl bg-white border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+        />
+      </div>
+
+      <div>
+        <label class="text-xs font-bold text-slate-600 block mb-1">Description</label>
+        <textarea
+          formControlName="description"
+          rows="2"
+          placeholder="Technical context or usage instructions"
+          class="w-full text-xs px-3 py-2 border rounded-xl bg-white border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none"
+        ></textarea>
+      </div>
+    </form>
+  </div>
+
+  <div class="flex items-center justify-end gap-3 pt-3 border-t border-slate-200">
+    <button mat-button mat-dialog-close [disabled]="uploading" class="!rounded-xl text-xs">
+      Cancel
+    </button>
+    <button
+      mat-flat-button
+      color="primary"
+      (click)="upload()"
+      [disabled]="!selectedFile || uploading"
+      class="!rounded-xl text-xs font-semibold"
+    >
+      {{ uploading ? 'Uploading...' : 'Confirm Upload' }}
+    </button>
+  </div>
+</div>

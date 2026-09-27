@@ -31,3 +31,9 @@ The AI assistant is permitted and encouraged to execute the following commands w
   - `git push`, `git push origin <branch>`
   - `git log`, `git log -n <count>`
   - `git branch`, `git checkout <branch>`, `git switch <branch>`
+
+## 4. Code Quality & Formatting Guards
+- **No literal `\n` in Source Files**:
+  - Never write escaped `\n` or `\r\n` characters in multiline code statements, array literals, or object structures.
+  - Always use genuine whitespace newlines.
+  - After modifying code files, always inspect `git diff` to confirm no escaped `\n` sequences exist and verify with `npm run build` or `docker build`.

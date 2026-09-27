@@ -1,0 +1,85 @@
+<div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs space-y-4">
+  <!-- Top Row: Search & Sorter -->
+  <div class="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4">
+    <div class="grow max-w-xl">
+      <nag-search-input
+        placeholder="Search exams by title, discipline, or exam code..."
+        (searchChange)="searchChange.emit($event)"
+      />
+    </div>
+
+    <!-- Sorting & Controls -->
+    <div class="flex items-center gap-3 shrink-0">
+      <div class="flex items-center gap-2 text-xs font-semibold text-slate-600">
+        <mat-icon class="!text-lg text-slate-400">sort</mat-icon>
+        <label for="sort-select" class="hidden sm:inline">Sort by:</label>
+        <select
+          id="sort-select"
+          [ngModel]="filters().sortBy"
+          (ngModelChange)="sortChange.emit($event)"
+          class="bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-semibold text-slate-800 focus:ring-2 focus:ring-indigo-500 focus:outline-none cursor-pointer"
+        >
+          <option value="DATE_ASC">Exam Date (Nearest First)</option>
+          <option value="FEE_ASC">Fee (Low to High)</option>
+          <option value="FEE_DESC">Fee (High to Low)</option>
+          <option value="TITLE_ASC">Alphabetical (A - Z)</option>
+        </select>
+      </div>
+
+      @if (filters().searchQuery || filters().category !== 'ALL' || filters().statusFilter !== 'ALL') {
+        <button
+          type="button"
+          (click)="resetFilters.emit()"
+          class="flex items-center gap-1 px-3 py-2 text-xs font-semibold text-rose-600 hover:text-rose-700 hover:bg-rose-50 rounded-xl transition-colors cursor-pointer"
+        >
+          <mat-icon class="!text-sm">close</mat-icon>
+          <span>Reset</span>
+        </button>
+      }
+    </div>
+  </div>
+
+  <!-- Bottom Row: Category Chips & Status Filters -->
+  <div class="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-3 pt-3 border-t border-slate-100">
+    <!-- Categories -->
+    <div class="flex items-center gap-1.5 overflow-x-auto w-full pb-1 lg:pb-0 scrollbar-none">
+      @for (cat of categories; track cat.id) {
+        <button
+          type="button"
+          (click)="categoryChange.emit(cat.id)"
+          class="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all cursor-pointer"
+          [ngClass]="{
+            'bg-indigo-600 text-white shadow-xs scale-102': filters().category === cat.id,
+            'bg-slate-100 text-slate-600 hover:bg-slate-200/80': filters().category !== cat.id
+          }"
+        >
+          <mat-icon class="!text-sm">{{ cat.icon }}</mat-icon>
+          <span>{{ cat.label }}</span>
+        </button>
+      }
+    </div>
+
+    <!-- Status Selector Chips & Counter -->
+    <div class="flex items-center gap-2 shrink-0 w-full lg:w-auto justify-between lg:justify-end">
+      <div class="flex items-center gap-1 bg-slate-100 p-1 rounded-xl">
+        @for (st of statuses; track st.id) {
+          <button
+            type="button"
+            (click)="statusChange.emit(st.id)"
+            class="px-2.5 py-1 rounded-lg text-[11px] font-bold transition-colors cursor-pointer"
+            [ngClass]="{
+              'bg-white text-indigo-700 shadow-2xs': filters().statusFilter === st.id,
+              'text-slate-500 hover:text-slate-800': filters().statusFilter !== st.id
+            }"
+          >
+            {{ st.label }}
+          </button>
+        }
+      </div>
+
+      <span class="text-xs font-bold text-slate-500 bg-slate-100 px-2.5 py-1 rounded-lg">
+        {{ totalMatches() }} {{ totalMatches() === 1 ? 'Exam' : 'Exams' }}
+      </span>
+    </div>
+  </div>
+</div>

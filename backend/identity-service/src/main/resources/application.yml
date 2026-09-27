@@ -6,60 +6,74 @@
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU Affero General Public License as published
 # by the Free Software Foundation, version 3 of the License.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+# GNU Affero General Public License for more details.
+#
+# You should have received a copy of the GNU Affero General Public License
+# along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 spring:
   application:
     name: identity-service
-
   datasource:
-    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/exam_platform}
-    username: ${SPRING_DATASOURCE_USERNAME:exam_admin}
-    password: ${SPRING_DATASOURCE_PASSWORD:exam_secret}
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/examplatform}
+    username: ${SPRING_DATASOURCE_USERNAME:postgres}
+    password: ${SPRING_DATASOURCE_PASSWORD:postgres}
     driver-class-name: org.postgresql.Driver
     hikari:
       maximum-pool-size: 20
       minimum-idle: 5
-      connection-timeout: 30000
-      schema: identity_service
-
+      idle-timeout: 300000
+      connection-timeout: 20000
+      max-lifetime: 1200000
   jpa:
     hibernate:
       ddl-auto: validate
     properties:
       hibernate:
-        default_schema: identity_service
         dialect: org.hibernate.dialect.PostgreSQLDialect
-        format_sql: false
-    show-sql: false
-
+        default_schema: identity_service
+        jdbc:
+          batch_size: 25
+          order_inserts: true
+          order_updates: true
+    open-in-view: false
   flyway:
-    enabled: true
+    enabled: ${FLYWAY_ENABLED:true}
     schemas: identity_service
+    default-schema: identity_service
     locations: classpath:db/migration/identity
-
+    table: flyway_schema_history_identity
   data:
     redis:
       host: ${REDIS_HOST:localhost}
       port: ${REDIS_PORT:6379}
-      password: ${REDIS_PASSWORD:redis_secret}
+      password: ${REDIS_PASSWORD:}
       timeout: 2000ms
-
-  session:
-    store-type: redis
-    redis:
-      flush-mode: on-save
-      namespace: identity:session
-
-  security:
-    oauth2:
-      resourceserver:
-        jwt:
-          issuer-uri: ${KEYCLOAK_ISSUER_URI:http://localhost:8080/realms/exam-realm}
-          jwk-set-uri: ${KEYCLOAK_ISSUER_URI:http://localhost:8080/realms/exam-realm}/protocol/openid-connect/certs
-
+  mail:
+    host: ${MAIL_HOST:${SMTP_HOST:smtp.gmail.com}}
+    port: ${MAIL_PORT:${SMTP_PORT:587}}
+    username: ${MAIL_USERNAME:${SMTP_USERNAME:}}
+    password: ${MAIL_PASSWORD:${SMTP_PASSWORD:}}
+    from: ${MAIL_FROM:${SMTP_FROM:noreply@natassgrid.gov.in}}
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+            required: true
+          connectiontimeout: 5000
+          timeout: 5000
+          writetimeout: 5000
   cloud:
     vault:
-      uri: ${VAULT_ADDR:http://localhost:8200}
+      enabled: ${VAULT_ENABLED:false}
+      host: ${VAULT_HOST:localhost}
+      port: ${VAULT_PORT:8200}
       token: ${VAULT_ROOT_TOKEN:vault_root_token}
       scheme: http
       kv:
@@ -130,6 +144,19 @@ otel:
       protocol: grpc
 
 app:
+  frontend:
+    admin-url: ${ADMIN_PORTAL_URL:http://localhost:4200}
+    candidate-url: ${CANDIDATE_PORTAL_URL:http://localhost:5173}
+  sms:
+    enabled: ${SMS_ENABLED:false}
+    mobile-verification-required: ${MOBILE_VERIFICATION_REQUIRED:false}
+    weekly-limit: ${SMS_WEEKLY_LIMIT:3}
+    rolling-window-days: 7
+    msg91:
+      auth-key: ${MSG91_AUTH_KEY:}
+      template-id: ${MSG91_TEMPLATE_ID:}
+      sender-id: ${MSG91_SENDER_ID:NAGGov}
+      api-url: ${MSG91_API_URL:https://control.msg91.com/api/v5/otp}
   security:
     max-failed-attempts: ${AUTH_MAX_FAILED_ATTEMPTS:5}
     lockout-window-seconds: ${AUTH_LOCKOUT_WINDOW_SECONDS:600}
@@ -139,13 +166,3 @@ app:
     session-idle-timeout-seconds: ${SESSION_IDLE_TIMEOUT_SECONDS:1800}
   keycloak:
     realm: ${KEYCLOAK_REALM:exam-realm}
-    client-id: ${KEYCLOAK_CLIENT_ID:exam-backend}
-    client-secret: ${KEYCLOAK_CLIENT_SECRET:}
-    admin-client-id: ${KEYCLOAK_ADMIN_CLIENT_ID:admin-cli}
-    admin-username: ${KEYCLOAK_ADMIN_USER:admin}
-    admin-password: ${KEYCLOAK_ADMIN_PASSWORD:admin_secret}
-    server-url: ${KEYCLOAK_SERVER_URL:http://localhost:8080}
-
-logging:
-  pattern:
-    console: '{"timestamp":"%d{ISO8601}","level":"%p","service":"identity-service","traceId":"%X{traceId}","spanId":"%X{spanId}","message":"%m"}%n'

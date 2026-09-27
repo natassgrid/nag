@@ -44,8 +44,22 @@ public class OtpVerification extends BaseEntity {
     @Column(name = "user_id")
     private UUID userId;
 
+    @Builder.Default
+    @Column(name = "otp_type", nullable = false)
+    private String otpType = "MOBILE";
+
+    @Builder.Default
+    @Column(name = "channel", nullable = false)
+    private String channel = "SMS";
+
+    @Column(name = "email_hash")
+    private String emailHash;
+
     @Column(name = "mobile_hash", nullable = false)
     private String mobileHash;
+
+    @Column(name = "target_destination")
+    private String targetDestination;
 
     @Column(name = "otp_hash", nullable = false)
     private String otpHash;

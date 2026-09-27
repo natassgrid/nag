@@ -14,8 +14,7 @@
  * GNU Affero General Public License for more details.
  *
  * You should have received a copy of the GNU Affero General Public License
- * along with this program. If not, see <https://www.gnu.org/licenses/>.
- */
+ * along with this program. If not, see <https://www.gnu.org/licenses/>.\n */
 
 package com.examplatform.identity.service;
 
@@ -176,6 +175,40 @@ public class KeycloakService {
         } catch (Exception e) {
             log.error("Failed to activate Keycloak user {}: {}", keycloakUserId, e.getMessage());
             // Non-fatal: local account is already activated; Keycloak sync can be retried
+        }
+    }
+
+    /**
+     * Update user password in Keycloak directly using admin credentials.
+     */
+    public void resetPassword(String keycloakUserId, String newPassword) {
+        if (keycloakUserId == null || keycloakUserId.isBlank()) {
+            log.warn("Skipping Keycloak password reset — keycloakUserId is null/blank");
+            return;
+        }
+
+        try {
+            String adminToken = getAdminToken();
+            String resetPasswordUrl = keycloakProperties.getServerUrl()
+                + "/admin/realms/" + keycloakProperties.getRealm()
+                + "/users/" + keycloakUserId + "/reset-password";
+
+            Map<String, Object> body = Map.of(
+                "type", "password",
+                "value", newPassword,
+                "temporary", false
+            );
+
+            restClient.put()
+                .uri(resetPasswordUrl)
+                .header("Authorization", "Bearer " + adminToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(body)
+                .retrieve()
+                .toBodilessEntity();
+            log.info("Keycloak password reset for user {}", keycloakUserId);
+        } catch (Exception e) {
+            log.warn("Failed to reset Keycloak password for user {}: {}", keycloakUserId, e.getMessage());
         }
     }
 

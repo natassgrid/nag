@@ -1,0 +1,51 @@
+<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+  <!-- Total Users -->
+  <div class="bg-white rounded-2xl border border-slate-200 p-5 shadow-xs flex items-center gap-4">
+    <div class="w-12 h-12 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center shrink-0">
+      <mat-icon class="!text-2xl">manage_accounts</mat-icon>
+    </div>
+    <div>
+      <div class="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Authority Users</div>
+      <div class="text-2xl font-black text-slate-900 font-mono">{{ stats().totalUsers }}</div>
+      <div class="text-[11px] text-emerald-600 font-semibold mt-0.5">
+        {{ stats().activeUsers }} Active Accounts
+      </div>
+    </div>
+  </div>
+
+  <!-- 2FA Enforced -->
+  <div class="bg-white rounded-2xl border border-slate-200 p-5 shadow-xs flex items-center gap-4">
+    <div class="w-12 h-12 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0">
+      <mat-icon class="!text-2xl">security</mat-icon>
+    </div>
+    <div>
+      <div class="text-[11px] font-bold text-slate-400 uppercase tracking-wider">MFA &amp; TOTP Enforced</div>
+      <div class="text-2xl font-black text-emerald-900 font-mono">{{ stats().mfaEnforcedPercent }}%</div>
+      <div class="text-[11px] text-slate-500 font-medium mt-0.5">Mandatory Zero-Trust</div>
+    </div>
+  </div>
+
+  <!-- Roles Defined -->
+  <div class="bg-white rounded-2xl border border-slate-200 p-5 shadow-xs flex items-center gap-4">
+    <div class="w-12 h-12 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center shrink-0">
+      <mat-icon class="!text-2xl">verified_user</mat-icon>
+    </div>
+    <div>
+      <div class="text-[11px] font-bold text-slate-400 uppercase tracking-wider">RBAC Role Classes</div>
+      <div class="text-2xl font-black text-purple-900 font-mono">{{ stats().totalRoles }}</div>
+      <div class="text-[11px] text-slate-500 font-medium mt-0.5">Custom &amp; System Roles</div>
+    </div>
+  </div>
+
+  <!-- Pending Invitations -->
+  <div class="bg-white rounded-2xl border border-slate-200 p-5 shadow-xs flex items-center gap-4">
+    <div class="w-12 h-12 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center shrink-0">
+      <mat-icon class="!text-2xl">mark_email_unread</mat-icon>
+    </div>
+    <div>
+      <div class="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Pending Invites</div>
+      <div class="text-2xl font-black text-amber-900 font-mono">{{ stats().pendingInvitations }}</div>
+      <div class="text-[11px] text-slate-500 font-medium mt-0.5">Awaiting 2FA Enrollment</div>
+    </div>
+  </div>
+</div>

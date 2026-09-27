@@ -1,0 +1,60 @@
+<div class="p-5 rounded-2xl border border-slate-200 bg-slate-50/50 hover:bg-white hover:border-indigo-200 transition-all flex flex-col justify-between space-y-4 shadow-2xs h-full">
+  <div class="flex items-start gap-4">
+    <div class="w-24 h-24 rounded-2xl bg-slate-100 border border-slate-300 overflow-hidden flex items-center justify-center shrink-0 shadow-inner">
+      @if (photoUrl(); as url) {
+        <img [src]="url" alt="Passport Photo" class="w-full h-full object-cover" />
+      } @else {
+        <mat-icon class="!text-3xl text-slate-400">person</mat-icon>
+      }
+    </div>
+    <div class="space-y-1 grow">
+      <div class="flex items-center justify-between">
+        <span class="text-xs font-bold text-slate-900">Passport Photograph</span>
+        @if (photoUrl()) {
+          <span class="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full">
+            <mat-icon class="!text-[10px] leading-none text-emerald-600">verified</mat-icon> Ready
+          </span>
+        } @else {
+          <span class="text-[10px] font-bold text-amber-700 bg-amber-50 px-2 py-0.5 rounded-full">Required</span>
+        }
+      </div>
+      <p class="text-[11px] text-slate-500">
+        Clear white background portrait (35mm x 45mm), max 2MB JPEG/PNG.
+      </p>
+      <div class="text-[10px] font-mono text-slate-400">
+        {{ photoAssetId() ? 'Vault ID: ' + photoAssetId() : 'Not yet uploaded' }}
+      </div>
+    </div>
+  </div>
+
+  <div class="pt-2 border-t border-slate-200/60 flex items-center justify-between gap-2">
+    <div class="flex items-center gap-2">
+      <button
+        mat-flat-button
+        color="primary"
+        (click)="onOpenWebcam()"
+        class="!text-xs !rounded-xl !px-3 cursor-pointer"
+      >
+        <mat-icon class="!text-sm">videocam</mat-icon> Live Webcam
+      </button>
+      <button
+        mat-stroked-button
+        (click)="onUploadFile()"
+        class="!text-xs !rounded-xl !px-3 cursor-pointer"
+      >
+        <mat-icon class="!text-sm">upload_file</mat-icon> Upload File
+      </button>
+    </div>
+
+    @if (photoUrl()) {
+      <button
+        type="button"
+        (click)="onRemove()"
+        class="text-rose-500 hover:text-rose-700 text-xs p-1.5 rounded-lg transition cursor-pointer"
+        title="Remove Photograph"
+      >
+        <mat-icon class="!text-sm">delete_outline</mat-icon>
+      </button>
+    }
+  </div>
+</div>

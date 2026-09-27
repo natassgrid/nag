@@ -19,6 +19,8 @@
 
 package com.examplatform.questionbank.translation.controller;
 
+import com.examplatform.questionbank.dto.QuestionResponse;
+import com.examplatform.questionbank.service.QuestionService;
 import com.examplatform.questionbank.support.AbstractIntegrationTest;
 import com.examplatform.questionbank.translation.domain.BatchTranslationJobStatus;
 import com.examplatform.questionbank.translation.domain.Translation;
@@ -37,6 +39,7 @@ import com.examplatform.questionbank.translation.service.TranslationWorkflowServ
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.springframework.data.domain.PageImpl;
 import org.springframework.http.MediaType;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
@@ -70,6 +73,9 @@ class TranslationControllerIntegrationTest extends AbstractIntegrationTest {
 
     @MockitoBean
     private BatchTranslationService batchTranslationService;
+
+    @MockitoBean
+    private QuestionService questionService;
 
     private static final UUID QUESTION_ID = UUID.fromString("11111111-1111-1111-1111-111111111111");
     private static final UUID TRANSLATION_ID = UUID.fromString("22222222-2222-2222-2222-222222222222");
@@ -155,7 +161,8 @@ class TranslationControllerIntegrationTest extends AbstractIntegrationTest {
             mockMvc.perform(post("/api/v1/translations/batch/auto-translate")
                             .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_ADMIN")))
                             .contentType(MediaType.APPLICATION_JSON)
-                            .content(objectMapper.writeValueAsString(request)))
+                            .content(objectMapper.writeValueAsString(request))
+                            .header("X-Tenant-Id", "default"))
                     .andExpect(status().isAccepted())
                     .andExpect(jsonPath("$.id").value(JOB_ID.toString()))
                     .andExpect(jsonPath("$.status").value("PENDING"))
@@ -283,6 +290,32 @@ class TranslationControllerIntegrationTest extends AbstractIntegrationTest {
     @Nested
     @DisplayName("Translation Query Endpoints")
     class QueryEndpoints {
+
+        @Test
+        @DisplayName("+ve: TRANSLATOR lists questions for translation - returns 200 OK with page")
+        void translatorCanListQuestionsForTranslation() throws Exception {
+            QuestionResponse resp = QuestionResponse.builder()
+                    .id(QUESTION_ID)
+                    .subject("Physics")
+                    .topic("Thermodynamics")
+                    .content("What is entropy?")
+                    .translatedLanguages(List.of("hi"))
+                    .translationStatusMap(Map.of("hi", "APPROVED"))
+                    .translationStatus("APPROVED")
+                    .build();
+
+            when(questionService.listQuestions(
+                    any(), any(), any(), any(), any(), any(), any(),
+                    eq("hi"), eq("APPROVED"), anyInt(), anyInt(), anyString()))
+                    .thenReturn(new PageImpl<>(List.of(resp)));
+
+            mockMvc.perform(get("/api/v1/translations/questions?targetLang=hi&translationStatus=APPROVED")
+                            .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_TRANSLATOR"))))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.data.content[0].id").value(QUESTION_ID.toString()))
+                    .andExpect(jsonPath("$.data.content[0].translationStatus").value("APPROVED"))
+                    .andExpect(jsonPath("$.data.content[0].translatedLanguages[0]").value("hi"));
+        }
 
         @Test
         @DisplayName("+ve: DELIVERY_SERVICE fetches approved translation - returns 200 OK")

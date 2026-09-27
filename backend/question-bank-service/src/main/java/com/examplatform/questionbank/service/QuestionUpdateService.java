@@ -11,7 +11,7 @@
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU Affero General Public License for more details.
+ * GNU标志 Affero General Public License for more details.
  *
  * You should have received a copy of the GNU Affero General Public License
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
@@ -88,6 +88,13 @@ public class QuestionUpdateService {
         existing.setReferences(request.getReferences());
         existing.setOptions(request.getOptions());
 
+        if (request.getPassageId() != null) {
+            existing.setPassageId(request.getPassageId());
+        }
+        if (request.getPassageOrderIndex() != null) {
+            existing.setPassageOrderIndex(request.getPassageOrderIndex());
+        }
+
         boolean hasImages = QuestionService.detectHasImages(request.getContent(), request.getExplanation(), request.getOptions());
         existing.setHasImages(hasImages);
 
@@ -95,7 +102,6 @@ public class QuestionUpdateService {
         Question updated = questionRepository.save(existing);
 
         // Regenerate embedding if content changed (keeps similarity search accurate)
-        // NFR-2: If LLM/embedding service is unavailable, update still succeeds without new embedding
         if (!java.util.Objects.equals(oldState.getContent(), updated.getContent())) {
             try {
                 float[] embedding = embeddingService.embed(updated.getContent());
@@ -104,15 +110,15 @@ public class QuestionUpdateService {
                     log.debug("Embedding regenerated for updated question: id={}", updated.getId());
                 }
             } catch (Exception e) {
-                log.warn("Failed to regenerate embedding for question id={}. " +
-                        "Update succeeded without new embedding. Reason: {}", updated.getId(), e.getMessage());
+                log.warn("Failed to regenerate embedding for updated question id={}. Reason: {}",
+                        updated.getId(), e.getMessage());
             }
         }
 
-        // Create version record
+        // Create version record with diff
         questionVersioningService.createVersion(oldState, updated, authorId, tenantId);
 
-        log.info("Question updated: id={}, author={}, tenant={}", questionId, authorId, tenantId);
+        log.info("Question updated and versioned: id={}, author={}, tenant={}", questionId, authorId, tenantId);
 
         return toResponse(updated);
     }
@@ -135,6 +141,8 @@ public class QuestionUpdateService {
                 .references(source.getReferences())
                 .options(source.getOptions())
                 .hasImages(source.isHasImages())
+                .passageId(source.getPassageId())
+                .passageOrderIndex(source.getPassageOrderIndex())
                 .state(source.getState())
                 .authorId(source.getAuthorId())
                 .build();
@@ -143,6 +151,9 @@ public class QuestionUpdateService {
     private QuestionResponse toResponse(Question question) {
         LocalDateTime createdAt = question.getCreatedAt() != null
                 ? LocalDateTime.ofInstant(question.getCreatedAt(), ZoneOffset.UTC)
+                : null;
+        LocalDateTime updatedAt = question.getUpdatedAt() != null
+                ? LocalDateTime.ofInstant(question.getUpdatedAt(), ZoneOffset.UTC)
                 : null;
 
         return QuestionResponse.builder()
@@ -163,7 +174,13 @@ public class QuestionUpdateService {
                 .references(question.getReferences())
                 .state(question.getState())
                 .authorId(question.getAuthorId())
+                .reviewerId(question.getReviewerId())
+                .encryptionKeyId(question.getEncryptionKeyId())
+                .passageId(question.getPassageId())
+                .passageOrderIndex(question.getPassageOrderIndex())
+                .version(question.getVersion())
                 .createdAt(createdAt)
+                .updatedAt(updatedAt)
                 .options(question.getOptions())
                 .hasImages(question.isHasImages())
                 .build();

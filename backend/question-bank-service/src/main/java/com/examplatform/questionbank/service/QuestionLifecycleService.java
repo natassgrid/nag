@@ -20,6 +20,7 @@
 package com.examplatform.questionbank.service;
 
 import com.examplatform.questionbank.domain.Question;
+import com.examplatform.questionbank.dto.QuestionAnalytics;
 import com.examplatform.questionbank.dto.QuestionResponse;
 import com.examplatform.questionbank.dto.TransitionRequest;
 import com.examplatform.questionbank.exception.FourEyesPrincipleViolationException;
@@ -208,6 +209,23 @@ public class QuestionLifecycleService {
         reviewWorkflowService.processTransition(saved, "REVIEW", "DRAFT", reviewerId, comments, tenantId);
 
         return toResponse(saved);
+    }
+
+    /**
+     * Retrieve analytics and exposure metrics for a question.
+     *
+     * @param questionId the question UUID
+     * @return question analytics data
+     */
+    public QuestionAnalytics getAnalytics(UUID questionId) {
+        Question question = questionRepository.findById(questionId)
+                .orElseThrow(() -> new EntityNotFoundException("Question not found: " + questionId));
+
+        return QuestionAnalytics.builder()
+                .usageCount(question.getUsageCount())
+                .difficultyIndex(0.0)
+                .discriminationIndex(0.0)
+                .build();
     }
 
     private QuestionResponse toResponse(Question question) {

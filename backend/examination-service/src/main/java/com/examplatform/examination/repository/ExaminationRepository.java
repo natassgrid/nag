@@ -43,4 +43,10 @@ public interface ExaminationRepository extends JpaRepository<Examination, UUID> 
 
     Page<Examination> findByStatusAndTenantIdAndNameContainingIgnoreCase(
             String status, String tenantId, String name, Pageable pageable);
+
+    Page<Examination> findByStatusAndTenantIdAndCategoryIgnoreCase(
+            String status, String tenantId, String category, Pageable pageable);
+
+    Page<Examination> findByStatusAndTenantIdAndCategoryIgnoreCaseAndNameContainingIgnoreCase(
+            String status, String tenantId, String category, String name, Pageable pageable);
 }

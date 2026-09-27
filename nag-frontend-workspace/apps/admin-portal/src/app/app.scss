@@ -1,0 +1,29 @@
+:host {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+::ng-deep .custom-nav-menu.mat-mdc-menu-panel {
+  min-width: 280px !important;
+  border-radius: 1rem !important;
+  box-shadow: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1) !important;
+  border: 1px solid #e2e8f0 !important;
+  padding: 0.5rem !important;
+
+  .mat-mdc-menu-item {
+    border-radius: 0.75rem !important;
+    margin-bottom: 0.25rem !important;
+    height: auto !important;
+    padding: 0.625rem 0.75rem !important;
+    line-height: normal !important;
+
+    &:last-child {
+      margin-bottom: 0 !important;
+    }
+
+    .mat-icon {
+      margin-right: 0.75rem !important;
+    }
+  }
+}

@@ -1,0 +1,31 @@
+<div class="p-4 rounded-xl border border-slate-200 bg-white shadow-2xs hover:border-indigo-300 hover:shadow-xs transition-all space-y-3 relative flex flex-col justify-between h-full">
+  <div>
+    <div class="flex items-start justify-between gap-2">
+      <span class="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-indigo-50 text-indigo-700 font-mono">
+        {{ claim().docType }}
+      </span>
+      <span class="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full">
+        <mat-icon class="!text-[10px] leading-none text-emerald-600">verified</mat-icon> Verified
+      </span>
+    </div>
+    <h5 class="text-xs font-bold text-slate-900 mt-2 line-clamp-2">{{ claim().docName }}</h5>
+    <p class="text-[11px] text-slate-500 mt-0.5">{{ claim().issuerName }}</p>
+  </div>
+
+  <div class="pt-3 border-t border-slate-100 space-y-1.5 text-[11px]">
+    <div class="flex items-center justify-between text-slate-600">
+      <span class="text-slate-400">Doc / Roll No:</span>
+      <span class="font-mono font-bold text-slate-800">{{ claim().docNumber }}</span>
+    </div>
+    <div class="flex items-center justify-between text-slate-600">
+      <span class="text-slate-400">Issued Date:</span>
+      <span>{{ claim().issuedDate }}</span>
+    </div>
+    @if (claim().hashDigest; as hash) {
+      <div class="flex items-center justify-between text-[10px] font-mono text-slate-400 pt-1">
+        <span>Hash:</span>
+        <span class="truncate max-w-[140px]" [title]="hash">{{ hash.slice(0, 18) }}...</span>
+      </div>
+    }
+  </div>
+</div>

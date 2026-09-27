@@ -1,0 +1,19 @@
+# Git and IDE
+.git
+.gitignore
+.idea
+.vscode
+
+# Dependencies & Build artifacts (rebuilt in Docker with cache mounts)
+node_modules
+.nx/cache
+dist
+coverage
+tmp
+.angular
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*

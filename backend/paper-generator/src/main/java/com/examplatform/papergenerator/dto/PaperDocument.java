@@ -28,6 +28,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
@@ -35,6 +36,7 @@ import java.util.UUID;
  * Serialized format POJO for paper documents.
  * Represents the JSON schema used for paper serialization/deserialization.
  * Contains only question identifiers (no question content) for security.
+ * Preserves stimulus passage question groups.
  *
  * Validates: Requirements 28.1, 28.2, 28.3
  */
@@ -68,6 +70,12 @@ public class PaperDocument {
      */
     @NotEmpty
     private List<UUID> questionIds;
+
+    /**
+     * Optional grouped questions by comprehension passage.
+     */
+    @Builder.Default
+    private List<QuestionGroup> questionGroups = new ArrayList<>();
 
     /**
      * Computed difficulty score for the paper.

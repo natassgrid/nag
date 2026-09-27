@@ -1,0 +1,27 @@
+<div class="qr-code-wrapper inline-flex flex-col items-center justify-center p-2 bg-white rounded-xl border border-slate-200 shadow-xs">
+  @if (qrDataUrl()) {
+    <img
+      [src]="qrDataUrl()"
+      [attr.width]="size()"
+      [attr.height]="size()"
+      alt="Scannable QR Code"
+      class="block rounded-lg select-none"
+    />
+  } @else if (qrSvg()) {
+    <div [innerHTML]="qrSvg()" class="flex items-center justify-center select-none"></div>
+  } @else {
+    <div
+      [style.width.px]="size()"
+      [style.height.px]="size()"
+      class="flex items-center justify-center bg-slate-50 text-slate-400 rounded-lg text-xs"
+    >
+      <span class="animate-pulse">Loading QR...</span>
+    </div>
+  }
+
+  @if (label()) {
+    <span class="text-[10px] font-mono text-slate-500 mt-2 font-semibold">
+      {{ label() }}
+    </span>
+  }
+</div>

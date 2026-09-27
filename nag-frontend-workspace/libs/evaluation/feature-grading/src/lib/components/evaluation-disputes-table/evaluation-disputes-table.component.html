@@ -1,0 +1,57 @@
+@if (disputes().length === 0) {
+  <nag-empty-state
+    title="No candidate dispute tickets"
+    description="All candidate inquiries have been adjudicated and finalized."
+    icon="sentiment_satisfied_alt"
+  />
+} @else {
+  <div class="bg-white rounded-xl border border-slate-200 shadow-xs overflow-hidden">
+    <table class="min-w-full divide-y divide-slate-200 text-left text-sm">
+      <thead class="bg-slate-50 text-slate-600 font-semibold text-xs uppercase tracking-wider">
+        <tr>
+          <th scope="col" class="px-5 py-3.5">Dispute ID & Roll</th>
+          <th scope="col" class="px-5 py-3.5">Question Code</th>
+          <th scope="col" class="px-5 py-3.5">Candidate Challenge</th>
+          <th scope="col" class="px-5 py-3.5">Status</th>
+          <th scope="col" class="px-5 py-3.5 text-right">Action</th>
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-slate-100 text-slate-700">
+        @for (d of disputes(); track d.id) {
+          <tr class="hover:bg-slate-50/70 transition-colors">
+            <td class="px-5 py-4">
+              <div class="font-bold text-slate-900">{{ d.id }}</div>
+              <div class="text-xs text-slate-500">{{ d.candidateRoll }}</div>
+            </td>
+            <td class="px-5 py-4 font-mono font-bold">{{ d.questionCode }}</td>
+            <td class="px-5 py-4">
+              <div class="font-medium text-slate-900">{{ d.reason }}</div>
+              <div class="text-xs text-slate-500 line-clamp-1">{{ d.candidateArgument }}</div>
+            </td>
+            <td class="px-5 py-4">
+              <nag-status-badge [variant]="disputeStatusVariant(d.status)" [label]="d.status" />
+            </td>
+            <td class="px-5 py-4 text-right">
+              <button
+                mat-button
+                color="primary"
+                class="!text-xs"
+                (click)="resolve.emit({ dispute: d, resolution: 'RESOLVED' })"
+              >
+                Accept
+              </button>
+              <button
+                mat-button
+                color="warn"
+                class="!text-xs"
+                (click)="resolve.emit({ dispute: d, resolution: 'REJECTED' })"
+              >
+                Dismiss
+              </button>
+            </td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  </div>
+}

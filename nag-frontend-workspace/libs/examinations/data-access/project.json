@@ -1,0 +1,13 @@
+{
+  "name": "examinations-data-access",
+  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "libs/examinations/data-access/src",
+  "prefix": "lib",
+  "projectType": "library",
+  "tags": ["scope:examinations", "type:data-access"],
+  "targets": {
+    "lint": {
+      "executor": "@nx/eslint:lint"
+    }
+  }
+}

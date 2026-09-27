@@ -1,32 +1,54 @@
-# Git
+# =============================================================================
+# Root .dockerignore for NAG Build Context Optimization
+# Prevents multi-gigabyte local artifacts from being uploaded to Docker daemon
+# =============================================================================
+
+# Version control & IDE
 .git
 .gitignore
-
-# IDE
+.gitattributes
 .idea
 .vscode
-*.iml
+.agents
+.gemini
+.system_generated
 
-# Node/Frontend (not needed for backend builds)
+# Node.js & Frontend Workspaces
+node_modules
+**/node_modules
+nag-frontend-workspace/node_modules
+nag-frontend-workspace/.nx/cache
+nag-frontend-workspace/dist
+nag-frontend-workspace/.angular
 frontend/node_modules
 frontend/dist
-frontend/.angular
+frontend/build
+candidate-frontend/node_modules
+candidate-frontend/dist
+candidate-frontend/build
 
-# Build outputs (we rebuild inside Docker)
-backend/*/build
+# Java / Gradle Build Artifacts (Docker builds cleanly inside container)
 .gradle
+**/.gradle
 build
+**/build
+out
+**/out
+target
+**/target
+**/*.class
+**/*.log
 
-# Docker compose files themselves
-infrastructure/docker-compose
+# Ensure gradle wrapper & distribution are never ignored
+!gradle/wrapper/gradle-wrapper.jar
+!backend/gradle/gradle-8.14.5-bin.zip
 
-# Kiro specs
-.kiro
+# Infrastructure runtime & AI Model caches
+infrastructure/indictrans2/models
+infrastructure/ollama
+infrastructure/docker-compose/*_data
+infrastructure/docker-compose/.env*
 
-# OS files
-.DS_Store
-Thumbs.db
-
-# Env files (secrets should be passed via env vars)
-.env
-*.env.local
+# Documentation & Specs
+docs/
+*.md

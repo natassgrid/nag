@@ -54,6 +54,12 @@ public class PaperGenerationRequest {
 
     private Boolean isPractice;
 
+    /** Optional overall count of paragraph / comprehension question sets. */
+    private Integer paragraphQuestionCount;
+
+    /** Optional expected sub-questions per passage (default 3). */
+    private Integer subQuestionsPerPassage;
+
     @NotEmpty
     private List<BlueprintRule> blueprintRules;
 }

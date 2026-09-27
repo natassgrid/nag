@@ -1,0 +1,109 @@
+<div class="admin-assets-page max-w-7xl mx-auto p-6 space-y-6">
+  <!-- Hidden File Input for Direct Binary Replacement -->
+  <input #globalFileInput type="file" class="hidden" (change)="onBinaryFileSelected($event)" />
+
+  <!-- Top Navigation & Action Header -->
+  <nag-page-header
+    title="Assessment Asset &amp; Diagram Media Library"
+    subtitle="Centralized DPI asset repository for exam diagrams, KaTeX chemical structures, audio prompts, and PDFs"
+    icon="perm_media"
+  >
+    <div actions class="flex items-center gap-3">
+      <button
+        mat-flat-button
+        color="primary"
+        (click)="openUploadModal()"
+        class="!rounded-xl font-semibold shadow-xs flex items-center gap-2 cursor-pointer"
+      >
+        <mat-icon>cloud_upload</mat-icon>
+        Upload New Asset
+      </button>
+    </div>
+  </nag-page-header>
+
+  <!-- Metrics Ribbon -->
+  <nag-asset-metrics-ribbon
+    [totalElements]="totalElements()"
+    [totalStorageFormatted]="totalStorageFormatted()"
+    [imageCount]="imageCount()"
+    [audioCount]="audioCount()"
+  ></nag-asset-metrics-ribbon>
+
+  <!-- Filter & Controls Toolbar -->
+  <nag-asset-toolbar
+    [searchQuery]="searchQuery()"
+    [selectedType]="selectedType()"
+    [selectedStatus]="selectedStatus()"
+    [viewMode]="viewMode()"
+    (searchQueryChange)="onSearchChange($event)"
+    (selectedTypeChange)="onTypeChange($event)"
+    (selectedStatusChange)="onStatusChange($event)"
+    (viewModeChange)="viewMode.set($event)"
+  ></nag-asset-toolbar>
+
+  <!-- Loading State -->
+  @if (loading()) {
+    <div class="py-20 flex flex-col items-center justify-center space-y-3">
+      <div class="w-8 h-8 border-3 border-indigo-600 border-t-transparent rounded-full animate-spin"></div>
+      <p class="text-xs text-slate-500 font-medium">Scanning assessment media asset repository...</p>
+    </div>
+  } @else if (assets().length === 0) {
+    <!-- Empty State -->
+    <div class="bg-white rounded-2xl border border-slate-200 p-12 text-center flex flex-col items-center space-y-4">
+      <div class="w-16 h-16 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center">
+        <mat-icon class="!text-3xl">photo_library</mat-icon>
+      </div>
+      <div>
+        <h4 class="text-sm font-bold text-slate-900">No media assets found</h4>
+        <p class="text-xs text-slate-500 max-w-sm mt-1">
+          No files match your query. Upload your first diagram, audio clip, or formula asset to anchor it in questions.
+        </p>
+      </div>
+      <button mat-flat-button color="primary" (click)="openUploadModal()" class="!rounded-xl text-xs font-semibold cursor-pointer">
+        <mat-icon>cloud_upload</mat-icon>
+        Upload First Asset
+      </button>
+    </div>
+  } @else {
+    <!-- GRID CARD VIEW -->
+    @if (viewMode() === 'grid') {
+      <nag-asset-grid-view
+        [assets]="assets()"
+        [failedImages]="failedImages()"
+        (preview)="previewAsset($event)"
+        (replaceBinary)="triggerReplaceBinary($event)"
+        (editMetadata)="editMetadata($event)"
+        (copyCdnUrl)="copyCdnUrl($event)"
+        (archive)="archiveAsset($event)"
+        (restore)="restoreAsset($event)"
+        (delete)="deleteAsset($event)"
+        (imageError)="onImageError($event)"
+      ></nag-asset-grid-view>
+    }
+
+    <!-- TABULAR LIST VIEW -->
+    @if (viewMode() === 'table') {
+      <nag-asset-table-view
+        [assets]="assets()"
+        [failedImages]="failedImages()"
+        (preview)="previewAsset($event)"
+        (replaceBinary)="triggerReplaceBinary($event)"
+        (editMetadata)="editMetadata($event)"
+        (copyCdnUrl)="copyCdnUrl($event)"
+        (archive)="archiveAsset($event)"
+        (restore)="restoreAsset($event)"
+        (delete)="deleteAsset($event)"
+        (imageError)="onImageError($event)"
+      ></nag-asset-table-view>
+    }
+
+    <!-- Pagination Footer -->
+    <nag-asset-pagination
+      [currentPage]="currentPage()"
+      [pageSize]="pageSize()"
+      [totalPages]="totalPages()"
+      [totalElements]="totalElements()"
+      (pageChange)="onPageChange($event)"
+    ></nag-asset-pagination>
+  }
+</div>

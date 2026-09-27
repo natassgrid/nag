@@ -54,6 +54,16 @@ public class UpdateCandidateProfileRequest {
 
     private String address;
 
+    private String country;
+
+    private String state;
+
+    private String district;
+
+    private String city;
+
+    private String pinCode;
+
     private String reservationCategory;
 
     private String identityDocNumber;

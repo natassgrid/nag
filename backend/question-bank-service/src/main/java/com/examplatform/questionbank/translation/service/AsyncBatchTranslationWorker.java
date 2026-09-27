@@ -28,16 +28,19 @@ import com.examplatform.questionbank.translation.dto.AutoTranslateResponse;
 import com.examplatform.questionbank.translation.repository.BatchTranslationJobRepository;
 import com.examplatform.questionbank.translation.repository.TranslationRepository;
 import com.examplatform.shared.tenant.TenantContext;
+import jakarta.persistence.criteria.Predicate;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -213,9 +216,10 @@ public class AsyncBatchTranslationWorker {
                     }
                 }
             } else {
-                // Paginate by subject filter or all questions
+                // Paginate by subject filter or all questions using robust Specification
                 int pageNumber = 0;
                 Page<Question> page;
+                Specification<Question> spec = buildBatchSpecification(job.getSubjectFilter(), tenantId);
 
                 do {
                     if (isJobCancelled(jobId)) {
@@ -224,12 +228,7 @@ public class AsyncBatchTranslationWorker {
                     }
 
                     PageRequest pageRequest = PageRequest.of(pageNumber, batchSize, Sort.by("createdAt").ascending());
-                    boolean hasSubjectFilter = job.getSubjectFilter() != null && !job.getSubjectFilter().isBlank();
-                    if (hasSubjectFilter) {
-                        page = questionRepository.findBySubjectFilterAndTenantId(job.getSubjectFilter().trim(), tenantId, pageRequest);
-                    } else {
-                        page = questionRepository.findAllQuestionsForBatch(tenantId, pageRequest);
-                    }
+                    page = questionRepository.findAll(spec, pageRequest);
 
                     if (pageNumber == 0) {
                         Optional<BatchTranslationJob> freshJobOpt = jobRepository.findById(jobId);
@@ -289,7 +288,6 @@ public class AsyncBatchTranslationWorker {
                                     TimeUnit.SECONDS.sleep(1);
                                 } catch (InterruptedException ie) {
                                     Thread.currentThread().interrupt();
-                                    log.warn("Chunk interval pause interrupted for job {}", jobId);
                                     return;
                                 }
                             }
@@ -325,6 +323,35 @@ public class AsyncBatchTranslationWorker {
         } finally {
             TenantContext.clear();
         }
+    }
+
+    private Specification<Question> buildBatchSpecification(String subjectFilter, String tenantId) {
+        return (root, query, cb) -> {
+            List<Predicate> predicates = new ArrayList<>();
+
+            if (tenantId != null && !tenantId.isBlank()) {
+                predicates.add(cb.or(
+                        cb.equal(root.get("tenantId"), tenantId),
+                        cb.equal(root.get("tenantId"), "default")
+                ));
+            }
+
+            if (subjectFilter != null && !subjectFilter.isBlank()) {
+                String trimmed = subjectFilter.trim();
+                try {
+                    Long parsedSubjectId = Long.parseLong(trimmed);
+                    predicates.add(cb.equal(root.get("subjectId"), parsedSubjectId));
+                } catch (NumberFormatException e) {
+                    String pattern = "%" + trimmed.toLowerCase() + "%";
+                    predicates.add(cb.or(
+                            cb.equal(cb.lower(root.get("subject")), trimmed.toLowerCase()),
+                            cb.like(cb.lower(root.get("subject")), pattern)
+                    ));
+                }
+            }
+
+            return predicates.isEmpty() ? cb.conjunction() : cb.and(predicates.toArray(new Predicate[0]));
+        };
     }
 
     private void processSingleQuestion(

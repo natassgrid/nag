@@ -44,6 +44,17 @@ spring:
       - org.springframework.boot.autoconfigure.kafka.KafkaAutoConfiguration
       - org.springframework.boot.autoconfigure.amqp.RabbitAutoConfiguration
 
+grpc:
+  client:
+    questionbank:
+      host: localhost
+      port: 9083
+      timeout-ms: 5000
+
+app:
+  response-service:
+    url: http://localhost:8088
+
 platform:
   messaging:
     broker: in-memory

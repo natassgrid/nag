@@ -1,0 +1,12 @@
+<span
+  class="status-badge inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold uppercase tracking-wider transition-colors"
+  [ngClass]="badgeClass()"
+>
+  @if (showDot()) {
+    <span class="w-1.5 h-1.5 rounded-full bg-current"></span>
+  }
+  <ng-content></ng-content>
+  @if (label()) {
+    <span>{{ label() }}</span>
+  }
+</span>

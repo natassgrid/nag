@@ -1,0 +1,57 @@
+<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+  <!-- Card 1: Total Records -->
+  <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs flex items-center justify-between">
+    <div class="space-y-1">
+      <span class="text-xs font-bold text-slate-500 uppercase tracking-wider">Immutable Records</span>
+      <div class="text-2xl font-black text-slate-900 font-mono">{{ stats().totalRecords | number }}</div>
+      <div class="text-[11px] text-slate-400">Anchored in Merkle Ledger</div>
+    </div>
+    <div class="w-12 h-12 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center">
+      <mat-icon class="!text-2xl">receipt_long</mat-icon>
+    </div>
+  </div>
+
+  <!-- Card 2: Cryptographic Integrity -->
+  <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs flex items-center justify-between">
+    <div class="space-y-1">
+      <span class="text-xs font-bold text-slate-500 uppercase tracking-wider">Ledger Integrity</span>
+      <div class="flex items-center gap-1.5">
+        <span class="text-2xl font-black text-emerald-600 font-mono">{{ stats().cryptographicIntegrity }}%</span>
+        <span class="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+          <mat-icon class="!text-xs">verified</mat-icon>
+          Valid
+        </span>
+      </div>
+      <div class="text-[11px] text-slate-400">SHA-256 Hash-chain Proofs</div>
+    </div>
+    <div class="w-12 h-12 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
+      <mat-icon class="!text-2xl">enhanced_encryption</mat-icon>
+    </div>
+  </div>
+
+  <!-- Card 3: Security & Anomaly Alarms -->
+  <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs flex items-center justify-between">
+    <div class="space-y-1">
+      <span class="text-xs font-bold text-slate-500 uppercase tracking-wider">Security Alarms</span>
+      <div class="text-2xl font-black font-mono" [ngClass]="stats().criticalAlerts > 0 ? 'text-amber-600' : 'text-slate-900'">
+        {{ stats().criticalAlerts }}
+      </div>
+      <div class="text-[11px] text-slate-400">0 Critical Breaches Detected</div>
+    </div>
+    <div class="w-12 h-12 rounded-2xl" [ngClass]="stats().criticalAlerts > 0 ? 'bg-amber-50 text-amber-600' : 'bg-slate-100 text-slate-600'" flex items-center justify-center>
+      <mat-icon class="!text-2xl">shield_alert</mat-icon>
+    </div>
+  </div>
+
+  <!-- Card 4: Active Services -->
+  <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs flex items-center justify-between">
+    <div class="space-y-1">
+      <span class="text-xs font-bold text-slate-500 uppercase tracking-wider">Monitored Services</span>
+      <div class="text-2xl font-black text-slate-900 font-mono">{{ stats().activeServices }}</div>
+      <div class="text-[11px] text-slate-400">Full Cluster Telemetry</div>
+    </div>
+    <div class="w-12 h-12 rounded-2xl bg-purple-50 text-purple-600 flex items-center justify-center">
+      <mat-icon class="!text-2xl">hub</mat-icon>
+    </div>
+  </div>
+</div>

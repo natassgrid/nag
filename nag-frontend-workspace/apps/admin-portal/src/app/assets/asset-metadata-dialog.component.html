@@ -1,0 +1,93 @@
+<div class="asset-metadata-modal p-6 max-w-lg w-full">
+  <div class="flex items-center justify-between pb-4 border-b border-slate-200">
+    <div class="flex items-center gap-3">
+      <div class="w-10 h-10 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center">
+        <mat-icon>edit_note</mat-icon>
+      </div>
+      <div>
+        <h3 class="text-base font-bold text-slate-900 leading-tight">Edit Asset Metadata</h3>
+        <p class="text-xs text-slate-500 font-mono truncate max-w-xs">{{ data.asset.originalFilename }}</p>
+      </div>
+    </div>
+    <button mat-icon-button mat-dialog-close [disabled]="saving">
+      <mat-icon class="text-slate-400">close</mat-icon>
+    </button>
+  </div>
+
+  <div class="my-5 space-y-4">
+    @if (errorMessage) {
+      <div class="p-3 rounded-xl bg-rose-50 border border-rose-200 text-xs text-rose-700 flex items-center gap-2">
+        <mat-icon class="text-rose-500 text-sm">error_outline</mat-icon>
+        <span>{{ errorMessage }}</span>
+      </div>
+    }
+
+    <form [formGroup]="metadataForm" class="space-y-3">
+      <div>
+        <label class="text-xs font-bold text-slate-600 block mb-1">Title</label>
+        <input
+          type="text"
+          formControlName="title"
+          placeholder="Descriptive title for display"
+          class="w-full text-xs px-3 py-2 border rounded-xl bg-white border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+        />
+      </div>
+
+      <div>
+        <label class="text-xs font-bold text-slate-600 block mb-1">Alt Text (Accessibility)</label>
+        <input
+          type="text"
+          formControlName="altText"
+          placeholder="Screen reader explanation of visual content"
+          class="w-full text-xs px-3 py-2 border rounded-xl bg-white border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+        />
+      </div>
+
+      <div class="grid grid-cols-2 gap-3">
+        <div>
+          <label class="text-xs font-bold text-slate-600 block mb-1">Tags (Comma-separated)</label>
+          <input
+            type="text"
+            formControlName="tags"
+            placeholder="e.g. physics, diagrams"
+            class="w-full text-xs px-3 py-2 border rounded-xl bg-white border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+          />
+        </div>
+        <div>
+          <label class="text-xs font-bold text-slate-600 block mb-1">Language</label>
+          <input
+            type="text"
+            formControlName="language"
+            placeholder="e.g. en, hi"
+            class="w-full text-xs px-3 py-2 border rounded-xl bg-white border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+          />
+        </div>
+      </div>
+
+      <div>
+        <label class="text-xs font-bold text-slate-600 block mb-1">Description / Context</label>
+        <textarea
+          formControlName="description"
+          rows="3"
+          placeholder="Explain how this asset is used in exam blueprints or question items"
+          class="w-full text-xs px-3 py-2 border rounded-xl bg-white border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none"
+        ></textarea>
+      </div>
+    </form>
+  </div>
+
+  <div class="flex items-center justify-end gap-3 pt-3 border-t border-slate-200">
+    <button mat-button mat-dialog-close [disabled]="saving" class="!rounded-xl text-xs">
+      Cancel
+    </button>
+    <button
+      mat-flat-button
+      color="primary"
+      (click)="save()"
+      [disabled]="saving"
+      class="!rounded-xl text-xs font-semibold"
+    >
+      {{ saving ? 'Saving Changes...' : 'Save Metadata' }}
+    </button>
+  </div>
+</div>

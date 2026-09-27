@@ -1,0 +1,79 @@
+@if (isOpen()) {
+  <div class="bg-indigo-50/70 border-2 border-indigo-200 rounded-2xl p-6 space-y-4 shadow-sm transition-all animate-fadeIn">
+    <div class="flex items-center justify-between border-b border-indigo-100 pb-3">
+      <div class="flex items-center gap-2">
+        <mat-icon class="text-indigo-600">add_circle</mat-icon>
+        <h2 class="text-sm font-bold text-indigo-950 uppercase tracking-wide">
+          Add New Academic Subject
+        </h2>
+      </div>
+      <button
+        type="button"
+        (click)="onClose()"
+        class="text-slate-400 hover:text-slate-600"
+      >
+        <mat-icon class="!text-sm">close</mat-icon>
+      </button>
+    </div>
+
+    <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+      <div class="sm:col-span-2">
+        <label for="new-subj-name" class="block text-xs font-semibold text-slate-700 uppercase mb-1">
+          Subject Name *
+        </label>
+        <input
+          id="new-subj-name"
+          type="text"
+          [(ngModel)]="name"
+          placeholder="e.g. Advanced Physics &amp; Quantum Optics"
+          class="w-full px-3 py-2 text-sm bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 font-medium"
+        />
+      </div>
+
+      <div>
+        <label for="new-subj-code" class="block text-xs font-semibold text-slate-700 uppercase mb-1">
+          Subject Code (Optional)
+        </label>
+        <input
+          id="new-subj-code"
+          type="text"
+          [(ngModel)]="code"
+          placeholder="e.g. PHY-301"
+          class="w-full px-3 py-2 text-sm bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 font-mono font-medium"
+        />
+      </div>
+
+      <div class="sm:col-span-3">
+        <label for="new-subj-desc" class="block text-xs font-semibold text-slate-700 uppercase mb-1">
+          Curriculum Description / Scope
+        </label>
+        <input
+          id="new-subj-desc"
+          type="text"
+          [(ngModel)]="description"
+          placeholder="e.g. Core curriculum covering semiconductor physics, wave mechanics, and optics."
+          class="w-full px-3 py-2 text-sm bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 font-medium"
+        />
+      </div>
+    </div>
+
+    <div class="flex justify-end gap-3 pt-2">
+      <button
+        mat-stroked-button
+        (click)="onClose()"
+        class="!text-slate-600"
+      >
+        Cancel
+      </button>
+      <button
+        mat-flat-button
+        color="primary"
+        [disabled]="creating() || !name.trim()"
+        (click)="onSave()"
+      >
+        <mat-icon>save</mat-icon>
+        {{ creating() ? 'Creating...' : 'Save Subject' }}
+      </button>
+    </div>
+  </div>
+}

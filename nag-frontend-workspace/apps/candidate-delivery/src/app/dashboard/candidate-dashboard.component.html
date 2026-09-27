@@ -1,0 +1,156 @@
+<div class="candidate-dashboard max-w-7xl mx-auto p-4 sm:p-6 lg:p-8 space-y-6 sm:space-y-8 animate-fade-in">
+  <!-- Welcome Banner Sub-component -->
+  <app-dashboard-welcome-banner
+    [userName]="candidateName()"
+    [kycVerified]="true"
+    [profileCompleteness]="95"
+  />
+
+  <!-- Quick KPI Stats Sub-component -->
+  <app-dashboard-kpi-stats
+    [totalRegistered]="dashboardService.metrics().totalRegistered"
+    [liveCount]="dashboardService.metrics().liveCount"
+    [upcomingCount]="dashboardService.metrics().upcomingCount"
+    [scorecardsCount]="dashboardService.metrics().scorecardsCount"
+  />
+
+  <!-- Registered Assessments Section -->
+  <div class="space-y-5">
+    <!-- Header & Filter Tabs -->
+    <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pb-2 border-b border-slate-200">
+      <div>
+        <h2 class="text-base sm:text-lg font-black text-slate-900 flex items-center gap-2">
+          <mat-icon class="!text-xl text-indigo-600">event_available</mat-icon>
+          Your Examination Enrollments
+        </h2>
+        <p class="text-xs text-slate-500 mt-0.5">
+          Track schedule windows, allocated centers, admit card issuance, and launch active tests
+        </p>
+      </div>
+
+      <!-- Filter Tabs -->
+      <div class="flex items-center gap-1 bg-slate-100 p-1 rounded-xl shrink-0">
+        <button
+          type="button"
+          (click)="setFilter('ALL')"
+          class="px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer"
+          [ngClass]="activeFilter() === 'ALL' ? 'bg-white text-indigo-700 shadow-2xs' : 'text-slate-600 hover:text-slate-900'"
+        >
+          All ({{ dashboardService.enrolledExams().length }})
+        </button>
+        <button
+          type="button"
+          (click)="setFilter('LIVE')"
+          class="px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5"
+          [ngClass]="activeFilter() === 'LIVE' ? 'bg-white text-rose-600 shadow-2xs' : 'text-slate-600 hover:text-slate-900'"
+        >
+          @if (dashboardService.liveCount() > 0) {
+            <span class="w-1.5 h-1.5 rounded-full bg-rose-500 animate-pulse"></span>
+          }
+          Live ({{ dashboardService.liveCount() }})
+        </button>
+        <button
+          type="button"
+          (click)="setFilter('UPCOMING')"
+          class="px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer"
+          [ngClass]="activeFilter() === 'UPCOMING' ? 'bg-white text-indigo-700 shadow-2xs' : 'text-slate-600 hover:text-slate-900'"
+        >
+          Upcoming ({{ dashboardService.upcomingCount() }})
+        </button>
+        <button
+          type="button"
+          (click)="setFilter('COMPLETED')"
+          class="px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer"
+          [ngClass]="activeFilter() === 'COMPLETED' ? 'bg-white text-emerald-700 shadow-2xs' : 'text-slate-600 hover:text-slate-900'"
+        >
+          Past / Results ({{ dashboardService.completedCount() }})
+        </button>
+      </div>
+    </div>
+
+    <!-- Loading State -->
+    @if (dashboardService.loading()) {
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        @for (i of [1, 2]; track i) {
+          <div class="bg-white rounded-2xl border border-slate-200 p-6 space-y-4 animate-pulse">
+            <div class="flex justify-between items-center">
+              <div class="h-5 w-24 bg-slate-200 rounded"></div>
+              <div class="h-5 w-20 bg-slate-200 rounded-full"></div>
+            </div>
+            <div class="h-6 w-3/4 bg-slate-200 rounded"></div>
+            <div class="h-24 bg-slate-100 rounded-xl"></div>
+            <div class="h-10 bg-slate-200 rounded-xl"></div>
+          </div>
+        }
+      </div>
+    }
+
+    <!-- Error State -->
+    @if (dashboardService.error(); as err) {
+      <div class="p-6 bg-rose-50 rounded-2xl border border-rose-200 text-center space-y-3">
+        <div class="w-12 h-12 bg-rose-100 text-rose-700 rounded-full flex items-center justify-center mx-auto">
+          <mat-icon>error_outline</mat-icon>
+        </div>
+        <h3 class="text-sm font-bold text-rose-900">Unable to Fetch Enrolled Examinations</h3>
+        <p class="text-xs text-rose-700">{{ err }}</p>
+        <button
+          type="button"
+          mat-flat-button
+          color="warn"
+          (click)="retryLoad()"
+          class="!rounded-xl !text-xs font-semibold"
+        >
+          <mat-icon class="!text-sm">refresh</mat-icon>
+          Retry
+        </button>
+      </div>
+    }
+
+    <!-- Enrolled Assessment Cards Grid -->
+    @if (!dashboardService.loading()) {
+      @if (filteredExams().length > 0) {
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+          @for (exam of filteredExams(); track exam.id) {
+            <app-enrolled-assessment-card
+              [exam]="exam"
+              (openAdmitCard)="openAdmitCard($event)"
+            />
+          }
+        </div>
+      } @else {
+        <!-- Empty State -->
+        <div class="bg-white rounded-3xl border border-slate-200 p-12 text-center space-y-4 shadow-xs">
+          <div class="w-16 h-16 bg-indigo-50 text-indigo-600 rounded-3xl flex items-center justify-center mx-auto">
+            <mat-icon class="!text-3xl">event_busy</mat-icon>
+          </div>
+          <div class="space-y-1">
+            <h3 class="text-base font-bold text-slate-900">No Examinations Found</h3>
+            <p class="text-xs text-slate-500 max-w-md mx-auto">
+              You currently have no registered assessments under this filter. Explore open national examinations in our catalog.
+            </p>
+          </div>
+          <div>
+            <a
+              mat-flat-button
+              color="primary"
+              routerLink="/browse"
+              class="!rounded-xl !text-xs font-bold !px-6"
+            >
+              <mat-icon class="!text-sm">search</mat-icon>
+              Browse Open Examinations &rarr;
+            </a>
+          </div>
+        </div>
+      }
+    }
+  </div>
+
+  <!-- Digital Admit Card Modal -->
+  @if (selectedAdmitCard(); as card) {
+    <app-candidate-admit-card-dialog
+      [card]="card"
+      (closeDialog)="closeAdmitCard()"
+      (printCard)="printAdmitCard()"
+    />
+  }
+</div>

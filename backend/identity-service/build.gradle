@@ -66,6 +66,9 @@ dependencies {
     // Validation
     implementation libs.spring.boot.starter.validation
 
+    // Mail (Gmail SMTP)
+    implementation libs.spring.boot.starter.mail
+
     // WebAuthn / FIDO2
     implementation 'com.webauthn4j:webauthn4j-core:0.24.1.RELEASE'
 

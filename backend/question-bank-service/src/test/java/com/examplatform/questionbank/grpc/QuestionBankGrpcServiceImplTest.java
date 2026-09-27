@@ -7,7 +7,9 @@
 
 package com.examplatform.questionbank.grpc;
 
+import com.examplatform.questionbank.domain.Passage;
 import com.examplatform.questionbank.domain.Question;
+import com.examplatform.questionbank.repository.PassageRepository;
 import com.examplatform.questionbank.repository.QuestionRepository;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.grpc.stub.StreamObserver;
@@ -35,6 +37,9 @@ class QuestionBankGrpcServiceImplTest {
     private QuestionRepository questionRepository;
 
     @Mock
+    private PassageRepository passageRepository;
+
+    @Mock
     private StreamObserver<PaperQuestionsGrpcResponse> paperQuestionsObserver;
 
     @Mock
@@ -44,7 +49,7 @@ class QuestionBankGrpcServiceImplTest {
 
     @BeforeEach
     void setUp() {
-        grpcService = new QuestionBankGrpcServiceImpl(questionRepository, new ObjectMapper());
+        grpcService = new QuestionBankGrpcServiceImpl(questionRepository, passageRepository, new ObjectMapper());
     }
 
     @Test
@@ -78,15 +83,24 @@ class QuestionBankGrpcServiceImplTest {
     }
 
     @Test
-    @DisplayName("batchFindQuestions returns matching questions")
+    @DisplayName("batchFindQuestions returns matching questions with passage data")
     void batchFindQuestionsSuccess() {
         UUID qId = UUID.randomUUID();
+        UUID passageId = UUID.randomUUID();
+        Passage passage = Passage.builder()
+                .content("Read this passage carefully...")
+                .build();
+        ReflectionTestUtils.setField(passage, "id", passageId);
+
         Question q = Question.builder()
                 .content("Sample question")
+                .passageId(passageId)
+                .passageOrderIndex(0)
                 .build();
         ReflectionTestUtils.setField(q, "id", qId);
 
         when(questionRepository.findQuestionsByIdsIn(eq(List.of(qId)), eq("tenant-1"))).thenReturn(List.of(q));
+        when(passageRepository.findAllById(eq(List.of(passageId)))).thenReturn(List.of(passage));
 
         BatchFindQuestionsGrpcRequest request = BatchFindQuestionsGrpcRequest.newBuilder()
                 .addQuestionIds(qId.toString())
@@ -101,6 +115,10 @@ class QuestionBankGrpcServiceImplTest {
 
         BatchFindQuestionsGrpcResponse response = captor.getValue();
         assertThat(response.getQuestionsCount()).isEqualTo(1);
+        assertThat(response.getQuestions(0).getId()).isEqualTo(qId.toString());
         assertThat(response.getQuestions(0).getContent()).isEqualTo("Sample question");
+        assertThat(response.getQuestions(0).getPassageId()).isEqualTo(passageId.toString());
+        assertThat(response.getQuestions(0).getPassageContent()).isEqualTo("Read this passage carefully...");
+        assertThat(response.getQuestions(0).getPassageOrderIndex()).isEqualTo(0);
     }
 }

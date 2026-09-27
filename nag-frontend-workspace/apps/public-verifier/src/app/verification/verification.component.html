@@ -1,0 +1,98 @@
+<div class="verification-page max-w-5xl mx-auto p-6 space-y-8">
+  <nag-page-header
+    title="Public Assessment Credential & Proof Verifier"
+    subtitle="Independent verification of candidate scorecards, hall tickets, and tamper-evident ledger proofs"
+    icon="policy"
+  />
+
+  <!-- Search / Lookup Box -->
+  <div class="bg-white p-8 rounded-2xl border border-slate-200 shadow-sm space-y-4">
+    <h2 class="text-base font-bold text-slate-900 flex items-center gap-2">
+      <mat-icon class="text-indigo-600">qr_code_scanner</mat-icon>
+      Verify Credential Authenticity
+    </h2>
+    <p class="text-xs text-slate-500">
+      Enter a Candidate Roll Number, Hall Ticket Hash, or Cryptographic Submission Proof Hash to verify against the immutable National Assessment Grid ledger.
+    </p>
+
+    <div class="flex flex-col sm:flex-row gap-3 pt-2">
+      <input
+        type="text"
+        [(ngModel)]="searchQuery"
+        placeholder="e.g. 849202 or 0x7f83b1657ff1fc53b92dc18148a1d65dfc2d4b1fa3d677284addd200126d9069"
+        class="grow px-4 py-3 text-sm font-mono bg-slate-50 border border-slate-300 rounded-xl text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+        (keyup.enter)="verify()"
+      />
+      <button
+        mat-flat-button
+        color="primary"
+        (click)="verify()"
+        [disabled]="verifying() || !searchQuery.trim()"
+        class="!py-3 !px-6 !rounded-xl !text-sm font-semibold"
+      >
+        <mat-icon>{{ verifying() ? 'sync' : 'verified_user' }}</mat-icon>
+        {{ verifying() ? 'Verifying on Ledger...' : 'Verify Proof' }}
+      </button>
+    </div>
+  </div>
+
+  <!-- Verification Result Display -->
+  @if (verifiedResult(); as res) {
+    <div class="verified-record-card bg-white rounded-2xl border border-emerald-200 shadow-md p-8 space-y-6">
+      <div class="flex items-start justify-between border-b border-emerald-100 pb-5">
+        <div class="flex items-center gap-3">
+          <div class="w-12 h-12 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center">
+            <mat-icon class="!text-3xl">verified</mat-icon>
+          </div>
+          <div>
+            <span class="text-xs font-bold text-emerald-700 uppercase tracking-wider block">
+              AUTHENTICATED LEDGER RECORD
+            </span>
+            <h3 class="text-xl font-bold text-slate-900">{{ res.candidateName }}</h3>
+            <span class="text-xs font-mono text-slate-500">Roll: {{ res.candidateRoll }}</span>
+          </div>
+        </div>
+        <nag-status-badge variant="success" label="Cryptographically Verified" />
+      </div>
+
+      <!-- Score Card Overview -->
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <nag-stat-card
+          label="Assessed Score"
+          [value]="res.score"
+          [unit]="'/' + res.maxScore"
+          icon="score"
+          variant="primary"
+        />
+        <nag-stat-card
+          label="National Percentile"
+          [value]="res.percentile + '%'"
+          icon="trending_up"
+          variant="success"
+        />
+        <nag-stat-card
+          label="Ledger Block Height"
+          [value]="'#' + res.ledgerProof.blockNumber"
+          icon="layers"
+          variant="info"
+        />
+      </div>
+
+      <!-- Cryptographic Details Card -->
+      <div class="bg-slate-50 rounded-xl p-5 border border-slate-200 space-y-3 font-mono text-xs">
+        <div class="flex items-center justify-between pb-2 border-b border-slate-200">
+          <span class="font-bold text-slate-700 uppercase">Cryptographic Audit Trail</span>
+          <span class="text-[11px] text-slate-500">Issued: {{ res.issueDate }}</span>
+        </div>
+        <div>
+          <span class="text-slate-400 block text-[10px]">SUBMISSION HASH:</span>
+          <span class="break-all font-bold text-slate-900">{{ res.ledgerProof.proofHash }}</span>
+        </div>
+        <div>
+          <span class="text-slate-400 block text-[10px]">MERKLE ROOT COMMITMENT:</span>
+          <span class="break-all text-slate-700">{{ res.ledgerProof.merkleRoot }}</span>
+        </div>
+      </div>
+    </div>
+  }
+</div>

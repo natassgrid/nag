@@ -1,0 +1,55 @@
+<div class="space-y-5">
+  <!-- Section Header -->
+  <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-100">
+    <div>
+      <h3 class="text-sm font-bold text-slate-900 uppercase tracking-wider flex items-center gap-2">
+        <mat-icon class="text-indigo-600 !text-lg">school</mat-icon>
+        Academic Qualifications & History
+      </h3>
+      <p class="text-xs text-slate-500 mt-0.5">
+        Add all secondary, higher secondary, graduation degrees, and professional certifications.
+      </p>
+    </div>
+    <button
+      type="button"
+      mat-flat-button
+      color="primary"
+      class="!rounded-xl !text-xs cursor-pointer flex items-center gap-1.5 shadow-xs"
+      (click)="openAddModal()"
+    >
+      <mat-icon class="!text-sm">add_circle</mat-icon>
+      Add Qualification
+    </button>
+  </div>
+
+  <!-- Qualifications List -->
+  <div class="space-y-3.5">
+    @for (edu of education(); track edu.id; let idx = $index) {
+      <nag-education-item-card
+        [entry]="edu"
+        (edit)="openEditModal($event)"
+        (delete)="promptDelete($event)"
+      />
+    } @empty {
+      <nag-education-empty-state (add)="openAddModal()" />
+    }
+  </div>
+
+  <!-- Add / Edit Qualification Modal -->
+  <nag-education-form-modal
+    [isOpen]="isModalOpen()"
+    [isEditing]="isEditing()"
+    [initialData]="activeEntry()"
+    [saving]="saving()"
+    (save)="onSave($event)"
+    (close)="closeModal()"
+  />
+
+  <!-- Delete Confirmation Dialog -->
+  <nag-education-delete-dialog
+    [isOpen]="isDeleteConfirmOpen()"
+    [entry]="entryToDelete()"
+    (confirm)="confirmDelete()"
+    (cancel)="cancelDelete()"
+  />
+</div>

@@ -14,11 +14,12 @@
  * GNU Affero General Public License for more details.
  *
  * You should have received a copy of the GNU Affero General Public License
- * along with this program. If not, see <https://www.gnu.org/licenses/>.
- */
+ * along with this program. If not, see <https://www.gnu.org/licenses/>.\n */
 
 package com.examplatform.questionbank.translation.controller;
 
+import com.examplatform.questionbank.dto.QuestionResponse;
+import com.examplatform.questionbank.service.QuestionService;
 import com.examplatform.questionbank.translation.domain.Translation;
 import com.examplatform.questionbank.translation.dto.AutoTranslateResponse;
 import com.examplatform.questionbank.translation.dto.BatchTranslationJobResponse;
@@ -31,10 +32,12 @@ import com.examplatform.questionbank.translation.service.IndicTrans2Service;
 import com.examplatform.questionbank.translation.service.TranslationQueryService;
 import com.examplatform.questionbank.translation.service.TranslationReviewService;
 import com.examplatform.questionbank.translation.service.TranslationWorkflowService;
+import com.examplatform.shared.api.ApiResponse;
 import com.examplatform.shared.tenant.TenantContext;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -46,6 +49,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
 
@@ -69,6 +73,7 @@ import java.util.UUID;
  *
  * <h3>Read endpoints</h3>
  * <ul>
+ *   <li>GET /api/v1/translations/questions                                       — list questions with translation status filters</li>
  *   <li>GET /api/v1/translations/question/{questionId}                           — all translations (admin)</li>
  *   <li>GET /api/v1/translations/question/{questionId}/language/{lang}           — approved/published translation for delivery</li>
  *   <li>GET /api/v1/translations/batch/{jobId}                                   — query batch translation job status & progress</li>
@@ -87,6 +92,7 @@ public class TranslationController {
     private final TranslationQueryService translationQueryService;
     private final IndicTrans2Service indicTrans2Service;
     private final BatchTranslationService batchTranslationService;
+    private final QuestionService questionService;
 
     // -------------------------------------------------------------------------
     // Auto-Translate via IndicTrans2
@@ -263,6 +269,30 @@ public class TranslationController {
     // -------------------------------------------------------------------------
     // Read endpoints
     // -------------------------------------------------------------------------
+
+    /**
+     * List questions for translation with optional filtering by target language, translation status, subject, difficulty, etc.
+     * GET /api/v1/translations/questions
+     */
+    @GetMapping("/questions")
+    @PreAuthorize("hasAnyRole('TRANSLATOR', 'REVIEWER', 'EXAM_CONTROLLER', 'ADMIN')")
+    public ResponseEntity<ApiResponse<Page<QuestionResponse>>> listQuestionsForTranslation(
+            @RequestParam(required = false) String subject,
+            @RequestParam(required = false) Long subjectId,
+            @RequestParam(required = false) String topic,
+            @RequestParam(required = false) Long topicId,
+            @RequestParam(required = false) String difficulty,
+            @RequestParam(required = false) String state,
+            @RequestParam(required = false) String search,
+            @RequestParam(required = false) String targetLang,
+            @RequestParam(required = false) String translationStatus,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
+
+        Page<QuestionResponse> responses = questionService.listQuestions(
+                subject, subjectId, topic, topicId, difficulty, state, search, targetLang, translationStatus, page, size, tenantId());
+        return ResponseEntity.ok(ApiResponse.success(responses, "Questions for translation retrieved successfully"));
+    }
 
     /**
      * List all translations for a question (all languages and statuses).

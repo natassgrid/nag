@@ -1,0 +1,34 @@
+@if (isOpen()) {
+  <div class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4 animate-fadeIn">
+    <div class="bg-white rounded-2xl shadow-xl w-full max-w-sm border border-slate-200 p-6 space-y-4">
+      <div class="w-12 h-12 rounded-full bg-rose-50 text-rose-600 flex items-center justify-center mx-auto">
+        <mat-icon class="!text-2xl">delete_outline</mat-icon>
+      </div>
+      <div class="text-center space-y-1">
+        <h4 class="font-bold text-slate-900 text-sm">Delete Academic Record</h4>
+        <p class="text-xs text-slate-500">
+          Are you sure you want to remove <strong class="text-slate-800">{{ entry()?.qualification }}</strong>? This action cannot be undone.
+        </p>
+      </div>
+      <div class="flex items-center justify-end gap-2.5 pt-2">
+        <button
+          type="button"
+          mat-stroked-button
+          (click)="onCancel()"
+          class="!rounded-xl !text-xs grow cursor-pointer"
+        >
+          Cancel
+        </button>
+        <button
+          type="button"
+          mat-flat-button
+          color="warn"
+          (click)="onConfirm()"
+          class="!rounded-xl !text-xs !bg-rose-600 !text-white grow cursor-pointer"
+        >
+          Delete
+        </button>
+      </div>
+    </div>
+  </div>
+}

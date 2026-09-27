@@ -1,0 +1,76 @@
+export interface EducationEntry {
+  id: string;
+  qualification: string;
+  courseName?: string;
+  boardOrUniversity: string;
+  institutionName?: string;
+  passingYear: number;
+  percentageOrCgpa: string;
+  gradeOrDivision?: string;
+  specialization?: string;
+  rollNumber?: string;
+  certificateAssetId?: string;
+  certificateFileName?: string;
+  verifiedViaDigiLocker?: boolean;
+}
+
+export type ProfileGender = 'MALE' | 'FEMALE' | 'OTHER';
+export type ProfileCategory = 'GENERAL' | 'OBC' | 'SC' | 'ST' | 'EWS';
+export type ProfileIdentityDocType = 'AADHAAR' | 'PAN' | 'PASSPORT' | 'VOTER_ID' | 'DRIVING_LICENSE';
+export type ProfileKycStatus = 'VERIFIED' | 'PENDING' | 'REJECTED';
+export type DigiLockerStatus = 'VERIFIED' | 'LINKED' | 'NOT_LINKED';
+
+export interface DigiLockerClaim {
+  id: string;
+  docType: string;
+  docName: string;
+  issuerName: string;
+  docNumber: string;
+  issuedDate: string;
+  verifiedAt: string;
+  status: 'VERIFIED' | 'PENDING';
+  hashDigest?: string;
+}
+
+export interface CandidateProfile {
+  candidateId: string;
+  fullName: string;
+  dateOfBirth: string;
+  gender: ProfileGender;
+  nationality: string;
+  category: ProfileCategory;
+  reservationCategory?: string;
+  identityDocType: ProfileIdentityDocType;
+  identityDocNumber: string;
+  mobile: string;
+  email: string;
+  emailVerified?: boolean;
+  mobileVerified?: boolean;
+  address: string;
+  state: string;
+  district?: string;
+  city?: string;
+  pinCode: string;
+  preferredRegionalLanguage?: string;
+  kycStatus: ProfileKycStatus;
+  photoUrl?: string;
+  photoAssetId?: string;
+  signatureUrl?: string;
+  signatureAssetId?: string;
+  idProofUrl?: string;
+  idProofAssetId?: string;
+  digiLockerStatus?: DigiLockerStatus;
+  digiLockerUri?: string;
+  digiLockerClaims?: DigiLockerClaim[];
+  education: EducationEntry[];
+}
+
+export type ProfileTab = 'personal' | 'contact' | 'education' | 'documents' | 'digilocker' | 'security';
+
+export interface ProfileTabOption {
+  id: ProfileTab;
+  label: string;
+  icon: string;
+  badge?: string;
+  badgeVariant?: 'primary' | 'success' | 'warn' | 'info';
+}

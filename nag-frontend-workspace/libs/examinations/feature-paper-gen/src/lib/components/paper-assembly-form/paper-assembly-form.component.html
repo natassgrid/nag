@@ -1,0 +1,143 @@
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+  <!-- Assembly Configuration Panel -->
+  <div class="lg:col-span-2 space-y-6">
+    <!-- Target Exam & Shift Allocation Sub-component -->
+    <nag-paper-target-selector
+      [exams]="exams()"
+      [schedules]="schedules()"
+      [shifts]="shifts()"
+      [examId]="genExamId()"
+      [scheduleId]="genScheduleId()"
+      [shiftId]="genShiftId()"
+      [paperName]="genPaperName()"
+      [isPractice]="genIsPractice()"
+      (examIdChange)="onExamSelected($event)"
+      (scheduleIdChange)="onScheduleSelected($event)"
+      (shiftIdChange)="genShiftId.set($event)"
+      (paperNameChange)="genPaperName.set($event)"
+      (isPracticeChange)="genIsPractice.set($event)"
+    ></nag-paper-target-selector>
+
+    <!-- Assembly Strategy Mode -->
+    <div class="bg-white rounded-2xl border border-slate-200 p-6 shadow-xs space-y-6">
+      <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+        <h2 class="text-base font-bold text-slate-900 flex items-center gap-2">
+          <mat-icon class="text-indigo-600">tune</mat-icon>
+          <span>Constraint Assembly Strategy</span>
+        </h2>
+
+        <div class="flex bg-slate-100 p-1 rounded-xl">
+          <button
+            type="button"
+            (click)="genUseTemplate.set(true)"
+            [ngClass]="{
+              'bg-white text-indigo-700 shadow-xs font-bold': genUseTemplate(),
+              'text-slate-600': !genUseTemplate()
+            }"
+            class="px-3 py-1.5 rounded-lg text-xs transition-colors cursor-pointer"
+          >
+            Blueprint Template
+          </button>
+          <button
+            type="button"
+            (click)="genUseTemplate.set(false)"
+            [ngClass]="{
+              'bg-white text-indigo-700 shadow-xs font-bold': !genUseTemplate(),
+              'text-slate-600': genUseTemplate()
+            }"
+            class="px-3 py-1.5 rounded-lg text-xs transition-colors cursor-pointer"
+          >
+            Custom Rule Matrix
+          </button>
+        </div>
+      </div>
+
+      <!-- Option A: Blueprint Template Selection -->
+      @if (genUseTemplate()) {
+        <div class="space-y-4">
+          <div>
+            <label for="template-select" class="block text-xs font-bold text-slate-700 uppercase mb-1">
+              Select Standard Blueprint Template *
+            </label>
+            <select
+              id="template-select"
+              [ngModel]="genSelectedTemplateId()"
+              (ngModelChange)="genSelectedTemplateId.set($event)"
+              class="w-full py-2.5 px-3 text-sm border border-slate-300 rounded-xl bg-white focus:ring-2 focus:ring-indigo-500"
+            >
+              @for (tpl of templates(); track tpl.id) {
+                <option [value]="tpl.id">
+                  {{ tpl.name }} ({{ tpl.rules.length }} Rules, {{ tpl.totalQuestions || 'Auto' }} Qs)
+                </option>
+              }
+            </select>
+          </div>
+        </div>
+      } @else {
+        <!-- Option B: Custom Dynamic Rule Matrix -->
+        <nag-blueprint-rule-builder
+          [rules]="genRules()"
+          [taxonomySubjects]="taxonomySubjects()"
+          [taxonomyHierarchy]="taxonomyHierarchy()"
+          (addRule)="addRule()"
+          (removeRule)="removeRule($event)"
+          (ruleSubjectChange)="onRuleSubjectChange($event)"
+        ></nag-blueprint-rule-builder>
+      }
+    </div>
+  </div>
+
+  <!-- Assembly Control & Verification Column -->
+  <div class="space-y-6">
+    <div class="bg-white rounded-2xl border border-slate-200 p-6 shadow-xs space-y-6">
+      <h2 class="text-base font-bold text-slate-900 border-b border-slate-100 pb-3 flex items-center gap-2">
+        <mat-icon class="text-indigo-600">security</mat-icon>
+        <span>Execution &amp; Seal</span>
+      </h2>
+
+      <div class="space-y-3">
+        <div class="p-4 bg-indigo-50/50 rounded-xl border border-indigo-100 space-y-2">
+          <div class="flex items-center justify-between text-xs">
+            <span class="text-slate-600">Total Items in Assembly:</span>
+            <span class="font-bold text-indigo-950 font-mono">{{ totalRequestedQuestions() }} Qs</span>
+          </div>
+          <div class="flex items-center justify-between text-xs">
+            <span class="text-slate-600">Algorithm:</span>
+            <span class="font-mono text-[11px] text-slate-800">CSPRNG Shuffle + DPI Rule Solver</span>
+          </div>
+          <div class="flex items-center justify-between text-xs">
+            <span class="text-slate-600">Cryptographic Seal:</span>
+            <span class="font-mono text-[11px] text-slate-800">Merkle Root SHA-256</span>
+          </div>
+        </div>
+
+        <button
+          type="button"
+          mat-stroked-button
+          (click)="checkFeasibility.emit()"
+          [disabled]="isCheckingFeasibility()"
+          class="w-full !py-2.5 !rounded-xl !border-slate-300 font-bold"
+        >
+          <span class="flex items-center justify-center gap-2">
+            <mat-icon>{{ isCheckingFeasibility() ? 'hourglass_top' : 'rule' }}</mat-icon>
+            <span>{{ isCheckingFeasibility() ? 'Auditing Question Inventory...' : 'Pre-flight Sufficiency Audit' }}</span>
+          </span>
+        </button>
+
+        <button
+          type="button"
+          mat-flat-button
+          color="primary"
+          (click)="submitGenerate()"
+          [disabled]="isGenerating() || !genExamId() || !genShiftId()"
+          class="w-full !py-3 !rounded-xl font-bold shadow-md !bg-slate-900 hover:!bg-black !text-white"
+        >
+          <span class="flex items-center justify-center gap-2">
+            <mat-icon>{{ isGenerating() ? 'hourglass_top' : 'auto_awesome' }}</mat-icon>
+            <span>{{ isGenerating() ? 'Executing Assembly...' : 'Execute Algorithmic Assembly' }}</span>
+          </span>
+        </button>
+      </div>
+    </div>
+  </div>
+</div>

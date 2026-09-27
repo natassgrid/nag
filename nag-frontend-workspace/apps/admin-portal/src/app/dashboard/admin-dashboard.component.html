@@ -1,0 +1,200 @@
+<div class="admin-dashboard-page max-w-7xl mx-auto p-6 space-y-8">
+  <nag-page-header
+    title="National Assessment Command Console"
+    subtitle="Operational oversight, question bank metrics, blueprint assembly & immutable audit monitoring"
+    icon="dashboard"
+  >
+    <div actions class="flex items-center gap-3">
+      <a mat-flat-button color="primary" routerLink="/questions/authoring" class="!rounded-xl">
+        <mat-icon>post_add</mat-icon>
+        Author Question
+      </a>
+      <a mat-flat-button color="accent" routerLink="/examinations/paper-gen" class="!rounded-xl">
+        <mat-icon>auto_awesome</mat-icon>
+        Assemble Paper
+      </a>
+    </div>
+  </nag-page-header>
+
+  <!-- Key System Metrics -->
+  <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+    <nag-stat-card
+      label="Total Questions in Bank"
+      [value]="'48,290'"
+      trend="+120 this week"
+      icon="quiz"
+      variant="primary"
+    />
+    <nag-stat-card
+      label="Active Scheduled Exams"
+      [value]="14"
+      trend="2 running live"
+      icon="event"
+      variant="warn"
+    />
+    <nag-stat-card
+      label="Registered Candidates"
+      [value]="'1,480,200'"
+      trend="99.8% seat allocated"
+      icon="groups"
+      variant="success"
+    />
+    <nag-stat-card
+      label="Pending Double-Blind Grading"
+      [value]="342"
+      trend="avg 18m turn-around"
+      icon="rate_review"
+      variant="info"
+    />
+  </div>
+
+  <!-- Quick Action Navigation Hub -->
+  <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+    <!-- Question Management Card -->
+    <div class="dashboard-action-card bg-white rounded-2xl border border-slate-200 p-6 shadow-xs space-y-4 hover:shadow-md transition-shadow">
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-xl bg-indigo-100 text-indigo-700 flex items-center justify-center">
+          <mat-icon>library_books</mat-icon>
+        </div>
+        <div>
+          <h3 class="text-sm font-bold text-slate-900">Question Bank & Studio</h3>
+          <p class="text-[11px] text-slate-500">pgvector similarity & LaTeX authoring</p>
+        </div>
+      </div>
+      <p class="text-xs text-slate-600 leading-relaxed">
+        Manage encrypted assessment items, versioning, difficulty distribution, and semantic similarity search.
+      </p>
+      <div class="flex items-center gap-2 pt-2 border-t border-slate-100">
+        <a mat-stroked-button color="primary" routerLink="/questions" class="!rounded-xl !text-xs grow">
+          Explore Bank
+        </a>
+        <a mat-flat-button color="primary" routerLink="/questions/authoring" class="!rounded-xl !text-xs grow">
+          Author Studio
+        </a>
+      </div>
+    </div>
+
+    <!-- Examination Operations Card -->
+    <div class="dashboard-action-card bg-white rounded-2xl border border-slate-200 p-6 shadow-xs space-y-4 hover:shadow-md transition-shadow">
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-xl bg-amber-100 text-amber-700 flex items-center justify-center">
+          <mat-icon>schema</mat-icon>
+        </div>
+        <div>
+          <h3 class="text-sm font-bold text-slate-900">Scheduling & Paper Gen</h3>
+          <p class="text-[11px] text-slate-500">Constrained blueprint assembly</p>
+        </div>
+      </div>
+      <p class="text-xs text-slate-600 leading-relaxed">
+        Configure test centers, shift quotas, generate randomized test papers, and anchor Merkle proofs to the ledger.
+      </p>
+      <div class="flex items-center gap-2 pt-2 border-t border-slate-100">
+        <a mat-stroked-button color="primary" routerLink="/examinations/scheduling" class="!rounded-xl !text-xs grow">
+          Schedules
+        </a>
+        <a mat-flat-button color="accent" routerLink="/examinations/paper-gen" class="!rounded-xl !text-xs grow">
+          Mint Paper Proof
+        </a>
+      </div>
+    </div>
+
+    <!-- Evaluation & Governance Card -->
+    <div class="dashboard-action-card bg-white rounded-2xl border border-slate-200 p-6 shadow-xs space-y-4 hover:shadow-md transition-shadow">
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center">
+          <mat-icon>verified</mat-icon>
+        </div>
+        <div>
+          <h3 class="text-sm font-bold text-slate-900">Evaluation & Governance</h3>
+          <p class="text-[11px] text-slate-500">Double-blind scoring & audits</p>
+        </div>
+      </div>
+      <p class="text-xs text-slate-600 leading-relaxed">
+        Manage multi-evaluator subjective scoring queues, resolve candidate disputes, and review audit trail logs.
+      </p>
+      <div class="flex items-center gap-2 pt-2 border-t border-slate-100">
+        <a mat-stroked-button color="primary" routerLink="/evaluation/grading" class="!rounded-xl !text-xs grow">
+          Grading Desk
+        </a>
+        <a mat-flat-button color="primary" routerLink="/audit" class="!rounded-xl !text-xs grow">
+          Audit Logs
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <!-- System Infrastructure Telemetry Grid -->
+  <div class="bg-white rounded-2xl border border-slate-200 p-6 shadow-xs space-y-5">
+    <div class="flex items-center justify-between border-b pb-3">
+      <div class="flex items-center gap-2">
+        <mat-icon class="text-indigo-600">monitor_heart</mat-icon>
+        <h3 class="text-sm font-bold text-slate-900">Subsystem Health & Cluster Status</h3>
+      </div>
+      <span class="text-xs font-mono text-emerald-600 font-bold flex items-center gap-1.5">
+        <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+        ALL SYSTEMS OPERATIONAL
+      </span>
+    </div>
+
+    <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 text-xs">
+      @for (svc of systemServices(); track svc.name) {
+        <div class="telemetry-node p-3 bg-slate-50 rounded-xl border border-slate-200 space-y-1">
+          <div class="flex items-center justify-between">
+            <span class="font-bold text-slate-800">{{ svc.name }}</span>
+            <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
+          </div>
+          <div class="text-[11px] text-slate-500">
+            Latency: <b class="font-mono text-slate-700">{{ svc.latencyMs }}ms</b>
+          </div>
+          <div class="text-[10px] text-slate-400">
+            Uptime: {{ svc.uptime }}
+          </div>
+        </div>
+      }
+    </div>
+  </div>
+
+  <!-- Recent Immutable Audit Events -->
+  <div class="bg-white rounded-2xl border border-slate-200 p-6 shadow-xs space-y-4">
+    <div class="flex items-center justify-between">
+      <h3 class="text-sm font-bold text-slate-900 flex items-center gap-2">
+        <mat-icon class="text-indigo-600">history_edu</mat-icon>
+        Real-Time Audit Trail (Immutable SHA-256 Ledger Anchor)
+      </h3>
+      <a routerLink="/audit" class="text-xs text-indigo-600 font-semibold hover:underline">
+        View Complete Log &rarr;
+      </a>
+    </div>
+
+    <div class="overflow-x-auto border border-slate-100 rounded-xl">
+      <table class="w-full text-xs text-left">
+        <thead class="bg-slate-50 text-slate-500 uppercase font-semibold border-b">
+          <tr>
+            <th class="p-3">Timestamp</th>
+            <th class="p-3">Actor</th>
+            <th class="p-3">Operation / Action</th>
+            <th class="p-3">Resource Target</th>
+            <th class="p-3">Integrity Proof Hash</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-slate-100 font-mono text-[11px]">
+          @for (evt of auditEvents(); track evt.id) {
+            <tr class="hover:bg-slate-50/50">
+              <td class="p-3 text-slate-500">{{ evt.timestamp }}</td>
+              <td class="p-3 font-semibold text-slate-800">{{ evt.actor }}</td>
+              <td class="p-3">
+                <span class="px-2 py-0.5 rounded bg-indigo-50 text-indigo-700 font-sans font-semibold text-[10px]">
+                  {{ evt.action }}
+                </span>
+              </td>
+              <td class="p-3 text-slate-700">{{ evt.resource }}</td>
+              <td class="p-3 text-slate-400 truncate max-w-[200px]" [title]="evt.hash">
+                {{ evt.hash }}
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>

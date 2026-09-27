@@ -67,16 +67,18 @@ spring:
       auto-startup: ${SPRING_KAFKA_LISTENER_AUTO_STARTUP:false}
 
   mail:
-    host: ${SMTP_HOST:smtp.example.com}
-    port: ${SMTP_PORT:587}
-    username: ${SMTP_USERNAME:notifications@examplatform.com}
-    password: ${SMTP_PASSWORD:smtp_secret}
+    host: ${SPRING_MAIL_HOST:${MAIL_HOST:${SMTP_HOST:smtp.gmail.com}}}
+    port: ${SPRING_MAIL_PORT:${MAIL_PORT:${SMTP_PORT:587}}}
+    username: ${SPRING_MAIL_USERNAME:${MAIL_USERNAME:${SMTP_USERNAME:}}}
+    password: ${SPRING_MAIL_PASSWORD:${MAIL_PASSWORD:${SMTP_PASSWORD:}}}
+    from: ${SPRING_MAIL_FROM:${MAIL_FROM:${SMTP_FROM:noreply@natassgrid.gov.in}}}
     properties:
       mail:
         smtp:
           auth: true
           starttls:
-            enabled: true
+            enable: true
+            required: true
           connectiontimeout: 5000
           timeout: 5000
           writetimeout: 5000
@@ -149,63 +151,11 @@ otel:
     disabled: ${OTEL_SDK_DISABLED:true}
   exporter:
     otlp:
-      enabled: ${ENABLE_OBSERVABILITY:false}
       endpoint: ${OTEL_EXPORTER_OTLP_ENDPOINT:http://localhost:4318}
+      protocol: http/protobuf
 
-# Platform Messaging Strategy: Default to 'in-memory' for zero-broker monolith
-platform:
-  messaging:
-    broker: ${PLATFORM_MESSAGING_BROKER:in-memory}
-
-indictrans2:
-  url: ${INDICTRANS2_URL:http://localhost:7860}
-
-translation:
-  batch:
-    chunk-pause-interval-questions: ${TRANSLATION_BATCH_CHUNK_INTERVAL:15}
-    chunk-pause-duration-seconds: ${TRANSLATION_BATCH_CHUNK_PAUSE_SECONDS:60}
-
-asset:
-  storage:
-    provider: filesystem
-    max-file-size: 104857600
-    filesystem:
-      base-path: ${ASSET_STORAGE_PATH:/data/asset-storage}
-
-scorecard:
-  storage:
-    mode: ${SCORECARD_STORAGE_MODE:local}
-    bucket: ${SCORECARD_STORAGE_BUCKET:exam-platform-scorecards}
-    local:
-      path: ${SCORECARD_STORAGE_PATH:/data/scorecards}
-    s3:
-      bucket: ${AWS_S3_SCORECARD_BUCKET:${AWS_S3_BUCKET_NAME:exam-platform-scorecards}}
-      region: ${AWS_REGION_NAME:${AWS_REGION:ap-south-1}}
-      endpoint: ${AWS_S3_ENDPOINT:http://localhost:9000}
-      access-key: ${AWS_ACCESS_KEY_ID:minioadmin}
-      secret-key: ${AWS_SECRET_ACCESS_KEY:minioadmin}
-      path-style-access: true
-      presigned-url-duration-minutes: 15
-
+# Identity and Admin URL Settings
 app:
-  jwt:
-    secret: ${APP_JWT_SECRET:dev-jwt-secret-key-for-local-testing-minimum-32-chars}
-  security:
-    max-failed-attempts: ${AUTH_MAX_FAILED_ATTEMPTS:5}
-    lockout-window-seconds: ${AUTH_LOCKOUT_WINDOW_SECONDS:600}
-    rate-limit-auth-per-ip-per-minute: ${RATE_LIMIT_AUTH_PER_IP_PER_MINUTE:10}
-    jwt-access-token-lifetime-seconds: ${JWT_ACCESS_TOKEN_LIFETIME_SECONDS:900}
-    jwt-refresh-token-lifetime-seconds: ${JWT_REFRESH_TOKEN_LIFETIME_SECONDS:28800}
-    session-idle-timeout-seconds: ${SESSION_IDLE_TIMEOUT_SECONDS:1800}
-  keycloak:
-    realm: ${KEYCLOAK_REALM:exam-realm}
-    client-id: ${KEYCLOAK_CLIENT_ID:exam-backend}
-    client-secret: ${KEYCLOAK_CLIENT_SECRET:}
-    admin-client-id: ${KEYCLOAK_ADMIN_CLIENT_ID:admin-cli}
-    admin-username: ${KEYCLOAK_ADMIN_USER:admin}
-    admin-password: ${KEYCLOAK_ADMIN_PASSWORD:admin_secret}
-    server-url: ${KEYCLOAK_SERVER_URL:http://localhost:8080}
-  storage:
-    local-root: ${ASSET_STORAGE_ROOT:/data/asset-storage}
-  question-bank:
-    service-url: ${QUESTION_BANK_SERVICE_URI:http://localhost:9000}
+  frontend:
+    admin-url: ${ADMIN_PORTAL_URL:http://localhost:4200}
+    candidate-url: ${CANDIDATE_PORTAL_URL:http://localhost:4300}
