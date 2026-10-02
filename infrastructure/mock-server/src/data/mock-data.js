@@ -215,26 +215,30 @@ export const DIGILOCKER_DOCUMENTS = {
 };
 
 /**
- * In-memory store for SMS messages, OTP tokens, and chaos configuration.
+ * In-memory store for SMS messages, Email messages, OTP tokens, and chaos configuration.
  */
 export const testStore = {
   smsOutbox: [],
+  emailOutbox: [],
   aadhaarTxns: new Map(),
   pushedScorecards: [],
   chaosConfig: {
     msg91FailureStatus: null,
     aadhaarFailureStatus: null,
     digilockerFailureStatus: null,
+    emailFailureStatus: null,
     delayMs: 0
   },
   reset() {
     this.smsOutbox = [];
+    this.emailOutbox = [];
     this.aadhaarTxns.clear();
     this.pushedScorecards = [];
     this.chaosConfig = {
       msg91FailureStatus: null,
       aadhaarFailureStatus: null,
       digilockerFailureStatus: null,
+      emailFailureStatus: null,
       delayMs: 0
     };
   }

@@ -10,6 +10,7 @@ import cors from 'cors';
 import digilockerRoutes from './routes/digilocker.js';
 import aadhaarRoutes from './routes/aadhaar.js';
 import msg91Routes from './routes/msg91.js';
+import emailRoutes from './routes/email.js';
 import inspectRoutes from './routes/mock-inspect.js';
 import { testStore } from './data/mock-data.js';
 
@@ -36,19 +37,22 @@ export function createApp() {
       status: 'UP',
       service: 'nag-mock-api-server',
       version: '1.0.0',
-      description: 'Mock DPI Third-Party Gateway Server (DigiLocker, Aadhaar e-KYC, MSG91 SMS)',
+      description: 'Mock DPI Third-Party Gateway Server (DigiLocker, Aadhaar e-KYC, MSG91 SMS, Email)',
       services: {
         digilocker: 'HEALTHY',
         aadhaarKyc: 'HEALTHY',
-        msg91Sms: 'HEALTHY'
+        msg91Sms: 'HEALTHY',
+        emailGateway: 'HEALTHY'
       },
-      outboxCount: testStore.smsOutbox.length,
+      smsOutboxCount: testStore.smsOutbox.length,
+      emailOutboxCount: testStore.emailOutbox.length,
       activeAadhaarTxns: testStore.aadhaarTxns.size,
       pushedScorecardsCount: testStore.pushedScorecards.length,
       endpoints: {
         digilocker: '/digilocker/... or /public/oauth2/...',
         aadhaar: '/aadhaar/... or /api/v1/aadhaar/...',
         msg91: '/msg91/... or /api/v5/otp',
+        email: '/email/... or /mock/email/...',
         mockInspector: '/mock/...'
       },
       timestamp: new Date().toISOString()
@@ -69,6 +73,10 @@ export function createApp() {
   app.use('/api/v5', msg91Routes);
   app.use('/sms', msg91Routes);
 
+  // Mount Email routes
+  app.use('/email', emailRoutes);
+  app.use('/api/v1/email', emailRoutes);
+
   // Mount Mock Inspection / Control routes
   app.use('/mock', inspectRoutes);
 
@@ -88,7 +96,9 @@ export function createApp() {
         '/msg91/api/v5/otp',
         '/api/v5/otp',
         '/api/v5/otp/verify',
+        '/email/send',
         '/mock/sms/latest',
+        '/mock/email/latest',
         '/mock/chaos'
       ]
     });

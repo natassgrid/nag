@@ -22,6 +22,7 @@ package com.examplatform.identity.controller;
 import com.examplatform.identity.domain.enums.IdentityDocType;
 import com.examplatform.identity.dto.*;
 import com.examplatform.identity.exception.AccountNotFoundException;
+import com.examplatform.identity.exception.AccountNotVerifiedException;
 import com.examplatform.identity.exception.AuthenticationException;
 import com.examplatform.identity.exception.DuplicateIdentityException;
 import com.examplatform.identity.exception.InvalidOtpException;
@@ -338,6 +339,29 @@ class IdentityControllerIntegrationTest extends AbstractIntegrationTest {
                     .andExpect(jsonPath("$.data.accessToken").value("access.token"));
 
             verify(authenticationService).authenticate(any(AuthTokenRequest.class), eq(TENANT_ID), any());
+        }
+
+        @Test
+        @DisplayName("-ve: Unverified account login attempt returns 401 Unauthorized with pendingVerification payload")
+        void unverifiedAccountLoginInterceptReturns401() throws Exception {
+            AuthTokenRequest request = validLogin();
+
+            when(authenticationService.authenticate(any(AuthTokenRequest.class), eq(TENANT_ID), any()))
+                    .thenThrow(new AccountNotVerifiedException(
+                            "Account not yet verified. Please complete verification.",
+                            TEST_USER_ID,
+                            "ramesh.kumar@example.com"
+                    ));
+
+            mockMvc.perform(post("/api/v1/identity/auth/token")
+                            .header("X-Tenant-Id", TENANT_ID)
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(request)))
+                    .andExpect(status().isUnauthorized())
+                    .andExpect(jsonPath("$.title").value("Account Not Verified"))
+                    .andExpect(jsonPath("$.pendingVerification").value(true))
+                    .andExpect(jsonPath("$.userId").value(TEST_USER_ID.toString()))
+                    .andExpect(jsonPath("$.email").value("ramesh.kumar@example.com"));
         }
 
         @Test

@@ -53,6 +53,7 @@ describe('NAG Mock Third-Party API Server Test Suite', () => {
     assert.strictEqual(body.services.digilocker, 'HEALTHY');
     assert.strictEqual(body.services.aadhaarKyc, 'HEALTHY');
     assert.strictEqual(body.services.msg91Sms, 'HEALTHY');
+    assert.strictEqual(body.services.emailGateway, 'HEALTHY');
   });
 
   // =========================================================================
@@ -115,7 +116,64 @@ describe('NAG Mock Third-Party API Server Test Suite', () => {
   });
 
   // =========================================================================
-  // 3. Aadhaar e-KYC & UIDAI 2.5 Auth Mock Tests
+  // 3. Email Gateway Mock Tests
+  // =========================================================================
+  describe('Email Gateway Mock Endpoints', () => {
+    test('POST /email/send saves email with extracted OTP code to outbox', async () => {
+      const res = await fetch(`${baseUrl}/email/send`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          to: 'candidate@natassgrid.gov.in',
+          subject: 'Your Verification Code',
+          text: 'Your 6-digit verification code is 654321. Valid for 10 minutes.'
+        })
+      });
+      assert.strictEqual(res.status, 200);
+      const body = await res.json();
+      assert.strictEqual(body.type, 'success');
+      assert.strictEqual(body.recipient, 'candidate@natassgrid.gov.in');
+      assert.strictEqual(body.otpCode, '654321');
+
+      assert.strictEqual(testStore.emailOutbox.length, 1);
+      assert.strictEqual(testStore.emailOutbox[0].to, 'candidate@natassgrid.gov.in');
+      assert.strictEqual(testStore.emailOutbox[0].otpCode, '654321');
+    });
+
+    test('GET /mock/email/latest retrieves dispatched email for verification', async () => {
+      await fetch(`${baseUrl}/email/send`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          to: 'recovery@example.com',
+          subject: 'NAG OTP',
+          otp: '887766'
+        })
+      });
+
+      const inspectRes = await fetch(`${baseUrl}/mock/email/latest?email=recovery@example.com`);
+      assert.strictEqual(inspectRes.status, 200);
+      const inspectBody = await inspectRes.json();
+      assert.strictEqual(inspectBody.success, true);
+      assert.strictEqual(inspectBody.message.otpCode, '887766');
+    });
+
+    test('DELETE /mock/email/clear empties the email outbox', async () => {
+      await fetch(`${baseUrl}/email/send`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ to: 'temp@example.com', otp: '112233' })
+      });
+      assert.strictEqual(testStore.emailOutbox.length, 1);
+
+      const clearRes = await fetch(`${baseUrl}/mock/email/clear`, { method: 'DELETE' });
+      assert.strictEqual(clearRes.status, 200);
+      assert.strictEqual(testStore.emailOutbox.length, 0);
+    });
+  });
+
+  // =========================================================================
+  // 4. Aadhaar e-KYC & UIDAI 2.5 Auth Mock Tests
   // =========================================================================
   describe('Aadhaar e-KYC & UIDAI 2.5 Auth Mock Endpoints', () => {
     test('POST /aadhaar/v1/otp/generate triggers OTP generation with test hint 000000', async () => {
@@ -216,7 +274,7 @@ describe('NAG Mock Third-Party API Server Test Suite', () => {
   });
 
   // =========================================================================
-  // 4. DigiLocker Mock Tests
+  // 5. DigiLocker Mock Tests
   // =========================================================================
   describe('DigiLocker Mock & Authentication Endpoints', () => {
     test('GET /.well-known/openid-configuration returns DigiLocker OIDC discovery doc', async () => {
@@ -340,7 +398,7 @@ describe('NAG Mock Third-Party API Server Test Suite', () => {
   });
 
   // =========================================================================
-  // 5. Chaos and Failure Injection Tests
+  // 6. Chaos and Failure Injection Tests
   // =========================================================================
   describe('Chaos Injection Endpoints', () => {
     test('POST /mock/chaos simulates upstream 503 outage on DigiLocker', async () => {
