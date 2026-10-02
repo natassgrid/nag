@@ -2,7 +2,6 @@
 package com.examplatform.practice.controller;
 
 import com.examplatform.practice.domain.PracticeSet;
-import com.examplatform.practice.dto.PracticeSetDto;
 import com.examplatform.practice.repository.PracticeSetRepository;
 import com.examplatform.practice.service.PracticeSetService;
 import lombok.RequiredArgsConstructor;
@@ -19,7 +18,7 @@ import java.util.UUID;
 @RestController
 @RequestMapping("/api/admin/practice/sets")
 @RequiredArgsConstructor
-@PreAuthorize("hasRole('ADMIN') or hasRole('CONTENT_MANAGER')")
+@PreAuthorize("hasAnyRole('ADMIN', 'CONTENT_MANAGER', 'SUPER_ADMIN', 'EXAM_CONTROLLER')")
 public class AdminPracticeSetController {
 
     private final PracticeSetRepository practiceSetRepository;
@@ -34,7 +33,12 @@ public class AdminPracticeSetController {
     public ResponseEntity<PracticeSet> create(
             @AuthenticationPrincipal Jwt jwt,
             @RequestBody PracticeSet practiceSet) {
-        practiceSet.setCreatedBy(UUID.fromString(jwt.getSubject()));
+        if (jwt != null && jwt.getSubject() != null) {
+            try {
+                practiceSet.setCreatedBy(UUID.fromString(jwt.getSubject()));
+            } catch (IllegalArgumentException ignored) {
+            }
+        }
         return ResponseEntity.status(HttpStatus.CREATED).body(practiceSetRepository.save(practiceSet));
     }
 
