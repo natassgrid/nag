@@ -61,7 +61,7 @@ cd "$SCRIPT_DIR"
 COMPOSE="docker compose ${PROFILES_ARGS[*]} -f docker-compose.yml -f docker-compose.services.yml"
 
 # Step 1: Start infrastructure services
-INFRA_TARGETS="postgres kafka vault keycloak"
+INFRA_TARGETS="postgres kafka vault keycloak mock-server"
 if [ "$OBSERVABILITY" = true ]; then
     INFRA_TARGETS="$INFRA_TARGETS prometheus grafana jaeger"
 fi
@@ -72,7 +72,7 @@ fi
 echo "▶ Starting infrastructure services ($INFRA_TARGETS)..."
 docker compose "${PROFILES_ARGS[@]}" -f docker-compose.yml up -d $INFRA_TARGETS
 echo "  Waiting for infrastructure to be healthy..."
-docker compose -f docker-compose.yml up -d --wait postgres kafka vault
+docker compose -f docker-compose.yml up -d --wait postgres kafka vault mock-server
 
 # Step 2: Start local Docker registry
 echo ""

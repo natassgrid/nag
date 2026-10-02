@@ -375,12 +375,6 @@ services:
   # LiteLLM — Unified LLM Gateway (OpenAI-compatible proxy)
   # Routes requests to Ollama, OpenAI, Azure, Anthropic, etc.
   # Port 4000 — OpenAI-compatible API at http://localhost:4000
-  #
-  # Generate embeddings:
-  #   curl http://localhost:4000/v1/embeddings \
-  #     -H "Authorization: Bearer sk-litellm-dev-key" \
-  #     -H "Content-Type: application/json" \
-  #     -d '{"model": "nomic-embed-text", "input": "What is the capital of India?"}'
   # ===========================================================================
   litellm:
     image: ghcr.io/berriai/litellm:main-latest
@@ -415,11 +409,6 @@ services:
   # IndicTrans2 — English to 22 Indian Languages Translation
   # Model: naklitechie/indictrans2-en-indic-dist-200M (~850MB)
   # Port 7860 — REST API at http://localhost:7860
-  #
-  # Test translation:
-  #   curl -X POST http://localhost:7860/translate \
-  #     -H "Content-Type: application/json" \
-  #     -d '{"text": "Photosynthesis is the process by which plants make food.", "source_lang": "eng_Latn", "target_lang": "hin_Deva"}'
   # ===========================================================================
   indictrans2:
     build:
@@ -447,3 +436,33 @@ services:
       start_period: 120s
     networks:
       - exam-network
+
+  # ===========================================================================
+  # Mock DPI Third-Party Server — DigiLocker, Aadhaar e-KYC, MSG91 Gateway
+  # Port 8099 — Mock API at http://localhost:8099
+  # ===========================================================================
+  mock-server:
+    build:
+      context: ../mock-server
+      dockerfile: Dockerfile
+    image: localhost:5000/exam/mock-server:latest
+    container_name: exam-mock-server
+    restart: unless-stopped
+    ports:
+      - "${MOCK_SERVER_PORT:-8099}:8099"
+    environment:
+      MOCK_SERVER_PORT: ${MOCK_SERVER_PORT:-8099}
+      NODE_ENV: production
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8099/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
+    networks:
+      exam-network:
+        aliases:
+          - mock-server
+          - digilocker-mock
+          - aadhaar-mock
+          - msg91-mock

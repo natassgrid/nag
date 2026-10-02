@@ -20,21 +20,51 @@
 package com.examplatform.result.client;
 
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.core.ParameterizedTypeReference;
+import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
+import org.springframework.web.client.RestClient;
 
+import java.util.Map;
 import java.util.UUID;
 
 /**
- * Stub implementation of DigiLockerClient for local development.
- * In production, this would make HTTP calls to the DigiLocker API.
+ * Client implementation for DigiLocker scorecard publishing.
+ * Supports pushing scorecard records to configured external/mock DigiLocker server.
  */
 @Slf4j
 @Component
 public class DigiLockerClientImpl implements DigiLockerClient {
 
+    private static final ParameterizedTypeReference<Map<String, Object>> MAP_TYPE =
+            new ParameterizedTypeReference<>() {};
+
+    @Value("${app.digilocker.push-url:${DIGILOCKER_PUSH_URL:}}")
+    private String digiLockerPushUrl;
+
+    private final RestClient restClient = RestClient.create();
+
     @Override
     public void pushScorecard(UUID candidateId, String pdfRef) {
-        log.info("[STUB] Pushing scorecard to DigiLocker for candidate={}, pdfRef={}", candidateId, pdfRef);
-        // TODO: Implement actual DigiLocker API integration for production
+        log.info("Pushing scorecard to DigiLocker for candidate={}, pdfRef={}, endpoint={}",
+                candidateId, pdfRef, digiLockerPushUrl);
+
+        if (digiLockerPushUrl != null && !digiLockerPushUrl.isBlank()) {
+            try {
+                Map<String, Object> response = restClient.post()
+                        .uri(digiLockerPushUrl)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .body(Map.of(
+                                "candidateId", candidateId != null ? candidateId.toString() : "",
+                                "pdfRef", pdfRef != null ? pdfRef : ""
+                        ))
+                        .retrieve()
+                        .body(MAP_TYPE);
+                log.info("DigiLocker push response for candidate {}: {}", candidateId, response);
+            } catch (Exception e) {
+                log.warn("Failed to push scorecard to DigiLocker at {}: {}", digiLockerPushUrl, e.getMessage());
+            }
+        }
     }
 }

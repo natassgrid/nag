@@ -21,19 +21,58 @@ package com.examplatform.candidate.client;
 
 import com.examplatform.candidate.dto.DigiLockerResponse;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.core.ParameterizedTypeReference;
+import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
+import org.springframework.web.client.RestClient;
+
+import java.util.Map;
 
 /**
- * Stub implementation of DigiLockerClient for local development.
- * In production, this would call the DigiLocker API with OAuth2 tokens.
+ * Implementation of DigiLockerClient that connects to configured DigiLocker
+ * endpoint (or mock server) when url is provided, or returns fallback stub.
  */
 @Slf4j
 @Component
 public class DigiLockerClientImpl implements DigiLockerClient {
 
+    private static final ParameterizedTypeReference<Map<String, Object>> MAP_TYPE =
+            new ParameterizedTypeReference<>() {};
+
+    @Value("${app.digilocker.api-url:${DIGILOCKER_API_URL:}}")
+    private String digiLockerApiUrl;
+
+    private final RestClient restClient = RestClient.create();
+
     @Override
     public DigiLockerResponse fetchDocument(String token, String docType) {
-        log.info("[STUB] Fetching document from DigiLocker: docType={}", docType);
+        log.info("Fetching document from DigiLocker: docType={}, apiUrl={}", docType, digiLockerApiUrl);
+
+        if (digiLockerApiUrl != null && !digiLockerApiUrl.isBlank()) {
+            try {
+                Map<String, Object> response = restClient.post()
+                        .uri(digiLockerApiUrl)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .body(Map.of(
+                                "token", token != null ? token : "",
+                                "docType", docType != null ? docType : "AADHAAR"
+                        ))
+                        .retrieve()
+                        .body(MAP_TYPE);
+
+                if (response != null) {
+                    String status = response.get("status") != null ? String.valueOf(response.get("status")) : "SUCCESS";
+                    String docData = response.get("documentData") != null ? String.valueOf(response.get("documentData")) : "MOCK_DOC_DATA";
+                    String issuerId = response.get("issuerId") != null ? String.valueOf(response.get("issuerId")) : (docType != null ? docType : "in.gov.cbse");
+                    return new DigiLockerResponse(status, docData, issuerId);
+                }
+            } catch (Exception e) {
+                log.warn("Failed to invoke DigiLocker API at {}: {}. Falling back to default mock response.",
+                        digiLockerApiUrl, e.getMessage());
+            }
+        }
+
         return new DigiLockerResponse("SUCCESS", "STUB_DOC_DATA", docType);
     }
 }

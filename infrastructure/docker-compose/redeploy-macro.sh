@@ -236,12 +236,12 @@ if [ "$HEALTH_CHECK" = true ]; then
 
         if echo "$health_response" | grep -q -E '"status":"UP"|healthy'; then
             components=$(echo "$health_response" | grep -o '"[a-zA-Z]*":{"status":"[^"]*"' | \
-                sed 's/"\([^\"]*\)":{"status":"\([^\"]*\)"/\1:\2/g' | tr '\n' ' ')
+                sed 's/"\([^\"*]*\)":{"status":"\([^\"*]*\)"/\1:\2/g' | tr '\n' ' ')
             printf "  %-25s %-12s %-8s %s\n" "$svc" "✅ UP" "$port" "$components"
             HEALTHY=$((HEALTHY + 1))
         elif echo "$health_response" | grep -q -E '"status":"DOWN"|unhealthy'; then
             components=$(echo "$health_response" | grep -o '"[a-zA-Z]*":{"status":"DOWN"' | \
-                sed 's/"\([^\"]*\)":{"status":"DOWN"/\1:DOWN/g' | tr '\n' ' ')
+                sed 's/"\([^\"*]*\)":{"status":"DOWN"/\1:DOWN/g' | tr '\n' ' ')
             printf "  %-25s %-12s %-8s %s\n" "$svc" "❌ DOWN" "$port" "$components"
             UNHEALTHY=$((UNHEALTHY + 1))
         else
@@ -346,7 +346,7 @@ echo "🧹 Pruning old images..."
 docker image prune -f 2>/dev/null || true
 
 echo ""
-INFRA_TARGETS="postgres redis vault keycloak"
+INFRA_TARGETS="postgres redis vault keycloak mock-server"
 if [ "$OBSERVABILITY" = true ]; then
     INFRA_TARGETS="$INFRA_TARGETS prometheus grafana jaeger"
 fi
@@ -358,7 +358,7 @@ echo "🚀 Starting core infrastructure ($INFRA_TARGETS, RabbitMQ)..."
 docker compose "${PROFILES_ARGS[@]}" -f docker-compose.yml up -d $INFRA_TARGETS
 $COMPOSE up -d rabbitmq
 echo "  Waiting for infrastructure to be healthy..."
-docker compose -f docker-compose.yml up --wait -d postgres vault redis
+docker compose -f docker-compose.yml up --wait -d postgres vault redis mock-server
 $COMPOSE up --wait -d rabbitmq
 
 echo ""

@@ -116,6 +116,10 @@ services:
       MSG91_AUTH_KEY: ${MSG91_AUTH_KEY:-}
       MSG91_TEMPLATE_ID: ${MSG91_TEMPLATE_ID:-}
       MSG91_SENDER_ID: ${MSG91_SENDER_ID:-NAGGov}
+      MSG91_API_URL: ${MSG91_API_URL:-http://mock-server:8099/api/v5/otp}
+      DIGILOCKER_API_URL: ${DIGILOCKER_API_URL:-http://mock-server:8099/digilocker/v1/verify}
+      DIGILOCKER_PUSH_URL: ${DIGILOCKER_PUSH_URL:-http://mock-server:8099/digilocker/v1/credential/push}
+      AADHAAR_API_URL: ${AADHAAR_API_URL:-http://mock-server:8099/aadhaar}
       ASSET_STORAGE_PATH: /data/asset-storage
       SCORECARD_STORAGE_MODE: ${SCORECARD_STORAGE_MODE:-local}
       SCORECARD_STORAGE_PATH: ${SCORECARD_STORAGE_PATH:-/data/scorecards}
@@ -140,6 +144,8 @@ services:
       postgres:
         condition: service_healthy
       redis:
+        condition: service_healthy
+      mock-server:
         condition: service_healthy
     volumes:
       - asset_storage:/data/asset-storage
