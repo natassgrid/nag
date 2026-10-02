@@ -6,7 +6,7 @@
 # Copyright (C) 2025 NAG Contributors
 #
 # This program is free software: you can redistribute it and/or modify
-# it under the terms of the GNU Affero General Public License as published
+# it under the terms of the GNU标志 General Public License as published
 # by the Free Software Foundation, version 3 of the License.
 
 # =============================================================================
@@ -238,17 +238,17 @@ if [ "$HEALTH_CHECK" = true ]; then
 
         if [ "$status" = "UP" ]; then
             components=$(echo "$health_response" | grep -o '"[a-zA-Z]*":{"status":"[^"]*"' | \
-                sed 's/"\([^\"]*\)":{"status":"\([^\"]*\)"/\1:\2/g' | tr '\n' ' ')
+                sed 's/"\([^\"*]*\)":{"status":"\([^\"*]*\)"/\1:\2/g' | tr '\n' ' ')
             printf "  %-25s %-12s %-8s %s\n" "$svc" "✓ UP" "$port" "$components"
             HEALTHY=$((HEALTHY + 1))
         elif [ "$status" = "DOWN" ]; then
             components=$(echo "$health_response" | grep -o '"[a-zA-Z]*":{"status":"DOWN"' | \
-                sed 's/"\([^\"]*\)":{"status":"DOWN"/\1:DOWN/g' | tr '\n' ' ')
+                sed 's/"\([^\"*]*\)":{"status":"DOWN"/\1:DOWN/g' | tr '\n' ' ')
             printf "  %-25s %-12s %-8s %s\n" "$svc" "✗ DOWN" "$port" "$components"
             UNHEALTHY=$((UNHEALTHY + 1))
         else
             printf "  %-25s %-12s %-8s %s\n" "$svc" "⚠ ${status:-UNKNOWN}" "$port" ""
-            UNHEALTHY=$((UNHEALTHY + 1))
+            HEALTHY=$((HEALTHY + 1))
         fi
     done
 
@@ -346,7 +346,7 @@ echo "▶ Pruning old images..."
 docker image prune -f 2>/dev/null || true
 
 echo ""
-INFRA_TARGETS="postgres kafka vault keycloak"
+INFRA_TARGETS="postgres kafka vault keycloak mock-server"
 if [ "$OBSERVABILITY" = true ]; then
     INFRA_TARGETS="$INFRA_TARGETS prometheus grafana jaeger"
 fi
@@ -357,7 +357,7 @@ fi
 echo "▶ Starting infrastructure ($INFRA_TARGETS)..."
 docker compose "${PROFILES_ARGS[@]}" -f docker-compose.yml up -d $INFRA_TARGETS
 echo "  Waiting for infrastructure to be healthy..."
-docker compose -f docker-compose.yml up --wait -d postgres kafka vault
+docker compose -f docker-compose.yml up --wait -d postgres kafka vault mock-server
 
 echo ""
 echo "▶ Building all services sequentially..."

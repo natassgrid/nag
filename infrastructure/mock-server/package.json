@@ -1,0 +1,26 @@
+{
+  "name": "nag-mock-api-server",
+  "version": "1.0.0",
+  "description": "Mock Third-Party API Server for DigiLocker, Aadhaar e-KYC, and MSG91 SMS Gateway for NAG E2E Testing",
+  "main": "src/server.js",
+  "type": "module",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "node --watch src/server.js",
+    "test": "node --test test/**/*.test.js"
+  },
+  "keywords": [
+    "mock-server",
+    "digilocker",
+    "aadhaar",
+    "msg91",
+    "e2e-testing",
+    "dpi"
+  ],
+  "author": "NAG Contributors",
+  "license": "AGPL-3.0-only",
+  "dependencies": {
+    "express": "^4.21.2",
+    "cors": "^2.8.5"
+  }
+}

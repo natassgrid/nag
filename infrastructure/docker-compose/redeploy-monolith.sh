@@ -8,6 +8,7 @@
 #   - 1 Redis 7 container
 #   - 1 HashiCorp Vault container
 #   - 1 Keycloak container
+#   - 1 Mock Third-Party DPI Server (DigiLocker, UIDAI Aadhaar 2.5, MSG91 - Port 8099)
 #   - 1 Admin Portal SPA (Nx Workspace / Angular 22 - Port 4200)
 #   - 1 Candidate Delivery SPA (Nx Workspace / Angular 22 - Port 4300)
 #   - 1 Public Verifier SPA (Nx Workspace / Angular 22 - Port 4400)
@@ -130,7 +131,7 @@ else
 fi
 
 # --- Infrastructure targets definition ---
-INFRA_TARGETS="postgres redis vault vault-init keycloak"
+INFRA_TARGETS="postgres redis vault vault-init keycloak mock-server"
 if [ "$RABBIT" = true ]; then
     INFRA_TARGETS="$INFRA_TARGETS rabbitmq"
 fi
@@ -165,6 +166,11 @@ if [ "$HEALTH_CHECK" = true ]; then
     else
         echo "  monolith-app: ⚠️ $health_response"
     fi
+
+    mock_container="exam-mock-server"
+    if docker ps --format '{{.Names}}' | grep -q "^${mock_container}$"; then
+        echo "  mock-server:  ✅ UP (Port 8099)"
+    fi
     exit 0
 fi
 
@@ -173,7 +179,7 @@ if [ "$RESTART_ONLY" = true ]; then
     echo ""
     echo "🚀 Ensuring infrastructure ($INFRA_TARGETS) is active..."
     $COMPOSE up -d $INFRA_TARGETS
-    $COMPOSE up --wait -d postgres vault redis
+    $COMPOSE up --wait -d postgres vault redis mock-server
     if [ "$RABBIT" = true ]; then
         $COMPOSE up --wait -d rabbitmq
     fi
@@ -195,7 +201,7 @@ if [ "$FRONTEND_ONLY" = true ] || [ -n "$SERVICE" ]; then
     echo ""
     echo "🚀 Ensuring infrastructure ($INFRA_TARGETS) is active..."
     $COMPOSE up -d $INFRA_TARGETS
-    $COMPOSE up --wait -d postgres vault redis
+    $COMPOSE up --wait -d postgres vault redis mock-server
     if [ "$RABBIT" = true ]; then
         $COMPOSE up --wait -d rabbitmq
     fi
@@ -226,6 +232,7 @@ if [ "$FRONTEND_ONLY" = true ] || [ -n "$SERVICE" ]; then
     if [[ "$APP_TARGETS" == *"monolith-app"* ]]; then
         echo "  Monolith API:        http://localhost:9000"
     fi
+    echo "  Mock DPI Server:     http://localhost:8099"
     echo "============================================="
     exit 0
 fi
@@ -253,7 +260,7 @@ echo ""
 echo "🚀 Starting infrastructure ($INFRA_TARGETS)..."
 $COMPOSE up -d $INFRA_TARGETS
 echo "  Waiting for infrastructure to be healthy..."
-$COMPOSE up --wait -d postgres vault redis
+$COMPOSE up --wait -d postgres vault redis mock-server
 if [ "$RABBIT" = true ]; then
     $COMPOSE up --wait -d rabbitmq
 fi
@@ -275,6 +282,7 @@ echo "  🎉 Single JVM Monolith redeploy complete!"
 echo "============================================="
 echo "  Monolith API:        http://localhost:9000"
 echo "  Actuator Health:     http://localhost:9000/actuator/health"
+echo "  Mock DPI Server:     http://localhost:8099"
 if [ "$BACKEND_ONLY" = false ]; then
 echo "  Admin Portal:        http://localhost:4200"
 echo "  Candidate Delivery:  http://localhost:4300"
