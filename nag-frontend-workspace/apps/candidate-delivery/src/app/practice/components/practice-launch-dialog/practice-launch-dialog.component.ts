@@ -4,6 +4,7 @@ import { MatDialogModule, MAT_DIALOG_DATA, MatDialogRef } from '@angular/materia
 import { MatButtonModule } from '@angular/material/button';
 import { MatRadioModule } from '@angular/material/radio';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
+import { MatIconModule } from '@angular/material/icon';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { PracticeService } from '../../services/practice.service';
@@ -12,7 +13,15 @@ import { PracticeSet, PracticeSessionMode } from '../../models';
 @Component({
   selector: 'app-practice-launch-dialog',
   standalone: true,
-  imports: [CommonModule, MatDialogModule, MatButtonModule, MatRadioModule, MatProgressSpinnerModule, FormsModule],
+  imports: [
+    CommonModule,
+    MatDialogModule,
+    MatButtonModule,
+    MatRadioModule,
+    MatProgressSpinnerModule,
+    MatIconModule,
+    FormsModule
+  ],
   templateUrl: './practice-launch-dialog.component.html',
   styleUrl: './practice-launch-dialog.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -30,15 +39,15 @@ export class PracticeLaunchDialogComponent {
   startSession(): void {
     if (this.isStarting()) return;
     this.isStarting.set(true);
-    
+
     this.practiceService.startSession({
       practiceSetId: this.set.id,
       mode: this.selectedMode()
     }).subscribe({
       next: (session) => {
         this.dialogRef.close();
-        this.router.navigate(['/delivery'], { 
-          queryParams: { mode: 'PRACTICE', paperId: session.id, sessionId: session.id }
+        this.router.navigate(['/delivery'], {
+          queryParams: { mode: 'PRACTICE', paperId: this.set.id, sessionId: session.id }
         });
       },
       error: () => {
