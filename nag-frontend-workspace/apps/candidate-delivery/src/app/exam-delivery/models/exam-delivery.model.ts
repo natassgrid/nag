@@ -38,6 +38,10 @@ export interface ExamSubmissionReceipt {
   correctCount?: number;
   incorrectCount?: number;
   unansweredCount?: number;
+  totalQuestions?: number;
+  accuracyPercent?: number;
+  practiceSetName?: string;
+  sessionId?: string;
 }
 
 export interface ExamSessionMetadata {

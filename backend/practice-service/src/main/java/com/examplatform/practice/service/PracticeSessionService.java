@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 package com.examplatform.practice.service;
 
+import com.examplatform.practice.client.QuestionBankClient;
 import com.examplatform.practice.domain.PracticeResponse;
 import com.examplatform.practice.domain.PracticeSession;
 import com.examplatform.practice.domain.PracticeSet;
@@ -12,6 +13,8 @@ import com.examplatform.practice.exception.SessionAlreadySubmittedException;
 import com.examplatform.practice.repository.PracticeResponseRepository;
 import com.examplatform.practice.repository.PracticeSessionRepository;
 import com.examplatform.practice.repository.PracticeSetRepository;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
@@ -20,7 +23,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
-import java.util.UUID;
+import java.util.*;
 
 @Service
 @RequiredArgsConstructor
@@ -30,6 +33,9 @@ public class PracticeSessionService {
     private final PracticeSetRepository practiceSetRepository;
     private final PracticeResponseRepository practiceResponseRepository;
     private final PracticeEvaluationService practiceEvaluationService;
+    private final PracticeResultService practiceResultService;
+    private final QuestionBankClient questionBankClient;
+    private final ObjectMapper objectMapper;
     private final ApplicationEventPublisher eventPublisher;
 
     @Transactional
@@ -59,6 +65,43 @@ public class PracticeSessionService {
         return practiceSessionRepository.findByIdAndCandidateId(sessionId, candidateId)
                 .map(this::toSessionDto)
                 .orElseThrow(() -> new PracticeSessionNotFoundException(sessionId));
+    }
+
+    @Transactional(readOnly = true)
+    public List<PracticeQuestionDto> getSessionQuestions(UUID sessionId, UUID candidateId) {
+        PracticeSession session = practiceSessionRepository.findByIdAndCandidateId(sessionId, candidateId)
+                .orElseThrow(() -> new PracticeSessionNotFoundException(sessionId));
+
+        PracticeSet set = practiceSetRepository.findById(session.getPracticeSetId())
+                .orElseThrow(() -> new PracticeSetNotFoundException(session.getPracticeSetId()));
+
+        List<UUID> questionIds = parseQuestionIds(set.getQuestionIds());
+        if (questionIds.isEmpty()) {
+            return Collections.emptyList();
+        }
+
+        Map<UUID, AnswerKeyDto> keys = questionBankClient.getAnswerKeys(questionIds);
+        List<PracticeQuestionDto> result = new ArrayList<>();
+        int order = 1;
+        for (UUID qId : questionIds) {
+            AnswerKeyDto key = keys.get(qId);
+            if (key != null) {
+                result.add(new PracticeQuestionDto(
+                        qId,
+                        order,
+                        "PRAC-Q" + order,
+                        key.content() != null ? key.content() : "",
+                        key.optionsJson() != null ? key.optionsJson() : "[]",
+                        key.marks() > 0 ? key.marks() : 2,
+                        0.5,
+                        key.subject(),
+                        key.topicName(),
+                        key.difficulty()
+                ));
+                order++;
+            }
+        }
+        return result;
     }
 
     @Transactional
@@ -115,29 +158,37 @@ public class PracticeSessionService {
                 evaluated.getTotalMarks(), evaluated.getTopicWiseBreakdown()
         ));
 
-        return new com.examplatform.practice.dto.PracticeResultDto(
-                sessionId, evaluated.getCorrectCount(), evaluated.getIncorrectCount(),
-                evaluated.getSkippedCount(), evaluated.getObtainedMarks(), evaluated.getTotalMarks(),
-                evaluated.getTotalQuestions() > 0
-                        ? Math.round((double) evaluated.getCorrectCount() / evaluated.getTotalQuestions() * 1000.0) / 10.0
-                        : 0.0,
-                evaluated.getTopicWiseBreakdown(), evaluated.getDifficultyBreakdown(),
-                evaluated.getTimingBreakdown(), java.util.Collections.emptyList()
-        );
+        return practiceResultService.getResult(sessionId, candidateId);
     }
 
     @Transactional(readOnly = true)
     public Page<PracticeHistoryItemDto> getHistory(UUID candidateId, Pageable pageable) {
-        return practiceSessionRepository.findByCandidateIdOrderByStartedAtDesc(candidateId, pageable)
-                .map(s -> new PracticeHistoryItemDto(
-                        s.getId(), s.getPracticeSetId(),
-                        null,
-                        s.getSubmittedAt(), s.getObtainedMarks(), s.getTotalMarks(),
-                        s.getTotalQuestions() > 0
-                                ? Math.round((double) s.getCorrectCount() / s.getTotalQuestions() * 1000.0) / 10.0
-                                : 0.0,
-                        s.getTotalQuestions(), s.getCorrectCount(), s.getIncorrectCount()
-                ));
+        Page<PracticeSession> sessions = practiceSessionRepository.findByCandidateIdOrderByStartedAtDesc(candidateId, pageable);
+        List<UUID> setIds = sessions.stream().map(PracticeSession::getPracticeSetId).distinct().toList();
+        Map<UUID, String> setNames = new HashMap<>();
+        if (!setIds.isEmpty()) {
+            practiceSetRepository.findAllById(setIds).forEach(set -> setNames.put(set.getId(), set.getName()));
+        }
+
+        return sessions.map(s -> new PracticeHistoryItemDto(
+                s.getId(), s.getPracticeSetId(),
+                setNames.getOrDefault(s.getPracticeSetId(), "Practice Mock Test"),
+                s.getSubmittedAt() != null ? s.getSubmittedAt() : s.getStartedAt(),
+                s.getObtainedMarks(), s.getTotalMarks(),
+                s.getTotalQuestions() > 0
+                        ? Math.round((double) s.getCorrectCount() / s.getTotalQuestions() * 1000.0) / 10.0
+                        : 0.0,
+                s.getTotalQuestions(), s.getCorrectCount(), s.getIncorrectCount()
+        ));
+    }
+
+    private List<UUID> parseQuestionIds(String json) {
+        if (json == null || json.isBlank()) return Collections.emptyList();
+        try {
+            return objectMapper.readValue(json, new TypeReference<List<UUID>>() {});
+        } catch (Exception e) {
+            return Collections.emptyList();
+        }
     }
 
     private PracticeSessionDto toSessionDto(PracticeSession s) {

@@ -14,8 +14,7 @@
  * GNU Affero General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program. If not, see <https://www.gnu.org/licenses/>.
- */
+ * along with this program. If not, see <https://www.gnu.org/licenses/>.\n */
 
 package com.examplatform.result.controller;
 
@@ -64,6 +63,56 @@ class ResultControllerIntegrationTest extends AbstractIntegrationTest {
     private static final UUID RESULT_ID = UUID.fromString("11111111-1111-1111-1111-111111111111");
     private static final UUID CANDIDATE_ID = UUID.fromString("22222222-2222-2222-2222-222222222222");
     private static final UUID EXAM_ID = UUID.fromString("33333333-3333-3333-3333-333333333333");
+
+    @Nested
+    @DisplayName("GET /api/v1/results/my-results & /candidate/{candidateId}")
+    class GetCandidateScorecardsEndpoint {
+
+        @Test
+        @DisplayName("+ve: CANDIDATE retrieves own scorecard history via /my-results")
+        void candidateCanRetrieveMyResults() throws Exception {
+            Result result = Result.builder()
+                    .candidateId(CANDIDATE_ID)
+                    .examId(EXAM_ID)
+                    .totalScore(BigDecimal.valueOf(92.00))
+                    .overallRank(5)
+                    .overallPercentile(BigDecimal.valueOf(99.10))
+                    .build();
+            ReflectionTestUtils.setField(result, "id", RESULT_ID);
+
+            when(resultComputationService.getCandidateResults(eq(CANDIDATE_ID), anyString()))
+                    .thenReturn(List.of(result));
+
+            mockMvc.perform(get("/api/v1/results/my-results")
+                            .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_CANDIDATE"))
+                                    .jwt(j -> j.subject(CANDIDATE_ID.toString()).claim("tenant_id", TENANT_ID))))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.length()").value(1))
+                    .andExpect(jsonPath("$[0].id").value(RESULT_ID.toString()))
+                    .andExpect(jsonPath("$[0].totalScore").value(92.00));
+        }
+
+        @Test
+        @DisplayName("+ve: Candidate retrieves results via /candidate/{candidateId}")
+        void candidateCanRetrieveResultsById() throws Exception {
+            Result result = Result.builder()
+                    .candidateId(CANDIDATE_ID)
+                    .examId(EXAM_ID)
+                    .totalScore(BigDecimal.valueOf(92.00))
+                    .build();
+            ReflectionTestUtils.setField(result, "id", RESULT_ID);
+
+            when(resultComputationService.getCandidateResults(eq(CANDIDATE_ID), anyString()))
+                    .thenReturn(List.of(result));
+
+            mockMvc.perform(get("/api/v1/results/candidate/{candidateId}", CANDIDATE_ID)
+                            .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_CANDIDATE"))
+                                    .jwt(j -> j.subject(CANDIDATE_ID.toString()).claim("tenant_id", TENANT_ID))))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.length()").value(1))
+                    .andExpect(jsonPath("$[0].id").value(RESULT_ID.toString()));
+        }
+    }
 
     @Nested
     @DisplayName("GET /api/v1/results/{candidateId}")

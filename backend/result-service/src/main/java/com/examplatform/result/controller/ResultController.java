@@ -14,8 +14,7 @@
  * GNU Affero General Public License for more details.
  *
  * You should have received a copy of the GNU Affero General Public License
- * along with this program. If not, see <https://www.gnu.org/licenses/>.
- */
+ * along with this program. If not, see <https://www.gnu.org/licenses/>.\n */
 
 package com.examplatform.result.controller;
 
@@ -30,6 +29,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -57,6 +57,34 @@ public class ResultController {
 
     private final ResultComputationService resultComputationService;
     private final ResultPublicationService resultPublicationService;
+
+    /**
+     * Retrieves all results for the authenticated candidate.
+     * Accessible by CANDIDATE, SUPER_ADMIN, or ADMIN.
+     */
+    @GetMapping("/my-results")
+    @PreAuthorize("hasAnyRole('CANDIDATE', 'SUPER_ADMIN', 'ADMIN')")
+    public ResponseEntity<List<Result>> getMyResults(Authentication auth) {
+        String tenantId = extractTenantId(auth);
+        UUID candidateId = extractCandidateId(auth);
+        log.info("GET my-results for candidate={}, tenant={}", candidateId, tenantId);
+        List<Result> results = resultComputationService.getCandidateResults(candidateId, tenantId);
+        return ResponseEntity.ok(results);
+    }
+
+    /**
+     * Retrieves all results for a specific candidate.
+     * Accessible by CANDIDATE, SUPER_ADMIN, or ADMIN.
+     */
+    @GetMapping("/candidate/{candidateId}")
+    @PreAuthorize("hasAnyRole('CANDIDATE', 'SUPER_ADMIN', 'ADMIN')")
+    public ResponseEntity<List<Result>> getCandidateResults(@PathVariable UUID candidateId,
+                                                           Authentication auth) {
+        String tenantId = extractTenantId(auth);
+        log.info("GET results for candidate={}, tenant={}", candidateId, tenantId);
+        List<Result> results = resultComputationService.getCandidateResults(candidateId, tenantId);
+        return ResponseEntity.ok(results);
+    }
 
     /**
      * Retrieves the result for a specific candidate in an exam.
@@ -123,6 +151,24 @@ public class ResultController {
 
         Result result = resultPublicationService.publishResult(candidateId, examId, tenantId);
         return ResponseEntity.ok(result);
+    }
+
+    private UUID extractCandidateId(Authentication auth) {
+        if (auth != null && auth.getPrincipal() instanceof Jwt jwt) {
+            String sub = jwt.getSubject();
+            if (sub != null) {
+                try {
+                    return UUID.fromString(sub);
+                } catch (IllegalArgumentException ignored) {
+                }
+            }
+        } else if (auth != null && auth.getName() != null) {
+            try {
+                return UUID.fromString(auth.getName());
+            } catch (IllegalArgumentException ignored) {
+            }
+        }
+        throw new IllegalArgumentException("Unable to determine candidate ID from authentication context");
     }
 
     private String extractTenantId(Authentication auth) {

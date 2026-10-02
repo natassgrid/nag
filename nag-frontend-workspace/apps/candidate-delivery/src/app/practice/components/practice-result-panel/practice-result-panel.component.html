@@ -1,24 +1,97 @@
-@if (isLoading()) {
-  <div class="loading-container">
-    <mat-spinner diameter="48"></mat-spinner>
-    <p>Loading your results...</p>
-  </div>
-} @else if (error()) {
-  <div class="error-state">
-    <mat-icon>error_outline</mat-icon>
-    <p>{{ error() }}</p>
-  </div>
-} @else if (result()) {
-  <div class="result-container">
-    <h1 class="result-title">Practice Complete!</h1>
-    <app-practice-result-summary [result]="result()!"></app-practice-result-summary>
-    <app-practice-question-review [questionResults]="result()!.questionResults"></app-practice-question-review>
-    <div class="result-actions">
-      <button mat-flat-button color="accent" class="ai-callout" routerLink="/learn/recommendations">
-        <mat-icon>auto_awesome</mat-icon> View AI Study Recommendations →
-      </button>
-      <button mat-stroked-button routerLink="/practice">Back to Practice Hub</button>
-      <button mat-raised-button color="primary" routerLink="/practice/history">View History</button>
+<div class="space-y-6 max-w-7xl mx-auto p-4 sm:p-6 pb-16">
+  @if (isLoading()) {
+    <div class="space-y-6 animate-pulse">
+      <div class="bg-white rounded-2xl p-6 border border-slate-200/80 shadow-xs h-32"></div>
+      <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        @for (i of [1, 2, 3, 4]; track i) {
+          <div class="bg-white rounded-2xl p-5 border border-slate-200/80 shadow-xs h-28"></div>
+        }
+      </div>
+      <div class="bg-white rounded-2xl p-6 border border-slate-200/80 shadow-xs h-96"></div>
     </div>
-  </div>
-}
+  } @else if (error()) {
+    <div class="bg-white rounded-2xl p-12 text-center border border-rose-200/80 shadow-xs max-w-lg mx-auto mt-10">
+      <div class="w-16 h-16 rounded-full bg-rose-50 text-rose-600 flex items-center justify-center mx-auto mb-4">
+        <mat-icon class="!text-3xl">error_outline</mat-icon>
+      </div>
+      <h3 class="text-lg font-bold text-slate-900">Unable to Load Results</h3>
+      <p class="text-sm text-slate-500 mt-2">{{ error() }}</p>
+      <div class="mt-6 flex items-center justify-center gap-3">
+        <button mat-flat-button color="primary" (click)="retry()" class="!rounded-xl">
+          <mat-icon class="!text-base mr-1">refresh</mat-icon>
+          Retry
+        </button>
+        <a mat-stroked-button routerLink="/practice/history" class="!rounded-xl">
+          Back to History
+        </a>
+      </div>
+    </div>
+  } @else if (result()) {
+    <!-- Top Header Banner -->
+    <div class="bg-white rounded-2xl p-6 border border-slate-200/80 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div>
+        <div class="flex items-center gap-2 mb-1">
+          <a routerLink="/practice/history" class="text-xs font-semibold text-indigo-600 hover:text-indigo-800 flex items-center gap-1 transition-colors">
+            <mat-icon class="!text-sm !w-4 !h-4 leading-none">arrow_back</mat-icon>
+            Practice History
+          </a>
+          <span class="text-slate-300">&bull;</span>
+          <span class="text-xs font-medium text-slate-500">Attempt Scorecard & Detailed Review</span>
+        </div>
+        <div class="flex items-center gap-3">
+          <h1 class="text-2xl font-bold tracking-tight text-slate-900">
+            {{ result()?.practiceSetName || 'Practice Assessment' }}
+          </h1>
+          <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200/80">
+            Evaluated
+          </span>
+        </div>
+        <p class="text-xs text-slate-400 font-mono mt-1">
+          Session ID: {{ result()?.sessionId }}
+        </p>
+      </div>
+      <div class="flex flex-wrap items-center gap-2 sm:gap-3">
+        <a
+          mat-stroked-button
+          routerLink="/learn/recommendations"
+          class="!rounded-xl !border-indigo-200 !text-indigo-700 !bg-indigo-50/50 hover:!bg-indigo-50 cursor-pointer"
+        >
+          <mat-icon class="!text-base mr-1 text-indigo-600">auto_awesome</mat-icon>
+          AI Study Plan
+        </a>
+        <a
+          mat-flat-button
+          color="primary"
+          routerLink="/practice"
+          class="!rounded-xl !bg-indigo-600 hover:!bg-indigo-700 !text-white shadow-xs cursor-pointer"
+        >
+          <mat-icon class="!text-base mr-1">play_arrow</mat-icon>
+          Practice Hub
+        </a>
+      </div>
+    </div>
+
+    <!-- Summary Scorecard & Metrics -->
+    <app-practice-result-summary [result]="result()!"></app-practice-result-summary>
+
+    <!-- Detailed Question-by-Question Review -->
+    <app-practice-question-review [questionResults]="result()!.questionResults"></app-practice-question-review>
+
+    <!-- Bottom Actions -->
+    <div class="bg-white rounded-2xl p-5 border border-slate-200/80 shadow-xs flex flex-col sm:flex-row items-center justify-between gap-4">
+      <a mat-stroked-button routerLink="/practice/history" class="!rounded-xl w-full sm:w-auto">
+        &larr; Return to History
+      </a>
+      <div class="flex items-center gap-3 w-full sm:w-auto">
+        <a
+          mat-flat-button
+          color="primary"
+          routerLink="/practice"
+          class="!rounded-xl !bg-indigo-600 !text-white w-full sm:w-auto shadow-xs"
+        >
+          Start Another Mock Test &rarr;
+        </a>
+      </div>
+    </div>
+  }
+</div>

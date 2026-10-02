@@ -22,8 +22,6 @@ describe('PracticeLaunchDialogComponent', () => {
     subjectSlug: 'cs',
     published: true,
     totalQuestions: 30,
-    createdBy: 'admin-1',
-    createdAt: '2026-01-01',
   };
 
   beforeEach(async () => {
@@ -77,7 +75,7 @@ describe('PracticeLaunchDialogComponent', () => {
     expect(routerMock.navigate).toHaveBeenCalledWith(['/delivery'], {
       queryParams: {
         mode: 'PRACTICE',
-        paperId: 'session-xyz-789',
+        paperId: 'set-abc-123',
         sessionId: 'session-xyz-789',
       },
     });
