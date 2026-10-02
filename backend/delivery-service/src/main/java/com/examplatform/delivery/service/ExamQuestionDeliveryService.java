@@ -107,7 +107,7 @@ public class ExamQuestionDeliveryService {
             log.warn("Redis lookup failed for questions cache: {}", e.getMessage());
         }
 
-        // 3. Third priority: query approved questions from the database matching the exam specification
+        // 4. Fourth priority: query approved questions from the database matching the exam specification
         List<QuestionDeliveryDto> dbQuestions = fetchQuestionsForExam(examId, effectiveTenant);
         if (!dbQuestions.isEmpty()) {
             enrichWithTranslations(dbQuestions, effectiveTenant);
@@ -641,7 +641,7 @@ public class ExamQuestionDeliveryService {
             LEFT JOIN question_service.translation t ON q.id = t.question_id AND t.language_code = 'hi' AND t.status IN ('PUBLISHED', 'APPROVED')
             WHERE (q.tenant_id = ? OR q.tenant_id = 'default')
               AND q.state = 'APPROVED'
-            ORDER BY (t.id IS NOT NULL) DESC, CASE 
+            ORDER BY (t.id IS NOT NULL) DESC, CASE
               WHEN q.subject ILIKE '%Reasoning%' OR q.subject ILIKE '%Intelligence%' THEN 1
               WHEN q.subject ILIKE '%Awareness%' OR q.subject ILIKE '%General Studies%' THEN 2
               WHEN q.subject ILIKE '%Quantitative%' OR q.subject ILIKE '%Math%' THEN 3
@@ -794,29 +794,9 @@ public class ExamQuestionDeliveryService {
             return Collections.emptyList();
         }
         try {
-            String paperDefJson = jdbcTemplate.queryForObject(
-                    "SELECT paper_definition_json FROM paper_generator.paper WHERE id = ? AND (tenant_id = ? OR tenant_id = 'default')",
-                    String.class,
-                    paperId,
-                    tenantId
-            );
-            if (paperDefJson == null || paperDefJson.isBlank()) {
-                return Collections.emptyList();
-            }
-
-            JsonNode root = objectMapper.readTree(paperDefJson);
-            JsonNode qIdsNode = root.get("questionIds");
-            if (qIdsNode == null || !qIdsNode.isArray() || qIdsNode.isEmpty()) {
-                return Collections.emptyList();
-            }
-
-            List<UUID> qUuids = new ArrayList<>();
-            for (JsonNode idNode : qIdsNode) {
-                try {
-                    qUuids.add(UUID.fromString(idNode.asText()));
-                } catch (IllegalArgumentException ignored) {}
-            }
+            List<UUID> qUuids = resolveQuestionUuids(paperId, tenantId);
             if (qUuids.isEmpty()) {
+                log.debug("No question IDs found for paper/practice set {}", paperId);
                 return Collections.emptyList();
             }
 
@@ -848,8 +828,124 @@ public class ExamQuestionDeliveryService {
             }
             return orderedQuestions;
         } catch (Exception e) {
-            log.debug("Could not fetch paper questions for paperId {}: {}", paperId, e.getMessage());
+            log.warn("Could not fetch paper questions for paperId {}: {}", paperId, e.getMessage());
             return Collections.emptyList();
+        }
+    }
+
+    private List<UUID> resolveQuestionUuids(UUID targetId, String tenantId) {
+        List<UUID> uids = new ArrayList<>();
+
+        // 1. Try paper_generator.paper table
+        try {
+            List<String> defJsons = jdbcTemplate.query(
+                    "SELECT paper_definition_json FROM paper_generator.paper WHERE id = ? AND (tenant_id = ? OR tenant_id = 'default' OR tenant_id IS NULL)",
+                    (rs, rowNum) -> rs.getString("paper_definition_json"),
+                    targetId, tenantId
+            );
+            if (!defJsons.isEmpty() && defJsons.get(0) != null && !defJsons.get(0).isBlank()) {
+                uids = extractQuestionUuidsFromJson(defJsons.get(0));
+            }
+        } catch (Exception e) {
+            log.debug("Paper lookup error for {}: {}", targetId, e.getMessage());
+        }
+
+        // 2. If not found or empty, try practice_service.practice_set table
+        if (uids.isEmpty()) {
+            try {
+                List<String> practiceQuestionIds = jdbcTemplate.query(
+                        "SELECT question_ids FROM practice_service.practice_set WHERE id = ? AND (tenant_id = ? OR tenant_id = 'default' OR tenant_id IS NULL)",
+                        (rs, rowNum) -> rs.getString("question_ids"),
+                        targetId, tenantId
+                );
+                if (!practiceQuestionIds.isEmpty() && practiceQuestionIds.get(0) != null && !practiceQuestionIds.get(0).isBlank()) {
+                    uids = extractQuestionUuidsFromJsonOrString(practiceQuestionIds.get(0));
+                }
+            } catch (Exception e) {
+                log.debug("Practice set lookup error for {}: {}", targetId, e.getMessage());
+            }
+        }
+
+        return uids;
+    }
+
+    public List<UUID> extractQuestionUuidsFromJson(String json) {
+        if (json == null || json.isBlank()) {
+            return Collections.emptyList();
+        }
+        List<UUID> result = new ArrayList<>();
+        try {
+            JsonNode root = objectMapper.readTree(json);
+            extractUuidsFromNode(root, result);
+        } catch (Exception e) {
+            log.warn("Failed to parse question UUIDs from JSON: {}", e.getMessage());
+        }
+        return result;
+    }
+
+    public List<UUID> extractQuestionUuidsFromJsonOrString(String raw) {
+        if (raw == null || raw.isBlank()) {
+            return Collections.emptyList();
+        }
+        raw = raw.trim();
+        if (raw.startsWith("[") || raw.startsWith("{")) {
+            return extractQuestionUuidsFromJson(raw);
+        }
+        // Fallback to comma-separated UUID strings
+        List<UUID> list = new ArrayList<>();
+        for (String part : raw.split(",")) {
+            String trimmed = part.trim().replace("\"", "").replace("'", "");
+            try {
+                if (!trimmed.isBlank()) {
+                    list.add(UUID.fromString(trimmed));
+                }
+            } catch (IllegalArgumentException ignored) {}
+        }
+        return list;
+    }
+
+    private void extractUuidsFromNode(JsonNode node, List<UUID> accumulator) {
+        if (node == null || node.isNull()) {
+            return;
+        }
+        if (node.isTextual()) {
+            try {
+                accumulator.add(UUID.fromString(node.asText()));
+            } catch (IllegalArgumentException ignored) {}
+            return;
+        }
+        if (node.isArray()) {
+            for (JsonNode item : node) {
+                extractUuidsFromNode(item, accumulator);
+            }
+            return;
+        }
+        if (node.isObject()) {
+            if (node.has("questionIds")) {
+                extractUuidsFromNode(node.get("questionIds"), accumulator);
+            }
+            if (node.has("questions")) {
+                extractUuidsFromNode(node.get("questions"), accumulator);
+            }
+            if (node.has("questionGroups")) {
+                extractUuidsFromNode(node.get("questionGroups"), accumulator);
+            }
+            if (node.has("sections")) {
+                extractUuidsFromNode(node.get("sections"), accumulator);
+            }
+            if (node.has("id")) {
+                try {
+                    accumulator.add(UUID.fromString(node.get("id").asText()));
+                } catch (IllegalArgumentException ignored) {}
+            } else if (node.has("questionId")) {
+                try {
+                    accumulator.add(UUID.fromString(node.get("questionId").asText()));
+                } catch (IllegalArgumentException ignored) {}
+            } else if (node.has("question_id")) {
+                try {
+                    accumulator.add(UUID.fromString(node.get("question_id").asText()));
+                } catch (IllegalArgumentException ignored) {}
+            }
         }
     }
 

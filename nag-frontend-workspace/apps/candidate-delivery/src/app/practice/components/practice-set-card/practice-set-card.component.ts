@@ -1,15 +1,14 @@
-import { ChangeDetectionStrategy, Component, input, output } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, input, output } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { MatCardModule } from '@angular/material/card';
 import { MatButtonModule } from '@angular/material/button';
-import { MatChipsModule } from '@angular/material/chips';
 import { MatIconModule } from '@angular/material/icon';
+import { MatTooltipModule } from '@angular/material/tooltip';
 import { PracticeSet } from '../../models';
 
 @Component({
   selector: 'app-practice-set-card',
   standalone: true,
-  imports: [CommonModule, MatCardModule, MatButtonModule, MatChipsModule, MatIconModule],
+  imports: [CommonModule, MatButtonModule, MatIconModule, MatTooltipModule],
   templateUrl: './practice-set-card.component.html',
   styleUrl: './practice-set-card.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -17,4 +16,14 @@ import { PracticeSet } from '../../models';
 export class PracticeSetCardComponent {
   readonly set = input.required<PracticeSet>();
   readonly launch = output<PracticeSet>();
+
+  readonly isOfficialExam = computed(() => this.set().source === 'EXAM_CLONE');
+  readonly formattedSubject = computed(() => {
+    const slug = this.set().subjectSlug;
+    if (!slug) return 'General Aptitude';
+    return slug
+      .split('-')
+      .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+      .join(' ');
+  });
 }

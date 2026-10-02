@@ -23,8 +23,6 @@ describe('PracticeHubComponent', () => {
       subjectSlug: 'math',
       published: true,
       totalQuestions: 25,
-      createdBy: 'admin-1',
-      createdAt: '2026-01-01',
     },
     {
       id: 'set-2',
@@ -35,8 +33,6 @@ describe('PracticeHubComponent', () => {
       subjectSlug: 'physics',
       published: true,
       totalQuestions: 15,
-      createdBy: 'admin-1',
-      createdAt: '2026-01-01',
     },
   ];
 
@@ -67,6 +63,49 @@ describe('PracticeHubComponent', () => {
     expect(practiceServiceMock.getSets).toHaveBeenCalled();
     expect(component.practiceSets().length).toBe(2);
     expect(component.isLoading()).toBe(false);
+  });
+
+  it('should compute KPI statistics correctly', () => {
+    const kpi = component.kpiStats();
+    expect(kpi.totalSets).toBe(2);
+    expect(kpi.officialCount).toBe(1);
+    expect(kpi.curatedCount).toBe(1);
+    expect(kpi.totalQuestions).toBe(40);
+    expect(kpi.avgDuration).toBe(38);
+  });
+
+  it('should filter practice sets by search query', () => {
+    component.searchQuery.set('algebra');
+    expect(component.filteredSets().length).toBe(1);
+    expect(component.filteredSets()[0].id).toBe('set-1');
+
+    component.searchQuery.set('Physics');
+    expect(component.filteredSets().length).toBe(1);
+    expect(component.filteredSets()[0].id).toBe('set-2');
+  });
+
+  it('should filter practice sets by source and subject', () => {
+    component.setSource('EXAM_CLONE');
+    expect(component.filteredSets().length).toBe(1);
+    expect(component.filteredSets()[0].id).toBe('set-1');
+
+    component.setSource('ALL');
+    component.setSubject('physics');
+    expect(component.filteredSets().length).toBe(1);
+    expect(component.filteredSets()[0].id).toBe('set-2');
+  });
+
+  it('should reset all filters', () => {
+    component.searchQuery.set('something');
+    component.setSource('MANUAL');
+    component.setSubject('physics');
+
+    component.resetFilters();
+
+    expect(component.searchQuery()).toBe('');
+    expect(component.selectedSource()).toBe('ALL');
+    expect(component.selectedSubject()).toBe('ALL');
+    expect(component.filteredSets().length).toBe(2);
   });
 
   it('should handle error when loading practice sets fails', () => {

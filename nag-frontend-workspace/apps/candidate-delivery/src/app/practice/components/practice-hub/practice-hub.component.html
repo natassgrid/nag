@@ -1,34 +1,230 @@
-<div class="hub-container">
-  <div class="hub-header">
-    <h1>Practice Hub</h1>
-    <div class="header-actions">
-      <button mat-button color="accent" routerLink="/learn/recommendations">
-        <mat-icon>auto_awesome</mat-icon> AI Recommendations & Study Plan
-      </button>
-      <button mat-button color="primary" routerLink="/practice/history">
-        <mat-icon>history</mat-icon> View History
-      </button>
+<div class="practice-hub max-w-7xl mx-auto p-4 sm:p-6 lg:p-8 space-y-6 sm:space-y-8 animate-in fade-in duration-300">
+  <!-- Top Navigation & Action Banner -->
+  <div class="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4 bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs">
+    <div class="flex items-center space-x-3.5">
+      <div class="w-12 h-12 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center font-bold shrink-0 border border-indigo-100">
+        <mat-icon class="!text-2xl">model_training</mat-icon>
+      </div>
+      <div>
+        <h1 class="text-lg font-bold text-slate-900 tracking-tight">Practice Hub & Mock Assessments</h1>
+        <p class="text-xs text-slate-500">Simulate official CBT test environments, improve speed & accuracy, and review topic readiness.</p>
+      </div>
+    </div>
+    <div class="flex items-center gap-2.5 self-start sm:self-auto flex-wrap">
+      <a
+        routerLink="/learn/recommendations"
+        class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200/60 transition-all cursor-pointer"
+      >
+        <mat-icon class="!text-sm text-indigo-600">auto_awesome</mat-icon>
+        AI Recommendations
+      </a>
+      <a
+        routerLink="/practice/history"
+        class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 border border-slate-200/70 transition-all cursor-pointer"
+      >
+        <mat-icon class="!text-sm text-slate-600">history</mat-icon>
+        Practice History
+      </a>
     </div>
   </div>
 
+  <!-- KPI Metrics Ribbon -->
+  <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+    <!-- Total Sets -->
+    <div class="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-xs flex items-center space-x-3.5">
+      <div class="w-10 h-10 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center font-bold">
+        <mat-icon class="!text-xl">library_books</mat-icon>
+      </div>
+      <div>
+        <p class="text-[11px] font-semibold text-slate-500 uppercase tracking-wide">Available Mocks</p>
+        <h4 class="text-xl font-black text-slate-900 leading-none mt-0.5">{{ kpiStats().totalSets }}</h4>
+      </div>
+    </div>
+
+    <!-- Questions Pool -->
+    <div class="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-xs flex items-center space-x-3.5">
+      <div class="w-10 h-10 rounded-xl bg-violet-50 text-violet-600 flex items-center justify-center font-bold">
+        <mat-icon class="!text-xl">quiz</mat-icon>
+      </div>
+      <div>
+        <p class="text-[11px] font-semibold text-slate-500 uppercase tracking-wide">Question Pool</p>
+        <h4 class="text-xl font-black text-slate-900 leading-none mt-0.5">{{ kpiStats().totalQuestions }}</h4>
+      </div>
+    </div>
+
+    <!-- Avg Duration -->
+    <div class="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-xs flex items-center space-x-3.5">
+      <div class="w-10 h-10 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center font-bold">
+        <mat-icon class="!text-xl">schedule</mat-icon>
+      </div>
+      <div>
+        <p class="text-[11px] font-semibold text-slate-500 uppercase tracking-wide">Avg Duration</p>
+        <h4 class="text-xl font-black text-slate-900 leading-none mt-0.5">{{ kpiStats().avgDuration }} <span class="text-xs font-medium text-slate-500">mins</span></h4>
+      </div>
+    </div>
+
+    <!-- Official vs Curated Breakdown -->
+    <div class="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-xs flex items-center space-x-3.5">
+      <div class="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center font-bold">
+        <mat-icon class="!text-xl">verified</mat-icon>
+      </div>
+      <div>
+        <p class="text-[11px] font-semibold text-slate-500 uppercase tracking-wide">Official / Curated</p>
+        <h4 class="text-xl font-black text-slate-900 leading-none mt-0.5">
+          {{ kpiStats().officialCount }} <span class="text-xs font-normal text-slate-400">/</span> {{ kpiStats().curatedCount }}
+        </h4>
+      </div>
+    </div>
+  </div>
+
+  <!-- Filters & Search Toolbar -->
+  <div class="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-xs space-y-3.5">
+    <div class="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+      <!-- Search Input -->
+      <div class="relative flex-1 max-w-md">
+        <mat-icon class="absolute left-3 top-1/2 -translate-y-1/2 !text-lg text-slate-400">search</mat-icon>
+        <input
+          type="text"
+          [ngModel]="searchQuery()"
+          (ngModelChange)="searchQuery.set($event)"
+          placeholder="Search practice sets by name, subject, topic..."
+          class="w-full pl-9 pr-8 py-2 text-xs rounded-xl border border-slate-200 bg-slate-50/50 text-slate-800 placeholder-slate-400 focus:outline-hidden focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
+        />
+        @if (searchQuery()) {
+          <button
+            type="button"
+            (click)="searchQuery.set('')"
+            class="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 cursor-pointer"
+          >
+            <mat-icon class="!text-sm">close</mat-icon>
+          </button>
+        }
+      </div>
+
+      <!-- Source Segmented Control -->
+      <div class="flex items-center space-x-1 p-1 bg-slate-100/80 rounded-xl border border-slate-200/60 self-start sm:self-auto overflow-x-auto max-w-full">
+        <button
+          type="button"
+          (click)="setSource('ALL')"
+          [class.bg-white]="selectedSource() === 'ALL'"
+          [class.shadow-xs]="selectedSource() === 'ALL'"
+          [class.text-indigo-600]="selectedSource() === 'ALL'"
+          [class.font-bold]="selectedSource() === 'ALL'"
+          class="px-3 py-1.5 rounded-lg text-xs font-medium text-slate-600 hover:text-slate-900 transition-all whitespace-nowrap cursor-pointer"
+        >
+          All Sources ({{ practiceSets().length }})
+        </button>
+        <button
+          type="button"
+          (click)="setSource('EXAM_CLONE')"
+          [class.bg-white]="selectedSource() === 'EXAM_CLONE'"
+          [class.shadow-xs]="selectedSource() === 'EXAM_CLONE'"
+          [class.text-emerald-600]="selectedSource() === 'EXAM_CLONE'"
+          [class.font-bold]="selectedSource() === 'EXAM_CLONE'"
+          class="px-3 py-1.5 rounded-lg text-xs font-medium text-slate-600 hover:text-slate-900 transition-all whitespace-nowrap cursor-pointer"
+        >
+          Official Papers ({{ kpiStats().officialCount }})
+        </button>
+        <button
+          type="button"
+          (click)="setSource('MANUAL')"
+          [class.bg-white]="selectedSource() === 'MANUAL'"
+          [class.shadow-xs]="selectedSource() === 'MANUAL'"
+          [class.text-indigo-600]="selectedSource() === 'MANUAL'"
+          [class.font-bold]="selectedSource() === 'MANUAL'"
+          class="px-3 py-1.5 rounded-lg text-xs font-medium text-slate-600 hover:text-slate-900 transition-all whitespace-nowrap cursor-pointer"
+        >
+          Curated Sets ({{ kpiStats().curatedCount }})
+        </button>
+      </div>
+    </div>
+
+    <!-- Subject Filter Chips Row -->
+    @if (subjects().length > 0) {
+      <div class="flex items-center gap-1.5 pt-2 border-t border-slate-100 overflow-x-auto pb-1">
+        <span class="text-[11px] font-bold text-slate-400 uppercase tracking-wider mr-1 shrink-0">Subjects:</span>
+        <button
+          type="button"
+          (click)="setSubject('ALL')"
+          [class.bg-indigo-600]="selectedSubject() === 'ALL'"
+          [class.text-white]="selectedSubject() === 'ALL'"
+          [class.bg-slate-100]="selectedSubject() !== 'ALL'"
+          [class.text-slate-600]="selectedSubject() !== 'ALL'"
+          class="px-2.5 py-1 rounded-lg text-xs font-semibold hover:bg-slate-200 transition-all shrink-0 cursor-pointer"
+        >
+          All
+        </button>
+        @for (subj of subjects(); track subj) {
+          <button
+            type="button"
+            (click)="setSubject(subj)"
+            [class.bg-indigo-600]="selectedSubject() === subj"
+            [class.text-white]="selectedSubject() === subj"
+            [class.bg-slate-100]="selectedSubject() !== subj"
+            [class.text-slate-600]="selectedSubject() !== subj"
+            class="px-2.5 py-1 rounded-lg text-xs font-medium hover:bg-slate-200 transition-all shrink-0 cursor-pointer"
+          >
+            {{ subj }}
+          </button>
+        }
+      </div>
+    }
+  </div>
+
+  <!-- Main Content Area -->
   @if (isLoading()) {
-    <div class="loading-state">
-      <mat-spinner diameter="40"></mat-spinner>
+    <!-- Skeleton Loading Grid -->
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      @for (i of [1, 2, 3, 4, 5, 6]; track i) {
+        <div class="h-64 rounded-2xl bg-slate-100 animate-pulse border border-slate-200/60"></div>
+      }
     </div>
   } @else if (error()) {
-    <div class="error-state">
-      <mat-icon color="warn">error</mat-icon>
-      <p>{{ error() }}</p>
+    <!-- Error State -->
+    <div class="p-8 bg-rose-50 rounded-2xl border border-rose-200 text-center space-y-3 max-w-lg mx-auto">
+      <div class="w-12 h-12 bg-rose-100 text-rose-700 rounded-2xl flex items-center justify-center mx-auto">
+        <mat-icon class="!text-2xl">error_outline</mat-icon>
+      </div>
+      <h3 class="text-sm font-bold text-rose-900">Failed to Load Practice Sets</h3>
+      <p class="text-xs text-rose-700">{{ error() }}</p>
+      <button
+        type="button"
+        (click)="loadPracticeSets()"
+        class="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold text-white bg-rose-600 hover:bg-rose-700 active:bg-rose-800 transition-all cursor-pointer"
+      >
+        <mat-icon class="!text-sm">refresh</mat-icon>
+        Retry Loading
+      </button>
     </div>
-  } @else if (practiceSets().length === 0) {
-    <div class="empty-state">
-      <mat-icon>sentiment_dissatisfied</mat-icon>
-      <p>No practice sets available at the moment.</p>
+  } @else if (filteredSets().length === 0) {
+    <!-- Empty State -->
+    <div class="bg-white rounded-2xl border border-slate-200 p-12 text-center space-y-4 shadow-xs">
+      <div class="w-16 h-16 bg-slate-50 text-slate-400 rounded-3xl flex items-center justify-center mx-auto">
+        <mat-icon class="!text-3xl">sentiment_dissatisfied</mat-icon>
+      </div>
+      <div class="space-y-1">
+        <h3 class="text-base font-bold text-slate-900">No Practice Sets Found</h3>
+        <p class="text-xs text-slate-500 max-w-md mx-auto">
+          No practice sets match your current filter or search criteria. Try modifying your search term or clearing filters.
+        </p>
+      </div>
+      <button
+        type="button"
+        (click)="resetFilters()"
+        class="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold text-indigo-600 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200/60 transition-all cursor-pointer"
+      >
+        <mat-icon class="!text-sm">filter_alt_off</mat-icon>
+        Reset All Filters
+      </button>
     </div>
   } @else {
-    <div class="sets-grid">
-      @for (set of practiceSets(); track set.id) {
-        <app-practice-set-card [set]="set" (launch)="openLaunch($event)"></app-practice-set-card>
+    <!-- Practice Sets Cards Grid -->
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      @for (set of filteredSets(); track set.id) {
+        <app-practice-set-card
+          [set]="set"
+          (launch)="openLaunch($event)"
+        />
       }
     </div>
   }
