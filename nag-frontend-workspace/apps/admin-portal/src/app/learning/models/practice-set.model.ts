@@ -9,6 +9,7 @@ export interface PracticeSet {
   totalQuestions: number;
   createdBy: string;
   createdAt: string;
+  questionIds?: string | string[];
 }
 
 export interface CreatePracticeSetRequest {
@@ -17,6 +18,8 @@ export interface CreatePracticeSetRequest {
   durationMinutes: number;
   subjectSlug: string | null;
   questionIds: string[];
+  source?: 'MANUAL' | 'AUTO_GENERATED' | 'EXAM_CLONE';
+  totalQuestions?: number;
 }
 
 export interface UpdatePracticeSetRequest {
@@ -24,6 +27,8 @@ export interface UpdatePracticeSetRequest {
   description: string | null;
   durationMinutes: number;
   totalQuestions: number;
+  subjectSlug?: string | null;
+  questionIds?: string[];
 }
 
 export interface PracticeSetFormState {

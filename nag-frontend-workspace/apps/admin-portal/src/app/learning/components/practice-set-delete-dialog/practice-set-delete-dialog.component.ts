@@ -1,6 +1,7 @@
 import { Component, ChangeDetectionStrategy, inject, signal } from '@angular/core';
 import { MAT_DIALOG_DATA, MatDialogRef, MatDialogModule } from '@angular/material/dialog';
 import { MatButtonModule } from '@angular/material/button';
+import { MatIconModule } from '@angular/material/icon';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { PracticeSetService } from '../../services';
 import { PracticeSet } from '../../models';
@@ -12,7 +13,7 @@ export interface PracticeSetDeleteDialogData {
 @Component({
   selector: 'app-practice-set-delete-dialog',
   standalone: true,
-  imports: [MatDialogModule, MatButtonModule, MatProgressSpinnerModule],
+  imports: [MatDialogModule, MatButtonModule, MatIconModule, MatProgressSpinnerModule],
   templateUrl: './practice-set-delete-dialog.component.html',
   styleUrls: ['./practice-set-delete-dialog.component.scss'],
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -31,7 +32,7 @@ export class PracticeSetDeleteDialogComponent {
       error: (err) => {
         console.error('Failed to delete', err);
         this.isDeleting.set(false);
-      }
+      },
     });
   }
 
