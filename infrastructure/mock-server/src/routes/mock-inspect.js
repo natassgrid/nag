@@ -21,9 +21,11 @@ router.get(['/health', '/actuator/health'], (req, res) => {
     services: {
       digilocker: 'HEALTHY',
       aadhaarKyc: 'HEALTHY',
-      msg91Sms: 'HEALTHY'
+      msg91Sms: 'HEALTHY',
+      emailGateway: 'HEALTHY'
     },
-    outboxCount: testStore.smsOutbox.length,
+    smsOutboxCount: testStore.smsOutbox.length,
+    emailOutboxCount: testStore.emailOutbox.length,
     activeAadhaarTxns: testStore.aadhaarTxns.size,
     pushedScorecardsCount: testStore.pushedScorecards.length,
     timestamp: new Date().toISOString()
@@ -69,7 +71,7 @@ router.get('/sms/all', (req, res) => {
 });
 
 /**
- * 4. Clear test outbox and state
+ * 4. Clear SMS outbox
  */
 router.delete('/sms/clear', (req, res) => {
   testStore.smsOutbox = [];
@@ -77,7 +79,53 @@ router.delete('/sms/clear', (req, res) => {
 });
 
 /**
- * 5. Get pushed scorecards
+ * 5. Get latest Email sent to an email address (for automated E2E assertions)
+ */
+router.get('/email/latest', (req, res) => {
+  const { email } = req.query;
+
+  if (email) {
+    const cleaned = email.toString().toLowerCase().trim();
+    const found = testStore.emailOutbox.find(e =>
+      e.to.toLowerCase().includes(cleaned)
+    );
+    if (found) {
+      return res.json({ success: true, message: found });
+    }
+    return res.status(404).json({
+      success: false,
+      message: `No email message found for recipient: ${email}`
+    });
+  }
+
+  // Return the very latest message if no recipient specified
+  if (testStore.emailOutbox.length > 0) {
+    return res.json({ success: true, message: testStore.emailOutbox[0] });
+  }
+
+  res.status(404).json({ success: false, message: 'Email outbox is currently empty.' });
+});
+
+/**
+ * 6. Get all sent Email messages
+ */
+router.get('/email/all', (req, res) => {
+  res.json({
+    count: testStore.emailOutbox.length,
+    messages: testStore.emailOutbox
+  });
+});
+
+/**
+ * 7. Clear Email outbox
+ */
+router.delete('/email/clear', (req, res) => {
+  testStore.emailOutbox = [];
+  res.json({ success: true, message: 'Email outbox cleared successfully.' });
+});
+
+/**
+ * 8. Get pushed scorecards
  */
 router.get('/digilocker/scorecards', (req, res) => {
   res.json({
@@ -87,7 +135,7 @@ router.get('/digilocker/scorecards', (req, res) => {
 });
 
 /**
- * 6. Get sample Aadhaar personas
+ * 9. Get sample Aadhaar personas
  */
 router.get('/aadhaar/personas', (req, res) => {
   res.json({
@@ -97,7 +145,7 @@ router.get('/aadhaar/personas', (req, res) => {
 });
 
 /**
- * 7. Get sample DigiLocker documents
+ * 10. Get sample DigiLocker documents
  */
 router.get('/digilocker/documents', (req, res) => {
   res.json({
@@ -107,7 +155,7 @@ router.get('/digilocker/documents', (req, res) => {
 });
 
 /**
- * 8. Chaos & Fault Injection Configuration
+ * 11. Chaos & Fault Injection Configuration
  * Allows E2E test suites to simulate upstream network timeouts, 503 outages, or latency.
  */
 router.post('/chaos', (req, res) => {
@@ -116,7 +164,8 @@ router.post('/chaos', (req, res) => {
     delayMs,
     msg91FailureStatus,
     aadhaarFailureStatus,
-    digilockerFailureStatus
+    digilockerFailureStatus,
+    emailFailureStatus
   } = req.body || {};
 
   if (reset) {
@@ -139,6 +188,9 @@ router.post('/chaos', (req, res) => {
   if (digilockerFailureStatus !== undefined) {
     testStore.chaosConfig.digilockerFailureStatus = digilockerFailureStatus;
   }
+  if (emailFailureStatus !== undefined) {
+    testStore.chaosConfig.emailFailureStatus = emailFailureStatus;
+  }
 
   res.json({
     success: true,
@@ -148,7 +200,7 @@ router.post('/chaos', (req, res) => {
 });
 
 /**
- * 9. Reset entire mock server state
+ * 12. Reset entire mock server state
  */
 router.post('/reset', (req, res) => {
   testStore.reset();
