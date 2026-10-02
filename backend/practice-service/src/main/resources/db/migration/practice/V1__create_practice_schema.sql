@@ -64,3 +64,57 @@ CREATE TABLE practice_service.practice_response (
 
 CREATE INDEX idx_practice_session_candidate ON practice_service.practice_session(candidate_id);
 CREATE INDEX idx_practice_response_session ON practice_service.practice_response(practice_session_id);
+
+-- Seed default published practice sets
+INSERT INTO practice_service.practice_set (
+    id, tenant_id, name, description, created_by, source, question_ids, duration_minutes, subject_slug, published, total_questions, created_at, updated_at, version
+) VALUES
+(
+    '11111111-1111-1111-1111-111111111111',
+    'default',
+    'General Intelligence & Reasoning Mock Test',
+    'Comprehensive reasoning practice covering syllogisms, analogies, coding-decoding, and logical puzzles.',
+    '00000000-0000-0000-0000-000000000001',
+    'MANUAL',
+    '[]'::jsonb,
+    45,
+    'reasoning',
+    TRUE,
+    25,
+    NOW(),
+    NOW(),
+    0
+),
+(
+    '22222222-2222-2222-2222-222222222222',
+    'default',
+    'Quantitative Aptitude Speed Practice',
+    'High-yield arithmetic, algebra, data interpretation, and speed math practice set.',
+    '00000000-0000-0000-0000-000000000001',
+    'MANUAL',
+    '[]'::jsonb,
+    60,
+    'quantitative-aptitude',
+    TRUE,
+    30,
+    NOW(),
+    NOW(),
+    0
+),
+(
+    '33333333-3333-3333-3333-333333333333',
+    'default',
+    'General Awareness & Science Capsule',
+    'Curated practice questions spanning general science, polity, economics, and contemporary awareness.',
+    '00000000-0000-0000-0000-000000000001',
+    'MANUAL',
+    '[]'::jsonb,
+    30,
+    'general-awareness',
+    TRUE,
+    20,
+    NOW(),
+    NOW(),
+    0
+)
+ON CONFLICT (id) DO NOTHING;

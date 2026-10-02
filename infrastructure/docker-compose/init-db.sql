@@ -24,6 +24,8 @@ CREATE SCHEMA IF NOT EXISTS notification_service;
 CREATE SCHEMA IF NOT EXISTS admin_service;
 CREATE SCHEMA IF NOT EXISTS analytics_service;
 CREATE SCHEMA IF NOT EXISTS asset_service;
+CREATE SCHEMA IF NOT EXISTS practice_service;
+CREATE SCHEMA IF NOT EXISTS recommendation_service;
 
 -- Schema for Keycloak (used when KC_DB_SCHEMA=keycloak is set)
 CREATE SCHEMA IF NOT EXISTS keycloak;

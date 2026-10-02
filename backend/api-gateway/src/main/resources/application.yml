@@ -173,6 +173,22 @@ spring:
               filters:
                 - StripPrefix=0
 
+            # Practice Service
+            - id: practice-service
+              uri: ${PRACTICE_SERVICE_URI:http://localhost:8097}
+              predicates:
+                - Path=/api/practice/**,/api/admin/practice/**
+              filters:
+                - StripPrefix=0
+
+            # Recommendation Service
+            - id: recommendation-service
+              uri: ${RECOMMENDATION_SERVICE_URI:http://localhost:8098}
+              predicates:
+                - Path=/api/recommendations/**
+              filters:
+                - StripPrefix=0
+
   data:
     redis:
       host: ${REDIS_HOST:localhost}

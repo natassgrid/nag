@@ -72,7 +72,7 @@ services:
       SPRING_PROFILES_ACTIVE: docker
       PLATFORM_MESSAGING_BROKER: ${PLATFORM_MESSAGING_BROKER:-in-memory}
       SERVER_PORT: ${MONOLITH_PORT:-9000}
-      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-exam_platform}?currentSchema=identity_service,candidate_service,question_service,examination_service,paper_generator,delivery_service,response_service,evaluation_service,result_service,audit_service,notification_service,admin_service,analytics_service,asset_service,public
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-exam_platform}?currentSchema=identity_service,candidate_service,question_service,examination_service,paper_generator,delivery_service,response_service,evaluation_service,result_service,audit_service,notification_service,admin_service,analytics_service,asset_service,practice_service,recommendation_service,public
       SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:-exam_admin}
       SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-exam_secret}
       REDIS_HOST: redis
