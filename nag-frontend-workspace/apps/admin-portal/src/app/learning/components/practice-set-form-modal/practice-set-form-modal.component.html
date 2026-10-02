@@ -102,7 +102,7 @@
   <button
     mat-raised-button
     color="primary"
-    [disabled]="form.invalid || isSubmitting()"
+    [disabled]="!canSubmit()"
     (click)="onSubmit()"
   >
     @if (isSubmitting()) {

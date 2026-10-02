@@ -42,8 +42,8 @@ describe('PracticeSetFormModalComponent', () => {
     shiftName: 'math-shift',
     totalQuestions: 2,
     questions: [
-      { id: 'q-uuid-1', text: 'Sample Question 1' },
-      { id: 'q-uuid-2', text: 'Sample Question 2' },
+      { questionId: 'q-uuid-1', text: 'Sample Question 1' },
+      { questionId: 'q-uuid-2', text: 'Sample Question 2' },
     ],
     paperDefinitionJson: JSON.stringify({ questionIds: ['q-uuid-1', 'q-uuid-2'] }),
   };
@@ -97,6 +97,7 @@ describe('PracticeSetFormModalComponent', () => {
     expect(component.attachedQuestionIds()).toEqual(['q-uuid-1', 'q-uuid-2']);
     expect(component.totalQuestionsCount()).toBe(2);
     expect(component.form.get('name')?.value).toBe('Practice - NES 2026 Mathematics Practice');
+    expect(component.canSubmit()).toBe(true);
   });
 
   it('should submit create request with attached questions and source EXAM_CLONE', () => {
@@ -122,6 +123,12 @@ describe('PracticeSetFormModalComponent', () => {
     component.onSourceTypeChange('MANUAL');
     expect(component.sourceType()).toBe('MANUAL');
     expect(component.attachedQuestionIds()).toEqual([]);
+  });
+
+  it('should enable submit button when typing valid name manually', () => {
+    expect(component.canSubmit()).toBe(false);
+    component.form.patchValue({ name: 'Custom Practice Set' });
+    expect(component.canSubmit()).toBe(true);
   });
 
   it('should close dialog on cancel', () => {

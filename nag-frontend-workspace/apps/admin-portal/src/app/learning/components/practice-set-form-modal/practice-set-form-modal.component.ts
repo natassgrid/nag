@@ -1,4 +1,4 @@
-import { Component, ChangeDetectionStrategy, inject, OnInit, signal, computed } from '@angular/core';
+import { Component, ChangeDetectionStrategy, inject, OnInit, signal, computed, ChangeDetectorRef, DestroyRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormBuilder, FormGroup, Validators, ReactiveFormsModule } from '@angular/forms';
 import { MAT_DIALOG_DATA, MatDialogRef, MatDialogModule } from '@angular/material/dialog';
@@ -9,6 +9,7 @@ import { MatSelectModule } from '@angular/material/select';
 import { MatRadioModule } from '@angular/material/radio';
 import { MatIconModule } from '@angular/material/icon';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { PracticeSetService } from '../../services';
 import { PracticeSet, CreatePracticeSetRequest, UpdatePracticeSetRequest } from '../../models';
 import { PaperService, PaperSummary } from '@nag-frontend-workspace/examinations-data-access';
@@ -39,6 +40,8 @@ export interface PracticeSetFormModalData {
 })
 export class PracticeSetFormModalComponent implements OnInit {
   private readonly fb = inject(FormBuilder);
+  private readonly cdr = inject(ChangeDetectorRef);
+  private readonly destroyRef = inject(DestroyRef);
   private readonly dialogRef = inject(MatDialogRef<PracticeSetFormModalComponent>);
   public readonly data = inject<PracticeSetFormModalData>(MAT_DIALOG_DATA);
   private readonly practiceSetService = inject(PracticeSetService);
@@ -54,16 +57,42 @@ export class PracticeSetFormModalComponent implements OnInit {
   readonly selectedPaperId = signal<string | null>(null);
   readonly attachedQuestionIds = signal<string[]>([]);
   readonly isSubmitting = signal<boolean>(false);
+  readonly isFormValid = signal<boolean>(false);
 
   readonly totalQuestionsCount = computed(() => this.attachedQuestionIds().length);
 
+  readonly canSubmit = computed(() => {
+    if (this.isSubmitting()) return false;
+    if (this.loadingPaperDetails()) return false;
+    return this.isFormValid();
+  });
+
   ngOnInit() {
+    const initialName = this.data.set?.name || '';
+    const initialDuration = this.data.set?.durationMinutes ?? 30;
+
     this.form = this.fb.group({
-      name: [this.data.set?.name || '', [Validators.required, Validators.maxLength(100)]],
+      name: [initialName, [Validators.required, Validators.maxLength(100)]],
       description: [this.data.set?.description || '', [Validators.maxLength(500)]],
-      durationMinutes: [this.data.set?.durationMinutes || 30, [Validators.required, Validators.min(1)]],
+      durationMinutes: [initialDuration, [Validators.required, Validators.min(1)]],
       subjectSlug: [this.data.set?.subjectSlug || ''],
     });
+
+    this.isFormValid.set(this.form.valid);
+
+    this.form.valueChanges
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe(() => {
+        this.isFormValid.set(this.form.valid);
+        this.cdr.markForCheck();
+      });
+
+    this.form.statusChanges
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe(() => {
+        this.isFormValid.set(this.form.valid);
+        this.cdr.markForCheck();
+      });
 
     if (this.data.mode === 'create') {
       this.loadPracticePapers();
@@ -74,16 +103,19 @@ export class PracticeSetFormModalComponent implements OnInit {
 
   loadPracticePapers() {
     this.loadingPapers.set(true);
+    this.cdr.markForCheck();
+
     this.paperService.getPapers({ page: 0, size: 50, isPractice: true }).subscribe({
       next: (res) => {
-        // Include papers where isPractice is true or any generated paper available
         const papers = (res.content || []).filter((p) => p.isPractice !== false);
-        this.practicePapers.set(papers);
+        this.practicePapers.set(papers.length > 0 ? papers : res.content || []);
         this.loadingPapers.set(false);
+        this.cdr.markForCheck();
       },
       error: (err) => {
         console.warn('Could not load practice papers from paper-generator:', err);
         this.loadingPapers.set(false);
+        this.cdr.markForCheck();
       },
     });
   }
@@ -94,17 +126,20 @@ export class PracticeSetFormModalComponent implements OnInit {
       this.selectedPaperId.set(null);
       this.attachedQuestionIds.set([]);
     }
+    this.cdr.markForCheck();
   }
 
   onPaperSelected(paperId: string) {
     if (!paperId) {
       this.selectedPaperId.set(null);
       this.attachedQuestionIds.set([]);
+      this.cdr.markForCheck();
       return;
     }
 
     this.selectedPaperId.set(paperId);
     this.loadingPaperDetails.set(true);
+    this.cdr.markForCheck();
 
     this.paperService.getPaper(paperId).subscribe({
       next: (paper) => {
@@ -131,7 +166,7 @@ export class PracticeSetFormModalComponent implements OnInit {
 
         this.attachedQuestionIds.set(questionIds);
 
-        // Auto-populate form fields if not manually modified
+        // Auto-populate form fields
         const currentName = this.form.get('name')?.value;
         if (!currentName || currentName.trim() === '') {
           this.form.patchValue({
@@ -150,18 +185,24 @@ export class PracticeSetFormModalComponent implements OnInit {
             subjectSlug: paper.shiftName.toLowerCase().replace(/[^a-z0-9]/g, '-'),
           });
         }
+
+        this.form.updateValueAndValidity();
+        this.isFormValid.set(this.form.valid);
+        this.cdr.markForCheck();
       },
       error: (err) => {
         console.error('Failed to load paper details:', err);
         this.loadingPaperDetails.set(false);
+        this.cdr.markForCheck();
       },
     });
   }
 
   onSubmit() {
-    if (this.form.invalid || this.isSubmitting()) return;
+    if (!this.canSubmit()) return;
 
     this.isSubmitting.set(true);
+    this.cdr.markForCheck();
     const formValue = this.form.value;
 
     if (this.data.mode === 'create') {
@@ -182,6 +223,7 @@ export class PracticeSetFormModalComponent implements OnInit {
         },
         error: (err) => {
           this.isSubmitting.set(false);
+          this.cdr.markForCheck();
           console.error('Failed to create practice set', err);
         },
       });
@@ -201,6 +243,7 @@ export class PracticeSetFormModalComponent implements OnInit {
         },
         error: (err) => {
           this.isSubmitting.set(false);
+          this.cdr.markForCheck();
           console.error('Failed to update practice set', err);
         },
       });
