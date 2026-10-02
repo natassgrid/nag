@@ -46,4 +46,8 @@ public class PaperSummaryResponse {
     private double difficultyScore;
     private String encryptionKeyId;
     private Instant createdAt;
+
+    public UUID getId() {
+        return paperId;
+    }
 }

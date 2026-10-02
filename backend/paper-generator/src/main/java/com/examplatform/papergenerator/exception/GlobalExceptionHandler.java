@@ -27,6 +27,7 @@ import org.springframework.security.access.AccessDeniedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 
 import java.net.URI;
 import java.time.Instant;
@@ -98,6 +99,24 @@ public class GlobalExceptionHandler {
         problem.setProperty("errors", ex.getBindingResult().getFieldErrors().stream()
                 .map(fe -> fe.getField() + ": " + fe.getDefaultMessage())
                 .toList());
+        return problem;
+    }
+
+    /**
+     * Handles method argument type mismatch (400), e.g. invalid UUID format in path variable.
+     */
+    @ExceptionHandler(MethodArgumentTypeMismatchException.class)
+    public ProblemDetail handleTypeMismatch(MethodArgumentTypeMismatchException ex) {
+        log.warn("Parameter type mismatch: name={}, value={}, requiredType={}",
+                ex.getName(), ex.getValue(), ex.getRequiredType());
+        String message = String.format("Invalid parameter '%s': value '%s' is not valid for type %s",
+                ex.getName(), ex.getValue(),
+                ex.getRequiredType() != null ? ex.getRequiredType().getSimpleName() : "unknown");
+        ProblemDetail problem = ProblemDetail.forStatusAndDetail(
+                HttpStatus.BAD_REQUEST, message);
+        problem.setTitle("Bad Request");
+        problem.setType(URI.create("urn:examplatform:error:type-mismatch"));
+        problem.setProperty("timestamp", Instant.now());
         return problem;
     }
 
