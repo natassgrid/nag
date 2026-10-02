@@ -86,7 +86,16 @@ public class ExamQuestionDeliveryService {
             }
         }
 
-        // 2. Second priority: check Redis cache for this exam questions package
+        // 2. Second priority: if paperId is provided, check paper_generator.paper table directly
+        if (paperId != null) {
+            List<QuestionDeliveryDto> paperQuestions = fetchQuestionsForPaper(paperId, effectiveTenant);
+            if (!paperQuestions.isEmpty()) {
+                enrichWithTranslations(paperQuestions, effectiveTenant);
+                return paperQuestions;
+            }
+        }
+
+        // 3. Third priority: check Redis cache for this exam questions package
         String cacheKey = REDIS_QUESTIONS_PREFIX + effectiveTenant + ":" + (examId != null ? examId : "default");
         try {
             Object cached = redisTemplate.opsForValue().get(cacheKey);
@@ -767,6 +776,79 @@ public class ExamQuestionDeliveryService {
                     objectMapper.getTypeFactory().constructCollectionType(List.class, QuestionDeliveryDto.class));
         } catch (Exception e) {
             log.warn("Failed to cast cached questions list: {}", e.getMessage());
+            return Collections.emptyList();
+        }
+    }
+
+    public List<QuestionDeliveryDto> getQuestionsForPaper(UUID paperId, String tenantId) {
+        String effectiveTenant = (tenantId != null && !tenantId.isBlank()) ? tenantId : "default";
+        List<QuestionDeliveryDto> questions = fetchQuestionsForPaper(paperId, effectiveTenant);
+        if (!questions.isEmpty()) {
+            enrichWithTranslations(questions, effectiveTenant);
+        }
+        return questions;
+    }
+
+    private List<QuestionDeliveryDto> fetchQuestionsForPaper(UUID paperId, String tenantId) {
+        if (jdbcTemplate == null || paperId == null) {
+            return Collections.emptyList();
+        }
+        try {
+            String paperDefJson = jdbcTemplate.queryForObject(
+                    "SELECT paper_definition_json FROM paper_generator.paper WHERE id = ? AND (tenant_id = ? OR tenant_id = 'default')",
+                    String.class,
+                    paperId,
+                    tenantId
+            );
+            if (paperDefJson == null || paperDefJson.isBlank()) {
+                return Collections.emptyList();
+            }
+
+            JsonNode root = objectMapper.readTree(paperDefJson);
+            JsonNode qIdsNode = root.get("questionIds");
+            if (qIdsNode == null || !qIdsNode.isArray() || qIdsNode.isEmpty()) {
+                return Collections.emptyList();
+            }
+
+            List<UUID> qUuids = new ArrayList<>();
+            for (JsonNode idNode : qIdsNode) {
+                try {
+                    qUuids.add(UUID.fromString(idNode.asText()));
+                } catch (IllegalArgumentException ignored) {}
+            }
+            if (qUuids.isEmpty()) {
+                return Collections.emptyList();
+            }
+
+            String inSql = String.join(",", Collections.nCopies(qUuids.size(), "?"));
+            String sql = String.format("""
+                SELECT q.id, q.subject, q.topic, q.subtopic, q.difficulty, q.cognitive_level, q.question_type,
+                       q.content, q.options, q.answer_key, q.explanation, q.has_images,
+                       q.passage_id, p.content AS passage_content, q.passage_order_index
+                FROM question_service.question q
+                LEFT JOIN question_service.passage p ON q.passage_id = p.id
+                WHERE q.id IN (%s)
+                """, inSql);
+
+            List<QuestionDeliveryDto> questions = queryQuestions(sql, qUuids.toArray(), null, null, 2.0, 0.5);
+
+            Map<UUID, QuestionDeliveryDto> qMap = new HashMap<>();
+            for (QuestionDeliveryDto q : questions) {
+                try {
+                    qMap.put(UUID.fromString(q.getId()), q);
+                } catch (Exception ignored) {}
+            }
+
+            List<QuestionDeliveryDto> orderedQuestions = new ArrayList<>();
+            for (UUID uid : qUuids) {
+                QuestionDeliveryDto q = qMap.get(uid);
+                if (q != null) {
+                    orderedQuestions.add(q);
+                }
+            }
+            return orderedQuestions;
+        } catch (Exception e) {
+            log.debug("Could not fetch paper questions for paperId {}: {}", paperId, e.getMessage());
             return Collections.emptyList();
         }
     }

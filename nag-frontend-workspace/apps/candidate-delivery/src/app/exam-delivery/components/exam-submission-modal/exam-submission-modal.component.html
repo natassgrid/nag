@@ -1,39 +1,91 @@
 <div class="submission-modal-backdrop fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4">
   <div class="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl border border-slate-100 space-y-4">
-    <div class="w-12 h-12 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center mx-auto">
-      <mat-icon class="!text-3xl">verified</mat-icon>
-    </div>
-    <div class="text-center">
-      <h3 class="text-lg font-bold text-slate-900">Exam Successfully Submitted</h3>
-      <p class="text-xs text-slate-500 mt-1">
-        Your responses have been cryptographically sealed and committed to the tamper-evident audit ledger.
-      </p>
-    </div>
+    @if (receipt().mode === 'PRACTICE') {
+      <div class="w-12 h-12 rounded-full bg-purple-100 text-purple-700 flex items-center justify-center mx-auto">
+        <mat-icon class="!text-3xl">psychology</mat-icon>
+      </div>
+      <div class="text-center">
+        <h3 class="text-lg font-bold text-slate-900">Practice Mock Completed</h3>
+        <p class="text-xs text-slate-500 mt-1">
+          Your simulation has been scored. Review your answers and explanations to boost your readiness.
+        </p>
+      </div>
 
-    <div class="bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-2 text-xs font-mono">
-      <div>
-        <span class="text-slate-400 block text-[10px]">DIGITAL SIGNATURE PROOF:</span>
-        <span class="break-all text-slate-700">{{ receipt().signature }}</span>
+      <!-- Score Breakdown Box -->
+      <div class="bg-purple-50/50 p-4 rounded-xl border border-purple-100 grid grid-cols-3 gap-3 text-center">
+        <div class="p-2 bg-white rounded-lg border border-purple-100 shadow-2xs">
+          <span class="text-[10px] uppercase font-bold text-slate-400 block">Total Score</span>
+          <span class="text-base font-black text-purple-700 font-mono">
+            {{ receipt().score ?? 0 }} / {{ receipt().totalMarks ?? 0 }}
+          </span>
+        </div>
+        <div class="p-2 bg-white rounded-lg border border-emerald-100 shadow-2xs">
+          <span class="text-[10px] uppercase font-bold text-emerald-600 block">Correct</span>
+          <span class="text-base font-black text-emerald-600 font-mono">
+            {{ receipt().correctCount ?? 0 }}
+          </span>
+        </div>
+        <div class="p-2 bg-white rounded-lg border border-rose-100 shadow-2xs">
+          <span class="text-[10px] uppercase font-bold text-rose-600 block">Incorrect</span>
+          <span class="text-base font-black text-rose-600 font-mono">
+            {{ receipt().incorrectCount ?? 0 }}
+          </span>
+        </div>
       </div>
-      <div>
-        <span class="text-slate-400 block text-[10px]">SHA-256 SUBMISSION HASH:</span>
-        <span class="break-all font-bold text-slate-900">{{ receipt().hash }}</span>
-      </div>
-      <div>
-        <span class="text-slate-400 block text-[10px]">TIMESTAMP:</span>
-        <span class="text-slate-700">{{ receipt().timestamp }}</span>
-      </div>
-    </div>
 
-    <div class="pt-2 text-center">
-      <a
-        mat-flat-button
-        color="primary"
-        routerLink="/results"
-        class="!w-full !rounded-xl !py-2.5 font-semibold cursor-pointer"
-      >
-        View Verified Scorecard &rarr;
-      </a>
-    </div>
+      <div class="pt-2 flex flex-col sm:flex-row items-center gap-3">
+        <a
+          mat-stroked-button
+          routerLink="/dashboard"
+          class="!w-full !rounded-xl !py-2.5 font-semibold cursor-pointer"
+        >
+          Return to Dashboard
+        </a>
+        <a
+          mat-flat-button
+          color="primary"
+          routerLink="/review"
+          class="!w-full !rounded-xl !py-2.5 font-semibold cursor-pointer !bg-purple-600 !text-white"
+        >
+          Review Questions &rarr;
+        </a>
+      </div>
+    } @else {
+      <div class="w-12 h-12 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center mx-auto">
+        <mat-icon class="!text-3xl">verified</mat-icon>
+      </div>
+      <div class="text-center">
+        <h3 class="text-lg font-bold text-slate-900">Exam Successfully Submitted</h3>
+        <p class="text-xs text-slate-500 mt-1">
+          Your responses have been cryptographically sealed and committed to the tamper-evident audit ledger.
+        </p>
+      </div>
+
+      <div class="bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-2 text-xs font-mono">
+        <div>
+          <span class="text-slate-400 block text-[10px]">DIGITAL SIGNATURE PROOF:</span>
+          <span class="break-all text-slate-700">{{ receipt().signature }}</span>
+        </div>
+        <div>
+          <span class="text-slate-400 block text-[10px]">SHA-256 SUBMISSION HASH:</span>
+          <span class="break-all font-bold text-slate-900">{{ receipt().hash }}</span>
+        </div>
+        <div>
+          <span class="text-slate-400 block text-[10px]">TIMESTAMP:</span>
+          <span class="text-slate-700">{{ receipt().timestamp }}</span>
+        </div>
+      </div>
+
+      <div class="pt-2 text-center">
+        <a
+          mat-flat-button
+          color="primary"
+          routerLink="/results"
+          class="!w-full !rounded-xl !py-2.5 font-semibold cursor-pointer"
+        >
+          View Verified Scorecard &rarr;
+        </a>
+      </div>
+    }
   </div>
 </div>

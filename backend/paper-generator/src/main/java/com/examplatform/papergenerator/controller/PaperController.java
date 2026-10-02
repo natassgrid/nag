@@ -431,6 +431,43 @@ public class PaperController {
         return ResponseEntity.ok(response);
     }
 
+    /**
+     * Public endpoint for candidates to list approved practice papers for an examination.
+     *
+     * @param examId the examination UUID
+     * @return 200 OK with list of practice papers
+     */
+    @GetMapping("/public/practice")
+    public ResponseEntity<List<PaperSummaryResponse>> getPracticePapers(
+            @RequestParam UUID examId) {
+        String tenantId = getEffectiveTenantId();
+        log.info("Fetching public practice papers for examId={}, tenant={}", examId, tenantId);
+
+        List<Paper> papers = paperRepository.findPracticePapersByExamId(examId, tenantId);
+
+        String examName = examinationLookupService.findExamNames(Set.of(examId)).get(examId);
+
+        List<PaperSummaryResponse> response = papers.stream().map(p -> {
+            String resolvedName = p.getName();
+            if (resolvedName == null || resolvedName.isBlank()) {
+                resolvedName = (examName != null ? examName : "Practice Paper");
+            }
+            return PaperSummaryResponse.builder()
+                    .paperId(p.getId())
+                    .name(resolvedName)
+                    .examId(p.getExamId())
+                    .examName(examName)
+                    .shiftId(p.getShiftId())
+                    .status(p.getStatus())
+                    .isPractice(p.isPractice())
+                    .difficultyScore(p.getDifficultyScore())
+                    .createdAt(p.getCreatedAt())
+                    .build();
+        }).collect(Collectors.toList());
+
+        return ResponseEntity.ok(response);
+    }
+
     private String getEffectiveTenantId() {
         String tenantId = TenantContext.get();
         return (tenantId != null && !tenantId.isBlank()) ? tenantId : "default";

@@ -44,6 +44,16 @@ public interface PaperRepository extends JpaRepository<Paper, UUID> {
 
     @Query("""
         SELECT p FROM Paper p
+        WHERE p.examId = :examId
+          AND p.isPractice = true
+          AND p.status IN ('APPROVED', 'PUBLISHED', 'ENCRYPTED')
+          AND (p.tenantId = :tenantId OR p.tenantId = 'default')
+        ORDER BY p.createdAt DESC
+    """)
+    List<Paper> findPracticePapersByExamId(@Param("examId") UUID examId, @Param("tenantId") String tenantId);
+
+    @Query("""
+        SELECT p FROM Paper p
         WHERE p.tenantId = :tenantId
           AND (:examId IS NULL OR p.examId = :examId)
           AND (:status IS NULL OR p.status = :status)

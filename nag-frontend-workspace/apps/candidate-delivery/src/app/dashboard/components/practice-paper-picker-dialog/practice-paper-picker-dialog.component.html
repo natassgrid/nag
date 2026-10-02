@@ -1,0 +1,107 @@
+<div
+  class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-xs animate-in fade-in duration-200"
+  role="dialog"
+  aria-modal="true"
+  aria-labelledby="practice-picker-title"
+>
+  <div
+    class="bg-white w-full max-w-2xl rounded-3xl shadow-2xl border border-slate-200 overflow-hidden flex flex-col max-h-[90vh] animate-in zoom-in-95 duration-200"
+  >
+    <!-- Header -->
+    <div class="px-6 py-5 bg-gradient-to-r from-purple-900 via-indigo-900 to-slate-900 text-white flex items-center justify-between">
+      <div class="flex items-center space-x-3">
+        <div class="w-10 h-10 rounded-2xl bg-white/10 flex items-center justify-center border border-white/20">
+          <mat-icon class="text-purple-300">psychology</mat-icon>
+        </div>
+        <div>
+          <h2 id="practice-picker-title" class="text-base font-bold leading-tight">
+            Select Practice Mock Paper
+          </h2>
+          <p class="text-xs text-purple-200/80 mt-0.5 line-clamp-1">
+            {{ examTitle() }}
+          </p>
+        </div>
+      </div>
+      <button
+        type="button"
+        (click)="closeDialog.emit()"
+        aria-label="Close modal"
+        class="w-9 h-9 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center transition-colors cursor-pointer"
+      >
+        <mat-icon class="!text-lg">close</mat-icon>
+      </button>
+    </div>
+
+    <!-- Body -->
+    <div class="p-6 overflow-y-auto space-y-4">
+      <div class="bg-purple-50/70 border border-purple-200/70 rounded-2xl p-4 flex items-start space-x-3">
+        <mat-icon class="text-purple-600 !text-xl mt-0.5">info</mat-icon>
+        <p class="text-xs text-purple-900 leading-relaxed font-medium">
+          Multiple practice papers are available for this examination. Select any paper below to launch a full real-time practice simulation with auto-timer and question palette.
+        </p>
+      </div>
+
+      <div class="space-y-3">
+        @for (paper of papers(); track paper.paperId; let idx = $index) {
+          <div
+            class="p-4 rounded-2xl border border-slate-200 hover:border-purple-300 bg-white hover:bg-purple-50/30 transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-2xs"
+          >
+            <div class="space-y-1.5 flex-1">
+              <div class="flex items-center space-x-2">
+                <span class="px-2 py-0.5 rounded-md bg-purple-100 text-purple-800 text-[10px] font-bold uppercase tracking-wider">
+                  Paper #{{ idx + 1 }}
+                </span>
+                <span class="px-2 py-0.5 rounded-md bg-emerald-100 text-emerald-800 text-[10px] font-bold uppercase tracking-wider">
+                  {{ paper.status }}
+                </span>
+              </div>
+              <h4 class="text-sm font-bold text-slate-900 leading-tight">
+                {{ paper.name }}
+              </h4>
+              <div class="flex flex-wrap items-center gap-3 text-xs text-slate-500 font-medium pt-1">
+                <span class="flex items-center gap-1">
+                  <mat-icon class="!text-sm text-slate-400">help_outline</mat-icon>
+                  {{ paper.totalQuestions || 25 }} Questions
+                </span>
+                @if (paper.difficultyScore) {
+                  <span class="flex items-center gap-1">
+                    <mat-icon class="!text-sm text-amber-500">speed</mat-icon>
+                    Difficulty: {{ paper.difficultyScore }}/10
+                  </span>
+                }
+                @if (paper.shiftId) {
+                  <span class="flex items-center gap-1">
+                    <mat-icon class="!text-sm text-slate-400">schedule</mat-icon>
+                    Shift: {{ paper.shiftId }}
+                  </span>
+                }
+              </div>
+            </div>
+
+            <button
+              type="button"
+              mat-flat-button
+              (click)="selectPaper.emit(paper)"
+              class="!rounded-xl !px-4 !py-2 !text-xs font-bold !bg-purple-600 hover:!bg-purple-700 !text-white cursor-pointer shadow-xs whitespace-nowrap self-stretch sm:self-auto"
+            >
+              <mat-icon class="!text-sm">play_arrow</mat-icon>
+              Start Practice
+            </button>
+          </div>
+        }
+      </div>
+    </div>
+
+    <!-- Footer -->
+    <div class="px-6 py-4 bg-slate-50 border-t border-slate-200 flex items-center justify-end">
+      <button
+        type="button"
+        mat-stroked-button
+        (click)="closeDialog.emit()"
+        class="!rounded-xl !text-xs font-semibold"
+      >
+        Cancel
+      </button>
+    </div>
+  </div>
+</div>

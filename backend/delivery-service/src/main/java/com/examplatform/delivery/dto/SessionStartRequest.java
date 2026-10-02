@@ -29,7 +29,7 @@ import java.util.UUID;
 
 /**
  * Request payload for starting an exam session.
- * The candidate JWT provides the candidateId — this DTO carries the exam/shift selection.
+ * The candidate JWT provides the candidateId — this DTO carries the exam/shift/paper selection.
  */
 @Data
 @Builder
@@ -41,6 +41,11 @@ public class SessionStartRequest {
     private UUID examId;
 
     private UUID shiftId;
+
+    /**
+     * Optional explicit paperId to deliver (e.g. for real practice papers or mock tests).
+     */
+    private UUID paperId;
 
     @Builder.Default
     private String languageCode = "en";

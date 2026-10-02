@@ -1,25 +1,43 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideHttpClient } from '@angular/common/http';
 import { provideHttpClientTesting } from '@angular/common/http/testing';
-import { provideRouter } from '@angular/router';
+import { provideRouter, Router } from '@angular/router';
+import { NotificationService } from '@nag-frontend-workspace/shared-ui-components';
 import { ExamDeliveryComponent } from './exam-delivery.component';
+import { ExamDeliveryService } from './services';
 
 describe('ExamDeliveryComponent', () => {
   let component: ExamDeliveryComponent;
   let fixture: ComponentFixture<ExamDeliveryComponent>;
+  let deliveryService: ExamDeliveryService;
+  let notificationService: jest.Mocked<NotificationService>;
+  let router: Router;
 
   beforeEach(async () => {
+    const notificationServiceMock = {
+      confirm: jest.fn().mockResolvedValue(true),
+      warning: jest.fn(),
+      success: jest.fn(),
+      error: jest.fn(),
+      info: jest.fn(),
+    };
+
     await TestBed.configureTestingModule({
       imports: [ExamDeliveryComponent],
       providers: [
         provideHttpClient(),
         provideHttpClientTesting(),
         provideRouter([]),
+        ExamDeliveryService,
+        { provide: NotificationService, useValue: notificationServiceMock },
       ],
     }).compileComponents();
 
     fixture = TestBed.createComponent(ExamDeliveryComponent);
     component = fixture.componentInstance;
+    deliveryService = TestBed.inject(ExamDeliveryService);
+    notificationService = TestBed.inject(NotificationService) as any;
+    router = TestBed.inject(Router);
     fixture.detectChanges();
   });
 
@@ -57,12 +75,26 @@ describe('ExamDeliveryComponent', () => {
   it('should navigate between questions', () => {
     component.goToQuestion(1);
     expect(component.currentIndex()).toBe(1);
-    expect(component.currentItem()?.questionCode).toBe('CS-MATH-202');
+    expect(component.currentItem()?.questionCode).toBe('NES-MATH-202');
 
     component.prevQuestion();
     expect(component.currentIndex()).toBe(0);
 
     component.nextQuestion();
     expect(component.currentIndex()).toBe(1);
+  });
+
+  it('should navigate back to dashboard when exit banner is confirmed', async () => {
+    const navigateSpy = jest.spyOn(router, 'navigate').mockImplementation(() => Promise.resolve(true));
+    await component.handleExitBanner();
+    expect(notificationService.confirm).toHaveBeenCalled();
+    expect(navigateSpy).toHaveBeenCalledWith(['/dashboard']);
+  });
+
+  it('should submit exam when confirmed', async () => {
+    const sealSpy = jest.spyOn(deliveryService, 'sealAndSubmit');
+    await component.confirmSubmission();
+    expect(notificationService.confirm).toHaveBeenCalled();
+    expect(sealSpy).toHaveBeenCalled();
   });
 });

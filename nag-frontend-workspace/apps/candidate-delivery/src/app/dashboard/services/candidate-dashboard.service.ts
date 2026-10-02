@@ -5,6 +5,7 @@ import {
   EnrolledExam,
   DigitalAdmitCard,
   DashboardKpiMetrics,
+  PracticePaperSummary,
 } from '../models';
 
 export const DEFAULT_ENROLLED_EXAMS: EnrolledExam[] = [
@@ -303,6 +304,34 @@ export class CandidateDashboardService {
             ],
           });
         })
+      );
+  }
+  /**
+   * Fetch approved practice papers available for an examination.
+   */
+  getPracticePapers(examId: string): Observable<PracticePaperSummary[]> {
+    return this.http
+      .get<any>('/api/v1/papers/public/practice', { params: { examId } })
+      .pipe(
+        map((res) => {
+          const list = res?.data ?? res;
+          if (Array.isArray(list)) {
+            return list.map((item: any) => ({
+              paperId: String(item.paperId || item.id),
+              name: item.name || 'Practice Paper',
+              examId: String(item.examId || examId),
+              examName: item.examName,
+              shiftId: item.shiftId,
+              status: item.status || 'APPROVED',
+              isPractice: true,
+              difficultyScore: item.difficultyScore ?? 5.0,
+              totalQuestions: item.totalQuestions ?? 25,
+              createdAt: item.createdAt,
+            } as PracticePaperSummary));
+          }
+          return [];
+        }),
+        catchError(() => of([]))
       );
   }
 }

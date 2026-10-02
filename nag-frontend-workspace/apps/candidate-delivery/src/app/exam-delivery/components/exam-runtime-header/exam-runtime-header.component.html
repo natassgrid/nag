@@ -1,15 +1,43 @@
 <header class="bg-slate-900 text-white px-6 py-3 flex items-center justify-between border-b border-slate-800 shrink-0">
   <div class="flex items-center gap-4">
     <div class="flex items-center gap-2">
-      <span class="w-7 h-7 rounded bg-indigo-600 flex items-center justify-center font-black text-xs">
+      <span
+        class="w-7 h-7 rounded flex items-center justify-center font-black text-xs"
+        [ngClass]="{
+          'bg-indigo-600': deliveryMode() === 'LIVE',
+          'bg-purple-600': deliveryMode() === 'PRACTICE',
+          'bg-amber-600': deliveryMode() === 'PREVIEW'
+        }"
+      >
         NAG
       </span>
-      <span class="font-bold text-sm tracking-wide">SECURE CANDIDATE RUNTIME</span>
+      <span class="font-bold text-sm tracking-wide">
+        @if (deliveryMode() === 'PREVIEW') {
+          EXAMINATION PREVIEW RUNTIME
+        } @else if (deliveryMode() === 'PRACTICE') {
+          PRACTICE MOCK SIMULATION
+        } @else {
+          SECURE CANDIDATE RUNTIME
+        }
+      </span>
     </div>
-    <span class="text-xs px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 flex items-center gap-1.5 font-mono">
-      <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
-      PROCTOR HEARTBEAT: ENCRYPTED
-    </span>
+
+    @if (deliveryMode() === 'LIVE') {
+      <span class="text-xs px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 flex items-center gap-1.5 font-mono">
+        <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+        PROCTOR HEARTBEAT: ENCRYPTED
+      </span>
+    } @else if (deliveryMode() === 'PRACTICE') {
+      <span class="text-xs px-2 py-0.5 rounded bg-purple-500/20 text-purple-300 border border-purple-500/30 flex items-center gap-1.5 font-mono">
+        <span class="w-1.5 h-1.5 rounded-full bg-purple-400 animate-pulse"></span>
+        PRACTICE SIMULATION (LOCAL)
+      </span>
+    } @else {
+      <span class="text-xs px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30 flex items-center gap-1.5 font-mono">
+        <span class="w-1.5 h-1.5 rounded-full bg-amber-400"></span>
+        PREVIEW ACTIVE (READ-ONLY)
+      </span>
+    }
   </div>
 
   <div class="flex items-center gap-6">
@@ -32,22 +60,28 @@
     <div
       class="flex items-center gap-2 px-3 py-1 rounded-lg font-mono font-bold text-sm"
       [ngClass]="{
-        'bg-rose-950 text-rose-300 border border-rose-800 animate-pulse': isWarningTimer(),
-        'bg-slate-800 text-slate-200 border border-slate-700': !isWarningTimer()
+        'bg-rose-950 text-rose-300 border border-rose-800 animate-pulse': isWarningTimer() && deliveryMode() !== 'PREVIEW',
+        'bg-slate-800 text-slate-200 border border-slate-700': !isWarningTimer() || deliveryMode() === 'PREVIEW'
       }"
     >
       <mat-icon class="!text-base leading-none">timer</mat-icon>
       <span>{{ formattedTime() }}</span>
     </div>
 
-    <!-- Submit Trigger Button -->
+    <!-- Submit / Exit Trigger Button -->
     <button
       mat-flat-button
-      color="warn"
+      [color]="deliveryMode() === 'PREVIEW' ? 'primary' : deliveryMode() === 'PRACTICE' ? 'accent' : 'warn'"
       (click)="onSubmit()"
       class="!text-xs !py-1 !px-3 font-semibold !rounded-lg cursor-pointer"
     >
-      Submit Exam
+      @if (deliveryMode() === 'PREVIEW') {
+        Exit Preview
+      } @else if (deliveryMode() === 'PRACTICE') {
+        Finish Mock Test
+      } @else {
+        Submit Exam
+      }
     </button>
   </div>
 </header>
