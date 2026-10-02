@@ -1,0 +1,161 @@
+# SPDX-License-Identifier: AGPL-3.0-only
+#
+# National Assessment Grid (NAG) - Open Digital Public Infrastructure (DPI) Platform
+# Copyright (C) 2025 NAG Contributors
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU Affero General Public License as published
+# by the Free Software Foundation, version 3 of the License.
+
+spring:
+  application:
+    name: practice-service
+
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/exam_platform}
+    username: ${SPRING_DATASOURCE_USERNAME:exam_admin}
+    password: ${SPRING_DATASOURCE_PASSWORD:exam_secret}
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: 20
+      minimum-idle: 5
+      connection-timeout: 30000
+      schema: practice_service
+
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate:
+        default_schema: practice_service
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        format_sql: false
+    show-sql: false
+
+  flyway:
+    enabled: true
+    schemas: practice_service
+    locations: classpath:db/migration/practice
+
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:redis_secret}
+      timeout: 2000ms
+
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: ${KEYCLOAK_ISSUER_URI:http://localhost:8080/realms/exam-realm}
+          jwk-set-uri: ${KEYCLOAK_ISSUER_URI:http://localhost:8080/realms/exam-realm}/protocol/openid-connect/certs
+
+  cloud:
+    vault:
+      uri: ${VAULT_ADDR:http://localhost:8200}
+      token: ${VAULT_ROOT_TOKEN:vault_root_token}
+      scheme: http
+      kv:
+        enabled: true
+        backend: secret
+      transit:
+        enabled: true
+        backend: transit
+        default-context: practice-service
+
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JacksonJsonSerializer
+      acks: all
+      retries: 3
+      properties:
+        enable.idempotence: true
+        max.in.flight.requests.per.connection: 1
+    consumer:
+      group-id: practice-service
+      auto-offset-reset: earliest
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.JacksonJsonDeserializer
+      properties:
+        spring.json.trusted.packages: "com.examplatform.*"
+
+  threads:
+    virtual:
+      enabled: true
+
+server:
+  port: ${practice_SERVICE_PORT:8087}
+  servlet:
+    context-path: /
+  shutdown: graceful
+
+grpc:
+  client:
+    examination:
+      host: ${GRPC_EXAMINATION_HOST:localhost}
+      port: ${GRPC_EXAMINATION_PORT:9085}
+      timeout-ms: 5000
+    candidate:
+      host: ${GRPC_CANDIDATE_HOST:localhost}
+      port: ${GRPC_CANDIDATE_PORT:9082}
+      timeout-ms: 5000
+    questionbank:
+      host: ${GRPC_QUESTION_BANK_HOST:localhost}
+      port: ${GRPC_QUESTION_BANK_PORT:9083}
+      timeout-ms: 5000
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus,metrics
+  endpoint:
+    health:
+      show-details: always
+      probes:
+        enabled: true
+  health:
+    redis:
+      enabled: true
+    db:
+      enabled: true
+    kafka:
+      enabled: true
+    vault:
+      enabled: true
+  metrics:
+    tags:
+      service: practice-service
+    distribution:
+      percentiles-histogram:
+        http.server.requests: true
+
+# HPA custom metric — target 5,000 active sessions per pod
+hpa:
+  metrics:
+    active-exam-sessions:
+      target-per-pod: 5000
+
+otel:
+  service:
+    name: practice-service
+  exporter:
+    otlp:
+      endpoint: ${OTEL_EXPORTER_OTLP_ENDPOINT:http://localhost:4317}
+      protocol: grpc
+
+logging:
+  pattern:
+    console: '{"timestamp":"%d{ISO8601}","level":"%p","service":"practice-service","traceId":"%X{traceId}","spanId":"%X{spanId}","message":"%m"}%n'
+
+resilience4j:
+  circuitbreaker:
+    instances:
+      questionBank:
+        sliding-window-size: 10
+        failure-rate-threshold: 50
+        wait-duration-in-open-state: 30s
+        permitted-number-of-calls-in-half-open-state: 3
