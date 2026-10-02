@@ -1,4 +1,4 @@
-<div class="exam-card bg-white rounded-2xl border border-slate-200 p-6 shadow-xs flex flex-col justify-between space-y-5 hover:shadow-lg hover:border-indigo-200 transition-all duration-200">
+<div class="exam-card bg-white rounded-2xl border border-slate-200 p-6 shadow-xs flex flex-col justify-between space-y-5 hover:shadow-lg hover:border-indigo-200 transition-all duration-200" [ngClass]="{ 'ring-2 ring-purple-400/40 bg-purple-50/10': exam().isPractice }">
   <div class="space-y-4">
     <!-- Card Top Header -->
     <div class="flex items-start justify-between gap-3">
@@ -7,7 +7,12 @@
           <span class="text-xs font-mono font-bold bg-indigo-50 text-indigo-700 px-2.5 py-0.5 rounded-md border border-indigo-100">
             {{ exam().code }}
           </span>
-          @if (exam().daysRemaining && exam().daysRemaining! > 0 && exam().status === 'UPCOMING') {
+          @if (exam().isPractice) {
+            <span class="text-[11px] font-bold bg-purple-50 text-purple-700 px-2 py-0.5 rounded-md border border-purple-200 flex items-center gap-1">
+              <mat-icon class="!text-[13px] text-purple-600">psychology</mat-icon>
+              Practice Mock Test
+            </span>
+          } @else if (exam().daysRemaining && exam().daysRemaining! > 0 && exam().status === 'UPCOMING') {
             <span class="text-[11px] font-bold bg-amber-50 text-amber-700 px-2 py-0.5 rounded-md border border-amber-200">
               In {{ exam().daysRemaining }} Days
             </span>
@@ -25,25 +30,25 @@
       </div>
 
       <nag-status-badge
-        [variant]="exam().status === 'LIVE' ? 'warn' : exam().status === 'UPCOMING' ? 'info' : 'success'"
-        [label]="exam().status === 'LIVE' ? 'Live Session Active' : exam().status === 'UPCOMING' ? 'Scheduled' : 'Completed'"
+        [variant]="exam().isPractice ? 'info' : (exam().status === 'LIVE' ? 'warn' : exam().status === 'UPCOMING' ? 'info' : 'success')"
+        [label]="exam().isPractice ? 'Self-Practice Ready' : (exam().status === 'LIVE' ? 'Live Session Active' : exam().status === 'UPCOMING' ? 'Scheduled' : 'Completed')"
       />
     </div>
 
     <!-- Metadata Grid -->
     <div class="grid grid-cols-2 gap-2.5 text-xs text-slate-700 bg-slate-50 p-4 rounded-xl border border-slate-100">
       <div>
-        <span class="text-slate-400 block text-[10px] uppercase font-bold">Exam Date & Time</span>
+        <span class="text-slate-400 block text-[10px] uppercase font-bold">{{ exam().isPractice ? 'Practice Window' : 'Exam Date & Time' }}</span>
         <span class="font-bold text-slate-900">{{ exam().scheduledDate }}</span>
         <span class="text-[11px] text-slate-500 block">{{ exam().scheduledTime }}</span>
       </div>
       <div>
-        <span class="text-slate-400 block text-[10px] uppercase font-bold">Roll / Reg. Number</span>
+        <span class="text-slate-400 block text-[10px] uppercase font-bold">{{ exam().isPractice ? 'Test Mode' : 'Roll / Reg. Number' }}</span>
         <span class="font-mono font-bold text-indigo-700">{{ exam().rollNumber }}</span>
         <span class="text-[11px] text-slate-500 block">{{ exam().durationMinutes }} Mins</span>
       </div>
       <div class="col-span-2 pt-2 border-t border-slate-200/70">
-        <span class="text-slate-400 block text-[10px] uppercase font-bold">Allocated Test Center</span>
+        <span class="text-slate-400 block text-[10px] uppercase font-bold">{{ exam().isPractice ? 'Practice Environment' : 'Allocated Test Center' }}</span>
         <span class="font-bold text-slate-800 truncate block">{{ exam().centerName }}</span>
         <span class="text-[11px] text-slate-500 truncate block">{{ exam().centerAddress }}</span>
       </div>
@@ -51,37 +56,62 @@
   </div>
 
   <!-- Action Toolbar -->
-  <div class="flex items-center justify-between pt-3 border-t border-slate-100 gap-3">
-    <button
-      type="button"
-      mat-stroked-button
-      (click)="openAdmitCard.emit(exam())"
-      [disabled]="!exam().admitCardReady"
-      class="!flex-1 !rounded-xl !text-xs font-semibold"
-    >
-      <mat-icon class="!text-sm">badge</mat-icon>
-      Admit Card
-    </button>
+  <div class="flex items-center justify-between pt-3 border-t border-slate-100 gap-2">
+    @if (!exam().isPractice) {
+      <button
+        type="button"
+        mat-stroked-button
+        (click)="openAdmitCard.emit(exam())"
+        [disabled]="!exam().admitCardReady"
+        class="!flex-1 !rounded-xl !text-xs font-semibold"
+      >
+        <mat-icon class="!text-sm">badge</mat-icon>
+        Admit Card
+      </button>
+    }
 
-    @if (exam().status === 'LIVE') {
+    @if (exam().isPractice) {
       <a
         mat-flat-button
         routerLink="/delivery"
+        [queryParams]="{ examId: exam().id, mode: 'PRACTICE' }"
+        class="!flex-1 !rounded-xl !text-xs font-bold !bg-purple-600 hover:!bg-purple-700 !text-white shadow-md shadow-purple-600/20"
+      >
+        <mat-icon class="!text-sm">play_arrow</mat-icon>
+        Launch Practice Exam
+      </a>
+    } @else if (exam().status === 'LIVE') {
+      <a
+        mat-flat-button
+        routerLink="/delivery"
+        [queryParams]="{ examId: exam().id, mode: 'LIVE' }"
         class="!flex-1 !rounded-xl !text-xs font-bold !bg-rose-600 hover:!bg-rose-700 !text-white shadow-md shadow-rose-600/20 animate-pulse"
       >
         <mat-icon class="!text-sm">play_arrow</mat-icon>
         Enter Live Exam
       </a>
     } @else if (exam().status === 'UPCOMING' || exam().status === 'SCHEDULED') {
-      <a
-        mat-flat-button
-        color="primary"
-        routerLink="/delivery"
-        class="!flex-1 !rounded-xl !text-xs font-semibold"
-      >
-        <mat-icon class="!text-sm">visibility</mat-icon>
-        Preview Runtime
-      </a>
+      <div class="flex items-center gap-2 flex-1">
+        <a
+          mat-stroked-button
+          color="primary"
+          routerLink="/delivery"
+          [queryParams]="{ examId: exam().id, mode: 'PREVIEW' }"
+          class="!flex-1 !rounded-xl !text-xs font-semibold"
+        >
+          <mat-icon class="!text-sm">visibility</mat-icon>
+          Preview
+        </a>
+        <a
+          mat-flat-button
+          routerLink="/delivery"
+          [queryParams]="{ examId: exam().id, mode: 'PRACTICE' }"
+          class="!flex-1 !rounded-xl !text-xs font-bold !bg-purple-600 hover:!bg-purple-700 !text-white shadow-xs"
+        >
+          <mat-icon class="!text-sm">psychology</mat-icon>
+          Practice Mock
+        </a>
+      </div>
     } @else {
       <a
         mat-flat-button

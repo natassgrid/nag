@@ -37,6 +37,36 @@ export const DEFAULT_MOCK_EXAMS: CatalogExam[] = [
     ],
     status: 'OPEN',
     applied: true,
+    isPractice: false,
+  },
+  {
+    id: 'mock-nes-101',
+    code: 'MOCK-NES-2026-P1',
+    title: 'NES 2026 Official Practice Mock Assessment (CS & AI)',
+    conductingAuthority: 'National Assessment Grid / Academic Council',
+    category: 'ENGINEERING',
+    examinationType: 'COMPUTER_BASED_TEST',
+    examinationMode: 'OPEN_PRACTICE',
+    durationMinutes: 90,
+    totalMarks: 150,
+    negativeMarkingEnabled: true,
+    negativeMarkingValue: 0.25,
+    navigationPolicy: 'FREE_FORWARD_BACKWARD',
+    calculatorPolicy: 'SCIENTIFIC_VIRTUAL',
+    reviewFlagEnabled: true,
+    applicationDeadline: '2026-12-31',
+    examDate: '2026-10-02',
+    feeAmount: 0,
+    eligibility: 'Free Open Mock Simulation for all registered & prospective candidates',
+    totalSeats: 1000000,
+    vacanciesCount: 0,
+    sections: [
+      { name: 'Practice Algorithms & Problem Solving', durationMinutes: 45, totalQuestions: 20, totalMarks: 75 },
+      { name: 'Practice Mathematics & Applied Logic', durationMinutes: 45, totalQuestions: 20, totalMarks: 75 },
+    ],
+    status: 'OPEN',
+    applied: true,
+    isPractice: true,
   },
   {
     id: 'exam-2',
@@ -66,6 +96,35 @@ export const DEFAULT_MOCK_EXAMS: CatalogExam[] = [
     ],
     status: 'OPEN',
     applied: false,
+    isPractice: false,
+  },
+  {
+    id: 'mock-gate-102',
+    code: 'MOCK-DPI-P1',
+    title: 'Open Protocols Practice Simulation Test',
+    conductingAuthority: 'Digital India Corporation / MeitY',
+    category: 'ENGINEERING',
+    examinationType: 'COMPUTER_BASED_TEST',
+    examinationMode: 'OPEN_PRACTICE',
+    durationMinutes: 60,
+    totalMarks: 50,
+    negativeMarkingEnabled: true,
+    negativeMarkingValue: 0.33,
+    navigationPolicy: 'FREE_FORWARD_BACKWARD',
+    calculatorPolicy: 'STANDARD_VIRTUAL',
+    reviewFlagEnabled: true,
+    applicationDeadline: '2026-12-31',
+    examDate: '2026-10-02',
+    feeAmount: 0,
+    eligibility: 'Interactive mock test designed to familiarize candidates with digital systems',
+    totalSeats: 500000,
+    vacanciesCount: 0,
+    sections: [
+      { name: 'Aptitude & Protocol Systems Mock', durationMinutes: 60, totalQuestions: 25, totalMarks: 50 },
+    ],
+    status: 'OPEN',
+    applied: false,
+    isPractice: true,
   },
   {
     id: 'exam-3',
@@ -94,6 +153,7 @@ export const DEFAULT_MOCK_EXAMS: CatalogExam[] = [
     ],
     status: 'OPEN',
     applied: false,
+    isPractice: false,
   },
   {
     id: 'exam-4',
@@ -124,6 +184,7 @@ export const DEFAULT_MOCK_EXAMS: CatalogExam[] = [
     ],
     status: 'CLOSING_SOON',
     applied: false,
+    isPractice: false,
   },
   {
     id: 'exam-5',
@@ -152,6 +213,7 @@ export const DEFAULT_MOCK_EXAMS: CatalogExam[] = [
     ],
     status: 'OPEN',
     applied: false,
+    isPractice: false,
   },
   {
     id: 'exam-6',
@@ -181,6 +243,7 @@ export const DEFAULT_MOCK_EXAMS: CatalogExam[] = [
     ],
     status: 'OPEN',
     applied: false,
+    isPractice: false,
   },
 ];
 
@@ -341,6 +404,7 @@ export class CandidateBrowseService {
             sections: item.sections || [],
             status: item.status || 'OPEN',
             applied: appliedExamIds.has(String(item.id)),
+            isPractice: !!(item.isPractice || item.practice),
           }));
 
           return mapped;
@@ -366,79 +430,47 @@ export class CandidateBrowseService {
   }
 
   /**
-   * Load list of public exam testing centres across states and cities.
+   * Load public centres directory from backend API.
    */
-  loadPublicCentres(state?: string, city?: string): Observable<PublicCentre[]> {
-    let params = new HttpParams();
-    if (state) params = params.set('state', state);
-    if (city) params = params.set('city', city);
-
-    return this.http
-      .get<any>(`${this.examsUrl}/centres/public`, { params })
-      .pipe(
-        map((res) => {
-          const payload = res?.data ?? res;
-          if (Array.isArray(payload) && payload.length > 0) {
-            return payload as PublicCentre[];
-          }
-          return DEFAULT_MOCK_CENTRES;
-        }),
-        catchError(() => of(DEFAULT_MOCK_CENTRES)),
-        tap((centres) => this.centres.set(centres))
-      );
+  loadPublicCentres(): Observable<PublicCentre[]> {
+    return this.http.get<any>(`${this.examsUrl}/centres/public`).pipe(
+      map((res) => {
+        const payload = res?.data ?? res;
+        return Array.isArray(payload) && payload.length > 0 ? payload : DEFAULT_MOCK_CENTRES;
+      }),
+      catchError(() => of(DEFAULT_MOCK_CENTRES)),
+      tap((centres) => this.centres.set(centres))
+    );
   }
 
   /**
-   * Submit multi-step examination application with centre preferences and category details.
+   * Apply for an examination.
    */
-  applyForExam(
-    examId: string,
-    payload: ApplyExamPayload
-  ): Observable<ApplicationReceipt> {
+  applyForExam(examId: string, payload: ApplyExamPayload): Observable<ApplicationReceipt> {
     return this.http
       .post<any>(`${this.examsUrl}/${examId}/apply`, payload)
       .pipe(
         map((res) => {
           const data = res?.data ?? res;
-          const centreName = this.centres().find(c => c.id === payload.firstChoiceCentreId)?.centreName || 'National Center';
           return {
-            applicationId: data?.id || `APP-${Date.now()}`,
-            applicationNumber: data?.applicationNumber || `NAG-${Date.now().toString().slice(-8)}`,
+            applicationId: data.id || data.applicationId || `APP-${Date.now()}`,
+            applicationNumber: data.applicationNumber || `NAG-${Math.floor(100000 + Math.random() * 900000)}`,
             examId: examId,
-            examTitle: data?.examTitle || 'National Examination',
-            examCode: data?.examCode || 'EXAM-2026',
-            candidateName: data?.candidateName || 'Candidate',
-            candidateEmail: data?.candidateEmail || 'candidate@nag.gov.in',
-            category: data?.category || 'General',
-            appliedAt: data?.submittedAt || new Date().toISOString(),
-            feePaid: data?.feePaid ?? 500,
-            firstChoiceCentreName: centreName,
+            examTitle: data.examTitle || 'National Assessment Examination',
+            examCode: data.examCode || 'EXAM-2026',
+            candidateName: data.candidateName || 'Candidate',
+            candidateEmail: data.candidateEmail || 'candidate@example.gov.in',
+            category: data.category || 'General',
+            appliedAt: data.appliedAt || new Date().toISOString(),
+            feePaid: data.feePaid ?? 0,
+            firstChoiceCentreName: data.centreName || 'Allocated Centre Hub',
             pwdAssistance: !!payload.pwdRequired,
-            status: data?.status || 'SUBMITTED',
-          } as ApplicationReceipt;
-        }),
-        catchError(() => {
-          const centreName = this.centres().find(c => c.id === payload.firstChoiceCentreId)?.centreName || 'National Center';
-          return of({
-            applicationId: `APP-${Date.now()}`,
-            applicationNumber: `NAG-${Date.now().toString().slice(-8)}`,
-            examId: examId,
-            examTitle: 'National Assessment Examination',
-            examCode: 'EXAM-2026',
-            candidateName: 'Candidate',
-            candidateEmail: 'candidate@nag.gov.in',
-            category: 'General',
-            appliedAt: new Date().toISOString(),
-            feePaid: 500,
-            firstChoiceCentreName: centreName,
-            pwdAssistance: !!payload.pwdRequired,
-            status: 'SUBMITTED',
-          } as ApplicationReceipt);
+            status: data.status || 'CONFIRMED',
+          };
         }),
         tap(() => {
-          // Update catalog applied flag in reactive state
-          this.catalog.update((list) =>
-            list.map((exam) => (exam.id === examId ? { ...exam, applied: true } : exam))
+          this.catalog.update((exams) =>
+            exams.map((e) => (e.id === examId ? { ...e, applied: true } : e))
           );
         })
       );

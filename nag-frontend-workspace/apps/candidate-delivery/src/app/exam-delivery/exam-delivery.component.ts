@@ -8,6 +8,9 @@ import {
   computed,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { ActivatedRoute, RouterModule } from '@angular/router';
+import { MatIconModule } from '@angular/material/icon';
+import { MatButtonModule } from '@angular/material/button';
 import {
   hashSha256,
   signSubmissionHash,
@@ -36,6 +39,9 @@ export * from './models';
   standalone: true,
   imports: [
     CommonModule,
+    RouterModule,
+    MatIconModule,
+    MatButtonModule,
     ExamRuntimeHeaderComponent,
     ExamQuestionCardComponent,
     ExamQuestionPaletteComponent,
@@ -46,9 +52,13 @@ export * from './models';
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class ExamDeliveryComponent implements OnInit, OnDestroy {
+  readonly route = inject(ActivatedRoute);
   readonly i18nService = inject(I18nService);
   private readonly notificationService = inject(NotificationService);
   readonly supportedLanguages = SUPPORTED_LANGUAGES;
+
+  readonly examId = signal<string | null>(null);
+  readonly deliveryMode = signal<'LIVE' | 'PRACTICE' | 'PREVIEW'>('LIVE');
 
   readonly sessionMeta = signal<ExamSessionMetadata>({
     sessionId: 'NES-2026-A48',
@@ -138,6 +148,25 @@ export class ExamDeliveryComponent implements OnInit, OnDestroy {
   );
 
   ngOnInit(): void {
+    this.route.queryParams.subscribe((params) => {
+      const modeParam = (params['mode'] || '').toUpperCase();
+      if (modeParam === 'PRACTICE') {
+        this.deliveryMode.set('PRACTICE');
+        this.sessionMeta.set({
+          sessionId: 'MOCK-SESSION-SIM-2026',
+          candidateId: 'PRACTICE-CANDIDATE',
+        });
+      } else if (modeParam === 'PREVIEW') {
+        this.deliveryMode.set('PREVIEW');
+      } else {
+        this.deliveryMode.set('LIVE');
+      }
+
+      if (params['examId']) {
+        this.examId.set(params['examId']);
+      }
+    });
+
     this.timerInterval = setInterval(() => {
       this.remainingSeconds.update((val) => {
         if (val <= 1) {
@@ -196,12 +225,13 @@ export class ExamDeliveryComponent implements OnInit, OnDestroy {
   async confirmSubmission(): Promise<void> {
     const answered = this.countAnswered();
     const total = this.questions().length;
+    const isMock = this.deliveryMode() === 'PRACTICE';
     const confirmed = await this.notificationService.confirm({
-      title: 'Finalize and Submit Exam Responses?',
-      message: `You have answered ${answered} of ${total} questions.\nOnce submitted, your responses will be cryptographically hashed, sealed, and cannot be modified.`,
-      confirmText: 'Submit & Seal Exam',
+      title: isMock ? 'Complete Practice Mock Session?' : 'Finalize and Submit Exam Responses?',
+      message: `You have answered ${answered} of ${total} questions.\n${isMock ? 'Your practice score and instant review will be generated.' : 'Once submitted, your responses will be cryptographically hashed, sealed, and cannot be modified.'}`,
+      confirmText: isMock ? 'Submit Practice Mock' : 'Submit & Seal Exam',
       cancelText: 'Return to Test',
-      type: 'warning',
+      type: isMock ? 'info' : 'warning',
     });
 
     if (confirmed) {
@@ -220,8 +250,9 @@ export class ExamDeliveryComponent implements OnInit, OnDestroy {
 
   private async performSubmission(): Promise<void> {
     const payload = JSON.stringify({
-      candidateId: '849202',
-      examId: 'NES-2026-S1',
+      candidateId: this.sessionMeta().candidateId,
+      examId: this.examId() || 'NES-2026-S1',
+      mode: this.deliveryMode(),
       answers: this.questions().map((q) => ({
         id: q.id,
         selected: q.selectedOptionId || null,

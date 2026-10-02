@@ -45,6 +45,13 @@ describe('BrowseExamsComponent', () => {
     expect(appliedExams.every((e) => e.applied)).toBe(true);
   });
 
+  it('should filter exams by status PRACTICE', () => {
+    component.onStatusChange('PRACTICE');
+    const practiceExams = component.filteredExams();
+    expect(practiceExams.length).toBeGreaterThan(0);
+    expect(practiceExams.every((e) => e.isPractice)).toBe(true);
+  });
+
   it('should sort exams by fee low to high', () => {
     component.onSortChange('FEE_ASC');
     const sorted = component.filteredExams();

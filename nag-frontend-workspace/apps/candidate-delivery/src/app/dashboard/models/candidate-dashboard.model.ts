@@ -18,6 +18,8 @@ export interface EnrolledExam {
   admitCardReady: boolean;
   daysRemaining?: number;
   deliverySessionId?: string;
+  isPractice?: boolean;
+  practiceAvailable?: boolean;
 }
 
 export interface DigitalAdmitCard {
@@ -48,4 +50,5 @@ export interface DashboardKpiMetrics {
   liveCount: number;
   upcomingCount: number;
   scorecardsCount: number;
+  practiceCount?: number;
 }
