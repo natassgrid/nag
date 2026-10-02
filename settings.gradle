@@ -43,3 +43,4 @@ include 'backend:post-exam-app'
 include 'backend:monolith-app'
 
 include 'backend:practice-service'
+include 'backend:recommendation-service'
