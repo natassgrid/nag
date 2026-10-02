@@ -1,3 +1,5 @@
+export type ExamDeliveryMode = 'LIVE' | 'PRACTICE' | 'PREVIEW';
+
 export interface ExamOption {
   id: string;
   text: string;
@@ -18,11 +20,19 @@ export interface ExamItem {
   isVisited?: boolean;
 }
 
+export interface ExamScoreSummary {
+  score: number;
+  totalMarks: number;
+  correctCount: number;
+  incorrectCount: number;
+  unansweredCount: number;
+}
+
 export interface ExamSubmissionReceipt {
   signature: string;
   hash: string;
   timestamp: string;
-  mode?: 'LIVE' | 'PRACTICE' | 'PREVIEW';
+  mode?: ExamDeliveryMode;
   score?: number;
   totalMarks?: number;
   correctCount?: number;

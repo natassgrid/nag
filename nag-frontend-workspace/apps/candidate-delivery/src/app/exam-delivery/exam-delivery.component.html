@@ -1,98 +1,66 @@
-<div class="exam-runtime-container h-screen flex flex-col bg-slate-100 text-slate-800 select-none">
-  <!-- Preview Mode Notification Bar -->
-  @if (deliveryMode() === 'PREVIEW') {
-    <div class="bg-gradient-to-r from-amber-600 via-amber-700 to-slate-800 text-white px-4 py-2 flex items-center justify-between shadow-md text-xs font-semibold z-10">
-      <div class="flex items-center gap-2">
-        <span class="bg-amber-900/60 text-amber-200 uppercase text-[10px] font-mono font-bold px-2 py-0.5 rounded border border-amber-400/30">
-          Preview Mode
-        </span>
-        <span class="flex items-center gap-1 font-bold">
-          <mat-icon class="!text-sm">visibility</mat-icon>
-          Sample Examination Pattern & Architecture Preview
-        </span>
-        <span class="hidden md:inline text-amber-100">
-          — Sample test questions and layout inspection. Responses will not be submitted to official records.
-        </span>
-      </div>
-      <a
-        routerLink="/dashboard"
-        class="text-amber-200 hover:text-white underline text-xs ml-4 whitespace-nowrap"
-      >
-        Exit Preview
-      </a>
-    </div>
-  }
+<div class="h-screen w-full flex flex-col bg-slate-950 text-slate-100 overflow-hidden font-sans select-none">
+  <!-- Mode Banner (Preview / Practice Simulation) -->
+  <nag-exam-mode-banner
+    [mode]="deliveryMode()"
+    (exit)="handleExitBanner()"
+  />
 
-  <!-- Practice Mode Notification Bar -->
-  @if (deliveryMode() === 'PRACTICE') {
-    <div class="bg-gradient-to-r from-purple-700 via-indigo-700 to-purple-800 text-white px-4 py-2 flex items-center justify-between shadow-md text-xs font-semibold z-10">
-      <div class="flex items-center gap-2">
-        <span class="bg-purple-900/60 text-purple-200 uppercase text-[10px] font-mono font-bold px-2 py-0.5 rounded border border-purple-400/30">
-          Simulation Mode
-        </span>
-        <span class="flex items-center gap-1 font-bold">
-          <mat-icon class="!text-sm">psychology</mat-icon>
-          Official Practice Mock Environment
-        </span>
-        <span class="hidden md:inline text-purple-200">
-          — Real exam timer, negative marking simulation, and instant post-submission performance review.
-        </span>
-      </div>
-      <a
-        routerLink="/dashboard"
-        class="text-purple-200 hover:text-white underline text-xs ml-4 whitespace-nowrap"
-      >
-        Exit Practice
-      </a>
-    </div>
-  }
-
-  <!-- High Security Proctoring & Telemetry Bar -->
+  <!-- Top Runtime Header Component -->
   <nag-exam-runtime-header
-    [remainingSeconds]="remainingSeconds()"
+    [deliveryMode]="deliveryMode()"
     [formattedTime]="formattedTime()"
+    [remainingSeconds]="remainingSeconds()"
     [currentLanguage]="i18nService.currentLanguage()"
     [supportedLanguages]="supportedLanguages"
-    [deliveryMode]="deliveryMode()"
-    (languageChange)="i18nService.setLanguage($event)"
+    (languageChange)="onLanguageChange($event)"
     (submit)="confirmSubmission()"
   />
 
-  <!-- Exam Workspace -->
-  <div class="grow flex overflow-hidden">
-    <!-- Main Question Area -->
-    <main class="grow p-6 overflow-y-auto flex flex-col justify-between">
+  <!-- Main Delivery Split Body -->
+  <main class="flex-1 flex overflow-hidden min-h-0">
+    <!-- Left: Question Workspace -->
+    <section class="flex-1 flex flex-col min-w-0 bg-slate-900 border-r border-slate-800">
       @if (currentItem(); as item) {
         <nag-exam-question-card
           [item]="item"
           [currentIndex]="currentIndex()"
-          [totalQuestions]="questions().length"
+          [totalQuestions]="totalQuestions()"
           (selectOption)="selectOption(item, $event)"
           (clearResponse)="clearResponse(item)"
           (toggleFlag)="toggleFlag(item)"
           (previous)="prevQuestion()"
           (next)="nextQuestion()"
         />
+      } @else {
+        <div class="flex-1 flex items-center justify-center p-8 text-center text-slate-500">
+          <div class="max-w-md">
+            <mat-icon class="!text-6xl !w-16 !h-16 text-slate-600 mb-4">quiz</mat-icon>
+            <h3 class="text-xl font-bold text-slate-300 mb-2">No Question Selected</h3>
+            <p class="text-sm">Please select a question number from the question palette on the right.</p>
+          </div>
+        </div>
       }
-    </main>
+    </section>
 
-    <!-- Right Side Palette Sidebar -->
-    <nag-exam-question-palette
-      [questions]="questions()"
-      [currentIndex]="currentIndex()"
-      [countAnswered]="countAnswered()"
-      [countFlagged]="countFlagged()"
-      [countUnvisited]="countUnvisited()"
-      [sessionMeta]="sessionMeta()"
-      (selectQuestion)="goToQuestion($event)"
-    />
-  </div>
+    <!-- Right: Question Palette & Candidate Status -->
+    <aside class="w-80 lg:w-96 flex flex-col bg-slate-950 shrink-0">
+      <nag-exam-question-palette
+        [questions]="questions()"
+        [currentIndex]="currentIndex()"
+        [countAnswered]="countAnswered()"
+        [countFlagged]="countFlagged()"
+        [countUnvisited]="countUnvisited()"
+        [sessionMeta]="sessionMeta()"
+        (selectQuestion)="goToQuestion($event)"
+      />
+    </aside>
+  </main>
 
-  <!-- Submission Ledger Receipt Modal -->
+  <!-- Cryptographic Submission Receipt & Score Modal -->
   @if (submissionReceipt(); as receipt) {
     <nag-exam-submission-modal
       [receipt]="receipt"
-      (close)="submissionReceipt.set(null)"
+      (close)="onCloseReceipt()"
     />
   }
 </div>
