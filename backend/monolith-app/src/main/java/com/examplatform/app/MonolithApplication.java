@@ -52,6 +52,8 @@ import org.springframework.scheduling.annotation.EnableScheduling;
                 "com.examplatform.admin",
                 "com.examplatform.analytics",
                 "com.examplatform.asset",
+                "com.examplatform.practice",
+                "com.examplatform.recommendation",
                 "com.examplatform.shared",
                 "com.examplatform.app"
         }
@@ -71,7 +73,9 @@ import org.springframework.scheduling.annotation.EnableScheduling;
                 "com.examplatform.notification",
                 "com.examplatform.admin",
                 "com.examplatform.analytics",
-                "com.examplatform.asset"
+                "com.examplatform.asset",
+                "com.examplatform.practice",
+                "com.examplatform.recommendation"
         }
 )
 @EnableAsync

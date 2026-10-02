@@ -39,6 +39,7 @@ import org.springframework.scheduling.annotation.EnableScheduling;
         scanBasePackages = {
                 "com.examplatform.delivery",
                 "com.examplatform.response",
+                "com.examplatform.practice",
                 "com.examplatform.shared",
                 "com.examplatform.app"
         }
@@ -46,7 +47,8 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 @EnableJpaRepositories(
         basePackages = {
                 "com.examplatform.delivery",
-                "com.examplatform.response"
+                "com.examplatform.response",
+                "com.examplatform.practice"
         }
 )
 @EnableAsync

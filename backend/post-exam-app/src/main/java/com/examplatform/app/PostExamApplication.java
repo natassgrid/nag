@@ -37,6 +37,7 @@ import org.springframework.scheduling.annotation.EnableScheduling;
                 "com.examplatform.evaluation",
                 "com.examplatform.result",
                 "com.examplatform.analytics",
+                "com.examplatform.recommendation",
                 "com.examplatform.shared",
                 "com.examplatform.app"
         }
@@ -45,7 +46,8 @@ import org.springframework.scheduling.annotation.EnableScheduling;
         basePackages = {
                 "com.examplatform.evaluation",
                 "com.examplatform.result",
-                "com.examplatform.analytics"
+                "com.examplatform.analytics",
+                "com.examplatform.recommendation"
         }
 )
 @EnableAsync

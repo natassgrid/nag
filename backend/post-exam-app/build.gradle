@@ -33,6 +33,7 @@ dependencies {
     implementation project(':backend:evaluation-service')
     implementation project(':backend:result-service')
     implementation project(':backend:analytics-service')
+    implementation project(':backend:recommendation-service')
 
     // Web & Boot
     implementation libs.spring.boot.starter.web
