@@ -1,9 +1,14 @@
 <div class="hub-container">
   <div class="hub-header">
     <h1>Practice Hub</h1>
-    <button mat-button color="primary" routerLink="/practice/history">
-      <mat-icon>history</mat-icon> View History
-    </button>
+    <div class="header-actions">
+      <button mat-button color="accent" routerLink="/learn/recommendations">
+        <mat-icon>auto_awesome</mat-icon> AI Recommendations & Study Plan
+      </button>
+      <button mat-button color="primary" routerLink="/practice/history">
+        <mat-icon>history</mat-icon> View History
+      </button>
+    </div>
   </div>
 
   @if (isLoading()) {

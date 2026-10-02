@@ -1,0 +1,20 @@
+<div class="weak-topics-container">
+  @for (topic of topics(); track topic.topicName) {
+    <mat-card class="topic-card" appearance="outlined">
+      <mat-card-header>
+        <mat-card-title>{{ topic.topicName }}</mat-card-title>
+        <mat-card-subtitle>Accuracy: {{ topic.currentAccuracy | percent:'1.0-1' }}</mat-card-subtitle>
+      </mat-card-header>
+      <mat-card-content>
+        <p class="subtopics-title">Focus Areas:</p>
+        <mat-chip-set>
+          @for (sub of topic.subtopicsToRevise; track sub) {
+            <mat-chip>{{ sub }}</mat-chip>
+          }
+        </mat-chip-set>
+      </mat-card-content>
+    </mat-card>
+  } @empty {
+    <p class="empty-state">No weak topics identified yet.</p>
+  }
+</div>

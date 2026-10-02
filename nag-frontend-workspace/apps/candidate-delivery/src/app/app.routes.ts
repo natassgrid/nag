@@ -101,6 +101,15 @@ export const appRoutes: Route[] = [
       ),
   },
   {
+    path: 'learn',
+    canActivate: [authGuard],
+    loadComponent: () => import('./learn/learn.component').then(m => m.LearnComponent),
+    children: [
+      { path: 'recommendations', loadComponent: () => import('./learn/components/recommendations-dashboard/recommendations-dashboard.component').then(m => m.RecommendationsDashboardComponent) },
+      { path: '', redirectTo: 'recommendations', pathMatch: 'full' }
+    ]
+  },
+  {
     path: '**',
     canActivate: [rootGuard],
     loadComponent: () =>

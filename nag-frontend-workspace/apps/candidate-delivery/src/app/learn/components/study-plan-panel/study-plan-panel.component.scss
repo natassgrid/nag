@@ -1,0 +1,10 @@
+:host {
+  display: block;
+}
+
+.empty-state {
+  color: var(--mat-sys-on-surface-variant);
+  font-style: italic;
+  padding: 16px;
+  text-align: center;
+}

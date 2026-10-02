@@ -1,0 +1,40 @@
+<mat-card appearance="outlined">
+  <mat-card-header>
+    <mat-card-title>Learner Insights</mat-card-title>
+    <mat-card-subtitle>Overall Performance Summary</mat-card-subtitle>
+  </mat-card-header>
+  
+  <mat-card-content>
+    <div class="stat-row">
+      <div class="stat-box">
+        <div class="stat-value">{{ profile().overallAccuracy | percent:'1.0-1' }}</div>
+        <div class="stat-label">Overall Accuracy</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-value">{{ profile().totalPracticeSessions }}</div>
+        <div class="stat-label">Practice Sessions</div>
+      </div>
+    </div>
+
+    <mat-divider></mat-divider>
+
+    <div class="topic-section">
+      <h3 class="section-title">Topic Accuracies</h3>
+      <div class="accuracy-list">
+        @for (item of getTopicAccuracyList(profile().topicAccuracyMap); track item.topic) {
+          <div class="accuracy-item">
+            <div class="accuracy-header">
+              <span class="topic-name">{{ item.topic }}</span>
+              <span class="topic-value">{{ item.accuracy | percent:'1.0-0' }}</span>
+            </div>
+            <mat-progress-bar mode="determinate" [value]="item.accuracy * 100" 
+              [color]="item.accuracy > 0.7 ? 'primary' : 'warn'">
+            </mat-progress-bar>
+          </div>
+        } @empty {
+          <p class="empty-state">No topic data available yet.</p>
+        }
+      </div>
+    </div>
+  </mat-card-content>
+</mat-card>

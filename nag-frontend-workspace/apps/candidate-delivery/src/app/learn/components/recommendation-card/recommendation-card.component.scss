@@ -1,0 +1,29 @@
+:host {
+  display: block;
+}
+
+.rec-card {
+  height: 100%;
+}
+
+.message-banner {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background-color: var(--mat-sys-secondary-container);
+  color: var(--mat-sys-on-secondary-container);
+  padding: 16px;
+  border-radius: 8px;
+  margin-top: 16px;
+  margin-bottom: 16px;
+
+  p {
+    margin: 0;
+    font-size: 1rem;
+    font-weight: 500;
+  }
+}
+
+.tab-content {
+  padding-top: 16px;
+}

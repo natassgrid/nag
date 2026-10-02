@@ -1,0 +1,11 @@
+<mat-list>
+  @for (item of plan(); track item.day) {
+    <mat-list-item>
+      <mat-icon matListItemIcon>event</mat-icon>
+      <div matListItemTitle>Day {{ item.day }}: {{ item.topicName }}</div>
+      <div matListItemLine>Estimated time: {{ item.estimatedMinutes }} mins</div>
+    </mat-list-item>
+  } @empty {
+    <p class="empty-state">No study plan available.</p>
+  }
+</mat-list>
