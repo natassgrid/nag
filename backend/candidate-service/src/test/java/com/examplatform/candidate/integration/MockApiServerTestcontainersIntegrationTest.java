@@ -27,6 +27,10 @@ import org.testcontainers.containers.wait.strategy.Wait;
 import org.testcontainers.images.builder.ImageFromDockerfile;
 import org.testcontainers.utility.DockerImageName;
 
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.time.Duration;
@@ -54,6 +58,26 @@ class MockApiServerTestcontainersIntegrationTest {
 
     @BeforeAll
     static void startContainer() {
+        // 1. Check if local mock server is already running on port 8099
+        try {
+            HttpClient client = HttpClient.newBuilder().connectTimeout(Duration.ofMillis(800)).build();
+            HttpRequest req = HttpRequest.newBuilder()
+                    .uri(URI.create("http://127.0.0.1:8099/health"))
+                    .timeout(Duration.ofMillis(800))
+                    .GET()
+                    .build();
+            HttpResponse<String> resp = client.send(req, HttpResponse.BodyHandlers.ofString());
+            if (resp.statusCode() == 200) {
+                mockServerBaseUrl = "http://127.0.0.1:8099";
+                containerRunning = true;
+                log.info("Found existing Mock API Server running at {}", mockServerBaseUrl);
+                return;
+            }
+        } catch (Exception ignored) {
+            // Local instance not running, proceed to Testcontainers
+        }
+
+        // 2. Launch via Testcontainers
         try {
             // Check if pre-built local image exists, otherwise build dynamically from Dockerfile
             try {
