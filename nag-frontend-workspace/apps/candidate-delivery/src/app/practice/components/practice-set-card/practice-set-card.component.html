@@ -1,0 +1,22 @@
+<mat-card class="set-card">
+  <mat-card-header>
+    <mat-card-title>{{ set().name }}</mat-card-title>
+    <mat-card-subtitle>{{ set().subjectSlug }}</mat-card-subtitle>
+  </mat-card-header>
+  <mat-card-content>
+    <p>{{ set().description }}</p>
+    <mat-chip-set>
+      <mat-chip>
+        <mat-icon matChipAvatar>quiz</mat-icon>
+        {{ set().totalQuestions }} Q
+      </mat-chip>
+      <mat-chip>
+        <mat-icon matChipAvatar>timer</mat-icon>
+        {{ set().durationMinutes }} mins
+      </mat-chip>
+    </mat-chip-set>
+  </mat-card-content>
+  <mat-card-actions align="end">
+    <button mat-button color="primary" (click)="launch.emit(set())">START PRACTICE</button>
+  </mat-card-actions>
+</mat-card>

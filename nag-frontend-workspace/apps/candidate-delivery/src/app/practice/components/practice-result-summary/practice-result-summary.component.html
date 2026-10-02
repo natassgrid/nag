@@ -1,0 +1,46 @@
+<div class="summary-grid">
+  <mat-card>
+    <mat-card-header>
+      <mat-icon mat-card-avatar color="primary">score</mat-icon>
+      <mat-card-title>Score</mat-card-title>
+      <mat-card-subtitle>Obtained vs Total</mat-card-subtitle>
+    </mat-card-header>
+    <mat-card-content class="kpi-content">
+      <h2>{{ result().obtainedMarks }} / {{ result().totalMarks }}</h2>
+    </mat-card-content>
+  </mat-card>
+
+  <mat-card>
+    <mat-card-header>
+      <mat-icon mat-card-avatar color="accent">percent</mat-icon>
+      <mat-card-title>Accuracy</mat-card-title>
+      <mat-card-subtitle>Correct answers percentage</mat-card-subtitle>
+    </mat-card-header>
+    <mat-card-content class="kpi-content">
+      <h2>{{ result().accuracyPercent | number:'1.0-1' }}%</h2>
+      <mat-progress-bar mode="determinate" [value]="result().accuracyPercent"></mat-progress-bar>
+    </mat-card-content>
+  </mat-card>
+
+  <mat-card>
+    <mat-card-header>
+      <mat-icon mat-card-avatar class="correct-icon">check_circle</mat-icon>
+      <mat-card-title>Correct</mat-card-title>
+      <mat-card-subtitle>Questions answered correctly</mat-card-subtitle>
+    </mat-card-header>
+    <mat-card-content class="kpi-content">
+      <h2>{{ result().correctCount }}</h2>
+    </mat-card-content>
+  </mat-card>
+
+  <mat-card>
+    <mat-card-header>
+      <mat-icon mat-card-avatar class="incorrect-icon">cancel</mat-icon>
+      <mat-card-title>Incorrect</mat-card-title>
+      <mat-card-subtitle>Questions answered incorrectly</mat-card-subtitle>
+    </mat-card-header>
+    <mat-card-content class="kpi-content">
+      <h2>{{ result().incorrectCount }}</h2>
+    </mat-card-content>
+  </mat-card>
+</div>

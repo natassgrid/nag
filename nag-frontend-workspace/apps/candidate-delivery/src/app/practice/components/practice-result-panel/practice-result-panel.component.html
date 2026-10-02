@@ -1,0 +1,21 @@
+@if (isLoading()) {
+  <div class="loading-container">
+    <mat-spinner diameter="48"></mat-spinner>
+    <p>Loading your results...</p>
+  </div>
+} @else if (error()) {
+  <div class="error-state">
+    <mat-icon>error_outline</mat-icon>
+    <p>{{ error() }}</p>
+  </div>
+} @else if (result()) {
+  <div class="result-container">
+    <h1 class="result-title">Practice Complete!</h1>
+    <app-practice-result-summary [result]="result()!"></app-practice-result-summary>
+    <app-practice-question-review [questionResults]="result()!.questionResults"></app-practice-question-review>
+    <div class="result-actions">
+      <button mat-stroked-button routerLink="/practice">Back to Practice Hub</button>
+      <button mat-raised-button color="primary" routerLink="/practice/history">View History</button>
+    </div>
+  </div>
+}

@@ -1,0 +1,18 @@
+<h2 mat-dialog-title>Start Practice: {{ set.name }}</h2>
+<mat-dialog-content>
+  <p>Choose your practice mode:</p>
+  <mat-radio-group [ngModel]="selectedMode()" (ngModelChange)="selectedMode.set($event)" class="mode-group">
+    <mat-radio-button value="TIMED">Timed ({{ set.durationMinutes }} mins)</mat-radio-button>
+    <mat-radio-button value="UNTIMED">Untimed</mat-radio-button>
+  </mat-radio-group>
+</mat-dialog-content>
+<mat-dialog-actions align="end">
+  <button mat-button mat-dialog-close [disabled]="isStarting()">CANCEL</button>
+  <button mat-raised-button color="primary" (click)="startSession()" [disabled]="isStarting()">
+    @if (isStarting()) {
+      <mat-spinner diameter="20"></mat-spinner>
+    } @else {
+      START
+    }
+  </button>
+</mat-dialog-actions>
