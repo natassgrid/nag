@@ -1,0 +1,17 @@
+<h2 mat-dialog-title>Delete Practice Set</h2>
+
+<mat-dialog-content>
+  <p>Are you sure you want to delete the practice set <strong>{{ data.set.name }}</strong>?</p>
+  <p class="text-warn text-sm">This action cannot be undone.</p>
+</mat-dialog-content>
+
+<mat-dialog-actions align="end">
+  <button mat-button type="button" [disabled]="isDeleting()" (click)="onCancel()">Cancel</button>
+  <button mat-raised-button color="warn" [disabled]="isDeleting()" (click)="onDelete()">
+    @if (isDeleting()) {
+      <mat-spinner diameter="20" class="spinner"></mat-spinner>
+    } @else {
+      Delete
+    }
+  </button>
+</mat-dialog-actions>
