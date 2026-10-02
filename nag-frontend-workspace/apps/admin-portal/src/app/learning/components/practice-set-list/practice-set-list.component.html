@@ -98,9 +98,18 @@
                   <button
                     mat-icon-button
                     color="primary"
-                    (click)="edit.emit(set)"
-                    title="Edit Practice Set"
+                    (click)="curate.emit(set)"
+                    title="Curate Questions"
                     class="!text-indigo-600 hover:!bg-indigo-50 cursor-pointer"
+                  >
+                    <mat-icon class="!text-lg">playlist_add_check</mat-icon>
+                  </button>
+                  <button
+                    mat-icon-button
+                    color="primary"
+                    (click)="edit.emit(set)"
+                    title="Edit Settings"
+                    class="!text-slate-600 hover:!bg-slate-100 cursor-pointer"
                   >
                     <mat-icon class="!text-lg">edit</mat-icon>
                   </button>

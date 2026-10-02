@@ -13,7 +13,7 @@
           </span>
         </h1>
         <p class="text-xs text-slate-500 font-medium mt-0.5">
-          Curate practice sets using questions from generated practice papers (isPractice=true) or create custom mock assessments for candidates.
+          Curate practice sets using questions from generated practice papers (isPractice=true) or curate custom mock assessments manually from the central Question Bank.
         </p>
       </div>
     </div>
@@ -115,6 +115,7 @@
     <app-practice-set-list
       [sets]="filteredSets()"
       (edit)="openEditModal($event)"
+      (curate)="openCurateModal($event)"
       (delete)="openDeleteDialog($event)"
       (togglePublish)="togglePublish($event)"
       (create)="openCreateModal()"

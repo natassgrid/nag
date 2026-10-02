@@ -9,6 +9,7 @@ export interface PracticeSet {
   totalQuestions: number;
   createdBy: string;
   createdAt: string;
+  questionIds?: string | string[];
 }
 
 export interface CreatePracticeSetRequest {

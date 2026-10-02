@@ -21,6 +21,7 @@ import { PracticeSet } from '../../models';
 export class PracticeSetListComponent {
   sets = input.required<PracticeSet[]>();
   edit = output<PracticeSet>();
+  curate = output<PracticeSet>();
   delete = output<PracticeSet>();
   togglePublish = output<PracticeSet>();
   create = output<void>();

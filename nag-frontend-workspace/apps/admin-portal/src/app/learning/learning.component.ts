@@ -85,7 +85,7 @@ export class LearningComponent implements OnInit {
 
   openCreateModal() {
     const dialogRef = this.dialog.open(PracticeSetFormModalComponent, {
-      width: '640px',
+      width: '768px',
       maxWidth: '95vw',
       panelClass: 'custom-dialog-container',
       data: { set: null, mode: 'create' },
@@ -98,7 +98,7 @@ export class LearningComponent implements OnInit {
 
   openEditModal(set: PracticeSet) {
     const dialogRef = this.dialog.open(PracticeSetFormModalComponent, {
-      width: '640px',
+      width: '768px',
       maxWidth: '95vw',
       panelClass: 'custom-dialog-container',
       data: { set, mode: 'edit' },
@@ -107,6 +107,10 @@ export class LearningComponent implements OnInit {
     dialogRef.afterClosed().subscribe((result) => {
       if (result) this.loadSets();
     });
+  }
+
+  openCurateModal(set: PracticeSet) {
+    this.openEditModal(set);
   }
 
   openDeleteDialog(set: PracticeSet) {
