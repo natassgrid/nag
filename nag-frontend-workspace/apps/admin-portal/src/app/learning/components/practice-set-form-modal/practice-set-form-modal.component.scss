@@ -1,12 +1,115 @@
-:host {
-  display: block;
+.modal-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 1.25rem;
+  font-weight: 600;
+  margin-bottom: 8px;
+
+  .title-icon {
+    color: #4f46e5;
+  }
 }
 
 .form-container {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 12px;
   padding-top: 8px;
+}
+
+.source-selection-box {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 12px 16px;
+  margin-bottom: 4px;
+
+  .section-label {
+    display: block;
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    color: #64748b;
+    margin-bottom: 8px;
+    letter-spacing: 0.05em;
+  }
+
+  .source-radio-group {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .radio-label-content {
+    display: flex;
+    flex-direction: column;
+    margin-left: 4px;
+
+    strong {
+      font-size: 0.875rem;
+      color: #1e293b;
+    }
+
+    small {
+      font-size: 0.75rem;
+      color: #64748b;
+    }
+  }
+}
+
+.paper-picker-card {
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+  border-radius: 8px;
+  padding: 12px;
+  margin-bottom: 4px;
+
+  .paper-option-title {
+    font-weight: 500;
+  }
+
+  .paper-badge {
+    margin-left: 8px;
+    font-size: 0.7rem;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-weight: 600;
+
+    &.badge-approved {
+      background: #dcfce7;
+      color: #15803d;
+    }
+
+    &.badge-draft {
+      background: #fef3c7;
+      color: #b45309;
+    }
+
+    &.badge-encrypted {
+      background: #e0e7ff;
+      color: #4338ca;
+    }
+  }
+
+  .attached-summary-banner {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: #ffffff;
+    border: 1px solid #93c5fd;
+    padding: 8px 12px;
+    border-radius: 6px;
+    font-size: 0.85rem;
+    color: #1e40af;
+    margin-top: 4px;
+
+    mat-icon {
+      font-size: 1.1rem;
+      width: 1.1rem;
+      height: 1.1rem;
+    }
+  }
 }
 
 .full-width {
@@ -16,8 +119,20 @@
 .row {
   display: flex;
   gap: 16px;
-  
-  mat-form-field {
-    flex: 1;
+}
+
+.flex-1 {
+  flex: 1;
+}
+
+.modal-actions {
+  padding: 12px 24px 16px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+
+  .button-spinner {
+    display: inline-block;
+    margin-right: 8px;
   }
 }

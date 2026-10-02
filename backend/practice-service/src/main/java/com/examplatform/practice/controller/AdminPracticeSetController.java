@@ -2,9 +2,15 @@
 package com.examplatform.practice.controller;
 
 import com.examplatform.practice.domain.PracticeSet;
+import com.examplatform.practice.dto.CreatePracticeSetRequest;
+import com.examplatform.practice.dto.UpdatePracticeSetRequest;
 import com.examplatform.practice.repository.PracticeSetRepository;
 import com.examplatform.practice.service.PracticeSetService;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -15,6 +21,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 import java.util.UUID;
 
+@Slf4j
 @RestController
 @RequestMapping("/api/admin/practice/sets")
 @RequiredArgsConstructor
@@ -23,6 +30,7 @@ public class AdminPracticeSetController {
 
     private final PracticeSetRepository practiceSetRepository;
     private final PracticeSetService practiceSetService;
+    private final ObjectMapper objectMapper;
 
     @GetMapping
     public ResponseEntity<List<PracticeSet>> listAll() {
@@ -32,7 +40,28 @@ public class AdminPracticeSetController {
     @PostMapping
     public ResponseEntity<PracticeSet> create(
             @AuthenticationPrincipal Jwt jwt,
-            @RequestBody PracticeSet practiceSet) {
+            @Valid @RequestBody CreatePracticeSetRequest request) {
+
+        PracticeSet practiceSet = new PracticeSet();
+        practiceSet.setName(request.name());
+        practiceSet.setDescription(request.description());
+        practiceSet.setDurationMinutes(request.durationMinutes());
+        practiceSet.setSubjectSlug(request.subjectSlug());
+        practiceSet.setSource(request.source() != null && !request.source().isBlank() ? request.source() : "MANUAL");
+
+        if (request.questionIds() != null && !request.questionIds().isEmpty()) {
+            practiceSet.setTotalQuestions(request.questionIds().size());
+            try {
+                practiceSet.setQuestionIds(objectMapper.writeValueAsString(request.questionIds()));
+            } catch (JsonProcessingException e) {
+                log.warn("Failed to serialize questionIds for practice set {}: {}", request.name(), e.getMessage());
+                practiceSet.setQuestionIds("[]");
+            }
+        } else {
+            practiceSet.setTotalQuestions(request.totalQuestions() != null ? request.totalQuestions() : 0);
+            practiceSet.setQuestionIds("[]");
+        }
+
         if (jwt != null && jwt.getSubject() != null) {
             try {
                 practiceSet.setCreatedBy(UUID.fromString(jwt.getSubject()));
@@ -43,15 +72,28 @@ public class AdminPracticeSetController {
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<PracticeSet> update(@PathVariable UUID id, @RequestBody PracticeSet update) {
+    public ResponseEntity<PracticeSet> update(
+            @PathVariable UUID id,
+            @Valid @RequestBody UpdatePracticeSetRequest update) {
         return practiceSetRepository.findById(id)
                 .map(existing -> {
-                    existing.setName(update.getName());
-                    existing.setDescription(update.getDescription());
-                    existing.setDurationMinutes(update.getDurationMinutes());
-                    existing.setQuestionIds(update.getQuestionIds());
-                    existing.setTotalQuestions(update.getTotalQuestions());
-                    existing.setSubjectSlug(update.getSubjectSlug());
+                    existing.setName(update.name());
+                    existing.setDescription(update.description());
+                    existing.setDurationMinutes(update.durationMinutes());
+                    if (update.subjectSlug() != null) {
+                        existing.setSubjectSlug(update.subjectSlug());
+                    }
+                    if (update.questionIds() != null) {
+                        existing.setTotalQuestions(update.questionIds().size());
+                        try {
+                            existing.setQuestionIds(objectMapper.writeValueAsString(update.questionIds()));
+                        } catch (JsonProcessingException e) {
+                            log.warn("Failed to serialize questionIds on update for practice set {}: {}", id, e.getMessage());
+                            existing.setQuestionIds("[]");
+                        }
+                    } else if (update.totalQuestions() != null) {
+                        existing.setTotalQuestions(update.totalQuestions());
+                    }
                     return ResponseEntity.ok(practiceSetRepository.save(existing));
                 })
                 .orElse(ResponseEntity.notFound().build());

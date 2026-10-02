@@ -1,10 +1,75 @@
-<h2 mat-dialog-title>{{ data.mode === 'create' ? 'New' : 'Edit' }} Practice Set</h2>
+<h2 mat-dialog-title class="modal-title">
+  <mat-icon class="title-icon">{{ data.mode === 'create' ? 'add_circle' : 'edit' }}</mat-icon>
+  <span>{{ data.mode === 'create' ? 'New' : 'Edit' }} Practice Set</span>
+</h2>
 
 <mat-dialog-content>
   <form [formGroup]="form" (ngSubmit)="onSubmit()" class="form-container">
+    @if (data.mode === 'create') {
+      <div class="source-selection-box">
+        <label class="section-label">Source Strategy</label>
+        <mat-radio-group
+          [value]="sourceType()"
+          (change)="onSourceTypeChange($event.value)"
+          class="source-radio-group"
+        >
+          <mat-radio-button value="EXAM_CLONE" color="primary">
+            <div class="radio-label-content">
+              <strong>Attach Practice Paper</strong>
+              <small>Use questions from an existing generated paper (isPractice = true)</small>
+            </div>
+          </mat-radio-button>
+          <mat-radio-button value="MANUAL" color="primary">
+            <div class="radio-label-content">
+              <strong>Manual / Custom</strong>
+              <small>Create an empty practice set to curate manually</small>
+            </div>
+          </mat-radio-button>
+        </mat-radio-group>
+      </div>
+
+      @if (sourceType() === 'EXAM_CLONE') {
+        <div class="paper-picker-card">
+          <mat-form-field appearance="outline" class="full-width">
+            <mat-label>Select Generated Practice Paper</mat-label>
+            <mat-select
+              [value]="selectedPaperId()"
+              (selectionChange)="onPaperSelected($event.value)"
+              placeholder="Choose a practice paper..."
+            >
+              @if (loadingPapers()) {
+                <mat-option disabled>Loading papers...</mat-option>
+              } @else if (practicePapers().length === 0) {
+                <mat-option disabled>No practice papers found with isPractice=true</mat-option>
+              } @else {
+                @for (paper of practicePapers(); track paper.paperId || paper.id) {
+                  <mat-option [value]="paper.paperId || paper.id">
+                    <span class="paper-option-title">{{ paper.name || paper.examName || 'Practice Paper' }}</span>
+                    @if (paper.status) {
+                      <span class="paper-badge badge-{{ paper.status.toLowerCase() }}">[{{ paper.status }}]</span>
+                    }
+                  </mat-option>
+                }
+              }
+            </mat-select>
+            @if (loadingPaperDetails()) {
+              <mat-spinner matSuffix diameter="20"></mat-spinner>
+            }
+          </mat-form-field>
+
+          @if (attachedQuestionIds().length > 0) {
+            <div class="attached-summary-banner">
+              <mat-icon color="primary">check_circle</mat-icon>
+              <span>Attached <strong>{{ totalQuestionsCount() }}</strong> questions from selected paper.</span>
+            </div>
+          }
+        </div>
+      }
+    }
+
     <mat-form-field appearance="outline" class="full-width">
-      <mat-label>Name</mat-label>
-      <input matInput formControlName="name" placeholder="e.g. Algebra Basics" required>
+      <mat-label>Practice Set Name</mat-label>
+      <input matInput formControlName="name" placeholder="e.g. Mathematics - Mock Set 1" required>
       @if (form.get('name')?.hasError('required')) {
         <mat-error>Name is required</mat-error>
       }
@@ -12,11 +77,11 @@
 
     <mat-form-field appearance="outline" class="full-width">
       <mat-label>Description</mat-label>
-      <textarea matInput formControlName="description" rows="3" placeholder="Optional description..."></textarea>
+      <textarea matInput formControlName="description" rows="2" placeholder="Optional description..."></textarea>
     </mat-form-field>
 
     <div class="row">
-      <mat-form-field appearance="outline">
+      <mat-form-field appearance="outline" class="flex-1">
         <mat-label>Duration (Minutes)</mat-label>
         <input matInput type="number" formControlName="durationMinutes" required min="1">
         @if (form.get('durationMinutes')?.hasError('required')) {
@@ -24,7 +89,7 @@
         }
       </mat-form-field>
 
-      <mat-form-field appearance="outline">
+      <mat-form-field appearance="outline" class="flex-1">
         <mat-label>Subject Slug (Optional)</mat-label>
         <input matInput formControlName="subjectSlug" placeholder="e.g. math-algebra">
       </mat-form-field>
@@ -32,9 +97,17 @@
   </form>
 </mat-dialog-content>
 
-<mat-dialog-actions align="end">
-  <button mat-button type="button" (click)="onCancel()">Cancel</button>
-  <button mat-raised-button color="primary" [disabled]="form.invalid" (click)="onSubmit()">
-    {{ data.mode === 'create' ? 'Create' : 'Save' }}
+<mat-dialog-actions align="end" class="modal-actions">
+  <button mat-button type="button" (click)="onCancel()" [disabled]="isSubmitting()">Cancel</button>
+  <button
+    mat-raised-button
+    color="primary"
+    [disabled]="form.invalid || isSubmitting()"
+    (click)="onSubmit()"
+  >
+    @if (isSubmitting()) {
+      <mat-spinner diameter="18" class="button-spinner"></mat-spinner>
+    }
+    <span>{{ data.mode === 'create' ? 'Create Practice Set' : 'Save Changes' }}</span>
   </button>
 </mat-dialog-actions>
