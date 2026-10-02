@@ -19,12 +19,8 @@
 
 package com.examplatform.analytics.repository;
 
-import com.examplatform.analytics.domain.ExamAnalytics;
-import jakarta.persistence.LockModeType;
+import com.examplatform.analytics.domain.CandidateAnalyticsResult;
 import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.data.jpa.repository.Lock;
-import org.springframework.data.jpa.repository.Query;
-import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
@@ -32,11 +28,11 @@ import java.util.Optional;
 import java.util.UUID;
 
 @Repository
-public interface ExamAnalyticsRepository extends JpaRepository<ExamAnalytics, UUID> {
+public interface CandidateAnalyticsResultRepository extends JpaRepository<CandidateAnalyticsResult, UUID> {
 
-    Optional<ExamAnalytics> findTopByExamIdOrderByComputedAtDesc(UUID examId);
+    Optional<CandidateAnalyticsResult> findByCandidateIdAndExamId(UUID candidateId, UUID examId);
 
-    @Lock(LockModeType.PESSIMISTIC_WRITE)
-    @Query("SELECT ea FROM ExamAnalytics ea WHERE ea.examId = :examId ORDER BY ea.computedAt DESC")
-    List<ExamAnalytics> findByExamIdForUpdate(@Param("examId") UUID examId);
+    List<CandidateAnalyticsResult> findByExamId(UUID examId);
+
+    long countByExamId(UUID examId);
 }
