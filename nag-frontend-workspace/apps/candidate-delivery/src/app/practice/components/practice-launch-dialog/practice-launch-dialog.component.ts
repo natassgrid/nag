@@ -38,7 +38,7 @@ export class PracticeLaunchDialogComponent {
       next: (session) => {
         this.dialogRef.close();
         this.router.navigate(['/delivery'], { 
-          queryParams: { mode: 'PRACTICE', sessionId: session.id }
+          queryParams: { mode: 'PRACTICE', paperId: session.id, sessionId: session.id }
         });
       },
       error: () => {
