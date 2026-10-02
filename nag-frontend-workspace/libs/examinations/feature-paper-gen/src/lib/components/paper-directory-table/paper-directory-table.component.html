@@ -51,9 +51,9 @@
           </tr>
         </thead>
         <tbody class="divide-y divide-slate-100">
-          @for (paper of papers(); track paper.id) {
+          @for (paper of papers(); track (paper.paperId || paper.id)) {
             <tr
-              (click)="inspectPaper.emit(paper.id)"
+              (click)="inspectPaper.emit(paper.paperId || paper.id)"
               class="hover:bg-slate-50/80 cursor-pointer transition-colors"
             >
               <td class="py-3.5 px-4">
@@ -118,7 +118,7 @@
                 <div class="flex items-center justify-end gap-1.5">
                   <button
                     mat-icon-button
-                    (click)="inspectPaper.emit(paper.id)"
+                    (click)="inspectPaper.emit(paper.paperId || paper.id)"
                     matTooltip="Inspect Question Paper & Distribution"
                     class="!text-slate-500 hover:!text-indigo-600"
                   >
@@ -128,7 +128,7 @@
                   @if (paper.status === 'DRAFT') {
                     <button
                       mat-stroked-button
-                      (click)="approvePaper.emit(paper.id)"
+                      (click)="approvePaper.emit(paper.paperId || paper.id)"
                       matTooltip="Approve Question Paper (Controller Clearance)"
                       class="!text-xs !py-1 !px-2.5 !rounded-lg !border-blue-300 !text-blue-700 hover:!bg-blue-50"
                     >
@@ -142,7 +142,7 @@
                   @if (paper.status === 'APPROVED') {
                     <button
                       mat-flat-button
-                      (click)="publishPaper.emit(paper.id)"
+                      (click)="publishPaper.emit(paper.paperId || paper.id)"
                       matTooltip="Encrypt Package & Distribute Key"
                       class="!text-xs !py-1 !px-2.5 !rounded-lg !bg-emerald-600 hover:!bg-emerald-700 !text-white"
                     >

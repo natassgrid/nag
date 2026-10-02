@@ -1,6 +1,6 @@
 import { Injectable, inject, signal } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
-import { Observable, map, tap } from 'rxjs';
+import { Observable, map, tap, throwError } from 'rxjs';
 import { ApiResponse, PagedResponse } from '../models/common.model';
 import {
   PaperSummary,
@@ -49,10 +49,14 @@ export class PaperService {
       map((res) => {
         const payload = res?.data ?? res;
         const items = payload?.content || (Array.isArray(payload) ? payload : []);
-        const normalized: PaperSummary[] = items.map((p: any) => ({
-          ...p,
-          paperId: p.paperId || p.id,
-        }));
+        const normalized: PaperSummary[] = items.map((p: any) => {
+          const id = p.id || p.paperId || '';
+          return {
+            ...p,
+            id,
+            paperId: p.paperId || p.id || id,
+          };
+        });
         return {
           content: normalized,
           totalElements: payload?.totalElements ?? normalized.length,
@@ -72,6 +76,9 @@ export class PaperService {
   }
 
   getPaper(paperId: string): Observable<PaperDetail> {
+    if (!paperId || paperId === 'undefined' || paperId === 'null') {
+      return throwError(() => new Error('Invalid paperId provided to getPaper'));
+    }
     return this.http
       .get<ApiResponse<PaperDetail> | PaperDetail>(`${this.baseUrl}/${paperId}`)
       .pipe(map((res) => ((res as any)?.data ?? res) as PaperDetail));
@@ -87,6 +94,9 @@ export class PaperService {
   }
 
   approvePaper(paperId: string): Observable<PaperApprovalResponse> {
+    if (!paperId || paperId === 'undefined' || paperId === 'null') {
+      return throwError(() => new Error('Invalid paperId provided to approvePaper'));
+    }
     return this.http
       .post<ApiResponse<PaperApprovalResponse> | PaperApprovalResponse>(
         `${this.baseUrl}/${paperId}/approve`,
@@ -96,6 +106,9 @@ export class PaperService {
   }
 
   publishPaper(paperId: string): Observable<PaperApprovalResponse> {
+    if (!paperId || paperId === 'undefined' || paperId === 'null') {
+      return throwError(() => new Error('Invalid paperId provided to publishPaper'));
+    }
     return this.http
       .post<ApiResponse<PaperApprovalResponse> | PaperApprovalResponse>(
         `${this.baseUrl}/${paperId}/publish`,
@@ -108,6 +121,9 @@ export class PaperService {
     paperId: string,
     req: PaperTranslateRequest
   ): Observable<PaperTranslateResponse> {
+    if (!paperId || paperId === 'undefined' || paperId === 'null') {
+      return throwError(() => new Error('Invalid paperId provided to startTranslation'));
+    }
     return this.http
       .post<ApiResponse<PaperTranslateResponse> | PaperTranslateResponse>(
         `${this.baseUrl}/${paperId}/translate`,
@@ -117,6 +133,9 @@ export class PaperService {
   }
 
   getTranslationStatus(paperId: string): Observable<PaperTranslateResponse> {
+    if (!paperId || paperId === 'undefined' || paperId === 'null') {
+      return throwError(() => new Error('Invalid paperId provided to getTranslationStatus'));
+    }
     return this.http
       .get<ApiResponse<PaperTranslateResponse> | PaperTranslateResponse>(
         `${this.baseUrl}/${paperId}/translation-status`
@@ -125,6 +144,9 @@ export class PaperService {
   }
 
   getTranslationJob(jobId: string): Observable<PaperTranslateResponse> {
+    if (!jobId || jobId === 'undefined' || jobId === 'null') {
+      return throwError(() => new Error('Invalid jobId provided to getTranslationJob'));
+    }
     return this.http
       .get<ApiResponse<PaperTranslateResponse> | PaperTranslateResponse>(
         `${this.baseUrl}/translations/${jobId}`
@@ -162,6 +184,9 @@ export class PaperService {
   }
 
   getTemplate(templateId: string): Observable<BlueprintTemplateResponse> {
+    if (!templateId || templateId === 'undefined' || templateId === 'null') {
+      return throwError(() => new Error('Invalid templateId provided to getTemplate'));
+    }
     return this.http
       .get<ApiResponse<BlueprintTemplateResponse> | BlueprintTemplateResponse>(
         `${this.templateBaseUrl}/${templateId}`
@@ -173,6 +198,9 @@ export class PaperService {
     templateId: string,
     req: BlueprintTemplateRequest
   ): Observable<BlueprintTemplateResponse> {
+    if (!templateId || templateId === 'undefined' || templateId === 'null') {
+      return throwError(() => new Error('Invalid templateId provided to updateTemplate'));
+    }
     return this.http
       .put<ApiResponse<BlueprintTemplateResponse> | BlueprintTemplateResponse>(
         `${this.templateBaseUrl}/${templateId}`,
@@ -182,6 +210,9 @@ export class PaperService {
   }
 
   deleteTemplate(templateId: string): Observable<void> {
+    if (!templateId || templateId === 'undefined' || templateId === 'null') {
+      return throwError(() => new Error('Invalid templateId provided to deleteTemplate'));
+    }
     return this.http.delete<void>(`${this.templateBaseUrl}/${templateId}`);
   }
 
@@ -195,13 +226,15 @@ export class PaperService {
     };
     return this.http
       .post<ApiResponse<BlueprintFeasibilityResponse> | BlueprintFeasibilityResponse>(
-        `${this.baseUrl}/blueprints/check-sufficiency`,
-        payload
-      )
+        `${this.baseUrl}/blueprints/check-sufficiency`
+      , payload)
       .pipe(map((res) => ((res as any)?.data ?? res) as BlueprintFeasibilityResponse));
   }
 
   checkTemplateSufficiency(templateId: string, notifyAdmin = false): Observable<any> {
+    if (!templateId || templateId === 'undefined' || templateId === 'null') {
+      return throwError(() => new Error('Invalid templateId provided to checkTemplateSufficiency'));
+    }
     return this.http.post<any>(
       `${this.templateBaseUrl}/${templateId}/check-sufficiency`,
       {},

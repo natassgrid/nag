@@ -14,7 +14,8 @@
  * GNU Affero General Public License for more details.
  *
  * You should have received a copy of the GNU Affero General Public License
- * along with this program. If not, see <https://www.gnu.org/licenses/>.\n */
+ * along with this program. If not, see <https://www.gnu.org/licenses/>.
+ */
 
 package com.examplatform.papergenerator.dto;
 
@@ -58,4 +59,8 @@ public class PaperResponse {
     private Integer totalQuestions;
     private Map<String, Integer> topicDistribution;
     private List<QuestionSummary> questions;
+
+    public UUID getPaperId() {
+        return id;
+    }
 }

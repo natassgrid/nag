@@ -153,7 +153,8 @@ export class ExaminationsFeaturePaperGen implements OnInit {
           p.name.toLowerCase().includes(q) ||
           (p.examName && p.examName.toLowerCase().includes(q)) ||
           (p.shiftName && p.shiftName.toLowerCase().includes(q)) ||
-          (p.id && p.id.toLowerCase().includes(q))
+          (p.id && p.id.toLowerCase().includes(q)) ||
+          (p.paperId && p.paperId.toLowerCase().includes(q))
       );
     }
     return list;
@@ -166,7 +167,12 @@ export class ExaminationsFeaturePaperGen implements OnInit {
     this.loadTemplates();
 
     this.route.queryParams.subscribe((params) => {
-      if (params['paperId']) {
+      if (params['examId'] && params['examId'] !== 'undefined' && params['examId'] !== 'null') {
+        const examId = params['examId'];
+        this.selectedExamFilter.set(examId);
+        this.onExamChange(examId);
+      }
+      if (params['paperId'] && params['paperId'] !== 'undefined' && params['paperId'] !== 'null') {
         this.openSummaryDrawer(params['paperId']);
       }
       if (params['templateId']) {
@@ -216,7 +222,10 @@ export class ExaminationsFeaturePaperGen implements OnInit {
       next: (exams) => {
         this.exams.set(exams || []);
         if (exams && exams.length > 0) {
-          this.onExamChange(exams[0].id);
+          const currentFilter = this.selectedExamFilter();
+          const targetExamId =
+            currentFilter && currentFilter !== 'ALL' ? currentFilter : exams[0].id;
+          this.onExamChange(targetExamId);
         }
       },
       error: () => {},
@@ -240,7 +249,7 @@ export class ExaminationsFeaturePaperGen implements OnInit {
     this.schedules.set([]);
     this.shifts.set([]);
 
-    if (!examId) return;
+    if (!examId || examId === 'ALL') return;
 
     this.schedulingService.listSchedules(examId, 0, 50).subscribe({
       next: (schedules) => {
@@ -366,6 +375,9 @@ export class ExaminationsFeaturePaperGen implements OnInit {
   }
 
   openSummaryDrawer(paperId: string): void {
+    if (!paperId || paperId === 'undefined' || paperId === 'null') {
+      return;
+    }
     this.selectedPaperId.set(paperId);
     this.drawerOpen.set(true);
     this.loadingDetail.set(true);
@@ -391,7 +403,7 @@ export class ExaminationsFeaturePaperGen implements OnInit {
 
   approvePaper(paperId?: string): void {
     const id = paperId || this.selectedPaperId();
-    if (!id) return;
+    if (!id || id === 'undefined' || id === 'null') return;
 
     this.isApproving.set(true);
     this.paperService.approvePaper(id).subscribe({
@@ -410,7 +422,7 @@ export class ExaminationsFeaturePaperGen implements OnInit {
 
   publishPaper(paperId?: string): void {
     const id = paperId || this.selectedPaperId();
-    if (!id) return;
+    if (!id || id === 'undefined' || id === 'null') return;
 
     this.isPublishing.set(true);
     this.paperService.publishPaper(id).subscribe({
@@ -429,7 +441,7 @@ export class ExaminationsFeaturePaperGen implements OnInit {
 
   startTranslation(event: { targetLanguage: string; overwriteExisting: boolean }): void {
     const id = this.selectedPaperId();
-    if (!id) return;
+    if (!id || id === 'undefined' || id === 'null') return;
 
     this.isTranslating.set(true);
     const req: PaperTranslateRequest = {
