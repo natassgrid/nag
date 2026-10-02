@@ -52,6 +52,16 @@ public class AnalyticsController {
     }
 
     /**
+     * Triggers batch computation of analytics for a given exam from persisted candidate records.
+     */
+    @PostMapping("/{id}/compute")
+    @PreAuthorize("hasAnyRole('EXAM_CONTROLLER', 'SUPER_ADMIN')")
+    public ResponseEntity<ExamAnalytics> computeExamAnalytics(@PathVariable UUID id) {
+        ExamAnalytics analytics = analyticsService.computeAnalyticsForExam(id);
+        return ResponseEntity.ok(analytics);
+    }
+
+    /**
      * Exports analytics data in the specified format (csv or pdf).
      */
     @GetMapping("/{id}/export")

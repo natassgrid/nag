@@ -38,6 +38,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -126,6 +127,83 @@ class AnalyticsControllerIntegrationTest extends AbstractIntegrationTest {
         @DisplayName("-ve: Unauthenticated request returns 401 Unauthorized")
         void unauthenticatedReturnsUnauthorized() throws Exception {
             mockMvc.perform(get("/api/v1/analytics/exams/{id}", EXAM_ID))
+                    .andExpect(status().isUnauthorized());
+        }
+    }
+
+    @Nested
+    @DisplayName("POST /api/v1/analytics/exams/{id}/compute")
+    class ComputeExamAnalyticsEndpoint {
+
+        @Test
+        @DisplayName("+ve: EXAM_CONTROLLER triggers recomputation - returns 200 OK")
+        void examControllerCanTriggerCompute() throws Exception {
+            ExamAnalytics analytics = ExamAnalytics.builder()
+                    .id(UUID.randomUUID())
+                    .examId(EXAM_ID)
+                    .totalRegistered(100L)
+                    .totalAppeared(98L)
+                    .top10PercentileThreshold(BigDecimal.valueOf(88.00))
+                    .bottom10PercentileThreshold(BigDecimal.valueOf(22.00))
+                    .computedAt(Instant.now())
+                    .build();
+
+            when(analyticsService.computeAnalyticsForExam(eq(EXAM_ID))).thenReturn(analytics);
+
+            mockMvc.perform(post("/api/v1/analytics/exams/{id}/compute", EXAM_ID)
+                            .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_EXAM_CONTROLLER"))
+                                    .jwt(j -> j.subject(UUID.randomUUID().toString()).claim("tenant_id", TENANT_ID))))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.examId").value(EXAM_ID.toString()))
+                    .andExpect(jsonPath("$.totalAppeared").value(98));
+        }
+
+        @Test
+        @DisplayName("+ve: SUPER_ADMIN triggers recomputation - returns 200 OK")
+        void superAdminCanTriggerCompute() throws Exception {
+            ExamAnalytics analytics = ExamAnalytics.builder()
+                    .id(UUID.randomUUID())
+                    .examId(EXAM_ID)
+                    .totalRegistered(50L)
+                    .totalAppeared(50L)
+                    .computedAt(Instant.now())
+                    .build();
+
+            when(analyticsService.computeAnalyticsForExam(eq(EXAM_ID))).thenReturn(analytics);
+
+            mockMvc.perform(post("/api/v1/analytics/exams/{id}/compute", EXAM_ID)
+                            .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_SUPER_ADMIN"))
+                                    .jwt(j -> j.subject(UUID.randomUUID().toString()).claim("tenant_id", TENANT_ID))))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.totalAppeared").value(50));
+        }
+
+        @Test
+        @DisplayName("-ve: Recomputation for non-existent exam results returns 404 Not Found")
+        void computeNotFoundReturns404() throws Exception {
+            when(analyticsService.computeAnalyticsForExam(eq(EXAM_ID)))
+                    .thenThrow(new IllegalArgumentException("No candidate evaluation records found for exam: " + EXAM_ID));
+
+            mockMvc.perform(post("/api/v1/analytics/exams/{id}/compute", EXAM_ID)
+                            .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_EXAM_CONTROLLER"))
+                                    .jwt(j -> j.subject(UUID.randomUUID().toString()).claim("tenant_id", TENANT_ID))))
+                    .andExpect(status().isNotFound())
+                    .andExpect(jsonPath("$.title").value("Resource Not Found"));
+        }
+
+        @Test
+        @DisplayName("-ve: Unauthorized role (ROLE_CANDIDATE) returns 403 Forbidden")
+        void candidateComputeForbidden() throws Exception {
+            mockMvc.perform(post("/api/v1/analytics/exams/{id}/compute", EXAM_ID)
+                            .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_CANDIDATE"))
+                                    .jwt(j -> j.subject(UUID.randomUUID().toString()).claim("tenant_id", TENANT_ID))))
+                    .andExpect(status().isForbidden());
+        }
+
+        @Test
+        @DisplayName("-ve: Unauthenticated request returns 401 Unauthorized")
+        void unauthenticatedComputeReturnsUnauthorized() throws Exception {
+            mockMvc.perform(post("/api/v1/analytics/exams/{id}/compute", EXAM_ID))
                     .andExpect(status().isUnauthorized());
         }
     }
