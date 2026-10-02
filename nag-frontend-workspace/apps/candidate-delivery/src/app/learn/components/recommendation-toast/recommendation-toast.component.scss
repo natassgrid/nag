@@ -1,0 +1,29 @@
+:host {
+  display: block;
+}
+
+.toast-container {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background-color: var(--mat-sys-primary-container);
+  color: var(--mat-sys-on-primary-container);
+  padding: 12px 16px;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  margin-bottom: 16px;
+}
+
+.toast-content {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.toast-icon {
+  color: var(--mat-sys-primary);
+}
+
+.toast-message {
+  font-weight: 500;
+}

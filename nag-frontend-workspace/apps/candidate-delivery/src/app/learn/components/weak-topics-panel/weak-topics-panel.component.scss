@@ -1,0 +1,27 @@
+:host {
+  display: block;
+}
+
+.weak-topics-container {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.topic-card {
+  .mat-mdc-card-header {
+    margin-bottom: 8px;
+  }
+}
+
+.subtopics-title {
+  margin-bottom: 8px;
+  font-weight: 500;
+}
+
+.empty-state {
+  color: var(--mat-sys-on-surface-variant);
+  font-style: italic;
+  padding: 16px;
+  text-align: center;
+}

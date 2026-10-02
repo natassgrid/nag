@@ -14,6 +14,9 @@
     <app-practice-result-summary [result]="result()!"></app-practice-result-summary>
     <app-practice-question-review [questionResults]="result()!.questionResults"></app-practice-question-review>
     <div class="result-actions">
+      <button mat-flat-button color="accent" class="ai-callout" routerLink="/learn/recommendations">
+        <mat-icon>auto_awesome</mat-icon> View AI Study Recommendations →
+      </button>
       <button mat-stroked-button routerLink="/practice">Back to Practice Hub</button>
       <button mat-raised-button color="primary" routerLink="/practice/history">View History</button>
     </div>
