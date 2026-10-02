@@ -609,7 +609,7 @@ public class ExamQuestionDeliveryService {
                 LEFT JOIN question_service.passage p ON q.passage_id = p.id
                 LEFT JOIN question_service.translation t ON q.id = t.question_id AND t.language_code = 'hi' AND t.status IN ('PUBLISHED', 'APPROVED')
                 WHERE (q.tenant_id = ? OR q.tenant_id = 'default')
-                  AND q.state = 'APPROVED'
+              AND q.state = 'APPROVED'
                 ORDER BY (t.id IS NOT NULL) DESC, q.id
                 LIMIT 200
                 """;
@@ -863,6 +863,46 @@ public class ExamQuestionDeliveryService {
                 }
             } catch (Exception e) {
                 log.debug("Practice set lookup error for {}: {}", targetId, e.getMessage());
+            }
+        }
+
+        // 3. If not found or empty, check practice_service.practice_session table (targetId may be a practice session ID)
+        if (uids.isEmpty()) {
+            try {
+                List<UUID> practiceSetIds = jdbcTemplate.query(
+                        "SELECT practice_set_id FROM practice_service.practice_session WHERE id = ? AND (tenant_id = ? OR tenant_id = 'default' OR tenant_id IS NULL)",
+                        (rs, rowNum) -> rs.getObject("practice_set_id", UUID.class),
+                        targetId, tenantId
+                );
+                if (!practiceSetIds.isEmpty() && practiceSetIds.get(0) != null) {
+                    UUID pSetId = practiceSetIds.get(0);
+                    List<String> practiceQuestionIds = jdbcTemplate.query(
+                            "SELECT question_ids FROM practice_service.practice_set WHERE id = ? AND (tenant_id = ? OR tenant_id = 'default' OR tenant_id IS NULL)",
+                            (rs, rowNum) -> rs.getString("question_ids"),
+                            pSetId, tenantId
+                    );
+                    if (!practiceQuestionIds.isEmpty() && practiceQuestionIds.get(0) != null && !practiceQuestionIds.get(0).isBlank()) {
+                        uids = extractQuestionUuidsFromJsonOrString(practiceQuestionIds.get(0));
+                    }
+                }
+            } catch (Exception e) {
+                log.debug("Practice session lookup error for {}: {}", targetId, e.getMessage());
+            }
+        }
+
+        // 4. If not found or empty, check delivery_service.exam_session table (targetId may be an exam session ID)
+        if (uids.isEmpty()) {
+            try {
+                List<UUID> sessionPaperIds = jdbcTemplate.query(
+                        "SELECT paper_id FROM delivery_service.exam_session WHERE session_id = ? AND (tenant_id = ? OR tenant_id = 'default' OR tenant_id IS NULL)",
+                        (rs, rowNum) -> rs.getObject("paper_id", UUID.class),
+                        targetId, tenantId
+                );
+                if (!sessionPaperIds.isEmpty() && sessionPaperIds.get(0) != null) {
+                    uids = resolveQuestionUuids(sessionPaperIds.get(0), tenantId);
+                }
+            } catch (Exception e) {
+                log.debug("Exam session lookup error for {}: {}", targetId, e.getMessage());
             }
         }
 

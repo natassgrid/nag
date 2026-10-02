@@ -61,6 +61,8 @@ class ExamQuestionDeliveryServiceTest {
     private static final UUID Q1_ID = UUID.fromString("11111111-1111-1111-1111-111111111111");
     private static final UUID Q2_ID = UUID.fromString("22222222-2222-2222-2222-222222222222");
     private static final UUID PAPER_ID = UUID.fromString("01a0fd2b-ad54-7a84-abde-63d0080d6650");
+    private static final UUID SESSION_ID = UUID.fromString("01a0fd3e-ae81-7c07-a1a1-1164d114f02a");
+    private static final UUID PRACTICE_SET_ID = UUID.fromString("01a0fd1d-ed38-74fd-a812-e7160d029654");
 
     @BeforeEach
     void setUp() {
@@ -177,6 +179,55 @@ class ExamQuestionDeliveryServiceTest {
             )).thenReturn(List.of(q1, q2));
 
             List<QuestionDeliveryDto> result = service.getQuestionsForPaper(PAPER_ID, "default");
+            assertThat(result).hasSize(2);
+            assertThat(result.get(0).getId()).isEqualTo(Q1_ID.toString());
+        }
+
+        @Test
+        @DisplayName("Falls back to practice_session table when targetId is a practice session ID")
+        @SuppressWarnings("unchecked")
+        void fallsBackToPracticeSessionTable() {
+            String practiceIdsJson = "[\"" + Q1_ID + "\", \"" + Q2_ID + "\"]";
+
+            when(jdbcTemplate.query(
+                    argThat(sql -> sql != null && sql.contains("paper_generator.paper")),
+                    any(RowMapper.class),
+                    eq(SESSION_ID),
+                    eq("default")
+            )).thenReturn(List.of());
+
+            when(jdbcTemplate.query(
+                    argThat(sql -> sql != null && sql.contains("practice_service.practice_set")),
+                    any(RowMapper.class),
+                    eq(SESSION_ID),
+                    eq("default")
+            )).thenReturn(List.of());
+
+            when(jdbcTemplate.query(
+                    argThat(sql -> sql != null && sql.contains("practice_service.practice_session")),
+                    any(RowMapper.class),
+                    eq(SESSION_ID),
+                    eq("default")
+            )).thenReturn(List.of(PRACTICE_SET_ID));
+
+            when(jdbcTemplate.query(
+                    argThat(sql -> sql != null && sql.contains("practice_service.practice_set")),
+                    any(RowMapper.class),
+                    eq(PRACTICE_SET_ID),
+                    eq("default")
+            )).thenReturn(List.of(practiceIdsJson));
+
+            QuestionDeliveryDto q1 = QuestionDeliveryDto.builder().id(Q1_ID.toString()).text("Q1").build();
+            QuestionDeliveryDto q2 = QuestionDeliveryDto.builder().id(Q2_ID.toString()).text("Q2").build();
+
+            when(jdbcTemplate.query(
+                    argThat(sql -> sql != null && sql.contains("question_service.question")),
+                    any(RowMapper.class),
+                    eq(Q1_ID),
+                    eq(Q2_ID)
+            )).thenReturn(List.of(q1, q2));
+
+            List<QuestionDeliveryDto> result = service.getQuestionsForPaper(SESSION_ID, "default");
             assertThat(result).hasSize(2);
             assertThat(result.get(0).getId()).isEqualTo(Q1_ID.toString());
         }
