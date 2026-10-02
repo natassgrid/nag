@@ -92,7 +92,7 @@ export class ExamDeliveryService {
 
       if (paperId) {
         this.http
-          .get<any>(`/api/v1/delivery/sessions/paper/${paperId}/questions`)
+          .get<any>(`/api/v1/sessions/paper/${paperId}/questions`)
           .subscribe({
             next: (res) => {
               const list = res?.data ?? res;

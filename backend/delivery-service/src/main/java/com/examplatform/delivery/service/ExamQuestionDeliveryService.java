@@ -780,6 +780,15 @@ public class ExamQuestionDeliveryService {
         }
     }
 
+    public List<QuestionDeliveryDto> getQuestionsForPaper(UUID paperId, String tenantId) {
+        String effectiveTenant = (tenantId != null && !tenantId.isBlank()) ? tenantId : "default";
+        List<QuestionDeliveryDto> questions = fetchQuestionsForPaper(paperId, effectiveTenant);
+        if (!questions.isEmpty()) {
+            enrichWithTranslations(questions, effectiveTenant);
+        }
+        return questions;
+    }
+
     private List<QuestionDeliveryDto> fetchQuestionsForPaper(UUID paperId, String tenantId) {
         if (jdbcTemplate == null || paperId == null) {
             return Collections.emptyList();
