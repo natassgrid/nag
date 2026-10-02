@@ -43,5 +43,6 @@ export class BrowseFilterBarComponent {
     { id: 'OPEN', label: 'Open Registration' },
     { id: 'CLOSING_SOON', label: 'Closing Soon' },
     { id: 'APPLIED', label: 'My Enrolled' },
+    { id: 'PRACTICE', label: 'Practice / Mock Tests' },
   ];
 }

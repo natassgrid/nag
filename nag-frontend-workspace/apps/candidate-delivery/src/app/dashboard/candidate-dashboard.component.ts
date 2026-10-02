@@ -45,7 +45,7 @@ export class CandidateDashboardComponent implements OnInit {
   readonly authService = inject(AuthService);
   readonly dashboardService = inject(CandidateDashboardService);
 
-  readonly activeFilter = signal<'ALL' | 'LIVE' | 'UPCOMING' | 'COMPLETED'>('ALL');
+  readonly activeFilter = signal<'ALL' | 'LIVE' | 'UPCOMING' | 'PRACTICE' | 'COMPLETED'>('ALL');
   readonly selectedAdmitCard = signal<DigitalAdmitCard | null>(null);
 
   readonly candidateName = computed(() => {
@@ -56,7 +56,8 @@ export class CandidateDashboardComponent implements OnInit {
     const filter = this.activeFilter();
     const list = this.dashboardService.enrolledExams();
     if (filter === 'ALL') return list;
-    if (filter === 'UPCOMING') return list.filter((e) => e.status === 'UPCOMING' || e.status === 'SCHEDULED');
+    if (filter === 'PRACTICE') return list.filter((e) => e.isPractice || e.practiceAvailable);
+    if (filter === 'UPCOMING') return list.filter((e) => !e.isPractice && (e.status === 'UPCOMING' || e.status === 'SCHEDULED'));
     return list.filter((e) => e.status === filter);
   });
 
@@ -64,7 +65,7 @@ export class CandidateDashboardComponent implements OnInit {
     this.dashboardService.loadEnrolledExams().subscribe();
   }
 
-  setFilter(filter: 'ALL' | 'LIVE' | 'UPCOMING' | 'COMPLETED'): void {
+  setFilter(filter: 'ALL' | 'LIVE' | 'UPCOMING' | 'PRACTICE' | 'COMPLETED'): void {
     this.activeFilter.set(filter);
   }
 

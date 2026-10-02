@@ -29,11 +29,11 @@
       </div>
 
       <!-- Filter Tabs -->
-      <div class="flex items-center gap-1 bg-slate-100 p-1 rounded-xl shrink-0">
+      <div class="flex items-center gap-1 bg-slate-100 p-1 rounded-xl shrink-0 overflow-x-auto max-w-full">
         <button
           type="button"
           (click)="setFilter('ALL')"
-          class="px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer"
+          class="px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer whitespace-nowrap"
           [ngClass]="activeFilter() === 'ALL' ? 'bg-white text-indigo-700 shadow-2xs' : 'text-slate-600 hover:text-slate-900'"
         >
           All ({{ dashboardService.enrolledExams().length }})
@@ -41,7 +41,7 @@
         <button
           type="button"
           (click)="setFilter('LIVE')"
-          class="px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5"
+          class="px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 whitespace-nowrap"
           [ngClass]="activeFilter() === 'LIVE' ? 'bg-white text-rose-600 shadow-2xs' : 'text-slate-600 hover:text-slate-900'"
         >
           @if (dashboardService.liveCount() > 0) {
@@ -51,8 +51,17 @@
         </button>
         <button
           type="button"
+          (click)="setFilter('PRACTICE')"
+          class="px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1 whitespace-nowrap"
+          [ngClass]="activeFilter() === 'PRACTICE' ? 'bg-white text-purple-700 shadow-2xs' : 'text-slate-600 hover:text-slate-900'"
+        >
+          <mat-icon class="!text-sm text-purple-600">psychology</mat-icon>
+          Practice / Mocks ({{ dashboardService.practiceCount() }})
+        </button>
+        <button
+          type="button"
           (click)="setFilter('UPCOMING')"
-          class="px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer"
+          class="px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer whitespace-nowrap"
           [ngClass]="activeFilter() === 'UPCOMING' ? 'bg-white text-indigo-700 shadow-2xs' : 'text-slate-600 hover:text-slate-900'"
         >
           Upcoming ({{ dashboardService.upcomingCount() }})
@@ -60,7 +69,7 @@
         <button
           type="button"
           (click)="setFilter('COMPLETED')"
-          class="px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer"
+          class="px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer whitespace-nowrap"
           [ngClass]="activeFilter() === 'COMPLETED' ? 'bg-white text-emerald-700 shadow-2xs' : 'text-slate-600 hover:text-slate-900'"
         >
           Past / Results ({{ dashboardService.completedCount() }})
@@ -118,39 +127,34 @@
           }
         </div>
       } @else {
-        <!-- Empty State -->
-        <div class="bg-white rounded-3xl border border-slate-200 p-12 text-center space-y-4 shadow-xs">
-          <div class="w-16 h-16 bg-indigo-50 text-indigo-600 rounded-3xl flex items-center justify-center mx-auto">
-            <mat-icon class="!text-3xl">event_busy</mat-icon>
+        <div class="p-12 text-center bg-white rounded-2xl border border-slate-200/80 space-y-3">
+          <div class="w-12 h-12 bg-slate-100 text-slate-400 rounded-full flex items-center justify-center mx-auto">
+            <mat-icon>inbox</mat-icon>
           </div>
-          <div class="space-y-1">
-            <h3 class="text-base font-bold text-slate-900">No Examinations Found</h3>
-            <p class="text-xs text-slate-500 max-w-md mx-auto">
-              You currently have no registered assessments under this filter. Explore open national examinations in our catalog.
-            </p>
-          </div>
-          <div>
-            <a
-              mat-flat-button
-              color="primary"
-              routerLink="/browse"
-              class="!rounded-xl !text-xs font-bold !px-6"
-            >
-              <mat-icon class="!text-sm">search</mat-icon>
-              Browse Open Examinations &rarr;
-            </a>
-          </div>
+          <h3 class="text-sm font-bold text-slate-800">No Examinations Found in this Filter</h3>
+          <p class="text-xs text-slate-500 max-w-sm mx-auto">
+            Explore national competitive examinations and practice mock tests available in the open catalog.
+          </p>
+          <a
+            mat-flat-button
+            color="primary"
+            routerLink="/browse"
+            class="!rounded-xl !text-xs font-semibold mt-2"
+          >
+            <mat-icon class="!text-sm">search</mat-icon>
+            Browse Examination Catalog
+          </a>
         </div>
       }
     }
   </div>
 
-  <!-- Digital Admit Card Modal -->
-  @if (selectedAdmitCard(); as card) {
+  <!-- Digital Admit Card Modal Dialog -->
+  @if (selectedAdmitCard(); as admitCard) {
     <app-candidate-admit-card-dialog
-      [card]="card"
+      [admitCard]="admitCard"
       (closeDialog)="closeAdmitCard()"
-      (printCard)="printAdmitCard()"
+      (printDocument)="printAdmitCard()"
     />
   }
 </div>
