@@ -1,11 +1,11 @@
 import { Component, ChangeDetectionStrategy, input, computed } from '@angular/core';
-import { MatCardModule } from '@angular/material/card';
+import { CommonModule } from '@angular/common';
 import { MatIconModule } from '@angular/material/icon';
 
 @Component({
   selector: 'app-practice-set-kpi-cards',
   standalone: true,
-  imports: [MatCardModule, MatIconModule],
+  imports: [CommonModule, MatIconModule],
   templateUrl: './practice-set-kpi-cards.component.html',
   styleUrls: ['./practice-set-kpi-cards.component.scss'],
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -13,5 +13,6 @@ import { MatIconModule } from '@angular/material/icon';
 export class PracticeSetKpiCardsComponent {
   total = input.required<number>();
   published = input.required<number>();
-  draft = computed(() => this.total() - this.published());
+  totalQuestions = input<number>(0);
+  draft = computed(() => Math.max(0, this.total() - this.published()));
 }

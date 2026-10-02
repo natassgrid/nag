@@ -1,37 +1,41 @@
-<div class="kpi-grid">
-  <mat-card class="kpi-card">
-    <mat-card-content>
-      <div class="kpi-icon total">
-        <mat-icon>list_alt</mat-icon>
-      </div>
-      <div class="kpi-data">
-        <div class="kpi-label">Total Practice Sets</div>
-        <div class="kpi-value">{{ total() }}</div>
-      </div>
-    </mat-card-content>
-  </mat-card>
+<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+  <div class="bg-white p-4 rounded-xl border border-slate-200 flex items-center justify-between shadow-xs">
+    <div>
+      <span class="text-xs font-bold text-slate-400 uppercase tracking-wider block">Total Practice Sets</span>
+      <span class="text-2xl font-black text-slate-900">{{ total() }}</span>
+    </div>
+    <div class="w-10 h-10 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center">
+      <mat-icon>layers</mat-icon>
+    </div>
+  </div>
 
-  <mat-card class="kpi-card">
-    <mat-card-content>
-      <div class="kpi-icon published">
-        <mat-icon>public</mat-icon>
-      </div>
-      <div class="kpi-data">
-        <div class="kpi-label">Published</div>
-        <div class="kpi-value">{{ published() }}</div>
-      </div>
-    </mat-card-content>
-  </mat-card>
+  <div class="bg-white p-4 rounded-xl border border-slate-200 flex items-center justify-between shadow-xs">
+    <div>
+      <span class="text-xs font-bold text-slate-400 uppercase tracking-wider block">Published Active</span>
+      <span class="text-2xl font-black text-emerald-600">{{ published() }}</span>
+    </div>
+    <div class="w-10 h-10 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center">
+      <mat-icon>check_circle</mat-icon>
+    </div>
+  </div>
 
-  <mat-card class="kpi-card">
-    <mat-card-content>
-      <div class="kpi-icon draft">
-        <mat-icon>drafts</mat-icon>
-      </div>
-      <div class="kpi-data">
-        <div class="kpi-label">Draft</div>
-        <div class="kpi-value">{{ draft() }}</div>
-      </div>
-    </mat-card-content>
-  </mat-card>
+  <div class="bg-white p-4 rounded-xl border border-slate-200 flex items-center justify-between shadow-xs">
+    <div>
+      <span class="text-xs font-bold text-slate-400 uppercase tracking-wider block">Draft Blueprints</span>
+      <span class="text-2xl font-black text-amber-600">{{ draft() }}</span>
+    </div>
+    <div class="w-10 h-10 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center">
+      <mat-icon>edit_note</mat-icon>
+    </div>
+  </div>
+
+  <div class="bg-white p-4 rounded-xl border border-slate-200 flex items-center justify-between shadow-xs">
+    <div>
+      <span class="text-xs font-bold text-slate-400 uppercase tracking-wider block">Total Questions</span>
+      <span class="text-2xl font-black text-purple-600">{{ totalQuestions() }}</span>
+    </div>
+    <div class="w-10 h-10 rounded-lg bg-purple-50 text-purple-600 flex items-center justify-center">
+      <mat-icon>quiz</mat-icon>
+    </div>
+  </div>
 </div>

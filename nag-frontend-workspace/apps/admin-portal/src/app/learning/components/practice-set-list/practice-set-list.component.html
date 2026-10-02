@@ -1,79 +1,124 @@
-<div class="table-container mat-elevation-z1">
-  <mat-table [dataSource]="sets()">
-    <!-- Name Column -->
-    <ng-container matColumnDef="name">
-      <mat-header-cell *matHeaderCellDef> Name </mat-header-cell>
-      <mat-cell *matCellDef="let set">
-        <div class="set-name-cell">
-          <span class="set-name">{{ set.name }}</span>
-          @if (set.description) {
-            <span class="set-description">{{ set.description }}</span>
+<div class="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
+  @if (sets().length === 0) {
+    <div class="py-16 px-4 text-center space-y-4">
+      <div class="w-16 h-16 mx-auto rounded-2xl bg-indigo-50 text-indigo-500 flex items-center justify-center">
+        <mat-icon class="!text-3xl leading-none">auto_stories</mat-icon>
+      </div>
+      <div class="max-w-md mx-auto space-y-1">
+        <h3 class="text-base font-bold text-slate-800">No Practice Sets Found</h3>
+        <p class="text-xs text-slate-500 leading-relaxed">
+          Create curated practice sets using questions from generated practice papers or configure custom mock assessments.
+        </p>
+      </div>
+      <div>
+        <button mat-flat-button color="primary" (click)="create.emit()" class="!rounded-xl text-xs font-bold !px-4 !py-2">
+          <mat-icon class="!text-sm mr-1">add</mat-icon>
+          Create Practice Set
+        </button>
+      </div>
+    </div>
+  } @else {
+    <div class="overflow-x-auto">
+      <table class="w-full text-left border-collapse">
+        <thead class="bg-slate-50 border-b border-slate-200 text-[11px] font-black uppercase tracking-wider text-slate-500">
+          <tr>
+            <th class="py-3.5 px-4">Practice Set Details</th>
+            <th class="py-3.5 px-4 text-center">Questions</th>
+            <th class="py-3.5 px-4 text-center">Duration</th>
+            <th class="py-3.5 px-4">Subject</th>
+            <th class="py-3.5 px-4">Source Strategy</th>
+            <th class="py-3.5 px-4 text-center">Status</th>
+            <th class="py-3.5 px-4 text-right">Actions</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-slate-100 text-xs">
+          @for (set of sets(); track set.id) {
+            <tr class="hover:bg-slate-50/70 transition-colors">
+              <td class="py-4 px-4">
+                <div class="flex flex-col gap-0.5">
+                  <span class="font-bold text-slate-900 text-sm">{{ set.name }}</span>
+                  @if (set.description) {
+                    <span class="text-xs text-slate-500 line-clamp-1 max-w-md">{{ set.description }}</span>
+                  }
+                </div>
+              </td>
+              <td class="py-4 px-4 text-center">
+                <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold bg-slate-100 text-slate-700">
+                  {{ set.totalQuestions || 0 }} Qs
+                </span>
+              </td>
+              <td class="py-4 px-4 text-center">
+                <span class="inline-flex items-center gap-1 text-xs font-semibold text-slate-600">
+                  <mat-icon class="!text-sm text-slate-400">schedule</mat-icon>
+                  {{ set.durationMinutes }} min
+                </span>
+              </td>
+              <td class="py-4 px-4">
+                @if (set.subjectSlug) {
+                  <span class="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-semibold bg-indigo-50 text-indigo-700 border border-indigo-200">
+                    {{ set.subjectSlug }}
+                  </span>
+                } @else {
+                  <span class="text-slate-400 font-medium italic">General</span>
+                }
+              </td>
+              <td class="py-4 px-4">
+                @if (set.source === 'EXAM_CLONE') {
+                  <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider bg-emerald-50 text-emerald-700 border border-emerald-200">
+                    <mat-icon class="!text-xs leading-none">attach_file</mat-icon>
+                    Attached Paper
+                  </span>
+                } @else {
+                  <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider bg-slate-100 text-slate-600 border border-slate-200">
+                    <mat-icon class="!text-xs leading-none">edit</mat-icon>
+                    Manual Curation
+                  </span>
+                }
+              </td>
+              <td class="py-4 px-4 text-center">
+                <div class="flex items-center justify-center gap-2">
+                  <mat-slide-toggle
+                    [checked]="set.published"
+                    (change)="togglePublish.emit(set)"
+                    color="primary"
+                    [aria-label]="set.published ? 'Published' : 'Draft'"
+                  >
+                  </mat-slide-toggle>
+                  <span
+                    class="text-[11px] font-bold"
+                    [class.text-emerald-600]="set.published"
+                    [class.text-slate-400]="!set.published"
+                  >
+                    {{ set.published ? 'Published' : 'Draft' }}
+                  </span>
+                </div>
+              </td>
+              <td class="py-4 px-4 text-right">
+                <div class="flex items-center justify-end gap-1">
+                  <button
+                    mat-icon-button
+                    color="primary"
+                    (click)="edit.emit(set)"
+                    title="Edit Practice Set"
+                    class="!text-indigo-600 hover:!bg-indigo-50 cursor-pointer"
+                  >
+                    <mat-icon class="!text-lg">edit</mat-icon>
+                  </button>
+                  <button
+                    mat-icon-button
+                    color="warn"
+                    (click)="delete.emit(set)"
+                    title="Delete Practice Set"
+                    class="!text-rose-600 hover:!bg-rose-50 cursor-pointer"
+                  >
+                    <mat-icon class="!text-lg">delete</mat-icon>
+                  </button>
+                </div>
+              </td>
+            </tr>
           }
-        </div>
-      </mat-cell>
-    </ng-container>
-
-    <!-- Questions Column -->
-    <ng-container matColumnDef="questions">
-      <mat-header-cell *matHeaderCellDef> Questions </mat-header-cell>
-      <mat-cell *matCellDef="let set"> {{ set.totalQuestions }} </mat-cell>
-    </ng-container>
-
-    <!-- Duration Column -->
-    <ng-container matColumnDef="duration">
-      <mat-header-cell *matHeaderCellDef> Duration </mat-header-cell>
-      <mat-cell *matCellDef="let set"> {{ set.durationMinutes }} min </mat-cell>
-    </ng-container>
-
-    <!-- Subject Column -->
-    <ng-container matColumnDef="subject">
-      <mat-header-cell *matHeaderCellDef> Subject </mat-header-cell>
-      <mat-cell *matCellDef="let set">
-        @if (set.subjectSlug) {
-          <mat-chip-set>
-            <mat-chip>{{ set.subjectSlug }}</mat-chip>
-          </mat-chip-set>
-        } @else {
-          <span class="text-muted">N/A</span>
-        }
-      </mat-cell>
-    </ng-container>
-
-    <!-- Published Column -->
-    <ng-container matColumnDef="published">
-      <mat-header-cell *matHeaderCellDef> Published </mat-header-cell>
-      <mat-cell *matCellDef="let set">
-        <mat-slide-toggle
-          [checked]="set.published"
-          (change)="togglePublish.emit(set)"
-          color="primary">
-        </mat-slide-toggle>
-      </mat-cell>
-    </ng-container>
-
-    <!-- Actions Column -->
-    <ng-container matColumnDef="actions">
-      <mat-header-cell *matHeaderCellDef class="actions-cell"> Actions </mat-header-cell>
-      <mat-cell *matCellDef="let set" class="actions-cell">
-        <button mat-icon-button color="primary" (click)="edit.emit(set)" aria-label="Edit practice set">
-          <mat-icon>edit</mat-icon>
-        </button>
-        <button mat-icon-button color="warn" (click)="delete.emit(set)" aria-label="Delete practice set">
-          <mat-icon>delete</mat-icon>
-        </button>
-      </mat-cell>
-    </ng-container>
-
-    <mat-header-row *matHeaderRowDef="displayedColumns"></mat-header-row>
-    <mat-row *matRowDef="let row; columns: displayedColumns;"></mat-row>
-
-    <!-- No Data Row -->
-    <tr class="mat-row" *matNoDataRow>
-      <td class="mat-cell" colspan="6">
-        <div class="empty-state">
-          No practice sets found. Click "New Practice Set" to create one.
-        </div>
-      </td>
-    </tr>
-  </mat-table>
+        </tbody>
+      </table>
+    </div>
+  }
 </div>

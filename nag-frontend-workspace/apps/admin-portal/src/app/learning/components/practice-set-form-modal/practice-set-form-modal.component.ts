@@ -6,7 +6,6 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { MatButtonModule } from '@angular/material/button';
 import { MatSelectModule } from '@angular/material/select';
-import { MatRadioModule } from '@angular/material/radio';
 import { MatIconModule } from '@angular/material/icon';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
@@ -30,7 +29,6 @@ export interface PracticeSetFormModalData {
     MatInputModule,
     MatButtonModule,
     MatSelectModule,
-    MatRadioModule,
     MatIconModule,
     MatProgressSpinnerModule,
   ],
@@ -58,6 +56,7 @@ export class PracticeSetFormModalComponent implements OnInit {
   readonly attachedQuestionIds = signal<string[]>([]);
   readonly isSubmitting = signal<boolean>(false);
   readonly isFormValid = signal<boolean>(false);
+  readonly validationError = signal<string | null>(null);
 
   readonly totalQuestionsCount = computed(() => this.attachedQuestionIds().length);
 
@@ -84,6 +83,9 @@ export class PracticeSetFormModalComponent implements OnInit {
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe(() => {
         this.isFormValid.set(this.form.valid);
+        if (this.form.valid) {
+          this.validationError.set(null);
+        }
         this.cdr.markForCheck();
       });
 
@@ -122,6 +124,7 @@ export class PracticeSetFormModalComponent implements OnInit {
 
   onSourceTypeChange(type: 'EXAM_CLONE' | 'MANUAL') {
     this.sourceType.set(type);
+    this.validationError.set(null);
     if (type === 'MANUAL') {
       this.selectedPaperId.set(null);
       this.attachedQuestionIds.set([]);
@@ -130,6 +133,7 @@ export class PracticeSetFormModalComponent implements OnInit {
   }
 
   onPaperSelected(paperId: string) {
+    this.validationError.set(null);
     if (!paperId) {
       this.selectedPaperId.set(null);
       this.attachedQuestionIds.set([]);
@@ -166,7 +170,7 @@ export class PracticeSetFormModalComponent implements OnInit {
 
         this.attachedQuestionIds.set(questionIds);
 
-        // Auto-populate form fields
+        // Auto-populate form fields if not already modified
         const currentName = this.form.get('name')?.value;
         if (!currentName || currentName.trim() === '') {
           this.form.patchValue({
@@ -199,17 +203,41 @@ export class PracticeSetFormModalComponent implements OnInit {
   }
 
   onSubmit() {
-    if (!this.canSubmit()) return;
+    if (this.isSubmitting() || this.loadingPaperDetails()) return;
+    this.validationError.set(null);
+
+    const formValue = this.form.value;
+    const name = formValue.name?.trim();
+
+    if (!name) {
+      this.form.get('name')?.markAsTouched();
+      this.validationError.set('Please enter a practice set name.');
+      this.cdr.markForCheck();
+      return;
+    }
+
+    const duration = Number(formValue.durationMinutes);
+    if (!duration || duration < 1) {
+      this.form.get('durationMinutes')?.markAsTouched();
+      this.validationError.set('Duration must be at least 1 minute.');
+      this.cdr.markForCheck();
+      return;
+    }
+
+    if (this.data.mode === 'create' && this.sourceType() === 'EXAM_CLONE' && !this.selectedPaperId()) {
+      this.validationError.set('Please select a generated practice paper to attach questions, or switch to Manual Curation.');
+      this.cdr.markForCheck();
+      return;
+    }
 
     this.isSubmitting.set(true);
     this.cdr.markForCheck();
-    const formValue = this.form.value;
 
     if (this.data.mode === 'create') {
       const createReq: CreatePracticeSetRequest = {
-        name: formValue.name,
+        name: name,
         description: formValue.description || null,
-        durationMinutes: formValue.durationMinutes,
+        durationMinutes: duration,
         subjectSlug: formValue.subjectSlug || null,
         questionIds: this.attachedQuestionIds(),
         source: this.sourceType(),
@@ -223,15 +251,16 @@ export class PracticeSetFormModalComponent implements OnInit {
         },
         error: (err) => {
           this.isSubmitting.set(false);
+          this.validationError.set('Failed to create practice set. Please verify input data and try again.');
           this.cdr.markForCheck();
           console.error('Failed to create practice set', err);
         },
       });
     } else {
       const updateReq: UpdatePracticeSetRequest = {
-        name: formValue.name,
+        name: name,
         description: formValue.description || null,
-        durationMinutes: formValue.durationMinutes,
+        durationMinutes: duration,
         totalQuestions: this.data.set?.totalQuestions || this.attachedQuestionIds().length,
         subjectSlug: formValue.subjectSlug || null,
       };
@@ -243,6 +272,7 @@ export class PracticeSetFormModalComponent implements OnInit {
         },
         error: (err) => {
           this.isSubmitting.set(false);
+          this.validationError.set('Failed to update practice set. Please try again.');
           this.cdr.markForCheck();
           console.error('Failed to update practice set', err);
         },
