@@ -76,7 +76,7 @@
       type="button"
       (click)="onPrevious()"
       [disabled]="currentIndex() === 0"
-      class="px-4 py-2 rounded-lg border border-slate-300 text-sm font-semibold bg-white hover:bg-slate-50 disabled:opacity-40 cursor-pointer disabled:cursor-not-allowed"
+      class="px-4 py-2 rounded-lg border border-slate-300 text-sm font-semibold bg-white text-slate-700 hover:text-slate-900 hover:bg-slate-100 disabled:opacity-40 cursor-pointer disabled:cursor-not-allowed shadow-2xs transition-colors"
     >
       &larr; Previous
     </button>
@@ -86,7 +86,7 @@
         type="button"
         (click)="onClearResponse()"
         [disabled]="!item().selectedOptionId"
-        class="px-3 py-2 text-xs font-semibold text-slate-500 hover:text-slate-800 disabled:opacity-40 cursor-pointer disabled:cursor-not-allowed"
+        class="px-3 py-2 text-xs font-semibold text-slate-600 hover:text-slate-900 bg-slate-100 hover:bg-slate-200 rounded-lg border border-slate-200 disabled:opacity-40 cursor-pointer disabled:cursor-not-allowed transition-colors"
       >
         Clear Selection
       </button>
@@ -94,7 +94,7 @@
         type="button"
         (click)="onNext()"
         [disabled]="currentIndex() === totalQuestions() - 1"
-        class="px-5 py-2 rounded-lg bg-indigo-600 text-white text-sm font-semibold hover:bg-indigo-700 disabled:opacity-40 cursor-pointer disabled:cursor-not-allowed"
+        class="px-5 py-2 rounded-lg bg-indigo-600 text-white text-sm font-semibold hover:bg-indigo-700 disabled:opacity-40 cursor-pointer disabled:cursor-not-allowed shadow-xs transition-colors"
       >
         Next &rarr;
       </button>
