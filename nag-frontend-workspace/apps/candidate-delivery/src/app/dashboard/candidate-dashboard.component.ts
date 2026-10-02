@@ -7,17 +7,18 @@ import {
   ChangeDetectionStrategy,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { RouterModule } from '@angular/router';
+import { Router, RouterModule } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { AuthService } from '@nag-frontend-workspace/shared-data-access-auth';
-import { EnrolledExam, DigitalAdmitCard } from './models';
+import { EnrolledExam, DigitalAdmitCard, PracticePaperSummary } from './models';
 import { CandidateDashboardService } from './services';
 import {
   DashboardWelcomeBannerComponent,
   DashboardKpiStatsComponent,
   EnrolledAssessmentCardComponent,
   CandidateAdmitCardDialogComponent,
+  PracticePaperPickerDialogComponent,
 } from './components';
 
 export * from './models';
@@ -36,6 +37,7 @@ export * from './components';
     DashboardKpiStatsComponent,
     EnrolledAssessmentCardComponent,
     CandidateAdmitCardDialogComponent,
+    PracticePaperPickerDialogComponent,
   ],
   templateUrl: './candidate-dashboard.component.html',
   styleUrl: './candidate-dashboard.component.scss',
@@ -47,6 +49,9 @@ export class CandidateDashboardComponent implements OnInit {
 
   readonly activeFilter = signal<'ALL' | 'LIVE' | 'UPCOMING' | 'PRACTICE' | 'COMPLETED'>('ALL');
   readonly selectedAdmitCard = signal<DigitalAdmitCard | null>(null);
+  readonly router = inject(Router);
+  readonly selectedPracticePapers = signal<{ exam: EnrolledExam; papers: PracticePaperSummary[] } | null>(null);
+
 
   readonly candidateName = computed(() => {
     return this.authService.currentUser()?.username || 'Aryan Sharma';
@@ -83,6 +88,47 @@ export class CandidateDashboardComponent implements OnInit {
     window.print();
   }
 
+
+  onLaunchPractice(exam: EnrolledExam): void {
+    this.dashboardService.getPracticePapers(exam.id).subscribe((papers) => {
+      if (papers && papers.length > 1) {
+        this.selectedPracticePapers.set({ exam, papers });
+      } else if (papers && papers.length === 1) {
+        this.router.navigate(['/delivery'], {
+          queryParams: {
+            examId: exam.id,
+            paperId: papers[0].paperId,
+            mode: 'PRACTICE',
+          },
+        });
+      } else {
+        // Direct launch with default fallback mock
+        this.router.navigate(['/delivery'], {
+          queryParams: {
+            examId: exam.id,
+            mode: 'PRACTICE',
+          },
+        });
+      }
+    });
+  }
+
+  onSelectPracticePaper(paper: PracticePaperSummary): void {
+    const current = this.selectedPracticePapers();
+    const examId = current?.exam.id || paper.examId;
+    this.selectedPracticePapers.set(null);
+    this.router.navigate(['/delivery'], {
+      queryParams: {
+        examId,
+        paperId: paper.paperId,
+        mode: 'PRACTICE',
+      },
+    });
+  }
+
+  closePracticePaperDialog(): void {
+    this.selectedPracticePapers.set(null);
+  }
   retryLoad(): void {
     this.dashboardService.loadEnrolledExams().subscribe();
   }

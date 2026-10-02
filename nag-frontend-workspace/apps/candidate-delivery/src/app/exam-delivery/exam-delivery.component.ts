@@ -76,10 +76,11 @@ export class ExamDeliveryComponent implements OnInit, OnDestroy {
     this.route.queryParams.subscribe((params) => {
       const modeParam = (params['mode'] || '').toUpperCase() as ExamDeliveryMode;
       const examId = params['examId'] || null;
+      const paperId = params['paperId'] || null;
       const mode: ExamDeliveryMode =
         modeParam === 'PRACTICE' || modeParam === 'PREVIEW' ? modeParam : 'LIVE';
 
-      this.deliveryService.initialize(mode, examId);
+      this.deliveryService.initialize(mode, examId, paperId);
     });
 
     this.deliveryService.startTimer(() => this.autoSubmit());

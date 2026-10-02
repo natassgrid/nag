@@ -52,3 +52,16 @@ export interface DashboardKpiMetrics {
   scorecardsCount: number;
   practiceCount?: number;
 }
+
+export interface PracticePaperSummary {
+  paperId: string;
+  name: string;
+  examId: string;
+  examName?: string;
+  shiftId?: string;
+  status: string;
+  isPractice: boolean;
+  difficultyScore?: number;
+  totalQuestions?: number;
+  createdAt?: string;
+}

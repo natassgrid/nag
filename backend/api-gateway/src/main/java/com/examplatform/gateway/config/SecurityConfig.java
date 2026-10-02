@@ -58,6 +58,7 @@ public class SecurityConfig {
                 path.startsWith("/api/v1/identity/verification-status") ||
                 path.startsWith("/api/v1/identity/admin/invite/") ||
                 path.startsWith("/api/v1/examinations/public/") ||
+                path.startsWith("/api/v1/papers/public/") ||
                 path.startsWith("/api/v1/geo/") ||
                 path.startsWith("/api/v1/public/") ||
                 (exchange.getRequest().getMethod() == HttpMethod.GET && path.startsWith("/api/v1/assets/") && (path.endsWith("/download") || path.endsWith("/url")))) {
@@ -98,7 +99,8 @@ public class SecurityConfig {
                     "/api/v1/identity/resend/**",
                     "/api/v1/identity/verification-status",
                     "/api/v1/identity/admin/invite/**",
-                    "/api/v1/examinations/public/**"
+                    "/api/v1/examinations/public/**",
+                    "/api/v1/papers/public/**"
                 ).permitAll()
                 .pathMatchers("/api/v1/geo/**", "/api/v1/public/**").permitAll()
                 .pathMatchers(HttpMethod.GET, "/api/v1/assets/*/download", "/api/v1/assets/*/url").permitAll()

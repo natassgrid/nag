@@ -1,4 +1,5 @@
-import { Injectable, computed, signal } from '@angular/core';
+import { Injectable, computed, signal, inject } from '@angular/core';
+import { HttpClient } from '@angular/common/http';
 import {
   hashSha256,
   signSubmissionHash,
@@ -20,6 +21,8 @@ import {
   providedIn: 'root',
 })
 export class ExamDeliveryService {
+  private readonly http = inject(HttpClient);
+  readonly paperId = signal<string | null>(null);
   readonly examId = signal<string | null>(null);
   readonly deliveryMode = signal<ExamDeliveryMode>('LIVE');
   readonly sessionMeta = signal<ExamSessionMetadata>({
@@ -68,20 +71,59 @@ export class ExamDeliveryService {
     () => this.remainingSeconds() < 300 && this.deliveryMode() !== 'PREVIEW'
   );
 
-  initialize(mode: ExamDeliveryMode = 'LIVE', examId: string | null = null): void {
+  initialize(
+    mode: ExamDeliveryMode = 'LIVE',
+    examId: string | null = null,
+    paperId: string | null = null
+  ): void {
     this.deliveryMode.set(mode);
     this.examId.set(examId);
+    this.paperId.set(paperId);
     this.currentIndex.set(0);
     this.submissionReceipt.set(null);
 
     if (mode === 'PRACTICE') {
-      this.questions.set(JSON.parse(JSON.stringify(PRACTICE_QUESTIONS)));
       this.sessionMeta.set({
-        sessionId: 'MOCK-SESSION-SIM-2026',
+        sessionId: paperId ? `PRACTICE-${paperId.substring(0, 8)}` : 'MOCK-SESSION-SIM-2026',
         candidateId: 'PRACTICE-CANDIDATE',
         title: 'Official Practice Mock Assessment',
       });
       this.remainingSeconds.set(3600); // 60 minutes for practice
+
+      if (paperId) {
+        this.http
+          .get<any>(`/api/v1/delivery/sessions/paper/${paperId}/questions`)
+          .subscribe({
+            next: (res) => {
+              const list = res?.data ?? res;
+              if (Array.isArray(list) && list.length > 0) {
+                const mapped: ExamItem[] = list.map((q: any, idx: number) => ({
+                  id: String(q.id),
+                  order: idx + 1,
+                  questionCode: q.code || `PRAC-Q${idx + 1}`,
+                  content: q.content || q.text || '',
+                  options: (q.options || []).map((opt: any) => ({
+                    id: String(opt.id || opt.optionId),
+                    text: opt.text || opt.content || '',
+                  })),
+                  marks: q.marks || 2,
+                  negativeMarks: q.negativeMarks || 0.5,
+                  subject: q.subject,
+                  correctOptionId: q.correctOptionId,
+                  isVisited: idx === 0,
+                }));
+                this.questions.set(mapped);
+                return;
+              }
+              this.questions.set(JSON.parse(JSON.stringify(PRACTICE_QUESTIONS)));
+            },
+            error: () => {
+              this.questions.set(JSON.parse(JSON.stringify(PRACTICE_QUESTIONS)));
+            },
+          });
+      } else {
+        this.questions.set(JSON.parse(JSON.stringify(PRACTICE_QUESTIONS)));
+      }
     } else if (mode === 'PREVIEW') {
       this.questions.set(JSON.parse(JSON.stringify(PREVIEW_QUESTIONS)));
       this.sessionMeta.set({

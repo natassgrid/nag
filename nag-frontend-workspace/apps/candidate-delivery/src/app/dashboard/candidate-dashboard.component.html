@@ -155,6 +155,7 @@
             <app-enrolled-assessment-card
               [exam]="exam"
               (openAdmitCard)="openAdmitCard($event)"
+              (launchPractice)="onLaunchPractice($event)"
             />
           }
         </div>
@@ -189,6 +190,17 @@
       [card]="admitCard"
       (closeDialog)="closeAdmitCard()"
       (printCard)="printAdmitCard()"
+    />
+  }
+
+  <!-- Practice Paper Picker Modal Dialog -->
+  @if (selectedPracticePapers(); as practiceData) {
+    <app-practice-paper-picker-dialog
+      [examId]="practiceData.exam.id"
+      [examTitle]="practiceData.exam.title"
+      [papers]="practiceData.papers"
+      (closeDialog)="closePracticePaperDialog()"
+      (selectPaper)="onSelectPracticePaper($event)"
     />
   }
 </div>
