@@ -142,6 +142,10 @@ export class BrowseExamsComponent implements OnInit {
     });
   }
 
+  retryLoad(): void {
+    this.browseService.loadPublicCatalog().subscribe();
+  }
+
   openExamDetails(exam: CatalogExam): void {
     this.selectedDetailExam.set(exam);
   }
@@ -164,6 +168,10 @@ export class BrowseExamsComponent implements OnInit {
 
   closeApplyModal(): void {
     this.selectedApplyExam.set(null);
+  }
+
+  onApplicationCompleted(receipt: ApplicationReceipt): void {
+    this.handleApplicationSuccess(receipt);
   }
 
   handleApplicationSuccess(receipt: ApplicationReceipt): void {

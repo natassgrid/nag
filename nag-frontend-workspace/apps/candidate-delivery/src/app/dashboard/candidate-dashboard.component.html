@@ -1,12 +1,43 @@
-<div class="candidate-dashboard max-w-7xl mx-auto p-4 sm:p-6 lg:p-8 space-y-6 sm:space-y-8 animate-fade-in">
-  <!-- Welcome Banner Sub-component -->
+<div class="space-y-8 animate-in fade-in duration-300">
+  <!-- Welcome & Profile Header Banner -->
   <app-dashboard-welcome-banner
     [userName]="candidateName()"
     [kycVerified]="true"
-    [profileCompleteness]="95"
   />
 
-  <!-- Quick KPI Stats Sub-component -->
+  <!-- Top Action & Navigation Quick Links -->
+  <div class="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4 bg-white p-4 rounded-2xl border border-slate-200/80 shadow-xs">
+    <div class="flex items-center space-x-3">
+      <div class="w-10 h-10 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center font-bold">
+        <mat-icon class="!text-xl">dashboard_customize</mat-icon>
+      </div>
+      <div>
+        <h2 class="text-sm font-bold text-slate-900">My Candidate Portal</h2>
+        <p class="text-xs text-slate-500">Track registrations, download admit cards, and launch assessments</p>
+      </div>
+    </div>
+    <div class="flex items-center space-x-2">
+      <a
+        routerLink="/browse"
+        mat-flat-button
+        color="primary"
+        class="!rounded-xl !px-4 !py-2 !text-xs font-semibold"
+      >
+        <mat-icon class="!text-sm !mr-1">search</mat-icon>
+        Browse Public Exams
+      </a>
+      <a
+        routerLink="/results"
+        mat-stroked-button
+        class="!rounded-xl !px-4 !py-2 !text-xs font-semibold"
+      >
+        <mat-icon class="!text-sm !mr-1">analytics</mat-icon>
+        My Results & Scorecards
+      </a>
+    </div>
+  </div>
+
+  <!-- Dashboard Overview KPI Metrics -->
   <app-dashboard-kpi-stats
     [totalRegistered]="dashboardService.metrics().totalRegistered"
     [liveCount]="dashboardService.metrics().liveCount"
@@ -14,85 +45,80 @@
     [scorecardsCount]="dashboardService.metrics().scorecardsCount"
   />
 
-  <!-- Registered Assessments Section -->
-  <div class="space-y-5">
-    <!-- Header & Filter Tabs -->
-    <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pb-2 border-b border-slate-200">
+  <!-- Assessments Management Section -->
+  <div class="space-y-4">
+    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-200 pb-3">
       <div>
-        <h2 class="text-base sm:text-lg font-black text-slate-900 flex items-center gap-2">
-          <mat-icon class="!text-xl text-indigo-600">event_available</mat-icon>
-          Your Examination Enrollments
-        </h2>
-        <p class="text-xs text-slate-500 mt-0.5">
-          Track schedule windows, allocated centers, admit card issuance, and launch active tests
+        <h3 class="text-base font-bold text-slate-900 flex items-center space-x-2">
+          <span>Enrolled Assessments</span>
+          <span class="px-2 py-0.5 text-xs font-semibold rounded-full bg-slate-100 text-slate-600">
+            {{ filteredExams().length }}
+          </span>
+        </h3>
+        <p class="text-xs text-slate-500">
+          List of examinations and practice mocks applied for or allocated to you
         </p>
       </div>
 
       <!-- Filter Tabs -->
-      <div class="flex items-center gap-1 bg-slate-100 p-1 rounded-xl shrink-0 overflow-x-auto max-w-full">
+      <div class="flex items-center space-x-1 p-1 bg-slate-100/80 rounded-xl border border-slate-200/60 self-start sm:self-auto overflow-x-auto max-w-full">
         <button
           type="button"
           (click)="setFilter('ALL')"
-          class="px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer whitespace-nowrap"
-          [ngClass]="activeFilter() === 'ALL' ? 'bg-white text-indigo-700 shadow-2xs' : 'text-slate-600 hover:text-slate-900'"
+          [class.bg-white]="activeFilter() === 'ALL'"
+          [class.shadow-xs]="activeFilter() === 'ALL'"
+          [class.text-indigo-600]="activeFilter() === 'ALL'"
+          [class.font-bold]="activeFilter() === 'ALL'"
+          class="px-3 py-1.5 rounded-lg text-xs font-medium text-slate-600 hover:text-slate-900 transition-all whitespace-nowrap cursor-pointer"
         >
           All ({{ dashboardService.enrolledExams().length }})
         </button>
         <button
           type="button"
-          (click)="setFilter('LIVE')"
-          class="px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 whitespace-nowrap"
-          [ngClass]="activeFilter() === 'LIVE' ? 'bg-white text-rose-600 shadow-2xs' : 'text-slate-600 hover:text-slate-900'"
+          (click)="setFilter('PRACTICE')"
+          [class.bg-white]="activeFilter() === 'PRACTICE'"
+          [class.shadow-xs]="activeFilter() === 'PRACTICE'"
+          [class.text-indigo-600]="activeFilter() === 'PRACTICE'"
+          [class.font-bold]="activeFilter() === 'PRACTICE'"
+          class="px-3 py-1.5 rounded-lg text-xs font-medium text-slate-600 hover:text-slate-900 transition-all whitespace-nowrap cursor-pointer"
         >
-          @if (dashboardService.liveCount() > 0) {
-            <span class="w-1.5 h-1.5 rounded-full bg-rose-500 animate-pulse"></span>
-          }
-          Live ({{ dashboardService.liveCount() }})
+          Practice Tests ({{ dashboardService.metrics().practiceCount || 0 }})
         </button>
         <button
           type="button"
-          (click)="setFilter('PRACTICE')"
-          class="px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1 whitespace-nowrap"
-          [ngClass]="activeFilter() === 'PRACTICE' ? 'bg-white text-purple-700 shadow-2xs' : 'text-slate-600 hover:text-slate-900'"
+          (click)="setFilter('LIVE')"
+          [class.bg-white]="activeFilter() === 'LIVE'"
+          [class.shadow-xs]="activeFilter() === 'LIVE'"
+          [class.text-emerald-600]="activeFilter() === 'LIVE'"
+          [class.font-bold]="activeFilter() === 'LIVE'"
+          class="px-3 py-1.5 rounded-lg text-xs font-medium text-slate-600 hover:text-slate-900 transition-all whitespace-nowrap cursor-pointer"
         >
-          <mat-icon class="!text-sm text-purple-600">psychology</mat-icon>
-          Practice / Mocks ({{ dashboardService.practiceCount() }})
+          Live Today
         </button>
         <button
           type="button"
           (click)="setFilter('UPCOMING')"
-          class="px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer whitespace-nowrap"
-          [ngClass]="activeFilter() === 'UPCOMING' ? 'bg-white text-indigo-700 shadow-2xs' : 'text-slate-600 hover:text-slate-900'"
+          [class.bg-white]="activeFilter() === 'UPCOMING'"
+          [class.shadow-xs]="activeFilter() === 'UPCOMING'"
+          [class.text-indigo-600]="activeFilter() === 'UPCOMING'"
+          [class.font-bold]="activeFilter() === 'UPCOMING'"
+          class="px-3 py-1.5 rounded-lg text-xs font-medium text-slate-600 hover:text-slate-900 transition-all whitespace-nowrap cursor-pointer"
         >
-          Upcoming ({{ dashboardService.upcomingCount() }})
+          Upcoming ({{ dashboardService.metrics().upcomingCount }})
         </button>
         <button
           type="button"
           (click)="setFilter('COMPLETED')"
-          class="px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer whitespace-nowrap"
-          [ngClass]="activeFilter() === 'COMPLETED' ? 'bg-white text-emerald-700 shadow-2xs' : 'text-slate-600 hover:text-slate-900'"
+          [class.bg-white]="activeFilter() === 'COMPLETED'"
+          [class.shadow-xs]="activeFilter() === 'COMPLETED'"
+          [class.text-indigo-600]="activeFilter() === 'COMPLETED'"
+          [class.font-bold]="activeFilter() === 'COMPLETED'"
+          class="px-3 py-1.5 rounded-lg text-xs font-medium text-slate-600 hover:text-slate-900 transition-all whitespace-nowrap cursor-pointer"
         >
-          Past / Results ({{ dashboardService.completedCount() }})
+          Completed
         </button>
       </div>
     </div>
-
-    <!-- Loading State -->
-    @if (dashboardService.loading()) {
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-        @for (i of [1, 2]; track i) {
-          <div class="bg-white rounded-2xl border border-slate-200 p-6 space-y-4 animate-pulse">
-            <div class="flex justify-between items-center">
-              <div class="h-5 w-24 bg-slate-200 rounded"></div>
-              <div class="h-5 w-20 bg-slate-200 rounded-full"></div>
-            </div>
-            <div class="h-6 w-3/4 bg-slate-200 rounded"></div>
-            <div class="h-24 bg-slate-100 rounded-xl"></div>
-            <div class="h-10 bg-slate-200 rounded-xl"></div>
-          </div>
-        }
-      </div>
-    }
 
     <!-- Error State -->
     @if (dashboardService.error(); as err) {
@@ -100,25 +126,31 @@
         <div class="w-12 h-12 bg-rose-100 text-rose-700 rounded-full flex items-center justify-center mx-auto">
           <mat-icon>error_outline</mat-icon>
         </div>
-        <h3 class="text-sm font-bold text-rose-900">Unable to Fetch Enrolled Examinations</h3>
+        <h3 class="text-sm font-bold text-rose-900">Failed to Load Dashboard Assessments</h3>
         <p class="text-xs text-rose-700">{{ err }}</p>
         <button
-          type="button"
           mat-flat-button
           color="warn"
           (click)="retryLoad()"
           class="!rounded-xl !text-xs font-semibold"
         >
           <mat-icon class="!text-sm">refresh</mat-icon>
-          Retry
+          Retry Loading
         </button>
       </div>
     }
 
-    <!-- Enrolled Assessment Cards Grid -->
-    @if (!dashboardService.loading()) {
+    <!-- Loading State -->
+    @if (dashboardService.loading()) {
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        @for (i of [1, 2, 3]; track i) {
+          <div class="h-64 rounded-2xl bg-slate-100 animate-pulse border border-slate-200/60"></div>
+        }
+      </div>
+    } @else {
+      <!-- Assessments Cards Grid -->
       @if (filteredExams().length > 0) {
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           @for (exam of filteredExams(); track exam.id) {
             <app-enrolled-assessment-card
               [exam]="exam"
@@ -127,21 +159,23 @@
           }
         </div>
       } @else {
-        <div class="p-12 text-center bg-white rounded-2xl border border-slate-200/80 space-y-3">
-          <div class="w-12 h-12 bg-slate-100 text-slate-400 rounded-full flex items-center justify-center mx-auto">
-            <mat-icon>inbox</mat-icon>
+        <!-- Empty State -->
+        <div class="bg-white rounded-2xl border border-slate-200 p-12 text-center space-y-4 shadow-xs">
+          <div class="w-16 h-16 bg-slate-50 text-slate-400 rounded-3xl flex items-center justify-center mx-auto">
+            <mat-icon class="!text-3xl">inbox</mat-icon>
           </div>
-          <h3 class="text-sm font-bold text-slate-800">No Examinations Found in this Filter</h3>
-          <p class="text-xs text-slate-500 max-w-sm mx-auto">
-            Explore national competitive examinations and practice mock tests available in the open catalog.
-          </p>
+          <div class="space-y-1">
+            <h3 class="text-base font-bold text-slate-900">No Enrolled Assessments</h3>
+            <p class="text-xs text-slate-500 max-w-md mx-auto">
+              You haven't enrolled in any examinations under this filter yet. Explore available tests in the catalog.
+            </p>
+          </div>
           <a
+            routerLink="/browse"
             mat-flat-button
             color="primary"
-            routerLink="/browse"
-            class="!rounded-xl !text-xs font-semibold mt-2"
+            class="!rounded-xl !text-xs font-semibold"
           >
-            <mat-icon class="!text-sm">search</mat-icon>
             Browse Examination Catalog
           </a>
         </div>
@@ -152,9 +186,9 @@
   <!-- Digital Admit Card Modal Dialog -->
   @if (selectedAdmitCard(); as admitCard) {
     <app-candidate-admit-card-dialog
-      [admitCard]="admitCard"
+      [card]="admitCard"
       (closeDialog)="closeAdmitCard()"
-      (printDocument)="printAdmitCard()"
+      (printCard)="printAdmitCard()"
     />
   }
 </div>
