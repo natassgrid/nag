@@ -30,6 +30,11 @@ export interface QuestionResult {
   marksAwarded: number;
   timeSpentMs: number;
   markedForReview: boolean;
+  content?: string | null;
+  optionsJson?: string | null;
+  explanation?: string | null;
+  topic?: string | null;
+  subject?: string | null;
 }
 
 export interface PracticeResult {
@@ -44,6 +49,8 @@ export interface PracticeResult {
   difficultyBreakdown: Record<string, number[]> | null;
   timingBreakdown: Record<string, number> | null;
   questionResults: QuestionResult[];
+  practiceSetName?: string | null;
+  mode?: string | null;
 }
 
 export interface PracticeHistoryItem {

@@ -46,6 +46,18 @@ export class MathRendererComponent implements OnChanges {
     try {
       let text = rawContent.trim();
 
+      // Render KaTeX display math \[...\]
+      text = text.replace(/\\\[([\s\S]*?)\\\]/g, (match, formula) => {
+        try {
+          return `<div class="math-block">${katex.renderToString(formula.trim(), {
+            displayMode: true,
+            throwOnError: false,
+          })}</div>`;
+        } catch {
+          return match;
+        }
+      });
+
       // Render KaTeX display math $$...$$
       text = text.replace(/\$\$([\s\S]*?)\$\$/g, (match, formula) => {
         try {
@@ -53,6 +65,18 @@ export class MathRendererComponent implements OnChanges {
             displayMode: true,
             throwOnError: false,
           })}</div>`;
+        } catch {
+          return match;
+        }
+      });
+
+      // Render KaTeX inline math \(...\)
+      text = text.replace(/\\\(([\s\S]*?)\\\)/g, (match, formula) => {
+        try {
+          return katex.renderToString(formula.trim(), {
+            displayMode: false,
+            throwOnError: false,
+          });
         } catch {
           return match;
         }

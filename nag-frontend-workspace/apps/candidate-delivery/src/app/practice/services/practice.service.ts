@@ -3,7 +3,7 @@ import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import {
   PracticeSet, PracticeSession, PracticeResult,
-  PracticeHistoryItem, StartSessionRequest, PagedResponse
+  PracticeHistoryItem, StartSessionRequest, SaveResponseRequest, PagedResponse
 } from '../models';
 
 @Injectable({ providedIn: 'root' })
@@ -25,6 +25,14 @@ export class PracticeService {
 
   getSession(sessionId: string): Observable<PracticeSession> {
     return this.http.get<PracticeSession>(`${this.base}/sessions/${sessionId}`);
+  }
+
+  getSessionQuestions(sessionId: string): Observable<any[]> {
+    return this.http.get<any[]>(`${this.base}/sessions/${sessionId}/questions`);
+  }
+
+  saveResponse(sessionId: string, req: SaveResponseRequest): Observable<void> {
+    return this.http.put<void>(`${this.base}/sessions/${sessionId}/response`, req);
   }
 
   submitSession(sessionId: string): Observable<PracticeResult> {

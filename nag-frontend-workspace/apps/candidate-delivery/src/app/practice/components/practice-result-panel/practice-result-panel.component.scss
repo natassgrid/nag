@@ -1,32 +1,3 @@
 :host {
   display: block;
-  padding: 24px;
-}
-.loading-container, .error-state {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 48px;
-  gap: 16px;
-}
-.result-container {
-  max-width: 1200px;
-  margin: 0 auto;
-}
-.result-title {
-  font-size: 2rem;
-  margin-bottom: 24px;
-  text-align: center;
-}
-.result-actions {
-  display: flex;
-  justify-content: center;
-  gap: 16px;
-  margin-top: 32px;
-  flex-wrap: wrap;
-}
-.ai-callout {
-  width: 100%;
-  margin-bottom: 16px;
 }

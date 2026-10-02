@@ -15,6 +15,7 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
 import java.util.UUID;
 
 @RestController
@@ -42,6 +43,15 @@ public class PracticeSessionController {
             @PathVariable UUID sessionId) {
         UUID candidateId = UUID.fromString(jwt.getSubject());
         return ResponseEntity.ok(practiceSessionService.getSession(sessionId, candidateId));
+    }
+
+    @GetMapping("/sessions/{sessionId}/questions")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<List<PracticeQuestionDto>> getSessionQuestions(
+            @AuthenticationPrincipal Jwt jwt,
+            @PathVariable UUID sessionId) {
+        UUID candidateId = UUID.fromString(jwt.getSubject());
+        return ResponseEntity.ok(practiceSessionService.getSessionQuestions(sessionId, candidateId));
     }
 
     @PutMapping("/sessions/{sessionId}/response")

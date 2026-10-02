@@ -1,9 +1,10 @@
-import { ChangeDetectionStrategy, Component, inject, OnInit, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, OnInit, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { MatTableModule } from '@angular/material/table';
+import { FormsModule } from '@angular/forms';
 import { MatPaginatorModule, PageEvent } from '@angular/material/paginator';
 import { MatButtonModule } from '@angular/material/button';
-import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
+import { MatIconModule } from '@angular/material/icon';
+import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { RouterModule } from '@angular/router';
 import { PracticeService } from '../../services/practice.service';
 import { PracticeHistoryItem } from '../../models';
@@ -13,11 +14,12 @@ import { PracticeHistoryItem } from '../../models';
   standalone: true,
   imports: [
     CommonModule,
+    FormsModule,
     RouterModule,
-    MatTableModule,
     MatPaginatorModule,
     MatButtonModule,
-    MatProgressSpinnerModule
+    MatIconModule,
+    MatProgressBarModule,
   ],
   templateUrl: './practice-history.component.html',
   styleUrl: './practice-history.component.scss',
@@ -31,8 +33,38 @@ export class PracticeHistoryComponent implements OnInit {
   readonly currentPage = signal(0);
   readonly totalElements = signal(0);
   readonly pageSize = signal(10);
-  
-  readonly displayedColumns = ['setName', 'date', 'score', 'accuracy', 'action'];
+  readonly searchQuery = signal('');
+
+  readonly totalAttempts = computed(() => this.totalElements());
+
+  readonly avgAccuracy = computed(() => {
+    const list = this.history();
+    if (!list.length) return 0;
+    const sum = list.reduce((acc, item) => acc + (item.accuracyPercent || 0), 0);
+    return Math.round((sum / list.length) * 10) / 10;
+  });
+
+  readonly highestScore = computed(() => {
+    const list = this.history();
+    if (!list.length) return 0;
+    return Math.max(...list.map((i) => i.obtainedMarks || 0));
+  });
+
+  readonly totalSolved = computed(() => {
+    const list = this.history();
+    return list.reduce((acc, item) => acc + (item.totalQuestions || 0), 0);
+  });
+
+  readonly filteredHistory = computed(() => {
+    const q = this.searchQuery().trim().toLowerCase();
+    const items = this.history();
+    if (!q) return items;
+    return items.filter(
+      (item) =>
+        (item.practiceSetName && item.practiceSetName.toLowerCase().includes(q)) ||
+        item.sessionId.toLowerCase().includes(q)
+    );
+  });
 
   ngOnInit(): void {
     this.loadHistory(0);
@@ -42,18 +74,27 @@ export class PracticeHistoryComponent implements OnInit {
     this.isLoading.set(true);
     this.practiceService.getHistory(page, this.pageSize()).subscribe({
       next: (res) => {
-        this.history.set(res.content);
-        this.totalElements.set(res.totalElements);
-        this.currentPage.set(res.number);
+        this.history.set(res.content || []);
+        this.totalElements.set(res.totalElements || 0);
+        this.currentPage.set(res.number || 0);
         this.isLoading.set(false);
       },
       error: () => {
         this.isLoading.set(false);
-      }
+      },
     });
   }
 
   onPageChange(event: PageEvent): void {
     this.loadHistory(event.pageIndex);
+  }
+
+  onSearchChange(event: Event): void {
+    const value = (event.target as HTMLInputElement).value;
+    this.searchQuery.set(value);
+  }
+
+  clearSearch(): void {
+    this.searchQuery.set('');
   }
 }

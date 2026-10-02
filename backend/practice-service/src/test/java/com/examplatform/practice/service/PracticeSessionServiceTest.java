@@ -51,6 +51,9 @@ class PracticeSessionServiceTest {
     private PracticeEvaluationService practiceEvaluationService;
 
     @Mock
+    private PracticeResultService practiceResultService;
+
+    @Mock
     private ApplicationEventPublisher eventPublisher;
 
     @InjectMocks
@@ -151,6 +154,12 @@ class PracticeSessionServiceTest {
                 .thenReturn(Optional.of(practiceSession));
         when(practiceSessionRepository.findById(sessionId))
                 .thenReturn(Optional.of(practiceSession));
+
+        PracticeResultDto mockResult = new PracticeResultDto(
+                sessionId, 15, 3, 2, 57, 80, 75.0, "{}", "{}", "{}",
+                Collections.emptyList(), "Calculus Practice", "TIMED"
+        );
+        when(practiceResultService.getResult(sessionId, candidateId)).thenReturn(mockResult);
 
         PracticeResultDto result = practiceSessionService.submitSession(sessionId, candidateId);
 
