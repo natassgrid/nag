@@ -1,0 +1,26 @@
+<div class="page-container">
+  <div class="page-header">
+    <h1>Practice Set Management</h1>
+    <button mat-raised-button color="primary" (click)="openCreateModal()">
+      <mat-icon>add</mat-icon> New Practice Set
+    </button>
+  </div>
+
+  <app-practice-set-kpi-cards
+    [total]="totalSets()"
+    [published]="publishedCount()">
+  </app-practice-set-kpi-cards>
+
+  @if (isLoading()) {
+    <div class="spinner-container">
+      <mat-progress-spinner mode="indeterminate"></mat-progress-spinner>
+    </div>
+  } @else {
+    <app-practice-set-list
+      [sets]="practiceSets()"
+      (edit)="openEditModal($event)"
+      (delete)="openDeleteDialog($event)"
+      (togglePublish)="togglePublish($event)">
+    </app-practice-set-list>
+  }
+</div>

@@ -161,6 +161,12 @@ export const appRoutes: Route[] = [
       ),
   },
   {
+    path: 'learning',
+    canActivate: [authGuard],
+    loadComponent: () =>
+      import('./learning/learning.component').then((m) => m.LearningComponent)
+  },
+  {
     path: '**',
     redirectTo: '',
   },

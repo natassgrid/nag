@@ -1,0 +1,37 @@
+<div class="kpi-grid">
+  <mat-card class="kpi-card">
+    <mat-card-content>
+      <div class="kpi-icon total">
+        <mat-icon>list_alt</mat-icon>
+      </div>
+      <div class="kpi-data">
+        <div class="kpi-label">Total Practice Sets</div>
+        <div class="kpi-value">{{ total() }}</div>
+      </div>
+    </mat-card-content>
+  </mat-card>
+
+  <mat-card class="kpi-card">
+    <mat-card-content>
+      <div class="kpi-icon published">
+        <mat-icon>public</mat-icon>
+      </div>
+      <div class="kpi-data">
+        <div class="kpi-label">Published</div>
+        <div class="kpi-value">{{ published() }}</div>
+      </div>
+    </mat-card-content>
+  </mat-card>
+
+  <mat-card class="kpi-card">
+    <mat-card-content>
+      <div class="kpi-icon draft">
+        <mat-icon>drafts</mat-icon>
+      </div>
+      <div class="kpi-data">
+        <div class="kpi-label">Draft</div>
+        <div class="kpi-value">{{ draft() }}</div>
+      </div>
+    </mat-card-content>
+  </mat-card>
+</div>

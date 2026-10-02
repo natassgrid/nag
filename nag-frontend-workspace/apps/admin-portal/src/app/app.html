@@ -134,7 +134,28 @@
               </a>
             </mat-menu>
 
-            <!-- 4. Administration Sub-Menu -->
+            <!-- 4. Learning Sub-Menu -->
+            <button
+              type="button"
+              [matMenuTriggerFor]="learningMenu"
+              [ngClass]="{ 'bg-slate-800 text-white font-semibold': isRouteActive('/learning') }"
+              class="px-3 py-2 rounded-lg text-slate-300 hover:text-white hover:bg-slate-800/60 transition-colors flex items-center gap-1.5 focus:outline-none"
+            >
+              <mat-icon class="!text-lg">school</mat-icon>
+              <span>Learning</span>
+              <mat-icon class="!text-sm opacity-60">arrow_drop_down</mat-icon>
+            </button>
+            <mat-menu #learningMenu="matMenu" class="custom-nav-menu">
+              <a mat-menu-item routerLink="/learning">
+                <mat-icon class="text-indigo-600">book</mat-icon>
+                <div class="inline-flex flex-col text-left">
+                  <span class="font-bold text-xs text-slate-900">Practice Sets</span>
+                  <span class="text-[10px] text-slate-500">Manage learning paths and practice sets</span>
+                </div>
+              </a>
+            </mat-menu>
+
+            <!-- 5. Administration Sub-Menu -->
             <button
               type="button"
               [matMenuTriggerFor]="adminMenu"

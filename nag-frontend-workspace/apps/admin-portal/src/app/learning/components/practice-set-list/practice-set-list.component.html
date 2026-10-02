@@ -1,0 +1,79 @@
+<div class="table-container mat-elevation-z1">
+  <mat-table [dataSource]="sets()">
+    <!-- Name Column -->
+    <ng-container matColumnDef="name">
+      <mat-header-cell *matHeaderCellDef> Name </mat-header-cell>
+      <mat-cell *matCellDef="let set">
+        <div class="set-name-cell">
+          <span class="set-name">{{ set.name }}</span>
+          @if (set.description) {
+            <span class="set-description">{{ set.description }}</span>
+          }
+        </div>
+      </mat-cell>
+    </ng-container>
+
+    <!-- Questions Column -->
+    <ng-container matColumnDef="questions">
+      <mat-header-cell *matHeaderCellDef> Questions </mat-header-cell>
+      <mat-cell *matCellDef="let set"> {{ set.totalQuestions }} </mat-cell>
+    </ng-container>
+
+    <!-- Duration Column -->
+    <ng-container matColumnDef="duration">
+      <mat-header-cell *matHeaderCellDef> Duration </mat-header-cell>
+      <mat-cell *matCellDef="let set"> {{ set.durationMinutes }} min </mat-cell>
+    </ng-container>
+
+    <!-- Subject Column -->
+    <ng-container matColumnDef="subject">
+      <mat-header-cell *matHeaderCellDef> Subject </mat-header-cell>
+      <mat-cell *matCellDef="let set">
+        @if (set.subjectSlug) {
+          <mat-chip-set>
+            <mat-chip>{{ set.subjectSlug }}</mat-chip>
+          </mat-chip-set>
+        } @else {
+          <span class="text-muted">N/A</span>
+        }
+      </mat-cell>
+    </ng-container>
+
+    <!-- Published Column -->
+    <ng-container matColumnDef="published">
+      <mat-header-cell *matHeaderCellDef> Published </mat-header-cell>
+      <mat-cell *matCellDef="let set">
+        <mat-slide-toggle
+          [checked]="set.published"
+          (change)="togglePublish.emit(set)"
+          color="primary">
+        </mat-slide-toggle>
+      </mat-cell>
+    </ng-container>
+
+    <!-- Actions Column -->
+    <ng-container matColumnDef="actions">
+      <mat-header-cell *matHeaderCellDef class="actions-cell"> Actions </mat-header-cell>
+      <mat-cell *matCellDef="let set" class="actions-cell">
+        <button mat-icon-button color="primary" (click)="edit.emit(set)" aria-label="Edit practice set">
+          <mat-icon>edit</mat-icon>
+        </button>
+        <button mat-icon-button color="warn" (click)="delete.emit(set)" aria-label="Delete practice set">
+          <mat-icon>delete</mat-icon>
+        </button>
+      </mat-cell>
+    </ng-container>
+
+    <mat-header-row *matHeaderRowDef="displayedColumns"></mat-header-row>
+    <mat-row *matRowDef="let row; columns: displayedColumns;"></mat-row>
+
+    <!-- No Data Row -->
+    <tr class="mat-row" *matNoDataRow>
+      <td class="mat-cell" colspan="6">
+        <div class="empty-state">
+          No practice sets found. Click "New Practice Set" to create one.
+        </div>
+      </td>
+    </tr>
+  </mat-table>
+</div>
