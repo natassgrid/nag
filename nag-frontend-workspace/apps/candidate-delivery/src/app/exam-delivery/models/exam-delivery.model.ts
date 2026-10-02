@@ -11,6 +11,8 @@ export interface ExamItem {
   options: ExamOption[];
   marks: number;
   negativeMarks: number;
+  subject?: string;
+  correctOptionId?: string;
   selectedOptionId?: string;
   isFlagged?: boolean;
   isVisited?: boolean;
@@ -20,9 +22,16 @@ export interface ExamSubmissionReceipt {
   signature: string;
   hash: string;
   timestamp: string;
+  mode?: 'LIVE' | 'PRACTICE' | 'PREVIEW';
+  score?: number;
+  totalMarks?: number;
+  correctCount?: number;
+  incorrectCount?: number;
+  unansweredCount?: number;
 }
 
 export interface ExamSessionMetadata {
   sessionId: string;
   candidateId: string;
+  title?: string;
 }

@@ -57,7 +57,7 @@ describe('ExamDeliveryComponent', () => {
   it('should navigate between questions', () => {
     component.goToQuestion(1);
     expect(component.currentIndex()).toBe(1);
-    expect(component.currentItem()?.questionCode).toBe('CS-MATH-202');
+    expect(component.currentItem()?.questionCode).toBe('NES-MATH-202');
 
     component.prevQuestion();
     expect(component.currentIndex()).toBe(0);
