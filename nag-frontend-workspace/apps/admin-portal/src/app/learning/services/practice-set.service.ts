@@ -1,7 +1,7 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
-import { PracticeSet, UpdatePracticeSetRequest } from '../models';
+import { PracticeSet, CreatePracticeSetRequest, UpdatePracticeSetRequest } from '../models';
 
 @Injectable({ providedIn: 'root' })
 export class PracticeSetService {
@@ -12,7 +12,7 @@ export class PracticeSetService {
     return this.http.get<PracticeSet[]>(this.base);
   }
 
-  create(req: UpdatePracticeSetRequest): Observable<PracticeSet> {
+  create(req: CreatePracticeSetRequest | UpdatePracticeSetRequest): Observable<PracticeSet> {
     return this.http.post<PracticeSet>(this.base, req);
   }
 

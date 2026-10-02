@@ -113,7 +113,8 @@ export class PracticeSetFormModalComponent implements OnInit {
 
         if (paper.questions && Array.isArray(paper.questions)) {
           paper.questions.forEach((q) => {
-            if (q.id) questionIds.push(String(q.id));
+            const qid = q.questionId || (q as any).id;
+            if (qid) questionIds.push(String(qid));
           });
         }
 
