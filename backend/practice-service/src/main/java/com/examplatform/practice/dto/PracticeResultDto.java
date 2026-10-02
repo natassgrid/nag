@@ -1,0 +1,17 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+package com.examplatform.practice.dto;
+import java.util.List;
+import java.util.UUID;
+public record PracticeResultDto(
+    UUID sessionId,
+    int correctCount,
+    int incorrectCount,
+    int skippedCount,
+    int obtainedMarks,
+    int totalMarks,
+    double accuracyPercent,
+    String topicWiseBreakdown,
+    String difficultyBreakdown,
+    String timingBreakdown,
+    List<QuestionResultDto> questionResults
+) {}

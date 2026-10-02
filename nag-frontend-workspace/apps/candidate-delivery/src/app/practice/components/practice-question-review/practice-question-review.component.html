@@ -1,0 +1,11 @@
+<mat-list>
+  @for (qr of questionResults(); track qr.questionId) {
+    <mat-list-item>
+      <mat-icon matListItemIcon [class.correct]="qr.correct" [class.incorrect]="!qr.correct && qr.candidateAnswer">
+        {{ qr.correct ? 'check_circle' : (qr.candidateAnswer ? 'cancel' : 'remove_circle') }}
+      </mat-icon>
+      <span matListItemTitle>Question {{ $index + 1 }}</span>
+      <span matListItemLine>{{ qr.marksAwarded > 0 ? '+' : '' }}{{ qr.marksAwarded }} marks &bull; {{ (qr.timeSpentMs / 1000) | number:'1.0-1' }}s</span>
+    </mat-list-item>
+  }
+</mat-list>
