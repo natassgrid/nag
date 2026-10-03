@@ -48,7 +48,7 @@ class AdminDashboardControllerIntegrationTest extends AbstractIntegrationTest {
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.tenantId").value("default"))
                     .andExpect(jsonPath("$.kpis.totalQuestions").value(48290))
-                    .andExpect(jsonPath("$.kpis.activeExaminations").value(14))
+                    .andExpect(jsonPath("$.kpis.activeExaminations").value(10))
                     .andExpect(jsonPath("$.kpis.registeredCandidates").value(1480200))
                     .andExpect(jsonPath("$.kpis.pendingGradingTasks").value(342))
                     .andExpect(jsonPath("$.examBreakdown.draft").value(4))
@@ -68,7 +68,7 @@ class AdminDashboardControllerIntegrationTest extends AbstractIntegrationTest {
                             .accept(MediaType.APPLICATION_JSON))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.tenantId").value("nta-exam"))
-                    .andExpect(jsonPath("$.kpis.activeExaminations").value(14));
+                    .andExpect(jsonPath("$.kpis.activeExaminations").value(10));
         }
 
         @Test

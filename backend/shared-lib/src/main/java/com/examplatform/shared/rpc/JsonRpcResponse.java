@@ -17,28 +17,33 @@
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
 
-package com.examplatform.evaluation.repository;
+package com.examplatform.shared.rpc;
 
-import com.examplatform.evaluation.domain.Evaluation;
-import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.stereotype.Repository;
-
-import java.util.List;
-import java.util.UUID;
+import com.fasterxml.jackson.annotation.JsonInclude;
+import lombok.Builder;
 
 /**
- * Spring Data JPA repository for evaluations.
+ * Standard JSON-RPC 2.0 Response envelope for inter-service communication.
  */
-@Repository
-public interface EvaluationRepository extends JpaRepository<Evaluation, UUID> {
+@Builder
+@JsonInclude(JsonInclude.Include.NON_NULL)
+public record JsonRpcResponse(
+        String jsonrpc,
+        Object result,
+        JsonRpcError error,
+        Object id
+) {
+    public static JsonRpcResponse success(Object id, Object result) {
+        return new JsonRpcResponse("2.0", result, null, id);
+    }
 
-    List<Evaluation> findBySessionIdAndTenantId(UUID sessionId, String tenantId);
+    public static JsonRpcResponse error(Object id, int code, String message) {
+        return new JsonRpcResponse("2.0", null, new JsonRpcError(code, message, null), id);
+    }
 
-    List<Evaluation> findByCandidateIdAndTenantId(UUID candidateId, String tenantId);
-
-    List<Evaluation> findByStatusAndTenantId(Evaluation.EvaluationStatus status, String tenantId);
-
-    long countByTenantId(String tenantId);
-
-    long countByStatusAndTenantId(Evaluation.EvaluationStatus status, String tenantId);
+    public record JsonRpcError(
+            int code,
+            String message,
+            Object data
+    ) {}
 }

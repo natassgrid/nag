@@ -55,6 +55,10 @@ public interface QuestionRepository extends JpaRepository<Question, UUID>, JpaSp
 
     List<Question> findByTenantId(String tenantId);
 
+    long countByTenantId(String tenantId);
+
+    long countByStateAndTenantId(String state, String tenantId);
+
     Page<Question> findByTenantId(String tenantId, Pageable pageable);
 
     Page<Question> findBySubjectAndTenantId(String subject, String tenantId, Pageable pageable);
@@ -171,7 +175,7 @@ public interface QuestionRepository extends JpaRepository<Question, UUID>, JpaSp
 
     /**
      * Finds questions with null embeddings for a given tenant, used by the
-     * batch embedding backfill endpoint (FR-9). Processes in pageable batches of 50.
+     * batch embedding backfill endpoint (FR-9). Processes in pageable batches of 50.\
      *
      * Validates: Requirements FR-9 (Batch Embedding Backfill)
      */
@@ -195,7 +199,7 @@ public interface QuestionRepository extends JpaRepository<Question, UUID>, JpaSp
     @Query(value = """
             SELECT * FROM question_service.question
             WHERE (tenant_id = :tenantId OR tenant_id = 'default')
-              AND UPPER(TRIM(subject)) = UPPER(TRIM(:subject))
+              AND UPPER(TRIM(subject)) = UPPER(TRIM(:subject))\
               AND UPPER(TRIM(topic)) = UPPER(TRIM(:topic))
               AND state = 'APPROVED'
               AND (:difficulty IS NULL OR UPPER(TRIM(difficulty)) = UPPER(TRIM(:difficulty)))
