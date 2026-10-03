@@ -267,7 +267,10 @@ public class AuthenticationService {
         session.setTenantId(effectiveTenant);
         activeSessionRepository.save(session);
 
-        // 8. Publish LOGIN audit event asynchronously
+        // 8. Record last login IP in Redis and publish LOGIN audit event asynchronously
+        if (riskAssessmentService != null && ipAddress != null) {
+            riskAssessmentService.recordSuccessfulLoginIp(account.getId(), ipAddress, effectiveTenant);
+        }
         publishAuditEventAsync(
                 AuditEventType.LOGIN,
                 account.getId().toString(),

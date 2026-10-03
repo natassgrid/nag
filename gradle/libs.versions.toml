@@ -2,12 +2,12 @@
 # Central dependency version catalog for the Examination Platform
 
 [versions]
-# ── Platforms & BOMs ──────────────────────────────────────────────────
+# ── Platforms & BOMs ──────────────────────────────────────────
 spring-boot = "4.1.0"
 spring-cloud = "2025.1.2"
 spring-ai = "2.0.0"
 
-# ── Plugins ───────────────────────────────────────────────────────────
+# ── Plugins ───────────────────────────────────────────────────
 lombok-plugin = "9.5.0"
 spring-dependency-management = "1.1.7"
 protobuf-plugin = "0.9.4"
@@ -27,6 +27,7 @@ testcontainers = "1.20.4"
 grpc = "1.68.1"
 protobuf-version = "3.25.5"
 archunit = "1.5.0"
+geoip2 = "4.2.1"
 
 # ──────────────────────────────────────────────────────────────────────
 
@@ -119,6 +120,9 @@ httpcore5-h2 = { module = "org.apache.httpcomponents.core5:httpcore5-h2", versio
 # ── OpenSearch ────────────────────────────────────────────────────────
 opensearch-java = { module = "org.opensearch.client:opensearch-java", version.ref = "opensearch" }
 opensearch-rest-client = { module = "org.opensearch.client:opensearch-rest-client", version.ref = "opensearch" }
+
+# ── MaxMind GeoIP2 ────────────────────────────────────────────────────
+geoip2 = { module = "com.maxmind.geoip2:geoip2", version.ref = "geoip2" }
 
 # ── AWS SDK v2 (for Bedrock Batch Inference + S3) ─────────────────────
 aws-bom = { module = "software.amazon.awssdk:bom", version.ref = "aws-sdk" }
