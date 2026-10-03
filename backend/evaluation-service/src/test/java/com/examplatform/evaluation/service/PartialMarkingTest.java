@@ -19,6 +19,7 @@
 
 package com.examplatform.evaluation.service;
 
+import com.examplatform.evaluation.dto.MarkingScheme;
 import com.examplatform.evaluation.repository.EvaluationRepository;
 import com.examplatform.shared.config.DynamicConfigService;
 import com.examplatform.shared.messaging.EventPublisher;
@@ -153,6 +154,31 @@ class PartialMarkingTest {
                     4.0);
 
             assertThat(score).isCloseTo(-2.0, within(1e-6));
+        }
+
+        @Test
+        @DisplayName("Custom negative marks applied when incorrect option selected")
+        void incorrectOptionSelected_appliesCustomNegativeMarks() {
+            double score = service.evaluateMultiMcqPartial(
+                    "[\"opt-1\",\"opt-2\"]",
+                    "[\"opt-1\",\"opt-3\"]",
+                    4.0,
+                    1.5);
+
+            assertThat(score).isCloseTo(-1.5, within(1e-6));
+        }
+
+        @Test
+        @DisplayName("ZERO_NEGATIVE scheme awards 0.0 when incorrect option selected")
+        void incorrectOptionSelected_zeroNegativeScheme_awardsZero() {
+            double score = service.evaluateMultiMcqPartial(
+                    "[\"opt-1\",\"opt-2\"]",
+                    "[\"opt-1\",\"opt-3\"]",
+                    4.0,
+                    1.0,
+                    MarkingScheme.ZERO_NEGATIVE);
+
+            assertThat(score).isCloseTo(0.0, within(1e-6));
         }
 
         @Test
