@@ -6,7 +6,7 @@
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as published
- * by the Free Software Foundation, version 3 of the License.\
+ * by the Free Software Foundation, version 3 of the License.
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -100,14 +100,27 @@ class AdminPracticeSetControllerIntegrationTest extends AbstractIntegrationTest 
         }
 
         @Test
-        @DisplayName("-ve: Unauthorized CANDIDATE role - returns 403 Forbidden")
+        @DisplayName("+ve: EXAM_CONTROLLER lists all practice sets - returns 200 OK")
+        void examControllerCanListSets() throws Exception {
+            if (!testcontainersAvailable) return;
+
+            mockMvc.perform(get("/api/admin/practice/sets")
+                            .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_EXAM_CONTROLLER"))
+                                    .jwt(j -> j.subject(ADMIN_ID.toString()).claim("tenant_id", TENANT_ID))))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.length()").value(1));
+        }
+
+        @Test
+        @DisplayName("-ve: Unauthorized CANDIDATE role - returns 403 Forbidden with ProblemDetail")
         void candidateCannotListAdminSets() throws Exception {
             if (!testcontainersAvailable) return;
 
             mockMvc.perform(get("/api/admin/practice/sets")
                             .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_CANDIDATE"))
                                     .jwt(j -> j.subject(UUID.randomUUID().toString()).claim("tenant_id", TENANT_ID))))
-                    .andExpect(status().isForbidden());
+                    .andExpect(status().isForbidden())
+                    .andExpect(jsonPath("$.status").value(403));
         }
 
         @Test
@@ -162,6 +175,7 @@ class AdminPracticeSetControllerIntegrationTest extends AbstractIntegrationTest 
                     .orElseThrow();
             assertThat(created.getQuestionIds()).contains(q1.toString());
             assertThat(created.getTotalQuestions()).isEqualTo(3);
+            assertThat(created.getCreatedBy()).isEqualTo(ADMIN_ID);
         }
 
         @Test
