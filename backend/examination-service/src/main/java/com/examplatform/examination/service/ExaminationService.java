@@ -5,7 +5,7 @@
  * Copyright (C) 2025 NAG Contributors
  *
  * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU标志 General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, version 3 of the License.
  *
  * This program is distributed in the hope that it will be useful,
@@ -313,10 +313,10 @@ public class ExaminationService {
         long cancelled = examinationRepository.countByStatusAndTenantId("CANCELLED", tenantId);
 
         return Map.of(
-                "scheduled", scheduled > 0 ? scheduled : 8L,
-                "liveInProgress", live > 0 ? live : 2L,
-                "completed", completed > 0 ? completed : 142L,
-                "cancelled", cancelled > 0 ? cancelled : 1L
+                "scheduled", scheduled,
+                "liveInProgress", live,
+                "completed", completed,
+                "cancelled", cancelled
         );
     }
 

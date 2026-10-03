@@ -82,11 +82,7 @@ public class AuditQueryService {
                 : auditEventRepository.findAll(tenantEquals(tenantId), pageable);
 
         if (page.isEmpty()) {
-            return List.of(
-                    Map.of("id", UUID.randomUUID().toString(), "action", "EXAM_PUBLISHED", "entityType", "EXAMINATION", "performedBy", "admin@dpi.gov.in", "timestamp", Instant.now().minusSeconds(120).toString(), "status", "SUCCESS"),
-                    Map.of("id", UUID.randomUUID().toString(), "action", "QUESTION_APPROVED", "entityType", "QUESTION", "performedBy", "reviewer@dpi.gov.in", "timestamp", Instant.now().minusSeconds(340).toString(), "status", "SUCCESS"),
-                    Map.of("id", UUID.randomUUID().toString(), "action", "SECURITY_POLICY_UPDATED", "entityType", "SYSTEM", "performedBy", "secadmin@dpi.gov.in", "timestamp", Instant.now().minusSeconds(850).toString(), "status", "SUCCESS")
-            );
+            return List.of();
         }
 
         return page.getContent().stream()

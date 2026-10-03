@@ -39,4 +39,6 @@ public interface CandidateProfileRepository extends JpaRepository<CandidateProfi
     boolean existsByIdentityDocHashAndTenantId(String identityDocHash, String tenantId);
 
     boolean existsByMobileHashAndTenantId(String mobileHash, String tenantId);
+
+    long countByTenantId(String tenantId);
 }

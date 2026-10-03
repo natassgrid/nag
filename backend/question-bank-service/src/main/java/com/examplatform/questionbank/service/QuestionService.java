@@ -276,11 +276,11 @@ public class QuestionService {
                 + questionRepository.countByStateAndTenantId("REVISION_REQUESTED", tenantId);
 
         return Map.of(
-                "total", total > 0 ? total : 48290L,
-                "draft", draft > 0 ? draft : 380L,
-                "submitted", submitted > 0 ? submitted : 124L,
-                "approved", approved > 0 ? approved : 47520L,
-                "rejected", rejected > 0 ? rejected : 266L
+                "total", total,
+                "draft", draft,
+                "submitted", submitted,
+                "approved", approved,
+                "rejected", rejected
         );
     }
 
