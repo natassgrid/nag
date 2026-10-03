@@ -147,8 +147,8 @@ export class AuthService {
     }
 
     this.refreshTokenInProgress$ = this.http
-      .post<{ status?: string; data?: UserToken } & UserToken>
-        ('/api/v1/identity/auth/token/refresh',
+      .post<{ status?: string; data?: UserToken } & UserToken>(
+        '/api/v1/identity/auth/token/refresh',
         { refreshToken }
       )
       .pipe(
@@ -244,8 +244,8 @@ export class AuthService {
     otp: string;
   }): Observable<UserToken> {
     return this.http
-      .post<{ status?: string; data?: UserToken } & UserToken>
-        ('/api/v1/identity/otp/verify',
+      .post<{ status?: string; data?: UserToken } & UserToken>(
+        '/api/v1/identity/otp/verify',
         payload
       )
       .pipe(
@@ -256,8 +256,8 @@ export class AuthService {
 
   getVerificationStatus(userId: string): Observable<VerificationStatusData> {
     return this.http
-      .get<{ status?: string; data: VerificationStatusData }>
-        (`/api/v1/identity/verification-status?userId=${encodeURIComponent(userId)}`
+      .get<{ status?: string; data: VerificationStatusData }>(
+        `/api/v1/identity/verification-status?userId=${encodeURIComponent(userId)}`
       )
       .pipe(map((res) => res.data));
   }
@@ -297,8 +297,8 @@ export class AuthService {
 
   validateInvite(token: string): Observable<ValidateInviteData> {
     return this.http
-      .get<{ data: ValidateInviteData }>
-        (`/api/v1/identity/invitations/validate?token=${encodeURIComponent(token)}`
+      .get<{ data: ValidateInviteData }>(
+        `/api/v1/identity/invitations/validate?token=${encodeURIComponent(token)}`
       )
       .pipe(map((res) => res.data));
   }
@@ -306,6 +306,9 @@ export class AuthService {
   acceptInvite(payload: {
     token: string;
     password?: string;
+    totpSecret?: string;
+    totpCode?: string;
+    backupCodes?: string[];
   }): Observable<UserToken> {
     return this.http
       .post<{ data: UserToken }>('/api/v1/identity/invitations/accept', payload)
