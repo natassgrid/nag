@@ -33,6 +33,8 @@ import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
+import java.util.UUID;
 
 /**
  * Detects similarity between new questions and existing questions using cosine
@@ -82,11 +84,7 @@ public class SimilarityDetectionService {
      * @throws SimilarQuestionException if a near-duplicate is found (&gt; 0.92 similarity)
      */
     public void checkSimilarity(String content) {
-        // Legacy method — cannot scope by subject/tenant without additional context.
-        // Generate embedding and do a basic check without subject/tenant filtering.
         log.debug("Legacy checkSimilarity called (no subject/tenant scope)");
-        // No-op in legacy mode since we need subject+tenant for proper pgvector query.
-        // The full check will be called from the updated createQuestion flow.
     }
 
     /**
@@ -114,12 +112,68 @@ public class SimilarityDetectionService {
         List<SimilarityResult> results = questionRepository.findTopSimilarQuestions(
                 embeddingStr, subject, tenantId, TOP_K);
 
+        return processSimilarityResults(results, subject, tenantId);
+    }
+
+    /**
+     * Performs similarity check scoped to a specific topic within a subject.
+     */
+    public SimilarityCheckResult checkSimilarityByTopic(String content, String subject, String topic, String tenantId) {
+        log.debug("Checking similarity in topic={}, subject={}, tenant={}", topic, subject, tenantId);
+
+        float[] embedding = embeddingService.embed(content);
+        String embeddingStr = EmbeddingUtils.embeddingToString(embedding);
+
+        List<SimilarityResult> results = questionRepository.findTopSimilarQuestionsByTopic(
+                embeddingStr, subject, topic, tenantId, TOP_K);
+
+        return processSimilarityResults(results, subject + "/" + topic, tenantId);
+    }
+
+    /**
+     * Performs tenant-wide global similarity check across all subjects.
+     */
+    public SimilarityCheckResult checkSimilarityGlobal(String content, String tenantId) {
+        log.debug("Checking global similarity across all subjects in tenant={}", tenantId);
+
+        float[] embedding = embeddingService.embed(content);
+        String embeddingStr = EmbeddingUtils.embeddingToString(embedding);
+
+        List<SimilarityResult> results = questionRepository.findTopSimilarQuestionsGlobal(
+                embeddingStr, tenantId, TOP_K);
+
+        return processSimilarityResults(results, "GLOBAL", tenantId);
+    }
+
+    /**
+     * Multi-attribute filtered vector search for RAG question assembly and blueprint composition.
+     */
+    public List<SimilarityResult> findTopSimilarQuestionsFiltered(
+            String content, String subject, String topic, String difficulty,
+            String cognitiveLevel, String tenantId, int limit) {
+
+        float[] embedding = embeddingService.embed(content);
+        String embeddingStr = EmbeddingUtils.embeddingToString(embedding);
+
+        return questionRepository.findTopSimilarQuestionsFiltered(
+                embeddingStr, subject, topic, difficulty, cognitiveLevel, tenantId, limit);
+    }
+
+    /**
+     * Finds a similar published question matching or exceeding the similarity threshold.
+     */
+    public Optional<UUID> findSimilarPublishedQuestion(String content, double threshold) {
+        float[] embedding = embeddingService.embed(content);
+        String embeddingStr = EmbeddingUtils.embeddingToString(embedding);
+        return questionRepository.findSimilarPublishedQuestion(embeddingStr, threshold);
+    }
+
+    private SimilarityCheckResult processSimilarityResults(List<SimilarityResult> results, String scope, String tenantId) {
         if (results.isEmpty()) {
-            log.debug("No existing embeddings found for subject={}, tenant={}", subject, tenantId);
+            log.debug("No existing embeddings found for scope={}, tenant={}", scope, tenantId);
             return SimilarityCheckResult.pass();
         }
 
-        // Classify results by threshold
         List<SimilarQuestion> similarQuestions = new ArrayList<>();
         Status overallStatus = Status.PASS;
 
@@ -130,8 +184,8 @@ public class SimilarityDetectionService {
                 similarQuestions.add(new SimilarQuestion(
                         result.getId(), similarity, truncateContent(result.getContent())));
                 overallStatus = Status.REJECT;
-                log.warn("Near-duplicate detected: questionId={}, similarity={:.4f}, subject={}, tenant={}",
-                        result.getId(), similarity, subject, tenantId);
+                log.warn("Near-duplicate detected: questionId={}, similarity={:.4f}, scope={}, tenant={}",
+                        result.getId(), similarity, scope, tenantId);
             } else if (similarity > WARN_THRESHOLD) {
                 similarQuestions.add(new SimilarQuestion(
                         result.getId(), similarity, truncateContent(result.getContent())));
