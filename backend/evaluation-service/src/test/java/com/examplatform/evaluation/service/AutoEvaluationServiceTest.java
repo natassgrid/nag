@@ -46,8 +46,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.Mockito.doNothing;
-import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -186,6 +184,7 @@ class AutoEvaluationServiceTest {
             List<Evaluation> results = service.evaluateSession(
                     SESSION_ID, CANDIDATE_ID, List.of(key), List.of(resp), TENANT_ID);
 
+            assertThat(results).hasSize(1);
             assertThat(results.get(0).getScore()).isEqualByComparingTo(BigDecimal.valueOf(4.0));
         }
 
@@ -224,7 +223,7 @@ class AutoEvaluationServiceTest {
                     .questionType("MULTI_MCQ")
                     .correctAnswer("[\"opt-1\", \"opt-2\"]")
                     .marksPerQuestion(4.0)
-                    .negativeMarks(1.0)
+                    .negativeMarks(2.0)
                     .build();
 
             CandidateResponse resp = CandidateResponse.builder()
@@ -237,6 +236,30 @@ class AutoEvaluationServiceTest {
                     SESSION_ID, CANDIDATE_ID, List.of(key), List.of(resp), TENANT_ID);
 
             assertThat(results.get(0).getScore()).isEqualByComparingTo(BigDecimal.valueOf(-2.0));
+        }
+
+        @Test
+        @DisplayName("incorrect option included with custom negative marks -> -1.0")
+        void incorrectOptionIncludedMultiMcq_customNegativeMarks() {
+            UUID questionId = UUID.randomUUID();
+            AnswerKey key = AnswerKey.builder()
+                    .questionId(questionId)
+                    .questionType("MULTI_MCQ")
+                    .correctAnswer("[\"opt-1\", \"opt-2\"]")
+                    .marksPerQuestion(4.0)
+                    .negativeMarks(1.0)
+                    .build();
+
+            CandidateResponse resp = CandidateResponse.builder()
+                    .questionId(questionId)
+                    .selectedOptionIds("[\"opt-1\", \"opt-wrong\"]")
+                    .attempted(true)
+                    .build();
+
+            List<Evaluation> results = service.evaluateSession(
+                    SESSION_ID, CANDIDATE_ID, List.of(key), List.of(resp), TENANT_ID);
+
+            assertThat(results.get(0).getScore()).isEqualByComparingTo(BigDecimal.valueOf(-1.0));
         }
     }
 
@@ -339,7 +362,6 @@ class AutoEvaluationServiceTest {
                     .attempted(true)
                     .build();
 
-
             // When
             List<Evaluation> evals = service.evaluateSession(
                     UUID.randomUUID(), UUID.randomUUID(),
@@ -368,7 +390,6 @@ class AutoEvaluationServiceTest {
                     .attempted(true)
                     .build();
 
-
             // When
             List<Evaluation> evals = service.evaluateSession(
                     UUID.randomUUID(), UUID.randomUUID(),
@@ -395,7 +416,6 @@ class AutoEvaluationServiceTest {
                     .questionId(answerKey.getQuestionId())
                     .attempted(false)
                     .build();
-
 
             // When
             List<Evaluation> evals = service.evaluateSession(

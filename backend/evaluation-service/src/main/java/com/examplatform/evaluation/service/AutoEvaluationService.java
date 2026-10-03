@@ -98,10 +98,15 @@ public class AutoEvaluationService {
                 score = BigDecimal.ZERO;
             } else if ("MULTI_MCQ".equals(answerKey.getQuestionType())) {
                 // Partial marking for Multi MCQ
+                double negativeMarks = answerKey.getNegativeMarks() > 0 ? answerKey.getNegativeMarks() : 2.0;
+                MarkingScheme scheme = answerKey.getMarkingScheme() != null
+                        ? answerKey.getMarkingScheme() : MarkingScheme.STANDARD;
                 double partialScore = evaluateMultiMcqPartial(
                         answerKey.getCorrectAnswer(),
                         resp.getSelectedOptionIds(),
-                        answerKey.getMarksPerQuestion());
+                        answerKey.getMarksPerQuestion(),
+                        negativeMarks,
+                        scheme);
                 score = BigDecimal.valueOf(partialScore);
             } else {
                 // Evaluate based on question type (Single MCQ, Numerical, etc.)
@@ -221,6 +226,14 @@ public class AutoEvaluationService {
      * @return awarded score (positive fractional, full, zero, or negative)
      */
     public double evaluateMultiMcqPartial(String correctAnswerJson, String selectedOptionsJson, double maxMarks) {
+        return evaluateMultiMcqPartial(correctAnswerJson, selectedOptionsJson, maxMarks, 2.0, MarkingScheme.STANDARD);
+    }
+
+    public double evaluateMultiMcqPartial(String correctAnswerJson, String selectedOptionsJson, double maxMarks, double negativeMarks) {
+        return evaluateMultiMcqPartial(correctAnswerJson, selectedOptionsJson, maxMarks, negativeMarks, MarkingScheme.STANDARD);
+    }
+
+    public double evaluateMultiMcqPartial(String correctAnswerJson, String selectedOptionsJson, double maxMarks, double negativeMarks, MarkingScheme markingScheme) {
         if (correctAnswerJson == null || selectedOptionsJson == null) return 0.0;
 
         Set<String> correct = parseOptionSet(correctAnswerJson);
@@ -233,8 +246,10 @@ public class AutoEvaluationService {
         incorrectSelected.removeAll(correct);
 
         if (!incorrectSelected.isEmpty()) {
-            // Negative marking for incorrect option selection (-2.0 default / negative marks)
-            return -2.0;
+            if (markingScheme == MarkingScheme.ZERO_NEGATIVE) {
+                return 0.0;
+            }
+            return negativeMarks > 0 ? -negativeMarks : -2.0;
         }
 
         // Only correct options were selected
