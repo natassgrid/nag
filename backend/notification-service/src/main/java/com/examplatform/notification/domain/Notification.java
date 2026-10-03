@@ -35,8 +35,9 @@ import java.time.Instant;
 import java.util.UUID;
 
 /**
- * Represents a notification to be delivered to a user via one or more channels.
- * Tracks delivery status and retry attempts.
+ * Represents a notification to be delivered to a user via one or more channels
+ * (EMAIL, SMS, WHATSAPP, PUSH, IN_APP).
+ * Tracks delivery status, DLT template identifiers, external provider message IDs, and retry attempts.
  */
 @Entity
 @Table(name = "notification", schema = "notification_service")
@@ -53,9 +54,24 @@ public class Notification extends BaseEntity {
     @Column(name = "recipient_email", length = 320)
     private String recipientEmail;
 
+    @Column(name = "recipient_phone", length = 50)
+    private String recipientPhone;
+
     @Enumerated(EnumType.STRING)
-    @Column(name = "type", nullable = false, length = 10)
+    @Column(name = "type", nullable = false, length = 20)
     private NotificationType type;
+
+    @Column(name = "channel", length = 20)
+    private String channel;
+
+    @Column(name = "template_id", length = 100)
+    private String templateId;
+
+    @Column(name = "external_message_id", length = 255)
+    private String externalMessageId;
+
+    @Column(name = "fcm_token", columnDefinition = "TEXT")
+    private String fcmToken;
 
     @Column(name = "subject", length = 500)
     private String subject;
@@ -85,6 +101,8 @@ public class Notification extends BaseEntity {
      */
     public enum NotificationType {
         EMAIL,
+        SMS,
+        WHATSAPP,
         PUSH,
         IN_APP
     }

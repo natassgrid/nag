@@ -54,6 +54,8 @@ describe('NAG Mock Third-Party API Server Test Suite', () => {
     assert.strictEqual(body.services.aadhaarKyc, 'HEALTHY');
     assert.strictEqual(body.services.msg91Sms, 'HEALTHY');
     assert.strictEqual(body.services.emailGateway, 'HEALTHY');
+    assert.strictEqual(body.services.whatsappGateway, 'HEALTHY');
+    assert.strictEqual(body.services.pushGateway, 'HEALTHY');
   });
 
   // =========================================================================
@@ -173,7 +175,140 @@ describe('NAG Mock Third-Party API Server Test Suite', () => {
   });
 
   // =========================================================================
-  // 4. Aadhaar e-KYC & UIDAI 2.5 Auth Mock Tests
+  // 4. WhatsApp Gateway Mock Tests
+  // =========================================================================
+  describe('WhatsApp Gateway Mock Endpoints', () => {
+    test('POST /whatsapp/v1/messages delivers WhatsApp template message', async () => {
+      const res = await fetch(`${baseUrl}/whatsapp/v1/messages`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          messaging_product: 'whatsapp',
+          to: '919876543210',
+          type: 'template',
+          template: {
+            name: 'nag_exam_alert',
+            language: { code: 'en' },
+            components: [
+              {
+                type: 'body',
+                parameters: [{ type: 'text', text: 'Exam Scheduled for 2026-10-15' }]
+              }
+            ]
+          }
+        })
+      });
+      assert.strictEqual(res.status, 200);
+      const body = await res.json();
+      assert.strictEqual(body.messaging_product, 'whatsapp');
+      assert.ok(body.messages[0].id.startsWith('wamid.'));
+
+      assert.strictEqual(testStore.whatsappOutbox.length, 1);
+      assert.strictEqual(testStore.whatsappOutbox[0].recipient, '919876543210');
+      assert.strictEqual(testStore.whatsappOutbox[0].templateName, 'nag_exam_alert');
+    });
+
+    test('POST /api/v1/whatsapp/send delivers generic WhatsApp notification', async () => {
+      const res = await fetch(`${baseUrl}/api/v1/whatsapp/send`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          to: '+919988776655',
+          message: 'Your verification code is 554433',
+          templateId: 'DLT_OTP_01'
+        })
+      });
+      assert.strictEqual(res.status, 200);
+      const body = await res.json();
+      assert.strictEqual(body.success, true);
+      assert.ok(body.messageId.startsWith('WA-'));
+
+      const inspectRes = await fetch(`${baseUrl}/mock/whatsapp/latest?phone=9988776655`);
+      assert.strictEqual(inspectRes.status, 200);
+      const inspectBody = await inspectRes.json();
+      assert.strictEqual(inspectBody.success, true);
+      assert.strictEqual(inspectBody.message.text, 'Your verification code is 554433');
+    });
+
+    test('DELETE /mock/whatsapp/clear empties WhatsApp outbox', async () => {
+      await fetch(`${baseUrl}/api/v1/whatsapp/send`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ to: '919876543210', message: 'Test' })
+      });
+      assert.strictEqual(testStore.whatsappOutbox.length, 1);
+
+      const clearRes = await fetch(`${baseUrl}/mock/whatsapp/clear`, { method: 'DELETE' });
+      assert.strictEqual(clearRes.status, 200);
+      assert.strictEqual(testStore.whatsappOutbox.length, 0);
+    });
+  });
+
+  // =========================================================================
+  // 5. FCM / Push Gateway Mock Tests
+  // =========================================================================
+  describe('Push / FCM Gateway Mock Endpoints', () => {
+    test('POST /fcm/send delivers FCM push notification', async () => {
+      const res = await fetch(`${baseUrl}/fcm/send`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          to: 'fcm_token_device_abc123',
+          notification: {
+            title: 'Exam Platform Alert',
+            body: 'Your paper generation is ready.'
+          },
+          data: { examId: 'EXAM-001' }
+        })
+      });
+      assert.strictEqual(res.status, 200);
+      const body = await res.json();
+      assert.strictEqual(body.success, 1);
+      assert.ok(body.results[0].message_id.startsWith('fcm_'));
+
+      assert.strictEqual(testStore.pushOutbox.length, 1);
+      assert.strictEqual(testStore.pushOutbox[0].targetToken, 'fcm_token_device_abc123');
+      assert.strictEqual(testStore.pushOutbox[0].title, 'Exam Platform Alert');
+    });
+
+    test('POST /api/v1/push/send delivers generic push notification', async () => {
+      const res = await fetch(`${baseUrl}/api/v1/push/send`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          token: 'web_pwa_token_xyz',
+          title: 'Result Published',
+          body: 'Reference: RESULT-9988'
+        })
+      });
+      assert.strictEqual(res.status, 200);
+      const body = await res.json();
+      assert.strictEqual(body.success, true);
+      assert.ok(body.messageId.startsWith('PUSH-'));
+
+      const inspectRes = await fetch(`${baseUrl}/mock/push/latest?token=web_pwa_token_xyz`);
+      assert.strictEqual(inspectRes.status, 200);
+      const inspectBody = await inspectRes.json();
+      assert.strictEqual(inspectBody.success, true);
+      assert.strictEqual(inspectBody.message.body, 'Reference: RESULT-9988');
+    });
+
+    test('DELETE /mock/push/clear empties Push outbox', async () => {
+      await fetch(`${baseUrl}/api/v1/push/send`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token: 'test-token', title: 'Hello' })
+      });
+      assert.strictEqual(testStore.pushOutbox.length, 1);
+
+      const clearRes = await fetch(`${baseUrl}/mock/push/clear`, { method: 'DELETE' });
+      assert.strictEqual(clearRes.status, 200);
+      assert.strictEqual(testStore.pushOutbox.length, 0);
+    });
+  });
+
+  // =========================================================================
+  // 6. Aadhaar e-KYC & UIDAI 2.5 Auth Mock Tests
   // =========================================================================
   describe('Aadhaar e-KYC & UIDAI 2.5 Auth Mock Endpoints', () => {
     test('POST /aadhaar/v1/otp/generate triggers OTP generation with test hint 000000', async () => {
@@ -274,7 +409,7 @@ describe('NAG Mock Third-Party API Server Test Suite', () => {
   });
 
   // =========================================================================
-  // 5. DigiLocker Mock Tests
+  // 7. DigiLocker Mock Tests
   // =========================================================================
   describe('DigiLocker Mock & Authentication Endpoints', () => {
     test('GET /.well-known/openid-configuration returns DigiLocker OIDC discovery doc', async () => {
@@ -398,7 +533,7 @@ describe('NAG Mock Third-Party API Server Test Suite', () => {
   });
 
   // =========================================================================
-  // 6. Chaos and Failure Injection Tests
+  // 8. Chaos and Failure Injection Tests
   // =========================================================================
   describe('Chaos Injection Endpoints', () => {
     test('POST /mock/chaos simulates upstream 503 outage on DigiLocker', async () => {
@@ -420,6 +555,28 @@ describe('NAG Mock Third-Party API Server Test Suite', () => {
 
       const resAfter = await fetch(`${baseUrl}/digilocker/v1/user/documents`);
       assert.strictEqual(resAfter.status, 200);
+    });
+
+    test('POST /mock/chaos simulates WhatsApp and Push failures', async () => {
+      await fetch(`${baseUrl}/mock/chaos`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ whatsappFailureStatus: 500, pushFailureStatus: 503 })
+      });
+
+      const waRes = await fetch(`${baseUrl}/whatsapp/v1/messages`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ to: '919876543210' })
+      });
+      assert.strictEqual(waRes.status, 500);
+
+      const pushRes = await fetch(`${baseUrl}/fcm/send`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ to: 'device_tok' })
+      });
+      assert.strictEqual(pushRes.status, 503);
     });
   });
 });
