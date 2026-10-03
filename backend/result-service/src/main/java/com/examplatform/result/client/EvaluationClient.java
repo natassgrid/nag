@@ -20,6 +20,7 @@
 package com.examplatform.result.client;
 
 import com.examplatform.result.dto.CandidateEvaluationItemDto;
+import com.examplatform.result.dto.CandidateExamResponseDto;
 
 import java.util.List;
 import java.util.UUID;
@@ -38,4 +39,13 @@ public interface EvaluationClient {
      * @return list of candidate evaluation items
      */
     List<CandidateEvaluationItemDto> getEvaluationsForCandidate(UUID candidateId, UUID examId, String tenantId);
+
+    /**
+     * Retrieves all candidate responses and scores for an entire exam.
+     *
+     * @param examId   the exam UUID
+     * @param tenantId the tenant identifier
+     * @return list of candidate exam responses
+     */
+    List<CandidateExamResponseDto> getResponsesForExam(UUID examId, String tenantId);
 }
