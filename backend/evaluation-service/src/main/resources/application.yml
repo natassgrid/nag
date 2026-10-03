@@ -73,6 +73,8 @@ server:
   shutdown: graceful
 
 grpc:
+  server:
+    port: ${GRPC_EVALUATION_PORT:9086}
   client:
     questionbank:
       host: ${GRPC_QUESTION_BANK_HOST:localhost}

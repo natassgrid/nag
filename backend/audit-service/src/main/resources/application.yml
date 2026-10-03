@@ -84,6 +84,10 @@ server:
     context-path: /
   shutdown: graceful
 
+grpc:
+  server:
+    port: ${GRPC_AUDIT_PORT:9084}
+
 management:
   endpoints:
     web:
