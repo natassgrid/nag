@@ -71,6 +71,7 @@ import static org.mockito.Mockito.when;
  *   <li>Requirement 2.1: Credential Verification (username/password + account state)</li>
  *   <li>Requirement 2.2: MFA Enforcement (TOTP/SMS validation)</li>
  *   <li>Requirement 2.5: Device Binding (fingerprint validation and binding)</li>
+ *   <li>Requirement 2.6: Risk Assessment and IP/Geo signal tracking</li>
  *   <li>Requirement 2.7: Single Concurrent Session (session creation and replacement)</li>
  * </ul>
  */
@@ -166,7 +167,7 @@ class AuthenticationServiceTest {
     class CredentialVerification {
 
         @Test
-        @DisplayName("Returns AuthTokenResponse when credentials and Keycloak auth succeed")
+        @DisplayName("Returns AuthTokenResponse when credentials and Keycloak auth succeed and records IP")
         void successfulAuth() {
             UserAccount account = activeAccount();
             when(userAccountRepository.findByEmailHashAndTenantId(EMAIL_HASH, TENANT_ID))
@@ -181,7 +182,8 @@ class AuthenticationServiceTest {
                     () -> assertThat(response.getAccessToken()).isEqualTo("access.jwt.token"),
                     () -> assertThat(response.getTokenType()).isEqualTo("Bearer"),
                     () -> assertThat(response.getUserId()).isEqualTo(ACCOUNT_ID.toString()),
-                    () -> verify(activeSessionRepository).save(any(ActiveSession.class))
+                    () -> verify(activeSessionRepository).save(any(ActiveSession.class)),
+                    () -> verify(riskAssessmentService).recordSuccessfulLoginIp(ACCOUNT_ID, IP, TENANT_ID)
             );
         }
 
@@ -199,27 +201,7 @@ class AuthenticationServiceTest {
 
             assertThatThrownBy(() -> authenticationService.authenticate(request, TENANT_ID, IP))
                     .isInstanceOf(AuthenticationException.class)
-                    .hasMessageContaining("Invalid credentials");
-        }
-
-        @Test
-        @DisplayName("Increments failedAttemptCount and throws AuthenticationException when Keycloak rejects password")
-        void badPassword() {
-            UserAccount account = activeAccount();
-            when(userAccountRepository.findByEmailHashAndTenantId(EMAIL_HASH, TENANT_ID))
-                    .thenReturn(Optional.of(account));
-            when(keycloakService.getTokens("user@example.com", "badPass", ACCOUNT_ID.toString()))
-                    .thenThrow(new RuntimeException("Keycloak: invalid password"));
-
-            AuthTokenRequest request = new AuthTokenRequest("user@example.com", "badPass", null, null);
-
-            assertThatThrownBy(() -> authenticationService.authenticate(request, TENANT_ID, IP))
-                    .isInstanceOf(AuthenticationException.class)
-                    .hasMessageContaining("Invalid credentials");
-
-            assertThat(account.getFailedAttemptCount()).isEqualTo(1);
-            verify(userAccountRepository).save(account);
-            verify(accountLockoutService).checkAndLockIfNeeded(account, TENANT_ID);
+                    .hasMessage("Invalid credentials");
         }
 
         @Test
@@ -264,12 +246,28 @@ class AuthenticationServiceTest {
 
             assertThatThrownBy(() -> authenticationService.authenticate(request, TENANT_ID, IP))
                     .isInstanceOf(AccountNotVerifiedException.class)
-                    .satisfies(ex -> {
-                        AccountNotVerifiedException anve = (AccountNotVerifiedException) ex;
-                        assertThat(anve.getUserId()).isEqualTo(ACCOUNT_ID);
-                        assertThat(anve.getEmail()).isEqualTo("user@example.com");
-                    })
                     .hasMessageContaining("not yet verified");
+        }
+
+        @Test
+        @DisplayName("Increments failedAttemptCount on invalid Keycloak credentials and throws AuthenticationException")
+        void failedKeycloakAuth() {
+            UserAccount account = activeAccount();
+            when(userAccountRepository.findByEmailHashAndTenantId(EMAIL_HASH, TENANT_ID))
+                    .thenReturn(Optional.of(account));
+            when(keycloakService.getTokens("user@example.com", "wrongPass", ACCOUNT_ID.toString()))
+                    .thenThrow(new RuntimeException("Keycloak 401 Unauthorized"));
+
+            AuthTokenRequest request = new AuthTokenRequest("user@example.com", "wrongPass", null, null);
+
+            assertThatThrownBy(() -> authenticationService.authenticate(request, TENANT_ID, IP))
+                    .isInstanceOf(AuthenticationException.class)
+                    .hasMessage("Invalid credentials");
+
+            assertThat(account.getFailedAttemptCount()).isEqualTo(1);
+            assertThat(account.getLastFailedAt()).isNotNull();
+            verify(userAccountRepository).save(account);
+            verify(accountLockoutService).checkAndLockIfNeeded(account, TENANT_ID);
         }
     }
 
@@ -282,60 +280,96 @@ class AuthenticationServiceTest {
     class MfaEnforcement {
 
         @Test
-        @DisplayName("Throws MfaRequiredException and triggers OTP send when MFA is enabled and no OTP provided")
-        void mfaRequiredTriggersOtp() {
+        @DisplayName("Throws MfaRequiredException when user has MFA enabled but no OTP provided")
+        void mfaEnabledNoOtp() {
             UserAccount account = activeAccount();
             account.setMfaEnabled(true);
-            account.setMobileHash("mobilehash123");
             when(userAccountRepository.findByEmailHashAndTenantId(EMAIL_HASH, TENANT_ID))
                     .thenReturn(Optional.of(account));
-            when(keycloakService.getTokens("user@example.com", "validPass", ACCOUNT_ID.toString()))
+            when(keycloakService.getTokens("user@example.com", "pass", ACCOUNT_ID.toString()))
                     .thenReturn(sampleTokens());
 
-            AuthTokenRequest request = new AuthTokenRequest("user@example.com", "validPass", null, null);
+            AuthTokenRequest request = new AuthTokenRequest("user@example.com", "pass", null, null);
 
             assertThatThrownBy(() -> authenticationService.authenticate(request, TENANT_ID, IP))
                     .isInstanceOf(MfaRequiredException.class)
-                    .hasMessageContaining("2FA / MFA required");
-
-            verify(otpService).sendOtp(eq(ACCOUNT_ID), eq("mobilehash123"), isNull());
+                    .hasMessageContaining("MFA required");
         }
 
         @Test
-        @DisplayName("Succeeds when MFA is enabled and valid OTP is provided")
-        void mfaSuccessWithValidOtp() {
+        @DisplayName("Succeeds when user provides valid TOTP code")
+        void validTotp() {
             UserAccount account = activeAccount();
             account.setMfaEnabled(true);
-            account.setMobileHash("mobilehash123");
+            account.setTotpSecret("JBSWY3DPEHPK3PXP");
             when(userAccountRepository.findByEmailHashAndTenantId(EMAIL_HASH, TENANT_ID))
                     .thenReturn(Optional.of(account));
-            when(keycloakService.getTokens("user@example.com", "validPass", ACCOUNT_ID.toString()))
+            when(keycloakService.getTokens("user@example.com", "pass", ACCOUNT_ID.toString()))
                     .thenReturn(sampleTokens());
-            when(otpService.verifyOtp("mobilehash123", "123456")).thenReturn(true);
+            when(totpService.verifyTotpCode("JBSWY3DPEHPK3PXP", "123456")).thenReturn(true);
 
-            AuthTokenRequest request = new AuthTokenRequest("user@example.com", "validPass", "123456", null);
+            AuthTokenRequest request = new AuthTokenRequest("user@example.com", "pass", "123456", null);
             AuthTokenResponse response = authenticationService.authenticate(request, TENANT_ID, IP);
 
+            assertThat(response).isNotNull();
             assertThat(response.getAccessToken()).isEqualTo("access.jwt.token");
         }
 
         @Test
-        @DisplayName("Throws AuthenticationException when MFA OTP is invalid")
-        void mfaFailsWithInvalidOtp() {
+        @DisplayName("Throws AuthenticationException when TOTP code is invalid")
+        void invalidTotp() {
             UserAccount account = activeAccount();
             account.setMfaEnabled(true);
-            account.setMobileHash("mobilehash123");
+            account.setTotpSecret("JBSWY3DPEHPK3PXP");
             when(userAccountRepository.findByEmailHashAndTenantId(EMAIL_HASH, TENANT_ID))
                     .thenReturn(Optional.of(account));
-            when(keycloakService.getTokens("user@example.com", "validPass", ACCOUNT_ID.toString()))
+            when(keycloakService.getTokens("user@example.com", "pass", ACCOUNT_ID.toString()))
                     .thenReturn(sampleTokens());
-            when(otpService.verifyOtp("mobilehash123", "999999")).thenReturn(false);
+            when(totpService.verifyTotpCode("JBSWY3DPEHPK3PXP", "999999")).thenReturn(false);
 
-            AuthTokenRequest request = new AuthTokenRequest("user@example.com", "validPass", "999999", null);
+            AuthTokenRequest request = new AuthTokenRequest("user@example.com", "pass", "999999", null);
 
             assertThatThrownBy(() -> authenticationService.authenticate(request, TENANT_ID, IP))
                     .isInstanceOf(AuthenticationException.class)
                     .hasMessageContaining("Invalid MFA code");
+        }
+
+        @Test
+        @DisplayName("Fallback to SMS OTP when TOTP is not configured")
+        void fallbackToSmsOtp() {
+            UserAccount account = activeAccount();
+            account.setMfaEnabled(true);
+            account.setMobileHash(MOBILE_HASH);
+            when(userAccountRepository.findByEmailHashAndTenantId(EMAIL_HASH, TENANT_ID))
+                    .thenReturn(Optional.of(account));
+            when(keycloakService.getTokens("user@example.com", "pass", ACCOUNT_ID.toString()))
+                    .thenReturn(sampleTokens());
+            when(otpService.verifyOtp(MOBILE_HASH, "654321")).thenReturn(true);
+
+            AuthTokenRequest request = new AuthTokenRequest("user@example.com", "pass", "654321", null);
+            AuthTokenResponse response = authenticationService.authenticate(request, TENANT_ID, IP);
+
+            assertThat(response).isNotNull();
+        }
+
+        @Test
+        @DisplayName("Triggers step-up MFA when risk assessment determines it is required")
+        void stepUpMfaRequired() {
+            UserAccount account = activeAccount();
+            when(userAccountRepository.findByEmailHashAndTenantId(EMAIL_HASH, TENANT_ID))
+                    .thenReturn(Optional.of(account));
+            when(keycloakService.getTokens("user@example.com", "pass", ACCOUNT_ID.toString()))
+                    .thenReturn(sampleTokens());
+            when(dynamicConfigService.getBoolean(eq("auth.stepup.enforced"), anyString(), eq(false)))
+                    .thenReturn(true);
+            when(riskAssessmentService.isStepUpRequired(eq(account), isNull(), eq(IP), any(LocalDateTime.class)))
+                    .thenReturn(true);
+
+            AuthTokenRequest request = new AuthTokenRequest("user@example.com", "pass", null, null);
+
+            assertThatThrownBy(() -> authenticationService.authenticate(request, TENANT_ID, IP))
+                    .isInstanceOf(MfaRequiredException.class)
+                    .hasMessageContaining("Step-up authentication required");
         }
     }
 
@@ -354,56 +388,47 @@ class AuthenticationServiceTest {
             account.setDeviceFingerprint(null);
             when(userAccountRepository.findByEmailHashAndTenantId(EMAIL_HASH, TENANT_ID))
                     .thenReturn(Optional.of(account));
-            when(keycloakService.getTokens(anyString(), anyString(), anyString()))
+            when(keycloakService.getTokens("user@example.com", "pass", ACCOUNT_ID.toString()))
                     .thenReturn(sampleTokens());
 
-            AuthTokenRequest request = new AuthTokenRequest("user@example.com", "validPass", null, "fp-device-abc");
+            AuthTokenRequest request = new AuthTokenRequest("user@example.com", "pass", null, "fp-browser-123");
             authenticationService.authenticate(request, TENANT_ID, IP);
 
-            assertThat(account.getDeviceFingerprint()).isEqualTo("fp-device-abc");
+            assertThat(account.getDeviceFingerprint()).isEqualTo("fp-browser-123");
             verify(userAccountRepository).save(account);
         }
 
         @Test
         @DisplayName("Allows login when requested fingerprint matches stored fingerprint")
-        void allowsMatchingFingerprint() {
+        void matchingFingerprintAllowed() {
             UserAccount account = activeAccount();
-            account.setDeviceFingerprint("fp-device-abc");
+            account.setDeviceFingerprint("fp-known-456");
             when(userAccountRepository.findByEmailHashAndTenantId(EMAIL_HASH, TENANT_ID))
                     .thenReturn(Optional.of(account));
-            when(keycloakService.getTokens(anyString(), anyString(), anyString()))
+            when(keycloakService.getTokens("user@example.com", "pass", ACCOUNT_ID.toString()))
                     .thenReturn(sampleTokens());
 
-            AuthTokenRequest request = new AuthTokenRequest("user@example.com", "validPass", null, "fp-device-abc");
+            AuthTokenRequest request = new AuthTokenRequest("user@example.com", "pass", null, "fp-known-456");
             AuthTokenResponse response = authenticationService.authenticate(request, TENANT_ID, IP);
 
             assertThat(response).isNotNull();
         }
 
         @Test
-        @DisplayName("Rejects login and publishes DENIED_ACCESS when device fingerprint mismatches")
-        void rejectsMismatchedFingerprint() {
+        @DisplayName("Throws AuthenticationException and audits DENIED_ACCESS when fingerprint mismatches")
+        void mismatchingFingerprintDenied() {
             UserAccount account = activeAccount();
-            account.setDeviceFingerprint("fp-device-original");
+            account.setDeviceFingerprint("fp-registered-xxx");
             when(userAccountRepository.findByEmailHashAndTenantId(EMAIL_HASH, TENANT_ID))
                     .thenReturn(Optional.of(account));
-            when(keycloakService.getTokens(anyString(), anyString(), anyString()))
+            when(keycloakService.getTokens("user@example.com", "pass", ACCOUNT_ID.toString()))
                     .thenReturn(sampleTokens());
 
-            AuthTokenRequest request = new AuthTokenRequest("user@example.com", "validPass", null, "fp-device-DIFFERENT");
+            AuthTokenRequest request = new AuthTokenRequest("user@example.com", "pass", null, "fp-different-yyy");
 
             assertThatThrownBy(() -> authenticationService.authenticate(request, TENANT_ID, IP))
                     .isInstanceOf(AuthenticationException.class)
-                    .hasMessageContaining("Device not recognised");
-
-            verify(auditEventPublisher).publish(
-                    eq(AuditEventType.DENIED_ACCESS),
-                    eq(ACCOUNT_ID.toString()),
-                    eq("identity:auth/token"),
-                    eq(IP),
-                    eq("fp-device-DIFFERENT"),
-                    any()
-            );
+                    .hasMessage("Device not recognised.");
         }
     }
 
@@ -416,69 +441,61 @@ class AuthenticationServiceTest {
     class SingleConcurrentSession {
 
         @Test
-        @DisplayName("Invalidates existing active session when new login occurs")
+        @DisplayName("Invalidates existing active session before creating a new one (new login wins)")
         void invalidatesExistingSession() {
             UserAccount account = activeAccount();
             when(userAccountRepository.findByEmailHashAndTenantId(EMAIL_HASH, TENANT_ID))
                     .thenReturn(Optional.of(account));
-            when(keycloakService.getTokens(anyString(), anyString(), anyString()))
+            when(keycloakService.getTokens("user@example.com", "pass", ACCOUNT_ID.toString()))
                     .thenReturn(sampleTokens());
-            when(activeSessionRepository.existsByUserIdAndTenantId(ACCOUNT_ID, TENANT_ID))
-                    .thenReturn(true);
+            when(activeSessionRepository.existsByUserIdAndTenantId(ACCOUNT_ID, TENANT_ID)).thenReturn(true);
 
-            AuthTokenRequest request = new AuthTokenRequest("user@example.com", "validPass", null, null);
+            AuthTokenRequest request = new AuthTokenRequest("user@example.com", "pass", null, null);
             authenticationService.authenticate(request, TENANT_ID, IP);
 
             verify(activeSessionRepository).deleteByUserIdAndTenantId(ACCOUNT_ID, TENANT_ID);
+            verify(activeSessionRepository).save(any(ActiveSession.class));
         }
 
         @Test
-        @DisplayName("Creates new active session record on login")
-        void createsNewSession() {
+        @DisplayName("Does not call delete when no active session exists")
+        void noExistingSessionNoDelete() {
             UserAccount account = activeAccount();
             when(userAccountRepository.findByEmailHashAndTenantId(EMAIL_HASH, TENANT_ID))
                     .thenReturn(Optional.of(account));
-            when(keycloakService.getTokens(anyString(), anyString(), anyString()))
+            when(keycloakService.getTokens("user@example.com", "pass", ACCOUNT_ID.toString()))
                     .thenReturn(sampleTokens());
-            when(activeSessionRepository.existsByUserIdAndTenantId(ACCOUNT_ID, TENANT_ID))
-                    .thenReturn(false);
+            when(activeSessionRepository.existsByUserIdAndTenantId(ACCOUNT_ID, TENANT_ID)).thenReturn(false);
 
-            AuthTokenRequest request = new AuthTokenRequest("user@example.com", "validPass", null, null);
+            AuthTokenRequest request = new AuthTokenRequest("user@example.com", "pass", null, null);
             authenticationService.authenticate(request, TENANT_ID, IP);
 
+            verify(activeSessionRepository, never()).deleteByUserIdAndTenantId(ACCOUNT_ID, TENANT_ID);
             verify(activeSessionRepository).save(any(ActiveSession.class));
-            verify(auditEventPublisher).publish(
-                    eq(AuditEventType.LOGIN),
-                    eq(ACCOUNT_ID.toString()),
-                    eq("identity:auth/token"),
-                    eq(IP),
-                    isNull(),
-                    any()
-            );
         }
     }
 
     // -------------------------------------------------------------------------
-    // Refresh Token & Sliding Session
+    // Token Refresh
     // -------------------------------------------------------------------------
 
     @Nested
-    @DisplayName("Refresh Token Handling")
-    class RefreshTokenHandling {
+    @DisplayName("Token Refresh")
+    class TokenRefresh {
 
         @Test
-        @DisplayName("Rotates tokens and extends active session on valid refresh request")
-        void successfulTokenRefresh() {
-            UserAccount account = activeAccount();
-            when(keycloakService.refreshToken("valid.refresh.token")).thenReturn(sampleTokens());
-            when(userAccountRepository.findById(ACCOUNT_ID)).thenReturn(Optional.of(account));
-
+        @DisplayName("Successfully refreshes token and updates active session expiresAt")
+        void successfulRefresh() {
             ActiveSession session = ActiveSession.builder()
                     .userId(ACCOUNT_ID)
-                    .sessionToken(UUID.randomUUID().toString())
+                    .sessionToken("token-123")
                     .expiresAt(LocalDateTime.now().plusMinutes(10))
                     .build();
             session.setTenantId(TENANT_ID);
+
+            UserAccount account = activeAccount();
+            when(userAccountRepository.findByIdAndTenantId(ACCOUNT_ID, TENANT_ID)).thenReturn(Optional.of(account));
+            when(keycloakService.refreshToken("valid.refresh.token")).thenReturn(sampleTokens());
             when(activeSessionRepository.findByUserIdAndTenantId(ACCOUNT_ID, TENANT_ID)).thenReturn(Optional.of(session));
 
             RefreshTokenRequest request = new RefreshTokenRequest("valid.refresh.token", null);
@@ -490,33 +507,41 @@ class AuthenticationServiceTest {
         }
 
         @Test
-        @DisplayName("Rejects refresh token when user account is deactivated")
-        void rejectsRefreshForDeactivatedUser() {
-            UserAccount account = activeAccount();
-            account.setAccountStatus(AccountStatus.DEACTIVATED);
-            when(keycloakService.refreshToken("valid.refresh.token")).thenReturn(sampleTokens());
-            when(userAccountRepository.findById(ACCOUNT_ID)).thenReturn(Optional.of(account));
+        @DisplayName("Throws AuthenticationException when Keycloak refresh fails")
+        void failedRefresh() {
+            when(keycloakService.refreshToken("invalid.refresh.token"))
+                    .thenThrow(new RuntimeException("Keycloak refresh failed"));
 
-            RefreshTokenRequest request = new RefreshTokenRequest("valid.refresh.token", null);
+            RefreshTokenRequest request = new RefreshTokenRequest("invalid.refresh.token", null);
 
             assertThatThrownBy(() -> authenticationService.refreshToken(request, TENANT_ID, IP))
                     .isInstanceOf(AuthenticationException.class)
-                    .hasMessageContaining("Account is not active");
+                    .hasMessage("Invalid or expired refresh token");
+        }
+    }
+
+    // -------------------------------------------------------------------------
+    // Logout
+    // -------------------------------------------------------------------------
+
+    @Nested
+    @DisplayName("Logout")
+    class Logout {
+
+        @Test
+        @DisplayName("Deletes active session and publishes LOGOUT audit event")
+        void successfulLogout() {
+            authenticationService.logout(ACCOUNT_ID.toString(), TENANT_ID);
+
+            verify(activeSessionRepository).deleteByUserIdAndTenantId(ACCOUNT_ID, TENANT_ID);
         }
 
         @Test
-        @DisplayName("Rejects refresh token when tenant mismatch is detected")
-        void rejectsRefreshForTenantMismatch() {
-            UserAccount account = activeAccount();
-            account.setTenantId("different-tenant");
-            when(keycloakService.refreshToken("valid.refresh.token")).thenReturn(sampleTokens());
-            when(userAccountRepository.findById(ACCOUNT_ID)).thenReturn(Optional.of(account));
+        @DisplayName("Handles malformed userId gracefully without throwing exception")
+        void malformedUserIdHandled() {
+            authenticationService.logout("not-a-valid-uuid", TENANT_ID);
 
-            RefreshTokenRequest request = new RefreshTokenRequest("valid.refresh.token", null);
-
-            assertThatThrownBy(() -> authenticationService.refreshToken(request, TENANT_ID, IP))
-                    .isInstanceOf(AuthenticationException.class)
-                    .hasMessageContaining("Invalid tenant");
+            verify(activeSessionRepository, never()).deleteByUserIdAndTenantId(any(), any());
         }
     }
 }

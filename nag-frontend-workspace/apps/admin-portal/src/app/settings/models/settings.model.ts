@@ -11,6 +11,12 @@ export interface SystemSettingsState {
   authPasswordMinLength: number;
   vaultTransitKeyAutoRotate: boolean;
 
+  // Adaptive Risk Assessment & Threat Intelligence (Risk Signal 3 — Issue #115)
+  authRiskIpEnabled: boolean;
+  authRiskIpCountryChangeEnabled: boolean;
+  authRiskIpVpnTorEnabled: boolean;
+  authRiskIpTtlDays: number;
+
   // Exam Delivery & Kiosk Lockdown
   deliveryTamperDetectionEnabled: boolean;
   deliveryKioskModeEnforced: boolean;
@@ -49,6 +55,11 @@ export const DEFAULT_SYSTEM_SETTINGS: SystemSettingsState = {
   authPasswordExpiryDays: 90,
   authPasswordMinLength: 12,
   vaultTransitKeyAutoRotate: true,
+
+  authRiskIpEnabled: true,
+  authRiskIpCountryChangeEnabled: true,
+  authRiskIpVpnTorEnabled: true,
+  authRiskIpTtlDays: 30,
 
   deliveryTamperDetectionEnabled: true,
   deliveryKioskModeEnforced: true,

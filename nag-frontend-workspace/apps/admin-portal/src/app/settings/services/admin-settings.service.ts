@@ -74,6 +74,11 @@ export class AdminSettingsService {
       authPasswordMinLength: parseInt(map['auth.password.min.length'] || '12', 10),
       vaultTransitKeyAutoRotate: true,
 
+      authRiskIpEnabled: map['auth.risk.ip.enabled'] !== 'false',
+      authRiskIpCountryChangeEnabled: map['auth.risk.ip.country-change.enabled'] !== 'false',
+      authRiskIpVpnTorEnabled: map['auth.risk.ip.vpn-tor.enabled'] !== 'false',
+      authRiskIpTtlDays: parseInt(map['auth.risk.ip.ttl.days'] || '30', 10),
+
       deliveryTamperDetectionEnabled: map['delivery.tamper.detection.enabled'] !== 'false',
       deliveryKioskModeEnforced: map['delivery.kiosk.mode.enforced'] !== 'false',
       deliveryTelemetryHeartbeatSeconds: parseInt(map['delivery.telemetry.heartbeat.seconds'] || '10', 10),
@@ -109,6 +114,11 @@ export class AdminSettingsService {
       'auth.lockout.duration.minutes': String(state.authLockoutDurationMinutes),
       'auth.password.expiry.days': String(state.authPasswordExpiryDays),
       'auth.password.min.length': String(state.authPasswordMinLength),
+
+      'auth.risk.ip.enabled': String(state.authRiskIpEnabled),
+      'auth.risk.ip.country-change.enabled': String(state.authRiskIpCountryChangeEnabled),
+      'auth.risk.ip.vpn-tor.enabled': String(state.authRiskIpVpnTorEnabled),
+      'auth.risk.ip.ttl.days': String(state.authRiskIpTtlDays),
 
       'delivery.tamper.detection.enabled': String(state.deliveryTamperDetectionEnabled),
       'delivery.kiosk.mode.enforced': String(state.deliveryKioskModeEnforced),

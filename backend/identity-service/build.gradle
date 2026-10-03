@@ -72,6 +72,9 @@ dependencies {
     // WebAuthn / FIDO2
     implementation 'com.webauthn4j:webauthn4j-core:0.24.1.RELEASE'
 
+    // GeoIP & Threat Intel
+    implementation libs.geoip2
+
     // Test
     testImplementation libs.spring.boot.starter.test
     testImplementation libs.spring.boot.starter.webmvc.test
