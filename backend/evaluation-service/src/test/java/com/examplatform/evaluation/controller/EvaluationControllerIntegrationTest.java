@@ -22,7 +22,6 @@ package com.examplatform.evaluation.controller;
 import com.examplatform.evaluation.domain.Evaluation;
 import com.examplatform.evaluation.dto.AggregatedScoreResult;
 import com.examplatform.evaluation.dto.ScoreRequest;
-import com.examplatform.evaluation.repository.EvaluationRepository;
 import com.examplatform.evaluation.service.ManualEvaluationService;
 import com.examplatform.evaluation.service.ScoreAggregationService;
 import com.examplatform.evaluation.support.AbstractIntegrationTest;
@@ -58,9 +57,6 @@ class EvaluationControllerIntegrationTest extends AbstractIntegrationTest {
 
     @MockitoBean
     private ScoreAggregationService scoreAggregationService;
-
-    @MockitoBean
-    private EvaluationRepository evaluationRepository;
 
     private static final String TENANT_ID = "tenant-test";
     private static final UUID EVALUATION_ID = UUID.fromString("11111111-1111-1111-1111-111111111111");
@@ -338,7 +334,7 @@ class EvaluationControllerIntegrationTest extends AbstractIntegrationTest {
                     .build();
             ReflectionTestUtils.setField(eval, "id", EVALUATION_ID);
 
-            when(evaluationRepository.findByCandidateIdAndTenantId(eq(CANDIDATE_ID), eq(TENANT_ID)))
+            when(manualEvaluationService.getEvaluations(eq(CANDIDATE_ID), any(), eq(TENANT_ID)))
                     .thenReturn(List.of(eval));
 
             mockMvc.perform(get("/api/v1/evaluations/candidate/{candidateId}", CANDIDATE_ID)
