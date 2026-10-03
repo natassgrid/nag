@@ -117,10 +117,10 @@ public class ManualEvaluationService {
         long flagged = evaluationRepository.countByStatusAndTenantId(Evaluation.EvaluationStatus.ARBITRATION, tenantId);
 
         return Map.of(
-                "pending", pending > 0 ? pending : 342L,
-                "inProgress", inProgress > 0 ? inProgress : 89L,
-                "completed", completed > 0 ? completed : 12450L,
-                "flagged", flagged > 0 ? flagged : 15L
+                "pending", pending,
+                "inProgress", inProgress,
+                "completed", completed,
+                "flagged", flagged
         );
     }
 

@@ -14,7 +14,8 @@
  * GNU Affero General Public License for more details.
  *
  * You should have received a copy of the GNU Affero General Public License
- * along with this program. If not, see <https://www.gnu.org/licenses/>.\n */
+ * along with this program. If not, see <https://www.gnu.org/licenses/>.
+ */
 
 package com.examplatform.candidate.service;
 
@@ -372,6 +373,23 @@ public class CandidateProfileService {
         profile.setConsentTimestamp(java.time.LocalDateTime.now());
         candidateProfileRepository.save(profile);
         log.info("Consent recorded for userId={} at {}", userId, profile.getConsentTimestamp());
+    }
+
+    /**
+     * Operational candidate metrics for dashboards and inter-service queries.
+     */
+    @Transactional(readOnly = true)
+    public Map<String, Object> getCandidateMetrics(String tenantId) {
+        long total;
+        if (tenantId == null || "default".equalsIgnoreCase(tenantId) || tenantId.isBlank()) {
+            total = candidateProfileRepository.count();
+        } else {
+            total = candidateProfileRepository.countByTenantId(tenantId);
+        }
+        return Map.of(
+                "totalRegisteredCandidates", total,
+                "activeCandidates", total
+        );
     }
 
     // ── Private helpers ──────────────────────────────────────────────────────────────────────────

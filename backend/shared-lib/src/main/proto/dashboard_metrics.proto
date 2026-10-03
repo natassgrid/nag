@@ -88,3 +88,17 @@ message AuditLedgerEventGrpc {
 message AuditLedgerGrpcResponse {
   repeated AuditLedgerEventGrpc events = 1;
 }
+
+// Candidate Metrics Service
+service CandidateMetricsGrpcService {
+  rpc GetCandidateMetrics (CandidateMetricsGrpcRequest) returns (CandidateMetricsGrpcResponse);
+}
+
+message CandidateMetricsGrpcRequest {
+  string tenant_id = 1;
+}
+
+message CandidateMetricsGrpcResponse {
+  int64 total_registered_candidates = 1;
+  int64 active_candidates = 2;
+}

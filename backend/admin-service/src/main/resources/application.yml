@@ -73,6 +73,18 @@ server:
     context-path: /
   shutdown: graceful
 
+services:
+  question-bank:
+    url: ${QUESTION_BANK_SERVICE_URL:http://localhost:8083}
+  examination:
+    url: ${EXAMINATION_SERVICE_URL:http://localhost:8085}
+  evaluation:
+    url: ${EVALUATION_SERVICE_URL:http://localhost:8089}
+  audit:
+    url: ${AUDIT_SERVICE_URL:http://localhost:8091}
+  candidate:
+    url: ${CANDIDATE_SERVICE_URL:http://localhost:8082}
+
 grpc:
   client:
     questionbank:
@@ -90,6 +102,10 @@ grpc:
     audit:
       host: ${GRPC_AUDIT_HOST:localhost}
       port: ${GRPC_AUDIT_PORT:9084}
+      timeout-ms: 3000
+    candidate:
+      host: ${GRPC_CANDIDATE_HOST:localhost}
+      port: ${GRPC_CANDIDATE_PORT:9082}
       timeout-ms: 3000
 
 management:

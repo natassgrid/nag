@@ -48,7 +48,7 @@ class AdminDashboardServiceTest {
 
     @BeforeEach
     void setUp() {
-        service = new AdminDashboardService(objectMapper, RestClient.builder(), redisTemplate);
+        service = new AdminDashboardService(objectMapper, RestClient.builder(), redisTemplate, null);
     }
 
     @Test
@@ -62,22 +62,21 @@ class AdminDashboardServiceTest {
         assertThat(summary.tenantId()).isEqualTo("test-tenant");
         assertThat(summary.kpis()).isNotNull();
         assertThat(summary.kpis().activeSessions()).isEqualTo(3L);
-        assertThat(summary.kpis().totalQuestions()).isPositive();
         assertThat(summary.examBreakdown()).isNotNull();
         assertThat(summary.questionBreakdown()).isNotNull();
         assertThat(summary.evaluationBreakdown()).isNotNull();
         assertThat(summary.systemServices()).isNotEmpty();
-        assertThat(summary.recentAuditEvents()).isNotEmpty();
     }
 
     @Test
-    @DisplayName("Should fall back to resilient defaults when downstream RPC/REST are unreachable")
+    @DisplayName("Should return clean zero baselines when downstream RPC/REST are unreachable without mock data")
     void shouldFallbackWhenUnreachable() {
         DashboardSummaryResponse summary = service.getDashboardSummary(null);
 
         assertThat(summary).isNotNull();
         assertThat(summary.tenantId()).isEqualTo("default");
-        assertThat(summary.kpis().totalQuestions()).isEqualTo(48290L);
-        assertThat(summary.kpis().pendingReviewQuestions()).isEqualTo(124L);
+        assertThat(summary.kpis().totalQuestions()).isEqualTo(0L);
+        assertThat(summary.kpis().pendingReviewQuestions()).isEqualTo(0L);
+        assertThat(summary.kpis().registeredCandidates()).isEqualTo(0L);
     }
 }
