@@ -1,0 +1,90 @@
+/*
+ * SPDX-License-Identifier: AGPL-3.0-only
+ *
+ * National Assessment Grid (NAG) - Open Digital Public Infrastructure (DPI) Platform
+ * Copyright (C) 2025 NAG Contributors
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as published
+ * by the Free Software Foundation, version 3 of the License.
+ */
+
+syntax = "proto3";
+
+package com.examplatform.shared.grpc;
+
+option java_multiple_files = true;
+option java_package = "com.examplatform.shared.grpc";
+option java_outer_classname = "DashboardMetricsProto";
+
+// Question Bank Metrics Service
+service QuestionBankMetricsGrpcService {
+  rpc GetQuestionBankMetrics (QuestionBankMetricsGrpcRequest) returns (QuestionBankMetricsGrpcResponse);
+}
+
+message QuestionBankMetricsGrpcRequest {
+  string tenant_id = 1;
+}
+
+message QuestionBankMetricsGrpcResponse {
+  int64 total = 1;
+  int64 draft = 2;
+  int64 submitted = 3;
+  int64 approved = 4;
+  int64 rejected = 5;
+}
+
+// Examination Metrics Service
+service ExaminationMetricsGrpcService {
+  rpc GetExaminationStatusBreakdown (ExamBreakdownGrpcRequest) returns (ExamBreakdownGrpcResponse);
+}
+
+message ExamBreakdownGrpcRequest {
+  string tenant_id = 1;
+}
+
+message ExamBreakdownGrpcResponse {
+  int64 scheduled = 1;
+  int64 live_in_progress = 2;
+  int64 completed = 3;
+  int64 cancelled = 4;
+}
+
+// Evaluation Metrics Service
+service EvaluationMetricsGrpcService {
+  rpc GetEvaluationQueueMetrics (EvaluationMetricsGrpcRequest) returns (EvaluationMetricsGrpcResponse);
+}
+
+message EvaluationMetricsGrpcRequest {
+  string tenant_id = 1;
+}
+
+message EvaluationMetricsGrpcResponse {
+  int64 pending = 1;
+  int64 in_progress = 2;
+  int64 completed = 3;
+  int64 flagged = 4;
+}
+
+// Audit Ledger Metrics Service
+service AuditLedgerGrpcService {
+  rpc GetRecentLedgerEvents (AuditLedgerGrpcRequest) returns (AuditLedgerGrpcResponse);
+}
+
+message AuditLedgerGrpcRequest {
+  string tenant_id = 1;
+  int32 limit = 2;
+}
+
+message AuditLedgerEventGrpc {
+  string id = 1;
+  string action = 2;
+  string entity_type = 3;
+  string performed_by = 4;
+  string timestamp = 5;
+  string status = 6;
+}
+
+message AuditLedgerGrpcResponse {
+  repeated AuditLedgerEventGrpc events = 1;
+}
