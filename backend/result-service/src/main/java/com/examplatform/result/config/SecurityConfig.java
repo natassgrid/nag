@@ -14,8 +14,7 @@
  * GNU Affero General Public License for more details.
  *
  * You should have received a copy of the GNU Affero General Public License
- * along with this program. If not, see <https://www.gnu.org/licenses/>.
- */
+ * along with this program. If not, see <https://www.gnu.org/licenses/>.\n */
 
 package com.examplatform.result.config;
 
@@ -31,7 +30,7 @@ import org.springframework.security.web.SecurityFilterChain;
 
 /**
  * Security configuration for result-service.
- * OAuth2 Resource Server with JWT validation; permit actuator endpoints;
+ * OAuth2 Resource Server with JWT validation; permit actuator endpoints and public QR verification;
  * require authentication for all other requests.
  */
 @Configuration
@@ -49,6 +48,7 @@ public class SecurityConfig {
             .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers("/actuator/health", "/actuator/health/**", "/actuator/info", "/actuator/prometheus").permitAll()
+                .requestMatchers("/api/v1/results/verify").permitAll()
                 .anyRequest().authenticated()
             )
             .oauth2ResourceServer(oauth2 -> oauth2
