@@ -92,8 +92,6 @@ public class MagicNumberValidator {
         if (declared.equals("image/svg+xml") && detected.contains("xml")) return true;
 
         // WAV variants
-        if (declared.startsWith("audio/") && detected.startsWith("audio/")) return true;
-
-        return false;
+        return declared.startsWith("audio/") && detected.startsWith("audio/");
     }
 }

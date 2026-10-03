@@ -11,6 +11,7 @@
 
 package com.examplatform.delivery.service;
 
+import com.examplatform.delivery.dto.CachedQuestion;
 import com.examplatform.questionbank.grpc.PaperQuestionsGrpcRequest;
 import com.examplatform.questionbank.grpc.PaperQuestionsGrpcResponse;
 import com.examplatform.questionbank.grpc.QuestionBankGrpcServiceGrpc;
@@ -25,9 +26,7 @@ import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
@@ -67,13 +66,13 @@ public class QuestionCacheService {
      *
      * @param paperId  the exam paper identifier
      * @param tenantId the tenant identifier
-     * @return list of question data maps
+     * @return list of typed cached question records
      */
     @CircuitBreaker(name = "questionBank", fallbackMethod = "getFromCache")
-    public List<Map<String, Object>> getQuestionsForPaper(UUID paperId, String tenantId) {
+    public List<CachedQuestion> getQuestionsForPaper(UUID paperId, String tenantId) {
         log.debug("Fetching questions from Question Bank via gRPC: paperId={}, tenant={}", paperId, tenantId);
 
-        List<Map<String, Object>> questions = fetchFromQuestionBank(paperId, tenantId);
+        List<CachedQuestion> questions = fetchFromQuestionBank(paperId, tenantId);
 
         cacheQuestions(paperId, tenantId, questions);
 
@@ -90,7 +89,7 @@ public class QuestionCacheService {
      * @return cached question data or empty list if cache miss
      */
     @SuppressWarnings("unchecked")
-    public List<Map<String, Object>> getFromCache(UUID paperId, String tenantId, Throwable ex) {
+    public List<CachedQuestion> getFromCache(UUID paperId, String tenantId, Throwable ex) {
         log.warn("Question Bank unavailable, falling back to cache: paperId={}, tenant={}, error={}",
                 paperId, tenantId, ex.getMessage());
 
@@ -99,7 +98,7 @@ public class QuestionCacheService {
 
         if (cached instanceof List<?> cachedList) {
             log.info("Cache hit for paperId={}, returning {} cached questions", paperId, cachedList.size());
-            return (List<Map<String, Object>>) cachedList;
+            return (List<CachedQuestion>) cachedList;
         }
 
         log.error("Cache miss for paperId={} — no fallback data available", paperId);
@@ -109,7 +108,7 @@ public class QuestionCacheService {
     /**
      * Fetches questions from the Question Bank service via gRPC.
      */
-    private List<Map<String, Object>> fetchFromQuestionBank(UUID paperId, String tenantId) {
+    private List<CachedQuestion> fetchFromQuestionBank(UUID paperId, String tenantId) {
         try {
             ManagedChannel channel = GrpcChannelFactory.getChannel(grpcHost, grpcPort);
             QuestionBankGrpcServiceGrpc.QuestionBankGrpcServiceBlockingStub stub =
@@ -122,19 +121,19 @@ public class QuestionCacheService {
                     .build();
 
             PaperQuestionsGrpcResponse response = stub.getQuestionsForPaper(request);
-            List<Map<String, Object>> result = new ArrayList<>();
+            List<CachedQuestion> result = new ArrayList<>();
 
             for (QuestionSummaryGrpc q : response.getQuestionsList()) {
-                Map<String, Object> map = new HashMap<>();
-                map.put("id", q.getId());
-                map.put("content", q.getContent());
-                map.put("type", q.getQuestionType());
-                map.put("difficulty", q.getDifficulty());
-                map.put("marks", q.getMarks());
-                map.put("negativeMarks", q.getNegativeMarks());
-                map.put("optionsJson", q.getOptionsJson());
-                map.put("answerKey", q.getAnswerKey());
-                result.add(map);
+                result.add(new CachedQuestion(
+                        q.getId(),
+                        q.getContent(),
+                        q.getQuestionType(),
+                        q.getDifficulty(),
+                        q.getMarks(),
+                        q.getNegativeMarks(),
+                        q.getOptionsJson(),
+                        q.getAnswerKey()
+                ));
             }
             return result;
         } catch (Exception e) {
@@ -147,7 +146,7 @@ public class QuestionCacheService {
     /**
      * Caches fetched questions in Redis for circuit breaker fallback.
      */
-    private void cacheQuestions(UUID paperId, String tenantId, List<Map<String, Object>> questions) {
+    private void cacheQuestions(UUID paperId, String tenantId, List<CachedQuestion> questions) {
         String cacheKey = buildCacheKey(paperId, tenantId);
         redisTemplate.opsForValue().set(cacheKey, questions, CACHE_TTL_HOURS, TimeUnit.HOURS);
         log.debug("Cached {} questions for paperId={}", questions.size(), paperId);

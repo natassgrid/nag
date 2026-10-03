@@ -24,6 +24,7 @@ import com.examplatform.candidate.dto.CandidateEducationResponse;
 import com.examplatform.candidate.dto.CandidateProfileResponse;
 import com.examplatform.candidate.dto.ConsentRequest;
 import com.examplatform.candidate.dto.CreateCandidateProfileRequest;
+import com.examplatform.candidate.dto.DigiLockerCallbackResult;
 import com.examplatform.candidate.dto.FaceVerificationRequest;
 import com.examplatform.candidate.dto.UpdateCandidateProfileRequest;
 import com.examplatform.candidate.service.CandidateEducationService;
@@ -258,11 +259,11 @@ public class CandidateProfileController {
      * Validates: Requirements 1.3
      */
     @GetMapping("/digilocker/callback")
-    public ResponseEntity<Map<String, Object>> handleDigiLockerCallbackGet(
+    public ResponseEntity<DigiLockerCallbackResult> handleDigiLockerCallbackGet(
             @RequestParam String code,
             @RequestParam(required = false) String state,
             @RequestParam(required = false) String redirectUri) {
-        Map<String, Object> result = digiLockerService.handleCallback(code, state, redirectUri);
+        DigiLockerCallbackResult result = digiLockerService.handleCallback(code, state, redirectUri);
         return ResponseEntity.ok(result);
     }
 
@@ -272,12 +273,12 @@ public class CandidateProfileController {
      * Validates: Requirements 1.3
      */
     @PostMapping("/digilocker/callback")
-    public ResponseEntity<Map<String, Object>> handleDigiLockerCallbackPost(
+    public ResponseEntity<DigiLockerCallbackResult> handleDigiLockerCallbackPost(
             @RequestBody Map<String, String> body) {
         String code = body != null ? body.get("code") : "";
         String state = body != null ? body.get("state") : "";
         String redirectUri = body != null ? body.get("redirectUri") : null;
-        Map<String, Object> result = digiLockerService.handleCallback(code, state, redirectUri);
+        DigiLockerCallbackResult result = digiLockerService.handleCallback(code, state, redirectUri);
         return ResponseEntity.ok(result);
     }
 
@@ -337,7 +338,7 @@ public class CandidateProfileController {
     private void enforceOwnershipOrAdmin(UUID userId, Jwt jwt) {
         if (jwt == null) return;
         String sub = jwt.getSubject();
-        if (sub != null && userId.toString().equals(sub)) {
+        if (userId.toString().equals(sub)) {
             return; // Owner access
         }
         // Check if user has SUPER_ADMIN role

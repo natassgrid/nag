@@ -19,6 +19,7 @@
 
 package com.examplatform.delivery.service;
 
+import com.examplatform.delivery.dto.CachedQuestion;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -29,7 +30,6 @@ import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.core.ValueOperations;
 
 import java.util.List;
-import java.util.Map;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -67,9 +67,9 @@ class QuestionCacheServiceTest {
     void fallbackReturnsCachedDataWhenServiceDown() {
         String cacheKey = "question:cache:" + tenantId + ":" + paperId;
 
-        List<Map<String, Object>> cachedQuestions = List.of(
-                Map.of("id", UUID.randomUUID().toString(), "content", "What is 2+2?", "type", "MCQ"),
-                Map.of("id", UUID.randomUUID().toString(), "content", "Solve for x: 3x+1=7", "type", "NUMERICAL")
+        List<CachedQuestion> cachedQuestions = List.of(
+                new CachedQuestion(UUID.randomUUID().toString(), "What is 2+2?", "MCQ", "EASY", 1.0, 0.0, "[]", "A"),
+                new CachedQuestion(UUID.randomUUID().toString(), "Solve for x: 3x+1=7", "NUMERICAL", "MEDIUM", 2.0, 0.0, null, "2")
         );
 
         when(redisTemplate.opsForValue()).thenReturn(valueOperations);
@@ -77,11 +77,11 @@ class QuestionCacheServiceTest {
 
         RuntimeException serviceDown = new RuntimeException("Connection refused: Question Bank service unavailable");
 
-        List<Map<String, Object>> result = questionCacheService.getFromCache(paperId, tenantId, serviceDown);
+        List<CachedQuestion> result = questionCacheService.getFromCache(paperId, tenantId, serviceDown);
 
         assertThat(result).hasSize(2);
-        assertThat(result.get(0).get("content")).isEqualTo("What is 2+2?");
-        assertThat(result.get(1).get("type")).isEqualTo("NUMERICAL");
+        assertThat(result.get(0).content()).isEqualTo("What is 2+2?");
+        assertThat(result.get(1).type()).isEqualTo("NUMERICAL");
     }
 
     @Test
@@ -94,7 +94,7 @@ class QuestionCacheServiceTest {
 
         RuntimeException serviceDown = new RuntimeException("Connection timeout");
 
-        List<Map<String, Object>> result = questionCacheService.getFromCache(paperId, tenantId, serviceDown);
+        List<CachedQuestion> result = questionCacheService.getFromCache(paperId, tenantId, serviceDown);
 
         assertThat(result).isEmpty();
     }

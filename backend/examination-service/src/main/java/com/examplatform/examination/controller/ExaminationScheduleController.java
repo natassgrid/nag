@@ -194,7 +194,7 @@ public class ExaminationScheduleController {
     private Set<String> extractRoles(Jwt jwt) {
         try {
             java.util.Map<String, Object> realmAccess =
-                    (java.util.Map<String, Object>) jwt.getClaim("realm_access");
+                jwt.getClaim("realm_access");
             if (realmAccess == null) return Set.of();
             java.util.Collection<String> roles =
                     (java.util.Collection<String>) realmAccess.get("roles");

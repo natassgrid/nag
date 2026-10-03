@@ -67,7 +67,11 @@ class ExamQuestionDeliveryServiceTest {
     @BeforeEach
     void setUp() {
         objectMapper = new ObjectMapper();
-        service = new ExamQuestionDeliveryService(jdbcTemplate, redisTemplate, objectMapper, examSessionRepository);
+        QuestionDeliveryParser parser = new QuestionDeliveryParser(objectMapper);
+        QuestionDeliveryRepository repo = new QuestionDeliveryRepository(jdbcTemplate, objectMapper, parser);
+        OptionRandomizer randomizer = new OptionRandomizer();
+        TranslationEnricher enricher = new TranslationEnricher(jdbcTemplate, objectMapper);
+        service = new ExamQuestionDeliveryService(repo, parser, randomizer, enricher, redisTemplate, examSessionRepository);
     }
 
     @Nested

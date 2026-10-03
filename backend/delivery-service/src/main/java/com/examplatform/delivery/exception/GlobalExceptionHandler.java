@@ -19,6 +19,7 @@
 
 package com.examplatform.delivery.exception;
 
+import com.examplatform.shared.error.ErrorEnvelope;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -29,97 +30,71 @@ import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
-import java.time.Instant;
-import java.util.Map;
 import java.util.NoSuchElementException;
 
 /**
  * Global exception handler for the delivery-service REST API.
- * Maps domain exceptions to appropriate HTTP status codes and structured error responses.
+ * Maps domain exceptions to appropriate HTTP status codes and structured ErrorEnvelope responses.
  */
 @Slf4j
 @RestControllerAdvice(basePackages = "com.examplatform.delivery")
 public class GlobalExceptionHandler {
 
     @ExceptionHandler(ConcurrentSessionException.class)
-    public ResponseEntity<Map<String, Object>> handleConcurrentSession(ConcurrentSessionException ex) {
+    public ResponseEntity<ErrorEnvelope> handleConcurrentSession(ConcurrentSessionException ex) {
         log.warn("Concurrent session violation: {}", ex.getMessage());
-        java.util.Map<String, Object> err = new java.util.LinkedHashMap<>();
-        err.put("code", "CONCURRENT_SESSION");
-        err.put("message", ex.getMessage());
-        err.put("timestamp", Instant.now().toString());
-        if (ex.getActiveExamId() != null) {
-            err.put("activeExamId", ex.getActiveExamId().toString());
-        }
-        if (ex.getActiveSessionId() != null) {
-            err.put("activeSessionId", ex.getActiveSessionId().toString());
-        }
+        String examId = ex.getActiveExamId() != null ? ex.getActiveExamId().toString() : null;
+        String sessId = ex.getActiveSessionId() != null ? ex.getActiveSessionId().toString() : null;
         return ResponseEntity.status(HttpStatus.CONFLICT)
-                .body(Map.of(
-                        "status", "error",
-                        "error", err,
-                        "httpStatus", HttpStatus.CONFLICT.value()
-                ));
+                .body(ErrorEnvelope.of("CONCURRENT_SESSION", ex.getMessage(), HttpStatus.CONFLICT.value(), examId, sessId));
     }
 
     @ExceptionHandler(NavigationPolicyViolationException.class)
-    public ResponseEntity<Map<String, Object>> handleNavigationPolicyViolation(NavigationPolicyViolationException ex) {
+    public ResponseEntity<ErrorEnvelope> handleNavigationPolicyViolation(NavigationPolicyViolationException ex) {
         log.warn("Navigation policy violation: {}", ex.getMessage());
         return ResponseEntity.status(HttpStatus.UNPROCESSABLE_ENTITY)
-                .body(errorBody("NAVIGATION_POLICY_VIOLATION", ex.getMessage(), HttpStatus.UNPROCESSABLE_ENTITY));
+                .body(ErrorEnvelope.of("NAVIGATION_POLICY_VIOLATION", ex.getMessage(), HttpStatus.UNPROCESSABLE_ENTITY.value()));
     }
 
     @ExceptionHandler(NoSuchElementException.class)
-    public ResponseEntity<Map<String, Object>> handleNotFound(NoSuchElementException ex) {
+    public ResponseEntity<ErrorEnvelope> handleNotFound(NoSuchElementException ex) {
         log.warn("Resource not found: {}", ex.getMessage());
         return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                .body(errorBody("NOT_FOUND", ex.getMessage(), HttpStatus.NOT_FOUND));
+                .body(ErrorEnvelope.of("NOT_FOUND", ex.getMessage(), HttpStatus.NOT_FOUND.value()));
     }
 
     @ExceptionHandler(AccessDeniedException.class)
-    public ResponseEntity<Map<String, Object>> handleAccessDenied(AccessDeniedException ex) {
+    public ResponseEntity<ErrorEnvelope> handleAccessDenied(AccessDeniedException ex) {
         log.warn("Access denied: {}", ex.getMessage());
         return ResponseEntity.status(HttpStatus.FORBIDDEN)
-                .body(errorBody("ACCESS_DENIED", "Access denied", HttpStatus.FORBIDDEN));
+                .body(ErrorEnvelope.of("ACCESS_DENIED", "Access denied", HttpStatus.FORBIDDEN.value()));
     }
 
     @ExceptionHandler({
             MissingServletRequestParameterException.class,
             MissingRequestHeaderException.class
     })
-    public ResponseEntity<Map<String, Object>> handleMissingRequestValues(Exception ex) {
+    public ResponseEntity<ErrorEnvelope> handleMissingRequestValues(Exception ex) {
         log.warn("Missing required request parameter or header: {}", ex.getMessage());
         return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                .body(errorBody("BAD_REQUEST", ex.getMessage(), HttpStatus.BAD_REQUEST));
+                .body(ErrorEnvelope.of("BAD_REQUEST", ex.getMessage(), HttpStatus.BAD_REQUEST.value()));
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
-    public ResponseEntity<Map<String, Object>> handleValidation(MethodArgumentNotValidException ex) {
+    public ResponseEntity<ErrorEnvelope> handleValidation(MethodArgumentNotValidException ex) {
         String message = ex.getBindingResult().getFieldErrors().stream()
                 .map(fe -> fe.getField() + ": " + fe.getDefaultMessage())
                 .reduce((a, b) -> a + "; " + b)
                 .orElse("Validation failed");
         log.warn("Validation error: {}", message);
         return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                .body(errorBody("VALIDATION_ERROR", message, HttpStatus.BAD_REQUEST));
+                .body(ErrorEnvelope.of("VALIDATION_ERROR", message, HttpStatus.BAD_REQUEST.value()));
     }
 
     @ExceptionHandler(Exception.class)
-    public ResponseEntity<Map<String, Object>> handleGeneric(Exception ex) {
+    public ResponseEntity<ErrorEnvelope> handleGeneric(Exception ex) {
         log.error("Unhandled exception: {}", ex.getMessage(), ex);
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body(errorBody("INTERNAL_ERROR", "An unexpected error occurred", HttpStatus.INTERNAL_SERVER_ERROR));
-    }
-
-    private Map<String, Object> errorBody(String code, String message, HttpStatus status) {
-        return Map.of(
-                "status", "error",
-                "error", Map.of(
-                        "code", code,
-                        "message", message,
-                        "timestamp", Instant.now().toString()
-                ),
-                "httpStatus", status.value()
-        );
+                .body(ErrorEnvelope.of("INTERNAL_ERROR", "An unexpected error occurred", HttpStatus.INTERNAL_SERVER_ERROR.value()));
     }
 }

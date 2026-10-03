@@ -257,11 +257,9 @@ public class QuestionAnalyticsService {
                     .map(ReviewOptionDto::getId)
                     .filter(Objects::nonNull)
                     .toList();
-            if (!correctOptionIds.isEmpty() &&
-                    correctOptionIds.containsAll(attempt.getSelectedOptionIds()) &&
-                    attempt.getSelectedOptionIds().containsAll(correctOptionIds)) {
-                return true;
-            }
+            return !correctOptionIds.isEmpty() &&
+                correctOptionIds.containsAll(attempt.getSelectedOptionIds()) &&
+                attempt.getSelectedOptionIds().containsAll(correctOptionIds);
         }
         return false;
     }

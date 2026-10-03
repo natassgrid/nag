@@ -502,7 +502,7 @@ public class BedrockBatchService {
             if (raw.options == null || raw.options.size() != 4) return false;
             long correct = raw.options.stream().filter(QuestionOption::isCorrect).count();
             if ("SINGLE_MCQ".equals(type) && correct != 1) return false;
-            if ("MULTI_MCQ".equals(type) && correct < 2) return false;
+            return !"MULTI_MCQ".equals(type) || correct >= 2;
         }
         return true;
     }

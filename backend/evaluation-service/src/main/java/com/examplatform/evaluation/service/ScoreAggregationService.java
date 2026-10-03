@@ -20,6 +20,7 @@
 package com.examplatform.evaluation.service;
 
 import com.examplatform.evaluation.domain.Evaluation;
+import com.examplatform.evaluation.dto.AggregatedScoreResult;
 import com.examplatform.evaluation.repository.EvaluationRepository;
 import com.examplatform.shared.messaging.EventPublisher;
 import lombok.RequiredArgsConstructor;
@@ -63,7 +64,7 @@ public class ScoreAggregationService {
      * @param tenantId    examination authority
      * @return aggregation result map with total and section-wise scores
      */
-    public Map<String, Object> aggregateScores(UUID sessionId, UUID candidateId, UUID examId, String tenantId) {
+    public AggregatedScoreResult aggregateScores(UUID sessionId, UUID candidateId, UUID examId, String tenantId) {
         List<Evaluation> evaluations = evaluationRepository
                 .findBySessionIdAndTenantId(sessionId, tenantId)
                 .stream()
@@ -74,12 +75,14 @@ public class ScoreAggregationService {
         if (evaluations.isEmpty()) {
             log.warn("No finalized evaluations found for session={}, candidate={}",
                     sessionId, candidateId);
-            return Map.of(
-                    "sessionId", sessionId.toString(),
-                    "candidateId", candidateId.toString(),
-                    "totalRawScore", BigDecimal.ZERO,
-                    "totalMaxMarks", BigDecimal.ZERO,
-                    "evaluationCount", 0
+            return new AggregatedScoreResult(
+                    sessionId.toString(),
+                    candidateId.toString(),
+                    BigDecimal.ZERO,
+                    BigDecimal.ZERO,
+                    Map.of(),
+                    0,
+                    tenantId
             );
         }
 
@@ -99,14 +102,15 @@ public class ScoreAggregationService {
                         Collectors.reducing(BigDecimal.ZERO, Evaluation::getScore, BigDecimal::add)
                 ));
 
-        Map<String, Object> result = new HashMap<>();
-        result.put("sessionId", sessionId.toString());
-        result.put("candidateId", candidateId.toString());
-        result.put("totalRawScore", totalRawScore.setScale(2, RoundingMode.HALF_UP));
-        result.put("totalMaxMarks", totalMaxMarks.setScale(2, RoundingMode.HALF_UP));
-        result.put("sectionScores", sectionScores);
-        result.put("evaluationCount", evaluations.size());
-        result.put("tenantId", tenantId);
+        AggregatedScoreResult result = new AggregatedScoreResult(
+                sessionId.toString(),
+                candidateId.toString(),
+                totalRawScore.setScale(2, RoundingMode.HALF_UP),
+                totalMaxMarks.setScale(2, RoundingMode.HALF_UP),
+                sectionScores,
+                evaluations.size(),
+                tenantId
+        );
 
         // Publish aggregation event
         publishAggregationEvent(result);
@@ -124,13 +128,20 @@ public class ScoreAggregationService {
                 || evaluation.getStatus() == Evaluation.EvaluationStatus.AUTO_EVALUATED;
     }
 
-    private void publishAggregationEvent(Map<String, Object> aggregation) {
+    private void publishAggregationEvent(AggregatedScoreResult aggregation) {
         try {
-            Map<String, Object> event = new HashMap<>(aggregation);
+            Map<String, Object> event = new HashMap<>();
             event.put("eventType", "SCORES_AGGREGATED");
+            event.put("sessionId", aggregation.sessionId());
+            event.put("candidateId", aggregation.candidateId());
+            event.put("totalRawScore", aggregation.totalRawScore());
+            event.put("totalMaxMarks", aggregation.totalMaxMarks());
+            event.put("sectionScores", aggregation.sectionScores());
+            event.put("evaluationCount", aggregation.evaluationCount());
+            event.put("tenantId", aggregation.tenantId());
             event.put("occurredAt", Instant.now().toString());
 
-            String key = aggregation.get("sessionId") + ":" + aggregation.get("candidateId");
+            String key = aggregation.sessionId() + ":" + aggregation.candidateId();
             eventPublisher.publish(EVALUATION_EVENTS_TOPIC, key, event);
         } catch (Exception e) {
             log.error("Failed to publish SCORES_AGGREGATED event: {}", e.getMessage());
@@ -142,7 +153,7 @@ public class ScoreAggregationService {
      * Includes question-level scores with timeSpentMs for diagnostic analytics.
      * Validates: SPEC-E2
      */
-    private void publishEvaluationCompletedEvent(Map<String, Object> aggregation,
+    private void publishEvaluationCompletedEvent(AggregatedScoreResult aggregation,
                                                   UUID sessionId, UUID candidateId,
                                                   UUID examId, String tenantId,
                                                   List<Evaluation> evaluations) {
@@ -161,8 +172,8 @@ public class ScoreAggregationService {
             event.put("sessionId", sessionId.toString());
             event.put("candidateId", candidateId.toString());
             event.put("examId", examId != null ? examId.toString() : "");
-            event.put("totalRawScore", aggregation.get("totalRawScore"));
-            event.put("sectionScores", aggregation.getOrDefault("sectionScores", java.util.Map.of()));
+            event.put("totalRawScore", aggregation.totalRawScore());
+            event.put("sectionScores", aggregation.sectionScores() != null ? aggregation.sectionScores() : java.util.Map.of());
             event.put("questionLevelScores", questionLevelScores);
             event.put("tenantId", tenantId);
             event.put("evaluatedAt", java.time.Instant.now().toString());

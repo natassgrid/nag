@@ -22,6 +22,7 @@ package com.examplatform.delivery.service;
 import com.examplatform.delivery.domain.ExamSession;
 import com.examplatform.delivery.domain.ExamSession.ExamSessionStatus;
 import com.examplatform.delivery.repository.ExamSessionRepository;
+import com.examplatform.shared.event.SessionEvents;
 import com.examplatform.shared.messaging.EventPublisher;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -32,7 +33,6 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
-import java.util.Map;
 import java.util.UUID;
 
 /**
@@ -67,13 +67,11 @@ public class SessionTimerService {
                 examSessionRepository.save(session);
 
                 // Publish SESSION_EXPIRED event to Kafka
-                Map<String, Object> event = Map.of(
-                        "eventType", "SESSION_EXPIRED",
-                        "sessionId", session.getSessionId().toString(),
-                        "candidateId", session.getCandidateId().toString(),
-                        "examId", session.getExamId().toString(),
-                        "expiredAt", now.toString(),
-                        "tenantId", session.getTenantId()
+                SessionEvents.SessionExpired event = SessionEvents.SessionExpired.of(
+                        session.getSessionId().toString(),
+                        session.getCandidateId().toString(),
+                        session.getExamId().toString(),
+                        session.getTenantId()
                 );
 
                 try {

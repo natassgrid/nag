@@ -19,76 +19,66 @@
 
 package com.examplatform.examination.exception;
 
+import com.examplatform.shared.error.ApiErrorResponse;
+import com.examplatform.shared.error.BaseGlobalExceptionHandler;
 import jakarta.persistence.EntityNotFoundException;
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.access.AccessDeniedException;
-import org.springframework.validation.FieldError;
-import org.springframework.web.bind.MethodArgumentNotValidException;
-import org.springframework.web.bind.MissingRequestHeaderException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
 
-import java.time.Instant;
-import java.util.HashMap;
-import java.util.Map;
-
 /**
  * Global exception handler for examination-service REST endpoints.
  */
-@Slf4j
 @RestControllerAdvice(basePackages = "com.examplatform.examination")
-public class GlobalExceptionHandler {
+public class GlobalExceptionHandler extends BaseGlobalExceptionHandler {
 
     @ExceptionHandler(SectionMarksValidationException.class)
-    public ResponseEntity<Map<String, Object>> handleSectionMarksValidation(
-            SectionMarksValidationException ex) {
+    public ResponseEntity<ApiErrorResponse> handleSectionMarksValidation(SectionMarksValidationException ex) {
         log.warn("Section marks validation failed: {}", ex.getMessage());
-        Map<String, Object> body = new HashMap<>();
-        body.put("timestamp", Instant.now().toString());
-        body.put("status", HttpStatus.UNPROCESSABLE_ENTITY.value());
-        body.put("error", "Unprocessable Entity");
-        body.put("message", ex.getMessage());
-        body.put("expectedTotalMarks", ex.getExpectedTotalMarks());
-        body.put("actualTotalMarks", ex.getActualTotalMarks());
+        ApiErrorResponse body = ApiErrorResponse.builder()
+                .status(HttpStatus.UNPROCESSABLE_ENTITY.value())
+                .error("Unprocessable Entity")
+                .message(ex.getMessage())
+                .property("expectedTotalMarks", ex.getExpectedTotalMarks())
+                .property("actualTotalMarks", ex.getActualTotalMarks())
+                .build();
         return ResponseEntity.status(HttpStatus.UNPROCESSABLE_ENTITY).body(body);
     }
 
     @ExceptionHandler(ShiftTimingViolationException.class)
-    public ResponseEntity<Map<String, Object>> handleShiftTiming(ShiftTimingViolationException ex) {
+    public ResponseEntity<ApiErrorResponse> handleShiftTiming(ShiftTimingViolationException ex) {
         log.warn("Shift timing violation: {}", ex.getMessage());
-        Map<String, Object> body = new HashMap<>();
-        body.put("timestamp", Instant.now().toString());
-        body.put("status", HttpStatus.UNPROCESSABLE_ENTITY.value());
-        body.put("error", "Shift Timing Violation");
-        body.put("message", ex.getMessage());
-        body.put("violatedConstraint", ex.getViolatedConstraint());
+        ApiErrorResponse body = ApiErrorResponse.builder()
+                .status(HttpStatus.UNPROCESSABLE_ENTITY.value())
+                .error("Shift Timing Violation")
+                .message(ex.getMessage())
+                .property("violatedConstraint", ex.getViolatedConstraint())
+                .build();
         return ResponseEntity.status(HttpStatus.UNPROCESSABLE_ENTITY).body(body);
     }
 
     @ExceptionHandler(ScheduleWorkflowException.class)
-    public ResponseEntity<Map<String, Object>> handleScheduleWorkflow(ScheduleWorkflowException ex) {
+    public ResponseEntity<ApiErrorResponse> handleScheduleWorkflow(ScheduleWorkflowException ex) {
         log.warn("Schedule workflow violation: {}", ex.getMessage());
-        Map<String, Object> body = new HashMap<>();
-        body.put("timestamp", Instant.now().toString());
-        body.put("status", HttpStatus.UNPROCESSABLE_ENTITY.value());
-        body.put("error", "Invalid Schedule Transition");
-        body.put("message", ex.getMessage());
-        if (ex.getCurrentStatus() != null) body.put("currentStatus", ex.getCurrentStatus());
-        if (ex.getTargetStatus() != null)  body.put("targetStatus",  ex.getTargetStatus());
-        return ResponseEntity.status(HttpStatus.UNPROCESSABLE_ENTITY).body(body);
+        ApiErrorResponse.Builder builder = ApiErrorResponse.builder()
+                .status(HttpStatus.UNPROCESSABLE_ENTITY.value())
+                .error("Invalid Schedule Transition")
+                .message(ex.getMessage());
+        if (ex.getCurrentStatus() != null) builder.property("currentStatus", ex.getCurrentStatus());
+        if (ex.getTargetStatus() != null)  builder.property("targetStatus",  ex.getTargetStatus());
+        return ResponseEntity.status(HttpStatus.UNPROCESSABLE_ENTITY).body(builder.build());
     }
 
     @ExceptionHandler(ScheduleDateConflictException.class)
-    public ResponseEntity<Map<String, Object>> handleDateConflict(ScheduleDateConflictException ex) {
+    public ResponseEntity<ApiErrorResponse> handleDateConflict(ScheduleDateConflictException ex) {
         log.warn("Schedule date conflict: {}", ex.getMessage());
         return buildResponse(HttpStatus.CONFLICT, ex.getMessage());
     }
 
     @ExceptionHandler(SeatAllocationException.class)
-    public ResponseEntity<Map<String, Object>> handleSeatAllocation(SeatAllocationException ex) {
+    public ResponseEntity<ApiErrorResponse> handleSeatAllocation(SeatAllocationException ex) {
         log.warn("Seat allocation error: {}", ex.getMessage());
         return buildResponse(HttpStatus.UNPROCESSABLE_ENTITY, ex.getMessage());
     }
@@ -96,49 +86,8 @@ public class GlobalExceptionHandler {
     @ExceptionHandler({ScheduleNotFoundException.class, ShiftNotFoundException.class,
                         CentreNotFoundException.class, ExaminationNotFoundException.class,
                         EntityNotFoundException.class, NoResourceFoundException.class})
-    public ResponseEntity<Map<String, Object>> handleNotFound(Exception ex) {
+    public ResponseEntity<ApiErrorResponse> handleNotFound(Exception ex) {
         log.warn("Resource not found: {}", ex.getMessage());
         return buildResponse(HttpStatus.NOT_FOUND, ex.getMessage());
-    }
-
-    @ExceptionHandler(MethodArgumentNotValidException.class)
-    public ResponseEntity<Map<String, Object>> handleValidation(MethodArgumentNotValidException ex) {
-        Map<String, String> fieldErrors = new HashMap<>();
-        for (FieldError error : ex.getBindingResult().getFieldErrors()) {
-            fieldErrors.put(error.getField(), error.getDefaultMessage());
-        }
-        Map<String, Object> body = new HashMap<>();
-        body.put("timestamp", Instant.now().toString());
-        body.put("status", HttpStatus.BAD_REQUEST.value());
-        body.put("error", "Validation Failed");
-        body.put("fieldErrors", fieldErrors);
-        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(body);
-    }
-
-    @ExceptionHandler(MissingRequestHeaderException.class)
-    public ResponseEntity<Map<String, Object>> handleMissingHeader(MissingRequestHeaderException ex) {
-        log.warn("Missing request header: {}", ex.getMessage());
-        return buildResponse(HttpStatus.BAD_REQUEST, ex.getMessage());
-    }
-
-    @ExceptionHandler(AccessDeniedException.class)
-    public ResponseEntity<Map<String, Object>> handleAccessDenied(AccessDeniedException ex) {
-        log.warn("Access denied: {}", ex.getMessage());
-        return buildResponse(HttpStatus.FORBIDDEN, "Access denied");
-    }
-
-    @ExceptionHandler(Exception.class)
-    public ResponseEntity<Map<String, Object>> handleGeneric(Exception ex) {
-        log.error("Unexpected error", ex);
-        return buildResponse(HttpStatus.INTERNAL_SERVER_ERROR, "An unexpected error occurred");
-    }
-
-    private ResponseEntity<Map<String, Object>> buildResponse(HttpStatus status, String message) {
-        Map<String, Object> body = new HashMap<>();
-        body.put("timestamp", Instant.now().toString());
-        body.put("status", status.value());
-        body.put("error", status.getReasonPhrase());
-        body.put("message", message);
-        return ResponseEntity.status(status).body(body);
     }
 }

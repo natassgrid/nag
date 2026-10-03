@@ -19,6 +19,7 @@
 
 package com.examplatform.delivery.consumer;
 
+import com.examplatform.shared.event.ProctoringEvents;
 import com.examplatform.shared.messaging.EventPublisher;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -68,7 +69,6 @@ class ProctoringAnalysisConsumerTest {
 
     @Test
     @DisplayName("analyze processes event and publishes audit events on detection")
-    @SuppressWarnings("unchecked")
     void publishesAuditEventsOnDetection() {
         String sessionId = UUID.randomUUID().toString();
         String candidateId = UUID.randomUUID().toString();
@@ -83,20 +83,20 @@ class ProctoringAnalysisConsumerTest {
 
         proctoringAnalysisConsumer.analyze(event);
 
-        ArgumentCaptor<Object> eventCaptor = ArgumentCaptor.forClass(Object.class);
+        ArgumentCaptor<ProctoringEvents.AuditAlert> eventCaptor = ArgumentCaptor.forClass(ProctoringEvents.AuditAlert.class);
         verify(eventPublisher, times(1)).publish(eq("exam.audit.events"), eq(sessionId), eventCaptor.capture());
 
-        List<Object> allEvents = eventCaptor.getAllValues();
+        List<ProctoringEvents.AuditAlert> allEvents = eventCaptor.getAllValues();
         assertThat(allEvents).isNotEmpty();
 
-        Map<String, Object> publishedEvent = (Map<String, Object>) allEvents.get(0);
-        assertThat(publishedEvent.get("sessionId")).isEqualTo(sessionId);
-        assertThat(publishedEvent.get("candidateId")).isEqualTo(candidateId);
-        assertThat(publishedEvent.get("snapshotRef")).isEqualTo("snapshots/tenant/session/123456");
-        assertThat(publishedEvent.get("source")).isEqualTo("ai-proctoring-analysis");
-        assertThat(publishedEvent.get("occurredAt")).isNotNull();
-        assertThat(publishedEvent.get("eventType")).isEqualTo("no-face-detected");
-        assertThat((Double) publishedEvent.get("confidence")).isEqualTo(0.85 + 0.50 * 0.15);
+        ProctoringEvents.AuditAlert publishedEvent = allEvents.get(0);
+        assertThat(publishedEvent.sessionId()).isEqualTo(sessionId);
+        assertThat(publishedEvent.candidateId()).isEqualTo(candidateId);
+        assertThat(publishedEvent.snapshotRef()).isEqualTo("snapshots/tenant/session/123456");
+        assertThat(publishedEvent.source()).isEqualTo("ai-proctoring-analysis");
+        assertThat(publishedEvent.occurredAt()).isNotNull();
+        assertThat(publishedEvent.eventType()).isEqualTo("no-face-detected");
+        assertThat(publishedEvent.confidence()).isEqualTo(0.85 + 0.50 * 0.15);
     }
 
     @Test

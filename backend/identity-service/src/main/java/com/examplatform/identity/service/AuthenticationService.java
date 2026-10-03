@@ -252,7 +252,7 @@ public class AuthenticationService {
         int timeoutMinutes = dynamicConfigService.getInt(
                 "auth.session.timeout.minutes",
                 effectiveTenant,
-                appSecurityProperties != null ? Math.max(1, (int) (appSecurityProperties.getSessionIdleTimeoutSeconds() / 60)) : 30
+                appSecurityProperties != null ? Math.max(1, appSecurityProperties.getSessionIdleTimeoutSeconds() / 60) : 30
         );
         String sessionToken = UUID.randomUUID().toString();
         LocalDateTime expiresAt = LocalDateTime.now().plusMinutes(timeoutMinutes);

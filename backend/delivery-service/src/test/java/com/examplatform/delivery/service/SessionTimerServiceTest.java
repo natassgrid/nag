@@ -22,6 +22,7 @@ package com.examplatform.delivery.service;
 import com.examplatform.delivery.domain.ExamSession;
 import com.examplatform.delivery.domain.ExamSession.ExamSessionStatus;
 import com.examplatform.delivery.repository.ExamSessionRepository;
+import com.examplatform.shared.event.SessionEvents;
 import com.examplatform.shared.messaging.EventPublisher;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -36,7 +37,6 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -68,7 +68,7 @@ class SessionTimerServiceTest {
     private ArgumentCaptor<ExamSession> sessionCaptor;
 
     @Captor
-    private ArgumentCaptor<Map<String, Object>> eventCaptor;
+    private ArgumentCaptor<SessionEvents.SessionExpired> eventCaptor;
 
     private ExamSession expiredSession;
     private ExamSession activeSession;
@@ -124,9 +124,9 @@ class SessionTimerServiceTest {
         verify(eventPublisher).publish(eq("exam.session.events"),
                 eq(expiredSession.getSessionId().toString()),
                 eventCaptor.capture());
-        Map<String, Object> event = eventCaptor.getValue();
-        assertThat(event.get("eventType")).isEqualTo("SESSION_EXPIRED");
-        assertThat(event.get("sessionId")).isEqualTo(expiredSession.getSessionId().toString());
+        SessionEvents.SessionExpired event = eventCaptor.getValue();
+        assertThat(event.eventType()).isEqualTo("SESSION_EXPIRED");
+        assertThat(event.sessionId()).isEqualTo(expiredSession.getSessionId().toString());
     }
 
     @Test

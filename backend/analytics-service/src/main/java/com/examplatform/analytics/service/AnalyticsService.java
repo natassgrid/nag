@@ -333,16 +333,15 @@ public class AnalyticsService {
     }
 
     private byte[] exportAsCsv(ExamAnalytics analytics) {
-        StringBuilder csv = new StringBuilder();
-        csv.append("exam_id,total_registered,total_appeared,top_10_percentile,bottom_10_percentile,computed_at\n");
-        csv.append(String.format("%s,%d,%d,%s,%s,%s\n",
+        String csv = "exam_id,total_registered,total_appeared,top_10_percentile,bottom_10_percentile,computed_at\n" +
+            String.format("%s,%d,%d,%s,%s,%s\n",
                 analytics.getExamId(),
                 analytics.getTotalRegistered(),
                 analytics.getTotalAppeared(),
                 analytics.getTop10PercentileThreshold(),
                 analytics.getBottom10PercentileThreshold(),
-                analytics.getComputedAt()));
-        return csv.toString().getBytes();
+                analytics.getComputedAt());
+        return csv.getBytes();
     }
 
     private String serializeJson(Object obj) {
