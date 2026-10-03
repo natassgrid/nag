@@ -26,12 +26,16 @@ import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
 
+import java.time.Instant;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 
 /**
  * Client implementation for DigiLocker scorecard publishing.
- * Supports pushing scorecard records to configured external/mock DigiLocker server.
+ * Pushes digital scorecard references and certificates to DigiLocker vault.
+ *
+ * Validates: Requirements 13.5
  */
 @Slf4j
 @Component
@@ -40,10 +44,18 @@ public class DigiLockerClientImpl implements DigiLockerClient {
     private static final ParameterizedTypeReference<Map<String, Object>> MAP_TYPE =
             new ParameterizedTypeReference<>() {};
 
-    @Value("${app.digilocker.push-url:${DIGILOCKER_PUSH_URL:}}")
+    @Value("${app.digilocker.push-url:${DIGILOCKER_PUSH_URL:http://localhost:8099/digilocker/v1/credential/push}}")
     private String digiLockerPushUrl;
 
-    private final RestClient restClient = RestClient.create();
+    private final RestClient restClient;
+
+    public DigiLockerClientImpl() {
+        this.restClient = RestClient.create();
+    }
+
+    public DigiLockerClientImpl(RestClient restClient) {
+        this.restClient = restClient != null ? restClient : RestClient.create();
+    }
 
     @Override
     public void pushScorecard(UUID candidateId, String pdfRef) {
@@ -52,16 +64,23 @@ public class DigiLockerClientImpl implements DigiLockerClient {
 
         if (digiLockerPushUrl != null && !digiLockerPushUrl.isBlank()) {
             try {
+                Map<String, Object> payload = new HashMap<>();
+                payload.put("candidateId", candidateId != null ? candidateId.toString() : "");
+                payload.put("pdfRef", pdfRef != null ? pdfRef : "");
+                payload.put("docType", "SCORECARD");
+                payload.put("timestamp", Instant.now().toString());
+
                 Map<String, Object> response = restClient.post()
                         .uri(digiLockerPushUrl)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .body(Map.of(
-                                "candidateId", candidateId != null ? candidateId.toString() : "",
-                                "pdfRef", pdfRef != null ? pdfRef : ""
-                        ))
+                        .body(payload)
                         .retrieve()
                         .body(MAP_TYPE);
-                log.info("DigiLocker push response for candidate {}: {}", candidateId, response);
+
+                log.info("DigiLocker scorecard push succeeded for candidate {}: docId={}, status={}",
+                        candidateId,
+                        response != null ? response.get("docId") : "N/A",
+                        response != null ? response.get("status") : "SUCCESS");
             } catch (Exception e) {
                 log.warn("Failed to push scorecard to DigiLocker at {}: {}", digiLockerPushUrl, e.getMessage());
             }

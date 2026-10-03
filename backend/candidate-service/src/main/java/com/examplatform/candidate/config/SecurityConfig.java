@@ -33,7 +33,7 @@ import org.springframework.core.annotation.Order;
 
 /**
  * Minimal security configuration for candidate-service.
- * OAuth2 Resource Server with JWT validation; permit actuator health endpoint;
+ * OAuth2 Resource Server with JWT validation; permit actuator health endpoint and OAuth2 callbacks;
  * require authentication for all other requests.
  */
 @Configuration
@@ -50,7 +50,14 @@ public class SecurityConfig {
             .csrf(csrf -> csrf.disable())
             .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
-                .requestMatchers("/actuator/health", "/actuator/health/**", "/actuator/info", "/actuator/prometheus").permitAll()
+                .requestMatchers(
+                        "/actuator/health",
+                        "/actuator/health/**",
+                        "/actuator/info",
+                        "/actuator/prometheus",
+                        "/api/v1/candidates/digilocker/callback",
+                        "/api/v1/candidate/digilocker/callback"
+                ).permitAll()
                 .anyRequest().authenticated()
             )
             .oauth2ResourceServer(oauth2 -> oauth2
