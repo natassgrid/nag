@@ -17,28 +17,27 @@
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
 
-package com.examplatform.evaluation.repository;
+package com.examplatform.shared.rpc;
 
-import com.examplatform.evaluation.domain.Evaluation;
-import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.stereotype.Repository;
+import com.fasterxml.jackson.annotation.JsonInclude;
+import lombok.Builder;
 
-import java.util.List;
-import java.util.UUID;
+import java.util.Map;
 
 /**
- * Spring Data JPA repository for evaluations.
+ * Standard JSON-RPC 2.0 Request envelope for inter-service communication.
  */
-@Repository
-public interface EvaluationRepository extends JpaRepository<Evaluation, UUID> {
-
-    List<Evaluation> findBySessionIdAndTenantId(UUID sessionId, String tenantId);
-
-    List<Evaluation> findByCandidateIdAndTenantId(UUID candidateId, String tenantId);
-
-    List<Evaluation> findByStatusAndTenantId(Evaluation.EvaluationStatus status, String tenantId);
-
-    long countByTenantId(String tenantId);
-
-    long countByStatusAndTenantId(Evaluation.EvaluationStatus status, String tenantId);
+@Builder
+@JsonInclude(JsonInclude.Include.NON_NULL)
+public record JsonRpcRequest(
+        String jsonrpc,
+        String method,
+        Map<String, Object> params,
+        Object id
+) {
+    public JsonRpcRequest {
+        if (jsonrpc == null || jsonrpc.isBlank()) {
+            jsonrpc = "2.0";
+        }
+    }
 }

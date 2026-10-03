@@ -33,6 +33,10 @@ public interface ExaminationRepository extends JpaRepository<Examination, UUID> 
 
     List<Examination> findByTenantId(String tenantId);
 
+    long countByTenantId(String tenantId);
+
+    long countByStatusAndTenantId(String status, String tenantId);
+
     Page<Examination> findByTenantId(String tenantId, Pageable pageable);
 
     Page<Examination> findByTenantIdAndNameContainingIgnoreCase(String tenantId, String name, Pageable pageable);

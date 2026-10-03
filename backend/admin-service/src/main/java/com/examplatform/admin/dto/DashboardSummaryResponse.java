@@ -17,28 +17,19 @@
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
 
-package com.examplatform.evaluation.repository;
+package com.examplatform.admin.dto;
 
-import com.examplatform.evaluation.domain.Evaluation;
-import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.stereotype.Repository;
-
+import lombok.Builder;
 import java.util.List;
-import java.util.UUID;
 
-/**
- * Spring Data JPA repository for evaluations.
- */
-@Repository
-public interface EvaluationRepository extends JpaRepository<Evaluation, UUID> {
-
-    List<Evaluation> findBySessionIdAndTenantId(UUID sessionId, String tenantId);
-
-    List<Evaluation> findByCandidateIdAndTenantId(UUID candidateId, String tenantId);
-
-    List<Evaluation> findByStatusAndTenantId(Evaluation.EvaluationStatus status, String tenantId);
-
-    long countByTenantId(String tenantId);
-
-    long countByStatusAndTenantId(Evaluation.EvaluationStatus status, String tenantId);
-}
+@Builder
+public record DashboardSummaryResponse(
+        String tenantId,
+        String lastRefreshed,
+        DashboardKpiResponse kpis,
+        ExamStatusBreakdownResponse examBreakdown,
+        QuestionBankBreakdownResponse questionBreakdown,
+        EvaluationQueueBreakdownResponse evaluationBreakdown,
+        List<SystemServiceHealthResponse> systemServices,
+        List<SecurityAuditEventResponse> recentAuditEvents
+) {}
