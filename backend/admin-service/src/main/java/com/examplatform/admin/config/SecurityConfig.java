@@ -19,7 +19,6 @@
 
 package com.examplatform.admin.config;
 
-import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
@@ -34,7 +33,8 @@ import org.springframework.core.annotation.Order;
 /**
  * Security configuration for admin-service.
  * OAuth2 Resource Server with JWT validation; permits actuator endpoints;
- * restricts all admin API endpoints to SUPER_ADMIN, SECURITY_ADMIN, and ADMIN roles.
+ * allows dashboard summary to authenticated staff roles; restricts other admin API endpoints
+ * to SUPER_ADMIN, SECURITY_ADMIN, and ADMIN roles.
  */
 @Configuration
 @EnableWebSecurity
@@ -51,6 +51,7 @@ public class SecurityConfig {
             .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers("/actuator/health", "/actuator/info", "/actuator/prometheus").permitAll()
+                .requestMatchers("/api/v1/admin/dashboard/**").hasAnyRole("SUPER_ADMIN", "SECURITY_ADMIN", "ADMIN", "EXAM_CONTROLLER", "QUESTION_AUTHOR", "REVIEWER", "EVALUATOR")
                 .requestMatchers("/api/v1/admin/**").hasAnyRole("SUPER_ADMIN", "SECURITY_ADMIN", "ADMIN")
                 .anyRequest().authenticated()
             )
