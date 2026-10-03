@@ -95,6 +95,17 @@ public class ManualEvaluationService {
     }
 
     /**
+     * Retrieves evaluations for a candidate with optional session filtering.
+     */
+    @Transactional(readOnly = true)
+    public List<Evaluation> getEvaluations(UUID candidateId, UUID sessionId, String tenantId) {
+        if (sessionId != null) {
+            return evaluationRepository.findBySessionIdAndTenantId(sessionId, tenantId);
+        }
+        return evaluationRepository.findByCandidateIdAndTenantId(candidateId, tenantId);
+    }
+
+    /**
      * Notify evaluators that auto-evaluation is complete and manual review is needed.
      * Assigns 2 evaluators per subjective response via Kafka event.
      *

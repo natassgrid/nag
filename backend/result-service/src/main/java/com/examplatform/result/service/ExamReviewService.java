@@ -21,14 +21,16 @@ package com.examplatform.result.service;
 
 import com.examplatform.result.client.EvaluationClient;
 import com.examplatform.result.client.QuestionBankClient;
+import com.examplatform.result.domain.Result;
 import com.examplatform.result.dto.CandidateEvaluationItemDto;
 import com.examplatform.result.dto.ExamReviewResponse;
 import com.examplatform.result.dto.QuestionAnalyticsResult;
 import com.examplatform.result.dto.QuestionDetailDto;
 import com.examplatform.result.dto.ReviewOptionDto;
 import com.examplatform.result.dto.ReviewQuestionDto;
-import lombok.RequiredArgsConstructor;
+import com.examplatform.result.repository.ResultRepository;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
@@ -37,6 +39,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -49,12 +52,35 @@ import java.util.stream.Collectors;
  */
 @Slf4j
 @Service
-@RequiredArgsConstructor
 public class ExamReviewService {
 
     private final EvaluationClient evaluationClient;
     private final QuestionBankClient questionBankClient;
     private final QuestionAnalyticsService questionAnalyticsService;
+    private final ResultRepository resultRepository;
+
+    public ExamReviewService(
+            EvaluationClient evaluationClient,
+            QuestionBankClient questionBankClient,
+            QuestionAnalyticsService questionAnalyticsService) {
+        this(evaluationClient, questionBankClient, questionAnalyticsService, null);
+    }
+
+    @Autowired
+    public ExamReviewService(
+            EvaluationClient evaluationClient,
+            QuestionBankClient questionBankClient,
+            QuestionAnalyticsService questionAnalyticsService,
+            ResultRepository resultRepository) {
+        this.evaluationClient = evaluationClient;
+        this.questionBankClient = questionBankClient;
+        this.questionAnalyticsService = questionAnalyticsService;
+        this.resultRepository = resultRepository;
+    }
+
+    public Optional<Result> findByQrVerificationCode(String code) {
+        return resultRepository != null ? resultRepository.findByQrVerificationCode(code) : Optional.empty();
+    }
 
     /**
      * Assembles the full post-exam review for a candidate.

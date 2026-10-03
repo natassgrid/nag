@@ -34,10 +34,10 @@ import com.examplatform.shared.messaging.EventPublisher;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -59,7 +59,6 @@ import java.util.UUID;
  */
 @Slf4j
 @Service
-@RequiredArgsConstructor
 @Transactional
 public class SessionStartService {
 
@@ -72,9 +71,45 @@ public class SessionStartService {
     private final EventPublisher eventPublisher;
     private final ObjectMapper objectMapper;
     private final DynamicConfigService dynamicConfigService;
+    private final ObjectProvider<JdbcTemplate> jdbcTemplateProvider;
 
-    @Autowired(required = false)
-    private JdbcTemplate jdbcTemplate;
+    public SessionStartService(
+            ExamSessionRepository examSessionRepository,
+            ShiftAssignmentClient shiftAssignmentClient,
+            DisabilityExtensionService disabilityExtensionService,
+            VaultCryptoService vaultCryptoService,
+            ExamQuestionDeliveryService examQuestionDeliveryService,
+            RedisTemplate<String, Object> redisTemplate,
+            EventPublisher eventPublisher,
+            ObjectMapper objectMapper,
+            DynamicConfigService dynamicConfigService) {
+        this(examSessionRepository, shiftAssignmentClient, disabilityExtensionService, vaultCryptoService,
+                examQuestionDeliveryService, redisTemplate, eventPublisher, objectMapper, dynamicConfigService, null);
+    }
+
+    @Autowired
+    public SessionStartService(
+            ExamSessionRepository examSessionRepository,
+            ShiftAssignmentClient shiftAssignmentClient,
+            DisabilityExtensionService disabilityExtensionService,
+            VaultCryptoService vaultCryptoService,
+            ExamQuestionDeliveryService examQuestionDeliveryService,
+            RedisTemplate<String, Object> redisTemplate,
+            EventPublisher eventPublisher,
+            ObjectMapper objectMapper,
+            DynamicConfigService dynamicConfigService,
+            ObjectProvider<JdbcTemplate> jdbcTemplateProvider) {
+        this.examSessionRepository = examSessionRepository;
+        this.shiftAssignmentClient = shiftAssignmentClient;
+        this.disabilityExtensionService = disabilityExtensionService;
+        this.vaultCryptoService = vaultCryptoService;
+        this.examQuestionDeliveryService = examQuestionDeliveryService;
+        this.redisTemplate = redisTemplate;
+        this.eventPublisher = eventPublisher;
+        this.objectMapper = objectMapper;
+        this.dynamicConfigService = dynamicConfigService;
+        this.jdbcTemplateProvider = jdbcTemplateProvider;
+    }
 
     private static final String SESSION_CACHE_PREFIX = "session:";
     private static final String TOPIC_SESSION_EVENTS = "exam.session.events";
@@ -369,15 +404,6 @@ public class SessionStartService {
     }
 
     /**
-     * Resume an existing active session by session ID.
-     *
-     * @param sessionId   the exam session UUID
-     * @param candidateId the candidate UUID
-     * @param tenantId    the tenant identifier
-     * @return the session start/resume response
-     */
-
-    /**
      * Terminate candidate's current active exam session(s).
      */
     @Transactional
@@ -451,6 +477,7 @@ public class SessionStartService {
         if (STANDARD_EXAM_TITLES.containsKey(examIdStr)) {
             return STANDARD_EXAM_TITLES.get(examIdStr);
         }
+        JdbcTemplate jdbcTemplate = jdbcTemplateProvider != null ? jdbcTemplateProvider.getIfAvailable() : null;
         if (jdbcTemplate != null) {
             try {
                 String title = jdbcTemplate.queryForObject(
@@ -471,6 +498,7 @@ public class SessionStartService {
         if (assignment != null && assignment.getDurationMinutes() > 0) {
             return assignment.getDurationMinutes();
         }
+        JdbcTemplate jdbcTemplate = jdbcTemplateProvider != null ? jdbcTemplateProvider.getIfAvailable() : null;
         if (jdbcTemplate != null && examId != null) {
             try {
                 Integer duration = jdbcTemplate.queryForObject(

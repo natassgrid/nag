@@ -120,7 +120,7 @@ class PaperControllerIntegrationTest extends AbstractIntegrationTest {
                     .build();
             ReflectionTestUtils.setField(paper, "id", PAPER_ID);
 
-            when(paperRepository.findPapers(eq(TENANT_ID), any(), any(), any()))
+            when(paperAssemblyService.listPapers(eq(TENANT_ID), any(), any(), any()))
                     .thenReturn(new PageImpl<>(List.of(paper)));
 
             mockMvc.perform(get("/api/v1/papers")
@@ -159,7 +159,7 @@ class PaperControllerIntegrationTest extends AbstractIntegrationTest {
                     .build();
             ReflectionTestUtils.setField(paper, "id", PAPER_ID);
 
-            when(paperRepository.findByIdAndTenantId(eq(PAPER_ID), eq(TENANT_ID))).thenReturn(Optional.of(paper));
+            when(paperAssemblyService.getPaperById(eq(PAPER_ID), eq(TENANT_ID))).thenReturn(Optional.of(paper));
 
             mockMvc.perform(get("/api/v1/papers/{paperId}", PAPER_ID)
                             .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_EXAM_CONTROLLER"))
@@ -173,7 +173,7 @@ class PaperControllerIntegrationTest extends AbstractIntegrationTest {
         @Test
         @DisplayName("-ve: Non-existent paper ID returns 404 Not Found")
         void nonExistentPaperReturnsNotFound() throws Exception {
-            when(paperRepository.findByIdAndTenantId(eq(PAPER_ID), eq(TENANT_ID))).thenReturn(Optional.empty());
+            when(paperAssemblyService.getPaperById(eq(PAPER_ID), eq(TENANT_ID))).thenReturn(Optional.empty());
 
             mockMvc.perform(get("/api/v1/papers/{paperId}", PAPER_ID)
                             .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_EXAM_CONTROLLER"))

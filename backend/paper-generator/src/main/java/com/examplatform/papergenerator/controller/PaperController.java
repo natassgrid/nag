@@ -34,7 +34,6 @@ import com.examplatform.papergenerator.dto.PaperTranslateRequest;
 import com.examplatform.papergenerator.dto.PaperTranslateResponse;
 import com.examplatform.papergenerator.dto.PaperValidationResponse;
 import com.examplatform.papergenerator.dto.QuestionSummary;
-import com.examplatform.papergenerator.repository.PaperRepository;
 import com.examplatform.papergenerator.service.ExaminationLookupService;
 import com.examplatform.papergenerator.service.PaperAnchoringService;
 import com.examplatform.papergenerator.service.PaperApprovalService;
@@ -93,7 +92,6 @@ public class PaperController {
     private final PaperApprovalService paperApprovalService;
     private final PaperTranslationService paperTranslationService;
     private final PaperAnchoringService paperAnchoringService;
-    private final PaperRepository paperRepository;
     private final QuestionBankClient questionBankClient;
     private final ObjectMapper objectMapper;
     private final ExaminationLookupService examinationLookupService;
@@ -119,7 +117,7 @@ public class PaperController {
         log.info("Listing papers: examId={}, status={}, page={}, size={}, tenant={}",
                 examId, status, page, size, tenantId);
 
-        Page<Paper> papers = paperRepository.findPapers(tenantId, examId, status, PageRequest.of(page, size));
+        Page<Paper> papers = paperAssemblyService.listPapers(tenantId, examId, status, PageRequest.of(page, size));
 
         Set<UUID> examIds = papers.getContent().stream()
                 .map(Paper::getExamId)
@@ -190,8 +188,7 @@ public class PaperController {
         String tenantId = getEffectiveTenantId();
         log.info("Retrieving paper: paperId={}, tenant={}", paperId, tenantId);
 
-        Paper paper = paperRepository.findByIdAndTenantId(paperId, tenantId)
-                .or(() -> paperRepository.findById(paperId))
+        Paper paper = paperAssemblyService.getPaperById(paperId, tenantId)
                 .orElseThrow(() -> new EntityNotFoundException("Paper not found: " + paperId));
 
         int totalQuestions = 0;
@@ -548,7 +545,7 @@ public class PaperController {
         String tenantId = getEffectiveTenantId();
         log.info("Fetching public practice papers for examId={}, tenant={}", examId, tenantId);
 
-        List<Paper> papers = paperRepository.findPracticePapersByExamId(examId, tenantId);
+        List<Paper> papers = paperAssemblyService.findPracticePapers(examId, tenantId);
 
         String examName = examinationLookupService.findExamNames(Set.of(examId)).get(examId);
 

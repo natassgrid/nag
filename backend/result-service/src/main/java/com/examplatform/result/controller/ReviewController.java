@@ -21,7 +21,6 @@ package com.examplatform.result.controller;
 
 import com.examplatform.result.domain.Result;
 import com.examplatform.result.dto.ExamReviewResponse;
-import com.examplatform.result.repository.ResultRepository;
 import com.examplatform.result.service.ExamReviewService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -45,8 +44,7 @@ import java.util.UUID;
 
 /**
  * REST controller for post-exam question review and QR scorecard verification.
- * Returns candidate's question-by-question performance with real upstream solutions and peer benchmarks.
- *
+ * Returns candidate's question-by-question performance with real upstream solutions and peer benchmarks.\n *
  * Validates: SPEC-UI3, Issue #110
  */
 @Slf4j
@@ -56,7 +54,6 @@ import java.util.UUID;
 public class ReviewController {
 
     private final ExamReviewService examReviewService;
-    private final ResultRepository resultRepository;
 
     /**
      * Returns the full post-exam review for a candidate in an exam.
@@ -105,7 +102,7 @@ public class ReviewController {
         }
 
         String trimmedCode = code.trim();
-        Optional<Result> resultOpt = resultRepository.findByQrVerificationCode(trimmedCode);
+        Optional<Result> resultOpt = examReviewService.findByQrVerificationCode(trimmedCode);
 
         if (resultOpt.isEmpty()) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of(

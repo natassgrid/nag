@@ -37,6 +37,8 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.lang.Nullable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -47,6 +49,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -232,23 +235,6 @@ public class PaperAssemblyService {
 
     /**
      * Generates a paper from the given blueprint request.
-     *
-     * <ol>
-     *   <li>For each blueprint rule, selects questions matching criteria from the question bank</li>
-     *   <li>Enforces reuse policies: excludes questions violating their reuse window</li>
-     *   <li>Preserves passage groupings: sub-questions belonging to the same stimulus stay together</li>
-     *   <li>Computes difficulty score as average of selected questions' difficulty weights</li>
-     *   <li>Builds topic distribution JSON</li>
-     *   <li>Builds paper definition JSON with questionIds and optional questionGroups</li>
-     *   <li>Computes binary Merkle tree root hash and canonical manifest digest (Issue #156)</li>
-     *   <li>Creates Paper entity in DRAFT status with meaningful name</li>
-     *   <li>Publishes async job result to Kafka</li>
-     * </ol>
-     *
-     * @param request     the paper generation request with blueprint rules
-     * @param generatedBy the UUID of the user generating the paper
-     * @param tenantId    the tenant identifier
-     * @return the saved Paper entity
      */
     public Paper generatePaper(PaperGenerationRequest request, UUID generatedBy, String tenantId) {
         log.info("Starting paper generation for examId={}, shiftId={}, isPractice={}, tenantId={}",
@@ -391,6 +377,22 @@ public class PaperAssemblyService {
                 savedPaper.getId(), savedPaper.getName(), savedPaper.isPractice(), selectedQuestionIds.size(), difficultyScore, paperRootHash);
 
         return savedPaper;
+    }
+
+    @Transactional(readOnly = true)
+    public Page<Paper> listPapers(String tenantId, UUID examId, String status, Pageable pageable) {
+        return paperRepository.findPapers(tenantId, examId, status, pageable);
+    }
+
+    @Transactional(readOnly = true)
+    public Optional<Paper> getPaperById(UUID paperId, String tenantId) {
+        return paperRepository.findByIdAndTenantId(paperId, tenantId)
+                .or(() -> paperRepository.findById(paperId));
+    }
+
+    @Transactional(readOnly = true)
+    public List<Paper> findPracticePapers(UUID examId, String tenantId) {
+        return paperRepository.findPracticePapersByExamId(examId, tenantId);
     }
 
     private String resolvePaperName(PaperGenerationRequest request) {

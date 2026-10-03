@@ -37,8 +37,8 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.test.util.ReflectionTestUtils;
 
 import java.util.Collections;
 import java.util.List;
@@ -75,6 +75,9 @@ class CandidateProfileServiceTest {
     @Mock
     private JdbcTemplate jdbcTemplate;
 
+    @Mock
+    private ObjectProvider<JdbcTemplate> jdbcTemplateProvider;
+
     private CandidateProfileService candidateProfileService;
 
     private static final String TENANT_ID = "default";
@@ -92,9 +95,9 @@ class CandidateProfileServiceTest {
                 candidateEducationRepository,
                 hashingService,
                 vaultCryptoService,
-                eventPublisher
+                eventPublisher,
+                jdbcTemplateProvider
         );
-        ReflectionTestUtils.setField(candidateProfileService, "jdbcTemplate", jdbcTemplate);
     }
 
     private CreateCandidateProfileRequest validCreateRequest() {
@@ -136,7 +139,7 @@ class CandidateProfileServiceTest {
         return profile;
     }
 
-    // ─────────────────────────────────────────────────────────────────────────
+    // ─────────────────────────────────────────────────────────────────────────────
 
     @Nested
     @DisplayName("create")
@@ -334,6 +337,7 @@ class CandidateProfileServiceTest {
 
             when(candidateProfileRepository.findByUserIdAndTenantId(USER_ID, TENANT_ID))
                     .thenReturn(Optional.of(profileWithoutEmail));
+            when(jdbcTemplateProvider.getIfAvailable()).thenReturn(jdbcTemplate);
             when(jdbcTemplate.queryForObject(anyString(), eq(String.class), eq(USER_ID)))
                     .thenReturn("sheel.prabhakar@gmail.com");
             when(candidateProfileRepository.save(any(CandidateProfile.class)))

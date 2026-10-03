@@ -21,7 +21,7 @@ package com.examplatform.result.controller;
 
 import com.examplatform.result.domain.Result;
 import com.examplatform.result.dto.ScorecardUrlResponse;
-import com.examplatform.result.repository.ResultRepository;
+import com.examplatform.result.service.ScorecardPdfService;
 import com.examplatform.result.storage.ScorecardStorageProperties;
 import com.examplatform.result.storage.ScorecardStorageProvider;
 import jakarta.persistence.EntityNotFoundException;
@@ -46,7 +46,6 @@ import org.springframework.web.bind.annotation.RestController;
 import java.io.InputStream;
 import java.time.Duration;
 import java.time.Instant;
-import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -62,7 +61,7 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class ScorecardController {
 
-    private final ResultRepository resultRepository;
+    private final ScorecardPdfService scorecardPdfService;
     private final ScorecardStorageProvider storageProvider;
     private final ScorecardStorageProperties storageProperties;
 
@@ -89,7 +88,7 @@ public class ScorecardController {
             @RequestHeader(value = "X-Tenant-Id", defaultValue = "default") String tenantId,
             Authentication auth) {
 
-        Result result = findResult(id, tenantId);
+        Result result = scorecardPdfService.findResult(id, tenantId);
         validateAccess(result, auth);
 
         if (result.getScorecardPdfRef() == null || result.getScorecardPdfRef().isBlank()) {
@@ -121,7 +120,7 @@ public class ScorecardController {
             @RequestHeader(value = "X-Tenant-Id", defaultValue = "default") String tenantId,
             Authentication auth) {
 
-        Result result = findResult(id, tenantId);
+        Result result = scorecardPdfService.findResult(id, tenantId);
         validateAccess(result, auth);
 
         if (result.getScorecardPdfRef() == null || result.getScorecardPdfRef().isBlank()) {
@@ -146,7 +145,7 @@ public class ScorecardController {
             @RequestHeader(value = "X-Tenant-Id", defaultValue = "default") String tenantId,
             Authentication auth) {
 
-        Result result = findResult(id, tenantId);
+        Result result = scorecardPdfService.findResult(id, tenantId);
         validateAccess(result, auth);
 
         if (result.getScorecardPdfRef() == null || result.getScorecardPdfRef().isBlank()) {
@@ -188,25 +187,6 @@ public class ScorecardController {
                 .storageProvider(storageProvider.name())
                 .storageKey(result.getScorecardPdfRef())
                 .build();
-    }
-
-    private Result findResult(UUID id, String tenantId) {
-        // Attempt 1: Lookup by Result ID
-        Optional<Result> byResultId = resultRepository.findById(id);
-        if (byResultId.isPresent()) {
-            return byResultId.get();
-        }
-
-        // Attempt 2: Lookup by Candidate ID
-        List<Result> results = resultRepository.findByCandidateIdAndTenantId(id, tenantId);
-        if (results.isEmpty()) {
-            throw new EntityNotFoundException("No results found for ID: " + id);
-        }
-
-        return results.stream()
-                .filter(r -> r.getScorecardPdfRef() != null)
-                .findFirst()
-                .orElseThrow(() -> new EntityNotFoundException("No scorecard available for candidate: " + id));
     }
 
     private void validateAccess(Result result, Authentication auth) {

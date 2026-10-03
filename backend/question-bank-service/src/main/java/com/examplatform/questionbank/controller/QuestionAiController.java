@@ -23,26 +23,18 @@ import com.examplatform.questionbank.ai.embedding.EmbeddingService;
 import com.examplatform.questionbank.ai.generation.QuestionGenerationRequest;
 import com.examplatform.questionbank.ai.generation.QuestionGenerationResponse;
 import com.examplatform.questionbank.ai.generation.QuestionGenerationService;
-import com.examplatform.questionbank.domain.Question;
-import com.examplatform.questionbank.repository.QuestionRepository;
-import com.examplatform.questionbank.util.EmbeddingUtils;
 import com.examplatform.shared.api.ApiResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import java.util.ArrayList;
-import java.util.List;
 import java.util.Map;
 
 /**
@@ -57,9 +49,6 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class QuestionAiController {
 
-    private static final int BATCH_SIZE = 50;
-
-    private final QuestionRepository questionRepository;
     private final EmbeddingService embeddingService;
     private final QuestionGenerationService questionGenerationService;
 
@@ -112,70 +101,19 @@ public class QuestionAiController {
      */
     @PostMapping("/embeddings/backfill")
     @PreAuthorize("hasRole('SUPER_ADMIN')")
-    @Transactional
     public ResponseEntity<ApiResponse<Map<String, Object>>> backfillEmbeddings(
             @RequestHeader("X-Tenant-Id") String tenantId) {
 
         log.info("Starting embedding backfill for tenant={}", tenantId);
 
-        int totalProcessed = 0;
-        int totalFailed = 0;
-        List<String> failures = new ArrayList<>();
-
-        Page<Question> batch;
-        do {
-            // Always fetch page 0 since processed questions no longer have null embedding
-            batch = questionRepository.findQuestionsWithNullEmbedding(
-                    tenantId, PageRequest.of(0, BATCH_SIZE));
-
-            if (batch.isEmpty()) {
-                break;
-            }
-
-            try {
-                List<String> contents = batch.getContent().stream()
-                        .map(Question::getContent)
-                        .map(content -> content != null ? content : "")
-                        .toList();
-
-                List<float[]> embeddings = embeddingService.embedBatch(contents);
-
-                List<Question> questions = batch.getContent();
-                for (int i = 0; i < questions.size(); i++) {
-                    questionRepository.updateEmbedding(
-                            questions.get(i).getId(), EmbeddingUtils.embeddingToString(embeddings.get(i)));
-                }
-
-                totalProcessed += questions.size();
-
-                log.info("Backfill batch completed: processed={}, remaining={}",
-                        questions.size(), batch.getTotalElements() - questions.size());
-
-            } catch (Exception e) {
-                totalFailed += batch.getContent().size();
-                String failureMessage = String.format(
-                        "Batch failed (%d questions): %s", batch.getContent().size(), e.getMessage());
-                failures.add(failureMessage);
-                log.error("Embedding backfill batch failed for tenant={}: {}", tenantId, e.getMessage(), e);
-                // Break on failure to avoid infinite loop retrying the same batch
-                break;
-            }
-
-        } while (batch.hasNext() || !batch.isEmpty());
-
-        Map<String, Object> summary = Map.of(
-                "totalProcessed", totalProcessed,
-                "totalFailed", totalFailed,
-                "failures", failures
-        );
+        Map<String, Object> summary = embeddingService.backfillEmbeddings(tenantId);
+        int totalProcessed = (int) summary.getOrDefault("totalProcessed", 0);
+        int totalFailed = (int) summary.getOrDefault("totalFailed", 0);
 
         String message = totalFailed == 0
                 ? String.format("Embedding backfill completed: %d questions processed", totalProcessed)
                 : String.format("Embedding backfill completed with errors: %d processed, %d failed",
                         totalProcessed, totalFailed);
-
-        log.info("Embedding backfill finished for tenant={}: processed={}, failed={}",
-                tenantId, totalProcessed, totalFailed);
 
         return ResponseEntity.ok(ApiResponse.success(summary, message));
     }
