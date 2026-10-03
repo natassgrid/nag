@@ -23,6 +23,7 @@ import com.examplatform.delivery.config.ProctoringProperties;
 import com.examplatform.delivery.domain.ExamSession;
 import com.examplatform.delivery.repository.ExamSessionRepository;
 import com.examplatform.shared.config.DynamicConfigService;
+import com.examplatform.shared.event.ProctoringEvents;
 import com.examplatform.shared.messaging.EventPublisher;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -30,8 +31,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
-import java.util.HashMap;
-import java.util.Map;
 import java.util.UUID;
 
 /**
@@ -75,15 +74,15 @@ public class ProctoringService {
                 .orElseThrow(() -> new IllegalArgumentException("Session not found: " + sessionId));
 
         String snapshotRef = "snapshots/" + tenantId + "/" + sessionId + "/" + Instant.now().toEpochMilli();
+        int imageSize = imageData != null ? imageData.length : 0;
 
-        Map<String, Object> event = new HashMap<>();
-        event.put("eventType", "SNAPSHOT_CAPTURED");
-        event.put("sessionId", sessionId.toString());
-        event.put("candidateId", session.getCandidateId().toString());
-        event.put("snapshotRef", snapshotRef);
-        event.put("tenantId", tenantId);
-        event.put("capturedAt", Instant.now().toString());
-        event.put("imageSize", imageData != null ? imageData.length : 0);
+        ProctoringEvents.SnapshotCaptured event = ProctoringEvents.SnapshotCaptured.of(
+                sessionId.toString(),
+                session.getCandidateId().toString(),
+                snapshotRef,
+                tenantId,
+                imageSize
+        );
 
         try {
             eventPublisher.publish(PROCTORING_TOPIC, sessionId.toString(), event);
@@ -117,14 +116,13 @@ public class ProctoringService {
             log.warn("Session {} flagged: full-screen exits ({}) reached threshold ({})",
                     sessionId, newCount, proctoringProperties.getMaxFullScreenExits());
 
-            Map<String, Object> alertEvent = new HashMap<>();
-            alertEvent.put("eventType", "SESSION_FLAGGED_FULLSCREEN_EXITS");
-            alertEvent.put("sessionId", sessionId.toString());
-            alertEvent.put("candidateId", session.getCandidateId().toString());
-            alertEvent.put("fullScreenExitCount", newCount);
-            alertEvent.put("threshold", proctoringProperties.getMaxFullScreenExits());
-            alertEvent.put("occurredAt", Instant.now().toString());
-            alertEvent.put("tenantId", session.getTenantId());
+            ProctoringEvents.SessionFlaggedAlert alertEvent = ProctoringEvents.SessionFlaggedAlert.of(
+                    sessionId.toString(),
+                    session.getCandidateId().toString(),
+                    newCount,
+                    proctoringProperties.getMaxFullScreenExits(),
+                    session.getTenantId()
+            );
 
             try {
                 eventPublisher.publish(AUDIT_TOPIC, sessionId.toString(), alertEvent);

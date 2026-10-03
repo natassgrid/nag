@@ -248,7 +248,7 @@ public class QuestionService {
         QuestionResponse response = toResponse(saved);
         if (similarityResult != null && similarityResult.status() == SimilarityCheckResult.Status.WARN) {
             List<QuestionResponse.SimilarQuestionWarning> warnings = similarityResult.similarQuestions().stream()
-                    .<QuestionResponse.SimilarQuestionWarning>map(sq -> QuestionResponse.SimilarQuestionWarning.builder()
+                    .map(sq -> QuestionResponse.SimilarQuestionWarning.builder()
                             .questionId(sq.questionId())
                             .similarity(sq.similarity())
                             .contentSnippet(sq.content())
@@ -744,7 +744,6 @@ public class QuestionService {
     public static boolean containsImageTagOrMarkdown(String text) {
         if (text == null || text.isBlank()) return false;
         if (text.contains("<img") || text.contains("<svg")) return true;
-        if (text.matches(".*!\\[[^\\]]*\\]\\([^)]+\\).*")) return true;
-        return false;
+        return text.matches(".*!\\[[^\\]]*\\]\\([^)]+\\).*");
     }
 }

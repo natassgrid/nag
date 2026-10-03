@@ -23,6 +23,7 @@ import com.examplatform.delivery.config.ProctoringProperties;
 import com.examplatform.delivery.domain.ExamSession;
 import com.examplatform.delivery.repository.ExamSessionRepository;
 import com.examplatform.shared.config.DynamicConfigService;
+import com.examplatform.shared.event.ProctoringEvents;
 import com.examplatform.shared.messaging.EventPublisher;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -36,7 +37,6 @@ import org.mockito.Mockito;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.time.Instant;
-import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -117,16 +117,16 @@ class ProctoringServiceTest {
 
             proctoringService.captureSnapshot(SESSION_ID, imageData, TENANT_ID);
 
-            ArgumentCaptor<Map<String, Object>> captor = ArgumentCaptor.forClass(Map.class);
+            ArgumentCaptor<ProctoringEvents.SnapshotCaptured> captor = ArgumentCaptor.forClass(ProctoringEvents.SnapshotCaptured.class);
             verify(eventPublisher).publish(eq("exam.proctoring.alerts"), eq(SESSION_ID.toString()), captor.capture());
 
-            Map<String, Object> event = captor.getValue();
-            assertThat(event.get("eventType")).isEqualTo("SNAPSHOT_CAPTURED");
-            assertThat(event.get("sessionId")).isEqualTo(SESSION_ID.toString());
-            assertThat(event.get("candidateId")).isEqualTo(CANDIDATE_ID.toString());
-            assertThat(event.get("snapshotRef")).asString().startsWith("snapshots/" + TENANT_ID + "/" + SESSION_ID + "/");
-            assertThat(event.get("tenantId")).isEqualTo(TENANT_ID);
-            assertThat(event.get("imageSize")).isEqualTo(4);
+            ProctoringEvents.SnapshotCaptured event = captor.getValue();
+            assertThat(event.eventType()).isEqualTo("SNAPSHOT_CAPTURED");
+            assertThat(event.sessionId()).isEqualTo(SESSION_ID.toString());
+            assertThat(event.candidateId()).isEqualTo(CANDIDATE_ID.toString());
+            assertThat(event.snapshotRef()).startsWith("snapshots/" + TENANT_ID + "/" + SESSION_ID + "/");
+            assertThat(event.tenantId()).isEqualTo(TENANT_ID);
+            assertThat(event.imageSize()).isEqualTo(4);
         }
 
         @Test
@@ -173,15 +173,15 @@ class ProctoringServiceTest {
             assertThat(testSession.getFullScreenExitCount()).isEqualTo(3);
             verify(examSessionRepository).save(testSession);
 
-            ArgumentCaptor<Map<String, Object>> captor = ArgumentCaptor.forClass(Map.class);
+            ArgumentCaptor<ProctoringEvents.SessionFlaggedAlert> captor = ArgumentCaptor.forClass(ProctoringEvents.SessionFlaggedAlert.class);
             verify(eventPublisher).publish(eq("exam.audit.events"), eq(SESSION_ID.toString()), captor.capture());
 
-            Map<String, Object> event = captor.getValue();
-            assertThat(event.get("eventType")).isEqualTo("SESSION_FLAGGED_FULLSCREEN_EXITS");
-            assertThat(event.get("sessionId")).isEqualTo(SESSION_ID.toString());
-            assertThat(event.get("candidateId")).isEqualTo(CANDIDATE_ID.toString());
-            assertThat(event.get("fullScreenExitCount")).isEqualTo(3);
-            assertThat(event.get("threshold")).isEqualTo(3);
+            ProctoringEvents.SessionFlaggedAlert event = captor.getValue();
+            assertThat(event.eventType()).isEqualTo("SESSION_FLAGGED_FULLSCREEN_EXITS");
+            assertThat(event.sessionId()).isEqualTo(SESSION_ID.toString());
+            assertThat(event.candidateId()).isEqualTo(CANDIDATE_ID.toString());
+            assertThat(event.fullScreenExitCount()).isEqualTo(3);
+            assertThat(event.threshold()).isEqualTo(3);
         }
 
         @Test

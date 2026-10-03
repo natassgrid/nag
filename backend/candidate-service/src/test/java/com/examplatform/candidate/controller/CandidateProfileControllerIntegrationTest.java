@@ -559,7 +559,7 @@ class CandidateProfileControllerIntegrationTest extends AbstractIntegrationTest 
         @DisplayName("+ve: Public callback handles OAuth2 code exchange - returns 200 OK")
         void handlesDigiLockerCallback() throws Exception {
             when(digiLockerService.handleCallback(eq("auth_code_999"), eq("mock_state"), any()))
-                    .thenReturn(Map.of("status", "VERIFIED", "userId", CANDIDATE_ID.toString(), "digiLockerVerified", "VERIFIED"));
+                    .thenReturn(DigiLockerCallbackResult.success(CANDIDATE_ID.toString(), "DigiLocker document and demographic identity verified successfully"));
 
             mockMvc.perform(get("/api/v1/candidates/digilocker/callback")
                             .param("code", "auth_code_999")

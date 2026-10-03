@@ -21,6 +21,7 @@ package com.examplatform.candidate.service;
 
 import com.examplatform.candidate.client.DigiLockerClient;
 import com.examplatform.candidate.domain.CandidateProfile;
+import com.examplatform.candidate.dto.DigiLockerCallbackResult;
 import com.examplatform.candidate.dto.DigiLockerResponse;
 import com.examplatform.candidate.exception.ProfileNotFoundException;
 import com.examplatform.candidate.repository.CandidateProfileRepository;
@@ -94,7 +95,7 @@ public class DigiLockerService {
      * @param redirectUri optional custom redirect URI
      * @return map with verification result status and message
      */
-    public Map<String, Object> handleCallback(String code, String state, String redirectUri) {
+    public DigiLockerCallbackResult handleCallback(String code, String state, String redirectUri) {
         log.info("Handling DigiLocker OAuth2 callback for state={}", state);
 
         UUID userId = null;
@@ -115,7 +116,7 @@ public class DigiLockerService {
 
         if (userId == null) {
             log.error("Unable to resolve candidate userId from OAuth2 state token: {}", state);
-            return Map.of("status", STATUS_FAILED, "message", "Invalid state token or candidate context missing");
+            return DigiLockerCallbackResult.failed("Invalid state token or candidate context missing");
         }
 
         final UUID effectiveUserId = userId;
@@ -135,7 +136,7 @@ public class DigiLockerService {
                 log.warn("Empty access token received from DigiLocker for userId={}", effectiveUserId);
                 profile.setDigiLockerVerified(STATUS_FAILED);
                 candidateProfileRepository.save(profile);
-                return Map.of("status", STATUS_FAILED, "message", "Failed to obtain access token from DigiLocker");
+                return DigiLockerCallbackResult.failed("Failed to obtain access token from DigiLocker");
             }
 
             // 2. Fetch demographic user info and document
@@ -150,18 +151,18 @@ public class DigiLockerService {
             candidateProfileRepository.save(profile);
 
             log.info("DigiLocker verification result for userId={}: {}", effectiveUserId, status);
-            return Map.of(
-                    "status", status,
-                    "userId", effectiveUserId.toString(),
-                    "digiLockerVerified", status,
-                    "message", verified ? "DigiLocker document and demographic identity verified successfully"
+            return new DigiLockerCallbackResult(
+                    status,
+                    effectiveUserId.toString(),
+                    status,
+                    verified ? "DigiLocker document and demographic identity verified successfully"
                             : "Candidate profile details do not match DigiLocker identity record"
             );
         } catch (Exception e) {
             log.error("Error during DigiLocker callback processing for userId={}: {}", effectiveUserId, e.getMessage(), e);
             profile.setDigiLockerVerified(STATUS_FAILED);
             candidateProfileRepository.save(profile);
-            return Map.of("status", STATUS_FAILED, "message", "DigiLocker verification failed: " + e.getMessage());
+            return DigiLockerCallbackResult.failed("DigiLocker verification failed: " + e.getMessage());
         }
     }
 

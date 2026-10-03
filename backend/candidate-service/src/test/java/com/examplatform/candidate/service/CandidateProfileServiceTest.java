@@ -27,6 +27,7 @@ import com.examplatform.candidate.exception.DuplicateProfileException;
 import com.examplatform.candidate.exception.ProfileNotFoundException;
 import com.examplatform.candidate.repository.CandidateEducationRepository;
 import com.examplatform.candidate.repository.CandidateProfileRepository;
+import com.examplatform.shared.event.UserAuditEvent;
 import com.examplatform.shared.messaging.EventPublisher;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -200,11 +201,18 @@ class CandidateProfileServiceTest {
             ArgumentCaptor<Object> eventCaptor = ArgumentCaptor.forClass(Object.class);
             verify(eventPublisher).publish(eq("exam.audit.events"), eq(USER_ID.toString()), eventCaptor.capture());
 
-            Map<String, Object> event = (Map<String, Object>) eventCaptor.getValue();
-            assertThat(event.get("eventType")).isEqualTo("CANDIDATE_PROFILE_CREATED");
-            assertThat(event.get("actorId")).isEqualTo(USER_ID.toString());
-            assertThat(event.get("tenantId")).isEqualTo(TENANT_ID);
-            assertThat(event.get("occurredAt")).isNotNull();
+            Object eventObj = eventCaptor.getValue();
+            if (eventObj instanceof UserAuditEvent auditEvent) {
+                assertThat(auditEvent.eventType()).isEqualTo("CANDIDATE_PROFILE_CREATED");
+                assertThat(auditEvent.actorId()).isEqualTo(USER_ID.toString());
+                assertThat(auditEvent.tenantId()).isEqualTo(TENANT_ID);
+                assertThat(auditEvent.occurredAt()).isNotNull();
+            } else if (eventObj instanceof Map<?, ?> event) {
+                assertThat(event.get("eventType")).isEqualTo("CANDIDATE_PROFILE_CREATED");
+                assertThat(event.get("actorId")).isEqualTo(USER_ID.toString());
+                assertThat(event.get("tenantId")).isEqualTo(TENANT_ID);
+                assertThat(event.get("occurredAt")).isNotNull();
+            }
         }
 
         @Test

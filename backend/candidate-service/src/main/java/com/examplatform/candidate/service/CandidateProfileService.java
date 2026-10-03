@@ -28,6 +28,7 @@ import com.examplatform.candidate.exception.ProfileNotFoundException;
 import com.examplatform.candidate.repository.CandidateEducationRepository;
 import com.examplatform.candidate.repository.CandidateProfileRepository;
 import com.examplatform.shared.audit.AuditEventType;
+import com.examplatform.shared.event.UserAuditEvent;
 import com.examplatform.shared.messaging.EventPublisher;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -355,12 +356,7 @@ public class CandidateProfileService {
 
     private void publishAuditEvent(AuditEventType type, String actorId, String tenantId) {
         try {
-            Map<String, Object> event = new HashMap<>();
-            event.put("eventType", type.name());
-            event.put("actorId", actorId);
-            event.put("tenantId", tenantId);
-            event.put("occurredAt", Instant.now().toString());
-
+            UserAuditEvent event = UserAuditEvent.of(type.name(), actorId, tenantId);
             eventPublisher.publish(AUDIT_TOPIC, actorId, event);
             log.debug("Audit event published [type={}, actor={}]", type, actorId);
         } catch (Exception e) {

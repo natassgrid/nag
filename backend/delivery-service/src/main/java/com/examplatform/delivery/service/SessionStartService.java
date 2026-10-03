@@ -29,6 +29,7 @@ import com.examplatform.delivery.dto.ShiftAssignment;
 import com.examplatform.delivery.exception.ConcurrentSessionException;
 import com.examplatform.delivery.repository.ExamSessionRepository;
 import com.examplatform.shared.config.DynamicConfigService;
+import com.examplatform.shared.event.SessionEvents;
 import com.examplatform.shared.messaging.EventPublisher;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -215,14 +216,12 @@ public class SessionStartService {
 
         // 10. Publish SESSION_STARTED event (fire-and-forget)
         try {
-            Map<String, Object> event = Map.of(
-                    "eventType", "SESSION_STARTED",
-                    "sessionId", savedSession.getSessionId().toString(),
-                    "candidateId", candidateId.toString(),
-                    "examId", request.getExamId().toString(),
-                    "shiftId", shiftId.toString(),
-                    "startedAt", now.toString(),
-                    "tenantId", effectiveTenant
+            SessionEvents.SessionStarted event = SessionEvents.SessionStarted.of(
+                    savedSession.getSessionId().toString(),
+                    candidateId.toString(),
+                    request.getExamId().toString(),
+                    shiftId.toString(),
+                    effectiveTenant
             );
             eventPublisher.publish(TOPIC_SESSION_EVENTS, savedSession.getSessionId().toString(), event);
         } catch (Exception e) {
@@ -317,14 +316,12 @@ public class SessionStartService {
 
         // 3. Publish SESSION_RESUMED telemetry event
         try {
-            Map<String, Object> event = Map.of(
-                    "eventType", "SESSION_RESUMED",
-                    "sessionId", session.getSessionId().toString(),
-                    "candidateId", session.getCandidateId().toString(),
-                    "examId", session.getExamId().toString(),
-                    "shiftId", session.getShiftId().toString(),
-                    "resumedAt", now.toString(),
-                    "tenantId", effectiveTenant
+            SessionEvents.SessionResumed event = SessionEvents.SessionResumed.of(
+                    session.getSessionId().toString(),
+                    session.getCandidateId().toString(),
+                    session.getExamId().toString(),
+                    session.getShiftId().toString(),
+                    effectiveTenant
             );
             eventPublisher.publish(TOPIC_SESSION_EVENTS, session.getSessionId().toString(), event);
         } catch (Exception e) {

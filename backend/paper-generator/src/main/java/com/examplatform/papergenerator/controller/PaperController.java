@@ -25,11 +25,14 @@ import com.examplatform.papergenerator.domain.Paper;
 import com.examplatform.papergenerator.dto.BlueprintFeasibilityRequest;
 import com.examplatform.papergenerator.dto.BlueprintFeasibilityResponse;
 import com.examplatform.papergenerator.dto.MerkleLeafVerifyRequest;
+import com.examplatform.papergenerator.dto.PaperAcceptedResponse;
+import com.examplatform.papergenerator.dto.PaperApprovalResponse;
 import com.examplatform.papergenerator.dto.PaperGenerationRequest;
 import com.examplatform.papergenerator.dto.PaperResponse;
 import com.examplatform.papergenerator.dto.PaperSummaryResponse;
 import com.examplatform.papergenerator.dto.PaperTranslateRequest;
 import com.examplatform.papergenerator.dto.PaperTranslateResponse;
+import com.examplatform.papergenerator.dto.PaperValidationResponse;
 import com.examplatform.papergenerator.dto.QuestionSummary;
 import com.examplatform.papergenerator.repository.PaperRepository;
 import com.examplatform.papergenerator.service.ExaminationLookupService;
@@ -333,7 +336,7 @@ public class PaperController {
      */
     @PostMapping("/generate")
     @PreAuthorize("hasAnyRole('EXAM_CONTROLLER','SUPER_ADMIN')")
-    public ResponseEntity<Map<String, Object>> generatePaper(
+    public ResponseEntity<PaperAcceptedResponse> generatePaper(
             @Valid @RequestBody PaperGenerationRequest request,
             @AuthenticationPrincipal Jwt jwt) {
 
@@ -345,15 +348,15 @@ public class PaperController {
 
         Paper paper = paperAssemblyService.generatePaper(request, generatedBy, tenantId);
 
-        Map<String, Object> response = Map.of(
-                "paperId", paper.getId(),
-                "name", paper.getName() != null ? paper.getName() : "",
-                "status", paper.getStatus(),
-                "isPractice", paper.isPractice(),
-                "variant", paper.getVariant() != null ? paper.getVariant() : "SET-A",
-                "paperRootHash", paper.getPaperRootHash() != null ? paper.getPaperRootHash() : "",
-                "manifestDigest", paper.getManifestDigest() != null ? paper.getManifestDigest() : "",
-                "message", "Paper generation submitted successfully"
+        PaperAcceptedResponse response = new PaperAcceptedResponse(
+                paper.getId(),
+                paper.getName() != null ? paper.getName() : "",
+                paper.getStatus(),
+                paper.isPractice(),
+                paper.getVariant() != null ? paper.getVariant() : "SET-A",
+                paper.getPaperRootHash() != null ? paper.getPaperRootHash() : "",
+                paper.getManifestDigest() != null ? paper.getManifestDigest() : "",
+                "Paper generation submitted successfully"
         );
 
         return ResponseEntity.status(HttpStatus.ACCEPTED).body(response);
@@ -368,22 +371,17 @@ public class PaperController {
      */
     @PostMapping("/validate")
     @PreAuthorize("hasAnyRole('EXAM_CONTROLLER','SUPER_ADMIN')")
-    public ResponseEntity<Map<String, Object>> validatePaper(@RequestBody String json) {
+    public ResponseEntity<PaperValidationResponse> validatePaper(@RequestBody String json) {
         log.info("Paper schema validation requested");
 
         List<String> errors = paperSerializer.validate(json);
 
         if (errors.isEmpty()) {
-            return ResponseEntity.ok(Map.of(
-                    "valid", true,
-                    "message", "Paper document is valid"
-            ));
+            return ResponseEntity.ok(PaperValidationResponse.valid("Paper document is valid"));
         }
 
-        return ResponseEntity.status(HttpStatus.UNPROCESSABLE_ENTITY).body(Map.of(
-                "valid", false,
-                "errors", errors
-        ));
+        return ResponseEntity.status(HttpStatus.UNPROCESSABLE_ENTITY)
+                .body(PaperValidationResponse.invalid(errors));
     }
 
     /**
@@ -395,25 +393,26 @@ public class PaperController {
      */
     @PostMapping("/{paperId}/approve")
     @PreAuthorize("hasAnyRole('EXAM_CONTROLLER','SUPER_ADMIN')")
-    public ResponseEntity<Map<String, Object>> approvePaper(@PathVariable UUID paperId) {
+    public ResponseEntity<PaperApprovalResponse> approvePaper(@PathVariable UUID paperId) {
         String tenantId = getEffectiveTenantId();
         log.info("Paper approval requested for paperId={}", paperId);
 
         Paper paper = paperApprovalService.approvePaper(paperId, tenantId);
 
-        Map<String, Object> resp = new HashMap<>();
-        resp.put("paperId", paper.getId());
-        resp.put("name", paper.getName() != null ? paper.getName() : "");
-        resp.put("status", paper.getStatus());
-        resp.put("isPractice", paper.isPractice());
-        resp.put("variant", paper.getVariant() != null ? paper.getVariant() : "SET-A");
-        resp.put("encryptionKeyId", paper.getEncryptionKeyId() != null ? paper.getEncryptionKeyId() : "");
-        resp.put("paperRootHash", paper.getPaperRootHash() != null ? paper.getPaperRootHash() : "");
-        resp.put("ledgerTxHash", paper.getLedgerTxHash() != null ? paper.getLedgerTxHash() : "");
-        resp.put("ledgerConsensusTimestamp", paper.getLedgerConsensusTimestamp() != null ? paper.getLedgerConsensusTimestamp() : "");
-        resp.put("ledgerExplorerUrl", paper.getLedgerExplorerUrl() != null ? paper.getLedgerExplorerUrl() : "");
-        resp.put("ledgerNetwork", paper.getLedgerNetwork() != null ? paper.getLedgerNetwork() : "");
-        resp.put("message", "Paper approved, encrypted, and anchored to public ledger successfully");
+        PaperApprovalResponse resp = new PaperApprovalResponse(
+                paper.getId(),
+                paper.getName() != null ? paper.getName() : "",
+                paper.getStatus(),
+                paper.isPractice(),
+                paper.getVariant() != null ? paper.getVariant() : "SET-A",
+                paper.getEncryptionKeyId() != null ? paper.getEncryptionKeyId() : "",
+                paper.getPaperRootHash() != null ? paper.getPaperRootHash() : "",
+                paper.getLedgerTxHash() != null ? paper.getLedgerTxHash() : "",
+                paper.getLedgerConsensusTimestamp() != null ? paper.getLedgerConsensusTimestamp() : "",
+                paper.getLedgerExplorerUrl() != null ? paper.getLedgerExplorerUrl() : "",
+                paper.getLedgerNetwork() != null ? paper.getLedgerNetwork() : "",
+                "Paper approved, encrypted, and anchored to public ledger successfully"
+        );
 
         return ResponseEntity.ok(resp);
     }

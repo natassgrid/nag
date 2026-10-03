@@ -21,36 +21,21 @@ package com.examplatform.delivery.service;
 
 import com.examplatform.delivery.domain.ExamSession;
 import com.examplatform.delivery.dto.QuestionDeliveryDto;
-import com.examplatform.delivery.dto.QuestionOptionDeliveryDto;
-import com.examplatform.delivery.dto.TranslatedQuestionDeliveryDto;
 import com.examplatform.delivery.repository.ExamSessionRepository;
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.RedisTemplate;
-import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 
 import java.time.Duration;
-import java.util.ArrayList;
 import java.util.Collections;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Set;
 import java.util.List;
-import java.util.Map;
-import java.util.Random;
 import java.util.UUID;
 
 /**
- * Service for delivering examination questions to candidates during CBT test sessions.
- * Resolves questions from decrypted exam packages, cached question packages, or the approved question bank.
- * Enriches questions with approved/published multi-language translations (e.g. Hindi).
- * Supports option randomization per candidate session across English and regional translations.
- * Preserves question and option images / SVGs across translations and randomizations.
- * Supports Comprehension / Case Study passages with contiguous sub-question delivery.
+ * Orchestrator service for delivering examination questions to candidates during CBT test sessions.
+ * Coordinates question resolution from decrypted exam packages, paper generator definitions, Redis cache,
+ * and question repository, as well as multi-language translation enrichment and deterministic option randomization.
  */
 @Slf4j
 @Service
@@ -60,9 +45,11 @@ public class ExamQuestionDeliveryService {
     private static final String REDIS_QUESTIONS_PREFIX = "delivery:questions:";
     private static final Duration CACHE_DURATION = Duration.ofHours(12);
 
-    private final JdbcTemplate jdbcTemplate;
+    private final QuestionDeliveryRepository questionDeliveryRepository;
+    private final QuestionDeliveryParser questionDeliveryParser;
+    private final OptionRandomizer optionRandomizer;
+    private final TranslationEnricher translationEnricher;
     private final RedisTemplate<String, Object> redisTemplate;
-    private final ObjectMapper objectMapper;
     private final ExamSessionRepository examSessionRepository;
 
     /**
@@ -79,18 +66,18 @@ public class ExamQuestionDeliveryService {
 
         // 1. First priority: parse questions embedded in the decrypted paper package
         if (decryptedPaper != null && !decryptedPaper.isBlank()) {
-            List<QuestionDeliveryDto> parsedQuestions = parseFromPaperJson(decryptedPaper);
+            List<QuestionDeliveryDto> parsedQuestions = questionDeliveryParser.parseFromPaperJson(decryptedPaper);
             if (!parsedQuestions.isEmpty()) {
-                enrichWithTranslations(parsedQuestions, effectiveTenant);
+                translationEnricher.enrichWithTranslations(parsedQuestions, effectiveTenant);
                 return parsedQuestions;
             }
         }
 
         // 2. Second priority: if paperId is provided, check paper_generator.paper table directly
         if (paperId != null) {
-            List<QuestionDeliveryDto> paperQuestions = fetchQuestionsForPaper(paperId, effectiveTenant);
+            List<QuestionDeliveryDto> paperQuestions = questionDeliveryRepository.fetchQuestionsForPaper(paperId, effectiveTenant);
             if (!paperQuestions.isEmpty()) {
-                enrichWithTranslations(paperQuestions, effectiveTenant);
+                translationEnricher.enrichWithTranslations(paperQuestions, effectiveTenant);
                 return paperQuestions;
             }
         }
@@ -101,16 +88,16 @@ public class ExamQuestionDeliveryService {
             Object cached = redisTemplate.opsForValue().get(cacheKey);
             if (cached instanceof List<?> list && !list.isEmpty()) {
                 log.debug("Cache hit for delivery questions examId={}", examId);
-                return convertCachedList(list);
+                return questionDeliveryParser.convertCachedList(list);
             }
         } catch (Exception e) {
             log.warn("Redis lookup failed for questions cache: {}", e.getMessage());
         }
 
         // 4. Fourth priority: query approved questions from the database matching the exam specification
-        List<QuestionDeliveryDto> dbQuestions = fetchQuestionsForExam(examId, effectiveTenant);
+        List<QuestionDeliveryDto> dbQuestions = questionDeliveryRepository.fetchQuestionsForExam(examId, effectiveTenant);
         if (!dbQuestions.isEmpty()) {
-            enrichWithTranslations(dbQuestions, effectiveTenant);
+            translationEnricher.enrichWithTranslations(dbQuestions, effectiveTenant);
             try {
                 redisTemplate.opsForValue().set(cacheKey, dbQuestions, CACHE_DURATION);
             } catch (Exception e) {
@@ -135,859 +122,40 @@ public class ExamQuestionDeliveryService {
         }
 
         List<QuestionDeliveryDto> baseQuestions = getDeliveryQuestions(session.getExamId(), session.getPaperId(), null, effectiveTenant);
-        return randomizeOptions(baseQuestions, sessionId);
+        return optionRandomizer.randomizeOptions(baseQuestions, sessionId);
     }
 
     /**
      * Randomizes option order for each question deterministically using a session seed.
-     * Preserves originalIndex, option ID, imageUrl, imageAltText, and passage grouping info.
-     *
-     * @param questions original list of questions
-     * @param seedId    UUID used as randomization seed (e.g. sessionId or candidateId)
-     * @return new list of questions with randomized option order
      */
     public List<QuestionDeliveryDto> randomizeOptions(List<QuestionDeliveryDto> questions, UUID seedId) {
-        if (questions == null || questions.isEmpty()) {
-            return Collections.emptyList();
-        }
-
-        long baseSeed = seedId != null
-                ? (seedId.getMostSignificantBits() ^ seedId.getLeastSignificantBits())
-                : System.currentTimeMillis();
-
-        List<QuestionDeliveryDto> randomizedList = new ArrayList<>(questions.size());
-
-        for (QuestionDeliveryDto q : questions) {
-            if (q.getOptions() == null || q.getOptions().size() <= 1) {
-                randomizedList.add(q);
-                continue;
-            }
-
-            long qSeed = baseSeed ^ (q.getId() != null ? q.getId().hashCode() : 0);
-            Random random = new Random(qSeed);
-
-            List<QuestionOptionDeliveryDto> shuffled = new ArrayList<>(q.getOptions());
-            Collections.shuffle(shuffled, random);
-
-            Integer newCorrectOptionIndex = null;
-            List<QuestionOptionDeliveryDto> reindexedOptions = new ArrayList<>(shuffled.size());
-            Map<String, Integer> idToNewIndexMap = new HashMap<>();
-
-            for (int i = 0; i < shuffled.size(); i++) {
-                QuestionOptionDeliveryDto original = shuffled.get(i);
-                if (q.getCorrectOptionIndex() != null && original.getOriginalIndex() == q.getCorrectOptionIndex()) {
-                    newCorrectOptionIndex = i;
-                }
-                idToNewIndexMap.put(original.getId(), i);
-
-                reindexedOptions.add(QuestionOptionDeliveryDto.builder()
-                        .id(original.getId())
-                        .index(i)
-                        .originalIndex(original.getOriginalIndex())
-                        .text(original.getText())
-                        .imageUrl(original.getImageUrl())
-                        .imageAltText(original.getImageAltText())
-                        .build());
-            }
-
-            // Also re-index translations to match the exact option IDs and preserve image assets
-            Map<String, TranslatedQuestionDeliveryDto> randomizedTranslations = new HashMap<>();
-            if (q.getTranslations() != null) {
-                for (Map.Entry<String, TranslatedQuestionDeliveryDto> entry : q.getTranslations().entrySet()) {
-                    TranslatedQuestionDeliveryDto trans = entry.getValue();
-                    List<QuestionOptionDeliveryDto> transOptions = new ArrayList<>();
-                    if (trans.getOptions() != null && !trans.getOptions().isEmpty()) {
-                        Map<String, QuestionOptionDeliveryDto> transOptMap = new HashMap<>();
-                        for (QuestionOptionDeliveryDto opt : trans.getOptions()) {
-                            transOptMap.put(opt.getId(), opt);
-                        }
-
-                        for (int i = 0; i < reindexedOptions.size(); i++) {
-                            QuestionOptionDeliveryDto baseOpt = reindexedOptions.get(i);
-                            QuestionOptionDeliveryDto transOpt = transOptMap.get(baseOpt.getId());
-                            if (transOpt != null) {
-                                String optImg = (transOpt.getImageUrl() != null && !transOpt.getImageUrl().isBlank())
-                                        ? transOpt.getImageUrl()
-                                        : baseOpt.getImageUrl();
-                                String optAlt = (transOpt.getImageAltText() != null && !transOpt.getImageAltText().isBlank())
-                                        ? transOpt.getImageAltText()
-                                        : baseOpt.getImageAltText();
-
-                                transOptions.add(QuestionOptionDeliveryDto.builder()
-                                        .id(baseOpt.getId())
-                                        .index(i)
-                                        .originalIndex(transOpt.getOriginalIndex())
-                                        .text(transOpt.getText())
-                                        .imageUrl(optImg)
-                                        .imageAltText(optAlt)
-                                        .build());
-                            } else {
-                                transOptions.add(QuestionOptionDeliveryDto.builder()
-                                        .id(baseOpt.getId())
-                                        .index(i)
-                                        .originalIndex(baseOpt.getOriginalIndex())
-                                        .text(baseOpt.getText())
-                                        .imageUrl(baseOpt.getImageUrl())
-                                        .imageAltText(baseOpt.getImageAltText())
-                                        .build());
-                            }
-                        }
-                    }
-
-                    randomizedTranslations.put(entry.getKey(), TranslatedQuestionDeliveryDto.builder()
-                            .languageCode(trans.getLanguageCode())
-                            .content(trans.getContent())
-                            .imageUrl(trans.getImageUrl() != null ? trans.getImageUrl() : q.getImageUrl())
-                            .imageAltText(trans.getImageAltText() != null ? trans.getImageAltText() : q.getImageAltText())
-                            .options(transOptions)
-                            .explanation(trans.getExplanation())
-                            .build());
-                }
-            }
-
-            randomizedList.add(QuestionDeliveryDto.builder()
-                    .id(q.getId())
-                    .text(q.getText())
-                    .imageUrl(q.getImageUrl())
-                    .imageAltText(q.getImageAltText())
-                    .hasImages(q.isHasImages())
-                    .options(reindexedOptions)
-                    .marks(q.getMarks())
-                    .negativeMarks(q.getNegativeMarks())
-                    .sectionId(q.getSectionId())
-                    .sectionName(q.getSectionName())
-                    .topic(q.getTopic())
-                    .correctOptionIndex(newCorrectOptionIndex != null ? newCorrectOptionIndex : q.getCorrectOptionIndex())
-                    .explanation(q.getExplanation())
-                    .questionType(q.getQuestionType())
-                    .passageId(q.getPassageId())
-                    .passageContent(q.getPassageContent())
-                    .passageOrderIndex(q.getPassageOrderIndex())
-                    .translations(randomizedTranslations)
-                    .build());
-        }
-
-        return randomizedList;
+        return optionRandomizer.randomizeOptions(questions, seedId);
     }
 
     /**
      * Enriches delivered questions with published and approved regional language translations.
-     * Preserves and falls back to question stem images and option images when present.
      */
     public void enrichWithTranslations(List<QuestionDeliveryDto> questions, String tenantId) {
-        if (questions == null || questions.isEmpty() || jdbcTemplate == null) {
-            return;
-        }
-
-        List<UUID> questionUuids = new ArrayList<>();
-        Map<UUID, QuestionDeliveryDto> dtoMap = new HashMap<>();
-        for (QuestionDeliveryDto q : questions) {
-            try {
-                if (q.getId() != null) {
-                    UUID uid = UUID.fromString(q.getId());
-                    questionUuids.add(uid);
-                    dtoMap.put(uid, q);
-                }
-            } catch (IllegalArgumentException ignored) {
-            }
-        }
-
-        if (questionUuids.isEmpty()) {
-            return;
-        }
-
-        try {
-            String inSql = String.join(",", Collections.nCopies(questionUuids.size(), "?"));
-            String sql = String.format("""
-                SELECT question_id, language_code, translated_payload
-                FROM question_service.translation
-                WHERE (tenant_id = ? OR tenant_id = 'default')
-                  AND status IN ('PUBLISHED', 'APPROVED')
-                  AND question_id IN (%s)
-                """, inSql);
-
-            List<Object> params = new ArrayList<>();
-            params.add(tenantId != null ? tenantId : "default");
-            params.addAll(questionUuids);
-
-            jdbcTemplate.query(sql, rs -> {
-                UUID qId = null;
-                Object obj = rs.getObject("question_id");
-                if (obj instanceof UUID) {
-                    qId = (UUID) obj;
-                } else if (obj != null) {
-                    try {
-                        qId = UUID.fromString(obj.toString());
-                    } catch (Exception ignored) {}
-                }
-                String langCode = rs.getString("language_code");
-                String payload = rs.getString("translated_payload");
-
-                QuestionDeliveryDto qDto = dtoMap.get(qId);
-                if (qDto != null && payload != null && !payload.isBlank()) {
-                    try {
-                        JsonNode node = objectMapper.readTree(payload);
-                        String transContent = node.path("content").asText(null);
-                        String transExplanation = node.path("explanation").asText(null);
-                        String transImageUrl = node.has("imageUrl") && !node.get("imageUrl").isNull()
-                                ? node.get("imageUrl").asText(null)
-                                : qDto.getImageUrl();
-                        String transImageAltText = node.has("imageAltText") && !node.get("imageAltText").isNull()
-                                ? node.get("imageAltText").asText(null)
-                                : qDto.getImageAltText();
-
-                        List<QuestionOptionDeliveryDto> transOptions = new ArrayList<>();
-                        JsonNode optNode = node.path("options");
-                        if (optNode.isArray() && qDto.getOptions() != null) {
-                            for (int i = 0; i < optNode.size(); i++) {
-                                JsonNode o = optNode.get(i);
-                                String optText = o.path("text").asText("");
-                                String optId = o.has("id") ? o.path("id").asText("") : String.valueOf((char) ('A' + i));
-                                String optImg = o.has("imageUrl") && !o.get("imageUrl").isNull()
-                                        ? o.get("imageUrl").asText(null) : null;
-                                String optAlt = o.has("imageAltText") && !o.get("imageAltText").isNull()
-                                        ? o.get("imageAltText").asText(null) : null;
-
-                                if (optImg == null && i < qDto.getOptions().size()) {
-                                    optImg = qDto.getOptions().get(i).getImageUrl();
-                                    if (optAlt == null) {
-                                        optAlt = qDto.getOptions().get(i).getImageAltText();
-                                    }
-                                }
-
-                                transOptions.add(QuestionOptionDeliveryDto.builder()
-                                        .id(optId)
-                                        .index(i)
-                                        .originalIndex(i)
-                                        .text(optText)
-                                        .imageUrl(optImg)
-                                        .imageAltText(optAlt)
-                                        .build());
-                            }
-                        }
-
-                        if (transContent != null) {
-                            if (qDto.getTranslations() == null) {
-                                qDto.setTranslations(new HashMap<>());
-                            }
-                            qDto.getTranslations().put(langCode, TranslatedQuestionDeliveryDto.builder()
-                                    .languageCode(langCode)
-                                    .content(transContent)
-                                    .imageUrl(transImageUrl)
-                                    .imageAltText(transImageAltText)
-                                    .options(transOptions)
-                                    .explanation(transExplanation)
-                                    .build());
-                        }
-                    } catch (Exception e) {
-                        log.warn("Failed to parse translation payload for question {}: {}", qId, e.getMessage());
-                    }
-                }
-            }, params.toArray());
-        } catch (Exception e) {
-            log.warn("Could not query translations for delivery questions: {}", e.getMessage());
-        }
+        translationEnricher.enrichWithTranslations(questions, tenantId);
     }
 
-    private List<QuestionDeliveryDto> parseFromPaperJson(String decryptedPaper) {
-        List<QuestionDeliveryDto> questions = new ArrayList<>();
-        try {
-            JsonNode root = objectMapper.readTree(decryptedPaper);
-            JsonNode questionsNode = root.path("questions");
-            if (questionsNode.isArray()) {
-                int index = 1;
-                for (JsonNode qNode : questionsNode) {
-                    QuestionDeliveryDto q = parseSingleQuestionNode(qNode, index++);
-                    if (q != null) {
-                        questions.add(q);
-                    }
-                }
-            }
-        } catch (JsonProcessingException e) {
-            log.warn("Could not parse decrypted paper JSON: {}", e.getMessage());
-        }
-        return questions;
-    }
-
-    private QuestionDeliveryDto parseSingleQuestionNode(JsonNode qNode, int sequenceNumber) {
-        try {
-            String id = qNode.has("id") ? qNode.get("id").asText() : UUID.randomUUID().toString();
-            String content = qNode.has("content") ? qNode.get("content").asText() :
-                    (qNode.has("text") ? qNode.get("text").asText() : "");
-            String subject = qNode.has("subject") ? qNode.get("subject").asText() : null;
-            String topic = qNode.has("topic") ? qNode.get("topic").asText() : "General";
-            String explanation = qNode.has("explanation") ? qNode.get("explanation").asText() : null;
-            String answerKey = qNode.has("answerKey") ? qNode.get("answerKey").asText() :
-                    (qNode.has("answer_key") ? qNode.get("answer_key").asText() : null);
-            String imageUrl = qNode.has("imageUrl") && !qNode.get("imageUrl").isNull() ? qNode.get("imageUrl").asText(null) : null;
-            String imageAltText = qNode.has("imageAltText") && !qNode.get("imageAltText").isNull() ? qNode.get("imageAltText").asText(null) : null;
-            boolean hasImages = qNode.has("hasImages") ? qNode.get("hasImages").asBoolean() : false;
-
-            String questionType = qNode.has("questionType") ? qNode.get("questionType").asText() :
-                    (qNode.has("question_type") ? qNode.get("question_type").asText() : "SINGLE_MCQ");
-            String passageId = qNode.has("passageId") ? qNode.get("passageId").asText() :
-                    (qNode.has("passage_id") ? qNode.get("passage_id").asText() : null);
-            String passageContent = qNode.has("passageContent") ? qNode.get("passageContent").asText() :
-                    (qNode.has("passage_content") ? qNode.get("passage_content").asText() : null);
-            Integer passageOrderIndex = qNode.has("passageOrderIndex") ? qNode.get("passageOrderIndex").asInt() :
-                    (qNode.has("passage_order_index") ? qNode.get("passage_order_index").asInt() : null);
-
-            List<QuestionOptionDeliveryDto> options = new ArrayList<>();
-            Integer correctOptionIndex = null;
-            JsonNode optionsNode = qNode.get("options");
-
-            if (optionsNode != null && optionsNode.isArray()) {
-                for (int i = 0; i < optionsNode.size(); i++) {
-                    JsonNode optNode = optionsNode.get(i);
-                    String optText;
-                    String optId = "";
-                    String optImageUrl = null;
-                    String optImageAltText = null;
-                    boolean isCorrect = false;
-
-                    if (optNode.isObject()) {
-                        optText = optNode.has("text") ? optNode.get("text").asText() : optNode.asText();
-                        optId = optNode.has("id") ? optNode.get("id").asText() : String.valueOf((char) ('A' + i));
-                        isCorrect = optNode.has("isCorrect") && optNode.get("isCorrect").asBoolean();
-                        optImageUrl = optNode.has("imageUrl") && !optNode.get("imageUrl").isNull() ? optNode.get("imageUrl").asText(null) : null;
-                        optImageAltText = optNode.has("imageAltText") && !optNode.get("imageAltText").isNull() ? optNode.get("imageAltText").asText(null) : null;
-                    } else {
-                        optText = optNode.asText();
-                        optId = String.valueOf((char) ('A' + i));
-                    }
-
-                    if (optImageUrl != null && !optImageUrl.isBlank()) {
-                        hasImages = true;
-                    }
-
-                    if (isCorrect || (answerKey != null && (answerKey.equalsIgnoreCase(optId) || answerKey.equalsIgnoreCase(optText)))) {
-                        correctOptionIndex = i;
-                    }
-
-                    options.add(QuestionOptionDeliveryDto.builder()
-                            .id(optId)
-                            .index(i)
-                            .originalIndex(i)
-                            .text(optText)
-                            .imageUrl(optImageUrl)
-                            .imageAltText(optImageAltText)
-                            .build());
-                }
-            }
-
-            if (correctOptionIndex == null && qNode.has("correctOptionIndex")) {
-                correctOptionIndex = qNode.get("correctOptionIndex").asInt();
-            }
-
-            String secId = resolveSectionId(subject, sequenceNumber);
-            String secName = resolveSectionName(subject, sequenceNumber);
-
-            return QuestionDeliveryDto.builder()
-                    .id(id)
-                    .text(content)
-                    .imageUrl(imageUrl)
-                    .imageAltText(imageAltText)
-                    .hasImages(hasImages)
-                    .options(options)
-                    .marks(qNode.has("marks") ? qNode.get("marks").asDouble() : 2.0)
-                    .negativeMarks(qNode.has("negativeMarks") ? qNode.get("negativeMarks").asDouble() : 0.5)
-                    .sectionId(secId)
-                    .sectionName(secName)
-                    .topic(topic)
-                    .correctOptionIndex(correctOptionIndex)
-                    .explanation(explanation)
-                    .questionType(questionType)
-                    .passageId(passageId)
-                    .passageContent(passageContent)
-                    .passageOrderIndex(passageOrderIndex)
-                    .build();
-        } catch (Exception e) {
-            log.warn("Error parsing individual question node: {}", e.getMessage());
-            return null;
-        }
-    }
-
-    private List<QuestionDeliveryDto> fetchQuestionsForExam(UUID examId, String tenantId) {
-        if (jdbcTemplate == null) {
-            return Collections.emptyList();
-        }
-
-        String sectionsJson = null;
-        if (examId != null) {
-            try {
-                sectionsJson = jdbcTemplate.queryForObject(
-                        "SELECT sections_json FROM examination_service.examination WHERE id = ?",
-                        String.class,
-                        examId
-                );
-            } catch (Exception e) {
-                log.debug("No sections_json found for examId {}: {}", examId, e.getMessage());
-            }
-        }
-
-        List<QuestionDeliveryDto> result = new ArrayList<>();
-        Set<UUID> usedQuestionIds = new HashSet<>();
-
-        if (sectionsJson != null && !sectionsJson.isBlank()) {
-            try {
-                JsonNode sectionsArr = objectMapper.readTree(sectionsJson);
-                if (sectionsArr.isArray() && !sectionsArr.isEmpty()) {
-                    int secIdx = 1;
-                    for (JsonNode secNode : sectionsArr) {
-                        String secName = secNode.path("name").asText("Section " + secIdx);
-                        String subject = secNode.path("subject").asText("");
-                        int count = secNode.path("questionCount").asInt(25);
-                        double marks = secNode.path("marksPerQuestion").asDouble(2.0);
-                        double negMarks = secNode.path("negativeMarksPerQuestion").asDouble(0.5);
-                        String secId = "sec-" + secIdx;
-
-                        List<QuestionDeliveryDto> secQuestions = fetchQuestionsForSubject(
-                                subject, count, secId, secName, marks, negMarks, usedQuestionIds, tenantId);
-                        result.addAll(secQuestions);
-                        secIdx++;
-                    }
-                }
-            } catch (Exception e) {
-                log.warn("Failed to parse sections_json for exam {}: {}", examId, e.getMessage());
-            }
-        }
-
-        if (result.isEmpty()) {
-            result = fetchDefaultApprovedQuestions(tenantId);
-        }
-
-        return result;
-    }
-
-    private List<QuestionDeliveryDto> fetchQuestionsForSubject(
-            String subject,
-            int limit,
-            String secId,
-            String secName,
-            double marks,
-            double negMarks,
-            Set<UUID> usedIds,
-            String tenantId
-    ) {
-        String keyword = "%" + (subject != null && !subject.isBlank() ? subject.trim() : "") + "%";
-        String sql = """
-            SELECT q.id, q.subject, q.topic, q.subtopic, q.difficulty, q.cognitive_level, q.question_type,
-                   q.content, q.options, q.answer_key, q.explanation, q.has_images,
-                   q.passage_id, p.content AS passage_content, q.passage_order_index
-            FROM question_service.question q
-            LEFT JOIN question_service.passage p ON q.passage_id = p.id
-            LEFT JOIN question_service.translation t ON q.id = t.question_id AND t.language_code = 'hi' AND t.status IN ('PUBLISHED', 'APPROVED')
-            WHERE (q.tenant_id = ? OR q.tenant_id = 'default')
-              AND q.state = 'APPROVED'
-              AND (q.subject ILIKE ? OR q.topic ILIKE ? OR q.subtopic ILIKE ?)
-            ORDER BY (t.id IS NOT NULL) DESC, q.id
-            LIMIT ?
-            """;
-
-        List<QuestionDeliveryDto> matched = queryQuestions(sql, new Object[]{tenantId, keyword, keyword, keyword, limit * 2}, secId, secName, marks, negMarks);
-
-        List<QuestionDeliveryDto> filtered = new ArrayList<>();
-        for (QuestionDeliveryDto q : matched) {
-            try {
-                UUID qUuid = UUID.fromString(q.getId());
-                if (!usedIds.contains(qUuid)) {
-                    usedIds.add(qUuid);
-                    filtered.add(q);
-                    if (filtered.size() >= limit) {
-                        break;
-                    }
-                }
-            } catch (Exception ignored) {}
-        }
-
-        if (filtered.size() < limit) {
-            String fallbackSql = """
-                SELECT q.id, q.subject, q.topic, q.subtopic, q.difficulty, q.cognitive_level, q.question_type,
-                       q.content, q.options, q.answer_key, q.explanation, q.has_images,
-                       q.passage_id, p.content AS passage_content, q.passage_order_index
-                FROM question_service.question q
-                LEFT JOIN question_service.passage p ON q.passage_id = p.id
-                LEFT JOIN question_service.translation t ON q.id = t.question_id AND t.language_code = 'hi' AND t.status IN ('PUBLISHED', 'APPROVED')
-                WHERE (q.tenant_id = ? OR q.tenant_id = 'default')
-              AND q.state = 'APPROVED'
-                ORDER BY (t.id IS NOT NULL) DESC, q.id
-                LIMIT 200
-                """;
-            List<QuestionDeliveryDto> extra = queryQuestions(fallbackSql, new Object[]{tenantId}, secId, secName, marks, negMarks);
-            for (QuestionDeliveryDto q : extra) {
-                try {
-                    UUID qUuid = UUID.fromString(q.getId());
-                    if (!usedIds.contains(qUuid)) {
-                        usedIds.add(qUuid);
-                        filtered.add(q);
-                        if (filtered.size() >= limit) {
-                            break;
-                        }
-                    }
-                } catch (Exception ignored) {}
-            }
-        }
-
-        return filtered;
-    }
-
-    private List<QuestionDeliveryDto> fetchDefaultApprovedQuestions(String tenantId) {
-        String sql = """
-            SELECT q.id, q.subject, q.topic, q.subtopic, q.difficulty, q.cognitive_level, q.question_type,
-                   q.content, q.options, q.answer_key, q.explanation, q.has_images,
-                   q.passage_id, p.content AS passage_content, q.passage_order_index
-            FROM question_service.question q
-            LEFT JOIN question_service.passage p ON q.passage_id = p.id
-            LEFT JOIN question_service.translation t ON q.id = t.question_id AND t.language_code = 'hi' AND t.status IN ('PUBLISHED', 'APPROVED')
-            WHERE (q.tenant_id = ? OR q.tenant_id = 'default')
-              AND q.state = 'APPROVED'
-            ORDER BY (t.id IS NOT NULL) DESC, CASE
-              WHEN q.subject ILIKE '%Reasoning%' OR q.subject ILIKE '%Intelligence%' THEN 1
-              WHEN q.subject ILIKE '%Awareness%' OR q.subject ILIKE '%General Studies%' THEN 2
-              WHEN q.subject ILIKE '%Quantitative%' OR q.subject ILIKE '%Math%' THEN 3
-              WHEN q.subject ILIKE '%English%' THEN 4
-              ELSE 5 END, q.id
-            LIMIT 100
-            """;
-        return queryQuestions(sql, new Object[]{tenantId}, null, null, 2.0, 0.5);
-    }
-
-    private List<QuestionDeliveryDto> queryQuestions(String sql, Object[] params, String defaultSecId, String defaultSecName, double marks, double negMarks) {
-        try {
-            return jdbcTemplate.query(sql, (rs, rowNum) -> {
-                UUID id = rs.getObject("id", UUID.class);
-                String subject = rs.getString("subject");
-                String topic = rs.getString("topic");
-                String content = rs.getString("content");
-                String questionType = rs.getString("question_type");
-                String optionsJson = rs.getString("options");
-                String answerKey = rs.getString("answer_key");
-                String explanation = rs.getString("explanation");
-                boolean hasImages = rs.getBoolean("has_images");
-
-                UUID passageIdObj = rs.getObject("passage_id", UUID.class);
-                String passageId = passageIdObj != null ? passageIdObj.toString() : null;
-                String passageContent = rs.getString("passage_content");
-                Integer passageOrderIndex = (Integer) rs.getObject("passage_order_index");
-
-                List<QuestionOptionDeliveryDto> options = new ArrayList<>();
-                Integer correctOptionIndex = null;
-
-                if (optionsJson != null && !optionsJson.isBlank()) {
-                    try {
-                        JsonNode optArr = objectMapper.readTree(optionsJson);
-                        if (optArr.isArray()) {
-                            for (int i = 0; i < optArr.size(); i++) {
-                                JsonNode optNode = optArr.get(i);
-                                String optText;
-                                String optId = "";
-                                String optImageUrl = null;
-                                String optImageAltText = null;
-                                boolean isCorrect = false;
-
-                                if (optNode.isObject()) {
-                                    optText = optNode.has("text") ? optNode.get("text").asText() : optNode.asText();
-                                    optId = optNode.has("id") ? optNode.get("id").asText() : String.valueOf((char) ('A' + i));
-                                    isCorrect = optNode.has("isCorrect") && optNode.get("isCorrect").asBoolean();
-                                    optImageUrl = optNode.has("imageUrl") && !optNode.get("imageUrl").isNull() ? optNode.get("imageUrl").asText(null) : null;
-                                    optImageAltText = optNode.has("imageAltText") && !optNode.get("imageAltText").isNull() ? optNode.get("imageAltText").asText(null) : null;
-                                } else {
-                                    optText = optNode.asText();
-                                    optId = String.valueOf((char) ('A' + i));
-                                }
-
-                                if (optImageUrl != null && !optImageUrl.isBlank()) {
-                                    hasImages = true;
-                                }
-
-                                if (isCorrect || (answerKey != null && (answerKey.equalsIgnoreCase(optId) || answerKey.equalsIgnoreCase(optText)))) {
-                                    correctOptionIndex = i;
-                                }
-
-                                options.add(QuestionOptionDeliveryDto.builder()
-                                        .id(optId)
-                                        .index(i)
-                                        .originalIndex(i)
-                                        .text(optText)
-                                        .imageUrl(optImageUrl)
-                                        .imageAltText(optImageAltText)
-                                        .build());
-                            }
-                        }
-                    } catch (Exception e) {
-                        log.warn("Error parsing options JSON for question {}: {}", id, e.getMessage());
-                    }
-                }
-
-                String sId = defaultSecId != null ? defaultSecId : resolveSectionId(subject, rowNum + 1);
-                String sName = defaultSecName != null ? defaultSecName : resolveSectionName(subject, rowNum + 1);
-
-                return QuestionDeliveryDto.builder()
-                        .id(id != null ? id.toString() : UUID.randomUUID().toString())
-                        .text(content)
-                        .hasImages(hasImages)
-                        .options(options)
-                        .marks(marks)
-                        .negativeMarks(negMarks)
-                        .sectionId(sId)
-                        .sectionName(sName)
-                        .topic(topic != null ? topic : "General")
-                        .correctOptionIndex(correctOptionIndex)
-                        .explanation(explanation)
-                        .questionType(questionType != null ? questionType : "SINGLE_MCQ")
-                        .passageId(passageId)
-                        .passageContent(passageContent)
-                        .passageOrderIndex(passageOrderIndex)
-                        .build();
-            }, params);
-        } catch (Exception e) {
-            log.error("Failed to query questions from question_service: {}", e.getMessage());
-            return Collections.emptyList();
-        }
-    }
-
-    private String resolveSectionId(String subject, int sequenceNumber) {
-        if (subject != null) {
-            String lower = subject.toLowerCase();
-            if (lower.contains("reasoning") || lower.contains("intelligence")) return "sec-1";
-            if (lower.contains("awareness") || lower.contains("general studies") || lower.contains("current")) return "sec-2";
-            if (lower.contains("quantitative") || lower.contains("mathemat")) return "sec-3";
-            if (lower.contains("english") || lower.contains("comprehension")) return "sec-4";
-        }
-        return "sec-" + ((sequenceNumber - 1) / 25 + 1);
-    }
-
-    private String resolveSectionName(String subject, int sequenceNumber) {
-        if (subject != null) {
-            String lower = subject.toLowerCase();
-            if (lower.contains("reasoning") || lower.contains("intelligence")) return "General Intelligence & Reasoning";
-            if (lower.contains("awareness") || lower.contains("general studies") || lower.contains("current")) return "General Awareness";
-            if (lower.contains("quantitative") || lower.contains("mathemat")) return "Quantitative Aptitude";
-            if (lower.contains("english") || lower.contains("comprehension")) return "English Comprehension";
-            return subject;
-        }
-        return "Section " + ((sequenceNumber - 1) / 25 + 1);
-    }
-
-    @SuppressWarnings("unchecked")
-    private List<QuestionDeliveryDto> convertCachedList(List<?> rawList) {
-        try {
-            return objectMapper.convertValue(rawList,
-                    objectMapper.getTypeFactory().constructCollectionType(List.class, QuestionDeliveryDto.class));
-        } catch (Exception e) {
-            log.warn("Failed to cast cached questions list: {}", e.getMessage());
-            return Collections.emptyList();
-        }
-    }
-
+    /**
+     * Retrieves questions for a specific paper.
+     */
     public List<QuestionDeliveryDto> getQuestionsForPaper(UUID paperId, String tenantId) {
         String effectiveTenant = (tenantId != null && !tenantId.isBlank()) ? tenantId : "default";
-        List<QuestionDeliveryDto> questions = fetchQuestionsForPaper(paperId, effectiveTenant);
+        List<QuestionDeliveryDto> questions = questionDeliveryRepository.fetchQuestionsForPaper(paperId, effectiveTenant);
         if (!questions.isEmpty()) {
-            enrichWithTranslations(questions, effectiveTenant);
+            translationEnricher.enrichWithTranslations(questions, effectiveTenant);
         }
         return questions;
-    }
-
-    private List<QuestionDeliveryDto> fetchQuestionsForPaper(UUID paperId, String tenantId) {
-        if (jdbcTemplate == null || paperId == null) {
-            return Collections.emptyList();
-        }
-        try {
-            List<UUID> qUuids = resolveQuestionUuids(paperId, tenantId);
-            if (qUuids.isEmpty()) {
-                log.debug("No question IDs found for paper/practice set {}", paperId);
-                return Collections.emptyList();
-            }
-
-            String inSql = String.join(",", Collections.nCopies(qUuids.size(), "?"));
-            String sql = String.format("""
-                SELECT q.id, q.subject, q.topic, q.subtopic, q.difficulty, q.cognitive_level, q.question_type,
-                       q.content, q.options, q.answer_key, q.explanation, q.has_images,
-                       q.passage_id, p.content AS passage_content, q.passage_order_index
-                FROM question_service.question q
-                LEFT JOIN question_service.passage p ON q.passage_id = p.id
-                WHERE q.id IN (%s)
-                """, inSql);
-
-            List<QuestionDeliveryDto> questions = queryQuestions(sql, qUuids.toArray(), null, null, 2.0, 0.5);
-
-            Map<UUID, QuestionDeliveryDto> qMap = new HashMap<>();
-            for (QuestionDeliveryDto q : questions) {
-                try {
-                    qMap.put(UUID.fromString(q.getId()), q);
-                } catch (Exception ignored) {}
-            }
-
-            List<QuestionDeliveryDto> orderedQuestions = new ArrayList<>();
-            for (UUID uid : qUuids) {
-                QuestionDeliveryDto q = qMap.get(uid);
-                if (q != null) {
-                    orderedQuestions.add(q);
-                }
-            }
-            return orderedQuestions;
-        } catch (Exception e) {
-            log.warn("Could not fetch paper questions for paperId {}: {}", paperId, e.getMessage());
-            return Collections.emptyList();
-        }
-    }
-
-    private List<UUID> resolveQuestionUuids(UUID targetId, String tenantId) {
-        List<UUID> uids = new ArrayList<>();
-
-        // 1. Try paper_generator.paper table
-        try {
-            List<String> defJsons = jdbcTemplate.query(
-                    "SELECT paper_definition_json FROM paper_generator.paper WHERE id = ? AND (tenant_id = ? OR tenant_id = 'default' OR tenant_id IS NULL)",
-                    (rs, rowNum) -> rs.getString("paper_definition_json"),
-                    targetId, tenantId
-            );
-            if (!defJsons.isEmpty() && defJsons.get(0) != null && !defJsons.get(0).isBlank()) {
-                uids = extractQuestionUuidsFromJson(defJsons.get(0));
-            }
-        } catch (Exception e) {
-            log.debug("Paper lookup error for {}: {}", targetId, e.getMessage());
-        }
-
-        // 2. If not found or empty, try practice_service.practice_set table
-        if (uids.isEmpty()) {
-            try {
-                List<String> practiceQuestionIds = jdbcTemplate.query(
-                        "SELECT question_ids FROM practice_service.practice_set WHERE id = ? AND (tenant_id = ? OR tenant_id = 'default' OR tenant_id IS NULL)",
-                        (rs, rowNum) -> rs.getString("question_ids"),
-                        targetId, tenantId
-                );
-                if (!practiceQuestionIds.isEmpty() && practiceQuestionIds.get(0) != null && !practiceQuestionIds.get(0).isBlank()) {
-                    uids = extractQuestionUuidsFromJsonOrString(practiceQuestionIds.get(0));
-                }
-            } catch (Exception e) {
-                log.debug("Practice set lookup error for {}: {}", targetId, e.getMessage());
-            }
-        }
-
-        // 3. If not found or empty, check practice_service.practice_session table (targetId may be a practice session ID)
-        if (uids.isEmpty()) {
-            try {
-                List<UUID> practiceSetIds = jdbcTemplate.query(
-                        "SELECT practice_set_id FROM practice_service.practice_session WHERE id = ? AND (tenant_id = ? OR tenant_id = 'default' OR tenant_id IS NULL)",
-                        (rs, rowNum) -> rs.getObject("practice_set_id", UUID.class),
-                        targetId, tenantId
-                );
-                if (!practiceSetIds.isEmpty() && practiceSetIds.get(0) != null) {
-                    UUID pSetId = practiceSetIds.get(0);
-                    List<String> practiceQuestionIds = jdbcTemplate.query(
-                            "SELECT question_ids FROM practice_service.practice_set WHERE id = ? AND (tenant_id = ? OR tenant_id = 'default' OR tenant_id IS NULL)",
-                            (rs, rowNum) -> rs.getString("question_ids"),
-                            pSetId, tenantId
-                    );
-                    if (!practiceQuestionIds.isEmpty() && practiceQuestionIds.get(0) != null && !practiceQuestionIds.get(0).isBlank()) {
-                        uids = extractQuestionUuidsFromJsonOrString(practiceQuestionIds.get(0));
-                    }
-                }
-            } catch (Exception e) {
-                log.debug("Practice session lookup error for {}: {}", targetId, e.getMessage());
-            }
-        }
-
-        // 4. If not found or empty, check delivery_service.exam_session table (targetId may be an exam session ID)
-        if (uids.isEmpty()) {
-            try {
-                List<UUID> sessionPaperIds = jdbcTemplate.query(
-                        "SELECT paper_id FROM delivery_service.exam_session WHERE session_id = ? AND (tenant_id = ? OR tenant_id = 'default' OR tenant_id IS NULL)",
-                        (rs, rowNum) -> rs.getObject("paper_id", UUID.class),
-                        targetId, tenantId
-                );
-                if (!sessionPaperIds.isEmpty() && sessionPaperIds.get(0) != null) {
-                    uids = resolveQuestionUuids(sessionPaperIds.get(0), tenantId);
-                }
-            } catch (Exception e) {
-                log.debug("Exam session lookup error for {}: {}", targetId, e.getMessage());
-            }
-        }
-
-        return uids;
     }
 
     public List<UUID> extractQuestionUuidsFromJson(String json) {
-        if (json == null || json.isBlank()) {
-            return Collections.emptyList();
-        }
-        List<UUID> result = new ArrayList<>();
-        try {
-            JsonNode root = objectMapper.readTree(json);
-            extractUuidsFromNode(root, result);
-        } catch (Exception e) {
-            log.warn("Failed to parse question UUIDs from JSON: {}", e.getMessage());
-        }
-        return result;
+        return questionDeliveryParser.extractQuestionUuidsFromJson(json);
     }
 
     public List<UUID> extractQuestionUuidsFromJsonOrString(String raw) {
-        if (raw == null || raw.isBlank()) {
-            return Collections.emptyList();
-        }
-        raw = raw.trim();
-        if (raw.startsWith("[") || raw.startsWith("{")) {
-            return extractQuestionUuidsFromJson(raw);
-        }
-        // Fallback to comma-separated UUID strings
-        List<UUID> list = new ArrayList<>();
-        for (String part : raw.split(",")) {
-            String trimmed = part.trim().replace("\"", "").replace("'", "");
-            try {
-                if (!trimmed.isBlank()) {
-                    list.add(UUID.fromString(trimmed));
-                }
-            } catch (IllegalArgumentException ignored) {}
-        }
-        return list;
+        return questionDeliveryParser.extractQuestionUuidsFromJsonOrString(raw);
     }
-
-    private void extractUuidsFromNode(JsonNode node, List<UUID> accumulator) {
-        if (node == null || node.isNull()) {
-            return;
-        }
-        if (node.isTextual()) {
-            try {
-                accumulator.add(UUID.fromString(node.asText()));
-            } catch (IllegalArgumentException ignored) {}
-            return;
-        }
-        if (node.isArray()) {
-            for (JsonNode item : node) {
-                extractUuidsFromNode(item, accumulator);
-            }
-            return;
-        }
-        if (node.isObject()) {
-            if (node.has("questionIds")) {
-                extractUuidsFromNode(node.get("questionIds"), accumulator);
-            }
-            if (node.has("questions")) {
-                extractUuidsFromNode(node.get("questions"), accumulator);
-            }
-            if (node.has("questionGroups")) {
-                extractUuidsFromNode(node.get("questionGroups"), accumulator);
-            }
-            if (node.has("sections")) {
-                extractUuidsFromNode(node.get("sections"), accumulator);
-            }
-            if (node.has("id")) {
-                try {
-                    accumulator.add(UUID.fromString(node.get("id").asText()));
-                } catch (IllegalArgumentException ignored) {}
-            } else if (node.has("questionId")) {
-                try {
-                    accumulator.add(UUID.fromString(node.get("questionId").asText()));
-                } catch (IllegalArgumentException ignored) {}
-            } else if (node.has("question_id")) {
-                try {
-                    accumulator.add(UUID.fromString(node.get("question_id").asText()));
-                } catch (IllegalArgumentException ignored) {}
-            }
-        }
-    }
-
-    private record SectionInfo(String id, String name) {}
 }

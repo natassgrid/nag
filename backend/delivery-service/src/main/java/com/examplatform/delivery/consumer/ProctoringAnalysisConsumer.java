@@ -16,11 +16,12 @@
  * You should have received a copy of the GNU Affero General Public License
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
+
 package com.examplatform.delivery.consumer;
 
+import com.examplatform.shared.event.ProctoringEvents;
 import com.examplatform.shared.messaging.EventPublisher;
 import com.examplatform.shared.messaging.GenericDomainEvent;
-import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.amqp.core.ExchangeTypes;
@@ -34,8 +35,6 @@ import org.springframework.context.event.EventListener;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.stereotype.Component;
 
-import java.time.Instant;
-import java.util.HashMap;
 import java.util.Map;
 import java.util.Random;
 
@@ -86,8 +85,11 @@ public class ProctoringAnalysisConsumer {
      * Consumes proctoring snapshot events via Kafka and performs stub AI analysis.
      */
     @KafkaListener(topics = PROCTORING_TOPIC, groupId = "delivery-proctoring")
-    public void analyze(Map<String, Object> event) {
-        processEvent(event);
+    public void analyze(Object event) {
+        ProctoringEvents.SnapshotCaptured snapshot = parseSnapshot(event);
+        if (snapshot != null) {
+            processEvent(snapshot);
+        }
     }
 
     /**
@@ -101,37 +103,9 @@ public class ProctoringAnalysisConsumer {
             )
     )
     public void analyzeRabbit(Object message) {
-        if (message instanceof Map<?, ?> map) {
-            @SuppressWarnings("unchecked")
-            Map<String, Object> eventMap = (Map<String, Object>) map;
-            processEvent(eventMap);
-        } else if (message instanceof Message amqpMsg) {
-            try {
-                Map<String, Object> eventMap = objectMapper.readValue(
-                        amqpMsg.getBody(),
-                        new TypeReference<Map<String, Object>>() {});
-                processEvent(eventMap);
-            } catch (Exception e) {
-                log.error("Failed to parse proctoring alert RabbitMQ message: {}", e.getMessage());
-            }
-        } else if (message instanceof byte[] bytes) {
-            try {
-                Map<String, Object> eventMap = objectMapper.readValue(
-                        bytes,
-                        new TypeReference<Map<String, Object>>() {});
-                processEvent(eventMap);
-            } catch (Exception e) {
-                log.error("Failed to parse proctoring alert RabbitMQ message: {}", e.getMessage());
-            }
-        } else if (message instanceof String s) {
-            try {
-                Map<String, Object> eventMap = objectMapper.readValue(
-                        s,
-                        new TypeReference<Map<String, Object>>() {});
-                processEvent(eventMap);
-            } catch (Exception e) {
-                log.error("Failed to parse proctoring alert RabbitMQ message: {}", e.getMessage());
-            }
+        ProctoringEvents.SnapshotCaptured snapshot = parseSnapshot(message);
+        if (snapshot != null) {
+            processEvent(snapshot);
         }
     }
 
@@ -141,19 +115,18 @@ public class ProctoringAnalysisConsumer {
     @EventListener
     public void onSpringProctoringAlert(GenericDomainEvent event) {
         if (PROCTORING_TOPIC.equals(event.topic())) {
-            Object payload = event.payload();
-            if (payload instanceof Map<?, ?> map) {
-                @SuppressWarnings("unchecked")
-                Map<String, Object> eventMap = (Map<String, Object>) map;
-                processEvent(eventMap);
+            ProctoringEvents.SnapshotCaptured snapshot = parseSnapshot(event.payload());
+            if (snapshot != null) {
+                processEvent(snapshot);
             }
         }
     }
 
-    public void processEvent(Map<String, Object> event) {
-        String sessionId = (String) event.get("sessionId");
-        String candidateId = (String) event.get("candidateId");
-        String snapshotRef = (String) event.get("snapshotRef");
+    public void processEvent(ProctoringEvents.SnapshotCaptured event) {
+        if (event == null) return;
+        String sessionId = event.sessionId();
+        String candidateId = event.candidateId();
+        String snapshotRef = event.snapshotRef();
 
         log.debug("Analyzing proctoring frame for session={}, snapshot={}", sessionId, snapshotRef);
 
@@ -165,17 +138,54 @@ public class ProctoringAnalysisConsumer {
         }
     }
 
+    @SuppressWarnings("unchecked")
+    public void processEvent(Map<String, Object> event) {
+        if (event == null) return;
+        String sessionId = (String) event.get("sessionId");
+        String candidateId = (String) event.get("candidateId");
+        String snapshotRef = (String) event.get("snapshotRef");
+        String tenantId = (String) event.get("tenantId");
+        int imageSize = event.get("imageSize") instanceof Number n ? n.intValue() : 0;
+
+        processEvent(new ProctoringEvents.SnapshotCaptured(
+                (String) event.getOrDefault("eventType", "SNAPSHOT_CAPTURED"),
+                sessionId, candidateId, snapshotRef, tenantId,
+                (String) event.get("capturedAt"), imageSize));
+    }
+
+    private ProctoringEvents.SnapshotCaptured parseSnapshot(Object payload) {
+        if (payload == null) return null;
+        try {
+            if (payload instanceof ProctoringEvents.SnapshotCaptured sc) {
+                return sc;
+            }
+            if (payload instanceof Map<?, ?> map) {
+                return objectMapper.convertValue(map, ProctoringEvents.SnapshotCaptured.class);
+            }
+            if (payload instanceof Message amqpMsg) {
+                return objectMapper.readValue(amqpMsg.getBody(), ProctoringEvents.SnapshotCaptured.class);
+            }
+            if (payload instanceof byte[] bytes) {
+                return objectMapper.readValue(bytes, ProctoringEvents.SnapshotCaptured.class);
+            }
+            if (payload instanceof String s) {
+                return objectMapper.readValue(s, ProctoringEvents.SnapshotCaptured.class);
+            }
+            return objectMapper.convertValue(payload, ProctoringEvents.SnapshotCaptured.class);
+        } catch (Exception e) {
+            log.error("Failed to parse proctoring snapshot event: {}", e.getMessage());
+            return null;
+        }
+    }
+
     private void publishAuditEvent(String detectionType, String sessionId,
                                    String candidateId, String snapshotRef) {
         try {
-            Map<String, Object> auditEvent = new HashMap<>();
-            auditEvent.put("eventType", detectionType);
-            auditEvent.put("sessionId", sessionId);
-            auditEvent.put("candidateId", candidateId);
-            auditEvent.put("snapshotRef", snapshotRef);
-            auditEvent.put("source", "ai-proctoring-analysis");
-            auditEvent.put("confidence", 0.85 + random.nextDouble() * 0.15); // Stub confidence: 0.85–1.0
-            auditEvent.put("occurredAt", Instant.now().toString());
+            double confidence = 0.85 + random.nextDouble() * 0.15; // Stub confidence: 0.85–1.0
+            ProctoringEvents.AuditAlert auditEvent = ProctoringEvents.AuditAlert.of(
+                    detectionType, sessionId, candidateId, snapshotRef,
+                    "ai-proctoring-analysis", confidence
+            );
 
             eventPublisher.publish(AUDIT_TOPIC, sessionId, auditEvent);
             log.warn("AI proctoring alert: type={}, session={}, candidate={}",

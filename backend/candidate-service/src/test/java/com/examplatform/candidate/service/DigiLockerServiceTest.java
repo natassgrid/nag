@@ -21,6 +21,7 @@ package com.examplatform.candidate.service;
 
 import com.examplatform.candidate.client.DigiLockerClient;
 import com.examplatform.candidate.domain.CandidateProfile;
+import com.examplatform.candidate.dto.DigiLockerCallbackResult;
 import com.examplatform.candidate.dto.DigiLockerResponse;
 import com.examplatform.candidate.exception.ProfileNotFoundException;
 import com.examplatform.candidate.repository.CandidateProfileRepository;
@@ -114,9 +115,9 @@ class DigiLockerServiceTest {
             when(candidateProfileRepository.save(any(CandidateProfile.class)))
                     .thenReturn(profile);
 
-            Map<String, Object> result = digiLockerService.handleCallback("auth_code_123", state, null);
+            DigiLockerCallbackResult result = digiLockerService.handleCallback("auth_code_123", state, null);
 
-            assertThat(result.get("status")).isEqualTo("VERIFIED");
+            assertThat(result.status()).isEqualTo("VERIFIED");
             assertThat(profile.getDigiLockerVerified()).isEqualTo("VERIFIED");
             verify(candidateProfileRepository).save(profile);
         }
@@ -138,9 +139,9 @@ class DigiLockerServiceTest {
             when(candidateProfileRepository.save(any(CandidateProfile.class)))
                     .thenReturn(profile);
 
-            Map<String, Object> result = digiLockerService.handleCallback("auth_code_123", state, null);
+            DigiLockerCallbackResult result = digiLockerService.handleCallback("auth_code_123", state, null);
 
-            assertThat(result.get("status")).isEqualTo("FAILED");
+            assertThat(result.status()).isEqualTo("FAILED");
             assertThat(profile.getDigiLockerVerified()).isEqualTo("FAILED");
         }
 
@@ -155,9 +156,9 @@ class DigiLockerServiceTest {
             when(digiLockerClient.exchangeCodeForToken(anyString(), any()))
                     .thenReturn(Map.of()); // No access token
 
-            Map<String, Object> result = digiLockerService.handleCallback("auth_code_123", state, null);
+            DigiLockerCallbackResult result = digiLockerService.handleCallback("auth_code_123", state, null);
 
-            assertThat(result.get("status")).isEqualTo("FAILED");
+            assertThat(result.status()).isEqualTo("FAILED");
             assertThat(profile.getDigiLockerVerified()).isEqualTo("FAILED");
         }
     }
