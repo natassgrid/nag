@@ -26,12 +26,16 @@ import com.examplatform.candidate.exception.ProfileNotFoundException;
 import com.examplatform.candidate.repository.CandidateProfileRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.nio.charset.StandardCharsets;
+import java.util.Base64;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -39,15 +43,12 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-/**
- * Unit tests for DigiLockerService.
- *
- * Validates: Requirements 1.3
- */
 @ExtendWith(MockitoExtension.class)
+@DisplayName("DigiLockerService Unit Tests")
 class DigiLockerServiceTest {
 
     @Mock
@@ -69,6 +70,9 @@ class DigiLockerServiceTest {
         tenantId = "tenant-1";
         profile = CandidateProfile.builder()
                 .userId(userId)
+                .fullName("Aditya Sharma")
+                .dateOfBirth("1998-05-15")
+                .gender("Male")
                 .mobileHash("hash")
                 .identityDocHash("docHash")
                 .identityDocHmac("hmac")
@@ -76,71 +80,183 @@ class DigiLockerServiceTest {
         profile.setTenantId(tenantId);
     }
 
-    @Test
-    @DisplayName("Successful DigiLocker verification updates status to VERIFIED")
-    void verifyDocument_success_setsVerified() {
-        when(candidateProfileRepository.findByUserIdAndTenantId(userId, tenantId))
-                .thenReturn(Optional.of(profile));
-        when(digiLockerClient.fetchDocument(anyString(), anyString()))
-                .thenReturn(DigiLockerResponse.builder()
-                        .status("SUCCESS")
-                        .documentData("document-content-data")
-                        .issuerId("UIDAI")
-                        .build());
-        when(candidateProfileRepository.save(any(CandidateProfile.class)))
-                .thenReturn(profile);
+    @Nested
+    @DisplayName("1. OAuth2 Flow Tests")
+    class OAuth2FlowTests {
 
-        String result = digiLockerService.verifyDocument(userId, tenantId);
+        @Test
+        @DisplayName("initiateAuth returns authorization URL and state token")
+        void initiateAuth_returnsAuthUrlAndState() {
+            when(digiLockerClient.getAuthorizationUrl(anyString(), any()))
+                    .thenReturn("http://localhost:8099/digilocker/oauth/authorize?response_type=code&state=xyz");
 
-        assertThat(result).isEqualTo("VERIFIED");
-        assertThat(profile.getDigiLockerVerified()).isEqualTo("VERIFIED");
-        verify(candidateProfileRepository).save(profile);
+            Map<String, String> result = digiLockerService.initiateAuth(userId, tenantId, null);
+
+            assertThat(result).containsKey("authorizationUrl");
+            assertThat(result).containsKey("state");
+            assertThat(result.get("userId")).isEqualTo(userId.toString());
+        }
+
+        @Test
+        @DisplayName("handleCallback with matching profile sets status to VERIFIED")
+        void handleCallback_matchingProfile_setsVerified() {
+            String state = Base64.getUrlEncoder().withoutPadding().encodeToString(
+                    (userId + ":" + tenantId + ":nonce").getBytes(StandardCharsets.UTF_8));
+
+            when(candidateProfileRepository.findByUserIdAndTenantId(userId, tenantId))
+                    .thenReturn(Optional.of(profile));
+            when(digiLockerClient.exchangeCodeForToken(eq("auth_code_123"), any()))
+                    .thenReturn(Map.of("access_token", "test_access_token", "token_type", "Bearer"));
+            when(digiLockerClient.getUserInfo("test_access_token"))
+                    .thenReturn(Map.of("name", "Aditya Sharma", "dob", "1998-05-15", "gender", "M"));
+            when(digiLockerClient.fetchDocument("test_access_token", "AADHAAR"))
+                    .thenReturn(DigiLockerResponse.builder().status("SUCCESS").documentData("xml").issuerId("in.gov.uidai").build());
+            when(candidateProfileRepository.save(any(CandidateProfile.class)))
+                    .thenReturn(profile);
+
+            Map<String, Object> result = digiLockerService.handleCallback("auth_code_123", state, null);
+
+            assertThat(result.get("status")).isEqualTo("VERIFIED");
+            assertThat(profile.getDigiLockerVerified()).isEqualTo("VERIFIED");
+            verify(candidateProfileRepository).save(profile);
+        }
+
+        @Test
+        @DisplayName("handleCallback with mismatched name sets status to FAILED")
+        void handleCallback_mismatchedName_setsFailed() {
+            String state = Base64.getUrlEncoder().withoutPadding().encodeToString(
+                    (userId + ":" + tenantId + ":nonce").getBytes(StandardCharsets.UTF_8));
+
+            when(candidateProfileRepository.findByUserIdAndTenantId(userId, tenantId))
+                    .thenReturn(Optional.of(profile));
+            when(digiLockerClient.exchangeCodeForToken(eq("auth_code_123"), any()))
+                    .thenReturn(Map.of("access_token", "test_access_token"));
+            when(digiLockerClient.getUserInfo("test_access_token"))
+                    .thenReturn(Map.of("name", "Completely Different Person", "dob", "1998-05-15"));
+            when(digiLockerClient.fetchDocument("test_access_token", "AADHAAR"))
+                    .thenReturn(DigiLockerResponse.builder().status("SUCCESS").documentData("xml").issuerId("in.gov.uidai").build());
+            when(candidateProfileRepository.save(any(CandidateProfile.class)))
+                    .thenReturn(profile);
+
+            Map<String, Object> result = digiLockerService.handleCallback("auth_code_123", state, null);
+
+            assertThat(result.get("status")).isEqualTo("FAILED");
+            assertThat(profile.getDigiLockerVerified()).isEqualTo("FAILED");
+        }
+
+        @Test
+        @DisplayName("handleCallback with missing access token returns FAILED")
+        void handleCallback_missingToken_returnsFailed() {
+            String state = Base64.getUrlEncoder().withoutPadding().encodeToString(
+                    (userId + ":" + tenantId + ":nonce").getBytes(StandardCharsets.UTF_8));
+
+            when(candidateProfileRepository.findByUserIdAndTenantId(userId, tenantId))
+                    .thenReturn(Optional.of(profile));
+            when(digiLockerClient.exchangeCodeForToken(anyString(), any()))
+                    .thenReturn(Map.of()); // No access token
+
+            Map<String, Object> result = digiLockerService.handleCallback("auth_code_123", state, null);
+
+            assertThat(result.get("status")).isEqualTo("FAILED");
+            assertThat(profile.getDigiLockerVerified()).isEqualTo("FAILED");
+        }
     }
 
-    @Test
-    @DisplayName("Failed DigiLocker verification sets status to FAILED")
-    void verifyDocument_failure_setsFailed() {
-        when(candidateProfileRepository.findByUserIdAndTenantId(userId, tenantId))
-                .thenReturn(Optional.of(profile));
-        when(digiLockerClient.fetchDocument(anyString(), anyString()))
-                .thenReturn(DigiLockerResponse.builder()
-                        .status("FAILURE")
-                        .documentData(null)
-                        .issuerId(null)
-                        .build());
-        when(candidateProfileRepository.save(any(CandidateProfile.class)))
-                .thenReturn(profile);
+    @Nested
+    @DisplayName("2. Direct Document Verification Tests")
+    class DocumentVerificationTests {
 
-        String result = digiLockerService.verifyDocument(userId, tenantId);
+        @Test
+        @DisplayName("Successful DigiLocker verification updates status to VERIFIED")
+        void verifyDocument_success_setsVerified() {
+            when(candidateProfileRepository.findByUserIdAndTenantId(userId, tenantId))
+                    .thenReturn(Optional.of(profile));
+            when(digiLockerClient.fetchDocument(anyString(), anyString()))
+                    .thenReturn(DigiLockerResponse.builder()
+                            .status("SUCCESS")
+                            .documentData("document-content-data")
+                            .issuerId("UIDAI")
+                            .build());
+            when(digiLockerClient.getUserInfo(anyString()))
+                    .thenReturn(Map.of("name", "Aditya Sharma", "dob", "1998-05-15"));
+            when(candidateProfileRepository.save(any(CandidateProfile.class)))
+                    .thenReturn(profile);
 
-        assertThat(result).isEqualTo("FAILED");
-        assertThat(profile.getDigiLockerVerified()).isEqualTo("FAILED");
-        verify(candidateProfileRepository).save(profile);
+            String result = digiLockerService.verifyDocument(userId, tenantId);
+
+            assertThat(result).isEqualTo("VERIFIED");
+            assertThat(profile.getDigiLockerVerified()).isEqualTo("VERIFIED");
+            verify(candidateProfileRepository).save(profile);
+        }
+
+        @Test
+        @DisplayName("Failed DigiLocker verification sets status to FAILED")
+        void verifyDocument_failure_setsFailed() {
+            when(candidateProfileRepository.findByUserIdAndTenantId(userId, tenantId))
+                    .thenReturn(Optional.of(profile));
+            when(digiLockerClient.fetchDocument(anyString(), anyString()))
+                    .thenReturn(DigiLockerResponse.builder()
+                            .status("FAILURE")
+                            .documentData(null)
+                            .issuerId(null)
+                            .build());
+            when(candidateProfileRepository.save(any(CandidateProfile.class)))
+                    .thenReturn(profile);
+
+            String result = digiLockerService.verifyDocument(userId, tenantId);
+
+            assertThat(result).isEqualTo("FAILED");
+            assertThat(profile.getDigiLockerVerified()).isEqualTo("FAILED");
+            verify(candidateProfileRepository).save(profile);
+        }
+
+        @Test
+        @DisplayName("DigiLocker API exception sets status to FAILED")
+        void verifyDocument_exception_setsFailed() {
+            when(candidateProfileRepository.findByUserIdAndTenantId(userId, tenantId))
+                    .thenReturn(Optional.of(profile));
+            when(digiLockerClient.fetchDocument(anyString(), anyString()))
+                    .thenThrow(new RuntimeException("API timeout"));
+            when(candidateProfileRepository.save(any(CandidateProfile.class)))
+                    .thenReturn(profile);
+
+            String result = digiLockerService.verifyDocument(userId, tenantId);
+
+            assertThat(result).isEqualTo("FAILED");
+            assertThat(profile.getDigiLockerVerified()).isEqualTo("FAILED");
+        }
+
+        @Test
+        @DisplayName("Profile not found throws ProfileNotFoundException")
+        void verifyDocument_profileNotFound_throwsException() {
+            when(candidateProfileRepository.findByUserIdAndTenantId(userId, tenantId))
+                    .thenReturn(Optional.empty());
+
+            assertThatThrownBy(() -> digiLockerService.verifyDocument(userId, tenantId))
+                    .isInstanceOf(ProfileNotFoundException.class);
+        }
     }
 
-    @Test
-    @DisplayName("DigiLocker API exception sets status to FAILED")
-    void verifyDocument_exception_setsFailed() {
-        when(candidateProfileRepository.findByUserIdAndTenantId(userId, tenantId))
-                .thenReturn(Optional.of(profile));
-        when(digiLockerClient.fetchDocument(anyString(), anyString()))
-                .thenThrow(new RuntimeException("API timeout"));
-        when(candidateProfileRepository.save(any(CandidateProfile.class)))
-                .thenReturn(profile);
+    @Nested
+    @DisplayName("3. Matching Logic Unit Tests")
+    class MatchingLogicTests {
 
-        String result = digiLockerService.verifyDocument(userId, tenantId);
+        @Test
+        @DisplayName("Matches case-insensitive name and token subsets")
+        void isNameMatching_matchesVariants() {
+            assertThat(digiLockerService.isNameMatching("Aditya Sharma", "ADITYA SHARMA")).isTrue();
+            assertThat(digiLockerService.isNameMatching("Aditya Kumar Sharma", "Aditya Sharma")).isTrue();
+            assertThat(digiLockerService.isNameMatching("Priya Patel", "Priya")).isTrue();
+            assertThat(digiLockerService.isNameMatching("Aditya Sharma", "Rahul Verma")).isFalse();
+        }
 
-        assertThat(result).isEqualTo("FAILED");
-        assertThat(profile.getDigiLockerVerified()).isEqualTo("FAILED");
-    }
-
-    @Test
-    @DisplayName("Profile not found throws ProfileNotFoundException")
-    void verifyDocument_profileNotFound_throwsException() {
-        when(candidateProfileRepository.findByUserIdAndTenantId(userId, tenantId))
-                .thenReturn(Optional.empty());
-
-        assertThatThrownBy(() -> digiLockerService.verifyDocument(userId, tenantId))
-                .isInstanceOf(ProfileNotFoundException.class);
+        @Test
+        @DisplayName("Matches date of birth across standard formats")
+        void isDobMatching_matchesFormats() {
+            assertThat(digiLockerService.isDobMatching("1998-05-15", "1998-05-15")).isTrue();
+            assertThat(digiLockerService.isDobMatching("1998-05-15", "15/05/1998")).isTrue();
+            assertThat(digiLockerService.isDobMatching("1998-05-15", "15-05-1998")).isTrue();
+            assertThat(digiLockerService.isDobMatching("1998-05-15", "2000-01-01")).isFalse();
+        }
     }
 }

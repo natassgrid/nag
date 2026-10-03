@@ -47,6 +47,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
@@ -54,9 +55,9 @@ import java.util.Map;
 import java.util.UUID;
 
 /**
- * REST controller for candidate profile CRUD, educational details, and DPDP erasure operations.
+ * REST controller for candidate profile CRUD, educational details, DigiLocker OAuth2 verification, and DPDP erasure operations.
  *
- * Validates: Requirements 1.6, 25.2
+ * Validates: Requirements 1.3, 1.6, 25.2
  */
 @Slf4j
 @RestController
@@ -225,6 +226,62 @@ public class CandidateProfileController {
     }
 
     /**
+     * Initiates DigiLocker OAuth2 authorization flow.
+     * Returns authorization URL and state token.
+     *
+     * Validates: Requirements 1.3
+     */
+    @GetMapping({"/digilocker/auth", "/{userId}/digilocker/auth"})
+    @PreAuthorize("hasRole('CANDIDATE')")
+    public ResponseEntity<Map<String, String>> initiateDigiLockerAuth(
+            @PathVariable(required = false) UUID userId,
+            @RequestParam(required = false) String redirectUri,
+            @AuthenticationPrincipal Jwt jwt) {
+        UUID effectiveUserId = userId;
+        if (effectiveUserId == null && jwt != null && jwt.getSubject() != null) {
+            try {
+                effectiveUserId = UUID.fromString(jwt.getSubject());
+            } catch (IllegalArgumentException ignored) {}
+        }
+        if (effectiveUserId == null) {
+            throw new AccessDeniedException("User ID is required");
+        }
+        enforceOwnership(effectiveUserId, jwt);
+        String tenantId = getTenantId();
+        Map<String, String> authInfo = digiLockerService.initiateAuth(effectiveUserId, tenantId, redirectUri);
+        return ResponseEntity.ok(authInfo);
+    }
+
+    /**
+     * Handles DigiLocker OAuth2 callback with authorization code.
+     *
+     * Validates: Requirements 1.3
+     */
+    @GetMapping("/digilocker/callback")
+    public ResponseEntity<Map<String, Object>> handleDigiLockerCallbackGet(
+            @RequestParam String code,
+            @RequestParam(required = false) String state,
+            @RequestParam(required = false) String redirectUri) {
+        Map<String, Object> result = digiLockerService.handleCallback(code, state, redirectUri);
+        return ResponseEntity.ok(result);
+    }
+
+    /**
+     * Handles DigiLocker OAuth2 callback with authorization code via POST.
+     *
+     * Validates: Requirements 1.3
+     */
+    @PostMapping("/digilocker/callback")
+    public ResponseEntity<Map<String, Object>> handleDigiLockerCallbackPost(
+            @RequestBody Map<String, String> body) {
+        String code = body != null ? body.get("code") : "";
+        String state = body != null ? body.get("state") : "";
+        String redirectUri = body != null ? body.get("redirectUri") : null;
+        Map<String, Object> result = digiLockerService.handleCallback(code, state, redirectUri);
+        return ResponseEntity.ok(result);
+    }
+
+    /**
      * Verify candidate identity document via DigiLocker. Requires CANDIDATE role.
      *
      * Validates: Requirements 1.3
@@ -233,10 +290,12 @@ public class CandidateProfileController {
     @PreAuthorize("hasRole('CANDIDATE')")
     public ResponseEntity<Map<String, String>> verifyDigiLocker(
             @PathVariable UUID userId,
+            @RequestBody(required = false) Map<String, String> body,
             @AuthenticationPrincipal Jwt jwt) {
         enforceOwnership(userId, jwt);
         String tenantId = getTenantId();
-        String status = digiLockerService.verifyDocument(userId, tenantId);
+        String token = (body != null && body.containsKey("token")) ? body.get("token") : null;
+        String status = digiLockerService.verifyDocument(userId, token, tenantId);
         return ResponseEntity.ok(Map.of("status", status));
     }
 
@@ -261,7 +320,7 @@ public class CandidateProfileController {
         return TenantContext.get() != null ? TenantContext.get() : "default";
     }
 
-    // ── Private helpers ──────────────────────────────────────────────────────
+    // ── Private helpers ──────────────────────────────────────────────────────────
 
     private void enforceOwnership(UUID userId, Jwt jwt) {
         if (jwt == null) return;
