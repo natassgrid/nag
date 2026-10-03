@@ -1,4 +1,195 @@
 import { Route } from '@angular/router';
 import { authGuard, rootGuard } from '@nag-frontend-workspace/shared-data-access-auth';
 
-export const appRoutes: Route[] = [\n  {\n    path: '',\n    pathMatch: 'full',\n    canActivate: [rootGuard],\n    loadComponent: () =>\n      import('./auth/admin-login.component').then((m) => m.AdminLoginComponent),\n  },\n  {\n    path: 'login',\n    loadComponent: () =>\n      import('./auth/admin-login.component').then((m) => m.AdminLoginComponent),\n  },\n  {\n    path: 'auth/accept-invite',\n    loadComponent: () =>\n      import('./auth/accept-invite/accept-invite.component').then(\n        (m) => m.AcceptInviteComponent\n      ),\n  },\n  {\n    path: 'accept-invite',\n    loadComponent: () =>\n      import('./auth/accept-invite/accept-invite.component').then(\n        (m) => m.AcceptInviteComponent\n      ),\n  },\n  {\n    path: 'dashboard',\n    canActivate: [authGuard],\n    loadComponent: () =>\n      import('./dashboard/admin-dashboard.component').then(\n        (m) => m.AdminDashboardComponent\n      ),\n  },\n  {\n    path: 'questions',\n    canActivate: [authGuard],\n    loadComponent: () =>\n      import('@nag-frontend-workspace/questions-feature-bank').then(\n        (m) => m.QuestionsFeatureBank\n      ),\n  },\n  {\n    path: 'questions/authoring',\n    canActivate: [authGuard],\n    loadComponent: () =>\n      import('@nag-frontend-workspace/questions-feature-authoring').then(\n        (m) => m.QuestionsFeatureAuthoring\n      ),\n  },\n  {\n    path: 'questions/taxonomy',\n    canActivate: [authGuard],\n    loadComponent: () =>\n      import('./questions/taxonomy/admin-subject-management.component').then(\n        (m) => m.AdminSubjectManagementComponent\n      ),\n  },\n  {\n    path: 'questions/subjects',\n    redirectTo: 'questions/taxonomy',\n    pathMatch: 'full',\n  },\n  {\n    path: 'questions/ai-generate',\n    canActivate: [authGuard],\n    loadComponent: () =>\n      import('./questions/ai-generation/admin-ai-question-generation.component').then(\n        (m) => m.AdminAiQuestionGenerationComponent\n      ),\n  },\n  {\n    path: 'questions/blueprints',\n    canActivate: [authGuard],\n    loadComponent: () =>\n      import('./questions/blueprints/admin-blueprint-management.component').then(\n        (m) => m.AdminBlueprintManagementComponent\n      ),\n  },\n  {\n    path: 'questions/translations',\n    canActivate: [authGuard],\n    loadComponent: () =>\n      import('./questions/translations/admin-question-translation.component').then(\n        (m) => m.AdminQuestionTranslationComponent\n      ),\n  },\n  {\n    path: 'assets',\n    canActivate: [authGuard],\n    loadComponent: () =>\n      import('./assets/admin-assets.component').then(\n        (m) => m.AdminAssetsComponent\n      ),\n  },\n  {\n    path: 'examinations',\n    canActivate: [authGuard],\n    loadComponent: () =>\n      import('./examinations/exams/admin-exam-management.component').then(\n        (m) => m.AdminExamManagementComponent\n      ),\n  },\n  {\n    path: 'examinations/scheduling',\n    canActivate: [authGuard],\n    loadComponent: () =>\n      import('@nag-frontend-workspace/examinations-feature-scheduling').then(\n        (m) => m.ExaminationsFeatureScheduling\n      ),\n  },\n  {\n    path: 'examinations/centres',\n    canActivate: [authGuard],\n    loadComponent: () =>\n      import('./examinations/centres/admin-centre-management.component').then(\n        (m) => m.AdminCentreManagementComponent\n      ),\n  },\n  {\n    path: 'examinations/centers',\n    redirectTo: 'examinations/centres',\n    pathMatch: 'full',\n  },\n  {\n    path: 'examinations/paper-gen',\n    canActivate: [authGuard],\n    loadComponent: () =>\n      import('@nag-frontend-workspace/examinations-feature-paper-gen').then(\n        (m) => m.ExaminationsFeaturePaperGen\n      ),\n  },\n  {\n    path: 'evaluation/grading',\n    canActivate: [authGuard],\n    loadComponent: () =>\n      import('@nag-frontend-workspace/evaluation-feature-grading').then(\n        (m) => m.EvaluationFeatureGrading\n      ),\n  },\n  {\n    path: 'users',\n    canActivate: [authGuard],\n    loadComponent: () =>\n      import('./users/admin-user-management.component').then(\n        (m) => m.AdminUserManagementComponent\n      ),\n  },\n  {\n    path: 'profile',\n    canActivate: [authGuard],\n    loadComponent: () =>\n      import('./profile/admin-profile.component').then(\n        (m) => m.AdminProfileComponent\n      ),\n  },\n  {\n    path: 'reports',\n    canActivate: [authGuard],\n    loadComponent: () =>\n      import('./reports/admin-reports.component').then(\n        (m) => m.AdminReportsComponent\n      ),\n  },\n  {\n    path: 'audit',\n    canActivate: [authGuard],\n    loadComponent: () =>\n      import('./audit/admin-audit-log.component').then(\n        (m) => m.AdminAuditLogComponent\n      ),\n  },\n  {\n    path: 'settings',\n    canActivate: [authGuard],\n    loadComponent: () =>\n      import('./settings/admin-settings.component').then(\n        (m) => m.AdminSettingsComponent\n      ),\n  },\n  {\n    path: 'learning',\n    canActivate: [authGuard],\n    loadComponent: () =>\n      import('./learning/learning.component').then((m) => m.LearningComponent)\n  },\n  {\n    path: '**',\n    redirectTo: '',\n  },\n];\n
+export const appRoutes: Route[] = [
+  {
+    path: '',
+    pathMatch: 'full',
+    canActivate: [rootGuard],
+    loadComponent: () =>
+      import('./auth/admin-login.component').then((m) => m.AdminLoginComponent),
+  },
+  {
+    path: 'login',
+    loadComponent: () =>
+      import('./auth/admin-login.component').then((m) => m.AdminLoginComponent),
+  },
+  {
+    path: 'auth/accept-invite',
+    loadComponent: () =>
+      import('./auth/accept-invite/accept-invite.component').then(
+        (m) => m.AcceptInviteComponent
+      ),
+  },
+  {
+    path: 'accept-invite',
+    loadComponent: () =>
+      import('./auth/accept-invite/accept-invite.component').then(
+        (m) => m.AcceptInviteComponent
+      ),
+  },
+  {
+    path: 'dashboard',
+    canActivate: [authGuard],
+    loadComponent: () =>
+      import('./dashboard/admin-dashboard.component').then(
+        (m) => m.AdminDashboardComponent
+      ),
+  },
+  {
+    path: 'questions',
+    canActivate: [authGuard],
+    loadComponent: () =>
+      import('@nag-frontend-workspace/questions-feature-bank').then(
+        (m) => m.QuestionsFeatureBank
+      ),
+  },
+  {
+    path: 'questions/authoring',
+    canActivate: [authGuard],
+    loadComponent: () =>
+      import('@nag-frontend-workspace/questions-feature-authoring').then(
+        (m) => m.QuestionsFeatureAuthoring
+      ),
+  },
+  {
+    path: 'questions/taxonomy',
+    canActivate: [authGuard],
+    loadComponent: () =>
+      import('./questions/taxonomy/admin-subject-management.component').then(
+        (m) => m.AdminSubjectManagementComponent
+      ),
+  },
+  {
+    path: 'questions/subjects',
+    redirectTo: 'questions/taxonomy',
+    pathMatch: 'full',
+  },
+  {
+    path: 'questions/ai-generate',
+    canActivate: [authGuard],
+    loadComponent: () =>
+      import('./questions/ai-generation/admin-ai-question-generation.component').then(
+        (m) => m.AdminAiQuestionGenerationComponent
+      ),
+  },
+  {
+    path: 'questions/blueprints',
+    canActivate: [authGuard],
+    loadComponent: () =>
+      import('./questions/blueprints/admin-blueprint-management.component').then(
+        (m) => m.AdminBlueprintManagementComponent
+      ),
+  },
+  {
+    path: 'questions/translations',
+    canActivate: [authGuard],
+    loadComponent: () =>
+      import('./questions/translations/admin-question-translation.component').then(
+        (m) => m.AdminQuestionTranslationComponent
+      ),
+  },
+  {
+    path: 'assets',
+    canActivate: [authGuard],
+    loadComponent: () =>
+      import('./assets/admin-assets.component').then(
+        (m) => m.AdminAssetsComponent
+      ),
+  },
+  {
+    path: 'examinations',
+    canActivate: [authGuard],
+    loadComponent: () =>
+      import('./examinations/exams/admin-exam-management.component').then(
+        (m) => m.AdminExamManagementComponent
+      ),
+  },
+  {
+    path: 'examinations/scheduling',
+    canActivate: [authGuard],
+    loadComponent: () =>
+      import('@nag-frontend-workspace/examinations-feature-scheduling').then(
+        (m) => m.ExaminationsFeatureScheduling
+      ),
+  },
+  {
+    path: 'examinations/centres',
+    canActivate: [authGuard],
+    loadComponent: () =>
+      import('./examinations/centres/admin-centre-management.component').then(
+        (m) => m.AdminCentreManagementComponent
+      ),
+  },
+  {
+    path: 'examinations/centers',
+    redirectTo: 'examinations/centres',
+    pathMatch: 'full',
+  },
+  {
+    path: 'examinations/paper-gen',
+    canActivate: [authGuard],
+    loadComponent: () =>
+      import('@nag-frontend-workspace/examinations-feature-paper-gen').then(
+        (m) => m.ExaminationsFeaturePaperGen
+      ),
+  },
+  {
+    path: 'evaluation/grading',
+    canActivate: [authGuard],
+    loadComponent: () =>
+      import('@nag-frontend-workspace/evaluation-feature-grading').then(
+        (m) => m.EvaluationFeatureGrading
+      ),
+  },
+  {
+    path: 'users',
+    canActivate: [authGuard],
+    loadComponent: () =>
+      import('./users/admin-user-management.component').then(
+        (m) => m.AdminUserManagementComponent
+      ),
+  },
+  {
+    path: 'profile',
+    canActivate: [authGuard],
+    loadComponent: () =>
+      import('./profile/admin-profile.component').then(
+        (m) => m.AdminProfileComponent
+      ),
+  },
+  {
+    path: 'reports',
+    canActivate: [authGuard],
+    loadComponent: () =>
+      import('./reports/admin-reports.component').then(
+        (m) => m.AdminReportsComponent
+      ),
+  },
+  {
+    path: 'audit',
+    canActivate: [authGuard],
+    loadComponent: () =>
+      import('./audit/admin-audit-log.component').then(
+        (m) => m.AdminAuditLogComponent
+      ),
+  },
+  {
+    path: 'settings',
+    canActivate: [authGuard],
+    loadComponent: () =>
+      import('./settings/admin-settings.component').then(
+        (m) => m.AdminSettingsComponent
+      ),
+  },
+  {
+    path: 'learning',
+    canActivate: [authGuard],
+    loadComponent: () =>
+      import('./learning/learning.component').then((m) => m.LearningComponent),
+  },
+  {
+    path: '**',
+    redirectTo: '',
+  },
+];
