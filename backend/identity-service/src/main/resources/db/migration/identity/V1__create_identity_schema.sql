@@ -32,9 +32,23 @@ CREATE TABLE IF NOT EXISTS identity_service.user_account (
     last_failed_at      TIMESTAMP,
     locked_at           TIMESTAMP,
     keycloak_user_id    VARCHAR(255),
+    full_name           VARCHAR(255),
+    email               VARCHAR(255),
+    phone_number        VARCHAR(50),
+    department          VARCHAR(255),
+    designation         VARCHAR(150),
+    avatar_url          VARCHAR(500),
+    timezone            VARCHAR(100) DEFAULT 'Asia/Kolkata',
+    date_format         VARCHAR(50) DEFAULT 'DD/MM/YYYY',
+    time_format         VARCHAR(20) DEFAULT '24h',
+    preferred_language  VARCHAR(50) DEFAULT 'en',
+    theme_preference    VARCHAR(30) DEFAULT 'system',
     created_at          TIMESTAMP NOT NULL DEFAULT NOW(),
     updated_at          TIMESTAMP NOT NULL DEFAULT NOW(),
-    version             BIGINT NOT NULL DEFAULT 0
+    version             BIGINT NOT NULL DEFAULT 0,
+    CONSTRAINT uq_user_account_tenant_username UNIQUE (tenant_id, username),
+    CONSTRAINT uq_user_account_tenant_email_hash UNIQUE (tenant_id, email_hash),
+    CONSTRAINT uq_user_account_tenant_mobile_hash UNIQUE (tenant_id, mobile_hash)
 );
 
 CREATE INDEX IF NOT EXISTS idx_user_account_tenant_id ON identity_service.user_account(tenant_id);
@@ -49,7 +63,7 @@ CREATE INDEX IF NOT EXISTS idx_user_account_specialization ON identity_service.u
 CREATE TABLE IF NOT EXISTS identity_service.otp_verification (
     id                  UUID PRIMARY KEY,
     tenant_id           VARCHAR(255) NOT NULL,
-    user_id             UUID,
+    user_id             UUID REFERENCES identity_service.user_account(id) ON DELETE CASCADE,
     mobile_hash         VARCHAR(255) NOT NULL,
     email_hash          VARCHAR(255),
     target_destination  VARCHAR(255),
@@ -69,6 +83,9 @@ CREATE INDEX IF NOT EXISTS idx_otp_verification_user_id ON identity_service.otp_
 CREATE INDEX IF NOT EXISTS idx_otp_verification_user_type ON identity_service.otp_verification(user_id, otp_type);
 CREATE INDEX IF NOT EXISTS idx_otp_verification_email_hash ON identity_service.otp_verification(email_hash);
 CREATE INDEX IF NOT EXISTS idx_otp_verification_created_channel ON identity_service.otp_verification(user_id, channel, created_at);
+CREATE INDEX IF NOT EXISTS idx_otp_verification_tenant_mobile_verified_exp ON identity_service.otp_verification(tenant_id, mobile_hash, verified, expires_at DESC);
+CREATE INDEX IF NOT EXISTS idx_otp_verification_tenant_email_verified_exp ON identity_service.otp_verification(tenant_id, email_hash, verified, expires_at DESC);
+CREATE INDEX IF NOT EXISTS idx_otp_verification_tenant_user ON identity_service.otp_verification(tenant_id, user_id);
 
 -- ============================================================
 -- Table: admin_invitation
@@ -101,17 +118,19 @@ CREATE INDEX IF NOT EXISTS idx_admin_invitation_status ON identity_service.admin
 CREATE TABLE IF NOT EXISTS identity_service.user_role_assignment (
     id          UUID PRIMARY KEY,
     tenant_id   VARCHAR(255) NOT NULL,
-    user_id     UUID NOT NULL,
+    user_id     UUID NOT NULL REFERENCES identity_service.user_account(id) ON DELETE CASCADE,
     role        VARCHAR(50) NOT NULL,
     assigned_by UUID,
     assigned_at TIMESTAMP,
     created_at  TIMESTAMP NOT NULL DEFAULT NOW(),
     updated_at  TIMESTAMP NOT NULL DEFAULT NOW(),
-    version     BIGINT NOT NULL DEFAULT 0
+    version     BIGINT NOT NULL DEFAULT 0,
+    CONSTRAINT uq_user_role_assignment_tenant_user_role UNIQUE (tenant_id, user_id, role)
 );
 
 CREATE INDEX IF NOT EXISTS idx_user_role_assignment_tenant_id ON identity_service.user_role_assignment(tenant_id);
 CREATE INDEX IF NOT EXISTS idx_user_role_assignment_user_id ON identity_service.user_role_assignment(user_id);
+CREATE INDEX IF NOT EXISTS idx_user_role_assignment_tenant_user ON identity_service.user_role_assignment(tenant_id, user_id);
 
 -- ============================================================
 -- Table: webauthn_credential
@@ -119,7 +138,7 @@ CREATE INDEX IF NOT EXISTS idx_user_role_assignment_user_id ON identity_service.
 CREATE TABLE IF NOT EXISTS identity_service.webauthn_credential (
     id              UUID PRIMARY KEY,
     tenant_id       VARCHAR(255) NOT NULL,
-    user_id         UUID NOT NULL,
+    user_id         UUID NOT NULL REFERENCES identity_service.user_account(id) ON DELETE CASCADE,
     credential_id   VARCHAR(255) NOT NULL UNIQUE,
     public_key_cose BYTEA,
     sign_count      BIGINT NOT NULL DEFAULT 0,
@@ -131,6 +150,7 @@ CREATE TABLE IF NOT EXISTS identity_service.webauthn_credential (
 
 CREATE INDEX IF NOT EXISTS idx_webauthn_credential_tenant_id ON identity_service.webauthn_credential(tenant_id);
 CREATE INDEX IF NOT EXISTS idx_webauthn_credential_user_id ON identity_service.webauthn_credential(user_id);
+CREATE INDEX IF NOT EXISTS idx_webauthn_credential_tenant_user ON identity_service.webauthn_credential(tenant_id, user_id);
 
 -- ============================================================
 -- Table: active_session
@@ -138,7 +158,7 @@ CREATE INDEX IF NOT EXISTS idx_webauthn_credential_user_id ON identity_service.w
 CREATE TABLE IF NOT EXISTS identity_service.active_session (
     id            UUID PRIMARY KEY,
     tenant_id     VARCHAR(255) NOT NULL,
-    user_id       UUID NOT NULL,
+    user_id       UUID NOT NULL REFERENCES identity_service.user_account(id) ON DELETE CASCADE,
     session_token VARCHAR(512) NOT NULL,
     device_fp     VARCHAR(512),
     ip_address    VARCHAR(255),
@@ -151,6 +171,8 @@ CREATE TABLE IF NOT EXISTS identity_service.active_session (
 CREATE INDEX IF NOT EXISTS idx_active_session_tenant_id ON identity_service.active_session(tenant_id);
 CREATE INDEX IF NOT EXISTS idx_active_session_user_id ON identity_service.active_session(user_id);
 CREATE INDEX IF NOT EXISTS idx_active_session_expires_at ON identity_service.active_session(expires_at);
+CREATE INDEX IF NOT EXISTS idx_active_session_tenant_token ON identity_service.active_session(tenant_id, session_token);
+CREATE INDEX IF NOT EXISTS idx_active_session_tenant_user ON identity_service.active_session(tenant_id, user_id);
 
 -- ============================================================
 -- Table: role_definition
@@ -204,8 +226,8 @@ CREATE INDEX IF NOT EXISTS idx_permission_module
 -- Maps roles to their permissions.
 -- ============================================================
 CREATE TABLE IF NOT EXISTS identity_service.role_permission (
-    id            UUID PRIMARY KEY,
-    tenant_id     VARCHAR(255) NOT NULL,
+    id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    tenant_id     VARCHAR(255) NOT NULL DEFAULT 'default',
     role_id       UUID NOT NULL REFERENCES identity_service.role_definition(id) ON DELETE CASCADE,
     permission_id UUID NOT NULL REFERENCES identity_service.permission(id) ON DELETE CASCADE,
     created_at    TIMESTAMP NOT NULL DEFAULT NOW(),
@@ -219,6 +241,29 @@ CREATE INDEX IF NOT EXISTS idx_role_permission_role_id
     ON identity_service.role_permission(role_id);
 CREATE INDEX IF NOT EXISTS idx_role_permission_permission_id
     ON identity_service.role_permission(permission_id);
+
+-- ============================================================
+-- Table: personal_access_token
+-- ============================================================
+CREATE TABLE IF NOT EXISTS identity_service.personal_access_token (
+    id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id       UUID NOT NULL,
+    name          VARCHAR(150) NOT NULL,
+    token_hash    VARCHAR(64) NOT NULL,
+    token_prefix  VARCHAR(16) NOT NULL,
+    scopes        VARCHAR(500) NOT NULL,
+    ip_whitelist  VARCHAR(255),
+    expires_at    TIMESTAMP WITH TIME ZONE,
+    last_used_at  TIMESTAMP WITH TIME ZONE,
+    revoked       BOOLEAN NOT NULL DEFAULT FALSE,
+    tenant_id     VARCHAR(50) NOT NULL DEFAULT 'default',
+    version       BIGINT NOT NULL DEFAULT 0,
+    created_at    TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at    TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_pat_user_tenant ON identity_service.personal_access_token (user_id, tenant_id);
+CREATE INDEX IF NOT EXISTS idx_pat_token_hash ON identity_service.personal_access_token (token_hash);
 
 -- ============================================================
 -- Seed system roles (matching existing UserRole enum values)
