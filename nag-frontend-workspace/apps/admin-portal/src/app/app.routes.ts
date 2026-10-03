@@ -137,6 +137,14 @@ export const appRoutes: Route[] = [
       ),
   },
   {
+    path: 'profile',
+    canActivate: [authGuard],
+    loadComponent: () =>
+      import('./profile/admin-profile.component').then(
+        (m) => m.AdminProfileComponent
+      ),
+  },
+  {
     path: 'reports',
     canActivate: [authGuard],
     loadComponent: () =>

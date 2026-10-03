@@ -19,6 +19,8 @@
 
 package com.examplatform.identity.controller;
 
+import com.examplatform.identity.dto.ActiveSessionResponse;
+import com.examplatform.identity.dto.AdminUpdateUserRequest;
 import com.examplatform.identity.dto.AuthTokenRequest;
 import com.examplatform.identity.dto.AuthTokenResponse;
 import com.examplatform.identity.dto.ChangePasswordRequest;
@@ -55,6 +57,7 @@ import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -93,6 +96,63 @@ public class IdentityController {
         log.debug("List users request received for tenant [{}]", tenantId);
         List<UserAccountResponse> users = roleManagementService.listAllUsers(tenantId);
         return ResponseEntity.ok(ApiResponse.success(users, "Users retrieved successfully."));
+    }
+
+    /**
+     * Get the profile of the currently authenticated user.
+     */
+    @GetMapping("/users/me")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<ApiResponse<UserAccountResponse>> getCurrentUserProfile(
+            @AuthenticationPrincipal Jwt jwt,
+            @RequestHeader(value = "X-Tenant-Id", defaultValue = "default") String tenantId) {
+        String userIdStr = jwt != null ? jwt.getSubject() : "user-unknown";
+        log.debug("Get current user profile request for userId [{}], tenant [{}]", userIdStr, tenantId);
+        UserAccountResponse profile = roleManagementService.getUserProfile(userIdStr, tenantId);
+        return ResponseEntity.ok(ApiResponse.success(profile, "User profile retrieved successfully."));
+    }
+
+    /**
+     * Update editable profile details for the authenticated user.
+     */
+    @PutMapping("/users/me")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<ApiResponse<UserAccountResponse>> updateCurrentUserProfile(
+            @Valid @RequestBody AdminUpdateUserRequest request,
+            @AuthenticationPrincipal Jwt jwt,
+            @RequestHeader(value = "X-Tenant-Id", defaultValue = "default") String tenantId) {
+        String userIdStr = jwt != null ? jwt.getSubject() : "user-unknown";
+        log.debug("Update current user profile request for userId [{}], tenant [{}]", userIdStr, tenantId);
+        UserAccountResponse updated = roleManagementService.updateUserProfile(userIdStr, request, tenantId);
+        return ResponseEntity.ok(ApiResponse.success(updated, "Profile updated successfully."));
+    }
+
+    /**
+     * Get active sessions for the authenticated user.
+     */
+    @GetMapping("/users/sessions")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<ApiResponse<List<ActiveSessionResponse>>> getActiveSessions(
+            @AuthenticationPrincipal Jwt jwt,
+            @RequestHeader(value = "X-Tenant-Id", defaultValue = "default") String tenantId) {
+        String userIdStr = jwt != null ? jwt.getSubject() : "user-unknown";
+        log.debug("Get active sessions request for userId [{}], tenant [{}]", userIdStr, tenantId);
+        List<ActiveSessionResponse> sessions = roleManagementService.getActiveSessions(userIdStr, tenantId);
+        return ResponseEntity.ok(ApiResponse.success(sessions, "Active sessions retrieved successfully."));
+    }
+
+    /**
+     * Invalidate other active sessions for the authenticated user.
+     */
+    @DeleteMapping("/users/sessions/other")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<ApiResponse<Void>> revokeOtherSessions(
+            @AuthenticationPrincipal Jwt jwt,
+            @RequestHeader(value = "X-Tenant-Id", defaultValue = "default") String tenantId) {
+        String userIdStr = jwt != null ? jwt.getSubject() : "user-unknown";
+        log.debug("Revoke other sessions request for userId [{}], tenant [{}]", userIdStr, tenantId);
+        roleManagementService.revokeOtherSessions(userIdStr, tenantId);
+        return ResponseEntity.ok(ApiResponse.success(null, "Other active sessions terminated successfully."));
     }
 
     /**
@@ -335,7 +395,7 @@ public class IdentityController {
             @RequestParam(required = false) String userId,
             @AuthenticationPrincipal Jwt jwt,
             @RequestHeader(value = "X-Tenant-Id", defaultValue = "default") String tenantId) {
-        String targetUserId = (jwt != null) ? jwt.getSubject() : userId;
+        String targetUserId = (jwt != null && jwt.getSubject() != null) ? jwt.getSubject() : userId;
         if (targetUserId == null || targetUserId.isBlank()) {
             throw new AccountNotFoundException("User ID is required to disable 2FA.");
         }

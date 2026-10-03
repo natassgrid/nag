@@ -1,0 +1,87 @@
+<div class="bg-white rounded-xl border border-slate-200 shadow-sm p-6 space-y-6">
+  <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-100">
+    <div>
+      <h3 class="text-lg font-bold text-slate-900 tracking-tight flex items-center gap-2">
+        <mat-icon class="text-amber-600 !text-xl !w-5 !h-5">devices</mat-icon>
+        <span>Active Login Sessions & Security Audit</span>
+      </h3>
+      <p class="text-xs text-slate-500 mt-0.5">
+        Inspect authorized administrative browser sessions, IP addresses, and revoke unrecognized devices.
+      </p>
+    </div>
+
+    @if (sessions().length > 1) {
+      <button
+        type="button"
+        mat-stroked-button
+        (click)="onRevokeOther()"
+        [disabled]="revoking()"
+        class="!text-rose-700 !border-rose-200 hover:!bg-rose-50 text-xs flex items-center gap-1.5 self-start sm:self-auto"
+      >
+        <mat-icon class="!text-sm !w-4 !h-4">logout</mat-icon>
+        <span>Terminate All Other Sessions</span>
+      </button>
+    }
+  </div>
+
+  <!-- Sessions List -->
+  <div class="divide-y divide-slate-100">
+    @for (sess of sessions(); track sess.id) {
+      <div class="py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4 first:pt-0 last:pb-0">
+        <div class="flex items-start gap-3.5">
+          <!-- Device Icon -->
+          <div
+            [class]="sess.isCurrent ? 'bg-indigo-50 text-indigo-600 border border-indigo-100' : 'bg-slate-100 text-slate-600'"
+            class="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
+          >
+            <mat-icon class="!text-xl !w-5 !h-5">{{ getDeviceIcon(sess) }}</mat-icon>
+          </div>
+
+          <!-- Session Metadata -->
+          <div class="space-y-1">
+            <div class="flex flex-wrap items-center gap-2">
+              <h4 class="text-sm font-bold text-slate-900">{{ sess.device }}</h4>
+              @if (sess.isCurrent) {
+                <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-200">
+                  Current Active Session
+                </span>
+              }
+            </div>
+
+            <div class="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-500 font-mono">
+              <span class="text-slate-700">{{ sess.browser }}</span>
+              <span>&bull;</span>
+              <span>{{ sess.os }}</span>
+              <span>&bull;</span>
+              <span class="text-slate-600">IP: {{ sess.ipAddress }}</span>
+            </div>
+
+            <p class="text-[11px] text-slate-400 font-sans">
+              Last Activity: <span class="text-slate-600 font-medium">{{ sess.lastActive }}</span>
+            </p>
+          </div>
+        </div>
+
+        <!-- Action Button -->
+        <div class="flex items-center gap-2 self-end sm:self-center">
+          @if (!sess.isCurrent) {
+            <button
+              type="button"
+              mat-stroked-button
+              (click)="onRevokeSingle(sess.id, sess.device)"
+              [disabled]="revoking()"
+              class="!text-rose-600 !border-slate-200 hover:!border-rose-300 hover:!bg-rose-50 text-xs flex items-center gap-1"
+            >
+              <mat-icon class="!text-xs !w-3.5 !h-3.5">close</mat-icon>
+              <span>Terminate</span>
+            </button>
+          }
+        </div>
+      </div>
+    } @empty {
+      <div class="text-center py-6 text-slate-400 text-xs">
+        No active session records found.
+      </div>
+    }
+  </div>
+</div>

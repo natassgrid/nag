@@ -14,10 +14,12 @@
  * GNU Affero General Public License for more details.
  *
  * You should have received a copy of the GNU Affero General Public License
- * along with this program. If not, see <https://www.gnu.org/licenses/>.\n */
+ * along with this program. If not, see <https://www.gnu.org/licenses/>.
+ */
 
 package com.examplatform.identity.dto;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -31,12 +33,18 @@ import java.util.UUID;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
+@JsonInclude(JsonInclude.Include.NON_NULL)
 public class UserAccountResponse {
     private UUID id;
     private String username;
+    private String email;
+    private String fullName;
+    private String phoneNumber;
     private String accountStatus;
     private String specialization;
     private boolean mfaEnabled;
+    private String twoFactorMethod;
     private List<String> roles;
     private Instant createdAt;
+    private Instant lastLoginAt;
 }
