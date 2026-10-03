@@ -42,6 +42,9 @@ public class ExaminationLookupService {
 
     private final JdbcTemplate jdbcTemplate;
 
+    private Boolean examinationTableAvailable;
+    private Boolean shiftTableAvailable;
+
     /**
      * Resolves examination names for given exam UUIDs.
      *
@@ -50,6 +53,10 @@ public class ExaminationLookupService {
      */
     public Map<UUID, String> findExamNames(Set<UUID> examIds) {
         if (examIds == null || examIds.isEmpty()) {
+            return Collections.emptyMap();
+        }
+
+        if (!isTableAvailable("examination_service", "examination")) {
             return Collections.emptyMap();
         }
 
@@ -83,6 +90,10 @@ public class ExaminationLookupService {
      */
     public Map<String, String> findShiftNames(Set<String> shiftIds) {
         if (shiftIds == null || shiftIds.isEmpty()) {
+            return Collections.emptyMap();
+        }
+
+        if (!isTableAvailable("examination_service", "exam_shift")) {
             return Collections.emptyMap();
         }
 
@@ -123,5 +134,29 @@ public class ExaminationLookupService {
             }
         }
         return result;
+    }
+
+    private boolean isTableAvailable(String schema, String table) {
+        if ("examination".equals(table) && examinationTableAvailable != null) {
+            return examinationTableAvailable;
+        }
+        if ("exam_shift".equals(table) && shiftTableAvailable != null) {
+            return shiftTableAvailable;
+        }
+
+        try {
+            Integer count = jdbcTemplate.queryForObject(
+                    "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = ? AND table_name = ?",
+                    Integer.class, schema, table);
+            boolean available = count != null && count > 0;
+            if ("examination".equals(table)) {
+                examinationTableAvailable = available;
+            } else if ("exam_shift".equals(table)) {
+                shiftTableAvailable = available;
+            }
+            return available;
+        } catch (Exception e) {
+            return false;
+        }
     }
 }
