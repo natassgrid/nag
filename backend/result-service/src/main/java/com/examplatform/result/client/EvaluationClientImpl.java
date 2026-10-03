@@ -20,6 +20,7 @@
 package com.examplatform.result.client;
 
 import com.examplatform.result.dto.CandidateEvaluationItemDto;
+import com.examplatform.result.dto.CandidateExamResponseDto;
 import com.examplatform.shared.auth.ServiceAccountTokenProvider;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.core.type.TypeReference;
@@ -183,6 +184,108 @@ public class EvaluationClientImpl implements EvaluationClient {
             log.warn("Error querying evaluation_service table via JDBC: {}", e.getMessage());
             return Collections.emptyList();
         }
+    }
+
+    @Override
+    public List<CandidateExamResponseDto> getResponsesForExam(UUID examId, String tenantId) {
+        if (examId == null) {
+            return Collections.emptyList();
+        }
+        String effectiveTenant = (tenantId != null && !tenantId.isBlank()) ? tenantId : "default";
+
+        // 1. Try JDBC query first for fastest batch computation
+        if (jdbcTemplate != null) {
+            try {
+                // Fetch candidates and their total scores for this exam
+                String resultSql = """
+                    SELECT candidate_id, total_score
+                    FROM result_service.result
+                    WHERE exam_id = ? AND (tenant_id = ? OR tenant_id = 'default')
+                    """;
+
+                Map<UUID, Double> candidateTotalScores = new HashMap<>();
+                jdbcTemplate.query(resultSql, rs -> {
+                    UUID candidateId = rs.getObject("candidate_id", UUID.class);
+                    double totalScore = rs.getDouble("total_score");
+                    candidateTotalScores.put(candidateId, totalScore);
+                }, examId, effectiveTenant);
+
+                if (!candidateTotalScores.isEmpty()) {
+                    List<UUID> candidateIds = new ArrayList<>(candidateTotalScores.keySet());
+                    String inSql = String.join(",", Collections.nCopies(candidateIds.size(), "?"));
+
+                    // Fetch evaluations for these candidates
+                    String evalSql = String.format("""
+                        SELECT candidate_id, question_id, score, max_marks
+                        FROM evaluation_service.evaluation
+                        WHERE (tenant_id = ? OR tenant_id = 'default')
+                          AND candidate_id IN (%s)
+                        """, inSql);
+
+                    List<Object> evalParams = new ArrayList<>();
+                    evalParams.add(effectiveTenant);
+                    evalParams.addAll(candidateIds);
+
+                    List<CandidateExamResponseDto> dtos = new ArrayList<>();
+                    jdbcTemplate.query(evalSql, rs -> {
+                        UUID cId = rs.getObject("candidate_id", UUID.class);
+                        UUID qId = rs.getObject("question_id", UUID.class);
+                        double score = rs.getDouble("score");
+                        double maxMarks = rs.getDouble("max_marks");
+                        double totalScore = candidateTotalScores.getOrDefault(cId, score);
+
+                        dtos.add(CandidateExamResponseDto.builder()
+                                .candidateId(cId)
+                                .questionId(qId)
+                                .examTotalScore(totalScore)
+                                .questionScore(score)
+                                .maxMarks(maxMarks)
+                                .selectedOptionIds(Collections.emptyList())
+                                .timeSpentMs(0L)
+                                .isCorrect(score > 0 && score >= maxMarks)
+                                .build());
+                    }, evalParams.toArray());
+
+                    // Enrich option selections from response_service table if available
+                    try {
+                        String respSql = String.format("""
+                            SELECT candidate_id, question_id, selected_option_ids, cumulative_time_spent_ms
+                            FROM response_service.response
+                            WHERE (tenant_id = ? OR tenant_id = 'default')
+                              AND is_final = TRUE
+                              AND candidate_id IN (%s)
+                            """, inSql);
+
+                        Map<String, CandidateResponseMetadata> respMap = new HashMap<>();
+                        jdbcTemplate.query(respSql, rs -> {
+                            UUID cId = rs.getObject("candidate_id", UUID.class);
+                            UUID qId = rs.getObject("question_id", UUID.class);
+                            String selectedJson = rs.getString("selected_option_ids");
+                            long timeSpent = rs.getLong("cumulative_time_spent_ms");
+                            List<String> options = parseSelectedOptions(selectedJson);
+                            respMap.put(cId + "_" + qId, new CandidateResponseMetadata(options, timeSpent));
+                        }, evalParams.toArray());
+
+                        for (CandidateExamResponseDto dto : dtos) {
+                            CandidateResponseMetadata meta = respMap.get(dto.getCandidateId() + "_" + dto.getQuestionId());
+                            if (meta != null) {
+                                dto.setSelectedOptionIds(meta.selectedOptionIds());
+                                dto.setTimeSpentMs(meta.timeSpentMs());
+                            }
+                        }
+                    } catch (Exception e) {
+                        log.debug("Response service enrichment failed: {}", e.getMessage());
+                    }
+
+                    log.info("Retrieved {} exam responses via JDBC for exam={}", dtos.size(), examId);
+                    return dtos;
+                }
+            } catch (Exception e) {
+                log.warn("JDBC query for exam responses failed: {}", e.getMessage());
+            }
+        }
+
+        return Collections.emptyList();
     }
 
     private void enrichFromResponseTable(List<CandidateEvaluationItemDto> items, UUID candidateId, String tenantId) {

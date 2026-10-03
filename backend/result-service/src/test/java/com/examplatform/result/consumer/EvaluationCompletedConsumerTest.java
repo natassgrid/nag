@@ -22,6 +22,7 @@ package com.examplatform.result.consumer;
 import com.examplatform.result.domain.Result;
 import com.examplatform.result.dto.CandidateScoreInput;
 import com.examplatform.result.repository.ResultRepository;
+import com.examplatform.result.service.QuestionAnalyticsService;
 import com.examplatform.result.service.ResultComputationService;
 import com.examplatform.shared.messaging.GenericDomainEvent;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -50,7 +51,7 @@ import static org.mockito.Mockito.when;
 
 /**
  * Unit tests for EvaluationCompletedConsumer.
- * Validates: SPEC-RS3
+ * Validates: SPEC-RS3, Issue #111
  */
 @ExtendWith(MockitoExtension.class)
 @DisplayName("EvaluationCompletedConsumer")
@@ -61,6 +62,9 @@ class EvaluationCompletedConsumerTest {
 
     @Mock
     private ResultRepository resultRepository;
+
+    @Mock
+    private QuestionAnalyticsService questionAnalyticsService;
 
     @Spy
     private ObjectMapper objectMapper = new ObjectMapper();
@@ -80,7 +84,7 @@ class EvaluationCompletedConsumerTest {
     }
 
     @Test
-    @DisplayName("SPEC-RS3-T1: Valid EVALUATION_COMPLETED event via Kafka → result computed")
+    @DisplayName("SPEC-RS3-T1: Valid EVALUATION_COMPLETED event via Kafka → result computed and cache invalidated")
     void validEvent_computesResult() throws Exception {
         String payload = objectMapper.writeValueAsString(Map.of(
                 "eventType", "EVALUATION_COMPLETED",
@@ -109,6 +113,7 @@ class EvaluationCompletedConsumerTest {
         consumer.onEvaluationCompleted(payload, sessionId.toString());
 
         verify(resultComputationService).computeResults(eq(examId), any(), anyBoolean(), eq("default"));
+        verify(questionAnalyticsService).invalidateCache(examId);
     }
 
     @Test
@@ -141,6 +146,7 @@ class EvaluationCompletedConsumerTest {
         consumer.onRabbitEvaluationCompleted(eventMap);
 
         verify(resultComputationService).computeResults(eq(examId), any(), anyBoolean(), eq("default"));
+        verify(questionAnalyticsService).invalidateCache(examId);
     }
 
     @Test
@@ -179,6 +185,7 @@ class EvaluationCompletedConsumerTest {
         consumer.onSpringEvaluationCompleted(domainEvent);
 
         verify(resultComputationService).computeResults(eq(examId), any(), anyBoolean(), eq("default"));
+        verify(questionAnalyticsService).invalidateCache(examId);
     }
 
     @Test

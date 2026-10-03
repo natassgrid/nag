@@ -55,13 +55,18 @@ class AnalyticsResultControllerIntegrationTest extends AbstractIntegrationTest {
     class GetExamAnalyticsEndpoint {
 
         @Test
-        @DisplayName("+ve: EXAM_CONTROLLER retrieves analytics - returns 200 OK")
+        @DisplayName("+ve: EXAM_CONTROLLER retrieves analytics - returns 200 OK with full analytics data")
         void examControllerCanRetrieveAnalytics() throws Exception {
             QuestionAnalyticsResult analytics = QuestionAnalyticsResult.builder()
                     .questionId(QUESTION_ID)
                     .difficultyIndex(0.65)
                     .discriminationIndex(0.42)
                     .responseDistribution(Map.of("A", 15, "B", 60, "C", 20, "D", 5))
+                    .avgTimeSpentMs(45200.0)
+                    .totalAttempted(100)
+                    .totalCorrect(65)
+                    .solutionExplanation("Step 1: Compute $\\int_0^1 x dx = \\frac{1}{2}$.")
+                    .correctAnswer("B")
                     .build();
 
             when(questionAnalyticsService.computeAnalytics(eq(EXAM_ID), anyString()))
@@ -75,7 +80,12 @@ class AnalyticsResultControllerIntegrationTest extends AbstractIntegrationTest {
                     .andExpect(jsonPath("$[0].questionId").value(QUESTION_ID.toString()))
                     .andExpect(jsonPath("$[0].difficultyIndex").value(0.65))
                     .andExpect(jsonPath("$[0].discriminationIndex").value(0.42))
-                    .andExpect(jsonPath("$[0].responseDistribution.B").value(60));
+                    .andExpect(jsonPath("$[0].responseDistribution.B").value(60))
+                    .andExpect(jsonPath("$[0].avgTimeSpentMs").value(45200.0))
+                    .andExpect(jsonPath("$[0].totalAttempted").value(100))
+                    .andExpect(jsonPath("$[0].totalCorrect").value(65))
+                    .andExpect(jsonPath("$[0].solutionExplanation").value("Step 1: Compute $\\int_0^1 x dx = \\frac{1}{2}$."))
+                    .andExpect(jsonPath("$[0].correctAnswer").value("B"));
         }
 
         @Test
