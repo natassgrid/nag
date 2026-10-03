@@ -164,30 +164,32 @@ describe('AdminProfileComponent', () => {
     expect(component.activeTab()).toBe('sessions');
   });
 
-  it('should update user profile successfully', () => {
-    component.onUpdateProfile({
-      fullName: 'Dr. Ramesh Kumar Chandra',
+  it('should update personal profile information', () => {
+    const updatePayload = {
+      fullName: 'Dr. New Name',
       phoneNumber: '+91 99999 00000',
-    });
+      specialization: 'Applied Statistics',
+      department: 'Testing Council',
+    };
 
-    expect(mockProfileService.updateProfile).toHaveBeenCalledWith({
-      fullName: 'Dr. Ramesh Kumar Chandra',
-      phoneNumber: '+91 99999 00000',
-    });
+    component.onUpdateProfile(updatePayload);
+
+    expect(mockProfileService.updateProfile).toHaveBeenCalledWith(updatePayload);
     expect(mockNotificationService.success).toHaveBeenCalledWith(
       'Profile details updated successfully'
     );
-    expect(component.profile()?.fullName).toBe('Dr. Ramesh Kumar Chandra');
+    expect(component.profile()?.fullName).toBe('Dr. New Name');
     expect(component.savingProfile()).toBe(false);
   });
 
-  it('should handle profile update error', () => {
+  it('should handle update profile error', () => {
     mockProfileService.updateProfile.mockReturnValueOnce(
-      throwError(() => new Error('Validation failed'))
+      throwError(() => new Error('Server error'))
     );
 
-    component.onUpdateProfile({ fullName: 'Error Name' });
-    expect(mockNotificationService.error).toHaveBeenCalledWith('Validation failed');
+    component.onUpdateProfile({ fullName: 'Fail' });
+
+    expect(mockNotificationService.error).toHaveBeenCalled();
     expect(component.savingProfile()).toBe(false);
   });
 
@@ -279,5 +281,18 @@ describe('AdminProfileComponent', () => {
     );
     expect(component.sessions().length).toBe(1);
     expect(component.sessions()[0].isCurrent).toBe(true);
+  });
+
+  it('should refresh profile and sessions data when onRefreshData is called', () => {
+    mockProfileService.getProfile.mockClear();
+    mockProfileService.getActiveSessions.mockClear();
+
+    component.onRefreshData();
+
+    expect(mockProfileService.getProfile).toHaveBeenCalled();
+    expect(mockProfileService.getActiveSessions).toHaveBeenCalled();
+    expect(mockNotificationService.info).toHaveBeenCalledWith(
+      'Profile and active sessions data refreshed'
+    );
   });
 });

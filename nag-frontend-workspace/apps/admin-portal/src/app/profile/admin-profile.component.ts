@@ -80,6 +80,12 @@ export class AdminProfileComponent implements OnInit {
     this.loadSessions();
   }
 
+  onRefreshData(): void {
+    this.loadProfile();
+    this.loadSessions();
+    this.notificationService.info('Profile and active sessions data refreshed');
+  }
+
   loadProfile(): void {
     this.loading.set(true);
     this.profileService.getProfile().subscribe({
