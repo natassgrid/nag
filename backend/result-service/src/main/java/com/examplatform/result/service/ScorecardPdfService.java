@@ -20,10 +20,11 @@
 package com.examplatform.result.service;
 
 import com.examplatform.result.domain.Result;
+import com.examplatform.result.repository.ResultRepository;
 import com.examplatform.result.storage.ScorecardStorageProvider;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import lombok.RequiredArgsConstructor;
+import jakarta.persistence.EntityNotFoundException;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pdfbox.pdmodel.PDDocument;
 import org.apache.pdfbox.pdmodel.PDPage;
@@ -32,6 +33,7 @@ import org.apache.pdfbox.pdmodel.encryption.AccessPermission;
 import org.apache.pdfbox.pdmodel.encryption.StandardProtectionPolicy;
 import org.apache.pdfbox.pdmodel.font.PDType1Font;
 import org.apache.pdfbox.pdmodel.font.Standard14Fonts;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.io.ByteArrayInputStream;
@@ -57,11 +59,48 @@ import java.util.UUID;
  */
 @Slf4j
 @Service
-@RequiredArgsConstructor
 public class ScorecardPdfService {
 
     private final ScorecardStorageProvider storageProvider;
     private final ObjectMapper objectMapper;
+    private final ResultRepository resultRepository;
+
+    public ScorecardPdfService(ScorecardStorageProvider storageProvider, ObjectMapper objectMapper) {
+        this(storageProvider, objectMapper, null);
+    }
+
+    @Autowired
+    public ScorecardPdfService(
+            ScorecardStorageProvider storageProvider,
+            ObjectMapper objectMapper,
+            ResultRepository resultRepository) {
+        this.storageProvider = storageProvider;
+        this.objectMapper = objectMapper;
+        this.resultRepository = resultRepository;
+    }
+
+    public Result findResult(UUID id, String tenantId) {
+        if (resultRepository == null) {
+            throw new EntityNotFoundException("Result repository is unavailable");
+        }
+
+        // Attempt 1: Lookup by Result ID
+        Optional<Result> byResultId = resultRepository.findById(id);
+        if (byResultId.isPresent()) {
+            return byResultId.get();
+        }
+
+        // Attempt 2: Lookup by Candidate ID
+        List<Result> results = resultRepository.findByCandidateIdAndTenantId(id, tenantId);
+        if (results.isEmpty()) {
+            throw new EntityNotFoundException("No results found for ID: " + id);
+        }
+
+        return results.stream()
+                .filter(r -> r.getScorecardPdfRef() != null)
+                .findFirst()
+                .orElseThrow(() -> new EntityNotFoundException("No scorecard available for candidate: " + id));
+    }
 
     /**
      * Generates a password-protected PDF scorecard for the given result and uploads it to storage.

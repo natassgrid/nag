@@ -14,8 +14,7 @@
  * GNU Affero General Public License for more details.
  *
  * You should have received a copy of the GNU Affero General Public License
- * along with this program. If not, see <https://www.gnu.org/licenses/>.
- */
+ * along with this program. If not, see <https://www.gnu.org/licenses/>.\n */
 
 package com.examplatform.candidate.service;
 
@@ -30,8 +29,8 @@ import com.examplatform.candidate.repository.CandidateProfileRepository;
 import com.examplatform.shared.audit.AuditEventType;
 import com.examplatform.shared.event.UserAuditEvent;
 import com.examplatform.shared.messaging.EventPublisher;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
@@ -52,7 +51,6 @@ import java.util.UUID;
  */
 @Slf4j
 @Service
-@RequiredArgsConstructor
 @Transactional
 public class CandidateProfileService {
 
@@ -65,9 +63,32 @@ public class CandidateProfileService {
     private final HashingService hashingService;
     private final VaultCryptoService vaultCryptoService;
     private final EventPublisher eventPublisher;
+    private final ObjectProvider<JdbcTemplate> jdbcTemplateProvider;
 
-    @Autowired(required = false)
-    private JdbcTemplate jdbcTemplate;
+    public CandidateProfileService(
+            CandidateProfileRepository candidateProfileRepository,
+            CandidateEducationRepository candidateEducationRepository,
+            HashingService hashingService,
+            VaultCryptoService vaultCryptoService,
+            EventPublisher eventPublisher) {
+        this(candidateProfileRepository, candidateEducationRepository, hashingService, vaultCryptoService, eventPublisher, null);
+    }
+
+    @Autowired
+    public CandidateProfileService(
+            CandidateProfileRepository candidateProfileRepository,
+            CandidateEducationRepository candidateEducationRepository,
+            HashingService hashingService,
+            VaultCryptoService vaultCryptoService,
+            EventPublisher eventPublisher,
+            ObjectProvider<JdbcTemplate> jdbcTemplateProvider) {
+        this.candidateProfileRepository = candidateProfileRepository;
+        this.candidateEducationRepository = candidateEducationRepository;
+        this.hashingService = hashingService;
+        this.vaultCryptoService = vaultCryptoService;
+        this.eventPublisher = eventPublisher;
+        this.jdbcTemplateProvider = jdbcTemplateProvider;
+    }
 
     /**
      * Creates a new candidate profile with per-candidate DEK reference,
@@ -158,6 +179,7 @@ public class CandidateProfileService {
                 });
 
         // Backfill email / username from identity_service.user_account if email is missing
+        JdbcTemplate jdbcTemplate = jdbcTemplateProvider != null ? jdbcTemplateProvider.getIfAvailable() : null;
         if (jdbcTemplate != null && (profile.getEmail() == null || profile.getEmail().isBlank())) {
             try {
                 String username = jdbcTemplate.queryForObject(
@@ -352,7 +374,7 @@ public class CandidateProfileService {
         log.info("Consent recorded for userId={} at {}", userId, profile.getConsentTimestamp());
     }
 
-    // ── Private helpers ──────────────────────────────────────────────────────
+    // ── Private helpers ──────────────────────────────────────────────────────────────────────────
 
     private void publishAuditEvent(AuditEventType type, String actorId, String tenantId) {
         try {

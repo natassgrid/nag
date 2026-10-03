@@ -37,6 +37,17 @@ subprojects {
         tasks.withType(JavaCompile).configureEach {
             options.compilerArgs.add('-parameters')
         }
+
+        tasks.withType(Test).configureEach {
+            useJUnitPlatform()
+            filter {
+                setFailOnNoMatchingTests(false)
+            }
+        }
+
+        dependencies {
+            testImplementation rootProject.libs.archunit.junit5
+        }
     }
 
     plugins.withId('org.springframework.boot') {

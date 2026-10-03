@@ -5,7 +5,7 @@
  * Copyright (C) 2025 NAG Contributors
  *
  * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU Affero General Public License as published
+ * it under the terms of the GNU标识Affero General Public License as published
  * by the Free Software Foundation, version 3 of the License.
  *
  * This program is distributed in the hope that it will be useful,
@@ -35,6 +35,7 @@ import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 import static org.mockito.ArgumentMatchers.*;
@@ -92,10 +93,10 @@ class QuestionAiControllerIntegrationTest extends AbstractIntegrationTest {
 
             mockMvc.perform(post("/api/v1/questions/generate")
                             .header("X-Tenant-Id", TENANT_ID)
-                            .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_QUESTION_AUTHOR"))
-                                    .jwt(j -> j.subject(AUTHOR_ID.toString())))
                             .contentType(MediaType.APPLICATION_JSON)
-                            .content(objectMapper.writeValueAsString(request)))
+                            .content(objectMapper.writeValueAsString(request))
+                            .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_QUESTION_AUTHOR"))
+                                    .jwt(j -> j.subject(AUTHOR_ID.toString()).claim("tenant_id", TENANT_ID))))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.status").value("success"))
                     .andExpect(jsonPath("$.data.modelUsed").value("qwen2.5-1.5b"))
@@ -116,10 +117,10 @@ class QuestionAiControllerIntegrationTest extends AbstractIntegrationTest {
 
             mockMvc.perform(post("/api/v1/questions/generate")
                             .header("X-Tenant-Id", TENANT_ID)
-                            .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_QUESTION_AUTHOR"))
-                                    .jwt(j -> j.subject(AUTHOR_ID.toString())))
                             .contentType(MediaType.APPLICATION_JSON)
-                            .content(objectMapper.writeValueAsString(invalidRequest)))
+                            .content(objectMapper.writeValueAsString(invalidRequest))
+                            .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_QUESTION_AUTHOR"))
+                                    .jwt(j -> j.subject(AUTHOR_ID.toString()).claim("tenant_id", TENANT_ID))))
                     .andExpect(status().isBadRequest())
                     .andExpect(jsonPath("$.status").value("error"));
         }
@@ -131,10 +132,10 @@ class QuestionAiControllerIntegrationTest extends AbstractIntegrationTest {
 
             mockMvc.perform(post("/api/v1/questions/generate")
                             .header("X-Tenant-Id", TENANT_ID)
-                            .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_CANDIDATE"))
-                                    .jwt(j -> j.subject(AUTHOR_ID.toString())))
                             .contentType(MediaType.APPLICATION_JSON)
-                            .content(objectMapper.writeValueAsString(request)))
+                            .content(objectMapper.writeValueAsString(request))
+                            .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_CANDIDATE"))
+                                    .jwt(j -> j.subject(AUTHOR_ID.toString()).claim("tenant_id", TENANT_ID))))
                     .andExpect(status().isForbidden());
         }
     }
@@ -146,12 +147,13 @@ class QuestionAiControllerIntegrationTest extends AbstractIntegrationTest {
         @Test
         @DisplayName("+ve: SUPER_ADMIN runs backfill - returns 200 OK")
         void adminCanRunBackfill() throws Exception {
-            when(questionRepository.findQuestionsWithNullEmbedding(eq(TENANT_ID), any(Pageable.class)))
-                    .thenReturn(new PageImpl<>(List.of()));
+            when(embeddingService.backfillEmbeddings(eq(TENANT_ID)))
+                    .thenReturn(Map.of("totalProcessed", 0, "totalFailed", 0, "failures", List.of()));
 
             mockMvc.perform(post("/api/v1/questions/embeddings/backfill")
                             .header("X-Tenant-Id", TENANT_ID)
-                            .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_SUPER_ADMIN"))))
+                            .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_SUPER_ADMIN"))
+                                    .jwt(j -> j.claim("tenant_id", TENANT_ID))))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.status").value("success"))
                     .andExpect(jsonPath("$.data.totalProcessed").value(0));
@@ -162,7 +164,8 @@ class QuestionAiControllerIntegrationTest extends AbstractIntegrationTest {
         void authorForbiddenFromBackfill() throws Exception {
             mockMvc.perform(post("/api/v1/questions/embeddings/backfill")
                             .header("X-Tenant-Id", TENANT_ID)
-                            .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_QUESTION_AUTHOR"))))
+                            .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_QUESTION_AUTHOR"))
+                                    .jwt(j -> j.claim("tenant_id", TENANT_ID))))
                     .andExpect(status().isForbidden());
         }
     }

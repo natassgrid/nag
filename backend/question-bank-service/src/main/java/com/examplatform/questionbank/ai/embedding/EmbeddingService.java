@@ -16,6 +16,7 @@
 package com.examplatform.questionbank.ai.embedding;
 
 import java.util.List;
+import java.util.Map;
 
 /**
  * Service interface for generating text embeddings.
@@ -43,4 +44,13 @@ public interface EmbeddingService {
      * @return a list of 384-element float arrays, one per input text
      */
     List<float[]> embedBatch(List<String> texts);
+
+    /**
+     * Generates embeddings for all questions that have a null embedding column.
+     * Processes in batches of 50.
+     *
+     * @param tenantId the tenant identifier
+     * @return summary with total processed count and failures
+     */
+    Map<String, Object> backfillEmbeddings(String tenantId);
 }

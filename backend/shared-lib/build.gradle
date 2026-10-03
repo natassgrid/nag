@@ -64,6 +64,9 @@ dependencies {
     api libs.spring.boot.starter.security
     api libs.spring.boot.starter.oauth2.resource.server
 
+    // ArchUnit (for architecture rule definitions & enforcement)
+    api libs.archunit.junit5
+
     // gRPC & Protobuf
     api libs.grpc.protobuf
     api libs.grpc.stub
@@ -88,6 +91,7 @@ dependencies {
     testImplementation libs.assertj.core
     testImplementation libs.spring.kafka.test
     testImplementation libs.grpc.testing
+    testImplementation libs.archunit.junit5
 }
 
 protobuf {
@@ -100,14 +104,8 @@ protobuf {
         }
     }
     generateProtoTasks {
-        all().each { task ->
-            task.plugins {
-                grpc {}
-            }
+        all()*.plugins {
+            grpc {}
         }
     }
-}
-
-test {
-    useJUnitPlatform()
 }

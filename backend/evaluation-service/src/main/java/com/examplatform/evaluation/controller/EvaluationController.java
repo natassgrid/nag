@@ -23,7 +23,6 @@ import com.examplatform.evaluation.domain.Evaluation;
 import com.examplatform.evaluation.dto.AggregatedScoreResult;
 import com.examplatform.evaluation.dto.ScoreRecordedResponse;
 import com.examplatform.evaluation.dto.ScoreRequest;
-import com.examplatform.evaluation.repository.EvaluationRepository;
 import com.examplatform.evaluation.service.ManualEvaluationService;
 import com.examplatform.evaluation.service.ScoreAggregationService;
 import com.examplatform.shared.tenant.TenantContext;
@@ -57,7 +56,6 @@ public class EvaluationController {
 
     private final ManualEvaluationService manualEvaluationService;
     private final ScoreAggregationService scoreAggregationService;
-    private final EvaluationRepository evaluationRepository;
 
     /**
      * Record a manual evaluator's score for an evaluation.
@@ -118,12 +116,7 @@ public class EvaluationController {
 
         log.info("Fetching evaluations for candidate={}, sessionId={}, tenant={}", candidateId, sessionId, tenantId);
 
-        List<Evaluation> evaluations;
-        if (sessionId != null) {
-            evaluations = evaluationRepository.findBySessionIdAndTenantId(sessionId, tenantId);
-        } else {
-            evaluations = evaluationRepository.findByCandidateIdAndTenantId(candidateId, tenantId);
-        }
+        List<Evaluation> evaluations = manualEvaluationService.getEvaluations(candidateId, sessionId, tenantId);
         return ResponseEntity.ok(evaluations);
     }
 }
