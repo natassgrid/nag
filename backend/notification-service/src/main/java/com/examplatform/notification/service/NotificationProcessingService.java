@@ -19,9 +19,12 @@
 
 package com.examplatform.notification.service;
 
+import com.examplatform.notification.domain.DeviceToken;
 import com.examplatform.notification.domain.Notification;
 import com.examplatform.notification.domain.Notification.NotificationStatus;
 import com.examplatform.notification.domain.Notification.NotificationType;
+import com.examplatform.notification.domain.NotificationPreference;
+import com.examplatform.notification.dto.NotificationSendRequest;
 import com.examplatform.notification.repository.NotificationRepository;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -30,15 +33,17 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Instant;
+import java.util.List;
 import java.util.UUID;
 
 /**
- * Processes incoming Kafka notification events.
+ * Processes incoming Kafka notification events and direct dispatch requests.
  * <p>
- * Parses the event JSON, determines the notification channel, builds
- * a message body using ONLY identifiers and action links (no PII or
- * question content), persists a PENDING notification, and dispatches
- * to the appropriate delivery service.
+ * Parses the event JSON, determines the notification channel using intelligent
+ * candidate preference routing, builds safe message bodies using ONLY identifiers
+ * and action links (no PII or question content), persists PENDING notifications,
+ * and dispatches across multi-channel delivery services (Email, SMS, WhatsApp, Push, In-App).
  */
 @Slf4j
 @Service
@@ -47,6 +52,11 @@ public class NotificationProcessingService {
 
     private final NotificationRepository notificationRepository;
     private final EmailDeliveryService emailDeliveryService;
+    private final SmsDeliveryService smsDeliveryService;
+    private final WhatsAppDeliveryService whatsAppDeliveryService;
+    private final PushNotificationService pushNotificationService;
+    private final NotificationPreferenceService preferenceService;
+    private final DeviceTokenService deviceTokenService;
     private final ObjectMapper objectMapper;
 
     /**
@@ -60,35 +70,31 @@ public class NotificationProcessingService {
             JsonNode event = objectMapper.readTree(eventPayload);
 
             String eventType = event.path("eventType").asText("UNKNOWN");
-            UUID userId = UUID.fromString(event.path("userId").asText());
+            String userIdStr = event.path("userId").asText(null);
+            UUID userId = userIdStr != null ? UUID.fromString(userIdStr) : UUID.randomUUID();
             String recipientEmail = event.path("recipientEmail").asText(null);
-            String channelStr = event.path("channel").asText("EMAIL");
+            String recipientPhone = event.path("recipientPhone").asText(null);
+            String fcmToken = event.path("fcmToken").asText(null);
+            String channelStr = event.path("channel").asText(null);
             String tenantId = event.path("tenantId").asText("default");
             String referenceId = event.path("referenceId").asText("");
             String actionLink = event.path("actionLink").asText("");
+            String templateId = event.path("templateId").asText(null);
 
-            NotificationType channel = parseChannel(channelStr);
-            String subject = buildSubject(eventType);
-            String body = buildBody(eventType, referenceId, actionLink);
-
-            Notification notification = Notification.builder()
+            NotificationSendRequest request = NotificationSendRequest.builder()
                     .userId(userId)
                     .recipientEmail(recipientEmail)
-                    .type(channel)
-                    .subject(subject)
-                    .body(body)
-                    .status(NotificationStatus.PENDING)
-                    .retryCount(0)
+                    .recipientPhone(recipientPhone)
+                    .fcmToken(fcmToken)
+                    .channel(channelStr != null ? parseChannel(channelStr) : null)
+                    .eventType(eventType)
+                    .referenceId(referenceId)
+                    .actionLink(actionLink)
+                    .templateId(templateId)
+                    .tenantId(tenantId)
                     .build();
-            notification.setTenantId(tenantId);
 
-            notificationRepository.save(notification);
-            log.info("Created notification {} for event type {} targeting user {}",
-                    notification.getId(), eventType, userId);
-
-            if (channel == NotificationType.EMAIL && recipientEmail != null) {
-                emailDeliveryService.deliver(notification);
-            }
+            sendNotification(request);
 
         } catch (Exception e) {
             log.error("Failed to process notification event: {}", e.getMessage(), e);
@@ -96,10 +102,144 @@ public class NotificationProcessingService {
     }
 
     /**
+     * Creates and dispatches a multi-channel notification according to candidate preferences
+     * and destination attributes.
+     *
+     * @param request the notification request
+     * @return the persisted notification
+     */
+    @Transactional
+    public Notification sendNotification(NotificationSendRequest request) {
+        UUID userId = request.getUserId() != null ? request.getUserId() : UUID.randomUUID();
+        String tenantId = request.getTenantId() != null ? request.getTenantId() : "default";
+
+        // Fetch candidate preferences for fallback & routing
+        NotificationPreference preference = preferenceService.getPreferences(userId, tenantId);
+
+        String email = request.getRecipientEmail() != null ? request.getRecipientEmail() : preference.getEmail();
+        String phone = request.getRecipientPhone() != null ? request.getRecipientPhone() : preference.getPhoneNumber();
+        String token = request.getFcmToken() != null ? request.getFcmToken() : preference.getFcmToken();
+
+        // If no token in request/preference, check registered device tokens
+        if (token == null || token.isBlank()) {
+            List<DeviceToken> activeTokens = deviceTokenService.getActiveTokens(userId);
+            if (!activeTokens.isEmpty()) {
+                token = activeTokens.get(0).getToken();
+            }
+        }
+
+        NotificationType channel = request.getChannel();
+        if (channel == null) {
+            channel = resolvePreferredChannel(preference, email, phone, token);
+        }
+
+        String eventType = request.getEventType() != null ? request.getEventType() : "GENERIC";
+        String subject = request.getSubject() != null ? request.getSubject() : buildSubject(eventType);
+        String body = request.getBody() != null ? request.getBody() : buildBody(eventType, request.getReferenceId(), request.getActionLink());
+
+        Notification notification = Notification.builder()
+                .userId(userId)
+                .recipientEmail(email)
+                .recipientPhone(phone)
+                .fcmToken(token)
+                .type(channel)
+                .channel(channel.name())
+                .templateId(request.getTemplateId())
+                .subject(subject)
+                .body(body)
+                .status(NotificationStatus.PENDING)
+                .retryCount(0)
+                .build();
+        notification.setTenantId(tenantId);
+
+        Notification saved = notificationRepository.save(notification);
+        log.info("Created notification {} [channel={}] for event {} targeting userId={}",
+                saved.getId(), channel, eventType, userId);
+
+        dispatchToChannel(saved);
+        return saved;
+    }
+
+    /**
+     * Routes the notification to the corresponding delivery service.
+     */
+    public void dispatchToChannel(Notification notification) {
+        switch (notification.getType()) {
+            case EMAIL -> {
+                if (notification.getRecipientEmail() != null && !notification.getRecipientEmail().isBlank()) {
+                    emailDeliveryService.deliver(notification);
+                } else {
+                    markUndelivered(notification, "Missing recipient email address");
+                }
+            }
+            case SMS -> {
+                if (notification.getRecipientPhone() != null && !notification.getRecipientPhone().isBlank()) {
+                    smsDeliveryService.deliver(notification);
+                } else {
+                    markUndelivered(notification, "Missing recipient phone number for SMS");
+                }
+            }
+            case WHATSAPP -> {
+                if (notification.getRecipientPhone() != null && !notification.getRecipientPhone().isBlank()) {
+                    whatsAppDeliveryService.deliver(notification);
+                } else {
+                    markUndelivered(notification, "Missing recipient phone number for WhatsApp");
+                }
+            }
+            case PUSH -> {
+                if (notification.getFcmToken() != null && !notification.getFcmToken().isBlank()) {
+                    pushNotificationService.deliver(notification);
+                } else {
+                    markUndelivered(notification, "Missing FCM / device token for Push notification");
+                }
+            }
+            case IN_APP -> {
+                notification.setStatus(NotificationStatus.SENT);
+                notification.setSentAt(Instant.now());
+                notificationRepository.save(notification);
+                log.info("In-app notification {} stored for userId={}", notification.getId(), notification.getUserId());
+            }
+        }
+    }
+
+    private void markUndelivered(Notification notification, String reason) {
+        log.warn("Notification {} cannot be delivered via {}: {}", notification.getId(), notification.getType(), reason);
+        notification.setStatus(NotificationStatus.UNDELIVERED);
+        notificationRepository.save(notification);
+    }
+
+    private NotificationType resolvePreferredChannel(NotificationPreference preference, String email, String phone, String token) {
+        String preferred = preference.getPreferredChannel() != null ? preference.getPreferredChannel().toUpperCase() : "EMAIL";
+
+        if ("WHATSAPP".equals(preferred) && preference.isWhatsappEnabled() && phone != null && !phone.isBlank()) {
+            return NotificationType.WHATSAPP;
+        }
+        if ("SMS".equals(preferred) && preference.isSmsEnabled() && phone != null && !phone.isBlank()) {
+            return NotificationType.SMS;
+        }
+        if ("PUSH".equals(preferred) && preference.isPushEnabled() && token != null && !token.isBlank()) {
+            return NotificationType.PUSH;
+        }
+        if ("IN_APP".equals(preferred) && preference.isInAppEnabled()) {
+            return NotificationType.IN_APP;
+        }
+        if (email != null && !email.isBlank() && preference.isEmailEnabled()) {
+            return NotificationType.EMAIL;
+        }
+        if (phone != null && !phone.isBlank() && preference.isSmsEnabled()) {
+            return NotificationType.SMS;
+        }
+        if (token != null && !token.isBlank() && preference.isPushEnabled()) {
+            return NotificationType.PUSH;
+        }
+        return NotificationType.EMAIL;
+    }
+
+    /**
      * Builds the email subject line based on event type.
      * Contains no PII — only describes the action category.
      */
-    private String buildSubject(String eventType) {
+    public String buildSubject(String eventType) {
         return switch (eventType) {
             case "ACCOUNT_LOCKED" -> "Account Security Alert";
             case "SESSION_SUBMITTED" -> "Exam Session Confirmation";
@@ -116,41 +256,37 @@ public class NotificationProcessingService {
     /**
      * Builds the message body using ONLY identifiers and action links.
      * Never includes PII (name, email, phone) or question content in the body.
-     *
-     * @param eventType   the type of notification event
-     * @param referenceId an opaque reference identifier
-     * @param actionLink  the action URL for the user
-     * @return the safe message body
      */
-    private String buildBody(String eventType, String referenceId, String actionLink) {
+    public String buildBody(String eventType, String referenceId, String actionLink) {
+        String ref = referenceId != null && !referenceId.isBlank() ? referenceId : "NAG-REF";
         String baseMessage = switch (eventType) {
             case "ACCOUNT_LOCKED" ->
                     "Your account has been locked due to multiple failed login attempts. " +
-                    "Contact support with reference: ACC-" + referenceId;
+                    "Contact support with reference: ACC-" + ref;
             case "SESSION_SUBMITTED" ->
                     "Your exam session has been submitted successfully. " +
-                    "Reference: SESSION-" + referenceId;
+                    "Reference: SESSION-" + ref;
             case "RESULT_PUBLISHED" ->
                     "Your examination result is now available. " +
-                    "Reference: RESULT-" + referenceId;
+                    "Reference: RESULT-" + ref;
             case "EVALUATION_COMPLETE" ->
                     "Evaluation has been completed for assignment. " +
-                    "Reference: EVAL-" + referenceId;
+                    "Reference: EVAL-" + ref;
             case "QUESTION_REVIEW" ->
                     "A question has been assigned to you for review. " +
-                    "Reference: QR-" + referenceId;
+                    "Reference: QR-" + ref;
             case "QUESTION_APPROVED" ->
                     "Your question has been approved. " +
-                    "Reference: QA-" + referenceId;
+                    "Reference: QA-" + ref;
             case "TRANSLATION_ASSIGNED" ->
                     "A translation task has been assigned to you. " +
-                    "Reference: TRANS-" + referenceId;
+                    "Reference: TRANS-" + ref;
             case "PASSWORD_RESET" ->
                     "A password reset has been requested for your account. " +
-                    "Reference: PR-" + referenceId;
+                    "Reference: PR-" + ref;
             default ->
                     "You have a new notification. " +
-                    "Reference: REF-" + referenceId;
+                    "Reference: REF-" + ref;
         };
 
         if (actionLink != null && !actionLink.isBlank()) {

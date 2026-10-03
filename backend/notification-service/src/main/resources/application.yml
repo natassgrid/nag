@@ -87,6 +87,18 @@ server:
     context-path: /
   shutdown: graceful
 
+notification:
+  sms:
+    endpoint: ${SMS_GATEWAY_URL:http://localhost:3000/msg91/api/v5/otp}
+    auth-key: ${SMS_AUTH_KEY:nag_sms_secret}
+    sender-id: ${SMS_SENDER_ID:NAGGov}
+  whatsapp:
+    endpoint: ${WHATSAPP_GATEWAY_URL:http://localhost:3000/whatsapp/v1/messages}
+    access-token: ${WHATSAPP_ACCESS_TOKEN:nag_wa_secret}
+  push:
+    endpoint: ${FCM_GATEWAY_URL:http://localhost:3000/fcm/send}
+    server-key: ${FCM_SERVER_KEY:nag_fcm_secret}
+
 management:
   endpoints:
     web:

@@ -45,6 +45,18 @@ spring:
       - org.springframework.boot.autoconfigure.mail.MailSenderAutoConfiguration
       - org.springframework.boot.autoconfigure.amqp.RabbitAutoConfiguration
 
+notification:
+  sms:
+    endpoint: http://localhost:19998/msg91/api/v5/otp
+    auth-key: test-sms-key
+    sender-id: NAGGov
+  whatsapp:
+    endpoint: http://localhost:19998/whatsapp/v1/messages
+    access-token: test-wa-token
+  push:
+    endpoint: http://localhost:19998/fcm/send
+    server-key: test-fcm-key
+
 platform:
   messaging:
     broker: in-memory

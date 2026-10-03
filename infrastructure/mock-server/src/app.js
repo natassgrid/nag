@@ -11,6 +11,8 @@ import digilockerRoutes from './routes/digilocker.js';
 import aadhaarRoutes from './routes/aadhaar.js';
 import msg91Routes from './routes/msg91.js';
 import emailRoutes from './routes/email.js';
+import whatsappRoutes from './routes/whatsapp.js';
+import fcmRoutes from './routes/fcm.js';
 import inspectRoutes from './routes/mock-inspect.js';
 import { testStore } from './data/mock-data.js';
 
@@ -37,15 +39,19 @@ export function createApp() {
       status: 'UP',
       service: 'nag-mock-api-server',
       version: '1.0.0',
-      description: 'Mock DPI Third-Party Gateway Server (DigiLocker, Aadhaar e-KYC, MSG91 SMS, Email)',
+      description: 'Mock DPI Third-Party Gateway Server (DigiLocker, Aadhaar e-KYC, MSG91 SMS, Email, WhatsApp, FCM Push)',
       services: {
         digilocker: 'HEALTHY',
         aadhaarKyc: 'HEALTHY',
         msg91Sms: 'HEALTHY',
-        emailGateway: 'HEALTHY'
+        emailGateway: 'HEALTHY',
+        whatsappGateway: 'HEALTHY',
+        pushGateway: 'HEALTHY'
       },
       smsOutboxCount: testStore.smsOutbox.length,
       emailOutboxCount: testStore.emailOutbox.length,
+      whatsappOutboxCount: testStore.whatsappOutbox.length,
+      pushOutboxCount: testStore.pushOutbox.length,
       activeAadhaarTxns: testStore.aadhaarTxns.size,
       pushedScorecardsCount: testStore.pushedScorecards.length,
       endpoints: {
@@ -53,6 +59,8 @@ export function createApp() {
         aadhaar: '/aadhaar/... or /api/v1/aadhaar/...',
         msg91: '/msg91/... or /api/v5/otp',
         email: '/email/... or /mock/email/...',
+        whatsapp: '/whatsapp/... or /api/v1/whatsapp/...',
+        push: '/fcm/... or /api/v1/push/...',
         mockInspector: '/mock/...'
       },
       timestamp: new Date().toISOString()
@@ -77,6 +85,15 @@ export function createApp() {
   app.use('/email', emailRoutes);
   app.use('/api/v1/email', emailRoutes);
 
+  // Mount WhatsApp routes
+  app.use('/whatsapp', whatsappRoutes);
+  app.use('/api/v1/whatsapp', whatsappRoutes);
+
+  // Mount FCM / Push routes
+  app.use('/fcm', fcmRoutes);
+  app.use('/api/v1/push', fcmRoutes);
+  app.use('/v1/projects', fcmRoutes);
+
   // Mount Mock Inspection / Control routes
   app.use('/mock', inspectRoutes);
 
@@ -97,8 +114,14 @@ export function createApp() {
         '/api/v5/otp',
         '/api/v5/otp/verify',
         '/email/send',
+        '/whatsapp/v1/messages',
+        '/api/v1/whatsapp/send',
+        '/fcm/send',
+        '/api/v1/push/send',
         '/mock/sms/latest',
         '/mock/email/latest',
+        '/mock/whatsapp/latest',
+        '/mock/push/latest',
         '/mock/chaos'
       ]
     });
