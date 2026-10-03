@@ -5,3 +5,5 @@ com.examplatform.shared.jackson.JacksonConfig
 com.examplatform.shared.security.JwtAuthConfig
 com.examplatform.shared.security.DevJwtConfig
 com.examplatform.shared.security.SharedSecurityConfig
+com.examplatform.shared.security.UserContextAutoConfiguration
+com.examplatform.shared.audit.JpaAuditingConfig
