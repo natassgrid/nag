@@ -21,6 +21,7 @@ package com.examplatform.evaluation.controller;
 
 import com.examplatform.evaluation.domain.Evaluation;
 import com.examplatform.evaluation.dto.ScoreRequest;
+import com.examplatform.evaluation.repository.EvaluationRepository;
 import com.examplatform.evaluation.service.ManualEvaluationService;
 import com.examplatform.evaluation.service.ScoreAggregationService;
 import com.examplatform.shared.tenant.TenantContext;
@@ -29,18 +30,22 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
 /**
  * REST controller for evaluation endpoints.
- * Handles manual scoring and score aggregation requests.
+ * Handles manual scoring, score aggregation requests, and candidate evaluation queries.
  */
 @Slf4j
 @RestController
@@ -50,6 +55,7 @@ public class EvaluationController {
 
     private final ManualEvaluationService manualEvaluationService;
     private final ScoreAggregationService scoreAggregationService;
+    private final EvaluationRepository evaluationRepository;
 
     /**
      * Record a manual evaluator's score for an evaluation.
@@ -95,5 +101,27 @@ public class EvaluationController {
                 sessionId, candidateId, examId, tenantId);
 
         return ResponseEntity.ok(result);
+    }
+
+    /**
+     * Retrieve all evaluations for a candidate.
+     * GET /api/v1/evaluations/candidate/{candidateId}
+     */
+    @GetMapping("/candidate/{candidateId}")
+    @PreAuthorize("hasAnyRole('CANDIDATE', 'EVALUATOR', 'EXAM_CONTROLLER', 'SUPER_ADMIN', 'ADMIN')")
+    public ResponseEntity<List<Evaluation>> getCandidateEvaluations(
+            @PathVariable UUID candidateId,
+            @RequestParam(required = false) UUID sessionId,
+            @RequestHeader(value = "X-Tenant-Id", defaultValue = "default") String tenantId) {
+
+        log.info("Fetching evaluations for candidate={}, sessionId={}, tenant={}", candidateId, sessionId, tenantId);
+
+        List<Evaluation> evaluations;
+        if (sessionId != null) {
+            evaluations = evaluationRepository.findBySessionIdAndTenantId(sessionId, tenantId);
+        } else {
+            evaluations = evaluationRepository.findByCandidateIdAndTenantId(candidateId, tenantId);
+        }
+        return ResponseEntity.ok(evaluations);
     }
 }

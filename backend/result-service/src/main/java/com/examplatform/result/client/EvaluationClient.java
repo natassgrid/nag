@@ -17,27 +17,25 @@
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
 
-package com.examplatform.result.dto;
+package com.examplatform.result.client;
 
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+import com.examplatform.result.dto.CandidateEvaluationItemDto;
 
 import java.util.List;
 import java.util.UUID;
 
 /**
- * Full post-exam review response containing all question-level data.
- *
- * Validates: SPEC-UI3
+ * Client for fetching candidate evaluations and per-question score breakdown from evaluation-service.
  */
-@Data
-@Builder
-@NoArgsConstructor
-@AllArgsConstructor
-public class ExamReviewResponse {
-    private UUID examId;
-    private UUID candidateId;
-    private List<ReviewQuestionDto> questions;
+public interface EvaluationClient {
+
+    /**
+     * Retrieves evaluations and responses for a candidate in an exam.
+     *
+     * @param candidateId the candidate UUID
+     * @param examId      the exam UUID
+     * @param tenantId    the tenant identifier
+     * @return list of candidate evaluation items
+     */
+    List<CandidateEvaluationItemDto> getEvaluationsForCandidate(UUID candidateId, UUID examId, String tenantId);
 }
