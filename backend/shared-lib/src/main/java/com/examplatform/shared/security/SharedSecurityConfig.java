@@ -60,7 +60,7 @@ public class SharedSecurityConfig {
                     "/api/v1/identity/verification-status",
                     "/api/v1/identity/admin/invite/**"
                 ).permitAll()
-                .requestMatchers("/api/v1/geo/**", "/api/v1/public/**").permitAll()
+                .requestMatchers("/api/v1/geo/**", "/api/v1/public/**", "/api/v1/results/verify").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/v1/assets/*/download", "/api/v1/assets/*/url").permitAll()
                 .anyRequest().authenticated()
             )
