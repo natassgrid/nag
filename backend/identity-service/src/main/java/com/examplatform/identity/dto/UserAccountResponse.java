@@ -14,7 +14,8 @@
  * GNU Affero General Public License for more details.
  *
  * You should have received a copy of the GNU Affero General Public License
- * along with this program. If not, see <https://www.gnu.org/licenses/>.\n */
+ * along with this program. If not, see <https://www.gnu.org/licenses/>.
+ */
 
 package com.examplatform.identity.dto;
 
@@ -32,6 +33,7 @@ import java.util.UUID;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
+@JsonInclude(JsonInclude.Include.NON_NULL)
 public class UserAccountResponse {
     private UUID id;
     private String username;
@@ -39,6 +41,13 @@ public class UserAccountResponse {
     private String fullName;
     private String phoneNumber;
     private String department;
+    private String designation;
+    private String avatarUrl;
+    private String timezone;
+    private String dateFormat;
+    private String timeFormat;
+    private String preferredLanguage;
+    private String themePreference;
     private String accountStatus;
     private String specialization;
     private boolean mfaEnabled;

@@ -5,7 +5,15 @@ import { of, throwError } from 'rxjs';
 import { AdminProfileComponent } from './admin-profile.component';
 import { ProfileService } from './profile.service';
 import { NotificationService } from '@nag-frontend-workspace/shared-ui-components';
-import { AdminUserProfile, ActiveSessionInfo, PermissionItem } from './profile.model';
+import {
+  AdminUserProfile,
+  ActiveSessionInfo,
+  PermissionItem,
+  PersonalAccessToken,
+  CreatedTokenResult,
+  AdminActivityLog,
+  PageResponse,
+} from './profile.model';
 
 describe('AdminProfileComponent', () => {
   let component: AdminProfileComponent;
@@ -67,6 +75,35 @@ describe('AdminProfileComponent', () => {
     },
   ];
 
+  const mockTokens: PersonalAccessToken[] = [
+    {
+      id: 'tok-123',
+      name: 'CI Token',
+      tokenPrefix: 'nag_pat_1234',
+      scopes: ['READ', 'WRITE'],
+      revoked: false,
+      createdAt: '2026-10-01T00:00:00Z',
+    },
+  ];
+
+  const mockActivityPage: PageResponse<AdminActivityLog> = {
+    content: [
+      {
+        id: 'act-1',
+        timestamp: '2026-10-01T12:00:00Z',
+        action: 'USER_LOGIN',
+        category: 'AUTHENTICATION',
+        details: 'Admin login successful',
+        ipAddress: '127.0.0.1',
+        status: 'SUCCESS',
+      },
+    ],
+    totalElements: 1,
+    totalPages: 1,
+    size: 10,
+    number: 0,
+  };
+
   let mockProfileService: {
     getProfile: jest.Mock;
     updateProfile: jest.Mock;
@@ -77,6 +114,11 @@ describe('AdminProfileComponent', () => {
     getActiveSessions: jest.Mock;
     revokeSession: jest.Mock;
     revokeOtherSessions: jest.Mock;
+    getTokens: jest.Mock;
+    createToken: jest.Mock;
+    revokeToken: jest.Mock;
+    getActivityLogs: jest.Mock;
+    exportActivityLogs: jest.Mock;
     getSystemPermissions: jest.Mock;
     getSystemRoleDetails: jest.Mock;
   };
@@ -111,6 +153,23 @@ describe('AdminProfileComponent', () => {
       getActiveSessions: jest.fn().mockReturnValue(of(mockSessions)),
       revokeSession: jest.fn().mockReturnValue(of(undefined)),
       revokeOtherSessions: jest.fn().mockReturnValue(of(undefined)),
+      getTokens: jest.fn().mockReturnValue(of(mockTokens)),
+      createToken: jest.fn().mockReturnValue(
+        of({
+          token: {
+            id: 'tok-new',
+            name: 'New Token',
+            tokenPrefix: 'nag_pat_neww',
+            scopes: ['READ'],
+            revoked: false,
+            createdAt: '2026-10-02T00:00:00Z',
+          },
+          rawSecret: 'nag_pat_newwsecret1234567890',
+        } as CreatedTokenResult)
+      ),
+      revokeToken: jest.fn().mockReturnValue(of(undefined)),
+      getActivityLogs: jest.fn().mockReturnValue(of(mockActivityPage)),
+      exportActivityLogs: jest.fn().mockReturnValue(of(new Blob(['test'], { type: 'text/csv' }))),
       getSystemPermissions: jest.fn().mockReturnValue(mockPermissions),
       getSystemRoleDetails: jest.fn().mockReturnValue({
         code: 'SUPER_ADMIN',
@@ -144,12 +203,15 @@ describe('AdminProfileComponent', () => {
     fixture.detectChanges();
   });
 
-  it('should initialize and load profile, permissions, and active sessions', () => {
+  it('should initialize and load profile, permissions, tokens, activity and active sessions', () => {
     expect(mockProfileService.getProfile).toHaveBeenCalled();
     expect(mockProfileService.getActiveSessions).toHaveBeenCalled();
+    expect(mockProfileService.getTokens).toHaveBeenCalled();
+    expect(mockProfileService.getActivityLogs).toHaveBeenCalled();
     expect(component.profile()).toEqual(mockProfile);
     expect(component.permissions().length).toBe(2);
     expect(component.sessions().length).toBe(2);
+    expect(component.tokens().length).toBe(1);
     expect(component.activeTab()).toBe('personal');
   });
 
@@ -162,6 +224,12 @@ describe('AdminProfileComponent', () => {
 
     component.activeTab.set('sessions');
     expect(component.activeTab()).toBe('sessions');
+
+    component.activeTab.set('tokens');
+    expect(component.activeTab()).toBe('tokens');
+
+    component.activeTab.set('activity');
+    expect(component.activeTab()).toBe('activity');
   });
 
   it('should update personal profile information', () => {
@@ -176,7 +244,7 @@ describe('AdminProfileComponent', () => {
 
     expect(mockProfileService.updateProfile).toHaveBeenCalledWith(updatePayload);
     expect(mockNotificationService.success).toHaveBeenCalledWith(
-      'Profile details updated successfully'
+      'Profile details and regional preferences updated successfully'
     );
     expect(component.profile()?.fullName).toBe('Dr. New Name');
     expect(component.savingProfile()).toBe(false);
@@ -283,6 +351,25 @@ describe('AdminProfileComponent', () => {
     expect(component.sessions()[0].isCurrent).toBe(true);
   });
 
+  it('should create and revoke PAT tokens', () => {
+    component.onCreateToken({ name: 'New Token', scopes: ['READ'] });
+    expect(mockProfileService.createToken).toHaveBeenCalled();
+    expect(component.createdTokenSecret()?.rawSecret).toBe('nag_pat_newwsecret1234567890');
+    expect(component.tokens().length).toBe(2);
+
+    component.onRevokeToken('tok-123');
+    expect(mockProfileService.revokeToken).toHaveBeenCalledWith('tok-123');
+  });
+
+  it('should filter activity and change page', () => {
+    component.onFilterActivity('AUTHENTICATION');
+    expect(component.activityCategory()).toBe('AUTHENTICATION');
+    expect(mockProfileService.getActivityLogs).toHaveBeenCalled();
+
+    component.onChangeActivityPage(1);
+    expect(component.activityPageNumber()).toBe(1);
+  });
+
   it('should refresh profile and sessions data when onRefreshData is called', () => {
     mockProfileService.getProfile.mockClear();
     mockProfileService.getActiveSessions.mockClear();
@@ -292,7 +379,7 @@ describe('AdminProfileComponent', () => {
     expect(mockProfileService.getProfile).toHaveBeenCalled();
     expect(mockProfileService.getActiveSessions).toHaveBeenCalled();
     expect(mockNotificationService.info).toHaveBeenCalledWith(
-      'Profile and active sessions data refreshed'
+      'Profile, tokens, and audit data refreshed'
     );
   });
 });

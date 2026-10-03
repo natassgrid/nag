@@ -8,6 +8,13 @@ export interface AdminUserProfile {
   phoneNumber?: string;
   specialization?: string;
   department?: string;
+  designation?: string;
+  avatarUrl?: string;
+  timezone?: string;
+  dateFormat?: string;
+  timeFormat?: string;
+  preferredLanguage?: string;
+  themePreference?: string;
   employeeId?: string;
   roles: string[];
   status: UserAccountStatus;
@@ -24,6 +31,13 @@ export interface UpdateProfilePayload {
   phoneNumber?: string;
   specialization?: string;
   department?: string;
+  designation?: string;
+  avatarUrl?: string;
+  timezone?: string;
+  dateFormat?: string;
+  timeFormat?: string;
+  preferredLanguage?: string;
+  themePreference?: string;
 }
 
 export interface ChangePasswordPayload {
@@ -67,4 +81,48 @@ export interface RoleDetail {
   badgeTone: 'purple' | 'indigo' | 'blue' | 'amber' | 'emerald' | 'slate';
   description: string;
   systemRole: boolean;
+}
+
+export interface PersonalAccessToken {
+  id: string;
+  name: string;
+  tokenPrefix: string;
+  scopes: string[];
+  ipWhitelist?: string;
+  expiresAt?: string;
+  lastUsedAt?: string;
+  revoked: boolean;
+  createdAt: string;
+  updatedAt?: string;
+}
+
+export interface CreateTokenPayload {
+  name: string;
+  scopes: string[];
+  expiresInDays?: number;
+  ipWhitelist?: string;
+}
+
+export interface CreatedTokenResult {
+  token: PersonalAccessToken;
+  rawSecret: string;
+}
+
+export interface AdminActivityLog {
+  id: string;
+  timestamp: string;
+  action: string;
+  category: string;
+  details: string;
+  ipAddress: string;
+  status: string;
+  resourceId?: string;
+}
+
+export interface PageResponse<T> {
+  content: T[];
+  totalElements: number;
+  totalPages: number;
+  size: number;
+  number: number;
 }

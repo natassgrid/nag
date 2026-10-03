@@ -180,8 +180,8 @@ public class RoleManagementService {
         Map<UUID, List<String>> rolesByUser = assignments.stream()
                 .collect(Collectors.groupingBy(
                         UserRoleAssignment::getUserId,
-                        Collectors.mapping(a -> a.getRole().name(), Collectors.toList())
-                ));
+                        Collectors.mapping(a -> a.getRole().name(), Collectors.toList()
+                )));
 
         return accounts.stream()
                 .map(account -> {
@@ -207,6 +207,13 @@ public class RoleManagementService {
                             .fullName(fullName)
                             .phoneNumber(phone)
                             .department(dept)
+                            .designation(account.getDesignation() != null ? account.getDesignation() : "Senior Examination Administrator")
+                            .avatarUrl(account.getAvatarUrl())
+                            .timezone(account.getTimezone() != null ? account.getTimezone() : "Asia/Kolkata")
+                            .dateFormat(account.getDateFormat() != null ? account.getDateFormat() : "DD/MM/YYYY")
+                            .timeFormat(account.getTimeFormat() != null ? account.getTimeFormat() : "24h")
+                            .preferredLanguage(account.getPreferredLanguage() != null ? account.getPreferredLanguage() : "en")
+                            .themePreference(account.getThemePreference() != null ? account.getThemePreference() : "system")
                             .accountStatus(account.getAccountStatus() != null ? account.getAccountStatus().name() : "ACTIVE")
                             .specialization(spec)
                             .mfaEnabled(account.isMfaEnabled())
@@ -260,6 +267,13 @@ public class RoleManagementService {
                 .fullName(fullName)
                 .phoneNumber(phoneNumber)
                 .department(department)
+                .designation(account.getDesignation() != null ? account.getDesignation() : "Senior Examination Administrator")
+                .avatarUrl(account.getAvatarUrl())
+                .timezone(account.getTimezone() != null ? account.getTimezone() : "Asia/Kolkata")
+                .dateFormat(account.getDateFormat() != null ? account.getDateFormat() : "DD/MM/YYYY")
+                .timeFormat(account.getTimeFormat() != null ? account.getTimeFormat() : "24h")
+                .preferredLanguage(account.getPreferredLanguage() != null ? account.getPreferredLanguage() : "en")
+                .themePreference(account.getThemePreference() != null ? account.getThemePreference() : "system")
                 .accountStatus(account.getAccountStatus() != null ? account.getAccountStatus().name() : "ACTIVE")
                 .specialization(specialization)
                 .mfaEnabled(account.isMfaEnabled())
@@ -289,6 +303,27 @@ public class RoleManagementService {
         }
         if (request.getDepartment() != null && !request.getDepartment().isBlank()) {
             account.setDepartment(request.getDepartment().trim());
+        }
+        if (request.getDesignation() != null && !request.getDesignation().isBlank()) {
+            account.setDesignation(request.getDesignation().trim());
+        }
+        if (request.getAvatarUrl() != null) {
+            account.setAvatarUrl(request.getAvatarUrl().trim());
+        }
+        if (request.getTimezone() != null && !request.getTimezone().isBlank()) {
+            account.setTimezone(request.getTimezone().trim());
+        }
+        if (request.getDateFormat() != null && !request.getDateFormat().isBlank()) {
+            account.setDateFormat(request.getDateFormat().trim());
+        }
+        if (request.getTimeFormat() != null && !request.getTimeFormat().isBlank()) {
+            account.setTimeFormat(request.getTimeFormat().trim());
+        }
+        if (request.getPreferredLanguage() != null && !request.getPreferredLanguage().isBlank()) {
+            account.setPreferredLanguage(request.getPreferredLanguage().trim());
+        }
+        if (request.getThemePreference() != null && !request.getThemePreference().isBlank()) {
+            account.setThemePreference(request.getThemePreference().trim());
         }
         if (request.getSpecialization() != null) {
             account.setSpecialization(request.getSpecialization().trim());
@@ -342,6 +377,20 @@ public class RoleManagementService {
                         .expiresAt(s.getExpiresAt())
                         .build())
                 .toList();
+    }
+
+    /**
+     * Terminate individual session.
+     */
+    public void revokeSession(String userIdentifier, UUID sessionId, String tenantId) {
+        String effectiveTenant = (tenantId != null && !tenantId.isBlank()) ? tenantId : "default";
+        UserAccount account = findAccountByIdentifier(userIdentifier, effectiveTenant);
+        log.info("Revoking session [{}] for user [{}] in tenant [{}]", sessionId, account.getId(), effectiveTenant);
+        activeSessionRepository.findById(sessionId).ifPresent(s -> {
+            if (account.getId().equals(s.getUserId())) {
+                activeSessionRepository.delete(s);
+            }
+        });
     }
 
     /**

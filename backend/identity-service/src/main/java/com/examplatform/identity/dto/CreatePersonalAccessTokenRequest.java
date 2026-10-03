@@ -19,47 +19,29 @@
 
 package com.examplatform.identity.dto;
 
-import com.examplatform.identity.domain.enums.AccountStatus;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotEmpty;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-/**
- * Request DTO for admin-initiated user update or self-profile update.
- * All fields are optional — only non-null fields are applied.
- */
+import java.util.List;
+
 @Data
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class AdminUpdateUserRequest {
+public class CreatePersonalAccessTokenRequest {
 
-    private String fullName;
+    @NotBlank(message = "Token name is required")
+    private String name;
 
-    private String email;
+    @NotEmpty(message = "At least one scope is required")
+    private List<String> scopes;
 
-    private String phoneNumber;
+    private String ipWhitelist;
 
-    private String department;
-
-    private String designation;
-
-    private String avatarUrl;
-
-    private String timezone;
-
-    private String dateFormat;
-
-    private String timeFormat;
-
-    private String preferredLanguage;
-
-    private String themePreference;
-
-    private AccountStatus accountStatus;
-
-    private String specialization;
-
-    private Boolean mfaEnabled;
+    @Builder.Default
+    private Integer expiresInDays = 90;
 }

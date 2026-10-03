@@ -64,6 +64,7 @@ describe('ProfileService', () => {
         roles: ['SUPER_ADMIN', 'EXAM_CONTROLLER'],
         status: 'ACTIVE',
         specialization: 'Physics',
+        timezone: 'Asia/Kolkata',
       },
     };
 
@@ -72,10 +73,11 @@ describe('ProfileService', () => {
       expect(profile.id).toBe('usr-123');
       expect(profile.fullName).toBe('Dr. Test Administrator');
       expect(profile.roles).toContain('SUPER_ADMIN');
+      expect(profile.timezone).toBe('Asia/Kolkata');
       done();
     });
 
-    const req = httpMock.expectOne('/api/v1/identity/users/me');
+    const req = httpMock.expectOne('/api/v1/identity/admin/me/profile');
     expect(req.request.method).toBe('GET');
     req.flush(mockResponse);
   });
@@ -88,8 +90,11 @@ describe('ProfileService', () => {
       done();
     });
 
-    const req = httpMock.expectOne('/api/v1/identity/users/me');
-    req.error(new ProgressEvent('Network error'));
+    const req1 = httpMock.expectOne('/api/v1/identity/admin/me/profile');
+    req1.error(new ProgressEvent('Network error'));
+
+    const req2 = httpMock.expectOne('/api/v1/identity/users/me');
+    req2.error(new ProgressEvent('Network error'));
   });
 
   it('should update user profile', (done) => {
@@ -97,6 +102,7 @@ describe('ProfileService', () => {
       fullName: 'Updated Name',
       phoneNumber: '+91 99999 88888',
       specialization: 'Computer Science',
+      timezone: 'Asia/Kolkata',
     };
 
     service.updateProfile(updatePayload).subscribe((res) => {
@@ -104,7 +110,7 @@ describe('ProfileService', () => {
       done();
     });
 
-    const req = httpMock.expectOne('/api/v1/identity/users/me');
+    const req = httpMock.expectOne('/api/v1/identity/admin/me/profile');
     expect(req.request.method).toBe('PUT');
     req.flush({
       data: {
@@ -161,7 +167,7 @@ describe('ProfileService', () => {
       done();
     });
 
-    const req = httpMock.expectOne('/api/v1/identity/users/sessions');
+    const req = httpMock.expectOne('/api/v1/identity/admin/me/sessions');
     req.flush({
       data: [
         {
@@ -173,6 +179,26 @@ describe('ProfileService', () => {
         },
       ],
     });
+  });
+
+  it('should fetch PAT tokens and create tokens', (done) => {
+    service.getTokens().subscribe((tokens) => {
+      expect(tokens.length).toBe(1);
+      expect(tokens[0].name).toBe('CLI Token');
+      done();
+    });
+
+    const req = httpMock.expectOne('/api/v1/identity/admin/me/tokens');
+    req.flush([
+      {
+        id: 'tok-1',
+        name: 'CLI Token',
+        tokenPrefix: 'nag_pat_abc',
+        scopes: ['READ'],
+        revoked: false,
+        createdAt: '2026-10-01T00:00:00Z',
+      },
+    ]);
   });
 
   it('should return system permissions mapped to assigned roles', () => {

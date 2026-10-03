@@ -1,8 +1,8 @@
 <div class="p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto space-y-6">
   <!-- Page Header -->
   <nag-page-header
-    title="Admin Profile & Security Credentials"
-    subtitle="Manage your administrative profile, role capabilities, cryptographic MFA security, and active sessions."
+    title="Admin Profile & Security Settings"
+    subtitle="Manage your administrative identity, granular RBAC permissions, cryptographic MFA, scoped PATs, and audit timeline."
     icon="admin_panel_settings"
   />
 
@@ -71,6 +71,28 @@
             [revoking]="revokingSession()"
             (revokeSession)="onRevokeSession($event)"
             (revokeOtherSessions)="onRevokeOtherSessions()"
+          />
+        }
+
+        @case ('tokens') {
+          <nag-personal-access-tokens-card
+            [tokens]="tokens()"
+            [isCreating]="tokenCreating()"
+            [createdTokenSecret]="createdTokenSecret()"
+            (createToken)="onCreateToken($event)"
+            (revokeToken)="onRevokeToken($event)"
+            (clearCreatedSecret)="createdTokenSecret.set(null)"
+          />
+        }
+
+        @case ('activity') {
+          <nag-activity-timeline-card
+            [activityPage]="activityPage()"
+            [loading]="loadingActivity()"
+            [selectedCategory]="activityCategory()"
+            (changeFilter)="onFilterActivity($event)"
+            (changePage)="onChangeActivityPage($event)"
+            (exportLogs)="onExportActivity($event)"
           />
         }
       }

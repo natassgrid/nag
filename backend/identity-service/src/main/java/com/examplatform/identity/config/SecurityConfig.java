@@ -46,7 +46,7 @@ public class SecurityConfig {
     public SecurityFilterChain identitySecurityFilterChain(HttpSecurity http,
                                                    JwtAuthenticationConverter jwtAuthenticationConverter) throws Exception {
         http
-            .securityMatcher("/api/v1/identity/**", "/api/v1/admin/roles/**", "/api/v1/admin/users/**", "/api/v1/admin/vault/**", "/actuator/**")
+            .securityMatcher("/api/v1/identity/**", "/api/v1/admin/me/**", "/api/v1/admin/roles/**", "/api/v1/admin/users/**", "/api/v1/admin/vault/**", "/actuator/**")
             .csrf(csrf -> csrf.disable())
             .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .addFilterBefore(rateLimitFilter, UsernamePasswordAuthenticationFilter.class)

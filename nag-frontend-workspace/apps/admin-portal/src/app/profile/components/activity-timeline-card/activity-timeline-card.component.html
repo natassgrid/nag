@@ -1,0 +1,135 @@
+<div class="bg-white rounded-xl border border-slate-200 shadow-sm p-6 space-y-6">
+  <!-- Header & Actions -->
+  <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-100">
+    <div>
+      <h3 class="text-lg font-bold text-slate-900 tracking-tight flex items-center gap-2">
+        <mat-icon class="text-indigo-600 !text-xl !w-5 !h-5">history</mat-icon>
+        <span>Admin Activity History & Audit Trail</span>
+      </h3>
+      <p class="text-xs text-slate-500 mt-0.5">
+        Chronological audit records of your administrative actions, login events, and security modifications.
+      </p>
+    </div>
+
+    <!-- Export Buttons -->
+    <div class="flex items-center gap-2 self-start sm:self-auto">
+      <button
+        type="button"
+        mat-stroked-button
+        (click)="exportLogs.emit('csv')"
+        class="!border-slate-300 !text-slate-700 hover:!bg-slate-50 text-xs"
+      >
+        <mat-icon class="!text-xs !w-3 !h-3 mr-1">download</mat-icon>
+        <span>Export CSV</span>
+      </button>
+      <button
+        type="button"
+        mat-stroked-button
+        (click)="exportLogs.emit('json')"
+        class="!border-slate-300 !text-slate-700 hover:!bg-slate-50 text-xs"
+      >
+        <mat-icon class="!text-xs !w-3 !h-3 mr-1">data_object</mat-icon>
+        <span>Export JSON</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- Filter Category Badges -->
+  <div class="flex items-center gap-2 flex-wrap">
+    @for (cat of categories; track cat.code) {
+      <button
+        type="button"
+        (click)="onSelectCategory(cat.code)"
+        [class]="selectedCategory() === cat.code ? 'bg-indigo-600 text-white shadow-sm font-bold' : 'bg-slate-100 text-slate-600 hover:bg-slate-200 font-semibold'"
+        class="px-3 py-1.5 rounded-lg text-xs transition-colors"
+      >
+        {{ cat.label }}
+      </button>
+    }
+  </div>
+
+  <!-- Timeline List -->
+  @if (loading()) {
+    <div class="py-10 flex justify-center items-center">
+      <mat-icon class="animate-spin text-indigo-600 !text-2xl">sync</mat-icon>
+    </div>
+  } @else if (!activityPage() || activityPage()!.content.length === 0) {
+    <div class="text-center py-10 border-2 border-dashed border-slate-200 rounded-xl">
+      <mat-icon class="!text-4xl !w-10 !h-10 text-slate-300 mx-auto mb-2">find_in_page</mat-icon>
+      <h4 class="text-sm font-bold text-slate-700">No Activity Logs Found</h4>
+      <p class="text-xs text-slate-500 mt-1 max-w-md mx-auto">
+        No administrative actions matching this filter have been recorded yet.
+      </p>
+    </div>
+  } @else {
+    <div class="relative border-l-2 border-slate-200 ml-4 pl-6 space-y-6">
+      @for (item of activityPage()!.content; track item.id) {
+        <div class="relative group">
+          <!-- Timeline Pin Dot -->
+          <div
+            class="absolute -left-[31px] top-1.5 w-3.5 h-3.5 rounded-full border-2 border-white shadow-sm"
+            [class]="item.status === 'SUCCESS' ? 'bg-emerald-500' : 'bg-rose-500'"
+          ></div>
+
+          <div class="bg-slate-50 border border-slate-200 rounded-xl p-4 hover:border-slate-300 transition-colors space-y-1.5">
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-1">
+              <div class="flex items-center gap-2 flex-wrap">
+                <span class="font-bold text-xs uppercase tracking-wider text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded border border-indigo-100">
+                  {{ item.action }}
+                </span>
+                <span class="text-xs font-semibold text-slate-800">
+                  {{ item.details }}
+                </span>
+              </div>
+              <span class="text-[11px] font-mono text-slate-500">
+                {{ item.timestamp | date:'medium' }}
+              </span>
+            </div>
+
+            <div class="flex items-center gap-3 text-[11px] text-slate-500 font-mono flex-wrap">
+              <span>Category: <strong>{{ item.category }}</strong></span>
+              <span>&bull;</span>
+              <span>IP: {{ item.ipAddress }}</span>
+              @if (item.resourceId) {
+                <span>&bull;</span>
+                <span>Resource: {{ item.resourceId }}</span>
+              }
+              <span>&bull;</span>
+              <span [class]="item.status === 'SUCCESS' ? 'text-emerald-600 font-bold' : 'text-rose-600 font-bold'">
+                {{ item.status }}
+              </span>
+            </div>
+          </div>
+        </div>
+      }
+    </div>
+
+    <!-- Pagination Footer -->
+    <div class="flex items-center justify-between pt-4 border-t border-slate-100 text-xs text-slate-500">
+      <span>
+        Page {{ (activityPage()?.number || 0) + 1 }} of {{ activityPage()?.totalPages || 1 }}
+        ({{ activityPage()?.totalElements || 0 }} total entries)
+      </span>
+      <div class="flex items-center gap-2">
+        <button
+          type="button"
+          mat-stroked-button
+          (click)="onPrev()"
+          [disabled]="(activityPage()?.number || 0) === 0"
+          class="!text-slate-700 text-xs"
+        >
+          Previous
+        </button>
+        <button
+          type="button"
+          mat-stroked-button
+          (click)="onNext()"
+          [disabled]="(activityPage()?.number || 0) >= ((activityPage()?.totalPages || 1) - 1)"
+          class="!text-slate-700 text-xs"
+        >
+          Next
+        </button>
+      </div>
+    </div>
+  }
+</div>

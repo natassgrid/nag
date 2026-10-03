@@ -21,6 +21,11 @@ import {
   TotpSetupResult,
   ActiveSessionInfo,
   PermissionItem,
+  PersonalAccessToken,
+  CreateTokenPayload,
+  CreatedTokenResult,
+  AdminActivityLog,
+  PageResponse,
 } from './profile.model';
 import {
   ProfileHeaderComponent,
@@ -28,9 +33,11 @@ import {
   RolesPermissionsCardComponent,
   SecurityMfaCardComponent,
   ActiveSessionsCardComponent,
+  PersonalAccessTokensCardComponent,
+  ActivityTimelineCardComponent,
 } from './components';
 
-export type ProfileTab = 'personal' | 'roles' | 'security' | 'sessions';
+export type ProfileTab = 'personal' | 'roles' | 'security' | 'sessions' | 'tokens' | 'activity';
 
 @Component({
   selector: 'app-admin-profile',
@@ -45,6 +52,8 @@ export type ProfileTab = 'personal' | 'roles' | 'security' | 'sessions';
     RolesPermissionsCardComponent,
     SecurityMfaCardComponent,
     ActiveSessionsCardComponent,
+    PersonalAccessTokensCardComponent,
+    ActivityTimelineCardComponent,
   ],
   templateUrl: './admin-profile.component.html',
   styleUrl: './admin-profile.component.scss',
@@ -58,8 +67,15 @@ export class AdminProfileComponent implements OnInit {
   readonly profile = signal<AdminUserProfile | null>(null);
   readonly permissions = signal<PermissionItem[]>([]);
   readonly sessions = signal<ActiveSessionInfo[]>([]);
+  readonly tokens = signal<PersonalAccessToken[]>([]);
+  readonly activityPage = signal<PageResponse<AdminActivityLog> | null>(null);
   readonly totpSetupData = signal<TotpSetupResult | null>(null);
+  readonly createdTokenSecret = signal<CreatedTokenResult | null>(null);
   readonly activeTab = signal<ProfileTab>('personal');
+
+  // Filter & Page State
+  readonly activityCategory = signal<string>('ALL');
+  readonly activityPageNumber = signal<number>(0);
 
   // Loading & Action State Signals
   readonly loading = signal<boolean>(false);
@@ -67,23 +83,31 @@ export class AdminProfileComponent implements OnInit {
   readonly changingPassword = signal<boolean>(false);
   readonly processingTotp = signal<boolean>(false);
   readonly revokingSession = signal<boolean>(false);
+  readonly tokenCreating = signal<boolean>(false);
+  readonly loadingActivity = signal<boolean>(false);
 
   readonly tabs: { key: ProfileTab; label: string; icon: string }[] = [
-    { key: 'personal', label: 'Personal Details', icon: 'person' },
+    { key: 'personal', label: 'Personal & Preferences', icon: 'person' },
     { key: 'roles', label: 'Roles & Permissions', icon: 'admin_panel_settings' },
     { key: 'security', label: 'Security & 2FA', icon: 'security' },
-    { key: 'sessions', label: 'Active Sessions & Audit', icon: 'devices' },
+    { key: 'sessions', label: 'Active Sessions', icon: 'devices' },
+    { key: 'tokens', label: 'API Access Tokens', icon: 'vpn_key' },
+    { key: 'activity', label: 'Audit Timeline', icon: 'history' },
   ];
 
   ngOnInit(): void {
     this.loadProfile();
     this.loadSessions();
+    this.loadTokens();
+    this.loadActivity();
   }
 
   onRefreshData(): void {
     this.loadProfile();
     this.loadSessions();
-    this.notificationService.info('Profile and active sessions data refreshed');
+    this.loadTokens();
+    this.loadActivity();
+    this.notificationService.info('Profile, tokens, and audit data refreshed');
   }
 
   loadProfile(): void {
@@ -109,12 +133,34 @@ export class AdminProfileComponent implements OnInit {
     });
   }
 
+  loadTokens(): void {
+    this.profileService.getTokens().subscribe({
+      next: (data) => this.tokens.set(data || []),
+      error: () => this.tokens.set([]),
+    });
+  }
+
+  loadActivity(): void {
+    this.loadingActivity.set(true);
+    this.profileService
+      .getActivityLogs(this.activityPageNumber(), 10, this.activityCategory())
+      .subscribe({
+        next: (page) => {
+          this.activityPage.set(page);
+          this.loadingActivity.set(false);
+        },
+        error: () => {
+          this.loadingActivity.set(false);
+        },
+      });
+  }
+
   onUpdateProfile(payload: UpdateProfilePayload): void {
     this.savingProfile.set(true);
     this.profileService.updateProfile(payload).subscribe({
       next: (updated) => {
         this.profile.set(updated);
-        this.notificationService.success('Profile details updated successfully');
+        this.notificationService.success('Profile details and regional preferences updated successfully');
         this.savingProfile.set(false);
       },
       error: (err) => {
@@ -213,6 +259,66 @@ export class AdminProfileComponent implements OnInit {
       error: (err) => {
         this.notificationService.error(err?.message || 'Failed to invalidate other sessions');
         this.revokingSession.set(false);
+      },
+    });
+  }
+
+  // Personal Access Tokens Handlers
+  onCreateToken(payload: CreateTokenPayload): void {
+    this.tokenCreating.set(true);
+    this.profileService.createToken(payload).subscribe({
+      next: (result) => {
+        this.createdTokenSecret.set(result);
+        this.tokens.update((toks) => [result.token, ...toks]);
+        this.notificationService.success('Access token generated successfully');
+        this.tokenCreating.set(false);
+      },
+      error: (err) => {
+        this.notificationService.error(err?.message || 'Failed to create access token');
+        this.tokenCreating.set(false);
+      },
+    });
+  }
+
+  onRevokeToken(tokenId: string): void {
+    this.profileService.revokeToken(tokenId).subscribe({
+      next: () => {
+        this.tokens.update((toks) =>
+          toks.map((t) => (t.id === tokenId ? { ...t, revoked: true } : t))
+        );
+        this.notificationService.success('Token revoked successfully');
+      },
+      error: (err) => {
+        this.notificationService.error(err?.message || 'Failed to revoke token');
+      },
+    });
+  }
+
+  // Activity Timeline Handlers
+  onFilterActivity(category: string): void {
+    this.activityCategory.set(category);
+    this.activityPageNumber.set(0);
+    this.loadActivity();
+  }
+
+  onChangeActivityPage(page: number): void {
+    this.activityPageNumber.set(page);
+    this.loadActivity();
+  }
+
+  onExportActivity(format: 'csv' | 'json'): void {
+    this.profileService.exportActivityLogs(format).subscribe({
+      next: (blob) => {
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `admin-activity-export.${format}`;
+        a.click();
+        window.URL.revokeObjectURL(url);
+        this.notificationService.success(`Activity log ${format.toUpperCase()} export downloaded`);
+      },
+      error: () => {
+        this.notificationService.error('Failed to download activity log export');
       },
     });
   }
