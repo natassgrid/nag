@@ -73,7 +73,36 @@ export class CandidateResultsComponent implements OnInit {
   }
 
   downloadScorecard(): void {
-    window.print();
+    const selected = this.resultsService.selectedScorecard();
+    if (!selected) {
+      window.print();
+      return;
+    }
+
+    this.resultsService.downloadScorecardPdf(selected.id).subscribe({
+      next: (blob) => {
+        if (blob && blob.size > 0) {
+          const url = window.URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = `scorecard-${selected.rollNumber || selected.id}.pdf`;
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          window.URL.revokeObjectURL(url);
+          this.notification.success(
+            'Scorecard Downloaded',
+            'Official tamper-evident scorecard PDF downloaded successfully.'
+          );
+        } else {
+          window.print();
+        }
+      },
+      error: () => {
+        this.notification.info('Opening Print Preview', 'Generating printable scorecard document.');
+        window.print();
+      },
+    });
   }
 
   retryLoad(): void {
