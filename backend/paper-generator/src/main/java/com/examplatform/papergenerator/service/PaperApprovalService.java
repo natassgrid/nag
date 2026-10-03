@@ -34,8 +34,11 @@ import java.util.UUID;
 
 /**
  * Manages paper approval workflow: DRAFT → APPROVED → ENCRYPTED.
- * Encrypts the paper package with a shift-specific key via VaultCryptoService
- * and publishes a PAPER_APPROVED audit event.
+ * Encrypts the paper package with a shift-specific key via VaultCryptoService,
+ * anchors the binary SHA-256 Merkle root to the public DLT ledger via PaperAnchoringService,
+ * and publishes audit events.
+ *
+ * Validates: Requirements 8.7, Issue #156
  */
 @Slf4j
 @Service
@@ -50,15 +53,16 @@ public class PaperApprovalService {
 
     private final PaperRepository paperRepository;
     private final VaultCryptoService vaultCryptoService;
+    private final PaperAnchoringService paperAnchoringService;
     private final EventPublisher eventPublisher;
 
     /**
      * Approve and encrypt a paper, transitioning:
-     * DRAFT → APPROVED → ENCRYPTED.
+     * DRAFT → APPROVED → ENCRYPTED, followed by public ledger anchoring.
      *
      * @param paperId  the paper to approve
      * @param tenantId examination authority identifier
-     * @return the updated Paper entity in ENCRYPTED status
+     * @return the updated Paper entity in ENCRYPTED status with public ledger proofs
      */
     public Paper approvePaper(UUID paperId, String tenantId) {
         String effectiveTenant = (tenantId != null && !tenantId.isBlank()) ? tenantId : "default";
@@ -90,13 +94,16 @@ public class PaperApprovalService {
 
         // Transition to ENCRYPTED
         paper.setStatus(STATUS_ENCRYPTED);
-        Paper savedPaper = paperRepository.save(paper);
+        Paper encryptedPaper = paperRepository.save(paper);
         log.info("Paper {} encrypted with key [{}] and transitioned to ENCRYPTED", paperId, shiftKeyName);
 
-        // Publish PAPER_APPROVED audit event
-        publishPaperApprovedEvent(savedPaper, effectiveTenant);
+        // Cryptographic Public Ledger Anchoring (Issue #156)
+        Paper anchoredPaper = paperAnchoringService.anchorPaperToLedger(encryptedPaper, effectiveTenant);
 
-        return savedPaper;
+        // Publish PAPER_APPROVED audit event
+        publishPaperApprovedEvent(anchoredPaper, effectiveTenant);
+
+        return anchoredPaper;
     }
 
     private void publishPaperApprovedEvent(Paper paper, String tenantId) {
@@ -106,6 +113,8 @@ public class PaperApprovalService {
                     "paperId", paper.getId().toString(),
                     "examId", paper.getExamId().toString(),
                     "shiftId", paper.getShiftId(),
+                    "paperRootHash", paper.getPaperRootHash() != null ? paper.getPaperRootHash() : "",
+                    "ledgerTxHash", paper.getLedgerTxHash() != null ? paper.getLedgerTxHash() : "",
                     "encryptionKeyId", paper.getEncryptionKeyId() != null ? paper.getEncryptionKeyId() : "",
                     "tenantId", tenantId,
                     "occurredAt", Instant.now().toString()

@@ -1,25 +1,61 @@
 <div class="verification-page max-w-5xl mx-auto p-6 space-y-8">
   <nag-page-header
-    title="Public Assessment Credential & Proof Verifier"
-    subtitle="Independent verification of candidate scorecards, hall tickets, and tamper-evident ledger proofs"
+    title="Public Assessment Credential & Paper Ledger Verifier"
+    subtitle="Independent verification of examination paper seals, Merkle tree root hashes, and candidate credentials"
     icon="policy"
   />
+
+  <!-- Mode Selection Tabs -->
+  <div class="flex border-b border-slate-200 gap-6">
+    <button
+      (click)="setTab('paper')"
+      [class.text-indigo-600]="activeTab() === 'paper'"
+      [class.border-indigo-600]="activeTab() === 'paper'"
+      [class.border-transparent]="activeTab() !== 'paper'"
+      [class.text-slate-500]="activeTab() !== 'paper'"
+      class="pb-3 border-b-2 font-semibold text-sm flex items-center gap-2 hover:text-indigo-600 transition"
+    >
+      <mat-icon class="!text-lg">verified_user</mat-icon>
+      Examination Paper & DLT Ledger Seal
+    </button>
+    <button
+      (click)="setTab('candidate')"
+      [class.text-indigo-600]="activeTab() === 'candidate'"
+      [class.border-indigo-600]="activeTab() === 'candidate'"
+      [class.border-transparent]="activeTab() !== 'candidate'"
+      [class.text-slate-500]="activeTab() !== 'candidate'"
+      class="pb-3 border-b-2 font-semibold text-sm flex items-center gap-2 hover:text-indigo-600 transition"
+    >
+      <mat-icon class="!text-lg">badge</mat-icon>
+      Candidate Scorecard & Credential Proof
+    </button>
+  </div>
 
   <!-- Search / Lookup Box -->
   <div class="bg-white p-8 rounded-2xl border border-slate-200 shadow-sm space-y-4">
     <h2 class="text-base font-bold text-slate-900 flex items-center gap-2">
-      <mat-icon class="text-indigo-600">qr_code_scanner</mat-icon>
-      Verify Credential Authenticity
+      <mat-icon class="text-indigo-600">
+        {{ activeTab() === 'paper' ? 'fingerprint' : 'qr_code_scanner' }}
+      </mat-icon>
+      {{ activeTab() === 'paper' ? 'Verify Tamper-Proof Paper Root Hash' : 'Verify Candidate Credential' }}
     </h2>
     <p class="text-xs text-slate-500">
-      Enter a Candidate Roll Number, Hall Ticket Hash, or Cryptographic Submission Proof Hash to verify against the immutable National Assessment Grid ledger.
+      {{
+        activeTab() === 'paper'
+          ? 'Enter the Paper Merkle Root Hash, Manifest Digest, or Ledger Transaction Hash to verify the pre-exam cryptographic seal on the public DLT.'
+          : 'Enter a Candidate Roll Number, Hall Ticket Hash, or Cryptographic Submission Proof Hash to verify against the immutable ledger.'
+      }}
     </p>
 
     <div class="flex flex-col sm:flex-row gap-3 pt-2">
       <input
         type="text"
         [(ngModel)]="searchQuery"
-        placeholder="e.g. 849202 or 0x7f83b1657ff1fc53b92dc18148a1d65dfc2d4b1fa3d677284addd200126d9069"
+        [placeholder]="
+          activeTab() === 'paper'
+            ? 'e.g. 0xe3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855'
+            : 'e.g. 849202 or 0x7f83b1657ff1fc53b92dc18148a1d65dfc2d4b1fa3d677284addd200126d9069'
+        "
         class="grow px-4 py-3 text-sm font-mono bg-slate-50 border border-slate-300 rounded-xl text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500"
         (keyup.enter)="verify()"
       />
@@ -34,10 +70,129 @@
         {{ verifying() ? 'Verifying on Ledger...' : 'Verify Proof' }}
       </button>
     </div>
+
+    @if (errorMessage()) {
+      <div class="p-3 bg-rose-50 border border-rose-200 text-rose-700 text-xs rounded-xl flex items-center gap-2">
+        <mat-icon class="!text-base">error_outline</mat-icon>
+        {{ errorMessage() }}
+      </div>
+    }
   </div>
 
-  <!-- Verification Result Display -->
-  @if (verifiedResult(); as res) {
+  <!-- TAB 1: Examination Paper Ledger Seal Result -->
+  @if (activeTab() === 'paper' && verifiedPaperResult(); as paper) {
+    <div class="verified-record-card bg-white rounded-2xl border border-indigo-200 shadow-md p-8 space-y-6">
+      <div class="flex items-start justify-between border-b border-indigo-100 pb-5">
+        <div class="flex items-center gap-3">
+          <div class="w-12 h-12 rounded-xl bg-indigo-100 text-indigo-700 flex items-center justify-center">
+            <mat-icon class="!text-3xl">lock_clock</mat-icon>
+          </div>
+          <div>
+            <span class="text-xs font-bold text-indigo-700 uppercase tracking-wider block">
+              PUBLIC DLT ANCHORED EXAMINATION SEAL
+            </span>
+            <h3 class="text-xl font-bold text-slate-900">{{ paper.examName || 'Official Examination Paper' }}</h3>
+            <span class="text-xs font-mono text-slate-500">Variant: {{ paper.variant || 'SET-A' }}</span>
+          </div>
+        </div>
+        <nag-status-badge variant="success" label="Ledger Anchored & Verified" />
+      </div>
+
+      <!-- Overview Cards -->
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <nag-stat-card
+          label="Total Question Leaves"
+          [value]="paper.totalQuestions || 100"
+          icon="view_list"
+          variant="primary"
+        />
+        <nag-stat-card
+          label="Ledger Consensus Timestamp"
+          [value]="paper.consensusTimestamp"
+          icon="schedule"
+          variant="info"
+        />
+        <nag-stat-card
+          label="Ledger Block / Sequence"
+          [value]="'#' + paper.blockNumber"
+          icon="layers"
+          variant="success"
+        />
+      </div>
+
+      <!-- Cryptographic Details Card -->
+      <div class="bg-slate-50 rounded-xl p-5 border border-slate-200 space-y-3 font-mono text-xs">
+        <div class="flex items-center justify-between pb-2 border-b border-slate-200">
+          <span class="font-bold text-slate-700 uppercase">Cryptographic Paper Anchoring Proof</span>
+          <span class="text-[11px] text-slate-500">Network: {{ paper.ledgerNetwork }}</span>
+        </div>
+        <div>
+          <span class="text-slate-400 block text-[10px]">PAPER MERKLE ROOT HASH (H_root):</span>
+          <span class="break-all font-bold text-indigo-700 select-all">{{ paper.paperRootHash }}</span>
+        </div>
+        <div>
+          <span class="text-slate-400 block text-[10px]">CANONICAL MANIFEST DIGEST:</span>
+          <span class="break-all text-slate-700 select-all">{{ paper.manifestDigest }}</span>
+        </div>
+        <div>
+          <span class="text-slate-400 block text-[10px]">PUBLIC LEDGER TRANSACTION HASH:</span>
+          <a
+            [href]="paper.ledgerExplorerUrl"
+            target="_blank"
+            rel="noopener noreferrer"
+            class="text-indigo-600 underline break-all hover:text-indigo-800 flex items-center gap-1"
+          >
+            {{ paper.ledgerTxHash }}
+            <mat-icon class="!text-xs">open_in_new</mat-icon>
+          </a>
+        </div>
+      </div>
+
+      <!-- Merkle Leaf Inspector -->
+      <div class="bg-indigo-50/50 rounded-xl p-6 border border-indigo-100 space-y-4">
+        <h4 class="text-sm font-bold text-slate-800 flex items-center gap-2">
+          <mat-icon class="text-indigo-600 !text-lg">account_tree</mat-icon>
+          Independent Merkle Leaf Inclusion Inspector
+        </h4>
+        <p class="text-xs text-slate-600">
+          Verify that an individual question leaf hash mathematically belongs to this paper's anchored Merkle root.
+        </p>
+        <div class="flex flex-col sm:flex-row gap-3">
+          <input
+            type="text"
+            [(ngModel)]="leafQuestionInput"
+            placeholder="Enter Question Leaf Hash (e.g. SHA-256(Question + Options))"
+            class="grow px-4 py-2.5 text-xs font-mono bg-white border border-slate-300 rounded-xl text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+          />
+          <button
+            mat-stroked-button
+            color="primary"
+            (click)="verifyLeafInclusion()"
+            [disabled]="inspectingLeaf() || !leafQuestionInput.trim()"
+            class="!rounded-xl !text-xs font-semibold"
+          >
+            <mat-icon>{{ inspectingLeaf() ? 'sync' : 'check_circle' }}</mat-icon>
+            Verify Leaf Proof
+          </button>
+        </div>
+
+        @if (leafVerificationStatus() === 'VALID') {
+          <div class="p-3 bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs rounded-xl flex items-center gap-2">
+            <mat-icon class="text-emerald-600 !text-base">verified</mat-icon>
+            Leaf Inclusion Confirmed: Question leaf is cryptographically bound to Paper Merkle Root #{{ paper.paperRootHash.slice(0, 16) }}...
+          </div>
+        } @else if (leafVerificationStatus() === 'INVALID') {
+          <div class="p-3 bg-rose-50 border border-rose-200 text-rose-800 text-xs rounded-xl flex items-center gap-2">
+            <mat-icon class="text-rose-600 !text-base">gpp_bad</mat-icon>
+            Inclusion Failed: Leaf does not match the anchored Paper Merkle Root.
+          </div>
+        }
+      </div>
+    </div>
+  }
+
+  <!-- TAB 2: Candidate Scorecard Verification Result -->
+  @if (activeTab() === 'candidate' && verifiedCandidateResult(); as res) {
     <div class="verified-record-card bg-white rounded-2xl border border-emerald-200 shadow-md p-8 space-y-6">
       <div class="flex items-start justify-between border-b border-emerald-100 pb-5">
         <div class="flex items-center gap-3">
@@ -46,7 +201,7 @@
           </div>
           <div>
             <span class="text-xs font-bold text-emerald-700 uppercase tracking-wider block">
-              AUTHENTICATED LEDGER RECORD
+              AUTHENTICATED CANDIDATE RECORD
             </span>
             <h3 class="text-xl font-bold text-slate-900">{{ res.candidateName }}</h3>
             <span class="text-xs font-mono text-slate-500">Roll: {{ res.candidateRoll }}</span>
