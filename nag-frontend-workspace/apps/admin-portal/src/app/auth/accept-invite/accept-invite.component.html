@@ -1,0 +1,275 @@
+<div class="accept-invite-page min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-indigo-950 flex items-center justify-center p-4">
+  <div class="w-full max-w-lg space-y-6">
+    <!-- Brand Header -->
+    <div class="text-center space-y-2">
+      <div class="inline-flex items-center gap-3">
+        <div class="w-12 h-12 rounded-2xl bg-indigo-600 text-white flex items-center justify-center font-black text-2xl shadow-lg border border-indigo-400/30">
+          NAG
+        </div>
+        <div class="text-left">
+          <h1 class="text-2xl font-black text-white tracking-tight">National Assessment Grid</h1>
+          <p class="text-xs text-indigo-300 uppercase tracking-widest font-semibold">Admin & Staff Clearance Onboarding</p>
+        </div>
+      </div>
+      <p class="text-slate-400 text-xs">Complete account activation and Mandatory 2FA Authenticator pairing</p>
+    </div>
+
+    <!-- Main Card -->
+    <div class="bg-white rounded-3xl border border-slate-200 p-8 shadow-2xl space-y-6">
+      <!-- 1. Validating Token Spinner -->
+      @if (validating()) {
+        <div class="py-12 flex flex-col items-center justify-center space-y-4 text-center">
+          <mat-icon class="!text-4xl text-indigo-600 animate-spin">hourglass_top</mat-icon>
+          <div class="text-sm font-bold text-slate-700">Validating Invitation Clearance...</div>
+          <p class="text-xs text-slate-400">Verifying high-entropy cryptographic token signature</p>
+        </div>
+      }
+
+      <!-- 2. Invalid or Expired Token State -->
+      @else if (!tokenValid()) {
+        <div class="space-y-6 text-center py-4">
+          <div class="w-16 h-16 rounded-full bg-rose-100 text-rose-600 flex items-center justify-center mx-auto">
+            <mat-icon class="!text-3xl">link_off</mat-icon>
+          </div>
+          <div>
+            <h2 class="text-lg font-black text-slate-900">Invitation Link Invalid or Expired</h2>
+            <p class="text-xs text-slate-500 mt-1 max-w-sm mx-auto" data-testid="invite-error-message">
+              {{ validationError() || 'The invitation token is invalid, revoked, or has exceeded its 48-hour validity window.' }}
+            </p>
+          </div>
+          <div class="pt-4 border-t border-slate-100">
+            <a
+              routerLink="/login"
+              mat-flat-button
+              color="primary"
+              class="!py-2.5 !px-6 !rounded-xl !text-xs font-bold !bg-slate-900 hover:!bg-black !text-white"
+            >
+              &larr; Return to Sign In
+            </a>
+          </div>
+        </div>
+      }
+
+      <!-- 3. Valid Invitation - Onboarding Form -->
+      @else {
+        <!-- Invitee Info Banner -->
+        <div class="p-4 bg-indigo-50/80 border border-indigo-200 rounded-2xl space-y-2">
+          <div class="flex items-center justify-between text-xs">
+            <span class="text-indigo-600 font-semibold uppercase tracking-wider text-[10px]">Invited User</span>
+            <span class="font-bold text-indigo-950 font-mono text-xs" data-testid="invitee-email">
+              {{ invitationData()?.email }}
+            </span>
+          </div>
+          <div class="flex items-center justify-between text-xs">
+            <span class="text-indigo-600 font-semibold uppercase tracking-wider text-[10px]">Full Name</span>
+            <span class="font-bold text-slate-800">{{ invitationData()?.fullName || 'Assigned Officer' }}</span>
+          </div>
+          @if (invitationData()?.roles || invitationData()?.assignedRoles) {
+            <div class="flex items-center justify-between text-xs">
+              <span class="text-indigo-600 font-semibold uppercase tracking-wider text-[10px]">Assigned Roles</span>
+              <div class="flex flex-wrap gap-1">
+                @for (role of (invitationData()?.roles || invitationData()?.assignedRoles); track role) {
+                  <span class="px-2 py-0.5 rounded-md bg-indigo-600 text-white text-[10px] font-bold font-mono">
+                    {{ role }}
+                  </span>
+                }
+              </div>
+            </div>
+          }
+        </div>
+
+        <!-- Error & Success Messages -->
+        @if (errorMessage()) {
+          <div class="p-3.5 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs font-medium flex items-center gap-2">
+            <mat-icon class="!text-base leading-none text-rose-600 shrink-0">error_outline</mat-icon>
+            <span data-testid="accept-error-message">{{ errorMessage() }}</span>
+          </div>
+        }
+
+        @if (successMessage()) {
+          <div class="p-3.5 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-medium flex items-center gap-2">
+            <mat-icon class="!text-base leading-none text-emerald-600 shrink-0">check_circle</mat-icon>
+            <span data-testid="accept-success-message">{{ successMessage() }}</span>
+          </div>
+        }
+
+        <form (ngSubmit)="handleAcceptInvite()" class="space-y-6">
+          <!-- Step 1: Set Password -->
+          <div class="space-y-3">
+            <div class="flex items-center gap-2 text-slate-800 font-bold text-xs uppercase tracking-wider">
+              <span class="w-5 h-5 rounded-full bg-indigo-600 text-white flex items-center justify-center text-[10px]">1</span>
+              <span>Set Your Access Password</span>
+            </div>
+
+            <div class="space-y-2">
+              <div>
+                <label for="invite-password" class="block text-[11px] font-bold text-slate-600 uppercase mb-1">
+                  New Password (min 8 characters)
+                </label>
+                <div class="relative">
+                  <input
+                    id="invite-password"
+                    [type]="showPassword() ? 'text' : 'password'"
+                    [(ngModel)]="password"
+                    name="password"
+                    placeholder="••••••••••••"
+                    required
+                    minlength="8"
+                    class="w-full pl-3 pr-10 py-2 text-sm border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500"
+                    data-testid="invite-password-input"
+                  />
+                  <button
+                    type="button"
+                    (click)="showPassword.set(!showPassword())"
+                    class="absolute right-3 top-2 text-slate-400 hover:text-slate-600 cursor-pointer"
+                  >
+                    <mat-icon class="!text-base">{{ showPassword() ? 'visibility_off' : 'visibility' }}</mat-icon>
+                  </button>
+                </div>
+              </div>
+
+              <div>
+                <label for="invite-confirm-password" class="block text-[11px] font-bold text-slate-600 uppercase mb-1">
+                  Confirm Password
+                </label>
+                <input
+                  id="invite-confirm-password"
+                  [type]="showPassword() ? 'text' : 'password'"
+                  [(ngModel)]="confirmPassword"
+                  name="confirmPassword"
+                  placeholder="••••••••••••"
+                  required
+                  minlength="8"
+                  class="w-full px-3 py-2 text-sm border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500"
+                  data-testid="invite-confirm-password-input"
+                />
+              </div>
+            </div>
+          </div>
+
+          <!-- Step 2: TOTP 2FA Pairing -->
+          <div class="space-y-3 pt-3 border-t border-slate-100">
+            <div class="flex items-center gap-2 text-slate-800 font-bold text-xs uppercase tracking-wider">
+              <span class="w-5 h-5 rounded-full bg-indigo-600 text-white flex items-center justify-center text-[10px]">2</span>
+              <span>Pair 2FA Authenticator App</span>
+            </div>
+
+            <p class="text-xs text-slate-500">
+              Scan this QR code using Google Authenticator, Microsoft Authenticator, or 1Password.
+            </p>
+
+            <div class="flex flex-col sm:flex-row items-center gap-4 bg-slate-50 p-4 rounded-2xl border border-slate-200">
+              @if (totpQrCodeUrl()) {
+                <img
+                  [src]="totpQrCodeUrl()"
+                  alt="TOTP QR Code"
+                  class="w-36 h-36 rounded-xl border border-slate-200 bg-white p-1.5 shrink-0 shadow-sm"
+                  data-testid="totp-qr-code"
+                />
+              } @else {
+                <div class="w-36 h-36 rounded-xl border border-slate-200 bg-white flex items-center justify-center shrink-0">
+                  <mat-icon class="text-slate-400 !text-3xl">qr_code_2</mat-icon>
+                </div>
+              }
+
+              <div class="space-y-2 text-center sm:text-left flex-1 min-w-0">
+                <span class="text-[10px] uppercase font-bold text-slate-500 tracking-wider">Manual Secret Key</span>
+                <div class="p-2 bg-white rounded-lg border border-slate-200 font-mono text-xs font-bold text-indigo-900 select-all break-all flex items-center justify-between gap-1">
+                  <span data-testid="totp-secret-key">{{ totpSecret() }}</span>
+                  <button
+                    type="button"
+                    (click)="copySecret()"
+                    class="text-indigo-600 hover:text-indigo-800 p-1 cursor-pointer"
+                    title="Copy Secret"
+                  >
+                    <mat-icon class="!text-sm">content_copy</mat-icon>
+                  </button>
+                </div>
+                <p class="text-[10px] text-slate-400">Account: NAG:{{ invitationData()?.email }}</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Step 3: Enter 6-digit TOTP Code -->
+          <div class="space-y-3 pt-3 border-t border-slate-100">
+            <div class="flex items-center gap-2 text-slate-800 font-bold text-xs uppercase tracking-wider">
+              <span class="w-5 h-5 rounded-full bg-indigo-600 text-white flex items-center justify-center text-[10px]">3</span>
+              <span>Verify 6-Digit Authenticator Code</span>
+            </div>
+
+            <div>
+              <label for="totp-code" class="block text-[11px] font-bold text-slate-600 uppercase mb-1 text-center">
+                6-Digit TOTP Code
+              </label>
+              <input
+                id="totp-code"
+                type="text"
+                maxlength="6"
+                [(ngModel)]="totpCode"
+                name="totpCode"
+                placeholder="• • • • • •"
+                required
+                class="w-full py-3 text-center text-xl font-mono tracking-[0.5em] font-bold border-2 border-indigo-300 rounded-xl focus:ring-2 focus:ring-indigo-600"
+                data-testid="invite-totp-input"
+              />
+            </div>
+
+            <div class="text-center">
+              <button
+                type="button"
+                (click)="fillTestTotp()"
+                class="text-[11px] font-semibold text-slate-400 hover:text-indigo-600 transition-colors cursor-pointer"
+              >
+                Use Test TOTP (000000)
+              </button>
+            </div>
+          </div>
+
+          <!-- Step 4: Backup Recovery Codes -->
+          <div class="p-3.5 bg-amber-50/70 border border-amber-200 rounded-2xl space-y-2">
+            <div class="flex items-center justify-between">
+              <div class="flex items-center gap-1.5 text-xs font-bold text-amber-900">
+                <mat-icon class="!text-sm text-amber-600">security</mat-icon>
+                <span>Emergency Backup Recovery Codes</span>
+              </div>
+              <button
+                type="button"
+                (click)="copyBackupCodes()"
+                class="text-[11px] font-bold text-indigo-700 hover:underline flex items-center gap-1 cursor-pointer"
+              >
+                <mat-icon class="!text-xs">{{ copiedBackupCodes() ? 'done' : 'content_copy' }}</mat-icon>
+                {{ copiedBackupCodes() ? 'Copied!' : 'Copy Codes' }}
+              </button>
+            </div>
+            <div class="grid grid-cols-3 gap-1 text-[11px] font-mono text-center text-slate-700 bg-white p-2 rounded-lg border border-amber-100">
+              @for (code of backupCodes(); track code) {
+                <span class="py-0.5 px-1 bg-slate-50 rounded">{{ code }}</span>
+              }
+            </div>
+          </div>
+
+          <!-- Submit Button -->
+          <button
+            type="submit"
+            mat-flat-button
+            color="primary"
+            [disabled]="submitting() || !password || password.length < 8 || !totpCode || totpCode.trim().length !== 6"
+            class="w-full !py-3 !rounded-xl !text-sm font-bold shadow-md !bg-slate-900 hover:!bg-black !text-white cursor-pointer"
+            data-testid="complete-onboarding-button"
+          >
+            <span class="flex items-center justify-center gap-2">
+              <mat-icon class="!text-base">{{ submitting() ? 'hourglass_top' : 'verified_user' }}</mat-icon>
+              {{ submitting() ? 'Activating Account & Enabling 2FA...' : 'Complete Enrollment & Sign In' }}
+            </span>
+          </button>
+        </form>
+
+        <div class="pt-2 text-center">
+          <a routerLink="/login" class="text-xs text-slate-500 hover:text-slate-700 font-semibold">
+            &larr; Back to Officer Sign In
+          </a>
+        </div>
+      }
+    </div>
+  </div>
+</div>

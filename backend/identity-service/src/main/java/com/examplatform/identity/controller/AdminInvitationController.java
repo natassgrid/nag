@@ -45,7 +45,7 @@ import java.util.UUID;
 
 @Slf4j
 @RestController
-@RequestMapping("/api/v1/identity/admin/invite")
+@RequestMapping({"/api/v1/identity/admin/invite", "/api/v1/identity/invitations"})
 @RequiredArgsConstructor
 public class AdminInvitationController {
 
