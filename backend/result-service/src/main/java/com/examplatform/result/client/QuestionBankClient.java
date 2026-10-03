@@ -17,27 +17,24 @@
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
 
-package com.examplatform.result.dto;
+package com.examplatform.result.client;
 
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+import com.examplatform.result.dto.QuestionDetailDto;
 
 import java.util.List;
 import java.util.UUID;
 
 /**
- * Full post-exam review response containing all question-level data.
- *
- * Validates: SPEC-UI3
+ * Client for fetching question contents, options, and explanations from question-bank-service.
  */
-@Data
-@Builder
-@NoArgsConstructor
-@AllArgsConstructor
-public class ExamReviewResponse {
-    private UUID examId;
-    private UUID candidateId;
-    private List<ReviewQuestionDto> questions;
+public interface QuestionBankClient {
+
+    /**
+     * Retrieves question details by a list of question UUIDs.
+     *
+     * @param questionIds list of question IDs
+     * @param tenantId    tenant identifier
+     * @return list of question details
+     */
+    List<QuestionDetailDto> findQuestionsByIds(List<UUID> questionIds, String tenantId);
 }

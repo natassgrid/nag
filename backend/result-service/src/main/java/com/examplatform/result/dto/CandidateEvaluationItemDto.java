@@ -19,6 +19,7 @@
 
 package com.examplatform.result.dto;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -28,16 +29,23 @@ import java.util.List;
 import java.util.UUID;
 
 /**
- * Full post-exam review response containing all question-level data.
- *
- * Validates: SPEC-UI3
+ * Candidate evaluation item retrieved from evaluation-service / response-service.
  */
 @Data
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class ExamReviewResponse {
-    private UUID examId;
+@JsonIgnoreProperties(ignoreUnknown = true)
+public class CandidateEvaluationItemDto {
+    private UUID evaluationId;
+    private UUID questionId;
     private UUID candidateId;
-    private List<ReviewQuestionDto> questions;
+    private UUID sessionId;
+    private double score;
+    private double maxMarks;
+    private double negativeMarks;
+    private String comments;
+    private String status;
+    private List<String> candidateSelectedOptionIds;
+    private long timeSpentMs;
 }
