@@ -56,10 +56,11 @@ export class ProfileService {
   }
 
   updateProfile(payload: UpdateProfilePayload): Observable<AdminUserProfile> {
-    const body = {
+    const body: Record<string, any> = {
       fullName: payload.fullName,
       phoneNumber: payload.phoneNumber,
       specialization: payload.specialization,
+      department: payload.department,
     };
 
     return this.http.put<{ data: any } | any>(`${this.baseUrl}/users/me`, body).pipe(
@@ -334,9 +335,9 @@ export class ProfileService {
       username,
       email,
       fullName,
-      phoneNumber: u.phoneNumber || '+91 98765 43210',
-      specialization: u.specialization || 'Assessment System Administration',
-      department: u.department || 'National Examination Board',
+      phoneNumber: u.phoneNumber ?? '+91 98765 43210',
+      specialization: u.specialization ?? 'Assessment System Administration',
+      department: u.department ?? 'National Examination Board',
       employeeId: u.employeeId || 'NAG-ADM-9942',
       roles: roles.length ? roles : ['SUPER_ADMIN'],
       status: u.accountStatus || u.status || 'ACTIVE',
