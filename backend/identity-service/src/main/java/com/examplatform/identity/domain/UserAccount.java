@@ -47,6 +47,18 @@ public class UserAccount extends BaseEntity {
     @Column(name = "username", nullable = false)
     private String username;
 
+    @Column(name = "full_name")
+    private String fullName;
+
+    @Column(name = "email")
+    private String email;
+
+    @Column(name = "phone_number")
+    private String phoneNumber;
+
+    @Column(name = "department")
+    private String department;
+
     @Column(name = "email_hash", nullable = false)
     private String emailHash;
 

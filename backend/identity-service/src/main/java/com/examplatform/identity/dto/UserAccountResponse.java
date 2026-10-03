@@ -18,6 +18,7 @@
 
 package com.examplatform.identity.dto;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -34,9 +35,17 @@ import java.util.UUID;
 public class UserAccountResponse {
     private UUID id;
     private String username;
+    private String email;
+    private String fullName;
+    private String phoneNumber;
+    private String department;
     private String accountStatus;
     private String specialization;
     private boolean mfaEnabled;
+    private String twoFactorMethod;
     private List<String> roles;
+    private List<String> permissions;
+    private String tenantId;
     private Instant createdAt;
+    private Instant lastLoginAt;
 }

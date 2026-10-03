@@ -1,0 +1,378 @@
+<div class="space-y-6">
+  <!-- Section 1: Password Management -->
+  <div class="bg-white rounded-xl border border-slate-200 shadow-sm p-6">
+    <div class="flex items-center justify-between pb-4 mb-6 border-b border-slate-100">
+      <div>
+        <h3 class="text-lg font-bold text-slate-900 tracking-tight flex items-center gap-2">
+          <mat-icon class="text-indigo-600 !text-xl !w-5 !h-5">lock</mat-icon>
+          <span>Password Management</span>
+        </h3>
+        <p class="text-xs text-slate-500 mt-0.5">
+          Update your administrative master password. Must meet DPI cryptographic strength standards.
+        </p>
+      </div>
+    </div>
+
+    <form (ngSubmit)="onPasswordSubmit()" class="max-w-2xl space-y-5">
+      <!-- Current Password -->
+      <div class="space-y-1.5">
+        <label for="currentPassword" class="text-xs font-semibold text-slate-700 uppercase tracking-wider">
+          Current Password
+        </label>
+        <div class="relative rounded-lg shadow-sm">
+          <input
+            [type]="showCurrentPassword() ? 'text' : 'password'"
+            id="currentPassword"
+            name="currentPassword"
+            [ngModel]="currentPassword()"
+            (ngModelChange)="currentPassword.set($event)"
+            required
+            placeholder="Enter your current password"
+            class="block w-full pl-3 pr-10 py-2 text-sm text-slate-900 bg-white border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors"
+          />
+          <button
+            type="button"
+            (click)="showCurrentPassword.set(!showCurrentPassword())"
+            class="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-slate-600 focus:outline-none"
+          >
+            <mat-icon class="!text-base !w-4 !h-4">{{ showCurrentPassword() ? 'visibility_off' : 'visibility' }}</mat-icon>
+          </button>
+        </div>
+      </div>
+
+      <!-- New Password -->
+      <div class="space-y-1.5">
+        <label for="newPassword" class="text-xs font-semibold text-slate-700 uppercase tracking-wider">
+          New Password
+        </label>
+        <div class="relative rounded-lg shadow-sm">
+          <input
+            [type]="showNewPassword() ? 'text' : 'password'"
+            id="newPassword"
+            name="newPassword"
+            [ngModel]="newPassword()"
+            (ngModelChange)="newPassword.set($event)"
+            required
+            placeholder="Enter strong new password"
+            class="block w-full pl-3 pr-10 py-2 text-sm text-slate-900 bg-white border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors"
+          />
+          <button
+            type="button"
+            (click)="showNewPassword.set(!showNewPassword())"
+            class="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-slate-600 focus:outline-none"
+          >
+            <mat-icon class="!text-base !w-4 !h-4">{{ showNewPassword() ? 'visibility_off' : 'visibility' }}</mat-icon>
+          </button>
+        </div>
+
+        <!-- Password Strength Meter -->
+        @if (newPassword().length > 0) {
+          <div class="pt-2 space-y-2">
+            <div class="flex items-center gap-1.5">
+              <div class="h-1.5 flex-1 rounded-full bg-slate-100 overflow-hidden">
+                <div
+                  [class]="passwordScore() <= 2 ? 'bg-rose-500' : passwordScore() <= 3 ? 'bg-amber-500' : 'bg-emerald-500'"
+                  [style.width.%]="(passwordScore() / 5) * 100"
+                  class="h-full transition-all duration-300"
+                ></div>
+              </div>
+              <span class="text-[11px] font-semibold text-slate-600">
+                {{ passwordScore() <= 2 ? 'Weak' : passwordScore() <= 4 ? 'Moderate' : 'Strong' }}
+              </span>
+            </div>
+
+            <!-- Requirement Checkmarks -->
+            <div class="grid grid-cols-2 sm:grid-cols-3 gap-2 text-[11px]">
+              <span [class]="hasMinLength() ? 'text-emerald-600 font-semibold' : 'text-slate-400'" class="flex items-center gap-1">
+                <mat-icon class="!text-xs !w-3.5 !h-3.5">{{ hasMinLength() ? 'check' : 'close' }}</mat-icon>
+                <span>8+ Characters</span>
+              </span>
+              <span [class]="hasUppercase() ? 'text-emerald-600 font-semibold' : 'text-slate-400'" class="flex items-center gap-1">
+                <mat-icon class="!text-xs !w-3.5 !h-3.5">{{ hasMinLength() ? 'check' : 'close' }}</mat-icon>
+                <span>Uppercase Letter</span>
+              </span>
+              <span [class]="hasLowercase() ? 'text-emerald-600 font-semibold' : 'text-slate-400'" class="flex items-center gap-1">
+                <mat-icon class="!text-xs !w-3.5 !h-3.5">{{ hasLowercase() ? 'check' : 'close' }}</mat-icon>
+                <span>Lowercase Letter</span>
+              </span>
+              <span [class]="hasNumber() ? 'text-emerald-600 font-semibold' : 'text-slate-400'" class="flex items-center gap-1">
+                <mat-icon class="!text-xs !w-3.5 !h-3.5">{{ hasNumber() ? 'check' : 'close' }}</mat-icon>
+                <span>Number (0-9)</span>
+              </span>
+              <span [class]="hasSpecial() ? 'text-emerald-600 font-semibold' : 'text-slate-400'" class="flex items-center gap-1">
+                <mat-icon class="!text-xs !w-3.5 !h-3.5">{{ hasSpecial() ? 'check' : 'close' }}</mat-icon>
+                <span>Special Symbol (!@#$)</span>
+              </span>
+            </div>
+          </div>
+        }
+      </div>
+
+      <!-- Confirm New Password -->
+      <div class="space-y-1.5">
+        <label for="confirmPassword" class="text-xs font-semibold text-slate-700 uppercase tracking-wider flex items-center justify-between">
+          <span>Confirm New Password</span>
+          @if (confirmPassword().length > 0) {
+            <span [class]="isPasswordMatch() ? 'text-emerald-600 font-semibold' : 'text-rose-500'" class="text-[11px]">
+              {{ isPasswordMatch() ? 'Passwords match' : 'Passwords do not match' }}
+            </span>
+          }
+        </label>
+        <div class="relative rounded-lg shadow-sm">
+          <input
+            [type]="showConfirmPassword() ? 'text' : 'password'"
+            id="confirmPassword"
+            name="confirmPassword"
+            [ngModel]="confirmPassword()"
+            (ngModelChange)="confirmPassword.set($event)"
+            required
+            placeholder="Re-enter new password"
+            class="block w-full pl-3 pr-10 py-2 text-sm text-slate-900 bg-white border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors"
+          />
+          <button
+            type="button"
+            (click)="showConfirmPassword.set(!showConfirmPassword())"
+            class="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-slate-600 focus:outline-none"
+          >
+            <mat-icon class="!text-base !w-4 !h-4">{{ showConfirmPassword() ? 'visibility_off' : 'visibility' }}</mat-icon>
+          </button>
+        </div>
+      </div>
+
+      <div class="flex items-center gap-3 pt-2">
+        <button
+          type="submit"
+          mat-flat-button
+          [disabled]="!isPasswordFormValid() || isChangingPassword()"
+          class="!bg-indigo-600 hover:!bg-indigo-700 !text-white text-xs shadow-sm"
+        >
+          <span class="flex items-center gap-1.5">
+            @if (isChangingPassword()) {
+              <mat-icon class="!text-sm !w-4 !h-4 animate-spin">sync</mat-icon>
+              <span>Updating Password...</span>
+            } @else {
+              <mat-icon class="!text-sm !w-4 !h-4">key</mat-icon>
+              <span>Change Password</span>
+            }
+          </span>
+        </button>
+      </div>
+    </form>
+  </div>
+
+  <!-- Section 2: Two-Factor Authentication (2FA / TOTP) -->
+  <div class="bg-white rounded-xl border border-slate-200 shadow-sm p-6">
+    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 mb-6 border-b border-slate-100">
+      <div>
+        <h3 class="text-lg font-bold text-slate-900 tracking-tight flex items-center gap-2">
+          <mat-icon class="text-emerald-600 !text-xl !w-5 !h-5">security</mat-icon>
+          <span>Two-Factor Authentication (TOTP / Authenticator)</span>
+        </h3>
+        <p class="text-xs text-slate-500 mt-0.5">
+          Safeguard your administrative account with Time-based One-Time Passwords (Google Authenticator, Microsoft Authenticator, FreeOTP).
+        </p>
+      </div>
+
+      <!-- Status Pill -->
+      <div class="flex items-center gap-2">
+        @if (profile().twoFactorEnabled) {
+          <span class="px-3 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200 flex items-center gap-1.5 shadow-xs">
+            <mat-icon class="!text-sm !w-4 !h-4 text-emerald-600">verified_user</mat-icon>
+            <span>2FA Active (Protected)</span>
+          </span>
+        } @else {
+          <span class="px-3 py-1 rounded-full text-xs font-semibold bg-amber-50 text-amber-700 border border-amber-200 flex items-center gap-1.5">
+            <mat-icon class="!text-sm !w-4 !h-4 text-amber-600">gpp_maybe</mat-icon>
+            <span>2FA Inactive (Recommended)</span>
+          </span>
+        }
+      </div>
+    </div>
+
+    @if (profile().twoFactorEnabled) {
+      <!-- Active 2FA Management View -->
+      <div class="p-5 rounded-xl bg-emerald-50/40 border border-emerald-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div class="flex items-start gap-3.5">
+          <div class="w-10 h-10 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center flex-shrink-0">
+            <mat-icon class="!text-xl !w-5 !h-5">phonelink_lock</mat-icon>
+          </div>
+          <div>
+            <h4 class="text-sm font-bold text-slate-900">Authenticator App 2FA is Enforced</h4>
+            <p class="text-xs text-slate-600 mt-0.5">
+              Your login attempts require an active TOTP code. Your backup recovery codes remain active for emergency access.
+            </p>
+          </div>
+        </div>
+
+        <button
+          type="button"
+          mat-stroked-button
+          (click)="onDisableTotp()"
+          [disabled]="isProcessingTotp()"
+          class="!text-rose-700 !border-rose-300 hover:!bg-rose-50 text-xs flex-shrink-0 flex items-center gap-1.5"
+        >
+          <mat-icon class="!text-sm !w-4 !h-4 text-rose-600">lock_open</mat-icon>
+          <span>Disable 2FA</span>
+        </button>
+      </div>
+    } @else {
+      <!-- Inactive 2FA View / Setup Wizard -->
+      @if (!isSetupWizardOpen()) {
+        <div class="p-5 rounded-xl bg-slate-50 border border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div class="flex items-start gap-3.5">
+            <div class="w-10 h-10 rounded-xl bg-indigo-100 text-indigo-700 flex items-center justify-center flex-shrink-0">
+              <mat-icon class="!text-xl !w-5 !h-5">qr_code_2</mat-icon>
+            </div>
+            <div>
+              <h4 class="text-sm font-bold text-slate-900">Enable Multi-Factor Authentication</h4>
+              <p class="text-xs text-slate-600 mt-0.5">
+                Elevate security by linking an authenticator app. Setup takes less than 2 minutes.
+              </p>
+            </div>
+          </div>
+
+          <button
+            type="button"
+            mat-flat-button
+            (click)="startTotpSetup()"
+            [disabled]="isProcessingTotp()"
+            class="!bg-indigo-600 hover:!bg-indigo-700 !text-white text-xs shadow-sm flex-shrink-0 flex items-center gap-1.5"
+          >
+            <mat-icon class="!text-sm !w-4 !h-4">add_moderator</mat-icon>
+            <span>Set Up 2FA Now</span>
+          </button>
+        </div>
+      } @else {
+        <!-- Interactive Setup Wizard -->
+        <div class="p-6 rounded-2xl border border-indigo-200 bg-indigo-50/20 space-y-6">
+          <div class="flex items-center justify-between border-b border-indigo-100 pb-3">
+            <h4 class="text-sm font-bold text-slate-900 flex items-center gap-2">
+              <mat-icon class="text-indigo-600 !text-lg !w-5 !h-5">phonelink_setup</mat-icon>
+              <span>Two-Factor Authentication Setup Wizard</span>
+            </h4>
+            <button
+              type="button"
+              (click)="cancelTotpSetup()"
+              class="text-xs text-slate-500 hover:text-slate-800"
+            >
+              Cancel
+            </button>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <!-- Step 1: QR Code & Secret -->
+            <div class="space-y-4">
+              <div class="flex items-center gap-2 text-xs font-bold text-slate-800">
+                <span class="w-5 h-5 rounded-full bg-indigo-600 text-white flex items-center justify-center text-[10px]">1</span>
+                <span>Scan QR Code with Authenticator App</span>
+              </div>
+
+              <div class="bg-white p-4 rounded-xl border border-slate-200 inline-flex flex-col items-center justify-center shadow-xs">
+                @if (totpSetupData()?.otpauthUri) {
+                  <nag-qr-code
+                    [data]="totpSetupData()!.otpauthUri"
+                    [size]="160"
+                    label="NAG Admin 2FA"
+                  />
+                } @else {
+                  <div class="w-40 h-40 flex items-center justify-center text-slate-400 text-xs animate-pulse">
+                    Generating QR code...
+                  </div>
+                }
+              </div>
+
+              @if (totpSetupData()?.secret) {
+                <div class="space-y-1">
+                  <label class="text-[11px] font-semibold text-slate-600 uppercase tracking-wider">
+                    Or Enter Secret Key Manually:
+                  </label>
+                  <div class="flex items-center gap-2 bg-white px-3 py-1.5 rounded-lg border border-slate-200 font-mono text-xs text-slate-800">
+                    <span class="flex-1 select-all">{{ totpSetupData()!.secret }}</span>
+                    <button
+                      type="button"
+                      (click)="copySecret(totpSetupData()!.secret!)"
+                      class="text-indigo-600 hover:text-indigo-800 text-xs font-sans font-semibold flex items-center gap-1"
+                    >
+                      <mat-icon class="!text-xs !w-3.5 !h-3.5">{{ copiedSecret() ? 'done' : 'content_copy' }}</mat-icon>
+                      <span>{{ copiedSecret() ? 'Copied' : 'Copy' }}</span>
+                    </button>
+                  </div>
+                </div>
+              }
+            </div>
+
+            <!-- Step 2 & 3: Backup Codes + Verification -->
+            <div class="space-y-5">
+              <!-- Step 2: Backup Codes -->
+              <div class="space-y-2">
+                <div class="flex items-center justify-between">
+                  <div class="flex items-center gap-2 text-xs font-bold text-slate-800">
+                    <span class="w-5 h-5 rounded-full bg-indigo-600 text-white flex items-center justify-center text-[10px]">2</span>
+                    <span>Save Backup Recovery Codes</span>
+                  </div>
+                  @if (totpSetupData()?.backupCodes?.length) {
+                    <button
+                      type="button"
+                      (click)="copyBackupCodes(totpSetupData()!.backupCodes!)"
+                      class="text-indigo-600 hover:text-indigo-800 text-xs font-semibold flex items-center gap-1"
+                    >
+                      <mat-icon class="!text-xs !w-3.5 !h-3.5">{{ copiedCodes() ? 'done' : 'content_copy' }}</mat-icon>
+                      <span>{{ copiedCodes() ? 'Codes Copied' : 'Copy All Codes' }}</span>
+                    </button>
+                  }
+                </div>
+
+                @if (totpSetupData()?.backupCodes?.length) {
+                  <div class="grid grid-cols-2 gap-1.5 bg-white p-3 rounded-xl border border-slate-200 text-center font-mono text-xs text-slate-700">
+                    @for (code of totpSetupData()!.backupCodes!; track code) {
+                      <div class="bg-slate-50 py-1 px-2 rounded border border-slate-100">
+                        {{ code }}
+                      </div>
+                    }
+                  </div>
+                }
+              </div>
+
+              <!-- Step 3: Enter 6-digit Code -->
+              <div class="space-y-2 pt-2 border-t border-indigo-100">
+                <div class="flex items-center gap-2 text-xs font-bold text-slate-800">
+                  <span class="w-5 h-5 rounded-full bg-indigo-600 text-white flex items-center justify-center text-[10px]">3</span>
+                  <span>Enter 6-Digit Authenticator Code</span>
+                </div>
+
+                <div class="flex items-center gap-3">
+                  <input
+                    type="text"
+                    maxlength="6"
+                    placeholder="000000"
+                    [ngModel]="totpVerificationCode()"
+                    (ngModelChange)="totpVerificationCode.set($event)"
+                    class="w-36 px-3 py-2 text-center text-lg tracking-widest font-mono font-bold text-slate-900 bg-white border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                  />
+
+                  <button
+                    type="button"
+                    mat-flat-button
+                    (click)="onVerifyTotp()"
+                    [disabled]="totpVerificationCode().length !== 6 || isProcessingTotp()"
+                    class="!bg-emerald-600 hover:!bg-emerald-700 !text-white text-xs shadow-sm"
+                  >
+                    <span class="flex items-center gap-1.5">
+                      @if (isProcessingTotp()) {
+                        <mat-icon class="!text-sm !w-4 !h-4 animate-spin">sync</mat-icon>
+                        <span>Verifying...</span>
+                      } @else {
+                        <mat-icon class="!text-sm !w-4 !h-4">verified</mat-icon>
+                        <span>Verify & Activate 2FA</span>
+                      }
+                    </span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      }
+    }
+  </div>
+</div>

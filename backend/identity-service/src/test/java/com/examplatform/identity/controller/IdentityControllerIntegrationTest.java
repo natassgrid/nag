@@ -849,4 +849,188 @@ class IdentityControllerIntegrationTest extends AbstractIntegrationTest {
                     .andExpect(status().isUnauthorized());
         }
     }
+
+    // =========================================================================
+    // 13. GET /api/v1/identity/users/me (Current user profile)
+    // =========================================================================
+    @Nested
+    @DisplayName("GET /api/v1/identity/users/me")
+    class GetCurrentUserProfileEndpoint {
+
+        @Test
+        @DisplayName("+ve: Authenticated user retrieves full profile - returns 200 OK")
+        void authenticatedUserCanGetProfile() throws Exception {
+            UserAccountResponse response = UserAccountResponse.builder()
+                    .id(TEST_USER_ID)
+                    .username("admin@assessmentgrid.gov.in")
+                    .fullName("Dr. Admin User")
+                    .email("admin@assessmentgrid.gov.in")
+                    .phoneNumber("+91 98765 43210")
+                    .department("National Examination Authority")
+                    .specialization("Assessment System Administration")
+                    .accountStatus("ACTIVE")
+                    .mfaEnabled(true)
+                    .twoFactorMethod("TOTP")
+                    .roles(List.of("SUPER_ADMIN"))
+                    .tenantId(TENANT_ID)
+                    .createdAt(Instant.now())
+                    .build();
+
+            when(roleManagementService.getUserProfile(eq(TEST_USER_ID.toString()), eq(TENANT_ID)))
+                    .thenReturn(response);
+
+            mockMvc.perform(get("/api/v1/identity/users/me")
+                            .header("X-Tenant-Id", TENANT_ID)
+                            .with(jwt().jwt(builder -> builder.subject(TEST_USER_ID.toString()))))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.status").value("SUCCESS"))
+                    .andExpect(jsonPath("$.data.fullName").value("Dr. Admin User"))
+                    .andExpect(jsonPath("$.data.phoneNumber").value("+91 98765 43210"))
+                    .andExpect(jsonPath("$.data.department").value("National Examination Authority"))
+                    .andExpect(jsonPath("$.data.specialization").value("Assessment System Administration"))
+                    .andExpect(jsonPath("$.data.roles[0]").value("SUPER_ADMIN"));
+
+            verify(roleManagementService).getUserProfile(eq(TEST_USER_ID.toString()), eq(TENANT_ID));
+        }
+
+        @Test
+        @DisplayName("-ve: Unauthenticated request returns 401 Unauthorized")
+        void unauthenticatedProfileReturnsUnauthorized() throws Exception {
+            mockMvc.perform(get("/api/v1/identity/users/me"))
+                    .andExpect(status().isUnauthorized());
+        }
+    }
+
+    // =========================================================================
+    // 14. PUT /api/v1/identity/users/me (Update profile)
+    // =========================================================================
+    @Nested
+    @DisplayName("PUT /api/v1/identity/users/me")
+    class UpdateCurrentUserProfileEndpoint {
+
+        @Test
+        @DisplayName("+ve: Authenticated user updates profile - returns 200 OK")
+        void authenticatedUserCanUpdateProfile() throws Exception {
+            AdminUpdateUserRequest request = AdminUpdateUserRequest.builder()
+                    .fullName("Dr. Rajesh Sharma")
+                    .phoneNumber("+91 98765 00000")
+                    .specialization("AI Analytics & Psychometrics")
+                    .department("National Testing Agency")
+                    .build();
+
+            UserAccountResponse updated = UserAccountResponse.builder()
+                    .id(TEST_USER_ID)
+                    .username("admin@assessmentgrid.gov.in")
+                    .fullName("Dr. Rajesh Sharma")
+                    .phoneNumber("+91 98765 00000")
+                    .specialization("AI Analytics & Psychometrics")
+                    .department("National Testing Agency")
+                    .accountStatus("ACTIVE")
+                    .roles(List.of("SUPER_ADMIN"))
+                    .tenantId(TENANT_ID)
+                    .build();
+
+            when(roleManagementService.updateUserProfile(eq(TEST_USER_ID.toString()), any(AdminUpdateUserRequest.class), eq(TENANT_ID)))
+                    .thenReturn(updated);
+
+            mockMvc.perform(put("/api/v1/identity/users/me")
+                            .header("X-Tenant-Id", TENANT_ID)
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(request))
+                            .with(jwt().jwt(builder -> builder.subject(TEST_USER_ID.toString()))))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.status").value("SUCCESS"))
+                    .andExpect(jsonPath("$.data.fullName").value("Dr. Rajesh Sharma"))
+                    .andExpect(jsonPath("$.data.phoneNumber").value("+91 98765 00000"))
+                    .andExpect(jsonPath("$.data.specialization").value("AI Analytics & Psychometrics"))
+                    .andExpect(jsonPath("$.data.department").value("National Testing Agency"));
+
+            verify(roleManagementService).updateUserProfile(eq(TEST_USER_ID.toString()), any(AdminUpdateUserRequest.class), eq(TENANT_ID));
+        }
+
+        @Test
+        @DisplayName("-ve: Unauthenticated update returns 401 Unauthorized")
+        void unauthenticatedUpdateReturnsUnauthorized() throws Exception {
+            AdminUpdateUserRequest request = AdminUpdateUserRequest.builder()
+                    .fullName("New Name")
+                    .build();
+
+            mockMvc.perform(put("/api/v1/identity/users/me")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(request)))
+                    .andExpect(status().isUnauthorized());
+        }
+    }
+
+    // =========================================================================
+    // 15. GET /api/v1/identity/users/sessions (Active sessions)
+    // =========================================================================
+    @Nested
+    @DisplayName("GET /api/v1/identity/users/sessions")
+    class GetActiveSessionsEndpoint {
+
+        @Test
+        @DisplayName("+ve: Authenticated user retrieves active sessions - returns 200 OK")
+        void authenticatedUserCanGetActiveSessions() throws Exception {
+            List<ActiveSessionResponse> sessions = List.of(
+                    ActiveSessionResponse.builder()
+                            .id(UUID.randomUUID())
+                            .userId(TEST_USER_ID)
+                            .ipAddress("192.168.1.10")
+                            .deviceFp("Admin Desktop")
+                            .browser("Chrome 129")
+                            .os("Windows 11")
+                            .current(true)
+                            .build()
+            );
+
+            when(roleManagementService.getActiveSessions(eq(TEST_USER_ID.toString()), eq(TENANT_ID)))
+                    .thenReturn(sessions);
+
+            mockMvc.perform(get("/api/v1/identity/users/sessions")
+                            .header("X-Tenant-Id", TENANT_ID)
+                            .with(jwt().jwt(builder -> builder.subject(TEST_USER_ID.toString()))))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.status").value("SUCCESS"))
+                    .andExpect(jsonPath("$.data[0].ipAddress").value("192.168.1.10"))
+                    .andExpect(jsonPath("$.data[0].current").value(true));
+
+            verify(roleManagementService).getActiveSessions(eq(TEST_USER_ID.toString()), eq(TENANT_ID));
+        }
+
+        @Test
+        @DisplayName("-ve: Unauthenticated request returns 401 Unauthorized")
+        void unauthenticatedSessionsReturnsUnauthorized() throws Exception {
+            mockMvc.perform(get("/api/v1/identity/users/sessions"))
+                    .andExpect(status().isUnauthorized());
+        }
+    }
+
+    // =========================================================================
+    // 16. DELETE /api/v1/identity/users/sessions/other (Revoke other sessions)
+    // =========================================================================
+    @Nested
+    @DisplayName("DELETE /api/v1/identity/users/sessions/other")
+    class RevokeOtherSessionsEndpoint {
+
+        @Test
+        @DisplayName("+ve: Authenticated user revokes other sessions - returns 200 OK")
+        void authenticatedUserCanRevokeOtherSessions() throws Exception {
+            mockMvc.perform(delete("/api/v1/identity/users/sessions/other")
+                            .header("X-Tenant-Id", TENANT_ID)
+                            .with(jwt().jwt(builder -> builder.subject(TEST_USER_ID.toString()))))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.status").value("SUCCESS"))
+                    .andExpect(jsonPath("$.message").value("Other active sessions terminated successfully."));
+
+            verify(roleManagementService).revokeOtherSessions(eq(TEST_USER_ID.toString()), eq(TENANT_ID));
+        }
+
+        @Test
+        @DisplayName("-ve: Unauthenticated request returns 401 Unauthorized")
+        void unauthenticatedRevokeReturnsUnauthorized() throws Exception {
+            mockMvc.perform(delete("/api/v1/identity/users/sessions/other"))
+                    .andExpect(status().isUnauthorized());
+        }
+    }
 }

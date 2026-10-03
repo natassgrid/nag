@@ -1,0 +1,87 @@
+<div class="bg-white rounded-2xl border border-slate-200/80 shadow-sm p-6 mb-6 relative overflow-hidden">
+  <!-- Background subtle pattern -->
+  <div class="absolute top-0 right-0 -mt-8 -mr-8 w-64 h-64 bg-indigo-50/50 rounded-full blur-2xl pointer-events-none"></div>
+
+  <div class="relative flex flex-col md:flex-row md:items-center justify-between gap-6">
+    <!-- Left: Avatar + Details -->
+    <div class="flex items-start sm:items-center gap-5">
+      <!-- Avatar with gradient and initials -->
+      <div class="relative flex-shrink-0">
+        <div class="w-18 h-18 sm:w-20 sm:h-20 rounded-2xl bg-gradient-to-tr from-indigo-600 to-indigo-800 text-white font-black text-2xl sm:text-3xl flex items-center justify-center shadow-md shadow-indigo-200 border-2 border-white ring-2 ring-indigo-50">
+          {{ initials() }}
+        </div>
+        @if (profile().twoFactorEnabled) {
+          <span
+            matTooltip="2FA Protected Account"
+            class="absolute -bottom-1 -right-1 w-6 h-6 bg-emerald-500 text-white rounded-full flex items-center justify-center border-2 border-white text-xs shadow-sm"
+          >
+            <mat-icon class="!text-sm !w-3.5 !h-3.5 !leading-none">verified_user</mat-icon>
+          </span>
+        }
+      </div>
+
+      <!-- Names and Badges -->
+      <div class="flex flex-col gap-1.5">
+        <div class="flex flex-wrap items-center gap-2.5">
+          <h2 class="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">
+            {{ profile().fullName }}
+          </h2>
+          <nag-status-badge
+            [variant]="profile().status === 'ACTIVE' ? 'success' : 'warn'"
+            [label]="profile().status"
+          />
+        </div>
+
+        <div class="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-500 font-medium">
+          <span class="flex items-center gap-1 text-slate-700">
+            <mat-icon class="!text-sm !w-4 !h-4 text-slate-400">mail</mat-icon>
+            {{ profile().email }}
+          </span>
+          <span class="hidden sm:inline text-slate-300">&bull;</span>
+          <span class="flex items-center gap-1 text-slate-600">
+            <mat-icon class="!text-sm !w-4 !h-4 text-slate-400">domain</mat-icon>
+            {{ profile().department || 'National Assessment Grid Central Authority' }}
+          </span>
+          @if (profile().specialization) {
+            <span class="hidden sm:inline text-slate-300">&bull;</span>
+            <span class="flex items-center gap-1 text-indigo-700 bg-indigo-50/80 px-2 py-0.5 rounded-md border border-indigo-100">
+              <mat-icon class="!text-sm !w-4 !h-4 text-indigo-500">workspace_premium</mat-icon>
+              {{ profile().specialization }}
+            </span>
+          }
+        </div>
+
+        <!-- Assigned Roles Chips -->
+        <div class="flex flex-wrap items-center gap-1.5 mt-1.5">
+          <span class="text-[11px] font-semibold text-slate-400 uppercase tracking-wider mr-1">Roles:</span>
+          @for (role of profile().roles; track role) {
+            <span
+              [class]="'px-2.5 py-0.5 rounded-full text-xs font-semibold border ' + getRoleBadgeClass(role)"
+            >
+              {{ role }}
+            </span>
+          }
+        </div>
+      </div>
+    </div>
+
+    <!-- Right: Quick Stats & Actions -->
+    <div class="flex flex-row md:flex-col items-end justify-between sm:justify-end gap-3 pt-4 md:pt-0 border-t md:border-t-0 border-slate-100">
+      <div class="flex items-center gap-2">
+        <button
+          mat-stroked-button
+          (click)="refresh.emit()"
+          class="!text-xs !text-slate-600 !border-slate-300 hover:!bg-slate-50 flex items-center gap-1"
+        >
+          <mat-icon class="!text-sm !w-4 !h-4">refresh</mat-icon>
+          <span>Refresh Data</span>
+        </button>
+      </div>
+
+      <div class="text-right text-[11px] text-slate-400 font-mono space-y-0.5">
+        <div>Member Since: <span class="text-slate-600 font-medium">{{ profile().createdAt | date: 'mediumDate' }}</span></div>
+        <div>Last Login: <span class="text-slate-600 font-medium">{{ profile().lastLoginAt ? (profile().lastLoginAt | date: 'short') : 'Active Now' }}</span></div>
+      </div>
+    </div>
+  </div>
+</div>

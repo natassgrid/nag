@@ -200,6 +200,16 @@ export class AuthService {
     }
   }
 
+  changePassword(payload: { currentPassword?: string; oldPassword?: string; newPassword: string }): Observable<void> {
+    const body = {
+      currentPassword: payload.currentPassword || payload.oldPassword,
+      newPassword: payload.newPassword,
+    };
+    return this.http
+      .post<{ status?: string }>('/api/v1/identity/auth/change-password', body)
+      .pipe(map(() => void 0));
+  }
+
   resendEmailOtp(payload: { userId?: string; email?: string }): Observable<any> {
     return this.http.post<{ status?: string; message?: string }>(
       '/api/v1/identity/resend/email-otp',
@@ -234,8 +244,8 @@ export class AuthService {
     otp: string;
   }): Observable<UserToken> {
     return this.http
-      .post<{ status?: string; data?: UserToken } & UserToken>(
-        '/api/v1/identity/otp/verify',
+      .post<{ status?: string; data?: UserToken } & UserToken>
+        ('/api/v1/identity/otp/verify',
         payload
       )
       .pipe(
@@ -246,8 +256,8 @@ export class AuthService {
 
   getVerificationStatus(userId: string): Observable<VerificationStatusData> {
     return this.http
-      .get<{ status?: string; data: VerificationStatusData }>(
-        `/api/v1/identity/verification-status?userId=${encodeURIComponent(userId)}`
+      .get<{ status?: string; data: VerificationStatusData }>
+        (`/api/v1/identity/verification-status?userId=${encodeURIComponent(userId)}`
       )
       .pipe(map((res) => res.data));
   }

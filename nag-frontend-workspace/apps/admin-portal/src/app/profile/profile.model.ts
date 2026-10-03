@@ -1,0 +1,70 @@
+import { UserAccountStatus } from '@nag-frontend-workspace/shared-data-access-auth';
+
+export interface AdminUserProfile {
+  id: string;
+  username: string;
+  email: string;
+  fullName: string;
+  phoneNumber?: string;
+  specialization?: string;
+  department?: string;
+  employeeId?: string;
+  roles: string[];
+  status: UserAccountStatus;
+  twoFactorEnabled: boolean;
+  twoFactorMethod?: 'TOTP' | 'SMS' | 'WEBAUTHN';
+  lastLoginAt?: string;
+  createdAt: string;
+  updatedAt?: string;
+  tenantId?: string;
+}
+
+export interface UpdateProfilePayload {
+  fullName?: string;
+  phoneNumber?: string;
+  specialization?: string;
+  department?: string;
+}
+
+export interface ChangePasswordPayload {
+  currentPassword: string;
+  newPassword: string;
+  confirmPassword?: string;
+}
+
+export interface TotpSetupResult {
+  secret?: string;
+  secretKey?: string;
+  otpauthUri: string;
+  qrCodeUrl?: string;
+  backupCodes?: string[];
+  issuer?: string;
+  username?: string;
+}
+
+export interface ActiveSessionInfo {
+  id: string;
+  ipAddress: string;
+  device: string;
+  browser: string;
+  os: string;
+  lastActive: string;
+  isCurrent: boolean;
+  expiresAt?: string;
+}
+
+export interface PermissionItem {
+  code: string;
+  name: string;
+  category: 'QUESTIONS' | 'EXAMINATIONS' | 'DELIVERY' | 'EVALUATION' | 'IDENTITY' | 'AUDIT' | 'SECURITY';
+  description: string;
+  granted: boolean;
+}
+
+export interface RoleDetail {
+  code: string;
+  name: string;
+  badgeTone: 'purple' | 'indigo' | 'blue' | 'amber' | 'emerald' | 'slate';
+  description: string;
+  systemRole: boolean;
+}

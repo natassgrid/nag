@@ -17,29 +17,30 @@
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
 
-package com.examplatform.identity.repository;
+package com.examplatform.identity.dto;
 
-import com.examplatform.identity.domain.ActiveSession;
-import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.stereotype.Repository;
+import com.fasterxml.jackson.annotation.JsonInclude;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
-import java.util.List;
-import java.util.Optional;
 import java.util.UUID;
 
-@Repository
-public interface ActiveSessionRepository extends JpaRepository<ActiveSession, UUID> {
-
-    Optional<ActiveSession> findByUserIdAndTenantId(UUID userId, String tenantId);
-
-    List<ActiveSession> findAllByUserIdAndTenantId(UUID userId, String tenantId);
-
-    Optional<ActiveSession> findBySessionTokenAndTenantId(String sessionToken, String tenantId);
-
-    void deleteByUserIdAndTenantId(UUID userId, String tenantId);
-
-    boolean existsByUserIdAndTenantId(UUID userId, String tenantId);
-
-    List<ActiveSession> findAllByExpiresAtBefore(LocalDateTime dateTime);
+@Data
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
+@JsonInclude(JsonInclude.Include.NON_NULL)
+public class ActiveSessionResponse {
+    private UUID id;
+    private UUID userId;
+    private String ipAddress;
+    private String deviceFp;
+    private String browser;
+    private String os;
+    private boolean current;
+    private LocalDateTime createdAt;
+    private LocalDateTime expiresAt;
 }

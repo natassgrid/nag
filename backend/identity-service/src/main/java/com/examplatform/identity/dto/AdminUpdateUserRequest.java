@@ -37,6 +37,12 @@ public class AdminUpdateUserRequest {
 
     private String fullName;
 
+    private String email;
+
+    private String phoneNumber;
+
+    private String department;
+
     private AccountStatus accountStatus;
 
     private String specialization;

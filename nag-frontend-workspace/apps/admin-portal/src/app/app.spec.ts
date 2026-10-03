@@ -14,6 +14,8 @@ describe('Admin Portal App', () => {
     currentUser: jest.Mock;
     userName: jest.Mock;
     userRole: jest.Mock;
+    userRoles: jest.Mock;
+    getTenantId: jest.Mock;
   };
   let router: Router;
 
@@ -24,6 +26,8 @@ describe('Admin Portal App', () => {
       currentUser: jest.fn().mockReturnValue({ userId: 'adm-1', username: 'admin' }),
       userName: jest.fn().mockReturnValue('Admin User'),
       userRole: jest.fn().mockReturnValue('ADMIN'),
+      userRoles: jest.fn().mockReturnValue(['SUPER_ADMIN']),
+      getTenantId: jest.fn().mockReturnValue('default'),
     };
 
     await TestBed.configureTestingModule({
@@ -45,6 +49,11 @@ describe('Admin Portal App', () => {
   it('should create admin app component', () => {
     fixture.detectChanges();
     expect(component).toBeTruthy();
+  });
+
+  it('should compute user initials correctly', () => {
+    fixture.detectChanges();
+    expect(component.userInitials()).toBe('AU');
   });
 
   it('should check route active status and handle logout', () => {
