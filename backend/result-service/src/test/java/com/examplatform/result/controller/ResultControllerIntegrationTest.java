@@ -14,13 +14,15 @@
  * GNU Affero General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program. If not, see <https://www.gnu.org/licenses/>.\n */
+ * along with this program. If not, see <https://www.gnu.org/licenses/>.
+ */
 
 package com.examplatform.result.controller;
 
 import com.examplatform.result.domain.Result;
 import com.examplatform.result.dto.CandidateScoreInput;
 import com.examplatform.result.dto.ComputeResultsRequest;
+import com.examplatform.result.dto.DigiLockerPushResponse;
 import com.examplatform.result.service.ResultComputationService;
 import com.examplatform.result.service.ResultPublicationService;
 import com.examplatform.result.support.AbstractIntegrationTest;
@@ -34,6 +36,7 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -270,8 +273,8 @@ class ResultControllerIntegrationTest extends AbstractIntegrationTest {
         void emptyScoresReturnsBadRequest() throws Exception {
             ComputeResultsRequest request = ComputeResultsRequest.builder()
                     .examId(EXAM_ID)
-                    .candidateScores(Collections.emptyList())
-                    .build();
+                    .candidateScores(Collections.emptyList()
+                    ).build();
 
             mockMvc.perform(post("/api/v1/results/compute")
                             .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_EXAM_CONTROLLER"))
@@ -380,6 +383,35 @@ class ResultControllerIntegrationTest extends AbstractIntegrationTest {
             mockMvc.perform(post("/api/v1/results/{candidateId}/publish", CANDIDATE_ID)
                             .param("examId", EXAM_ID.toString()))
                     .andExpect(status().isUnauthorized());
+        }
+    }
+
+    @Nested
+    @DisplayName("POST /api/v1/results/{id}/digilocker/push")
+    class PushDigiLockerEndpoint {
+
+        @Test
+        @DisplayName("+ve: CANDIDATE pushes scorecard to DigiLocker - returns 200 OK")
+        void candidateCanPushToDigiLocker() throws Exception {
+            DigiLockerPushResponse pushResponse = DigiLockerPushResponse.builder()
+                    .docId("DL-11111111")
+                    .status("ISSUED")
+                    .transactionId("TXN-DL-123456")
+                    .pushedAt(Instant.now())
+                    .candidateId(CANDIDATE_ID)
+                    .resultId(RESULT_ID)
+                    .build();
+
+            when(resultPublicationService.pushToDigiLocker(eq(RESULT_ID), anyString()))
+                    .thenReturn(pushResponse);
+
+            mockMvc.perform(post("/api/v1/results/{id}/digilocker/push", RESULT_ID)
+                            .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_CANDIDATE"))
+                                    .jwt(j -> j.subject(CANDIDATE_ID.toString()).claim("tenant_id", TENANT_ID))))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.docId").value("DL-11111111"))
+                    .andExpect(jsonPath("$.status").value("ISSUED"))
+                    .andExpect(jsonPath("$.transactionId").value("TXN-DL-123456"));
         }
     }
 }

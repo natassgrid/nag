@@ -21,6 +21,7 @@ package com.examplatform.result.service;
 
 import com.examplatform.result.client.DigiLockerClient;
 import com.examplatform.result.domain.Result;
+import com.examplatform.result.dto.DigiLockerPushResponse;
 import com.examplatform.result.repository.ResultRepository;
 import jakarta.persistence.EntityNotFoundException;
 import org.junit.jupiter.api.BeforeEach;
@@ -67,6 +68,7 @@ class ResultPublicationServiceTest {
 
     private UUID candidateId;
     private UUID examId;
+    private UUID resultId;
     private String tenantId;
     private Result sampleResult;
 
@@ -76,6 +78,7 @@ class ResultPublicationServiceTest {
 
         candidateId = UUID.randomUUID();
         examId = UUID.randomUUID();
+        resultId = UUID.randomUUID();
         tenantId = "tenant-test";
 
         sampleResult = Result.builder()
@@ -88,6 +91,7 @@ class ResultPublicationServiceTest {
                 .digiLockerPushed(false)
                 .build();
         sampleResult.setTenantId(tenantId);
+        ReflectionTestUtils.setField(sampleResult, "id", resultId);
     }
 
     @Test
@@ -150,5 +154,20 @@ class ResultPublicationServiceTest {
 
         assertThatThrownBy(() -> publicationService.publishResult(candidateId, examId, tenantId))
                 .isInstanceOf(EntityNotFoundException.class);
+    }
+
+    @Test
+    @DisplayName("pushToDigiLocker pushes scorecard and updates entity state")
+    void pushToDigiLocker_pushesScorecardSuccessfully() {
+        when(resultRepository.findById(resultId)).thenReturn(Optional.of(sampleResult));
+        when(resultRepository.save(any(Result.class))).thenReturn(sampleResult);
+
+        DigiLockerPushResponse response = publicationService.pushToDigiLocker(resultId, tenantId);
+
+        verify(digiLockerClient).pushScorecard(candidateId, sampleResult.getScorecardPdfRef());
+        assertThat(response).isNotNull();
+        assertThat(response.getStatus()).isEqualTo("ISSUED");
+        assertThat(response.getCandidateId()).isEqualTo(candidateId);
+        assertThat(sampleResult.isDigiLockerPushed()).isTrue();
     }
 }

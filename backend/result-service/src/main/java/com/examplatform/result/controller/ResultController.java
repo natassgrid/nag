@@ -20,6 +20,7 @@ package com.examplatform.result.controller;
 
 import com.examplatform.result.domain.Result;
 import com.examplatform.result.dto.ComputeResultsRequest;
+import com.examplatform.result.dto.DigiLockerPushResponse;
 import com.examplatform.result.service.ResultComputationService;
 import com.examplatform.result.service.ResultPublicationService;
 import jakarta.validation.Valid;
@@ -45,7 +46,7 @@ import java.util.UUID;
  * REST controller for result operations.
  * Exposes endpoints for retrieving candidate results and triggering result computation.
  *
- * Validates: Requirements 13.1, 13.2
+ * Validates: Requirements 13.1, 13.2, 13.5
  */
 @Slf4j
 @RestController
@@ -151,6 +152,20 @@ public class ResultController {
 
         Result result = resultPublicationService.publishResult(candidateId, examId, tenantId);
         return ResponseEntity.ok(result);
+    }
+
+    /**
+     * Pushes a scorecard to DigiLocker for a specific result or candidate.
+     * Accessible by CANDIDATE, SUPER_ADMIN, ADMIN, or EXAM_CONTROLLER.
+     */
+    @PostMapping("/{id}/digilocker/push")
+    @PreAuthorize("hasAnyRole('CANDIDATE', 'ADMIN', 'SUPER_ADMIN', 'EXAM_CONTROLLER')")
+    public ResponseEntity<DigiLockerPushResponse> pushToDigiLocker(@PathVariable UUID id,
+                                                                  Authentication auth) {
+        String tenantId = extractTenantId(auth);
+        log.info("POST push to DigiLocker for ID={}, tenant={}", id, tenantId);
+        DigiLockerPushResponse response = resultPublicationService.pushToDigiLocker(id, tenantId);
+        return ResponseEntity.ok(response);
     }
 
     private UUID extractCandidateId(Authentication auth) {
