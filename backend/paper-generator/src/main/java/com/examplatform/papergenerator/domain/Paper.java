@@ -31,15 +31,16 @@ import lombok.NoArgsConstructor;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
 
+import java.time.Instant;
 import java.util.UUID;
 
 /**
  * Paper entity representing a generated examination paper.
  * Stores question selection (IDs + ordering) as JSONB, along with
- * statistical metadata and encryption references for shift-specific
- * AES-256 paper encryption.
+ * statistical metadata, shift-specific AES-256 paper encryption,
+ * binary SHA-256 Merkle tree root hash, and public DLT ledger anchoring proofs.
  *
- * Validates: Requirements 8.7
+ * Validates: Requirements 8.7, Issue #156
  */
 @Data
 @Builder
@@ -67,6 +68,10 @@ public class Paper extends BaseEntity {
     @Column(name = "is_practice", nullable = false)
     private boolean isPractice;
 
+    /** Variant designation for multi-set examinations (e.g., SET-A, SET-B, STANDARD). */
+    @Column(name = "variant", length = 50)
+    private String variant;
+
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "paper_definition_json", columnDefinition = "jsonb")
     private String paperDefinitionJson;
@@ -86,4 +91,51 @@ public class Paper extends BaseEntity {
 
     @Column(name = "generated_by", columnDefinition = "uuid")
     private UUID generatedBy;
+
+    // --- Cryptographic Merkle Tree & Public Ledger Anchoring (Issue #156) ---
+
+    /** Binary SHA-256 Merkle root hash of all normalized question leaves in this paper. */
+    @Column(name = "paper_root_hash", length = 64)
+    private String paperRootHash;
+
+    /** SHA-256 hash of the canonical sorted paper manifest JSON. */
+    @Column(name = "manifest_digest", length = 64)
+    private String manifestDigest;
+
+    /** Public DLT / Blockchain transaction hash confirming immutable attestation. */
+    @Column(name = "ledger_tx_hash", length = 255)
+    private String ledgerTxHash;
+
+    /** Hedera Consensus Timestamp or DLT consensus time string. */
+    @Column(name = "ledger_consensus_timestamp", length = 64)
+    private String ledgerConsensusTimestamp;
+
+    /** Ledger block or sequence number. */
+    @Column(name = "ledger_block_number")
+    private Long ledgerBlockNumber;
+
+    /** Direct public explorer link to inspect the consensus transaction. */
+    @Column(name = "ledger_explorer_url", columnDefinition = "TEXT")
+    private String ledgerExplorerUrl;
+
+    /** Network name where paper is anchored (e.g. HEDERA_TESTNET, NAG_MOCK_LEDGER). */
+    @Column(name = "ledger_network", length = 100)
+    private String ledgerNetwork;
+
+    /** Merkle audit proof JSON mapping question IDs to proof steps. */
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "merkle_proof_json", columnDefinition = "jsonb")
+    private String merkleProofJson;
+
+    /** Timestamp when ledger attestation was confirmed. */
+    @Column(name = "anchored_at")
+    private Instant anchoredAt;
+
+    /** Timestamp when time-locked encryption key is authorized for distribution. */
+    @Column(name = "time_lock_release_at")
+    private Instant timeLockReleaseAt;
+
+    /** Whether the paper is currently locked under envelope encryption. */
+    @Column(name = "is_time_locked")
+    private Boolean isTimeLocked;
 }

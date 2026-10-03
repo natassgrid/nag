@@ -1,7 +1,12 @@
 /**
  * WebCrypto utilities for cryptographic hashing, client-side encryption,
- * exam submission signature generation, and secure device fingerprinting.
+ * exam submission signature generation, Merkle tree verification, and secure device fingerprinting.
  */
+
+export interface MerkleProofStep {
+  hash: string;
+  position: 'LEFT' | 'RIGHT' | string;
+}
 
 /**
  * Computes a SHA-256 hash of a string using the native WebCrypto API.
@@ -21,6 +26,44 @@ export async function hashSha512(data: string): Promise<string> {
   const dataBuffer = encoder.encode(data);
   const hashBuffer = await crypto.subtle.digest('SHA-512', dataBuffer);
   return bufferToHex(hashBuffer);
+}
+
+/**
+ * Computes the leaf hash for a question payload in the NAG Paper Merkle Tree.
+ */
+export async function computeMerkleLeafHash(rawContent: string): Promise<string> {
+  return hashSha256(`NAG_LEAF_V1:${rawContent || ''}`);
+}
+
+/**
+ * Combines two Merkle nodes into their parent SHA-256 hash.
+ */
+export async function combineMerkleNodes(leftHex: string, rightHex: string): Promise<string> {
+  return hashSha256(`NAG_NODE_V1:${leftHex}:${rightHex}`);
+}
+
+/**
+ * Verifies a Merkle proof path against the expected root hash.
+ */
+export async function verifyMerkleProof(
+  leafHash: string,
+  steps: MerkleProofStep[],
+  expectedRootHash: string
+): Promise<boolean> {
+  if (!leafHash || !expectedRootHash || !steps) {
+    return false;
+  }
+
+  let currentHash = leafHash;
+  for (const step of steps) {
+    if ((step.position || '').toUpperCase() === 'LEFT') {
+      currentHash = await combineMerkleNodes(step.hash, currentHash);
+    } else {
+      currentHash = await combineMerkleNodes(currentHash, step.hash);
+    }
+  }
+
+  return currentHash.toLowerCase() === expectedRootHash.toLowerCase();
 }
 
 /**

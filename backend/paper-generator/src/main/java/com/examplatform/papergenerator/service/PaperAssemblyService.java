@@ -20,6 +20,8 @@
 package com.examplatform.papergenerator.service;
 
 import com.examplatform.papergenerator.client.QuestionBankClient;
+import com.examplatform.papergenerator.crypto.CanonicalPaperManifest;
+import com.examplatform.papergenerator.crypto.MerkleTree;
 import com.examplatform.papergenerator.domain.Paper;
 import com.examplatform.papergenerator.dto.BlueprintFeasibilityResponse;
 import com.examplatform.papergenerator.dto.BlueprintRule;
@@ -53,9 +55,9 @@ import java.util.stream.Collectors;
  * Service responsible for blueprint-driven paper assembly and feasibility verification.
  * Selects questions satisfying subject/topic/difficulty/cognitive ratios,
  * enforces reuse policies, computes difficulty scores, preserves comprehension passage groups,
- * and alerts admins on question deficits.
+ * calculates cryptographic Merkle tree root hashes, and alerts admins on question deficits.
  *
- * Validates: Requirements 8.1, 8.2, 8.3, 8.4, 8.5
+ * Validates: Requirements 8.1, 8.2, 8.3, 8.4, 8.5, Issue #156
  */
 @Slf4j
 @Service
@@ -238,6 +240,7 @@ public class PaperAssemblyService {
      *   <li>Computes difficulty score as average of selected questions' difficulty weights</li>
      *   <li>Builds topic distribution JSON</li>
      *   <li>Builds paper definition JSON with questionIds and optional questionGroups</li>
+     *   <li>Computes binary Merkle tree root hash and canonical manifest digest (Issue #156)</li>
      *   <li>Creates Paper entity in DRAFT status with meaningful name</li>
      *   <li>Publishes async job result to Kafka</li>
      * </ol>
@@ -339,11 +342,34 @@ public class PaperAssemblyService {
         // Resolve meaningful paper name
         String paperName = resolvePaperName(request);
 
+        // Compute Cryptographic Merkle Root & Canonical Manifest Digest (Issue #156)
+        String variant = "SET-A";
+        Map<String, Integer> topicDistInt = topicDistribution.entrySet().stream()
+                .collect(Collectors.toMap(Map.Entry::getKey, e -> e.getValue().intValue()));
+        CanonicalPaperManifest.ManifestData manifestData = CanonicalPaperManifest.ManifestData.builder()
+                .schemaVersion("1.0")
+                .examId(request.getExamId())
+                .shiftId(request.getShiftId())
+                .variant(variant)
+                .questionIds(selectedQuestionIds)
+                .topicDistribution(topicDistInt)
+                .difficultyScore(difficultyScore)
+                .isPractice(Boolean.TRUE.equals(request.getIsPractice()))
+                .generatedAt(Instant.now().toString())
+                .build();
+        String manifestDigest = CanonicalPaperManifest.computeManifestDigest(manifestData);
+        List<String> leafPayloads = CanonicalPaperManifest.buildQuestionLeafPayloads(selectedQuestionIds, request.getExamId(), variant);
+        MerkleTree merkleTree = new MerkleTree(leafPayloads);
+        String paperRootHash = merkleTree.getRootHash();
+
         // Create Paper entity in DRAFT status
         Paper paper = Paper.builder()
                 .name(paperName)
                 .examId(request.getExamId())
                 .shiftId(request.getShiftId())
+                .variant(variant)
+                .paperRootHash(paperRootHash)
+                .manifestDigest(manifestDigest)
                 .status(STATUS_DRAFT)
                 .isPractice(Boolean.TRUE.equals(request.getIsPractice()))
                 .paperDefinitionJson(paperDefinitionJson)
@@ -361,8 +387,8 @@ public class PaperAssemblyService {
         // Publish PAPER_GENERATED audit event (fire-and-forget)
         publishAuditEvent("PAPER_GENERATED", savedPaper, tenantId);
 
-        log.info("Paper generated successfully: paperId={}, name='{}', isPractice={}, questionCount={}, difficultyScore={}",
-                savedPaper.getId(), savedPaper.getName(), savedPaper.isPractice(), selectedQuestionIds.size(), difficultyScore);
+        log.info("Paper generated successfully: paperId={}, name='{}', isPractice={}, questionCount={}, difficultyScore={}, rootHash={}",
+                savedPaper.getId(), savedPaper.getName(), savedPaper.isPractice(), selectedQuestionIds.size(), difficultyScore, paperRootHash);
 
         return savedPaper;
     }
@@ -448,6 +474,7 @@ public class PaperAssemblyService {
         if (question.getDifficulty() == null) {
             return 2.0;
         }
+
         return switch (question.getDifficulty().toUpperCase()) {
             case "EASY" -> 1.0;
             case "MEDIUM" -> 2.0;
@@ -456,93 +483,75 @@ public class PaperAssemblyService {
         };
     }
 
-    private String toJson(Object object) {
+    private String toJson(Object obj) {
         try {
-            return objectMapper.writeValueAsString(object);
+            return objectMapper.writeValueAsString(obj);
         } catch (JsonProcessingException e) {
             log.error("Failed to serialize object to JSON: {}", e.getMessage());
-            throw new RuntimeException("JSON serialization failed", e);
+            throw new RuntimeException("JSON serialization error", e);
         }
     }
 
     private void publishPaperEvent(Paper paper) {
         try {
-            Map<String, Object> event = Map.of(
-                    "paperId", paper.getId().toString(),
-                    "examId", paper.getExamId().toString(),
-                    "shiftId", paper.getShiftId(),
-                    "status", paper.getStatus(),
-                    "difficultyScore", paper.getDifficultyScore(),
-                    "isPractice", paper.isPractice(),
-                    "timestamp", Instant.now().toString()
-            );
-            eventPublisher.publish(PAPER_EVENTS_TOPIC, paper.getId().toString(), event);
-            log.info("Published paper event to Kafka: topic={}, paperId={}", PAPER_EVENTS_TOPIC, paper.getId());
+            eventPublisher.publish(PAPER_EVENTS_TOPIC, paper.getId().toString(), paper);
         } catch (Exception e) {
-            log.error("Failed to publish paper event for paperId={}: {}", paper.getId(), e.getMessage());
+            log.error("Unexpected error publishing paper event for paper {}: {}", paper.getId(), e.getMessage());
         }
     }
 
     private void publishAuditEvent(String eventType, Paper paper, String tenantId) {
         try {
-            Map<String, Object> auditPayload = new java.util.HashMap<>();
-            auditPayload.put("eventType", eventType);
-            auditPayload.put("paperId", paper.getId().toString());
-            auditPayload.put("examId", paper.getExamId().toString());
-            auditPayload.put("shiftId", paper.getShiftId());
-            auditPayload.put("actorId", paper.getGeneratedBy() != null ? paper.getGeneratedBy().toString() : "system");
-            auditPayload.put("tenantId", tenantId);
-            auditPayload.put("occurredAt", Instant.now().toString());
-
-            eventPublisher.publish(AUDIT_TOPIC, paper.getId().toString(), auditPayload);
-            log.debug("Published audit event [type={}] for paper id={}", eventType, paper.getId());
+            Map<String, Object> event = Map.of(
+                    "eventType", eventType,
+                    "paperId", paper.getId().toString(),
+                    "examId", paper.getExamId().toString(),
+                    "shiftId", paper.getShiftId(),
+                    "tenantId", tenantId,
+                    "occurredAt", Instant.now().toString()
+            );
+            eventPublisher.publish(AUDIT_TOPIC, paper.getId().toString(), event);
         } catch (Exception e) {
-            log.error("Failed to publish audit event for paperId={}: {}", paper.getId(), e.getMessage());
+            log.error("Unexpected error publishing audit event {} for paper {}: {}",
+                    eventType, paper.getId(), e.getMessage());
         }
     }
 
     private void publishInsufficientQuestionsAlert(
-            List<GapDetail> gapDetails,
-            @Nullable UUID examId,
-            @Nullable String shiftId,
-            String tenantId) {
+            List<GapDetail> gaps, @Nullable UUID examId, @Nullable String shiftId, String tenantId) {
         try {
             Map<String, Object> alert = Map.of(
-                    "eventType", "INSUFFICIENT_QUESTIONS_ALERT",
-                    "examId", examId != null ? examId.toString() : "N/A",
-                    "shiftId", shiftId != null ? shiftId : "N/A",
-                    "tenantId", tenantId != null ? tenantId : "default",
-                    "gapCount", gapDetails.size(),
-                    "gaps", gapDetails,
-                    "timestamp", Instant.now().toString()
+                    "notificationType", "BLUEPRINT_DEFICIT_ALERT",
+                    "examId", examId != null ? examId.toString() : "",
+                    "shiftId", shiftId != null ? shiftId : "",
+                    "tenantId", tenantId,
+                    "deficitRuleCount", gaps.size(),
+                    "gapDetails", gaps,
+                    "occurredAt", Instant.now().toString()
             );
             eventPublisher.publish(NOTIFICATION_TOPIC, examId != null ? examId.toString() : "GLOBAL", alert);
-            log.warn("Published INSUFFICIENT_QUESTIONS_ALERT notification for examId={}, shiftId={}, gapCount={}",
-                    examId, shiftId, gapDetails.size());
+            log.info("Dispatched BLUEPRINT_DEFICIT_ALERT notification for examId={}, shiftId={}, deficitCount={}",
+                    examId, shiftId, gaps.size());
         } catch (Exception e) {
-            log.error("Failed to publish insufficient questions alert notification: {}", e.getMessage());
+            log.error("Failed to publish blueprint deficit notification: {}", e.getMessage());
         }
     }
 
     private void publishInsufficientQuestionsAuditEvent(
-            List<GapDetail> gapDetails,
-            @Nullable UUID examId,
-            @Nullable String shiftId,
-            String tenantId) {
+            List<GapDetail> gaps, @Nullable UUID examId, @Nullable String shiftId, String tenantId) {
         try {
             Map<String, Object> audit = Map.of(
-                    "eventType", "INSUFFICIENT_QUESTIONS_GAP_AUDIT",
-                    "examId", examId != null ? examId.toString() : "N/A",
-                    "shiftId", shiftId != null ? shiftId : "N/A",
-                    "tenantId", tenantId != null ? tenantId : "default",
-                    "gapCount", gapDetails.size(),
-                    "gaps", gapDetails,
+                    "eventType", "BLUEPRINT_DEFICIT_DETECTED",
+                    "examId", examId != null ? examId.toString() : "",
+                    "shiftId", shiftId != null ? shiftId : "",
+                    "tenantId", tenantId,
+                    "deficitRuleCount", gaps.size(),
+                    "gapDetails", gaps,
                     "occurredAt", Instant.now().toString()
             );
             eventPublisher.publish(AUDIT_TOPIC, examId != null ? examId.toString() : "GLOBAL", audit);
-            log.debug("Published INSUFFICIENT_QUESTIONS_GAP_AUDIT event to audit topic");
         } catch (Exception e) {
-            log.error("Failed to publish insufficient questions audit event: {}", e.getMessage());
+            log.error("Failed to publish BLUEPRINT_DEFICIT_DETECTED audit event: {}", e.getMessage());
         }
     }
 }

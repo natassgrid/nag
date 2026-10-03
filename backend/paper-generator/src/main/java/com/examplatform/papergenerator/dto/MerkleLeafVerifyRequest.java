@@ -19,43 +19,31 @@
 
 package com.examplatform.papergenerator.dto;
 
+import com.examplatform.papergenerator.crypto.MerkleTree;
+import jakarta.validation.constraints.NotBlank;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-import java.time.Instant;
-import java.util.UUID;
+import java.util.List;
 
 /**
- * Summary DTO for listing generated papers in tables.
- * Includes cryptographic root hash and ledger transaction metadata.
+ * Request DTO to verify question leaf inclusion in a Paper Merkle Tree.
  *
- * Validates: Requirements 8.7, Issue #156
+ * Validates: Issue #156
  */
 @Data
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class PaperSummaryResponse {
-    private UUID paperId;
-    private String name;
-    private UUID examId;
-    private String examName;
-    private String shiftId;
-    private String shiftName;
-    private String status;
-    private boolean isPractice;
-    private String variant;
-    private double difficultyScore;
-    private String encryptionKeyId;
-    private String paperRootHash;
-    private String ledgerTxHash;
-    private String ledgerExplorerUrl;
-    private Instant anchoredAt;
-    private Instant createdAt;
+public class MerkleLeafVerifyRequest {
 
-    public UUID getId() {
-        return paperId;
-    }
+    @NotBlank(message = "leafHash is required")
+    private String leafHash;
+
+    @NotBlank(message = "rootHash is required")
+    private String rootHash;
+
+    private List<MerkleTree.MerkleProofStep> proofSteps;
 }

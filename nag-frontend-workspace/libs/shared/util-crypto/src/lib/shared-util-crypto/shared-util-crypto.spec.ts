@@ -6,6 +6,10 @@ import {
   encryptPayloadWebCrypto,
   decryptPayloadWebCrypto,
   signSubmissionHash,
+  computeMerkleLeafHash,
+  combineMerkleNodes,
+  verifyMerkleProof,
+  MerkleProofStep,
 } from './shared-util-crypto';
 
 describe('shared-util-crypto', () => {
@@ -28,6 +32,40 @@ describe('shared-util-crypto', () => {
 
     const saltDefault = generateClientSalt();
     expect(saltDefault.length).toBe(32);
+  });
+
+  it('should correctly compute and verify binary Merkle tree proofs', async () => {
+    const leaf0 = await computeMerkleLeafHash('Q0: Question 1');
+    const leaf1 = await computeMerkleLeafHash('Q1: Question 2');
+    const leaf2 = await computeMerkleLeafHash('Q2: Question 3');
+    const leaf3 = await computeMerkleLeafHash('Q3: Question 4');
+
+    const node01 = await combineMerkleNodes(leaf0, leaf1);
+    const node23 = await combineMerkleNodes(leaf2, leaf3);
+    const root = await combineMerkleNodes(node01, node23);
+
+    // Proof for leaf0: sibling leaf1 (RIGHT), sibling node23 (RIGHT)
+    const proofLeaf0: MerkleProofStep[] = [
+      { hash: leaf1, position: 'RIGHT' },
+      { hash: node23, position: 'RIGHT' },
+    ];
+
+    const isLeaf0Valid = await verifyMerkleProof(leaf0, proofLeaf0, root);
+    expect(isLeaf0Valid).toBe(true);
+
+    // Proof for leaf2: sibling leaf3 (RIGHT), sibling node01 (LEFT)
+    const proofLeaf2: MerkleProofStep[] = [
+      { hash: leaf3, position: 'RIGHT' },
+      { hash: node01, position: 'LEFT' },
+    ];
+
+    const isLeaf2Valid = await verifyMerkleProof(leaf2, proofLeaf2, root);
+    expect(isLeaf2Valid).toBe(true);
+
+    // Tampered leaf verification should fail
+    const tamperedLeaf = await computeMerkleLeafHash('Q0: Tampered Question');
+    const isTamperedValid = await verifyMerkleProof(tamperedLeaf, proofLeaf0, root);
+    expect(isTamperedValid).toBe(false);
   });
 
   it('should generate device fingerprint with default and overridden navigator and screen', async () => {

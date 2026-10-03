@@ -39,14 +39,14 @@ graph TD
 | **Notification Service** (`notification-service`) | `8092` | `auth-admin-app` | Email, SMS (MSG91), Webhooks, SSE notifications |
 | **Question Bank** (`question-bank-service`) | `8083` | `content-app` | Multilingual question authoring, LaTeX math, taxonomies, item pooling |
 | **Examination Service** (`examination-service`) | `8085` | `content-app` | Exam cycles, scheduling, shifts, center/seat allocations |
-| **Paper Generator** (`paper-generator`) | `8086` | `content-app` | Blueprint randomization, AES-256 envelope encryption |
+| **Paper Generator** (`paper-generator`) | `8086` | `content-app` | Blueprint randomization, AES-256 envelope encryption, Merkle tree generation, ledger anchoring |
 | **Asset Service** (`asset-service`) | `8095` | `content-app` | S3 / MinIO / Local media uploads & secure presigned URLs |
 | **Delivery Service** (`delivery-service`) | `8087` | `execution-app` | High-throughput CBT candidate test engine, time-lock verification |
 | **Response Service** (`response-service`) | `8088` | `execution-app` | Answer ingestion, auto-save heartbeat, payload batching |
 | **Evaluation Service** (`evaluation-service`) | `8089` | `post-exam-app` | Objective auto-grading, anonymized double-blind subjective grading |
 | **Result Service** (`result-service`) | `8090` | `post-exam-app` | Score normalization, percentiles, merit rank lists, DigiLocker scorecards |
 | **Analytics Service** (`analytics-service`) | `8094` | `post-exam-app` | Item discrimination ($$R_{bis}$$), psychometric analysis, live exam proctoring KPIs |
-| **Audit Service** (`audit-service`) | `8091` | Standalone | Immutable, append-only hash-chained ledger trail (`SHA-256`) |
+| **Audit Service** (`audit-service`) | `8091` | Standalone | Immutable, append-only hash-chained ledger trail (`SHA-256`), decentralized ledger anchoring bridge |
 | **API Gateway** (`api-gateway`) | `9000` | Gateway | Central JWT authentication filter, dynamic tenant routing, rate limiter |
 
 ### 2.2 Core Shared Libraries (`backend/shared-lib`)
@@ -65,12 +65,12 @@ nag-frontend-workspace/
 ├── apps/
 │   ├── admin-portal/          # Admin, Author, Evaluator, Controller Gateway (Port 4201)
 │   ├── candidate-delivery/    # Candidate CBT Delivery, KYC, Practice & Results (Port 4200)
-│   └── public-verifier/       # Public QR & Cryptographic Credential Verifier (Port 4202)
+│   └── public-verifier/       # Public QR & Cryptographic Credential / Paper Verifier (Port 4202)
 ├── libs/
 │   ├── shared/
 │   │   ├── data-access-auth/  # AuthService, UserRoleService, Auth Guards, Interceptors
 │   │   ├── ui-components/     # SearchInput, Pagination, Dialogs, Brand Headers
-│   │   ├── util-crypto/       # WebCrypto SHA-256, HMAC, signature verifiers
+│   │   ├── util-crypto/       # WebCrypto SHA-256, Merkle verification, HMAC, signature verifiers
 │   │   └── util-i18n/         # Multi-language translation pipes & Indic font support
 │   ├── questions/             # Question Authoring & Bank UI modules
 │   ├── examinations/          # Exam Scheduling & Paper Generation UI modules

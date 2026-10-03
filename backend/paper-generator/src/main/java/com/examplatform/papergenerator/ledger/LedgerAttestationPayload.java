@@ -17,7 +17,7 @@
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
 
-package com.examplatform.papergenerator.dto;
+package com.examplatform.papergenerator.ledger;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -28,34 +28,21 @@ import java.time.Instant;
 import java.util.UUID;
 
 /**
- * Summary DTO for listing generated papers in tables.
- * Includes cryptographic root hash and ledger transaction metadata.
+ * Payload sent to decentralized public ledgers (Hedera / Ethereum / DLT) for paper anchoring.
  *
- * Validates: Requirements 8.7, Issue #156
+ * Validates: Issue #156
  */
 @Data
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class PaperSummaryResponse {
-    private UUID paperId;
-    private String name;
+public class LedgerAttestationPayload {
     private UUID examId;
-    private String examName;
-    private String shiftId;
-    private String shiftName;
-    private String status;
-    private boolean isPractice;
+    private UUID paperId;
     private String variant;
-    private double difficultyScore;
-    private String encryptionKeyId;
     private String paperRootHash;
-    private String ledgerTxHash;
-    private String ledgerExplorerUrl;
-    private Instant anchoredAt;
-    private Instant createdAt;
-
-    public UUID getId() {
-        return paperId;
-    }
+    private String manifestDigest;
+    private String tenantPublicKey;
+    private String tenantId;
+    private Instant generatedAt;
 }
