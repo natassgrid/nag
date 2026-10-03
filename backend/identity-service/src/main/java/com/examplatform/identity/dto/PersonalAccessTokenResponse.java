@@ -19,47 +19,30 @@
 
 package com.examplatform.identity.dto;
 
-import com.examplatform.identity.domain.enums.AccountStatus;
+import com.fasterxml.jackson.annotation.JsonInclude;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-/**
- * Request DTO for admin-initiated user update or self-profile update.
- * All fields are optional — only non-null fields are applied.
- */
+import java.time.Instant;
+import java.util.List;
+import java.util.UUID;
+
 @Data
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class AdminUpdateUserRequest {
-
-    private String fullName;
-
-    private String email;
-
-    private String phoneNumber;
-
-    private String department;
-
-    private String designation;
-
-    private String avatarUrl;
-
-    private String timezone;
-
-    private String dateFormat;
-
-    private String timeFormat;
-
-    private String preferredLanguage;
-
-    private String themePreference;
-
-    private AccountStatus accountStatus;
-
-    private String specialization;
-
-    private Boolean mfaEnabled;
+@JsonInclude(JsonInclude.Include.NON_NULL)
+public class PersonalAccessTokenResponse {
+    private UUID id;
+    private String name;
+    private String token; // Only populated on initial creation
+    private String tokenPrefix;
+    private List<String> scopes;
+    private String ipWhitelist;
+    private Instant expiresAt;
+    private Instant lastUsedAt;
+    private boolean revoked;
+    private Instant createdAt;
 }

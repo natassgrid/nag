@@ -31,6 +31,13 @@ export class PersonalInfoCardComponent {
   readonly phoneNumber = signal<string>('');
   readonly specialization = signal<string>('');
   readonly department = signal<string>('');
+  readonly designation = signal<string>('');
+  readonly avatarUrl = signal<string>('');
+  readonly timezone = signal<string>('Asia/Kolkata');
+  readonly dateFormat = signal<string>('DD/MM/YYYY');
+  readonly timeFormat = signal<string>('24h');
+  readonly preferredLanguage = signal<string>('en');
+  readonly themePreference = signal<string>('system');
 
   constructor() {
     effect(
@@ -40,6 +47,13 @@ export class PersonalInfoCardComponent {
         this.phoneNumber.set(p.phoneNumber || '');
         this.specialization.set(p.specialization || '');
         this.department.set(p.department || '');
+        this.designation.set(p.designation || '');
+        this.avatarUrl.set(p.avatarUrl || '');
+        this.timezone.set(p.timezone || 'Asia/Kolkata');
+        this.dateFormat.set(p.dateFormat || 'DD/MM/YYYY');
+        this.timeFormat.set(p.timeFormat || '24h');
+        this.preferredLanguage.set(p.preferredLanguage || 'en');
+        this.themePreference.set(p.themePreference || 'system');
       },
       { allowSignalWrites: true }
     );
@@ -51,6 +65,13 @@ export class PersonalInfoCardComponent {
     this.phoneNumber.set(p.phoneNumber || '');
     this.specialization.set(p.specialization || '');
     this.department.set(p.department || '');
+    this.designation.set(p.designation || '');
+    this.avatarUrl.set(p.avatarUrl || '');
+    this.timezone.set(p.timezone || 'Asia/Kolkata');
+    this.dateFormat.set(p.dateFormat || 'DD/MM/YYYY');
+    this.timeFormat.set(p.timeFormat || '24h');
+    this.preferredLanguage.set(p.preferredLanguage || 'en');
+    this.themePreference.set(p.themePreference || 'system');
   }
 
   onSubmit(): void {
@@ -59,6 +80,13 @@ export class PersonalInfoCardComponent {
       phoneNumber: this.phoneNumber().trim(),
       specialization: this.specialization().trim(),
       department: this.department().trim(),
+      designation: this.designation().trim(),
+      avatarUrl: this.avatarUrl().trim(),
+      timezone: this.timezone(),
+      dateFormat: this.dateFormat(),
+      timeFormat: this.timeFormat(),
+      preferredLanguage: this.preferredLanguage(),
+      themePreference: this.themePreference(),
     });
   }
 }

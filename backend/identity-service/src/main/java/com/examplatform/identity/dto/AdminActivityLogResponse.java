@@ -19,47 +19,26 @@
 
 package com.examplatform.identity.dto;
 
-import com.examplatform.identity.domain.enums.AccountStatus;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-/**
- * Request DTO for admin-initiated user update or self-profile update.
- * All fields are optional — only non-null fields are applied.
- */
+import java.time.Instant;
+import java.util.Map;
+import java.util.UUID;
+
 @Data
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class AdminUpdateUserRequest {
-
-    private String fullName;
-
-    private String email;
-
-    private String phoneNumber;
-
-    private String department;
-
-    private String designation;
-
-    private String avatarUrl;
-
-    private String timezone;
-
-    private String dateFormat;
-
-    private String timeFormat;
-
-    private String preferredLanguage;
-
-    private String themePreference;
-
-    private AccountStatus accountStatus;
-
-    private String specialization;
-
-    private Boolean mfaEnabled;
+public class AdminActivityLogResponse {
+    private String id;
+    private String eventType;
+    private String category; // AUTH, SECURITY, QUESTION, EXAM, AUDIT, SETTINGS
+    private String description;
+    private String ipAddress;
+    private String status; // SUCCESS, FAILED, WARNING
+    private Instant occurredAt;
+    private Map<String, Object> metadata;
 }
