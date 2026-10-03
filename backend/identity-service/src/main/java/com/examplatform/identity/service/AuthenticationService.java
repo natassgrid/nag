@@ -5,7 +5,7 @@
  * Copyright (C) 2025 NAG Contributors
  *
  * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU标识 Affero General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, version 3 of the License.
  *
  * This program is distributed in the hope that it will be useful,
@@ -378,16 +378,18 @@ public class AuthenticationService {
     protected void publishAuditEventAsync(AuditEventType eventType, String actorId,
                                            String tenantId, String ipAddress, String deviceFingerprint) {
         try {
-            auditEventPublisher.publish(
-                    eventType,
-                    actorId,
-                    "identity:auth/token",
-                    ipAddress,
-                    deviceFingerprint,
-                    Map.of("tenantId", tenantId != null ? tenantId : "default")
-            );
-        } catch (Exception ex) {
-            log.warn("Failed to publish audit event {}: {}", eventType, ex.getMessage());
+            if (auditEventPublisher != null) {
+                auditEventPublisher.publish(
+                        eventType,
+                        actorId,
+                        "identity:auth/token",
+                        ipAddress,
+                        deviceFingerprint,
+                        Map.of("tenantId", tenantId != null ? tenantId : "default")
+                );
+            }
+        } catch (Exception e) {
+            log.warn("Failed to publish audit event async for actorId={}: {}", actorId, e.getMessage());
         }
     }
 }

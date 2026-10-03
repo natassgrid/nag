@@ -1,0 +1,127 @@
+<div class="p-6 max-w-md w-full space-y-6">
+  <!-- Header -->
+  <div class="flex items-start justify-between gap-3 border-b border-slate-100 pb-4">
+    <div class="space-y-1">
+      <div class="flex items-center gap-2">
+        <span class="px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wider rounded-md bg-indigo-50 text-indigo-700 border border-indigo-200/60">
+          {{ set.subjectSlug || 'General' }}
+        </span>
+        <span class="text-xs text-slate-500 font-medium">
+          {{ set.totalQuestions }} Questions • {{ set.durationMinutes }} Mins
+        </span>
+      </div>
+      <h2 class="text-lg font-bold text-slate-900 leading-tight">
+        {{ set.name }}
+      </h2>
+    </div>
+    <button
+      type="button"
+      mat-dialog-close
+      class="text-slate-400 hover:text-slate-600 transition-colors p-1 rounded-lg hover:bg-slate-100"
+      [disabled]="isStarting()"
+    >
+      <mat-icon class="!text-lg">close</mat-icon>
+    </button>
+  </div>
+
+  <!-- Assessment Mode Selection -->
+  <div class="space-y-3">
+    <label class="text-xs font-bold text-slate-700 uppercase tracking-wide">
+      Select Practice Mode
+    </label>
+
+    <div class="space-y-2.5">
+      <!-- Timed Mode Option -->
+      <label
+        class="flex items-start gap-3 p-3.5 rounded-xl border transition-all cursor-pointer"
+        [class.border-indigo-600]="selectedMode() === 'TIMED'"
+        [class.bg-indigo-50/40]="selectedMode() === 'TIMED'"
+        [class.border-slate-200]="selectedMode() !== 'TIMED'"
+        [class.hover:border-slate-300]="selectedMode() !== 'TIMED'"
+      >
+        <input
+          type="radio"
+          name="mode"
+          value="TIMED"
+          [checked]="selectedMode() === 'TIMED'"
+          (change)="selectedMode.set('TIMED')"
+          class="mt-1 text-indigo-600 focus:ring-indigo-500"
+        />
+        <div class="space-y-0.5 flex-1">
+          <div class="flex items-center justify-between">
+            <span class="text-sm font-bold text-slate-900">Timed Mock Simulation</span>
+            <span class="text-xs font-semibold px-2 py-0.5 rounded bg-amber-50 text-amber-700 border border-amber-200/60">
+              {{ set.durationMinutes }} mins
+            </span>
+          </div>
+          <p class="text-xs text-slate-500">
+            Real CBT exam environment with countdown timer and instant submission at 00:00.
+          </p>
+        </div>
+      </label>
+
+      <!-- Untimed Mode Option -->
+      <label
+        class="flex items-start gap-3 p-3.5 rounded-xl border transition-all cursor-pointer"
+        [class.border-indigo-600]="selectedMode() === 'UNTIMED'"
+        [class.bg-indigo-50/40]="selectedMode() === 'UNTIMED'"
+        [class.border-slate-200]="selectedMode() !== 'UNTIMED'"
+        [class.hover:border-slate-300]="selectedMode() !== 'UNTIMED'"
+      >
+        <input
+          type="radio"
+          name="mode"
+          value="UNTIMED"
+          [checked]="selectedMode() === 'UNTIMED'"
+          (change)="selectedMode.set('UNTIMED')"
+          class="mt-1 text-indigo-600 focus:ring-indigo-500"
+        />
+        <div class="space-y-0.5 flex-1">
+          <div class="flex items-center justify-between">
+            <span class="text-sm font-bold text-slate-900">Self-Paced Practice</span>
+            <span class="text-xs font-semibold px-2 py-0.5 rounded bg-emerald-50 text-emerald-700 border border-emerald-200/60">
+              Untimed
+            </span>
+          </div>
+          <p class="text-xs text-slate-500">
+            Practice questions at your own speed without time pressure.
+          </p>
+        </div>
+      </label>
+    </div>
+  </div>
+
+  <!-- Instruction Notice -->
+  <div class="p-3 bg-slate-50 rounded-xl border border-slate-200/60 flex items-start gap-2 text-xs text-slate-600">
+    <mat-icon class="!text-sm text-indigo-600 shrink-0 mt-0.5">info</mat-icon>
+    <span>
+      Standard scoring pattern applies (+2.0 marks per correct question, -0.5 marks per incorrect answer).
+    </span>
+  </div>
+
+  <!-- Actions -->
+  <div class="flex items-center justify-end gap-3 pt-2 border-t border-slate-100">
+    <button
+      type="button"
+      mat-dialog-close
+      [disabled]="isStarting()"
+      class="px-4 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-100 rounded-xl transition-all cursor-pointer"
+    >
+      Cancel
+    </button>
+    <button
+      type="button"
+      (click)="startSession()"
+      [disabled]="isStarting()"
+      class="inline-flex items-center gap-2 px-5 py-2.5 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 disabled:opacity-50 rounded-xl shadow-xs transition-all cursor-pointer"
+    >
+      @if (isStarting()) {
+        <mat-spinner diameter="16" class="inline-block"></mat-spinner>
+        <span>Initializing...</span>
+      } @else {
+        <mat-icon class="!text-sm">rocket_launch</mat-icon>
+        <span>Start Assessment</span>
+      }
+    </button>
+  </div>
+</div>

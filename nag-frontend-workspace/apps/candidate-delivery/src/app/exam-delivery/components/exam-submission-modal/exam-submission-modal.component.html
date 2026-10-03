@@ -1,39 +1,110 @@
 <div class="submission-modal-backdrop fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4">
-  <div class="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl border border-slate-100 space-y-4">
-    <div class="w-12 h-12 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center mx-auto">
-      <mat-icon class="!text-3xl">verified</mat-icon>
-    </div>
-    <div class="text-center">
-      <h3 class="text-lg font-bold text-slate-900">Exam Successfully Submitted</h3>
-      <p class="text-xs text-slate-500 mt-1">
-        Your responses have been cryptographically sealed and committed to the tamper-evident audit ledger.
-      </p>
-    </div>
+  <div class="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl border border-slate-100 space-y-4 animate-in fade-in zoom-in-95 duration-200">
+    @if (receipt().mode === 'PRACTICE') {
+      <div class="w-14 h-14 rounded-full bg-purple-100 text-purple-700 flex items-center justify-center mx-auto shadow-sm">
+        <mat-icon class="!text-3xl !w-8 !h-8">emoji_events</mat-icon>
+      </div>
+      <div class="text-center space-y-1">
+        <h3 class="text-xl font-bold text-slate-900">
+          {{ receipt().practiceSetName || 'Practice Mock Completed' }}
+        </h3>
+        <p class="text-xs text-slate-500">
+          Your simulation has been scored and analyzed. Review your performance breakdown below.
+        </p>
+      </div>
 
-    <div class="bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-2 text-xs font-mono">
-      <div>
-        <span class="text-slate-400 block text-[10px]">DIGITAL SIGNATURE PROOF:</span>
-        <span class="break-all text-slate-700">{{ receipt().signature }}</span>
-      </div>
-      <div>
-        <span class="text-slate-400 block text-[10px]">SHA-256 SUBMISSION HASH:</span>
-        <span class="break-all font-bold text-slate-900">{{ receipt().hash }}</span>
-      </div>
-      <div>
-        <span class="text-slate-400 block text-[10px]">TIMESTAMP:</span>
-        <span class="text-slate-700">{{ receipt().timestamp }}</span>
-      </div>
-    </div>
+      <!-- Real Performance Score Breakdown Grid -->
+      <div class="bg-purple-50/50 p-4 rounded-xl border border-purple-100 space-y-3">
+        <div class="grid grid-cols-2 gap-3 text-center">
+          <div class="p-3 bg-white rounded-xl border border-purple-200 shadow-2xs">
+            <span class="text-[10px] uppercase tracking-wider font-bold text-slate-500 block">Total Score</span>
+            <span class="text-xl font-black text-purple-700 font-mono">
+              {{ receipt().score ?? 0 }} <span class="text-xs font-medium text-slate-400">/ {{ receipt().totalMarks ?? 0 }}</span>
+            </span>
+          </div>
+          <div class="p-3 bg-white rounded-xl border border-purple-200 shadow-2xs">
+            <span class="text-[10px] uppercase tracking-wider font-bold text-slate-500 block">Accuracy</span>
+            <span class="text-xl font-black text-purple-700 font-mono">
+              {{ receipt().accuracyPercent ?? 0 }}%
+            </span>
+          </div>
+        </div>
 
-    <div class="pt-2 text-center">
-      <a
-        mat-flat-button
-        color="primary"
-        routerLink="/results"
-        class="!w-full !rounded-xl !py-2.5 font-semibold cursor-pointer"
-      >
-        View Verified Scorecard &rarr;
-      </a>
-    </div>
+        <div class="grid grid-cols-3 gap-2 text-center text-xs">
+          <div class="p-2 bg-white rounded-lg border border-emerald-100 shadow-2xs">
+            <span class="text-[10px] uppercase font-bold text-emerald-600 block">Correct</span>
+            <span class="text-base font-black text-emerald-600 font-mono">
+              {{ receipt().correctCount ?? 0 }}
+            </span>
+          </div>
+          <div class="p-2 bg-white rounded-lg border border-rose-100 shadow-2xs">
+            <span class="text-[10px] uppercase font-bold text-rose-600 block">Incorrect</span>
+            <span class="text-base font-black text-rose-600 font-mono">
+              {{ receipt().incorrectCount ?? 0 }}
+            </span>
+          </div>
+          <div class="p-2 bg-white rounded-lg border border-slate-200 shadow-2xs">
+            <span class="text-[10px] uppercase font-bold text-slate-500 block">Skipped</span>
+            <span class="text-base font-black text-slate-600 font-mono">
+              {{ receipt().unansweredCount ?? 0 }}
+            </span>
+          </div>
+        </div>
+      </div>
+
+      <div class="pt-2 flex flex-col sm:flex-row items-center gap-3">
+        <a
+          mat-stroked-button
+          routerLink="/practice"
+          class="!w-full !rounded-xl !py-2.5 font-semibold cursor-pointer text-slate-700"
+        >
+          Practice Hub
+        </a>
+        <a
+          mat-flat-button
+          color="primary"
+          [routerLink]="receipt().sessionId ? ['/practice/result', receipt().sessionId] : ['/review']"
+          class="!w-full !rounded-xl !py-2.5 font-semibold cursor-pointer !bg-purple-600 !text-white"
+        >
+          Detailed Review &rarr;
+        </a>
+      </div>
+    } @else {
+      <div class="w-12 h-12 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center mx-auto">
+        <mat-icon class="!text-3xl">verified</mat-icon>
+      </div>
+      <div class="text-center">
+        <h3 class="text-lg font-bold text-slate-900">Exam Successfully Submitted</h3>
+        <p class="text-xs text-slate-500 mt-1">
+          Your responses have been cryptographically sealed and committed to the tamper-evident audit ledger.
+        </p>
+      </div>
+
+      <div class="bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-2 text-xs font-mono">
+        <div>
+          <span class="text-slate-400 block text-[10px]">DIGITAL SIGNATURE PROOF:</span>
+          <span class="break-all text-slate-700">{{ receipt().signature }}</span>
+        </div>
+        <div>
+          <span class="text-slate-400 block text-[10px]">SHA-256 SUBMISSION HASH:</span>
+          <span class="break-all font-bold text-slate-900">{{ receipt().hash }}</span>
+        </div>
+        <div>
+          <span class="text-slate-400 block text-[10px]">TIMESTAMP:</span>
+          <span class="text-slate-700">{{ receipt().timestamp }}</span>
+        </div>
+      </div>
+
+      <div class="pt-2 text-center">
+        <a
+          mat-flat-button
+          color="primary"
+          routerLink="/results"
+          class="!w-full !rounded-xl !py-2.5 font-semibold cursor-pointer"
+        >
+          View Verified Scorecard &rarr;
+        </a>
+      </div>
+    }
   </div>
 </div>

@@ -92,9 +92,10 @@ class OtpLifecycleIntegrationTest {
         @Test
         @DisplayName("+ve: Overwriting old OTP on resend: Old OTP is invalidated in Redis, new OTP succeeds")
         void resetOtpOverwritesPreviousCode() {
+            String emailIdentifier = USER_ID + ":EMAIL";
             // First OTP dispatch
-            when(redisTemplate.hasKey("otp:cooldown:" + USER_ID)).thenReturn(false);
-            when(valueOperations.increment("otp:daily:" + USER_ID)).thenReturn(1L);
+            when(redisTemplate.hasKey("otp:cooldown:" + emailIdentifier)).thenReturn(false);
+            when(valueOperations.increment("otp:daily:" + emailIdentifier)).thenReturn(1L);
 
             ArgumentCaptor<String> firstOtpCaptor = ArgumentCaptor.forClass(String.class);
             otpService.sendEmailOtp(USER_ID, emailHash, EMAIL, "Candidate", TENANT_ID);
@@ -105,8 +106,8 @@ class OtpLifecycleIntegrationTest {
             String firstOtpHash = hashingService.sha256(firstOtp);
 
             // Second OTP dispatch (Resend / Reset OTP)
-            when(redisTemplate.hasKey("otp:cooldown:" + USER_ID)).thenReturn(false);
-            when(valueOperations.increment("otp:daily:" + USER_ID)).thenReturn(2L);
+            when(redisTemplate.hasKey("otp:cooldown:" + emailIdentifier)).thenReturn(false);
+            when(valueOperations.increment("otp:daily:" + emailIdentifier)).thenReturn(2L);
 
             ArgumentCaptor<String> secondOtpCaptor = ArgumentCaptor.forClass(String.class);
             otpService.sendEmailOtp(USER_ID, emailHash, EMAIL, "Candidate", TENANT_ID);
@@ -117,12 +118,12 @@ class OtpLifecycleIntegrationTest {
             String secondOtpHash = hashingService.sha256(secondOtp);
 
             // Redis now holds secondOtpHash
-            when(valueOperations.get("otp:email:" + USER_ID)).thenReturn(secondOtpHash);
+            when(valueOperations.get("otp:email:" + emailIdentifier)).thenReturn(secondOtpHash);
 
             // 1. Verifying with old (first) OTP must FAIL
             boolean firstOtpValid = otpService.verifyEmailOtp(USER_ID, emailHash, firstOtp);
             assertThat(firstOtpValid).isFalse();
-            verify(valueOperations).increment("otp:attempts:" + USER_ID);
+            verify(valueOperations).increment("otp:attempts:" + emailIdentifier);
 
             // 2. Verifying with new (second) OTP must SUCCEED
             OtpVerification dbVerification = OtpVerification.builder()
@@ -139,8 +140,8 @@ class OtpLifecycleIntegrationTest {
             assertThat(secondOtpValid).isTrue();
 
             // Assert Redis cleanup on verification success
-            verify(redisTemplate).delete("otp:email:" + USER_ID);
-            verify(redisTemplate).delete("otp:attempts:" + USER_ID);
+            verify(redisTemplate).delete("otp:email:" + emailIdentifier);
+            verify(redisTemplate).delete("otp:attempts:" + emailIdentifier);
             assertThat(dbVerification.isVerified()).isTrue();
             verify(otpVerificationRepository).save(dbVerification);
         }
@@ -156,7 +157,8 @@ class OtpLifecycleIntegrationTest {
         @Test
         @DisplayName("-ve: 5 consecutive failed attempts trigger 15-minute verification lockout")
         void consecutiveFailuresTriggerLockout() {
-            when(valueOperations.get("otp:attempts:" + USER_ID)).thenReturn(5L);
+            String emailIdentifier = USER_ID + ":EMAIL";
+            when(valueOperations.get("otp:attempts:" + emailIdentifier)).thenReturn(5L);
 
             assertThatThrownBy(() -> otpService.verifyEmailOtp(USER_ID, emailHash, "123456"))
                     .isInstanceOf(RateLimitExceededException.class)
@@ -166,6 +168,7 @@ class OtpLifecycleIntegrationTest {
         @Test
         @DisplayName("+ve: Developer test bypass code 000000 succeeds and cleans up lockout keys")
         void devBypassOtpSucceeds() {
+            String emailIdentifier = USER_ID + ":EMAIL";
             OtpVerification dbVerification = OtpVerification.builder()
                     .userId(USER_ID)
                     .emailHash(emailHash)
@@ -179,8 +182,8 @@ class OtpLifecycleIntegrationTest {
             boolean result = otpService.verifyEmailOtp(USER_ID, emailHash, "000000");
 
             assertThat(result).isTrue();
-            verify(redisTemplate).delete("otp:attempts:" + USER_ID);
-            verify(redisTemplate).delete("otp:email:" + USER_ID);
+            verify(redisTemplate).delete("otp:attempts:" + emailIdentifier);
+            verify(redisTemplate).delete("otp:email:" + emailIdentifier);
             assertThat(dbVerification.isVerified()).isTrue();
         }
     }
@@ -195,8 +198,9 @@ class OtpLifecycleIntegrationTest {
         @Test
         @DisplayName("-ve: Resend request during 60s cooldown throws RateLimitExceededException")
         void cooldownThrowsException() {
-            when(redisTemplate.hasKey("otp:cooldown:" + USER_ID)).thenReturn(true);
-            when(redisTemplate.getExpire("otp:cooldown:" + USER_ID)).thenReturn(42L);
+            String emailIdentifier = USER_ID + ":EMAIL";
+            when(redisTemplate.hasKey("otp:cooldown:" + emailIdentifier)).thenReturn(true);
+            when(redisTemplate.getExpire("otp:cooldown:" + emailIdentifier)).thenReturn(42L);
 
             assertThatThrownBy(() -> otpService.sendEmailOtp(USER_ID, emailHash, EMAIL, "Candidate", TENANT_ID))
                     .isInstanceOf(RateLimitExceededException.class)
@@ -206,8 +210,9 @@ class OtpLifecycleIntegrationTest {
         @Test
         @DisplayName("-ve: Exceeding 5 resends per 24 hours throws RateLimitExceededException")
         void dailyLimitThrowsException() {
-            when(redisTemplate.hasKey("otp:cooldown:" + USER_ID)).thenReturn(false);
-            when(valueOperations.increment("otp:daily:" + USER_ID)).thenReturn(6L);
+            String emailIdentifier = USER_ID + ":EMAIL";
+            when(redisTemplate.hasKey("otp:cooldown:" + emailIdentifier)).thenReturn(false);
+            when(valueOperations.increment("otp:daily:" + emailIdentifier)).thenReturn(6L);
 
             assertThatThrownBy(() -> otpService.sendEmailOtp(USER_ID, emailHash, EMAIL, "Candidate", TENANT_ID))
                     .isInstanceOf(RateLimitExceededException.class)

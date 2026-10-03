@@ -18,6 +18,8 @@ export interface TotpSetupData {
   secretKey?: string;
   otpauthUri?: string;
   qrCodeUrl?: string;
+  qrCode?: string;
+  qrCodeDataUrl?: string;
   issuer?: string;
   username?: string;
   backupCodes?: string[];
@@ -38,10 +40,15 @@ export interface MfaPolicySettings {
 }
 
 export interface ValidateInviteData {
-  invitationId: string;
+  valid?: boolean;
+  invitationId?: string;
   email: string;
   fullName: string;
-  assignedRoles: string[];
+  roles?: string[];
+  assignedRoles?: string[];
+  tenantId?: string;
+  expiresAt?: string;
+  message?: string;
 }
 
 export interface VerificationStatusData {
@@ -49,8 +56,10 @@ export interface VerificationStatusData {
   emailVerified: boolean;
   mobileVerified: boolean;
   accountStatus: string;
-  smsRemainingThisWeek: number;
+  smsRemainingThisWeek?: number;
+  remainingSmsQuota?: number;
   nextSmsAvailableAt?: string;
+  maskedMobile?: string;
   fullyVerified: boolean;
   mfaEnabled?: boolean;
 }

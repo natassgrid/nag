@@ -10,10 +10,7 @@
             <span class="w-8 h-8 rounded-lg bg-indigo-600 flex items-center justify-center text-white font-black text-sm">
               NAG
             </span>
-            <span>National Assessment Grid</span>
-            <span class="text-xs font-semibold px-2 py-0.5 rounded bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
-              Admin Console
-            </span>
+            <span>NAG</span>
           </a>
 
           <!-- Primary Navigation with Dropdown Sub-menus -->
@@ -134,7 +131,28 @@
               </a>
             </mat-menu>
 
-            <!-- 4. Administration Sub-Menu -->
+            <!-- 4. Learning Sub-Menu -->
+            <button
+              type="button"
+              [matMenuTriggerFor]="learningMenu"
+              [ngClass]="{ 'bg-slate-800 text-white font-semibold': isRouteActive('/learning') }"
+              class="px-3 py-2 rounded-lg text-slate-300 hover:text-white hover:bg-slate-800/60 transition-colors flex items-center gap-1.5 focus:outline-none"
+            >
+              <mat-icon class="!text-lg">school</mat-icon>
+              <span>Learning</span>
+              <mat-icon class="!text-sm opacity-60">arrow_drop_down</mat-icon>
+            </button>
+            <mat-menu #learningMenu="matMenu" class="custom-nav-menu">
+              <a mat-menu-item routerLink="/learning">
+                <mat-icon class="text-indigo-600">book</mat-icon>
+                <div class="inline-flex flex-col text-left">
+                  <span class="font-bold text-xs text-slate-900">Practice Sets</span>
+                  <span class="text-[10px] text-slate-500">Manage learning paths and practice sets</span>
+                </div>
+              </a>
+            </mat-menu>
+
+            <!-- 5. Administration Sub-Menu -->
             <button
               type="button"
               [matMenuTriggerFor]="adminMenu"
@@ -144,7 +162,8 @@
                   isRouteActive('/assets') ||
                   isRouteActive('/audit') ||
                   isRouteActive('/reports') ||
-                  isRouteActive('/settings')
+                  isRouteActive('/settings') ||
+                  isRouteActive('/profile')
               }"
               class="px-3 py-2 rounded-lg text-slate-300 hover:text-white hover:bg-slate-800/60 transition-colors flex items-center gap-1.5 focus:outline-none"
             >
@@ -158,6 +177,13 @@
                 <div class="inline-flex flex-col text-left">
                   <span class="font-bold text-xs text-slate-900">User Management</span>
                   <span class="text-[10px] text-slate-500">Officers, examiners & role-based access control</span>
+                </div>
+              </a>
+              <a mat-menu-item routerLink="/profile">
+                <mat-icon class="text-purple-600">account_circle</mat-icon>
+                <div class="inline-flex flex-col text-left">
+                  <span class="font-bold text-xs text-slate-900">My Profile & Security</span>
+                  <span class="text-[10px] text-slate-500">Account credentials, roles & 2FA</span>
                 </div>
               </a>
               <a mat-menu-item routerLink="/assets">
@@ -192,19 +218,46 @@
           </nav>
         </div>
 
-        <!-- Right Action Area -->
+        <!-- Right Action Area: User Profile Menu & Avatar -->
         <div class="flex items-center gap-3">
-          <div class="hidden sm:flex items-center gap-2 text-xs">
-            <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
-            <span class="text-slate-300 font-mono">{{ authService.userName() }}</span>
-          </div>
           <button
-            mat-stroked-button
-            (click)="handleLogout()"
-            class="!text-slate-300 !border-slate-700 !text-xs hover:!text-white"
+            type="button"
+            [matMenuTriggerFor]="userProfileMenu"
+            class="flex items-center gap-2.5 px-2.5 py-1.5 rounded-xl bg-slate-800/80 hover:bg-slate-800 border border-slate-700/80 transition-all focus:outline-none"
           >
-            Sign Out
+            <div class="w-7 h-7 rounded-lg bg-indigo-600 text-white font-bold text-xs flex items-center justify-center shadow-xs">
+              {{ userInitials() }}
+            </div>
+            <div class="hidden sm:flex flex-col text-left">
+              <span class="text-xs font-semibold text-slate-200 leading-tight max-w-[140px] truncate">
+                {{ authService.userName() }}
+              </span>
+              <span class="text-[10px] text-indigo-400 font-medium">
+                {{ authService.userRoles()[0] || 'Officer' }}
+              </span>
+            </div>
+            <mat-icon class="!text-base text-slate-400">arrow_drop_down</mat-icon>
           </button>
+
+          <!-- User Profile Dropdown Menu -->
+          <mat-menu #userProfileMenu="matMenu" class="custom-nav-menu">
+            <div class="px-4 py-2.5 border-b border-slate-100 flex flex-col">
+              <span class="text-xs font-bold text-slate-900">{{ authService.userName() }}</span>
+              <span class="text-[11px] text-slate-500 font-mono">{{ authService.getTenantId() }} tenant</span>
+            </div>
+            <a mat-menu-item routerLink="/profile">
+              <mat-icon class="text-indigo-600">person</mat-icon>
+              <div class="inline-flex flex-col text-left">
+                <span class="font-bold text-xs text-slate-900">My Profile & Security</span>
+                <span class="text-[10px] text-slate-500">Credentials, 2FA, & Permissions</span>
+              </div>
+            </a>
+            <mat-divider></mat-divider>
+            <button mat-menu-item (click)="handleLogout()" class="!text-rose-600">
+              <mat-icon class="text-rose-600">logout</mat-icon>
+              <span class="text-xs font-bold">Sign Out</span>
+            </button>
+          </mat-menu>
         </div>
       </div>
     </header>

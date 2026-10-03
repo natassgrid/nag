@@ -1,0 +1,225 @@
+<div class="space-y-6 max-w-7xl mx-auto p-4 sm:p-6 pb-16">
+  <!-- Top Navigation & Action Banner -->
+  <div class="bg-white rounded-2xl p-6 border border-slate-200/80 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
+    <div>
+      <div class="flex items-center gap-2 mb-1">
+        <a routerLink="/practice" class="text-xs font-semibold text-indigo-600 hover:text-indigo-800 flex items-center gap-1 transition-colors">
+          <mat-icon class="!text-sm !w-4 !h-4 leading-none">arrow_back</mat-icon>
+          Practice Hub
+        </a>
+        <span class="text-slate-300">&bull;</span>
+        <span class="text-xs font-medium text-slate-500">Attempt Records</span>
+      </div>
+      <h1 class="text-2xl font-bold tracking-tight text-slate-900">Practice Mock History</h1>
+      <p class="text-sm text-slate-500 mt-1 max-w-2xl">
+        Review your past mock attempts, inspect question-by-question explanations, and track your accuracy growth.
+      </p>
+    </div>
+    <div class="flex flex-wrap items-center gap-2 sm:gap-3">
+      <a
+        mat-stroked-button
+        routerLink="/learn/recommendations"
+        class="!rounded-xl !border-indigo-200 !text-indigo-700 !bg-indigo-50/50 hover:!bg-indigo-50"
+      >
+        <mat-icon class="!text-base mr-1 text-indigo-600">auto_awesome</mat-icon>
+        AI Study Plan
+      </a>
+      <a
+        mat-flat-button
+        color="primary"
+        routerLink="/practice"
+        class="!rounded-xl !bg-indigo-600 hover:!bg-indigo-700 !text-white shadow-xs"
+      >
+        <mat-icon class="!text-base mr-1">play_circle</mat-icon>
+        New Practice Session
+      </a>
+    </div>
+  </div>
+
+  <!-- KPI Metrics Ribbon -->
+  <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+    <!-- Total Attempts -->
+    <div class="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200/80 shadow-xs hover:border-indigo-100 transition-all flex items-center gap-4">
+      <div class="w-12 h-12 rounded-xl bg-indigo-50 border border-indigo-100/80 flex items-center justify-center text-indigo-600 shrink-0">
+        <mat-icon class="!text-2xl">history</mat-icon>
+      </div>
+      <div>
+        <p class="text-xs font-semibold tracking-wider uppercase text-slate-400">Total Attempts</p>
+        <h3 class="text-2xl font-bold text-slate-900 mt-0.5">{{ totalAttempts() }}</h3>
+      </div>
+    </div>
+
+    <!-- Average Accuracy -->
+    <div class="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200/80 shadow-xs hover:border-emerald-100 transition-all flex items-center gap-4">
+      <div class="w-12 h-12 rounded-xl bg-emerald-50 border border-emerald-100/80 flex items-center justify-center text-emerald-600 shrink-0">
+        <mat-icon class="!text-2xl">percent</mat-icon>
+      </div>
+      <div>
+        <p class="text-xs font-semibold tracking-wider uppercase text-slate-400">Avg Accuracy</p>
+        <h3 class="text-2xl font-bold text-slate-900 mt-0.5">{{ avgAccuracy() }}%</h3>
+      </div>
+    </div>
+
+    <!-- Highest Score -->
+    <div class="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200/80 shadow-xs hover:border-amber-100 transition-all flex items-center gap-4">
+      <div class="w-12 h-12 rounded-xl bg-amber-50 border border-amber-100/80 flex items-center justify-center text-amber-600 shrink-0">
+        <mat-icon class="!text-2xl">emoji_events</mat-icon>
+      </div>
+      <div>
+        <p class="text-xs font-semibold tracking-wider uppercase text-slate-400">Highest Score</p>
+        <h3 class="text-2xl font-bold text-slate-900 mt-0.5">{{ highestScore() }} pts</h3>
+      </div>
+    </div>
+
+    <!-- Total Solved Questions -->
+    <div class="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200/80 shadow-xs hover:border-cyan-100 transition-all flex items-center gap-4">
+      <div class="w-12 h-12 rounded-xl bg-cyan-50 border border-cyan-100/80 flex items-center justify-center text-cyan-600 shrink-0">
+        <mat-icon class="!text-2xl">quiz</mat-icon>
+      </div>
+      <div>
+        <p class="text-xs font-semibold tracking-wider uppercase text-slate-400">Total Solved</p>
+        <h3 class="text-2xl font-bold text-slate-900 mt-0.5">{{ totalSolved() }}</h3>
+      </div>
+    </div>
+  </div>
+
+  <!-- Search and Filter Bar -->
+  <div class="bg-white rounded-2xl p-4 border border-slate-200/80 shadow-xs flex flex-col sm:flex-row items-center justify-between gap-4">
+    <div class="relative w-full sm:w-96">
+      <mat-icon class="absolute left-3.5 top-1/2 -translate-y-1/2 !text-lg text-slate-400">search</mat-icon>
+      <input
+        type="text"
+        [value]="searchQuery()"
+        (input)="onSearchChange($event)"
+        placeholder="Search past attempts..."
+        class="w-full pl-10 pr-9 py-2 rounded-xl bg-slate-50 border border-slate-200/80 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-hidden focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
+      />
+      @if (searchQuery()) {
+        <button
+          (click)="clearSearch()"
+          class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+          type="button"
+        >
+          <mat-icon class="!text-base !w-4 !h-4 leading-none">close</mat-icon>
+        </button>
+      }
+    </div>
+    <div class="text-xs text-slate-500 font-medium">
+      Showing {{ filteredHistory().length }} of {{ totalElements() }} completed sessions
+    </div>
+  </div>
+
+  <!-- Loading Skeletons -->
+  @if (isLoading()) {
+    <div class="space-y-4">
+      @for (n of [1, 2, 3]; track n) {
+        <div class="bg-white rounded-2xl p-6 border border-slate-200/80 shadow-xs animate-pulse flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+          <div class="space-y-2 w-full md:w-1/2">
+            <div class="h-5 bg-slate-200 rounded-md w-3/4"></div>
+            <div class="h-4 bg-slate-100 rounded-md w-1/2"></div>
+          </div>
+          <div class="h-10 bg-slate-200 rounded-xl w-32"></div>
+        </div>
+      }
+    </div>
+  } @else if (filteredHistory().length === 0) {
+    <!-- Empty State -->
+    <div class="bg-white rounded-2xl p-12 text-center border border-slate-200/80 shadow-xs">
+      <div class="w-16 h-16 rounded-full bg-indigo-50 text-indigo-600 flex items-center justify-center mx-auto mb-4">
+        <mat-icon class="!text-3xl">menu_book</mat-icon>
+      </div>
+      <h3 class="text-lg font-bold text-slate-900">No practice attempts found</h3>
+      <p class="text-sm text-slate-500 mt-1 max-w-md mx-auto">
+        @if (searchQuery()) {
+          No past mock attempts match "{{ searchQuery() }}". Try adjusting your search query.
+        } @else {
+          You haven't completed any practice sets yet. Launch your first mock test from the Practice Hub.
+        }
+      </p>
+      <div class="mt-6 flex items-center justify-center gap-3">
+        @if (searchQuery()) {
+          <button mat-stroked-button (click)="clearSearch()" class="!rounded-xl">
+            Clear Search
+          </button>
+        } @else {
+          <a mat-flat-button color="primary" routerLink="/practice" class="!rounded-xl !bg-indigo-600 !text-white">
+            Start Practice Mock
+          </a>
+        }
+      </div>
+    </div>
+  } @else {
+    <!-- History Cards List -->
+    <div class="space-y-4">
+      @for (item of filteredHistory(); track item.sessionId) {
+        <div class="bg-white rounded-2xl p-5 sm:p-6 border border-slate-200/80 shadow-xs hover:border-indigo-200 hover:shadow-md transition-all flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
+          <div class="space-y-2 w-full md:w-3/5">
+            <div class="flex flex-wrap items-center gap-2">
+              <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200/80">
+                <mat-icon class="!text-xs !w-3 !h-3 leading-none mr-1">check_circle</mat-icon>
+                Completed
+              </span>
+              <span class="text-xs text-slate-400 font-mono">
+                ID: {{ item.sessionId.substring(0, 8) }}...
+              </span>
+            </div>
+            <h2 class="text-lg font-bold text-slate-900 tracking-tight">
+              {{ item.practiceSetName || 'Practice Assessment' }}
+            </h2>
+            <div class="flex flex-wrap items-center gap-4 text-xs text-slate-500">
+              <span class="flex items-center gap-1">
+                <mat-icon class="!text-sm !w-4 !h-4 text-slate-400">calendar_today</mat-icon>
+                {{ item.submittedAt | date:'medium' }}
+              </span>
+              <span class="flex items-center gap-1">
+                <mat-icon class="!text-sm !w-4 !h-4 text-slate-400">help_outline</mat-icon>
+                {{ item.totalQuestions }} questions
+              </span>
+            </div>
+          </div>
+
+          <!-- Score and Performance Pill -->
+          <div class="flex items-center justify-between md:justify-end gap-4 w-full md:w-auto">
+            <div class="flex items-center gap-3">
+              <div class="bg-slate-50 px-3.5 py-2 rounded-xl border border-slate-200/80 text-center min-w-[90px]">
+                <span class="text-[10px] uppercase font-bold text-slate-400 block tracking-wider">Score</span>
+                <span class="text-base font-black text-indigo-700 font-mono">
+                  {{ item.obtainedMarks }} / {{ item.totalMarks }}
+                </span>
+              </div>
+              <div class="bg-emerald-50/60 px-3.5 py-2 rounded-xl border border-emerald-100 text-center min-w-[90px]">
+                <span class="text-[10px] uppercase font-bold text-emerald-600 block tracking-wider">Accuracy</span>
+                <span class="text-base font-black text-emerald-700 font-mono">
+                  {{ item.accuracyPercent | number:'1.0-1' }}%
+                </span>
+              </div>
+            </div>
+
+            <!-- Actions -->
+            <div class="flex items-center gap-2">
+              <a
+                mat-flat-button
+                color="primary"
+                [routerLink]="['/practice/result', item.sessionId]"
+                class="!rounded-xl !bg-indigo-600 hover:!bg-indigo-700 !text-white !py-2 shadow-xs cursor-pointer"
+              >
+                Review Attempt &rarr;
+              </a>
+            </div>
+          </div>
+        </div>
+      }
+    </div>
+
+    <!-- Paginator -->
+    <div class="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden">
+      <mat-paginator
+        [length]="totalElements()"
+        [pageSize]="pageSize()"
+        [pageIndex]="currentPage()"
+        (page)="onPageChange($event)"
+      >
+      </mat-paginator>
+    </div>
+  }
+</div>

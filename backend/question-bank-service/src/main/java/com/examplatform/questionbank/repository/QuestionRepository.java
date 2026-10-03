@@ -24,9 +24,11 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.Optional;
@@ -65,15 +67,20 @@ public interface QuestionRepository extends JpaRepository<Question, UUID>, JpaSp
 
     /**
      * Finds a PUBLISHED question whose embedding vector has cosine similarity
-     * above the given threshold compared to the provided embedding.
+     * above or equal to the given threshold compared to the provided embedding.
      *
-     * TODO: Re-enable pgvector native query when vector extension is available:
-     * SELECT id FROM question_service.question WHERE state='PUBLISHED'
-     *   AND 1 - (embedding <=> cast(:embedding as halfvec(384))) > :threshold LIMIT 1
+     * Uses pgvector cosine distance operator <=> on public.halfvec(384).
      *
      * Validates: Requirement 4.7
      */
-    @Query(value = "SELECT q.id FROM question_service.question q WHERE q.state = 'PUBLISHED' AND q.embedding IS NOT NULL LIMIT 1", nativeQuery = true)
+    @Query(value = """
+            SELECT q.id FROM question_service.question q
+            WHERE q.state = 'PUBLISHED'
+              AND q.embedding IS NOT NULL
+              AND (1 - (q.embedding OPERATOR(public.<=>) cast(:embedding as public.halfvec(384)))) >= :threshold
+            ORDER BY q.embedding OPERATOR(public.<=>) cast(:embedding as public.halfvec(384)) ASC
+            LIMIT 1
+            """, nativeQuery = true)
     Optional<UUID> findSimilarPublishedQuestion(@Param("embedding") String embedding, @Param("threshold") double threshold);
 
     /**
@@ -81,23 +88,84 @@ public interface QuestionRepository extends JpaRepository<Question, UUID>, JpaSp
      * Returns questions from the same subject and tenant with their similarity scores.
      * Used for both duplicate detection (reject > 0.92, flag 0.85–0.92) and RAG retrieval.
      *
-     * The IVFFlat index on halfvec_cosine_ops ensures sub-200ms lookups.
-     *
      * Validates: Requirements FR-2 (Duplicate Detection), FR-3 (RAG retrieval)
      */
     @Query(value = """
             SELECT q.id AS id, q.subject AS subject, q.content AS content,
-                   1 - (q.embedding <=> cast(:queryVec AS public.halfvec(384))) AS similarity
+                   1 - (q.embedding OPERATOR(public.<=>) cast(:queryVec AS public.halfvec(384))) AS similarity
             FROM question_service.question q
             WHERE q.tenant_id = :tenantId
               AND q.subject = :subject
               AND q.embedding IS NOT NULL
-            ORDER BY q.embedding <=> cast(:queryVec AS public.halfvec(384))
+            ORDER BY q.embedding OPERATOR(public.<=>) cast(:queryVec AS public.halfvec(384))
             LIMIT :limit
             """, nativeQuery = true)
     List<SimilarityResult> findTopSimilarQuestions(
             @Param("queryVec") String queryVec,
             @Param("subject") String subject,
+            @Param("tenantId") String tenantId,
+            @Param("limit") int limit);
+
+    /**
+     * Finds top similar questions scoped to a specific topic within a subject and tenant.
+     */
+    @Query(value = """
+            SELECT q.id AS id, q.subject AS subject, q.content AS content,
+                   1 - (q.embedding OPERATOR(public.<=>) cast(:queryVec AS public.halfvec(384))) AS similarity
+            FROM question_service.question q
+            WHERE q.tenant_id = :tenantId
+              AND q.subject = :subject
+              AND q.topic = :topic
+              AND q.embedding IS NOT NULL
+            ORDER BY q.embedding OPERATOR(public.<=>) cast(:queryVec AS public.halfvec(384))
+            LIMIT :limit
+            """, nativeQuery = true)
+    List<SimilarityResult> findTopSimilarQuestionsByTopic(
+            @Param("queryVec") String queryVec,
+            @Param("subject") String subject,
+            @Param("topic") String topic,
+            @Param("tenantId") String tenantId,
+            @Param("limit") int limit);
+
+    /**
+     * Finds top similar questions across all subjects within a tenant (cross-subject global semantic search).
+     */
+    @Query(value = """
+            SELECT q.id AS id, q.subject AS subject, q.content AS content,
+                   1 - (q.embedding OPERATOR(public.<=>) cast(:queryVec AS public.halfvec(384))) AS similarity
+            FROM question_service.question q
+            WHERE q.tenant_id = :tenantId
+              AND q.embedding IS NOT NULL
+            ORDER BY q.embedding OPERATOR(public.<=>) cast(:queryVec AS public.halfvec(384))
+            LIMIT :limit
+            """, nativeQuery = true)
+    List<SimilarityResult> findTopSimilarQuestionsGlobal(
+            @Param("queryVec") String queryVec,
+            @Param("tenantId") String tenantId,
+            @Param("limit") int limit);
+
+    /**
+     * Multi-attribute filtered vector search for RAG question assembly and blueprint composition.
+     */
+    @Query(value = """
+            SELECT q.id AS id, q.subject AS subject, q.content AS content,
+                   1 - (q.embedding OPERATOR(public.<=>) cast(:queryVec AS public.halfvec(384))) AS similarity
+            FROM question_service.question q
+            WHERE (q.tenant_id = :tenantId OR q.tenant_id = 'default')
+              AND (:subject IS NULL OR UPPER(TRIM(q.subject)) = UPPER(TRIM(:subject)))
+              AND (:topic IS NULL OR UPPER(TRIM(q.topic)) = UPPER(TRIM(:topic)))
+              AND (:difficulty IS NULL OR UPPER(TRIM(q.difficulty)) = UPPER(TRIM(:difficulty)))
+              AND (:cognitiveLevel IS NULL OR UPPER(TRIM(q.cognitive_level)) = UPPER(TRIM(:cognitiveLevel)))
+              AND q.embedding IS NOT NULL
+            ORDER BY q.embedding OPERATOR(public.<=>) cast(:queryVec AS public.halfvec(384))
+            LIMIT :limit
+            """, nativeQuery = true)
+    List<SimilarityResult> findTopSimilarQuestionsFiltered(
+            @Param("queryVec") String queryVec,
+            @Param("subject") String subject,
+            @Param("topic") String topic,
+            @Param("difficulty") String difficulty,
+            @Param("cognitiveLevel") String cognitiveLevel,
             @Param("tenantId") String tenantId,
             @Param("limit") int limit);
 
@@ -116,7 +184,8 @@ public interface QuestionRepository extends JpaRepository<Question, UUID>, JpaSp
      * Updates the embedding for a question using a native query with proper halfvec cast.
      * This bypasses Hibernate type binding issues with pgvector types.
      */
-    @org.springframework.data.jpa.repository.Modifying
+    @Transactional
+    @Modifying
     @Query(value = "UPDATE question_service.question SET embedding = cast(:embedding AS public.halfvec(384)) WHERE id = :id", nativeQuery = true)
     void updateEmbedding(@Param("id") UUID id, @Param("embedding") String embedding);
 

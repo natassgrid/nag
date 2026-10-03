@@ -41,3 +41,6 @@ include 'backend:post-exam-app'
 
 // ── Single JVM Monolith (All modules in 1 process / zero-broker mode) ───────
 include 'backend:monolith-app'
+
+include 'backend:practice-service'
+include 'backend:recommendation-service'

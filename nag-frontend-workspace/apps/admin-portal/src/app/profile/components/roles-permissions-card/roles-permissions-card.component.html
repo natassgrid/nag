@@ -1,0 +1,145 @@
+<div class="space-y-6">
+  <!-- Assigned Roles Overview -->
+  <div class="bg-white rounded-xl border border-slate-200 shadow-sm p-6">
+    <div class="flex items-center justify-between pb-4 mb-4 border-b border-slate-100">
+      <div>
+        <h3 class="text-lg font-bold text-slate-900 tracking-tight flex items-center gap-2">
+          <mat-icon class="text-indigo-600 !text-xl !w-5 !h-5">shield</mat-icon>
+          <span>Assigned System Roles</span>
+        </h3>
+        <p class="text-xs text-slate-500 mt-0.5">
+          Roles assigned by Central Administration granting operational scopes across NAG subsystems.
+        </p>
+      </div>
+
+      <span class="text-xs font-semibold px-2.5 py-1 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-200">
+        {{ roleDetails().length }} Active Role{{ roleDetails().length === 1 ? '' : 's' }}
+      </span>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+      @for (role of roleDetails(); track role.code) {
+        <div class="p-4 rounded-xl border border-slate-200/90 bg-slate-50/50 hover:bg-slate-50 transition-colors flex flex-col justify-between gap-3">
+          <div class="flex items-start justify-between gap-2">
+            <div class="flex items-center gap-2.5">
+              <div class="w-9 h-9 rounded-lg bg-indigo-600 text-white flex items-center justify-center font-bold text-sm shadow-sm">
+                <mat-icon class="!text-lg !w-5 !h-5">admin_panel_settings</mat-icon>
+              </div>
+              <div>
+                <h4 class="text-sm font-bold text-slate-900">{{ role.name }}</h4>
+                <span class="text-[11px] font-mono font-semibold text-slate-500">{{ role.code }}</span>
+              </div>
+            </div>
+
+            @if (role.systemRole) {
+              <span class="px-2 py-0.5 rounded text-[10px] font-semibold bg-slate-200/80 text-slate-700 uppercase tracking-wider">
+                System Core
+              </span>
+            }
+          </div>
+
+          <p class="text-xs text-slate-600 leading-relaxed">
+            {{ role.description }}
+          </p>
+        </div>
+      } @empty {
+        <div class="col-span-2 text-center py-6 text-slate-400 text-xs">
+          No roles currently assigned to this account.
+        </div>
+      }
+    </div>
+  </div>
+
+  <!-- Permission Matrix Visualization -->
+  <div class="bg-white rounded-xl border border-slate-200 shadow-sm p-6">
+    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 mb-5 border-b border-slate-100">
+      <div>
+        <h3 class="text-lg font-bold text-slate-900 tracking-tight flex items-center gap-2">
+          <mat-icon class="text-purple-600 !text-xl !w-5 !h-5">grid_view</mat-icon>
+          <span>Operational Capabilities & Permission Matrix</span>
+        </h3>
+        <p class="text-xs text-slate-500 mt-0.5">
+          Effective granular permissions derived from your assigned administrative roles.
+        </p>
+      </div>
+
+      <!-- Quick KPI Pill -->
+      <div class="flex items-center gap-2 text-xs font-semibold">
+        <span class="text-slate-500">Granted Access:</span>
+        <span class="px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 font-mono">
+          {{ grantedCount() }} / {{ permissions().length }} Permissions
+        </span>
+      </div>
+    </div>
+
+    <!-- Filters & Search Bar -->
+    <div class="flex flex-col md:flex-row md:items-center justify-between gap-3 mb-5">
+      <!-- Module Category Tabs -->
+      <div class="flex flex-wrap items-center gap-1">
+        @for (cat of categories; track cat.key) {
+          <button
+            type="button"
+            (click)="selectedCategory.set(cat.key)"
+            [class]="selectedCategory() === cat.key ? 'bg-indigo-600 text-white shadow-sm' : 'bg-slate-100 text-slate-600 hover:bg-slate-200/80'"
+            class="px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors flex items-center gap-1.5 focus:outline-none"
+          >
+            <mat-icon class="!text-sm !w-3.5 !h-3.5">{{ cat.icon }}</mat-icon>
+            <span>{{ cat.label }}</span>
+          </button>
+        }
+      </div>
+
+      <!-- Search Input -->
+      <div class="relative w-full md:w-64">
+        <mat-icon class="absolute left-3 top-2.5 !text-base text-slate-400 !w-4 !h-4">search</mat-icon>
+        <input
+          type="text"
+          placeholder="Search permissions..."
+          [ngModel]="searchQuery()"
+          (ngModelChange)="searchQuery.set($event)"
+          class="w-full pl-9 pr-3 py-1.5 text-xs text-slate-900 bg-white border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors"
+        />
+      </div>
+    </div>
+
+    <!-- Permissions Grid -->
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5">
+      @for (item of filteredPermissions(); track item.code) {
+        <div
+          [class]="item.granted ? 'border-emerald-200 bg-emerald-50/20' : 'border-slate-200 bg-slate-50/40 opacity-60'"
+          class="p-3.5 rounded-xl border transition-all flex flex-col justify-between gap-2.5"
+        >
+          <div class="flex items-start justify-between gap-2">
+            <div class="flex flex-col gap-0.5">
+              <span [class]="'px-2 py-0.5 rounded text-[10px] font-bold border self-start ' + getCategoryColor(item.category)">
+                {{ item.category }}
+              </span>
+              <h4 class="text-xs font-bold text-slate-900 mt-1">{{ item.name }}</h4>
+              <span class="text-[10px] font-mono text-slate-500">{{ item.code }}</span>
+            </div>
+
+            @if (item.granted) {
+              <span class="flex items-center gap-1 text-[11px] font-semibold text-emerald-700 bg-emerald-100/70 px-2 py-0.5 rounded-md border border-emerald-200 shadow-xs">
+                <mat-icon class="!text-xs !w-3.5 !h-3.5 text-emerald-600">check_circle</mat-icon>
+                <span>Granted</span>
+              </span>
+            } @else {
+              <span class="flex items-center gap-1 text-[11px] font-medium text-slate-400 bg-slate-100 px-2 py-0.5 rounded-md">
+                <mat-icon class="!text-xs !w-3.5 !h-3.5 text-slate-400">lock</mat-icon>
+                <span>Restricted</span>
+              </span>
+            }
+          </div>
+
+          <p class="text-[11px] text-slate-600 line-clamp-2 leading-relaxed">
+            {{ item.description }}
+          </p>
+        </div>
+      } @empty {
+        <div class="col-span-full text-center py-8 text-slate-400 text-xs">
+          No permissions matching the current filter.
+        </div>
+      }
+    </div>
+  </div>
+</div>

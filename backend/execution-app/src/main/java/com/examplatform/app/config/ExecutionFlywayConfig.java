@@ -46,7 +46,8 @@ public class ExecutionFlywayConfig {
     public void migrate() {
         List<SchemaMigrationSpec> specs = List.of(
                 SchemaMigrationSpec.of("delivery_service", "classpath:db/migration/delivery"),
-                SchemaMigrationSpec.of("response_service", "classpath:db/migration/response")
+                SchemaMigrationSpec.of("response_service", "classpath:db/migration/response"),
+                SchemaMigrationSpec.of("practice_service", "classpath:db/migration/practice")
         );
         MultiSchemaFlywayRunner.runMigrations(dataSource, specs);
     }

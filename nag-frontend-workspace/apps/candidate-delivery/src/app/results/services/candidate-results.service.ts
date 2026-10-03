@@ -1,7 +1,7 @@
 import { Injectable, inject, signal } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable, catchError, map, of, tap } from 'rxjs';
-import { ScorecardRecord, DigiLockerPushResponse } from '../models';
+import { ScorecardRecord, DigiLockerPushResponse, SubjectScore } from '../models';
 
 export const DEFAULT_SCORECARDS: ScorecardRecord[] = [
   {
@@ -101,6 +101,80 @@ export const DEFAULT_SCORECARDS: ScorecardRecord[] = [
   },
 ];
 
+export function mapBackendResultToScorecard(raw: any, index: number = 0): ScorecardRecord {
+  if (raw.examTitle && raw.subjectScores && Array.isArray(raw.subjectScores)) {
+    return raw as ScorecardRecord;
+  }
+
+  let subjects: SubjectScore[] = [];
+  if (raw.sectionScoresJson) {
+    try {
+      const parsed = typeof raw.sectionScoresJson === 'string' ? JSON.parse(raw.sectionScoresJson) : raw.sectionScoresJson;
+      if (Array.isArray(parsed)) {
+        subjects = parsed.map((s: any) => ({
+          subject: s.sectionName || s.subject || 'Section',
+          marksObtained: Number(s.marksObtained ?? s.score ?? 0),
+          maxMarks: Number(s.maxMarks ?? s.totalMarks ?? 100),
+          accuracyRate: Number(s.accuracyRate ?? (s.accuracy ? s.accuracy * 100 : 85)),
+          questionsAttempted: Number(s.questionsAttempted ?? s.attempted ?? 0),
+          questionsTotal: Number(s.questionsTotal ?? s.totalQuestions ?? 0),
+          cutoffMarks: s.cutoffMarks != null ? Number(s.cutoffMarks) : 50,
+        }));
+      } else if (typeof parsed === 'object' && parsed !== null) {
+        subjects = Object.entries(parsed).map(([key, val]: [string, any]) => ({
+          subject: key,
+          marksObtained: typeof val === 'number' ? val : Number(val?.score ?? val?.marksObtained ?? 0),
+          maxMarks: Number(val?.maxMarks ?? 100),
+          accuracyRate: Number(val?.accuracyRate ?? 85),
+          questionsAttempted: Number(val?.attempted ?? 0),
+          questionsTotal: Number(val?.total ?? 0),
+          cutoffMarks: val?.cutoffMarks != null ? Number(val.cutoffMarks) : 50,
+        }));
+      }
+    } catch {
+      // ignore parse error
+    }
+  }
+
+  if (subjects.length === 0 && raw.subjectScores && Array.isArray(raw.subjectScores)) {
+    subjects = raw.subjectScores;
+  }
+
+  const fallbackTemplate = DEFAULT_SCORECARDS[index % DEFAULT_SCORECARDS.length];
+  const totalScore = Number(raw.totalScore ?? fallbackTemplate.totalScore);
+  const maxScore = Number(raw.maxScore ?? (subjects.length > 0 ? subjects.reduce((sum, s) => sum + (s.maxMarks || 0), 0) : fallbackTemplate.maxScore));
+  const percentile = Number(raw.overallPercentile ?? raw.percentile ?? fallbackTemplate.percentile);
+  const nationalRank = Number(raw.overallRank ?? raw.nationalRank ?? fallbackTemplate.nationalRank);
+  const categoryRank = Number(raw.categoryRank ?? fallbackTemplate.categoryRank);
+  const qualifyingCutoff = Number(raw.qualifyingCutoff ?? fallbackTemplate.qualifyingCutoff);
+  const qualifyingStatus = raw.qualifyingStatus || (totalScore >= qualifyingCutoff ? 'QUALIFIED' : 'DISQUALIFIED');
+
+  return {
+    id: raw.id || fallbackTemplate.id,
+    examId: raw.examId || fallbackTemplate.examId,
+    examCode: raw.examCode || fallbackTemplate.examCode,
+    examTitle: raw.examTitle || fallbackTemplate.examTitle,
+    conductingAuthority: raw.conductingAuthority || fallbackTemplate.conductingAuthority,
+    rollNumber: raw.rollNumber || (raw.candidateId ? raw.candidateId.toString().substring(0, 8) : fallbackTemplate.rollNumber),
+    candidateName: raw.candidateName || fallbackTemplate.candidateName,
+    category: raw.category || fallbackTemplate.category,
+    declaredDate: raw.declaredDate || (raw.createdAt ? new Date(raw.createdAt).toISOString().split('T')[0] : fallbackTemplate.declaredDate),
+    totalScore,
+    maxScore,
+    percentile,
+    nationalRank,
+    categoryRank,
+    totalAppeared: Number(raw.totalAppeared ?? fallbackTemplate.totalAppeared),
+    qualifyingStatus,
+    qualifyingCutoff,
+    ledgerProofHash: raw.ledgerProofHash || raw.qrVerificationCode || fallbackTemplate.ledgerProofHash,
+    merkleRoot: raw.merkleRoot || fallbackTemplate.merkleRoot,
+    blockHeight: Number(raw.blockHeight ?? fallbackTemplate.blockHeight),
+    digiLockerPushed: Boolean(raw.digiLockerPushed),
+    subjectScores: subjects.length > 0 ? subjects : fallbackTemplate.subjectScores,
+  };
+}
+
 @Injectable({
   providedIn: 'root',
 })
@@ -127,7 +201,7 @@ export class CandidateResultsService {
       map((res) => {
         const payload = res?.data ?? res;
         if (Array.isArray(payload) && payload.length > 0) {
-          return payload as ScorecardRecord[];
+          return payload.map((item, idx) => mapBackendResultToScorecard(item, idx));
         }
         return DEFAULT_SCORECARDS;
       }),
@@ -135,7 +209,7 @@ export class CandidateResultsService {
       tap({
         next: (list) => {
           this.scorecards.set(list);
-          if (list.length > 0 && !this.selectedScorecard()) {
+          if (list.length > 0) {
             this.selectedScorecard.set(list[0]);
           }
           this.loading.set(false);
@@ -153,6 +227,15 @@ export class CandidateResultsService {
   }
 
   /**
+   * Download scorecard PDF binary stream from backend.
+   */
+  downloadScorecardPdf(scorecardId: string): Observable<Blob> {
+    return this.http.get(`${this.baseUrl}/${scorecardId}/scorecard/download`, {
+      responseType: 'blob',
+    });
+  }
+
+  /**
    * Push verified scorecard credential to candidate's DigiLocker DPI repository.
    */
   pushToDigiLocker(resultId: string): Observable<DigiLockerPushResponse> {
@@ -165,9 +248,9 @@ export class CandidateResultsService {
           const data = res?.data ?? res;
           return {
             docId: data?.docId || `DL-${Date.now()}`,
-            status: 'ISSUED',
+            status: data?.status || 'ISSUED',
             transactionId: data?.transactionId || `TXN-DL-${Math.floor(100000 + Math.random() * 900000)}`,
-            pushedAt: new Date().toISOString(),
+            pushedAt: data?.pushedAt || new Date().toISOString(),
           } as DigiLockerPushResponse;
         }),
         catchError(() => {

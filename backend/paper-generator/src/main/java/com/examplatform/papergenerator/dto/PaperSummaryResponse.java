@@ -29,6 +29,9 @@ import java.util.UUID;
 
 /**
  * Summary DTO for listing generated papers in tables.
+ * Includes cryptographic root hash and ledger transaction metadata.
+ *
+ * Validates: Requirements 8.7, Issue #156
  */
 @Data
 @Builder
@@ -43,7 +46,16 @@ public class PaperSummaryResponse {
     private String shiftName;
     private String status;
     private boolean isPractice;
+    private String variant;
     private double difficultyScore;
     private String encryptionKeyId;
+    private String paperRootHash;
+    private String ledgerTxHash;
+    private String ledgerExplorerUrl;
+    private Instant anchoredAt;
     private Instant createdAt;
+
+    public UUID getId() {
+        return paperId;
+    }
 }

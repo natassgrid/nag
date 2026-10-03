@@ -4,25 +4,21 @@ import {
   OnInit,
   OnDestroy,
   inject,
-  signal,
-  computed,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import {
-  hashSha256,
-  signSubmissionHash,
-} from '@nag-frontend-workspace/shared-util-crypto';
+import { ActivatedRoute, Router, RouterModule } from '@angular/router';
+import { MatIconModule } from '@angular/material/icon';
+import { MatButtonModule } from '@angular/material/button';
 import {
   I18nService,
   SUPPORTED_LANGUAGES,
+  SupportedLanguage,
 } from '@nag-frontend-workspace/shared-util-i18n';
 import { NotificationService } from '@nag-frontend-workspace/shared-ui-components';
+import { ExamDeliveryMode, ExamItem } from './models';
+import { ExamDeliveryService } from './services';
 import {
-  ExamItem,
-  ExamSubmissionReceipt,
-  ExamSessionMetadata,
-} from './models';
-import {
+  ExamModeBannerComponent,
   ExamRuntimeHeaderComponent,
   ExamQuestionCardComponent,
   ExamQuestionPaletteComponent,
@@ -30,12 +26,19 @@ import {
 } from './components';
 
 export * from './models';
+export * from './data';
+export * from './services';
+export * from './components';
 
 @Component({
   selector: 'app-exam-delivery',
   standalone: true,
   imports: [
     CommonModule,
+    RouterModule,
+    MatIconModule,
+    MatButtonModule,
+    ExamModeBannerComponent,
     ExamRuntimeHeaderComponent,
     ExamQuestionCardComponent,
     ExamQuestionPaletteComponent,
@@ -46,197 +49,137 @@ export * from './models';
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class ExamDeliveryComponent implements OnInit, OnDestroy {
+  readonly deliveryService = inject(ExamDeliveryService);
+  readonly route = inject(ActivatedRoute);
+  readonly router = inject(Router);
   readonly i18nService = inject(I18nService);
   private readonly notificationService = inject(NotificationService);
+
   readonly supportedLanguages = SUPPORTED_LANGUAGES;
 
-  readonly sessionMeta = signal<ExamSessionMetadata>({
-    sessionId: 'NES-2026-A48',
-    candidateId: '849202',
-  });
-
-  readonly remainingSeconds = signal<number>(5400); // 90 minutes
-  private timerInterval: any = null;
-
-  readonly questions = signal<ExamItem[]>([
-    {
-      id: 'q-1',
-      order: 1,
-      questionCode: 'CS-ALGO-101',
-      content:
-        'What is the tightest worst-case asymptotic time complexity of building a Max-Heap from an unsorted array of $n$ elements using Floyd\'s algorithm?\\n\\n$$\\sum_{h=0}^{\\lfloor \\lg n \\rfloor} \\left\\lceil \\frac{n}{2^{h+1}} \\right\\rceil O(h) = O(n)$$',
-      options: [
-        { id: 'opt-a', text: '$O(n \\log n)$' },
-        { id: 'opt-b', text: '$O(n)$' },
-        { id: 'opt-c', text: '$O(\\log n)$' },
-        { id: 'opt-d', text: '$O(n^2)$' },
-      ],
-      marks: 4,
-      negativeMarks: 1,
-      isVisited: true,
-    },
-    {
-      id: 'q-2',
-      order: 2,
-      questionCode: 'CS-MATH-202',
-      content:
-        'Compute the determinant of the $2 \\times 2$ covariance matrix given by:\\n\\n$$\\mathbf{\\Sigma} = \\begin{pmatrix} 4 & 2 \\\\ 2 & 3 \\end{pmatrix}$$',
-      options: [
-        { id: 'opt-a', text: '$8$' },
-        { id: 'opt-b', text: '$12$' },
-        { id: 'opt-c', text: '$10$' },
-        { id: 'opt-d', text: '$16$' },
-      ],
-      marks: 4,
-      negativeMarks: 1,
-    },
-    {
-      id: 'q-3',
-      order: 3,
-      questionCode: 'CS-SYS-305',
-      content:
-        'In an operating system with a 32-bit virtual address space and a 4 KB page size, calculate the number of entries in a single-level page table.',
-      options: [
-        { id: 'opt-a', text: '$2^{10} = 1,024$' },
-        { id: 'opt-b', text: '$2^{20} = 1,048,576$' },
-        { id: 'opt-c', text: '$2^{12} = 4,096$' },
-        { id: 'opt-d', text: '$2^{32} = 4,294,967,296$' },
-      ],
-      marks: 4,
-      negativeMarks: 1,
-    },
-  ]);
-
-  readonly currentIndex = signal<number>(0);
-
-  readonly currentItem = computed(() => {
-    const list = this.questions();
-    const idx = this.currentIndex();
-    return list[idx] || null;
-  });
-
-  readonly submissionReceipt = signal<ExamSubmissionReceipt | null>(null);
-
-  readonly formattedTime = computed(() => {
-    const s = this.remainingSeconds();
-    const hrs = Math.floor(s / 3600);
-    const mins = Math.floor((s % 3600) / 60);
-    const secs = s % 60;
-    return `${hrs.toString().padStart(2, '0')}:${mins
-      .toString()
-      .padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
-  });
-
-  readonly countAnswered = computed(
-    () => this.questions().filter((q) => q.selectedOptionId).length
-  );
-  readonly countFlagged = computed(
-    () => this.questions().filter((q) => q.isFlagged).length
-  );
-  readonly countUnvisited = computed(
-    () => this.questions().filter((q) => !q.isVisited && !q.selectedOptionId).length
-  );
+  // Shortcuts proxied from service for template signals
+  readonly examId = this.deliveryService.examId;
+  readonly deliveryMode = this.deliveryService.deliveryMode;
+  readonly sessionMeta = this.deliveryService.sessionMeta;
+  readonly remainingSeconds = this.deliveryService.remainingSeconds;
+  readonly formattedTime = this.deliveryService.formattedTime;
+  readonly questions = this.deliveryService.questions;
+  readonly currentIndex = this.deliveryService.currentIndex;
+  readonly currentItem = this.deliveryService.currentItem;
+  readonly submissionReceipt = this.deliveryService.submissionReceipt;
+  readonly totalQuestions = this.deliveryService.totalQuestions;
+  readonly countAnswered = this.deliveryService.countAnswered;
+  readonly countFlagged = this.deliveryService.countFlagged;
+  readonly countUnvisited = this.deliveryService.countUnvisited;
 
   ngOnInit(): void {
-    this.timerInterval = setInterval(() => {
-      this.remainingSeconds.update((val) => {
-        if (val <= 1) {
-          clearInterval(this.timerInterval);
-          this.autoSubmit();
-          return 0;
-        }
-        return val - 1;
-      });
-    }, 1000);
+    this.route.queryParams.subscribe((params) => {
+      const modeParam = (params['mode'] || '').toUpperCase() as ExamDeliveryMode;
+      const examId = params['examId'] || null;
+      const paperId = params['paperId'] || null;
+      const sessionId = params['sessionId'] || null;
+      const mode: ExamDeliveryMode =
+        modeParam === 'PRACTICE' || modeParam === 'PREVIEW' ? modeParam : 'LIVE';
+
+      this.deliveryService.initialize(mode, examId, paperId, sessionId);
+    });
+
+    this.deliveryService.startTimer(() => this.autoSubmit());
   }
 
   ngOnDestroy(): void {
-    if (this.timerInterval) {
-      clearInterval(this.timerInterval);
-    }
+    this.deliveryService.stopTimer();
+  }
+
+  onLanguageChange(lang: SupportedLanguage): void {
+    this.i18nService.setLanguage(lang);
   }
 
   selectOption(item: ExamItem, optionId: string): void {
-    this.questions.update((list) =>
-      list.map((q) =>
-        q.id === item.id ? { ...q, selectedOptionId: optionId, isVisited: true } : q
-      )
-    );
+    this.deliveryService.selectOption(item, optionId);
   }
 
   clearResponse(item: ExamItem): void {
-    this.questions.update((list) =>
-      list.map((q) => (q.id === item.id ? { ...q, selectedOptionId: undefined } : q))
-    );
+    this.deliveryService.clearResponse(item);
   }
 
   toggleFlag(item: ExamItem): void {
-    this.questions.update((list) =>
-      list.map((q) => (q.id === item.id ? { ...q, isFlagged: !q.isFlagged } : q))
-    );
+    this.deliveryService.toggleFlag(item);
   }
 
   goToQuestion(index: number): void {
-    if (index >= 0 && index < this.questions().length) {
-      this.currentIndex.set(index);
-      this.questions.update((list) =>
-        list.map((q, i) => (i === index ? { ...q, isVisited: true } : q))
-      );
-    }
+    this.deliveryService.goToQuestion(index);
   }
 
   nextQuestion(): void {
-    this.goToQuestion(this.currentIndex() + 1);
+    this.deliveryService.nextQuestion();
   }
 
   prevQuestion(): void {
-    this.goToQuestion(this.currentIndex() - 1);
+    this.deliveryService.prevQuestion();
+  }
+
+  onCloseReceipt(): void {
+    this.deliveryService.clearReceipt();
+    this.router.navigate(['/dashboard']);
+  }
+
+  async handleExitBanner(): Promise<void> {
+    const isMock = this.deliveryMode() === 'PRACTICE';
+    const confirmed = await this.notificationService.confirm({
+      title: isMock ? 'Exit Practice Assessment?' : 'Exit Examination Preview?',
+      message: isMock
+        ? 'Are you sure you want to exit? Your practice session progress will be discarded.'
+        : 'You can return to the dashboard or browse assessments anytime.',
+      confirmText: isMock ? 'Exit Assessment' : 'Exit to Dashboard',
+      cancelText: 'Stay Here',
+      type: isMock ? 'warning' : 'info',
+    });
+    if (confirmed) {
+      this.router.navigate(['/dashboard']);
+    }
   }
 
   async confirmSubmission(): Promise<void> {
+    const mode = this.deliveryMode();
+
+    if (mode === 'PREVIEW') {
+      await this.handleExitBanner();
+      return;
+    }
+
     const answered = this.countAnswered();
-    const total = this.questions().length;
+    const total = this.totalQuestions();
+    const isMock = mode === 'PRACTICE';
+
     const confirmed = await this.notificationService.confirm({
-      title: 'Finalize and Submit Exam Responses?',
-      message: `You have answered ${answered} of ${total} questions.\nOnce submitted, your responses will be cryptographically hashed, sealed, and cannot be modified.`,
-      confirmText: 'Submit & Seal Exam',
+      title: isMock
+        ? 'Complete Practice Mock Session?'
+        : 'Finalize and Submit Exam Responses?',
+      message: `You have answered ${answered} of ${total} questions.\n${
+        isMock
+          ? 'Your practice score and instant review breakdown will be generated.'
+          : 'Once submitted, your responses will be cryptographically hashed, sealed, and cannot be modified.'
+      }`,
+      confirmText: isMock ? 'Submit Practice Mock' : 'Submit & Seal Exam',
       cancelText: 'Return to Test',
-      type: 'warning',
+      type: isMock ? 'info' : 'warning',
     });
 
     if (confirmed) {
-      await this.performSubmission();
+      await this.deliveryService.sealAndSubmit();
     }
   }
 
   private async autoSubmit(): Promise<void> {
+    if (this.deliveryMode() === 'PREVIEW') {
+      return;
+    }
     this.notificationService.warning(
       'Exam Timer Expired',
       'The allocated examination duration has ended. The system is sealing and submitting your responses.',
       6000
     );
-    await this.performSubmission();
-  }
-
-  private async performSubmission(): Promise<void> {
-    const payload = JSON.stringify({
-      candidateId: '849202',
-      examId: 'NES-2026-S1',
-      answers: this.questions().map((q) => ({
-        id: q.id,
-        selected: q.selectedOptionId || null,
-      })),
-      timestamp: new Date().toISOString(),
-    });
-
-    const shaHash = await hashSha256(payload);
-    const simulatedKey = 'candidate-session-private-key-2026';
-    const sig = await signSubmissionHash(shaHash, simulatedKey);
-
-    this.submissionReceipt.set({
-      signature: sig,
-      hash: shaHash,
-      timestamp: new Date().toLocaleString(),
-    });
+    await this.deliveryService.sealAndSubmit();
   }
 }

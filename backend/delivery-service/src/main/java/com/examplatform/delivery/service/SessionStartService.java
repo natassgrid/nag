@@ -152,9 +152,11 @@ public class SessionStartService {
             }
         }
 
-        UUID paperId = assignment != null && assignment.getPaperId() != null
-                ? assignment.getPaperId()
-                : UUID.nameUUIDFromBytes(("paper-" + request.getExamId()).getBytes(StandardCharsets.UTF_8));
+        UUID paperId = request.getPaperId() != null
+                ? request.getPaperId()
+                : (assignment != null && assignment.getPaperId() != null
+                        ? assignment.getPaperId()
+                        : UUID.nameUUIDFromBytes(("paper-" + request.getExamId()).getBytes(StandardCharsets.UTF_8)));
 
         // 4. Resolve delivery questions
         List<QuestionDeliveryDto> baseQuestions = examQuestionDeliveryService != null

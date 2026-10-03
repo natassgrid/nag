@@ -19,15 +19,20 @@
 
 package com.examplatform.identity.service;
 
+import com.examplatform.identity.domain.ActiveSession;
 import com.examplatform.identity.domain.UserAccount;
 import com.examplatform.identity.domain.UserRoleAssignment;
 import com.examplatform.identity.domain.enums.AccountStatus;
 import com.examplatform.identity.domain.enums.UserRole;
+import com.examplatform.identity.dto.ActiveSessionResponse;
+import com.examplatform.identity.dto.AdminUpdateUserRequest;
 import com.examplatform.identity.dto.ReviewerResponse;
 import com.examplatform.identity.dto.RoleAction;
 import com.examplatform.identity.dto.RoleAssignmentRequest;
 import com.examplatform.identity.dto.RoleAssignmentResponse;
+import com.examplatform.identity.dto.UserAccountResponse;
 import com.examplatform.identity.exception.AccountNotFoundException;
+import com.examplatform.identity.repository.ActiveSessionRepository;
 import com.examplatform.identity.repository.UserAccountRepository;
 import com.examplatform.identity.repository.UserRoleAssignmentRepository;
 import com.examplatform.shared.audit.AuditEventType;
@@ -68,6 +73,9 @@ class RoleManagementServiceTest {
 
     @Mock
     UserRoleAssignmentRepository roleAssignmentRepository;
+
+    @Mock
+    ActiveSessionRepository activeSessionRepository;
 
     @Mock
     AuditEventPublisher auditEventPublisher;
@@ -284,6 +292,103 @@ class RoleManagementServiceTest {
             assertThat(reviewers.get(0).getUsername()).isEqualTo("math_expert@example.com");
             assertThat(reviewers.get(0).getSpecialization()).isEqualTo("Mathematics");
             assertThat(reviewers.get(0).getRoles()).contains("SUBJECT_MATTER_EXPERT");
+        }
+    }
+
+    @Nested
+    @DisplayName("User Profile Management")
+    class UserProfileManagement {
+
+        @Test
+        @DisplayName("retrieves full user profile with defaults and roles")
+        void retrievesUserProfile() {
+            UserAccount account = targetAccount();
+            account.setFullName("Dr. Ramesh Sharma");
+            account.setPhoneNumber("+91 98765 43210");
+            account.setDepartment("National Assessment Board");
+            account.setSpecialization("Psychometrics & Statistics");
+
+            when(userAccountRepository.findByIdAndTenantId(TARGET_USER_ID, TENANT_ID))
+                    .thenReturn(Optional.of(account));
+
+            UserRoleAssignment assignment = UserRoleAssignment.builder()
+                    .userId(TARGET_USER_ID)
+                    .role(UserRole.SUPER_ADMIN)
+                    .build();
+            assignment.setTenantId(TENANT_ID);
+
+            when(roleAssignmentRepository.findByUserIdAndTenantId(TARGET_USER_ID, TENANT_ID))
+                    .thenReturn(List.of(assignment));
+
+            UserAccountResponse profile = roleManagementService.getUserProfile(TARGET_USER_ID.toString(), TENANT_ID);
+
+            assertThat(profile.getId()).isEqualTo(TARGET_USER_ID);
+            assertThat(profile.getFullName()).isEqualTo("Dr. Ramesh Sharma");
+            assertThat(profile.getPhoneNumber()).isEqualTo("+91 98765 43210");
+            assertThat(profile.getDepartment()).isEqualTo("National Assessment Board");
+            assertThat(profile.getSpecialization()).isEqualTo("Psychometrics & Statistics");
+            assertThat(profile.getRoles()).contains("SUPER_ADMIN");
+        }
+
+        @Test
+        @DisplayName("updates user profile details and persists to repository")
+        void updatesUserProfile() {
+            UserAccount account = targetAccount();
+
+            when(userAccountRepository.findByIdAndTenantId(TARGET_USER_ID, TENANT_ID))
+                    .thenReturn(Optional.of(account));
+            when(roleAssignmentRepository.findByUserIdAndTenantId(TARGET_USER_ID, TENANT_ID))
+                    .thenReturn(List.of());
+
+            AdminUpdateUserRequest updateRequest = AdminUpdateUserRequest.builder()
+                    .fullName("Prof. Anita Desai")
+                    .phoneNumber("+91 98111 22233")
+                    .department("Central Examination Council")
+                    .specialization("Item Response Theory")
+                    .build();
+
+            UserAccountResponse response = roleManagementService.updateUserProfile(
+                    TARGET_USER_ID.toString(), updateRequest, TENANT_ID);
+
+            assertThat(account.getFullName()).isEqualTo("Prof. Anita Desai");
+            assertThat(account.getPhoneNumber()).isEqualTo("+91 98111 22233");
+            assertThat(account.getDepartment()).isEqualTo("Central Examination Council");
+            assertThat(account.getSpecialization()).isEqualTo("Item Response Theory");
+
+            verify(userAccountRepository).save(account);
+            assertThat(response.getFullName()).isEqualTo("Prof. Anita Desai");
+        }
+    }
+
+    @Nested
+    @DisplayName("Active Sessions Management")
+    class ActiveSessionsManagement {
+
+        @Test
+        @DisplayName("retrieves active sessions list or defaults when empty")
+        void retrievesActiveSessions() {
+            UserAccount account = targetAccount();
+            when(userAccountRepository.findByIdAndTenantId(TARGET_USER_ID, TENANT_ID))
+                    .thenReturn(Optional.of(account));
+
+            when(activeSessionRepository.findAllByUserIdAndTenantId(TARGET_USER_ID, TENANT_ID))
+                    .thenReturn(List.of());
+
+            List<ActiveSessionResponse> sessions = roleManagementService.getActiveSessions(
+                    TARGET_USER_ID.toString(), TENANT_ID);
+
+            assertThat(sessions).isNotEmpty();
+            assertThat(sessions.get(0).isCurrent()).isTrue();
+        }
+
+        @Test
+        @DisplayName("revokes other sessions without error")
+        void revokesOtherSessions() {
+            UserAccount account = targetAccount();
+            when(userAccountRepository.findByIdAndTenantId(TARGET_USER_ID, TENANT_ID))
+                    .thenReturn(Optional.of(account));
+
+            roleManagementService.revokeOtherSessions(TARGET_USER_ID.toString(), TENANT_ID);
         }
     }
 }

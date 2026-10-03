@@ -72,7 +72,7 @@ services:
       SPRING_PROFILES_ACTIVE: docker
       PLATFORM_MESSAGING_BROKER: ${PLATFORM_MESSAGING_BROKER:-in-memory}
       SERVER_PORT: ${MONOLITH_PORT:-9000}
-      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-exam_platform}?currentSchema=identity_service,candidate_service,question_service,examination_service,paper_generator,delivery_service,response_service,evaluation_service,result_service,audit_service,notification_service,admin_service,analytics_service,asset_service,public
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-exam_platform}?currentSchema=identity_service,candidate_service,question_service,examination_service,paper_generator,delivery_service,response_service,evaluation_service,result_service,audit_service,notification_service,admin_service,analytics_service,asset_service,practice_service,recommendation_service,public
       SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:-exam_admin}
       SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-exam_secret}
       REDIS_HOST: redis
@@ -116,6 +116,10 @@ services:
       MSG91_AUTH_KEY: ${MSG91_AUTH_KEY:-}
       MSG91_TEMPLATE_ID: ${MSG91_TEMPLATE_ID:-}
       MSG91_SENDER_ID: ${MSG91_SENDER_ID:-NAGGov}
+      MSG91_API_URL: ${MSG91_API_URL:-http://mock-server:8099/api/v5/otp}
+      DIGILOCKER_API_URL: ${DIGILOCKER_API_URL:-http://mock-server:8099/digilocker/v1/verify}
+      DIGILOCKER_PUSH_URL: ${DIGILOCKER_PUSH_URL:-http://mock-server:8099/digilocker/v1/credential/push}
+      AADHAAR_API_URL: ${AADHAAR_API_URL:-http://mock-server:8099/aadhaar}
       ASSET_STORAGE_PATH: /data/asset-storage
       SCORECARD_STORAGE_MODE: ${SCORECARD_STORAGE_MODE:-local}
       SCORECARD_STORAGE_PATH: ${SCORECARD_STORAGE_PATH:-/data/scorecards}
@@ -140,6 +144,8 @@ services:
       postgres:
         condition: service_healthy
       redis:
+        condition: service_healthy
+      mock-server:
         condition: service_healthy
     volumes:
       - asset_storage:/data/asset-storage

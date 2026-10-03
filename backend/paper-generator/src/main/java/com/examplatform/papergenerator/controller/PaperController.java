@@ -20,9 +20,11 @@
 package com.examplatform.papergenerator.controller;
 
 import com.examplatform.papergenerator.client.QuestionBankClient;
+import com.examplatform.papergenerator.crypto.MerkleTree;
 import com.examplatform.papergenerator.domain.Paper;
 import com.examplatform.papergenerator.dto.BlueprintFeasibilityRequest;
 import com.examplatform.papergenerator.dto.BlueprintFeasibilityResponse;
+import com.examplatform.papergenerator.dto.MerkleLeafVerifyRequest;
 import com.examplatform.papergenerator.dto.PaperGenerationRequest;
 import com.examplatform.papergenerator.dto.PaperResponse;
 import com.examplatform.papergenerator.dto.PaperSummaryResponse;
@@ -31,6 +33,7 @@ import com.examplatform.papergenerator.dto.PaperTranslateResponse;
 import com.examplatform.papergenerator.dto.QuestionSummary;
 import com.examplatform.papergenerator.repository.PaperRepository;
 import com.examplatform.papergenerator.service.ExaminationLookupService;
+import com.examplatform.papergenerator.service.PaperAnchoringService;
 import com.examplatform.papergenerator.service.PaperApprovalService;
 import com.examplatform.papergenerator.service.PaperAssemblyService;
 import com.examplatform.papergenerator.service.PaperSerializer;
@@ -64,6 +67,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -71,9 +75,9 @@ import java.util.stream.Collectors;
 /**
  * REST controller for paper generation endpoints.
  * Supports blueprint-driven paper generation, blueprint feasibility checks, paper listing,
- * approval, validation, and paper-scoped batch auto-translation.
+ * approval, validation, paper-scoped batch auto-translation, and public ledger Merkle tree verification.
  *
- * Validates: Requirements 8.1, 8.2, 8.3, 8.4, 8.5, 28.1, 28.2, 28.3, 28.5
+ * Validates: Requirements 8.1, 8.2, 8.3, 8.4, 8.5, 8.7, 28.1, 28.2, 28.3, 28.5, Issue #156
  */
 @Slf4j
 @RestController
@@ -85,6 +89,7 @@ public class PaperController {
     private final PaperSerializer paperSerializer;
     private final PaperApprovalService paperApprovalService;
     private final PaperTranslationService paperTranslationService;
+    private final PaperAnchoringService paperAnchoringService;
     private final PaperRepository paperRepository;
     private final QuestionBankClient questionBankClient;
     private final ObjectMapper objectMapper;
@@ -156,8 +161,13 @@ public class PaperController {
                     .shiftName(shiftName)
                     .status(p.getStatus())
                     .isPractice(p.isPractice())
+                    .variant(p.getVariant())
                     .difficultyScore(p.getDifficultyScore())
                     .encryptionKeyId(p.getEncryptionKeyId())
+                    .paperRootHash(p.getPaperRootHash())
+                    .ledgerTxHash(p.getLedgerTxHash())
+                    .ledgerExplorerUrl(p.getLedgerExplorerUrl())
+                    .anchoredAt(p.getAnchoredAt())
                     .createdAt(p.getCreatedAt())
                     .build();
         });
@@ -260,11 +270,22 @@ public class PaperController {
                 .shiftName(shiftName)
                 .status(paper.getStatus())
                 .isPractice(paper.isPractice())
+                .variant(paper.getVariant())
                 .paperDefinitionJson(paper.getPaperDefinitionJson())
                 .difficultyScore(paper.getDifficultyScore())
                 .topicDistributionJson(paper.getTopicDistributionJson())
                 .encryptedPackageRef(paper.getEncryptedPackageRef())
                 .encryptionKeyId(paper.getEncryptionKeyId())
+                .paperRootHash(paper.getPaperRootHash())
+                .manifestDigest(paper.getManifestDigest())
+                .ledgerTxHash(paper.getLedgerTxHash())
+                .ledgerConsensusTimestamp(paper.getLedgerConsensusTimestamp())
+                .ledgerBlockNumber(paper.getLedgerBlockNumber())
+                .ledgerExplorerUrl(paper.getLedgerExplorerUrl())
+                .ledgerNetwork(paper.getLedgerNetwork())
+                .anchoredAt(paper.getAnchoredAt())
+                .timeLockReleaseAt(paper.getTimeLockReleaseAt())
+                .isTimeLocked(paper.getIsTimeLocked())
                 .generatedBy(paper.getGeneratedBy())
                 .createdAt(paper.getCreatedAt())
                 .updatedAt(paper.getUpdatedAt())
@@ -329,6 +350,9 @@ public class PaperController {
                 "name", paper.getName() != null ? paper.getName() : "",
                 "status", paper.getStatus(),
                 "isPractice", paper.isPractice(),
+                "variant", paper.getVariant() != null ? paper.getVariant() : "SET-A",
+                "paperRootHash", paper.getPaperRootHash() != null ? paper.getPaperRootHash() : "",
+                "manifestDigest", paper.getManifestDigest() != null ? paper.getManifestDigest() : "",
                 "message", "Paper generation submitted successfully"
         );
 
@@ -363,8 +387,8 @@ public class PaperController {
     }
 
     /**
-     * Approves a paper, encrypts it with a shift-specific key, and transitions
-     * through DRAFT → APPROVED → ENCRYPTED.
+     * Approves a paper, encrypts it with a shift-specific key, and anchors to public ledger.
+     * Transitions through DRAFT → APPROVED → ENCRYPTED.
      *
      * @param paperId the paper ID to approve
      * @return 200 OK with the updated paper details
@@ -377,14 +401,96 @@ public class PaperController {
 
         Paper paper = paperApprovalService.approvePaper(paperId, tenantId);
 
-        return ResponseEntity.ok(Map.of(
-                "paperId", paper.getId(),
-                "name", paper.getName() != null ? paper.getName() : "",
-                "status", paper.getStatus(),
-                "isPractice", paper.isPractice(),
-                "encryptionKeyId", paper.getEncryptionKeyId() != null ? paper.getEncryptionKeyId() : "",
-                "message", "Paper approved and encrypted successfully"
+        Map<String, Object> resp = new HashMap<>();
+        resp.put("paperId", paper.getId());
+        resp.put("name", paper.getName() != null ? paper.getName() : "");
+        resp.put("status", paper.getStatus());
+        resp.put("isPractice", paper.isPractice());
+        resp.put("variant", paper.getVariant() != null ? paper.getVariant() : "SET-A");
+        resp.put("encryptionKeyId", paper.getEncryptionKeyId() != null ? paper.getEncryptionKeyId() : "");
+        resp.put("paperRootHash", paper.getPaperRootHash() != null ? paper.getPaperRootHash() : "");
+        resp.put("ledgerTxHash", paper.getLedgerTxHash() != null ? paper.getLedgerTxHash() : "");
+        resp.put("ledgerConsensusTimestamp", paper.getLedgerConsensusTimestamp() != null ? paper.getLedgerConsensusTimestamp() : "");
+        resp.put("ledgerExplorerUrl", paper.getLedgerExplorerUrl() != null ? paper.getLedgerExplorerUrl() : "");
+        resp.put("ledgerNetwork", paper.getLedgerNetwork() != null ? paper.getLedgerNetwork() : "");
+        resp.put("message", "Paper approved, encrypted, and anchored to public ledger successfully");
+
+        return ResponseEntity.ok(resp);
+    }
+
+    /**
+     * Performs a live cryptographic tamper-check on an examination paper.
+     */
+    @GetMapping("/{paperId}/tamper-check")
+    @PreAuthorize("hasAnyRole('EXAM_CONTROLLER','SUPER_ADMIN')")
+    public ResponseEntity<Map<String, Object>> checkPaperTampering(@PathVariable UUID paperId) {
+        String tenantId = getEffectiveTenantId();
+        log.info("Paper tamper verification requested for paperId={}", paperId);
+
+        Map<String, Object> verification = paperAnchoringService.verifyPaperAuthenticity(paperId, tenantId);
+        return ResponseEntity.ok(verification);
+    }
+
+    /**
+     * Open-access public API endpoint to independently verify an examination paper's cryptographic seal.
+     *
+     * Validates: Issue #156
+     */
+    @GetMapping("/public/verify")
+    public ResponseEntity<Map<String, Object>> verifyPaperPublic(
+            @RequestParam(required = false) UUID examId,
+            @RequestParam(required = false) UUID paperId,
+            @RequestParam(required = false) String hash) {
+
+        log.info("Public paper verification requested: examId={}, paperId={}, hash={}", examId, paperId, hash);
+
+        if (paperId != null) {
+            String tenantId = getEffectiveTenantId();
+            Map<String, Object> result = paperAnchoringService.verifyPaperAuthenticity(paperId, tenantId);
+            return ResponseEntity.ok(result);
+        }
+
+        if (hash != null && !hash.isBlank()) {
+            Map<String, Object> result = paperAnchoringService.verifyPaperByHash(examId, hash.trim());
+            return ResponseEntity.ok(result);
+        }
+
+        return ResponseEntity.badRequest().body(Map.of(
+                "verified", false,
+                "message", "Either 'paperId' or 'hash' parameter must be provided for verification"
         ));
+    }
+
+    /**
+     * Public endpoint to verify that a specific question leaf is cryptographically included in the paper Merkle tree.
+     */
+    @PostMapping("/public/verify/merkle-leaf")
+    public ResponseEntity<Map<String, Object>> verifyMerkleLeaf(@Valid @RequestBody MerkleLeafVerifyRequest request) {
+        log.info("Public Merkle leaf verification requested for leafHash={}", request.getLeafHash());
+
+        boolean valid = MerkleTree.verifyProof(request.getLeafHash(), request.getProofSteps(), request.getRootHash());
+
+        return ResponseEntity.ok(Map.of(
+                "valid", valid,
+                "leafHash", request.getLeafHash(),
+                "rootHash", request.getRootHash(),
+                "message", valid ? "Question leaf cryptographically confirmed in Paper Merkle Tree"
+                        : "Proof failed: Leaf does not match expected Merkle root"
+        ));
+    }
+
+    /**
+     * Public endpoint to retrieve the Merkle proof steps for a question in a paper.
+     */
+    @GetMapping("/public/{paperId}/merkle-proof/{questionId}")
+    public ResponseEntity<MerkleTree.MerkleProof> getQuestionProof(
+            @PathVariable UUID paperId,
+            @PathVariable UUID questionId) {
+        log.info("Fetching question Merkle proof for paperId={}, questionId={}", paperId, questionId);
+
+        Optional<MerkleTree.MerkleProof> proof = paperAnchoringService.getQuestionProof(paperId, questionId);
+        return proof.map(ResponseEntity::ok)
+                .orElseGet(() -> ResponseEntity.notFound().build());
     }
 
     /**
@@ -428,6 +534,48 @@ public class PaperController {
 
         String tenantId = getEffectiveTenantId();
         PaperTranslateResponse response = paperTranslationService.getTranslationStatus(paperId, jobId, tenantId);
+        return ResponseEntity.ok(response);
+    }
+
+    /**
+     * Public endpoint for candidates to list approved practice papers for an examination.
+     *
+     * @param examId the examination UUID
+     * @return 200 OK with list of practice papers
+     */
+    @GetMapping("/public/practice")
+    public ResponseEntity<List<PaperSummaryResponse>> getPracticePapers(
+            @RequestParam UUID examId) {
+        String tenantId = getEffectiveTenantId();
+        log.info("Fetching public practice papers for examId={}, tenant={}", examId, tenantId);
+
+        List<Paper> papers = paperRepository.findPracticePapersByExamId(examId, tenantId);
+
+        String examName = examinationLookupService.findExamNames(Set.of(examId)).get(examId);
+
+        List<PaperSummaryResponse> response = papers.stream().map(p -> {
+            String resolvedName = p.getName();
+            if (resolvedName == null || resolvedName.isBlank()) {
+                resolvedName = (examName != null ? examName : "Practice Paper");
+            }
+            return PaperSummaryResponse.builder()
+                    .paperId(p.getId())
+                    .name(resolvedName)
+                    .examId(p.getExamId())
+                    .examName(examName)
+                    .shiftId(p.getShiftId())
+                    .status(p.getStatus())
+                    .isPractice(p.isPractice())
+                    .variant(p.getVariant())
+                    .difficultyScore(p.getDifficultyScore())
+                    .paperRootHash(p.getPaperRootHash())
+                    .ledgerTxHash(p.getLedgerTxHash())
+                    .ledgerExplorerUrl(p.getLedgerExplorerUrl())
+                    .anchoredAt(p.getAnchoredAt())
+                    .createdAt(p.getCreatedAt())
+                    .build();
+        }).collect(Collectors.toList());
+
         return ResponseEntity.ok(response);
     }
 

@@ -32,6 +32,7 @@ dependencies {
     implementation project(':backend:shared-lib')
     implementation project(':backend:delivery-service')
     implementation project(':backend:response-service')
+    implementation project(':backend:practice-service')
 
     // Web & Boot
     implementation libs.spring.boot.starter.web

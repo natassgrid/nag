@@ -87,6 +87,8 @@ export class BrowseExamsComponent implements OnInit {
         matchStatus = exam.status === 'CLOSING_SOON';
       } else if (f.statusFilter === 'APPLIED') {
         matchStatus = exam.applied;
+      } else if (f.statusFilter === 'PRACTICE') {
+        matchStatus = !!exam.isPractice;
       }
 
       return matchQuery && matchCategory && matchStatus;
@@ -113,23 +115,22 @@ export class BrowseExamsComponent implements OnInit {
 
   ngOnInit(): void {
     this.browseService.loadPublicCatalog().subscribe();
-    this.browseService.loadPublicCentres().subscribe();
   }
 
   onSearchChange(query: string): void {
-    this.filters.update((s) => ({ ...s, searchQuery: query }));
+    this.filters.update((f) => ({ ...f, searchQuery: query }));
   }
 
-  onCategoryChange(cat: string): void {
-    this.filters.update((s) => ({ ...s, category: cat }));
+  onCategoryChange(catId: string): void {
+    this.filters.update((f) => ({ ...f, category: catId }));
   }
 
-  onStatusChange(status: string): void {
-    this.filters.update((s) => ({ ...s, statusFilter: status }));
+  onStatusChange(statusId: string): void {
+    this.filters.update((f) => ({ ...f, statusFilter: statusId }));
   }
 
   onSortChange(sortBy: 'DATE_ASC' | 'FEE_ASC' | 'FEE_DESC' | 'TITLE_ASC'): void {
-    this.filters.update((s) => ({ ...s, sortBy }));
+    this.filters.update((f) => ({ ...f, sortBy }));
   }
 
   resetFilters(): void {
@@ -141,21 +142,42 @@ export class BrowseExamsComponent implements OnInit {
     });
   }
 
-  openDetails(exam: CatalogExam): void {
+  retryLoad(): void {
+    this.browseService.loadPublicCatalog().subscribe();
+  }
+
+  openExamDetails(exam: CatalogExam): void {
     this.selectedDetailExam.set(exam);
   }
 
-  openApplyModal(exam: CatalogExam): void {
+  closeExamDetails(): void {
     this.selectedDetailExam.set(null);
+  }
+
+  openDetails(exam: CatalogExam): void {
+    this.openExamDetails(exam);
+  }
+
+  closeDetails(): void {
+    this.closeExamDetails();
+  }
+
+  openApplyModal(exam: CatalogExam): void {
     this.selectedApplyExam.set(exam);
   }
 
-  onApplicationCompleted(receipt: ApplicationReceipt): void {
-    // Keep dialog open on Step 4 for receipt display
+  closeApplyModal(): void {
+    this.selectedApplyExam.set(null);
   }
 
-  retryLoad(): void {
-    this.browseService.loadPublicCatalog().subscribe();
-    this.browseService.loadPublicCentres().subscribe();
+  onApplicationCompleted(receipt: ApplicationReceipt): void {
+    this.handleApplicationSuccess(receipt);
+  }
+
+  handleApplicationSuccess(receipt: ApplicationReceipt): void {
+    this.closeApplyModal();
+    if (this.selectedDetailExam()?.id === receipt.examId) {
+      this.selectedDetailExam.update((e) => (e ? { ...e, applied: true } : null));
+    }
   }
 }

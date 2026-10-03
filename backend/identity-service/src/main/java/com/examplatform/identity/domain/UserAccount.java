@@ -47,6 +47,44 @@ public class UserAccount extends BaseEntity {
     @Column(name = "username", nullable = false)
     private String username;
 
+    @Column(name = "full_name")
+    private String fullName;
+
+    @Column(name = "email")
+    private String email;
+
+    @Column(name = "phone_number")
+    private String phoneNumber;
+
+    @Column(name = "department")
+    private String department;
+
+    @Column(name = "designation")
+    private String designation;
+
+    @Column(name = "avatar_url")
+    private String avatarUrl;
+
+    @Builder.Default
+    @Column(name = "timezone")
+    private String timezone = "Asia/Kolkata";
+
+    @Builder.Default
+    @Column(name = "date_format")
+    private String dateFormat = "DD/MM/YYYY";
+
+    @Builder.Default
+    @Column(name = "time_format")
+    private String timeFormat = "24h";
+
+    @Builder.Default
+    @Column(name = "preferred_language")
+    private String preferredLanguage = "en";
+
+    @Builder.Default
+    @Column(name = "theme_preference")
+    private String themePreference = "system";
+
     @Column(name = "email_hash", nullable = false)
     private String emailHash;
 

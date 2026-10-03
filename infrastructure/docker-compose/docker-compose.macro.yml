@@ -130,6 +130,9 @@ services:
       MSG91_AUTH_KEY: ${MSG91_AUTH_KEY:-}
       MSG91_TEMPLATE_ID: ${MSG91_TEMPLATE_ID:-}
       MSG91_SENDER_ID: ${MSG91_SENDER_ID:-NAGGov}
+      MSG91_API_URL: ${MSG91_API_URL:-http://mock-server:8099/api/v5/otp}
+      DIGILOCKER_API_URL: ${DIGILOCKER_API_URL:-http://mock-server:8099/digilocker/v1/verify}
+      AADHAAR_API_URL: ${AADHAAR_API_URL:-http://mock-server:8099/aadhaar}
     depends_on:
       <<: *depends-macro
     healthcheck:
@@ -224,6 +227,7 @@ services:
       SCORECARD_STORAGE_MODE: local
       SCORECARD_STORAGE_PATH: /data/scorecards
       SCORECARD_STORAGE_BUCKET: exam-platform-scorecards
+      DIGILOCKER_PUSH_URL: ${DIGILOCKER_PUSH_URL:-http://mock-server:8099/digilocker/v1/credential/push}
     depends_on:
       <<: *depends-macro
     volumes:

@@ -102,6 +102,11 @@ public class ExaminationService {
         });
     }
 
+    public Page<ExaminationResponse> listByTenantPaged(
+            String tenantId, String search, int page, int size) {
+        return listByTenantPaged(tenantId, search, null, "desc", page, size);
+    }
+
     /**
      * Retrieves a single examination by its unique ID.
      */

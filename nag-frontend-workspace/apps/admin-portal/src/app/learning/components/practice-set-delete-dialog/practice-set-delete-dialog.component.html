@@ -1,0 +1,46 @@
+<div class="delete-modal p-6 max-w-md w-full">
+  <div class="flex items-center gap-3 pb-4 border-b border-slate-100">
+    <div class="w-10 h-10 rounded-xl bg-rose-50 text-rose-600 flex items-center justify-center shrink-0">
+      <mat-icon>delete_outline</mat-icon>
+    </div>
+    <div>
+      <span class="text-[10px] font-black uppercase tracking-wider text-rose-600">Destructive Action</span>
+      <h3 class="font-bold text-slate-900 text-base leading-tight">Delete Practice Set</h3>
+    </div>
+  </div>
+
+  <div class="py-4 space-y-2 text-xs text-slate-600">
+    <p>
+      Are you sure you want to permanently delete
+      <strong class="text-slate-900 font-semibold">{{ data.set.name }}</strong>?
+    </p>
+    <p class="text-[11px] text-rose-600 font-medium bg-rose-50 p-2.5 rounded-xl border border-rose-100 flex items-center gap-1.5">
+      <mat-icon class="!text-sm text-rose-500">warning</mat-icon>
+      This will remove the practice set configuration and cannot be undone.
+    </p>
+  </div>
+
+  <div class="flex items-center justify-end gap-3 pt-3 border-t border-slate-100">
+    <button
+      mat-button
+      type="button"
+      [disabled]="isDeleting()"
+      (click)="onCancel()"
+      class="!rounded-xl text-xs font-semibold !text-slate-600 cursor-pointer"
+    >
+      Cancel
+    </button>
+    <button
+      mat-flat-button
+      color="warn"
+      [disabled]="isDeleting()"
+      (click)="onDelete()"
+      class="!rounded-xl text-xs font-bold !bg-rose-600 hover:!bg-rose-700 !text-white flex items-center gap-2 !px-4 !py-2 cursor-pointer shadow-sm"
+    >
+      @if (isDeleting()) {
+        <mat-spinner diameter="16" class="button-spinner"></mat-spinner>
+      }
+      <span>Delete Permanently</span>
+    </button>
+  </div>
+</div>

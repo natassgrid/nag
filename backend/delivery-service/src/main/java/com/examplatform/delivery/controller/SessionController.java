@@ -99,6 +99,21 @@ public class SessionController {
      */
 
     /**
+     * Retrieve question list for a specific paper (used for practice mock test delivery).
+     *
+     * @param paperId the paper identifier
+     * @return 200 OK with list of delivery questions
+     */
+    @GetMapping("/paper/{paperId}/questions")
+    public ResponseEntity<List<QuestionDeliveryDto>> getPaperQuestions(
+            @PathVariable UUID paperId,
+            @AuthenticationPrincipal Jwt jwt) {
+        String tenantId = jwt != null ? jwt.getClaimAsString("tenant_id") : "default";
+        List<QuestionDeliveryDto> questions = examQuestionDeliveryService.getQuestionsForPaper(paperId, tenantId);
+        return ResponseEntity.ok(questions);
+    }
+
+    /**
      * Terminate all active exam sessions for the authenticated candidate.
      * Allows candidate to clear stale or concurrent sessions when switching exams.
      */

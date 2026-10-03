@@ -19,16 +19,22 @@
 
 package com.examplatform.result.dto;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
+import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 
 /**
  * Represents a single option in a review question.
  */
 @Data
 @Builder
+@NoArgsConstructor
+@AllArgsConstructor
 public class ReviewOptionDto {
     private String id;
     private String text;
+    @JsonProperty("isCorrect")
     private boolean isCorrect;
 }

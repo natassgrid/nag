@@ -1,0 +1,32 @@
+<div class="dashboard-container">
+  @if (dashboardData().loading) {
+    <div class="loading-state">
+      <mat-spinner diameter="40"></mat-spinner>
+      <p>Loading your personalized recommendations...</p>
+    </div>
+  } @else {
+    <header class="dashboard-header">
+      <h1>AI Study Recommendations</h1>
+      <p class="subtitle">Your customized path to mastering weak areas and building confidence.</p>
+    </header>
+
+    <div class="dashboard-grid">
+      <div class="main-content">
+        @if (dashboardData().recommendation) {
+          <app-recommendation-card [recommendation]="dashboardData().recommendation!"></app-recommendation-card>
+        } @else {
+          <div class="empty-state-card">
+            <h2>No Recommendations Yet</h2>
+            <p>Take some practice sessions to get AI-powered insights on your weak areas and a personalized study plan.</p>
+          </div>
+        }
+      </div>
+      
+      <aside class="sidebar">
+        @if (dashboardData().profile) {
+          <app-learner-profile-insights [profile]="dashboardData().profile!"></app-learner-profile-insights>
+        }
+      </aside>
+    </div>
+  }
+</div>

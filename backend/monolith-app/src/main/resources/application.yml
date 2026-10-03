@@ -9,7 +9,7 @@ spring:
     name: nag-monolith
 
   datasource:
-    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/exam_platform?currentSchema=identity_service,candidate_service,question_service,examination_service,paper_generator,delivery_service,response_service,evaluation_service,result_service,audit_service,notification_service,admin_service,analytics_service,asset_service,public}
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/exam_platform?currentSchema=identity_service,candidate_service,question_service,examination_service,paper_generator,delivery_service,response_service,evaluation_service,result_service,audit_service,notification_service,admin_service,analytics_service,asset_service,practice_service,recommendation_service,public}
     username: ${SPRING_DATASOURCE_USERNAME:exam_admin}
     password: ${SPRING_DATASOURCE_PASSWORD:exam_secret}
     driver-class-name: org.postgresql.Driver

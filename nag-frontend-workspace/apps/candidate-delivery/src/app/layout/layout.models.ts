@@ -17,6 +17,18 @@ export const CANDIDATE_NAV_ITEMS: NavItem[] = [
     exact: true,
   },
   {
+    id: 'practice',
+    label: 'Practice Hub',
+    route: '/practice',
+    icon: 'quiz',
+  },
+  {
+    id: 'learn',
+    label: 'AI Study Plan',
+    route: '/learn/recommendations',
+    icon: 'auto_awesome',
+  },
+  {
     id: 'browse',
     label: 'Browse Exams',
     route: '/browse',

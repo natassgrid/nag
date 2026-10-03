@@ -29,4 +29,5 @@ export class EnrolledAssessmentCardComponent {
   readonly exam = input.required<EnrolledExam>();
 
   readonly openAdmitCard = output<EnrolledExam>();
+  readonly launchPractice = output<EnrolledExam>();
 }

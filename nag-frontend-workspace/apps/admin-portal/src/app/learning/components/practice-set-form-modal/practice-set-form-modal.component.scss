@@ -1,0 +1,22 @@
+:host {
+  display: block;
+}
+
+.practice-set-modal {
+  min-width: 320px;
+}
+
+::ng-deep .custom-select-field {
+  .mat-mdc-form-field-subscript-wrapper {
+    display: none;
+  }
+  .mat-mdc-text-field-wrapper {
+    background-color: white !important;
+    border-radius: 12px !important;
+  }
+}
+
+.button-spinner {
+  display: inline-block;
+  margin-right: 6px;
+}

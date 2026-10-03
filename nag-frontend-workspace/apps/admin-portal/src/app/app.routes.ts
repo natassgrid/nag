@@ -15,6 +15,20 @@ export const appRoutes: Route[] = [
       import('./auth/admin-login.component').then((m) => m.AdminLoginComponent),
   },
   {
+    path: 'auth/accept-invite',
+    loadComponent: () =>
+      import('./auth/accept-invite/accept-invite.component').then(
+        (m) => m.AcceptInviteComponent
+      ),
+  },
+  {
+    path: 'accept-invite',
+    loadComponent: () =>
+      import('./auth/accept-invite/accept-invite.component').then(
+        (m) => m.AcceptInviteComponent
+      ),
+  },
+  {
     path: 'dashboard',
     canActivate: [authGuard],
     loadComponent: () =>
@@ -137,6 +151,14 @@ export const appRoutes: Route[] = [
       ),
   },
   {
+    path: 'profile',
+    canActivate: [authGuard],
+    loadComponent: () =>
+      import('./profile/admin-profile.component').then(
+        (m) => m.AdminProfileComponent
+      ),
+  },
+  {
     path: 'reports',
     canActivate: [authGuard],
     loadComponent: () =>
@@ -159,6 +181,12 @@ export const appRoutes: Route[] = [
       import('./settings/admin-settings.component').then(
         (m) => m.AdminSettingsComponent
       ),
+  },
+  {
+    path: 'learning',
+    canActivate: [authGuard],
+    loadComponent: () =>
+      import('./learning/learning.component').then((m) => m.LearningComponent),
   },
   {
     path: '**',

@@ -62,7 +62,7 @@ public class OtpService {
     @Transactional
     public void sendSmsOtp(UUID userId, String mobileHash, String mobileNumber, String tenantId) {
         String effectiveTenant = (tenantId != null && !tenantId.isBlank()) ? tenantId : "default";
-        String identifier = (userId != null) ? userId.toString() : (effectiveTenant + ":" + (mobileHash != null ? mobileHash : "anonymous"));
+        String identifier = (userId != null) ? (userId + ":SMS") : (effectiveTenant + ":SMS:" + (mobileHash != null ? mobileHash : "anonymous"));
 
         // 0. Enforce weekly SMS quota if enabled
         msg91SmsService.enforceWeeklyRateLimit(userId, mobileHash);
@@ -129,7 +129,7 @@ public class OtpService {
     @Transactional
     public void sendEmailOtp(UUID userId, String emailHash, String email, String candidateName, String tenantId) {
         String effectiveTenant = (tenantId != null && !tenantId.isBlank()) ? tenantId : "default";
-        String identifier = (userId != null) ? userId.toString() : (effectiveTenant + ":" + (emailHash != null ? emailHash : "anonymous"));
+        String identifier = (userId != null) ? (userId + ":EMAIL") : (effectiveTenant + ":EMAIL:" + (emailHash != null ? emailHash : "anonymous"));
 
         // 1. Enforce 60s resend cooldown and 5/24h daily quota in Redis
         otpRedisService.checkAndEnforceCooldown(identifier);
@@ -199,7 +199,7 @@ public class OtpService {
     @Transactional
     public boolean verifyEmailOtp(UUID userId, String emailHash, String otpCode, String tenantId) {
         String effectiveTenant = (tenantId != null && !tenantId.isBlank()) ? tenantId : "default";
-        String identifier = (userId != null) ? userId.toString() : (effectiveTenant + ":" + (emailHash != null ? emailHash : "anonymous"));
+        String identifier = (userId != null) ? (userId + ":EMAIL") : (effectiveTenant + ":EMAIL:" + (emailHash != null ? emailHash : "anonymous"));
 
         // Developer test bypass code 000000
         if ("000000".equals(otpCode != null ? otpCode.trim() : "")) {
@@ -214,6 +214,9 @@ public class OtpService {
                 otpVerificationRepository.save(v);
             });
             otpRedisService.removeEmailOtp(identifier);
+            if (emailHash != null) {
+                otpRedisService.removeEmailOtp(emailHash);
+            }
             otpRedisService.clearFailedAttempts(identifier);
             return true;
         }
@@ -226,10 +229,17 @@ public class OtpService {
 
         // 3. Try reading from Redis
         String storedRedisHash = otpRedisService.getStoredEmailOtp(identifier);
+        if (storedRedisHash == null && emailHash != null) {
+            storedRedisHash = otpRedisService.getStoredEmailOtp(emailHash);
+        }
+
         if (storedRedisHash != null) {
             if (candidateHash.equals(storedRedisHash)) {
                 // Success: clean up Redis and mark verified in DB
                 otpRedisService.removeEmailOtp(identifier);
+                if (emailHash != null) {
+                    otpRedisService.removeEmailOtp(emailHash);
+                }
                 otpRedisService.clearFailedAttempts(identifier);
 
                 Optional<OtpVerification> optVerification = userId != null ?
@@ -296,7 +306,7 @@ public class OtpService {
     @Transactional
     public boolean verifyMobileOtp(UUID userId, String mobileHash, String otpCode, String tenantId) {
         String effectiveTenant = (tenantId != null && !tenantId.isBlank()) ? tenantId : "default";
-        String identifier = (userId != null) ? userId.toString() : (effectiveTenant + ":" + (mobileHash != null ? mobileHash : "anonymous"));
+        String identifier = (userId != null) ? (userId + ":SMS") : (effectiveTenant + ":SMS:" + (mobileHash != null ? mobileHash : "anonymous"));
 
         if ("000000".equals(otpCode != null ? otpCode.trim() : "")) {
             log.info("Testing OTP 000000 accepted for mobile verification (userId={}, tenant={})", userId, effectiveTenant);
@@ -314,6 +324,9 @@ public class OtpService {
                 otpVerificationRepository.save(v);
             });
             otpRedisService.removeEmailOtp(identifier);
+            if (mobileHash != null) {
+                otpRedisService.removeEmailOtp(mobileHash);
+            }
             otpRedisService.clearFailedAttempts(identifier);
             return true;
         }
@@ -322,9 +335,16 @@ public class OtpService {
         String candidateHash = hashingService.sha256(otpCode != null ? otpCode.trim() : "");
 
         String storedRedisHash = otpRedisService.getStoredEmailOtp(identifier);
+        if (storedRedisHash == null && mobileHash != null) {
+            storedRedisHash = otpRedisService.getStoredEmailOtp(mobileHash);
+        }
+
         if (storedRedisHash != null) {
             if (candidateHash.equals(storedRedisHash)) {
                 otpRedisService.removeEmailOtp(identifier);
+                if (mobileHash != null) {
+                    otpRedisService.removeEmailOtp(mobileHash);
+                }
                 otpRedisService.clearFailedAttempts(identifier);
 
                 Optional<OtpVerification> opt = userId != null ?

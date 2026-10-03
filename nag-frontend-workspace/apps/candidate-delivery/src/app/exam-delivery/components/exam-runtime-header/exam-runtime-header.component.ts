@@ -18,6 +18,7 @@ export class ExamRuntimeHeaderComponent {
   readonly formattedTime = input.required<string>();
   readonly currentLanguage = input.required<SupportedLanguage>();
   readonly supportedLanguages = input.required<LanguageOption[]>();
+  readonly deliveryMode = input<'LIVE' | 'PRACTICE' | 'PREVIEW'>('LIVE');
 
   readonly languageChange = output<SupportedLanguage>();
   readonly submit = output<void>();

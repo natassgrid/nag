@@ -42,6 +42,22 @@ public interface PaperRepository extends JpaRepository<Paper, UUID> {
 
     Optional<Paper> findByIdAndTenantId(UUID id, String tenantId);
 
+    Optional<Paper> findByPaperRootHash(String paperRootHash);
+
+    Optional<Paper> findByExamIdAndPaperRootHash(UUID examId, String paperRootHash);
+
+    Optional<Paper> findByLedgerTxHash(String ledgerTxHash);
+
+    @Query("""
+        SELECT p FROM Paper p
+        WHERE p.examId = :examId
+          AND p.isPractice = true
+          AND p.status IN ('APPROVED', 'PUBLISHED', 'ENCRYPTED')
+          AND (p.tenantId = :tenantId OR p.tenantId = 'default')
+        ORDER BY p.createdAt DESC
+    """)
+    List<Paper> findPracticePapersByExamId(@Param("examId") UUID examId, @Param("tenantId") String tenantId);
+
     @Query("""
         SELECT p FROM Paper p
         WHERE p.tenantId = :tenantId

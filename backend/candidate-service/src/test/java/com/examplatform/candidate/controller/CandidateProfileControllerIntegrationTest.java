@@ -37,6 +37,7 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 import static org.mockito.ArgumentMatchers.any;
@@ -541,9 +542,37 @@ class CandidateProfileControllerIntegrationTest extends AbstractIntegrationTest 
         }
 
         @Test
+        @DisplayName("+ve: Candidate initiates DigiLocker OAuth2 auth - returns 200 OK with auth URL")
+        void candidateInitiatesDigiLockerAuth() throws Exception {
+            when(digiLockerService.initiateAuth(eq(CANDIDATE_ID), eq(TENANT_ID), any()))
+                    .thenReturn(Map.of("authorizationUrl", "http://localhost:8099/digilocker/oauth/authorize?response_type=code", "state", "mock_state"));
+
+            mockMvc.perform(get("/api/v1/candidates/{userId}/digilocker/auth", CANDIDATE_ID)
+                            .header("X-Tenant-Id", TENANT_ID)
+                            .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_CANDIDATE")).jwt(j -> j.subject(CANDIDATE_ID.toString()))))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.authorizationUrl").value("http://localhost:8099/digilocker/oauth/authorize?response_type=code"))
+                    .andExpect(jsonPath("$.state").value("mock_state"));
+        }
+
+        @Test
+        @DisplayName("+ve: Public callback handles OAuth2 code exchange - returns 200 OK")
+        void handlesDigiLockerCallback() throws Exception {
+            when(digiLockerService.handleCallback(eq("auth_code_999"), eq("mock_state"), any()))
+                    .thenReturn(Map.of("status", "VERIFIED", "userId", CANDIDATE_ID.toString(), "digiLockerVerified", "VERIFIED"));
+
+            mockMvc.perform(get("/api/v1/candidates/digilocker/callback")
+                            .param("code", "auth_code_999")
+                            .param("state", "mock_state"))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.status").value("VERIFIED"))
+                    .andExpect(jsonPath("$.digiLockerVerified").value("VERIFIED"));
+        }
+
+        @Test
         @DisplayName("+ve: Candidate verifies DigiLocker document - returns 200 OK")
         void candidateVerifiesDigiLocker() throws Exception {
-            when(digiLockerService.verifyDocument(eq(CANDIDATE_ID), eq(TENANT_ID))).thenReturn("VERIFIED");
+            when(digiLockerService.verifyDocument(eq(CANDIDATE_ID), any(), eq(TENANT_ID))).thenReturn("VERIFIED");
 
             mockMvc.perform(post("/api/v1/candidates/{userId}/digilocker/verify", CANDIDATE_ID)
                             .header("X-Tenant-Id", TENANT_ID)

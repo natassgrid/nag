@@ -1,0 +1,45 @@
+@if (mode() === 'PREVIEW') {
+  <div class="bg-gradient-to-r from-amber-600 via-amber-700 to-slate-800 text-white px-4 py-2 flex items-center justify-between shadow-md text-xs font-semibold z-10">
+    <div class="flex items-center gap-2">
+      <span class="bg-amber-900/60 text-amber-200 uppercase text-[10px] font-mono font-bold px-2 py-0.5 rounded border border-amber-400/30">
+        Preview Mode
+      </span>
+      <span class="flex items-center gap-1 font-bold">
+        <mat-icon class="!text-sm">visibility</mat-icon>
+        Sample Examination Pattern & Architecture Preview
+      </span>
+      <span class="hidden md:inline text-amber-100">
+        — Sample test questions and layout inspection. Responses will not be submitted to official records.
+      </span>
+    </div>
+    <button
+      type="button"
+      (click)="onExit()"
+      class="text-amber-200 hover:text-white underline text-xs ml-4 whitespace-nowrap bg-transparent border-0 cursor-pointer"
+    >
+      Exit Preview
+    </button>
+  </div>
+} @else if (mode() === 'PRACTICE') {
+  <div class="bg-gradient-to-r from-purple-700 via-indigo-700 to-purple-800 text-white px-4 py-2 flex items-center justify-between shadow-md text-xs font-semibold z-10">
+    <div class="flex items-center gap-2">
+      <span class="bg-purple-900/60 text-purple-200 uppercase text-[10px] font-mono font-bold px-2 py-0.5 rounded border border-purple-400/30">
+        Simulation Mode
+      </span>
+      <span class="flex items-center gap-1 font-bold">
+        <mat-icon class="!text-sm">psychology</mat-icon>
+        Official Practice Mock Environment
+      </span>
+      <span class="hidden md:inline text-purple-200">
+        — Real exam timer, negative marking simulation, and instant post-submission performance review.
+      </span>
+    </div>
+    <button
+      type="button"
+      (click)="onExit()"
+      class="text-purple-200 hover:text-white underline text-xs ml-4 whitespace-nowrap bg-transparent border-0 cursor-pointer"
+    >
+      Exit Practice
+    </button>
+  </div>
+}

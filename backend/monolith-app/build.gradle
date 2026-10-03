@@ -46,6 +46,8 @@ dependencies {
     implementation project(':backend:admin-service')
     implementation project(':backend:analytics-service')
     implementation project(':backend:asset-service')
+    implementation project(':backend:practice-service')
+    implementation project(':backend:recommendation-service')
 
     // Web & Boot
     implementation libs.spring.boot.starter.web

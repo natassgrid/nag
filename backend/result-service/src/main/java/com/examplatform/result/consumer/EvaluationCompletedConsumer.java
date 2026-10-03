@@ -14,13 +14,15 @@
  * GNU Affero General Public License for more details.
  *
  * You should have received a copy of the GNU Affero General Public License
- * along with this program. If not, see <https://www.gnu.org/licenses/>.\n */
+ * along with this program. If not, see <https://www.gnu.org/licenses/>.
+ */
 
 package com.examplatform.result.consumer;
 
 import com.examplatform.result.domain.Result;
 import com.examplatform.result.dto.CandidateScoreInput;
 import com.examplatform.result.repository.ResultRepository;
+import com.examplatform.result.service.QuestionAnalyticsService;
 import com.examplatform.result.service.ResultComputationService;
 import com.examplatform.shared.messaging.GenericDomainEvent;
 import com.fasterxml.jackson.core.type.TypeReference;
@@ -52,10 +54,10 @@ import java.util.UUID;
 /**
  * Consumer for the exam.evaluation.completed topic.
  * Triggered after evaluation-service completes scoring for a candidate's session.
- * Computes and persists the full diagnostic result record.
+ * Computes and persists the full diagnostic result record and invalidates question analytics cache.
  * Supports Kafka, RabbitMQ, and in-memory Spring events across deployment modes.
  *
- * Validates: SPEC-RS3 (EVALUATION_COMPLETED Consumer)
+ * Validates: SPEC-RS3 (EVALUATION_COMPLETED Consumer), Issue #111
  */
 @Slf4j
 @Component
@@ -66,6 +68,7 @@ public class EvaluationCompletedConsumer {
 
     private final ResultComputationService resultComputationService;
     private final ResultRepository resultRepository;
+    private final QuestionAnalyticsService questionAnalyticsService;
     private final ObjectMapper objectMapper;
 
     /**
@@ -201,6 +204,9 @@ public class EvaluationCompletedConsumer {
                 // Enrich with diagnostic data from event
                 enrichWithDiagnostics(results, event, tenantId);
 
+                // Invalidate analytics cache for this exam
+                questionAnalyticsService.invalidateCache(examId);
+
                 log.info("Result computed for candidate={}, exam={}, score={}",
                         candidateId, examId, totalRawScore);
             }
@@ -213,7 +219,8 @@ public class EvaluationCompletedConsumer {
 
     /**
      * Enriches saved results with diagnostic data from the evaluation event.
-     * Computes accuracy rate and time analysis from question-level scores.\n     */
+     * Computes accuracy rate and time analysis from question-level scores.
+     */
     private void enrichWithDiagnostics(List<Result> results, Map<String, Object> event, String tenantId) {
         if (results.isEmpty()) return;
 

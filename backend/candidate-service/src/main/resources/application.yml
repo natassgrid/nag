@@ -79,6 +79,17 @@ spring:
     virtual:
       enabled: true
 
+app:
+  digilocker:
+    base-url: ${DIGILOCKER_BASE_URL:http://localhost:8099/digilocker}
+    auth-url: ${DIGILOCKER_AUTH_URL:}
+    token-url: ${DIGILOCKER_TOKEN_URL:}
+    userinfo-url: ${DIGILOCKER_USERINFO_URL:}
+    api-url: ${DIGILOCKER_API_URL:}
+    client-id: ${DIGILOCKER_CLIENT_ID:nag-exam-platform}
+    client-secret: ${DIGILOCKER_CLIENT_SECRET:mock-client-secret}
+    redirect-uri: ${DIGILOCKER_REDIRECT_URI:http://localhost:8082/api/v1/candidates/digilocker/callback}
+
 server:
   port: ${CANDIDATE_SERVICE_PORT:8082}
   servlet:

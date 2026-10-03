@@ -47,4 +47,9 @@ public interface ResultRepository extends JpaRepository<Result, UUID> {
      * Retrieves all results for an exam within a tenant, ordered by rank.
      */
     List<Result> findByExamIdAndTenantIdOrderByOverallRankAsc(UUID examId, String tenantId);
+
+    /**
+     * Retrieves a result by its unique QR verification code.
+     */
+    Optional<Result> findByQrVerificationCode(String qrVerificationCode);
 }

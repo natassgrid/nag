@@ -1,0 +1,59 @@
+:host {
+  display: block;
+}
+
+.stat-row {
+  display: flex;
+  justify-content: space-around;
+  margin: 16px 0;
+}
+
+.stat-box {
+  text-align: center;
+}
+
+.stat-value {
+  font-size: 2rem;
+  font-weight: bold;
+  color: var(--mat-sys-primary);
+}
+
+.stat-label {
+  font-size: 0.875rem;
+  color: var(--mat-sys-on-surface-variant);
+}
+
+.topic-section {
+  margin-top: 16px;
+}
+
+.section-title {
+  margin-bottom: 12px;
+  font-size: 1.125rem;
+  font-weight: 500;
+}
+
+.accuracy-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.accuracy-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.accuracy-header {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.875rem;
+}
+
+.empty-state {
+  color: var(--mat-sys-on-surface-variant);
+  font-style: italic;
+  padding: 16px;
+  text-align: center;
+}

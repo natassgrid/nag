@@ -2,45 +2,110 @@
   <div class="w-full max-w-md space-y-6">
     <!-- Header -->
     <app-auth-brand-header
-      title="Email Verification"
-      subtitle="Candidate Account Activation"
-      description="Enter the 6-digit verification code sent to"
-      [highlightTarget]="email() || 'your registered email'"
+      title="Candidate Verification"
+      subtitle="Account Activation & 2FA"
+      [description]="activeTab() === 'email' ? 'Enter the 6-digit verification code sent to' : 'Enter the 6-digit mobile verification code sent to'"
+      [highlightTarget]="activeTab() === 'email' ? (email() || 'your registered email') : maskedPhone()"
     />
 
     <!-- Main OTP Card -->
     <div class="bg-white rounded-3xl border border-slate-200 p-8 shadow-2xl space-y-6">
+      <!-- Channel Selection Tabs -->
+      <div class="grid grid-cols-2 p-1 bg-slate-100 rounded-2xl text-xs font-bold text-slate-600">
+        <button
+          type="button"
+          (click)="switchTab('email')"
+          [class.bg-white]="activeTab() === 'email'"
+          [class.text-indigo-700]="activeTab() === 'email'"
+          [class.shadow-sm]="activeTab() === 'email'"
+          class="py-2.5 rounded-xl transition-all flex items-center justify-center gap-1.5 cursor-pointer"
+        >
+          <mat-icon class="!text-base">mail_outline</mat-icon>
+          <span>Email OTP</span>
+        </button>
+        <button
+          type="button"
+          (click)="switchTab('mobile')"
+          [class.bg-white]="activeTab() === 'mobile'"
+          [class.text-indigo-700]="activeTab() === 'mobile'"
+          [class.shadow-sm]="activeTab() === 'mobile'"
+          class="py-2.5 rounded-xl transition-all flex items-center justify-center gap-1.5 cursor-pointer"
+        >
+          <mat-icon class="!text-base">sms</mat-icon>
+          <span>Mobile SMS</span>
+        </button>
+      </div>
+
       <!-- Pending Login Notification Banner -->
       @if (isPendingLogin()) {
         <div class="p-3.5 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 text-xs font-medium flex items-start gap-2.5">
           <mat-icon class="!text-lg text-amber-600 shrink-0 mt-0.5">info</mat-icon>
           <div>
             <strong class="font-bold block text-amber-800">Verification Required</strong>
-            <span>Your account is pending verification. Please enter the OTP code sent to your email or click resend below.</span>
+            <span>Your candidate account is pending activation. Enter your verification code below.</span>
           </div>
         </div>
       }
 
-      <!-- Error Message Banner -->
+      <!-- Mobile Tab Info: Masked Phone & Weekly Quota Indicator -->
+      @if (activeTab() === 'mobile') {
+        <div class="p-3.5 bg-slate-50 border border-slate-200 rounded-2xl space-y-2">
+          <div class="flex items-center justify-between text-xs">
+            <span class="text-slate-500 font-medium">Registered Phone:</span>
+            <span class="font-mono font-bold text-slate-800" data-testid="masked-phone">{{ maskedPhone() }}</span>
+          </div>
+          <div class="flex items-center justify-between text-xs">
+            <span class="text-slate-500 font-medium">Weekly SMS Quota:</span>
+            <span
+              class="font-mono font-bold px-2 py-0.5 rounded-full text-[11px]"
+              [class.bg-emerald-100]="smsQuotaRemaining() > 1"
+              [class.text-emerald-700]="smsQuotaRemaining() > 1"
+              [class.bg-amber-100]="smsQuotaRemaining() === 1"
+              [class.text-amber-700]="smsQuotaRemaining() === 1"
+              [class.bg-rose-100]="smsQuotaRemaining() === 0"
+              [class.text-rose-700]="smsQuotaRemaining() === 0"
+              data-testid="sms-quota-display"
+            >
+              {{ smsQuotaRemaining() }} of {{ maxWeeklyQuota }} SMS left
+            </span>
+          </div>
+          @if (smsQuotaRemaining() === 0) {
+            <p class="text-[11px] text-rose-600 font-medium pt-1 border-t border-slate-200">
+              Weekly SMS limit exhausted. Please switch to Email OTP verification.
+            </p>
+          }
+        </div>
+      }
+
+      <!-- Error Message Banner with Inline Retry Control -->
       @if (errorMessage()) {
-        <div class="p-3.5 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs font-medium flex items-center gap-2">
-          <mat-icon class="!text-base leading-none text-rose-600">error_outline</mat-icon>
-          <span>{{ errorMessage() }}</span>
+        <div class="p-3.5 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs font-medium flex items-center justify-between gap-2">
+          <div class="flex items-center gap-2">
+            <mat-icon class="!text-base leading-none text-rose-600 shrink-0">error_outline</mat-icon>
+            <span data-testid="otp-error-message">{{ errorMessage() }}</span>
+          </div>
+          <button
+            type="button"
+            (click)="clearInput()"
+            class="text-[11px] font-bold text-rose-800 hover:underline shrink-0"
+          >
+            Clear & Retry
+          </button>
         </div>
       }
 
       <!-- Success Message Banner -->
       @if (successMessage()) {
         <div class="p-3.5 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-medium flex items-center gap-2">
-          <mat-icon class="!text-base leading-none text-emerald-600">check_circle</mat-icon>
-          <span>{{ successMessage() }}</span>
+          <mat-icon class="!text-base leading-none text-emerald-600 shrink-0">check_circle</mat-icon>
+          <span data-testid="otp-success-message">{{ successMessage() }}</span>
         </div>
       }
 
       <form (ngSubmit)="handleVerifyOtp()" class="space-y-6">
         <div>
           <label for="otp-code" class="block text-xs font-bold text-slate-700 uppercase mb-2 text-center">
-            6-Digit Verification Code
+            6-Digit {{ activeTab() === 'email' ? 'Email' : 'Mobile SMS' }} OTP
           </label>
           <input
             id="otp-code"
@@ -59,7 +124,7 @@
           mat-flat-button
           color="primary"
           [disabled]="loading() || otpCode.length < 6"
-          class="w-full !py-3 !rounded-xl !text-sm font-bold shadow-md !bg-indigo-600 hover:!bg-indigo-700 !text-white"
+          class="w-full !py-3 !rounded-xl !text-sm font-bold shadow-md !bg-indigo-600 hover:!bg-indigo-700 !text-white cursor-pointer"
         >
           <span class="flex items-center justify-center gap-2">
             <mat-icon class="!text-base">{{ loading() ? 'hourglass_top' : 'verified_user' }}</mat-icon>
@@ -68,17 +133,18 @@
         </button>
       </form>
 
-      <!-- Testing bypass button in non-production/dev environments -->
+      <!-- Testing helper button in non-production/dev environments -->
       <div class="text-center pt-1">
         <button
           type="button"
           (click)="fillTestBypassOtp()"
-          class="text-[11px] font-semibold text-slate-400 hover:text-indigo-600 transition-colors"
+          class="text-[11px] font-semibold text-slate-400 hover:text-indigo-600 transition-colors cursor-pointer"
         >
           Use Test OTP (000000)
         </button>
       </div>
 
+      <!-- Footer Resend & Back controls -->
       <div class="flex items-center justify-between text-xs text-slate-500 pt-3 border-t border-slate-100">
         <a routerLink="/login" class="text-slate-500 hover:text-slate-700 font-semibold flex items-center gap-1">
           &larr; Back to Sign In
@@ -86,10 +152,11 @@
         <button
           type="button"
           (click)="resendOtp()"
-          [disabled]="resendCountdown() > 0 || resending()"
-          class="font-bold text-indigo-600 hover:underline disabled:text-slate-400 disabled:no-underline flex items-center gap-1"
+          [disabled]="resendCountdown() > 0 || resending() || sendingSms() || (activeTab() === 'mobile' && smsQuotaRemaining() === 0)"
+          class="font-bold text-indigo-600 hover:underline disabled:text-slate-400 disabled:no-underline flex items-center gap-1 cursor-pointer"
+          data-testid="resend-otp-button"
         >
-          @if (resending()) {
+          @if (resending() || sendingSms()) {
             <mat-icon class="!text-sm animate-spin">refresh</mat-icon>
             Sending...
           } @else if (resendCountdown() > 0) {
@@ -97,7 +164,7 @@
               Resend in {{ resendCountdown() }}s
             </span>
           } @else {
-            Resend Code
+            {{ activeTab() === 'email' ? 'Resend Email OTP' : 'Resend SMS OTP' }}
           }
         </button>
       </div>

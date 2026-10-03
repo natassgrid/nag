@@ -62,7 +62,9 @@ public class MonolithFlywayConfig {
                 SchemaMigrationSpec.of("notification_service", "classpath:db/migration/notification"),
                 SchemaMigrationSpec.of("admin_service", "classpath:db/migration/admin"),
                 SchemaMigrationSpec.of("analytics_service", "classpath:db/migration/analytics"),
-                SchemaMigrationSpec.of("asset_service", "classpath:db/migration/asset")
+                SchemaMigrationSpec.of("asset_service", "classpath:db/migration/asset"),
+                SchemaMigrationSpec.of("practice_service", "classpath:db/migration/practice"),
+                SchemaMigrationSpec.of("recommendation_service", "classpath:db/migration/recommendation")
         );
         MultiSchemaFlywayRunner.runMigrations(dataSource, specs);
     }

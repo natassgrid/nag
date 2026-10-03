@@ -14,7 +14,8 @@
  * GNU Affero General Public License for more details.
  *
  * You should have received a copy of the GNU Affero General Public License
- * along with this program. If not, see <https://www.gnu.org/licenses/>.\n */
+ * along with this program. If not, see <https://www.gnu.org/licenses/>.
+ */
 
 package com.examplatform.papergenerator.dto;
 
@@ -30,6 +31,9 @@ import java.util.UUID;
 
 /**
  * Detailed DTO for single paper response.
+ * Includes cryptographic Merkle tree root hash and public ledger anchoring proofs.
+ *
+ * Validates: Requirements 8.7, Issue #156
  */
 @Data
 @Builder
@@ -45,6 +49,7 @@ public class PaperResponse {
     private String shiftName;
     private String status;
     private boolean isPractice;
+    private String variant;
     private String paperDefinitionJson;
     private double difficultyScore;
     private String topicDistributionJson;
@@ -54,8 +59,24 @@ public class PaperResponse {
     private Instant createdAt;
     private Instant updatedAt;
 
+    // Cryptographic Merkle Tree & Public Ledger Anchoring (Issue #156)
+    private String paperRootHash;
+    private String manifestDigest;
+    private String ledgerTxHash;
+    private String ledgerConsensusTimestamp;
+    private Long ledgerBlockNumber;
+    private String ledgerExplorerUrl;
+    private String ledgerNetwork;
+    private Instant anchoredAt;
+    private Instant timeLockReleaseAt;
+    private Boolean isTimeLocked;
+
     // Enriched paper summary fields
     private Integer totalQuestions;
     private Map<String, Integer> topicDistribution;
     private List<QuestionSummary> questions;
+
+    public UUID getPaperId() {
+        return id;
+    }
 }

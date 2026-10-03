@@ -37,6 +37,30 @@ export const appRoutes: Route[] = [
       ),
   },
   {
+    path: 'practice',
+    canActivate: [authGuard],
+    loadComponent: () =>
+      import('./practice/components/practice-hub/practice-hub.component').then(
+        (m) => m.PracticeHubComponent
+      ),
+  },
+  {
+    path: 'practice/result/:sessionId',
+    canActivate: [authGuard],
+    loadComponent: () =>
+      import('./practice/components/practice-result-panel/practice-result-panel.component').then(
+        (m) => m.PracticeResultPanelComponent
+      ),
+  },
+  {
+    path: 'practice/history',
+    canActivate: [authGuard],
+    loadComponent: () =>
+      import('./practice/components/practice-history/practice-history.component').then(
+        (m) => m.PracticeHistoryComponent
+      ),
+  },
+  {
     path: 'browse',
     canActivate: [authGuard],
     loadComponent: () =>
@@ -75,6 +99,15 @@ export const appRoutes: Route[] = [
       import('./results/candidate-results.component').then(
         (m) => m.CandidateResultsComponent
       ),
+  },
+  {
+    path: 'learn',
+    canActivate: [authGuard],
+    loadComponent: () => import('./learn/learn.component').then(m => m.LearnComponent),
+    children: [
+      { path: 'recommendations', loadComponent: () => import('./learn/components/recommendations-dashboard/recommendations-dashboard.component').then(m => m.RecommendationsDashboardComponent) },
+      { path: '', redirectTo: 'recommendations', pathMatch: 'full' }
+    ]
   },
   {
     path: '**',

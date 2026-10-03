@@ -14,8 +14,7 @@
  * GNU Affero General Public License for more details.
  *
  * You should have received a copy of the GNU Affero General Public License
- * along with this program. If not, see <https://www.gnu.org/licenses/>.
- */
+ * along with this program. If not, see <https://www.gnu.org/licenses/>.\n */
 
 package com.examplatform.result.service;
 
@@ -143,6 +142,18 @@ public class ResultComputationService {
                 .orElseThrow(() -> new EntityNotFoundException(
                         String.format("Result not found for candidate=%s, exam=%s, tenant=%s",
                                 candidateId, examId, tenantId)));
+    }
+
+    /**
+     * Retrieves all results for a candidate within a tenant.
+     *
+     * @param candidateId the candidate identifier
+     * @param tenantId    the tenant identifier
+     * @return the list of results
+     */
+    @Transactional(readOnly = true)
+    public List<Result> getCandidateResults(UUID candidateId, String tenantId) {
+        return resultRepository.findByCandidateIdAndTenantId(candidateId, tenantId);
     }
 
     /**

@@ -1,3 +1,5 @@
+export type ExamDeliveryMode = 'LIVE' | 'PRACTICE' | 'PREVIEW';
+
 export interface ExamOption {
   id: string;
   text: string;
@@ -11,18 +13,39 @@ export interface ExamItem {
   options: ExamOption[];
   marks: number;
   negativeMarks: number;
+  subject?: string;
+  correctOptionId?: string;
   selectedOptionId?: string;
   isFlagged?: boolean;
   isVisited?: boolean;
+}
+
+export interface ExamScoreSummary {
+  score: number;
+  totalMarks: number;
+  correctCount: number;
+  incorrectCount: number;
+  unansweredCount: number;
 }
 
 export interface ExamSubmissionReceipt {
   signature: string;
   hash: string;
   timestamp: string;
+  mode?: ExamDeliveryMode;
+  score?: number;
+  totalMarks?: number;
+  correctCount?: number;
+  incorrectCount?: number;
+  unansweredCount?: number;
+  totalQuestions?: number;
+  accuracyPercent?: number;
+  practiceSetName?: string;
+  sessionId?: string;
 }
 
 export interface ExamSessionMetadata {
   sessionId: string;
   candidateId: string;
+  title?: string;
 }

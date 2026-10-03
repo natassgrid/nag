@@ -19,8 +19,11 @@
 
 package com.examplatform.result.dto;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
+import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 
 import java.util.List;
 import java.util.UUID;
@@ -32,6 +35,8 @@ import java.util.UUID;
  */
 @Data
 @Builder
+@NoArgsConstructor
+@AllArgsConstructor
 public class ReviewQuestionDto {
     private UUID questionId;
     private int questionNumber;
@@ -42,6 +47,7 @@ public class ReviewQuestionDto {
     private String bloomsLevel;
     private List<ReviewOptionDto> options;
     private List<String> candidateSelectedOptionIds;
+    @JsonProperty("isCorrect")
     private boolean isCorrect;
     private double marksAwarded;
     private long timeSpentMs;

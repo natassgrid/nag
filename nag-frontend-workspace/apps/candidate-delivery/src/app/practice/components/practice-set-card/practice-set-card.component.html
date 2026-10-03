@@ -1,0 +1,81 @@
+<div class="group relative flex flex-col justify-between bg-white rounded-2xl border border-slate-200/80 shadow-xs hover:shadow-md hover:border-indigo-200 transition-all duration-300 overflow-hidden h-full">
+  <!-- Accent top line -->
+  <div
+    class="h-1 w-full transition-colors duration-300"
+    [class.bg-emerald-500]="isOfficialExam()"
+    [class.bg-indigo-600]="!isOfficialExam()"
+  ></div>
+
+  <div class="p-5 flex-1 flex flex-col space-y-4">
+    <!-- Header badges -->
+    <div class="flex items-center justify-between gap-2">
+      <span
+        class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold tracking-wide"
+        [class.bg-emerald-50]="isOfficialExam()"
+        [class.text-emerald-700]="isOfficialExam()"
+        [class.border]="true"
+        [class.border-emerald-200]="isOfficialExam()"
+        [class.bg-indigo-50]="!isOfficialExam()"
+        [class.text-indigo-700]="!isOfficialExam()"
+        [class.border-indigo-200]="!isOfficialExam()"
+      >
+        <mat-icon class="!text-xs !w-3.5 !h-3.5">
+          {{ isOfficialExam() ? 'verified' : 'auto_fix_high' }}
+        </mat-icon>
+        {{ isOfficialExam() ? 'Official Paper' : 'Curated Set' }}
+      </span>
+
+      <span class="inline-flex items-center text-xs font-medium text-slate-500 bg-slate-100 px-2 py-0.5 rounded-md">
+        {{ formattedSubject() }}
+      </span>
+    </div>
+
+    <!-- Title & Description -->
+    <div class="space-y-1.5 flex-1">
+      <h3
+        class="text-base font-bold text-slate-900 group-hover:text-indigo-600 transition-colors line-clamp-1"
+        [matTooltip]="set().name"
+      >
+        {{ set().name }}
+      </h3>
+      <p class="text-xs text-slate-600 line-clamp-2 leading-relaxed">
+        {{ set().description || 'Comprehensive practice paper for mock evaluation and exam preparation.' }}
+      </p>
+    </div>
+
+    <!-- Meta specs ribbon -->
+    <div class="grid grid-cols-2 gap-2 pt-2 border-t border-slate-100">
+      <div class="flex items-center space-x-2 text-xs text-slate-600 bg-slate-50 p-2 rounded-xl border border-slate-100">
+        <mat-icon class="!text-sm text-indigo-600">quiz</mat-icon>
+        <div>
+          <span class="font-bold text-slate-900">{{ set().totalQuestions }}</span>
+          <span class="text-slate-500 ml-1">Questions</span>
+        </div>
+      </div>
+
+      <div class="flex items-center space-x-2 text-xs text-slate-600 bg-slate-50 p-2 rounded-xl border border-slate-100">
+        <mat-icon class="!text-sm text-amber-600">schedule</mat-icon>
+        <div>
+          <span class="font-bold text-slate-900">{{ set().durationMinutes }}</span>
+          <span class="text-slate-500 ml-1">Mins</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Footer Actions -->
+  <div class="p-4 bg-slate-50/70 border-t border-slate-100 flex items-center justify-between">
+    <div class="text-[11px] font-medium text-slate-500">
+      Marks: <span class="font-bold text-slate-800">+2.0 / -0.5</span>
+    </div>
+
+    <button
+      type="button"
+      (click)="launch.emit(set())"
+      class="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 shadow-xs hover:shadow transition-all cursor-pointer"
+    >
+      <mat-icon class="!text-sm">play_arrow</mat-icon>
+      Start Mock
+    </button>
+  </div>
+</div>

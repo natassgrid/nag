@@ -147,8 +147,8 @@ export class AuthService {
     }
 
     this.refreshTokenInProgress$ = this.http
-      .post<{ status?: string; data?: UserToken } & UserToken>
-        ('/api/v1/identity/auth/token/refresh',
+      .post<{ status?: string; data?: UserToken } & UserToken>(
+        '/api/v1/identity/auth/token/refresh',
         { refreshToken }
       )
       .pipe(
@@ -198,6 +198,16 @@ export class AuthService {
         this.router.navigate(['/login']);
       }
     }
+  }
+
+  changePassword(payload: { currentPassword?: string; oldPassword?: string; newPassword: string }): Observable<void> {
+    const body = {
+      currentPassword: payload.currentPassword || payload.oldPassword,
+      newPassword: payload.newPassword,
+    };
+    return this.http
+      .post<{ status?: string }>('/api/v1/identity/auth/change-password', body)
+      .pipe(map(() => void 0));
   }
 
   resendEmailOtp(payload: { userId?: string; email?: string }): Observable<any> {
@@ -287,8 +297,8 @@ export class AuthService {
 
   validateInvite(token: string): Observable<ValidateInviteData> {
     return this.http
-      .get<{ data: ValidateInviteData }>
-        (`/api/v1/identity/invitations/validate?token=${encodeURIComponent(token)}`
+      .get<{ data: ValidateInviteData }>(
+        `/api/v1/identity/invitations/validate?token=${encodeURIComponent(token)}`
       )
       .pipe(map((res) => res.data));
   }
@@ -296,6 +306,9 @@ export class AuthService {
   acceptInvite(payload: {
     token: string;
     password?: string;
+    totpSecret?: string;
+    totpCode?: string;
+    backupCodes?: string[];
   }): Observable<UserToken> {
     return this.http
       .post<{ data: UserToken }>('/api/v1/identity/invitations/accept', payload)

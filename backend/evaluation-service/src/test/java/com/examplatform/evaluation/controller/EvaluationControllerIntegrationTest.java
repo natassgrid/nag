@@ -21,6 +21,7 @@ package com.examplatform.evaluation.controller;
 
 import com.examplatform.evaluation.domain.Evaluation;
 import com.examplatform.evaluation.dto.ScoreRequest;
+import com.examplatform.evaluation.repository.EvaluationRepository;
 import com.examplatform.evaluation.service.ManualEvaluationService;
 import com.examplatform.evaluation.service.ScoreAggregationService;
 import com.examplatform.evaluation.support.AbstractIntegrationTest;
@@ -33,6 +34,7 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import java.math.BigDecimal;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
@@ -42,6 +44,7 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -54,6 +57,9 @@ class EvaluationControllerIntegrationTest extends AbstractIntegrationTest {
 
     @MockitoBean
     private ScoreAggregationService scoreAggregationService;
+
+    @MockitoBean
+    private EvaluationRepository evaluationRepository;
 
     private static final String TENANT_ID = "tenant-test";
     private static final UUID EVALUATION_ID = UUID.fromString("11111111-1111-1111-1111-111111111111");
@@ -296,6 +302,39 @@ class EvaluationControllerIntegrationTest extends AbstractIntegrationTest {
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(objectMapper.writeValueAsString(body)))
                     .andExpect(status().isUnauthorized());
+        }
+    }
+
+    @Nested
+    @DisplayName("GET /api/v1/evaluations/candidate/{candidateId}")
+    class GetCandidateEvaluationsEndpoint {
+
+        @Test
+        @DisplayName("+ve: Candidate gets own evaluations - returns 200 OK")
+        void candidateCanGetEvaluations() throws Exception {
+            Evaluation eval = Evaluation.builder()
+                    .sessionId(SESSION_ID)
+                    .questionId(UUID.randomUUID())
+                    .candidateId(CANDIDATE_ID)
+                    .evaluationType(Evaluation.EvaluationType.AUTO)
+                    .score(BigDecimal.valueOf(4.0))
+                    .maxMarks(BigDecimal.valueOf(4.0))
+                    .negativeMarks(BigDecimal.valueOf(1.0))
+                    .status(Evaluation.EvaluationStatus.AUTO_EVALUATED)
+                    .build();
+            ReflectionTestUtils.setField(eval, "id", EVALUATION_ID);
+
+            when(evaluationRepository.findByCandidateIdAndTenantId(eq(CANDIDATE_ID), eq(TENANT_ID)))
+                    .thenReturn(List.of(eval));
+
+            mockMvc.perform(get("/api/v1/evaluations/candidate/{candidateId}", CANDIDATE_ID)
+                            .header("X-Tenant-Id", TENANT_ID)
+                            .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_CANDIDATE"))
+                                    .jwt(j -> j.subject(CANDIDATE_ID.toString()).claim("tenant_id", TENANT_ID))))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$[0].id").value(EVALUATION_ID.toString()))
+                    .andExpect(jsonPath("$[0].candidateId").value(CANDIDATE_ID.toString()))
+                    .andExpect(jsonPath("$[0].score").value(4.0));
         }
     }
 }

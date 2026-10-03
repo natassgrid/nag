@@ -1,0 +1,125 @@
+<div class="p-6 md:p-8 space-y-6 max-w-7xl mx-auto">
+  <!-- Top Banner -->
+  <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-6 rounded-2xl border border-slate-200 shadow-xs">
+    <div class="flex items-center gap-4">
+      <div class="w-12 h-12 rounded-xl bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-600 shadow-xs shrink-0">
+        <mat-icon class="!text-2xl leading-none">auto_stories</mat-icon>
+      </div>
+      <div>
+        <h1 class="text-xl font-black text-slate-900 tracking-tight flex items-center gap-2">
+          <span>Practice Set Management</span>
+          <span class="text-xs font-semibold px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-200">
+            Learning &amp; Mock Engine
+          </span>
+        </h1>
+        <p class="text-xs text-slate-500 font-medium mt-0.5">
+          Curate practice sets using questions from generated practice papers (isPractice=true) or curate custom mock assessments manually from the central Question Bank.
+        </p>
+      </div>
+    </div>
+
+    <div class="flex items-center gap-3">
+      <button
+        mat-stroked-button
+        (click)="loadSets()"
+        [disabled]="isLoading()"
+        class="!text-slate-700 !border-slate-300 !rounded-xl text-xs font-semibold cursor-pointer"
+      >
+        <mat-icon class="!text-sm">refresh</mat-icon>
+        Refresh
+      </button>
+      <button
+        mat-flat-button
+        color="primary"
+        (click)="openCreateModal()"
+        class="!rounded-xl !bg-indigo-600 hover:!bg-indigo-700 !text-white text-xs font-bold flex items-center gap-1.5 !px-4 !py-2.5 shadow-md shadow-indigo-500/20 cursor-pointer"
+      >
+        <mat-icon class="!text-sm">add</mat-icon>
+        New Practice Set
+      </button>
+    </div>
+  </div>
+
+  <!-- KPI Metrics Ribbon -->
+  <app-practice-set-kpi-cards
+    [total]="totalSets()"
+    [published]="publishedCount()"
+    [totalQuestions]="totalQuestionsCount()"
+  >
+  </app-practice-set-kpi-cards>
+
+  <!-- Search and Filter Bar -->
+  <div class="bg-white p-4 rounded-xl border border-slate-200 flex flex-col sm:flex-row items-center justify-between gap-4 shadow-xs">
+    <div class="flex items-center gap-2 w-full sm:w-96 px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl">
+      <mat-icon class="text-slate-400 !text-lg">search</mat-icon>
+      <input
+        type="text"
+        [ngModel]="searchQuery()"
+        (ngModelChange)="searchQuery.set($event)"
+        placeholder="Search practice sets by name, description, subject..."
+        class="bg-transparent text-xs text-slate-800 placeholder:text-slate-400 focus:outline-none w-full font-medium"
+      />
+      @if (searchQuery().trim()) {
+        <button
+          type="button"
+          (click)="searchQuery.set('')"
+          class="text-slate-400 hover:text-slate-600 cursor-pointer"
+        >
+          <mat-icon class="!text-sm">close</mat-icon>
+        </button>
+      }
+    </div>
+
+    <!-- Status Filters -->
+    <div class="flex items-center gap-2">
+      <span class="text-xs font-bold text-slate-400 uppercase">Status:</span>
+      <div class="flex items-center bg-slate-100 p-1 rounded-xl">
+        <button
+          type="button"
+          (click)="statusFilter.set('ALL')"
+          [class.bg-white]="statusFilter() === 'ALL'"
+          [class.shadow-xs]="statusFilter() === 'ALL'"
+          class="px-3 py-1 text-xs font-semibold rounded-lg transition-all text-slate-700 cursor-pointer"
+        >
+          All
+        </button>
+        <button
+          type="button"
+          (click)="statusFilter.set('PUBLISHED')"
+          [class.bg-white]="statusFilter() === 'PUBLISHED'"
+          [class.shadow-xs]="statusFilter() === 'PUBLISHED'"
+          class="px-3 py-1 text-xs font-semibold rounded-lg transition-all text-slate-700 cursor-pointer"
+        >
+          Published
+        </button>
+        <button
+          type="button"
+          (click)="statusFilter.set('DRAFT')"
+          [class.bg-white]="statusFilter() === 'DRAFT'"
+          [class.shadow-xs]="statusFilter() === 'DRAFT'"
+          class="px-3 py-1 text-xs font-semibold rounded-lg transition-all text-slate-700 cursor-pointer"
+        >
+          Draft
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Content / Table Area -->
+  @if (isLoading()) {
+    <div class="py-20 flex flex-col items-center justify-center space-y-3 text-slate-500">
+      <mat-progress-spinner diameter="36" mode="indeterminate"></mat-progress-spinner>
+      <p class="text-xs font-medium">Loading practice sets from registry...</p>
+    </div>
+  } @else {
+    <app-practice-set-list
+      [sets]="filteredSets()"
+      (edit)="openEditModal($event)"
+      (curate)="openCurateModal($event)"
+      (delete)="openDeleteDialog($event)"
+      (togglePublish)="togglePublish($event)"
+      (create)="openCreateModal()"
+    >
+    </app-practice-set-list>
+  }
+</div>

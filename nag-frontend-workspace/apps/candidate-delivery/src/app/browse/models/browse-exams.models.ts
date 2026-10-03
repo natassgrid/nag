@@ -30,6 +30,7 @@ export interface CatalogExam {
   sections?: ExamSection[];
   status: 'OPEN' | 'CLOSING_SOON' | 'CLOSED' | 'PUBLISHED';
   applied: boolean;
+  isPractice?: boolean;
   applicationId?: string;
   hallTicketNumber?: string;
 }

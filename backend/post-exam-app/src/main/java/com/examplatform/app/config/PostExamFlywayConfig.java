@@ -47,7 +47,8 @@ public class PostExamFlywayConfig {
         List<SchemaMigrationSpec> specs = List.of(
                 SchemaMigrationSpec.of("evaluation_service", "classpath:db/migration/evaluation"),
                 SchemaMigrationSpec.of("result_service", "classpath:db/migration/result"),
-                SchemaMigrationSpec.of("analytics_service", "classpath:db/migration/analytics")
+                SchemaMigrationSpec.of("analytics_service", "classpath:db/migration/analytics"),
+                SchemaMigrationSpec.of("recommendation_service", "classpath:db/migration/recommendation")
         );
         MultiSchemaFlywayRunner.runMigrations(dataSource, specs);
     }

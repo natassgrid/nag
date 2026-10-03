@@ -52,6 +52,9 @@ class PaperApprovalServiceTest {
     private VaultCryptoService vaultCryptoService;
 
     @Mock
+    private PaperAnchoringService paperAnchoringService;
+
+    @Mock
     private EventPublisher eventPublisher;
 
     @InjectMocks
@@ -87,12 +90,14 @@ class PaperApprovalServiceTest {
         when(vaultCryptoService.encrypt(eq("paper-shift-shift-A"), anyString()))
                 .thenReturn("vault:v1:encrypted_content");
         when(paperRepository.save(any(Paper.class))).thenAnswer(i -> i.getArgument(0));
+        when(paperAnchoringService.anchorPaperToLedger(any(), eq("tenant-1"))).thenAnswer(i -> i.getArgument(0));
 
         Paper result = paperApprovalService.approvePaper(paperId, "tenant-1");
 
         assertThat(result.getStatus()).isEqualTo("ENCRYPTED");
         assertThat(result.getEncryptedPackageRef()).isEqualTo("vault:v1:encrypted_content");
         assertThat(result.getEncryptionKeyId()).isEqualTo("paper-shift-shift-A");
+        verify(paperAnchoringService).anchorPaperToLedger(any(), eq("tenant-1"));
     }
 
     @Test
@@ -124,6 +129,7 @@ class PaperApprovalServiceTest {
         when(vaultCryptoService.encrypt(eq("paper-shift-shift-A"), eq("{\"questions\": []}")))
                 .thenReturn("vault:v1:abc123");
         when(paperRepository.save(any(Paper.class))).thenAnswer(i -> i.getArgument(0));
+        when(paperAnchoringService.anchorPaperToLedger(any(), eq("tenant-1"))).thenAnswer(i -> i.getArgument(0));
 
         paperApprovalService.approvePaper(paperId, "tenant-1");
 
@@ -136,6 +142,7 @@ class PaperApprovalServiceTest {
         when(paperRepository.findByIdAndTenantId(paperId, "tenant-1")).thenReturn(Optional.of(draftPaper));
         when(vaultCryptoService.encrypt(anyString(), anyString())).thenReturn("vault:v1:enc");
         when(paperRepository.save(any(Paper.class))).thenAnswer(i -> i.getArgument(0));
+        when(paperAnchoringService.anchorPaperToLedger(any(), eq("tenant-1"))).thenAnswer(i -> i.getArgument(0));
 
         paperApprovalService.approvePaper(paperId, "tenant-1");
 

@@ -5,6 +5,7 @@ import {
   EnrolledExam,
   DigitalAdmitCard,
   DashboardKpiMetrics,
+  PracticePaperSummary,
 } from '../models';
 
 export const DEFAULT_ENROLLED_EXAMS: EnrolledExam[] = [
@@ -28,6 +29,31 @@ export const DEFAULT_ENROLLED_EXAMS: EnrolledExam[] = [
     admitCardReady: true,
     daysRemaining: 0,
     deliverySessionId: 'sess-nes-2026-live-01',
+    isPractice: false,
+    practiceAvailable: true,
+  },
+  {
+    id: 'mock-nes-101',
+    applicationId: 'MOCK-APP-NES-849202',
+    code: 'MOCK-NES-2026-P1',
+    title: 'NES 2026 Official Practice Mock Assessment (CS & AI)',
+    conductingAuthority: 'National Assessment Grid / Academic Council',
+    scheduledDate: '2026-10-02',
+    scheduledTime: 'Anytime On-Demand Practice',
+    durationMinutes: 90,
+    totalMarks: 150,
+    centerName: 'Candidate Self-Proctored Browser Runtime',
+    centerAddress: 'Online Practice Simulation Environment',
+    centerCity: 'National Grid Web',
+    centerState: 'Online',
+    shiftName: 'Simulated Practice Session',
+    rollNumber: 'MOCK-849202',
+    status: 'UPCOMING',
+    admitCardReady: false,
+    daysRemaining: 0,
+    deliverySessionId: 'sess-mock-nes-practice-01',
+    isPractice: true,
+    practiceAvailable: true,
   },
   {
     id: 'exam-2',
@@ -49,6 +75,8 @@ export const DEFAULT_ENROLLED_EXAMS: EnrolledExam[] = [
     admitCardReady: true,
     daysRemaining: 18,
     deliverySessionId: 'sess-gate-dpi-upcoming-02',
+    isPractice: false,
+    practiceAvailable: true,
   },
   {
     id: 'exam-3',
@@ -69,6 +97,8 @@ export const DEFAULT_ENROLLED_EXAMS: EnrolledExam[] = [
     status: 'UPCOMING',
     admitCardReady: false,
     daysRemaining: 44,
+    isPractice: false,
+    practiceAvailable: true,
   },
   {
     id: 'exam-prev-1',
@@ -89,6 +119,8 @@ export const DEFAULT_ENROLLED_EXAMS: EnrolledExam[] = [
     status: 'COMPLETED',
     admitCardReady: true,
     daysRemaining: 0,
+    isPractice: false,
+    practiceAvailable: false,
   },
 ];
 
@@ -108,11 +140,15 @@ export class CandidateDashboardService {
   );
 
   readonly upcomingCount = computed(
-    () => this.enrolledExams().filter((e) => e.status === 'UPCOMING' || e.status === 'SCHEDULED').length
+    () => this.enrolledExams().filter((e) => !e.isPractice && (e.status === 'UPCOMING' || e.status === 'SCHEDULED')).length
   );
 
   readonly completedCount = computed(
     () => this.enrolledExams().filter((e) => e.status === 'COMPLETED').length
+  );
+
+  readonly practiceCount = computed(
+    () => this.enrolledExams().filter((e) => e.isPractice || e.practiceAvailable).length
   );
 
   readonly metrics = computed<DashboardKpiMetrics>(() => ({
@@ -120,6 +156,7 @@ export class CandidateDashboardService {
     liveCount: this.liveCount(),
     upcomingCount: this.upcomingCount(),
     scorecardsCount: this.completedCount() > 0 ? this.completedCount() : 1,
+    practiceCount: this.practiceCount(),
   }));
 
   /**
@@ -172,6 +209,8 @@ export class CandidateDashboardService {
                 admitCardReady: item.admitCardReady ?? true,
                 daysRemaining: daysDiff,
                 deliverySessionId: item.sessionId || `sess-${item.id}`,
+                isPractice: !!(item.isPractice || item.practice),
+                practiceAvailable: true,
               } as EnrolledExam;
             });
           }
@@ -208,67 +247,91 @@ export class CandidateDashboardService {
           });
 
           return {
-            applicationId: data?.applicationId || exam.applicationId || `APP-${exam.rollNumber}`,
+            applicationId: data.applicationId || exam.applicationId || 'APP-2026-DEFAULT',
             examId: exam.id,
-            examCode: exam.code,
-            examTitle: exam.title,
-            conductingAuthority: exam.conductingAuthority || 'National Testing Body',
-            candidateName: data?.candidateName || candidateName,
-            rollNumber: exam.rollNumber,
-            candidateCategory: data?.category || 'General / Unreserved',
-            scheduledDate: exam.scheduledDate,
-            reportingTime: '07:45 AM (IST)',
-            gateClosingTime: '08:30 AM (IST) — Strict',
-            examTime: exam.scheduledTime,
-            durationMinutes: exam.durationMinutes,
-            centerName: exam.centerName,
-            centerAddress: exam.centerAddress,
-            centerCode: `CTR-${exam.code.substring(0, 3)}-01`,
-            qrVerificationToken: data?.qrToken || qrPayload,
-            photoUrl: data?.photoUrl,
-            signatureUrl: data?.signatureUrl,
+            examCode: data.examCode || exam.code,
+            examTitle: data.examTitle || exam.title,
+            conductingAuthority: data.conductingAuthority || exam.conductingAuthority || 'National Assessment Body',
+            candidateName: data.candidateName || candidateName,
+            rollNumber: data.rollNumber || exam.rollNumber,
+            candidateCategory: data.category || 'General (GEN-UR)',
+            scheduledDate: data.examDate || exam.scheduledDate,
+            reportingTime: data.reportingTime || '07:30 AM',
+            gateClosingTime: data.gateClosingTime || '08:30 AM',
+            examTime: data.examTime || exam.scheduledTime,
+            durationMinutes: data.durationMinutes || exam.durationMinutes,
+            centerName: data.centreName || exam.centerName,
+            centerAddress: data.centreAddress || exam.centerAddress,
+            centerCode: data.centreCode || 'DEL-CTR-102',
+            qrVerificationToken: qrPayload,
             instructions: [
-              'Bring this printed Admit Card along with an original government photo ID (Aadhaar / Voter ID / Passport / Driving License).',
-              'Reporting gate closes strictly 30 minutes before exam commencement. No late entry is permitted under any circumstance.',
-              'Electronic devices, smart watches, mobile phones, and unauthorized stationery are strictly prohibited inside the testing hall.',
-              'Ensure the QR code and barcode printed on this admit card are clean and unscratched for biometric checkpoint scanning.',
+              'Candidates must present this Printed Digital Admit Card with an authorized Government Photo ID (Aadhaar / Passport / Voter ID).',
+              'Entry gates strictly close 30 minutes before the scheduled exam start time. Late arrivals will not be permitted under any circumstances.',
+              'No electronic gadgets, smart watches, calculators, or bags are permitted inside the examination hall.',
+              'Biometric facial verification and OTP attendance logging will be executed at the allocated terminal desk.',
             ],
-          } as DigitalAdmitCard;
+          };
         }),
         catchError(() => {
-          const qrPayload = JSON.stringify({
+          const fallbackQr = JSON.stringify({
             nagId: exam.id,
             roll: exam.rollNumber,
             app: exam.applicationId,
-            sig: `SHA256:${exam.rollNumber.split('').reverse().join('')}NAG2026`,
+            sig: `FALLBACK-SHA256-${exam.rollNumber}`,
           });
 
           return of({
-            applicationId: exam.applicationId || `APP-${exam.rollNumber}`,
+            applicationId: exam.applicationId || 'APP-2026-FALLBACK',
             examId: exam.id,
             examCode: exam.code,
             examTitle: exam.title,
-            conductingAuthority: exam.conductingAuthority || 'National Assessment Agency',
+            conductingAuthority: exam.conductingAuthority || 'National Assessment Body',
             candidateName: candidateName,
             rollNumber: exam.rollNumber,
-            candidateCategory: 'General / Unreserved',
+            candidateCategory: 'General (GEN-UR)',
             scheduledDate: exam.scheduledDate,
-            reportingTime: '07:45 AM (IST)',
-            gateClosingTime: '08:30 AM (IST) — Strict',
+            reportingTime: '07:30 AM',
+            gateClosingTime: '08:30 AM',
             examTime: exam.scheduledTime,
             durationMinutes: exam.durationMinutes,
             centerName: exam.centerName,
             centerAddress: exam.centerAddress,
-            centerCode: `CTR-${exam.code.substring(0, 3)}-01`,
-            qrVerificationToken: qrPayload,
+            centerCode: 'NAG-CENTER-01',
+            qrVerificationToken: fallbackQr,
             instructions: [
-              'Bring this printed Admit Card along with an original government photo ID (Aadhaar / Voter ID / Passport / Driving License).',
-              'Reporting gate closes strictly 30 minutes before exam commencement. No late entry is permitted under any circumstance.',
-              'Electronic devices, smart watches, mobile phones, and unauthorized stationery are strictly prohibited inside the testing hall.',
-              'Ensure the QR code and barcode printed on this admit card are clean and unscratched for biometric checkpoint scanning.',
+              'Present this admit card with official government photo identity.',
+              'Reporting time is mandatory. Late entry is strictly prohibited.',
             ],
-          } as DigitalAdmitCard);
+          });
         })
+      );
+  }
+  /**
+   * Fetch approved practice papers available for an examination.
+   */
+  getPracticePapers(examId: string): Observable<PracticePaperSummary[]> {
+    return this.http
+      .get<any>('/api/v1/papers/public/practice', { params: { examId } })
+      .pipe(
+        map((res) => {
+          const list = res?.data ?? res;
+          if (Array.isArray(list)) {
+            return list.map((item: any) => ({
+              paperId: String(item.paperId || item.id),
+              name: item.name || 'Practice Paper',
+              examId: String(item.examId || examId),
+              examName: item.examName,
+              shiftId: item.shiftId,
+              status: item.status || 'APPROVED',
+              isPractice: true,
+              difficultyScore: item.difficultyScore ?? 5.0,
+              totalQuestions: item.totalQuestions ?? 25,
+              createdAt: item.createdAt,
+            } as PracticePaperSummary));
+          }
+          return [];
+        }),
+        catchError(() => of([]))
       );
   }
 }

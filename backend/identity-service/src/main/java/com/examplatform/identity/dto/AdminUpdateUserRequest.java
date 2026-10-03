@@ -26,7 +26,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 /**
- * Request DTO for admin-initiated user update.
+ * Request DTO for admin-initiated user update or self-profile update.
  * All fields are optional — only non-null fields are applied.
  */
 @Data
@@ -36,6 +36,26 @@ import lombok.NoArgsConstructor;
 public class AdminUpdateUserRequest {
 
     private String fullName;
+
+    private String email;
+
+    private String phoneNumber;
+
+    private String department;
+
+    private String designation;
+
+    private String avatarUrl;
+
+    private String timezone;
+
+    private String dateFormat;
+
+    private String timeFormat;
+
+    private String preferredLanguage;
+
+    private String themePreference;
 
     private AccountStatus accountStatus;
 

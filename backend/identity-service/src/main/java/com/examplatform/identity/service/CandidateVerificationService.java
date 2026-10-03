@@ -67,9 +67,7 @@ public class CandidateVerificationService {
         }
 
         account.setEmailVerified(true);
-
         checkAndActivateAccount(account, effectiveTenant, "email-otp-verified");
-
         userAccountRepository.save(account);
 
         return buildStatusResponse(account);
@@ -92,9 +90,7 @@ public class CandidateVerificationService {
         }
 
         account.setMobileVerified(true);
-
         checkAndActivateAccount(account, effectiveTenant, "mobile-otp-verified");
-
         userAccountRepository.save(account);
 
         return buildStatusResponse(account);

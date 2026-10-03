@@ -60,6 +60,7 @@ class SessionControllerIntegrationTest extends AbstractIntegrationTest {
     private static final UUID EXAM_ID = UUID.fromString("22222222-2222-2222-2222-222222222222");
     private static final UUID SHIFT_ID = UUID.fromString("33333333-3333-3333-3333-333333333333");
     private static final UUID SESSION_ID = UUID.fromString("44444444-4444-4444-4444-444444444444");
+    private static final UUID PAPER_ID = UUID.fromString("01a0fd2b-ad54-7a84-abde-63d0080d6650");
 
     @Nested
     @DisplayName("POST /api/v1/sessions/start")
@@ -249,6 +250,30 @@ class SessionControllerIntegrationTest extends AbstractIntegrationTest {
                             .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_PROCTOR"))
                                     .jwt(j -> j.subject(CANDIDATE_ID.toString()).claim("tenant_id", TENANT_ID))))
                     .andExpect(status().isForbidden());
+        }
+    }
+
+    @Nested
+    @DisplayName("GET /api/v1/sessions/paper/{paperId}/questions")
+    class GetPaperQuestionsEndpoint {
+
+        @Test
+        @DisplayName("+ve: Public / candidate retrieves paper questions - returns 200 OK")
+        void canRetrievePaperQuestions() throws Exception {
+            QuestionDeliveryDto q1 = QuestionDeliveryDto.builder()
+                    .id("q-paper-1")
+                    .text("Sample Practice Paper Question 1")
+                    .build();
+
+            when(examQuestionDeliveryService.getQuestionsForPaper(eq(PAPER_ID), eq(TENANT_ID)))
+                    .thenReturn(List.of(q1));
+
+            mockMvc.perform(get("/api/v1/sessions/paper/{paperId}/questions", PAPER_ID)
+                            .with(jwt().jwt(j -> j.subject(CANDIDATE_ID.toString()).claim("tenant_id", TENANT_ID))))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.length()").value(1))
+                    .andExpect(jsonPath("$[0].id").value("q-paper-1"))
+                    .andExpect(jsonPath("$[0].text").value("Sample Practice Paper Question 1"));
         }
     }
 }
