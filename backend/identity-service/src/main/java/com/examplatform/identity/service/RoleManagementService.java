@@ -436,9 +436,12 @@ public class RoleManagementService {
             return allReviewers;
         }
 
+        String target = subject.trim().toLowerCase();
         List<ReviewerResponse> subjectMatched = allReviewers.stream()
                 .filter(r -> r.getSpecialization() != null &&
-                        r.getSpecialization().equalsIgnoreCase(subject.trim()))
+                        (r.getSpecialization().trim().equalsIgnoreCase(target)
+                                || r.getSpecialization().toLowerCase().contains(target)
+                                || target.contains(r.getSpecialization().toLowerCase())))
                 .toList();
 
         return subjectMatched.isEmpty() ? allReviewers : subjectMatched;
