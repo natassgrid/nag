@@ -1,6 +1,6 @@
 import { Injectable, inject, signal } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
-import { Observable, map, tap } from 'rxjs';
+import { Observable, map, tap, of } from 'rxjs';
 import {
   DifficultyLevel,
   Question,
@@ -104,6 +104,20 @@ export class QuestionBankService {
       .pipe(
         map((res) => this.mapToQuestion(res.data || res)),
         tap((q) => this.selectedQuestion.set(q))
+      );
+  }
+
+  getQuestionsByIds(ids: string[]): Observable<Question[]> {
+    if (!ids || ids.length === 0) {
+      return of([]);
+    }
+    return this.http
+      .post<{ status?: string; data?: any[] }>(`${this.baseUrl}/by-ids`, ids)
+      .pipe(
+        map((res) => {
+          const rawItems = res?.data || (Array.isArray(res) ? res : []);
+          return (Array.isArray(rawItems) ? rawItems : []).map((raw: any) => this.mapToQuestion(raw));
+        })
       );
   }
 

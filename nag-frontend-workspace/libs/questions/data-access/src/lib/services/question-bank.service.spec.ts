@@ -83,6 +83,33 @@ describe('QuestionBankService', () => {
     req.flush({ data: { id: 'q-99', text: 'Calculus derivative of sin(x)' } });
   });
 
+  it('should retrieve questions by IDs batch', (done) => {
+    service.getQuestionsByIds(['q-1', 'q-2']).subscribe((questions) => {
+      expect(questions.length).toBe(2);
+      expect(questions[0].id).toBe('q-1');
+      expect(questions[1].id).toBe('q-2');
+      done();
+    });
+
+    const req = httpMock.expectOne('/api/v1/questions/by-ids');
+    expect(req.request.method).toBe('POST');
+    expect(req.request.body).toEqual(['q-1', 'q-2']);
+    req.flush({
+      data: [
+        { id: 'q-1', text: 'Question 1', difficulty: 'EASY' },
+        { id: 'q-2', text: 'Question 2', difficulty: 'HARD' },
+      ],
+    });
+  });
+
+  it('should return empty observable if empty array passed to getQuestionsByIds', (done) => {
+    service.getQuestionsByIds([]).subscribe((questions) => {
+      expect(questions).toEqual([]);
+      done();
+    });
+    httpMock.expectNone('/api/v1/questions/by-ids');
+  });
+
   it('should delete question and remove from state', (done) => {
     service.questions.set([
       { id: 'q-1', content: 'Q1', type: 'SINGLE_CHOICE' as any, difficulty: 'EASY' as any, status: 'DRAFT' as any, subjectId: 's1', topicId: 't1', options: [], marks: 1, negativeMarks: 0, tags: [], authorId: 'a1', createdAt: '', updatedAt: '', version: 1 },
