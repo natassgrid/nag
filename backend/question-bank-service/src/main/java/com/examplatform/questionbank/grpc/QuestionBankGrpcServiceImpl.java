@@ -102,6 +102,56 @@ public class QuestionBankGrpcServiceImpl extends QuestionBankGrpcServiceGrpc.Que
         }
     }
 
+    @Override
+    public void matchBlueprint(BlueprintMatchGrpcRequest request,
+                               StreamObserver<BlueprintMatchGrpcResponse> responseObserver) {
+        log.info("gRPC matchBlueprint: subject={}, topic={}, difficulty={}, cognitiveLevel={}, tenant={}",
+                request.getSubject(), request.getTopic(), request.getDifficulty(),
+                request.getCognitiveLevel(), request.getTenantId());
+
+        try {
+            String subject = request.getSubject().isBlank() ? null : request.getSubject().trim();
+            String topic = request.getTopic().isBlank() ? null : request.getTopic().trim();
+            String difficulty = request.getDifficulty().isBlank() ? null : request.getDifficulty().trim();
+            String cognitiveLevel = request.getCognitiveLevel().isBlank() ? null : request.getCognitiveLevel().trim();
+            String tenantId = request.getTenantId().isBlank() ? "default" : request.getTenantId().trim();
+
+            List<Question> questions = questionRepository.findBlueprintQuestions(
+                    subject != null ? subject : "",
+                    topic != null ? topic : "",
+                    difficulty,
+                    cognitiveLevel,
+                    tenantId
+            );
+
+            if (questions.isEmpty()) {
+                questions = questionRepository.findBlueprintQuestionsFallback(
+                        subject != null ? subject : "",
+                        topic != null ? topic : "",
+                        difficulty,
+                        tenantId
+                );
+            }
+
+            Map<UUID, Passage> passageMap = fetchPassagesForQuestions(questions);
+
+            BlueprintMatchGrpcResponse.Builder builder = BlueprintMatchGrpcResponse.newBuilder();
+            for (Question q : questions) {
+                Passage p = q.getPassageId() != null ? passageMap.get(q.getPassageId()) : null;
+                builder.addQuestions(toGrpcQuestion(q, p));
+            }
+
+            responseObserver.onNext(builder.build());
+            responseObserver.onCompleted();
+        } catch (Exception e) {
+            log.error("Error processing matchBlueprint gRPC request", e);
+            responseObserver.onError(io.grpc.Status.INTERNAL
+                    .withDescription("Failed to match blueprint: " + e.getMessage())
+                    .withCause(e)
+                    .asRuntimeException());
+        }
+    }
+
     private Map<UUID, Passage> fetchPassagesForQuestions(List<Question> questions) {
         List<UUID> passageIds = questions.stream()
                 .map(Question::getPassageId)
@@ -130,6 +180,9 @@ public class QuestionBankGrpcServiceImpl extends QuestionBankGrpcServiceGrpc.Que
         if (q.getSubjectId() != null) b.setSubjectId(q.getSubjectId().toString());
         if (q.getAnswerKey() != null) b.setAnswerKey(q.getAnswerKey());
         if (q.getExplanation() != null) b.setExplanation(q.getExplanation());
+        if (q.getSubject() != null) b.setSubject(q.getSubject());
+        if (q.getTopic() != null) b.setTopic(q.getTopic());
+        b.setUsageCount(q.getUsageCount());
 
         if (q.getPassageId() != null) {
             b.setPassageId(q.getPassageId().toString());

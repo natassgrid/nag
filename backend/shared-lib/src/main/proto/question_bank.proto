@@ -16,6 +16,7 @@ option java_outer_classname = "QuestionBankProto";
 service QuestionBankGrpcService {
   rpc GetQuestionsForPaper (PaperQuestionsGrpcRequest) returns (PaperQuestionsGrpcResponse);
   rpc BatchFindQuestions (BatchFindQuestionsGrpcRequest) returns (BatchFindQuestionsGrpcResponse);
+  rpc MatchBlueprint (BlueprintMatchGrpcRequest) returns (BlueprintMatchGrpcResponse);
 }
 
 message PaperQuestionsGrpcRequest {
@@ -26,6 +27,18 @@ message PaperQuestionsGrpcRequest {
 message BatchFindQuestionsGrpcRequest {
   repeated string question_ids = 1;
   string tenant_id = 2;
+}
+
+message BlueprintMatchGrpcRequest {
+  string subject = 1;
+  string topic = 2;
+  string difficulty = 3;
+  string cognitive_level = 4;
+  string tenant_id = 5;
+}
+
+message BlueprintMatchGrpcResponse {
+  repeated QuestionSummaryGrpc questions = 1;
 }
 
 message QuestionSummaryGrpc {
@@ -44,6 +57,9 @@ message QuestionSummaryGrpc {
   string passage_id = 13;
   string passage_content = 14;
   int32 passage_order_index = 15;
+  string subject = 16;
+  string topic = 17;
+  int32 usage_count = 18;
 }
 
 message PaperQuestionsGrpcResponse {

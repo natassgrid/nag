@@ -45,6 +45,9 @@ class QuestionBankGrpcServiceImplTest {
     @Mock
     private StreamObserver<BatchFindQuestionsGrpcResponse> batchObserver;
 
+    @Mock
+    private StreamObserver<BlueprintMatchGrpcResponse> blueprintObserver;
+
     private QuestionBankGrpcServiceImpl grpcService;
 
     @BeforeEach
@@ -120,5 +123,87 @@ class QuestionBankGrpcServiceImplTest {
         assertThat(response.getQuestions(0).getPassageId()).isEqualTo(passageId.toString());
         assertThat(response.getQuestions(0).getPassageContent()).isEqualTo("Read this passage carefully...");
         assertThat(response.getQuestions(0).getPassageOrderIndex()).isEqualTo(0);
+    }
+
+    @Test
+    @DisplayName("matchBlueprint returns matching questions with subject, topic, and difficulty")
+    void matchBlueprintSuccess() {
+        UUID qId = UUID.randomUUID();
+        Question q = Question.builder()
+                .subject("Physics")
+                .topic("Thermodynamics")
+                .difficulty("MEDIUM")
+                .cognitiveLevel("APPLY")
+                .content("Calculate entropy change...")
+                .usageCount(3)
+                .build();
+        ReflectionTestUtils.setField(q, "id", qId);
+
+        when(questionRepository.findBlueprintQuestions(
+                eq("Physics"), eq("Thermodynamics"), eq("MEDIUM"), eq("APPLY"), eq("tenant-1")
+        )).thenReturn(List.of(q));
+
+        BlueprintMatchGrpcRequest request = BlueprintMatchGrpcRequest.newBuilder()
+                .setSubject("Physics")
+                .setTopic("Thermodynamics")
+                .setDifficulty("MEDIUM")
+                .setCognitiveLevel("APPLY")
+                .setTenantId("tenant-1")
+                .build();
+
+        grpcService.matchBlueprint(request, blueprintObserver);
+
+        ArgumentCaptor<BlueprintMatchGrpcResponse> captor = ArgumentCaptor.forClass(BlueprintMatchGrpcResponse.class);
+        verify(blueprintObserver).onNext(captor.capture());
+        verify(blueprintObserver).onCompleted();
+
+        BlueprintMatchGrpcResponse response = captor.getValue();
+        assertThat(response.getQuestionsCount()).isEqualTo(1);
+        assertThat(response.getQuestions(0).getId()).isEqualTo(qId.toString());
+        assertThat(response.getQuestions(0).getSubject()).isEqualTo("Physics");
+        assertThat(response.getQuestions(0).getTopic()).isEqualTo("Thermodynamics");
+        assertThat(response.getQuestions(0).getDifficulty()).isEqualTo("MEDIUM");
+        assertThat(response.getQuestions(0).getCognitiveLevel()).isEqualTo("APPLY");
+        assertThat(response.getQuestions(0).getUsageCount()).isEqualTo(3);
+    }
+
+    @Test
+    @DisplayName("matchBlueprint uses fallback query when exact match is empty")
+    void matchBlueprintFallbackSuccess() {
+        UUID qId = UUID.randomUUID();
+        Question q = Question.builder()
+                .subject("Physics")
+                .topic("Thermodynamics")
+                .difficulty("MEDIUM")
+                .content("Fallback question...")
+                .build();
+        ReflectionTestUtils.setField(q, "id", qId);
+
+        when(questionRepository.findBlueprintQuestions(
+                eq("Physics"), eq("Thermodynamics"), eq("MEDIUM"), eq("APPLY"), eq("tenant-1")
+        )).thenReturn(List.of());
+
+        when(questionRepository.findBlueprintQuestionsFallback(
+                eq("Physics"), eq("Thermodynamics"), eq("MEDIUM"), eq("tenant-1")
+        )).thenReturn(List.of(q));
+
+        BlueprintMatchGrpcRequest request = BlueprintMatchGrpcRequest.newBuilder()
+                .setSubject("Physics")
+                .setTopic("Thermodynamics")
+                .setDifficulty("MEDIUM")
+                .setCognitiveLevel("APPLY")
+                .setTenantId("tenant-1")
+                .build();
+
+        grpcService.matchBlueprint(request, blueprintObserver);
+
+        ArgumentCaptor<BlueprintMatchGrpcResponse> captor = ArgumentCaptor.forClass(BlueprintMatchGrpcResponse.class);
+        verify(blueprintObserver).onNext(captor.capture());
+        verify(blueprintObserver).onCompleted();
+
+        BlueprintMatchGrpcResponse response = captor.getValue();
+        assertThat(response.getQuestionsCount()).isEqualTo(1);
+        assertThat(response.getQuestions(0).getId()).isEqualTo(qId.toString());
+        assertThat(response.getQuestions(0).getContent()).isEqualTo("Fallback question...");
     }
 }
