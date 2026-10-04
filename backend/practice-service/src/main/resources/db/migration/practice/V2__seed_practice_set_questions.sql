@@ -1,0 +1,76 @@
+-- SPDX-License-Identifier: AGPL-3.0-only
+-- V2__seed_practice_set_questions.sql
+-- Populate question_ids for default seeded practice sets if missing or empty
+
+DO $$
+DECLARE
+    v_has_question_table BOOLEAN;
+    v_reasoning_json JSONB;
+    v_quant_json JSONB;
+    v_awareness_json JSONB;
+BEGIN
+    SELECT EXISTS (
+        SELECT 1 FROM information_schema.tables
+        WHERE table_schema = 'question_service' AND table_name = 'question'
+    ) INTO v_has_question_table;
+
+    IF v_has_question_table THEN
+        SELECT json_agg(id ORDER BY id)::jsonb INTO v_reasoning_json
+        FROM (
+            SELECT id FROM question_service.question
+            WHERE subject ILIKE '%reasoning%'
+            ORDER BY id
+            LIMIT 25
+        ) q;
+
+        SELECT json_agg(id ORDER BY id)::jsonb INTO v_quant_json
+        FROM (
+            SELECT id FROM question_service.question
+            WHERE subject ILIKE '%quantitative%'
+            ORDER BY id
+            LIMIT 30
+        ) q;
+
+        SELECT json_agg(id ORDER BY id)::jsonb INTO v_awareness_json
+        FROM (
+            SELECT id FROM question_service.question
+            WHERE subject ILIKE '%awareness%' OR subject ILIKE '%science%'
+            ORDER BY id
+            LIMIT 20
+        ) q;
+    END IF;
+
+    -- If questions were not found dynamically, fallback to standard seeded question IDs
+    IF v_reasoning_json IS NULL OR jsonb_array_length(v_reasoning_json) = 0 THEN
+        v_reasoning_json := '["a1020000-0000-0000-0000-000000000001", "a1020000-0000-0000-0000-000000000002", "a1020000-0000-0000-0000-000000000003", "a1020000-0000-0000-0000-000000000004", "a1020000-0000-0000-0000-000000000005", "a1020000-0000-0000-0000-000000000006", "a1020000-0000-0000-0000-000000000007", "a1020000-0000-0000-0000-000000000008", "a1020000-0000-0000-0000-000000000009", "a1020000-0000-0000-0000-000000000010", "a1020000-0000-0000-0000-000000000011", "a1020000-0000-0000-0000-000000000012", "a1020000-0000-0000-0000-000000000013", "a1020000-0000-0000-0000-000000000014", "a1020000-0000-0000-0000-000000000015", "a1020000-0000-0000-0000-000000000016", "a1020000-0000-0000-0000-000000000017", "a1020000-0000-0000-0000-000000000018", "a1020000-0000-0000-0000-000000000019", "a1020000-0000-0000-0000-000000000020", "a1020000-0000-0000-0000-000000000021", "a1020000-0000-0000-0000-000000000022", "a1020000-0000-0000-0000-000000000023", "a1020000-0000-0000-0000-000000000024", "a1020000-0000-0000-0000-000000000025"]'::jsonb;
+    END IF;
+
+    IF v_quant_json IS NULL OR jsonb_array_length(v_quant_json) = 0 THEN
+        v_quant_json := '["a1010000-0000-0000-0000-000000000001", "a1010000-0000-0000-0000-000000000002", "a1010000-0000-0000-0000-000000000003", "a1010000-0000-0000-0000-000000000004", "a1010000-0000-0000-0000-000000000005", "a1010000-0000-0000-0000-000000000006", "a1010000-0000-0000-0000-000000000007", "a1010000-0000-0000-0000-000000000008", "a1010000-0000-0000-0000-000000000009", "a1010000-0000-0000-0000-000000000010", "a1010000-0000-0000-0000-000000000011", "a1010000-0000-0000-0000-000000000012", "a1010000-0000-0000-0000-000000000013", "a1010000-0000-0000-0000-000000000014", "a1010000-0000-0000-0000-000000000015", "a1010000-0000-0000-0000-000000000016", "a1010000-0000-0000-0000-000000000017", "a1010000-0000-0000-0000-000000000018", "a1010000-0000-0000-0000-000000000019", "a1010000-0000-0000-0000-000000000020", "a1010000-0000-0000-0000-000000000021", "a1010000-0000-0000-0000-000000000022", "a1010000-0000-0000-0000-000000000023", "a1010000-0000-0000-0000-000000000024", "a1010000-0000-0000-0000-000000000025", "a1010000-0000-0000-0000-000000000026", "a1070000-0000-0000-0000-000000000001", "a1070000-0000-0000-0000-000000000002", "a1070000-0000-0000-0000-000000000003", "a1070000-0000-0000-0000-000000000004"]'::jsonb;
+    END IF;
+
+    IF v_awareness_json IS NULL OR jsonb_array_length(v_awareness_json) = 0 THEN
+        v_awareness_json := '["a1030000-0000-0000-0000-000000000001", "a1030000-0000-0000-0000-000000000002", "a1030000-0000-0000-0000-000000000003", "a1030000-0000-0000-0000-000000000004", "a1030000-0000-0000-0000-000000000005", "a1030000-0000-0000-0000-000000000006", "a1030000-0000-0000-0000-000000000007", "a1030000-0000-0000-0000-000000000008", "a1030000-0000-0000-0000-000000000009", "a1030000-0000-0000-0000-000000000010", "a1030000-0000-0000-0000-000000000011", "a1030000-0000-0000-0000-000000000012", "a1030000-0000-0000-0000-000000000013", "a1030000-0000-0000-0000-000000000014", "a1030000-0000-0000-0000-000000000015", "a1030000-0000-0000-0000-000000000016", "a1030000-0000-0000-0000-000000000017", "a1030000-0000-0000-0000-000000000018", "a1030000-0000-0000-0000-000000000019", "a1030000-0000-0000-0000-000000000020"]'::jsonb;
+    END IF;
+
+    UPDATE practice_service.practice_set
+    SET question_ids = v_reasoning_json,
+        total_questions = jsonb_array_length(v_reasoning_json),
+        updated_at = NOW()
+    WHERE id = '11111111-1111-1111-1111-111111111111'
+      AND (question_ids IS NULL OR jsonb_array_length(question_ids) = 0);
+
+    UPDATE practice_service.practice_set
+    SET question_ids = v_quant_json,
+        total_questions = jsonb_array_length(v_quant_json),
+        updated_at = NOW()
+    WHERE id = '22222222-2222-2222-2222-222222222222'
+      AND (question_ids IS NULL OR jsonb_array_length(question_ids) = 0);
+
+    UPDATE practice_service.practice_set
+    SET question_ids = v_awareness_json,
+        total_questions = jsonb_array_length(v_awareness_json),
+        updated_at = NOW()
+    WHERE id = '33333333-3333-3333-3333-333333333333'
+      AND (question_ids IS NULL OR jsonb_array_length(question_ids) = 0);
+END $$;

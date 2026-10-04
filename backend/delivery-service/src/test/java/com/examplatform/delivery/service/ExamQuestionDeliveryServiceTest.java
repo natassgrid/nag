@@ -34,6 +34,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
 
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -75,30 +76,14 @@ class ExamQuestionDeliveryServiceTest {
     }
 
     @Nested
-    @DisplayName("JSON Question UUID Extraction Tests")
-    class JsonExtractionTests {
+    @DisplayName("Question ID Parsing Tests")
+    class QuestionIdParsingTests {
 
         @Test
-        @DisplayName("Extracts UUIDs from questionIds JSON array")
-        void extractFromQuestionIdsObject() {
-            String json = "{\"questionIds\": [\"" + Q1_ID + "\", \"" + Q2_ID + "\"]}";
-            List<UUID> uids = service.extractQuestionUuidsFromJson(json);
-            assertThat(uids).containsExactly(Q1_ID, Q2_ID);
-        }
-
-        @Test
-        @DisplayName("Extracts UUIDs from raw string array")
-        void extractFromRawArray() {
+        @DisplayName("Extracts UUIDs from valid JSON array string")
+        void extractFromJsonArray() {
             String json = "[\"" + Q1_ID + "\", \"" + Q2_ID + "\"]";
-            List<UUID> uids = service.extractQuestionUuidsFromJson(json);
-            assertThat(uids).containsExactly(Q1_ID, Q2_ID);
-        }
-
-        @Test
-        @DisplayName("Extracts UUIDs from questions object array with id field")
-        void extractFromQuestionsObjectArray() {
-            String json = "{\"questions\": [{\"id\": \"" + Q1_ID + "\"}, {\"questionId\": \"" + Q2_ID + "\"}]}";
-            List<UUID> uids = service.extractQuestionUuidsFromJson(json);
+            List<UUID> uids = service.extractQuestionUuidsFromJsonOrString(json);
             assertThat(uids).containsExactly(Q1_ID, Q2_ID);
         }
 
@@ -233,6 +218,49 @@ class ExamQuestionDeliveryServiceTest {
 
             List<QuestionDeliveryDto> result = service.getQuestionsForPaper(SESSION_ID, "default");
             assertThat(result).hasSize(2);
+            assertThat(result.get(0).getId()).isEqualTo(Q1_ID.toString());
+        }
+
+        @Test
+        @DisplayName("Falls back to subject-based lookup when practice set question_ids is empty array")
+        @SuppressWarnings("unchecked")
+        void fallsBackToSubjectWhenPracticeSetQuestionIdsEmpty() {
+            when(jdbcTemplate.query(
+                    argThat(sql -> sql != null && sql.contains("paper_generator.paper")),
+                    any(RowMapper.class),
+                    eq(PAPER_ID),
+                    eq("default")
+            )).thenReturn(List.of());
+
+            when(jdbcTemplate.query(
+                    argThat(sql -> sql != null && sql.contains("practice_service.practice_set") && sql.contains("question_ids")),
+                    any(RowMapper.class),
+                    eq(PAPER_ID),
+                    eq("default")
+            )).thenReturn(List.of("[]"));
+
+            when(jdbcTemplate.query(
+                    argThat(sql -> sql != null && sql.contains("practice_service.practice_set") && sql.contains("subject_slug")),
+                    any(RowMapper.class),
+                    eq(PAPER_ID),
+                    eq("default")
+            )).thenReturn(List.of(Map.of("subject_slug", "quantitative-aptitude", "total_questions", 30)));
+
+            when(jdbcTemplate.query(
+                    argThat(sql -> sql != null && sql.contains("question_service.question") && sql.contains("LIMIT ?")),
+                    any(RowMapper.class),
+                    any(), any(), any(), any(), eq(30)
+            )).thenReturn(List.of(Q1_ID));
+
+            QuestionDeliveryDto q1 = QuestionDeliveryDto.builder().id(Q1_ID.toString()).text("Q1").build();
+            when(jdbcTemplate.query(
+                    argThat(sql -> sql != null && sql.contains("question_service.question") && sql.contains("IN (?)")),
+                    any(RowMapper.class),
+                    eq(Q1_ID)
+            )).thenReturn(List.of(q1));
+
+            List<QuestionDeliveryDto> result = service.getQuestionsForPaper(PAPER_ID, "default");
+            assertThat(result).hasSize(1);
             assertThat(result.get(0).getId()).isEqualTo(Q1_ID.toString());
         }
     }
