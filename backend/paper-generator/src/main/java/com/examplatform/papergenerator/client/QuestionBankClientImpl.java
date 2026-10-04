@@ -90,7 +90,7 @@ public class QuestionBankClientImpl implements QuestionBankClient {
     public QuestionBankClientImpl(
             JdbcTemplate jdbcTemplate,
             String questionBankServiceUrl) {
-        this(jdbcTemplate, null, questionBankServiceUrl, "dev-jwt-secret-key-for-local-testing-minimum-32-chars", false, "localhost", 9083, 5000);
+        this(jdbcTemplate, null, null, questionBankServiceUrl, "dev-jwt-secret-key-for-local-testing-minimum-32-chars", false, "localhost", 9083, 5000);
     }
 
     public QuestionBankClientImpl(
@@ -99,13 +99,14 @@ public class QuestionBankClientImpl implements QuestionBankClient {
             boolean grpcEnabled,
             String grpcHost,
             int grpcPort) {
-        this(jdbcTemplate, null, questionBankServiceUrl, "dev-jwt-secret-key-for-local-testing-minimum-32-chars", grpcEnabled, grpcHost, grpcPort, 5000);
+        this(jdbcTemplate, null, null, questionBankServiceUrl, "dev-jwt-secret-key-for-local-testing-minimum-32-chars", grpcEnabled, grpcHost, grpcPort, 5000);
     }
 
     @Autowired
     public QuestionBankClientImpl(
             @Autowired(required = false) JdbcTemplate jdbcTemplate,
             @Autowired(required = false) ServiceAccountTokenProvider tokenProvider,
+            @Autowired(required = false) RestClient.Builder restClientBuilder,
             @Value("${app.question-bank.service-url:http://localhost:8083}") String questionBankServiceUrl,
             @Value("${app.jwt.secret:dev-jwt-secret-key-for-local-testing-minimum-32-chars}") String jwtSecret,
             @Value("${app.question-bank.grpc-enabled:true}") boolean grpcEnabled,
@@ -120,7 +121,7 @@ public class QuestionBankClientImpl implements QuestionBankClient {
         this.grpcHost = grpcHost;
         this.grpcPort = grpcPort;
         this.grpcTimeoutMs = grpcTimeoutMs;
-        this.restClient = RestClient.create();
+        this.restClient = (restClientBuilder != null ? restClientBuilder : RestClient.builder()).build();
     }
 
     @Override
@@ -152,7 +153,7 @@ public class QuestionBankClientImpl implements QuestionBankClient {
                         .build();
 
                 BlueprintMatchGrpcResponse grpcResponse = stub.matchBlueprint(grpcRequest);
-                if (grpcResponse != null && grpcResponse.getQuestionsCount() > 0) {
+                if (grpcResponse != null) {
                     log.info("Retrieved {} questions from question-bank-service via gRPC", grpcResponse.getQuestionsCount());
                     return grpcResponse.getQuestionsList().stream()
                             .map(this::toSummaryFromGrpc)
@@ -184,7 +185,7 @@ public class QuestionBankClientImpl implements QuestionBankClient {
                     .retrieve()
                     .body(new ParameterizedTypeReference<ApiResponseDto<List<QuestionResponseDto>>>() {});
 
-            if (apiResponse != null && apiResponse.getData() != null && !apiResponse.getData().isEmpty()) {
+            if (apiResponse != null && apiResponse.getData() != null) {
                 log.info("Retrieved {} questions from question-bank-service via REST", apiResponse.getData().size());
                 return apiResponse.getData().stream()
                         .map(this::toSummary)
@@ -308,7 +309,7 @@ public class QuestionBankClientImpl implements QuestionBankClient {
                 }
 
                 BatchFindQuestionsGrpcResponse grpcResponse = stub.batchFindQuestions(reqBuilder.build());
-                if (grpcResponse != null && grpcResponse.getQuestionsCount() > 0) {
+                if (grpcResponse != null) {
                     Map<UUID, QuestionSummary> map = new HashMap<>();
                     for (QuestionSummaryGrpc q : grpcResponse.getQuestionsList()) {
                         try {
@@ -348,7 +349,7 @@ public class QuestionBankClientImpl implements QuestionBankClient {
                     .retrieve()
                     .body(new ParameterizedTypeReference<ApiResponseDto<List<QuestionResponseDto>>>() {});
 
-            if (apiResponse != null && apiResponse.getData() != null && !apiResponse.getData().isEmpty()) {
+            if (apiResponse != null && apiResponse.getData() != null) {
                 log.info("Retrieved {} questions by IDs from question-bank-service via REST", apiResponse.getData().size());
                 return apiResponse.getData().stream()
                         .map(this::toSummary)
@@ -605,9 +606,11 @@ public class QuestionBankClientImpl implements QuestionBankClient {
     @AllArgsConstructor
     @JsonIgnoreProperties(ignoreUnknown = true)
     public static class ApiResponseDto<T> {
-        private boolean success;
+        private String status;
+        private Boolean success;
         private T data;
         private String message;
+        private Object timestamp;
     }
 
     @Data

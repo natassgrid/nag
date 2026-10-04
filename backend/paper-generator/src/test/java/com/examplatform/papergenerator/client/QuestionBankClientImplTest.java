@@ -24,8 +24,6 @@ import com.examplatform.questionbank.grpc.BatchFindQuestionsGrpcRequest;
 import com.examplatform.questionbank.grpc.BatchFindQuestionsGrpcResponse;
 import com.examplatform.questionbank.grpc.BlueprintMatchGrpcRequest;
 import com.examplatform.questionbank.grpc.BlueprintMatchGrpcResponse;
-import com.examplatform.questionbank.grpc.PaperQuestionsGrpcRequest;
-import com.examplatform.questionbank.grpc.PaperQuestionsGrpcResponse;
 import com.examplatform.questionbank.grpc.QuestionBankGrpcServiceGrpc;
 import com.examplatform.questionbank.grpc.QuestionSummaryGrpc;
 import io.grpc.Server;
@@ -89,7 +87,9 @@ class QuestionBankClientImplTest {
         UUID qId = UUID.randomUUID();
         String jsonResponse = """
             {
-                "success": true,
+                "status": "success",
+                "message": "Questions retrieved",
+                "timestamp": "2026-10-04T04:25:15.932623270Z",
                 "data": [
                     {
                         "id": "%s",
@@ -97,10 +97,11 @@ class QuestionBankClientImplTest {
                         "topic": "Calculus",
                         "difficulty": "MEDIUM",
                         "cognitiveLevel": "APPLY",
-                        "content": "What is the derivative of x^2?"
+                        "content": "What is the derivative of x^2?",
+                        "authorId": "00000000-0000-0000-0000-000000000001",
+                        "createdAt": "2026-09-19T08:18:08.483802"
                     }
-                ],
-                "message": "Questions retrieved"
+                ]
             }
             """.formatted(qId);
 
@@ -116,6 +117,28 @@ class QuestionBankClientImplTest {
         assertThat(results.get(0).getSubject()).isEqualTo("Mathematics");
         assertThat(results.get(0).getContent()).isEqualTo("What is the derivative of x^2?");
 
+        mockServer.verify();
+    }
+
+    @Test
+    @DisplayName("Successfully handles REST response with empty data list")
+    void findAvailableQuestions_viaRest_emptyData_success() {
+        String jsonResponse = """
+            {
+                "status": "success",
+                "message": "Blueprint questions retrieved successfully",
+                "timestamp": "2026-10-04T04:25:15.932623270Z",
+                "data": []
+            }
+            """;
+
+        mockServer.expect(requestTo("http://localhost:8083/api/v1/questions/blueprint-match"))
+                .andExpect(method(POST))
+                .andRespond(withSuccess(jsonResponse, APPLICATION_JSON));
+
+        List<QuestionSummary> results = client.findAvailableQuestions("Computer Knowledge", "Computer Basics", "EASY", "REMEMBER", "tenant-1");
+
+        assertThat(results).isEmpty();
         mockServer.verify();
     }
 
@@ -192,6 +215,35 @@ class QuestionBankClientImplTest {
     }
 
     @Test
+    @DisplayName("gRPC returning 0 questions is authoritative and does not fall through to REST or DB")
+    void findAvailableQuestions_viaGrpc_emptyResponse_returnsEmptyAuthoritatively() throws IOException {
+        QuestionBankGrpcServiceGrpc.QuestionBankGrpcServiceImplBase mockGrpcService =
+                new QuestionBankGrpcServiceGrpc.QuestionBankGrpcServiceImplBase() {
+                    @Override
+                    public void matchBlueprint(BlueprintMatchGrpcRequest request,
+                                               StreamObserver<BlueprintMatchGrpcResponse> responseObserver) {
+                        BlueprintMatchGrpcResponse response = BlueprintMatchGrpcResponse.newBuilder().build();
+                        responseObserver.onNext(response);
+                        responseObserver.onCompleted();
+                    }
+                };
+
+        grpcServer = ServerBuilder.forPort(0)
+                .addService(mockGrpcService)
+                .build()
+                .start();
+        grpcPort = grpcServer.getPort();
+
+        QuestionBankClientImpl grpcClient = new QuestionBankClientImpl(
+                jdbcTemplate, "http://localhost:8083", true, "localhost", grpcPort);
+
+        List<QuestionSummary> results = grpcClient.findAvailableQuestions(
+                "Computer Knowledge", "Computer Basics", "EASY", "REMEMBER", "tenant-1");
+
+        assertThat(results).isEmpty();
+    }
+
+    @Test
     @DisplayName("Successfully retrieves questions by IDs via gRPC when enabled")
     void findQuestionsByIds_viaGrpc_success() throws IOException {
         UUID qId = UUID.randomUUID();
@@ -233,12 +285,81 @@ class QuestionBankClientImplTest {
     }
 
     @Test
+    @DisplayName("gRPC batchFindQuestions returning 0 questions is authoritative and does not fall through to REST or DB")
+    void findQuestionsByIds_viaGrpc_emptyResponse_returnsEmptyAuthoritatively() throws IOException {
+        UUID qId = UUID.randomUUID();
+        QuestionBankGrpcServiceGrpc.QuestionBankGrpcServiceImplBase mockGrpcService =
+                new QuestionBankGrpcServiceGrpc.QuestionBankGrpcServiceImplBase() {
+                    @Override
+                    public void batchFindQuestions(BatchFindQuestionsGrpcRequest request,
+                                                   StreamObserver<BatchFindQuestionsGrpcResponse> responseObserver) {
+                        BatchFindQuestionsGrpcResponse response = BatchFindQuestionsGrpcResponse.newBuilder().build();
+                        responseObserver.onNext(response);
+                        responseObserver.onCompleted();
+                    }
+                };
+
+        grpcServer = ServerBuilder.forPort(0)
+                .addService(mockGrpcService)
+                .build()
+                .start();
+        grpcPort = grpcServer.getPort();
+
+        QuestionBankClientImpl grpcClient = new QuestionBankClientImpl(
+                jdbcTemplate, "http://localhost:8083", true, "localhost", grpcPort);
+
+        List<QuestionSummary> results = grpcClient.findQuestionsByIds(List.of(qId), "tenant-1");
+
+        assertThat(results).hasSize(1);
+        assertThat(results.get(0).getQuestionId()).isEqualTo(qId);
+        assertThat(results.get(0).getSubject()).isNull();
+    }
+
+    @Test
+    @DisplayName("Successfully retrieves questions by IDs via REST when question-bank-service is available")
+    void findQuestionsByIds_viaRest_success() {
+        UUID qId = UUID.randomUUID();
+        String jsonResponse = """
+            {
+                "status": "success",
+                "message": "Questions retrieved",
+                "timestamp": "2026-10-04T04:25:15.932623270Z",
+                "data": [
+                    {
+                        "id": "%s",
+                        "subject": "History",
+                        "topic": "Modern India",
+                        "difficulty": "MEDIUM",
+                        "content": "Year of Independence?"
+                    }
+                ]
+            }
+            """.formatted(qId);
+
+        mockServer.expect(requestTo("http://localhost:8083/api/v1/questions/batch-find"))
+                .andExpect(method(POST))
+                .andExpect(header("X-Tenant-Id", "tenant-1"))
+                .andRespond(withSuccess(jsonResponse, APPLICATION_JSON));
+
+        List<QuestionSummary> results = client.findQuestionsByIds(List.of(qId), "tenant-1");
+
+        assertThat(results).hasSize(1);
+        assertThat(results.get(0).getQuestionId()).isEqualTo(qId);
+        assertThat(results.get(0).getSubject()).isEqualTo("History");
+        assertThat(results.get(0).getContent()).isEqualTo("Year of Independence?");
+
+        mockServer.verify();
+    }
+
+    @Test
     @DisplayName("Falls back to REST when gRPC fails")
     void findAvailableQuestions_grpcFails_fallsBackToRest() {
         UUID qId = UUID.randomUUID();
         String jsonResponse = """
             {
-                "success": true,
+                "status": "success",
+                "message": "Questions retrieved",
+                "timestamp": "2026-10-04T04:25:15.932623270Z",
                 "data": [
                     {
                         "id": "%s",
@@ -247,8 +368,7 @@ class QuestionBankClientImplTest {
                         "difficulty": "EASY",
                         "content": "Longest river in India?"
                     }
-                ],
-                "message": "Questions retrieved"
+                ]
             }
             """.formatted(qId);
 
