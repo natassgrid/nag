@@ -83,6 +83,14 @@ spring:
 app:
   question-bank:
     service-url: ${QUESTION_BANK_SERVICE_URI:http://localhost:8083}
+    grpc-enabled: ${QUESTION_BANK_GRPC_ENABLED:true}
+
+grpc:
+  client:
+    questionbank:
+      host: ${GRPC_QUESTION_BANK_HOST:localhost}
+      port: ${GRPC_QUESTION_BANK_PORT:9083}
+      timeout-ms: ${GRPC_QUESTION_BANK_TIMEOUT_MS:5000}
 
 server:
   port: ${PAPER_GENERATOR_PORT:8086}
@@ -98,27 +106,23 @@ management:
   endpoint:
     health:
       show-details: always
-      probes:
-        enabled: true
-  health:
-    db:
-      enabled: true
-    kafka:
-      enabled: true
-    vault:
-      enabled: true
+  tracing:
+    enabled: ${ENABLE_OBSERVABILITY:false}
   metrics:
     tags:
       service: paper-generator
-
-otel:
-  service:
-    name: paper-generator
-  exporter:
-    otlp:
-      endpoint: ${OTEL_EXPORTER_OTLP_ENDPOINT:http://localhost:4317}
-      protocol: grpc
+    export:
+      prometheus:
+        enabled: true
 
 logging:
   pattern:
-    console: '{"timestamp":"%d{ISO8601}","level":"%p","service":"paper-generator","traceId":"%X{traceId}","spanId":"%X{spanId}","message":"%m"}%n'
+    level: "%5p [${spring.application.name:},%X{traceId:-},%X{spanId:-}]"
+
+otel:
+  sdk:
+    disabled: ${OTEL_SDK_DISABLED:true}
+  exporter:
+    otlp:
+      endpoint: ${OTEL_EXPORTER_OTLP_ENDPOINT:http://localhost:4318}
+      protocol: grpc

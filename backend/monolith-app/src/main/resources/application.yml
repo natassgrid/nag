@@ -156,6 +156,18 @@ otel:
 
 # Identity and Admin URL Settings
 app:
+  question-bank:
+    service-url: ${QUESTION_BANK_SERVICE_URI:http://localhost:9000}
+    grpc-enabled: ${QUESTION_BANK_GRPC_ENABLED:true}
   frontend:
     admin-url: ${ADMIN_PORTAL_URL:http://localhost:4200}
     candidate-url: ${CANDIDATE_PORTAL_URL:http://localhost:4300}
+
+grpc:
+  server:
+    port: ${GRPC_QUESTION_BANK_PORT:9083}
+  client:
+    questionbank:
+      host: ${GRPC_QUESTION_BANK_HOST:localhost}
+      port: ${GRPC_QUESTION_BANK_PORT:9083}
+      timeout-ms: ${GRPC_QUESTION_BANK_TIMEOUT_MS:5000}

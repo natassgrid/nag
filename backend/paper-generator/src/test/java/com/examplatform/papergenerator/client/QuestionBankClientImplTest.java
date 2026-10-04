@@ -20,6 +20,18 @@
 package com.examplatform.papergenerator.client;
 
 import com.examplatform.papergenerator.dto.QuestionSummary;
+import com.examplatform.questionbank.grpc.BatchFindQuestionsGrpcRequest;
+import com.examplatform.questionbank.grpc.BatchFindQuestionsGrpcResponse;
+import com.examplatform.questionbank.grpc.BlueprintMatchGrpcRequest;
+import com.examplatform.questionbank.grpc.BlueprintMatchGrpcResponse;
+import com.examplatform.questionbank.grpc.PaperQuestionsGrpcRequest;
+import com.examplatform.questionbank.grpc.PaperQuestionsGrpcResponse;
+import com.examplatform.questionbank.grpc.QuestionBankGrpcServiceGrpc;
+import com.examplatform.questionbank.grpc.QuestionSummaryGrpc;
+import io.grpc.Server;
+import io.grpc.ServerBuilder;
+import io.grpc.stub.StreamObserver;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -29,6 +41,7 @@ import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.test.web.client.MockRestServiceServer;
 import org.springframework.web.client.RestClient;
 
+import java.io.IOException;
 import java.util.List;
 import java.util.UUID;
 
@@ -50,6 +63,8 @@ class QuestionBankClientImplTest {
     private JdbcTemplate jdbcTemplate;
     private QuestionBankClientImpl client;
     private MockRestServiceServer mockServer;
+    private Server grpcServer;
+    private int grpcPort;
 
     @BeforeEach
     void setUp() {
@@ -59,6 +74,13 @@ class QuestionBankClientImplTest {
         RestClient.Builder restClientBuilder = RestClient.builder();
         mockServer = MockRestServiceServer.bindTo(restClientBuilder).build();
         ReflectionTestUtils.setField(client, "restClient", restClientBuilder.build());
+    }
+
+    @AfterEach
+    void tearDown() {
+        if (grpcServer != null) {
+            grpcServer.shutdownNow();
+        }
     }
 
     @Test
@@ -123,5 +145,133 @@ class QuestionBankClientImplTest {
         assertThat(results.get(0).getSubject()).isEqualTo("Physics");
 
         mockServer.verify();
+    }
+
+    @Test
+    @DisplayName("Successfully retrieves questions via gRPC when gRPC server is enabled and available")
+    void findAvailableQuestions_viaGrpc_success() throws IOException {
+        UUID qId = UUID.randomUUID();
+
+        QuestionBankGrpcServiceGrpc.QuestionBankGrpcServiceImplBase mockGrpcService =
+                new QuestionBankGrpcServiceGrpc.QuestionBankGrpcServiceImplBase() {
+                    @Override
+                    public void matchBlueprint(BlueprintMatchGrpcRequest request,
+                                               StreamObserver<BlueprintMatchGrpcResponse> responseObserver) {
+                        BlueprintMatchGrpcResponse response = BlueprintMatchGrpcResponse.newBuilder()
+                                .addQuestions(QuestionSummaryGrpc.newBuilder()
+                                        .setId(qId.toString())
+                                        .setSubject("Chemistry")
+                                        .setTopic("Organic")
+                                        .setDifficulty("EASY")
+                                        .setCognitiveLevel("REMEMBER")
+                                        .setContent("Structure of Benzene?")
+                                        .build())
+                                .build();
+                        responseObserver.onNext(response);
+                        responseObserver.onCompleted();
+                    }
+                };
+
+        grpcServer = ServerBuilder.forPort(0)
+                .addService(mockGrpcService)
+                .build()
+                .start();
+        grpcPort = grpcServer.getPort();
+
+        QuestionBankClientImpl grpcClient = new QuestionBankClientImpl(
+                jdbcTemplate, "http://localhost:8083", true, "localhost", grpcPort);
+
+        List<QuestionSummary> results = grpcClient.findAvailableQuestions(
+                "Chemistry", "Organic", "EASY", "REMEMBER", "tenant-1");
+
+        assertThat(results).hasSize(1);
+        assertThat(results.get(0).getQuestionId()).isEqualTo(qId);
+        assertThat(results.get(0).getSubject()).isEqualTo("Chemistry");
+        assertThat(results.get(0).getTopic()).isEqualTo("Organic");
+        assertThat(results.get(0).getContent()).isEqualTo("Structure of Benzene?");
+    }
+
+    @Test
+    @DisplayName("Successfully retrieves questions by IDs via gRPC when enabled")
+    void findQuestionsByIds_viaGrpc_success() throws IOException {
+        UUID qId = UUID.randomUUID();
+
+        QuestionBankGrpcServiceGrpc.QuestionBankGrpcServiceImplBase mockGrpcService =
+                new QuestionBankGrpcServiceGrpc.QuestionBankGrpcServiceImplBase() {
+                    @Override
+                    public void batchFindQuestions(BatchFindQuestionsGrpcRequest request,
+                                                   StreamObserver<BatchFindQuestionsGrpcResponse> responseObserver) {
+                        BatchFindQuestionsGrpcResponse response = BatchFindQuestionsGrpcResponse.newBuilder()
+                                .addQuestions(QuestionSummaryGrpc.newBuilder()
+                                        .setId(qId.toString())
+                                        .setSubject("History")
+                                        .setTopic("Modern India")
+                                        .setDifficulty("MEDIUM")
+                                        .setContent("Year of Independence?")
+                                        .build())
+                                .build();
+                        responseObserver.onNext(response);
+                        responseObserver.onCompleted();
+                    }
+                };
+
+        grpcServer = ServerBuilder.forPort(0)
+                .addService(mockGrpcService)
+                .build()
+                .start();
+        grpcPort = grpcServer.getPort();
+
+        QuestionBankClientImpl grpcClient = new QuestionBankClientImpl(
+                jdbcTemplate, "http://localhost:8083", true, "localhost", grpcPort);
+
+        List<QuestionSummary> results = grpcClient.findQuestionsByIds(List.of(qId), "tenant-1");
+
+        assertThat(results).hasSize(1);
+        assertThat(results.get(0).getQuestionId()).isEqualTo(qId);
+        assertThat(results.get(0).getSubject()).isEqualTo("History");
+        assertThat(results.get(0).getContent()).isEqualTo("Year of Independence?");
+    }
+
+    @Test
+    @DisplayName("Falls back to REST when gRPC fails")
+    void findAvailableQuestions_grpcFails_fallsBackToRest() {
+        UUID qId = UUID.randomUUID();
+        String jsonResponse = """
+            {
+                "success": true,
+                "data": [
+                    {
+                        "id": "%s",
+                        "subject": "Geography",
+                        "topic": "Rivers",
+                        "difficulty": "EASY",
+                        "content": "Longest river in India?"
+                    }
+                ],
+                "message": "Questions retrieved"
+            }
+            """.formatted(qId);
+
+        // Point to dead gRPC port (e.g. 19999) but valid REST mock
+        QuestionBankClientImpl fallbackClient = new QuestionBankClientImpl(
+                jdbcTemplate, "http://localhost:8083", true, "localhost", 19999);
+
+        RestClient.Builder restClientBuilder = RestClient.builder();
+        MockRestServiceServer localMockServer = MockRestServiceServer.bindTo(restClientBuilder).build();
+        ReflectionTestUtils.setField(fallbackClient, "restClient", restClientBuilder.build());
+
+        localMockServer.expect(requestTo("http://localhost:8083/api/v1/questions/blueprint-match"))
+                .andExpect(method(POST))
+                .andRespond(withSuccess(jsonResponse, APPLICATION_JSON));
+
+        List<QuestionSummary> results = fallbackClient.findAvailableQuestions(
+                "Geography", "Rivers", "EASY", null, "tenant-1");
+
+        assertThat(results).hasSize(1);
+        assertThat(results.get(0).getQuestionId()).isEqualTo(qId);
+        assertThat(results.get(0).getSubject()).isEqualTo("Geography");
+        assertThat(results.get(0).getContent()).isEqualTo("Longest river in India?");
+
+        localMockServer.verify();
     }
 }
