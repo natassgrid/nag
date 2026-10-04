@@ -234,7 +234,7 @@
                 [class.shadow-xs]="curationTab() === 'browse'"
                 class="px-2.5 py-1 text-xs font-semibold rounded-md transition-all text-slate-700 cursor-pointer"
               >
-                Browse Bank ({{ filteredBankQuestions().length }})
+                Browse Bank ({{ bankTotal() }})
               </button>
               <button
                 type="button"
@@ -257,7 +257,7 @@
               <input
                 type="text"
                 [ngModel]="questionSearchQuery()"
-                (ngModelChange)="questionSearchQuery.set($event)"
+                (ngModelChange)="onSearchChange($event)"
                 placeholder="Search questions..."
                 class="w-full text-xs px-3 py-1.5 border rounded-xl bg-white border-slate-200 focus:outline-none focus:ring-1 focus:ring-indigo-500"
               />
@@ -267,7 +267,7 @@
             <div class="relative">
               <select
                 [ngModel]="selectedSubject()"
-                (ngModelChange)="selectedSubject.set($event)"
+                (ngModelChange)="onSubjectChange($event)"
                 class="w-full text-xs px-2.5 py-1.5 border rounded-xl bg-white border-slate-200 focus:outline-none focus:ring-1 focus:ring-indigo-500 text-slate-700"
               >
                 <option value="ALL">All Subjects</option>
@@ -281,7 +281,7 @@
             <div class="relative">
               <select
                 [ngModel]="selectedDifficulty()"
-                (ngModelChange)="selectedDifficulty.set($event)"
+                (ngModelChange)="onDifficultyChange($event)"
                 class="w-full text-xs px-2.5 py-1.5 border rounded-xl bg-white border-slate-200 focus:outline-none focus:ring-1 focus:ring-indigo-500 text-slate-700"
               >
                 <option value="ALL">All Difficulties</option>
@@ -294,14 +294,19 @@
 
           <!-- Quick Actions Bar -->
           <div class="flex items-center justify-between text-[11px] text-slate-500 pt-1">
-            <span>Showing {{ filteredBankQuestions().length }} questions from bank</span>
+            <span>
+              Showing {{ bankQuestions().length }} of {{ bankTotal() }} questions
+              @if (bankTotalPages() > 1) {
+                (Page {{ bankPage() + 1 }} of {{ bankTotalPages() }})
+              }
+            </span>
             <div class="flex items-center gap-2">
               <button
                 type="button"
                 (click)="selectAllFiltered()"
                 class="text-indigo-600 font-bold hover:underline cursor-pointer"
               >
-                Select All Filtered
+                Select All on Page
               </button>
               <span>•</span>
               <button
@@ -321,12 +326,12 @@
                 <mat-spinner diameter="24"></mat-spinner>
                 <span class="text-xs">Loading Question Bank...</span>
               </div>
-            } @else if (filteredBankQuestions().length === 0) {
+            } @else if (bankQuestions().length === 0) {
               <div class="py-10 text-center text-xs text-slate-400">
                 No questions found matching current filters.
               </div>
             } @else {
-              @for (q of filteredBankQuestions(); track q.id) {
+              @for (q of bankQuestions(); track q.id) {
                 <div
                   (click)="toggleQuestionSelection(q)"
                   class="p-3 flex items-start gap-3 cursor-pointer hover:bg-slate-50 transition-colors"
@@ -374,6 +379,35 @@
               }
             }
           </div>
+
+          <!-- Pagination Bar -->
+          @if (bankTotalPages() > 1) {
+            <div class="flex items-center justify-between pt-1 px-1 text-xs text-slate-600">
+              <div class="text-[11px] text-slate-500">
+                Page {{ bankPage() + 1 }} of {{ bankTotalPages() }} ({{ bankTotal() }} total)
+              </div>
+              <div class="flex items-center gap-1.5">
+                <button
+                  type="button"
+                  [disabled]="bankPage() === 0 || loadingBankQuestions()"
+                  (click)="onPageChange(bankPage() - 1)"
+                  class="px-2.5 py-1 rounded-lg border border-slate-200 text-xs font-medium text-slate-700 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer flex items-center gap-1"
+                >
+                  <mat-icon class="!text-sm">chevron_left</mat-icon>
+                  <span>Prev</span>
+                </button>
+                <button
+                  type="button"
+                  [disabled]="bankPage() >= bankTotalPages() - 1 || loadingBankQuestions()"
+                  (click)="onPageChange(bankPage() + 1)"
+                  class="px-2.5 py-1 rounded-lg border border-slate-200 text-xs font-medium text-slate-700 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer flex items-center gap-1"
+                >
+                  <span>Next</span>
+                  <mat-icon class="!text-sm">chevron_right</mat-icon>
+                </button>
+              </div>
+            </div>
+          }
         } @else {
           <!-- Selected Questions Tab -->
           <div class="border border-slate-200 rounded-xl bg-white overflow-hidden max-h-64 overflow-y-auto divide-y divide-slate-100">

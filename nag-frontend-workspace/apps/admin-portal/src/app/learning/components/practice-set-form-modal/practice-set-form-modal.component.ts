@@ -19,6 +19,8 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatCheckboxModule } from '@angular/material/checkbox';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { Subject as RxSubject } from 'rxjs';
+import { debounceTime, distinctUntilChanged } from 'rxjs/operators';
 import { PracticeSetService } from '../../services';
 import { PracticeSet, CreatePracticeSetRequest, UpdatePracticeSetRequest } from '../../models';
 import { PaperService, PaperSummary } from '@nag-frontend-workspace/examinations-data-access';
@@ -89,6 +91,12 @@ export class PracticeSetFormModalComponent implements OnInit {
   readonly bankQuestions = signal<Question[]>([]);
   readonly loadingBankQuestions = signal<boolean>(false);
   readonly cachedQuestionsMap = signal<Map<string, Question>>(new Map());
+  readonly bankPage = signal<number>(0);
+  readonly bankPageSize = signal<number>(20);
+  readonly bankTotal = signal<number>(0);
+  readonly bankTotalPages = signal<number>(1);
+
+  private readonly searchSubject$ = new RxSubject<string>();
 
   readonly totalQuestionsCount = computed(() => this.attachedQuestionIds().length);
 
@@ -98,25 +106,8 @@ export class PracticeSetFormModalComponent implements OnInit {
     return this.isFormValid();
   });
 
-  // Filtered bank questions for display
-  readonly filteredBankQuestions = computed(() => {
-    const list = this.bankQuestions();
-    const query = this.questionSearchQuery().trim().toLowerCase();
-    const diff = this.selectedDifficulty();
-    const subj = this.selectedSubject();
-
-    return list.filter((q) => {
-      const matchesDiff = diff === 'ALL' || q.difficulty === diff;
-      const matchesSubj = subj === 'ALL' || q.subject === subj;
-      const matchesQuery =
-        !query ||
-        (q.content && q.content.toLowerCase().includes(query)) ||
-        (q.code && q.code.toLowerCase().includes(query)) ||
-        (q.topic && q.topic.toLowerCase().includes(query));
-
-      return matchesDiff && matchesSubj && matchesQuery;
-    });
-  });
+  // Filtered bank questions (driven dynamically from database)
+  readonly filteredBankQuestions = computed(() => this.bankQuestions());
 
   // Selected questions objects for display in the "Selected" tab
   readonly selectedQuestionsList = computed(() => {
@@ -173,10 +164,25 @@ export class PracticeSetFormModalComponent implements OnInit {
         this.cdr.markForCheck();
       });
 
+    // Reactive debounced search to query DB dynamically
+    this.searchSubject$
+      .pipe(
+        debounceTime(300),
+        distinctUntilChanged(),
+        takeUntilDestroyed(this.destroyRef)
+      )
+      .subscribe(() => {
+        this.bankPage.set(0);
+        this.loadBankQuestions();
+      });
+
     // Parse existing question IDs if present
     if (this.data.set?.questionIds) {
       const parsed = this.parseQuestionIds(this.data.set.questionIds);
       this.attachedQuestionIds.set(parsed);
+      if (parsed.length > 0) {
+        this.loadExistingAttachedQuestions(parsed);
+      }
     }
 
     if (this.data.mode === 'create') {
@@ -231,9 +237,57 @@ export class PracticeSetFormModalComponent implements OnInit {
     this.subjectTopicService.getSubjects().subscribe({
       next: (subs) => {
         this.availableSubjects.set(subs || []);
+        // When editing, auto-detect and match subject from practice set
+        if (this.data.mode === 'edit' && this.data.set && this.selectedSubject() === 'ALL') {
+          const match = this.findMatchingSubject(this.data.set, subs || []);
+          if (match) {
+            this.selectedSubject.set(match.name);
+            this.bankPage.set(0);
+            this.loadBankQuestions();
+          }
+        }
         this.cdr.markForCheck();
       },
       error: () => this.availableSubjects.set([]),
+    });
+  }
+
+  private findMatchingSubject(set: PracticeSet, subjects: Subject[]): Subject | undefined {
+    if (!subjects || subjects.length === 0) return undefined;
+    const targetSlug = (set.subjectSlug || '').toLowerCase().trim();
+    const targetName = (set.name || '').toLowerCase().trim();
+
+    return subjects.find((s) => {
+      const subName = (s.name || '').toLowerCase().trim();
+      const subCode = (s.code || '').toLowerCase().trim();
+
+      if (targetSlug) {
+        const subSlug = subName.replace(/[^a-z0-9]/g, '-');
+        if (subSlug.includes(targetSlug) || targetSlug.includes(subSlug)) return true;
+        if (subCode && targetSlug.includes(subCode)) return true;
+      }
+      if (targetName) {
+        const words = subName.split(/[\s/&,-]+/).filter((w) => w.length > 3);
+        const hasKeywordMatch = words.some((w) => targetName.includes(w));
+        if (hasKeywordMatch) return true;
+      }
+      return false;
+    });
+  }
+
+  private loadExistingAttachedQuestions(ids: string[]) {
+    this.questionBankService.getQuestionsByIds(ids).subscribe({
+      next: (questions) => {
+        if (questions && questions.length > 0) {
+          const map = new Map(this.cachedQuestionsMap());
+          questions.forEach((q) => map.set(q.id, q));
+          this.cachedQuestionsMap.set(map);
+          this.cdr.markForCheck();
+        }
+      },
+      error: (err) => {
+        console.warn('Could not preload attached question details:', err);
+      },
     });
   }
 
@@ -241,15 +295,24 @@ export class PracticeSetFormModalComponent implements OnInit {
     this.loadingBankQuestions.set(true);
     this.cdr.markForCheck();
 
+    const search = this.questionSearchQuery().trim();
+    const subject = this.selectedSubject();
+    const difficulty = this.selectedDifficulty();
+
     this.questionBankService
       .loadQuestions({
-        page: 0,
-        size: 100,
+        page: this.bankPage(),
+        size: this.bankPageSize(),
+        search: search ? search : undefined,
+        subject: subject !== 'ALL' ? subject : undefined,
+        difficulty: (difficulty !== 'ALL' ? difficulty : undefined) as DifficultyLevel,
       })
       .subscribe({
         next: (res) => {
           const list = res.content || [];
           this.bankQuestions.set(list);
+          this.bankTotal.set(res.totalElements ?? list.length);
+          this.bankTotalPages.set(res.totalPages ?? 1);
 
           // Update cached map
           const map = new Map(this.cachedQuestionsMap());
@@ -349,7 +412,37 @@ export class PracticeSetFormModalComponent implements OnInit {
     });
   }
 
-  // --- Manual Question Curation Actions ---
+  // --- Manual Question Curation Actions & Dynamic Filters ---
+
+  onSearchChange(query: string) {
+    this.questionSearchQuery.set(query);
+    this.searchSubject$.next(query);
+  }
+
+  onSubjectChange(subject: string) {
+    this.selectedSubject.set(subject);
+    this.bankPage.set(0);
+    this.loadBankQuestions();
+  }
+
+  onDifficultyChange(difficulty: string) {
+    this.selectedDifficulty.set(difficulty);
+    this.bankPage.set(0);
+    this.loadBankQuestions();
+  }
+
+  onPageChange(page: number) {
+    if (page >= 0 && page < this.bankTotalPages()) {
+      this.bankPage.set(page);
+      this.loadBankQuestions();
+    }
+  }
+
+  onPageSizeChange(size: number) {
+    this.bankPageSize.set(size);
+    this.bankPage.set(0);
+    this.loadBankQuestions();
+  }
 
   isQuestionSelected(id: string): boolean {
     return this.attachedQuestionIds().includes(id);
@@ -381,11 +474,11 @@ export class PracticeSetFormModalComponent implements OnInit {
   }
 
   selectAllFiltered() {
-    const filtered = this.filteredBankQuestions();
+    const list = this.bankQuestions();
     const current = new Set(this.attachedQuestionIds());
     const map = new Map(this.cachedQuestionsMap());
 
-    filtered.forEach((q) => {
+    list.forEach((q) => {
       current.add(q.id);
       map.set(q.id, q);
     });
