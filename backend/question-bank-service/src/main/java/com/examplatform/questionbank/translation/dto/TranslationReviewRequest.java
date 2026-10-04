@@ -14,12 +14,12 @@
  * GNU Affero General Public License for more details.
  *
  * You should have received a copy of the GNU Affero General Public License
- * along with this program. If not, see <https://www.gnu.org/licenses/>.\n */
+ * along with this program. If not, see <https://www.gnu.org/licenses/>.
+ */
 
 package com.examplatform.questionbank.translation.dto;
 
 import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -34,7 +34,7 @@ import java.util.UUID;
 @AllArgsConstructor
 public class TranslationReviewRequest {
 
-    @NotNull(message = "reviewerId is required")
+    /** Reviewer user ID. Optional in request body; will be extracted from JWT if omitted. */
     private UUID reviewerId;
 
     @NotBlank(message = "comments are required for rejection")

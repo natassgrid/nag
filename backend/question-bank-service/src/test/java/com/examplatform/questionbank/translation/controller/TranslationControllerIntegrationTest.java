@@ -39,6 +39,7 @@ import com.examplatform.questionbank.translation.service.TranslationWorkflowServ
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.http.MediaType;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
@@ -50,7 +51,9 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.*;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
@@ -159,10 +162,7 @@ class TranslationControllerIntegrationTest extends AbstractIntegrationTest {
                     .build();
 
             mockMvc.perform(post("/api/v1/translations/batch/auto-translate")
-                            .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_ADMIN")))
-                            .contentType(MediaType.APPLICATION_JSON)
-                            .content(objectMapper.writeValueAsString(request))
-                            .header("X-Tenant-Id", "default"))
+                            .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_ADMIN"))))
                     .andExpect(status().isAccepted())
                     .andExpect(jsonPath("$.id").value(JOB_ID.toString()))
                     .andExpect(jsonPath("$.status").value("PENDING"))
@@ -213,9 +213,7 @@ class TranslationControllerIntegrationTest extends AbstractIntegrationTest {
         @DisplayName("-ve: CANDIDATE role cannot trigger batch auto-translate - returns 403 Forbidden")
         void candidateCannotTriggerBatch() throws Exception {
             mockMvc.perform(post("/api/v1/translations/batch/auto-translate")
-                            .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_CANDIDATE")))
-                            .contentType(MediaType.APPLICATION_JSON)
-                            .content("{}"))
+                            .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_CANDIDATE"))))
                     .andExpect(status().isForbidden());
         }
     }
@@ -239,12 +237,54 @@ class TranslationControllerIntegrationTest extends AbstractIntegrationTest {
                     .thenReturn(translation);
 
             mockMvc.perform(post("/api/v1/translations")
-                            .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_TRANSLATOR")))
+                            .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_TRANSLATOR"))
+                                    .jwt(j -> j.subject(TRANSLATOR_ID.toString())))
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(objectMapper.writeValueAsString(validTranslationRequest())))
                     .andExpect(status().isCreated())
                     .andExpect(jsonPath("$.translationId").value(TRANSLATION_ID.toString()))
                     .andExpect(jsonPath("$.status").value("DRAFT"));
+        }
+
+        @Test
+        @DisplayName("+ve: SUPER_ADMIN submits translation without translatorId in body - defaults translatorId from JWT")
+        void adminCanSubmitTranslationWithoutTranslatorId() throws Exception {
+            Translation translation = Translation.builder()
+                    .questionId(QUESTION_ID)
+                    .languageCode("hi")
+                    .status(Translation.TranslationStatus.DRAFT)
+                    .translatorId(TRANSLATOR_ID)
+                    .build();
+            ReflectionTestUtils.setField(translation, "id", TRANSLATION_ID);
+
+            when(translationWorkflowService.requestTranslation(any(TranslationRequest.class), anyString()))
+                    .thenReturn(translation);
+
+            // Payload with translatorId omitted
+            String jsonPayload = """
+                    {
+                      "questionId": "11111111-1111-1111-1111-111111111111",
+                      "languageCode": "hi",
+                      "translatedContent": "हिंदी में प्रश्न",
+                      "translatedOptions": [
+                        {"id": "A", "text": "विकल्प A"},
+                        {"id": "B", "text": "विकल्प B"}
+                      ]
+                    }
+                    """;
+
+            mockMvc.perform(post("/api/v1/translations")
+                            .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_SUPER_ADMIN"))
+                                    .jwt(j -> j.subject(TRANSLATOR_ID.toString())))
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(jsonPayload))
+                    .andExpect(status().isCreated())
+                    .andExpect(jsonPath("$.translationId").value(TRANSLATION_ID.toString()))
+                    .andExpect(jsonPath("$.status").value("DRAFT"));
+
+            ArgumentCaptor<TranslationRequest> captor = ArgumentCaptor.forClass(TranslationRequest.class);
+            verify(translationWorkflowService).requestTranslation(captor.capture(), anyString());
+            assertThat(captor.getValue().getTranslatorId()).isEqualTo(TRANSLATOR_ID);
         }
 
         @Test
@@ -268,6 +308,32 @@ class TranslationControllerIntegrationTest extends AbstractIntegrationTest {
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.translationId").value(TRANSLATION_ID.toString()))
                     .andExpect(jsonPath("$.status").value("APPROVED"));
+        }
+
+        @Test
+        @DisplayName("+ve: SUPER_ADMIN approves translation with empty body - defaults reviewerId from JWT")
+        void adminCanApproveTranslationWithEmptyBody() throws Exception {
+            Translation translation = Translation.builder()
+                    .questionId(QUESTION_ID)
+                    .languageCode("hi")
+                    .status(Translation.TranslationStatus.APPROVED)
+                    .reviewerId(REVIEWER_ID)
+                    .build();
+            ReflectionTestUtils.setField(translation, "id", TRANSLATION_ID);
+
+            when(translationReviewService.approve(eq(TRANSLATION_ID), eq(REVIEWER_ID), anyString()))
+                    .thenReturn(translation);
+
+            mockMvc.perform(post("/api/v1/translations/{id}/approve", TRANSLATION_ID)
+                            .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_SUPER_ADMIN"))
+                                    .jwt(j -> j.subject(REVIEWER_ID.toString())))
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content("{}"))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.translationId").value(TRANSLATION_ID.toString()))
+                    .andExpect(jsonPath("$.status").value("APPROVED"));
+
+            verify(translationReviewService).approve(eq(TRANSLATION_ID), eq(REVIEWER_ID), anyString());
         }
 
         @Test
@@ -333,6 +399,28 @@ class TranslationControllerIntegrationTest extends AbstractIntegrationTest {
 
             mockMvc.perform(get("/api/v1/translations/question/{questionId}/language/{lang}", QUESTION_ID, "hi")
                             .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_DELIVERY_SERVICE"))))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.translationId").value(TRANSLATION_ID.toString()))
+                    .andExpect(jsonPath("$.languageCode").value("hi"))
+                    .andExpect(jsonPath("$.status").value("APPROVED"));
+        }
+
+        @Test
+        @DisplayName("+ve: CANDIDATE fetches approved translation - returns 200 OK")
+        void candidateCanGetApprovedTranslation() throws Exception {
+            TranslationResponse response = TranslationResponse.builder()
+                    .translationId(TRANSLATION_ID)
+                    .questionId(QUESTION_ID)
+                    .languageCode("hi")
+                    .translatedContent("हिंदी में प्रश्न")
+                    .status(Translation.TranslationStatus.APPROVED)
+                    .build();
+
+            when(translationQueryService.getApprovedTranslation(eq(QUESTION_ID), eq("hi"), anyString()))
+                    .thenReturn(Optional.of(response));
+
+            mockMvc.perform(get("/api/v1/translations/question/{questionId}/language/{lang}", QUESTION_ID, "hi")
+                            .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_CANDIDATE"))))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.translationId").value(TRANSLATION_ID.toString()))
                     .andExpect(jsonPath("$.languageCode").value("hi"))
