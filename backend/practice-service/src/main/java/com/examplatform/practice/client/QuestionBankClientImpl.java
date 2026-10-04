@@ -66,4 +66,34 @@ public class QuestionBankClientImpl implements QuestionBankClient {
             return Collections.emptyMap();
         }
     }
+
+    @Override
+    public List<UUID> findQuestionIdsBySubject(String subjectPattern, int limit) {
+        if (jdbcTemplate == null || subjectPattern == null || subjectPattern.isBlank()) {
+            return Collections.emptyList();
+        }
+
+        int resolvedLimit = limit > 0 ? limit : 25;
+        String fullPattern = "%" + subjectPattern.replace('-', ' ').replace('_', ' ').trim() + "%";
+        String firstToken = "%" + subjectPattern.split("[-_\\s]+")[0] + "%";
+
+        try {
+            String sql = """
+                SELECT id FROM question_service.question
+                WHERE (subject ILIKE ? OR topic ILIKE ?)
+                   OR (subject ILIKE ? OR topic ILIKE ?)
+                ORDER BY id
+                LIMIT ?
+                """;
+
+            return jdbcTemplate.query(
+                    sql,
+                    (rs, rowNum) -> rs.getObject("id", UUID.class),
+                    fullPattern, fullPattern, firstToken, firstToken, resolvedLimit
+            );
+        } catch (Exception e) {
+            log.warn("Failed to find question IDs for subject pattern {}: {}", subjectPattern, e.getMessage());
+            return Collections.emptyList();
+        }
+    }
 }

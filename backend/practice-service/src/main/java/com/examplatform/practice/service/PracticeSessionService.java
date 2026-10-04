@@ -16,6 +16,7 @@ import com.examplatform.practice.repository.PracticeSetRepository;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -25,6 +26,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.Instant;
 import java.util.*;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class PracticeSessionService {
@@ -46,13 +48,34 @@ public class PracticeSessionService {
 
         String mode = req.mode() != null ? req.mode().toUpperCase() : "TIMED";
 
+        List<UUID> qIds = parseQuestionIds(practiceSet.getQuestionIds());
+        if (qIds.isEmpty() && practiceSet.getSubjectSlug() != null && !practiceSet.getSubjectSlug().isBlank()) {
+            int limit = practiceSet.getTotalQuestions() > 0 ? practiceSet.getTotalQuestions() : 25;
+            qIds = questionBankClient.findQuestionIdsBySubject(practiceSet.getSubjectSlug(), limit);
+            if (!qIds.isEmpty()) {
+                try {
+                    practiceSet.setQuestionIds(objectMapper.writeValueAsString(qIds));
+                    if (practiceSet.getTotalQuestions() <= 0) {
+                        practiceSet.setTotalQuestions(qIds.size());
+                    }
+                    practiceSetRepository.save(practiceSet);
+                } catch (Exception e) {
+                    log.warn("Failed to persist resolved question IDs on startSession for practice set {}: {}", practiceSet.getId(), e.getMessage());
+                }
+            }
+        }
+
+        int totalQuestions = practiceSet.getTotalQuestions() > 0
+                ? practiceSet.getTotalQuestions()
+                : qIds.size();
+
         PracticeSession session = PracticeSession.builder()
                 .candidateId(candidateId)
                 .practiceSetId(practiceSet.getId())
                 .mode(mode)
                 .status("IN_PROGRESS")
                 .startedAt(Instant.now())
-                .totalQuestions(practiceSet.getTotalQuestions())
+                .totalQuestions(totalQuestions)
                 .durationMinutes(practiceSet.getDurationMinutes())
                 .build();
 
@@ -67,7 +90,7 @@ public class PracticeSessionService {
                 .orElseThrow(() -> new PracticeSessionNotFoundException(sessionId));
     }
 
-    @Transactional(readOnly = true)
+    @Transactional
     public List<PracticeQuestionDto> getSessionQuestions(UUID sessionId, UUID candidateId) {
         PracticeSession session = practiceSessionRepository.findByIdAndCandidateId(sessionId, candidateId)
                 .orElseThrow(() -> new PracticeSessionNotFoundException(sessionId));
@@ -76,6 +99,22 @@ public class PracticeSessionService {
                 .orElseThrow(() -> new PracticeSetNotFoundException(session.getPracticeSetId()));
 
         List<UUID> questionIds = parseQuestionIds(set.getQuestionIds());
+        if (questionIds.isEmpty() && set.getSubjectSlug() != null && !set.getSubjectSlug().isBlank()) {
+            int limit = set.getTotalQuestions() > 0 ? set.getTotalQuestions() : 25;
+            questionIds = questionBankClient.findQuestionIdsBySubject(set.getSubjectSlug(), limit);
+            if (!questionIds.isEmpty()) {
+                try {
+                    set.setQuestionIds(objectMapper.writeValueAsString(questionIds));
+                    if (set.getTotalQuestions() <= 0) {
+                        set.setTotalQuestions(questionIds.size());
+                    }
+                    practiceSetRepository.save(set);
+                } catch (Exception e) {
+                    log.warn("Failed to persist resolved question IDs on getSessionQuestions for practice set {}: {}", set.getId(), e.getMessage());
+                }
+            }
+        }
+
         if (questionIds.isEmpty()) {
             return Collections.emptyList();
         }

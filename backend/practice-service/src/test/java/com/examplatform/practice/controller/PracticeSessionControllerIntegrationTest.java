@@ -34,10 +34,13 @@ import org.springframework.http.MediaType;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.test.web.servlet.MvcResult;
 
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -149,11 +152,11 @@ class PracticeSessionControllerIntegrationTest extends AbstractIntegrationTest {
     }
 
     @Nested
-    @DisplayName("GET /api/practice/sessions/{sessionId} - Get Active Session")
+    @DisplayName("GET /api/practice/sessions/{sessionId} & /questions")
     class GetSessionEndpoint {
 
         @Test
-        @DisplayName("+ve: Candidate retrieves their own active session")
+        @DisplayName("+ve: Candidate retrieves active session details")
         void getSessionSuccess() throws Exception {
             if (!testcontainersAvailable) return;
 
@@ -210,6 +213,59 @@ class PracticeSessionControllerIntegrationTest extends AbstractIntegrationTest {
                     .andExpect(jsonPath("$.length()").value(1))
                     .andExpect(jsonPath("$[0].id").value(question1.toString()))
                     .andExpect(jsonPath("$[0].content").value("What is O(1)?"));
+        }
+
+        @Test
+        @DisplayName("+ve: Candidate retrieves session questions falling back to subject when question_ids is empty")
+        void getSessionQuestionsFallsBackToSubjectWhenQuestionIdsEmpty() throws Exception {
+            if (!testcontainersAvailable) return;
+
+            PracticeSet emptySet = PracticeSet.builder()
+                    .name("Quantitative Aptitude Practice")
+                    .description("Test Practice Set with dynamic questions")
+                    .durationMinutes(30)
+                    .subjectSlug("quantitative-aptitude")
+                    .source("MANUAL")
+                    .published(true)
+                    .totalQuestions(1)
+                    .questionIds("[]")
+                    .createdBy(CREATOR_ID)
+                    .build();
+            emptySet.setTenantId(TENANT_ID);
+            emptySet = practiceSetRepository.save(emptySet);
+
+            StartSessionRequest startReq = new StartSessionRequest(emptySet.getId(), "TIMED");
+            MvcResult startResult = mockMvc.perform(post("/api/practice/sessions")
+                            .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_CANDIDATE"))
+                                    .jwt(j -> j.subject(CANDIDATE_ID.toString()).claim("tenant_id", TENANT_ID)))
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(startReq)))
+                    .andExpect(status().isCreated())
+                    .andReturn();
+
+            UUID sessionId = UUID.fromString(
+                    objectMapper.readTree(startResult.getResponse().getContentAsString()).get("id").asText()
+            );
+
+            UUID fallbackQuestionId = UUID.randomUUID();
+            when(questionBankClient.findQuestionIdsBySubject(eq("quantitative-aptitude"), anyInt()))
+                    .thenReturn(List.of(fallbackQuestionId));
+
+            AnswerKeyDto ak = new AnswerKeyDto(
+                    fallbackQuestionId, "opt-B", "MCQ", "t-2", "Algebra", "MEDIUM", 2,
+                    "Solve for x", "[{\"id\":\"opt-B\",\"text\":\"x=5\"}]",
+                    "Explanation", "Quantitative Aptitude"
+            );
+            when(questionBankClient.getAnswerKeys(List.of(fallbackQuestionId)))
+                    .thenReturn(Map.of(fallbackQuestionId, ak));
+
+            mockMvc.perform(get("/api/practice/sessions/{sessionId}/questions", sessionId)
+                            .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_CANDIDATE"))
+                                    .jwt(j -> j.subject(CANDIDATE_ID.toString()).claim("tenant_id", TENANT_ID))))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.length()").value(1))
+                    .andExpect(jsonPath("$[0].id").value(fallbackQuestionId.toString()))
+                    .andExpect(jsonPath("$[0].content").value("Solve for x"));
         }
 
         @Test

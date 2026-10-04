@@ -360,6 +360,25 @@ public class QuestionDeliveryRepository {
                 if (!practiceQuestionIds.isEmpty() && practiceQuestionIds.get(0) != null && !practiceQuestionIds.get(0).isBlank()) {
                     uids = parser.extractQuestionUuidsFromJsonOrString(practiceQuestionIds.get(0));
                 }
+                // Fallback: if practice set question_ids was empty or "[]", resolve by subject_slug
+                if (uids.isEmpty() && !practiceQuestionIds.isEmpty()) {
+                    List<Map<String, Object>> metaList = jdbcTemplate.query(
+                            "SELECT subject_slug, total_questions FROM practice_service.practice_set WHERE id = ? AND (tenant_id = ? OR tenant_id = 'default' OR tenant_id IS NULL)",
+                            (rs, rowNum) -> Map.of(
+                                    "subject_slug", rs.getString("subject_slug") != null ? rs.getString("subject_slug") : "",
+                                    "total_questions", rs.getInt("total_questions")
+                            ),
+                            targetId, tenantId
+                    );
+                    if (!metaList.isEmpty()) {
+                        String subjectSlug = (String) metaList.get(0).get("subject_slug");
+                        Integer totalQ = (Integer) metaList.get(0).get("total_questions");
+                        int limit = (totalQ != null && totalQ > 0) ? totalQ : 25;
+                        if (subjectSlug != null && !subjectSlug.isBlank()) {
+                            uids = resolveQuestionUuidsBySubject(subjectSlug, limit);
+                        }
+                    }
+                }
             } catch (Exception e) {
                 log.debug("Practice set lookup error for {}: {}", targetId, e.getMessage());
             }
@@ -382,6 +401,9 @@ public class QuestionDeliveryRepository {
                     );
                     if (!practiceQuestionIds.isEmpty() && practiceQuestionIds.get(0) != null && !practiceQuestionIds.get(0).isBlank()) {
                         uids = parser.extractQuestionUuidsFromJsonOrString(practiceQuestionIds.get(0));
+                    }
+                    if (uids.isEmpty()) {
+                        uids = resolveQuestionUuids(pSetId, tenantId);
                     }
                 }
             } catch (Exception e) {
@@ -406,5 +428,29 @@ public class QuestionDeliveryRepository {
         }
 
         return uids;
+    }
+
+    private List<UUID> resolveQuestionUuidsBySubject(String subjectSlug, int limit) {
+        if (subjectSlug == null || subjectSlug.isBlank() || jdbcTemplate == null) {
+            return Collections.emptyList();
+        }
+        String fullPattern = "%" + subjectSlug.replace('-', ' ').replace('_', ' ').trim() + "%";
+        String firstToken = "%" + subjectSlug.split("[-_\\s]+")[0] + "%";
+        try {
+            return jdbcTemplate.query(
+                    """
+                    SELECT id FROM question_service.question
+                    WHERE (subject ILIKE ? OR topic ILIKE ?)
+                       OR (subject ILIKE ? OR topic ILIKE ?)
+                    ORDER BY id
+                    LIMIT ?
+                    """,
+                    (rs, rowNum) -> rs.getObject("id", UUID.class),
+                    fullPattern, fullPattern, firstToken, firstToken, limit
+            );
+        } catch (Exception e) {
+            log.debug("Subject-based question lookup error for {}: {}", subjectSlug, e.getMessage());
+            return Collections.emptyList();
+        }
     }
 }
