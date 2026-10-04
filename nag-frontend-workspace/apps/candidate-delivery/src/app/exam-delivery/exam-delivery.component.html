@@ -19,7 +19,7 @@
   <!-- Main Delivery Split Body -->
   <main class="flex-1 flex overflow-hidden min-h-0">
     <!-- Left: Question Workspace -->
-    <section class="flex-1 flex flex-col min-w-0 bg-slate-900 border-r border-slate-800">
+    <section class="flex-1 flex flex-col min-w-0 min-h-0 overflow-y-auto bg-slate-900 border-r border-slate-800">
       @if (currentItem(); as item) {
         <nag-exam-question-card
           [item]="item"

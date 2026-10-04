@@ -36,6 +36,26 @@ export class MathRendererComponent implements OnChanges {
     }
   }
 
+  /**
+   * Some stored questions have double-escaped LaTeX commands (e.g. `\\sec`), which KaTeX
+   * would treat as a line break followed by plain text. Collapse `\\<letter>` to
+   * `\<letter>` unless the formula is a real multi-row environment (`\begin{...}`).
+   */
+  private normalizeFormula(formula: string): string {
+    const trimmed = formula.trim();
+    if (trimmed.includes('\\begin')) {
+      return trimmed;
+    }
+    return trimmed.replace(/\\\\(?=[a-zA-Z])/g, '\\');
+  }
+
+  private toKatex(formula: string, displayMode: boolean): string {
+    return katex.renderToString(this.normalizeFormula(formula), {
+      displayMode,
+      throwOnError: false,
+    });
+  }
+
   private render(): void {
     const rawContent = this.content();
     if (!rawContent || !rawContent.trim()) {
@@ -45,38 +65,44 @@ export class MathRendererComponent implements OnChanges {
 
     try {
       let text = rawContent.trim();
+      const forceInline = this.inline();
 
       // Render KaTeX display math \[...\]
       text = text.replace(/\\\[([\s\S]*?)\\\]/g, (match, formula) => {
         try {
-          return `<div class="math-block">${katex.renderToString(formula.trim(), {
-            displayMode: true,
-            throwOnError: false,
-          })}</div>`;
+          return `<div class="math-block">${this.toKatex(formula, true)}</div>`;
         } catch {
           return match;
         }
       });
 
-      // Render KaTeX display math $$...$$
-      text = text.replace(/\$\$([\s\S]*?)\$\$/g, (match, formula) => {
-        try {
-          return `<div class="math-block">${katex.renderToString(formula.trim(), {
-            displayMode: true,
-            throwOnError: false,
-          })}</div>`;
-        } catch {
-          return match;
+      // Render KaTeX math $$...$$
+      // Treated as display (block) math only when it is multi-line or stands alone on
+      // its own line(s). A $$...$$ embedded within a sentence (or any $$...$$ when the
+      // renderer is in inline mode) is rendered inline so it flows with the text.
+      text = text.replace(
+        /\$\$([\s\S]*?)\$\$/g,
+        (match, formula: string, offset: number, whole: string) => {
+          try {
+            const before = whole.slice(0, offset);
+            const after = whole.slice(offset + match.length);
+            const standalone =
+              (before === '' || /\n\s*$/.test(before)) &&
+              (after === '' || /^\s*\n/.test(after));
+            const displayMode =
+              !forceInline && (formula.includes('\n') || standalone);
+            const html = this.toKatex(formula, displayMode);
+            return displayMode ? `<div class="math-block">${html}</div>` : html;
+          } catch {
+            return match;
+          }
         }
-      });
+      );
 
       // Render KaTeX inline math \(...\)
       text = text.replace(/\\\(([\s\S]*?)\\\)/g, (match, formula) => {
         try {
-          return katex.renderToString(formula.trim(), {
-            displayMode: false,
-            throwOnError: false,
-          });
+          return this.toKatex(formula, false);
         } catch {
           return match;
         }
@@ -85,10 +111,7 @@ export class MathRendererComponent implements OnChanges {
       // Render KaTeX inline math $...$
       text = text.replace(/\$([^$\n]+?)\$/g, (match, formula) => {
         try {
-          return katex.renderToString(formula.trim(), {
-            displayMode: false,
-            throwOnError: false,
-          });
+          return this.toKatex(formula, false);
         } catch {
           return match;
         }
