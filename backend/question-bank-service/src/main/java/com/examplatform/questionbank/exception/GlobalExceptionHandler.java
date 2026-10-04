@@ -14,7 +14,8 @@
  * GNU Affero General Public License for more details.
  *
  * You should have received a copy of the GNU Affero General Public License
- * along with this program. If not, see <https://www.gnu.org/licenses/>.\n */
+ * along with this program. If not, see <https://www.gnu.org/licenses/>.
+ */
 
 package com.examplatform.questionbank.exception;
 
@@ -109,7 +110,11 @@ public class GlobalExceptionHandler {
      */
     @ExceptionHandler(ResponseStatusException.class)
     public ResponseEntity<ApiResponse<Void>> handleResponseStatusException(ResponseStatusException ex) {
-        log.warn("Response status exception: status={}, reason={}", ex.getStatusCode(), ex.getReason());
+        if (ex.getStatusCode().value() == HttpStatus.NOT_FOUND.value()) {
+            log.debug("Resource not found: status={}, reason={}", ex.getStatusCode(), ex.getReason());
+        } else {
+            log.warn("Response status exception: status={}, reason={}", ex.getStatusCode(), ex.getReason());
+        }
         return ResponseEntity
                 .status(ex.getStatusCode())
                 .body(ApiResponse.error(ex.getReason() != null ? ex.getReason() : ex.getMessage()));

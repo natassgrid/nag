@@ -14,7 +14,8 @@
  * GNU Affero General Public License for more details.
  *
  * You should have received a copy of the GNU Affero General Public License
- * along with this program. If not, see <https://www.gnu.org/licenses/>.\n */
+ * along with this program. If not, see <https://www.gnu.org/licenses/>.
+ */
 
 package com.examplatform.questionbank.translation.controller;
 
@@ -103,7 +104,7 @@ public class TranslationController {
      * POST /api/v1/translations/question/{questionId}/auto-translate/{lang}
      */
     @PostMapping("/question/{questionId}/auto-translate/{lang}")
-    @PreAuthorize("hasAnyRole('TRANSLATOR', 'REVIEWER', 'EXAM_CONTROLLER', 'ADMIN')")
+    @PreAuthorize("hasAnyRole('TRANSLATOR', 'REVIEWER', 'EXAM_CONTROLLER', 'ADMIN', 'SUPER_ADMIN')")
     public ResponseEntity<AutoTranslateResponse> autoTranslate(
             @PathVariable UUID questionId,
             @PathVariable String lang) {
@@ -122,7 +123,7 @@ public class TranslationController {
      * POST /api/v1/translations/batch/auto-translate
      */
     @PostMapping("/batch/auto-translate")
-    @PreAuthorize("hasAnyRole('ADMIN', 'EXAM_CONTROLLER')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'EXAM_CONTROLLER', 'SUPER_ADMIN')")
     public ResponseEntity<BatchTranslationJobResponse> startBatchAutoTranslate(
             @Valid @RequestBody(required = false) BatchTranslationRequest request,
             @AuthenticationPrincipal Jwt jwt) {
@@ -140,7 +141,7 @@ public class TranslationController {
      * GET /api/v1/translations/batch/{jobId}
      */
     @GetMapping("/batch/{jobId}")
-    @PreAuthorize("hasAnyRole('ADMIN', 'EXAM_CONTROLLER', 'TRANSLATOR', 'REVIEWER')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'EXAM_CONTROLLER', 'TRANSLATOR', 'REVIEWER', 'SUPER_ADMIN')")
     public ResponseEntity<BatchTranslationJobResponse> getBatchJobStatus(
             @PathVariable UUID jobId) {
 
@@ -153,7 +154,7 @@ public class TranslationController {
      * GET /api/v1/translations/batch
      */
     @GetMapping("/batch")
-    @PreAuthorize("hasAnyRole('ADMIN', 'EXAM_CONTROLLER')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'EXAM_CONTROLLER', 'SUPER_ADMIN')")
     public ResponseEntity<List<BatchTranslationJobResponse>> listBatchJobs() {
         List<BatchTranslationJobResponse> jobs = batchTranslationService.listJobs(tenantId());
         return ResponseEntity.ok(jobs);
@@ -164,7 +165,7 @@ public class TranslationController {
      * GET /api/v1/translations/batch/paper/{paperId}
      */
     @GetMapping("/batch/paper/{paperId}")
-    @PreAuthorize("hasAnyRole('ADMIN', 'EXAM_CONTROLLER', 'TRANSLATOR', 'REVIEWER')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'EXAM_CONTROLLER', 'TRANSLATOR', 'REVIEWER', 'SUPER_ADMIN')")
     public ResponseEntity<List<BatchTranslationJobResponse>> listBatchJobsByPaper(
             @PathVariable UUID paperId) {
         List<BatchTranslationJobResponse> jobs = batchTranslationService.listJobsByPaper(paperId, tenantId());
@@ -176,7 +177,7 @@ public class TranslationController {
      * POST /api/v1/translations/batch/{jobId}/cancel
      */
     @PostMapping("/batch/{jobId}/cancel")
-    @PreAuthorize("hasAnyRole('ADMIN', 'EXAM_CONTROLLER')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'EXAM_CONTROLLER', 'SUPER_ADMIN')")
     public ResponseEntity<BatchTranslationJobResponse> cancelBatchJob(
             @PathVariable UUID jobId) {
 
@@ -193,10 +194,14 @@ public class TranslationController {
      * POST /api/v1/translations
      */
     @PostMapping
-    @PreAuthorize("hasAnyRole('TRANSLATOR', 'EXAM_CONTROLLER')")
+    @PreAuthorize("hasAnyRole('TRANSLATOR', 'EXAM_CONTROLLER', 'ADMIN', 'SUPER_ADMIN')")
     public ResponseEntity<Map<String, Object>> requestTranslation(
-            @Valid @RequestBody TranslationRequest request) {
+            @Valid @RequestBody TranslationRequest request,
+            @AuthenticationPrincipal Jwt jwt) {
 
+        if (request.getTranslatorId() == null) {
+            request.setTranslatorId(extractUserId(jwt));
+        }
         String tenantId = tenantId();
         Translation translation = translationWorkflowService.requestTranslation(request, tenantId);
 
@@ -212,11 +217,15 @@ public class TranslationController {
      * PUT /api/v1/translations/{id}
      */
     @PutMapping("/{id}")
-    @PreAuthorize("hasAnyRole('TRANSLATOR', 'EXAM_CONTROLLER')")
+    @PreAuthorize("hasAnyRole('TRANSLATOR', 'EXAM_CONTROLLER', 'ADMIN', 'SUPER_ADMIN')")
     public ResponseEntity<Map<String, Object>> resubmitTranslation(
             @PathVariable UUID id,
-            @Valid @RequestBody TranslationRequest request) {
+            @Valid @RequestBody TranslationRequest request,
+            @AuthenticationPrincipal Jwt jwt) {
 
+        if (request.getTranslatorId() == null) {
+            request.setTranslatorId(extractUserId(jwt));
+        }
         String tenantId = tenantId();
         Translation translation = translationWorkflowService.resubmitTranslation(id, request, tenantId);
 
@@ -232,12 +241,22 @@ public class TranslationController {
      * POST /api/v1/translations/{id}/approve
      */
     @PostMapping("/{id}/approve")
-    @PreAuthorize("hasAnyRole('REVIEWER', 'EXAM_CONTROLLER')")
+    @PreAuthorize("hasAnyRole('REVIEWER', 'EXAM_CONTROLLER', 'ADMIN', 'SUPER_ADMIN')")
     public ResponseEntity<Map<String, Object>> approveTranslation(
             @PathVariable UUID id,
-            @RequestBody Map<String, String> body) {
+            @RequestBody(required = false) Map<String, String> body,
+            @AuthenticationPrincipal Jwt jwt) {
 
-        UUID reviewerId = UUID.fromString(body.get("reviewerId"));
+        UUID reviewerId = null;
+        if (body != null && body.containsKey("reviewerId") && body.get("reviewerId") != null && !body.get("reviewerId").isBlank()) {
+            try {
+                reviewerId = UUID.fromString(body.get("reviewerId"));
+            } catch (IllegalArgumentException ignored) {
+            }
+        }
+        if (reviewerId == null) {
+            reviewerId = extractUserId(jwt);
+        }
         Translation translation = translationReviewService.approve(id, reviewerId, tenantId());
 
         return ResponseEntity.ok(Map.of(
@@ -252,12 +271,14 @@ public class TranslationController {
      * POST /api/v1/translations/{id}/reject
      */
     @PostMapping("/{id}/reject")
-    @PreAuthorize("hasAnyRole('REVIEWER', 'EXAM_CONTROLLER')")
+    @PreAuthorize("hasAnyRole('REVIEWER', 'EXAM_CONTROLLER', 'ADMIN', 'SUPER_ADMIN')")
     public ResponseEntity<Map<String, Object>> rejectTranslation(
             @PathVariable UUID id,
-            @Valid @RequestBody TranslationReviewRequest request) {
+            @Valid @RequestBody TranslationReviewRequest request,
+            @AuthenticationPrincipal Jwt jwt) {
 
-        translationReviewService.reject(id, request.getReviewerId(), request.getComments(), tenantId());
+        UUID reviewerId = request.getReviewerId() != null ? request.getReviewerId() : extractUserId(jwt);
+        translationReviewService.reject(id, reviewerId, request.getComments(), tenantId());
 
         return ResponseEntity.ok(Map.of(
                 "translationId", id,
@@ -275,7 +296,7 @@ public class TranslationController {
      * GET /api/v1/translations/questions
      */
     @GetMapping("/questions")
-    @PreAuthorize("hasAnyRole('TRANSLATOR', 'REVIEWER', 'EXAM_CONTROLLER', 'ADMIN')")
+    @PreAuthorize("hasAnyRole('TRANSLATOR', 'REVIEWER', 'EXAM_CONTROLLER', 'ADMIN', 'SUPER_ADMIN')")
     public ResponseEntity<ApiResponse<Page<QuestionResponse>>> listQuestionsForTranslation(
             @RequestParam(required = false) String subject,
             @RequestParam(required = false) Long subjectId,
@@ -300,7 +321,7 @@ public class TranslationController {
      * GET /api/v1/translations/question/{questionId}
      */
     @GetMapping("/question/{questionId}")
-    @PreAuthorize("hasAnyRole('TRANSLATOR', 'REVIEWER', 'EXAM_CONTROLLER', 'ADMIN')")
+    @PreAuthorize("hasAnyRole('TRANSLATOR', 'REVIEWER', 'EXAM_CONTROLLER', 'ADMIN', 'SUPER_ADMIN')")
     public ResponseEntity<List<TranslationResponse>> listTranslations(
             @PathVariable UUID questionId) {
 
@@ -316,7 +337,7 @@ public class TranslationController {
      * GET /api/v1/translations/question/{questionId}/language/{lang}
      */
     @GetMapping("/question/{questionId}/language/{lang}")
-    @PreAuthorize("hasAnyRole('TRANSLATOR', 'REVIEWER', 'EXAM_CONTROLLER', 'ADMIN', 'DELIVERY_SERVICE')")
+    @PreAuthorize("hasAnyRole('TRANSLATOR', 'REVIEWER', 'EXAM_CONTROLLER', 'ADMIN', 'SUPER_ADMIN', 'DELIVERY_SERVICE', 'CANDIDATE')")
     public ResponseEntity<TranslationResponse> getApprovedTranslation(
             @PathVariable UUID questionId,
             @PathVariable String lang) {

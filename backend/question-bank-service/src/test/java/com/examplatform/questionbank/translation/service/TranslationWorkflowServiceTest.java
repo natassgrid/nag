@@ -199,19 +199,31 @@ class TranslationWorkflowServiceTest {
     }
 
     @Test
-    @DisplayName("Should throw IllegalStateException when translation already exists")
-    void shouldThrowWhenTranslationAlreadyExists() {
+    @DisplayName("Should update existing translation when translation already exists on requestTranslation")
+    void shouldUpdateWhenTranslationAlreadyExists() {
         TranslationRequest request = buildRequest("hi");
         Question question = buildQuestion();
+        Translation existing = Translation.builder()
+                .questionId(questionId)
+                .languageCode("hi")
+                .status(Translation.TranslationStatus.DRAFT)
+                .translatedPayload("old-payload")
+                .build();
+        existing.setTenantId(tenantId);
 
         when(questionRepository.findById(questionId)).thenReturn(Optional.of(question));
         when(translationRepository.findByQuestionIdAndLanguageCodeAndTenantId(
                 questionId, "hi", tenantId))
-                .thenReturn(List.of(Translation.builder().build()));
+                .thenReturn(List.of(existing));
+        when(payloadService.serialize(any())).thenReturn("{\"content\":\"नमस्ते दुनिया\"}");
+        when(payloadService.isEncryptionEnabled()).thenReturn(false);
+        when(translationRepository.save(any(Translation.class))).thenAnswer(i -> i.getArgument(0));
 
-        assertThatThrownBy(() -> translationWorkflowService.requestTranslation(request, tenantId))
-                .isInstanceOf(IllegalStateException.class)
-                .hasMessageContaining("Translation already exists");
+        Translation result = translationWorkflowService.requestTranslation(request, tenantId);
+
+        assertThat(result).isNotNull();
+        assertThat(result.getTranslatedPayload()).isEqualTo("{\"content\":\"नमस्ते दुनिया\"}");
+        verify(translationRepository).save(existing);
     }
 
     @Test
@@ -226,8 +238,6 @@ class TranslationWorkflowServiceTest {
         Question question = buildQuestion();
 
         when(questionRepository.findById(questionId)).thenReturn(Optional.of(question));
-        when(translationRepository.findByQuestionIdAndLanguageCodeAndTenantId(
-                questionId, "hi", tenantId)).thenReturn(Collections.emptyList());
 
         assertThatThrownBy(() -> translationWorkflowService.requestTranslation(request, tenantId))
                 .isInstanceOf(IllegalArgumentException.class)

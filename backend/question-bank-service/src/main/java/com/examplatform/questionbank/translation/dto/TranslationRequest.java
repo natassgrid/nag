@@ -51,7 +51,7 @@ public class TranslationRequest {
     @NotBlank(message = "languageCode is required")
     private String languageCode;
 
-    @NotNull(message = "translatorId is required")
+    /** Translator user ID. Optional in request body; will be extracted from JWT if omitted. */
     private UUID translatorId;
 
     /** Translated question body (stem). */
@@ -59,12 +59,11 @@ public class TranslationRequest {
     private String translatedContent;
 
     /**
-     * Translated answer options.  Each entry must supply the same {@code id} as
+     * Translated answer options. Each entry must supply the same {@code id} as
      * the corresponding source option so correctness mapping is unambiguous.
      * May be null/empty for question types that have no options (e.g. SHORT_ANSWER).
      */
-    @Valid
-    private List<TranslatedOptionDto> translatedOptions;
+    private List<@Valid TranslatedOptionDto> translatedOptions;
 
     /** Translated explanation. Optional. */
     private String translatedExplanation;
