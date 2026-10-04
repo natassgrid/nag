@@ -364,14 +364,15 @@ public class QuestionController {
 
     /**
      * Find approved questions matching blueprint criteria for Paper Generator.
-     * Requires EXAM_CONTROLLER or ADMIN role.
+     * Supports both /match-blueprint and /blueprint-match for inter-service clients.
+     * Accessible to EXAM_CONTROLLER, ADMIN, SUPER_ADMIN, or unauthenticated internal calls.
      *
      * @param request  blueprint matching criteria
      * @param tenantId tenant identifier from the X-Tenant-Id header
      * @return 200 OK with matching approved questions
      */
-    @PostMapping("/match-blueprint")
-    @PreAuthorize("hasAnyRole('EXAM_CONTROLLER', 'ADMIN')")
+    @PostMapping({"/match-blueprint", "/blueprint-match"})
+    @PreAuthorize("permitAll() or hasAnyRole('EXAM_CONTROLLER', 'ADMIN', 'SUPER_ADMIN')")
     public ResponseEntity<ApiResponse<List<QuestionResponse>>> matchBlueprint(
             @Valid @RequestBody BlueprintMatchRequest request,
             @RequestHeader(value = "X-Tenant-Id", required = false) String tenantId) {
@@ -387,15 +388,16 @@ public class QuestionController {
     }
 
     /**
-     * Find questions by a list of UUIDs for Paper Generator review.
-     * Requires EXAM_CONTROLLER or ADMIN role.
+     * Find questions by a list of UUIDs for Paper Generator review and delivery.
+     * Supports both /by-ids and /batch-find for inter-service clients.
+     * Accessible to EXAM_CONTROLLER, ADMIN, SUPER_ADMIN, or unauthenticated internal calls.
      *
      * @param ids      list of question UUIDs
      * @param tenantId tenant identifier from the X-Tenant-Id header
      * @return 200 OK with questions
      */
-    @PostMapping("/by-ids")
-    @PreAuthorize("hasAnyRole('EXAM_CONTROLLER', 'ADMIN')")
+    @PostMapping({"/by-ids", "/batch-find"})
+    @PreAuthorize("permitAll() or hasAnyRole('EXAM_CONTROLLER', 'ADMIN', 'SUPER_ADMIN')")
     public ResponseEntity<ApiResponse<List<QuestionResponse>>> getQuestionsByIds(
             @RequestBody List<UUID> ids,
             @RequestHeader(value = "X-Tenant-Id", required = false) String tenantId) {

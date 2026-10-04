@@ -487,4 +487,75 @@ class QuestionControllerIntegrationTest extends AbstractIntegrationTest {
                     .andExpect(jsonPath("$.data.content[0].id").value(QUESTION_ID.toString()));
         }
     }
+
+    // =========================================================================
+    // 7. Blueprint Match & Batch Find Endpoints (/match-blueprint, /blueprint-match, /by-ids, /batch-find)
+    // =========================================================================
+    @Nested
+    @DisplayName("Blueprint Match and Batch Find Endpoints")
+    class BlueprintMatchAndBatchFindEndpoints {
+
+        @Test
+        @DisplayName("+ve: Match blueprint via /api/v1/questions/blueprint-match alias - returns 200 OK")
+        void matchBlueprintViaAlias() throws Exception {
+            when(questionService.findBlueprintQuestions(eq("Physics"), eq("Thermodynamics"), eq("MEDIUM"), eq("APPLY"), eq(TENANT_ID)))
+                    .thenReturn(List.of(sampleQuestionResponse()));
+
+            String requestJson = """
+                    {
+                      "subject": "Physics",
+                      "topic": "Thermodynamics",
+                      "difficulty": "MEDIUM",
+                      "cognitiveLevel": "APPLY"
+                    }
+                    """;
+
+            mockMvc.perform(post("/api/v1/questions/blueprint-match")
+                            .header("X-Tenant-Id", TENANT_ID)
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(requestJson))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.status").value("success"))
+                    .andExpect(jsonPath("$.data[0].id").value(QUESTION_ID.toString()));
+        }
+
+        @Test
+        @DisplayName("+ve: Match blueprint via /api/v1/questions/match-blueprint - returns 200 OK")
+        void matchBlueprintStandard() throws Exception {
+            when(questionService.findBlueprintQuestions(eq("Physics"), eq("Thermodynamics"), eq("MEDIUM"), eq("APPLY"), eq(TENANT_ID)))
+                    .thenReturn(List.of(sampleQuestionResponse()));
+
+            String requestJson = """
+                    {
+                      "subject": "Physics",
+                      "topic": "Thermodynamics",
+                      "difficulty": "MEDIUM",
+                      "cognitiveLevel": "APPLY"
+                    }
+                    """;
+
+            mockMvc.perform(post("/api/v1/questions/match-blueprint")
+                            .header("X-Tenant-Id", TENANT_ID)
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(requestJson))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.status").value("success"))
+                    .andExpect(jsonPath("$.data[0].id").value(QUESTION_ID.toString()));
+        }
+
+        @Test
+        @DisplayName("+ve: Find questions by IDs via /api/v1/questions/batch-find alias - returns 200 OK")
+        void findQuestionsByIdsViaAlias() throws Exception {
+            when(questionService.findQuestionsByIds(eq(List.of(QUESTION_ID)), eq(TENANT_ID)))
+                    .thenReturn(List.of(sampleQuestionResponse()));
+
+            mockMvc.perform(post("/api/v1/questions/batch-find")
+                            .header("X-Tenant-Id", TENANT_ID)
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(List.of(QUESTION_ID))))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.status").value("success"))
+                    .andExpect(jsonPath("$.data[0].id").value(QUESTION_ID.toString()));
+        }
+    }
 }

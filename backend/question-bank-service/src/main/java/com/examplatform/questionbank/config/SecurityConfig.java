@@ -49,7 +49,7 @@ public class SecurityConfig {
             .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers("/actuator/health", "/actuator/health/**", "/actuator/info", "/actuator/prometheus").permitAll()
-                .requestMatchers("/api/v1/questions/blueprint-match", "/api/v1/questions/batch-find").permitAll()
+                .requestMatchers("/api/v1/questions/blueprint-match", "/api/v1/questions/batch-find", "/api/v1/questions/match-blueprint", "/api/v1/questions/by-ids").permitAll()
                 .anyRequest().authenticated()
             )
             .oauth2ResourceServer(oauth2 -> oauth2
