@@ -242,7 +242,7 @@ jobs:
   container-build:
     name: Container Build & Scan
     runs-on: ubuntu-latest
-    needs: [unit-test, sast, dependency-check]
+    needs: [unit-test, sast, semgrep, dependency-check]
     if: false # Disabled for now
     permissions:
       contents: read
