@@ -265,6 +265,35 @@ public class QuestionService {
     }
 
     /**
+     * Persists an AI-generated question conforming to system hierarchy,
+     * duplicate detection, envelope encryption, and audit tracking.
+     */
+    public QuestionResponse createQuestionFromGenerated(
+            CreateQuestionRequest request,
+            UUID authorId,
+            String tenantId) {
+        if (request.getState() == null || request.getState().isBlank()) {
+            request.setState("DRAFT");
+        }
+        return createQuestion(request, authorId, tenantId);
+    }
+
+    /**
+     * Persists a batch of AI-generated questions as DRAFT items.
+     */
+    public List<QuestionResponse> createQuestionsFromGeneratedBatch(
+            List<CreateQuestionRequest> requests,
+            UUID authorId,
+            String tenantId) {
+        if (requests == null || requests.isEmpty()) {
+            return List.of();
+        }
+        return requests.stream()
+                .map(r -> createQuestionFromGenerated(r, authorId, tenantId))
+                .toList();
+    }
+
+    /**
      * Retrieves aggregated metrics for Question Bank items.
      */
     @Transactional(readOnly = true)
@@ -823,7 +852,7 @@ public class QuestionService {
 
     public static boolean containsImageTagOrMarkdown(String text) {
         if (text == null || text.isBlank()) return false;
-        if (text.contains("<img") || text.contains("<svg")) return true;
+        if (text.contains("<img") || text.contains("<svg") || text.contains("data:image/")) return true;
         return text.matches(".*!\\[[^\\]]*\\]\\([^)]+\\).*");
     }
 }

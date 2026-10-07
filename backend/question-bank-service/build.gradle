@@ -76,6 +76,9 @@ dependencies {
     implementation libs.aws.s3
     implementation libs.aws.sts
 
+    // PDFBox (Sample question PDF parsing & embedded image extraction)
+    implementation libs.pdfbox
+
     // pgvector (halfvec similarity search)
     implementation libs.pgvector
 

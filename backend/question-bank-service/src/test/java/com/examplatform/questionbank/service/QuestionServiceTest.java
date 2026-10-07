@@ -552,4 +552,53 @@ class QuestionServiceTest {
                     .hasMessageContaining("usage");
         }
     }
+
+    @Nested
+    @DisplayName("createQuestionFromGenerated")
+    class CreateQuestionFromGeneratedTests {
+
+        @Test
+        @DisplayName("should create question from generated request with default DRAFT state")
+        void createFromGenerated() {
+            UUID authorId = UUID.randomUUID();
+            Question savedQuestion = Question.builder()
+                    .subjectId(1L)
+                    .topicId(10L)
+                    .subject("Mathematics")
+                    .topic("Calculus")
+                    .difficulty("MEDIUM")
+                    .cognitiveLevel("APPLY")
+                    .questionType("SINGLE_MCQ")
+                    .content("What is the derivative of x^2?")
+                    .state("DRAFT")
+                    .build();
+            try { var idField = savedQuestion.getClass().getSuperclass().getDeclaredField("id"); idField.setAccessible(true); idField.set(savedQuestion, UUID.randomUUID()); } catch (Exception ignored) {}
+            when(questionRepository.save(any(Question.class))).thenReturn(savedQuestion);
+
+            CreateQuestionRequest request = CreateQuestionRequest.builder()
+                    .subjectId(1L)
+                    .topicId(10L)
+                    .difficulty(DifficultyLevel.MEDIUM)
+                    .cognitiveLevel(CognitiveLevel.APPLY)
+                    .questionType(QuestionType.SINGLE_MCQ)
+                    .content("What is the derivative of x^2?")
+                    .build();
+
+            QuestionResponse response = questionService.createQuestionFromGenerated(request, authorId, currentTenantId);
+
+            assertThat(response).isNotNull();
+            assertThat(response.getState()).isEqualTo("DRAFT");
+            assertThat(response.getContent()).isEqualTo("What is the derivative of x^2?");
+        }
+
+        @Test
+        @DisplayName("detectHasImages should identify data URI images")
+        void detectHasDataUriImages() {
+            boolean hasImage = QuestionService.detectHasImages(
+                    "Refer to diagram: data:image/jpeg;base64,/9j/4AAQSkZJRg==",
+                    null,
+                    null);
+            assertThat(hasImage).isTrue();
+        }
+    }
 }

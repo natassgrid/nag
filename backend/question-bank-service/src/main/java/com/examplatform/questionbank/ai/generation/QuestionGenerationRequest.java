@@ -23,14 +23,17 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.util.List;
+
 /**
  * Request DTO for AI-powered question generation.
  *
- * <p>Specifies the parameters for the generation endpoint
- * {@code POST /api/v1/questions/generate}. The system selects the appropriate
- * LLM model based on the {@code subject} field via {@link ModelRouter}.
+ * <p>Specifies the parameters for the generation endpoints
+ * {@code POST /api/v1/questions/generate} and {@code POST /api/v1/questions/generate/with-samples}.
+ * Supports sample reference questions, execution mode triage, and exam alignment.
  *
  * @see ModelRouter
+ * @see ExecutionMode
  */
 @Data
 @Builder
@@ -57,7 +60,7 @@ public class QuestionGenerationRequest {
     @NotBlank(message = "Cognitive level is required")
     private String cognitiveLevel;
 
-    /** Type of question: SINGLE_MCQ, MULTI_MCQ, NUMERICAL, DESCRIPTIVE, PARAGRAPH_SET. */
+    /** Type of question: SINGLE_MCQ, MULTI_MCQ, NUMERICAL, DESCRIPTIVE, PARAGRAPH_SET, ASSERTION_REASON, MATRIX_MATCH. */
     @NotBlank(message = "Question type is required")
     private String questionType;
 
@@ -81,6 +84,30 @@ public class QuestionGenerationRequest {
     /** Whether to auto-save generated questions as DRAFT (false = preview-only mode). */
     @Builder.Default
     private boolean autoSave = false;
+
+    /** Sample question texts provided by author to guide style, depth, and structure. */
+    private List<String> sampleQuestions;
+
+    /** URL or storage location of uploaded sample question file (PDF, PNG, JPEG). */
+    private String sampleFileUrl;
+
+    /**
+     * Pipeline execution mode: AUTO (conditional triage), FAST (single lightweight model),
+     * or MULTI_AGENT (deep review collaborative committee).
+     */
+    @Builder.Default
+    private ExecutionMode executionMode = ExecutionMode.AUTO;
+
+    /** Target competitive examination code (e.g. UPSC_CSE, JEE_ADV, GATE, NEET, CBSE_12). */
+    private String targetExam;
+
+    /** Explicit flag requesting psychometric critic committee review. */
+    @Builder.Default
+    private Boolean requireCriticReview = false;
+
+    /** Generation quality rubric: "STANDARD", "EXAM_READY". */
+    @Builder.Default
+    private String generationQuality = "STANDARD";
 
     @Data
     @Builder
