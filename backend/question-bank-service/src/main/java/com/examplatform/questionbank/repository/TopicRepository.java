@@ -31,6 +31,8 @@ public interface TopicRepository extends JpaRepository<Topic, Long> {
 
     Optional<Topic> findByIdAndTenantId(Long id, String tenantId);
 
+    Optional<Topic> findByIdAndSubjectIdAndTenantId(Long id, Long subjectId, String tenantId);
+
     List<Topic> findBySubjectIdAndTenantId(Long subjectId, String tenantId);
 
     Optional<Topic> findByNameAndSubjectIdAndTenantId(String name, Long subjectId, String tenantId);

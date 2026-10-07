@@ -681,8 +681,16 @@ public class SpringAiGenerationService implements QuestionGenerationService {
 
     private UUID persistAsDraft(RawGeneratedQuestion raw, QuestionGenerationRequest request, String tenantId, UUID authorId) {
         try {
-            SubjectTopicService.HierarchyIds ids = subjectTopicService.resolveOrCreateByName(
-                    request.getSubject(), request.getTopic(), request.getSubtopic(), tenantId);
+            SubjectTopicService.HierarchyIds ids;
+            if (request.getSubjectId() != null && request.getTopicId() != null) {
+                // Id-based path: validate that the ids exist; never create new nodes
+                ids = subjectTopicService.resolveByIds(
+                        request.getSubjectId(), request.getTopicId(), request.getSubtopicId(), tenantId);
+            } else {
+                // Name-based path: legacy resolve-or-create (used when ids are absent, e.g. old clients)
+                ids = subjectTopicService.resolveOrCreateByName(
+                        request.getSubject(), request.getTopic(), request.getSubtopic(), tenantId);
+            }
             Question question = Question.builder()
                     .subjectId(ids.subjectId())
                     .topicId(ids.topicId())
