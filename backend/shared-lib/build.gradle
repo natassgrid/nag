@@ -73,7 +73,7 @@ dependencies {
     api libs.grpc.netty.shaded
     api libs.protobuf.java
     api 'javax.annotation:javax.annotation-api:1.3.2'
-    compileOnly 'jakarta.annotation:jakarta.annotation-api:2.1.1'
+    compileOnly 'jakarta.annotation:jakarta.annotation-api:3.0.0'
     api 'jakarta.servlet:jakarta.servlet-api'
 
     // Hibernate (JPA provider — needed at compile time for @MappedSuperclass processing)
