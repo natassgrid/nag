@@ -45,6 +45,25 @@
       </div>
     </div>
 
+    <!-- Raw Text Input / Description (Pre-Agent Vector Search & Deduplication) -->
+    <div>
+      <div class="flex items-center justify-between mb-1">
+        <label class="block font-bold uppercase text-slate-700">Raw Text Input / Question Description</label>
+        <span class="text-[10px] font-semibold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-md border border-indigo-100 flex items-center gap-1">
+          <mat-icon class="!text-xs !w-3.5 !h-3.5">fingerprint</mat-icon> Vector Search &amp; RAG Top-N Deduplication
+        </span>
+      </div>
+      <textarea
+        rows="3"
+        formControlName="rawTextInput"
+        placeholder="Enter specific question context, instructions, or raw problem text. Combined with Subject + Topic + Subtopic to perform vector search against existing questions and avoid duplicates before generation..."
+        class="w-full p-2.5 bg-white border border-slate-300 rounded-xl font-medium focus:ring-2 focus:ring-indigo-500 text-xs resize-y"
+      ></textarea>
+      <div class="text-[10px] text-slate-400 mt-0.5">
+        Composite query: Subject + Topic + (optional Subtopic) + Description used for RAG vector retrieval prior to agent synthesis.
+      </div>
+    </div>
+
     <!-- Difficulty & Question Type -->
     <div class="grid grid-cols-2 gap-3">
       <div>
