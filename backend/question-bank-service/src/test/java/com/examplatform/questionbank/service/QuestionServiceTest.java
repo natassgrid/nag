@@ -35,6 +35,9 @@ import com.examplatform.questionbank.repository.SubtopicRepository;
 import com.examplatform.questionbank.repository.TopicRepository;
 import com.examplatform.questionbank.translation.domain.Translation;
 import com.examplatform.questionbank.translation.repository.TranslationRepository;
+import com.examplatform.questionbank.repository.QuestionVersionRepository;
+import com.examplatform.questionbank.domain.QuestionVersion;
+import jakarta.persistence.EntityNotFoundException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -95,6 +98,9 @@ class QuestionServiceTest {
 
     @Mock
     private TranslationRepository translationRepository;
+
+    @Mock
+    private QuestionVersionRepository questionVersionRepository;
 
     @InjectMocks
     private QuestionService questionService;
@@ -460,6 +466,90 @@ class QuestionServiceTest {
 
             Specification<Question> nullSpec = questionService.searchLike("   ");
             assertThat(nullSpec).isNull();
+        }
+    }
+
+    @Nested
+    @DisplayName("deleteQuestion")
+    class DeleteQuestionTests {
+
+        @Test
+        @DisplayName("should delete draft question and clean up versions and translations")
+        void deleteDraftQuestionSuccessfully() {
+            UUID qId = UUID.randomUUID();
+            UUID authorId = UUID.randomUUID();
+            Question question = Question.builder()
+                    .subject("Physics")
+                    .topic("Mechanics")
+                    .difficulty("MEDIUM")
+                    .questionType("SINGLE_MCQ")
+                    .state("DRAFT")
+                    .authorId(authorId)
+                    .usageCount(0)
+                    .build();
+            question.setTenantId("tenant-abc");
+
+            when(questionRepository.findById(qId)).thenReturn(Optional.of(question));
+            when(translationRepository.findByQuestionIdAndTenantId(qId, "tenant-abc")).thenReturn(List.of(
+                    Translation.builder().questionId(qId).languageCode("hi").status(Translation.TranslationStatus.DRAFT).build()
+            ));
+            when(questionVersionRepository.findByQuestionIdOrderByVersionNumberDesc(qId)).thenReturn(List.of(
+                    QuestionVersion.builder().questionId(qId).versionNumber(1).build()
+            ));
+
+            questionService.deleteQuestion(qId, authorId, "tenant-abc");
+
+            verify(translationRepository).deleteAll(any());
+            verify(questionVersionRepository).deleteAll(any());
+            verify(questionRepository).delete(question);
+        }
+
+        @Test
+        @DisplayName("should throw EntityNotFoundException if question does not exist")
+        void deleteQuestionNotFound() {
+            UUID qId = UUID.randomUUID();
+            when(questionRepository.findById(qId)).thenReturn(Optional.empty());
+
+            assertThatThrownBy(() -> questionService.deleteQuestion(qId, UUID.randomUUID(), "tenant-abc"))
+                    .isInstanceOf(EntityNotFoundException.class);
+        }
+
+        @Test
+        @DisplayName("should throw EntityNotFoundException if tenant does not match")
+        void deleteQuestionTenantMismatch() {
+            UUID qId = UUID.randomUUID();
+            Question question = Question.builder().state("DRAFT").usageCount(0).build();
+            question.setTenantId("other-tenant");
+            when(questionRepository.findById(qId)).thenReturn(Optional.of(question));
+
+            assertThatThrownBy(() -> questionService.deleteQuestion(qId, UUID.randomUUID(), "tenant-abc"))
+                    .isInstanceOf(EntityNotFoundException.class);
+        }
+
+        @Test
+        @DisplayName("should throw IllegalStateException if question is in PUBLISHED state")
+        void deletePublishedQuestionFails() {
+            UUID qId = UUID.randomUUID();
+            Question question = Question.builder().state("PUBLISHED").usageCount(0).build();
+            question.setTenantId("tenant-abc");
+            when(questionRepository.findById(qId)).thenReturn(Optional.of(question));
+
+            assertThatThrownBy(() -> questionService.deleteQuestion(qId, UUID.randomUUID(), "tenant-abc"))
+                    .isInstanceOf(IllegalStateException.class)
+                    .hasMessageContaining("PUBLISHED");
+        }
+
+        @Test
+        @DisplayName("should throw IllegalStateException if question has active exam usage")
+        void deleteUsedQuestionFails() {
+            UUID qId = UUID.randomUUID();
+            Question question = Question.builder().state("DRAFT").usageCount(3).build();
+            question.setTenantId("tenant-abc");
+            when(questionRepository.findById(qId)).thenReturn(Optional.of(question));
+
+            assertThatThrownBy(() -> questionService.deleteQuestion(qId, UUID.randomUUID(), "tenant-abc"))
+                    .isInstanceOf(IllegalStateException.class)
+                    .hasMessageContaining("usage");
         }
     }
 }

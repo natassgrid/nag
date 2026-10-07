@@ -51,6 +51,8 @@ import java.util.Map;
 import java.util.UUID;
 
 import static org.mockito.ArgumentMatchers.*;
+import static org.mockito.Mockito.doNothing;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
@@ -556,6 +558,81 @@ class QuestionControllerIntegrationTest extends AbstractIntegrationTest {
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.status").value("success"))
                     .andExpect(jsonPath("$.data[0].id").value(QUESTION_ID.toString()));
+        }
+    }
+
+    // =========================================================================
+    // 8. DELETE /api/v1/questions/{id} (Delete Question)
+    // =========================================================================
+    @Nested
+    @DisplayName("DELETE /api/v1/questions/{id}")
+    class DeleteQuestionEndpoint {
+
+        @Test
+        @DisplayName("+ve: QUESTION_AUTHOR can delete question - returns 200 OK")
+        void authorCanDeleteQuestion() throws Exception {
+            doNothing().when(questionService).deleteQuestion(eq(QUESTION_ID), eq(AUTHOR_ID), eq(TENANT_ID));
+
+            mockMvc.perform(delete("/api/v1/questions/{id}", QUESTION_ID)
+                            .header("X-Tenant-Id", TENANT_ID)
+                            .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_QUESTION_AUTHOR"))
+                                    .jwt(j -> j.subject(AUTHOR_ID.toString()))))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.status").value("success"))
+                    .andExpect(jsonPath("$.message").value("Question deleted successfully"));
+        }
+
+        @Test
+        @DisplayName("+ve: ADMIN can delete question - returns 200 OK")
+        void adminCanDeleteQuestion() throws Exception {
+            UUID adminId = UUID.randomUUID();
+            doNothing().when(questionService).deleteQuestion(eq(QUESTION_ID), eq(adminId), eq(TENANT_ID));
+
+            mockMvc.perform(delete("/api/v1/questions/{id}", QUESTION_ID)
+                            .header("X-Tenant-Id", TENANT_ID)
+                            .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_ADMIN"))
+                                    .jwt(j -> j.subject(adminId.toString()))))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.status").value("success"))
+                    .andExpect(jsonPath("$.message").value("Question deleted successfully"));
+        }
+
+        @Test
+        @DisplayName("-ve: CANDIDATE forbidden from deleting question - returns 403 Forbidden")
+        void candidateCannotDeleteQuestion() throws Exception {
+            mockMvc.perform(delete("/api/v1/questions/{id}", QUESTION_ID)
+                            .header("X-Tenant-Id", TENANT_ID)
+                            .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_CANDIDATE"))
+                                    .jwt(j -> j.subject(AUTHOR_ID.toString()))))
+                    .andExpect(status().isForbidden());
+        }
+
+        @Test
+        @DisplayName("-ve: Question not found - returns 404 Not Found")
+        void questionNotFoundReturns404() throws Exception {
+            doThrow(new EntityNotFoundException("Question not found: " + QUESTION_ID))
+                    .when(questionService).deleteQuestion(eq(QUESTION_ID), eq(AUTHOR_ID), eq(TENANT_ID));
+
+            mockMvc.perform(delete("/api/v1/questions/{id}", QUESTION_ID)
+                            .header("X-Tenant-Id", TENANT_ID)
+                            .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_QUESTION_AUTHOR"))
+                                    .jwt(j -> j.subject(AUTHOR_ID.toString()))))
+                    .andExpect(status().isNotFound())
+                    .andExpect(jsonPath("$.status").value("error"));
+        }
+
+        @Test
+        @DisplayName("-ve: Question in published state cannot be deleted - returns 409 Conflict")
+        void publishedQuestionReturnsConflict() throws Exception {
+            doThrow(new IllegalStateException("Cannot delete question in PUBLISHED state"))
+                    .when(questionService).deleteQuestion(eq(QUESTION_ID), eq(AUTHOR_ID), eq(TENANT_ID));
+
+            mockMvc.perform(delete("/api/v1/questions/{id}", QUESTION_ID)
+                            .header("X-Tenant-Id", TENANT_ID)
+                            .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_QUESTION_AUTHOR"))
+                                    .jwt(j -> j.subject(AUTHOR_ID.toString()))))
+                    .andExpect(status().isConflict())
+                    .andExpect(jsonPath("$.status").value("error"));
         }
     }
 }
