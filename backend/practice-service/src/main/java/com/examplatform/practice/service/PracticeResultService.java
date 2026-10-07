@@ -64,6 +64,7 @@ public class PracticeResultService {
         Map<UUID, AnswerKeyDto> answerKeyMap = questionBankClient.getAnswerKeys(orderedQuestionIds);
 
         List<QuestionResultDto> qResults = new ArrayList<>();
+        int flaggedCount = 0;
         for (UUID qId : orderedQuestionIds) {
             PracticeResponse r = latestByQuestion.get(qId);
             AnswerKeyDto ak = answerKeyMap.get(qId);
@@ -82,6 +83,9 @@ public class PracticeResultService {
                 marks = r.getMarksAwarded();
                 timeSpent = r.getTimeSpentMs();
                 markedForReview = r.isMarkedForReview();
+                if (markedForReview) {
+                    flaggedCount++;
+                }
             }
 
             String correctAns = ak != null ? ak.answerKey() : null;
@@ -90,6 +94,7 @@ public class PracticeResultService {
             String explanation = ak != null ? ak.explanation() : null;
             String topic = ak != null ? ak.topicName() : null;
             String subject = ak != null ? ak.subject() : null;
+            String questionType = ak != null ? ak.questionType() : null;
 
             qResults.add(new QuestionResultDto(
                     qId,
@@ -103,7 +108,8 @@ public class PracticeResultService {
                     optionsJson,
                     explanation,
                     topic,
-                    subject
+                    subject,
+                    questionType
             ));
         }
 
@@ -124,7 +130,8 @@ public class PracticeResultService {
                 session.getTimingBreakdown(),
                 qResults,
                 practiceSetName,
-                session.getMode()
+                session.getMode(),
+                flaggedCount
         );
     }
 

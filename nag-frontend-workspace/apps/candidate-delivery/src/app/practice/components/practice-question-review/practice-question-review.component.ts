@@ -5,7 +5,7 @@ import { MatButtonModule } from '@angular/material/button';
 import { MathRendererComponent } from '@nag-frontend-workspace/shared-ui-components';
 import { QuestionResult } from '../../models';
 
-export type QuestionReviewFilter = 'ALL' | 'CORRECT' | 'INCORRECT' | 'SKIPPED';
+export type QuestionReviewFilter = 'ALL' | 'CORRECT' | 'INCORRECT' | 'SKIPPED' | 'FLAGGED';
 
 export interface ParsedOption {
   id: string;
@@ -32,6 +32,9 @@ export class PracticeQuestionReviewComponent {
   readonly skippedCount = computed(
     () => this.questionResults().filter((q) => !q.candidateAnswer).length
   );
+  readonly flaggedCount = computed(
+    () => this.questionResults().filter((q) => q.markedForReview).length
+  );
 
   readonly filteredResults = computed(() => {
     const list = this.questionResults();
@@ -43,6 +46,8 @@ export class PracticeQuestionReviewComponent {
         return list.filter((q) => !q.correct && q.candidateAnswer);
       case 'SKIPPED':
         return list.filter((q) => !q.candidateAnswer);
+      case 'FLAGGED':
+        return list.filter((q) => q.markedForReview);
       case 'ALL':
       default:
         return list;
@@ -69,23 +74,59 @@ export class PracticeQuestionReviewComponent {
     return [];
   }
 
+  parseOptionIds(value?: string | null): Set<string> {
+    if (!value) return new Set();
+    const trimmed = value.trim();
+    const set = new Set<string>();
+    if (trimmed.startsWith('[') && trimmed.endsWith(']')) {
+      try {
+        const parsed = JSON.parse(trimmed);
+        if (Array.isArray(parsed)) {
+          parsed.forEach((item) => set.add(String(item).trim().toLowerCase()));
+          return set;
+        }
+      } catch (e) {
+        // Fallback below
+      }
+      trimmed.slice(1, -1).split(',').forEach((p) => {
+        const clean = p.replace(/["']/g, '').trim().toLowerCase();
+        if (clean) set.add(clean);
+      });
+      return set;
+    }
+    for (const part of trimmed.split(',')) {
+      const clean = part.replace(/["']/g, '').trim().toLowerCase();
+      if (clean) set.add(clean);
+    }
+    return set;
+  }
+
   isOptionSelected(qr: QuestionResult, optId: string): boolean {
     if (!qr.candidateAnswer) return false;
-    const ans = qr.candidateAnswer.trim();
-    if (ans === optId) return true;
-    if (ans.startsWith('[') && ans.endsWith(']')) {
-      return ans.includes(optId);
-    }
-    return false;
+    const selectedSet = this.parseOptionIds(qr.candidateAnswer);
+    return selectedSet.has(optId.trim().toLowerCase());
   }
 
   isOptionCorrect(qr: QuestionResult, optId: string): boolean {
     if (!qr.correctAnswer) return false;
-    const correct = qr.correctAnswer.trim();
-    if (correct === optId) return true;
-    if (correct.startsWith('[') && correct.endsWith(']')) {
-      return correct.includes(optId);
-    }
-    return false;
+    const correctSet = this.parseOptionIds(qr.correctAnswer);
+    return correctSet.has(optId.trim().toLowerCase());
+  }
+
+  getQuestionTypeLabel(qr: QuestionResult): string {
+    const t = (qr.questionType || '').toUpperCase().trim();
+    if (t === 'MULTI_MCQ' || t === 'MCQ_MULTI') return 'Multiple Choice (Multi-Select)';
+    if (t === 'NUMERICAL' || t === 'NUMERIC') return 'Numerical Value';
+    if (t === 'SUBJECTIVE' || t === 'DESCRIPTIVE') return 'Subjective / Descriptive';
+    if (t === 'SINGLE_MCQ' || t === 'MCQ_SINGLE') return 'Multiple Choice (Single-Select)';
+    if (this.parseOptions(qr.optionsJson).length > 0) return 'Multiple Choice';
+    if (qr.candidateAnswer || qr.correctAnswer) return 'Numerical / Direct Value';
+    return 'Question';
+  }
+
+  isNumericalOrDirect(qr: QuestionResult): boolean {
+    const t = (qr.questionType || '').toUpperCase().trim();
+    if (t === 'NUMERICAL' || t === 'NUMERIC' || t === 'SUBJECTIVE' || t === 'DESCRIPTIVE') return true;
+    return this.parseOptions(qr.optionsJson).length === 0;
   }
 }

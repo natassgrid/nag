@@ -35,6 +35,7 @@ export interface QuestionResult {
   explanation?: string | null;
   topic?: string | null;
   subject?: string | null;
+  questionType?: string | null;
 }
 
 export interface PracticeResult {
@@ -51,6 +52,7 @@ export interface PracticeResult {
   questionResults: QuestionResult[];
   practiceSetName?: string | null;
   mode?: string | null;
+  flaggedCount?: number;
 }
 
 export interface PracticeHistoryItem {

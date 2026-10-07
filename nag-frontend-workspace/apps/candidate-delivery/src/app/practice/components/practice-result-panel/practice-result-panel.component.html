@@ -75,7 +75,17 @@
     <app-practice-result-summary [result]="result()!"></app-practice-result-summary>
 
     <!-- Detailed Question-by-Question Review -->
-    <app-practice-question-review [questionResults]="result()!.questionResults"></app-practice-question-review>
+    @if (result()!.questionResults && result()!.questionResults.length > 0) {
+      <app-practice-question-review [questionResults]="result()!.questionResults"></app-practice-question-review>
+    } @else {
+      <div class="bg-white rounded-2xl p-10 border border-slate-200/80 shadow-xs text-center space-y-2">
+        <mat-icon class="!text-3xl text-slate-400">help_outline</mat-icon>
+        <h3 class="text-base font-bold text-slate-900">No Question Review Available</h3>
+        <p class="text-xs text-slate-500 max-w-md mx-auto">
+          No question-by-question responses were recorded for this session. You can review the scorecard summary above.
+        </p>
+      </div>
+    }
 
     <!-- Bottom Actions -->
     <div class="bg-white rounded-2xl p-5 border border-slate-200/80 shadow-xs flex flex-col sm:flex-row items-center justify-between gap-4">

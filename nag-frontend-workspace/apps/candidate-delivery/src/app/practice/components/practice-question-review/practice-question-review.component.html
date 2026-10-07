@@ -46,6 +46,15 @@
       >
         Skipped ({{ skippedCount() }})
       </button>
+      <button
+        (click)="setFilter('FLAGGED')"
+        [class.!bg-white]="activeFilter() === 'FLAGGED'"
+        [class.!text-violet-600]="activeFilter() === 'FLAGGED'"
+        [class.shadow-2xs]="activeFilter() === 'FLAGGED'"
+        class="px-3 py-1.5 rounded-lg transition-all cursor-pointer whitespace-nowrap"
+      >
+        Flagged ({{ flaggedCount() }})
+      </button>
     </div>
   </div>
 
@@ -66,15 +75,24 @@
           [class.border-slate-200]="!qr.candidateAnswer"
           [class.bg-slate-50/40]="!qr.candidateAnswer"
         >
-          <!-- Top Row: Question Index, Topic Chip, Result Badge -->
+          <!-- Top Row: Question Index, Type Chip, Topic Chip, Flag Badge, Result Badge -->
           <div class="flex flex-wrap items-center justify-between gap-3">
             <div class="flex flex-wrap items-center gap-2">
               <span class="inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-black bg-slate-900 text-white font-mono">
                 Q{{ $index + 1 }}
               </span>
+              <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-slate-700 border border-slate-200">
+                {{ getQuestionTypeLabel(qr) }}
+              </span>
               @if (qr.subject || qr.topic) {
                 <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-indigo-50 text-indigo-700 border border-indigo-100">
                   {{ qr.subject || qr.topic }}
+                </span>
+              }
+              @if (qr.markedForReview) {
+                <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-amber-100 text-amber-800 border border-amber-200">
+                  <mat-icon class="!text-xs !w-3.5 !h-3.5 leading-none text-amber-600">bookmark</mat-icon>
+                  Flagged
                 </span>
               }
               @if (qr.timeSpentMs > 0) {
@@ -111,7 +129,7 @@
             <nag-math-renderer [content]="qr.content || 'Practice Question'" />
           </div>
 
-          <!-- Options Grid / List -->
+          <!-- Options Grid / List for MCQ -->
           @if (parseOptions(qr.optionsJson).length > 0) {
             <div class="space-y-2 pt-1">
               @for (opt of parseOptions(qr.optionsJson); track opt.id) {
@@ -169,16 +187,53 @@
                 </div>
               }
             </div>
-          } @else if (qr.candidateAnswer || qr.correctAnswer) {
-            <!-- Fallback text display if optionsJson is not an array -->
-            <div class="flex flex-wrap gap-4 pt-1 text-xs">
-              <div class="p-3 bg-white rounded-xl border border-slate-200">
-                <span class="text-slate-400 block font-semibold uppercase text-[10px]">Your Answer</span>
-                <span class="text-slate-900 font-bold font-mono">{{ qr.candidateAnswer || 'Not Answered' }}</span>
+          } @else if (isNumericalOrDirect(qr)) {
+            <!-- Numerical / Value Comparison Box -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+              <div
+                class="p-4 rounded-xl border"
+                [class.bg-emerald-50]="qr.correct"
+                [class.border-emerald-300]="qr.correct"
+                [class.bg-rose-50]="!qr.correct && qr.candidateAnswer"
+                [class.border-rose-300]="!qr.correct && qr.candidateAnswer"
+                [class.bg-slate-50]="!qr.candidateAnswer"
+                [class.border-slate-200]="!qr.candidateAnswer"
+              >
+                <div class="flex items-center justify-between mb-1">
+                  <span class="text-[10px] uppercase font-bold tracking-wider text-slate-500">Your Response</span>
+                  @if (qr.correct) {
+                    <span class="text-[11px] font-bold text-emerald-700 flex items-center gap-1">
+                      <mat-icon class="!text-xs !w-3.5 !h-3.5 leading-none">check_circle</mat-icon> Correct
+                    </span>
+                  } @else if (qr.candidateAnswer) {
+                    <span class="text-[11px] font-bold text-rose-700 flex items-center gap-1">
+                      <mat-icon class="!text-xs !w-3.5 !h-3.5 leading-none">cancel</mat-icon> Incorrect
+                    </span>
+                  } @else {
+                    <span class="text-[11px] font-bold text-slate-500">Skipped</span>
+                  }
+                </div>
+                <div class="text-base font-bold text-slate-900 font-mono">
+                  @if (qr.candidateAnswer) {
+                    <nag-math-renderer [content]="qr.candidateAnswer" [inline]="true" />
+                  } @else {
+                    <span class="text-slate-400 font-sans italic text-sm">Not Answered</span>
+                  }
+                </div>
               </div>
-              <div class="p-3 bg-emerald-50 rounded-xl border border-emerald-200">
-                <span class="text-emerald-600 block font-semibold uppercase text-[10px]">Correct Answer</span>
-                <span class="text-emerald-900 font-bold font-mono">{{ qr.correctAnswer || 'N/A' }}</span>
+
+              <div class="p-4 rounded-xl border border-emerald-300 bg-emerald-50/80">
+                <div class="flex items-center justify-between mb-1">
+                  <span class="text-[10px] uppercase font-bold tracking-wider text-emerald-700">Verified Answer Key</span>
+                  <mat-icon class="!text-sm !w-4 !h-4 text-emerald-600">verified</mat-icon>
+                </div>
+                <div class="text-base font-bold text-emerald-950 font-mono">
+                  @if (qr.correctAnswer) {
+                    <nag-math-renderer [content]="qr.correctAnswer" [inline]="true" />
+                  } @else {
+                    <span class="text-slate-400 font-sans italic text-sm">N/A</span>
+                  }
+                </div>
               </div>
             </div>
           }

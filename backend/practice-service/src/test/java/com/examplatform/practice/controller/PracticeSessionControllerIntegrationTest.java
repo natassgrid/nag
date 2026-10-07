@@ -116,7 +116,8 @@ class PracticeSessionControllerIntegrationTest extends AbstractIntegrationTest {
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(objectMapper.writeValueAsString(request)))
                     .andExpect(status().isCreated())
-                    .andExpect(jsonPath("$.id").isNotEmpty())
+                    .andExpect(jsonPath("$.id").isNotEmpty()
+                    )
                     .andExpect(jsonPath("$.practiceSetId").value(practiceSet.getId().toString()))
                     .andExpect(jsonPath("$.mode").value("TIMED"))
                     .andExpect(jsonPath("$.status").value("IN_PROGRESS"));
@@ -457,6 +458,169 @@ class PracticeSessionControllerIntegrationTest extends AbstractIntegrationTest {
                             .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_CANDIDATE"))
                                     .jwt(j -> j.subject(CANDIDATE_ID.toString()).claim("tenant_id", TENANT_ID))))
                     .andExpect(status().isConflict());
+        }
+
+        @Test
+        @DisplayName("+ve: Multi-attempt tracking records timestamps and distinct scorecards across multiple attempts")
+        void multiAttemptHandlingAndTimestampRecording() throws Exception {
+            if (!testcontainersAvailable) return;
+
+            AnswerKeyDto ak1 = new AnswerKeyDto(
+                    question1, "opt-A", "MCQ", "t-1", "Algorithms", "EASY", 2,
+                    "Question 1", "[{\"id\":\"opt-A\",\"text\":\"A\"}]", "Exp", "CS"
+            );
+            AnswerKeyDto ak2 = new AnswerKeyDto(
+                    question2, "opt-B", "MCQ", "t-2", "Data Structures", "MEDIUM", 2,
+                    "Question 2", "[{\"id\":\"opt-B\",\"text\":\"B\"}]", "Exp", "CS"
+            );
+            when(questionBankClient.getAnswerKeys(any())).thenReturn(Map.of(question1, ak1, question2, ak2));
+
+            // Attempt 1: Start, answer Q1 correctly, Q2 skipped, submit
+            StartSessionRequest start1 = new StartSessionRequest(practiceSet.getId(), "TIMED");
+            MvcResult res1 = mockMvc.perform(post("/api/practice/sessions")
+                            .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_CANDIDATE"))
+                                    .jwt(j -> j.subject(CANDIDATE_ID.toString()).claim("tenant_id", TENANT_ID)))
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(start1)))
+                    .andExpect(status().isCreated())
+                    .andReturn();
+            UUID session1Id = UUID.fromString(objectMapper.readTree(res1.getResponse().getContentAsString()).get("id").asText());
+
+            SaveResponseRequest respA1 = new SaveResponseRequest(question1, "[\"opt-A\"]", null, 8000L, false);
+            mockMvc.perform(put("/api/practice/sessions/{sessionId}/response", session1Id)
+                            .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_CANDIDATE"))
+                                    .jwt(j -> j.subject(CANDIDATE_ID.toString()).claim("tenant_id", TENANT_ID)))
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(respA1)))
+                    .andExpect(status().isNoContent());
+
+            mockMvc.perform(post("/api/practice/sessions/{sessionId}/submit", session1Id)
+                            .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_CANDIDATE"))
+                                    .jwt(j -> j.subject(CANDIDATE_ID.toString()).claim("tenant_id", TENANT_ID))))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.correctCount").value(1))
+                    .andExpect(jsonPath("$.skippedCount").value(1));
+
+            // Attempt 2: Start new attempt for same practice set, answer both Q1 and Q2 correctly
+            StartSessionRequest start2 = new StartSessionRequest(practiceSet.getId(), "TIMED");
+            MvcResult res2 = mockMvc.perform(post("/api/practice/sessions")
+                            .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_CANDIDATE"))
+                                    .jwt(j -> j.subject(CANDIDATE_ID.toString()).claim("tenant_id", TENANT_ID)))
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(start2)))
+                    .andExpect(status().isCreated())
+                    .andReturn();
+            UUID session2Id = UUID.fromString(objectMapper.readTree(res2.getResponse().getContentAsString()).get("id").asText());
+
+            SaveResponseRequest respA2_1 = new SaveResponseRequest(question1, "[\"opt-A\"]", null, 6000L, false);
+            SaveResponseRequest respA2_2 = new SaveResponseRequest(question2, "[\"opt-B\"]", null, 9000L, false);
+            mockMvc.perform(put("/api/practice/sessions/{sessionId}/response", session2Id)
+                            .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_CANDIDATE"))
+                                    .jwt(j -> j.subject(CANDIDATE_ID.toString()).claim("tenant_id", TENANT_ID)))
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(respA2_1)))
+                    .andExpect(status().isNoContent());
+            mockMvc.perform(put("/api/practice/sessions/{sessionId}/response", session2Id)
+                            .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_CANDIDATE"))
+                                    .jwt(j -> j.subject(CANDIDATE_ID.toString()).claim("tenant_id", TENANT_ID)))
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(respA2_2)))
+                    .andExpect(status().isNoContent());
+
+            mockMvc.perform(post("/api/practice/sessions/{sessionId}/submit", session2Id)
+                            .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_CANDIDATE"))
+                                    .jwt(j -> j.subject(CANDIDATE_ID.toString()).claim("tenant_id", TENANT_ID))))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.correctCount").value(2))
+                    .andExpect(jsonPath("$.accuracyPercent").value(100.0));
+
+            // Verify History lists both attempts in descending order with timestamps
+            mockMvc.perform(get("/api/practice/history")
+                            .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_CANDIDATE"))
+                                    .jwt(j -> j.subject(CANDIDATE_ID.toString()).claim("tenant_id", TENANT_ID)))
+                            .param("page", "0")
+                            .param("size", "10"))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.content.length()").value(2))
+                    .andExpect(jsonPath("$.content[0].sessionId").value(session2Id.toString()))
+                    .andExpect(jsonPath("$.content[0].accuracyPercent").value(100.0))
+                    .andExpect(jsonPath("$.content[0].submittedAt").isNotEmpty())
+                    .andExpect(jsonPath("$.content[1].sessionId").value(session1Id.toString()))
+                    .andExpect(jsonPath("$.content[1].accuracyPercent").value(50.0))
+                    .andExpect(jsonPath("$.content[1].submittedAt").isNotEmpty());
+        }
+
+        @Test
+        @DisplayName("+ve: Evaluation edge cases cover numerical tolerance, multi-MCQ set match, and flagged breakdown")
+        void evaluationEdgeCasesAndFlaggedStatusBreakdown() throws Exception {
+            if (!testcontainersAvailable) return;
+
+            UUID numQ = UUID.randomUUID();
+            UUID multiQ = UUID.randomUUID();
+
+            PracticeSet advancedSet = PracticeSet.builder()
+                    .name("STEM Advanced Practice")
+                    .description("Advanced numerical and multi-select practice")
+                    .durationMinutes(30)
+                    .subjectSlug("stem")
+                    .source("MANUAL")
+                    .published(true)
+                    .totalQuestions(2)
+                    .questionIds("[\"" + numQ + "\",\"" + multiQ + "\"]")
+                    .createdBy(CREATOR_ID)
+                    .build();
+            advancedSet.setTenantId(TENANT_ID);
+            advancedSet = practiceSetRepository.save(advancedSet);
+
+            StartSessionRequest start = new StartSessionRequest(advancedSet.getId(), "TIMED");
+            MvcResult res = mockMvc.perform(post("/api/practice/sessions")
+                            .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_CANDIDATE"))
+                                    .jwt(j -> j.subject(CANDIDATE_ID.toString()).claim("tenant_id", TENANT_ID)))
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(start)))
+                    .andExpect(status().isCreated())
+                    .andReturn();
+            UUID sessionId = UUID.fromString(objectMapper.readTree(res.getResponse().getContentAsString()).get("id").asText());
+
+            // Save numerical response with decimal equivalent (3.140 for key 3.14) and flag for review
+            SaveResponseRequest respNum = new SaveResponseRequest(numQ, null, "3.140", 15000L, true);
+            mockMvc.perform(put("/api/practice/sessions/{sessionId}/response", sessionId)
+                            .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_CANDIDATE"))
+                                    .jwt(j -> j.subject(CANDIDATE_ID.toString()).claim("tenant_id", TENANT_ID)))
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(respNum)))
+                    .andExpect(status().isNoContent());
+
+            // Save multi-MCQ response with order variation (["opt-B", "opt-A"] for key ["opt-A", "opt-B"])
+            SaveResponseRequest respMulti = new SaveResponseRequest(multiQ, "[\"opt-B\", \"opt-A\"]", null, 22000L, false);
+            mockMvc.perform(put("/api/practice/sessions/{sessionId}/response", sessionId)
+                            .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_CANDIDATE"))
+                                    .jwt(j -> j.subject(CANDIDATE_ID.toString()).claim("tenant_id", TENANT_ID)))
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(respMulti)))
+                    .andExpect(status().isNoContent());
+
+            AnswerKeyDto akNum = new AnswerKeyDto(
+                    numQ, "3.14", "NUMERICAL", "t-math", "Calculus", "MEDIUM", 3,
+                    "Approximate Pi to 2 decimal places", null, "Pi is approx 3.14", "Math"
+            );
+            AnswerKeyDto akMulti = new AnswerKeyDto(
+                    multiQ, "[\"opt-A\", \"opt-B\"]", "MULTI_MCQ", "t-algo", "Algorithms", "HARD", 4,
+                    "Select all comparison-based sorting algorithms",
+                    "[{\"id\":\"opt-A\",\"text\":\"QuickSort\"},{\"id\":\"opt-B\",\"text\":\"MergeSort\"},{\"id\":\"opt-C\",\"text\":\"RadixSort\"}]",
+                    "QuickSort and MergeSort are comparison-based.", "CS"
+            );
+            when(questionBankClient.getAnswerKeys(any())).thenReturn(Map.of(numQ, akNum, multiQ, akMulti));
+
+            // Submit session and inspect result
+            mockMvc.perform(post("/api/practice/sessions/{sessionId}/submit", sessionId)
+                            .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_CANDIDATE"))
+                                    .jwt(j -> j.subject(CANDIDATE_ID.toString()).claim("tenant_id", TENANT_ID))))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.correctCount").value(2))
+                    .andExpect(jsonPath("$.obtainedMarks").value(7)) // 3 + 4 = 7
+                    .andExpect(jsonPath("$.flaggedCount").value(1))
+                    .andExpect(jsonPath("$.questionResults[0].markedForReview").value(true));
         }
     }
 }
