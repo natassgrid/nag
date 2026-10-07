@@ -32,6 +32,7 @@ import com.examplatform.questionbank.exception.SimilarQuestionException;
 import com.examplatform.questionbank.repository.QuestionRepository;
 import com.examplatform.questionbank.repository.SimilarityResult;
 import com.examplatform.questionbank.translation.repository.TranslationRepository;
+import com.examplatform.questionbank.repository.QuestionVersionRepository;
 import com.examplatform.shared.messaging.EventPublisher;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -88,6 +89,9 @@ class DuplicateDetectionIntegrationTest {
     @Mock
     private TranslationRepository translationRepository;
 
+    @Mock
+    private QuestionVersionRepository questionVersionRepository;
+
     // Real SimilarityDetectionService with mocked dependencies
     private SimilarityDetectionService similarityDetectionService;
 
@@ -118,7 +122,8 @@ class DuplicateDetectionIntegrationTest {
                 similarityDetectionService,
                 embeddingService,
                 eventPublisher,
-                translationRepository
+                translationRepository,
+                questionVersionRepository
         );
 
         // Set encryptionEnabled = false to avoid Vault dependency in tests

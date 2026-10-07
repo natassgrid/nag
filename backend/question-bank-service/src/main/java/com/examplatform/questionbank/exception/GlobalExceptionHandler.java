@@ -84,6 +84,17 @@ public class GlobalExceptionHandler {
     }
 
     /**
+     * Handles illegal state exceptions (e.g. invalid state for deletion) (409 Conflict).
+     */
+    @ExceptionHandler(IllegalStateException.class)
+    public ResponseEntity<ApiResponse<Void>> handleIllegalState(IllegalStateException ex) {
+        log.warn("Illegal state: {}", ex.getMessage());
+        return ResponseEntity
+                .status(HttpStatus.CONFLICT)
+                .body(ApiResponse.error(ex.getMessage()));
+    }
+
+    /**
      * Handles missing required request headers (400 Bad Request).
      */
     @ExceptionHandler(MissingRequestHeaderException.class)

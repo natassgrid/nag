@@ -35,6 +35,8 @@ import com.examplatform.questionbank.repository.SubtopicRepository;
 import com.examplatform.questionbank.repository.TopicRepository;
 import com.examplatform.questionbank.translation.domain.Translation;
 import com.examplatform.questionbank.translation.repository.TranslationRepository;
+import com.examplatform.questionbank.domain.QuestionVersion;
+import com.examplatform.questionbank.repository.QuestionVersionRepository;
 import com.examplatform.questionbank.util.EmbeddingUtils;
 import com.examplatform.shared.messaging.EventPublisher;
 import jakarta.persistence.EntityNotFoundException;
@@ -76,6 +78,7 @@ public class QuestionService {
     private final EmbeddingService embeddingService;
     private final EventPublisher eventPublisher;
     private final TranslationRepository translationRepository;
+    private final QuestionVersionRepository questionVersionRepository;
 
     @Value("${app.encryption.enabled:true}")
     private boolean encryptionEnabled;
@@ -217,7 +220,7 @@ public class QuestionService {
                 .hasImages(hasImages)
                 .passageId(request.getPassageId())
                 .passageOrderIndex(request.getPassageOrderIndex())
-                .state("DRAFT")
+                .state((request.getState() != null && !request.getState().isBlank()) ? request.getState() : "DRAFT")
                 .encryptionKeyId(dekKeyName)
                 .authorId(authorId)
                 .build();
@@ -592,6 +595,59 @@ public class QuestionService {
                 Map.of("fromState", "DRAFT", "toState", "REVIEW"));
 
         return toResponse(saved);
+    }
+
+    /**
+     * Deletes a question and cleans up associated versions and translations.
+     * Rejects deletion if question is in PUBLISHED state or has been used in exams.
+     *
+     * @param questionId UUID of the question to delete
+     * @param actorId    UUID of the user requesting deletion
+     * @param tenantId   optional tenant identifier to verify tenant scoping
+     */
+    public void deleteQuestion(UUID questionId, UUID actorId, String tenantId) {
+        Question question = questionRepository.findById(questionId)
+                .orElseThrow(() -> new EntityNotFoundException("Question not found: " + questionId));
+
+        if (tenantId != null && !tenantId.isBlank() && !"default".equals(tenantId)) {
+            if (!tenantId.equals(question.getTenantId())) {
+                throw new EntityNotFoundException("Question not found: " + questionId);
+            }
+        }
+
+        if ("PUBLISHED".equalsIgnoreCase(question.getState()) || question.getUsageCount() > 0) {
+            throw new IllegalStateException("Cannot delete question in PUBLISHED state or with active exam usage. Transition to ARCHIVED instead.");
+        }
+
+        // Clean up translations
+        List<Translation> translations = translationRepository.findByQuestionIdAndTenantId(questionId, question.getTenantId());
+        if (translations != null && !translations.isEmpty()) {
+            translationRepository.deleteAll(translations);
+        }
+
+        // Clean up version history
+        List<QuestionVersion> versions = questionVersionRepository.findByQuestionIdOrderByVersionNumberDesc(questionId);
+        if (versions != null && !versions.isEmpty()) {
+            questionVersionRepository.deleteAll(versions);
+        }
+
+        questionRepository.delete(question);
+
+        log.info("Deleted question id={} by actor={} tenant={}", questionId, actorId, question.getTenantId());
+
+        Map<String, Object> extra = new HashMap<>();
+        if (question.getQuestionType() != null) {
+            extra.put("questionType", question.getQuestionType());
+        }
+        if (question.getState() != null) {
+            extra.put("state", question.getState());
+        }
+        publishAuditEvent("QUESTION_DELETED", questionId, actorId != null ? actorId : question.getAuthorId(),
+                question.getTenantId(), extra);
+    }
+
+    public void deleteQuestion(UUID questionId, String tenantId) {
+        deleteQuestion(questionId, null, tenantId);
     }
 
     /**

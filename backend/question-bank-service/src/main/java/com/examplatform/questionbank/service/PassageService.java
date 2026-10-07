@@ -105,7 +105,7 @@ public class PassageService {
                 .subject(subject.getName())
                 .topic(topicName != null ? topicName : request.getTopic())
                 .hasImages(hasImages)
-                .state("DRAFT")
+                .state((request.getState() != null && !request.getState().isBlank()) ? request.getState() : "DRAFT")
                 .encryptionKeyId(dekKeyName)
                 .authorId(authorId)
                 .build();

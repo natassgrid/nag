@@ -1,43 +1,82 @@
-@if (type() === 'MULTIPLE_CHOICE' || type() === 'MULTIPLE_SELECT') {
+@if (isOptionsQuestion()) {
   <div class="space-y-3 pt-3 border-t">
     <div class="flex items-center justify-between">
-      <span class="block text-xs font-semibold text-slate-700 uppercase">
-        Options &amp; Correct Key (Check the correct option)
-      </span>
+      <div>
+        <span class="block text-xs font-semibold text-slate-700 uppercase">
+          Options &amp; Correct Key *
+        </span>
+        <span class="text-[11px] text-slate-400">
+          {{ isSingleChoice() ? 'Select radio for the 1 correct answer' : 'Check all correct options' }}
+        </span>
+      </div>
       <button
         type="button"
         (click)="onAddOption()"
-        class="text-xs font-semibold text-indigo-600 hover:text-indigo-800 flex items-center gap-1"
+        [disabled]="options().length >= 6"
+        class="text-xs font-semibold text-indigo-600 hover:text-indigo-800 disabled:opacity-40 flex items-center gap-1"
       >
         <mat-icon class="!text-sm leading-none">add</mat-icon>
         Add Option
       </button>
     </div>
 
+    <!-- Validation banner -->
+    @if (validationMessage()) {
+      <div class="p-2 bg-amber-50 border border-amber-200 rounded-lg text-amber-800 text-xs flex items-center gap-2">
+        <mat-icon class="!text-sm text-amber-600 shrink-0">info</mat-icon>
+        <span>{{ validationMessage() }}</span>
+      </div>
+    }
+
     @for (opt of options(); track opt.id; let idx = $index) {
       <div class="flex items-center gap-2">
-        <input
-          type="checkbox"
-          [checked]="opt.isCorrect"
-          (change)="onToggleCorrect(idx)"
-          class="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
-          [title]="'Mark Option ' + getOptionLetter(idx) + ' as correct'"
-        />
-        <span class="font-bold text-xs text-slate-500 w-4">
+        @if (isSingleChoice()) {
+          <input
+            type="radio"
+            name="mcq-correct-choice"
+            [checked]="opt.isCorrect"
+            (change)="onToggleCorrect(idx)"
+            class="h-4 w-4 border-slate-300 text-indigo-600 focus:ring-indigo-500"
+            [title]="'Mark Option ' + getOptionLetter(idx) + ' as correct'"
+          />
+        } @else {
+          <input
+            type="checkbox"
+            [checked]="opt.isCorrect"
+            (change)="onToggleCorrect(idx)"
+            class="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+            [title]="'Mark Option ' + getOptionLetter(idx) + ' as correct'"
+          />
+        }
+
+        <span
+          class="font-bold text-xs w-6 text-center py-1 rounded"
+          [ngClass]="{
+            'bg-emerald-100 text-emerald-800 font-extrabold': opt.isCorrect,
+            'text-slate-500 bg-slate-100': !opt.isCorrect
+          }"
+        >
           {{ getOptionLetter(idx) }}
         </span>
+
         <input
           type="text"
           [ngModel]="opt.text"
           (ngModelChange)="onOptionTextChange(idx, $event)"
-          placeholder="Option text or LaTeX expression..."
-          class="grow px-3 py-1.5 text-sm bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+          placeholder="Option text or LaTeX expression (e.g. $x^2 + 1$)..."
+          class="grow px-3 py-1.5 text-sm bg-white border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+          [ngClass]="{
+            'border-rose-300 ring-rose-100': !opt.text || !opt.text.trim(),
+            'border-slate-300': opt.text && opt.text.trim()
+          }"
         />
+
         @if (options().length > 2) {
           <button
             type="button"
             (click)="onRemoveOption(idx)"
-            class="text-slate-400 hover:text-rose-600"
+            class="text-slate-400 hover:text-rose-600 transition-colors p-1"
+            title="Remove option"
           >
             <mat-icon class="!text-sm">close</mat-icon>
           </button>

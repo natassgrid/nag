@@ -304,10 +304,34 @@ export class QuestionsFeatureAuthoring implements OnInit {
   }
 
   private saveStandaloneQuestion(): void {
+    if (!this.selectedSubjectId) {
+      this.feedback.set({
+        type: 'error',
+        message: 'Please select a Subject from the taxonomy hierarchy before saving.',
+      });
+      return;
+    }
+
     if (!this.content.trim()) {
       this.feedback.set({
         type: 'error',
         message: 'Question problem statement cannot be empty.',
+      });
+      return;
+    }
+
+    if (this.marks <= 0) {
+      this.feedback.set({
+        type: 'error',
+        message: 'Positive marks must be greater than 0.',
+      });
+      return;
+    }
+
+    if (this.negativeMarks < 0 || this.negativeMarks > this.marks) {
+      this.feedback.set({
+        type: 'error',
+        message: 'Negative marks must be between 0 and positive marks.',
       });
       return;
     }
@@ -326,15 +350,38 @@ export class QuestionsFeatureAuthoring implements OnInit {
       .filter((opt) => opt.isCorrect)
       .map((opt) => opt.id);
 
-    if (
-      (this.type === 'MULTIPLE_CHOICE' || this.type === 'MULTIPLE_SELECT' || this.type === 'SINGLE_MCQ' || this.type === 'MULTIPLE_MCQ') &&
-      correctLetters.length === 0
-    ) {
-      this.feedback.set({
-        type: 'error',
-        message: 'Please select at least one correct option before saving.',
-      });
-      return;
+    const isMcq = this.type === 'MULTIPLE_CHOICE' || this.type === 'SINGLE_MCQ';
+    const isMsq = this.type === 'MULTIPLE_SELECT' || this.type === 'MULTI_MCQ' || this.type === 'MULTIPLE_MCQ';
+
+    if (isMcq || isMsq) {
+      if (formattedOptions.length < 2) {
+        this.feedback.set({
+          type: 'error',
+          message: 'At least 2 options are required for multiple choice questions.',
+        });
+        return;
+      }
+      if (formattedOptions.some((opt) => !opt.text)) {
+        this.feedback.set({
+          type: 'error',
+          message: 'All options must have non-empty text or formulas.',
+        });
+        return;
+      }
+      if (isMcq && correctLetters.length !== 1) {
+        this.feedback.set({
+          type: 'error',
+          message: 'Single correct MCQ requires exactly one correct option selected.',
+        });
+        return;
+      }
+      if (isMsq && correctLetters.length === 0) {
+        this.feedback.set({
+          type: 'error',
+          message: 'Multi correct MSQ requires at least one correct option selected.',
+        });
+        return;
+      }
     }
 
     const backendQuestionType =
@@ -347,6 +394,7 @@ export class QuestionsFeatureAuthoring implements OnInit {
     const payload = {
       content: this.content.trim(),
       type: backendQuestionType,
+      questionType: backendQuestionType,
       difficulty: this.difficulty,
       cognitiveLevel: this.cognitiveLevel,
       subject: selectedSub?.name || 'General',
@@ -354,13 +402,13 @@ export class QuestionsFeatureAuthoring implements OnInit {
       subtopic: selectedSubtop?.name || '',
       subjectId: this.selectedSubjectId || 0,
       topicId: this.selectedTopicId || undefined,
-      
       marks: this.marks,
       negativeMarks: this.negativeMarks,
       options: formattedOptions,
       answerKey: correctLetters.join(','),
       explanation: this.explanation.trim() || undefined,
-      state: 'APPROVED',
+      state: 'DRAFT',
+      status: 'DRAFT',
     };
 
     this.saving.set(true);
@@ -446,6 +494,7 @@ export class QuestionsFeatureAuthoring implements OnInit {
         passageOrderIndex: idx + 1,
         content: sq.content.trim(),
         type: backendType,
+        questionType: backendType,
         difficulty: sq.difficulty,
         cognitiveLevel: sq.cognitiveLevel,
         marks: sq.marks,
@@ -457,6 +506,8 @@ export class QuestionsFeatureAuthoring implements OnInit {
         })),
         answerKey: correct,
         explanation: sq.explanation.trim() || undefined,
+        state: 'DRAFT',
+        status: 'DRAFT',
       };
     });
 
@@ -468,7 +519,8 @@ export class QuestionsFeatureAuthoring implements OnInit {
       subtopic: selectedSubtop?.name || undefined,
       subjectId: this.selectedSubjectId || 0,
       topicId: this.selectedTopicId || undefined,
-      
+      state: 'DRAFT',
+      status: 'DRAFT',
       subQuestions: formattedSubQuestions,
     };
 

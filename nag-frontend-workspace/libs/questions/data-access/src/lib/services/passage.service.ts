@@ -73,8 +73,23 @@ export class PassageService {
   }
 
   createPassage(data: PassageRequest): Observable<PassageResponse> {
+    const payload = {
+      ...data,
+      state: data.state || 'DRAFT',
+      status: data.state || 'DRAFT',
+      subQuestions: (data.subQuestions || []).map((sq: any) => {
+        const qType = sq.questionType || sq.type || 'SINGLE_MCQ';
+        return {
+          ...sq,
+          questionType: qType,
+          type: qType,
+          state: sq.state || data.state || 'DRAFT',
+          status: sq.state || data.state || 'DRAFT',
+        };
+      }),
+    };
     return this.http
-      .post<{ status?: string; data?: any }>(this.baseUrl, data)
+      .post<{ status?: string; data?: any }>(this.baseUrl, payload)
       .pipe(
         map((res) => this.mapToPassage(res?.data || res)),
         tap((created) => {

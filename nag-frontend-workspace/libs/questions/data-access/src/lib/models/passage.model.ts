@@ -7,11 +7,14 @@ export interface SubQuestionRequest {
   difficulty?: 'EASY' | 'MEDIUM' | 'HARD' | 'EXPERT' | string;
   cognitiveLevel?: 'REMEMBER' | 'UNDERSTAND' | 'APPLY' | 'ANALYZE' | 'EVALUATE' | 'CREATE' | string;
   questionType?: QuestionType | string;
+  type?: QuestionType | string;
   options: QuestionOption[];
   answerKey?: string;
   explanation?: string;
   marks?: number;
   negativeMarks?: number;
+  state?: string;
+  status?: string;
 }
 
 export interface PassageRequest {
@@ -25,6 +28,8 @@ export interface PassageRequest {
   subtopic?: string;
   hasImages?: boolean;
   subQuestions: SubQuestionRequest[];
+  state?: string;
+  status?: string;
 }
 
 export interface PassageResponse {

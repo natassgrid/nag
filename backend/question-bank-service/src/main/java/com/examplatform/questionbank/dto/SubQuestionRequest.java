@@ -14,6 +14,8 @@ package com.examplatform.questionbank.dto;
 import com.examplatform.questionbank.domain.enums.CognitiveLevel;
 import com.examplatform.questionbank.domain.enums.DifficultyLevel;
 import com.examplatform.questionbank.domain.enums.QuestionType;
+import com.fasterxml.jackson.annotation.JsonAlias;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -38,6 +40,8 @@ public class SubQuestionRequest {
     private UUID id;
 
     @NotNull(message = "Question type is required")
+    @JsonProperty("questionType")
+    @JsonAlias({"type", "question_type"})
     @Builder.Default
     private QuestionType questionType = QuestionType.SINGLE_MCQ;
 
@@ -64,4 +68,10 @@ public class SubQuestionRequest {
     private boolean hasImages;
 
     private Integer passageOrderIndex;
+
+    /** Sub-question lifecycle state: e.g. DRAFT or APPROVED */
+    @JsonProperty("state")
+    @JsonAlias({"status"})
+    @Builder.Default
+    private String state = "DRAFT";
 }

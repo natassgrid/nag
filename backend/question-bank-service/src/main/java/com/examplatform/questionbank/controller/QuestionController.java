@@ -41,6 +41,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -299,6 +300,31 @@ public class QuestionController {
     }
 
     /**
+     * Delete an existing question.
+     * Removes the question and cascades cleanup to associated versions and translations.
+     * Questions that are in PUBLISHED state or actively referenced by examinations cannot be deleted.
+     * Accessible to QUESTION_AUTHOR, SUBJECT_MATTER_EXPERT, ADMIN, or SUPER_ADMIN role.
+     *
+     * @param id       the question UUID
+     * @param jwt      the authenticated JWT principal
+     * @param tenantId tenant identifier from the X-Tenant-Id header (optional)
+     * @return 200 OK with deletion confirmation
+     */
+    @DeleteMapping("/{id}")
+    @PreAuthorize("hasAnyRole('QUESTION_AUTHOR', 'SUBJECT_MATTER_EXPERT', 'ADMIN', 'SUPER_ADMIN')")
+    public ResponseEntity<ApiResponse<Void>> deleteQuestion(
+            @PathVariable UUID id,
+            @AuthenticationPrincipal Jwt jwt,
+            @RequestHeader(value = "X-Tenant-Id", required = false) String tenantId) {
+
+        UUID actorId = (jwt != null && jwt.getSubject() != null) ? UUID.fromString(jwt.getSubject()) : null;
+        log.info("Deleting question: id={}, actor={}, tenant={}", id, actorId, tenantId);
+
+        questionService.deleteQuestion(id, actorId, tenantId);
+        return ResponseEntity.ok(ApiResponse.success(null, "Question deleted successfully"));
+    }
+
+    /**
      * Retrieve the version history of a question.
      * Requires QUESTION_AUTHOR, REVIEWER, or APPROVER role.
      *
@@ -364,8 +390,7 @@ public class QuestionController {
 
     /**
      * Find approved questions matching blueprint criteria for Paper Generator.
-     * Supports both /match-blueprint and /blueprint-match for inter-service clients.
-     * Accessible to EXAM_CONTROLLER, ADMIN, SUPER_ADMIN, or unauthenticated internal calls.
+     * Supports both /match-blueprint and /blueprint-match for inter-service clients.\n     * Accessible to EXAM_CONTROLLER, ADMIN, SUPER_ADMIN, or unauthenticated internal calls.
      *
      * @param request  blueprint matching criteria
      * @param tenantId tenant identifier from the X-Tenant-Id header
