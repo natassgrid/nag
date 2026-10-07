@@ -21,6 +21,8 @@ package com.examplatform.asset.metadata;
 
 import com.examplatform.asset.domain.enums.AssetType;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.tika.io.TikaInputStream;
+import org.apache.tika.metadata.HttpHeaders;
 import org.apache.tika.metadata.Metadata;
 import org.apache.tika.metadata.TIFF;
 import org.apache.tika.parser.AutoDetectParser;
@@ -48,11 +50,13 @@ public class ImageMetadataExtractor implements MetadataExtractor {
 
         try {
             Metadata metadata = new Metadata();
-            metadata.set(Metadata.CONTENT_TYPE, contentType);
+            metadata.set(HttpHeaders.CONTENT_TYPE, contentType);
 
             AutoDetectParser parser = new AutoDetectParser();
             BodyContentHandler handler = new BodyContentHandler(-1);
-            parser.parse(content, handler, metadata, new ParseContext());
+            try (TikaInputStream tis = TikaInputStream.get(content)) {
+                parser.parse(tis, handler, metadata, new ParseContext());
+            }
 
             builder.width(parseInteger(metadata.get(TIFF.IMAGE_WIDTH)));
             builder.height(parseInteger(metadata.get(TIFF.IMAGE_LENGTH)));
