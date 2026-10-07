@@ -10,6 +10,8 @@ export interface QuestionGenerationRequest {
   subject: string;
   topic: string;
   subtopic?: string;
+  rawTextInput?: string;
+  description?: string;
   difficulty: 'EASY' | 'MEDIUM' | 'HARD' | string;
   cognitiveLevel:
     | 'REMEMBER'
@@ -68,6 +70,8 @@ export interface BatchItem {
   subject: string;
   topic: string;
   subtopic?: string;
+  rawTextInput?: string;
+  description?: string;
   difficulty: string;
   cognitiveLevel: string;
   questionType: string;

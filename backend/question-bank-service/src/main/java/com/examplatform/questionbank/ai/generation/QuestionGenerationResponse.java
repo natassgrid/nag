@@ -22,6 +22,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 /**
@@ -29,9 +30,10 @@ import java.util.UUID;
  *
  * <p>Contains the list of generated questions along with per-question validation
  * results, duplicate detection outcomes, and metadata about the generation run
- * (model used, counts).
+ * (model used, counts, execution mode, triage rationale, and critic feedback).
  *
- * <p>Returned from {@code POST /api/v1/questions/generate}.
+ * <p>Returned from {@code POST /api/v1/questions/generate} and
+ * {@code POST /api/v1/questions/generate/with-samples}.
  *
  * @see QuestionGenerationRequest
  * @see ModelRouter
@@ -45,7 +47,7 @@ public class QuestionGenerationResponse {
     /** The list of generated questions with validation and duplicate info. */
     private List<GeneratedQuestion> questions;
 
-    /** The LiteLLM model name that was used for generation (e.g., "qwen2-math-1.5b"). */
+    /** The LiteLLM model name that was used for generation (e.g., "nova-micro", "nova-lite"). */
     private String modelUsed;
 
     /** Total number of questions the LLM produced (before validation/duplicate filtering). */
@@ -54,8 +56,17 @@ public class QuestionGenerationResponse {
     /** Number of questions that passed schema and answer validation. */
     private int totalValid;
 
-    /** Number of questions flagged as duplicates (similarity > 0.92). */
+    /** Number of questions flagged as duplicates (similarity > 0.85/0.92). */
     private int totalDuplicates;
+
+    /** The execution mode path resolved by the triage router: FAST or MULTI_AGENT. */
+    private String executionMode;
+
+    /** Rationale provided by ComplexityEvaluator for the chosen path. */
+    private String triageRationale;
+
+    /** Metadata regarding uploaded sample parsing (tier used, diagram presence, tokens saved). */
+    private Map<String, Object> sampleParsingMetadata;
 
     /**
      * Represents a single AI-generated question with its validation and duplicate status.
@@ -84,7 +95,7 @@ public class QuestionGenerationResponse {
         /** Bloom's taxonomy cognitive level. */
         private String cognitiveLevel;
 
-        /** Type of question: SINGLE_MCQ, MULTI_MCQ, NUMERICAL, DESCRIPTIVE. */
+        /** Type of question: SINGLE_MCQ, MULTI_MCQ, NUMERICAL, DESCRIPTIVE, etc. */
         private String questionType;
 
         /** Validation result — whether this question passed schema and answer checks. */
@@ -95,6 +106,12 @@ public class QuestionGenerationResponse {
 
         /** The persisted question ID if auto-saved, null if preview-only mode. */
         private UUID savedQuestionId;
+
+        /** Psychometric critic score (0.0 - 1.0) if reviewed in multi-agent mode. */
+        private Double criticScore;
+
+        /** Psychometric critic suggestions or verified rubric items. */
+        private List<String> criticFeedback;
     }
 
     /**

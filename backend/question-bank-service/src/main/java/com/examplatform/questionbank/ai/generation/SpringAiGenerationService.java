@@ -15,7 +15,19 @@
  */
 package com.examplatform.questionbank.ai.generation;
 
+import com.examplatform.questionbank.exception.QuestionGenerationException;
+
 import com.examplatform.questionbank.ai.embedding.EmbeddingService;
+import com.examplatform.questionbank.ai.generation.multiagent.ComplexityEvaluationResult;
+import com.examplatform.questionbank.ai.generation.multiagent.ComplexityEvaluator;
+import com.examplatform.questionbank.ai.generation.multiagent.CriticReviewResult;
+import com.examplatform.questionbank.ai.generation.multiagent.PsychometricCriticAgent;
+import com.examplatform.questionbank.ai.generation.multiagent.QuestionAuthorAgent;
+import com.examplatform.questionbank.ai.generation.multiagent.RefinementAgent;
+import com.examplatform.questionbank.ai.generation.multiagent.RequirementAnalystAgent;
+import com.examplatform.questionbank.ai.generation.multiagent.SimilarityAuditorAgent;
+import com.examplatform.questionbank.ai.parser.NormalizedSampleQuestion;
+import com.examplatform.questionbank.ai.parser.SampleDocumentParserService;
 import com.examplatform.questionbank.ai.similarity.SimilarityCheckResult;
 import com.examplatform.questionbank.domain.Question;
 import com.examplatform.questionbank.dto.QuestionOption;
@@ -27,52 +39,61 @@ import com.examplatform.questionbank.util.EmbeddingUtils;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.prompt.ChatOptions;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
-import java.util.stream.Collectors;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  * Spring AI-based implementation of the question generation pipeline.
  *
  * <p>Orchestrates:
  * <ol>
- *   <li>Model selection via {@link ModelRouter} (subject-based routing)</li>
- *   <li>RAG context retrieval (top-5 similar existing questions via pgvector)</li>
- *   <li>Prompt construction with generation parameters and RAG context</li>
- *   <li>LLM invocation via Spring AI {@link ChatClient} → LiteLLM gateway</li>
- *   <li>Structured JSON response parsing into question DTOs</li>
- *   <li>Schema + answer validation for each generated question</li>
- *   <li>Duplicate detection via {@link SimilarityDetectionService}</li>
- *   <li>Optional auto-save of valid, non-duplicate questions as DRAFT</li>
+ *   <li>Sample question ingestion and tiered multimodal document parsing</li>
+ *   <li>Pre-generation vector search & RAG top-N retrieval to avoid duplicate generation</li>
+ *   <li>Complexity triage via {@link ComplexityEvaluator} ("Agent Only When Needed")</li>
+ *   <li>Fast Path execution (single lightweight model call, <2s latency, lowest cost)</li>
+ *   <li>Multi-Agent collaborative workflow (Requirement Analyst, Question Author,
+ *       Psychometric Critic, Similarity Auditor, Refinement Agent)</li>
+ *   <li>Preservation of KaTeX/LaTeX math and chemical notations</li>
+ *   <li>Schema validation, duplicate detection, and optional auto-save as DRAFT</li>
  * </ol>
  *
  * @see QuestionGenerationService
  * @see ModelRouter
+ * @see ComplexityEvaluator
  */
 @Slf4j
 @Service
-@RequiredArgsConstructor
 public class SpringAiGenerationService implements QuestionGenerationService {
 
     private static final int RAG_TOP_K = 5;
     private static final double GENERATION_TEMPERATURE = 0.7;
-    private static final double DUPLICATE_REJECT_THRESHOLD = 0.92;
 
     private static final Set<String> MCQ_TYPES = Set.of("SINGLE_MCQ", "MULTI_MCQ");
     private static final Set<String> VALID_DIFFICULTIES = Set.of("EASY", "MEDIUM", "HARD");
     private static final Set<String> VALID_COGNITIVE_LEVELS = Set.of(
             "REMEMBER", "UNDERSTAND", "APPLY", "ANALYZE", "EVALUATE", "CREATE");
     private static final Set<String> VALID_QUESTION_TYPES = Set.of(
-            "SINGLE_MCQ", "MULTI_MCQ", "NUMERICAL", "DESCRIPTIVE");
+            "SINGLE_MCQ", "MULTI_MCQ", "NUMERICAL", "DESCRIPTIVE",
+            "ASSERTION_REASON", "PARAGRAPH_SET", "MATRIX_MATCH");
+
+    private static final Pattern PAREN_DELIMITER_PATTERN =
+            Pattern.compile(Pattern.quote("\\(") + "(.*?)" + Pattern.quote("\\)"), Pattern.DOTALL);
+
+    private static final Pattern BRACKET_DELIMITER_PATTERN =
+            Pattern.compile(Pattern.quote("\\[") + "(.*?)" + Pattern.quote("\\]"), Pattern.DOTALL);
 
     private final ChatClient chatClient;
     private final ModelRouter modelRouter;
@@ -82,43 +103,150 @@ public class SpringAiGenerationService implements QuestionGenerationService {
     private final SubjectTopicService subjectTopicService;
     private final ObjectMapper objectMapper;
 
+    private final ComplexityEvaluator complexityEvaluator;
+    private final RequirementAnalystAgent requirementAnalystAgent;
+    private final QuestionAuthorAgent questionAuthorAgent;
+    private final PsychometricCriticAgent psychometricCriticAgent;
+    private final SimilarityAuditorAgent similarityAuditorAgent;
+    private final RefinementAgent refinementAgent;
+    private final SampleDocumentParserService sampleDocumentParserService;
+
+    public SpringAiGenerationService(
+            ChatClient chatClient,
+            ModelRouter modelRouter,
+            EmbeddingService embeddingService,
+            SimilarityDetectionService similarityDetectionService,
+            QuestionRepository questionRepository,
+            SubjectTopicService subjectTopicService,
+            ObjectMapper objectMapper) {
+        this(chatClient, modelRouter, embeddingService, similarityDetectionService,
+                questionRepository, subjectTopicService, objectMapper,
+                new ComplexityEvaluator(modelRouter),
+                new RequirementAnalystAgent(),
+                new QuestionAuthorAgent(),
+                new PsychometricCriticAgent(),
+                new SimilarityAuditorAgent(similarityDetectionService),
+                new RefinementAgent(),
+                new SampleDocumentParserService());
+    }
+
+    @Autowired
+    public SpringAiGenerationService(
+            ChatClient chatClient,
+            ModelRouter modelRouter,
+            EmbeddingService embeddingService,
+            SimilarityDetectionService similarityDetectionService,
+            QuestionRepository questionRepository,
+            SubjectTopicService subjectTopicService,
+            ObjectMapper objectMapper,
+            ComplexityEvaluator complexityEvaluator,
+            RequirementAnalystAgent requirementAnalystAgent,
+            QuestionAuthorAgent questionAuthorAgent,
+            PsychometricCriticAgent psychometricCriticAgent,
+            SimilarityAuditorAgent similarityAuditorAgent,
+            RefinementAgent refinementAgent,
+            SampleDocumentParserService sampleDocumentParserService) {
+        this.chatClient = chatClient;
+        this.modelRouter = modelRouter;
+        this.embeddingService = embeddingService;
+        this.similarityDetectionService = similarityDetectionService;
+        this.questionRepository = questionRepository;
+        this.subjectTopicService = subjectTopicService;
+        this.objectMapper = objectMapper;
+        this.complexityEvaluator = complexityEvaluator;
+        this.requirementAnalystAgent = requirementAnalystAgent;
+        this.questionAuthorAgent = questionAuthorAgent;
+        this.psychometricCriticAgent = psychometricCriticAgent;
+        this.similarityAuditorAgent = similarityAuditorAgent;
+        this.refinementAgent = refinementAgent;
+        this.sampleDocumentParserService = sampleDocumentParserService;
+    }
+
     @Override
     @Transactional
-    public QuestionGenerationResponse generate(QuestionGenerationRequest request, String tenantId, java.util.UUID authorId) {
-        log.info("Starting question generation: subject={}, topic={}, count={}, model selection pending",
-                request.getSubject(), request.getTopic(), request.getCount());
+    public QuestionGenerationResponse generate(QuestionGenerationRequest request, String tenantId, UUID authorId) {
+        List<NormalizedSampleQuestion> sampleQuestions = new ArrayList<>();
+        if (request.getSampleQuestions() != null && !request.getSampleQuestions().isEmpty()) {
+            for (String sampleText : request.getSampleQuestions()) {
+                sampleQuestions.add(sampleDocumentParserService.normalizeTextQuestion(sampleText, "TIER_0_LOCAL_TEXT", null));
+            }
+        }
+        return generateWithSamples(request, sampleQuestions, tenantId, authorId);
+    }
 
-        // Step 1: Select model via ModelRouter (difficulty-based)
-        String modelName = modelRouter.selectModel(request.getDifficulty());
-        log.debug("Selected model: {} for difficulty: {}", modelName, request.getDifficulty());
+    @Override
+    @Transactional
+    public QuestionGenerationResponse generateWithSamples(
+            QuestionGenerationRequest request,
+            List<NormalizedSampleQuestion> sampleQuestions,
+            String tenantId,
+            UUID authorId) {
 
-        // Step 2: RAG — retrieve top-K similar existing questions for context
+        if (sampleQuestions == null) {
+            sampleQuestions = new ArrayList<>();
+        }
+
+        // If sample questions list is empty but request has raw strings, normalize them
+        if (sampleQuestions.isEmpty() && request.getSampleQuestions() != null && !request.getSampleQuestions().isEmpty()) {
+            for (String sampleText : request.getSampleQuestions()) {
+                sampleQuestions.add(sampleDocumentParserService.normalizeTextQuestion(sampleText, "TIER_0_LOCAL_TEXT", null));
+            }
+        }
+
+        log.info("Starting question generation with {} sample questions (executionMode={}): subject={}, topic={}, count={}",
+                sampleQuestions.size(), request.getExecutionMode(), request.getSubject(), request.getTopic(), request.getCount());
+
+        // Step 0: Pre-Generation Vector Search & RAG Context Retrieval to Avoid Duplicate Question Generation
         List<SimilarityResult> ragContext = retrieveRagContext(request, tenantId);
-        log.debug("RAG context retrieved: {} questions", ragContext.size());
+        log.info("Retrieved {} existing RAG question(s) via vector search to avoid duplicate generation (query='{}')",
+                ragContext.size(), request.buildSearchQuery());
 
-        // Step 3: Build prompt
+        // Step 1: Intelligent Complexity Triage ("Agent Only When Needed")
+        ComplexityEvaluationResult triage = complexityEvaluator.evaluate(request, sampleQuestions);
+        log.info("Triage outcome: useMultiAgent={}, targetModel={}, rationale={}",
+                triage.isUseMultiAgent(), triage.getTargetModel(), triage.getRationale());
+
+        Map<String, Object> sampleMetadata = buildSampleParsingMetadata(sampleQuestions);
+
+        if (triage.isUseMultiAgent()) {
+            return executeMultiAgentPipeline(request, sampleQuestions, triage, ragContext, tenantId, authorId, sampleMetadata);
+        } else {
+            return executeFastPath(request, sampleQuestions, triage, ragContext, tenantId, authorId, sampleMetadata);
+        }
+    }
+
+    @Override
+    public ClarifyRequirementsResponse clarifyRequirements(ClarifyRequirementsRequest request) {
+        return requirementAnalystAgent.clarifyRequirements(request);
+    }
+
+    /**
+     * Executes Single-Model Fast Path: single lightweight LLM call, fast JSON output (<2s).
+     */
+    private QuestionGenerationResponse executeFastPath(
+            QuestionGenerationRequest request,
+            List<NormalizedSampleQuestion> sampleQuestions,
+            ComplexityEvaluationResult triage,
+            List<SimilarityResult> ragContext,
+            String tenantId,
+            UUID authorId,
+            Map<String, Object> sampleMetadata) {
+
+        String modelName = triage.getTargetModel();
+
         String systemPrompt = buildSystemPrompt(request);
-        String userPrompt = buildUserPrompt(request, ragContext);
+        String userPrompt = buildUserPromptWithSamples(request, ragContext, sampleQuestions);
 
-        // Step 4: Call LLM via ChatClient with selected model
         String llmResponse = callLlm(modelName, systemPrompt, userPrompt);
-        log.debug("LLM response received (length={})", llmResponse != null ? llmResponse.length() : 0);
-
-        // Step 5: Parse JSON response into question DTOs
         List<RawGeneratedQuestion> rawQuestions = parseLlmResponse(llmResponse);
         int totalGenerated = rawQuestions.size();
-        log.info("Parsed {} questions from LLM response", totalGenerated);
 
-        // Step 6 & 7: Validate and check duplicates for each question
         List<QuestionGenerationResponse.GeneratedQuestion> processedQuestions = new ArrayList<>();
         int totalValid = 0;
         int totalDuplicates = 0;
 
         for (RawGeneratedQuestion raw : rawQuestions) {
-            // Validate schema + answer
             QuestionGenerationResponse.ValidationResult validation = validateQuestion(raw, request.getQuestionType());
-
-            // Duplicate detection
             QuestionGenerationResponse.DuplicateResult duplicateResult = null;
             if (validation.isValid() && request.isAvoidDuplicate()) {
                 duplicateResult = checkDuplicate(raw.content, request.getSubject(), tenantId);
@@ -131,7 +259,6 @@ public class SpringAiGenerationService implements QuestionGenerationService {
                 totalValid++;
             }
 
-            // Auto-save if valid, not duplicate, and autoSave enabled
             UUID savedId = null;
             if (request.isAutoSave() && validation.isValid() && duplicateResult == null) {
                 savedId = persistAsDraft(raw, request, tenantId, authorId);
@@ -151,8 +278,111 @@ public class SpringAiGenerationService implements QuestionGenerationService {
                     .build());
         }
 
-        log.info("Generation complete: total={}, valid={}, duplicates={}, model={}",
-                totalGenerated, totalValid, totalDuplicates, modelName);
+        return QuestionGenerationResponse.builder()
+                .questions(processedQuestions)
+                .modelUsed(modelName)
+                .totalGenerated(totalGenerated)
+                .totalValid(totalValid)
+                .totalDuplicates(totalDuplicates)
+                .executionMode("FAST")
+                .triageRationale(triage.getRationale())
+                .sampleParsingMetadata(sampleMetadata)
+                .build();
+    }
+
+    /**
+     * Executes Multi-Agent Collaborative Committee workflow:
+     * Requirement Analyst -> Question Author -> Psychometric Critic -> Refinement Agent -> Similarity Auditor.
+     */
+    private QuestionGenerationResponse executeMultiAgentPipeline(
+            QuestionGenerationRequest request,
+            List<NormalizedSampleQuestion> sampleQuestions,
+            ComplexityEvaluationResult triage,
+            List<SimilarityResult> ragContext,
+            String tenantId,
+            UUID authorId,
+            Map<String, Object> sampleMetadata) {
+
+        String modelName = triage.getTargetModel();
+
+        // 1. Requirement Analyst Agent synthesizes blueprint
+        String blueprint = requirementAnalystAgent.formulateBlueprint(request, sampleQuestions);
+        log.debug("Multi-agent blueprint synthesized:\n{}", blueprint);
+
+        // 2. Question Author Agent constructs specialized prompt with few-shot demonstrations and RAG context
+        String userPrompt = questionAuthorAgent.buildPromptWithBlueprint(blueprint, request, sampleQuestions, ragContext);
+        String systemPrompt = buildSystemPrompt(request);
+
+        // Call LLM for candidate generation
+        String llmResponse = callLlm(modelName, systemPrompt, userPrompt);
+        List<RawGeneratedQuestion> rawQuestions = parseLlmResponse(llmResponse);
+        int totalGenerated = rawQuestions.size();
+
+        List<QuestionGenerationResponse.GeneratedQuestion> processedQuestions = new ArrayList<>();
+        int totalValid = 0;
+        int totalDuplicates = 0;
+
+        for (RawGeneratedQuestion raw : rawQuestions) {
+            QuestionGenerationResponse.ValidationResult validation = validateQuestion(raw, request.getQuestionType());
+
+            // 3. Psychometric Critic Agent reviews question
+            CriticReviewResult criticResult = psychometricCriticAgent.reviewQuestion(
+                    raw.content, raw.answerKey, raw.explanation, raw.options, request.getQuestionType());
+
+            QuestionGenerationResponse.GeneratedQuestion candidate = QuestionGenerationResponse.GeneratedQuestion.builder()
+                    .content(raw.content)
+                    .answerKey(raw.answerKey)
+                    .explanation(raw.explanation)
+                    .options(raw.options)
+                    .difficulty(raw.difficulty != null ? raw.difficulty : request.getDifficulty())
+                    .cognitiveLevel(raw.cognitiveLevel != null ? raw.cognitiveLevel : request.getCognitiveLevel())
+                    .questionType(raw.questionType != null ? raw.questionType : request.getQuestionType())
+                    .validation(validation)
+                    .criticScore(criticResult.getScore())
+                    .criticFeedback(criticResult.getIssues())
+                    .build();
+
+            // 4. Refinement Agent resolves critic issues (bounded to 1 iteration)
+            if (!criticResult.isApproved()) {
+                candidate = refinementAgent.refine(candidate, criticResult);
+            }
+
+            // 5. Similarity Auditor Agent verifies uniqueness (<0.85 threshold)
+            QuestionGenerationResponse.DuplicateResult duplicateResult = null;
+            if (request.isAvoidDuplicate()) {
+                SimilarityAuditorAgent.AuditResult audit = similarityAuditorAgent.auditUniqueness(
+                        candidate.getContent(), request.getSubject(), tenantId);
+                if (!audit.passed()) {
+                    totalDuplicates++;
+                    duplicateResult = QuestionGenerationResponse.DuplicateResult.builder()
+                            .similarQuestionId(audit.conflictingQuestionId())
+                            .similarity(audit.topSimilarity())
+                            .build();
+                }
+            }
+            candidate.setDuplicate(duplicateResult);
+
+            if (validation.isValid()) {
+                totalValid++;
+            }
+
+            // Auto-save if valid and not duplicate
+            UUID savedId = null;
+            if (request.isAutoSave() && validation.isValid() && duplicateResult == null) {
+                RawGeneratedQuestion refinedRaw = new RawGeneratedQuestion(
+                        candidate.getContent(),
+                        candidate.getAnswerKey(),
+                        candidate.getExplanation(),
+                        candidate.getOptions(),
+                        candidate.getDifficulty(),
+                        candidate.getCognitiveLevel(),
+                        candidate.getQuestionType());
+                savedId = persistAsDraft(refinedRaw, request, tenantId, authorId);
+            }
+            candidate.setSavedQuestionId(savedId);
+
+            processedQuestions.add(candidate);
+        }
 
         return QuestionGenerationResponse.builder()
                 .questions(processedQuestions)
@@ -160,17 +390,32 @@ public class SpringAiGenerationService implements QuestionGenerationService {
                 .totalGenerated(totalGenerated)
                 .totalValid(totalValid)
                 .totalDuplicates(totalDuplicates)
+                .executionMode("MULTI_AGENT")
+                .triageRationale(triage.getRationale())
+                .sampleParsingMetadata(sampleMetadata)
                 .build();
     }
 
-    /**
-     * Retrieves top-K similar existing questions for RAG context.
-     * Generates an embedding of the topic/subtopic to query pgvector.
-     */
+    private Map<String, Object> buildSampleParsingMetadata(List<NormalizedSampleQuestion> sampleQuestions) {
+        Map<String, Object> metadata = new HashMap<>();
+        metadata.put("sampleCount", sampleQuestions.size());
+        if (!sampleQuestions.isEmpty()) {
+            List<String> tiers = sampleQuestions.stream().map(NormalizedSampleQuestion::getParsingTier).toList();
+            metadata.put("tiersUsed", tiers);
+            boolean anyDiagram = sampleQuestions.stream().anyMatch(NormalizedSampleQuestion::isHasDiagram);
+            boolean anyMathChem = sampleQuestions.stream().anyMatch(NormalizedSampleQuestion::isHasMathOrChemistry);
+            metadata.put("containsDiagram", anyDiagram);
+            metadata.put("containsMathOrChemistry", anyMathChem);
+        }
+        return metadata;
+    }
+
     private List<SimilarityResult> retrieveRagContext(QuestionGenerationRequest request, String tenantId) {
         try {
-            String queryText = request.getTopic()
-                    + (request.getSubtopic() != null ? " " + request.getSubtopic() : "");
+            String queryText = request.buildSearchQuery();
+            if (queryText.isBlank()) {
+                queryText = request.getSubject() + " " + request.getTopic();
+            }
             float[] queryEmbedding = embeddingService.embed(queryText);
             String embeddingStr = EmbeddingUtils.embeddingToString(queryEmbedding);
 
@@ -182,17 +427,15 @@ public class SpringAiGenerationService implements QuestionGenerationService {
         }
     }
 
-    /**
-     * Builds the system prompt instructing the LLM on output format and constraints.
-     */
     private String buildSystemPrompt(QuestionGenerationRequest request) {
         return """
                 You are an expert examination question generator for Indian competitive examinations.
                 You generate high-quality questions in structured JSON format.
-                
+
                 Formatting & Syntax Rules:
                 - Generate questions strictly matching the specified type, difficulty, and cognitive level.
                 - ALL mathematical, physical, and chemical formulas, expressions, variables, percentages, and unit notations in EVERY field (content, options, answerKey, and explanation) MUST be enclosed in $$...$$ LaTeX syntax.
+                - Chemical reactions MUST use valid LaTeX syntax (e.g. $$\\ce{2H2 + O2 -> 2H2O}$$).
                 - NEVER use \\( ... \\) or \\[ ... \\] or single $.
                 - In LaTeX math mode ($$...$$), always write percentage symbols as \\% (e.g. $$99.9\\%$$).
                 - Use standard Markdown for multi-line formatting (e.g. **Statements:**, **Conclusions:**, tables).
@@ -204,7 +447,7 @@ public class SpringAiGenerationService implements QuestionGenerationService {
                 - Always provide a clear explanation for the correct answer.
                 - Do NOT repeat questions from the provided context — generate novel questions.
                 - Use only english language.
-                
+
                 Output ONLY a JSON array of question objects. No markdown, only English language, no explanation outside JSON.
                 Each question object must have these fields:
                 {
@@ -219,10 +462,11 @@ public class SpringAiGenerationService implements QuestionGenerationService {
                 """.replace("{{QUESTION_TYPE}}", String.valueOf(request.getQuestionType()));
     }
 
-    /**
-     * Builds the user prompt with generation parameters and RAG context.
-     */
-    private String buildUserPrompt(QuestionGenerationRequest request, List<SimilarityResult> ragContext) {
+    private String buildUserPromptWithSamples(
+            QuestionGenerationRequest request,
+            List<SimilarityResult> ragContext,
+            List<NormalizedSampleQuestion> sampleQuestions) {
+
         StringBuilder prompt = new StringBuilder();
         prompt.append("Generate ").append(request.getCount()).append(" question(s) with these parameters:\n");
         prompt.append("- Subject: ").append(request.getSubject()).append("\n");
@@ -230,9 +474,25 @@ public class SpringAiGenerationService implements QuestionGenerationService {
         if (request.getSubtopic() != null && !request.getSubtopic().isBlank()) {
             prompt.append("- Subtopic: ").append(request.getSubtopic()).append("\n");
         }
+        String desc = request.getRawTextInput() != null && !request.getRawTextInput().isBlank()
+                ? request.getRawTextInput() : request.getDescription();
+        if (desc != null && !desc.isBlank()) {
+            prompt.append("- Description/Requirements: ").append(desc).append("\n");
+        }
         prompt.append("- Difficulty: ").append(request.getDifficulty()).append("\n");
         prompt.append("- Cognitive Level: ").append(request.getCognitiveLevel()).append("\n");
         prompt.append("- Question Type: ").append(request.getQuestionType()).append("\n");
+        if (request.getTargetExam() != null && !request.getTargetExam().isBlank()) {
+            prompt.append("- Target Exam: ").append(request.getTargetExam()).append("\n");
+        }
+
+        if (sampleQuestions != null && !sampleQuestions.isEmpty()) {
+            prompt.append("\nReference Sample Demonstrations (Model question style and depth):\n");
+            for (int i = 0; i < sampleQuestions.size(); i++) {
+                NormalizedSampleQuestion sq = sampleQuestions.get(i);
+                prompt.append("Sample ").append(i + 1).append(": ").append(sq.getStem()).append("\n");
+            }
+        }
 
         if (!ragContext.isEmpty()) {
             prompt.append("\nHere are existing questions on this topic for reference (do NOT duplicate them):\n");
@@ -246,9 +506,6 @@ public class SpringAiGenerationService implements QuestionGenerationService {
         return prompt.toString();
     }
 
-    /**
-     * Calls the LLM via Spring AI ChatClient with the selected model.
-     */
     private String callLlm(String modelName, String systemPrompt, String userPrompt) {
         try {
             return chatClient.prompt()
@@ -265,17 +522,12 @@ public class SpringAiGenerationService implements QuestionGenerationService {
         }
     }
 
-    /**
-     * Parses the LLM JSON response into raw question DTOs.
-     * Handles potential markdown code fences around JSON.
-     */
     private List<RawGeneratedQuestion> parseLlmResponse(String response) {
         if (response == null || response.isBlank()) {
             log.warn("Empty LLM response received");
             return List.of();
         }
 
-        // Strip markdown code fences if present
         String json = response.strip();
         if (json.startsWith("```json")) {
             json = json.substring(7);
@@ -287,7 +539,6 @@ public class SpringAiGenerationService implements QuestionGenerationService {
         }
         json = json.strip();
 
-        // Handle single object vs array
         if (json.startsWith("{")) {
             json = "[" + json + "]";
         }
@@ -303,12 +554,6 @@ public class SpringAiGenerationService implements QuestionGenerationService {
         }
     }
 
-    /**
-     * Normalizes LaTeX delimiters across all text-bearing fields so the frontend
-     * renderer only ever sees {@code $$...$$}. LLMs frequently emit inline
-     * {@code \( ... \)} or display {@code \[ ... \]} delimiters (especially in the
-     * explanation field) despite prompt instructions, so we convert them here.
-     */
     private RawGeneratedQuestion normalizeLatexDelimiters(RawGeneratedQuestion raw) {
         if (raw == null) {
             return null;
@@ -331,27 +576,20 @@ public class SpringAiGenerationService implements QuestionGenerationService {
                 raw.questionType);
     }
 
-    /**
-     * Converts {@code \( ... \)} (inline) and {@code \[ ... \]} (display) LaTeX
-     * delimiters to {@code $$...$$}. Existing {@code $$...$$} spans are left untouched.
-     */
     private String normalizeLatex(String text) {
         if (text == null || text.isEmpty()) {
             return text;
         }
-        return text
-                .replaceAll("(?s)\\\\\\\\((.*?)\\\\\\\\)", "\\$\\$$1\\$\\$")
-                .replaceAll("(?s)\\\\\\\\[(.*?)\\\\\\\\]", "\\$\\$$1\\$\\$");
+        String res = PAREN_DELIMITER_PATTERN.matcher(text)
+                .replaceAll(mr -> Matcher.quoteReplacement("$$" + mr.group(1) + "$$"));
+        return BRACKET_DELIMITER_PATTERN.matcher(res)
+                .replaceAll(mr -> Matcher.quoteReplacement("$$" + mr.group(1) + "$$"));
     }
 
-    /**
-     * Validates a generated question for schema correctness and answer validity.
-     */
     private QuestionGenerationResponse.ValidationResult validateQuestion(
             RawGeneratedQuestion question, String expectedType) {
         List<String> errors = new ArrayList<>();
 
-        // Required fields check
         if (question.content == null || question.content.isBlank()) {
             errors.add("Content is required");
         }
@@ -359,43 +597,34 @@ public class SpringAiGenerationService implements QuestionGenerationService {
             errors.add("Answer key is required");
         }
 
-        // Validate question type
         String questionType = question.questionType != null ? question.questionType : expectedType;
         if (questionType != null && !VALID_QUESTION_TYPES.contains(questionType.toUpperCase())) {
             errors.add("Invalid question type: " + questionType);
         }
 
-        // Validate difficulty
         if (question.difficulty != null && !VALID_DIFFICULTIES.contains(question.difficulty.toUpperCase())) {
             errors.add("Invalid difficulty: " + question.difficulty);
         }
 
-        // Validate cognitive level
         if (question.cognitiveLevel != null
                 && !VALID_COGNITIVE_LEVELS.contains(question.cognitiveLevel.toUpperCase())) {
             errors.add("Invalid cognitive level: " + question.cognitiveLevel);
         }
 
-        // MCQ-specific validations
         if (MCQ_TYPES.contains(expectedType.toUpperCase())) {
             if (question.options == null || question.options.isEmpty()) {
                 errors.add("Options are required for " + expectedType);
             } else {
-                // Must have exactly 4 options
                 if (question.options.size() != 4) {
                     errors.add("MCQ must have exactly 4 options, got " + question.options.size());
                 }
 
-                // Check answer key exists in options
                 long correctCount = question.options.stream()
                         .filter(QuestionOption::isCorrect)
                         .count();
 
-                // Auto-fix: if no option has isCorrect=true, try to derive from answerKey.
-                // LLMs often forget isCorrect or use numeric indices (1,2,3,4) instead of A,B,C,D.
                 if (correctCount == 0 && question.answerKey != null && !question.answerKey.isBlank()) {
                     String key = question.answerKey.trim();
-                    // Try matching by option ID (A/B/C/D)
                     for (QuestionOption opt : question.options) {
                         if (opt.getId() != null && opt.getId().equalsIgnoreCase(key)) {
                             opt.setCorrect(true);
@@ -403,7 +632,6 @@ public class SpringAiGenerationService implements QuestionGenerationService {
                             break;
                         }
                     }
-                    // Try matching by numeric index (1-based: 1=A, 2=B, 3=C, 4=D)
                     if (correctCount == 0 && key.matches("\\d+")) {
                         int idx = Integer.parseInt(key) - 1;
                         if (idx >= 0 && idx < question.options.size()) {
@@ -422,10 +650,6 @@ public class SpringAiGenerationService implements QuestionGenerationService {
                         errors.add("MULTI_MCQ must have at least 2 correct options, got " + correctCount);
                     }
                 }
-
-                // Note: answerKey mismatch is NOT a validation failure for MCQs.
-                // LLMs often put the textual answer instead of the option letter (A/B/C/D).
-                // The isCorrect flag on options is the source of truth for MCQs.
             }
         }
 
@@ -435,10 +659,6 @@ public class SpringAiGenerationService implements QuestionGenerationService {
                 .build();
     }
 
-    /**
-     * Checks if a generated question is a duplicate of existing questions.
-     * Returns a DuplicateResult if similarity > 0.92, null otherwise.
-     */
     private QuestionGenerationResponse.DuplicateResult checkDuplicate(
             String content, String subject, String tenantId) {
         try {
@@ -459,9 +679,6 @@ public class SpringAiGenerationService implements QuestionGenerationService {
         return null;
     }
 
-    /**
-     * Persists a valid, non-duplicate generated question as DRAFT.
-     */
     private UUID persistAsDraft(RawGeneratedQuestion raw, QuestionGenerationRequest request, String tenantId, UUID authorId) {
         try {
             SubjectTopicService.HierarchyIds ids = subjectTopicService.resolveOrCreateByName(
@@ -488,9 +705,6 @@ public class SpringAiGenerationService implements QuestionGenerationService {
 
             Question saved = questionRepository.save(question);
 
-            // Generate and store embedding via native query (halfvec cast)
-            // The embedding column is insertable=false/updatable=false so JPA setEmbedding won't persist.
-            // NFR-2: If embedding service is unavailable, question is still saved without embedding.
             try {
                 float[] embedding = embeddingService.embed(raw.content);
                 if (embedding != null && embedding.length > 0) {
@@ -510,9 +724,6 @@ public class SpringAiGenerationService implements QuestionGenerationService {
         }
     }
 
-    /**
-     * Internal DTO for parsing raw LLM JSON output before validation.
-     */
     private record RawGeneratedQuestion(
             String content,
             String answerKey,
@@ -520,16 +731,5 @@ public class SpringAiGenerationService implements QuestionGenerationService {
             List<QuestionOption> options,
             String difficulty,
             String cognitiveLevel,
-            String questionType
-    ) {
-    }
-
-    /**
-     * Exception thrown when the LLM call fails.
-     */
-    public static class QuestionGenerationException extends RuntimeException {
-        public QuestionGenerationException(String message, Throwable cause) {
-            super(message, cause);
-        }
-    }
+            String questionType) {}
 }

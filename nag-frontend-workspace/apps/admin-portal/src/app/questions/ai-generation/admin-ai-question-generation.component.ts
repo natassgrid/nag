@@ -80,6 +80,8 @@ export class AdminAiQuestionGenerationComponent implements OnInit, OnDestroy {
     subject: ['Mathematics', Validators.required],
     topic: ['Linear Algebra & Matrices', Validators.required],
     subtopic: ['Eigenvalues and Characteristic Equations'],
+    rawTextInput: [''],
+    description: [''],
     difficulty: ['MEDIUM', Validators.required],
     cognitiveLevel: ['APPLY', Validators.required],
     questionType: ['SINGLE_MCQ', Validators.required],
@@ -125,6 +127,8 @@ export class AdminAiQuestionGenerationComponent implements OnInit, OnDestroy {
       subject: this.form.value.subject!,
       topic: this.form.value.topic!,
       subtopic: this.form.value.subtopic || undefined,
+      rawTextInput: this.form.value.rawTextInput?.trim() || undefined,
+      description: this.form.value.description?.trim() || undefined,
       difficulty: this.form.value.difficulty!,
       cognitiveLevel: this.form.value.cognitiveLevel!,
       questionType: this.form.value.questionType!,
@@ -179,14 +183,14 @@ export class AdminAiQuestionGenerationComponent implements OnInit, OnDestroy {
 
     this.questionBankService.createQuestion(payload).subscribe({
       next: (created) => {
+        this.savedQuestionIds.update((set) => new Set(set).add(index));
         this.savingIndices.update((set) => {
           const next = new Set(set);
           next.delete(index);
           return next;
         });
-        this.savedQuestionIds.update((set) => new Set(set).add(index));
-        this.snackBar.open(`Question saved as Draft in Question Bank! (ID: ${created.id.substring(0, 8)})`, 'OK', {
-          duration: 3500,
+        this.snackBar.open(`Question saved as DRAFT to Bank (ID: ${created.id || 'new'})`, 'OK', {
+          duration: 3000,
         });
       },
       error: (err) => {
@@ -230,6 +234,8 @@ export class AdminAiQuestionGenerationComponent implements OnInit, OnDestroy {
       subject: v.subject!,
       topic: v.topic!,
       subtopic: v.subtopic || undefined,
+      rawTextInput: v.rawTextInput?.trim() || undefined,
+      description: v.description?.trim() || undefined,
       difficulty: v.difficulty!,
       cognitiveLevel: v.cognitiveLevel!,
       questionType: v.questionType!,

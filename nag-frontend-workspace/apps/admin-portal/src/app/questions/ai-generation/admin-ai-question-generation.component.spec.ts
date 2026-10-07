@@ -54,4 +54,18 @@ describe('AdminAiQuestionGenerationComponent', () => {
     component.activeTab.set('batch');
     expect(component.activeTab()).toBe('batch');
   });
+
+  it('should pass rawTextInput and description in QuestionGenerationRequest', () => {
+    component.form.patchValue({
+      rawTextInput: 'Find the eigenvalues of a 2x2 matrix',
+      description: 'Matrix diagonalization details',
+    });
+    component.generateQuestions();
+    expect(mockAiService.generateQuestions).toHaveBeenCalledWith(
+      expect.objectContaining({
+        rawTextInput: 'Find the eigenvalues of a 2x2 matrix',
+        description: 'Matrix diagonalization details',
+      })
+    );
+  });
 });

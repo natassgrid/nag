@@ -15,24 +15,17 @@
  */
 package com.examplatform.questionbank.ai.generation;
 
+import com.examplatform.questionbank.ai.parser.NormalizedSampleQuestion;
+
+import java.util.List;
+import java.util.UUID;
+
 /**
  * Service interface for AI-powered question generation.
  *
- * <p>Implementations coordinate model selection (via {@link ModelRouter}),
- * RAG context retrieval, LLM invocation, schema/answer validation,
- * duplicate detection, and optional auto-save of generated questions.
- *
- * <p>The generation pipeline:
- * <ol>
- *   <li>Select the appropriate LLM model based on subject</li>
- *   <li>Retrieve top-K similar existing questions via halfvec embedding (RAG)</li>
- *   <li>Build a prompt with retrieved context and generation parameters</li>
- *   <li>Call the selected model via LiteLLM (OpenAI-compatible endpoint)</li>
- *   <li>Parse the structured JSON response into question DTOs</li>
- *   <li>Validate each generated question (schema + answer correctness)</li>
- *   <li>Run duplicate detection against existing questions</li>
- *   <li>Optionally persist valid, non-duplicate questions as DRAFT</li>
- * </ol>
+ * <p>Coordinates model routing, sample question multimodal ingestion,
+ * conditional complexity triage (Fast Path vs. Multi-Agent Committee),
+ * psychometric critique, duplicate auditing, and persistence.
  *
  * @see QuestionGenerationRequest
  * @see QuestionGenerationResponse
@@ -42,16 +35,21 @@ public interface QuestionGenerationService {
 
     /**
      * Generates questions based on the provided request parameters.
-     *
-     * <p>The method selects the appropriate LLM model for the subject,
-     * retrieves relevant existing questions for RAG context, invokes the model,
-     * validates generated output, performs duplicate detection, and optionally
-     * auto-saves valid questions as DRAFT.
-     *
-     * @param request  the generation parameters (subject, topic, difficulty, count, etc.)
-     * @param tenantId the tenant identifier for multi-tenant isolation
-     * @return the generation response containing questions, validation results,
-     *         duplicate detection outcomes, and metadata
      */
-    QuestionGenerationResponse generate(QuestionGenerationRequest request, String tenantId, java.util.UUID authorId);
+    QuestionGenerationResponse generate(QuestionGenerationRequest request, String tenantId, UUID authorId);
+
+    /**
+     * Generates questions with normalized sample questions guiding style, depth, and structure.
+     * Evaluates complexity to route dynamically between Single-Model Fast Path and Multi-Agent pipeline.
+     */
+    QuestionGenerationResponse generateWithSamples(
+            QuestionGenerationRequest request,
+            List<NormalizedSampleQuestion> sampleQuestions,
+            String tenantId,
+            UUID authorId);
+
+    /**
+     * Interactively clarifies generation requirements when author parameters are broad or ambiguous.
+     */
+    ClarifyRequirementsResponse clarifyRequirements(ClarifyRequirementsRequest request);
 }
