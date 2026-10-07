@@ -72,5 +72,6 @@ public class SubQuestionRequest {
     /** Sub-question lifecycle state: e.g. DRAFT or APPROVED */
     @JsonProperty("state")
     @JsonAlias({"status"})
-    private String state;
+    @Builder.Default
+    private String state = "DRAFT";
 }

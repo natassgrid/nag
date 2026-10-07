@@ -252,6 +252,23 @@ class QuestionServiceTest {
             assertThat(req.getQuestionType()).isEqualTo(QuestionType.SINGLE_MCQ);
             assertThat(req.getState()).isEqualTo("APPROVED");
         }
+        @Test
+        @DisplayName("should default to DRAFT state when not specified in CreateQuestionRequest")
+        void shouldDefaultToDraftStateWhenNotSpecified() throws Exception {
+            String json = """
+                {
+                    "subjectId": 1,
+                    "topicId": 10,
+                    "type": "SINGLE_MCQ",
+                    "difficulty": "MEDIUM",
+                    "cognitiveLevel": "APPLY",
+                    "content": "Test content"
+                }
+                """;
+            com.fasterxml.jackson.databind.ObjectMapper mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+            CreateQuestionRequest req = mapper.readValue(json, CreateQuestionRequest.class);
+            assertThat(req.getState()).isEqualTo("DRAFT");
+        }
 
         @Test
         @DisplayName("should associate question with tenantId from context")

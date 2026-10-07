@@ -407,8 +407,8 @@ export class QuestionsFeatureAuthoring implements OnInit {
       options: formattedOptions,
       answerKey: correctLetters.join(','),
       explanation: this.explanation.trim() || undefined,
-      state: 'APPROVED',
-      status: 'APPROVED',
+      state: 'DRAFT',
+      status: 'DRAFT',
     };
 
     this.saving.set(true);
@@ -506,8 +506,8 @@ export class QuestionsFeatureAuthoring implements OnInit {
         })),
         answerKey: correct,
         explanation: sq.explanation.trim() || undefined,
-        state: 'APPROVED',
-        status: 'APPROVED',
+        state: 'DRAFT',
+        status: 'DRAFT',
       };
     });
 
@@ -519,8 +519,8 @@ export class QuestionsFeatureAuthoring implements OnInit {
       subtopic: selectedSubtop?.name || undefined,
       subjectId: this.selectedSubjectId || 0,
       topicId: this.selectedTopicId || undefined,
-      state: 'APPROVED',
-      status: 'APPROVED',
+      state: 'DRAFT',
+      status: 'DRAFT',
       subQuestions: formattedSubQuestions,
     };
 

@@ -99,7 +99,7 @@ describe('QuestionsFeatureAuthoring', () => {
     expect(questionBankMock.createQuestion).not.toHaveBeenCalled();
   });
 
-  it('should create standalone question with questionType, type, and state=APPROVED', () => {
+  it('should create standalone question with questionType, type, and state=DRAFT', () => {
     component.selectedSubjectId = 1;
     component.selectedTopicId = 10;
     component.content = 'What is the speed of light? $c = 3 \\times 10^8 \\text{ m/s}$';
@@ -114,12 +114,12 @@ describe('QuestionsFeatureAuthoring', () => {
     const sentPayload = questionBankMock.createQuestion.mock.calls[0][0];
     expect(sentPayload.questionType).toBe('SINGLE_MCQ');
     expect(sentPayload.type).toBe('SINGLE_MCQ');
-    expect(sentPayload.state).toBe('APPROVED');
-    expect(sentPayload.status).toBe('APPROVED');
+    expect(sentPayload.state).toBe('DRAFT');
+    expect(sentPayload.status).toBe('DRAFT');
     expect(component.feedback()?.type).toBe('success');
   });
 
-  it('should create passage set with questionType and state=APPROVED for each sub-question', () => {
+  it('should create passage set with questionType and state=DRAFT for each sub-question', () => {
     component.setMode('PASSAGE');
     component.selectedSubjectId = 1;
     component.passageContent = 'A particle moves along a straight line with uniform acceleration...';
@@ -158,12 +158,12 @@ describe('QuestionsFeatureAuthoring', () => {
 
     expect(passageServiceMock.createPassage).toHaveBeenCalledTimes(1);
     const sentPassage = passageServiceMock.createPassage.mock.calls[0][0];
-    expect(sentPassage.state).toBe('APPROVED');
-    expect(sentPassage.status).toBe('APPROVED');
+    expect(sentPassage.state).toBe('DRAFT');
+    expect(sentPassage.status).toBe('DRAFT');
     expect(sentPassage.subQuestions.length).toBe(2);
     expect(sentPassage.subQuestions[0].questionType).toBe('SINGLE_MCQ');
-    expect(sentPassage.subQuestions[0].state).toBe('APPROVED');
+    expect(sentPassage.subQuestions[0].state).toBe('DRAFT');
     expect(sentPassage.subQuestions[1].questionType).toBe('SINGLE_MCQ');
-    expect(sentPassage.subQuestions[1].state).toBe('APPROVED');
+    expect(sentPassage.subQuestions[1].state).toBe('DRAFT');
   });
 });

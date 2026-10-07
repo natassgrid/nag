@@ -123,7 +123,7 @@ export class QuestionBankService {
 
   createQuestion(question: any): Observable<Question> {
     const qType = question.questionType || question.type || 'SINGLE_MCQ';
-    const qState = question.state || question.status || 'APPROVED';
+    const qState = question.state || question.status || 'DRAFT';
     const payload = {
       ...question,
       questionType: qType,

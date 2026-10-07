@@ -75,16 +75,16 @@ export class PassageService {
   createPassage(data: PassageRequest): Observable<PassageResponse> {
     const payload = {
       ...data,
-      state: data.state || 'APPROVED',
-      status: data.state || 'APPROVED',
+      state: data.state || 'DRAFT',
+      status: data.state || 'DRAFT',
       subQuestions: (data.subQuestions || []).map((sq: any) => {
         const qType = sq.questionType || sq.type || 'SINGLE_MCQ';
         return {
           ...sq,
           questionType: qType,
           type: qType,
-          state: sq.state || data.state || 'APPROVED',
-          status: sq.state || data.state || 'APPROVED',
+          state: sq.state || data.state || 'DRAFT',
+          status: sq.state || data.state || 'DRAFT',
         };
       }),
     };
