@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  OWASP Dependency-Check suppressions.
+  Every suppression MUST include a <notes> justification and an `until` expiry date (max 90 days).
+  See docs/security/vulnerability-management.md.
+
+  Example:
+  <suppress until="2026-12-31Z">
+    <notes><![CDATA[CVE-XXXX-YYYY does not affect us: vulnerable code path is unused. Ticket: #NNN]]></notes>
+    <packageUrl regex="true">^pkg:maven/org\.example/lib@.*$</packageUrl>
+    <cve>CVE-XXXX-YYYY</cve>
+  </suppress>
+-->
+<suppressions xmlns="https://jeremylong.github.io/DependencyCheck/dependency-suppression.1.3.xsd">
+</suppressions>

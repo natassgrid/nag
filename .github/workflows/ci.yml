@@ -92,10 +92,10 @@ jobs:
           retention-days: 2
 
   # ─────────────────────────────────────────────────────────────────────────────
-  # Job 3: SAST — SpotBugs + Semgrep (block on HIGH severity)
+  # Job 3: SAST — SpotBugs (Semgrep runs as its own job below)
   # ─────────────────────────────────────────────────────────────────────────────
   sast:
-    name: SAST (SpotBugs + Semgrep)
+    name: SAST (SpotBugs)
     runs-on: ubuntu-latest
     needs: build
     permissions:
@@ -130,15 +130,38 @@ jobs:
           path: '**/build/reports/spotbugs/*.html'
           retention-days: 2
 
-      - name: Run Semgrep (Java rules)
-        uses: semgrep/semgrep-action@v1
+  # Semgrep SAST for Java (Spring Boot) and TypeScript/Angular - blocks on ERROR severity
+  semgrep:
+    name: SAST (Semgrep)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+    container:
+      image: semgrep/semgrep:1.97.0
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Run Semgrep (fail on ERROR severity)
+        run: |
+          semgrep scan \
+            --config p/java \
+            --config p/spring \
+            --config p/typescript \
+            --config p/javascript \
+            --config p/owasp-top-ten \
+            --config p/secrets \
+            --severity ERROR \
+            --error \
+            --sarif --output semgrep.sarif
+
+      - name: Upload Semgrep SARIF to GitHub code scanning
+        if: always() && hashFiles('semgrep.sarif') != ''
+        uses: github/codeql-action/upload-sarif@v3
         with:
-          config: >-
-            p/java
-            p/owasp-top-ten
-            p/secrets
-        env:
-          SEMGREP_APP_TOKEN: ${{ secrets.SEMGREP_APP_TOKEN }}
+          sarif_file: semgrep.sarif
+          category: semgrep
 
   # ─────────────────────────────────────────────────────────────────────────────
   # Job 4: OWASP Dependency-Check
@@ -147,6 +170,9 @@ jobs:
     name: OWASP Dependency-Check
     runs-on: ubuntu-latest
     needs: build
+    permissions:
+      contents: read
+      security-events: write
     steps:
       - name: Checkout source
         uses: actions/checkout@v4
@@ -165,6 +191,7 @@ jobs:
             --failOnCVSS 7
             --enableRetired
             --disableAssembly
+            --suppression .github/dependency-check-suppressions.xml
 
       - name: Upload Dependency-Check report
         uses: actions/upload-artifact@v4
@@ -174,6 +201,12 @@ jobs:
           path: 'reports/'
           retention-days: 2
 
+      - name: Upload Dependency-Check SARIF to GitHub code scanning
+        if: always() && hashFiles('reports/dependency-check-report.sarif') != ''
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: reports/dependency-check-report.sarif
+          category: dependency-check
   # ─────────────────────────────────────────────────────────────────────────────
   # Job 5: DAST — OWASP ZAP baseline scan
   # ─────────────────────────────────────────────────────────────────────────────
@@ -209,7 +242,7 @@ jobs:
   container-build:
     name: Container Build & Scan
     runs-on: ubuntu-latest
-    needs: [unit-test, sast, dependency-check]
+    needs: [unit-test, sast, semgrep, dependency-check]
     if: false # Disabled for now
     permissions:
       contents: read

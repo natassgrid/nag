@@ -1,0 +1,59 @@
+version: 2
+updates:
+  - package-ecosystem: gradle
+    directory: "/"
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 10
+    target-branch: develop
+    labels: [dependencies, security]
+    groups:
+      spring:
+        patterns: ["org.springframework*"]
+      minor-and-patch:
+        update-types: [minor, patch]
+
+  - package-ecosystem: npm
+    directory: "/nag-frontend-workspace"
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 10
+    target-branch: develop
+    labels: [dependencies, security]
+    groups:
+      angular:
+        patterns: ["@angular/*", "@angular-devkit/*"]
+      nx:
+        patterns: ["nx", "@nx/*"]
+      minor-and-patch:
+        update-types: [minor, patch]
+
+  - package-ecosystem: npm
+    directory: "/infrastructure/mock-server"
+    schedule:
+      interval: weekly
+    target-branch: develop
+    labels: [dependencies]
+
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule:
+      interval: weekly
+    target-branch: develop
+    labels: [dependencies, ci]
+
+  - package-ecosystem: docker
+    directory: "/backend"
+    schedule:
+      interval: weekly
+    target-branch: develop
+    labels: [dependencies, docker]
+
+  - package-ecosystem: docker
+    directory: "/nag-frontend-workspace"
+    schedule:
+      interval: weekly
+    target-branch: develop
+    labels: [dependencies, docker]

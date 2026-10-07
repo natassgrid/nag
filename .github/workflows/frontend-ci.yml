@@ -39,3 +39,34 @@ jobs:
       - name: Build All Applications & Libraries
         working-directory: nag-frontend-workspace
         run: npx nx run-many -t build
+
+  semgrep-frontend:
+    name: SAST – Semgrep (TypeScript / Angular)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+    container:
+      image: semgrep/semgrep:1.97.0
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Run Semgrep on frontend workspace
+        run: |
+          semgrep scan \
+            --config p/typescript \
+            --config p/javascript \
+            --config p/owasp-top-ten \
+            --config p/secrets \
+            --severity ERROR \
+            --error \
+            --sarif --output semgrep-frontend.sarif \
+            nag-frontend-workspace/
+
+      - name: Upload Semgrep SARIF to GitHub code scanning
+        if: always() && hashFiles('semgrep-frontend.sarif') != ''
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: semgrep-frontend.sarif
+          category: semgrep-frontend
