@@ -51,6 +51,11 @@ public class RequirementAnalystAgent {
         if (request.getSubtopic() != null) {
             blueprint.append("Subtopic: ").append(request.getSubtopic()).append("\n");
         }
+        String rawDesc = request.getRawTextInput() != null && !request.getRawTextInput().isBlank()
+                ? request.getRawTextInput() : request.getDescription();
+        if (rawDesc != null && !rawDesc.isBlank()) {
+            blueprint.append("Author Question Description/Prompt: ").append(rawDesc).append("\n");
+        }
         blueprint.append("Difficulty: ").append(request.getDifficulty()).append("\n");
         blueprint.append("Cognitive Level: ").append(request.getCognitiveLevel()).append("\n");
         blueprint.append("Question Type: ").append(request.getQuestionType()).append("\n");

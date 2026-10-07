@@ -58,8 +58,10 @@ import java.util.regex.Pattern;
 /**
  * Spring AI-based implementation of the question generation pipeline.
  *
- * <p>Orchestrates:\n * <ol>
+ * <p>Orchestrates:
+ * <ol>
  *   <li>Sample question ingestion and tiered multimodal document parsing</li>
+ *   <li>Pre-generation vector search & RAG top-N retrieval to avoid duplicate generation</li>
  *   <li>Complexity triage via {@link ComplexityEvaluator} ("Agent Only When Needed")</li>
  *   <li>Fast Path execution (single lightweight model call, <2s latency, lowest cost)</li>
  *   <li>Multi-Agent collaborative workflow (Requirement Analyst, Question Author,
@@ -194,6 +196,11 @@ public class SpringAiGenerationService implements QuestionGenerationService {
         log.info("Starting question generation with {} sample questions (executionMode={}): subject={}, topic={}, count={}",
                 sampleQuestions.size(), request.getExecutionMode(), request.getSubject(), request.getTopic(), request.getCount());
 
+        // Step 0: Pre-Generation Vector Search & RAG Context Retrieval to Avoid Duplicate Question Generation
+        List<SimilarityResult> ragContext = retrieveRagContext(request, tenantId);
+        log.info("Retrieved {} existing RAG question(s) via vector search to avoid duplicate generation (query='{}')",
+                ragContext.size(), request.buildSearchQuery());
+
         // Step 1: Intelligent Complexity Triage ("Agent Only When Needed")
         ComplexityEvaluationResult triage = complexityEvaluator.evaluate(request, sampleQuestions);
         log.info("Triage outcome: useMultiAgent={}, targetModel={}, rationale={}",
@@ -202,9 +209,9 @@ public class SpringAiGenerationService implements QuestionGenerationService {
         Map<String, Object> sampleMetadata = buildSampleParsingMetadata(sampleQuestions);
 
         if (triage.isUseMultiAgent()) {
-            return executeMultiAgentPipeline(request, sampleQuestions, triage, tenantId, authorId, sampleMetadata);
+            return executeMultiAgentPipeline(request, sampleQuestions, triage, ragContext, tenantId, authorId, sampleMetadata);
         } else {
-            return executeFastPath(request, sampleQuestions, triage, tenantId, authorId, sampleMetadata);
+            return executeFastPath(request, sampleQuestions, triage, ragContext, tenantId, authorId, sampleMetadata);
         }
     }
 
@@ -220,14 +227,12 @@ public class SpringAiGenerationService implements QuestionGenerationService {
             QuestionGenerationRequest request,
             List<NormalizedSampleQuestion> sampleQuestions,
             ComplexityEvaluationResult triage,
+            List<SimilarityResult> ragContext,
             String tenantId,
             UUID authorId,
             Map<String, Object> sampleMetadata) {
 
         String modelName = triage.getTargetModel();
-
-        // Retrieve top-K similar existing questions for RAG context
-        List<SimilarityResult> ragContext = retrieveRagContext(request, tenantId);
 
         String systemPrompt = buildSystemPrompt(request);
         String userPrompt = buildUserPromptWithSamples(request, ragContext, sampleQuestions);
@@ -293,6 +298,7 @@ public class SpringAiGenerationService implements QuestionGenerationService {
             QuestionGenerationRequest request,
             List<NormalizedSampleQuestion> sampleQuestions,
             ComplexityEvaluationResult triage,
+            List<SimilarityResult> ragContext,
             String tenantId,
             UUID authorId,
             Map<String, Object> sampleMetadata) {
@@ -303,8 +309,8 @@ public class SpringAiGenerationService implements QuestionGenerationService {
         String blueprint = requirementAnalystAgent.formulateBlueprint(request, sampleQuestions);
         log.debug("Multi-agent blueprint synthesized:\n{}", blueprint);
 
-        // 2. Question Author Agent constructs specialized prompt with few-shot demonstrations
-        String userPrompt = questionAuthorAgent.buildPromptWithBlueprint(blueprint, request, sampleQuestions);
+        // 2. Question Author Agent constructs specialized prompt with few-shot demonstrations and RAG context
+        String userPrompt = questionAuthorAgent.buildPromptWithBlueprint(blueprint, request, sampleQuestions, ragContext);
         String systemPrompt = buildSystemPrompt(request);
 
         // Call LLM for candidate generation
@@ -406,8 +412,10 @@ public class SpringAiGenerationService implements QuestionGenerationService {
 
     private List<SimilarityResult> retrieveRagContext(QuestionGenerationRequest request, String tenantId) {
         try {
-            String queryText = request.getTopic()
-                    + (request.getSubtopic() != null ? " " + request.getSubtopic() : "");
+            String queryText = request.buildSearchQuery();
+            if (queryText.isBlank()) {
+                queryText = request.getSubject() + " " + request.getTopic();
+            }
             float[] queryEmbedding = embeddingService.embed(queryText);
             String embeddingStr = EmbeddingUtils.embeddingToString(queryEmbedding);
 
@@ -465,6 +473,11 @@ public class SpringAiGenerationService implements QuestionGenerationService {
         prompt.append("- Topic: ").append(request.getTopic()).append("\n");
         if (request.getSubtopic() != null && !request.getSubtopic().isBlank()) {
             prompt.append("- Subtopic: ").append(request.getSubtopic()).append("\n");
+        }
+        String desc = request.getRawTextInput() != null && !request.getRawTextInput().isBlank()
+                ? request.getRawTextInput() : request.getDescription();
+        if (desc != null && !desc.isBlank()) {
+            prompt.append("- Description/Requirements: ").append(desc).append("\n");
         }
         prompt.append("- Difficulty: ").append(request.getDifficulty()).append("\n");
         prompt.append("- Cognitive Level: ").append(request.getCognitiveLevel()).append("\n");

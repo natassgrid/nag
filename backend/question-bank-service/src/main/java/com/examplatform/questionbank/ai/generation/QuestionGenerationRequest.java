@@ -1,18 +1,19 @@
 /*
- * SPDX-License-Identifier: AGPL-3.0-only
+ * Copyright (c) 2026 Natassia Grid. All rights reserved.
  *
- * Open Digital Public Infrastructure (DPI) Platform
- * Copyright (C) 2025 Open Digital Public Infrastructure (DPI) Platform Contributors
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
  *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU Affero General Public License as published
- * by the Free Software Foundation, version 3 of the License.
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU Affero General Public License for more details.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express association or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
+
 package com.examplatform.questionbank.ai.generation;
 
 import jakarta.validation.constraints.Max;
@@ -26,14 +27,14 @@ import lombok.NoArgsConstructor;
 import java.util.List;
 
 /**
- * Request DTO for AI-powered question generation.
+ * Request payload for AI-assisted question generation.
  *
- * <p>Specifies the parameters for the generation endpoints
- * {@code POST /api/v1/questions/generate} and {@code POST /api/v1/questions/generate/with-samples}.
- * Supports sample reference questions, execution mode triage, and exam alignment.
+ * <p>Specifies parameters including syllabus topic, target difficulty,
+ * cognitive level (Bloom's taxonomy), question type, count, and optional
+ * sample question reference texts for style/structure conditioning.
  *
- * @see ModelRouter
- * @see ExecutionMode
+ * @author Natassia Grid Development Team
+ * @since 1.0.0
  */
 @Data
 @Builder
@@ -41,37 +42,45 @@ import java.util.List;
 @AllArgsConstructor
 public class QuestionGenerationRequest {
 
-    /** The examination subject (e.g., "Mathematics", "Indian History"). */
+    /** Subject domain (e.g., "Mathematics", "Physics"). */
     @NotBlank(message = "Subject is required")
     private String subject;
 
-    /** The topic within the subject (e.g., "Quadratic Equations"). */
+    /** Syllabus topic (e.g., "Algebra", "Kinematics"). */
     @NotBlank(message = "Topic is required")
     private String topic;
 
     /** Optional subtopic for more specific generation (e.g., "Discriminant"). */
     private String subtopic;
 
+    /**
+     * Raw text input or author description for the new question.
+     * Combined with subject, topic, and optional subtopic, this forms the composite
+     * vector search query for RAG top-N deduplication prior to calling any agent.
+     */
+    private String rawTextInput;
+
+    /**
+     * Optional description or specific instructions for the new question.
+     */
+    private String description;
+
     /** Difficulty level: EASY, MEDIUM, or HARD. */
     @NotBlank(message = "Difficulty is required")
     private String difficulty;
 
-    /** Bloom's taxonomy cognitive level: REMEMBER, UNDERSTAND, APPLY, ANALYZE, EVALUATE, CREATE. */
+    /** Cognitive level per Bloom's taxonomy: REMEMBER, UNDERSTAND, APPLY, ANALYZE, EVALUATE, CREATE. */
     @NotBlank(message = "Cognitive level is required")
     private String cognitiveLevel;
 
-    /** Type of question: SINGLE_MCQ, MULTI_MCQ, NUMERICAL, DESCRIPTIVE, PARAGRAPH_SET, ASSERTION_REASON, MATRIX_MATCH. */
+    /** Question type: SINGLE_MCQ, MULTIPLE_MCQ, NUMERICAL, TRUE_FALSE, ASSERTION_REASON, PARAGRAPH_SET. */
     @NotBlank(message = "Question type is required")
     private String questionType;
 
-    /** Optional generation mode: "STANDALONE", "PARAGRAPH_SET". */
-    @Builder.Default
-    private String generationType = "STANDALONE";
+    /** Optional configuration specifically for PARAGRAPH_SET (reading comprehension) questions. */
+    private ParagraphSetConfig paragraphConfig;
 
-    /** Configuration for paragraph set / reading comprehension generation. */
-    private ParagraphSetConfig paragraphSetConfig;
-
-    /** Number of questions to generate (1–5). */
+    /** Number of questions to generate (1 to 5). Defaults to 3. */
     @Min(value = 1, message = "Count must be at least 1")
     @Max(value = 5, message = "Count must be at most 5")
     @Builder.Default
@@ -108,6 +117,33 @@ public class QuestionGenerationRequest {
     /** Generation quality rubric: "STANDARD", "EXAM_READY". */
     @Builder.Default
     private String generationQuality = "STANDARD";
+
+    /**
+     * Builds a composite search query string combining subject, topic, optional subtopic,
+     * and raw text input or description for vector search and RAG top-N retrieval.
+     * When raw text input / description is absent, falls back to topic (+ subtopic).
+     */
+    public String buildSearchQuery() {
+        String desc = rawTextInput != null && !rawTextInput.isBlank() ? rawTextInput : description;
+        if (desc != null && !desc.isBlank()) {
+            StringBuilder query = new StringBuilder();
+            if (subject != null && !subject.isBlank()) {
+                query.append(subject.trim());
+            }
+            if (topic != null && !topic.isBlank()) {
+                if (!query.isEmpty()) query.append(" ");
+                query.append(topic.trim());
+            }
+            if (subtopic != null && !subtopic.isBlank()) {
+                if (!query.isEmpty()) query.append(" ");
+                query.append(subtopic.trim());
+            }
+            if (!query.isEmpty()) query.append(" ");
+            query.append(desc.trim());
+            return query.toString();
+        }
+        return topic != null ? (topic + (subtopic != null && !subtopic.isBlank() ? " " + subtopic : "")).trim() : "";
+    }
 
     @Data
     @Builder

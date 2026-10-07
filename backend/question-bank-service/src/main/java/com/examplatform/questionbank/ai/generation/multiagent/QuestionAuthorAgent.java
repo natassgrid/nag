@@ -17,6 +17,7 @@ package com.examplatform.questionbank.ai.generation.multiagent;
 
 import com.examplatform.questionbank.ai.generation.QuestionGenerationRequest;
 import com.examplatform.questionbank.ai.parser.NormalizedSampleQuestion;
+import com.examplatform.questionbank.repository.SimilarityResult;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
@@ -33,13 +34,22 @@ import java.util.List;
 @RequiredArgsConstructor
 public class QuestionAuthorAgent {
 
-    /**
-     * Constructs a specialized prompt incorporating blueprint directives and few-shot sample questions.
-     */
     public String buildPromptWithBlueprint(
             String blueprint,
             QuestionGenerationRequest request,
             List<NormalizedSampleQuestion> sampleQuestions) {
+        return buildPromptWithBlueprint(blueprint, request, sampleQuestions, List.of());
+    }
+
+    /**
+     * Constructs a specialized prompt incorporating blueprint directives, few-shot sample questions,
+     * and RAG existing questions to prevent duplicate question generation.
+     */
+    public String buildPromptWithBlueprint(
+            String blueprint,
+            QuestionGenerationRequest request,
+            List<NormalizedSampleQuestion> sampleQuestions,
+            List<SimilarityResult> ragContext) {
 
         StringBuilder prompt = new StringBuilder();
         prompt.append(blueprint).append("\n\n");
@@ -61,6 +71,14 @@ public class QuestionAuthorAgent {
                 if (sq.getAnswerKey() != null) {
                     prompt.append("Answer Key: ").append(sq.getAnswerKey()).append("\n");
                 }
+            }
+        }
+
+        if (ragContext != null && !ragContext.isEmpty()) {
+            prompt.append("\nEXISTING QUESTIONS TO AVOID DUPLICATING (Top-N Vector Search Context):\n");
+            for (int i = 0; i < ragContext.size(); i++) {
+                SimilarityResult ctx = ragContext.get(i);
+                prompt.append(i + 1).append(". ").append(ctx.getContent()).append("\n");
             }
         }
 

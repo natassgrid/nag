@@ -22,6 +22,7 @@ import com.examplatform.questionbank.ai.generation.QuestionGenerationResponse;
 import com.examplatform.questionbank.ai.parser.NormalizedSampleQuestion;
 import com.examplatform.questionbank.ai.similarity.SimilarityCheckResult;
 import com.examplatform.questionbank.dto.QuestionOption;
+import com.examplatform.questionbank.repository.SimilarityResult;
 import com.examplatform.questionbank.service.SimilarityDetectionService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -56,6 +57,35 @@ class MultiAgentPipelineTest {
         psychometricCriticAgent = new PsychometricCriticAgent();
         refinementAgent = new RefinementAgent();
         similarityAuditorAgent = new SimilarityAuditorAgent(similarityDetectionService);
+    }
+
+    @Test
+    @DisplayName("QuestionGenerationRequest builds composite search query for vector search")
+    void testCompositeSearchQuery() {
+        QuestionGenerationRequest req = QuestionGenerationRequest.builder()
+                .subject("Physics")
+                .topic("Mechanics")
+                .subtopic("Rotational Motion")
+                .description("Calculate torque for a rigid body")
+                .build();
+
+        assertThat(req.buildSearchQuery())
+                .isEqualTo("Physics Mechanics Rotational Motion Calculate torque for a rigid body");
+
+        // Also test with rawTextInput
+        req.setDescription(null);
+        req.setRawTextInput("Moment of inertia of a disc");
+        assertThat(req.buildSearchQuery())
+                .isEqualTo("Physics Mechanics Rotational Motion Moment of inertia of a disc");
+
+        // Test fallback when no description or rawTextInput
+        QuestionGenerationRequest fallbackReq = QuestionGenerationRequest.builder()
+                .subject("Chemistry")
+                .topic("Electrochemistry")
+                .subtopic("Nernst Equation")
+                .build();
+        assertThat(fallbackReq.buildSearchQuery())
+                .isEqualTo("Electrochemistry Nernst Equation");
     }
 
     @Test
@@ -117,6 +147,26 @@ class MultiAgentPipelineTest {
         assertThat(prompt).contains("Generate 2 original, high-quality question(s)");
         assertThat(prompt).contains("FEW-SHOT REFERENCE DEMONSTRATIONS");
         assertThat(prompt).contains("Sample Question Stem");
+    }
+
+    @Test
+    @DisplayName("QuestionAuthorAgent includes RAG existing questions to avoid duplicates")
+    void testQuestionAuthorAgentWithRagContext() {
+        QuestionGenerationRequest request = QuestionGenerationRequest.builder()
+                .count(1)
+                .build();
+
+        SimilarityResult sim = new SimilarityResult() {
+            @Override public UUID getId() { return UUID.randomUUID(); }
+            @Override public String getContent() { return "Existing question about gravity"; }
+            @Override public String getSubject() { return "Physics"; }
+            @Override public Double getSimilarity() { return 0.88; }
+        };
+
+        String prompt = questionAuthorAgent.buildPromptWithBlueprint("BP", request, List.of(), List.of(sim));
+
+        assertThat(prompt).contains("EXISTING QUESTIONS TO AVOID DUPLICATING");
+        assertThat(prompt).contains("Existing question about gravity");
     }
 
     @Test
