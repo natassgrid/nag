@@ -8,6 +8,13 @@ import {
   BatchGenerationJob,
 } from '../models/ai-generation.model';
 
+/** Standard backend envelope shape (from shared-lib ApiResponse<T>). */
+interface ApiResponse<T> {
+  status: string;
+  message?: string;
+  data?: T;
+}
+
 @Injectable({
   providedIn: 'root',
 })
@@ -17,28 +24,20 @@ export class QuestionAiService {
 
   generateQuestions(request: QuestionGenerationRequest): Observable<QuestionGenerationResponse> {
     return this.http
-      .post<{ status?: string; message?: string; data?: QuestionGenerationResponse } | QuestionGenerationResponse>(
-        `${this.baseUrl}/generate`,
-        request
-      )
-      .pipe(map((res) => ((res as any)?.data || res) as QuestionGenerationResponse));
+      .post<ApiResponse<QuestionGenerationResponse>>(`${this.baseUrl}/generate`, request)
+      .pipe(map((res) => res.data as QuestionGenerationResponse));
   }
 
   submitBatchJob(request: BatchGenerationRequest): Observable<BatchGenerationJob> {
     return this.http
-      .post<{ status?: string; message?: string; data?: BatchGenerationJob } | BatchGenerationJob>(
-        `${this.baseUrl}/batch`,
-        request
-      )
-      .pipe(map((res) => ((res as any)?.data || res) as BatchGenerationJob));
+      .post<ApiResponse<BatchGenerationJob>>(`${this.baseUrl}/batch`, request)
+      .pipe(map((res) => res.data as BatchGenerationJob));
   }
 
   getBatchJobStatus(jobId: string): Observable<BatchGenerationJob> {
     return this.http
-      .get<{ status?: string; message?: string; data?: BatchGenerationJob } | BatchGenerationJob>(
-        `${this.baseUrl}/batch/${jobId}`
-      )
-      .pipe(map((res) => ((res as any)?.data || res) as BatchGenerationJob));
+      .get<ApiResponse<BatchGenerationJob>>(`${this.baseUrl}/batch/${jobId}`)
+      .pipe(map((res) => res.data as BatchGenerationJob));
   }
 
   listBatchJobs(
@@ -47,28 +46,25 @@ export class QuestionAiService {
   ): Observable<{ content: BatchGenerationJob[]; totalElements: number }> {
     const params = new HttpParams().set('page', page.toString()).set('size', size.toString());
     return this.http
-      .get<{ status?: string; message?: string; data?: any }>(`${this.baseUrl}/batch`, { params })
+      .get<ApiResponse<{ content: BatchGenerationJob[]; totalElements: number; totalPages: number; size: number; number: number }>>(
+        `${this.baseUrl}/batch`,
+        { params }
+      )
       .pipe(
-        map((res) => {
-          const p = res?.data || res;
-          return {
-            content: p?.content || [],
-            totalElements: p?.totalElements || 0,
-          };
-        })
+        map((res) => ({
+          content: res.data?.content ?? [],
+          totalElements: res.data?.totalElements ?? 0,
+        }))
       );
   }
 
   cancelBatchJob(jobId: string): Observable<BatchGenerationJob> {
     return this.http
-      .post<{ status?: string; message?: string; data?: BatchGenerationJob } | BatchGenerationJob>(
-        `${this.baseUrl}/batch/${jobId}/cancel`,
-        {}
-      )
-      .pipe(map((res) => ((res as any)?.data || res) as BatchGenerationJob));
+      .post<ApiResponse<BatchGenerationJob>>(`${this.baseUrl}/batch/${jobId}/cancel`, {})
+      .pipe(map((res) => res.data as BatchGenerationJob));
   }
 
-  backfillEmbeddings(): Observable<any> {
-    return this.http.post(`${this.baseUrl}/embeddings/backfill`, {});
+  backfillEmbeddings(): Observable<ApiResponse<unknown>> {
+    return this.http.post<ApiResponse<unknown>>(`${this.baseUrl}/embeddings/backfill`, {});
   }
 }

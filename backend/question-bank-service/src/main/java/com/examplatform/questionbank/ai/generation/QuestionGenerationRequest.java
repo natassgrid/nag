@@ -42,6 +42,22 @@ import java.util.List;
 @AllArgsConstructor
 public class QuestionGenerationRequest {
 
+    /**
+     * Numeric FK to the subject. When provided alongside {@link #subject}, the backend performs
+     * an id-based lookup instead of calling {@code resolveOrCreateByName}, preventing silent
+     * taxonomy creation from typos or free-text variants.
+     */
+    private Long subjectId;
+
+    /**
+     * Numeric FK to the topic (must belong to {@link #subjectId} when both are supplied).
+     * When provided, the backend looks up the topic directly by id.
+     */
+    private Long topicId;
+
+    /** Optional numeric FK to the subtopic. */
+    private Long subtopicId;
+
     /** Subject domain (e.g., "Mathematics", "Physics"). */
     @NotBlank(message = "Subject is required")
     private String subject;

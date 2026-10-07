@@ -1,12 +1,22 @@
 import { QuestionOption } from './question.model';
 
-export interface ParagraphSetConfig {
+export interface ParagraphConfig {
   passageWordLength?: number;
   subQuestionCount?: number;
   passageTheme?: string;
 }
 
+/** @deprecated Use ParagraphConfig — renamed to match backend field name */
+export type ParagraphSetConfig = ParagraphConfig;
+
 export interface QuestionGenerationRequest {
+  /** Numeric FK to the subject (from taxonomy API). When present, backend uses id lookup — no auto-create. */
+  subjectId?: number;
+  /** Numeric FK to the topic (from taxonomy API). When present, backend uses id lookup — no auto-create. */
+  topicId?: number;
+  /** Numeric FK to the subtopic (from taxonomy API, optional). */
+  subtopicId?: number;
+
   subject: string;
   topic: string;
   subtopic?: string;
@@ -27,12 +37,24 @@ export interface QuestionGenerationRequest {
     | 'NUMERICAL'
     | 'DESCRIPTIVE'
     | 'PARAGRAPH_SET'
+    | 'ASSERTION_REASON'
+    | 'MATRIX_MATCH'
     | string;
-  generationType?: 'STANDALONE' | 'PARAGRAPH_SET' | string;
-  paragraphSetConfig?: ParagraphSetConfig;
+  /** Matches backend field name `paragraphConfig` (not `paragraphSetConfig`). */
+  paragraphConfig?: ParagraphConfig;
   count: number;
   avoidDuplicate?: boolean;
   autoSave?: boolean;
+
+  /** Pipeline execution mode: AUTO | FAST | MULTI_AGENT */
+  executionMode?: 'AUTO' | 'FAST' | 'MULTI_AGENT' | string;
+  /** Target competitive exam code, e.g. UPSC_CSE, JEE_ADV, GATE, NEET */
+  targetExam?: string;
+  /** Generation quality rubric: STANDARD | EXAM_READY */
+  generationQuality?: 'STANDARD' | 'EXAM_READY' | string;
+  requireCriticReview?: boolean;
+  sampleQuestions?: string[];
+  sampleFileUrl?: string;
 }
 
 export interface GeneratedQuestionValidation {
@@ -56,6 +78,8 @@ export interface GeneratedQuestion {
   validation?: GeneratedQuestionValidation;
   duplicate?: GeneratedQuestionDuplicate;
   savedQuestionId?: string;
+  criticScore?: number;
+  criticFeedback?: string[];
 }
 
 export interface QuestionGenerationResponse {
@@ -64,9 +88,19 @@ export interface QuestionGenerationResponse {
   totalGenerated: number;
   totalValid: number;
   totalDuplicates: number;
+  /** Execution path resolved by the triage router: FAST or MULTI_AGENT */
+  executionMode?: string;
+  triageRationale?: string;
 }
 
 export interface BatchItem {
+  /** Numeric FK to the subject (from taxonomy API). When present, no auto-create on backend. */
+  subjectId?: number;
+  /** Numeric FK to the topic (from taxonomy API). When present, no auto-create on backend. */
+  topicId?: number;
+  /** Numeric FK to the subtopic (optional). */
+  subtopicId?: number;
+
   subject: string;
   topic: string;
   subtopic?: string;

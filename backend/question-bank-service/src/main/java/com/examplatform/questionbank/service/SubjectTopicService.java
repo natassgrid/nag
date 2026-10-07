@@ -138,6 +138,45 @@ public class SubjectTopicService {
     public record HierarchyIds(Long subjectId, Long topicId, Long subtopicId) {}
 
     /**
+     * Resolves subject/topic/subtopic <b>ids</b> to validated ids for a tenant.
+     * Unlike {@link #resolveOrCreateByName}, this method never creates new nodes.
+     * Throws {@link IllegalArgumentException} (→ 400) if any id is not found or
+     * does not belong to the expected parent.
+     *
+     * @param subjectId  required subject id
+     * @param topicId    required topic id (must belong to subjectId)
+     * @param subtopicId optional subtopic id (when non-null, must belong to topicId)
+     * @param tenantId   tenant scope
+     */
+    @Transactional(readOnly = true)
+    public HierarchyIds resolveByIds(Long subjectId, Long topicId, Long subtopicId, String tenantId) {
+        if (subjectId == null) {
+            throw new IllegalArgumentException("subjectId is required");
+        }
+        if (topicId == null) {
+            throw new IllegalArgumentException("topicId is required");
+        }
+
+        Subject subject = subjectRepository.findByIdAndTenantId(subjectId, tenantId)
+                .orElseThrow(() -> new IllegalArgumentException(
+                        "Subject not found: id=" + subjectId + " tenant=" + tenantId));
+
+        Topic topic = topicRepository.findByIdAndSubjectIdAndTenantId(topicId, subject.getId(), tenantId)
+                .orElseThrow(() -> new IllegalArgumentException(
+                        "Topic not found: id=" + topicId + " for subjectId=" + subjectId + " tenant=" + tenantId));
+
+        Long resolvedSubtopicId = null;
+        if (subtopicId != null) {
+            Subtopic subtopic = subtopicRepository.findByIdAndTopicIdAndTenantId(subtopicId, topic.getId(), tenantId)
+                    .orElseThrow(() -> new IllegalArgumentException(
+                            "Subtopic not found: id=" + subtopicId + " for topicId=" + topicId + " tenant=" + tenantId));
+            resolvedSubtopicId = subtopic.getId();
+        }
+
+        return new HierarchyIds(subject.getId(), topic.getId(), resolvedSubtopicId);
+    }
+
+    /**
      * Resolves subject/topic/subtopic names to their numeric ids for a tenant,
      * creating any missing nodes on the fly. Used by AI generation and by
      * name-based imports where the caller supplies names rather than ids.
