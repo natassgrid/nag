@@ -19,40 +19,35 @@
 
 package com.examplatform.shared.redis;
 
-import com.fasterxml.jackson.annotation.JsonTypeInfo;
-import com.fasterxml.jackson.databind.DeserializationFeature;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.SerializationFeature;
-import com.fasterxml.jackson.databind.jsontype.impl.LaissezFaireSubTypeValidator;
-import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
-import org.springframework.data.redis.serializer.GenericJackson2JsonRedisSerializer;
 import org.springframework.data.redis.serializer.GenericJacksonJsonRedisSerializer;
 import org.springframework.data.redis.serializer.RedisSerializer;
+import tools.jackson.databind.DeserializationFeature;
 
 /**
- * Utility for creating pre-configured Redis JSON serializers with full JSR-310 (Java 8 date/time)
- * and polymorphic typing support across all microservices.
+ * Utility for creating pre-configured Redis JSON serializers with polymorphic typing support
+ * across all microservices.
+ *
+ * <p>Uses the Spring Data Redis 4.x {@link GenericJacksonJsonRedisSerializer} (Jackson 3) builder
+ * API, replacing the removed {@code GenericJackson2JsonRedisSerializer}.
+ *
+ * <p>Default typing embeds the Java class name as {@code @class} property in JSON, enabling
+ * polymorphic deserialization. Only use this serializer for data stored in trusted internal Redis
+ * instances — not for data originating from untrusted external sources.
  */
 public final class RedisSerializerUtils {
 
     private RedisSerializerUtils() {}
 
     /**
-     * Creates a {@link RedisSerializer} configured with {@link JavaTimeModule}, ISO-8601 formatting,
-     * unknown property tolerance, and default typing for Redis caching.
+     * Creates a {@link RedisSerializer} configured with unknown-property tolerance and default
+     * typing (class name embedded as {@code @class}) for Redis caching.
      *
-     * @return a configured {@link GenericJackson2JsonRedisSerializer}
+     * @return a configured {@link GenericJacksonJsonRedisSerializer}
      */
     public static RedisSerializer<Object> jsonSerializer() {
-        ObjectMapper mapper = new ObjectMapper();
-        mapper.registerModule(new JavaTimeModule());
-        mapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
-        mapper.disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES);
-        mapper.activateDefaultTyping(
-                LaissezFaireSubTypeValidator.instance,
-                ObjectMapper.DefaultTyping.NON_FINAL,
-                JsonTypeInfo.As.PROPERTY
-        );
-        return new GenericJackson2JsonRedisSerializer(mapper);
+        return GenericJacksonJsonRedisSerializer.builder()
+                .enableUnsafeDefaultTyping()
+                .customize(b -> b.disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES))
+                .build();
     }
 }
