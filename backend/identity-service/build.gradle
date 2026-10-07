@@ -70,7 +70,7 @@ dependencies {
     implementation libs.spring.boot.starter.mail
 
     // WebAuthn / FIDO2
-    implementation 'com.webauthn4j:webauthn4j-core:0.24.1.RELEASE'
+    implementation 'com.webauthn4j:webauthn4j-core:0.31.11.RELEASE'
 
     // GeoIP & Threat Intel
     implementation libs.geoip2

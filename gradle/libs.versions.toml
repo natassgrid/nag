@@ -3,30 +3,30 @@
 
 [versions]
 # ── Platforms & BOMs ──────────────────────────────────────────
-spring-boot = "4.1.0"
+spring-boot = "4.1.1"
 spring-cloud = "2025.1.2"
-spring-ai = "2.0.0"
+spring-ai = "2.0.1"
 
 # ── Plugins ───────────────────────────────────────────────────
-lombok-plugin = "9.5.0"
+lombok-plugin = "9.8.0"
 spring-dependency-management = "1.1.7"
-protobuf-plugin = "0.9.4"
+protobuf-plugin = "0.10.0"
 
 # ── Libraries with explicit versions (not managed by Boot BOM) ────────
-jqwik = "1.8.5"
-java-uuid-generator = "5.1.0"
+jqwik = "1.10.1"
+java-uuid-generator = "5.2.0"
 resilience4j = "2.4.0"
-pdfbox = "3.0.1"
+pdfbox = "3.0.8"
 tika = "2.9.2"
-httpclient5 = "5.4.1"
-httpcore5 = "5.3.1"
+httpclient5 = "5.6.4"
+httpcore5 = "5.4.4"
 opensearch = "2.10.0"
 pgvector = "0.1.6"
-aws-sdk = "2.31.1"
-testcontainers = "1.20.4"
-grpc = "1.68.1"
+aws-sdk = "2.55.11"
+testcontainers = "1.21.4"
+grpc = "1.84.0"
 protobuf-version = "3.25.5"
-archunit = "1.5.0"
+archunit = "1.5.1"
 geoip2 = "4.2.1"
 
 # ──────────────────────────────────────────────────────────────────────
