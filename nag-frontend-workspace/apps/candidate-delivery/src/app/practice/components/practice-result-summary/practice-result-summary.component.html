@@ -44,19 +44,117 @@
       </div>
     </div>
 
-    <!-- Incorrect & Skipped -->
+    <!-- Flagged Questions -->
     <div class="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs flex items-center gap-4">
-      <div class="w-12 h-12 rounded-xl bg-rose-50 border border-rose-100/80 flex items-center justify-center text-rose-600 shrink-0">
-        <mat-icon class="!text-2xl">cancel</mat-icon>
+      <div class="w-12 h-12 rounded-xl bg-amber-50 border border-amber-100/80 flex items-center justify-center text-amber-600 shrink-0">
+        <mat-icon class="!text-2xl">bookmark</mat-icon>
       </div>
       <div>
-        <p class="text-xs font-semibold tracking-wider uppercase text-slate-400">Incorrect / Skipped</p>
-        <h3 class="text-2xl font-bold text-slate-900 mt-0.5">
-          <span class="text-rose-600">{{ result().incorrectCount }}</span>
-          <span class="text-sm font-medium text-slate-400"> / {{ result().skippedCount }}</span>
-        </h3>
+        <p class="text-xs font-semibold tracking-wider uppercase text-slate-400">Flagged For Review</p>
+        <h3 class="text-2xl font-bold text-amber-600 mt-0.5">{{ flaggedCount() }}</h3>
       </div>
     </div>
+  </div>
+
+  <!-- Question Status Breakdown Card -->
+  <div class="bg-white rounded-2xl p-6 border border-slate-200/80 shadow-xs space-y-5">
+    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-100 pb-4">
+      <div>
+        <h2 class="text-base font-bold text-slate-900 tracking-tight">Question Status & Answer Breakdown</h2>
+        <p class="text-xs text-slate-500 mt-0.5">Summary of question evaluations, skipped items, and review flags.</p>
+      </div>
+      <span class="text-xs font-semibold text-slate-600 bg-slate-100 px-3 py-1 rounded-full self-start sm:self-auto">
+        Total: {{ totalQuestionsCount() }} questions
+      </span>
+    </div>
+
+    <!-- 4-Pill Breakdown Grid -->
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+      <!-- Correct -->
+      <div class="p-3.5 rounded-xl bg-emerald-50/70 border border-emerald-200/70 flex items-center gap-3">
+        <div class="w-9 h-9 rounded-lg bg-emerald-100 text-emerald-700 flex items-center justify-center shrink-0">
+          <mat-icon class="!text-lg !w-5 !h-5 leading-none">check_circle</mat-icon>
+        </div>
+        <div>
+          <span class="text-[11px] font-bold text-emerald-800 uppercase tracking-wide block">Correct</span>
+          <div class="flex items-baseline gap-1.5 mt-0.5">
+            <span class="text-lg font-black text-emerald-900 font-mono">{{ result().correctCount }}</span>
+            <span class="text-xs font-semibold text-emerald-700">({{ correctPct() }}%)</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Incorrect -->
+      <div class="p-3.5 rounded-xl bg-rose-50/70 border border-rose-200/70 flex items-center gap-3">
+        <div class="w-9 h-9 rounded-lg bg-rose-100 text-rose-700 flex items-center justify-center shrink-0">
+          <mat-icon class="!text-lg !w-5 !h-5 leading-none">cancel</mat-icon>
+        </div>
+        <div>
+          <span class="text-[11px] font-bold text-rose-800 uppercase tracking-wide block">Incorrect</span>
+          <div class="flex items-baseline gap-1.5 mt-0.5">
+            <span class="text-lg font-black text-rose-900 font-mono">{{ result().incorrectCount }}</span>
+            <span class="text-xs font-semibold text-rose-700">({{ incorrectPct() }}%)</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Skipped -->
+      <div class="p-3.5 rounded-xl bg-slate-50 border border-slate-200/80 flex items-center gap-3">
+        <div class="w-9 h-9 rounded-lg bg-slate-200/80 text-slate-700 flex items-center justify-center shrink-0">
+          <mat-icon class="!text-lg !w-5 !h-5 leading-none">remove_circle_outline</mat-icon>
+        </div>
+        <div>
+          <span class="text-[11px] font-bold text-slate-600 uppercase tracking-wide block">Skipped</span>
+          <div class="flex items-baseline gap-1.5 mt-0.5">
+            <span class="text-lg font-black text-slate-900 font-mono">{{ result().skippedCount }}</span>
+            <span class="text-xs font-semibold text-slate-500">({{ skippedPct() }}%)</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Flagged -->
+      <div class="p-3.5 rounded-xl bg-amber-50/70 border border-amber-200/70 flex items-center gap-3">
+        <div class="w-9 h-9 rounded-lg bg-amber-100 text-amber-700 flex items-center justify-center shrink-0">
+          <mat-icon class="!text-lg !w-5 !h-5 leading-none">bookmark</mat-icon>
+        </div>
+        <div>
+          <span class="text-[11px] font-bold text-amber-800 uppercase tracking-wide block">Flagged</span>
+          <div class="flex items-baseline gap-1.5 mt-0.5">
+            <span class="text-lg font-black text-amber-900 font-mono">{{ flaggedCount() }}</span>
+            <span class="text-xs font-semibold text-amber-700">marked</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Stacked Proportional Bar -->
+    @if (totalQuestionsCount() > 0) {
+      <div class="space-y-1.5 pt-1">
+        <div class="w-full bg-slate-100 rounded-full h-3 flex overflow-hidden">
+          @if (result().correctCount > 0) {
+            <div
+              class="bg-emerald-500 h-full transition-all duration-500"
+              [style.width.%]="correctPct()"
+              title="Correct: {{ result().correctCount }}"
+            ></div>
+          }
+          @if (result().incorrectCount > 0) {
+            <div
+              class="bg-rose-500 h-full transition-all duration-500"
+              [style.width.%]="incorrectPct()"
+              title="Incorrect: {{ result().incorrectCount }}"
+            ></div>
+          }
+          @if (result().skippedCount > 0) {
+            <div
+              class="bg-slate-300 h-full transition-all duration-500"
+              [style.width.%]="skippedPct()"
+              title="Skipped: {{ result().skippedCount }}"
+            ></div>
+          }
+        </div>
+      </div>
+    }
   </div>
 
   <!-- Topic-Wise Breakdown Section (if available) -->

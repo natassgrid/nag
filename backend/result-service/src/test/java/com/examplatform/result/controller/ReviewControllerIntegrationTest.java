@@ -208,6 +208,87 @@ class ReviewControllerIntegrationTest extends AbstractIntegrationTest {
                             .param("examId", EXAM_ID.toString()))
                     .andExpect(status().isUnauthorized());
         }
+
+        @Test
+        @DisplayName("200 OK - Exam review properly evaluates multi-correct options, unattempted questions, and LaTeX math")
+        void examReviewEvaluationEdgeCasesAndLatexMath() throws Exception {
+            UUID qMulti = UUID.randomUUID();
+            UUID qSkipped = UUID.randomUUID();
+
+            CandidateEvaluationItemDto evalMulti = CandidateEvaluationItemDto.builder()
+                    .evaluationId(UUID.randomUUID())
+                    .questionId(qMulti)
+                    .candidateId(CANDIDATE_ID)
+                    .score(0.0) // raw score was 0, but options match
+                    .maxMarks(2.0)
+                    .negativeMarks(0.5)
+                    .status("AUTO_EVALUATED")
+                    .candidateSelectedOptionIds(List.of("opt-a", "opt-c"))
+                    .timeSpentMs(32000L)
+                    .build();
+
+            CandidateEvaluationItemDto evalSkipped = CandidateEvaluationItemDto.builder()
+                    .evaluationId(UUID.randomUUID())
+                    .questionId(qSkipped)
+                    .candidateId(CANDIDATE_ID)
+                    .score(0.0)
+                    .maxMarks(2.0)
+                    .negativeMarks(0.5)
+                    .status("AUTO_EVALUATED")
+                    .candidateSelectedOptionIds(List.of())
+                    .timeSpentMs(0L)
+                    .build();
+
+            QuestionDetailDto qDetailMulti = QuestionDetailDto.builder()
+                    .id(qMulti)
+                    .subject("Mathematics")
+                    .topic("Calculus")
+                    .difficulty("HARD")
+                    .cognitiveLevel("ANALYZE")
+                    .content("Evaluate the integral $$\\int_0^1 x^2 dx$$ and select equivalent forms:")
+                    .explanation("The integral evaluates to $$\\frac{1}{3}$$. Both options A and C represent this value.")
+                    .options(List.of(
+                            ReviewOptionDto.builder().id("opt-a").text("$$\\frac{1}{3}$$").isCorrect(true).build(),
+                            ReviewOptionDto.builder().id("opt-b").text("$$\\frac{1}{2}$$").isCorrect(false).build(),
+                            ReviewOptionDto.builder().id("opt-c").text("$$3^{-1}$$").isCorrect(true).build()
+                    ))
+                    .build();
+
+            QuestionDetailDto qDetailSkipped = QuestionDetailDto.builder()
+                    .id(qSkipped)
+                    .subject("Physics")
+                    .topic("Quantum Mechanics")
+                    .difficulty("HARD")
+                    .cognitiveLevel("EVALUATE")
+                    .content("What is the Planck relation $$E = h\\nu$$?")
+                    .explanation("Photon energy is directly proportional to frequency via $$E = h\\nu$$.")
+                    .options(List.of(
+                            ReviewOptionDto.builder().id("opt-1").text("$$E = h\\nu$$").isCorrect(true).build()
+                    ))
+                    .build();
+
+            when(evaluationClient.getEvaluationsForCandidate(eq(CANDIDATE_ID), eq(EXAM_ID), eq(TENANT_ID)))
+                    .thenReturn(List.of(evalMulti, evalSkipped));
+            when(questionBankClient.findQuestionsByIds(eq(List.of(qMulti, qSkipped)), eq(TENANT_ID)))
+                    .thenReturn(List.of(qDetailMulti, qDetailSkipped));
+
+            mockMvc.perform(get("/api/v1/results/{candidateId}/review", CANDIDATE_ID)
+                            .param("examId", EXAM_ID.toString())
+                            .header("X-Tenant-Id", TENANT_ID)
+                            .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_CANDIDATE"))
+                                    .jwt(j -> j.subject(CANDIDATE_ID.toString()).claim("tenant_id", TENANT_ID))))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.questions.length()").value(2))
+                    .andExpect(jsonPath("$.questions[0].questionId").value(qMulti.toString()))
+                    .andExpect(jsonPath("$.questions[0].isCorrect").value(true))
+                    .andExpect(jsonPath("$.questions[0].candidateSelectedOptionIds.length()").value(2))
+                    .andExpect(jsonPath("$.questions[0].content").value("Evaluate the integral $$\\int_0^1 x^2 dx$$ and select equivalent forms:"))
+                    .andExpect(jsonPath("$.questions[0].explanation").value("The integral evaluates to $$\\frac{1}{3}$$. Both options A and C represent this value."))
+                    .andExpect(jsonPath("$.questions[1].questionId").value(qSkipped.toString()))
+                    .andExpect(jsonPath("$.questions[1].isCorrect").value(false))
+                    .andExpect(jsonPath("$.questions[1].candidateSelectedOptionIds.length()").value(0))
+                    .andExpect(jsonPath("$.questions[1].marksAwarded").value(0.0));
+        }
     }
 
     @Nested

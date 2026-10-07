@@ -24,6 +24,7 @@ describe('PracticeResultPanelComponent', () => {
     },
     difficultyBreakdown: null,
     timingBreakdown: null,
+    flaggedCount: 1,
     questionResults: [
       {
         questionId: 'q-1',
@@ -62,6 +63,7 @@ describe('PracticeResultPanelComponent', () => {
             snapshot: {
               paramMap: convertToParamMap({ sessionId: 'session-123' }),
             },
+            paramMap: of(convertToParamMap({ sessionId: 'session-123' })),
           },
         },
       ],
@@ -79,11 +81,17 @@ describe('PracticeResultPanelComponent', () => {
     expect(component.isLoading()).toBe(false);
   });
 
-  it('should handle error when result fetching fails', () => {
+  it('should handle error when result fetching fails and allow retry', () => {
     practiceServiceMock.getResult.mockReturnValue(throwError(() => new Error('Server error')));
     component.loadResult('session-123');
 
     expect(component.error()).toBeTruthy();
     expect(component.isLoading()).toBe(false);
+
+    // Test retry
+    practiceServiceMock.getResult.mockReturnValue(of(mockResult));
+    component.retry();
+    expect(component.result()).toEqual(mockResult);
+    expect(component.error()).toBeNull();
   });
 });

@@ -36,14 +36,16 @@ export class PracticeResultPanelComponent implements OnInit {
   readonly sessionId = signal<string | null>(null);
 
   ngOnInit(): void {
-    const sId = this.route.snapshot.paramMap.get('sessionId');
-    if (!sId) {
-      this.error.set('No session ID provided');
-      this.isLoading.set(false);
-      return;
-    }
-    this.sessionId.set(sId);
-    this.loadResult(sId);
+    this.route.paramMap.subscribe((params) => {
+      const sId = params.get('sessionId');
+      if (!sId) {
+        this.error.set('No session ID provided');
+        this.isLoading.set(false);
+        return;
+      }
+      this.sessionId.set(sId);
+      this.loadResult(sId);
+    });
   }
 
   loadResult(id: string): void {
