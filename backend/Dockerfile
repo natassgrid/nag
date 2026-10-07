@@ -5,7 +5,7 @@
 # =============================================================================
 
 # --- Stage 1: Build with Gradle (uses project's Gradle wrapper & cached dependencies) ---
-FROM eclipse-temurin:21-jdk AS builder
+FROM eclipse-temurin:25-jdk AS builder
 
 ARG SERVICE_NAME=monolith-app
 ENV SERVICE_NAME=${SERVICE_NAME}
@@ -37,7 +37,7 @@ RUN --mount=type=cache,target=/root/.gradle/caches \
     sh ./gradlew :backend:${SERVICE_NAME}:bootJar -x test --no-daemon
 
 # --- Stage 2: Runtime ---
-FROM eclipse-temurin:21-jre-alpine
+FROM eclipse-temurin:25-jre-alpine
 
 ARG SERVICE_NAME=monolith-app
 ENV SERVICE_NAME=${SERVICE_NAME}
