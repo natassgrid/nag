@@ -4,7 +4,7 @@
 # Reused by all service Dockerfiles.
 # Uses the Gradle wrapper from the project for version consistency.
 # =============================================================================
-FROM eclipse-temurin:21-jdk
+FROM eclipse-temurin:25-jdk
 
 WORKDIR /workspace
 
