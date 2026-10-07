@@ -22,6 +22,8 @@ package com.examplatform.questionbank.dto;
 import com.examplatform.questionbank.domain.enums.CognitiveLevel;
 import com.examplatform.questionbank.domain.enums.DifficultyLevel;
 import com.examplatform.questionbank.domain.enums.QuestionType;
+import com.fasterxml.jackson.annotation.JsonAlias;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -76,6 +78,8 @@ public class CreateQuestionRequest {
     private CognitiveLevel cognitiveLevel;
 
     @NotNull(message = "Question type is required")
+    @JsonProperty("questionType")
+    @JsonAlias({"type", "question_type"})
     private QuestionType questionType;
 
     @NotBlank(message = "Content is required")
@@ -100,4 +104,9 @@ public class CreateQuestionRequest {
 
     /** 0-based order index within its passage group */
     private Integer passageOrderIndex;
+
+    /** Question lifecycle state: e.g. DRAFT or APPROVED */
+    @JsonProperty("state")
+    @JsonAlias({"status"})
+    private String state;
 }

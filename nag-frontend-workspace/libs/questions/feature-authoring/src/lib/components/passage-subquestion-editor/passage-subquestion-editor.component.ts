@@ -3,6 +3,7 @@ import {
   Component,
   input,
   output,
+  signal,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
@@ -15,11 +16,18 @@ import {
   AuthoringSubQuestion,
   COGNITIVE_LEVELS,
 } from '../../models/authoring.model';
+import { FormulaSymbolPaletteComponent } from '../formula-symbol-palette/formula-symbol-palette.component';
 
 @Component({
   selector: 'nag-passage-subquestion-editor',
   standalone: true,
-  imports: [CommonModule, FormsModule, MatIconModule, StatusBadgeComponent],
+  imports: [
+    CommonModule,
+    FormsModule,
+    MatIconModule,
+    StatusBadgeComponent,
+    FormulaSymbolPaletteComponent,
+  ],
   templateUrl: './passage-subquestion-editor.component.html',
   styleUrl: './passage-subquestion-editor.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -33,6 +41,21 @@ export class PassageSubquestionEditorComponent {
   readonly subQuestionsChange = output<AuthoringSubQuestion[]>();
   readonly activeSubQuestionIndexChange = output<number>();
   readonly validationError = output<string>();
+
+  readonly showFormulaPalette = signal<boolean>(false);
+
+  toggleFormulaPalette(): void {
+    this.showFormulaPalette.update((v) => !v);
+  }
+
+  insertSymbolIntoActiveSubQ(symbol: string): void {
+    const idx = this.activeSubQuestionIndex();
+    const list = [...this.subQuestions()];
+    const sq = { ...list[idx] };
+    sq.content = sq.content ? `${sq.content} ${symbol}` : symbol;
+    list[idx] = sq;
+    this.subQuestionsChange.emit(list);
+  }
 
   difficultyVariant(diff: string): StatusVariant {
     switch (diff) {

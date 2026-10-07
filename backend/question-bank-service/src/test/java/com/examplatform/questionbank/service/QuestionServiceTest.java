@@ -206,6 +206,52 @@ class QuestionServiceTest {
             assertThat(captor.getValue().getTenantId()).isEqualTo(tenantId);
             assertThat(captor.getValue().getState()).isEqualTo("DRAFT");
         }
+        @Test
+        @DisplayName("should persist question in APPROVED state when state is explicitly provided")
+        void shouldPersistInApprovedStateWhenStateIsExplicitlyProvided() {
+            // Given
+            CreateQuestionRequest request = validRequest();
+            request.setState("APPROVED");
+            UUID authorId = UUID.randomUUID();
+            String tenantId = "tenant-approved";
+            currentTenantId = tenantId;
+
+            when(questionRepository.save(any(Question.class))).thenAnswer(invocation -> {
+                Question q = invocation.getArgument(0);
+                return q;
+            });
+
+            // When
+            QuestionResponse response = questionService.createQuestion(request, authorId, tenantId);
+
+            // Then
+            assertThat(response).isNotNull();
+            assertThat(response.getState()).isEqualTo("APPROVED");
+
+            ArgumentCaptor<Question> captor = ArgumentCaptor.forClass(Question.class);
+            verify(questionRepository, Mockito.atLeastOnce()).save(captor.capture());
+            assertThat(captor.getValue().getState()).isEqualTo("APPROVED");
+        }
+
+        @Test
+        @DisplayName("should deserialize JSON payload with type alias and state into CreateQuestionRequest")
+        void shouldDeserializeWithTypeAliasAndState() throws Exception {
+            String json = """
+                {
+                    "subjectId": 1,
+                    "topicId": 10,
+                    "type": "SINGLE_MCQ",
+                    "difficulty": "MEDIUM",
+                    "cognitiveLevel": "APPLY",
+                    "content": "Test content",
+                    "state": "APPROVED"
+                }
+                """;
+            com.fasterxml.jackson.databind.ObjectMapper mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+            CreateQuestionRequest req = mapper.readValue(json, CreateQuestionRequest.class);
+            assertThat(req.getQuestionType()).isEqualTo(QuestionType.SINGLE_MCQ);
+            assertThat(req.getState()).isEqualTo("APPROVED");
+        }
 
         @Test
         @DisplayName("should associate question with tenantId from context")

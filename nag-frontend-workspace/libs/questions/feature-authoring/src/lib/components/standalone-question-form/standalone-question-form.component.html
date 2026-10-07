@@ -22,20 +22,53 @@
 
     <!-- Problem Statement -->
     <div>
-      <div class="flex items-center justify-between mb-1">
+      <div class="flex flex-wrap items-center justify-between gap-2 mb-1.5">
         <label for="authoring-content-input" class="block text-xs font-semibold text-slate-700 uppercase">
           Problem Statement (Markdown + LaTeX) *
         </label>
-        <span class="text-xs text-slate-400">Use $...$ or $$...$$ for math</span>
+        <div class="flex items-center gap-2">
+          <button
+            type="button"
+            (click)="toggleFormulaPalette()"
+            class="px-2.5 py-1 text-xs font-semibold rounded-lg border flex items-center gap-1.5 transition-all cursor-pointer shadow-2xs"
+            [ngClass]="{
+              'bg-indigo-600 text-white border-indigo-600': showFormulaPalette(),
+              'bg-white text-indigo-600 border-indigo-200 hover:bg-indigo-50': !showFormulaPalette()
+            }"
+          >
+            <mat-icon class="!text-sm leading-none">functions</mat-icon>
+            <span>{{ showFormulaPalette() ? 'Close Symbol Palette' : 'Insert Formula &amp; Chemistry' }}</span>
+          </button>
+        </div>
       </div>
+
+      <!-- Expandable LaTeX & Chemistry Palette -->
+      @if (showFormulaPalette()) {
+        <div class="mb-3">
+          <nag-formula-symbol-palette
+            (symbolSelected)="insertSymbolIntoContent($event)"
+          ></nag-formula-symbol-palette>
+        </div>
+      }
+
       <textarea
         id="authoring-content-input"
         [ngModel]="content()"
         (ngModelChange)="contentChange.emit($event)"
         rows="6"
-        placeholder="e.g. Find the roots of the quadratic equation: $$ax^2 + bx + c = 0$$"
-        class="w-full font-mono text-sm p-3 bg-slate-50 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+        placeholder="e.g. Find the roots of the quadratic equation: $$ax^2 + bx + c = 0$$ or reaction $$\ce{2H2 + O2 -> 2H2O}$$"
+        class="w-full font-mono text-sm p-3 bg-slate-50 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+        [ngClass]="{
+          'border-rose-400 ring-rose-200': contentInvalid(),
+          'border-slate-300': !contentInvalid()
+        }"
       ></textarea>
+      @if (contentInvalid()) {
+        <p class="text-[11px] text-rose-600 mt-1 flex items-center gap-1 font-medium">
+          <mat-icon class="!text-xs leading-none">error_outline</mat-icon>
+          Problem statement cannot be empty.
+        </p>
+      }
     </div>
 
     <!-- Options Section Sub-component -->
@@ -47,9 +80,28 @@
 
     <!-- Explanation / Solution -->
     <div class="pt-3 border-t">
-      <label for="authoring-explanation-input" class="block text-xs font-semibold text-slate-700 uppercase mb-1">
-        Detailed Explanation / Solution
-      </label>
+      <div class="flex items-center justify-between mb-1.5">
+        <label for="authoring-explanation-input" class="block text-xs font-semibold text-slate-700 uppercase">
+          Detailed Explanation / Solution
+        </label>
+        <button
+          type="button"
+          (click)="toggleExplanationPalette()"
+          class="px-2 py-0.5 text-xs font-medium text-indigo-600 hover:text-indigo-800 flex items-center gap-1"
+        >
+          <mat-icon class="!text-xs leading-none">functions</mat-icon>
+          <span>{{ showExplanationPalette() ? 'Hide Palette' : 'Symbols' }}</span>
+        </button>
+      </div>
+
+      @if (showExplanationPalette()) {
+        <div class="mb-3">
+          <nag-formula-symbol-palette
+            (symbolSelected)="insertSymbolIntoExplanation($event)"
+          ></nag-formula-symbol-palette>
+        </div>
+      }
+
       <textarea
         id="authoring-explanation-input"
         [ngModel]="explanation()"

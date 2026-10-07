@@ -1,6 +1,7 @@
 import {
   ChangeDetectionStrategy,
   Component,
+  computed,
   input,
   output,
 } from '@angular/core';
@@ -35,4 +36,17 @@ export class StandaloneTaxonomyScoringComponent {
   readonly typeChange = output<QuestionType>();
   readonly marksChange = output<number>();
   readonly negativeMarksChange = output<number>();
+
+  readonly marksInvalid = computed(() => {
+    const m = this.marks();
+    return m === null || m === undefined || m <= 0;
+  });
+
+  readonly negMarksInvalid = computed(() => {
+    const nm = this.negativeMarks();
+    const m = this.marks();
+    if (nm === null || nm === undefined || nm < 0) return true;
+    if (m && nm > m) return true;
+    return false;
+  });
 }

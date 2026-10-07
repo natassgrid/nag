@@ -39,7 +39,7 @@
   <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
     <div>
       <label for="authoring-type-select" class="block text-xs font-semibold text-slate-700 uppercase mb-1">
-        Question Type
+        Question Type *
       </label>
       <select
         id="authoring-type-select"
@@ -56,7 +56,7 @@
 
     <div>
       <label for="authoring-marks-input" class="block text-xs font-semibold text-slate-700 uppercase mb-1">
-        Marks (+ve)
+        Marks (+ve) *
       </label>
       <input
         id="authoring-marks-input"
@@ -64,8 +64,18 @@
         [ngModel]="marks()"
         (ngModelChange)="marksChange.emit($event)"
         min="1"
-        class="w-full px-3 py-2 text-sm bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+        class="w-full px-3 py-2 text-sm bg-white border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+        [ngClass]="{
+          'border-rose-400 ring-rose-200': marksInvalid(),
+          'border-slate-300': !marksInvalid()
+        }"
       />
+      @if (marksInvalid()) {
+        <p class="text-[11px] text-rose-600 mt-1 flex items-center gap-1 font-medium">
+          <mat-icon class="!text-xs leading-none">error_outline</mat-icon>
+          Marks must be greater than 0
+        </p>
+      }
     </div>
 
     <div>
@@ -79,8 +89,18 @@
         (ngModelChange)="negativeMarksChange.emit($event)"
         min="0"
         step="0.25"
-        class="w-full px-3 py-2 text-sm bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+        class="w-full px-3 py-2 text-sm bg-white border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+        [ngClass]="{
+          'border-rose-400 ring-rose-200': negMarksInvalid(),
+          'border-slate-300': !negMarksInvalid()
+        }"
       />
+      @if (negMarksInvalid()) {
+        <p class="text-[11px] text-rose-600 mt-1 flex items-center gap-1 font-medium">
+          <mat-icon class="!text-xs leading-none">error_outline</mat-icon>
+          {{ (negativeMarks() || 0) < 0 ? 'Negative marks cannot be negative' : 'Cannot exceed positive marks' }}
+        </p>
+      }
     </div>
   </div>
 </div>

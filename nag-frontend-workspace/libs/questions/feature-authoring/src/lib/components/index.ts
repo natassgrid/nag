@@ -3,6 +3,7 @@ export * from './standalone-taxonomy-scoring/standalone-taxonomy-scoring.compone
 export * from './standalone-options-editor/standalone-options-editor.component';
 export * from './standalone-live-preview/standalone-live-preview.component';
 export * from './standalone-question-form/standalone-question-form.component';
+export * from './formula-symbol-palette/formula-symbol-palette.component';
 export * from './passage-text-box/passage-text-box.component';
 export * from './passage-subquestion-editor/passage-subquestion-editor.component';
 export * from './passage-preview-viewport/passage-preview-viewport.component';

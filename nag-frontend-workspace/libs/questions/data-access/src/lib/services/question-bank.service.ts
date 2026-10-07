@@ -122,8 +122,17 @@ export class QuestionBankService {
   }
 
   createQuestion(question: any): Observable<Question> {
+    const qType = question.questionType || question.type || 'SINGLE_MCQ';
+    const qState = question.state || question.status || 'APPROVED';
+    const payload = {
+      ...question,
+      questionType: qType,
+      type: qType,
+      state: qState,
+      status: qState,
+    };
     return this.http
-      .post<{ status?: string; data?: any }>(this.baseUrl, question)
+      .post<{ status?: string; data?: any }>(this.baseUrl, payload)
       .pipe(
         map((res) => this.mapToQuestion(res.data || res)),
         tap((created) => {

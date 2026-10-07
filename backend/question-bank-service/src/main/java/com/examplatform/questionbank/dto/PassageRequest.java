@@ -11,6 +11,8 @@
 
 package com.examplatform.questionbank.dto;
 
+import com.fasterxml.jackson.annotation.JsonAlias;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -54,4 +56,9 @@ public class PassageRequest {
     @Size(min = 2, max = 6, message = "Passage must have between 2 and 6 sub-questions")
     @Valid
     private List<SubQuestionRequest> subQuestions;
+
+    /** Passage lifecycle state: e.g. DRAFT or APPROVED */
+    @JsonProperty("state")
+    @JsonAlias({"status"})
+    private String state;
 }

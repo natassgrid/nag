@@ -217,7 +217,7 @@ public class QuestionService {
                 .hasImages(hasImages)
                 .passageId(request.getPassageId())
                 .passageOrderIndex(request.getPassageOrderIndex())
-                .state("DRAFT")
+                .state((request.getState() != null && !request.getState().isBlank()) ? request.getState() : "DRAFT")
                 .encryptionKeyId(dekKeyName)
                 .authorId(authorId)
                 .build();

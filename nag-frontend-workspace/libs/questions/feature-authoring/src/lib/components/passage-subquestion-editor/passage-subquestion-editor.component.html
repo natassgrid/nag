@@ -33,7 +33,7 @@
         @if (subQuestions().length > 2) {
           <span
             (click)="$event.stopPropagation(); onRemoveSubQuestion(idx)"
-            class="hover:text-rose-300"
+            class="hover:text-rose-300 font-normal ml-1"
             title="Remove sub-question"
           >
             &times;
@@ -109,17 +109,50 @@
 
       <!-- Sub-Q Prompt -->
       <div>
-        <label [for]="'subq-content-' + activeSubQuestionIndex()" class="block text-xs font-semibold text-slate-700 uppercase mb-1">
-          Sub-Question Prompt (Markdown + LaTeX) *
-        </label>
+        <div class="flex flex-wrap items-center justify-between gap-2 mb-1.5">
+          <label [for]="'subq-content-' + activeSubQuestionIndex()" class="block text-xs font-semibold text-slate-700 uppercase">
+            Sub-Question Prompt (Markdown + LaTeX) *
+          </label>
+          <button
+            type="button"
+            (click)="toggleFormulaPalette()"
+            class="px-2 py-0.5 text-xs font-semibold rounded border flex items-center gap-1 transition-all cursor-pointer"
+            [ngClass]="{
+              'bg-indigo-600 text-white border-indigo-600': showFormulaPalette(),
+              'bg-white text-indigo-600 border-indigo-200 hover:bg-indigo-50': !showFormulaPalette()
+            }"
+          >
+            <mat-icon class="!text-xs leading-none">functions</mat-icon>
+            <span>{{ showFormulaPalette() ? 'Close Palette' : 'Symbols / LaTeX' }}</span>
+          </button>
+        </div>
+
+        @if (showFormulaPalette()) {
+          <div class="mb-3">
+            <nag-formula-symbol-palette
+              (symbolSelected)="insertSymbolIntoActiveSubQ($event)"
+            ></nag-formula-symbol-palette>
+          </div>
+        }
+
         <textarea
           [id]="'subq-content-' + activeSubQuestionIndex()"
           [ngModel]="activeSq.content"
           (ngModelChange)="onSubQuestionFieldChange('content', $event)"
           rows="3"
           placeholder="Enter the sub-question prompt..."
-          class="w-full font-mono text-sm p-3 bg-slate-50 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+          class="w-full font-mono text-sm p-3 bg-slate-50 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+          [ngClass]="{
+            'border-rose-400 ring-rose-200': !activeSq.content || !activeSq.content.trim(),
+            'border-slate-300': activeSq.content && activeSq.content.trim()
+          }"
         ></textarea>
+        @if (!activeSq.content || !activeSq.content.trim()) {
+          <p class="text-[11px] text-rose-600 mt-1 flex items-center gap-1 font-medium">
+            <mat-icon class="!text-xs leading-none">error_outline</mat-icon>
+            Sub-question prompt cannot be empty.
+          </p>
+        }
       </div>
 
       <!-- Sub-Q Options (For MCQ/MSQ) -->
@@ -127,13 +160,13 @@
         <div class="space-y-3 pt-3 border-t">
           <div class="flex items-center justify-between">
             <span class="block text-xs font-semibold text-slate-700 uppercase">
-              Sub-Question Options & Key
+              Sub-Question Options &amp; Key *
             </span>
             <button
               type="button"
               (click)="onAddSubQuestionOption(activeSubQuestionIndex())"
               [disabled]="activeSq.options.length >= 6"
-              class="text-xs font-semibold text-indigo-600 hover:text-indigo-800 flex items-center gap-1"
+              class="text-xs font-semibold text-indigo-600 hover:text-indigo-800 disabled:opacity-40 flex items-center gap-1"
             >
               <mat-icon class="!text-sm">add</mat-icon>
               Add Option
@@ -149,7 +182,13 @@
                 class="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
                 [title]="'Mark Option ' + getOptionLetter(optIdx) + ' as correct'"
               />
-              <span class="font-bold text-xs text-slate-500 w-4">
+              <span
+                class="font-bold text-xs w-6 text-center py-1 rounded"
+                [ngClass]="{
+                  'bg-emerald-100 text-emerald-800 font-extrabold': opt.isCorrect,
+                  'text-slate-500 bg-slate-100': !opt.isCorrect
+                }"
+              >
                 {{ getOptionLetter(optIdx) }}
               </span>
               <input
@@ -157,13 +196,17 @@
                 [ngModel]="opt.text"
                 (ngModelChange)="onSubQuestionOptionTextChange(activeSubQuestionIndex(), optIdx, $event)"
                 placeholder="Option text or LaTeX..."
-                class="grow px-3 py-1.5 text-xs bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                class="grow px-3 py-1.5 text-xs bg-white border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                [ngClass]="{
+                  'border-rose-300': !opt.text || !opt.text.trim(),
+                  'border-slate-300': opt.text && opt.text.trim()
+                }"
               />
               @if (activeSq.options.length > 2) {
                 <button
                   type="button"
                   (click)="onRemoveSubQuestionOption(activeSubQuestionIndex(), optIdx)"
-                  class="text-slate-400 hover:text-rose-600"
+                  class="text-slate-400 hover:text-rose-600 p-1"
                 >
                   <mat-icon class="!text-sm">close</mat-icon>
                 </button>
@@ -176,7 +219,7 @@
       <!-- Sub-Q Explanation -->
       <div class="pt-3 border-t">
         <label [for]="'subq-expl-' + activeSubQuestionIndex()" class="block text-xs font-semibold text-slate-700 uppercase mb-1">
-          Sub-Question Solution & Explanation
+          Sub-Question Solution &amp; Explanation
         </label>
         <textarea
           [id]="'subq-expl-' + activeSubQuestionIndex()"

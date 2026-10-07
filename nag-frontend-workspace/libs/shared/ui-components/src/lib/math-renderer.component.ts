@@ -11,6 +11,7 @@ import {
 import { CommonModule } from '@angular/common';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import katex from 'katex';
+import 'katex/dist/contrib/mhchem.mjs';
 import { marked } from 'marked';
 
 @Component({
