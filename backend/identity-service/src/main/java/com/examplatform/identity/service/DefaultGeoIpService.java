@@ -142,8 +142,8 @@ public class DefaultGeoIpService implements GeoIpService {
             if (databaseReader != null) {
                 try {
                     CountryResponse response = databaseReader.country(inetAddress);
-                    if (response != null && response.getCountry() != null && response.getCountry().getIsoCode() != null) {
-                        return response.getCountry().getIsoCode().toUpperCase();
+                    if (response != null && response.country() != null && response.country().isoCode() != null) {
+                        return response.country().isoCode().toUpperCase();
                     }
                 } catch (Exception e) {
                     log.debug("MaxMind lookup failed for IP [{}]: {}", cleanIp, e.getMessage());

@@ -11,11 +11,11 @@ WORKDIR /workspace
 # Copy Gradle wrapper and local distribution zip
 COPY gradlew ./
 COPY gradle/ gradle/
-COPY backend/gradle/gradle-8.14.5-bin.zip /tmp/gradle-8.14.5-bin.zip
+COPY backend/gradle/gradle-9.8.0-bin.zip /tmp/gradle-9.8.0-bin.zip
 
 # Pre-extract local Gradle distribution into /root/.gradle wrapper cache
 RUN sed -i 's/\r$//' gradlew && \
     chmod +x gradlew && \
-    sed -i 's|distributionUrl=.*|distributionUrl=file\:/tmp/gradle-8.14.5-bin.zip|' gradle/wrapper/gradle-wrapper.properties && \
+    sed -i 's|distributionUrl=.*|distributionUrl=file\:/tmp/gradle-9.8.0-bin.zip|' gradle/wrapper/gradle-wrapper.properties && \
     sh ./gradlew --version && \
-    rm -f /tmp/gradle-8.14.5-bin.zip
+    rm -f /tmp/gradle-9.8.0-bin.zip
