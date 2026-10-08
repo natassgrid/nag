@@ -194,14 +194,16 @@ public interface QuestionRepository extends JpaRepository<Question, UUID>, JpaSp
     void updateEmbedding(@Param("id") UUID id, @Param("embedding") String embedding);
 
     /**
-     * Finds approved questions matching blueprint criteria (subject, topic, difficulty, cognitive level).
+     * Finds published questions matching blueprint criteria (subject, topic, difficulty, cognitive level).
+     * Only PUBLISHED questions are eligible for paper assembly — APPROVED questions have not yet
+     * received final approver sign-off and must not appear in generated papers.
      */
     @Query(value = """
             SELECT * FROM question_service.question
             WHERE (tenant_id = :tenantId OR tenant_id = 'default')
-              AND UPPER(TRIM(subject)) = UPPER(TRIM(:subject))\
+              AND UPPER(TRIM(subject)) = UPPER(TRIM(:subject))
               AND UPPER(TRIM(topic)) = UPPER(TRIM(:topic))
-              AND state = 'APPROVED'
+              AND state = 'PUBLISHED'
               AND (:difficulty IS NULL OR UPPER(TRIM(difficulty)) = UPPER(TRIM(:difficulty)))
               AND (:cognitiveLevel IS NULL OR UPPER(TRIM(cognitive_level)) = UPPER(TRIM(:cognitiveLevel)))
             ORDER BY RANDOM()
@@ -215,13 +217,14 @@ public interface QuestionRepository extends JpaRepository<Question, UUID>, JpaSp
 
     /**
      * Fallback lookup for blueprint questions ignoring cognitive level if exact match has no rows.
+     * Only PUBLISHED questions are eligible for paper assembly.
      */
     @Query(value = """
             SELECT * FROM question_service.question
             WHERE (tenant_id = :tenantId OR tenant_id = 'default')
               AND UPPER(TRIM(subject)) = UPPER(TRIM(:subject))
               AND UPPER(TRIM(topic)) = UPPER(TRIM(:topic))
-              AND state = 'APPROVED'
+              AND state = 'PUBLISHED'
               AND (:difficulty IS NULL OR UPPER(TRIM(difficulty)) = UPPER(TRIM(:difficulty)))
             ORDER BY RANDOM()
             """, nativeQuery = true)

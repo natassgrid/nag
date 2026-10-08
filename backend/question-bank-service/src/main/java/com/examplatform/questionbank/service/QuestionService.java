@@ -216,7 +216,7 @@ public class QuestionService {
                 .answerKey(answerKey)
                 .options(request.getOptions())
                 .explanation(request.getExplanation())
-                .references(request.getReferences())
+                .sourceReferences(request.getReferences())
                 .hasImages(hasImages)
                 .passageId(request.getPassageId())
                 .passageOrderIndex(request.getPassageOrderIndex())
@@ -500,7 +500,7 @@ public class QuestionService {
                 cb.like(cb.lower(cb.coalesce(root.get("content"), "")), pattern),
                 cb.like(cb.lower(cb.coalesce(root.get("explanation"), "")), pattern),
                 cb.like(cb.lower(cb.coalesce(root.get("state"), "")), pattern),
-                cb.like(cb.lower(cb.coalesce(root.get("references"), "")), pattern)
+                cb.like(cb.lower(cb.coalesce(root.get("sourceReferences"), "")), pattern)
         );
     }
 
@@ -680,7 +680,8 @@ public class QuestionService {
     }
 
     /**
-     * Finds approved questions matching blueprint criteria for Paper Generator.
+     * Finds published questions matching blueprint criteria for Paper Generator.
+     * Only PUBLISHED questions (final approver sign-off complete) are eligible for paper assembly.
      */
     @Transactional(readOnly = true)
     public List<QuestionResponse> findBlueprintQuestions(String subject, String topic, String difficulty, String cognitiveLevel, String tenantId) {
@@ -809,10 +810,11 @@ public class QuestionService {
                 .content(question.getContent())
                 .answerKey(question.getAnswerKey())
                 .explanation(question.getExplanation())
-                .references(question.getReferences())
+                .sourceReferences(question.getSourceReferences())
                 .state(question.getState())
                 .authorId(question.getAuthorId())
                 .reviewerId(question.getReviewerId())
+                .reviewComments(question.getReviewComments())
                 .encryptionKeyId(question.getEncryptionKeyId())
                 .passageId(question.getPassageId())
                 .passageOrderIndex(question.getPassageOrderIndex())

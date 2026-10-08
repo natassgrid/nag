@@ -58,6 +58,12 @@ import static org.springframework.security.test.web.servlet.request.SecurityMock
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
+/**
+ * QuestionController REST endpoint integration tests (MockMvc).
+ * All service dependencies are mocked — only the HTTP layer + Spring Security is exercised.
+ *
+ * Section 5 covers the review workflow edge cases added for Issue #275.
+ */
 @DisplayName("QuestionController REST Endpoints E2E Tests (MockMvc)")
 class QuestionControllerIntegrationTest extends AbstractIntegrationTest {
 
@@ -318,6 +324,7 @@ class QuestionControllerIntegrationTest extends AbstractIntegrationTest {
 
     // =========================================================================
     // 5. Lifecycle Transitions (Submit, Transition, Approve, Reject)
+    //    — expanded for Issue #275: review workflow edge cases
     // =========================================================================
     @Nested
     @DisplayName("Question Lifecycle Endpoints")
@@ -444,6 +451,119 @@ class QuestionControllerIntegrationTest extends AbstractIntegrationTest {
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.status").value("success"))
                     .andExpect(jsonPath("$.data.state").value("DRAFT"));
+        }
+
+        // === Issue #275 edge cases ===
+
+        @Test
+        @DisplayName("-ve: Reject without comments returns 400 Bad Request")
+        void rejectWithoutCommentsReturnsBadRequest() throws Exception {
+            mockMvc.perform(put("/api/v1/questions/{id}/reject", QUESTION_ID)
+                            .header("X-Tenant-Id", TENANT_ID)
+                            .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_REVIEWER"))
+                                    .jwt(j -> j.subject(REVIEWER_ID.toString())))
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(Map.of())))
+                    .andExpect(status().isBadRequest())
+                    .andExpect(jsonPath("$.status").value("error"));
+        }
+
+        @Test
+        @DisplayName("-ve: Reject with blank comments returns 400 Bad Request")
+        void rejectWithBlankCommentsReturnsBadRequest() throws Exception {
+            mockMvc.perform(put("/api/v1/questions/{id}/reject", QUESTION_ID)
+                            .header("X-Tenant-Id", TENANT_ID)
+                            .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_REVIEWER"))
+                                    .jwt(j -> j.subject(REVIEWER_ID.toString())))
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(Map.of("comments", "  "))))
+                    .andExpect(status().isBadRequest())
+                    .andExpect(jsonPath("$.status").value("error"));
+        }
+
+        @Test
+        @DisplayName("-ve: Author tries to approve their own question (four-eyes) - returns 403 Forbidden")
+        void authorCannotApproveOwnQuestion() throws Exception {
+            when(questionLifecycleService.approve(eq(QUESTION_ID), eq(AUTHOR_ID), eq(TENANT_ID)))
+                    .thenThrow(new FourEyesPrincipleViolationException());
+
+            mockMvc.perform(put("/api/v1/questions/{id}/approve", QUESTION_ID)
+                            .header("X-Tenant-Id", TENANT_ID)
+                            .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_REVIEWER"))
+                                    .jwt(j -> j.subject(AUTHOR_ID.toString())))
+                            .contentType(MediaType.APPLICATION_JSON))
+                    .andExpect(status().isForbidden())
+                    .andExpect(jsonPath("$.status").value("error"))
+                    .andExpect(jsonPath("$.message")
+                            .value("Four-eyes principle violation: reviewer cannot also approve publication"));
+        }
+
+        @Test
+        @DisplayName("-ve: CANDIDATE role cannot call approve endpoint - returns 403 Forbidden")
+        void candidateCannotApprove() throws Exception {
+            mockMvc.perform(put("/api/v1/questions/{id}/approve", QUESTION_ID)
+                            .header("X-Tenant-Id", TENANT_ID)
+                            .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_CANDIDATE"))
+                                    .jwt(j -> j.subject(REVIEWER_ID.toString())))
+                            .contentType(MediaType.APPLICATION_JSON))
+                    .andExpect(status().isForbidden());
+        }
+
+        @Test
+        @DisplayName("-ve: CANDIDATE role cannot call reject endpoint - returns 403 Forbidden")
+        void candidateCannotReject() throws Exception {
+            mockMvc.perform(put("/api/v1/questions/{id}/reject", QUESTION_ID)
+                            .header("X-Tenant-Id", TENANT_ID)
+                            .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_CANDIDATE"))
+                                    .jwt(j -> j.subject(REVIEWER_ID.toString())))
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(Map.of("comments", "Should not reach here"))))
+                    .andExpect(status().isForbidden());
+        }
+
+        @Test
+        @DisplayName("+ve: Author can re-submit rejected question (DRAFT -> REVIEW again) - returns 200 OK")
+        void authorCanResubmitAfterRejection() throws Exception {
+            QuestionResponse inReview = sampleQuestionResponse();
+            inReview.setState("REVIEW");
+
+            when(questionService.submitForReview(eq(QUESTION_ID), eq(AUTHOR_ID), eq(TENANT_ID)))
+                    .thenReturn(inReview);
+
+            mockMvc.perform(put("/api/v1/questions/{id}/submit", QUESTION_ID)
+                            .header("X-Tenant-Id", TENANT_ID)
+                            .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_QUESTION_AUTHOR"))
+                                    .jwt(j -> j.subject(AUTHOR_ID.toString())))
+                            .contentType(MediaType.APPLICATION_JSON))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.status").value("success"))
+                    .andExpect(jsonPath("$.data.state").value("REVIEW"));
+        }
+
+        @Test
+        @DisplayName("+ve: Rejected question response includes reviewComments field")
+        void rejectedQuestionResponseIncludesReviewComments() throws Exception {
+            QuestionResponse rejected = sampleQuestionResponse();
+            rejected.setState("DRAFT");
+            rejected.setReviewComments("Missing distractors in options B and C.");
+
+            when(questionLifecycleService.reject(
+                    eq(QUESTION_ID), eq(REVIEWER_ID),
+                    eq("Missing distractors in options B and C."), eq(TENANT_ID)))
+                    .thenReturn(rejected);
+
+            mockMvc.perform(put("/api/v1/questions/{id}/reject", QUESTION_ID)
+                            .header("X-Tenant-Id", TENANT_ID)
+                            .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_REVIEWER"))
+                                    .jwt(j -> j.subject(REVIEWER_ID.toString())))
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(
+                                    Map.of("comments", "Missing distractors in options B and C."))))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.status").value("success"))
+                    .andExpect(jsonPath("$.data.state").value("DRAFT"))
+                    .andExpect(jsonPath("$.data.reviewComments")
+                            .value("Missing distractors in options B and C."));
         }
     }
 

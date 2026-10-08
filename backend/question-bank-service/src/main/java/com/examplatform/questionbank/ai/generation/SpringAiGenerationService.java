@@ -705,7 +705,7 @@ public class SpringAiGenerationService implements QuestionGenerationService {
                     .answerKey(raw.answerKey)
                     .explanation(raw.explanation)
                     .options(raw.options)
-                    .references("AI-generated via " + modelRouter.selectModel(request.getDifficulty()))
+                    .sourceReferences("AI-generated via " + modelRouter.selectModel(request.getDifficulty()))
                     .state("DRAFT")
                     .authorId(authorId)
                     .build();

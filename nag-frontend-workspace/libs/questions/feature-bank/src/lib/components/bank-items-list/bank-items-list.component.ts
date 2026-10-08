@@ -38,10 +38,23 @@ export class BankItemsListComponent {
   readonly showingStart = input<number>(0);
   readonly showingEnd = input<number>(0);
 
+  /** Current logged-in user's UUID — forwarded to each card for four-eyes enforcement */
+  readonly currentUserId = input<string | null>(null);
+  /** Whether the current user has a reviewer/approver role */
+  readonly isReviewer = input<boolean>(false);
+  /** Whether the current user has an author role */
+  readonly isAuthor = input<boolean>(false);
+
   readonly pageChange = output<number>();
   readonly editQuestion = output<QuestionCardData>();
   readonly deleteQuestion = output<string>();
   readonly createQuestion = output<void>();
+
+  // Review workflow outputs (Issue #275)
+  readonly submitQuestion = output<string>();
+  readonly approveQuestion = output<string>();
+  readonly rejectQuestion = output<string>();
+  readonly publishQuestion = output<string>();
 
   mapQuestionToCard(q: Question): QuestionCardData {
     return {
@@ -51,6 +64,8 @@ export class BankItemsListComponent {
       type: q.type,
       difficulty: q.difficulty,
       status: q.status,
+      authorId: q.authorId,
+      reviewComments: q.reviewComments,
       marks: q.marks,
       negativeMarks: q.negativeMarks,
       options: q.options || [],

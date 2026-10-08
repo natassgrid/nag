@@ -38,7 +38,12 @@ STATUS_OUTPUT=$(vault status -address="$VAULT_ADDR" 2>&1 || true)
 
 if echo "$STATUS_OUTPUT" | grep -q "Initialized.*false"; then
   echo "🔧 Initializing Vault (1 key share)..."
-  INIT_RESPONSE=$(vault operator init -address="$VAULT_ADDR" -key-shares=1 -key-threshold=1 -format=json)
+  INIT_RESPONSE=$(vault operator init -address="$VAULT_ADDR" -key-shares=1 -key-threshold=1 -format=json 2>&1)
+  if ! echo "$INIT_RESPONSE" | grep -q "unseal_keys_b64"; then
+    echo "ERROR: vault operator init FAILED (check /vault/data ownership: must be writable by uid 100):"
+    echo "$INIT_RESPONSE"
+    exit 1
+  fi
   echo "$INIT_RESPONSE" > "$KEYS_FILE"
   chmod 666 "$KEYS_FILE" 2>/dev/null || true
   echo "✅ Vault initialized. Keys stored in $KEYS_FILE."
@@ -70,6 +75,14 @@ if echo "$STATUS_OUTPUT" | grep -q "Sealed.*true"; then
   fi
 else
   echo "✅ Vault is unsealed."
+fi
+
+# Fail fast if Vault is still uninitialized or sealed (never report false success)
+FINAL_STATUS=$(vault status -address="$VAULT_ADDR" 2>&1 || true)
+if echo "$FINAL_STATUS" | grep -q "Initialized.*false" || echo "$FINAL_STATUS" | grep -q "Sealed.*true"; then
+  echo "ERROR: Vault is not initialized/unsealed after init step. Aborting."
+  echo "$FINAL_STATUS"
+  exit 1
 fi
 
 # ---------------------------------------------------------------------------
@@ -128,6 +141,11 @@ create_key "question-content-key"          "aes256-gcm96"
 create_key "candidate-pii-key"             "aes256-gcm96"
 create_key "translation-content-key"       "aes256-gcm96"
 create_key "audit-signing-key-ecdsa-p256"  "ecdsa-p256"
+
+if ! vault read -address="$VAULT_ADDR" "transit/keys/audit-signing-key-ecdsa-p256" > /dev/null 2>&1; then
+  echo "ERROR: transit keys were not provisioned. Aborting."
+  exit 1
+fi
 
 echo ""
 echo "============================================="

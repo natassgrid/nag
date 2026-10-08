@@ -16,6 +16,7 @@ export type QuestionStatus =
   | 'REVIEW'
   | 'IN_REVIEW'
   | 'APPROVED'
+  | 'PUBLISHED'
   | 'REJECTED';
 
 export interface QuestionOption {
@@ -39,6 +40,10 @@ export interface Question {
   subjectId?: string | number;
   topicId?: string | number;
   subtopicId?: string | number;
+  /** UUID of the question author — used for four-eyes enforcement in the UI */
+  authorId?: string;
+  /** Reviewer feedback comments set when a question is rejected back to DRAFT */
+  reviewComments?: string;
   marks: number;
   negativeMarks: number;
   options: QuestionOption[];

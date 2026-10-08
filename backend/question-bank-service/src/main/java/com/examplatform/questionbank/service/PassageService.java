@@ -332,7 +332,7 @@ public class PassageService {
                 .answerKey(answerKey)
                 .options(options)
                 .explanation(subReq.getExplanation())
-                .references(subReq.getReferences())
+                .sourceReferences(subReq.getReferences())
                 .hasImages(hasImages)
                 .state(passage.getState())
                 .passageId(passage.getId())
@@ -382,7 +382,7 @@ public class PassageService {
         existing.setAnswerKey(answerKey);
         existing.setOptions(options);
         existing.setExplanation(subReq.getExplanation());
-        existing.setReferences(subReq.getReferences());
+        existing.setSourceReferences(subReq.getReferences());
         existing.setHasImages(hasImages);
         existing.setPassageOrderIndex(subReq.getPassageOrderIndex() != null ? subReq.getPassageOrderIndex() : orderIndex);
     }

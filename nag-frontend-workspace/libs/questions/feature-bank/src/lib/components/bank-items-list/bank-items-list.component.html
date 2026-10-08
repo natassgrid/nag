@@ -17,8 +17,15 @@
     @for (item of questions(); track item.id) {
       <nag-question-card
         [data]="mapQuestionToCard(item)"
+        [currentUserId]="currentUserId()"
+        [isReviewer]="isReviewer()"
+        [isAuthor]="isAuthor()"
         (cardEdit)="editQuestion.emit($event)"
         (cardDelete)="deleteQuestion.emit($event)"
+        (cardSubmit)="submitQuestion.emit($event)"
+        (cardApprove)="approveQuestion.emit($event)"
+        (cardReject)="rejectQuestion.emit($event)"
+        (cardPublish)="publishQuestion.emit($event)"
       ></nag-question-card>
     }
   </div>

@@ -53,11 +53,20 @@ public class QuestionResponse {
     private String content;
     private String answerKey;
     private String explanation;
-    private String references;
+    private String sourceReferences;
     private String state;
     private Long version;
     private UUID authorId;
     private UUID reviewerId;
+
+    /**
+     * Reviewer feedback comments set when a question is rejected back to DRAFT.
+     * Visible to the author so they can revise the question accordingly.
+     *
+     * Validates: Requirements 5.3 (rejection feedback visibility)
+     */
+    private String reviewComments;
+
     private String encryptionKeyId;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;

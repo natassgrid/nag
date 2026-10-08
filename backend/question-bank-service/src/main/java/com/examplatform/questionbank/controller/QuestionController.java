@@ -239,6 +239,32 @@ public class QuestionController {
     }
 
     /**
+     * Publish an APPROVED question — transitions to PUBLISHED state.
+     * Enforces the Four-Eyes Principle: publisher cannot be the reviewer who approved it.
+     * Requires APPROVER or ADMIN role.
+     *
+     * Validates: Requirements 5.4, 5.5
+     *
+     * @param id       the question UUID
+     * @param jwt      the authenticated JWT principal
+     * @param tenantId tenant identifier from the X-Tenant-Id header
+     * @return 200 OK with the published question response
+     */
+    @PutMapping("/{id}/publish")
+    @PreAuthorize("hasAnyRole('APPROVER', 'ADMIN', 'SUPER_ADMIN')")
+    public ResponseEntity<ApiResponse<QuestionResponse>> publish(
+            @PathVariable UUID id,
+            @AuthenticationPrincipal Jwt jwt,
+            @RequestHeader("X-Tenant-Id") String tenantId) {
+
+        UUID publisherId = UUID.fromString(jwt.getSubject());
+        log.info("Publishing question: id={}, publisher={}, tenant={}", id, publisherId, tenantId);
+
+        QuestionResponse response = questionLifecycleService.publish(id, publisherId, tenantId);
+        return ResponseEntity.ok(ApiResponse.success(response, "Question published successfully"));
+    }
+
+    /**
      * Reject a question with required comments — transitions back to DRAFT state.
      * Requires REVIEWER or APPROVER role.
      *
@@ -251,7 +277,7 @@ public class QuestionController {
      * @return 200 OK with the rejected question response (in DRAFT state)
      */
     @PutMapping("/{id}/reject")
-    @PreAuthorize("hasAnyRole('REVIEWER', 'APPROVER')")
+    @PreAuthorize("hasAnyRole('REVIEWER', 'APPROVER', 'SUPER_ADMIN')")
     public ResponseEntity<ApiResponse<QuestionResponse>> reject(
             @PathVariable UUID id,
             @RequestBody java.util.Map<String, String> payload,
@@ -334,7 +360,7 @@ public class QuestionController {
      * @return 200 OK with the list of question versions
      */
     @GetMapping("/{id}/versions")
-    @PreAuthorize("hasAnyRole('QUESTION_AUTHOR', 'REVIEWER', 'APPROVER')")
+    @PreAuthorize("hasAnyRole('QUESTION_AUTHOR', 'REVIEWER', 'APPROVER', 'SUPER_ADMIN')")
     public ResponseEntity<ApiResponse<List<QuestionVersion>>> getVersions(@PathVariable UUID id) {
         List<QuestionVersion> versions = questionVersioningService.getVersions(id);
         return ResponseEntity.ok(ApiResponse.success(versions, "Version history retrieved successfully"));
@@ -389,8 +415,10 @@ public class QuestionController {
     }
 
     /**
-     * Find approved questions matching blueprint criteria for Paper Generator.
-     * Supports both /match-blueprint and /blueprint-match for inter-service clients.\n     * Accessible to EXAM_CONTROLLER, ADMIN, SUPER_ADMIN, or unauthenticated internal calls.
+     * Find published questions matching blueprint criteria for Paper Generator.
+     * Only PUBLISHED questions (final approver sign-off complete) are returned.
+     * Supports both /match-blueprint and /blueprint-match for inter-service clients.
+     * Accessible to EXAM_CONTROLLER, ADMIN, SUPER_ADMIN, or unauthenticated internal calls.
      *
      * @param request  blueprint matching criteria
      * @param tenantId tenant identifier from the X-Tenant-Id header

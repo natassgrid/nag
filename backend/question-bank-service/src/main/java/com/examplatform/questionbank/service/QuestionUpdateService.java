@@ -85,7 +85,7 @@ public class QuestionUpdateService {
         existing.setContent(request.getContent());
         existing.setAnswerKey(request.getAnswerKey());
         existing.setExplanation(request.getExplanation());
-        existing.setReferences(request.getReferences());
+        existing.setSourceReferences(request.getReferences());
         existing.setOptions(request.getOptions());
 
         if (request.getPassageId() != null) {
@@ -138,7 +138,7 @@ public class QuestionUpdateService {
                 .content(source.getContent())
                 .answerKey(source.getAnswerKey())
                 .explanation(source.getExplanation())
-                .references(source.getReferences())
+                .sourceReferences(source.getSourceReferences())
                 .options(source.getOptions())
                 .hasImages(source.isHasImages())
                 .passageId(source.getPassageId())
@@ -171,7 +171,7 @@ public class QuestionUpdateService {
                 .content(question.getContent())
                 .answerKey(question.getAnswerKey())
                 .explanation(question.getExplanation())
-                .references(question.getReferences())
+                .sourceReferences(question.getSourceReferences())
                 .state(question.getState())
                 .authorId(question.getAuthorId())
                 .reviewerId(question.getReviewerId())
