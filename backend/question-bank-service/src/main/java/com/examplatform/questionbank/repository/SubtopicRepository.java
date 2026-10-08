@@ -14,8 +14,7 @@
  * GNU Affero General Public License for more details.
  *
  * You should have received a copy of the GNU Affero General Public License
- * along with this program. If not, see <https://www.gnu.org/licenses/>.
- */
+ * along with this program. If not, see <https://www.gnu.org/licenses/>.\n */
 
 package com.examplatform.questionbank.repository;
 
@@ -34,6 +33,8 @@ public interface SubtopicRepository extends JpaRepository<Subtopic, Long> {
     Optional<Subtopic> findByIdAndTopicIdAndTenantId(Long id, Long topicId, String tenantId);
 
     List<Subtopic> findByTopicIdAndTenantId(Long topicId, String tenantId);
+
+    List<Subtopic> findByTopicIdAndTenantIdOrderByNameAsc(Long topicId, String tenantId);
 
     Optional<Subtopic> findByNameAndTopicIdAndTenantId(String name, Long topicId, String tenantId);
 

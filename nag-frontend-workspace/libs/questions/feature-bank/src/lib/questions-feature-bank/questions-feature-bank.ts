@@ -394,4 +394,97 @@ export class QuestionsFeatureBank implements OnInit {
       },
     });
   }
+
+  // -------------------------------------------------------------------------
+  // Bulk selection state (Issue #323)
+  // -------------------------------------------------------------------------
+  readonly selectedQuestionIds = signal<Set<string>>(new Set<string>());
+
+  readonly isAllSelected = computed<boolean>(() => {
+    const list = this.questionService.questions();
+    const sel = this.selectedQuestionIds();
+    return list.length > 0 && list.every((q) => sel.has(q.id));
+  });
+
+  toggleSelectQuestion(id: string): void {
+    this.selectedQuestionIds.update((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      return next;
+    });
+  }
+
+  toggleSelectAll(): void {
+    const list = this.questionService.questions();
+    if (this.isAllSelected()) {
+      this.selectedQuestionIds.update((prev) => {
+        const next = new Set(prev);
+        list.forEach((q) => next.delete(q.id));
+        return next;
+      });
+    } else {
+      this.selectedQuestionIds.update((prev) => {
+        const next = new Set(prev);
+        list.forEach((q) => next.add(q.id));
+        return next;
+      });
+    }
+  }
+
+  clearSelection(): void {
+    this.selectedQuestionIds.set(new Set<string>());
+  }
+
+  async onBulkTransition(targetState: string): Promise<void> {
+    const ids = Array.from(this.selectedQuestionIds());
+    if (ids.length === 0) return;
+
+    const actionLabel =
+      targetState === "REVIEW"
+        ? "Submit for Review"
+        : targetState === "APPROVED"
+        ? "Approve"
+        : targetState === "PUBLISHED"
+        ? "Publish"
+        : `Transition to ${targetState}`;
+
+    const confirmed = await this.notificationService.confirm({
+      title: `Bulk ${actionLabel}?`,
+      message: `Are you sure you want to transition ${ids.length} selected item(s) to ${targetState}?`,
+      confirmText: actionLabel,
+      cancelText: "Cancel",
+      type: targetState === "PUBLISHED" ? "warning" : "info",
+    });
+
+    if (confirmed) {
+      this.questionService.bulkTransition({ questionIds: ids, targetState }).subscribe({
+        next: (res) => {
+          if (res.failureCount > 0) {
+            this.notificationService.warning(
+              "Bulk Transition Completed with Warnings",
+              `Successfully updated ${res.successCount} of ${res.totalRequested} items. ${res.failureCount} item(s) failed validation.`
+            );
+          } else {
+            this.notificationService.success(
+              "Bulk Transition Completed",
+              `Successfully updated all ${res.successCount} items to ${targetState}.`
+            );
+          }
+          this.clearSelection();
+          this.applyFilters(this.questionService.currentPage());
+        },
+        error: (err) => {
+          this.notificationService.error(
+            "Bulk Transition Failed",
+            err?.error?.message || "Error occurred during bulk state transition."
+          );
+        },
+      });
+    }
+  }
+
 }

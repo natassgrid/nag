@@ -78,6 +78,11 @@ public class SessionController {
 
         UUID candidateId = UUID.fromString(jwt.getSubject());
         String tenantId = jwt.getClaimAsString("tenant_id");
+        String preferredLanguage = jwt.getClaimAsString("preferred_language");
+        if ((request.getLanguageCode() == null || "en".equals(request.getLanguageCode()))
+                && preferredLanguage != null && !preferredLanguage.isBlank()) {
+            request.setLanguageCode(preferredLanguage);
+        }
 
         SessionStartResponse response = sessionStartService.startSession(request, candidateId, tenantId);
 
@@ -91,14 +96,6 @@ public class SessionController {
     }
 
     /**
-     * Resume an existing active exam session explicitly by session ID.
-     *
-     * @param sessionId the session identifier
-     * @param jwt       the authenticated candidate's JWT
-     * @return 200 OK with session details and delivery questions
-     */
-
-    /**
      * Retrieve question list for a specific paper (used for practice mock test delivery).
      *
      * @param paperId the paper identifier
@@ -109,7 +106,10 @@ public class SessionController {
             @PathVariable UUID paperId,
             @AuthenticationPrincipal Jwt jwt) {
         String tenantId = jwt != null ? jwt.getClaimAsString("tenant_id") : "default";
-        List<QuestionDeliveryDto> questions = examQuestionDeliveryService.getQuestionsForPaper(paperId, tenantId);
+        String preferredLanguage = jwt != null ? jwt.getClaimAsString("preferred_language") : null;
+        List<QuestionDeliveryDto> questions = (preferredLanguage != null && !preferredLanguage.isBlank())
+                ? examQuestionDeliveryService.getQuestionsForPaper(paperId, tenantId, preferredLanguage)
+                : examQuestionDeliveryService.getQuestionsForPaper(paperId, tenantId);
         return ResponseEntity.ok(questions);
     }
 
@@ -158,7 +158,10 @@ public class SessionController {
             @AuthenticationPrincipal Jwt jwt) {
 
         String tenantId = jwt.getClaimAsString("tenant_id");
-        List<QuestionDeliveryDto> questions = examQuestionDeliveryService.getQuestionsForSession(sessionId, tenantId);
+        String preferredLanguage = jwt.getClaimAsString("preferred_language");
+        List<QuestionDeliveryDto> questions = (preferredLanguage != null && !preferredLanguage.isBlank())
+                ? examQuestionDeliveryService.getQuestionsForSession(sessionId, tenantId, preferredLanguage)
+                : examQuestionDeliveryService.getQuestionsForSession(sessionId, tenantId);
 
         return ResponseEntity.ok(questions);
     }
@@ -179,7 +182,10 @@ public class SessionController {
             @AuthenticationPrincipal Jwt jwt) {
 
         String tenantId = jwt.getClaimAsString("tenant_id");
-        List<QuestionDeliveryDto> questions = examQuestionDeliveryService.getQuestionsForSession(sessionId, tenantId);
+        String preferredLanguage = jwt.getClaimAsString("preferred_language");
+        List<QuestionDeliveryDto> questions = (preferredLanguage != null && !preferredLanguage.isBlank())
+                ? examQuestionDeliveryService.getQuestionsForSession(sessionId, tenantId, preferredLanguage)
+                : examQuestionDeliveryService.getQuestionsForSession(sessionId, tenantId);
 
         if (sequenceNumber >= 1 && sequenceNumber <= questions.size()) {
             return ResponseEntity.ok(questions.get(sequenceNumber - 1));

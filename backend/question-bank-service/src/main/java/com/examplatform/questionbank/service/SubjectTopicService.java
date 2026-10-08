@@ -53,7 +53,7 @@ public class SubjectTopicService {
 
     @Transactional(readOnly = true)
     public List<Subject> listSubjects(String tenantId) {
-        return subjectRepository.findByTenantId(tenantId);
+        return subjectRepository.findByTenantIdOrderByNameAsc(tenantId);
     }
 
     @Transactional
@@ -80,7 +80,7 @@ public class SubjectTopicService {
 
     @Transactional(readOnly = true)
     public List<Topic> listTopics(Long subjectId, String tenantId) {
-        return topicRepository.findBySubjectIdAndTenantId(subjectId, tenantId);
+        return topicRepository.findBySubjectIdAndTenantIdOrderByNameAsc(subjectId, tenantId);
     }
 
     @Transactional
@@ -107,7 +107,7 @@ public class SubjectTopicService {
 
     @Transactional(readOnly = true)
     public List<Subtopic> listSubtopics(Long topicId, String tenantId) {
-        return subtopicRepository.findByTopicIdAndTenantId(topicId, tenantId);
+        return subtopicRepository.findByTopicIdAndTenantIdOrderByNameAsc(topicId, tenantId);
     }
 
     @Transactional
@@ -222,13 +222,13 @@ public class SubjectTopicService {
      */
     @Transactional(readOnly = true)
     public List<SubjectHierarchyResponse> getHierarchy(String tenantId) {
-        List<Subject> subjects = subjectRepository.findByTenantId(tenantId);
+        List<Subject> subjects = subjectRepository.findByTenantIdOrderByNameAsc(tenantId);
 
         return subjects.stream().map(subject -> {
-            List<Topic> topics = topicRepository.findBySubjectIdAndTenantId(subject.getId(), tenantId);
+            List<Topic> topics = topicRepository.findBySubjectIdAndTenantIdOrderByNameAsc(subject.getId(), tenantId);
 
             List<SubjectHierarchyResponse.TopicNode> topicNodes = topics.stream().map(topic -> {
-                List<Subtopic> subtopics = subtopicRepository.findByTopicIdAndTenantId(topic.getId(), tenantId);
+                List<Subtopic> subtopics = subtopicRepository.findByTopicIdAndTenantIdOrderByNameAsc(topic.getId(), tenantId);
 
                 List<SubjectHierarchyResponse.SubtopicNode> subtopicNodes = subtopics.stream()
                         .map(st -> SubjectHierarchyResponse.SubtopicNode.builder()

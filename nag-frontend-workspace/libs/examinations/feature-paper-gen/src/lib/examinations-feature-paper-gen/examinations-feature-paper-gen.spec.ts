@@ -25,6 +25,8 @@ describe('ExaminationsFeaturePaperGen', () => {
     getPaper: jest.Mock;
     approvePaper: jest.Mock;
     publishPaper: jest.Mock;
+    getTranslationStatus: jest.Mock;
+    startTranslation: jest.Mock;
     papers: any;
     loading: any;
   };
@@ -49,6 +51,8 @@ describe('ExaminationsFeaturePaperGen', () => {
       getPaper: jest.fn().mockReturnValue(of({ id: 'p-1', name: 'Paper 1' })),
       approvePaper: jest.fn().mockReturnValue(of({ message: 'Approved' })),
       publishPaper: jest.fn().mockReturnValue(of({ message: 'Published' })),
+      getTranslationStatus: jest.fn().mockReturnValue(of(null)),
+      startTranslation: jest.fn().mockReturnValue(of({ jobId: 'job-1', status: 'PENDING', totalQuestions: 100, processedQuestions: 0, progressPercentage: 0 })),
       papers: signal([]),
       loading: signal(false),
     };
@@ -127,5 +131,33 @@ describe('ExaminationsFeaturePaperGen', () => {
 
     component.openSummaryDrawer('');
     expect(paperServiceMock.getPaper).not.toHaveBeenCalled();
+  });
+
+  it('should start translation and trigger status updates', () => {
+    component.selectedPaperId.set('p-valid-1');
+    component.startTranslation({ targetLanguage: 'hi', overwriteExisting: false });
+
+    expect(paperServiceMock.startTranslation).toHaveBeenCalledWith('p-valid-1', {
+      targetLanguage: 'hi',
+      overwriteExisting: false,
+    });
+    expect(component.activeTranslationJob()?.jobId).toBe('job-1');
+  });
+
+  it('should clean up translation polling and state on closeDrawer', () => {
+    component.selectedPaperId.set('p-valid-1');
+    component.activeTranslationJob.set({
+      jobId: 'job-1',
+      status: 'PENDING',
+      targetLanguage: 'hi',
+      totalQuestions: 100,
+      processedQuestions: 0,
+      progressPercentage: 0,
+    });
+    component.closeDrawer();
+
+    expect(component.drawerOpen()).toBe(false);
+    expect(component.selectedPaperId()).toBeNull();
+    expect(component.activeTranslationJob()).toBeNull();
   });
 });

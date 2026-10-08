@@ -110,9 +110,41 @@ public class ExamQuestionDeliveryService {
     }
 
     /**
-     * Retrieves questions for an ongoing exam session.
+     * Resolves bilingual delivery and English fallback flags for delivered questions
+     * according to the candidate's preferred examination language.
+     *
+     * @param questions         the list of questions to configure
+     * @param preferredLanguage the candidate's primary language (e.g. "hi", "ta", "en")
      */
-    public List<QuestionDeliveryDto> getQuestionsForSession(UUID sessionId, String tenantId) {
+    public void applyLanguagePreference(List<QuestionDeliveryDto> questions, String preferredLanguage) {
+        if (questions == null || questions.isEmpty()) {
+            return;
+        }
+
+        String targetLang = (preferredLanguage != null && !preferredLanguage.isBlank())
+                ? preferredLanguage.trim().toLowerCase()
+                : "en";
+
+        for (QuestionDeliveryDto q : questions) {
+            q.setPrimaryLanguage(targetLang);
+            if ("en".equalsIgnoreCase(targetLang)) {
+                q.setFallbackToEnglish(false);
+                q.setPrimaryTranslation(null);
+            } else if (q.getTranslations() != null && q.getTranslations().containsKey(targetLang)) {
+                q.setFallbackToEnglish(false);
+                q.setPrimaryTranslation(q.getTranslations().get(targetLang));
+            } else {
+                // Translation not available in selected language -> fallback to original English
+                q.setFallbackToEnglish(true);
+                q.setPrimaryTranslation(null);
+            }
+        }
+    }
+
+    /**
+     * Retrieves questions for an ongoing exam session with candidate language preference.
+     */
+    public List<QuestionDeliveryDto> getQuestionsForSession(UUID sessionId, String tenantId, String preferredLanguage) {
         String effectiveTenant = (tenantId != null && !tenantId.isBlank()) ? tenantId : "default";
         ExamSession session = examSessionRepository.findBySessionIdAndTenantId(sessionId, effectiveTenant)
                 .orElse(null);
@@ -121,8 +153,21 @@ public class ExamQuestionDeliveryService {
             return Collections.emptyList();
         }
 
+        String lang = (preferredLanguage != null && !preferredLanguage.isBlank())
+                ? preferredLanguage
+                : (session.getLanguageCode() != null ? session.getLanguageCode() : "en");
+
         List<QuestionDeliveryDto> baseQuestions = getDeliveryQuestions(session.getExamId(), session.getPaperId(), null, effectiveTenant);
-        return optionRandomizer.randomizeOptions(baseQuestions, sessionId);
+        List<QuestionDeliveryDto> randomized = optionRandomizer.randomizeOptions(baseQuestions, sessionId);
+        applyLanguagePreference(randomized, lang);
+        return randomized;
+    }
+
+    /**
+     * Retrieves questions for an ongoing exam session.
+     */
+    public List<QuestionDeliveryDto> getQuestionsForSession(UUID sessionId, String tenantId) {
+        return getQuestionsForSession(sessionId, tenantId, null);
     }
 
     /**
@@ -140,15 +185,23 @@ public class ExamQuestionDeliveryService {
     }
 
     /**
-     * Retrieves questions for a specific paper.
+     * Retrieves questions for a specific paper with preferred language.
      */
-    public List<QuestionDeliveryDto> getQuestionsForPaper(UUID paperId, String tenantId) {
+    public List<QuestionDeliveryDto> getQuestionsForPaper(UUID paperId, String tenantId, String preferredLanguage) {
         String effectiveTenant = (tenantId != null && !tenantId.isBlank()) ? tenantId : "default";
         List<QuestionDeliveryDto> questions = questionDeliveryRepository.fetchQuestionsForPaper(paperId, effectiveTenant);
         if (!questions.isEmpty()) {
             translationEnricher.enrichWithTranslations(questions, effectiveTenant);
+            applyLanguagePreference(questions, preferredLanguage);
         }
         return questions;
+    }
+
+    /**
+     * Retrieves questions for a specific paper.
+     */
+    public List<QuestionDeliveryDto> getQuestionsForPaper(UUID paperId, String tenantId) {
+        return getQuestionsForPaper(paperId, tenantId, null);
     }
 
     public List<UUID> extractQuestionUuidsFromJson(String json) {

@@ -12,14 +12,35 @@
     (actionClick)="createQuestion.emit()"
   ></nag-empty-state>
 } @else {
+  <!-- Bulk Select All Control -->
+  <div class="px-5 py-3 bg-slate-50 rounded-xl border border-slate-200 flex items-center justify-between text-xs text-slate-700">
+    <label class="flex items-center gap-2.5 cursor-pointer font-semibold select-none">
+      <input
+        type="checkbox"
+        [checked]="isAllSelected()"
+        (change)="toggleSelectAll.emit()"
+        class="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+      />
+      <span>Select all {{ questions().length }} items on this page</span>
+    </label>
+    @if (selectedIds().size > 0) {
+      <span class="text-indigo-600 font-bold bg-indigo-50 px-2.5 py-0.5 rounded-full border border-indigo-100">
+        {{ selectedIds().size }} selected
+      </span>
+    }
+  </div>
+
   <!-- Items Listing -->
   <div class="space-y-4">
     @for (item of questions(); track item.id) {
       <nag-question-card
         [data]="mapQuestionToCard(item)"
+        [selectable]="true"
+        [selected]="selectedIds().has(item.id)"
         [currentUserId]="currentUserId()"
         [isReviewer]="isReviewer()"
         [isAuthor]="isAuthor()"
+        (cardSelect)="toggleSelectQuestion.emit(item.id)"
         (cardEdit)="editQuestion.emit($event)"
         (cardDelete)="deleteQuestion.emit($event)"
         (cardSubmit)="submitQuestion.emit($event)"

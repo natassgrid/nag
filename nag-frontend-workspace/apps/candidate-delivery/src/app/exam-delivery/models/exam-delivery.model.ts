@@ -3,6 +3,13 @@ export type ExamDeliveryMode = 'LIVE' | 'PRACTICE' | 'PREVIEW';
 export interface ExamOption {
   id: string;
   text: string;
+  content?: string;
+}
+
+export interface ExamTranslation {
+  languageCode: string;
+  content: string;
+  options?: ExamOption[];
 }
 
 export interface ExamItem {
@@ -10,6 +17,7 @@ export interface ExamItem {
   order: number;
   questionCode: string;
   content: string;
+  stem?: string;
   options: ExamOption[];
   marks: number;
   negativeMarks: number;
@@ -18,6 +26,9 @@ export interface ExamItem {
   selectedOptionId?: string;
   isFlagged?: boolean;
   isVisited?: boolean;
+  primaryLanguage?: string;
+  fallbackToEnglish?: boolean;
+  primaryTranslation?: ExamTranslation;
 }
 
 export interface ExamScoreSummary {

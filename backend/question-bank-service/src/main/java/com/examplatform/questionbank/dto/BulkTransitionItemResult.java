@@ -17,25 +17,27 @@
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
 
-package com.examplatform.questionbank.repository;
+package com.examplatform.questionbank.dto;
 
-import com.examplatform.questionbank.domain.Subject;
-import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.stereotype.Repository;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
 
-import java.util.List;
-import java.util.Optional;
+import java.util.UUID;
 
-@Repository
-public interface SubjectRepository extends JpaRepository<Subject, Long> {
+/**
+ * Result of a single question transition within a bulk transition operation.
+ */
+@Data
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
+public class BulkTransitionItemResult {
 
-    Optional<Subject> findByIdAndTenantId(Long id, String tenantId);
-
-    List<Subject> findByTenantId(String tenantId);
-
-    List<Subject> findByTenantIdOrderByNameAsc(String tenantId);
-
-    Optional<Subject> findByNameAndTenantId(String name, String tenantId);
-
-    boolean existsByNameAndTenantId(String name, String tenantId);
+    private UUID questionId;
+    private boolean success;
+    private String previousState;
+    private String newState;
+    private String errorMessage;
 }

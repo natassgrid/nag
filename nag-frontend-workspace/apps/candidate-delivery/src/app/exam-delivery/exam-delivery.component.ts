@@ -71,6 +71,9 @@ export class ExamDeliveryComponent implements OnInit, OnDestroy {
   readonly countAnswered = this.deliveryService.countAnswered;
   readonly countFlagged = this.deliveryService.countFlagged;
   readonly countUnvisited = this.deliveryService.countUnvisited;
+  readonly sessionError = this.deliveryService.sessionError;
+  readonly isConcurrentConflict = this.deliveryService.isConcurrentConflict;
+  readonly isLoading = this.deliveryService.isLoading;
 
   ngOnInit(): void {
     this.route.queryParams.subscribe((params) => {
@@ -117,6 +120,13 @@ export class ExamDeliveryComponent implements OnInit, OnDestroy {
 
   prevQuestion(): void {
     this.deliveryService.prevQuestion();
+  }
+
+  resolveConflictAndStart(): void {
+    const id = this.examId();
+    if (id) {
+      this.deliveryService.terminateActiveAndStart(id, this.deliveryService.paperId());
+    }
   }
 
   onCloseReceipt(): void {

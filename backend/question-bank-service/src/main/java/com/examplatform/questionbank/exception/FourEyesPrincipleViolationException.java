@@ -25,7 +25,8 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 
 /**
  * Thrown when the four-eyes principle is violated — the reviewer
- * cannot also be the approver (the actor who transitions to PUBLISHED).
+ * cannot also be the approver (the actor who transitions to PUBLISHED),
+ * or author cannot approve their own question.
  *
  * Validates: Requirements 5.5
  */
@@ -35,5 +36,9 @@ public class FourEyesPrincipleViolationException extends RuntimeException {
 
     public FourEyesPrincipleViolationException() {
         super("Four-eyes principle violation: reviewer cannot also approve publication");
+    }
+
+    public FourEyesPrincipleViolationException(String message) {
+        super(message);
     }
 }

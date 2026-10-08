@@ -65,6 +65,11 @@ export interface PaperDetail {
   topicDistribution?: Record<string, number>;
   questions?: QuestionDetail[];
   paperDefinitionJson?: string;
+  merkleRootHash?: string;
+  ledgerTxHash?: string;
+  consensusTimestamp?: string;
+  verificationUrl?: string;
+  ledgerExplorerUrl?: string;
 }
 
 export interface PaperGenerationRequest {

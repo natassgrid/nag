@@ -313,4 +313,63 @@ router.post('/reset', (req, res) => {
   });
 });
 
+
+/**
+ * 19. Mock Ledger Explorer / Transaction Receipt (Hedera Hashscan Simulator)
+ * GET /mock/ledger/tx/:txHash
+ */
+router.get("/ledger/tx/:txHash", (req, res) => {
+  const { txHash } = req.params;
+  const acceptHeader = req.headers.accept || "";
+
+  const receipt = {
+    transactionId: `0.0.482910@${Math.floor(Date.now() / 1000)}.000000001`,
+    consensusTimestamp: new Date().toISOString(),
+    transactionHash: txHash,
+    status: "SUCCESS",
+    network: "Hedera Testnet (NAG-DPI Consensus Service)",
+    topicId: "0.0.592014",
+    memo: "NAG Authenticated Examination Paper Cryptographic Seal",
+    runningHash: "0x" + (txHash.length > 32 ? txHash.substring(0, 32) : txHash) + "7f8a9b",
+    sequenceNumber: 148291,
+    verified: true,
+  };
+
+  if (acceptHeader.includes("text/html") && !req.query.format?.includes("json")) {
+    return res.send(`
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>NAG Hashscan Simulator - ${txHash}</title>
+        <meta charset="utf-8">
+        <style>
+          body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #0f172a; color: #f8fafc; padding: 2rem; }
+          .card { max-width: 800px; margin: 0 auto; background: #1e293b; border: 1px solid #334155; border-radius: 1rem; padding: 2rem; box-shadow: 0 20px 25px -5px rgb(0 0 0 / 0.5); }
+          .badge { background: #065f46; color: #34d399; padding: 0.25rem 0.75rem; border-radius: 9999px; font-weight: bold; font-size: 0.875rem; }
+          .row { display: flex; justify-content: space-between; border-bottom: 1px solid #334155; padding: 0.75rem 0; font-size: 0.875rem; }
+          .label { color: #94a3b8; }
+          .val { font-family: monospace; font-weight: 600; color: #e2e8f0; word-break: break-all; }
+          h1 { font-size: 1.5rem; margin-top: 0; color: #38bdf8; display: flex; align-items: center; gap: 0.5rem; }
+        </style>
+      </head>
+      <body>
+        <div class="card">
+          <h1>Hedera Hashscan Explorer <span class="badge">SUCCESS</span></h1>
+          <p style="color: #94a3b8; font-size: 0.875rem;">Consensus Verification Record for National Assessment Grid Seal</p>
+          <div class="row"><span class="label">Transaction ID:</span><span class="val">${receipt.transactionId}</span></div>
+          <div class="row"><span class="label">Consensus Timestamp:</span><span class="val">${receipt.consensusTimestamp}</span></div>
+          <div class="row"><span class="label">Transaction Hash:</span><span class="val">${receipt.transactionHash}</span></div>
+          <div class="row"><span class="label">Topic ID:</span><span class="val">${receipt.topicId}</span></div>
+          <div class="row"><span class="label">Sequence Number:</span><span class="val">${receipt.sequenceNumber}</span></div>
+          <div class="row"><span class="label">Memo:</span><span class="val">${receipt.memo}</span></div>
+          <div class="row"><span class="label">Network:</span><span class="val">${receipt.network}</span></div>
+        </div>
+      </body>
+      </html>
+    `);
+  }
+
+  res.json({ success: true, receipt });
+});
+
 export default router;

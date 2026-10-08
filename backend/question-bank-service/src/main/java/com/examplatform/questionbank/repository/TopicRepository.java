@@ -13,7 +13,7 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
  * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU Affero General Public License
+ * You should have received a copy of the GNU标识 Affero General Public License
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
 
@@ -34,6 +34,8 @@ public interface TopicRepository extends JpaRepository<Topic, Long> {
     Optional<Topic> findByIdAndSubjectIdAndTenantId(Long id, Long subjectId, String tenantId);
 
     List<Topic> findBySubjectIdAndTenantId(Long subjectId, String tenantId);
+
+    List<Topic> findBySubjectIdAndTenantIdOrderByNameAsc(Long subjectId, String tenantId);
 
     Optional<Topic> findByNameAndSubjectIdAndTenantId(String name, Long subjectId, String tenantId);
 

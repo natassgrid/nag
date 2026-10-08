@@ -22,6 +22,7 @@ describe('QuestionsFeatureBank', () => {
     filter: any;
     loadQuestions: jest.Mock;
     deleteQuestion: jest.Mock;
+    bulkTransition: jest.Mock;
   };
   let subjectTopicServiceMock: {
     getSubjects: jest.Mock;
@@ -43,6 +44,7 @@ describe('QuestionsFeatureBank', () => {
       filter: { update: jest.fn() },
       loadQuestions: jest.fn().mockReturnValue(of({ content: [], totalElements: 0, totalPages: 1 })),
       deleteQuestion: jest.fn().mockReturnValue(of({})),
+      bulkTransition: jest.fn().mockReturnValue(of({ totalRequested: 2, successCount: 2, failureCount: 0, results: [] })),
     };
 
     subjectTopicServiceMock = {
@@ -97,5 +99,31 @@ describe('QuestionsFeatureBank', () => {
     expect(component.selectedSubject()).toBe('ALL');
     expect(component.selectedDifficulty()).toBe('ALL');
     expect(component.searchQuery()).toBe('');
+  });
+  it("should toggle selection and select all", () => {
+    questionServiceMock.questions.mockReturnValue([{ id: "q1" }, { id: "q2" }]);
+    expect(component.selectedQuestionIds().size).toBe(0);
+
+    component.toggleSelectQuestion("q1");
+    expect(component.selectedQuestionIds().has("q1")).toBe(true);
+
+    component.toggleSelectAll();
+    expect(component.isAllSelected()).toBe(true);
+
+    component.clearSelection();
+    expect(component.selectedQuestionIds().size).toBe(0);
+  });
+
+  it("should trigger bulk transition when items are selected", async () => {
+    component.toggleSelectQuestion("q1");
+    await component.onBulkTransition("REVIEW");
+
+    expect(notificationServiceMock.confirm).toHaveBeenCalled();
+    expect(questionServiceMock.bulkTransition).toHaveBeenCalledWith({
+      questionIds: ["q1"],
+      targetState: "REVIEW",
+    });
+    expect(notificationServiceMock.success).toHaveBeenCalled();
+    expect(component.selectedQuestionIds().size).toBe(0);
   });
 });

@@ -41,6 +41,7 @@ import java.util.UUID;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -155,6 +156,75 @@ class BatchTranslationServiceTest {
 
         assertThat(responses).hasSize(1);
         assertThat(responses.get(0).getId()).isEqualTo(jobId);
+    }
+
+    @Test
+    @DisplayName("Should return existing active job when duplicate batch request is submitted for same paper and language")
+    void shouldReturnExistingActiveJobForDuplicatePaperAndLanguage() {
+        UUID paperId = UUID.randomUUID();
+        BatchTranslationRequest request = BatchTranslationRequest.builder()
+                .paperId(paperId)
+                .sourceLanguage("en")
+                .targetLanguage("hi")
+                .build();
+
+        BatchTranslationJob existingActiveJob = BatchTranslationJob.builder()
+                .paperId(paperId)
+                .status(BatchTranslationJobStatus.IN_PROGRESS)
+                .sourceLanguage("en")
+                .targetLanguage("hi")
+                .totalQuestions(50)
+                .processedQuestions(10)
+                .build();
+        ReflectionTestUtils.setField(existingActiveJob, "id", jobId);
+        existingActiveJob.setTenantId(tenantId);
+
+        when(jobRepository.findByPaperIdAndTenantIdOrderByCreatedAtDesc(paperId, tenantId))
+                .thenReturn(List.of(existingActiveJob));
+
+        BatchTranslationJobResponse response = batchTranslationService.startBatchJob(request, userId, tenantId);
+
+        assertThat(response).isNotNull();
+        assertThat(response.getId()).isEqualTo(jobId);
+        assertThat(response.getStatus()).isEqualTo(BatchTranslationJobStatus.IN_PROGRESS);
+
+        verify(jobRepository, never()).save(any(BatchTranslationJob.class));
+        verify(asyncWorker, never()).processBatchTranslationJob(any(), any());
+    }
+
+    @Test
+    @DisplayName("Should return existing completed job when overwriteExisting is false")
+    void shouldReturnCompletedJobWhenNotOverwriting() {
+        UUID paperId = UUID.randomUUID();
+        BatchTranslationRequest request = BatchTranslationRequest.builder()
+                .paperId(paperId)
+                .sourceLanguage("en")
+                .targetLanguage("hi")
+                .overwriteExisting(false)
+                .build();
+
+        BatchTranslationJob existingCompletedJob = BatchTranslationJob.builder()
+                .paperId(paperId)
+                .status(BatchTranslationJobStatus.COMPLETED)
+                .sourceLanguage("en")
+                .targetLanguage("hi")
+                .totalQuestions(50)
+                .processedQuestions(50)
+                .build();
+        ReflectionTestUtils.setField(existingCompletedJob, "id", jobId);
+        existingCompletedJob.setTenantId(tenantId);
+
+        when(jobRepository.findByPaperIdAndTenantIdOrderByCreatedAtDesc(paperId, tenantId))
+                .thenReturn(List.of(existingCompletedJob));
+
+        BatchTranslationJobResponse response = batchTranslationService.startBatchJob(request, userId, tenantId);
+
+        assertThat(response).isNotNull();
+        assertThat(response.getId()).isEqualTo(jobId);
+        assertThat(response.getStatus()).isEqualTo(BatchTranslationJobStatus.COMPLETED);
+
+        verify(jobRepository, never()).save(any(BatchTranslationJob.class));
+        verify(asyncWorker, never()).processBatchTranslationJob(any(), any());
     }
 
     @Test

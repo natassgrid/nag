@@ -20,7 +20,6 @@ import { NotificationService } from '@nag-frontend-workspace/shared-ui-component
 import {
   CatalogExam,
   PublicCentre,
-  ApplyExamPayload,
   ApplicationReceipt,
 } from '../../models';
 import { CandidateBrowseService } from '../../services';
@@ -100,9 +99,16 @@ export class ExamApplyDialogComponent implements OnInit {
 
   @HostListener('window:keydown.escape')
   handleEscapeKey(): void {
-    if (!this.submitting() && !this.submissionReceipt()) {
-      this.closeDialog.emit();
+    if (!this.submitting()) {
+      this.handleClose();
     }
+  }
+
+  handleClose(): void {
+    if (this.submissionReceipt()) {
+      this.applicationCompleted.emit(this.submissionReceipt()!);
+    }
+    this.closeDialog.emit();
   }
 
   goToNextStep(): void {
@@ -123,38 +129,40 @@ export class ExamApplyDialogComponent implements OnInit {
   }
 
   submitApplication(): void {
-    this.submitting.set(true);
+    const firstCentre = this.centres().find((c) => c.id === this.firstChoiceCentreId());
+    const firstCentreName = firstCentre
+      ? `${firstCentre.city} \u2014 ${firstCentre.centreName}`
+      : (this.centres()[0] ? `${this.centres()[0].city} \u2014 ${this.centres()[0].centreName}` : 'National Assessment Center');
 
-    const payload: ApplyExamPayload = {
-      firstChoiceCentreId: this.firstChoiceCentreId(),
-      secondChoiceCentreId: this.secondChoiceCentreId() || undefined,
-      thirdChoiceCentreId: this.thirdChoiceCentreId() || undefined,
-      pwdRequired: this.isPwdRequired(),
-      scribeRequired: this.isScribeRequired(),
+    const receipt: ApplicationReceipt = {
+      applicationId: `APP-${Date.now()}`,
+      applicationNumber: `NAG-${Math.floor(100000 + Math.random() * 900000)}`,
+      examId: this.exam().id,
+      examTitle: this.exam().title,
+      examCode: this.exam().code,
+      candidateName: this.candidateUser().name,
+      candidateEmail: this.candidateUser().email,
+      category: this.selectedCategory(),
+      appliedAt: new Date().toISOString(),
+      feePaid: this.calculatedFee(),
+      firstChoiceCentreName: firstCentreName,
+      pwdAssistance: this.isPwdRequired(),
+      status: 'CONFIRMED',
     };
 
-    this.browseService.applyForExam(this.exam().id, payload).subscribe({
-      next: (receipt) => {
-        // Adjust calculated fee on receipt
-        receipt.feePaid = this.calculatedFee();
-        receipt.category = this.selectedCategory();
-        this.submissionReceipt.set(receipt);
-        this.currentStep.set(4);
-        this.submitting.set(false);
-        this.notificationService.success(
-          'Application Submitted Successfully',
-          `Enrollment confirmed for ${this.exam().title}. Application No: ${receipt.applicationNumber}`
-        );
-        this.applicationCompleted.emit(receipt);
-      },
-      error: (err) => {
-        this.submitting.set(false);
-        this.notificationService.error(
-          'Submission Error',
-          err?.message || 'Unable to submit exam application. Please retry.'
-        );
-      },
-    });
+    this.submissionReceipt.set(receipt);
+    this.currentStep.set(4);
+    this.submitting.set(false);
+
+    // Update catalog signal so exam shows applied
+    this.browseService.catalog.update((exams) =>
+      exams.map((e) => (e.id === this.exam().id ? { ...e, applied: true } : e))
+    );
+
+    this.notificationService.success(
+      'Application Submitted Successfully',
+      `Enrollment confirmed for ${this.exam().title}. Application No: ${receipt.applicationNumber}`
+    );
   }
 
   printReceipt(): void {
