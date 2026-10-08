@@ -57,12 +57,12 @@
           English Reference:
         </div>
         <div class="bg-slate-50 p-3.5 rounded-lg border border-slate-200 text-slate-700 text-sm">
-          <nag-math-renderer [content]="item().content || (item()['stem'] || '')" />
+          <nag-math-renderer [content]="item().content || item().stem || ''" />
         </div>
       </div>
     } @else {
       <!-- Standard / Fallback Stimulus -->
-      <nag-math-renderer [content]="item().content || (item()['stem'] || '')" />
+      <nag-math-renderer [content]="item().content || item().stem || ''" />
     }
   </div>
 
@@ -104,7 +104,7 @@
                 }
               }
             } @else {
-              <nag-math-renderer [content]="opt.text || (opt['content'] || '')" [inline]="true" />
+              <nag-math-renderer [content]="opt.text || opt.content || ''" [inline]="true" />
             }
           </div>
         </button>

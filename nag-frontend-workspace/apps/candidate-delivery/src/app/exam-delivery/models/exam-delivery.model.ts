@@ -3,6 +3,7 @@ export type ExamDeliveryMode = 'LIVE' | 'PRACTICE' | 'PREVIEW';
 export interface ExamOption {
   id: string;
   text: string;
+  content?: string;
 }
 
 export interface ExamTranslation {
@@ -16,6 +17,7 @@ export interface ExamItem {
   order: number;
   questionCode: string;
   content: string;
+  stem?: string;
   options: ExamOption[];
   marks: number;
   negativeMarks: number;
