@@ -1,6 +1,7 @@
 import {
   Component,
   OnInit,
+  OnDestroy,
   inject,
   signal,
   computed,
@@ -8,6 +9,7 @@ import {
   ChangeDetectionStrategy,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { Subscription, timer, switchMap } from 'rxjs';
 import { ActivatedRoute, Router, RouterModule } from '@angular/router';
 import { MatIconModule } from '@angular/material/icon';
 import { MatButtonModule } from '@angular/material/button';
@@ -68,7 +70,8 @@ import { PaperTabType, PaperStatusFilter, PaperGenFormData } from '../models';
   styleUrl: './examinations-feature-paper-gen.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class ExaminationsFeaturePaperGen implements OnInit {
+export class ExaminationsFeaturePaperGen implements OnInit, OnDestroy {
+  private translationPollSub?: Subscription;
   @ViewChild(PaperAssemblyFormComponent) assemblyForm?: PaperAssemblyFormComponent;
 
   private readonly paperService = inject(PaperService);
@@ -159,6 +162,10 @@ export class ExaminationsFeaturePaperGen implements OnInit {
     }
     return list;
   });
+
+  ngOnDestroy(): void {
+    this.stopTranslationPolling();
+  }
 
   ngOnInit(): void {
     this.loadPapers();
@@ -393,12 +400,16 @@ export class ExaminationsFeaturePaperGen implements OnInit {
         this.loadingDetail.set(false);
       },
     });
+
+    this.checkTranslationStatus(paperId);
   }
 
   closeDrawer(): void {
     this.drawerOpen.set(false);
     this.paperDetail.set(null);
     this.selectedPaperId.set(null);
+    this.stopTranslationPolling();
+    this.activeTranslationJob.set(null);
   }
 
   approvePaper(paperId?: string): void {
@@ -439,14 +450,17 @@ export class ExaminationsFeaturePaperGen implements OnInit {
     });
   }
 
-  startTranslation(event: { targetLanguage: string; overwriteExisting: boolean }): void {
+  startTranslation(event: { targetLanguage: string; overwriteExisting?: boolean } | string): void {
     const id = this.selectedPaperId();
     if (!id || id === 'undefined' || id === 'null') return;
 
+    const targetLanguage = typeof event === 'string' ? event : event.targetLanguage;
+    const overwriteExisting = typeof event === 'object' && event.overwriteExisting !== undefined ? event.overwriteExisting : false;
+
     this.isTranslating.set(true);
     const req: PaperTranslateRequest = {
-      targetLanguage: event.targetLanguage,
-      overwriteExisting: event.overwriteExisting,
+      targetLanguage,
+      overwriteExisting,
     };
 
     this.paperService.startTranslation(id, req).subscribe({
@@ -454,10 +468,13 @@ export class ExaminationsFeaturePaperGen implements OnInit {
         this.activeTranslationJob.set(res);
         this.isTranslating.set(false);
         this.snackBar.open(
-          `IndicTrans2 batch pipeline initiated for (${event.targetLanguage.toUpperCase()})! Job ID: ${res.jobId}`,
+          `IndicTrans2 batch pipeline initiated for (${targetLanguage.toUpperCase()})! Job ID: ${res.jobId}`,
           'OK',
           { duration: 4500 }
         );
+        if (res.jobId && (res.status === 'PENDING' || res.status === 'IN_PROGRESS')) {
+          this.pollTranslationJob(id, res.jobId);
+        }
       },
       error: (err) => {
         this.isTranslating.set(false);
@@ -468,5 +485,64 @@ export class ExaminationsFeaturePaperGen implements OnInit {
         );
       },
     });
+  }
+
+  private stopTranslationPolling(): void {
+    if (this.translationPollSub) {
+      this.translationPollSub.unsubscribe();
+      this.translationPollSub = undefined;
+    }
+  }
+
+  private checkTranslationStatus(paperId: string): void {
+    this.stopTranslationPolling();
+    this.paperService.getTranslationStatus(paperId).subscribe({
+      next: (job) => {
+        if (job && job.jobId) {
+          this.activeTranslationJob.set(job);
+          if (job.status === 'PENDING' || job.status === 'IN_PROGRESS') {
+            this.pollTranslationJob(paperId, job.jobId);
+          }
+        }
+      },
+      error: () => {},
+    });
+  }
+
+  private pollTranslationJob(paperId: string, jobId: string): void {
+    this.stopTranslationPolling();
+    this.translationPollSub = timer(1500, 2500)
+      .pipe(
+        switchMap(() => this.paperService.getTranslationStatus(paperId, jobId))
+      )
+      .subscribe({
+        next: (job) => {
+          this.activeTranslationJob.set(job);
+          if (job.status === 'COMPLETED') {
+            this.stopTranslationPolling();
+            this.snackBar.open(
+              `Translation completed successfully! (${job.processedQuestions || job.totalQuestions} questions)`,
+              'OK',
+              { duration: 4000 }
+            );
+            this.paperService.getPaper(paperId).subscribe({
+              next: (paper) => {
+                this.paperDetail.set(paper);
+                this.selectedPaper.set(paper);
+              },
+            });
+          } else if (job.status === 'FAILED' || job.status === 'CANCELLED') {
+            this.stopTranslationPolling();
+            this.snackBar.open(
+              `Translation job ${job.status.toLowerCase()}${job.errorMessage ? ': ' + job.errorMessage : '.'}`,
+              'Dismiss',
+              { duration: 5000 }
+            );
+          }
+        },
+        error: (err) => {
+          console.error('Failed to poll translation job', err);
+        },
+      });
   }
 }

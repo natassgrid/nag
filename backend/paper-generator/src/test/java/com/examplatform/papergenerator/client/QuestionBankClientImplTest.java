@@ -48,6 +48,8 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
+import com.examplatform.papergenerator.dto.BatchTranslationJobResponseDto;
+import static org.springframework.http.HttpMethod.GET;
 import static org.springframework.http.HttpMethod.POST;
 import static org.springframework.http.MediaType.APPLICATION_JSON;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.header;
@@ -393,5 +395,71 @@ class QuestionBankClientImplTest {
         assertThat(results.get(0).getContent()).isEqualTo("Longest river in India?");
 
         localMockServer.verify();
+    }
+
+    @Test
+    @DisplayName("Successfully retrieves batch translation status via REST")
+    void getBatchTranslationStatus_success() {
+        UUID jobId = UUID.randomUUID();
+        UUID paperId = UUID.randomUUID();
+        String jsonResponse = """
+            {
+                "id": "%s",
+                "paperId": "%s",
+                "status": "IN_PROGRESS",
+                "sourceLanguage": "en",
+                "targetLanguage": "hi",
+                "overwriteExisting": false,
+                "totalQuestions": 20,
+                "processedQuestions": 10,
+                "progressPercentage": 50.0
+            }
+            """.formatted(jobId, paperId);
+
+        mockServer.expect(requestTo("http://localhost:8083/api/v1/translations/batch/" + jobId))
+                .andExpect(method(GET))
+                .andExpect(header("X-Tenant-Id", "tenant-1"))
+                .andRespond(withSuccess(jsonResponse, APPLICATION_JSON));
+
+        BatchTranslationJobResponseDto dto = client.getBatchTranslationStatus(jobId, "tenant-1");
+
+        assertThat(dto).isNotNull();
+        assertThat(dto.getId()).isEqualTo(jobId);
+        assertThat(dto.getStatus()).isEqualTo("IN_PROGRESS");
+        assertThat(dto.getProgressPercentage()).isEqualTo(50.0);
+        mockServer.verify();
+    }
+
+    @Test
+    @DisplayName("Successfully lists batch translation jobs by paperId via REST")
+    void listBatchJobsByPaper_success() {
+        UUID jobId = UUID.randomUUID();
+        UUID paperId = UUID.randomUUID();
+        String jsonResponse = """
+            [
+                {
+                    "id": "%s",
+                    "paperId": "%s",
+                    "status": "COMPLETED",
+                    "sourceLanguage": "en",
+                    "targetLanguage": "hi",
+                    "totalQuestions": 20,
+                    "processedQuestions": 20,
+                    "progressPercentage": 100.0
+                }
+            ]
+            """.formatted(jobId, paperId);
+
+        mockServer.expect(requestTo("http://localhost:8083/api/v1/translations/batch/paper/" + paperId))
+                .andExpect(method(GET))
+                .andExpect(header("X-Tenant-Id", "tenant-1"))
+                .andRespond(withSuccess(jsonResponse, APPLICATION_JSON));
+
+        List<BatchTranslationJobResponseDto> list = client.listBatchJobsByPaper(paperId, "tenant-1");
+
+        assertThat(list).hasSize(1);
+        assertThat(list.get(0).getId()).isEqualTo(jobId);
+        assertThat(list.get(0).getStatus()).isEqualTo("COMPLETED");
+        mockServer.verify();
     }
 }

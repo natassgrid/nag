@@ -81,4 +81,13 @@ public interface QuestionBankClient {
      * @return batch translation job status
      */
     BatchTranslationJobResponseDto getBatchTranslationStatus(UUID jobId, String tenantId);
+
+    /**
+     * Retrieves all batch translation jobs for a specific paper.
+     *
+     * @param paperId  paper UUID
+     * @param tenantId tenant identifier
+     * @return list of batch translation jobs
+     */
+    List<BatchTranslationJobResponseDto> listBatchJobsByPaper(UUID paperId, String tenantId);
 }

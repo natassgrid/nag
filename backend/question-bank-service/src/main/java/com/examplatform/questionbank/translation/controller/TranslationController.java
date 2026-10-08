@@ -139,8 +139,9 @@ public class TranslationController {
     /**
      * Get the status, progress percentage, and statistics of a batch translation job.
      * GET /api/v1/translations/batch/{jobId}
+     * GET /api/v1/translations/batch/{jobId}/status
      */
-    @GetMapping("/batch/{jobId}")
+    @GetMapping({"/batch/{jobId}", "/batch/{jobId}/status"})
     @PreAuthorize("hasAnyRole('ADMIN', 'EXAM_CONTROLLER', 'TRANSLATOR', 'REVIEWER', 'SUPER_ADMIN')")
     public ResponseEntity<BatchTranslationJobResponse> getBatchJobStatus(
             @PathVariable UUID jobId) {

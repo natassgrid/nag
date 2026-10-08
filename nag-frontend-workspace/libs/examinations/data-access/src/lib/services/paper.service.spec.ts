@@ -97,4 +97,43 @@ describe('PaperService', () => {
     expect(req.request.method).toBe('POST');
     req.flush({ data: { paperId: 'generated-paper-1', status: 'GENERATED' } });
   });
+
+  it('should start batch translation with target language and options', (done) => {
+    const payload = { targetLanguage: 'hi', overwriteExisting: false };
+
+    service.startTranslation('paper-101', payload).subscribe((res) => {
+      expect(res.jobId).toBe('job-101');
+      expect(res.status).toBe('PENDING');
+      done();
+    });
+
+    const req = httpMock.expectOne('/api/v1/papers/paper-101/translate');
+    expect(req.request.method).toBe('POST');
+    expect(req.request.body).toEqual(payload);
+    req.flush({ data: { jobId: 'job-101', status: 'PENDING' } });
+  });
+
+  it('should get latest translation status when jobId is not provided', (done) => {
+    service.getTranslationStatus('paper-101').subscribe((res) => {
+      expect(res.jobId).toBe('job-101');
+      expect(res.status).toBe('IN_PROGRESS');
+      done();
+    });
+
+    const req = httpMock.expectOne('/api/v1/papers/paper-101/translation-status');
+    expect(req.request.method).toBe('GET');
+    req.flush({ data: { jobId: 'job-101', status: 'IN_PROGRESS' } });
+  });
+
+  it('should get specific job translation status when jobId is provided', (done) => {
+    service.getTranslationStatus('paper-101', 'job-999').subscribe((res) => {
+      expect(res.jobId).toBe('job-999');
+      expect(res.status).toBe('COMPLETED');
+      done();
+    });
+
+    const req = httpMock.expectOne('/api/v1/papers/paper-101/translate/job-999');
+    expect(req.request.method).toBe('GET');
+    req.flush({ data: { jobId: 'job-999', status: 'COMPLETED' } });
+  });
 });

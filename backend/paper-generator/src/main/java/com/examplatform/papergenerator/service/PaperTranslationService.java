@@ -91,6 +91,21 @@ public class PaperTranslationService {
         return mapToPaperTranslateResponse(paperId, jobResponse, jobResponse != null ? jobResponse.getTotalQuestions() : 0);
     }
 
+    public PaperTranslateResponse getLatestTranslationStatus(UUID paperId, String tenantId) {
+        String effectiveTenant = (tenantId != null && !tenantId.isBlank()) ? tenantId : "default";
+        List<BatchTranslationJobResponseDto> jobs = questionBankClient.listBatchJobsByPaper(paperId, effectiveTenant);
+        if (jobs != null && !jobs.isEmpty()) {
+            BatchTranslationJobResponseDto latest = jobs.get(0);
+            return mapToPaperTranslateResponse(paperId, latest, latest.getTotalQuestions());
+        }
+        return PaperTranslateResponse.builder()
+                .paperId(paperId)
+                .status("IDLE")
+                .totalQuestions(0)
+                .message("No batch translation jobs found for paper " + paperId)
+                .build();
+    }
+
     public List<UUID> extractQuestionIds(Paper paper) {
         List<UUID> questionIds = new ArrayList<>();
         if (paper.getPaperDefinitionJson() != null && !paper.getPaperDefinitionJson().isBlank()) {

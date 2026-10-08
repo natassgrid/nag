@@ -193,6 +193,29 @@ class TranslationControllerIntegrationTest extends AbstractIntegrationTest {
         }
 
         @Test
+        @DisplayName("+ve: EXAM_CONTROLLER gets batch job status via /status path alias - returns 200 OK")
+        void examControllerCanGetBatchStatusViaStatusPath() throws Exception {
+            BatchTranslationJobResponse jobResponse = BatchTranslationJobResponse.builder()
+                    .id(JOB_ID)
+                    .tenantId("default")
+                    .status(BatchTranslationJobStatus.IN_PROGRESS)
+                    .totalQuestions(100)
+                    .processedQuestions(50)
+                    .progressPercentage(50.0)
+                    .build();
+
+            when(batchTranslationService.getJobStatus(eq(JOB_ID), anyString()))
+                    .thenReturn(jobResponse);
+
+            mockMvc.perform(get("/api/v1/translations/batch/{jobId}/status", JOB_ID)
+                            .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_EXAM_CONTROLLER"))))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.id").value(JOB_ID.toString()))
+                    .andExpect(jsonPath("$.progressPercentage").value(50.0))
+                    .andExpect(jsonPath("$.processedQuestions").value(50));
+        }
+
+        @Test
         @DisplayName("+ve: ADMIN cancels running batch job - returns 200 OK")
         void adminCanCancelBatchJob() throws Exception {
             BatchTranslationJobResponse jobResponse = BatchTranslationJobResponse.builder()

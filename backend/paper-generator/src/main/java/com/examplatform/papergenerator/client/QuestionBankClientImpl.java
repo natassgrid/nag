@@ -462,7 +462,7 @@ public class QuestionBankClientImpl implements QuestionBankClient {
     @Override
     public BatchTranslationJobResponseDto getBatchTranslationStatus(UUID jobId, String tenantId) {
         String effectiveTenant = (tenantId != null && !tenantId.isBlank()) ? tenantId : "default";
-        String url = questionBankServiceUrl + "/api/v1/translations/batch/" + jobId + "/status";
+        String url = questionBankServiceUrl + "/api/v1/translations/batch/" + jobId;
 
         try {
             RestClient.RequestHeadersSpec<?> spec = restClient.get()
@@ -476,6 +476,27 @@ public class QuestionBankClientImpl implements QuestionBankClient {
         } catch (Exception e) {
             log.error("Failed to get batch translation status for jobId={} from {}: {}", jobId, url, e.getMessage());
             throw new IllegalStateException("Unable to get batch translation status: " + e.getMessage(), e);
+        }
+    }
+
+    @Override
+    public List<BatchTranslationJobResponseDto> listBatchJobsByPaper(UUID paperId, String tenantId) {
+        String effectiveTenant = (tenantId != null && !tenantId.isBlank()) ? tenantId : "default";
+        String url = questionBankServiceUrl + "/api/v1/translations/batch/paper/" + paperId;
+
+        try {
+            RestClient.RequestHeadersSpec<?> spec = restClient.get()
+                    .uri(url)
+                    .header("X-Tenant-Id", effectiveTenant);
+            attachAuthHeader(spec);
+
+            List<BatchTranslationJobResponseDto> res = spec
+                    .retrieve()
+                    .body(new ParameterizedTypeReference<List<BatchTranslationJobResponseDto>>() {});
+            return res != null ? res : Collections.emptyList();
+        } catch (Exception e) {
+            log.warn("Failed to get batch translation jobs for paperId={} from {}: {}", paperId, url, e.getMessage());
+            return Collections.emptyList();
         }
     }
 

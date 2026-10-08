@@ -45,20 +45,56 @@ public class BatchTranslationJobResponseDto {
     private String subjectFilter;
     private UUID paperId;
     private List<UUID> questionIds;
-    private boolean overwriteExisting;
-    private int totalQuestions;
-    private int processedQuestions;
-    private int successfulQuestions;
-    private int failedQuestions;
-    private double progressPercentage;
+    private Boolean overwriteExisting;
+    private Integer totalQuestions;
+    private Integer processedQuestions;
+    private Integer successfulQuestions;
+    private Integer failedQuestions;
+    private Double progressPercentage;
     private List<String> failedQuestionIds;
-    private int batchSize;
-    private int throttleDelayMs;
-    private int maxConcurrency;
+    private Integer batchSize;
+    private Integer throttleDelayMs;
+    private Integer maxConcurrency;
     private UUID initiatedBy;
     private Instant startedAt;
     private Instant completedAt;
     private String errorMessage;
     private Instant createdAt;
     private Instant updatedAt;
+
+    public boolean isOverwriteExisting() {
+        return Boolean.TRUE.equals(overwriteExisting);
+    }
+
+    public int getTotalQuestions() {
+        return totalQuestions != null ? totalQuestions : 0;
+    }
+
+    public int getProcessedQuestions() {
+        return processedQuestions != null ? processedQuestions : 0;
+    }
+
+    public int getSuccessfulQuestions() {
+        return successfulQuestions != null ? successfulQuestions : 0;
+    }
+
+    public int getFailedQuestions() {
+        return failedQuestions != null ? failedQuestions : 0;
+    }
+
+    public double getProgressPercentage() {
+        return progressPercentage != null ? progressPercentage : 0.0;
+    }
+
+    public int getBatchSize() {
+        return batchSize != null ? batchSize : 0;
+    }
+
+    public int getThrottleDelayMs() {
+        return throttleDelayMs != null ? throttleDelayMs : 0;
+    }
+
+    public int getMaxConcurrency() {
+        return maxConcurrency != null ? maxConcurrency : 0;
+    }
 }

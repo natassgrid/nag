@@ -6,7 +6,16 @@
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as published
- * by the Free Software Foundation, version 3 of the License.\n *\n * This program is distributed in the hope that it will be useful,\n * but WITHOUT ANY WARRANTY; without even the implied warranty of\n * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the\n * GNU Affero General Public License for more details.\n *\n * You should have received a copy of the GNU Affero General Public License\n * along with this program. If not, see <https://www.gnu.org/licenses/>.\n */
+ * by the Free Software Foundation, version 3 of the License.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program. If not, see <https://www.gnu.org/licenses/>.
+ */
 
 package com.examplatform.questionbank.translation.service;
 
@@ -35,13 +44,38 @@ public class BatchTranslationService {
     private final BatchTranslationJobRepository jobRepository;
     private final AsyncBatchTranslationWorker asyncWorker;
 
-    public BatchTranslationJobResponse startBatchJob(BatchTranslationRequest request, UUID initiatedBy, String tenantId) {
+    public synchronized BatchTranslationJobResponse startBatchJob(BatchTranslationRequest request, UUID initiatedBy, String tenantId) {
         String targetLang = (request.getTargetLanguage() != null && !request.getTargetLanguage().isBlank())
                 ? request.getTargetLanguage().toLowerCase()
                 : "hi";
 
         if (!TranslationWorkflowService.SUPPORTED_LANGUAGES.contains(targetLang)) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Unsupported target language code: " + targetLang);
+        }
+
+        // Idempotency check: if a batch translation for this paper and language is already active or completed without overwrite
+        if (request.getPaperId() != null) {
+            List<BatchTranslationJob> existingPaperJobs =
+                    jobRepository.findByPaperIdAndTenantIdOrderByCreatedAtDesc(request.getPaperId(), tenantId);
+
+            for (BatchTranslationJob existingJob : existingPaperJobs) {
+                if (targetLang.equalsIgnoreCase(existingJob.getTargetLanguage())) {
+                    // Active job (PENDING or IN_PROGRESS): return existing job without spawning a duplicate
+                    if (existingJob.getStatus() == BatchTranslationJobStatus.PENDING
+                            || existingJob.getStatus() == BatchTranslationJobStatus.IN_PROGRESS) {
+                        log.info("Batch translation job for paperId={} and targetLanguage={} is already active (jobId={}, status={}). Returning existing job (idempotent).",
+                                request.getPaperId(), targetLang, existingJob.getId(), existingJob.getStatus());
+                        return toResponse(existingJob);
+                    }
+                    // Completed job without overwrite: return existing completed job
+                    if (existingJob.getStatus() == BatchTranslationJobStatus.COMPLETED
+                            && !Boolean.TRUE.equals(request.getOverwriteExisting())) {
+                        log.info("Batch translation job for paperId={} and targetLanguage={} is already completed (jobId={}). Returning existing job (idempotent).",
+                                request.getPaperId(), targetLang, existingJob.getId());
+                        return toResponse(existingJob);
+                    }
+                }
+            }
         }
 
         String normalizedSubject = normalizeSubject(request.getSubject());

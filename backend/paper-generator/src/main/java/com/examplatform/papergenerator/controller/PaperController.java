@@ -522,7 +522,7 @@ public class PaperController {
      * @param jobId   the batch translation job UUID
      * @return 200 OK with current progress statistics
      */
-    @GetMapping("/{paperId}/translate/{jobId}")
+    @GetMapping({"/{paperId}/translate/{jobId}", "/{paperId}/translation-status/{jobId}"})
     @PreAuthorize("hasAnyRole('EXAM_CONTROLLER','SUPER_ADMIN','ADMIN')")
     public ResponseEntity<PaperTranslateResponse> getPaperTranslationStatus(
             @PathVariable UUID paperId,
@@ -530,6 +530,19 @@ public class PaperController {
 
         String tenantId = getEffectiveTenantId();
         PaperTranslateResponse response = paperTranslationService.getTranslationStatus(paperId, jobId, tenantId);
+        return ResponseEntity.ok(response);
+    }
+
+    /**
+     * Retrieves the latest translation status of a paper.
+     */
+    @GetMapping({"/{paperId}/translation-status", "/{paperId}/translate/status"})
+    @PreAuthorize("hasAnyRole('EXAM_CONTROLLER','SUPER_ADMIN','ADMIN')")
+    public ResponseEntity<PaperTranslateResponse> getLatestPaperTranslationStatus(
+            @PathVariable UUID paperId) {
+
+        String tenantId = getEffectiveTenantId();
+        PaperTranslateResponse response = paperTranslationService.getLatestTranslationStatus(paperId, tenantId);
         return ResponseEntity.ok(response);
     }
 
