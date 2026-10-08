@@ -209,7 +209,7 @@ public class QuestionBankClientImpl implements QuestionBankClient {
                 WHERE tenant_id = ?
                   AND UPPER(TRIM(subject)) = UPPER(?)
                   AND UPPER(TRIM(topic)) = UPPER(?)
-                  AND state = 'APPROVED'
+                  AND state = 'PUBLISHED'
                   AND (? IS NULL OR UPPER(TRIM(difficulty)) = UPPER(?))
                   AND (? IS NULL OR UPPER(TRIM(cognitive_level)) = UPPER(?))
                 ORDER BY RANDOM()
@@ -251,7 +251,7 @@ public class QuestionBankClientImpl implements QuestionBankClient {
                     WHERE tenant_id = ?
                       AND UPPER(TRIM(subject)) = UPPER(?)
                       AND UPPER(TRIM(topic)) = UPPER(?)
-                      AND state = 'APPROVED'
+                      AND state = 'PUBLISHED'
                       AND (? IS NULL OR UPPER(TRIM(difficulty)) = UPPER(?))
                     ORDER BY RANDOM()
                     """;

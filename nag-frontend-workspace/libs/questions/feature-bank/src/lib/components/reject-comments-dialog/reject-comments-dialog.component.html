@@ -1,0 +1,77 @@
+@if (open()) {
+  <!-- Backdrop -->
+  <div
+    class="fixed inset-0 z-40 bg-black/40 backdrop-blur-sm"
+    (click)="onCancel()"
+  ></div>
+
+  <!-- Dialog panel -->
+  <div class="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div class="w-full max-w-md bg-white rounded-2xl shadow-2xl border border-slate-200 p-6 space-y-5">
+
+      <!-- Header -->
+      <div class="flex items-start justify-between gap-3">
+        <div class="flex items-center gap-2">
+          <span class="w-9 h-9 rounded-full bg-rose-100 flex items-center justify-center shrink-0">
+            <mat-icon class="text-rose-600 !text-xl">cancel</mat-icon>
+          </span>
+          <div>
+            <h2 class="text-sm font-bold text-slate-900">Reject Question</h2>
+            <p class="text-xs text-slate-500 mt-0.5">Provide feedback so the author can revise the item.</p>
+          </div>
+        </div>
+        <button
+          type="button"
+          (click)="onCancel()"
+          class="w-7 h-7 flex items-center justify-center rounded text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors"
+        >
+          <mat-icon class="!text-base">close</mat-icon>
+        </button>
+      </div>
+
+      <!-- Comments field -->
+      <div class="space-y-1.5">
+        <label for="reject-comments" class="block text-xs font-semibold text-slate-700">
+          Rejection Comments <span class="text-rose-500">*</span>
+        </label>
+        <textarea
+          id="reject-comments"
+          rows="4"
+          [ngModel]="comments()"
+          (ngModelChange)="comments.set($event)"
+          placeholder="Describe specifically what needs to be revised (e.g. 'Option B and C are too similar to the correct answer')..."
+          class="w-full resize-none rounded-xl border px-3 py-2 text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-rose-400 focus:border-transparent transition"
+          [class.border-rose-400]="submitted() && !isValid"
+          [class.border-slate-300]="!(submitted() && !isValid)"
+        ></textarea>
+        @if (submitted() && !isValid) {
+          <p class="text-xs text-rose-600 flex items-center gap-1">
+            <mat-icon class="!text-xs">error_outline</mat-icon>
+            Please enter at least 5 characters of feedback.
+          </p>
+        }
+      </div>
+
+      <!-- Actions -->
+      <div class="flex justify-end gap-3 pt-1">
+        <button
+          type="button"
+          mat-stroked-button
+          (click)="onCancel()"
+          class="!rounded-xl !text-xs !font-semibold"
+        >
+          Cancel
+        </button>
+        <button
+          type="button"
+          mat-flat-button
+          (click)="onConfirm()"
+          class="!rounded-xl !text-xs !font-semibold !bg-rose-600 hover:!bg-rose-700 !text-white"
+        >
+          <mat-icon class="!text-sm mr-1">cancel</mat-icon>
+          Reject Question
+        </button>
+      </div>
+    </div>
+  </div>
+}

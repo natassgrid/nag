@@ -184,9 +184,22 @@ export class QuestionBankService {
       );
   }
 
-  rejectQuestion(id: string, reason?: string): Observable<Question> {
+  rejectQuestion(id: string, comments?: string): Observable<Question> {
     return this.http
-      .put<{ status?: string; data?: any }>(`${this.baseUrl}/${id}/reject`, { reason })
+      .put<{ status?: string; data?: any }>(`${this.baseUrl}/${id}/reject`, { comments })
+      .pipe(
+        map((res) => this.mapToQuestion(res.data || res)),
+        tap((updated) => {
+          this.questions.update((list) =>
+            list.map((item) => (item.id === id ? updated : item))
+          );
+        })
+      );
+  }
+
+  publishQuestion(id: string): Observable<Question> {
+    return this.http
+      .put<{ status?: string; data?: any }>(`${this.baseUrl}/${id}/publish`, {})
       .pipe(
         map((res) => this.mapToQuestion(res.data || res)),
         tap((updated) => {
@@ -266,6 +279,8 @@ export class QuestionBankService {
       subjectId: raw.subjectId ? String(raw.subjectId) : undefined,
       topicId: raw.topicId ? String(raw.topicId) : undefined,
       subtopicId: raw.subtopicId ? String(raw.subtopicId) : undefined,
+      authorId: raw.authorId || undefined,
+      reviewComments: raw.reviewComments || undefined,
       marks: raw.marks ?? 4,
       negativeMarks: raw.negativeMarks ?? 1,
       options: parsedOptions,

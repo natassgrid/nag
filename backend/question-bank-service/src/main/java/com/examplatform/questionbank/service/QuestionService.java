@@ -680,7 +680,8 @@ public class QuestionService {
     }
 
     /**
-     * Finds approved questions matching blueprint criteria for Paper Generator.
+     * Finds published questions matching blueprint criteria for Paper Generator.
+     * Only PUBLISHED questions (final approver sign-off complete) are eligible for paper assembly.
      */
     @Transactional(readOnly = true)
     public List<QuestionResponse> findBlueprintQuestions(String subject, String topic, String difficulty, String cognitiveLevel, String tenantId) {

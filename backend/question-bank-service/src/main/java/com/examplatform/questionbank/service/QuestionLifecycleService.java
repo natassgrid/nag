@@ -188,6 +188,43 @@ public class QuestionLifecycleService {
     }
 
     /**
+     * Publishes an APPROVED question — transitions to PUBLISHED state.
+     * Enforces the Four-Eyes Principle: the publisher (approver) cannot be the same
+     * person who performed the REVIEW → APPROVED transition.
+     *
+     * @param questionId  the question UUID
+     * @param publisherId UUID of the approver performing final publication
+     * @param tenantId    tenant identifier for access scoping
+     * @return the updated question response
+     * @throws EntityNotFoundException             if the question is not found
+     * @throws InvalidTransitionException          if the question is not in APPROVED state
+     * @throws FourEyesPrincipleViolationException if the publisher is also the reviewer
+     */
+    public QuestionResponse publish(UUID questionId, UUID publisherId, String tenantId) {
+        Question question = questionRepository.findById(questionId)
+                .orElseThrow(() -> new EntityNotFoundException("Question not found: " + questionId));
+
+        if (!"APPROVED".equals(question.getState())) {
+            throw new InvalidTransitionException(question.getState(), "PUBLISHED");
+        }
+
+        // Four-eyes principle: publisher cannot be the reviewer who approved it
+        if (question.getReviewerId() != null && question.getReviewerId().equals(publisherId)) {
+            throw new FourEyesPrincipleViolationException();
+        }
+
+        question.setState("PUBLISHED");
+        Question saved = questionRepository.save(question);
+
+        log.info("Question published: id={}, publisher={}, tenant={}", questionId, publisherId, tenantId);
+
+        publishAuditEvent(questionId, publisherId, tenantId, "APPROVED", "PUBLISHED");
+        reviewWorkflowService.processTransition(saved, "APPROVED", "PUBLISHED", publisherId, null, tenantId);
+
+        return toResponse(saved);
+    }
+
+    /**
      * Rejects a question in REVIEW state — transitions back to DRAFT for revision.
      * Reviewer comments are persisted on the Question entity so authors can see them.
      *
