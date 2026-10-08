@@ -813,6 +813,7 @@ public class QuestionService {
                 .state(question.getState())
                 .authorId(question.getAuthorId())
                 .reviewerId(question.getReviewerId())
+                .reviewComments(question.getReviewComments())
                 .encryptionKeyId(question.getEncryptionKeyId())
                 .passageId(question.getPassageId())
                 .passageOrderIndex(question.getPassageOrderIndex())

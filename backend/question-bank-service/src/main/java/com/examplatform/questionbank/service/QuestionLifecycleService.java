@@ -152,13 +152,15 @@ public class QuestionLifecycleService {
 
     /**
      * Approves a question in REVIEW state — transitions to APPROVED.
+     * Enforces the Four-Eyes Principle: the reviewer (approver) cannot be the question's author.
      *
      * @param questionId the question UUID
      * @param reviewerId UUID of the reviewer performing approval
      * @param tenantId   tenant identifier for access scoping
      * @return the updated question response
-     * @throws EntityNotFoundException    if the question is not found
-     * @throws InvalidTransitionException if the question is not in REVIEW state
+     * @throws EntityNotFoundException             if the question is not found
+     * @throws InvalidTransitionException          if the question is not in REVIEW state
+     * @throws FourEyesPrincipleViolationException if the reviewer is also the question author
      */
     public QuestionResponse approve(UUID questionId, UUID reviewerId, String tenantId) {
         Question question = questionRepository.findById(questionId)
@@ -166,6 +168,11 @@ public class QuestionLifecycleService {
 
         if (!"REVIEW".equals(question.getState())) {
             throw new InvalidTransitionException(question.getState(), "APPROVED");
+        }
+
+        // Four-eyes principle: reviewer cannot be the question author
+        if (question.getAuthorId() != null && question.getAuthorId().equals(reviewerId)) {
+            throw new FourEyesPrincipleViolationException();
         }
 
         question.setReviewerId(reviewerId);
@@ -182,10 +189,11 @@ public class QuestionLifecycleService {
 
     /**
      * Rejects a question in REVIEW state — transitions back to DRAFT for revision.
+     * Reviewer comments are persisted on the Question entity so authors can see them.
      *
      * @param questionId the question UUID
      * @param reviewerId UUID of the reviewer performing rejection
-     * @param comments   reviewer comments explaining the rejection
+     * @param comments   reviewer comments explaining the rejection (required)
      * @param tenantId   tenant identifier for access scoping
      * @return the updated question response
      * @throws EntityNotFoundException    if the question is not found
@@ -200,6 +208,7 @@ public class QuestionLifecycleService {
         }
 
         question.setReviewerId(reviewerId);
+        question.setReviewComments(comments);
         question.setState("DRAFT");
         Question saved = questionRepository.save(question);
 
@@ -251,6 +260,8 @@ public class QuestionLifecycleService {
                 .references(question.getReferences())
                 .state(question.getState())
                 .authorId(question.getAuthorId())
+                .reviewerId(question.getReviewerId())
+                .reviewComments(question.getReviewComments())
                 .createdAt(createdAt)
                 .options(question.getOptions())
                 .hasImages(question.isHasImages())

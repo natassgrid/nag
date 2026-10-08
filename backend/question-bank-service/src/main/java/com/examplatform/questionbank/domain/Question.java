@@ -138,7 +138,7 @@ public class Question extends BaseEntity {
     @Column(name = "explanation", columnDefinition = "TEXT")
     private String explanation;
 
-    @Column(name = "\"references\"", columnDefinition = "TEXT")
+    @Column(name = "references", columnDefinition = "TEXT")
     private String references;
 
     @Transient
@@ -176,6 +176,10 @@ public class Question extends BaseEntity {
 
     @Column(name = "reviewer_id")
     private UUID reviewerId;
+
+    /** Reviewer feedback comments persisted when a question is rejected back to DRAFT. Visible to the author for revision. */
+    @Column(name = "review_comments", columnDefinition = "TEXT")
+    private String reviewComments;
 
     /** Optional FK to passage if this question belongs to a paragraph/comprehension group. */
     @Column(name = "passage_id")
