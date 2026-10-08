@@ -14,7 +14,8 @@
  * GNU Affero General Public License for more details.
  *
  * You should have received a copy of the GNU Affero General Public License
- * along with this program. If not, see <https://www.gnu.org/licenses/>.\n */
+ * along with this program. If not, see <https://www.gnu.org/licenses/>.
+ */
 
 package com.examplatform.identity.service;
 
@@ -54,16 +55,13 @@ public class DevKeycloakService extends KeycloakService {
 
     private record DevSessionData(String username, String userId, String preferredLanguage) {}
 
+    @Autowired
     public DevKeycloakService(
             @Value("${app.jwt.secret:dev-jwt-secret-key-for-local-testing-minimum-32-chars}") String jwtSecret,
-            @Autowired(required = false) UserAccountRepository userAccountRepository) {
+            UserAccountRepository userAccountRepository) {
         super(null);
         this.jwtSecret = jwtSecret;
         this.userAccountRepository = userAccountRepository;
-    }
-
-    public DevKeycloakService(String jwtSecret) {
-        this(jwtSecret, null);
     }
 
     @Override
