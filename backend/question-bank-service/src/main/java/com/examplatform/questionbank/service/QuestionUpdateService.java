@@ -23,6 +23,7 @@ import com.examplatform.questionbank.ai.embedding.EmbeddingService;
 import com.examplatform.questionbank.domain.Question;
 import com.examplatform.questionbank.dto.CreateQuestionRequest;
 import com.examplatform.questionbank.dto.QuestionResponse;
+import com.examplatform.questionbank.exception.InvalidTransitionException;
 import com.examplatform.questionbank.repository.QuestionRepository;
 import com.examplatform.questionbank.util.EmbeddingUtils;
 import jakarta.persistence.EntityNotFoundException;
@@ -67,6 +68,13 @@ public class QuestionUpdateService {
         Question existing = questionRepository.findById(questionId)
                 .orElseThrow(() -> new EntityNotFoundException("Question not found: " + questionId));
 
+        // PUBLISHED questions are immutable — they cannot be edited.
+        // Any other state (DRAFT, REVIEW, APPROVED) can be edited; the act of editing
+        // resets the state to DRAFT so the question must re-enter the review workflow.
+        if ("PUBLISHED".equals(existing.getState())) {
+            throw new InvalidTransitionException(existing.getState(), "DRAFT");
+        }
+
         // Clone current state for diff comparison
         Question oldState = cloneQuestionState(existing);
 
@@ -98,8 +106,19 @@ public class QuestionUpdateService {
         boolean hasImages = QuestionService.detectHasImages(request.getContent(), request.getExplanation(), request.getOptions());
         existing.setHasImages(hasImages);
 
+        // Editing a question resets it to DRAFT regardless of prior state (REVIEW, APPROVED).
+        // The reviewer and review comments are cleared so the question must go through
+        // the full review workflow again.
+        String previousState = existing.getState();
+        existing.setState("DRAFT");
+        existing.setReviewerId(null);
+        existing.setReviewComments(null);
+
         // Save updated question
         Question updated = questionRepository.save(existing);
+
+        log.info("Question reset to DRAFT after edit: id={}, previousState={}, author={}, tenant={}",
+                questionId, previousState, authorId, tenantId);
 
         // Regenerate embedding if content changed (keeps similarity search accurate)
         if (!java.util.Objects.equals(oldState.getContent(), updated.getContent())) {
