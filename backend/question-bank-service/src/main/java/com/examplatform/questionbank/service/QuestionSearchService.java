@@ -123,7 +123,7 @@ public class QuestionSearchService {
                 || containsIgnoreCase(q.getContent(), queryToken)
                 || containsIgnoreCase(q.getExplanation(), queryToken)
                 || containsIgnoreCase(q.getState(), queryToken)
-                || containsIgnoreCase(q.getReferences(), queryToken);
+                || containsIgnoreCase(q.getSourceReferences(), queryToken);
     }
 
     private boolean containsIgnoreCase(String field, String query) {
@@ -150,7 +150,7 @@ public class QuestionSearchService {
                 .content(question.getContent())
                 .answerKey(question.getAnswerKey())
                 .explanation(question.getExplanation())
-                .references(question.getReferences())
+                .sourceReferences(question.getSourceReferences())
                 .state(question.getState())
                 .authorId(question.getAuthorId())
                 .createdAt(createdAt)

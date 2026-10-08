@@ -138,8 +138,8 @@ public class Question extends BaseEntity {
     @Column(name = "explanation", columnDefinition = "TEXT")
     private String explanation;
 
-    @Column(name = "references", columnDefinition = "TEXT")
-    private String references;
+    @Column(name = "source_references", columnDefinition = "TEXT")
+    private String sourceReferences;
 
     @Transient
     private float[] embedding;

@@ -431,7 +431,7 @@ public class BedrockBatchService {
                     .answerKey(raw.answerKey)
                     .explanation(raw.explanation)
                     .options(raw.options)
-                    .references("AI-generated (Bedrock batch) via " + job.getModelUsed())
+                    .sourceReferences("AI-generated (Bedrock batch) via " + job.getModelUsed())
                     .state("DRAFT")
                     .authorId(job.getInitiatedBy())
                     .build();

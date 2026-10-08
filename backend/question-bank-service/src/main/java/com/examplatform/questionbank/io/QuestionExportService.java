@@ -158,7 +158,7 @@ public class QuestionExportService {
                     str(q.getContent()),
                     str(q.getAnswerKey()),
                     str(q.getExplanation()),
-                    str(q.getReferences()),
+                    str(q.getSourceReferences()),
                     str(q.getState()),
                     optionsJson)));
         }

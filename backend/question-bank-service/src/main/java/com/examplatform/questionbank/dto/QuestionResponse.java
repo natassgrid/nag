@@ -53,7 +53,7 @@ public class QuestionResponse {
     private String content;
     private String answerKey;
     private String explanation;
-    private String references;
+    private String sourceReferences;
     private String state;
     private Long version;
     private UUID authorId;
