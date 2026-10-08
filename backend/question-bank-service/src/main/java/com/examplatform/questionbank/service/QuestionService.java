@@ -500,7 +500,7 @@ public class QuestionService {
                 cb.like(cb.lower(cb.coalesce(root.get("content"), "")), pattern),
                 cb.like(cb.lower(cb.coalesce(root.get("explanation"), "")), pattern),
                 cb.like(cb.lower(cb.coalesce(root.get("state"), "")), pattern),
-                cb.like(cb.lower(cb.coalesce(root.get("references"), "")), pattern)
+                cb.like(cb.lower(cb.coalesce(root.get("sourceReferences"), "")), pattern)
         );
     }
 
