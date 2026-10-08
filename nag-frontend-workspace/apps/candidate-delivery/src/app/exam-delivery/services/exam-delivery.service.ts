@@ -139,8 +139,13 @@ export class ExamDeliveryService {
                 return {
                   id: String(q.id),
                   order: q.order || idx + 1,
-                  questionCode: q.questionCode || `PRAC-Q${idx + 1}`,\n                  content: q.content || '',
-                  options: parsedOptions.map((opt: any) => ({\n                    id: String(opt.id || opt.optionId || opt.key),\n                    text: opt.text || opt.content || opt.value || '',\n                  })),\n                  marks: q.marks || 2,
+                  questionCode: q.questionCode || `PRAC-Q${idx + 1}`,
+                  content: q.content || '',
+                  options: parsedOptions.map((opt: any) => ({
+                    id: String(opt.id || opt.optionId || opt.key),
+                    text: opt.text || opt.content || opt.value || '',
+                  })),
+                  marks: q.marks || 2,
                   negativeMarks: q.negativeMarks || 0.5,
                   subject: q.subject,
                   correctOptionId: q.correctOptionId,
