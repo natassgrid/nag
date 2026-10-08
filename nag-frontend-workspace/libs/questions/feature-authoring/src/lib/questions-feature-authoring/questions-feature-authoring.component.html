@@ -1,37 +1,49 @@
 <div class="question-authoring-container p-6 max-w-7xl mx-auto space-y-6">
   <nag-page-header
-    title="Question & Passage Authoring Studio"
-    subtitle="Compose LaTeX-enabled standalone assessment items or multi-item comprehension passage sets with live mathematical rendering"
+    [title]="editingQuestionId() ? 'Edit Question' : 'Question & Passage Authoring Studio'"
+    [subtitle]="editingQuestionId()
+      ? 'Modify this DRAFT question — changes will be saved as a new version.'
+      : 'Compose LaTeX-enabled standalone assessment items or multi-item comprehension passage sets with live mathematical rendering'"
     icon="edit_note"
   >
     <div actions class="flex items-center gap-3">
-      <!-- Mode Toggle Switch -->
-      <div class="flex items-center bg-slate-100 p-1 rounded-xl border border-slate-200">
-        <button
-          type="button"
-          (click)="setMode('STANDALONE')"
-          class="px-3 py-1.5 text-xs font-bold rounded-lg transition-all flex items-center gap-1.5"
-          [ngClass]="{
-            'bg-white text-indigo-600 shadow-xs': mode() === 'STANDALONE',
-            'text-slate-600 hover:text-slate-900': mode() !== 'STANDALONE'
-          }"
-        >
-          <mat-icon class="!text-sm leading-none">quiz</mat-icon>
-          Standalone Item
+      <!-- Back to Bank (edit mode only) -->
+      @if (editingQuestionId()) {
+        <button mat-stroked-button (click)="viewInBank()">
+          <mat-icon>arrow_back</mat-icon>
+          Back to Bank
         </button>
-        <button
-          type="button"
-          (click)="setMode('PASSAGE')"
-          class="px-3 py-1.5 text-xs font-bold rounded-lg transition-all flex items-center gap-1.5"
-          [ngClass]="{
-            'bg-white text-indigo-600 shadow-xs': mode() === 'PASSAGE',
-            'text-slate-600 hover:text-slate-900': mode() !== 'PASSAGE'
-          }"
-        >
-          <mat-icon class="!text-sm leading-none">auto_stories</mat-icon>
-          Comprehension / Passage Set
-        </button>
-      </div>
+      }
+
+      <!-- Mode Toggle Switch (create mode only) -->
+      @if (!editingQuestionId()) {
+        <div class="flex items-center bg-slate-100 p-1 rounded-xl border border-slate-200">
+          <button
+            type="button"
+            (click)="setMode('STANDALONE')"
+            class="px-3 py-1.5 text-xs font-bold rounded-lg transition-all flex items-center gap-1.5"
+            [ngClass]="{
+              'bg-white text-indigo-600 shadow-xs': mode() === 'STANDALONE',
+              'text-slate-600 hover:text-slate-900': mode() !== 'STANDALONE'
+            }"
+          >
+            <mat-icon class="!text-sm leading-none">quiz</mat-icon>
+            Standalone Item
+          </button>
+          <button
+            type="button"
+            (click)="setMode('PASSAGE')"
+            class="px-3 py-1.5 text-xs font-bold rounded-lg transition-all flex items-center gap-1.5"
+            [ngClass]="{
+              'bg-white text-indigo-600 shadow-xs': mode() === 'PASSAGE',
+              'text-slate-600 hover:text-slate-900': mode() !== 'PASSAGE'
+            }"
+          >
+            <mat-icon class="!text-sm leading-none">auto_stories</mat-icon>
+            Comprehension / Passage Set
+          </button>
+        </div>
+      }
 
       <button mat-stroked-button (click)="resetForm()">
         Reset
@@ -40,13 +52,29 @@
         mat-flat-button
         color="primary"
         (click)="saveItem()"
-        [disabled]="saving() || (mode() === 'STANDALONE' ? !content.trim() : !passageContent.trim())"
+        [disabled]="saving() || loadingQuestion() || (mode() === 'STANDALONE' ? !content.trim() : !passageContent.trim())"
       >
         <mat-icon>save</mat-icon>
-        {{ saving() ? 'Saving...' : (mode() === 'STANDALONE' ? 'Save Question' : 'Save Passage Set') }}
+        @if (saving()) {
+          Saving...
+        } @else if (editingQuestionId()) {
+          Update Question
+        } @else if (mode() === 'STANDALONE') {
+          Save Question
+        } @else {
+          Save Passage Set
+        }
       </button>
     </div>
   </nag-page-header>
+
+  <!-- Loading overlay while fetching question for edit -->
+  @if (loadingQuestion()) {
+    <div class="flex items-center gap-3 p-4 rounded-xl bg-blue-50 border border-blue-200 text-blue-900">
+      <mat-icon class="animate-spin !text-xl">autorenew</mat-icon>
+      <span class="text-sm font-medium">Loading question for editing…</span>
+    </div>
+  }
 
   <!-- Feedback Alert Banner -->
   @if (feedback(); as fb) {
