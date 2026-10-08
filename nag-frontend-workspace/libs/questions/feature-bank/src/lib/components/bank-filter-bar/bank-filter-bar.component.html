@@ -14,10 +14,10 @@
         <button
           mat-stroked-button
           (click)="reset.emit()"
-          class="!rounded-lg !text-rose-600 !border-rose-200 hover:!bg-rose-50 flex items-center gap-1.5 text-xs font-semibold"
+          class="!rounded-lg !text-rose-600 !border-rose-200 hover:!bg-rose-50 inline-flex items-center justify-center gap-1.5 text-xs font-semibold"
         >
-          <mat-icon class="!text-base leading-none">clear_all</mat-icon>
-          Reset Filters
+          <mat-icon class="!w-4 !h-4 !text-base !leading-none flex items-center justify-center shrink-0">clear_all</mat-icon>
+          <span class="leading-none">Reset Filters</span>
         </button>
       }
 
@@ -25,10 +25,10 @@
         mat-stroked-button
         color="accent"
         (click)="toggleSemanticSearch.emit()"
-        class="!rounded-lg flex items-center gap-2 text-xs font-semibold"
+        class="!rounded-lg inline-flex items-center justify-center gap-2 text-xs font-semibold"
       >
-        <mat-icon class="!text-base leading-none">saved_search</mat-icon>
-        Semantic Search
+        <mat-icon class="!w-4 !h-4 !text-base !leading-none flex items-center justify-center shrink-0">saved_search</mat-icon>
+        <span class="leading-none">Semantic Search</span>
       </button>
     </div>
   </div>
