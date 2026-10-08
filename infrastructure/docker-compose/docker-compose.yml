@@ -164,6 +164,22 @@ services:
       - keycloak_data:/opt/keycloak/data
 
   # ===========================================================================
+  # Vault Permissions - one-shot root init container. The named volume is created
+  # root-owned, but Vault runs as uid 100 (vault:1000) and cannot create
+  # /vault/data/core ("permission denied" on operator init) without this fix.
+  # ===========================================================================
+  vault-perms:
+    image: alpine:3
+    container_name: exam-vault-perms
+    restart: "no"
+    user: root
+    command: ["sh", "-c", "mkdir -p /vault/data && chown -R 100:1000 /vault/data && chmod 775 /vault/data"]
+    volumes:
+      - vault_data:/vault/data
+    networks:
+      - exam-network
+
+  # ===========================================================================
   # HashiCorp Vault — Persistent File Storage + Transit Engine
   # Port 8200 — UI at http://localhost:8200 (root token: vault_root_token)
   # ===========================================================================
@@ -171,6 +187,9 @@ services:
     image: hashicorp/vault:latest
     container_name: exam-vault
     restart: unless-stopped
+    depends_on:
+      vault-perms:
+        condition: service_completed_successfully
     ports:
       - "${VAULT_PORT:-8200}:8200"
     environment:

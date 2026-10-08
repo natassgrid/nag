@@ -20,6 +20,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.flywaydb.core.Flyway;
 
 import javax.sql.DataSource;
+import java.util.Arrays;
 import java.util.List;
 
 /**
@@ -36,6 +37,19 @@ public final class MultiSchemaFlywayRunner {
     public record SchemaMigrationSpec(String schema, String locations) {
         public static SchemaMigrationSpec of(String schema, String... locations) {
             return new SchemaMigrationSpec(schema, String.join(",", locations));
+        }
+
+        /**
+         * Splits the comma-separated location string back into individual Flyway locations.
+         * {@code Flyway.locations(String...)} does NOT split on commas, so passing the joined
+         * string as a single argument makes Flyway look for one non-existent path and silently
+         * find zero migrations.
+         */
+        public String[] locationArray() {
+            return Arrays.stream(locations.split(","))
+                    .map(String::trim)
+                    .filter(s -> !s.isEmpty())
+                    .toArray(String[]::new);
         }
     }
 
@@ -64,7 +78,7 @@ public final class MultiSchemaFlywayRunner {
                         .schemas(spec.schema())
                         .defaultSchema(spec.schema())
                         .table("flyway_schema_history")
-                        .locations(spec.locations())
+                        .locations(spec.locationArray())
                         .baselineOnMigrate(true)
                         .validateOnMigrate(false)
                         .load();

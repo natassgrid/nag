@@ -251,7 +251,7 @@ public class QuestionController {
      * @return 200 OK with the published question response
      */
     @PutMapping("/{id}/publish")
-    @PreAuthorize("hasAnyRole('APPROVER', 'ADMIN')")
+    @PreAuthorize("hasAnyRole('APPROVER', 'ADMIN', 'SUPER_ADMIN')")
     public ResponseEntity<ApiResponse<QuestionResponse>> publish(
             @PathVariable UUID id,
             @AuthenticationPrincipal Jwt jwt,
@@ -277,7 +277,7 @@ public class QuestionController {
      * @return 200 OK with the rejected question response (in DRAFT state)
      */
     @PutMapping("/{id}/reject")
-    @PreAuthorize("hasAnyRole('REVIEWER', 'APPROVER')")
+    @PreAuthorize("hasAnyRole('REVIEWER', 'APPROVER', 'SUPER_ADMIN')")
     public ResponseEntity<ApiResponse<QuestionResponse>> reject(
             @PathVariable UUID id,
             @RequestBody java.util.Map<String, String> payload,
@@ -360,7 +360,7 @@ public class QuestionController {
      * @return 200 OK with the list of question versions
      */
     @GetMapping("/{id}/versions")
-    @PreAuthorize("hasAnyRole('QUESTION_AUTHOR', 'REVIEWER', 'APPROVER')")
+    @PreAuthorize("hasAnyRole('QUESTION_AUTHOR', 'REVIEWER', 'APPROVER', 'SUPER_ADMIN')")
     public ResponseEntity<ApiResponse<List<QuestionVersion>>> getVersions(@PathVariable UUID id) {
         List<QuestionVersion> versions = questionVersioningService.getVersions(id);
         return ResponseEntity.ok(ApiResponse.success(versions, "Version history retrieved successfully"));
