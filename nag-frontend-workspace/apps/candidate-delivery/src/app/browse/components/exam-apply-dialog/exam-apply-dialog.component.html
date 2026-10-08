@@ -14,10 +14,10 @@
         </h3>
       </div>
 
-      @if (!submitting() && !submissionReceipt()) {
+      @if (!submitting()) {
         <button
           type="button"
-          (click)="closeDialog.emit()"
+          (click)="handleClose()"
           class="p-2 text-slate-400 hover:text-slate-700 rounded-xl hover:bg-slate-100 transition-colors cursor-pointer"
         >
           <mat-icon>close</mat-icon>
@@ -330,7 +330,7 @@
             mat-flat-button
             color="primary"
             routerLink="/dashboard"
-            (click)="closeDialog.emit()"
+            (click)="handleClose()"
             class="!rounded-xl !text-xs font-bold !px-6"
           >
             Go to Candidate Dashboard &rarr;
@@ -345,8 +345,7 @@
         <button
           type="button"
           mat-stroked-button
-          (click)="currentStep() === 1 ? closeDialog.emit() : goToPreviousStep()"
-          [disabled]="submitting()"
+          (click)="currentStep() === 1 ? handleClose() : goToPreviousStep()"
           class="!rounded-xl !text-xs font-semibold"
         >
           {{ currentStep() === 1 ? 'Cancel' : '&larr; Back' }}
@@ -368,14 +367,9 @@
             mat-flat-button
             color="primary"
             (click)="submitApplication()"
-            [disabled]="submitting()"
             class="!rounded-xl !text-xs font-bold !px-6"
           >
-            @if (submitting()) {
-              <span>Submitting Application...</span>
-            } @else {
-              <span>Confirm & Pay &#8377; {{ calculatedFee() }} &rarr;</span>
-            }
+            Confirm & Pay &#8377; {{ calculatedFee() }} &rarr;
           </button>
         }
       </div>
