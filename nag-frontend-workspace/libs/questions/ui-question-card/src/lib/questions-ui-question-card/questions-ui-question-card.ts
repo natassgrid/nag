@@ -56,6 +56,7 @@ export class QuestionsUiQuestionCard {
   showActions = input<boolean>(true);
   showCorrectOption = input<boolean>(false);
   selected = input<boolean>(false);
+  selectable = input<boolean>(false);
 
   /**
    * Current authenticated user's UUID.
@@ -158,6 +159,11 @@ export class QuestionsUiQuestionCard {
   get hasRejectionFeedback(): boolean {
     const status = (this.data().status || '').toUpperCase();
     return status === 'DRAFT' && !!(this.data().reviewComments);
+  }
+
+  onSelectClicked(e: Event): void {
+    e.stopPropagation();
+    this.cardSelect.emit(this.data());
   }
 
   onEditClicked(e: Event): void {
