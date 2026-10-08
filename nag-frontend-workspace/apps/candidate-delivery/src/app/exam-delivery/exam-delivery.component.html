@@ -16,6 +16,25 @@
     (submit)="confirmSubmission()"
   />
 
+  <!-- Concurrent Session Conflict Alert Banner -->
+  @if (sessionError(); as errorMsg) {
+    <div class="bg-amber-950/90 border-b border-amber-500/40 p-3 px-6 flex items-center justify-between text-amber-200 text-xs">
+      <div class="flex items-center gap-2">
+        <mat-icon class="!text-base text-amber-400">warning</mat-icon>
+        <span class="font-medium">{{ errorMsg }}</span>
+      </div>
+      @if (isConcurrentConflict()) {
+        <button
+          type="button"
+          (click)="resolveConflictAndStart()"
+          class="px-3 py-1 bg-amber-600 hover:bg-amber-500 text-white rounded-lg font-bold transition cursor-pointer"
+        >
+          Terminate Other Session & Resume Here
+        </button>
+      }
+    </div>
+  }
+
   <!-- Main Delivery Split Body -->
   <main class="flex-1 flex overflow-hidden min-h-0">
     <!-- Left: Question Workspace -->

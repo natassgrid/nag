@@ -62,7 +62,7 @@
     (toggleSemanticSearch)="showVectorDrawer.set(!showVectorDrawer())"
   ></nag-bank-filter-bar>
 
-  <!-- Main Items List & Pagination Sub-component -->
+    <!-- Main Items List & Pagination Sub-component -->
   <nag-bank-items-list
     [questions]="questionService.questions()"
     [loading]="questionService.loading()"
@@ -75,6 +75,10 @@
     [currentUserId]="currentUserId()"
     [isReviewer]="isReviewer()"
     [isAuthor]="isAuthor()"
+    [selectedIds]="selectedQuestionIds()"
+    [isAllSelected]="isAllSelected()"
+    (toggleSelectQuestion)="toggleSelectQuestion($event)"
+    (toggleSelectAll)="toggleSelectAll()"
     (pageChange)="goToPage($event)"
     (editQuestion)="onEditQuestion($event)"
     (deleteQuestion)="onDeleteQuestion($event)"
@@ -84,6 +88,57 @@
     (publishQuestion)="onPublishQuestion($event)"
     (createQuestion)="resetFilters()"
   ></nag-bank-items-list>
+
+  <!-- Bulk Action Toolbar (Issue #323) -->
+  @if (selectedQuestionIds().size > 0) {
+    <div class="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 bg-slate-900 text-white px-6 py-3.5 rounded-2xl shadow-2xl border border-slate-700 flex items-center gap-4">
+      <div class="flex items-center gap-2 border-r border-slate-700 pr-4">
+        <span class="w-6 h-6 rounded-full bg-indigo-600 text-white flex items-center justify-center text-xs font-bold">
+          {{ selectedQuestionIds().size }}
+        </span>
+        <span class="text-xs font-semibold">Selected</span>
+      </div>
+
+      <div class="flex items-center gap-2">
+        @if (isAuthor() || isReviewer()) {
+          <button
+            mat-flat-button
+            color="primary"
+            (click)="onBulkTransition('REVIEW')"
+            class="!text-xs !rounded-xl !bg-indigo-600 hover:!bg-indigo-500 cursor-pointer"
+          >
+            <mat-icon class="!text-sm">rate_review</mat-icon>
+            Submit for Review
+          </button>
+        }
+        @if (isReviewer()) {
+          <button
+            mat-flat-button
+            (click)="onBulkTransition('APPROVED')"
+            class="!text-xs !rounded-xl !bg-emerald-600 hover:!bg-emerald-500 !text-white cursor-pointer"
+          >
+            <mat-icon class="!text-sm">check_circle</mat-icon>
+            Approve Selected
+          </button>
+          <button
+            mat-flat-button
+            (click)="onBulkTransition('PUBLISHED')"
+            class="!text-xs !rounded-xl !bg-purple-600 hover:!bg-purple-500 !text-white cursor-pointer"
+          >
+            <mat-icon class="!text-sm">publish</mat-icon>
+            Publish Selected
+          </button>
+        }
+        <button
+          mat-stroked-button
+          (click)="clearSelection()"
+          class="!text-xs !rounded-xl !border-slate-600 !text-slate-300 hover:!bg-slate-800 cursor-pointer"
+        >
+          Clear
+        </button>
+      </div>
+    </div>
+  }
 
   <!-- Semantic Vector Similarity Search Drawer Sub-component -->
   <nag-bank-semantic-search-drawer

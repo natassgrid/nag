@@ -62,6 +62,19 @@ public class QuestionDeliveryDto {
     /** 0-based position of this sub-question within the passage group */
     private Integer passageOrderIndex;
 
+    /** Candidate's requested primary examination language (e.g. "hi", "ta", "en") */
+    private String primaryLanguage;
+
+    /**
+     * True if question translation in primaryLanguage was missing or unapproved,
+     * signaling to the delivery runtime to gracefully fall back to original English.
+     */
+    @Builder.Default
+    private Boolean fallbackToEnglish = false;
+
+    /** The resolved translation for the candidate's primaryLanguage, if available */
+    private TranslatedQuestionDeliveryDto primaryTranslation;
+
     @Builder.Default
     private Map<String, TranslatedQuestionDeliveryDto> translations = new HashMap<>();
 }

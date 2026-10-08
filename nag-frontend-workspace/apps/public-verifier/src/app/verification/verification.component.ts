@@ -1,4 +1,5 @@
-import { Component, signal, inject } from '@angular/core';
+import { Component, OnInit, signal, inject } from '@angular/core';
+import { ActivatedRoute } from '@angular/router';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { HttpClient } from '@angular/common/http';
@@ -61,7 +62,8 @@ export interface VerifiedPaperProof {
   templateUrl: './verification.component.html',
   styleUrl: './verification.component.scss',
 })
-export class VerificationComponent {
+export class VerificationComponent implements OnInit {
+  private route = inject(ActivatedRoute);
   private http = inject(HttpClient);
 
   activeTab = signal<'paper' | 'candidate'>('paper');
@@ -79,6 +81,18 @@ export class VerificationComponent {
   leafQuestionInput = '';
   inspectingLeaf = signal<boolean>(false);
   leafVerificationStatus = signal<'IDLE' | 'VALID' | 'INVALID'>('IDLE');
+
+  
+  ngOnInit(): void {
+    this.route.queryParams.subscribe((params) => {
+      const hash = params["hash"] || params["paperHash"] || params["rootHash"];
+      if (hash) {
+        this.searchQuery = hash.trim();
+        this.activeTab.set("paper");
+        this.verify();
+      }
+    });
+  }
 
   setTab(tab: 'paper' | 'candidate'): void {
     this.activeTab.set(tab);

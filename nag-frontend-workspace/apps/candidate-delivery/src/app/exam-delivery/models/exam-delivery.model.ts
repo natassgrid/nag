@@ -5,6 +5,12 @@ export interface ExamOption {
   text: string;
 }
 
+export interface ExamTranslation {
+  languageCode: string;
+  content: string;
+  options?: ExamOption[];
+}
+
 export interface ExamItem {
   id: string;
   order: number;
@@ -18,6 +24,9 @@ export interface ExamItem {
   selectedOptionId?: string;
   isFlagged?: boolean;
   isVisited?: boolean;
+  primaryLanguage?: string;
+  fallbackToEnglish?: boolean;
+  primaryTranslation?: ExamTranslation;
 }
 
 export interface ExamScoreSummary {

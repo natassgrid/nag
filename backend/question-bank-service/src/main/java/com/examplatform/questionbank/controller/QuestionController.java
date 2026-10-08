@@ -5,7 +5,7 @@
  * Copyright (C) 2025 NAG Contributors
  *
  * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU Affero General Public License as published
+ * it under the terms of the GNU标识 Affero General Public License as published
  * by the Free Software Foundation, version 3 of the License.
  *
  * This program is distributed in the hope that it will be useful,
@@ -21,6 +21,8 @@ package com.examplatform.questionbank.controller;
 
 import com.examplatform.questionbank.domain.QuestionVersion;
 import com.examplatform.questionbank.dto.BlueprintMatchRequest;
+import com.examplatform.questionbank.dto.BulkTransitionRequest;
+import com.examplatform.questionbank.dto.BulkTransitionResponse;
 import com.examplatform.questionbank.dto.CreateQuestionRequest;
 import com.examplatform.questionbank.dto.QuestionAnalytics;
 import com.examplatform.questionbank.dto.QuestionResponse;
@@ -213,6 +215,30 @@ public class QuestionController {
     }
 
     /**
+     * Bulk transition questions to a target state.
+     * Enforces FSM and 4-eyes principle per question, processing up to 100 items per batch.
+     *
+     * @param request  bulk transition request payload
+     * @param jwt      the authenticated JWT principal
+     * @param tenantId tenant identifier from the X-Tenant-Id header
+     * @return 200 OK with the bulk transition results
+     */
+    @PostMapping("/bulk-transition")
+    @PreAuthorize("hasAnyRole('QUESTION_AUTHOR', 'REVIEWER', 'APPROVER', 'ADMIN', 'SUPER_ADMIN')")
+    public ResponseEntity<ApiResponse<BulkTransitionResponse>> bulkTransition(
+            @Valid @RequestBody BulkTransitionRequest request,
+            @AuthenticationPrincipal Jwt jwt,
+            @RequestHeader(value = "X-Tenant-Id", defaultValue = "default") String tenantId) {
+
+        UUID actorId = UUID.fromString(jwt.getSubject());
+        log.info("Bulk transitioning {} questions to {} by actor={}, tenant={}",
+                request.getQuestionIds().size(), request.getTargetState(), actorId, tenantId);
+
+        BulkTransitionResponse response = questionLifecycleService.bulkTransition(request, actorId, tenantId);
+        return ResponseEntity.ok(ApiResponse.success(response, "Bulk transition completed"));
+    }
+
+    /**
      * Approve a question — transitions to APPROVED state.
      * Enforces the Four-Eyes Principle: approver cannot be the author.
      * Requires REVIEWER or APPROVER role.
@@ -291,7 +317,7 @@ public class QuestionController {
                     .body(ApiResponse.error("Comments are required when rejecting a question"));
         }
 
-        log.info("Rejecting question: id={}, reviewer={}, tenant={}", id, reviewerId, tenantId);
+        log.info("Rejecting question: id={}, reviewer={}, tenant={}, comments={}", id, reviewerId, tenantId, comments);
 
         QuestionResponse response = questionLifecycleService.reject(id, reviewerId, comments, tenantId);
         return ResponseEntity.ok(ApiResponse.success(response, "Question rejected successfully"));

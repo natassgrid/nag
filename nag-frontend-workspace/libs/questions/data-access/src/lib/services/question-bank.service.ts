@@ -9,6 +9,8 @@ import {
   QuestionStatus,
   VectorSearchResult,
   PagedQuestionsResponse,
+  BulkTransitionRequest,
+  BulkTransitionResponse,
 } from '../models/question.model';
 
 @Injectable({
@@ -207,6 +209,15 @@ export class QuestionBankService {
             list.map((item) => (item.id === id ? updated : item))
           );
         })
+      );
+  }
+
+
+  bulkTransition(request: BulkTransitionRequest): Observable<BulkTransitionResponse> {
+    return this.http
+      .post<{ status?: string; data?: BulkTransitionResponse }>(`${this.baseUrl}/bulk-transition`, request)
+      .pipe(
+        map((res) => res?.data || (res as any))
       );
   }
 

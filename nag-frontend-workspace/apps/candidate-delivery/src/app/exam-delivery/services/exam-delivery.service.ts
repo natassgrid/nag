@@ -35,6 +35,10 @@ export class ExamDeliveryService {
     candidateId: '849202',
   });
 
+  readonly sessionError = signal<string | null>(null);
+  readonly isConcurrentConflict = signal<boolean>(false);
+  readonly isLoading = signal<boolean>(false);
+
   readonly remainingSeconds = signal<number>(5400); // 90 minutes default
   private timerInterval: any = null;
 
@@ -88,6 +92,8 @@ export class ExamDeliveryService {
     this.practiceSessionId.set(sessionId);
     this.currentIndex.set(0);
     this.submissionReceipt.set(null);
+    this.sessionError.set(null);
+    this.isConcurrentConflict.set(false);
 
     if (mode === 'PRACTICE') {
       const resolvedSessionId = sessionId || (paperId ? `PRACTICE-${paperId.substring(0, 8)}` : 'MOCK-SESSION-SIM-2026');
@@ -133,17 +139,15 @@ export class ExamDeliveryService {
                 return {
                   id: String(q.id),
                   order: q.order || idx + 1,
-                  questionCode: q.questionCode || `PRAC-Q${idx + 1}`,
-                  content: q.content || '',
-                  options: parsedOptions.map((opt: any) => ({
-                    id: String(opt.id || opt.optionId || opt.key),
-                    text: opt.text || opt.content || opt.value || '',
-                  })),
-                  marks: q.marks || 2,
+                  questionCode: q.questionCode || `PRAC-Q${idx + 1}`,\n                  content: q.content || '',
+                  options: parsedOptions.map((opt: any) => ({\n                    id: String(opt.id || opt.optionId || opt.key),\n                    text: opt.text || opt.content || opt.value || '',\n                  })),\n                  marks: q.marks || 2,
                   negativeMarks: q.negativeMarks || 0.5,
                   subject: q.subject,
                   correctOptionId: q.correctOptionId,
                   isVisited: idx === 0,
+                  primaryLanguage: q.primaryLanguage,
+                  fallbackToEnglish: q.fallbackToEnglish,
+                  primaryTranslation: q.primaryTranslation,
                 };
               });
               this.questions.set(mapped);
@@ -167,14 +171,84 @@ export class ExamDeliveryService {
       });
       this.remainingSeconds.set(5400);
     } else {
-      this.questions.set(JSON.parse(JSON.stringify(LIVE_QUESTIONS)));
       this.sessionMeta.set({
         sessionId: 'NES-2026-A48',
         candidateId: '849202',
         title: 'National Examination Session',
       });
       this.remainingSeconds.set(5400);
+
+      if (examId) {
+        this.startLiveSession(examId, paperId);
+      } else {
+        this.questions.set(JSON.parse(JSON.stringify(LIVE_QUESTIONS)));
+      }
     }
+  }
+
+  startLiveSession(examId: string, paperId?: string | null, terminateExisting = false): void {
+    this.isLoading.set(true);
+    this.sessionError.set(null);
+    this.isConcurrentConflict.set(false);
+
+    this.http
+      .post<any>('/api/v1/sessions/start', {
+        examId,
+        paperId: paperId || undefined,
+        terminateExisting,
+      })
+      .subscribe({
+        next: (res) => {
+          this.isLoading.set(false);
+          if (res) {
+            this.sessionMeta.set({
+              sessionId: res.sessionId || 'LIVE-SESSION-ACTIVE',
+              candidateId: res.candidateId || '849202',
+              title: res.examTitle || 'National Examination Session',
+            });
+            if (res.durationSeconds) {
+              this.remainingSeconds.set(res.durationSeconds);
+            }
+            if (Array.isArray(res.questions) && res.questions.length > 0) {
+              const mapped: ExamItem[] = res.questions.map((q: any, idx: number) => ({
+                id: String(q.id),
+                order: idx + 1,
+                questionCode: q.code || `Q-${idx + 1}`,
+                content: q.content || '',
+                options: (q.options || []).map((opt: any) => ({
+                  id: String(opt.id),
+                  text: opt.text || '',
+                })),
+                marks: q.marks || 2,
+                negativeMarks: q.negativeMarks || 0.5,
+                subject: q.subject,
+                correctOptionId: q.correctOptionId,
+                isVisited: idx === 0,
+                primaryLanguage: q.primaryLanguage,
+                fallbackToEnglish: q.fallbackToEnglish,
+                primaryTranslation: q.primaryTranslation,
+              }));
+              this.questions.set(mapped);
+              return;
+            }
+          }
+          this.questions.set(JSON.parse(JSON.stringify(LIVE_QUESTIONS)));
+        },
+        error: (err) => {
+          this.isLoading.set(false);
+          if (err?.status === 409) {
+            this.isConcurrentConflict.set(true);
+            this.sessionError.set(
+              'A session for another examination is already active. Please terminate existing sessions before starting.'
+            );
+          }
+          this.questions.set(JSON.parse(JSON.stringify(LIVE_QUESTIONS)));
+        },
+      });
+  }
+
+  terminateActiveAndStart(examId: string, paperId?: string | null): void {
+    this.startLiveSession(examId, paperId, true);
   }
 
   private fallbackToMockQuestions(targetId: string | null): void {
@@ -199,6 +273,9 @@ export class ExamDeliveryService {
                 subject: q.subject,
                 correctOptionId: q.correctOptionId,
                 isVisited: idx === 0,
+                primaryLanguage: q.primaryLanguage,
+                fallbackToEnglish: q.fallbackToEnglish,
+                primaryTranslation: q.primaryTranslation,
               }));
               this.questions.set(mapped);
               return;

@@ -205,6 +205,9 @@ public class SessionStartService {
         List<QuestionDeliveryDto> questions = (examQuestionDeliveryService != null && baseQuestions != null && !baseQuestions.isEmpty())
                 ? examQuestionDeliveryService.randomizeOptions(baseQuestions, sessionId)
                 : baseQuestions;
+        if (examQuestionDeliveryService != null && questions != null && !questions.isEmpty()) {
+            examQuestionDeliveryService.applyLanguagePreference(questions, request.getLanguageCode());
+        }
 
         String firstQuestionContent = extractFirstQuestion(decryptedPaper);
         if (firstQuestionContent == null && questions != null && !questions.isEmpty()) {
@@ -340,6 +343,9 @@ public class SessionStartService {
         List<QuestionDeliveryDto> questions = (examQuestionDeliveryService != null && baseQuestions != null && !baseQuestions.isEmpty())
                 ? examQuestionDeliveryService.randomizeOptions(baseQuestions, session.getSessionId())
                 : baseQuestions;
+        if (examQuestionDeliveryService != null && questions != null && !questions.isEmpty()) {
+            examQuestionDeliveryService.applyLanguagePreference(questions, session.getLanguageCode());
+        }
 
         String firstQuestionContent = extractFirstQuestion(decryptedPaper);
         if (firstQuestionContent == null && questions != null && !questions.isEmpty()) {

@@ -45,6 +45,13 @@ export class BankItemsListComponent {
   /** Whether the current user has an author role */
   readonly isAuthor = input<boolean>(false);
 
+  /** Selection state for bulk transitions (Issue #323) */
+  readonly selectedIds = input<Set<string>>(new Set<string>());
+  readonly isAllSelected = input<boolean>(false);
+
+  readonly toggleSelectQuestion = output<string>();
+  readonly toggleSelectAll = output<void>();
+
   readonly pageChange = output<number>();
   readonly editQuestion = output<QuestionCardData>();
   readonly deleteQuestion = output<string>();

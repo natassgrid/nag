@@ -18,9 +18,12 @@
 
 package com.examplatform.identity.service;
 
+import com.examplatform.identity.domain.UserAccount;
 import com.examplatform.identity.dto.AuthTokenResponse;
 import com.examplatform.identity.exception.AuthenticationException;
+import com.examplatform.identity.repository.UserAccountRepository;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Primary;
 import org.springframework.context.annotation.Profile;
@@ -46,13 +49,21 @@ import java.util.concurrent.ConcurrentHashMap;
 public class DevKeycloakService extends KeycloakService {
 
     private final String jwtSecret;
+    private final UserAccountRepository userAccountRepository;
     private final Map<String, DevSessionData> devRefreshTokenStore = new ConcurrentHashMap<>();
 
-    private record DevSessionData(String username, String userId) {}
+    private record DevSessionData(String username, String userId, String preferredLanguage) {}
 
-    public DevKeycloakService(@Value("${app.jwt.secret:dev-jwt-secret-key-for-local-testing-minimum-32-chars}") String jwtSecret) {
+    public DevKeycloakService(
+            @Value("${app.jwt.secret:dev-jwt-secret-key-for-local-testing-minimum-32-chars}") String jwtSecret,
+            @Autowired(required = false) UserAccountRepository userAccountRepository) {
         super(null);
         this.jwtSecret = jwtSecret;
+        this.userAccountRepository = userAccountRepository;
+    }
+
+    public DevKeycloakService(String jwtSecret) {
+        this(jwtSecret, null);
     }
 
     @Override
@@ -62,16 +73,34 @@ public class DevKeycloakService extends KeycloakService {
 
     @Override
     public AuthTokenResponse getTokens(String username, String password, String userId) {
-        log.info("[DEV] Issuing signed dev token for user: {} (id: {})", username, userId);
+        String lang = "en";
+        if (userAccountRepository != null && userId != null) {
+            try {
+                lang = userAccountRepository.findById(UUID.fromString(userId))
+                        .map(UserAccount::getPreferredLanguage)
+                        .filter(l -> l != null && !l.isBlank())
+                        .orElse("en");
+            } catch (Exception ignored) {
+            }
+        }
+        return getTokens(username, password, userId, lang);
+    }
+
+    @Override
+    public AuthTokenResponse getTokens(String username, String password, String userId, String preferredLanguage) {
+        log.info("[DEV] Issuing signed dev token for user: {} (id: {}, preferredLanguage: {})", username, userId, preferredLanguage);
 
         long now = System.currentTimeMillis() / 1000;
         long exp = now + 3600;
         String sub = userId != null ? userId : username;
+        String lang = (preferredLanguage != null && !preferredLanguage.isBlank()) ? preferredLanguage : "en";
 
         String header = base64Url("{\"alg\":\"HS256\",\"typ\":\"JWT\"}");
         String payload = base64Url("{" +
                 "\"sub\":\"" + sub + "\"," +
                 "\"preferred_username\":\"" + username + "\"," +
+                "\"preferred_language\":\"" + lang + "\"," +
+                "\"tenant_id\":\"default\"," +
                 "\"name\":\"" + username + "\"," +
                 "\"iss\":\"exam-platform-dev\"," +
                 "\"aud\":\"exam-backend\"," +
@@ -85,7 +114,7 @@ public class DevKeycloakService extends KeycloakService {
         String accessToken = signingInput + "." + signature;
         String refreshToken = "dev-rt-" + UUID.randomUUID();
 
-        devRefreshTokenStore.put(refreshToken, new DevSessionData(username, sub));
+        devRefreshTokenStore.put(refreshToken, new DevSessionData(username, sub, lang));
 
         return AuthTokenResponse.builder()
                 .accessToken(accessToken)
@@ -108,8 +137,9 @@ public class DevKeycloakService extends KeycloakService {
             throw new AuthenticationException("Invalid or expired refresh token");
         }
 
-        log.info("[DEV] Refreshing token for user: {} (id: {})", sessionData.username(), sessionData.userId());
-        return getTokens(sessionData.username(), null, sessionData.userId());
+        log.info("[DEV] Refreshing token for user: {} (id: {}, lang: {})",
+                sessionData.username(), sessionData.userId(), sessionData.preferredLanguage());
+        return getTokens(sessionData.username(), null, sessionData.userId(), sessionData.preferredLanguage());
     }
 
     @Override

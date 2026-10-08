@@ -37,6 +37,10 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import java.time.Instant;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.List;
+import java.util.ArrayList;
+import com.examplatform.questionbank.dto.BulkTransitionRequest;
+import com.examplatform.questionbank.dto.BulkTransitionResponse;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -254,6 +258,106 @@ class QuestionLifecycleServiceTest {
 
             assertThatThrownBy(() -> questionLifecycleService.transition(QUESTION_ID, request, ACTOR_ID, TENANT_ID))
                     .isInstanceOf(EntityNotFoundException.class);
+        }
+    }
+
+    private Question buildQuestionWithId(UUID id, String state) {
+        Question question = Question.builder()
+                .subject("Mathematics")
+                .topic("Algebra")
+                .difficulty("MEDIUM")
+                .cognitiveLevel("UNDERSTAND")
+                .questionType("SINGLE_MCQ")
+                .content("What is 2+2?")
+                .answerKey("4")
+                .state(state)
+                .authorId(UUID.randomUUID())
+                .build();
+        try {
+            var setIdMethod = question.getClass().getSuperclass().getDeclaredMethod("setId", UUID.class);
+            setIdMethod.setAccessible(true);
+            setIdMethod.invoke(question, id);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+        return question;
+    }
+
+    @Nested
+    @DisplayName("Bulk transitions")
+    class BulkTransitions {
+
+        @Test
+        @DisplayName("bulk transition succeeds for all valid questions")
+        void bulkTransitionAllSucceed() {
+            UUID q1 = UUID.randomUUID();
+            UUID q2 = UUID.randomUUID();
+            Question question1 = buildQuestionWithId(q1, "DRAFT");
+            Question question2 = buildQuestionWithId(q2, "DRAFT");
+
+            when(questionRepository.findById(q1)).thenReturn(Optional.of(question1));
+            when(questionRepository.findById(q2)).thenReturn(Optional.of(question2));
+            when(questionRepository.save(any(Question.class))).thenAnswer(i -> i.getArgument(0));
+
+            BulkTransitionRequest req = BulkTransitionRequest.builder()
+                    .questionIds(List.of(q1, q2))
+                    .targetState("REVIEW")
+                    .build();
+
+            BulkTransitionResponse resp = questionLifecycleService.bulkTransition(req, ACTOR_ID, TENANT_ID);
+
+            assertThat(resp.getTotalRequested()).isEqualTo(2);
+            assertThat(resp.getSuccessCount()).isEqualTo(2);
+            assertThat(resp.getFailureCount()).isEqualTo(0);
+            assertThat(resp.getResults()).allMatch(r -> r.isSuccess() && "REVIEW".equals(r.getNewState()));
+        }
+
+        @Test
+        @DisplayName("bulk transition handles partial failures gracefully")
+        void bulkTransitionPartialFailure() {
+            UUID qValid = UUID.randomUUID();
+            UUID qInvalid = UUID.randomUUID();
+            UUID qNotFound = UUID.randomUUID();
+
+            Question question1 = buildQuestionWithId(qValid, "DRAFT");
+            Question question2 = buildQuestionWithId(qInvalid, "ARCHIVED");
+
+            when(questionRepository.findById(qValid)).thenReturn(Optional.of(question1));
+            when(questionRepository.findById(qInvalid)).thenReturn(Optional.of(question2));
+            when(questionRepository.findById(qNotFound)).thenReturn(Optional.empty());
+            when(questionRepository.save(any(Question.class))).thenAnswer(i -> i.getArgument(0));
+
+            BulkTransitionRequest req = BulkTransitionRequest.builder()
+                    .questionIds(List.of(qValid, qInvalid, qNotFound))
+                    .targetState("REVIEW")
+                    .build();
+
+            BulkTransitionResponse resp = questionLifecycleService.bulkTransition(req, ACTOR_ID, TENANT_ID);
+
+            assertThat(resp.getTotalRequested()).isEqualTo(3);
+            assertThat(resp.getSuccessCount()).isEqualTo(1);
+            assertThat(resp.getFailureCount()).isEqualTo(2);
+            assertThat(resp.getResults().get(0).isSuccess()).isTrue();
+            assertThat(resp.getResults().get(1).isSuccess()).isFalse();
+            assertThat(resp.getResults().get(2).isSuccess()).isFalse();
+        }
+
+        @Test
+        @DisplayName("bulk transition rejects batch exceeding 100 questions")
+        void bulkTransitionExceeds100Throws() {
+            List<UUID> many = new ArrayList<>();
+            for (int i = 0; i < 101; i++) {
+                many.add(UUID.randomUUID());
+            }
+
+            BulkTransitionRequest req = BulkTransitionRequest.builder()
+                    .questionIds(many)
+                    .targetState("REVIEW")
+                    .build();
+
+            assertThatThrownBy(() -> questionLifecycleService.bulkTransition(req, ACTOR_ID, TENANT_ID))
+                    .isInstanceOf(IllegalArgumentException.class)
+                    .hasMessageContaining("cannot exceed 100");
         }
     }
 }

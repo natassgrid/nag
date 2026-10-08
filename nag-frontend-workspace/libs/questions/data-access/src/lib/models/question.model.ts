@@ -88,3 +88,24 @@ export interface PagedQuestionsResponse {
   number: number;
   size: number;
 }
+
+export interface BulkTransitionRequest {
+  questionIds: string[];
+  targetState: string;
+  reason?: string;
+}
+
+export interface BulkTransitionItemResult {
+  questionId: string;
+  success: boolean;
+  previousState?: string;
+  newState?: string;
+  errorMessage?: string;
+}
+
+export interface BulkTransitionResponse {
+  totalRequested: number;
+  successCount: number;
+  failureCount: number;
+  results: BulkTransitionItemResult[];
+}
