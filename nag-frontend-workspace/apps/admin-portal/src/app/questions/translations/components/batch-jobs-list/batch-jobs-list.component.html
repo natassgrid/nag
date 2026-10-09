@@ -40,25 +40,36 @@
               </div>
             </div>
 
-            <div class="flex items-center gap-3">
+            <div class="flex items-center gap-2">
               <span
                 class="px-2.5 py-1 rounded-full text-xs font-bold"
                 [ngClass]="{
                   'bg-emerald-100 text-emerald-800': job.status === 'COMPLETED',
-                  'bg-indigo-100 text-indigo-800 animate-pulse': job.status === 'RUNNING',
+                  'bg-indigo-100 text-indigo-800 animate-pulse': job.status === 'IN_PROGRESS' || job.status === 'RUNNING',
+                  'bg-amber-100 text-amber-800': job.status === 'PENDING',
                   'bg-slate-100 text-slate-800': job.status === 'CANCELLED',
                   'bg-rose-100 text-rose-800': job.status === 'FAILED'
                 }"
               >
                 {{ job.status }}
               </span>
-              @if (job.status === 'RUNNING') {
+              @if (job.status === 'IN_PROGRESS' || job.status === 'RUNNING' || job.status === 'PENDING') {
                 <button
                   mat-stroked-button
                   (click)="cancelJob.emit(job.id)"
                   class="!text-xs !border-rose-200 !text-rose-600 hover:!bg-rose-50 cursor-pointer"
                 >
                   Cancel Job
+                </button>
+              }
+              @if (job.status === 'IN_PROGRESS' || job.status === 'FAILED' || job.status === 'CANCELLED') {
+                <button
+                  mat-stroked-button
+                  (click)="resumeJob.emit(job.id)"
+                  class="!text-xs !border-indigo-200 !text-indigo-600 hover:!bg-indigo-50 cursor-pointer"
+                  title="Auto-resume or restart this batch translation job"
+                >
+                  <mat-icon class="!text-sm !w-4 !h-4 leading-none">play_arrow</mat-icon> Resume
                 </button>
               }
             </div>

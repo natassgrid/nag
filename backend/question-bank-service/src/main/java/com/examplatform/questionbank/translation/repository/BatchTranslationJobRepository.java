@@ -14,7 +14,8 @@
  * GNU Affero General Public License for more details.
  *
  * You should have received a copy of the GNU Affero General Public License
- * along with this program. If not, see <https://www.gnu.org/licenses/>.\n */
+ * along with this program. If not, see <https://www.gnu.org/licenses/>.
+ */
 
 package com.examplatform.questionbank.translation.repository;
 
@@ -27,6 +28,7 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -41,6 +43,9 @@ public interface BatchTranslationJobRepository extends JpaRepository<BatchTransl
     List<BatchTranslationJob> findByPaperIdAndTenantIdOrderByCreatedAtDesc(UUID paperId, String tenantId);
 
     List<BatchTranslationJob> findByStatusAndTenantId(BatchTranslationJobStatus status, String tenantId);
+
+    @Query("SELECT j FROM BatchTranslationJob j WHERE j.status IN :statuses ORDER BY j.createdAt ASC")
+    List<BatchTranslationJob> findByStatusInOrderByCreatedAtAsc(@Param("statuses") Collection<BatchTranslationJobStatus> statuses);
 
     @Modifying
     @Transactional

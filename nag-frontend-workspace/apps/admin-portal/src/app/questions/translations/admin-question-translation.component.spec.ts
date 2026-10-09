@@ -20,6 +20,8 @@ describe('AdminQuestionTranslationComponent', () => {
     saveTranslation: jest.Mock;
     approveTranslation: jest.Mock;
     getApprovedTranslation: jest.Mock;
+    resumeBatchJob: jest.Mock;
+    cancelBatchJob: jest.Mock;
   };
   let mockQuestionBankService: {
     loadQuestions: jest.Mock;
@@ -50,6 +52,8 @@ describe('AdminQuestionTranslationComponent', () => {
       saveTranslation: jest.fn().mockReturnValue(of({ id: 'trans-1', status: 'DRAFT' })),
       approveTranslation: jest.fn().mockReturnValue(of({ success: true })),
       getApprovedTranslation: jest.fn().mockReturnValue(of(null)),
+      resumeBatchJob: jest.fn().mockReturnValue(of({ id: 'job-1', status: 'IN_PROGRESS' })),
+      cancelBatchJob: jest.fn().mockReturnValue(of({ id: 'job-1', status: 'CANCELLED' })),
     };
     mockQuestionBankService = {
       loadQuestions: jest.fn().mockReturnValue(of({ content: [sampleQuestion] })),
@@ -116,5 +120,17 @@ describe('AdminQuestionTranslationComponent', () => {
     const updatedApproved = component.questions().find((q) => q.id === 'q-1');
     expect(updatedApproved?.translationStatusMap?.['hi']).toBe('APPROVED');
     expect(updatedApproved?.translationStatus).toBe('APPROVED');
+  });
+
+  it('should invoke resumeBatchJob on translationService and update batchJobs state', () => {
+    component.batchJobs.set([
+      { id: 'job-1', status: 'FAILED' } as any,
+    ]);
+
+    component.resumeJob('job-1');
+
+    expect(mockTranslationService.resumeBatchJob).toHaveBeenCalledWith('job-1');
+    const updated = component.batchJobs().find((j) => j.id === 'job-1');
+    expect(updated?.status).toBe('IN_PROGRESS');
   });
 });

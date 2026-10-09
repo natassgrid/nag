@@ -339,4 +339,14 @@ export class AdminQuestionTranslationComponent implements OnInit {
       },
     });
   }
+
+  resumeJob(jobId: string): void {
+    this.translationService.resumeBatchJob(jobId).subscribe({
+      next: (updatedJob) => {
+        this.batchJobs.update((jobs) =>
+          jobs.map((j) => (j.id === jobId ? updatedJob : j))
+        );
+      },
+    });
+  }
 }
