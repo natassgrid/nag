@@ -34,12 +34,23 @@ public class PracticeResultService {
 
     @Transactional(readOnly = true)
     public PracticeResultDto getResult(UUID sessionId, UUID candidateId) {
+        return getResult(sessionId, candidateId, null);
+    }
+
+    @Transactional(readOnly = true)
+    public PracticeResultDto getResult(UUID sessionId, UUID candidateId, String requestedLang) {
         PracticeSession session = practiceSessionRepository.findByIdAndCandidateId(sessionId, candidateId)
                 .orElseThrow(() -> new PracticeSessionNotFoundException(sessionId));
 
         if (!"SUBMITTED".equals(session.getStatus())) {
             throw new IllegalStateException("Session is not yet submitted");
         }
+
+        String targetLang = (requestedLang != null && !requestedLang.isBlank())
+                ? requestedLang.trim().toLowerCase()
+                : (session.getPreferredLanguage() != null && !session.getPreferredLanguage().isBlank()
+                        ? session.getPreferredLanguage().trim().toLowerCase()
+                        : "en");
 
         PracticeSet practiceSet = practiceSetRepository.findById(session.getPracticeSetId()).orElse(null);
         String practiceSetName = practiceSet != null ? practiceSet.getName() : "Practice Assessment";
@@ -76,8 +87,7 @@ public class PracticeResultService {
             boolean markedForReview = false;
 
             if (r != null) {
-                candidateAns = r.getSelectedOptionIds() != null && !r.getSelectedOptionIds().isBlank()
-                        ? r.getSelectedOptionIds()
+                candidateAns = r.getSelectedOptionIds() != null && !r.getSelectedOptionIds().isBlank() ? r.getSelectedOptionIds()
                         : r.getEnteredValue();
                 isCorrect = r.isCorrect();
                 marks = r.getMarksAwarded();
@@ -96,6 +106,21 @@ public class PracticeResultService {
             String subject = ak != null ? ak.subject() : null;
             String questionType = ak != null ? ak.questionType() : null;
 
+            Map<String, Map<String, Object>> translations = ak != null ? ak.translations() : null;
+            Map<String, Object> primaryTranslation = null;
+            boolean fallbackToEnglish = false;
+
+            if ("en".equalsIgnoreCase(targetLang)) {
+                primaryTranslation = null;
+                fallbackToEnglish = false;
+            } else if (translations != null && translations.containsKey(targetLang)) {
+                primaryTranslation = translations.get(targetLang);
+                fallbackToEnglish = false;
+            } else {
+                primaryTranslation = null;
+                fallbackToEnglish = true;
+            }
+
             qResults.add(new QuestionResultDto(
                     qId,
                     candidateAns,
@@ -109,7 +134,11 @@ public class PracticeResultService {
                     explanation,
                     topic,
                     subject,
-                    questionType
+                    questionType,
+                    targetLang,
+                    fallbackToEnglish,
+                    primaryTranslation,
+                    translations
             ));
         }
 

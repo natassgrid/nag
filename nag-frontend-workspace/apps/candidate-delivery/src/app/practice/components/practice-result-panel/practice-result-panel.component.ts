@@ -4,6 +4,7 @@ import { ActivatedRoute, Router, RouterModule } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
+import { I18nService } from '@nag-frontend-workspace/shared-util-i18n';
 import { PracticeService } from '../../services/practice.service';
 import { PracticeResult } from '../../models';
 import { PracticeResultSummaryComponent } from '../practice-result-summary/practice-result-summary.component';
@@ -29,6 +30,7 @@ export class PracticeResultPanelComponent implements OnInit {
   private readonly route = inject(ActivatedRoute);
   private readonly practiceService = inject(PracticeService);
   private readonly router = inject(Router);
+  readonly i18nService = inject(I18nService, { optional: true });
 
   readonly result = signal<PracticeResult | null>(null);
   readonly isLoading = signal(true);
@@ -51,7 +53,8 @@ export class PracticeResultPanelComponent implements OnInit {
   loadResult(id: string): void {
     this.isLoading.set(true);
     this.error.set(null);
-    this.practiceService.getResult(id).subscribe({
+    const lang = this.i18nService?.currentLanguage() || 'en';
+    this.practiceService.getResult(id, lang).subscribe({
       next: (res) => {
         this.result.set(res);
         this.isLoading.set(false);

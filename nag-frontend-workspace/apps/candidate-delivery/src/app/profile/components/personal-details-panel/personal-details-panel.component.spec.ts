@@ -20,10 +20,10 @@ describe('PersonalDetailsPanelComponent', () => {
     address: '123 Civil Lines',
     state: 'Delhi',
     city: 'New Delhi',
-    pincode: '110001',
+    pinCode: '110001',
+    preferredLanguage: 'hi',
     kycStatus: 'VERIFIED',
     digiLockerStatus: 'LINKED',
-    twoFactorEnabled: true,
     education: [],
   };
 
@@ -42,5 +42,12 @@ describe('PersonalDetailsPanelComponent', () => {
     expect(component).toBeTruthy();
     expect(component.profile().fullName).toBe('Aarav Sharma');
     expect(component.profile().gender).toBe('MALE');
+    expect(component.profile().preferredLanguage).toBe('hi');
+  });
+
+  it('should expose supported languages including Indic options', () => {
+    expect(component.supportedLanguages.length).toBeGreaterThanOrEqual(10);
+    expect(component.supportedLanguages.some((l) => l.code === 'hi')).toBe(true);
+    expect(component.supportedLanguages.some((l) => l.code === 'ta')).toBe(true);
   });
 });

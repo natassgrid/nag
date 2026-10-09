@@ -13,6 +13,7 @@ describe('CandidateProfileComponent', () => {
   let mockAuthService: {
     currentUser: jest.Mock;
     isAuthenticated: jest.Mock;
+    updatePreferredLanguage: jest.Mock;
   };
 
   const dummyUser: AuthUser = {
@@ -21,12 +22,14 @@ describe('CandidateProfileComponent', () => {
     roles: ['ROLE_CANDIDATE'],
     token: 'jwt-dummy',
     email: 'aarav@example.com',
+    preferredLanguage: 'en',
   };
 
   beforeEach(async () => {
     mockAuthService = {
       currentUser: jest.fn().mockReturnValue(dummyUser),
       isAuthenticated: jest.fn().mockReturnValue(true),
+      updatePreferredLanguage: jest.fn(),
     };
 
     await TestBed.configureTestingModule({
@@ -60,9 +63,11 @@ describe('CandidateProfileComponent', () => {
       category: 'GENERAL',
       kycStatus: 'VERIFIED',
       digiLockerStatus: 'LINKED',
+      preferredLanguage: 'hi',
     });
 
     expect(component.profile().fullName).toBe('Aarav Kumar');
+    expect(component.profile().preferredLanguage).toBe('hi');
     expect(component.profile().kycStatus).toBe('VERIFIED');
     expect(component.profile().digiLockerStatus).toBe('LINKED');
     expect(component.existsOnServer()).toBe(true);
@@ -90,11 +95,11 @@ describe('CandidateProfileComponent', () => {
     expect(component.successMessage()).toBeNull();
   });
 
-  it('should POST new profile when existsOnServer is false', () => {
+  it('should POST new profile when existsOnServer is false and sync preferredLanguage to UserAccount', () => {
     const initReq = httpMock.expectOne('/api/v1/candidates/cand-001');
     initReq.error(new ProgressEvent('error'), { status: 404, statusText: 'Not Found' });
 
-    component.profile.update((p) => ({ ...p, fullName: 'New Candidate' }));
+    component.profile.update((p) => ({ ...p, fullName: 'New Candidate', preferredLanguage: 'hi' }));
     component.saveProfile();
     expect(component.saving()).toBe(true);
 
@@ -103,12 +108,18 @@ describe('CandidateProfileComponent', () => {
     expect(postReq.request.body.fullName).toBe('New Candidate');
     postReq.flush({ success: true });
 
+    const idReq = httpMock.expectOne('/api/v1/identity/users/me');
+    expect(idReq.request.method).toBe('PUT');
+    expect(idReq.request.body.preferredLanguage).toBe('hi');
+    idReq.flush({ success: true });
+
     expect(component.saving()).toBe(false);
     expect(component.existsOnServer()).toBe(true);
     expect(component.successMessage()).toBe('Profile successfully updated!');
+    expect(mockAuthService.updatePreferredLanguage).toHaveBeenCalledWith('hi');
   });
 
-  it('should PUT existing profile when existsOnServer is true', () => {
+  it('should PUT existing profile when existsOnServer is true and sync preferredLanguage to UserAccount', () => {
     const initReq = httpMock.expectOne('/api/v1/candidates/cand-001');
     initReq.flush({
       candidateId: 'cand-001',
@@ -125,8 +136,31 @@ describe('CandidateProfileComponent', () => {
     expect(putReq.request.body.address).toBe('Updated Address, New Delhi');
     putReq.flush({ success: true });
 
+    const idReq = httpMock.expectOne('/api/v1/identity/users/me');
+    expect(idReq.request.method).toBe('PUT');
+    idReq.flush({ success: true });
+
     expect(component.saving()).toBe(false);
     expect(component.successMessage()).toBe('Profile successfully updated!');
+  });
+
+  it('should configure preferredLanguage and update identity UserAccount and i18n service', () => {
+    const initReq = httpMock.expectOne('/api/v1/candidates/cand-001');
+    initReq.flush({ candidateId: 'cand-001', preferredLanguage: 'en' });
+
+    component.onPreferredLanguageChange('ta');
+    expect(component.profile().preferredLanguage).toBe('ta');
+    expect(mockAuthService.updatePreferredLanguage).toHaveBeenCalledWith('ta');
+
+    component.saveProfile();
+
+    const putReq = httpMock.expectOne('/api/v1/candidates/cand-001');
+    putReq.flush({ success: true });
+
+    const idReq = httpMock.expectOne('/api/v1/identity/users/me');
+    expect(idReq.request.method).toBe('PUT');
+    expect(idReq.request.body).toEqual({ preferredLanguage: 'ta' });
+    idReq.flush({ success: true });
   });
 
   it('should display error message if saving profile fails', () => {
@@ -162,6 +196,9 @@ describe('CandidateProfileComponent', () => {
     const putReq = httpMock.expectOne('/api/v1/candidates/cand-001');
     expect(putReq.request.method).toBe('PUT');
     putReq.flush({ success: true });
+
+    const idReq = httpMock.expectOne('/api/v1/identity/users/me');
+    idReq.flush({ success: true });
   });
 
   it('should handle updating existing education entry and auto-save', () => {
@@ -187,6 +224,9 @@ describe('CandidateProfileComponent', () => {
 
     const putReq = httpMock.expectOne('/api/v1/candidates/cand-001');
     putReq.flush({ success: true });
+
+    const idReq = httpMock.expectOne('/api/v1/identity/users/me');
+    idReq.flush({ success: true });
   });
 
   it('should handle deleting education entry and auto-save', () => {
@@ -206,5 +246,8 @@ describe('CandidateProfileComponent', () => {
 
     const putReq = httpMock.expectOne('/api/v1/candidates/cand-001');
     putReq.flush({ success: true });
+
+    const idReq = httpMock.expectOne('/api/v1/identity/users/me');
+    idReq.flush({ success: true });
   });
 });

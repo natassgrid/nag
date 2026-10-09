@@ -81,10 +81,15 @@ export class ExamDeliveryComponent implements OnInit, OnDestroy {
       const examId = params['examId'] || null;
       const paperId = params['paperId'] || null;
       const sessionId = params['sessionId'] || null;
+      const langParam = params['lang'] || null;
       const mode: ExamDeliveryMode =
         modeParam === 'PRACTICE' || modeParam === 'PREVIEW' ? modeParam : 'LIVE';
 
-      this.deliveryService.initialize(mode, examId, paperId, sessionId);
+      if (langParam) {
+        this.i18nService.setLanguage(langParam as SupportedLanguage);
+      }
+
+      this.deliveryService.initialize(mode, examId, paperId, sessionId, langParam);
     });
 
     this.deliveryService.startTimer(() => this.autoSubmit());
@@ -96,6 +101,7 @@ export class ExamDeliveryComponent implements OnInit, OnDestroy {
 
   onLanguageChange(lang: SupportedLanguage): void {
     this.i18nService.setLanguage(lang);
+    this.deliveryService.setLanguage(lang);
   }
 
   selectOption(item: ExamItem, optionId: string): void {

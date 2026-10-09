@@ -4,7 +4,7 @@
     <app-auth-brand-header
       title="National Assessment Grid"
       subtitle="Candidate Self-Registration"
-      description="Create your national candidate profile with verifiable identity documentation"
+      description="Create your national candidate profile"
     />
 
     <!-- Registration Card -->
@@ -20,7 +20,7 @@
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div class="sm:col-span-2">
             <label for="reg-fullName" class="block text-xs font-bold text-slate-700 uppercase mb-1">
-              Full Legal Name (as per ID)
+              Full Legal Name
             </label>
             <input
               id="reg-fullName"
@@ -58,39 +58,6 @@
               [(ngModel)]="mobile"
               name="mobile"
               placeholder="9876543210"
-              required
-              class="w-full px-3.5 py-2 text-sm border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500 font-mono"
-            />
-          </div>
-
-          <div>
-            <label for="reg-idType" class="block text-xs font-bold text-slate-700 uppercase mb-1">
-              Identity Document Type
-            </label>
-            <select
-              id="reg-idType"
-              [(ngModel)]="identityDocType"
-              name="identityDocType"
-              class="w-full px-3.5 py-2 text-sm border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500 bg-white"
-            >
-              <option value="AADHAAR">Aadhaar Card</option>
-              <option value="PAN">PAN Card</option>
-              <option value="PASSPORT">Passport</option>
-              <option value="VOTER_ID">Voter ID</option>
-              <option value="DL">Driver's License</option>
-            </select>
-          </div>
-
-          <div>
-            <label for="reg-idNum" class="block text-xs font-bold text-slate-700 uppercase mb-1">
-              ID Document Number
-            </label>
-            <input
-              id="reg-idNum"
-              type="text"
-              [(ngModel)]="identityDocNumber"
-              name="identityDocNumber"
-              placeholder="1234 5678 9012"
               required
               class="w-full px-3.5 py-2 text-sm border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500 font-mono"
             />

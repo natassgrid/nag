@@ -29,6 +29,7 @@ export interface ExamItem {
   primaryLanguage?: string;
   fallbackToEnglish?: boolean;
   primaryTranslation?: ExamTranslation;
+  translations?: Record<string, ExamTranslation>;
 }
 
 export interface ExamScoreSummary {

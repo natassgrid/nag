@@ -15,61 +15,65 @@ import java.util.UUID;
 public class PracticeSession extends BaseEntity {
     @Column(name = "candidate_id", nullable = false, columnDefinition = "uuid")
     private UUID candidateId;
-    
+
     @Column(name = "practice_set_id", nullable = false, columnDefinition = "uuid")
     private UUID practiceSetId;
-    
+
     @Column(nullable = false, length = 30)
     @Builder.Default
     private String mode = "TIMED"; // TIMED | UNTIMED | SECTION_WISE
-    
+
     @Column(nullable = false, length = 30)
     @Builder.Default
     private String status = "CREATED"; // CREATED | IN_PROGRESS | SUBMITTED | ABANDONED
-    
+
     @Column(name = "started_at")
     private Instant startedAt;
-    
+
     @Column(name = "submitted_at")
     private Instant submittedAt;
-    
+
     @Column(name = "total_questions", nullable = false)
     @Builder.Default
     private int totalQuestions = 0;
-    
+
     @Column(name = "duration_minutes", nullable = false)
     @Builder.Default
     private int durationMinutes = 0;
-    
+
     @Column(name = "correct_count", nullable = false)
     @Builder.Default
     private int correctCount = 0;
-    
+
     @Column(name = "incorrect_count", nullable = false)
     @Builder.Default
     private int incorrectCount = 0;
-    
+
     @Column(name = "skipped_count", nullable = false)
     @Builder.Default
     private int skippedCount = 0;
-    
+
     @Column(name = "total_marks", nullable = false)
     @Builder.Default
     private int totalMarks = 0;
-    
+
     @Column(name = "obtained_marks", nullable = false)
     @Builder.Default
     private int obtainedMarks = 0;
-    
+
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "topic_wise_breakdown", columnDefinition = "jsonb")
     private String topicWiseBreakdown;
-    
+
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "difficulty_breakdown", columnDefinition = "jsonb")
     private String difficultyBreakdown;
-    
+
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "timing_breakdown", columnDefinition = "jsonb")
     private String timingBreakdown;
+
+    @Column(name = "preferred_language", length = 30)
+    @Builder.Default
+    private String preferredLanguage = "en";
 }

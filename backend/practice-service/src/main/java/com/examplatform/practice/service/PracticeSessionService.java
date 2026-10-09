@@ -37,8 +37,8 @@ public class PracticeSessionService {
     private final PracticeEvaluationService practiceEvaluationService;
     private final PracticeResultService practiceResultService;
     private final QuestionBankClient questionBankClient;
-    private final ObjectMapper objectMapper;
     private final ApplicationEventPublisher eventPublisher;
+    private final ObjectMapper objectMapper;
 
     @Transactional
     public PracticeSessionDto startSession(UUID candidateId, StartSessionRequest req) {
@@ -47,6 +47,9 @@ public class PracticeSessionService {
                 .orElseThrow(() -> new PracticeSetNotFoundException(req.practiceSetId()));
 
         String mode = req.mode() != null ? req.mode().toUpperCase() : "TIMED";
+        String preferredLanguage = (req.preferredLanguage() != null && !req.preferredLanguage().isBlank())
+                ? req.preferredLanguage().trim().toLowerCase()
+                : "en";
 
         List<UUID> qIds = parseQuestionIds(practiceSet.getQuestionIds());
         if (qIds.isEmpty() && practiceSet.getSubjectSlug() != null && !practiceSet.getSubjectSlug().isBlank()) {
@@ -77,6 +80,7 @@ public class PracticeSessionService {
                 .startedAt(Instant.now())
                 .totalQuestions(totalQuestions)
                 .durationMinutes(practiceSet.getDurationMinutes())
+                .preferredLanguage(preferredLanguage)
                 .build();
 
         practiceSessionRepository.save(session);
@@ -92,11 +96,22 @@ public class PracticeSessionService {
 
     @Transactional
     public List<PracticeQuestionDto> getSessionQuestions(UUID sessionId, UUID candidateId) {
+        return getSessionQuestions(sessionId, candidateId, null);
+    }
+
+    @Transactional
+    public List<PracticeQuestionDto> getSessionQuestions(UUID sessionId, UUID candidateId, String requestedLang) {
         PracticeSession session = practiceSessionRepository.findByIdAndCandidateId(sessionId, candidateId)
                 .orElseThrow(() -> new PracticeSessionNotFoundException(sessionId));
 
         PracticeSet set = practiceSetRepository.findById(session.getPracticeSetId())
                 .orElseThrow(() -> new PracticeSetNotFoundException(session.getPracticeSetId()));
+
+        String targetLang = (requestedLang != null && !requestedLang.isBlank())
+                ? requestedLang.trim().toLowerCase()
+                : (session.getPreferredLanguage() != null && !session.getPreferredLanguage().isBlank()
+                        ? session.getPreferredLanguage().trim().toLowerCase()
+                        : "en");
 
         List<UUID> questionIds = parseQuestionIds(set.getQuestionIds());
         if (questionIds.isEmpty() && set.getSubjectSlug() != null && !set.getSubjectSlug().isBlank()) {
@@ -125,6 +140,21 @@ public class PracticeSessionService {
         for (UUID qId : questionIds) {
             AnswerKeyDto key = keys.get(qId);
             if (key != null) {
+                Map<String, Map<String, Object>> translations = key.translations();
+                Map<String, Object> primaryTranslation = null;
+                boolean fallbackToEnglish = false;
+
+                if ("en".equalsIgnoreCase(targetLang)) {
+                    primaryTranslation = null;
+                    fallbackToEnglish = false;
+                } else if (translations != null && translations.containsKey(targetLang)) {
+                    primaryTranslation = translations.get(targetLang);
+                    fallbackToEnglish = false;
+                } else {
+                    primaryTranslation = null;
+                    fallbackToEnglish = true;
+                }
+
                 result.add(new PracticeQuestionDto(
                         qId,
                         order,
@@ -135,7 +165,11 @@ public class PracticeSessionService {
                         0.5,
                         key.subject(),
                         key.topicName(),
-                        key.difficulty()
+                        key.difficulty(),
+                        targetLang,
+                        fallbackToEnglish,
+                        primaryTranslation,
+                        translations
                 ));
                 order++;
             }
@@ -233,7 +267,8 @@ public class PracticeSessionService {
     private PracticeSessionDto toSessionDto(PracticeSession s) {
         return new PracticeSessionDto(
                 s.getId(), s.getPracticeSetId(), s.getMode(), s.getStatus(),
-                s.getStartedAt(), s.getTotalQuestions(), s.getDurationMinutes()
+                s.getStartedAt(), s.getTotalQuestions(), s.getDurationMinutes(),
+                s.getPreferredLanguage() != null ? s.getPreferredLanguage() : "en"
         );
     }
 }

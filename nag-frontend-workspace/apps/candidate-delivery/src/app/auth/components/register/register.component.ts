@@ -10,6 +10,7 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { AuthBrandHeaderComponent } from '../auth-brand-header/auth-brand-header.component';
 import { AuthFlowService } from '../../services/auth-flow.service';
+import { CandidateRegistrationPayload } from '../../models/auth-flow.model';
 
 @Component({
   selector: 'app-candidate-register',
@@ -31,8 +32,6 @@ export class RegisterComponent {
   fullName = '';
   email = '';
   mobile = '';
-  identityDocType = 'AADHAAR';
-  identityDocNumber = '';
   password = '';
   confirmPassword = '';
 
@@ -53,12 +52,10 @@ export class RegisterComponent {
     this.loading.set(true);
     this.errorMessage.set(null);
 
-    const payload = {
+    const payload: CandidateRegistrationPayload = {
       fullName: this.fullName,
       email: this.email,
       mobile: this.mobile,
-      identityDocType: this.identityDocType,
-      identityDocNumber: this.identityDocNumber,
       password: this.password,
     };
 

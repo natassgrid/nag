@@ -109,15 +109,31 @@ export class AuthService {
       (payload && (payload.preferred_username || payload.username || payload.email)) ||
       'Authenticated User';
 
+    const resolvedPreferredLanguage: string | undefined =
+      (payload && (payload.preferred_language || payload.preferredLanguage)) ||
+      undefined;
+
     const user: AuthUser = {
       userId: resolvedUserId,
       username: resolvedUsername,
       roles: resolvedRoles,
+      preferredLanguage: resolvedPreferredLanguage,
     };
 
     localStorage.setItem(this.USER_KEY, JSON.stringify(user));
     this.currentUser.set(user);
     this.isAuthenticated.set(true);
+  }
+
+  updatePreferredLanguage(lang: string): void {
+    const current = this.currentUser();
+    if (current) {
+      const updated: AuthUser = { ...current, preferredLanguage: lang };
+      this.currentUser.set(updated);
+      if (typeof localStorage !== 'undefined') {
+        localStorage.setItem(this.USER_KEY, JSON.stringify(updated));
+      }
+    }
   }
 
   login(credentials: {
