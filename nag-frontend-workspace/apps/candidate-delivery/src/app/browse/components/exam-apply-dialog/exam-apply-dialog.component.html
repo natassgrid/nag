@@ -230,42 +230,15 @@
           </div>
         </div>
 
-        @if (calculatedFee() > 0) {
-          <div class="space-y-2">
-            <label class="block font-bold text-slate-800">Select Digital Payment Gateway:</label>
-            <div class="grid grid-cols-3 gap-2">
-              <button
-                type="button"
-                (click)="paymentMethod.set('UPI')"
-                class="p-3 rounded-xl border text-center font-bold text-xs transition-all cursor-pointer"
-                [ngClass]="paymentMethod() === 'UPI' ? 'bg-indigo-50 border-indigo-600 text-indigo-700 ring-2 ring-indigo-500/20' : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'"
-              >
-                UPI / QR
-              </button>
-              <button
-                type="button"
-                (click)="paymentMethod.set('NET_BANKING')"
-                class="p-3 rounded-xl border text-center font-bold text-xs transition-all cursor-pointer"
-                [ngClass]="paymentMethod() === 'NET_BANKING' ? 'bg-indigo-50 border-indigo-600 text-indigo-700 ring-2 ring-indigo-500/20' : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'"
-              >
-                Net Banking
-              </button>
-              <button
-                type="button"
-                (click)="paymentMethod.set('CARD')"
-                class="p-3 rounded-xl border text-center font-bold text-xs transition-all cursor-pointer"
-                [ngClass]="paymentMethod() === 'CARD' ? 'bg-indigo-50 border-indigo-600 text-indigo-700 ring-2 ring-indigo-500/20' : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'"
-              >
-                Debit / Card
-              </button>
-            </div>
+        <div class="p-3.5 bg-emerald-50 rounded-2xl border border-emerald-200 text-emerald-900 text-xs font-medium flex items-center gap-2.5">
+          <mat-icon class="!text-lg text-emerald-600 shrink-0">check_circle</mat-icon>
+          <div>
+            <span class="font-bold block text-emerald-950">Payment Flow Bypassed</span>
+            <span class="text-[11px] text-emerald-800">
+              Examination registration is recorded directly in the National Assessment Grid backend. No payment gateway step is required.
+            </span>
           </div>
-        } @else {
-          <div class="p-3.5 bg-emerald-50 rounded-2xl border border-emerald-200 text-emerald-800 font-bold flex items-center gap-2">
-            <mat-icon class="!text-base">check_circle</mat-icon>
-            <span>Complete fee exemption granted under Government of India public education norms.</span>
-          </div>
-        }
+        </div>
 
         <p class="text-[11px] text-slate-500 leading-relaxed">
           By submitting this application, you declare that all information entered is true and verified against DigiLocker DPI records.
@@ -367,9 +340,17 @@
             mat-flat-button
             color="primary"
             (click)="submitApplication()"
+            [disabled]="submitting()"
             class="!rounded-xl !text-xs font-bold !px-6"
           >
-            Confirm & Pay &#8377; {{ calculatedFee() }} &rarr;
+            <span class="flex items-center gap-1.5">
+              @if (submitting()) {
+                <mat-icon class="!text-sm animate-spin">refresh</mat-icon>
+                Registering...
+              } @else {
+                Confirm & Pay &#8377; {{ calculatedFee() }} &rarr;
+              }
+            </span>
           </button>
         }
       </div>
