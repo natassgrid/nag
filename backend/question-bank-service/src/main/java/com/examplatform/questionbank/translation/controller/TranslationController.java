@@ -39,6 +39,9 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -152,13 +155,14 @@ public class TranslationController {
     }
 
     /**
-     * List all batch translation jobs for the current tenant.
+     * List all batch translation jobs for the current tenant with pagination and recent-first sorting.
      * GET /api/v1/translations/batch
      */
     @GetMapping("/batch")
     @PreAuthorize("hasAnyRole('ADMIN', 'EXAM_CONTROLLER', 'SUPER_ADMIN')")
-    public ResponseEntity<List<BatchTranslationJobResponse>> listBatchJobs() {
-        List<BatchTranslationJobResponse> jobs = batchTranslationService.listJobs(tenantId());
+    public ResponseEntity<Page<BatchTranslationJobResponse>> listBatchJobs(
+            @PageableDefault(size = 20, sort = {"updatedAt", "createdAt"}, direction = Sort.Direction.DESC) Pageable pageable) {
+        Page<BatchTranslationJobResponse> jobs = batchTranslationService.listJobs(tenantId(), pageable);
         return ResponseEntity.ok(jobs);
     }
 
@@ -322,11 +326,13 @@ public class TranslationController {
             @RequestParam(required = false) String search,
             @RequestParam(required = false) String targetLang,
             @RequestParam(required = false) String translationStatus,
+            @RequestParam(required = false) String sort,
+            @RequestParam(defaultValue = "desc") String order,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {
 
         Page<QuestionResponse> responses = questionService.listQuestions(
-                subject, subjectId, topic, topicId, difficulty, state, search, targetLang, translationStatus, page, size, tenantId());
+                subject, subjectId, topic, topicId, difficulty, state, search, targetLang, translationStatus, sort, order, page, size, tenantId());
         return ResponseEntity.ok(ApiResponse.success(responses, "Questions for translation retrieved successfully"));
     }
 

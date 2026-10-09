@@ -1,6 +1,7 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { QuestionTranslationTableComponent } from './question-translation-table.component';
 import { Question } from '@nag-frontend-workspace/questions-data-access';
+import { PageEvent } from '@angular/material/paginator';
 
 describe('QuestionTranslationTableComponent', () => {
   let component: QuestionTranslationTableComponent;
@@ -37,6 +38,9 @@ describe('QuestionTranslationTableComponent', () => {
     fixture = TestBed.createComponent(QuestionTranslationTableComponent);
     component = fixture.componentInstance;
     fixture.componentRef.setInput('questions', [mockQuestion]);
+    fixture.componentRef.setInput('totalElements', 1);
+    fixture.componentRef.setInput('page', 0);
+    fixture.componentRef.setInput('pageSize', 20);
     fixture.componentRef.setInput('activeLanguageName', 'Hindi (हिंदी)');
     fixture.componentRef.setInput('selectedLanguage', 'hi');
     fixture.detectChanges();
@@ -44,6 +48,22 @@ describe('QuestionTranslationTableComponent', () => {
 
   it('should create the component', () => {
     expect(component).toBeTruthy();
+  });
+
+  it('should emit pageChange when paginator event occurs', () => {
+    jest.spyOn(component.pageChange, 'emit');
+
+    const event: PageEvent = {
+      pageIndex: 2,
+      pageSize: 25,
+      length: 100,
+    };
+    component.onPageChange(event);
+
+    expect(component.pageChange.emit).toHaveBeenCalledWith({
+      pageIndex: 2,
+      pageSize: 25,
+    });
   });
 
   it('should resolve question status from translationStatusMap for selected language', () => {

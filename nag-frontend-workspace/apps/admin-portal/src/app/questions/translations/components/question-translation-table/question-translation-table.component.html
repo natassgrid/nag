@@ -25,7 +25,7 @@
         }
       </select>
       <span class="text-xs text-slate-500 whitespace-nowrap font-medium">
-        {{ questions().length }} questions
+        {{ totalElements() }} questions
       </span>
     </div>
   </div>
@@ -86,4 +86,15 @@
       </tbody>
     </table>
   </div>
+
+  <mat-paginator
+    [length]="totalElements()"
+    [pageSize]="pageSize()"
+    [pageSizeOptions]="pageSizeOptions()"
+    [pageIndex]="page()"
+    (page)="onPageChange($event)"
+    aria-label="Select page of questions"
+    class="border-t border-slate-200"
+  >
+  </mat-paginator>
 </div>

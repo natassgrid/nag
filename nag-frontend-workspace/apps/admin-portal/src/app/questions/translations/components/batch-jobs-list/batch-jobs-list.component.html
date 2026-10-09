@@ -20,7 +20,7 @@
     </div>
 
     <div class="divide-y divide-slate-100">
-      @for (job of batchJobs(); track job.id) {
+      @for (job of sortedJobs(); track job.id) {
         <div class="p-4 space-y-3 hover:bg-slate-50/50 transition-colors">
           <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
             <div class="flex items-center gap-3">
@@ -94,5 +94,16 @@
         </div>
       }
     </div>
+
+    <mat-paginator
+      [length]="totalElements()"
+      [pageSize]="pageSize()"
+      [pageSizeOptions]="pageSizeOptions()"
+      [pageIndex]="page()"
+      (page)="onPageChange($event)"
+      aria-label="Select page of batch translation jobs"
+      class="border-t border-slate-200"
+    >
+    </mat-paginator>
   </div>
 </div>

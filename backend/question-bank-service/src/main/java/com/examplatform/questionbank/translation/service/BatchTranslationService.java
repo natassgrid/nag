@@ -26,6 +26,8 @@ import com.examplatform.questionbank.translation.dto.BatchTranslationRequest;
 import com.examplatform.questionbank.translation.repository.BatchTranslationJobRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -123,6 +125,12 @@ public class BatchTranslationService {
         BatchTranslationJob job = jobRepository.findByIdAndTenantId(jobId, tenantId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Batch translation job not found: " + jobId));
         return toResponse(job);
+    }
+
+    @Transactional(readOnly = true)
+    public Page<BatchTranslationJobResponse> listJobs(String tenantId, Pageable pageable) {
+        return jobRepository.findByTenantId(tenantId, pageable)
+                .map(this::toResponse);
     }
 
     @Transactional(readOnly = true)

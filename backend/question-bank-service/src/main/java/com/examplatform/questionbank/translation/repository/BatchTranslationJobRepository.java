@@ -21,6 +21,8 @@ package com.examplatform.questionbank.translation.repository;
 
 import com.examplatform.questionbank.translation.domain.BatchTranslationJob;
 import com.examplatform.questionbank.translation.domain.BatchTranslationJobStatus;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
@@ -37,6 +39,8 @@ import java.util.UUID;
 public interface BatchTranslationJobRepository extends JpaRepository<BatchTranslationJob, UUID> {
 
     Optional<BatchTranslationJob> findByIdAndTenantId(UUID id, String tenantId);
+
+    Page<BatchTranslationJob> findByTenantId(String tenantId, Pageable pageable);
 
     List<BatchTranslationJob> findByTenantIdOrderByCreatedAtDesc(String tenantId);
 
