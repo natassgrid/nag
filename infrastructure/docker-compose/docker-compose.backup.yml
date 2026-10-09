@@ -1,0 +1,54 @@
+# SPDX-License-Identifier: AGPL-3.0-only
+#
+# National Assessment Grid (NAG) - Open Digital Public Infrastructure (DPI) Platform
+# Copyright (C) 2025 NAG Contributors
+#
+# =============================================================================
+# PostgreSQL Backup Runner / Sidecar (< 50MB RAM footprint)
+# Daily 02:00 UTC automated cron execution with S3 upload and retention
+# =============================================================================
+
+networks:
+  exam-network:
+    external: true
+
+services:
+  postgres-backup:
+    image: postgres:16-alpine
+    container_name: exam-postgres-backup
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 64M
+          cpus: "0.5"
+    environment:
+      POSTGRES_HOST: ${POSTGRES_HOST:-postgres}
+      POSTGRES_PORT: ${POSTGRES_PORT:-5432}
+      POSTGRES_DB: ${POSTGRES_DB:-exam_platform}
+      POSTGRES_USER: ${POSTGRES_USER:-exam_admin}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-exam_secret}
+      S3_BUCKET: ${S3_BUCKET:-}
+      S3_PREFIX: ${S3_PREFIX:-backups/postgres}
+      S3_STORAGE_CLASS: ${S3_STORAGE_CLASS:-STANDARD_IA}
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:-}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-}
+      AWS_DEFAULT_REGION: ${AWS_DEFAULT_REGION:-ap-south-1}
+      AWS_ENDPOINT_URL: ${AWS_ENDPOINT_URL:-}
+      WEBHOOK_URL: ${WEBHOOK_URL:-}
+      BACKUP_CRON_SCHEDULE: ${BACKUP_CRON_SCHEDULE:-0 2 * * *}
+    volumes:
+      - ../../scripts/backup-postgres.sh:/scripts/backup-postgres.sh:ro
+      - ../../scripts/restore-postgres.sh:/scripts/restore-postgres.sh:ro
+      - /tmp/nag-postgres-backups:/tmp/nag-postgres-backups
+    entrypoint:
+      - /bin/sh
+      - -c
+      - |
+        apk add --no-cache bash aws-cli zstd gzip curl coreutils >/dev/null 2>&1
+        chmod +x /scripts/backup-postgres.sh /scripts/restore-postgres.sh
+        echo "$${BACKUP_CRON_SCHEDULE:-0 2 * * *} /scripts/backup-postgres.sh >> /var/log/backup.log 2>&1" > /etc/crontabs/root
+        echo "PostgreSQL backup cron initialized with schedule: $${BACKUP_CRON_SCHEDULE:-0 2 * * *}"
+        crond -f -l 2
+    networks:
+      - exam-network

@@ -1,0 +1,33 @@
+[Unit]
+Description=National Assessment Grid (NAG) PostgreSQL Daily Backup Pipeline
+Documentation=https://github.com/natassgrid/nag
+After=network-online.target docker.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=nag
+Group=nag
+WorkingDirectory=/opt/nag
+EnvironmentFile=-/etc/nag/backup.env
+ExecStart=/opt/nag/scripts/backup-postgres.sh
+
+# Resource constraints ensuring ultra-low footprint (< 50MB)
+MemoryAccounting=true
+MemoryMax=128M
+MemoryHigh=96M
+CPUAccounting=true
+CPUWeight=20
+
+# Sandboxing & security hardening
+ProtectSystem=strict
+ProtectHome=read-only
+PrivateTmp=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+RestrictRealtime=true
+
+[Install]
+WantedBy=multi-user.target
