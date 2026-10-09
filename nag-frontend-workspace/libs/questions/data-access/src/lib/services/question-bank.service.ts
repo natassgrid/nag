@@ -68,6 +68,12 @@ export class QuestionBankService {
       params = params.set('sort', current.sort);
       params = params.set('order', current.order || 'desc');
     }
+    if (current.targetLang) {
+      params = params.set('targetLang', current.targetLang);
+    }
+    if (current.translationStatus && current.translationStatus !== 'ALL') {
+      params = params.set('translationStatus', current.translationStatus);
+    }
 
     return this.http
       .get<{ status?: string; message?: string; data?: any }>(this.baseUrl, { params })
@@ -300,6 +306,8 @@ export class QuestionBankService {
       tags: tags.length > 0 ? tags : (raw.tags || []),
       passageId: raw.passageId,
       passageOrderIndex: raw.passageOrderIndex,
+      translationStatus: raw.translationStatus,
+      translationStatusMap: raw.translationStatusMap,
       createdAt: raw.createdAt,
       updatedAt: raw.updatedAt,
     };

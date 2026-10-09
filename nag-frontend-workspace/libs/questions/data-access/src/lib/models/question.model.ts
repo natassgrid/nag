@@ -52,6 +52,10 @@ export interface Question {
   tags?: string[];
   passageId?: string;
   passageOrderIndex?: number;
+  /** Translation status for the specifically requested targetLang in query, if any */
+  translationStatus?: string;
+  /** Lightweight map of language code -> translation status (e.g. "hi" -> "APPROVED", "ta" -> "DRAFT") */
+  translationStatusMap?: Record<string, string>;
   createdAt?: string;
   updatedAt?: string;
 }
@@ -69,6 +73,8 @@ export interface QuestionFilter {
   type?: string;
   sort?: string;
   order?: 'asc' | 'desc';
+  targetLang?: string;
+  translationStatus?: string;
   page: number;
   size: number;
 }
