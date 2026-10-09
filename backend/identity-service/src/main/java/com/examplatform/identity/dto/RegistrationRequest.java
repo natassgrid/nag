@@ -22,7 +22,6 @@ package com.examplatform.identity.dto;
 import com.examplatform.identity.domain.enums.IdentityDocType;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 import lombok.AllArgsConstructor;
@@ -48,10 +47,8 @@ public class RegistrationRequest {
     @Pattern(regexp = "^[6-9]\\d{9}$")
     private String mobile;
 
-    @NotNull
     private IdentityDocType identityDocType;
 
-    @NotBlank
     private String identityDocNumber;
 
     @NotBlank

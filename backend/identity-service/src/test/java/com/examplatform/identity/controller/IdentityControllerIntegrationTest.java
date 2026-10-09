@@ -218,17 +218,26 @@ class IdentityControllerIntegrationTest extends AbstractIntegrationTest {
         }
 
         @Test
-        @DisplayName("-ve: Missing identityDocType returns 400 Bad Request")
-        void missingDocTypeReturnsBadRequest() throws Exception {
+        @DisplayName("+ve: Optional identityDocType and identityDocNumber allows valid registration")
+        void optionalDocTypeReturnsAccepted() throws Exception {
             RegistrationRequest request = validRequest();
             request.setIdentityDocType(null);
+            request.setIdentityDocNumber(null);
+
+            RegistrationResponse response = RegistrationResponse.builder()
+                    .userId(TEST_USER_ID.toString())
+                    .message("Registration initiated")
+                    .build();
+
+            when(registrationService.register(any(RegistrationRequest.class), eq(TENANT_ID))).thenReturn(response);
 
             mockMvc.perform(post("/api/v1/identity/register")
                             .header("X-Tenant-Id", TENANT_ID)
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(objectMapper.writeValueAsString(request)))
-                    .andExpect(status().isBadRequest())
-                    .andExpect(jsonPath("$.title").value("Validation Failed"));
+                    .andExpect(status().isAccepted())
+                    .andExpect(jsonPath("$.status").value("SUCCESS"))
+                    .andExpect(jsonPath("$.data.userId").value(TEST_USER_ID.toString()));
         }
     }
 

@@ -162,6 +162,32 @@ class RegistrationServiceTest {
         }
 
         @Test
+        @DisplayName("registers successfully without identity doc type and number")
+        void withoutIdentityDoc() {
+            RegistrationRequest req = RegistrationRequest.builder()
+                    .email("test-nodoc@example.com")
+                    .mobile("9876543210")
+                    .password("Password123!")
+                    .fullName("No Doc User")
+                    .build();
+
+            when(hashingService.sha256(anyString())).thenReturn("hashedvalue");
+            when(userAccountRepository.existsByEmailHashAndTenantId(any(), any())).thenReturn(false);
+
+            ArgumentCaptor<UserAccount> captor = ArgumentCaptor.forClass(UserAccount.class);
+            UserAccount saved = UserAccount.builder().build();
+            ReflectionTestUtils.setField(saved, "id", UUID.randomUUID());
+            when(userAccountRepository.save(captor.capture())).thenReturn(saved);
+
+            RegistrationResponse response = registrationService.register(req, "default");
+
+            assertThat(response).isNotNull();
+            assertThat(captor.getValue().getIdentityDocType()).isNull();
+            assertThat(captor.getValue().getIdentityDocHash()).isNull();
+            assertThat(captor.getValue().getIdentityDocHmac()).isNull();
+        }
+
+        @Test
         @DisplayName("throws DuplicateIdentityException on duplicate email")
         void duplicateEmail() {
             RegistrationRequest req = RegistrationRequest.builder()

@@ -14,7 +14,7 @@
  * GNU Affero General Public License for more details.
  *
  * You should have received a copy of the GNU Affero General Public License
- * along with this program. If not, see <https://www.gnu.org/licenses/>.
+ * along with this program. If not, see <https://www.gnu.org/licenses/>.\
  */
 
 package com.examplatform.identity.service;
@@ -66,16 +66,19 @@ public class RegistrationService {
         String mobileClean = request.getMobile().trim();
         String emailHash = hashingService.sha256(emailClean);
         String mobileHash = hashingService.sha256(mobileClean);
-        String docHash = hashingService.sha256(request.getIdentityDocNumber().trim().toUpperCase());
-        String docHmac = hashingService.hmac(request.getIdentityDocNumber().trim().toUpperCase(),
-            HMAC_KEY_PREFIX + tenantId);
+        String docHash = (request.getIdentityDocNumber() != null && !request.getIdentityDocNumber().isBlank())
+            ? hashingService.sha256(request.getIdentityDocNumber().trim().toUpperCase())
+            : null;
+        String docHmac = (request.getIdentityDocNumber() != null && !request.getIdentityDocNumber().isBlank())
+            ? hashingService.hmac(request.getIdentityDocNumber().trim().toUpperCase(), HMAC_KEY_PREFIX + tenantId)
+            : null;
 
         // 2. Duplicate checks
         if (userAccountRepository.existsByEmailHashAndTenantId(emailHash, tenantId)) {
             throw new DuplicateIdentityException(
                 "An account with this email address already exists.");
         }
-        if (userAccountRepository.existsByIdentityDocHashAndTenantId(docHash, tenantId)) {
+        if (docHash != null && userAccountRepository.existsByIdentityDocHashAndTenantId(docHash, tenantId)) {
             throw new DuplicateIdentityException(
                 "An account with this identity document already exists.");
         }
@@ -101,7 +104,10 @@ public class RegistrationService {
         UserAccount saved = userAccountRepository.save(account);
 
         // 4. Send Email OTP (Gmail SMTP) & SMS OTP (MSG91)
-        otpService.sendEmailOtp(saved.getId(), emailHash, emailClean, request.getIdentityDocNumber(), tenantId);
+        String candidateIdentifier = (request.getFullName() != null && !request.getFullName().isBlank())
+            ? request.getFullName()
+            : request.getIdentityDocNumber();
+        otpService.sendEmailOtp(saved.getId(), emailHash, emailClean, candidateIdentifier, tenantId);
         otpService.sendSmsOtp(saved.getId(), mobileHash, mobileClean, tenantId);
 
         // 5. Publish audit event asynchronously with registration details for candidate profile provisioning
