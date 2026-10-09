@@ -52,7 +52,7 @@
 
     <!-- Search / Filter Input -->
     <div class="bg-white p-3 rounded-xl border border-slate-200 flex items-center gap-2 shadow-xs">
-      <mat-icon class="text-slate-400">search</mat-icon>
+      <mat-icon class="text-slate-400 !w-4 !h-4 !text-base !leading-none flex items-center justify-center shrink-0">search</mat-icon>
       <input
         type="text"
         [ngModel]="searchQuery()"
@@ -64,9 +64,9 @@
         <button
           type="button"
           (click)="searchQuery.set('')"
-          class="text-slate-400 hover:text-slate-600"
+          class="text-slate-400 hover:text-slate-600 flex items-center justify-center shrink-0"
         >
-          <mat-icon class="!text-sm">close</mat-icon>
+          <mat-icon class="!w-4 !h-4 !text-base !leading-none flex items-center justify-center shrink-0">close</mat-icon>
         </button>
       }
     </div>

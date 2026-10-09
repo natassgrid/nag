@@ -254,12 +254,15 @@
           <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
             <!-- Search Input -->
             <div class="sm:col-span-1 relative">
+              <div class="absolute inset-y-0 left-0 pl-2.5 flex items-center pointer-events-none text-slate-400">
+                <mat-icon class="!w-3.5 !h-3.5 !text-xs !leading-none flex items-center justify-center shrink-0">search</mat-icon>
+              </div>
               <input
                 type="text"
                 [ngModel]="questionSearchQuery()"
                 (ngModelChange)="onSearchChange($event)"
                 placeholder="Search questions..."
-                class="w-full text-xs px-3 py-1.5 border rounded-xl bg-white border-slate-200 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                class="w-full text-xs pl-8 pr-3 py-1.5 border rounded-xl bg-white border-slate-200 focus:outline-none focus:ring-1 focus:ring-indigo-500"
               />
             </div>
 

@@ -40,8 +40,8 @@ export class TranslationService {
 
   autoTranslateQuestion(questionId: string, languageCode: string): Observable<AutoTranslateResponse> {
     return this.http
-      .post<{ data?: AutoTranslateResponse } | AutoTranslateResponse>(
-        `${this.baseUrl}/question/${questionId}/auto-translate/${languageCode}`,
+      .post<{ data?: AutoTranslateResponse } | AutoTranslateResponse>
+        (`${this.baseUrl}/question/${questionId}/auto-translate/${languageCode}`,
         {}
       )
       .pipe(map((res) => ((res as any).data || res) as AutoTranslateResponse));
@@ -74,6 +74,15 @@ export class TranslationService {
     return this.http
       .post<{ data?: BatchTranslationJobResponse } | BatchTranslationJobResponse>(
         `${this.baseUrl}/batch/${jobId}/cancel`,
+        {}
+      )
+      .pipe(map((res) => ((res as any).data || res) as BatchTranslationJobResponse));
+  }
+
+  resumeBatchJob(jobId: string): Observable<BatchTranslationJobResponse> {
+    return this.http
+      .post<{ data?: BatchTranslationJobResponse } | BatchTranslationJobResponse>(
+        `${this.baseUrl}/batch/${jobId}/resume`,
         {}
       )
       .pipe(map((res) => ((res as any).data || res) as BatchTranslationJobResponse));

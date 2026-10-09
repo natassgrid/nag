@@ -25,4 +25,5 @@ export class BatchJobsListComponent {
   backToQuestions = output<void>();
   refreshJobs = output<void>();
   cancelJob = output<string>();
+  resumeJob = output<string>();
 }

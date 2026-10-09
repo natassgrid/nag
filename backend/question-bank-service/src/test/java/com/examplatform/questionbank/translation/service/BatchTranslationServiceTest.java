@@ -244,4 +244,45 @@ class BatchTranslationServiceTest {
         assertThat(response.getStatus()).isEqualTo(BatchTranslationJobStatus.CANCELLED);
         assertThat(response.getCompletedAt()).isNotNull();
     }
+
+    @Test
+    @DisplayName("Should resume interrupted batch job and trigger async worker")
+    void shouldResumeInterruptedJobSuccessfully() {
+        BatchTranslationJob job = BatchTranslationJob.builder()
+                .status(BatchTranslationJobStatus.IN_PROGRESS)
+                .sourceLanguage("en")
+                .targetLanguage("hi")
+                .build();
+        ReflectionTestUtils.setField(job, "id", jobId);
+        job.setTenantId(tenantId);
+
+        when(jobRepository.findByIdAndTenantId(jobId, tenantId)).thenReturn(Optional.of(job));
+        when(jobRepository.save(any(BatchTranslationJob.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        BatchTranslationJobResponse response = batchTranslationService.resumeJob(jobId, tenantId);
+
+        assertThat(response.getStatus()).isEqualTo(BatchTranslationJobStatus.PENDING);
+        verify(jobRepository).save(any(BatchTranslationJob.class));
+        verify(asyncWorker).processBatchTranslationJob(jobId, tenantId);
+    }
+
+    @Test
+    @DisplayName("Should not trigger worker when resuming already completed job")
+    void shouldNotTriggerWorkerWhenResumingCompletedJob() {
+        BatchTranslationJob job = BatchTranslationJob.builder()
+                .status(BatchTranslationJobStatus.COMPLETED)
+                .sourceLanguage("en")
+                .targetLanguage("hi")
+                .build();
+        ReflectionTestUtils.setField(job, "id", jobId);
+        job.setTenantId(tenantId);
+
+        when(jobRepository.findByIdAndTenantId(jobId, tenantId)).thenReturn(Optional.of(job));
+
+        BatchTranslationJobResponse response = batchTranslationService.resumeJob(jobId, tenantId);
+
+        assertThat(response.getStatus()).isEqualTo(BatchTranslationJobStatus.COMPLETED);
+        verify(jobRepository, never()).save(any(BatchTranslationJob.class));
+        verify(asyncWorker, never()).processBatchTranslationJob(any(), any());
+    }
 }

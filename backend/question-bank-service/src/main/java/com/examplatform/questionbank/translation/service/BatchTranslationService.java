@@ -156,6 +156,25 @@ public class BatchTranslationService {
         return toResponse(job);
     }
 
+    public BatchTranslationJobResponse resumeJob(UUID jobId, String tenantId) {
+        BatchTranslationJob job = jobRepository.findByIdAndTenantId(jobId, tenantId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Batch translation job not found: " + jobId));
+
+        if (job.getStatus() == BatchTranslationJobStatus.COMPLETED) {
+            log.info("Batch translation job {} is already COMPLETED. No resume needed.", jobId);
+            return toResponse(job);
+        }
+
+        job.setStatus(BatchTranslationJobStatus.PENDING);
+        job.setErrorMessage(null);
+        job = jobRepository.save(job);
+
+        log.info("Resuming batch translation job {} for tenant {}", jobId, tenantId);
+        asyncWorker.processBatchTranslationJob(job.getId(), tenantId);
+
+        return toResponse(job);
+    }
+
     public BatchTranslationJobResponse toResponse(BatchTranslationJob job) {
         double progressPercentage = 0.0;
         if (job.getTotalQuestions() > 0) {

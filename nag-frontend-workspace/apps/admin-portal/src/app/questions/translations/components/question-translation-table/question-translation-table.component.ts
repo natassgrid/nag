@@ -24,8 +24,62 @@ export class QuestionTranslationTableComponent {
   searchQuery = input<string>('');
   selectedSubject = input<string>('ALL');
   activeLanguageName = input<string>('');
+  selectedLanguage = input<string>('hi');
 
   searchQueryChange = output<string>();
   selectedSubjectChange = output<string>();
   openTranslation = output<Question>();
+
+  getQuestionTranslationStatus(q: Question): string {
+    const lang = this.selectedLanguage();
+    if (q.translationStatusMap && q.translationStatusMap[lang]) {
+      return q.translationStatusMap[lang];
+    }
+    if (q.translationStatus && q.translationStatus !== 'MISSING') {
+      return q.translationStatus;
+    }
+    return 'READY_FOR_AI';
+  }
+
+  getStatusBadgeClass(status: string): string {
+    switch (status) {
+      case 'PUBLISHED':
+        return 'bg-emerald-50 text-emerald-700 border-emerald-200';
+      case 'APPROVED':
+        return 'bg-teal-50 text-teal-700 border-teal-200';
+      case 'IN_REVIEW':
+        return 'bg-violet-50 text-violet-700 border-violet-200';
+      case 'DRAFT':
+        return 'bg-sky-50 text-sky-700 border-sky-200';
+      case 'REJECTED':
+        return 'bg-rose-50 text-rose-700 border-rose-200';
+      case 'STALE':
+        return 'bg-orange-50 text-orange-700 border-orange-200';
+      case 'READY_FOR_AI':
+      case 'MISSING':
+      default:
+        return 'bg-amber-50 text-amber-700 border-amber-200';
+    }
+  }
+
+  getStatusLabel(status: string): string {
+    switch (status) {
+      case 'PUBLISHED':
+        return 'Published';
+      case 'APPROVED':
+        return 'Approved';
+      case 'IN_REVIEW':
+        return 'In Review';
+      case 'DRAFT':
+        return 'Draft';
+      case 'REJECTED':
+        return 'Rejected';
+      case 'STALE':
+        return 'Stale';
+      case 'READY_FOR_AI':
+      case 'MISSING':
+      default:
+        return 'Ready for AI';
+    }
+  }
 }

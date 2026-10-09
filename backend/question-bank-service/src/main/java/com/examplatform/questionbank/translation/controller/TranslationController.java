@@ -70,6 +70,7 @@ import java.util.UUID;
  *   <li>POST   /api/v1/translations/question/{questionId}/auto-translate/{lang}  — auto-translate using IndicTrans2</li>
  *   <li>POST   /api/v1/translations/batch/auto-translate                         — submit async batch translation job</li>
  *   <li>POST   /api/v1/translations/batch/{jobId}/cancel                         — cancel async batch translation job</li>
+ *   <li>POST   /api/v1/translations/batch/{jobId}/resume                         — resume/restart async batch translation job</li>
  * </ul>
  *
  * <h3>Read endpoints</h3>
@@ -183,6 +184,19 @@ public class TranslationController {
             @PathVariable UUID jobId) {
 
         BatchTranslationJobResponse response = batchTranslationService.cancelJob(jobId, tenantId());
+        return ResponseEntity.ok(response);
+    }
+
+    /**
+     * Resume an interrupted, pending, or failed batch translation job.
+     * POST /api/v1/translations/batch/{jobId}/resume
+     */
+    @PostMapping("/batch/{jobId}/resume")
+    @PreAuthorize("hasAnyRole('ADMIN', 'EXAM_CONTROLLER', 'SUPER_ADMIN')")
+    public ResponseEntity<BatchTranslationJobResponse> resumeBatchJob(
+            @PathVariable UUID jobId) {
+
+        BatchTranslationJobResponse response = batchTranslationService.resumeJob(jobId, tenantId());
         return ResponseEntity.ok(response);
     }
 

@@ -40,6 +40,7 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.test.util.ReflectionTestUtils;
 
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -365,6 +366,66 @@ class AsyncBatchTranslationWorkerTest {
         worker.processBatchTranslationJob(jobId, tenantId);
 
         assertThat(job.getStatus()).isEqualTo(BatchTranslationJobStatus.COMPLETED);
+        verify(jobRepository, times(2)).incrementSuccess(jobId);
+    }
+
+    @Test
+    @DisplayName("Should skip redundant AI translation when resuming job where question was already translated")
+    void shouldSkipRedundantAiTranslationWhenResumingJob() {
+        Instant now = Instant.now();
+        Instant jobCreatedAt = now.minusSeconds(120);
+
+        BatchTranslationJob job = BatchTranslationJob.builder()
+                .status(BatchTranslationJobStatus.IN_PROGRESS)
+                .sourceLanguage("en")
+                .targetLanguage("hi")
+                .targetStatus("PUBLISHED")
+                .questionIds(List.of(questionId1, questionId2))
+                .batchSize(10)
+                .throttleDelayMs(0)
+                .maxConcurrency(2)
+                .overwriteExisting(true)
+                .initiatedBy(UUID.randomUUID())
+                .build();
+        ReflectionTestUtils.setField(job, "id", jobId);
+        ReflectionTestUtils.setField(job, "createdAt", jobCreatedAt);
+        job.setTenantId(tenantId);
+
+        Question q1 = Question.builder().content("Paper Q1").build();
+        ReflectionTestUtils.setField(q1, "id", questionId1);
+        Question q2 = Question.builder().content("Paper Q2").build();
+        ReflectionTestUtils.setField(q2, "id", questionId2);
+
+        // Q1 was already translated at jobCreatedAt + 30 seconds
+        Translation existingTransQ1 = Translation.builder()
+                .questionId(questionId1)
+                .languageCode("hi")
+                .build();
+        ReflectionTestUtils.setField(existingTransQ1, "updatedAt", jobCreatedAt.plusSeconds(30));
+
+        when(jobRepository.findById(jobId)).thenReturn(Optional.of(job));
+        when(questionRepository.findQuestionsByIdsIn(eq(List.of(questionId1, questionId2)), eq(tenantId)))
+                .thenReturn(List.of(q1, q2));
+
+        when(translationRepository.findByQuestionIdAndLanguageCodeAndTenantId(questionId1, "hi", tenantId))
+                .thenReturn(List.of(existingTransQ1));
+        when(translationRepository.findByQuestionIdAndLanguageCodeAndTenantId(questionId2, "hi", tenantId))
+                .thenReturn(List.of());
+
+        AutoTranslateResponse trans2 = AutoTranslateResponse.builder()
+                .questionId(questionId2)
+                .languageCode("hi")
+                .translatedContent("कागज़ प्रश्न 2")
+                .build();
+        when(indicTrans2Service.autoTranslateQuestionEntity(q2, "hi")).thenReturn(trans2);
+
+        worker.processBatchTranslationJob(jobId, tenantId);
+
+        assertThat(job.getStatus()).isEqualTo(BatchTranslationJobStatus.COMPLETED);
+        // Q1 AI was skipped, Q2 AI was called
+        verify(indicTrans2Service, never()).autoTranslateQuestionEntity(q1, "hi");
+        verify(indicTrans2Service, times(1)).autoTranslateQuestionEntity(q2, "hi");
+        // Both incremented success
         verify(jobRepository, times(2)).incrementSuccess(jobId);
     }
 }

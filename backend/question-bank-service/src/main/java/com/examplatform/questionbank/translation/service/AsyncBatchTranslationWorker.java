@@ -6,9 +6,7 @@
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as published
- * by the Free Software Foundation, version 3 of the License.
- *
- * This program is distributed in the hope that it will be useful,
+ * by the Free Software Foundation, version 3 of the License.\n *\n * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
  * GNU Affero General Public License for more details.
@@ -44,7 +42,9 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
@@ -58,6 +58,7 @@ import java.util.stream.Collectors;
  * - Overwrite toggle support (clean upsert vs. reuse existing)
  * - Target status assignment (PUBLISHED default)
  * - Cancellation checks and error recovery
+ * - Resilient auto-resume and duplicate execution prevention
  * - Configurable development pause intervals
  */
 @Slf4j
@@ -73,6 +74,8 @@ public class AsyncBatchTranslationWorker {
     private final IndicTrans2Service indicTrans2Service;
     private final TranslationWorkflowService translationWorkflowService;
 
+    private final Set<UUID> activeJobIds = ConcurrentHashMap.newKeySet();
+
     @Value("${translation.batch.chunk-pause-interval-questions:15}")
     private int chunkPauseIntervalQuestions = 15;
 
@@ -82,54 +85,73 @@ public class AsyncBatchTranslationWorker {
     @Async
     public void processBatchTranslationJob(UUID jobId, String tenantId) {
         log.info("Starting asynchronous batch translation worker for jobId={}, tenant={}", jobId, tenantId);
-        TenantContext.setTenantId(tenantId);
 
-        // Resilient retry loop to guarantee visibility across transaction boundaries / connection pools
-        Optional<BatchTranslationJob> jobOpt = Optional.empty();
-        for (int attempt = 0; attempt < 5; attempt++) {
-            jobOpt = jobRepository.findById(jobId);
-            if (jobOpt.isPresent()) {
-                break;
-            }
-            try {
-                Thread.sleep(100);
-            } catch (InterruptedException ignored) {
-                Thread.currentThread().interrupt();
-                break;
-            }
-        }
-
-        if (jobOpt.isEmpty()) {
-            log.error("BatchTranslationJob {} not found after retries", jobId);
+        if (!activeJobIds.add(jobId)) {
+            log.warn("Batch translation job {} is already actively running. Skipping duplicate execution.", jobId);
             return;
         }
-
-        BatchTranslationJob job = jobOpt.get();
-        if (job.getStatus() == BatchTranslationJobStatus.CANCELLED) {
-            log.info("Batch translation job {} is already CANCELLED. Exiting.", jobId);
-            return;
-        }
-
-        job.setStatus(BatchTranslationJobStatus.IN_PROGRESS);
-        job.setStartedAt(Instant.now());
-        jobRepository.save(job);
-
-        String targetLang = job.getTargetLanguage();
-        String targetStatusStr = job.getTargetStatus();
-        Translation.TranslationStatus targetStatus = "APPROVED".equalsIgnoreCase(targetStatusStr)
-                ? Translation.TranslationStatus.APPROVED
-                : Translation.TranslationStatus.PUBLISHED;
-
-        int batchSize = Math.max(1, job.getBatchSize());
-        int throttleDelayMs = Math.max(0, job.getThrottleDelayMs());
-        int maxConcurrency = Math.max(1, job.getMaxConcurrency());
-        Semaphore concurrencyLimiter = new Semaphore(maxConcurrency);
-        boolean overwriteExisting = job.isOverwriteExisting();
-
-        List<UUID> explicitQuestionIds = job.getQuestionIds();
-        boolean hasExplicitQuestions = (explicitQuestionIds != null && !explicitQuestionIds.isEmpty());
 
         try {
+            TenantContext.setTenantId(tenantId);
+
+            // Resilient retry loop to guarantee visibility across transaction boundaries / connection pools
+            Optional<BatchTranslationJob> jobOpt = Optional.empty();
+            for (int attempt = 0; attempt < 5; attempt++) {
+                jobOpt = jobRepository.findById(jobId);
+                if (jobOpt.isPresent()) {
+                    break;
+                }
+                try {
+                    Thread.sleep(100);
+                } catch (InterruptedException ignored) {
+                    Thread.currentThread().interrupt();
+                    break;
+                }
+            }
+
+            if (jobOpt.isEmpty()) {
+                log.error("BatchTranslationJob {} not found after retries", jobId);
+                return;
+            }
+
+            BatchTranslationJob job = jobOpt.get();
+            if (job.getStatus() == BatchTranslationJobStatus.CANCELLED) {
+                log.info("Batch translation job {} is already CANCELLED. Exiting.", jobId);
+                return;
+            }
+            if (job.getStatus() == BatchTranslationJobStatus.COMPLETED) {
+                log.info("Batch translation job {} is already COMPLETED. Exiting.", jobId);
+                return;
+            }
+
+            // Reset progress counters on start / resume to ensure accurate incremental reporting
+            job.setStatus(BatchTranslationJobStatus.IN_PROGRESS);
+            if (job.getStartedAt() == null) {
+                job.setStartedAt(Instant.now());
+            }
+            job.setProcessedQuestions(0);
+            job.setSuccessfulQuestions(0);
+            job.setFailedQuestions(0);
+            job.setFailedQuestionIds(new ArrayList<>());
+            job.setErrorMessage(null);
+            jobRepository.save(job);
+
+            Instant jobCreatedAt = job.getCreatedAt();
+            String targetLang = job.getTargetLanguage();
+            String targetStatusStr = job.getTargetStatus();
+            Translation.TranslationStatus targetStatus = "APPROVED".equalsIgnoreCase(targetStatusStr)
+                    ? Translation.TranslationStatus.APPROVED
+                    : Translation.TranslationStatus.PUBLISHED;
+
+            int batchSize = Math.max(1, job.getBatchSize());
+            int throttleDelayMs = Math.max(0, job.getThrottleDelayMs());
+            int maxConcurrency = Math.max(1, job.getMaxConcurrency());
+            Semaphore concurrencyLimiter = new Semaphore(maxConcurrency);
+            boolean overwriteExisting = job.isOverwriteExisting();
+
+            List<UUID> explicitQuestionIds = job.getQuestionIds();
+            boolean hasExplicitQuestions = (explicitQuestionIds != null && !explicitQuestionIds.isEmpty());
+
             int questionsSinceLastPause = 0;
 
             if (hasExplicitQuestions) {
@@ -171,7 +193,7 @@ public class AsyncBatchTranslationWorker {
 
                         try {
                             concurrencyLimiter.acquire();
-                            processSingleQuestion(question, targetLang, targetStatus, overwriteExisting, tenantId, jobId);
+                            processSingleQuestion(question, targetLang, targetStatus, overwriteExisting, jobCreatedAt, tenantId, jobId);
                         } catch (InterruptedException ie) {
                             Thread.currentThread().interrupt();
                             log.warn("Batch worker interrupted while acquiring semaphore for job {}", jobId);
@@ -251,7 +273,7 @@ public class AsyncBatchTranslationWorker {
 
                         try {
                             concurrencyLimiter.acquire();
-                            processSingleQuestion(question, targetLang, targetStatus, overwriteExisting, tenantId, jobId);
+                            processSingleQuestion(question, targetLang, targetStatus, overwriteExisting, jobCreatedAt, tenantId, jobId);
                         } catch (InterruptedException ie) {
                             Thread.currentThread().interrupt();
                             log.warn("Batch worker interrupted while acquiring semaphore for job {}", jobId);
@@ -321,6 +343,7 @@ public class AsyncBatchTranslationWorker {
                 jobRepository.save(failedJob);
             }
         } finally {
+            activeJobIds.remove(jobId);
             TenantContext.clear();
         }
     }
@@ -359,16 +382,30 @@ public class AsyncBatchTranslationWorker {
             String targetLang,
             Translation.TranslationStatus targetStatus,
             boolean overwriteExisting,
+            Instant jobCreatedAt,
             String tenantId,
             UUID jobId) {
 
         UUID questionId = question.getId();
         try {
-            if (!overwriteExisting) {
-                List<Translation> existing = translationRepository
-                        .findByQuestionIdAndLanguageCodeAndTenantId(questionId, targetLang, tenantId);
-                if (!existing.isEmpty()) {
+            List<Translation> existing = translationRepository
+                    .findByQuestionIdAndLanguageCodeAndTenantId(questionId, targetLang, tenantId);
+
+            if (!existing.isEmpty()) {
+                if (!overwriteExisting) {
                     log.info("Translation for questionId={} and lang={} already exists and overwriteExisting=false. Skipping translation call.", questionId, targetLang);
+                    jobRepository.incrementSuccess(jobId);
+                    return;
+                }
+
+                // If overwriteExisting is true, check if this translation was already created/updated as part of this job execution
+                boolean alreadyTranslatedByThisJob = existing.stream().anyMatch(t -> {
+                    Instant tTime = t.getUpdatedAt() != null ? t.getUpdatedAt() : t.getCreatedAt();
+                    return tTime != null && jobCreatedAt != null && !tTime.isBefore(jobCreatedAt);
+                });
+
+                if (alreadyTranslatedByThisJob) {
+                    log.info("Translation for questionId={} and lang={} was already processed for job {}. Skipping redundant AI call.", questionId, targetLang, jobId);
                     jobRepository.incrementSuccess(jobId);
                     return;
                 }
@@ -402,6 +439,10 @@ public class AsyncBatchTranslationWorker {
     private boolean isJobCancelled(UUID jobId) {
         Optional<BatchTranslationJob> current = jobRepository.findById(jobId);
         return current.isPresent() && current.get().getStatus() == BatchTranslationJobStatus.CANCELLED;
+    }
+
+    public boolean isJobActive(UUID jobId) {
+        return activeJobIds.contains(jobId);
     }
 
     public void setChunkPauseIntervalQuestions(int chunkPauseIntervalQuestions) {

@@ -90,7 +90,7 @@ describe('AdminAiQuestionGenerationComponent', () => {
 
   it('should show taxonomyError when getSubjects fails', () => {
     // Reset and re-call with error
-    mockSubjectTopicService.getSubjects.mockReturnValue(throwError(() => ({ message: 'Network error' })));
+    mockSubjectTopicService.getSubjects.mockReturnValue(throwError(() => ({ message: 'Failed to load subjects: Network error' })));
     component.loadTaxonomy();
     expect(component.taxonomyError()).toContain('Failed to load subjects');
     expect(component.taxonomyLoading()).toBe(false);

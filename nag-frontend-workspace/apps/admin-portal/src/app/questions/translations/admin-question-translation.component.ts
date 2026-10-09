@@ -124,6 +124,7 @@ export class AdminQuestionTranslationComponent implements OnInit {
     const filter: any = {
       page: 0,
       size: 100,
+      targetLang: this.selectedLanguage(),
     };
     this.questionBankService.loadQuestions(filter).subscribe({
       next: (res) => {
@@ -155,6 +156,7 @@ export class AdminQuestionTranslationComponent implements OnInit {
     if (this.activeQuestion()) {
       this.fetchExistingTranslation(this.activeQuestion()!.id, code);
     }
+    this.loadQuestions();
   }
 
   openTranslationEditor(question: Question): void {
@@ -264,12 +266,36 @@ export class AdminQuestionTranslationComponent implements OnInit {
       .subscribe({
         next: (res) => {
           this.currentTranslationId.set(res.id || res.translationId || null);
-          this.translationStatus.set(res.status || status);
+          const lang = this.selectedLanguage();
+          const savedStatus = status === 'APPROVED' ? 'APPROVED' : (res.status || status);
+          this.translationStatus.set(savedStatus);
           this.savingTranslation.set(false);
+
+          this.questions.update((items) =>
+            items.map((item) => {
+              if (item.id === q.id) {
+                const map = { ...(item.translationStatusMap || {}), [lang]: savedStatus };
+                return { ...item, translationStatusMap: map, translationStatus: savedStatus };
+              }
+              return item;
+            })
+          );
+
           if (status === 'APPROVED' && (res.id || res.translationId)) {
             const targetId = res.id || res.translationId!;
             this.translationService.approveTranslation(targetId).subscribe({
-              next: () => this.translationStatus.set('APPROVED'),
+              next: () => {
+                this.translationStatus.set('APPROVED');
+                this.questions.update((items) =>
+                  items.map((item) => {
+                    if (item.id === q.id) {
+                      const map = { ...(item.translationStatusMap || {}), [lang]: 'APPROVED' };
+                      return { ...item, translationStatusMap: map, translationStatus: 'APPROVED' };
+                    }
+                    return item;
+                  })
+                );
+              },
             });
           }
         },
@@ -306,6 +332,16 @@ export class AdminQuestionTranslationComponent implements OnInit {
 
   cancelJob(jobId: string): void {
     this.translationService.cancelBatchJob(jobId).subscribe({
+      next: (updatedJob) => {
+        this.batchJobs.update((jobs) =>
+          jobs.map((j) => (j.id === jobId ? updatedJob : j))
+        );
+      },
+    });
+  }
+
+  resumeJob(jobId: string): void {
+    this.translationService.resumeBatchJob(jobId).subscribe({
       next: (updatedJob) => {
         this.batchJobs.update((jobs) =>
           jobs.map((j) => (j.id === jobId ? updatedJob : j))
