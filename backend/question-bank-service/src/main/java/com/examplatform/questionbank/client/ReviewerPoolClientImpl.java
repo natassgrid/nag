@@ -20,6 +20,7 @@
 package com.examplatform.questionbank.client;
 
 import com.examplatform.questionbank.dto.ReviewerDto;
+import com.examplatform.shared.auth.ClientAuthTokenResolver;
 import com.examplatform.shared.auth.ServiceAccountTokenProvider;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import lombok.AllArgsConstructor;
@@ -29,28 +30,15 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.ParameterizedTypeReference;
-import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
-import org.springframework.web.context.request.RequestAttributes;
-import org.springframework.web.context.request.RequestContextHolder;
-import org.springframework.web.context.request.ServletRequestAttributes;
 
-import javax.crypto.Mac;
-import javax.crypto.spec.SecretKeySpec;
 import java.nio.charset.StandardCharsets;
-import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Base64;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.UUID;
 
 /**
@@ -60,6 +48,9 @@ import java.util.UUID;
 @Slf4j
 @Component
 public class ReviewerPoolClientImpl implements ReviewerPoolClient {
+
+    private static final List<String> REVIEWER_ROLES = List.of(
+            "SUPER_ADMIN", "EXAM_CONTROLLER", "QUESTION_AUTHOR", "REVIEWER", "SUBJECT_MATTER_EXPERT");
 
     private final JdbcTemplate jdbcTemplate;
     private final RestClient restClient;
@@ -179,84 +170,13 @@ public class ReviewerPoolClientImpl implements ReviewerPoolClient {
     }
 
     private void attachAuthHeader(RestClient.RequestHeadersSpec<?> spec) {
-        String authHeader = resolveAuthorizationHeader();
-        if (authHeader != null && !authHeader.isBlank()) {
-            spec.header(HttpHeaders.AUTHORIZATION, authHeader);
-        }
-    }
-
-    private String resolveAuthorizationHeader() {
-        // 1. Check incoming HTTP request
-        RequestAttributes requestAttributes = RequestContextHolder.getRequestAttributes();
-        if (requestAttributes instanceof ServletRequestAttributes servletAttrs) {
-            String authHeader = servletAttrs.getRequest().getHeader(HttpHeaders.AUTHORIZATION);
-            if (authHeader != null && !authHeader.isBlank()) {
-                return authHeader;
-            }
-        }
-
-        // 2. Check SecurityContextHolder
-        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-        if (auth instanceof JwtAuthenticationToken jwtAuth) {
-            return "Bearer " + jwtAuth.getToken().getTokenValue();
-        } else if (auth != null && auth.getCredentials() instanceof String cred && !cred.isBlank()) {
-            return cred.startsWith("Bearer ") ? cred : "Bearer " + cred;
-        }
-
-        // 3. Service account token provider
-        if (tokenProvider != null) {
-            try {
-                String token = tokenProvider.getServiceToken("question-bank-service");
-                if (token != null && !token.isBlank()) {
-                    return "Bearer " + token;
-                }
-            } catch (Exception ignored) {}
-        }
-
-        // 4. Generate signed dev JWT fallback
-        if (jwtSecret != null && !jwtSecret.isBlank()) {
-            return "Bearer " + generateDevToken();
-        }
-
-        return null;
-    }
-
-    private String generateDevToken() {
-        long now = System.currentTimeMillis() / 1000;
-        long exp = now + 3600;
-        String header = base64Url("{\"alg\":\"HS256\",\"typ\":\"JWT\"}");
-        String payload = base64Url("{" +
-                "\"sub\":\"question-bank-service\"," +
-                "\"preferred_username\":\"question-bank-service\"," +
-                "\"name\":\"question-bank-service\"," +
-                "\"iss\":\"exam-platform-dev\"," +
-                "\"aud\":\"exam-backend\"," +
-                "\"iat\":" + now + "," +
-                "\"exp\":" + exp + "," +
-                "\"realm_access\":{\"roles\":[\"SUPER_ADMIN\",\"EXAM_CONTROLLER\",\"QUESTION_AUTHOR\",\"REVIEWER\",\"SUBJECT_MATTER_EXPERT\"]}" +
-                "}");
-        String signingInput = header + "." + payload;
-        String signature = hmacSha256(signingInput);
-        return signingInput + "." + signature;
-    }
-
-    private String base64Url(String input) {
-        return Base64.getUrlEncoder().withoutPadding()
-                .encodeToString(input.getBytes(StandardCharsets.UTF_8));
-    }
-
-    private String hmacSha256(String data) {
-        try {
-            Mac mac = Mac.getInstance("HmacSHA256");
-            SecretKeySpec secretKey = new SecretKeySpec(
-                    jwtSecret.getBytes(StandardCharsets.UTF_8), "HmacSHA256");
-            mac.init(secretKey);
-            byte[] hash = mac.doFinal(data.getBytes(StandardCharsets.UTF_8));
-            return Base64.getUrlEncoder().withoutPadding().encodeToString(hash);
-        } catch (Exception e) {
-            log.error("Failed to generate service JWT signature: {}", e.getMessage());
-            return "";
-        }
+        ClientAuthTokenResolver.attachAuthHeader(
+                spec,
+                "question-bank-service",
+                tokenProvider,
+                jwtSecret,
+                REVIEWER_ROLES
+        );
     }
 
     @Data

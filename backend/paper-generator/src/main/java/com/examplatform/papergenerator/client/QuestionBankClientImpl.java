@@ -28,6 +28,7 @@ import com.examplatform.questionbank.grpc.BlueprintMatchGrpcRequest;
 import com.examplatform.questionbank.grpc.BlueprintMatchGrpcResponse;
 import com.examplatform.questionbank.grpc.QuestionBankGrpcServiceGrpc;
 import com.examplatform.questionbank.grpc.QuestionSummaryGrpc;
+import com.examplatform.shared.auth.ClientAuthTokenResolver;
 import com.examplatform.shared.auth.ServiceAccountTokenProvider;
 import com.examplatform.shared.grpc.GrpcChannelFactory;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
@@ -500,89 +501,15 @@ public class QuestionBankClientImpl implements QuestionBankClient {
         }
     }
 
+    private static final List<String> CLIENT_ROLES = List.of(
+            "SUPER_ADMIN", "EXAM_CONTROLLER", "QUESTION_AUTHOR", "REVIEWER");
+
     private void attachAuthHeader(RestClient.RequestBodySpec spec) {
-        String token = resolveAuthToken();
-        if (token != null) {
-            spec.header(HttpHeaders.AUTHORIZATION, token);
-        }
+        ClientAuthTokenResolver.attachAuthHeader(spec, "paper-generator", tokenProvider, jwtSecret, CLIENT_ROLES);
     }
 
     private void attachAuthHeader(RestClient.RequestHeadersSpec<?> spec) {
-        String token = resolveAuthToken();
-        if (token != null) {
-            spec.header(HttpHeaders.AUTHORIZATION, token);
-        }
-    }
-
-    private String resolveAuthToken() {
-        // 1. Propagate token from inbound request if present
-        RequestAttributes requestAttributes = RequestContextHolder.getRequestAttributes();
-        if (requestAttributes instanceof ServletRequestAttributes servletAttrs) {
-            String authHeader = servletAttrs.getRequest().getHeader(HttpHeaders.AUTHORIZATION);
-            if (authHeader != null && !authHeader.isBlank()) {
-                return authHeader;
-            }
-        }
-
-        // 2. Check SecurityContextHolder
-        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-        if (auth instanceof JwtAuthenticationToken jwtAuth) {
-            return "Bearer " + jwtAuth.getToken().getTokenValue();
-        } else if (auth != null && auth.getCredentials() instanceof String cred && !cred.isBlank()) {
-            return cred.startsWith("Bearer ") ? cred : "Bearer " + cred;
-        }
-
-        // 3. Check ServiceAccountTokenProvider (OAuth2 client credentials)
-        if (tokenProvider != null) {
-            try {
-                String token = tokenProvider.getServiceToken("paper-generator");
-                if (token != null && !token.isBlank()) {
-                    return "Bearer " + token;
-                }
-            } catch (Exception ignored) {
-            }
-        }
-
-        // 4. Generate signed dev JWT fallback for internal daemon/service calls
-        if (jwtSecret != null && !jwtSecret.isBlank()) {
-            return "Bearer " + generateDevToken();
-        }
-
-        return null;
-    }
-
-    private String generateDevToken() {
-        long now = System.currentTimeMillis() / 1000;
-        long exp = now + 3600;
-        String header = base64Url("{\"alg\":\"HS256\",\"typ\":\"JWT\"}");
-        String payload = base64Url("{" +
-                "\"sub\":\"paper-generator\"," +
-                "\"preferred_username\":\"paper-generator\"," +
-                "\"name\":\"paper-generator\"," +
-                "\"iss\":\"exam-platform-dev\"," +
-                "\"aud\":\"exam-backend\"," +
-                "\"iat\":" + now + "," +
-                "\"exp\":" + exp + "," +
-                "\"realm_access\":{\"roles\":[\"SUPER_ADMIN\",\"EXAM_CONTROLLER\",\"QUESTION_AUTHOR\",\"REVIEWER\"]}" +
-                "}");
-        String signingInput = header + "." + payload;
-        String signature = hmacSha256(signingInput);
-        return signingInput + "." + signature;
-    }
-
-    private String hmacSha256(String data) {
-        try {
-            Mac mac = Mac.getInstance("HmacSHA256");
-            mac.init(new SecretKeySpec(jwtSecret.getBytes(StandardCharsets.UTF_8), "HmacSHA256"));
-            byte[] raw = mac.doFinal(data.getBytes(StandardCharsets.UTF_8));
-            return Base64.getUrlEncoder().withoutPadding().encodeToString(raw);
-        } catch (Exception e) {
-            throw new IllegalStateException("Failed to calculate HMAC-SHA256 signature", e);
-        }
-    }
-
-    private static String base64Url(String input) {
-        return Base64.getUrlEncoder().withoutPadding().encodeToString(input.getBytes(StandardCharsets.UTF_8));
+        ClientAuthTokenResolver.attachAuthHeader(spec, "paper-generator", tokenProvider, jwtSecret, CLIENT_ROLES);
     }
 
     private QuestionSummary toSummary(QuestionResponseDto dto) {

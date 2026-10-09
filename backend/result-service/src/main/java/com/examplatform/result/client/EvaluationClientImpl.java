@@ -21,6 +21,7 @@ package com.examplatform.result.client;
 
 import com.examplatform.result.dto.CandidateEvaluationItemDto;
 import com.examplatform.result.dto.CandidateExamResponseDto;
+import com.examplatform.shared.auth.ClientAuthTokenResolver;
 import com.examplatform.shared.auth.ServiceAccountTokenProvider;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.core.type.TypeReference;
@@ -381,80 +382,7 @@ public class EvaluationClientImpl implements EvaluationClient {
     }
 
     private void attachAuthHeader(RestClient.RequestHeadersSpec<?> spec) {
-        String token = resolveAuthToken();
-        if (token != null) {
-            spec.header(HttpHeaders.AUTHORIZATION, token);
-        }
-    }
-
-    private String resolveAuthToken() {
-        RequestAttributes requestAttributes = RequestContextHolder.getRequestAttributes();
-        if (requestAttributes instanceof ServletRequestAttributes servletAttrs) {
-            String authHeader = servletAttrs.getRequest().getHeader(HttpHeaders.AUTHORIZATION);
-            if (authHeader != null && !authHeader.isBlank()) {
-                return authHeader;
-            }
-        }
-
-        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-        if (auth instanceof JwtAuthenticationToken jwtAuth) {
-            return "Bearer " + jwtAuth.getToken().getTokenValue();
-        } else if (auth != null && auth.getCredentials() instanceof String cred && !cred.isBlank()) {
-            return cred.startsWith("Bearer ") ? cred : "Bearer " + cred;
-        }
-
-        if (tokenProvider != null) {
-            try {
-                String token = tokenProvider.getServiceToken("result-service");
-                if (token != null && !token.isBlank()) {
-                    return "Bearer " + token;
-                }
-            } catch (Exception ignored) {
-            }
-        }
-
-        if (jwtSecret != null && !jwtSecret.isBlank()) {
-            return "Bearer " + generateDevToken();
-        }
-
-        return null;
-    }
-
-    private String generateDevToken() {
-        long now = System.currentTimeMillis() / 1000;
-        long exp = now + 3600;
-        String header = base64Url("{\"alg\":\"HS256\",\"typ\":\"JWT\"}");
-        String payload = base64Url("{" +
-                "\"sub\":\"result-service\"," +
-                "\"preferred_username\":\"result-service\"," +
-                "\"name\":\"result-service\"," +
-                "\"iss\":\"exam-platform-dev\"," +
-                "\"aud\":\"exam-backend\"," +
-                "\"iat\":" + now + "," +
-                "\"exp\":" + exp + "," +
-                "\"realm_access\":{\"roles\":[\"SUPER_ADMIN\",\"EXAM_CONTROLLER\"]}" +
-                "}");
-        String signingInput = header + "." + payload;
-        String signature = hmacSha256(signingInput);
-        return signingInput + "." + signature;
-    }
-
-    private String base64Url(String input) {
-        return Base64.getUrlEncoder().withoutPadding()
-                .encodeToString(input.getBytes(StandardCharsets.UTF_8));
-    }
-
-    private String hmacSha256(String data) {
-        try {
-            Mac mac = Mac.getInstance("HmacSHA256");
-            SecretKeySpec secretKey = new SecretKeySpec(
-                    jwtSecret.getBytes(StandardCharsets.UTF_8), "HmacSHA256");
-            mac.init(secretKey);
-            byte[] hash = mac.doFinal(data.getBytes(StandardCharsets.UTF_8));
-            return Base64.getUrlEncoder().withoutPadding().encodeToString(hash);
-        } catch (Exception e) {
-            return "";
-        }
+        ClientAuthTokenResolver.attachAuthHeader(spec, "result-service", tokenProvider, jwtSecret);
     }
 
     private record CandidateResponseMetadata(List<String> selectedOptionIds, long timeSpentMs) {}
