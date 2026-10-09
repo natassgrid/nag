@@ -19,6 +19,10 @@
         <span>ID: <b>{{ profile().candidateId }}</b></span>
         <span>&bull;</span>
         <span class="inline-flex items-center gap-1">
+          Language: <b class="uppercase text-indigo-700">{{ profile().preferredLanguage || 'en' }}</b>
+        </span>
+        <span>&bull;</span>
+        <span class="inline-flex items-center gap-1">
           DigiLocker:
           @if (profile().digiLockerStatus === 'VERIFIED') {
             <b class="text-emerald-700">Anchored</b>

@@ -88,6 +88,8 @@ public class RegistrationService {
             .identityDocType(request.getIdentityDocType())
             .identityDocHash(docHash)
             .identityDocHmac(docHmac)
+            .preferredLanguage(request.getPreferredLanguage() != null && !request.getPreferredLanguage().isBlank()
+                ? request.getPreferredLanguage().trim() : "en")
             .accountStatus(AccountStatus.PENDING_VERIFICATION)
             .emailVerified(false)
             .mobileVerified(false)

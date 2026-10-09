@@ -57,4 +57,6 @@ public class RegistrationRequest {
     @NotBlank
     @Size(min = 8, max = 128)
     private String password;
+
+    private String preferredLanguage;
 }

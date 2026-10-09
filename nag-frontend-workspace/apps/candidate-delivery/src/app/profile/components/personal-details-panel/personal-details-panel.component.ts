@@ -2,6 +2,7 @@ import { ChangeDetectionStrategy, Component, model } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { MatIconModule } from '@angular/material/icon';
+import { SUPPORTED_LANGUAGES } from '@nag-frontend-workspace/shared-util-i18n';
 import { CandidateProfile } from '../../models';
 
 @Component({
@@ -14,4 +15,5 @@ import { CandidateProfile } from '../../models';
 })
 export class PersonalDetailsPanelComponent {
   readonly profile = model.required<CandidateProfile>();
+  readonly supportedLanguages = SUPPORTED_LANGUAGES;
 }

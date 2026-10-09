@@ -134,6 +134,34 @@ class RegistrationServiceTest {
         }
 
         @Test
+        @DisplayName("saves user account with preferredLanguage when provided")
+        void withPreferredLanguage() {
+            RegistrationRequest req = RegistrationRequest.builder()
+                    .email("test-lang@example.com")
+                    .mobile("9876543210")
+                    .identityDocType(IdentityDocType.AADHAAR)
+                    .identityDocNumber("123456789012")
+                    .password("Password123!")
+                    .fullName("Test User")
+                    .preferredLanguage("hi")
+                    .build();
+
+            when(hashingService.sha256(anyString())).thenReturn("hashedvalue");
+            when(hashingService.hmac(anyString(), anyString())).thenReturn("hmacvalue");
+            when(userAccountRepository.existsByEmailHashAndTenantId(any(), any())).thenReturn(false);
+            when(userAccountRepository.existsByIdentityDocHashAndTenantId(any(), any())).thenReturn(false);
+
+            ArgumentCaptor<UserAccount> captor = ArgumentCaptor.forClass(UserAccount.class);
+            UserAccount saved = UserAccount.builder().build();
+            ReflectionTestUtils.setField(saved, "id", UUID.randomUUID());
+            when(userAccountRepository.save(captor.capture())).thenReturn(saved);
+
+            registrationService.register(req, "default");
+
+            assertThat(captor.getValue().getPreferredLanguage()).isEqualTo("hi");
+        }
+
+        @Test
         @DisplayName("throws DuplicateIdentityException on duplicate email")
         void duplicateEmail() {
             RegistrationRequest req = RegistrationRequest.builder()

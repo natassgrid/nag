@@ -11,6 +11,9 @@ export interface AuthUser {
   userId: string;
   username: string;
   roles: string[];
+  preferredLanguage?: string;
+  token?: string;
+  email?: string;
 }
 
 export interface TotpSetupData {

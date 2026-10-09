@@ -13,6 +13,11 @@ import { MatIconModule } from '@angular/material/icon';
 import { PageHeaderComponent } from '@nag-frontend-workspace/shared-ui-components';
 import { AuthService } from '@nag-frontend-workspace/shared-data-access-auth';
 import {
+  I18nService,
+  SupportedLanguage,
+  SUPPORTED_LANGUAGES,
+} from '@nag-frontend-workspace/shared-util-i18n';
+import {
   CandidateProfile,
   EducationEntry,
   ProfileTab,
@@ -52,6 +57,8 @@ function createEmptyProfile(userId = '', username = ''): CandidateProfile {
     district: '',
     city: '',
     pinCode: '',
+    preferredRegionalLanguage: 'en',
+    preferredLanguage: 'en',
     kycStatus: 'PENDING',
     digiLockerStatus: 'NOT_LINKED',
     digiLockerUri: '',
@@ -85,6 +92,7 @@ function createEmptyProfile(userId = '', username = ''): CandidateProfile {
 export class CandidateProfileComponent implements OnInit {
   private readonly http = inject(HttpClient);
   readonly authService = inject(AuthService);
+  readonly i18nService = inject(I18nService, { optional: true });
 
   readonly activeTab = signal<ProfileTab>('personal');
   readonly loading = signal<boolean>(false);
@@ -107,7 +115,11 @@ export class CandidateProfileComponent implements OnInit {
   ngOnInit(): void {
     const user = this.authService.currentUser();
     if (user?.userId && user.userId !== 'user-unknown') {
-      this.profile.set(createEmptyProfile(user.userId, user.username));
+      const initial = createEmptyProfile(user.userId, user.username);
+      if (user.preferredLanguage) {
+        initial.preferredLanguage = user.preferredLanguage;
+      }
+      this.profile.set(initial);
       this.loadProfileFromApi(user.userId);
     }
   }
@@ -140,6 +152,7 @@ export class CandidateProfileComponent implements OnInit {
             city: d.city || prev.city,
             pinCode: d.pinCode || prev.pinCode,
             preferredRegionalLanguage: d.preferredRegionalLanguage || prev.preferredRegionalLanguage,
+            preferredLanguage: d.preferredLanguage || d.preferredRegionalLanguage || prev.preferredLanguage || 'en',
             kycStatus: d.kycStatus || prev.kycStatus,
             photoUrl: d.photoUrl || prev.photoUrl,
             photoAssetId: d.photoAssetId || prev.photoAssetId,
@@ -165,6 +178,17 @@ export class CandidateProfileComponent implements OnInit {
     this.successMessage.set(null);
   }
 
+  onPreferredLanguageChange(lang: string): void {
+    this.profile.update((prev) => ({
+      ...prev,
+      preferredLanguage: lang,
+    }));
+    if (this.i18nService) {
+      this.i18nService.setLanguage(lang as SupportedLanguage);
+    }
+    this.authService.updatePreferredLanguage(lang);
+  }
+
   saveProfile(): void {
     this.saving.set(true);
     this.errorMessage.set(null);
@@ -185,6 +209,18 @@ export class CandidateProfileComponent implements OnInit {
         this.saving.set(false);
         this.existsOnServer.set(true);
         this.successMessage.set('Profile successfully updated!');
+
+        const chosenLang = prof.preferredLanguage || 'en';
+        if (this.i18nService) {
+          this.i18nService.setLanguage(chosenLang as SupportedLanguage);
+        }
+        this.authService.updatePreferredLanguage(chosenLang);
+
+        this.http
+          .put('/api/v1/identity/users/me', { preferredLanguage: chosenLang })
+          .subscribe({
+            error: () => {},
+          });
       },
       error: (err) => {
         this.saving.set(false);
@@ -211,7 +247,7 @@ export class CandidateProfileComponent implements OnInit {
   }
 
   handleDeleteEducation(id: string): void {
-    this.profile.update((p) => ({
+    this.profile.update((p) => ({\
       ...p,
       education: p.education.filter((e) => e.id !== id),
     }));
