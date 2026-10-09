@@ -447,23 +447,43 @@ export class CandidateBrowseService {
    * Apply for an examination.
    */
   applyForExam(examId: string, payload: ApplyExamPayload): Observable<ApplicationReceipt> {
+    const isValidUuid = (val?: string) =>
+      !!val && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(val);
+
+    const backendPayload: Record<string, unknown> = {
+      pwdRequired: !!payload.pwdRequired,
+      scribeRequired: !!payload.scribeRequired,
+    };
+    if (isValidUuid(payload.firstChoiceCentreId)) {
+      backendPayload['firstChoiceCentreId'] = payload.firstChoiceCentreId;
+    }
+    if (isValidUuid(payload.secondChoiceCentreId)) {
+      backendPayload['secondChoiceCentreId'] = payload.secondChoiceCentreId;
+    }
+    if (isValidUuid(payload.thirdChoiceCentreId)) {
+      backendPayload['thirdChoiceCentreId'] = payload.thirdChoiceCentreId;
+    }
+    if (isValidUuid(payload.preferredShiftId)) {
+      backendPayload['preferredShiftId'] = payload.preferredShiftId;
+    }
+
     return this.http
-      .post<any>(`${this.examsUrl}/${examId}/apply`, payload)
+      .post<any>(`${this.examsUrl}/${examId}/apply`, backendPayload)
       .pipe(
         map((res) => {
           const data = res?.data ?? res;
           return {
             applicationId: data.id || data.applicationId || `APP-${Date.now()}`,
-            applicationNumber: data.applicationNumber || `NAG-${Math.floor(100000 + Math.random() * 900000)}`,
+            applicationNumber: data.hallTicketNumber || data.applicationNumber || `NAG-${Math.floor(100000 + Math.random() * 900000)}`,
             examId: examId,
-            examTitle: data.examTitle || 'National Assessment Examination',
+            examTitle: data.examName || data.examTitle || 'National Assessment Examination',
             examCode: data.examCode || 'EXAM-2026',
             candidateName: data.candidateName || 'Candidate',
             candidateEmail: data.candidateEmail || 'candidate@example.gov.in',
             category: data.category || 'General',
-            appliedAt: data.appliedAt || new Date().toISOString(),
+            appliedAt: data.applicationDate || data.appliedAt || new Date().toISOString(),
             feePaid: data.feePaid ?? 0,
-            firstChoiceCentreName: data.centreName || 'Allocated Centre Hub',
+            firstChoiceCentreName: data.centreName ? `${data.city ? data.city + ' — ' : ''}${data.centreName}` : 'Allocated Centre Hub',
             pwdAssistance: !!payload.pwdRequired,
             status: data.status || 'CONFIRMED',
           };
