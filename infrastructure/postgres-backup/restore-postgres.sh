@@ -23,6 +23,29 @@
 # ─────────────────────────────────────────────────────────────────────────────
 set -euo pipefail
 
+# ── Load .env Configuration ──────────────────────────────────────────────────
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+if [[ -f "${SCRIPT_DIR}/.env" ]]; then
+    while IFS='=' read -r key val || [[ -n "$key" ]]; do
+        [[ "$key" =~ ^[[:space:]]*# ]] && continue
+        [[ -z "${key// }" ]] && continue
+        # Strip leading/trailing spaces from key
+        key="${key#"${key%%[![:space:]]*}"}"
+        key="${key%"${key##*[![:space:]]}"}"
+        # Strip leading/trailing spaces and quotes from value
+        val="${val#"${val%%[![:space:]]*}"}"
+        val="${val%"${val##*[![:space:]]}"}"
+        if [[ "$val" =~ ^\"(.*)\"$ ]]; then
+            val="${BASH_REMATCH[1]}"
+        elif [[ "$val" =~ ^\'(.*)\'$ ]]; then
+            val="${BASH_REMATCH[1]}"
+        fi
+        if [[ -z "${!key:-}" ]]; then
+            export "$key=$val"
+        fi
+    done < "${SCRIPT_DIR}/.env"
+fi
+
 # ── Color Output Helpers ──────────────────────────────────────────────────────
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -40,6 +63,11 @@ log_section() { echo -e "\n${BOLD}${CYAN}=== $* ===${NC}"; }
 
 # ── Configuration Defaults ────────────────────────────────────────────────────
 POSTGRES_HOST="${POSTGRES_HOST:-localhost}"
+# Detect Docker container environment for default postgres host
+if [[ -f "/.dockerenv" && "$POSTGRES_HOST" == "localhost" ]]; then
+    POSTGRES_HOST="postgres"
+fi
+
 POSTGRES_PORT="${POSTGRES_PORT:-5432}"
 POSTGRES_DB="${POSTGRES_DB:-exam_platform}"
 POSTGRES_USER="${POSTGRES_USER:-exam_admin}"
@@ -50,6 +78,9 @@ S3_PREFIX="${S3_PREFIX:-backups/postgres}"
 AWS_ENDPOINT_URL="${AWS_ENDPOINT_URL:-}"
 RESTORE_WORK_DIR="${RESTORE_WORK_DIR:-/tmp/nag-postgres-restores}"
 
+export AWS_DEFAULT_REGION="${AWS_DEFAULT_REGION:-${AWS_REGION:-${AWS_REGION_NAME:-us-east-1}}}"
+export AWS_REGION="${AWS_REGION:-$AWS_DEFAULT_REGION}"
+
 TARGET_DB=""
 SOURCE_TARGET=""
 USE_LATEST=false
@@ -58,7 +89,7 @@ SKIP_SNAPSHOT=false
 SKIP_CHECKSUM=false
 KEEP_DOWNLOADED=false
 
-# ── Usage / Help ──────────────────────────────────────────────────────────────
+# ── Usage / Help ──────────────────────────────────────────────────────
 usage() {
     cat << EOF
 Usage: $(basename "$0") [OPTIONS] [--latest | <s3-uri-or-filename>]

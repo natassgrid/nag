@@ -19,6 +19,29 @@
 # ─────────────────────────────────────────────────────────────────────────────
 set -euo pipefail
 
+# ── Load .env Configuration ──────────────────────────────────────────────────
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+if [[ -f "${SCRIPT_DIR}/.env" ]]; then
+    while IFS='=' read -r key val || [[ -n "$key" ]]; do
+        [[ "$key" =~ ^[[:space:]]*# ]] && continue
+        [[ -z "${key// }" ]] && continue
+        # Strip leading/trailing spaces from key
+        key="${key#"${key%%[![:space:]]*}"}"
+        key="${key%"${key##*[![:space:]]}"}"
+        # Strip leading/trailing spaces and quotes from value
+        val="${val#"${val%%[![:space:]]*}"}"
+        val="${val%"${val##*[![:space:]]}"}"
+        if [[ "$val" =~ ^\"(.*)\"$ ]]; then
+            val="${BASH_REMATCH[1]}"
+        elif [[ "$val" =~ ^\'(.*)\'$ ]]; then
+            val="${BASH_REMATCH[1]}"
+        fi
+        if [[ -z "${!key:-}" ]]; then
+            export "$key=$val"
+        fi
+    done < "${SCRIPT_DIR}/.env"
+fi
+
 # ── Color Output Helpers ──────────────────────────────────────────────────────
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -34,6 +57,11 @@ log_error() { echo -e "${RED}[ERROR]${NC} $(date -u +'%Y-%m-%dT%H:%M:%SZ') - $*"
 
 # ── Configuration Defaults ────────────────────────────────────────────────────
 POSTGRES_HOST="${POSTGRES_HOST:-localhost}"
+# Detect Docker container environment for default postgres host
+if [[ -f "/.dockerenv" && "$POSTGRES_HOST" == "localhost" ]]; then
+    POSTGRES_HOST="postgres"
+fi
+
 POSTGRES_PORT="${POSTGRES_PORT:-5432}"
 POSTGRES_DB="${POSTGRES_DB:-exam_platform}"
 POSTGRES_USER="${POSTGRES_USER:-exam_admin}"
@@ -49,6 +77,9 @@ KEEP_LOCAL="${KEEP_LOCAL:-false}"
 NO_UPLOAD="${NO_UPLOAD:-false}"
 WEBHOOK_URL="${WEBHOOK_URL:-}"
 SCHEMAS="${SCHEMAS:-}" # Empty means all schemas in cluster
+
+export AWS_DEFAULT_REGION="${AWS_DEFAULT_REGION:-${AWS_REGION:-${AWS_REGION_NAME:-us-east-1}}}"
+export AWS_REGION="${AWS_REGION:-$AWS_DEFAULT_REGION}"
 
 # Standard NAG Platform Schemas
 PLATFORM_SCHEMAS=(
