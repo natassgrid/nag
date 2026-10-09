@@ -20,6 +20,54 @@ plugins {
     alias(libs.plugins.protobuf) apply false
 }
 
+repositories {
+    mavenCentral()
+}
+
+// ── Root Configuration for PMD CLI & CPD (Copy-Paste Detector) ───────────────
+configurations {
+    pmdCli
+}
+
+dependencies {
+    pmdCli rootProject.libs.pmd.cli
+    pmdCli rootProject.libs.pmd.java
+}
+
+tasks.register('cpdCheck', JavaExec) {
+    group = 'verification'
+    description = 'Runs PMD Copy-Paste Detector (CPD) across all backend services to detect code duplication'
+
+    classpath = configurations.pmdCli
+    mainClass = 'net.sourceforge.pmd.cli.PmdCli'
+
+    def reportFile = layout.buildDirectory.file('reports/cpd/cpd-report.txt').get().asFile
+
+    doFirst {
+        reportFile.parentFile.mkdirs()
+        standardOutput = new java.io.FileOutputStream(reportFile)
+    }
+
+    def sourceDirs = subprojects.collect { project ->
+        project.file('src/main/java')
+    }.findAll { it.exists() }
+
+    args = [
+        'cpd',
+        '--minimum-tokens', '35',
+        '--language', 'java',
+        '--format', 'text',
+        '--ignore-identifiers',
+        '--ignore-literals',
+        '--no-fail-on-violation',
+        '--no-fail-on-error'
+    ] + sourceDirs.collectMany { ['--dir', it.absolutePath] }
+
+    doLast {
+        println "CPD report generated at: ${reportFile.absolutePath}"
+    }
+}
+
 subprojects {
     group = 'com.examplatform'
 
@@ -28,6 +76,25 @@ subprojects {
     }
 
     plugins.withType(JavaPlugin) {
+        project.pluginManager.apply('pmd')
+
+        project.pmd {
+            toolVersion = rootProject.libs.versions.pmd.get()
+            ignoreFailures = true
+            consoleOutput = true
+            ruleSets = []
+            ruleSetFiles = rootProject.files('config/pmd/pmd-ruleset.xml')
+        }
+
+        tasks.withType(Pmd).configureEach {
+            // Disable auxiliary class analysis so PMD analyzes source AST without ASM failures on Java 25 bytecode
+            classpath = files()
+            reports {
+                xml.required = true
+                html.required = true
+            }
+        }
+
         java {
             toolchain {
                 languageVersion = JavaLanguageVersion.of(25)

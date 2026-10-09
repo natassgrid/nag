@@ -28,8 +28,9 @@ grpc = "1.83.1"
 protobuf-version = "4.35.1"
 archunit = "1.5.1"
 geoip2 = "5.2.0"
+pmd = "7.10.0"
 
-# ──────────────────────────────────────────────────────────────────────
+# ──────────────────────────────────────────────────────────────
 
 [libraries]
 # ── Spring Boot starters (version managed by Boot BOM) ────────────────
@@ -152,7 +153,11 @@ testcontainers-kafka = { module = "org.testcontainers:kafka", version.ref = "tes
 testcontainers-junit-jupiter = { module = "org.testcontainers:junit-jupiter", version.ref = "testcontainers" }
 archunit-junit5 = { module = "com.tngtech.archunit:archunit-junit5", version.ref = "archunit" }
 
-# ──────────────────────────────────────────────────────────────────────
+# ── Static Analysis & Code Quality ────────────────────────────────────
+pmd-cli = { module = "net.sourceforge.pmd:pmd-cli", version.ref = "pmd" }
+pmd-java = { module = "net.sourceforge.pmd:pmd-java", version.ref = "pmd" }
+
+# ──────────────────────────────────────────────────────────────
 
 [plugins]
 spring-boot = { id = "org.springframework.boot", version.ref = "spring-boot" }
