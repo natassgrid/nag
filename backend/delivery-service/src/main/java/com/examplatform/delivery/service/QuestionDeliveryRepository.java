@@ -218,43 +218,11 @@ public class QuestionDeliveryRepository {
                 if (optionsJson != null && !optionsJson.isBlank()) {
                     try {
                         JsonNode optArr = objectMapper.readTree(optionsJson);
-                        if (optArr.isArray()) {
-                            for (int i = 0; i < optArr.size(); i++) {
-                                JsonNode optNode = optArr.get(i);
-                                String optText;
-                                String optId = "";
-                                String optImageUrl = null;
-                                String optImageAltText = null;
-                                boolean isCorrect = false;
-
-                                if (optNode.isObject()) {
-                                    optText = optNode.has("text") ? optNode.get("text").asText() : optNode.asText();
-                                    optId = optNode.has("id") ? optNode.get("id").asText() : String.valueOf((char) ('A' + i));
-                                    isCorrect = optNode.has("isCorrect") && optNode.get("isCorrect").asBoolean();
-                                    optImageUrl = optNode.has("imageUrl") && !optNode.get("imageUrl").isNull() ? optNode.get("imageUrl").asText(null) : null;
-                                    optImageAltText = optNode.has("imageAltText") && !optNode.get("imageAltText").isNull() ? optNode.get("imageAltText").asText(null) : null;
-                                } else {
-                                    optText = optNode.asText();
-                                    optId = String.valueOf((char) ('A' + i));
-                                }
-
-                                if (optImageUrl != null && !optImageUrl.isBlank()) {
-                                    hasImages = true;
-                                }
-
-                                if (isCorrect || (answerKey != null && (answerKey.equalsIgnoreCase(optId) || answerKey.equalsIgnoreCase(optText)))) {
-                                    correctOptionIndex = i;
-                                }
-
-                                options.add(QuestionOptionDeliveryDto.builder()
-                                        .id(optId)
-                                        .index(i)
-                                        .originalIndex(i)
-                                        .text(optText)
-                                        .imageUrl(optImageUrl)
-                                        .imageAltText(optImageAltText)
-                                        .build());
-                            }
+                        QuestionDeliveryParser.ParsedOptions parsedOptions = parser.parseOptions(optArr, answerKey);
+                        options = parsedOptions.options();
+                        correctOptionIndex = parsedOptions.correctOptionIndex();
+                        if (parsedOptions.hasImages()) {
+                            hasImages = true;
                         }
                     } catch (Exception e) {
                         log.warn("Error parsing options JSON for question {}: {}", id, e.getMessage());

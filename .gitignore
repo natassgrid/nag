@@ -138,3 +138,4 @@ charts/*/Chart.lock
 # ── SpotBugs ────────────────────────────────────────────────
 spotbugs/
 /tmp/
+/docs/cpd/

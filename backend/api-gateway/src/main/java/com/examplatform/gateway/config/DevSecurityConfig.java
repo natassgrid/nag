@@ -24,15 +24,12 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Primary;
 import org.springframework.context.annotation.Profile;
-import org.springframework.http.HttpMethod;
 import org.springframework.security.config.annotation.web.reactive.EnableWebFluxSecurity;
 import org.springframework.security.config.web.server.ServerHttpSecurity;
 import org.springframework.security.oauth2.jwt.NimbusReactiveJwtDecoder;
 import org.springframework.security.oauth2.jwt.ReactiveJwtDecoder;
-import org.springframework.security.oauth2.server.resource.authentication.BearerTokenAuthenticationToken;
 import org.springframework.security.web.server.SecurityWebFilterChain;
 import org.springframework.security.web.server.authentication.ServerAuthenticationConverter;
-import reactor.core.publisher.Mono;
 
 import javax.crypto.spec.SecretKeySpec;
 import java.nio.charset.StandardCharsets;
@@ -52,75 +49,14 @@ public class DevSecurityConfig {
     @Bean
     @Primary
     public SecurityWebFilterChain devSecurityWebFilterChain(ServerHttpSecurity http) {
-        ServerAuthenticationConverter tokenConverter = exchange -> {
-            // Don't extract Bearer token for public auth endpoints
-            String path = exchange.getRequest().getPath().value();
-            if (path.startsWith("/api/v1/identity/auth/") ||
-                path.startsWith("/api/v1/identity/register") ||
-                path.startsWith("/api/v1/identity/otp/") ||
-                path.startsWith("/api/v1/identity/verify-otp") ||
-                path.startsWith("/api/v1/identity/verify/") ||
-                path.startsWith("/api/v1/identity/resend/") ||
-                path.startsWith("/api/v1/identity/verification-status") ||
-                path.startsWith("/api/v1/identity/admin/invite/") ||
-                path.startsWith("/api/v1/examinations/public/") ||
-                path.startsWith("/api/v1/papers/public/") ||
-                path.startsWith("/api/v1/sessions/paper/") ||
-                path.startsWith("/api/v1/delivery/paper/") ||
-                path.startsWith("/api/v1/geo/") ||
-                path.startsWith("/api/v1/public/") ||
-                (exchange.getRequest().getMethod() == HttpMethod.GET && path.startsWith("/api/v1/assets/") && (path.endsWith("/download") || path.endsWith("/url")))) {
-                return Mono.empty();
-            }
+        ServerAuthenticationConverter tokenConverter = GatewaySecurityConfigSupport.createTokenConverter();
 
-            // 1. Check Authorization header first
-            String authHeader = exchange.getRequest().getHeaders().getFirst("Authorization");
-            if (authHeader != null && authHeader.regionMatches(true, 0, "Bearer ", 0, 7)) {
-                String token = authHeader.substring(7).trim();
-                if (!token.isBlank()) {
-                    return Mono.just(new BearerTokenAuthenticationToken(token));
-                }
-            }
-
-            // 2. Check query parameters ?token= or ?access_token= (for SSE streams)
-            String tokenParam = exchange.getRequest().getQueryParams().getFirst("token");
-            if (tokenParam == null || tokenParam.isBlank()) {
-                tokenParam = exchange.getRequest().getQueryParams().getFirst("access_token");
-            }
-            if (tokenParam != null && !tokenParam.isBlank()) {
-                return Mono.just(new BearerTokenAuthenticationToken(tokenParam));
-            }
-
-            return Mono.empty();
-        };
-
-        http
-            .csrf(ServerHttpSecurity.CsrfSpec::disable)
-            .authorizeExchange(exchanges -> exchanges
-                .pathMatchers("/actuator/health", "/actuator/info", "/actuator/prometheus").permitAll()
-                .pathMatchers(
-                    "/api/v1/identity/register",
-                    "/api/v1/identity/auth/**",
-                    "/api/v1/identity/otp/**",
-                    "/api/v1/identity/verify-otp",
-                    "/api/v1/identity/verify/**",
-                    "/api/v1/identity/resend/**",
-                    "/api/v1/identity/verification-status",
-                    "/api/v1/identity/admin/invite/**",
-                    "/api/v1/examinations/public/**",
-                    "/api/v1/papers/public/**",
-                    "/api/v1/sessions/paper/**",
-                    "/api/v1/delivery/paper/**"
-                ).permitAll()
-                .pathMatchers("/api/v1/geo/**", "/api/v1/public/**").permitAll()
-                .pathMatchers(HttpMethod.GET, "/api/v1/assets/*/download", "/api/v1/assets/*/url").permitAll()
-                .anyExchange().authenticated()
-            )
-            .oauth2ResourceServer(oauth2 -> oauth2
-                .jwt(jwt -> jwt.jwtDecoder(devJwtDecoder()))
-                .bearerTokenConverter(tokenConverter)
-            );
-        return http.build();
+        return GatewaySecurityConfigSupport.configureCommonSecurity(http)
+                .oauth2ResourceServer(oauth2 -> oauth2
+                        .jwt(jwt -> jwt.jwtDecoder(devJwtDecoder()))
+                        .bearerTokenConverter(tokenConverter)
+                )
+                .build();
     }
 
     @Bean

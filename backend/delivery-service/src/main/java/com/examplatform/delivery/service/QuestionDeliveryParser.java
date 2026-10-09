@@ -44,6 +44,15 @@ public class QuestionDeliveryParser {
 
     private final ObjectMapper objectMapper;
 
+    /**
+     * DTO containing parsed options, correct option index, and whether any option has an image.
+     */
+    public record ParsedOptions(
+            List<QuestionOptionDeliveryDto> options,
+            Integer correctOptionIndex,
+            boolean hasImages
+    ) {}
+
     public List<QuestionDeliveryDto> parseFromPaperJson(String decryptedPaper) {
         List<QuestionDeliveryDto> questions = new ArrayList<>();
         try {
@@ -59,14 +68,15 @@ public class QuestionDeliveryParser {
                 }
             }
         } catch (JsonProcessingException e) {
-            log.warn("Could not parse decrypted paper JSON: {}", e.getMessage());
+            log.error("Failed to parse examination paper questions JSON: {}", e.getMessage());
         }
         return questions;
     }
 
     public QuestionDeliveryDto parseSingleQuestionNode(JsonNode qNode, int sequenceNumber) {
         try {
-            String id = qNode.has("id") ? qNode.get("id").asText() : UUID.randomUUID().toString();
+            String id = qNode.has("id") ? qNode.get("id").asText() :
+                    (qNode.has("questionId") ? qNode.get("questionId").asText() : UUID.randomUUID().toString());
             String content = qNode.has("content") ? qNode.get("content").asText() :
                     (qNode.has("text") ? qNode.get("text").asText() : "");
             String subject = qNode.has("subject") ? qNode.get("subject").asText() : null;
@@ -87,47 +97,11 @@ public class QuestionDeliveryParser {
             Integer passageOrderIndex = qNode.has("passageOrderIndex") ? qNode.get("passageOrderIndex").asInt() :
                     (qNode.has("passage_order_index") ? qNode.get("passage_order_index").asInt() : null);
 
-            List<QuestionOptionDeliveryDto> options = new ArrayList<>();
-            Integer correctOptionIndex = null;
-            JsonNode optionsNode = qNode.get("options");
-
-            if (optionsNode != null && optionsNode.isArray()) {
-                for (int i = 0; i < optionsNode.size(); i++) {
-                    JsonNode optNode = optionsNode.get(i);
-                    String optText;
-                    String optId = "";
-                    String optImageUrl = null;
-                    String optImageAltText = null;
-                    boolean isCorrect = false;
-
-                    if (optNode.isObject()) {
-                        optText = optNode.has("text") ? optNode.get("text").asText() : optNode.asText();
-                        optId = optNode.has("id") ? optNode.get("id").asText() : String.valueOf((char) ('A' + i));
-                        isCorrect = optNode.has("isCorrect") && optNode.get("isCorrect").asBoolean();
-                        optImageUrl = optNode.has("imageUrl") && !optNode.get("imageUrl").isNull() ? optNode.get("imageUrl").asText(null) : null;
-                        optImageAltText = optNode.has("imageAltText") && !optNode.get("imageAltText").isNull() ? optNode.get("imageAltText").asText(null) : null;
-                    } else {
-                        optText = optNode.asText();
-                        optId = String.valueOf((char) ('A' + i));
-                    }
-
-                    if (optImageUrl != null && !optImageUrl.isBlank()) {
-                        hasImages = true;
-                    }
-
-                    if (isCorrect || (answerKey != null && (answerKey.equalsIgnoreCase(optId) || answerKey.equalsIgnoreCase(optText)))) {
-                        correctOptionIndex = i;
-                    }
-
-                    options.add(QuestionOptionDeliveryDto.builder()
-                            .id(optId)
-                            .index(i)
-                            .originalIndex(i)
-                            .text(optText)
-                            .imageUrl(optImageUrl)
-                            .imageAltText(optImageAltText)
-                            .build());
-                }
+            ParsedOptions parsedOptions = parseOptions(qNode.get("options"), answerKey);
+            List<QuestionOptionDeliveryDto> options = parsedOptions.options();
+            Integer correctOptionIndex = parsedOptions.correctOptionIndex();
+            if (parsedOptions.hasImages()) {
+                hasImages = true;
             }
 
             if (correctOptionIndex == null && qNode.has("correctOptionIndex")) {
@@ -160,6 +134,56 @@ public class QuestionDeliveryParser {
             log.warn("Error parsing individual question node: {}", e.getMessage());
             return null;
         }
+    }
+
+    /**
+     * Parses an options JsonNode array into a list of QuestionOptionDeliveryDto items and resolves correct option index.
+     */
+    public ParsedOptions parseOptions(JsonNode optionsNode, String answerKey) {
+        List<QuestionOptionDeliveryDto> options = new ArrayList<>();
+        Integer correctOptionIndex = null;
+        boolean hasImages = false;
+
+        if (optionsNode != null && optionsNode.isArray()) {
+            for (int i = 0; i < optionsNode.size(); i++) {
+                JsonNode optNode = optionsNode.get(i);
+                String optText;
+                String optId = "";
+                String optImageUrl = null;
+                String optImageAltText = null;
+                boolean isCorrect = false;
+
+                if (optNode.isObject()) {
+                    optText = optNode.has("text") ? optNode.get("text").asText() : optNode.asText();
+                    optId = optNode.has("id") ? optNode.get("id").asText() : String.valueOf((char) ('A' + i));
+                    isCorrect = optNode.has("isCorrect") && optNode.get("isCorrect").asBoolean();
+                    optImageUrl = optNode.has("imageUrl") && !optNode.get("imageUrl").isNull() ? optNode.get("imageUrl").asText(null) : null;
+                    optImageAltText = optNode.has("imageAltText") && !optNode.get("imageAltText").isNull() ? optNode.get("imageAltText").asText(null) : null;
+                } else {
+                    optText = optNode.asText();
+                    optId = String.valueOf((char) ('A' + i));
+                }
+
+                if (optImageUrl != null && !optImageUrl.isBlank()) {
+                    hasImages = true;
+                }
+
+                if (isCorrect || (answerKey != null && (answerKey.equalsIgnoreCase(optId) || answerKey.equalsIgnoreCase(optText)))) {
+                    correctOptionIndex = i;
+                }
+
+                options.add(QuestionOptionDeliveryDto.builder()
+                        .id(optId)
+                        .index(i)
+                        .originalIndex(i)
+                        .text(optText)
+                        .imageUrl(optImageUrl)
+                        .imageAltText(optImageAltText)
+                        .build());
+            }
+        }
+
+        return new ParsedOptions(options, correctOptionIndex, hasImages);
     }
 
     public String resolveSectionId(String subject, int sequenceNumber) {
