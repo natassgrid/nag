@@ -33,6 +33,9 @@ export class QuestionBankService {
     this.loading.set(true);
     const current = { ...this.filter(), ...(customFilter || {}) };
     this.filter.set(current);
+    if (current.size !== undefined && typeof this.pageSize.set === 'function') {
+      this.pageSize.set(current.size);
+    }
 
     let params = new HttpParams()
       .set('page', current.page.toString())

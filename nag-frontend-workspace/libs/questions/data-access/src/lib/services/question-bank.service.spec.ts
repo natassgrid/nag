@@ -57,6 +57,7 @@ describe('QuestionBankService', () => {
         expect(res.content[0].id).toBe('q-1');
         expect(service.questions().length).toBe(1);
         expect(service.total()).toBe(1);
+        expect(service.pageSize()).toBe(10);
         expect(service.loading()).toBe(false);
         done();
       });
@@ -65,7 +66,8 @@ describe('QuestionBankService', () => {
       (r) =>
         r.url === '/api/v1/questions' &&
         r.params.get('search') === 'Newton' &&
-        r.params.get('difficulty') === 'MEDIUM'
+        r.params.get('difficulty') === 'MEDIUM' &&
+        r.params.get('size') === '10'
     );
     expect(req.request.method).toBe('GET');
     req.flush(mockBackendResponse);
