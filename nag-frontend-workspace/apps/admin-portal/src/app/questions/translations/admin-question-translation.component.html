@@ -17,7 +17,7 @@
         class="!border-slate-300 cursor-pointer"
         [ngClass]="{ '!bg-slate-900 !text-white': currentTab() === 'batch' }"
       >
-        <mat-icon>dynamic_feed</mat-icon> Batch Jobs ({{ batchJobs().length }})
+        <mat-icon>dynamic_feed</mat-icon> Batch Jobs ({{ batchJobsTotalElements() }})
       </button>
       <button
         mat-flat-button
@@ -41,14 +41,20 @@
   <!-- TAB 1: QUESTION DIRECTORY VIEW -->
   @if (currentTab() === 'list') {
     <nag-question-translation-table
-      [questions]="filteredQuestions()"
+      [questions]="displayedQuestions()"
       [availableSubjects]="availableSubjects()"
       [searchQuery]="searchQuery()"
       [selectedSubject]="selectedSubject()"
       [activeLanguageName]="activeLanguageName()"
       [selectedLanguage]="selectedLanguage()"
-      (searchQueryChange)="searchQuery.set($event)"
-      (selectedSubjectChange)="selectedSubject.set($event)"
+      [totalElements]="questionsTotalElements()"
+      [page]="questionsPage()"
+      [pageSize]="questionsPageSize()"
+      [pageSizeOptions]="pageSizeOptions"
+      [loading]="loadingQuestions()"
+      (searchQueryChange)="onSearchChange($event)"
+      (selectedSubjectChange)="onSubjectChange($event)"
+      (pageChange)="onQuestionsPageChange($event)"
       (openTranslation)="openTranslationEditor($event)"
     ></nag-question-translation-table>
   }
@@ -58,10 +64,15 @@
     <nag-batch-jobs-list
       [batchJobs]="batchJobs()"
       [loadingBatchJobs]="loadingBatchJobs()"
+      [totalElements]="batchJobsTotalElements()"
+      [page]="batchJobsPage()"
+      [pageSize]="batchJobsPageSize()"
+      [pageSizeOptions]="batchJobsPageSizeOptions"
       (backToQuestions)="currentTab.set('list')"
       (refreshJobs)="loadBatchJobs()"
       (cancelJob)="cancelJob($event)"
       (resumeJob)="resumeJob($event)"
+      (pageChange)="onBatchJobsPageChange($event)"
     ></nag-batch-jobs-list>
   }
 

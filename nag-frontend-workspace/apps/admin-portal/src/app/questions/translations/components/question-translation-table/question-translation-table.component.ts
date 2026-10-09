@@ -8,12 +8,19 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
+import { MatPaginatorModule, PageEvent } from '@angular/material/paginator';
 import { Question } from '@nag-frontend-workspace/questions-data-access';
 
 @Component({
   selector: 'nag-question-translation-table',
   standalone: true,
-  imports: [CommonModule, FormsModule, MatButtonModule, MatIconModule],
+  imports: [
+    CommonModule,
+    FormsModule,
+    MatButtonModule,
+    MatIconModule,
+    MatPaginatorModule,
+  ],
   templateUrl: './question-translation-table.component.html',
   styleUrl: './question-translation-table.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -25,10 +32,23 @@ export class QuestionTranslationTableComponent {
   selectedSubject = input<string>('ALL');
   activeLanguageName = input<string>('');
   selectedLanguage = input<string>('hi');
+  totalElements = input<number>(0);
+  page = input<number>(0);
+  pageSize = input<number>(20);
+  pageSizeOptions = input<number[]>([10, 25, 50]);
+  loading = input<boolean>(false);
 
   searchQueryChange = output<string>();
   selectedSubjectChange = output<string>();
   openTranslation = output<Question>();
+  pageChange = output<{ pageIndex: number; pageSize: number }>();
+
+  onPageChange(event: PageEvent): void {
+    this.pageChange.emit({
+      pageIndex: event.pageIndex,
+      pageSize: event.pageSize,
+    });
+  }
 
   getQuestionTranslationStatus(q: Question): string {
     const lang = this.selectedLanguage();

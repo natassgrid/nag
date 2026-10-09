@@ -19,6 +19,11 @@
 
 package com.examplatform.questionbank.service;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+
 import com.examplatform.questionbank.ai.embedding.EmbeddingService;
 import com.examplatform.questionbank.ai.similarity.SimilarityCheckResult;
 import com.examplatform.questionbank.domain.Question;
@@ -331,10 +336,17 @@ public class QuestionService {
         org.springframework.data.domain.Sort.Direction direction = "asc".equalsIgnoreCase(order)
                 ? org.springframework.data.domain.Sort.Direction.ASC
                 : org.springframework.data.domain.Sort.Direction.DESC;
-        String sortProperty = resolveQuestionSortProperty(sort);
+        org.springframework.data.domain.Sort sortSpec;
+        if (sort == null || sort.isBlank() || "updatedat".equalsIgnoreCase(sort.trim())) {
+            sortSpec = org.springframework.data.domain.Sort.by(direction, "updatedAt")
+                    .and(org.springframework.data.domain.Sort.by(direction, "createdAt"));
+        } else {
+            String sortProperty = resolveQuestionSortProperty(sort);
+            sortSpec = org.springframework.data.domain.Sort.by(direction, sortProperty)
+                    .and(Sort.by(Sort.Direction.DESC, "createdAt"));
+        }
         org.springframework.data.domain.Pageable pageable =
-                org.springframework.data.domain.PageRequest.of(page, size,
-                        org.springframework.data.domain.Sort.by(direction, sortProperty));
+                org.springframework.data.domain.PageRequest.of(page, size, sortSpec);
 
         org.springframework.data.jpa.domain.Specification<Question> spec =
                 org.springframework.data.jpa.domain.Specification.where(tenantEquals(tenantId));
@@ -401,7 +413,7 @@ public class QuestionService {
             String difficulty, String state, String search,
             String targetLang, String translationStatus,
             int page, int size, String tenantId) {
-        return listQuestions(subject, subjectId, topic, topicId, difficulty, state, search, targetLang, translationStatus, null, "desc", page, size, tenantId);
+        return listQuestions(subject, subjectId, topic, topicId, difficulty, state, search, targetLang, translationStatus, "updatedAt", "desc", page, size, tenantId);
     }
 
     @Transactional(readOnly = true)
@@ -409,18 +421,18 @@ public class QuestionService {
             String subject, Long subjectId, String topic, Long topicId,
             String difficulty, String state, String search,
             int page, int size, String tenantId) {
-        return listQuestions(subject, subjectId, topic, topicId, difficulty, state, search, null, null, null, "desc", page, size, tenantId);
+        return listQuestions(subject, subjectId, topic, topicId, difficulty, state, search, null, null, "updatedAt", "desc", page, size, tenantId);
     }
 
     @Transactional(readOnly = true)
     public org.springframework.data.domain.Page<QuestionResponse> listQuestions(
             String subject, String topic, String difficulty, String state,
             String search, int page, int size, String tenantId) {
-        return listQuestions(subject, null, topic, null, difficulty, state, search, null, null, null, "desc", page, size, tenantId);
+        return listQuestions(subject, null, topic, null, difficulty, state, search, null, null, "updatedAt", "desc", page, size, tenantId);
     }
 
     private String resolveQuestionSortProperty(String sort) {
-        if (sort == null || sort.isBlank()) return "createdAt";
+        if (sort == null || sort.isBlank()) return "updatedAt";
         return switch (sort.trim().toLowerCase()) {
             case "subject", "subjectname" -> "subject";
             case "topic", "topicname" -> "topic";
@@ -433,7 +445,7 @@ public class QuestionService {
             case "updatedat" -> "updatedAt";
             case "createdat", "created" -> "createdAt";
             case "id" -> "id";
-            default -> "createdAt";
+            default -> "updatedAt";
         };
     }
 

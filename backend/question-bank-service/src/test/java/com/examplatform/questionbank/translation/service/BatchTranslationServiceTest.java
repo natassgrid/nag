@@ -24,6 +24,11 @@ import com.examplatform.questionbank.translation.domain.BatchTranslationJobStatu
 import com.examplatform.questionbank.translation.dto.BatchTranslationJobResponse;
 import com.examplatform.questionbank.translation.dto.BatchTranslationRequest;
 import com.examplatform.questionbank.translation.repository.BatchTranslationJobRepository;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -156,6 +161,28 @@ class BatchTranslationServiceTest {
 
         assertThat(responses).hasSize(1);
         assertThat(responses.get(0).getId()).isEqualTo(jobId);
+    }
+
+    @Test
+    @DisplayName("Should list paginated batch translation jobs for tenant")
+    void shouldListPaginatedJobsForTenant() {
+        BatchTranslationJob job = BatchTranslationJob.builder()
+                .status(BatchTranslationJobStatus.COMPLETED)
+                .totalQuestions(20)
+                .processedQuestions(20)
+                .successfulQuestions(20)
+                .build();
+        ReflectionTestUtils.setField(job, "id", jobId);
+        job.setTenantId(tenantId);
+
+        Pageable pageable = PageRequest.of(0, 20, Sort.by(Sort.Direction.DESC, "updatedAt", "createdAt"));
+        when(jobRepository.findByTenantId(tenantId, pageable)).thenReturn(new PageImpl<>(List.of(job), pageable, 1));
+
+        Page<BatchTranslationJobResponse> responses = batchTranslationService.listJobs(tenantId, pageable);
+
+        assertThat(responses.getTotalElements()).isEqualTo(1);
+        assertThat(responses.getContent()).hasSize(1);
+        assertThat(responses.getContent().get(0).getId()).isEqualTo(jobId);
     }
 
     @Test

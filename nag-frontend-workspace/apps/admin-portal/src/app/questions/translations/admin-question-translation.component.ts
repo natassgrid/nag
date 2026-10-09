@@ -61,6 +61,12 @@ export class AdminQuestionTranslationComponent implements OnInit {
   readonly searchQuery = signal<string>('');
   readonly selectedSubject = signal<string>('ALL');
 
+  // Question Pagination State
+  readonly questionsPage = signal<number>(0);
+  readonly questionsPageSize = signal<number>(20);
+  readonly questionsTotalElements = signal<number>(0);
+  readonly pageSizeOptions = [10, 25, 50];
+
   readonly availableSubjects = computed(() => {
     const list = this.taxonomySubjects().map((s) => s.name);
     if (list.length > 0) return list;
@@ -68,19 +74,11 @@ export class AdminQuestionTranslationComponent implements OnInit {
     return fromQuestions as string[];
   });
 
-  readonly filteredQuestions = computed(() => {
-    const qList = this.questions();
-    const query = this.searchQuery().toLowerCase().trim();
-    const subject = this.selectedSubject();
-
-    return qList.filter((q) => {
-      const matchSubject = subject === 'ALL' || q.subject === subject;
-      const matchQuery =
-        !query ||
-        (q.content && q.content.toLowerCase().includes(query)) ||
-        (q.code && q.code.toLowerCase().includes(query)) ||
-        (q.id && q.id.toLowerCase().includes(query));
-      return matchSubject && matchQuery;
+  readonly displayedQuestions = computed(() => {
+    return [...this.questions()].sort((a: any, b: any) => {
+      const timeA = new Date(a.updatedAt || a.createdAt || 0).getTime();
+      const timeB = new Date(b.updatedAt || b.createdAt || 0).getTime();
+      return timeB - timeA;
     });
   });
 
@@ -95,11 +93,15 @@ export class AdminQuestionTranslationComponent implements OnInit {
   readonly translationStatus = signal<string>('DRAFT');
   readonly currentTranslationId = signal<string | null>(null);
 
-  // Batch Translation Modal State
+  // Batch Translation State
   readonly batchModalOpen = signal<boolean>(false);
   readonly submittingBatch = signal<boolean>(false);
   readonly loadingBatchJobs = signal<boolean>(false);
   readonly batchJobs = signal<BatchTranslationJobResponse[]>([]);
+  readonly batchJobsPage = signal<number>(0);
+  readonly batchJobsPageSize = signal<number>(20);
+  readonly batchJobsTotalElements = signal<number>(0);
+  readonly batchJobsPageSizeOptions = [10, 20, 50];
 
   readonly activeLanguageName = computed(() => {
     const lang = INDIC_TRANSLATION_LANGUAGES.find((l) => l.code === this.selectedLanguage());
@@ -122,37 +124,78 @@ export class AdminQuestionTranslationComponent implements OnInit {
   loadQuestions(): void {
     this.loadingQuestions.set(true);
     const filter: any = {
-      page: 0,
-      size: 100,
+      page: this.questionsPage(),
+      size: this.questionsPageSize(),
       targetLang: this.selectedLanguage(),
+      sort: 'updatedAt',
+      order: 'desc',
     };
+    if (this.selectedSubject() && this.selectedSubject() !== 'ALL') {
+      filter.subject = this.selectedSubject();
+    }
+    if (this.searchQuery() && this.searchQuery().trim()) {
+      filter.search = this.searchQuery().trim();
+    }
+
     this.questionBankService.loadQuestions(filter).subscribe({
       next: (res) => {
         this.questions.set(res.content || []);
+        this.questionsTotalElements.set(res.totalElements ?? (res.content?.length || 0));
         this.loadingQuestions.set(false);
       },
       error: () => {
+        this.questions.set([]);
+        this.questionsTotalElements.set(0);
         this.loadingQuestions.set(false);
       },
     });
+  }
+
+  onSearchChange(query: string): void {
+    this.searchQuery.set(query);
+    this.questionsPage.set(0);
+    this.loadQuestions();
+  }
+
+  onSubjectChange(subject: string): void {
+    this.selectedSubject.set(subject);
+    this.questionsPage.set(0);
+    this.loadQuestions();
+  }
+
+  onQuestionsPageChange(event: { pageIndex: number; pageSize: number }): void {
+    this.questionsPage.set(event.pageIndex);
+    this.questionsPageSize.set(event.pageSize);
+    this.loadQuestions();
   }
 
   loadBatchJobs(): void {
     this.loadingBatchJobs.set(true);
-    this.translationService.listBatchJobs().subscribe({
-      next: (jobs) => {
-        this.batchJobs.set(jobs || []);
-        this.loadingBatchJobs.set(false);
-      },
-      error: () => {
-        this.batchJobs.set([]);
-        this.loadingBatchJobs.set(false);
-      },
-    });
+    this.translationService
+      .listBatchJobs(this.batchJobsPage(), this.batchJobsPageSize())
+      .subscribe({
+        next: (res) => {
+          this.batchJobs.set(res.content || []);
+          this.batchJobsTotalElements.set(res.totalElements ?? (res.content?.length || 0));
+          this.loadingBatchJobs.set(false);
+        },
+        error: () => {
+          this.batchJobs.set([]);
+          this.batchJobsTotalElements.set(0);
+          this.loadingBatchJobs.set(false);
+        },
+      });
+  }
+
+  onBatchJobsPageChange(event: { pageIndex: number; pageSize: number }): void {
+    this.batchJobsPage.set(event.pageIndex);
+    this.batchJobsPageSize.set(event.pageSize);
+    this.loadBatchJobs();
   }
 
   setLanguage(code: string): void {
     this.selectedLanguage.set(code);
+    this.questionsPage.set(0);
     if (this.activeQuestion()) {
       this.fetchExistingTranslation(this.activeQuestion()!.id, code);
     }
@@ -320,6 +363,7 @@ export class AdminQuestionTranslationComponent implements OnInit {
     this.translationService.startBatchTranslation(req).subscribe({
       next: (job) => {
         this.batchJobs.update((jobs) => [job, ...jobs]);
+        this.batchJobsTotalElements.update((total) => total + 1);
         this.submittingBatch.set(false);
         this.closeBatchModal();
         this.currentTab.set('batch');

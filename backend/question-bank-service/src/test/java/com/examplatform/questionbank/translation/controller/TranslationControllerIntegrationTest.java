@@ -40,7 +40,10 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
+import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.MediaType;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
@@ -233,6 +236,32 @@ class TranslationControllerIntegrationTest extends AbstractIntegrationTest {
         }
 
         @Test
+        @DisplayName("+ve: ADMIN lists paginated batch jobs - returns 200 OK with Page")
+        void adminCanListBatchJobs() throws Exception {
+            BatchTranslationJobResponse jobResp = BatchTranslationJobResponse.builder()
+                    .id(JOB_ID)
+                    .status(BatchTranslationJobStatus.COMPLETED)
+                    .sourceLanguage("en")
+                    .targetLanguage("hi")
+                    .totalQuestions(10)
+                    .processedQuestions(10)
+                    .successfulQuestions(10)
+                    .progressPercentage(100.0)
+                    .build();
+
+            Page<BatchTranslationJobResponse> pagedResponse = new PageImpl<>(List.of(jobResp), PageRequest.of(0, 20), 1);
+            when(batchTranslationService.listJobs(anyString(), any(Pageable.class)))
+                    .thenReturn(pagedResponse);
+
+            mockMvc.perform(get("/api/v1/translations/batch?page=0&size=20")
+                            .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_ADMIN"))))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.content[0].id").value(JOB_ID.toString()))
+                    .andExpect(jsonPath("$.content[0].status").value("COMPLETED"))
+                    .andExpect(jsonPath("$.totalElements").value(1));
+        }
+
+        @Test
         @DisplayName("-ve: CANDIDATE role cannot trigger batch auto-translate - returns 403 Forbidden")
         void candidateCannotTriggerBatch() throws Exception {
             mockMvc.perform(post("/api/v1/translations/batch/auto-translate")
@@ -395,7 +424,7 @@ class TranslationControllerIntegrationTest extends AbstractIntegrationTest {
 
             when(questionService.listQuestions(
                     any(), any(), any(), any(), any(), any(), any(),
-                    eq("hi"), eq("APPROVED"), anyInt(), anyInt(), anyString()))
+                    eq("hi"), eq("APPROVED"), any(), any(), anyInt(), anyInt(), anyString()))
                     .thenReturn(new PageImpl<>(List.of(resp)));
 
             mockMvc.perform(get("/api/v1/translations/questions?targetLang=hi&translationStatus=APPROVED")
