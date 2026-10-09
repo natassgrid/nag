@@ -10,7 +10,7 @@ User=nag
 Group=nag
 WorkingDirectory=/opt/nag
 EnvironmentFile=-/etc/nag/backup.env
-ExecStart=/opt/nag/scripts/backup-postgres.sh
+ExecStart=/opt/nag/infrastructure/postgres-backup/backup-postgres.sh
 
 # Resource constraints ensuring ultra-low footprint (< 50MB)
 MemoryAccounting=true

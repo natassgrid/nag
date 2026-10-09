@@ -4,6 +4,8 @@
 
 This document specifies the operational design, configuration, and execution procedures for the **National Assessment Grid (NAG)** PostgreSQL automated backup and disaster recovery (DR) restoration pipeline.
 
+All backup scripts, policies, Docker Compose runners, and systemd units are organized in [`infrastructure/postgres-backup/`](file:///F:/code/IdeaProjects/nag/infrastructure/postgres-backup).
+
 The architecture provides resilient, encrypted, and ultra-economical backups with support for all platform microservice schemas, `pgvector` similarity search embeddings, and automatic AWS S3 lifecycle tiering for **less than $1.00/month**.
 
 ---
@@ -100,7 +102,9 @@ The backup pipeline dumps the complete PostgreSQL cluster database or designated
 
 ---
 
-## 🛠 Backup Utility: `scripts/backup-postgres.sh`
+## 🛠 Backup Utility: `infrastructure/postgres-backup/backup-postgres.sh`
+
+*(Also accessible via `./scripts/backup-postgres.sh`)*
 
 ### Features
 - Non-blocking online backup using `pg_dump` with consistent snapshot isolation.
@@ -113,7 +117,7 @@ The backup pipeline dumps the complete PostgreSQL cluster database or designated
 
 ```bash
 # General Usage
-./scripts/backup-postgres.sh [OPTIONS]
+./infrastructure/postgres-backup/backup-postgres.sh [OPTIONS]
 
 # Options
   -b, --bucket <bucket>          S3 bucket name (env: S3_BUCKET)
@@ -140,24 +144,26 @@ export POSTGRES_USER="exam_admin"
 export POSTGRES_PASSWORD="your_secure_password"
 export POSTGRES_DB="exam_platform"
 
-./scripts/backup-postgres.sh
+./infrastructure/postgres-backup/backup-postgres.sh
 ```
 
 #### 2. Local-Only Backup (e.g. before major deployment)
 ```bash
-./scripts/backup-postgres.sh --no-upload --output-dir /var/backups/nag
+./infrastructure/postgres-backup/backup-postgres.sh --no-upload --output-dir /var/backups/nag
 ```
 
 #### 3. Backup to AWS Lightsail Object Storage
 ```bash
-./scripts/backup-postgres.sh \
+./infrastructure/postgres-backup/backup-postgres.sh \
   --bucket nag-lightsail-bucket \
   --endpoint-url https://s3.ap-south-1.amazonaws.com
 ```
 
 ---
 
-## 🔄 Restoration Utility: `scripts/restore-postgres.sh`
+## 🔄 Restoration Utility: `infrastructure/postgres-backup/restore-postgres.sh`
+
+*(Also accessible via `./scripts/restore-postgres.sh`)*
 
 ### Features
 1. **Pre-Restoration Safeguards**:
@@ -176,7 +182,7 @@ export POSTGRES_DB="exam_platform"
 
 ```bash
 # General Usage
-./scripts/restore-postgres.sh [OPTIONS] [--latest | <s3-uri-or-filename>]
+./infrastructure/postgres-backup/restore-postgres.sh [OPTIONS] [--latest | <s3-uri-or-filename>]
 
 # Options
   --latest                       Find and restore the newest backup in S3
@@ -196,19 +202,19 @@ export POSTGRES_DB="exam_platform"
 
 #### 1. Restore the Most Recent Backup from S3
 ```bash
-S3_BUCKET="nag-production-backups" ./scripts/restore-postgres.sh --latest
+S3_BUCKET="nag-production-backups" ./infrastructure/postgres-backup/restore-postgres.sh --latest
 ```
 
 #### 2. Restore to an Isolated Staging Database for Testing
 ```bash
-./scripts/restore-postgres.sh \
+./infrastructure/postgres-backup/restore-postgres.sh \
   s3://nag-production-backups/backups/postgres/nag-db-exam_platform-20261009_020000Z.sql.zst \
   --target-db exam_platform_staging
 ```
 
 #### 3. Non-Interactive Restoration (Automated DR Drill)
 ```bash
-./scripts/restore-postgres.sh \
+./infrastructure/postgres-backup/restore-postgres.sh \
   --latest \
   --bucket nag-production-backups \
   --non-interactive
@@ -224,7 +230,7 @@ The backup runner can be deployed alongside the database as a Docker Compose ser
 ```bash
 # Start the backup sidecar runner in the background
 docker compose -f infrastructure/docker-compose/docker-compose.yml \
-               -f infrastructure/docker-compose/docker-compose.backup.yml up -d postgres-backup
+               -f infrastructure/postgres-backup/docker-compose.backup.yml up -d postgres-backup
 ```
 
 The sidecar container runs Alpine Linux with `crond` configured to execute daily at `02:00 UTC`.
@@ -232,8 +238,8 @@ The sidecar container runs Alpine Linux with `crond` configured to execute daily
 ### Option B: Host Systemd Timer (Recommended for Virtual Machines)
 1. Copy the systemd service and timer files:
    ```bash
-   sudo cp infrastructure/systemd/nag-postgres-backup.service /etc/systemd/system/
-   sudo cp infrastructure/systemd/nag-postgres-backup.timer /etc/systemd/system/
+   sudo cp infrastructure/postgres-backup/nag-postgres-backup.service /etc/systemd/system/
+   sudo cp infrastructure/postgres-backup/nag-postgres-backup.timer /etc/systemd/system/
    ```
 2. Create environment configuration `/etc/nag/backup.env`:
    ```bash
@@ -262,12 +268,12 @@ The sidecar container runs Alpine Linux with `crond` configured to execute daily
 ## 🔒 AWS S3 & IAM Provisioning
 
 ### 1. S3 Lifecycle Rules Configuration
-Apply the lifecycle policy located at `infrastructure/aws/s3-lifecycle-policy.json`:
+Apply the lifecycle policy located at `infrastructure/postgres-backup/s3-lifecycle-policy.json`:
 
 ```bash
 aws s3api put-bucket-lifecycle-configuration \
   --bucket YOUR_BACKUP_BUCKET_NAME \
-  --lifecycle-configuration file://infrastructure/aws/s3-lifecycle-policy.json
+  --lifecycle-configuration file://infrastructure/postgres-backup/s3-lifecycle-policy.json
 ```
 
 **Configured Rules**:
@@ -276,13 +282,13 @@ aws s3api put-bucket-lifecycle-configuration \
 - **Rule 3**: Abort incomplete multipart uploads after **1 day**.
 
 ### 2. Least-Privilege IAM Policy
-Create the IAM policy using `infrastructure/aws/iam-backup-policy.json`:
+Create the IAM policy using `infrastructure/postgres-backup/iam-backup-policy.json`:
 
 ```bash
 # Replace YOUR_BACKUP_BUCKET_NAME in the file, then create policy
 aws iam create-policy \
   --policy-name NagPostgresBackupPolicy \
-  --policy-document file://infrastructure/aws/iam-backup-policy.json
+  --policy-document file://infrastructure/postgres-backup/iam-backup-policy.json
 ```
 
 Attach this policy to the IAM role or user used by the Lightsail instance or backup container.
@@ -309,7 +315,7 @@ Attach this policy to the IAM role or user used by the Lightsail instance or bac
        │
        ▼
 3. Execute restore pipeline
-   $ ./scripts/restore-postgres.sh --latest --bucket YOUR_BACKUP_BUCKET
+   $ ./infrastructure/postgres-backup/restore-postgres.sh --latest --bucket YOUR_BACKUP_BUCKET
        │
        ├─► Verification: SHA-256 Checksum verified
        ├─► Safety: Pre-restore snapshot taken

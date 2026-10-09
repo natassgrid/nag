@@ -38,8 +38,8 @@ services:
       WEBHOOK_URL: ${WEBHOOK_URL:-}
       BACKUP_CRON_SCHEDULE: ${BACKUP_CRON_SCHEDULE:-0 2 * * *}
     volumes:
-      - ../../scripts/backup-postgres.sh:/scripts/backup-postgres.sh:ro
-      - ../../scripts/restore-postgres.sh:/scripts/restore-postgres.sh:ro
+      - ./backup-postgres.sh:/scripts/backup-postgres.sh:ro
+      - ./restore-postgres.sh:/scripts/restore-postgres.sh:ro
       - /tmp/nag-postgres-backups:/tmp/nag-postgres-backups
     entrypoint:
       - /bin/sh
