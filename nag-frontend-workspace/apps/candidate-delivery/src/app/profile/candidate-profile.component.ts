@@ -247,7 +247,7 @@ export class CandidateProfileComponent implements OnInit {
   }
 
   handleDeleteEducation(id: string): void {
-    this.profile.update((p) => ({\
+    this.profile.update((p) => ({
       ...p,
       education: p.education.filter((e) => e.id !== id),
     }));
