@@ -39,7 +39,7 @@ describe('QuestionsFeatureBank', () => {
       total: jest.fn().mockReturnValue(0),
       totalPages: jest.fn().mockReturnValue(1),
       currentPage: jest.fn().mockReturnValue(0),
-      pageSize: jest.fn().mockReturnValue(20),
+      pageSize: Object.assign(jest.fn().mockReturnValue(20), { set: jest.fn() }),
       loading: jest.fn().mockReturnValue(false),
       filter: { update: jest.fn() },
       loadQuestions: jest.fn().mockReturnValue(of({ content: [], totalElements: 0, totalPages: 1 })),
@@ -100,6 +100,18 @@ describe('QuestionsFeatureBank', () => {
     expect(component.selectedDifficulty()).toBe('ALL');
     expect(component.searchQuery()).toBe('');
   });
+  it("should update page size and reload questions with selected size", () => {
+    questionServiceMock.loadQuestions.mockClear();
+    component.onPageSizeChange(50);
+    expect(questionServiceMock.filter.update).toHaveBeenCalled();
+    expect(questionServiceMock.loadQuestions).toHaveBeenCalledWith(
+      expect.objectContaining({
+        page: 0,
+        size: 50,
+      })
+    );
+  });
+
   it("should toggle selection and select all", () => {
     questionServiceMock.questions.mockReturnValue([{ id: "q1" }, { id: "q2" }]);
     expect(component.selectedQuestionIds().size).toBe(0);

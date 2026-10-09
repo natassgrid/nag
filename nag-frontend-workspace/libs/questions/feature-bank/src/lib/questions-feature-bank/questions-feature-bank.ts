@@ -207,8 +207,11 @@ export class QuestionsFeatureBank implements OnInit {
   }
 
   onPageSizeChange(size: number): void {
+    if (typeof (this.questionService.pageSize as any)?.set === 'function') {
+      (this.questionService.pageSize as any).set(size);
+    }
     this.questionService.filter.update((f) => ({ ...f, size }));
-    this.applyFilters(0);
+    this.applyFilters(0, size);
   }
 
   goToPage(page: number): void {
@@ -241,7 +244,14 @@ export class QuestionsFeatureBank implements OnInit {
     });
   }
 
-  applyFilters(page: number): void {
+  applyFilters(page: number, size?: number): void {
+    if (size !== undefined) {
+      if (typeof (this.questionService.pageSize as any)?.set === 'function') {
+        (this.questionService.pageSize as any).set(size);
+      }
+      this.questionService.filter.update((f) => ({ ...f, size }));
+    }
+    const currentSize = size ?? this.questionService.pageSize();
     const sub = this.selectedSubject();
     const diff = this.selectedDifficulty();
     const stat = this.selectedStatus();
@@ -250,7 +260,7 @@ export class QuestionsFeatureBank implements OnInit {
     this.questionService
       .loadQuestions({
         page,
-        size: this.questionService.pageSize(),
+        size: currentSize,
         search: search ? search : undefined,
         subject: sub !== 'ALL' ? sub : undefined,
         difficulty: diff !== 'ALL' ? diff : undefined,
