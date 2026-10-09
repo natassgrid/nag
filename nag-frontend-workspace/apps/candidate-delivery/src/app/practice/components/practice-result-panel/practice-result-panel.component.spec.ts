@@ -76,7 +76,7 @@ describe('PracticeResultPanelComponent', () => {
 
   it('should load practice result and display summary', () => {
     expect(component).toBeTruthy();
-    expect(practiceServiceMock.getResult).toHaveBeenCalledWith('session-123');
+    expect(practiceServiceMock.getResult).toHaveBeenCalledWith('session-123', 'en');
     expect(component.result()).toEqual(mockResult);
     expect(component.isLoading()).toBe(false);
   });

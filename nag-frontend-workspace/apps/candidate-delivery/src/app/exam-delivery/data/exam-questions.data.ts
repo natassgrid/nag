@@ -22,7 +22,7 @@ export const PREVIEW_QUESTIONS: ExamItem[] = [
     order: 2,
     questionCode: 'SAMPLE-APT-02',
     content:
-      '**Sample Quantitative Aptitude**: A train traveling at a constant speed of $72\\text{ km/h}$ crosses a $200\\text{ m}$ long station platform in $20\\text{ seconds}$. What is the length of the train in meters?\\n\\n$$\\text{Speed} = 72 \\times \\frac{5}{18} = 20\\text{ m/s}$$',
+      '**Sample Quantitative Aptitude**: A train traveling at a constant speed of $72\\text{ km/h}$ crosses a $200\\text{ m}$ long station platform in $20\\text{ seconds}$. What is the length of the train in meters?\n\n$$\\text{Speed} = 72 \\times \\frac{5}{18} = 20\\text{ m/s}$$',
     options: [
       { id: 'opt-a', text: '$150\\text{ m}$' },
       { id: 'opt-b', text: '$200\\text{ m}$' },
@@ -55,7 +55,7 @@ export const PRACTICE_QUESTIONS: ExamItem[] = [
     order: 1,
     questionCode: 'PRAC-ALGO-101',
     content:
-      'What is the tightest worst-case asymptotic time complexity of building a Max-Heap from an unsorted array of $n$ elements using Floyd’s linear build-heap algorithm?\\n\\n$$\\sum_{h=0}^{\\lfloor \\lg n \\rfloor} \\left\\lceil \\frac{n}{2^{h+1}} \\right\\rceil O(h) = O(n)$$',
+      'What is the tightest worst-case asymptotic time complexity of building a Max-Heap from an unsorted array of $n$ elements using Floyd’s linear build-heap algorithm?\n\n$$\\sum_{h=0}^{\\lfloor \\lg n \\rfloor} \\left\\lceil \\frac{n}{2^{h+1}} \\right\\rceil O(h) = O(n)$$',
     options: [
       { id: 'opt-a', text: '$O(n \\log n)$' },
       { id: 'opt-b', text: '$O(n)$' },
@@ -66,13 +66,26 @@ export const PRACTICE_QUESTIONS: ExamItem[] = [
     negativeMarks: 1,
     correctOptionId: 'opt-b',
     isVisited: true,
+    translations: {
+      hi: {
+        languageCode: 'hi',
+        content:
+          'फ्लॉयड के रैखिक बिल्ड-हीप एल्गोरिदम का उपयोग करके $n$ तत्वों की अव्यवस्थित सरणी से मैक्स-हीप बनाने की सबसे सख्त सबसे खराब स्थिति स्पर्शोन्मुख समय जटिलता क्या है?\n\n$$\\sum_{h=0}^{\\lfloor \\lg n \\rfloor} \\left\\lceil \\frac{n}{2^{h+1}} \\right\\rceil O(h) = O(n)$$',
+        options: [
+          { id: 'opt-a', text: '$O(n \\log n)$' },
+          { id: 'opt-b', text: '$O(n)$' },
+          { id: 'opt-c', text: '$O(\\log n)$' },
+          { id: 'opt-d', text: '$O(n^2)$' },
+        ],
+      },
+    },
   },
   {
     id: 'prac-2',
     order: 2,
     questionCode: 'PRAC-MATH-202',
     content:
-      'Compute the determinant of the $2 \\times 2$ covariance matrix given by:\\n\\n$$\\mathbf{\\Sigma} = \\begin{pmatrix} 4 & 2 \\\\ 2 & 3 \\end{pmatrix}$$',
+      'Compute the determinant of the $2 \\times 2$ covariance matrix given by:\n\n$$\\mathbf{\\Sigma} = \\begin{pmatrix} 4 & 2 \\\\ 2 & 3 \\end{pmatrix}$$',
     options: [
       { id: 'opt-a', text: '$8$' },
       { id: 'opt-b', text: '$12$' },
@@ -82,13 +95,26 @@ export const PRACTICE_QUESTIONS: ExamItem[] = [
     marks: 4,
     negativeMarks: 1,
     correctOptionId: 'opt-a',
+    translations: {
+      hi: {
+        languageCode: 'hi',
+        content:
+          'दिए गए $2 \\times 2$ सहप्रसरण मैट्रिक्स के निर्धारक (डिटरमिनेंट) की गणना करें:\n\n$$\\mathbf{\\Sigma} = \\begin{pmatrix} 4 & 2 \\\\ 2 & 3 \\end{pmatrix}$$',
+        options: [
+          { id: 'opt-a', text: '$8$' },
+          { id: 'opt-b', text: '$12$' },
+          { id: 'opt-c', text: '$10$' },
+          { id: 'opt-d', text: '$16$' },
+        ],
+      },
+    },
   },
   {
     id: 'prac-3',
     order: 3,
     questionCode: 'PRAC-SYS-305',
     content:
-      'In an operating system with a 32-bit virtual address space and a $4\\text{ KB}$ page size, calculate the number of page entries required in a single-level page table.\\n\\n$$\\text{Number of Pages} = \\frac{2^{32}}{2^{12}} = 2^{20}$$',
+      'In an operating system with a 32-bit virtual address space and a $4\\text{ KB}$ page size, calculate the number of page entries required in a single-level page table.\n\n$$\\text{Number of Pages} = \\frac{2^{32}}{2^{12}} = 2^{20}$$',
     options: [
       { id: 'opt-a', text: '$2^{10} = 1,024$' },
       { id: 'opt-b', text: '$2^{20} = 1,048,576$' },
@@ -114,6 +140,19 @@ export const PRACTICE_QUESTIONS: ExamItem[] = [
     marks: 4,
     negativeMarks: 1,
     correctOptionId: 'opt-a',
+    translations: {
+      hi: {
+        languageCode: 'hi',
+        content:
+          'कौन सी डेटा संरचना पथ संपीड़न और रैंक अनुमान के साथ `find` और `union` दोनों संचालन के लिए परिशोधित $O(1)$ समय जटिलता प्रदान करती है?',
+        options: [
+          { id: 'opt-a', text: 'डिसजॉइंट सेट यूनियन (Union-Find)' },
+          { id: 'opt-b', text: 'फाइबोनैचि हीप (Fibonacci Heap)' },
+          { id: 'opt-c', text: 'रेड-ब्लैक बैलेंस्ड सर्च ट्री' },
+          { id: 'opt-d', text: 'ट्राई डेटा संरचना (Trie Data Structure)' },
+        ],
+      },
+    },
   },
   {
     id: 'prac-5',
@@ -139,7 +178,7 @@ export const LIVE_QUESTIONS: ExamItem[] = [
     order: 1,
     questionCode: 'NES-ALGO-101',
     content:
-      'What is the tightest worst-case asymptotic time complexity of building a Max-Heap from an unsorted array of $n$ elements using Floyd’s algorithm?\\n\\n$$\\sum_{h=0}^{\\lfloor \\lg n \\rfloor} \\left\\lceil \\frac{n}{2^{h+1}} \\right\\rceil O(h) = O(n)$$',
+      'What is the tightest worst-case asymptotic time complexity of building a Max-Heap from an unsorted array of $n$ elements using Floyd’s algorithm?\n\n$$\\sum_{h=0}^{\\lfloor \\lg n \\rfloor} \\left\\lceil \\frac{n}{2^{h+1}} \\right\\rceil O(h) = O(n)$$',
     options: [
       { id: 'opt-a', text: '$O(n \\log n)$' },
       { id: 'opt-b', text: '$O(n)$' },
@@ -155,7 +194,7 @@ export const LIVE_QUESTIONS: ExamItem[] = [
     order: 2,
     questionCode: 'NES-MATH-202',
     content:
-      'Compute the determinant of the $2 \\times 2$ covariance matrix given by:\\n\\n$$\\mathbf{\\Sigma} = \\begin{pmatrix} 4 & 2 \\\\ 2 & 3 \\end{pmatrix}$$',
+      'Compute the determinant of the $2 \\times 2$ covariance matrix given by:\n\n$$\\mathbf{\\Sigma} = \\begin{pmatrix} 4 & 2 \\\\ 2 & 3 \\end{pmatrix}$$',
     options: [
       { id: 'opt-a', text: '$8$' },
       { id: 'opt-b', text: '$12$' },

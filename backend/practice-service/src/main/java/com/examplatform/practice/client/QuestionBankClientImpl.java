@@ -2,6 +2,8 @@
 package com.examplatform.practice.client;
 
 import com.examplatform.practice.dto.AnswerKeyDto;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -15,9 +17,13 @@ public class QuestionBankClientImpl implements QuestionBankClient {
     private static final Logger log = LoggerFactory.getLogger(QuestionBankClientImpl.class);
 
     private final JdbcTemplate jdbcTemplate;
+    private final ObjectMapper objectMapper;
 
-    public QuestionBankClientImpl(@Autowired(required = false) JdbcTemplate jdbcTemplate) {
+    public QuestionBankClientImpl(
+            @Autowired(required = false) JdbcTemplate jdbcTemplate,
+            @Autowired(required = false) ObjectMapper objectMapper) {
         this.jdbcTemplate = jdbcTemplate;
+        this.objectMapper = (objectMapper != null) ? objectMapper : new ObjectMapper();
     }
 
     @Override
@@ -39,6 +45,54 @@ public class QuestionBankClientImpl implements QuestionBankClient {
                 WHERE id IN (%s)
                 """, inSql);
 
+            // Query translations if available
+            Map<UUID, Map<String, Map<String, Object>>> translationsByQuestion = new HashMap<>();
+            try {
+                String transSql = String.format("""
+                    SELECT question_id, language_code, translated_payload
+                    FROM question_service.translation
+                    WHERE status IN ('PUBLISHED', 'APPROVED')
+                      AND question_id IN (%s)
+                    """, inSql);
+
+                jdbcTemplate.query(transSql, rs -> {
+                    UUID qId = rs.getObject("question_id", UUID.class);
+                    String langCode = rs.getString("language_code");
+                    String payload = rs.getString("translated_payload");
+
+                    if (qId != null && langCode != null && payload != null && !payload.isBlank()) {
+                        try {
+                            JsonNode node = objectMapper.readTree(payload);
+                            Map<String, Object> transMap = new HashMap<>();
+                            transMap.put("languageCode", langCode);
+                            if (node.has("content")) {
+                                transMap.put("content", node.get("content").asText());
+                            }
+                            if (node.has("explanation")) {
+                                transMap.put("explanation", node.get("explanation").asText());
+                            }
+                            if (node.has("options") && node.get("options").isArray()) {
+                                List<Map<String, Object>> optionsList = new ArrayList<>();
+                                for (JsonNode opt : node.get("options")) {
+                                    Map<String, Object> optMap = new HashMap<>();
+                                    if (opt.has("id")) optMap.put("id", opt.get("id").asText());
+                                    if (opt.has("text")) optMap.put("text", opt.get("text").asText());
+                                    optionsList.add(optMap);
+                                }
+                                transMap.put("options", optionsList);
+                            }
+                            translationsByQuestion
+                                    .computeIfAbsent(qId, k -> new HashMap<>())
+                                    .put(langCode, transMap);
+                        } catch (Exception parseEx) {
+                            log.warn("Failed to parse translation payload for question {}: {}", qId, parseEx.getMessage());
+                        }
+                    }
+                }, questionIds.toArray());
+            } catch (Exception transEx) {
+                log.debug("No translations found or table question_service.translation not present: {}", transEx.getMessage());
+            }
+
             Map<UUID, AnswerKeyDto> map = new HashMap<>();
             jdbcTemplate.query(sql, rs -> {
                 UUID qId = rs.getObject("id", UUID.class);
@@ -53,9 +107,10 @@ public class QuestionBankClientImpl implements QuestionBankClient {
                 String explanation = rs.getString("explanation");
 
                 if (qId != null) {
+                    Map<String, Map<String, Object>> qTranslations = translationsByQuestion.get(qId);
                     map.put(qId, new AnswerKeyDto(
                             qId, answerKey, questionType, topicId, topicName, difficulty, 2,
-                            content, optionsJson, explanation, subject
+                            content, optionsJson, explanation, subject, qTranslations
                     ));
                 }
             }, questionIds.toArray());

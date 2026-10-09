@@ -76,7 +76,10 @@
 
     <!-- Detailed Question-by-Question Review -->
     @if (result()!.questionResults && result()!.questionResults.length > 0) {
-      <app-practice-question-review [questionResults]="result()!.questionResults"></app-practice-question-review>
+      <app-practice-question-review
+        [questionResults]="result()!.questionResults"
+        [preferredLanguage]="i18nService?.currentLanguage() || 'en'"
+      ></app-practice-question-review>
     } @else {
       <div class="bg-white rounded-2xl p-10 border border-slate-200/80 shadow-xs text-center space-y-2">
         <mat-icon class="!text-3xl text-slate-400">help_outline</mat-icon>

@@ -1,10 +1,10 @@
 <div class="bg-white rounded-2xl p-6 border border-slate-200/80 shadow-xs space-y-6">
   <!-- Header & Filter Tabs -->
-  <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-100 pb-5">
+  <div class="flex flex-col sm:row sm:items-center justify-between gap-4 border-b border-slate-100 pb-5">
     <div>
       <h2 class="text-lg font-bold text-slate-900 tracking-tight">Question-by-Question Review</h2>
       <p class="text-xs text-slate-500 mt-0.5">
-        Inspect your chosen response against the verified answer key with comprehensive explanations.
+        Inspect your chosen response against the verified answer key with comprehensive bilingual explanations.
       </p>
     </div>
 
@@ -75,7 +75,7 @@
           [class.border-slate-200]="!qr.candidateAnswer"
           [class.bg-slate-50/40]="!qr.candidateAnswer"
         >
-          <!-- Top Row: Question Index, Type Chip, Topic Chip, Flag Badge, Result Badge -->
+          <!-- Top Row: Question Index, Type Chip, Topic Chip, Flag Badge, Language Badge, Result Badge -->
           <div class="flex flex-wrap items-center justify-between gap-3">
             <div class="flex flex-wrap items-center gap-2">
               <span class="inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-black bg-slate-900 text-white font-mono">
@@ -87,6 +87,17 @@
               @if (qr.subject || qr.topic) {
                 <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-indigo-50 text-indigo-700 border border-indigo-100">
                   {{ qr.subject || qr.topic }}
+                </span>
+              }
+              @if (isFallback(qr)) {
+                <span class="fallback-indicator inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-amber-50 text-amber-800 border border-amber-200">
+                  <mat-icon class="!text-xs !w-3.5 !h-3.5 leading-none">info</mat-icon>
+                  Original English (Translation Unavailable)
+                </span>
+              } @else if (hasTranslation(qr)) {
+                <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-indigo-50 text-indigo-700 border border-indigo-200">
+                  <mat-icon class="!text-xs !w-3.5 !h-3.5 leading-none">translate</mat-icon>
+                  {{ (qr.primaryLanguage || qr.primaryTranslation?.languageCode || effectiveLanguage()) | uppercase }} Primary
                 </span>
               }
               @if (qr.markedForReview) {
@@ -124,9 +135,29 @@
             </div>
           </div>
 
-          <!-- Question Content / Stem with LaTeX Math Support -->
-          <div class="text-sm sm:text-base font-medium text-slate-900 leading-relaxed font-sans">
-            <nag-math-renderer [content]="qr.content || 'Practice Question'" />
+          <!-- Question Content / Stem with Bilingual Support -->
+          <div class="question-stem-box bg-white/60 p-4 sm:p-5 rounded-xl border border-slate-200/80 space-y-3">
+            @if (hasTranslation(qr)) {
+              <!-- Primary Language Stimulus -->
+              <div class="primary-stimulus text-sm sm:text-base font-medium text-slate-900 leading-relaxed font-sans">
+                <nag-math-renderer [content]="getPrimaryContent(qr)" />
+              </div>
+              <!-- English Reference Section -->
+              <div class="english-reference pt-3 border-t border-slate-200">
+                <div class="flex items-center gap-1.5 text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">
+                  <mat-icon class="!text-xs !w-3.5 !h-3.5 text-slate-400">translate</mat-icon>
+                  English Reference:
+                </div>
+                <div class="bg-slate-50 p-3 rounded-lg border border-slate-200 text-slate-700 text-xs sm:text-sm leading-relaxed">
+                  <nag-math-renderer [content]="qr.content || 'Practice Question'" />
+                </div>
+              </div>
+            } @else {
+              <!-- Standard / Fallback Stimulus -->
+              <div class="text-sm sm:text-base font-medium text-slate-900 leading-relaxed font-sans">
+                <nag-math-renderer [content]="qr.content || 'Practice Question'" />
+              </div>
+            }
           </div>
 
           <!-- Options Grid / List for MCQ -->
@@ -161,7 +192,18 @@
                       {{ opt.id }}
                     </span>
                     <div class="grow font-medium">
-                      <nag-math-renderer [content]="opt.text" [inline]="true" />
+                      @if (hasTranslation(qr)) {
+                        <nag-math-renderer [content]="getOptionText(qr, opt)" [inline]="true" />
+                        @if (getEnglishReferenceOptionText(qr, opt); as enOpt) {
+                          @if (enOpt !== getOptionText(qr, opt)) {
+                            <span class="option-text-baseline block text-xs text-slate-400 mt-0.5">
+                              En: <nag-math-renderer [content]="enOpt" [inline]="true" />
+                            </span>
+                          }
+                        }
+                      } @else {
+                        <nag-math-renderer [content]="opt.text" [inline]="true" />
+                      }
                     </div>
                   </div>
 
@@ -238,16 +280,36 @@
             </div>
           }
 
-          <!-- Explanation / Solution Box -->
-          @if (qr.explanation) {
-            <div class="bg-amber-50/70 rounded-xl p-4 border border-amber-200/80 space-y-1.5">
+          <!-- Explanation / Solution Box with Bilingual Support -->
+          @if (qr.explanation || hasTranslatedExplanation(qr)) {
+            <div class="bg-amber-50/70 rounded-xl p-4 border border-amber-200/80 space-y-2">
               <div class="flex items-center gap-1.5 text-xs font-bold text-amber-800">
                 <mat-icon class="!text-sm !w-4 !h-4 leading-none text-amber-600">lightbulb</mat-icon>
                 <span>Solution & Explanation</span>
               </div>
-              <div class="text-xs sm:text-sm text-amber-950 leading-relaxed pl-5 font-sans">
-                <nag-math-renderer [content]="qr.explanation" />
-              </div>
+              @if (hasTranslatedExplanation(qr)) {
+                <!-- Primary Language Explanation -->
+                <div class="text-xs sm:text-sm text-amber-950 leading-relaxed pl-5 font-sans">
+                  <nag-math-renderer [content]="getTranslatedExplanation(qr) || ''" />
+                </div>
+                @if (qr.explanation) {
+                  <!-- English Baseline Explanation -->
+                  <div class="pt-2.5 border-t border-amber-200/60 ml-5">
+                    <div class="flex items-center gap-1 text-[11px] font-bold text-amber-700 uppercase tracking-wider mb-1">
+                      <mat-icon class="!text-xs !w-3.5 !h-3.5">translate</mat-icon>
+                      English Reference Explanation:
+                    </div>
+                    <div class="text-xs text-amber-900/90 leading-relaxed">
+                      <nag-math-renderer [content]="qr.explanation" />
+                    </div>
+                  </div>
+                }
+              } @else {
+                <!-- Single / Original English Explanation -->
+                <div class="text-xs sm:text-sm text-amber-950 leading-relaxed pl-5 font-sans">
+                  <nag-math-renderer [content]="qr.explanation || ''" />
+                </div>
+              }
             </div>
           }
         </div>

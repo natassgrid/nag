@@ -45,9 +45,10 @@ public class PracticeSessionController {
     @GetMapping("/sessions/{sessionId}/questions")
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<List<PracticeQuestionDto>> getSessionQuestions(
-            @PathVariable UUID sessionId) {
+            @PathVariable UUID sessionId,
+            @RequestParam(required = false) String lang) {
         UUID candidateId = UserContext.getRequiredUserId();
-        return ResponseEntity.ok(practiceSessionService.getSessionQuestions(sessionId, candidateId));
+        return ResponseEntity.ok(practiceSessionService.getSessionQuestions(sessionId, candidateId, lang));
     }
 
     @PutMapping("/sessions/{sessionId}/response")
@@ -71,9 +72,10 @@ public class PracticeSessionController {
     @GetMapping("/sessions/{sessionId}/result")
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<PracticeResultDto> getResult(
-            @PathVariable UUID sessionId) {
+            @PathVariable UUID sessionId,
+            @RequestParam(required = false) String lang) {
         UUID candidateId = UserContext.getRequiredUserId();
-        return ResponseEntity.ok(practiceResultService.getResult(sessionId, candidateId));
+        return ResponseEntity.ok(practiceResultService.getResult(sessionId, candidateId, lang));
     }
 
     @GetMapping("/history")

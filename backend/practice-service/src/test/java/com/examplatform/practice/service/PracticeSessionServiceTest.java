@@ -1,13 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 package com.examplatform.practice.service;
 
+import com.examplatform.practice.client.QuestionBankClient;
 import com.examplatform.practice.domain.PracticeResponse;
 import com.examplatform.practice.domain.PracticeSession;
 import com.examplatform.practice.domain.PracticeSet;
-import com.examplatform.practice.dto.PracticeResultDto;
-import com.examplatform.practice.dto.PracticeSessionDto;
-import com.examplatform.practice.dto.SaveResponseRequest;
-import com.examplatform.practice.dto.StartSessionRequest;
+import com.examplatform.practice.dto.*;
 import com.examplatform.practice.event.PracticeSessionCompletedEvent;
 import com.examplatform.practice.exception.PracticeSessionNotFoundException;
 import com.examplatform.practice.exception.PracticeSetNotFoundException;
@@ -15,6 +13,7 @@ import com.examplatform.practice.exception.SessionAlreadySubmittedException;
 import com.examplatform.practice.repository.PracticeResponseRepository;
 import com.examplatform.practice.repository.PracticeSessionRepository;
 import com.examplatform.practice.repository.PracticeSetRepository;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -26,9 +25,7 @@ import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import java.time.Instant;
-import java.util.Collections;
-import java.util.Optional;
-import java.util.UUID;
+import java.util.*;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -54,9 +51,12 @@ class PracticeSessionServiceTest {
     private PracticeResultService practiceResultService;
 
     @Mock
+    private QuestionBankClient questionBankClient;
+
+    @Mock
     private ApplicationEventPublisher eventPublisher;
 
-    @InjectMocks
+    private ObjectMapper objectMapper;
     private PracticeSessionService practiceSessionService;
 
     private UUID candidateId;
@@ -67,6 +67,18 @@ class PracticeSessionServiceTest {
 
     @BeforeEach
     void setUp() {
+        objectMapper = new ObjectMapper();
+        practiceSessionService = new PracticeSessionService(
+                practiceSessionRepository,
+                practiceSetRepository,
+                practiceResponseRepository,
+                practiceEvaluationService,
+                practiceResultService,
+                questionBankClient,
+                eventPublisher,
+                objectMapper
+        );
+
         candidateId = UUID.randomUUID();
         practiceSetId = UUID.randomUUID();
         sessionId = UUID.randomUUID();
@@ -88,6 +100,7 @@ class PracticeSessionServiceTest {
                 .startedAt(Instant.now())
                 .totalQuestions(20)
                 .durationMinutes(45)
+                .preferredLanguage("en")
                 .build();
         ReflectionTestUtils.setField(practiceSession, "id", sessionId);
     }
@@ -95,7 +108,7 @@ class PracticeSessionServiceTest {
     @Test
     @DisplayName("startSession - successfully starts practice session for published set")
     void testStartSessionSuccess() {
-        StartSessionRequest req = new StartSessionRequest(practiceSetId, "TIMED");
+        StartSessionRequest req = new StartSessionRequest(practiceSetId, "TIMED", "hi");
         when(practiceSetRepository.findById(practiceSetId)).thenReturn(Optional.of(practiceSet));
         when(practiceSessionRepository.save(any(PracticeSession.class))).thenAnswer(invocation -> {
             PracticeSession ps = invocation.getArgument(0);
@@ -109,6 +122,7 @@ class PracticeSessionServiceTest {
         assertThat(result.practiceSetId()).isEqualTo(practiceSetId);
         assertThat(result.mode()).isEqualTo("TIMED");
         assertThat(result.status()).isEqualTo("IN_PROGRESS");
+        assertThat(result.preferredLanguage()).isEqualTo("hi");
         verify(practiceSessionRepository).save(any(PracticeSession.class));
     }
 
@@ -179,5 +193,70 @@ class PracticeSessionServiceTest {
 
         assertThatThrownBy(() -> practiceSessionService.submitSession(sessionId, candidateId))
                 .isInstanceOf(SessionAlreadySubmittedException.class);
+    }
+
+    @Test
+    @DisplayName("getSessionQuestions - resolves bilingual translation when available")
+    void testGetSessionQuestionsBilingual() {
+        UUID qId = UUID.randomUUID();
+        practiceSet.setQuestionIds("[\"" + qId + "\"]");
+        practiceSession.setPreferredLanguage("hi");
+
+        when(practiceSessionRepository.findByIdAndCandidateId(sessionId, candidateId))
+                .thenReturn(Optional.of(practiceSession));
+        when(practiceSetRepository.findById(practiceSetId))
+                .thenReturn(Optional.of(practiceSet));
+
+        Map<String, Object> hiTranslation = new HashMap<>();
+        hiTranslation.put("languageCode", "hi");
+        hiTranslation.put("content", "कलन की परिभाषा क्या है?");
+
+        Map<String, Map<String, Object>> transMap = new HashMap<>();
+        transMap.put("hi", hiTranslation);
+
+        AnswerKeyDto ak = new AnswerKeyDto(
+                qId, "A", "SINGLE_MCQ", "top-1", "Calculus", "MEDIUM", 2,
+                "What is calculus?", "[]", "Calculus is math.", "Math", transMap
+        );
+        when(questionBankClient.getAnswerKeys(List.of(qId)))
+                .thenReturn(Map.of(qId, ak));
+
+        List<PracticeQuestionDto> questions = practiceSessionService.getSessionQuestions(sessionId, candidateId);
+
+        assertThat(questions).hasSize(1);
+        PracticeQuestionDto q = questions.get(0);
+        assertThat(q.primaryLanguage()).isEqualTo("hi");
+        assertThat(q.fallbackToEnglish()).isFalse();
+        assertThat(q.primaryTranslation()).isNotNull();
+        assertThat(q.primaryTranslation().get("content")).isEqualTo("कलन की परिभाषा क्या है?");
+        assertThat(q.content()).isEqualTo("What is calculus?");
+    }
+
+    @Test
+    @DisplayName("getSessionQuestions - falls back to English when translation is unavailable")
+    void testGetSessionQuestionsFallback() {
+        UUID qId = UUID.randomUUID();
+        practiceSet.setQuestionIds("[\"" + qId + "\"]");
+
+        when(practiceSessionRepository.findByIdAndCandidateId(sessionId, candidateId))
+                .thenReturn(Optional.of(practiceSession));
+        when(practiceSetRepository.findById(practiceSetId))
+                .thenReturn(Optional.of(practiceSet));
+
+        AnswerKeyDto ak = new AnswerKeyDto(
+                qId, "A", "SINGLE_MCQ", "top-1", "Calculus", "MEDIUM", 2,
+                "What is calculus?", "[]", "Calculus is math.", "Math", null
+        );
+        when(questionBankClient.getAnswerKeys(List.of(qId)))
+                .thenReturn(Map.of(qId, ak));
+
+        List<PracticeQuestionDto> questions = practiceSessionService.getSessionQuestions(sessionId, candidateId, "ta");
+
+        assertThat(questions).hasSize(1);
+        PracticeQuestionDto q = questions.get(0);
+        assertThat(q.primaryLanguage()).isEqualTo("ta");
+        assertThat(q.fallbackToEnglish()).isTrue();
+        assertThat(q.primaryTranslation()).isNull();
+        assertThat(q.content()).isEqualTo("What is calculus?");
     }
 }

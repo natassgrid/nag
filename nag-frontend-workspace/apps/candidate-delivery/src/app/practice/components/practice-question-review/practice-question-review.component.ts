@@ -1,8 +1,9 @@
-import { ChangeDetectionStrategy, Component, computed, input, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, input, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { MatIconModule } from '@angular/material/icon';
 import { MatButtonModule } from '@angular/material/button';
 import { MathRendererComponent } from '@nag-frontend-workspace/shared-ui-components';
+import { I18nService } from '@nag-frontend-workspace/shared-util-i18n';
 import { QuestionResult } from '../../models';
 
 export type QuestionReviewFilter = 'ALL' | 'CORRECT' | 'INCORRECT' | 'SKIPPED' | 'FLAGGED';
@@ -21,8 +22,16 @@ export interface ParsedOption {
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class PracticeQuestionReviewComponent {
+  private readonly i18nService = inject(I18nService, { optional: true });
+
   readonly questionResults = input.required<QuestionResult[]>();
+  readonly preferredLanguage = input<string>();
+  readonly selectedLanguage = input<string>();
   readonly activeFilter = signal<QuestionReviewFilter>('ALL');
+
+  readonly effectiveLanguage = computed(() => {
+    return this.selectedLanguage() || this.preferredLanguage() || this.i18nService?.currentLanguage() || 'en';
+  });
 
   readonly totalCount = computed(() => this.questionResults().length);
   readonly correctCount = computed(() => this.questionResults().filter((q) => q.correct).length);
@@ -128,5 +137,105 @@ export class PracticeQuestionReviewComponent {
     const t = (qr.questionType || '').toUpperCase().trim();
     if (t === 'NUMERICAL' || t === 'NUMERIC' || t === 'SUBJECTIVE' || t === 'DESCRIPTIVE') return true;
     return this.parseOptions(qr.optionsJson).length === 0;
+  }
+
+  hasTranslation(qr: QuestionResult): boolean {
+    const lang = (qr.primaryLanguage || this.effectiveLanguage()).toLowerCase();
+    if (lang === 'en') return false;
+    if (qr.primaryTranslation && qr.primaryTranslation.content) return true;
+    if (qr.translations && qr.translations[lang]?.content) return true;
+    return false;
+  }
+
+  isBilingual(qr: QuestionResult): boolean {
+    return this.hasTranslation(qr);
+  }
+
+  isFallback(qr: QuestionResult): boolean {
+    const lang = (qr.primaryLanguage || this.effectiveLanguage()).toLowerCase();
+    if (lang === 'en') return false;
+    if (qr.fallbackToEnglish) return true;
+    return !this.hasTranslation(qr);
+  }
+
+  getPrimaryContent(qr: QuestionResult): string {
+    const lang = (qr.primaryLanguage || this.effectiveLanguage()).toLowerCase();
+    if (qr.primaryTranslation?.content) {
+      return qr.primaryTranslation.content;
+    }
+    if (qr.translations && qr.translations[lang]?.content) {
+      return qr.translations[lang].content;
+    }
+    return qr.content || 'Practice Question';
+  }
+
+  getDisplayContent(qr: QuestionResult): string {
+    return this.getPrimaryContent(qr);
+  }
+
+  getBaselineEnglishContent(qr: QuestionResult): string {
+    return qr.content || '';
+  }
+
+  getOptionText(qr: QuestionResult, opt: ParsedOption): string {
+    const lang = (qr.primaryLanguage || this.effectiveLanguage()).toLowerCase();
+    if (qr.primaryTranslation?.options) {
+      const match = qr.primaryTranslation.options.find(
+        (o) => o.id.toLowerCase() === opt.id.toLowerCase()
+      );
+      if (match && match.text) {
+        return match.text;
+      }
+    } else if (qr.translations && qr.translations[lang]?.options) {
+      const match = qr.translations[lang].options?.find(
+        (o) => o.id.toLowerCase() === opt.id.toLowerCase()
+      );
+      if (match && match.text) {
+        return match.text;
+      }
+    }
+    return opt.text;
+  }
+
+  getEnglishReferenceOptionText(qr: QuestionResult, opt: ParsedOption): string | null {
+    if (this.hasTranslation(qr)) {
+      return opt.text || null;
+    }
+    return null;
+  }
+
+  getResolvedOptions(qr: QuestionResult): Array<{ id: string; text: string; englishText?: string | null }> {
+    return this.parseOptions(qr.optionsJson).map((opt) => ({
+      id: opt.id,
+      text: this.getOptionText(qr, opt),
+      englishText: this.getEnglishReferenceOptionText(qr, opt),
+    }));
+  }
+
+  hasTranslatedExplanation(qr: QuestionResult): boolean {
+    const lang = (qr.primaryLanguage || this.effectiveLanguage()).toLowerCase();
+    if (lang === 'en') return false;
+    if (qr.primaryTranslation && qr.primaryTranslation.explanation) return true;
+    if (qr.translations && qr.translations[lang]?.explanation) return true;
+    return false;
+  }
+
+  getTranslatedExplanation(qr: QuestionResult): string | null {
+    const lang = (qr.primaryLanguage || this.effectiveLanguage()).toLowerCase();
+    if (qr.primaryTranslation?.explanation) {
+      return qr.primaryTranslation.explanation;
+    }
+    if (qr.translations && qr.translations[lang]?.explanation) {
+      return qr.translations[lang].explanation;
+    }
+    return null;
+  }
+
+  getDisplayExplanation(qr: QuestionResult): string | null {
+    return this.getTranslatedExplanation(qr) || qr.explanation || null;
+  }
+
+  getBaselineEnglishExplanation(qr: QuestionResult): string | null {
+    return qr.explanation || null;
   }
 }

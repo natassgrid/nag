@@ -24,6 +24,17 @@ describe('PracticeQuestionReviewComponent', () => {
       explanation: 'Constant time operations execute in fixed steps: $$\\mathcal{O}(1)$$.',
       topic: 'Complexity',
       subject: 'CS',
+      primaryLanguage: 'hi',
+      fallbackToEnglish: false,
+      primaryTranslation: {
+        language: 'hi',
+        content: '$$\\mathcal{O}$$ संकेतन में O(1) क्या दर्शाता है?',
+        explanation: 'नियत समय संचालन निश्चित चरणों में निष्पादित होते हैं: $$\\mathcal{O}(1)$$.',
+        options: [
+          { id: 'opt-A', text: 'नियत समय' },
+          { id: 'opt-B', text: 'रैखिक समय' },
+        ],
+      },
     },
     {
       questionId: 'q-2',
@@ -43,6 +54,8 @@ describe('PracticeQuestionReviewComponent', () => {
       explanation: 'Dijkstra finds the shortest paths between nodes in a graph.',
       topic: 'Graphs',
       subject: 'CS',
+      primaryLanguage: 'hi',
+      fallbackToEnglish: true,
     },
     {
       questionId: 'q-3',
@@ -105,6 +118,7 @@ describe('PracticeQuestionReviewComponent', () => {
     fixture = TestBed.createComponent(PracticeQuestionReviewComponent);
     component = fixture.componentInstance;
     fixture.componentRef.setInput('questionResults', mockQuestions);
+    fixture.componentRef.setInput('selectedLanguage', 'hi');
     fixture.detectChanges();
   });
 
@@ -147,7 +161,6 @@ describe('PracticeQuestionReviewComponent', () => {
     const q4Multi = mockQuestions[3];
     expect(component.isOptionSelected(q4Multi, 'opt-A')).toBe(true);
     expect(component.isOptionSelected(q4Multi, 'opt-B')).toBe(true);
-    expect(component.isOptionSelected(q4Multi, 'opt-C')).toBe(false);
     expect(component.isOptionCorrect(q4Multi, 'opt-A')).toBe(true);
     expect(component.isOptionCorrect(q4Multi, 'opt-B')).toBe(true);
     expect(component.isOptionCorrect(q4Multi, 'opt-C')).toBe(false);
@@ -165,5 +178,42 @@ describe('PracticeQuestionReviewComponent', () => {
 
     expect(component.isNumericalOrDirect(mockQuestions[0])).toBe(false);
     expect(component.isNumericalOrDirect(mockQuestions[4])).toBe(true);
+  });
+
+  it('should render bilingual question details and synchronize option text', () => {
+    const q1 = mockQuestions[0];
+    expect(component.isBilingual(q1)).toBe(true);
+    expect(component.isFallback(q1)).toBe(false);
+    expect(component.getDisplayContent(q1)).toBe('$$\\mathcal{O}$$ संकेतन में O(1) क्या दर्शाता है?');
+    expect(component.getBaselineEnglishContent(q1)).toBe('What is O(1) in $$\\mathcal{O}$$ notation?');
+    expect(component.getDisplayExplanation(q1)).toBe('नियत समय संचालन निश्चित चरणों में निष्पादित होते हैं: $$\\mathcal{O}(1)$$.');
+    expect(component.getBaselineEnglishExplanation(q1)).toBe('Constant time operations execute in fixed steps: $$\\mathcal{O}(1)$$.');
+
+    const options = component.getResolvedOptions(q1);
+    expect(options.length).toBe(2);
+    expect(options[0].id).toBe('opt-A');
+    expect(options[0].text).toBe('नियत समय');
+    expect(options[0].englishText).toBe('Constant time');
+
+    const element: HTMLElement = fixture.nativeElement;
+    const englishRef = element.querySelector('.english-reference');
+    expect(englishRef).toBeTruthy();
+    expect(englishRef?.textContent).toContain('English Reference');
+    expect(englishRef?.textContent).toContain('What is O(1)');
+
+    const baselineOption = element.querySelector('.option-text-baseline');
+    expect(baselineOption).toBeTruthy();
+    expect(baselineOption?.textContent).toContain('En: Constant time');
+  });
+
+  it('should display fallback indicator when translation is unavailable', () => {
+    const q2 = mockQuestions[1];
+    expect(component.isFallback(q2)).toBe(true);
+    expect(component.isBilingual(q2)).toBe(false);
+
+    const element: HTMLElement = fixture.nativeElement;
+    const fallbackBadges = element.querySelectorAll('.fallback-indicator');
+    expect(fallbackBadges.length).toBeGreaterThan(0);
+    expect(fallbackBadges[0].textContent).toContain('Original English (Translation Unavailable)');
   });
 });

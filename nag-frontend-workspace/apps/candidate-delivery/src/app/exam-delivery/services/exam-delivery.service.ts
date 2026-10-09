@@ -17,6 +17,7 @@ import {
   PREVIEW_QUESTIONS,
 } from '../data';
 import { PracticeService } from '../../practice/services/practice.service';
+import { I18nService } from '@nag-frontend-workspace/shared-util-i18n';
 import { firstValueFrom } from 'rxjs';
 
 @Injectable({
@@ -25,6 +26,7 @@ import { firstValueFrom } from 'rxjs';
 export class ExamDeliveryService {
   private readonly http = inject(HttpClient);
   private readonly practiceService = inject(PracticeService);
+  private readonly i18nService = inject(I18nService, { optional: true });
 
   readonly paperId = signal<string | null>(null);
   readonly examId = signal<string | null>(null);
@@ -84,7 +86,8 @@ export class ExamDeliveryService {
     mode: ExamDeliveryMode = 'LIVE',
     examId: string | null = null,
     paperId: string | null = null,
-    sessionId: string | null = null
+    sessionId: string | null = null,
+    lang?: string | null
   ): void {
     this.deliveryMode.set(mode);
     this.examId.set(examId);
@@ -104,6 +107,8 @@ export class ExamDeliveryService {
       });
       this.remainingSeconds.set(3600); // 60 minutes for practice
 
+      const targetLang = (lang || this.i18nService?.currentLanguage() || 'en').toLowerCase();
+
       if (paperId) {
         this.practiceService.getSet(paperId).subscribe({
           next: (set) => {
@@ -122,7 +127,7 @@ export class ExamDeliveryService {
       }
 
       if (sessionId) {
-        this.practiceService.getSessionQuestions(sessionId).subscribe({
+        this.practiceService.getSessionQuestions(sessionId, targetLang).subscribe({
           next: (list) => {
             if (Array.isArray(list) && list.length > 0) {
               const mapped: ExamItem[] = list.map((q: any, idx: number) => {
@@ -136,6 +141,8 @@ export class ExamDeliveryService {
                 } else if (Array.isArray(q.options)) {
                   parsedOptions = q.options;
                 }
+                const isEn = targetLang === 'en';
+                const hasPrimary = !!q.primaryTranslation;
                 return {
                   id: String(q.id),
                   order: q.order || idx + 1,
@@ -150,22 +157,25 @@ export class ExamDeliveryService {
                   subject: q.subject,
                   correctOptionId: q.correctOptionId,
                   isVisited: idx === 0,
-                  primaryLanguage: q.primaryLanguage,
-                  fallbackToEnglish: q.fallbackToEnglish,
+                  primaryLanguage: q.primaryLanguage || targetLang,
+                  fallbackToEnglish: q.fallbackToEnglish !== undefined
+                    ? q.fallbackToEnglish
+                    : (!isEn && !hasPrimary),
                   primaryTranslation: q.primaryTranslation,
+                  translations: q.translations,
                 };
               });
               this.questions.set(mapped);
               return;
             }
-            this.fallbackToMockQuestions(paperId || sessionId);
+            this.fallbackToMockQuestions(paperId || sessionId, targetLang);
           },
           error: () => {
-            this.fallbackToMockQuestions(paperId || sessionId);
+            this.fallbackToMockQuestions(paperId || sessionId, targetLang);
           }
         });
       } else {
-        this.fallbackToMockQuestions(paperId);
+        this.fallbackToMockQuestions(paperId, targetLang);
       }
     } else if (mode === 'PREVIEW') {
       this.questions.set(JSON.parse(JSON.stringify(PREVIEW_QUESTIONS)));
@@ -256,10 +266,10 @@ export class ExamDeliveryService {
     this.startLiveSession(examId, paperId, true);
   }
 
-  private fallbackToMockQuestions(targetId: string | null): void {
+  private fallbackToMockQuestions(targetId: string | null, targetLang = 'en'): void {
     if (targetId) {
       this.http
-        .get<any>(`/api/v1/sessions/paper/${targetId}/questions`)
+        .get<any>(`/api/v1/sessions/paper/${targetId}/questions?lang=${targetLang}`)
         .subscribe({
           next: (res) => {
             const list = res?.data ?? res;
@@ -278,22 +288,71 @@ export class ExamDeliveryService {
                 subject: q.subject,
                 correctOptionId: q.correctOptionId,
                 isVisited: idx === 0,
-                primaryLanguage: q.primaryLanguage,
-                fallbackToEnglish: q.fallbackToEnglish,
+                primaryLanguage: q.primaryLanguage || targetLang,
+                fallbackToEnglish: q.fallbackToEnglish !== undefined
+                  ? q.fallbackToEnglish
+                  : (targetLang !== 'en' && !q.primaryTranslation),
                 primaryTranslation: q.primaryTranslation,
+                translations: q.translations,
               }));
               this.questions.set(mapped);
               return;
             }
-            this.questions.set(JSON.parse(JSON.stringify(PRACTICE_QUESTIONS)));
+            this.loadMockPracticeQuestions(targetLang);
           },
           error: () => {
-            this.questions.set(JSON.parse(JSON.stringify(PRACTICE_QUESTIONS)));
+            this.loadMockPracticeQuestions(targetLang);
           },
         });
     } else {
-      this.questions.set(JSON.parse(JSON.stringify(PRACTICE_QUESTIONS)));
+      this.loadMockPracticeQuestions(targetLang);
     }
+  }
+
+  private loadMockPracticeQuestions(targetLang = 'en'): void {
+    const list: ExamItem[] = JSON.parse(JSON.stringify(PRACTICE_QUESTIONS));
+    const isEn = targetLang === 'en';
+    const mapped = list.map((q) => {
+      const translation = q.translations?.[targetLang];
+      return {
+        ...q,
+        primaryLanguage: targetLang,
+        fallbackToEnglish: isEn ? false : !translation,
+        primaryTranslation: translation,
+      };
+    });
+    this.questions.set(mapped);
+  }
+
+  setLanguage(lang: string): void {
+    const targetLang = (lang || 'en').toLowerCase();
+    this.questions.update((list) =>
+      list.map((q) => {
+        if (targetLang === 'en') {
+          return {
+            ...q,
+            primaryLanguage: 'en',
+            fallbackToEnglish: false,
+            primaryTranslation: undefined,
+          };
+        }
+        const translation = q.translations?.[targetLang];
+        if (translation) {
+          return {
+            ...q,
+            primaryLanguage: targetLang,
+            fallbackToEnglish: false,
+            primaryTranslation: translation,
+          };
+        }
+        return {
+          ...q,
+          primaryLanguage: targetLang,
+          fallbackToEnglish: true,
+          primaryTranslation: undefined,
+        };
+      })
+    );
   }
 
   startTimer(onExpire?: () => void): void {
@@ -353,8 +412,8 @@ export class ExamDeliveryService {
         questionId: item.id,
         selectedOptionIds: null,
         enteredValue: null,
-        timeSpentMs: 10000,
-        markedForReview: !!item.isFlagged,
+        timeSpentMs: 15000,
+        markedForReview: false,
       }).subscribe({
         error: () => {}
       });
@@ -367,10 +426,10 @@ export class ExamDeliveryService {
     );
 
     const sId = this.practiceSessionId();
-    if (this.deliveryMode() === 'PRACTICE' && sId && item.selectedOptionId) {
+    if (this.deliveryMode() === 'PRACTICE' && sId) {
       this.practiceService.saveResponse(sId, {
         questionId: item.id,
-        selectedOptionIds: `[\"${item.selectedOptionId}\"]`,
+        selectedOptionIds: item.selectedOptionId ? `[\"${item.selectedOptionId}\"]` : null,
         enteredValue: null,
         timeSpentMs: 15000,
         markedForReview: !item.isFlagged,
