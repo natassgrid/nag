@@ -467,20 +467,25 @@ public class ExaminationScheduleService {
         return ShiftResponse.from(s);
     }
 
+    private Map<String, Object> createBaseScheduleEvent(String eventType, ExaminationSchedule schedule, String tenantId) {
+        Map<String, Object> event = new LinkedHashMap<>();
+        event.put("eventType", eventType);
+        event.put("scheduleId", schedule.getId().toString());
+        event.put("examinationId", schedule.getExaminationId().toString());
+        event.put("scheduleVersion", schedule.getScheduleVersion());
+        event.put("tenantId", tenantId);
+        event.put("occurredAt", Instant.now().toString());
+        return event;
+    }
+
     private void publishAudit(String eventType, ExaminationSchedule schedule,
                                UUID actorId, String tenantId,
                                String previousValue, String newValue) {
         try {
-            Map<String, Object> event = new LinkedHashMap<>();
-            event.put("eventType", eventType);
-            event.put("scheduleId", schedule.getId().toString());
-            event.put("examinationId", schedule.getExaminationId().toString());
-            event.put("scheduleVersion", schedule.getScheduleVersion());
+            Map<String, Object> event = createBaseScheduleEvent(eventType, schedule, tenantId);
             event.put("actorId", actorId != null ? actorId.toString() : null);
-            event.put("tenantId", tenantId);
             if (previousValue != null) event.put("previousValue", previousValue);
             if (newValue != null)      event.put("newValue", newValue);
-            event.put("occurredAt", Instant.now().toString());
 
             eventPublisher.publish(AUDIT_TOPIC, schedule.getId().toString(), event);
         } catch (Exception e) {
@@ -507,13 +512,7 @@ public class ExaminationScheduleService {
     private void publishNotification(ExaminationSchedule schedule,
                                       UUID actorId, String tenantId, String eventType) {
         try {
-            Map<String, Object> event = new LinkedHashMap<>();
-            event.put("eventType", eventType);
-            event.put("scheduleId", schedule.getId().toString());
-            event.put("examinationId", schedule.getExaminationId().toString());
-            event.put("scheduleVersion", schedule.getScheduleVersion());
-            event.put("tenantId", tenantId);
-            event.put("occurredAt", Instant.now().toString());
+            Map<String, Object> event = createBaseScheduleEvent(eventType, schedule, tenantId);
             eventPublisher.publish(NOTIF_TOPIC, schedule.getId().toString(), event);
         } catch (Exception e) {
             log.error("Failed to publish notification event [{}]: {}", eventType, e.getMessage());
