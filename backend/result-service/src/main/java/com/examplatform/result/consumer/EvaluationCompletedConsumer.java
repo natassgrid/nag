@@ -25,12 +25,13 @@ import com.examplatform.result.repository.ResultRepository;
 import com.examplatform.result.service.QuestionAnalyticsService;
 import com.examplatform.result.service.ResultComputationService;
 import com.examplatform.shared.messaging.GenericDomainEvent;
+import com.examplatform.shared.messaging.MessagePayloadExtractor;
+import com.examplatform.shared.util.DataConversionUtils;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.amqp.core.ExchangeTypes;
-import org.springframework.amqp.core.Message;
 import org.springframework.amqp.rabbit.annotation.Exchange;
 import org.springframework.amqp.rabbit.annotation.Queue;
 import org.springframework.amqp.rabbit.annotation.QueueBinding;
@@ -44,7 +45,6 @@ import org.springframework.stereotype.Component;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
-import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -104,16 +104,7 @@ public class EvaluationCompletedConsumer {
     public void onRabbitEvaluationCompleted(Object message) {
         log.info("Received RabbitMQ EVALUATION_COMPLETED event: {}", message);
         try {
-            String payload;
-            if (message instanceof Message amqpMsg) {
-                payload = new String(amqpMsg.getBody(), StandardCharsets.UTF_8);
-            } else if (message instanceof byte[] bytes) {
-                payload = new String(bytes, StandardCharsets.UTF_8);
-            } else if (message instanceof String s) {
-                payload = s;
-            } else {
-                payload = objectMapper.writeValueAsString(message);
-            }
+            String payload = MessagePayloadExtractor.extractPayload(message, objectMapper);
             processEvaluationCompleted(payload, null);
         } catch (Exception e) {
             log.error("Failed to process RabbitMQ EVALUATION_COMPLETED event: {}", e.getMessage(), e);
@@ -132,17 +123,7 @@ public class EvaluationCompletedConsumer {
         }
         log.info("Received Spring in-memory EVALUATION_COMPLETED event: key={}", event.key());
         try {
-            Object rawPayload = event.payload();
-            String payload;
-            if (rawPayload instanceof Message amqpMsg) {
-                payload = new String(amqpMsg.getBody(), StandardCharsets.UTF_8);
-            } else if (rawPayload instanceof byte[] bytes) {
-                payload = new String(bytes, StandardCharsets.UTF_8);
-            } else if (rawPayload instanceof String s) {
-                payload = s;
-            } else {
-                payload = objectMapper.writeValueAsString(rawPayload);
-            }
+            String payload = MessagePayloadExtractor.extractPayload(event.payload(), objectMapper);
             processEvaluationCompleted(payload, event.key());
         } catch (Exception e) {
             log.error("Failed to process Spring in-memory EVALUATION_COMPLETED event: {}", e.getMessage(), e);
@@ -167,9 +148,9 @@ public class EvaluationCompletedConsumer {
             }
 
             UUID candidateId = UUID.fromString((String) event.get("candidateId"));
-            UUID examId      = parseUUID(event.get("examId"));
+            UUID examId      = DataConversionUtils.parseUUID(event.get("examId"));
             String tenantId  = (String) event.getOrDefault("tenantId", "default");
-            double totalRawScore = toDouble(event.get("totalRawScore"));
+            double totalRawScore = DataConversionUtils.toDouble(event.get("totalRawScore"));
 
             // Idempotency: skip if result already exists
             if (examId != null) {
@@ -185,7 +166,7 @@ public class EvaluationCompletedConsumer {
             @SuppressWarnings("unchecked")
             Map<String, Object> rawSectionScores = (Map<String, Object>) event.getOrDefault("sectionScores", Map.of());
             Map<String, Double> sectionScores = new HashMap<>();
-            rawSectionScores.forEach((k, v) -> sectionScores.put(k, toDouble(v)));
+            rawSectionScores.forEach((k, v) -> sectionScores.put(k, DataConversionUtils.toDouble(v)));
 
             // Build score input
             CandidateScoreInput scoreInput = CandidateScoreInput.builder()
@@ -234,7 +215,7 @@ public class EvaluationCompletedConsumer {
             // Compute accuracy: questions with score > 0 / total attempted
             long totalAttempted = questionLevelScores.size();
             long correct = questionLevelScores.stream()
-                    .filter(q -> toDouble(q.get("score")) > 0)
+                    .filter(q -> DataConversionUtils.toDouble(q.get("score")) > 0)
                     .count();
 
             BigDecimal accuracyRate = totalAttempted > 0
@@ -243,13 +224,13 @@ public class EvaluationCompletedConsumer {
 
             // Compute time analysis (if timeSpentMs present)
             long totalTimeMs = questionLevelScores.stream()
-                    .mapToLong(q -> toLong(q.get("timeSpentMs")))
+                    .mapToLong(q -> DataConversionUtils.toLong(q.get("timeSpentMs")))
                     .sum();
             long avgTimeMs = totalAttempted > 0 ? totalTimeMs / totalAttempted : 0;
 
             long timeOnCorrect = questionLevelScores.stream()
-                    .filter(q -> toDouble(q.get("score")) > 0)
-                    .mapToLong(q -> toLong(q.get("timeSpentMs")))
+                    .filter(q -> DataConversionUtils.toDouble(q.get("score")) > 0)
+                    .mapToLong(q -> DataConversionUtils.toLong(q.get("timeSpentMs")))
                     .sum();
             long timeOnIncorrect = totalTimeMs - timeOnCorrect;
 
@@ -275,26 +256,5 @@ public class EvaluationCompletedConsumer {
             log.warn("Failed to enrich result with diagnostics: {}", e.getMessage());
             // Non-fatal — result is still saved without diagnostics
         }
-    }
-
-    private UUID parseUUID(Object value) {
-        if (value == null) return null;
-        try {
-            return UUID.fromString(value.toString());
-        } catch (IllegalArgumentException e) {
-            return null;
-        }
-    }
-
-    private double toDouble(Object value) {
-        if (value == null) return 0.0;
-        if (value instanceof Number n) return n.doubleValue();
-        try { return Double.parseDouble(value.toString()); } catch (NumberFormatException e) { return 0.0; }
-    }
-
-    private long toLong(Object value) {
-        if (value == null) return 0L;
-        if (value instanceof Number n) return n.longValue();
-        try { return Long.parseLong(value.toString()); } catch (NumberFormatException e) { return 0L; }
     }
 }

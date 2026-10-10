@@ -23,6 +23,7 @@ import com.examplatform.analytics.domain.CandidateAnalyticsResult;
 import com.examplatform.analytics.domain.ExamAnalytics;
 import com.examplatform.analytics.repository.CandidateAnalyticsResultRepository;
 import com.examplatform.analytics.repository.ExamAnalyticsRepository;
+import com.examplatform.shared.util.DataConversionUtils;
 import com.examplatform.shared.util.UuidV7Generator;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -311,7 +312,7 @@ public class AnalyticsService {
                 Map<String, Object> sectionMap = objectMapper.readValue(json, new TypeReference<>() {});
                 for (Map.Entry<String, Object> entry : sectionMap.entrySet()) {
                     String section = entry.getKey();
-                    double val = toDouble(entry.getValue());
+                    double val = DataConversionUtils.toDouble(entry.getValue());
                     sumMap.put(section, sumMap.getOrDefault(section, 0.0) + val);
                     countMap.put(section, countMap.getOrDefault(section, 0) + 1);
                 }

@@ -21,12 +21,13 @@ package com.examplatform.analytics.consumer;
 
 import com.examplatform.analytics.service.AnalyticsService;
 import com.examplatform.shared.messaging.GenericDomainEvent;
+import com.examplatform.shared.messaging.MessagePayloadExtractor;
+import com.examplatform.shared.util.DataConversionUtils;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.amqp.core.ExchangeTypes;
-import org.springframework.amqp.core.Message;
 import org.springframework.amqp.rabbit.annotation.Exchange;
 import org.springframework.amqp.rabbit.annotation.Queue;
 import org.springframework.amqp.rabbit.annotation.QueueBinding;
@@ -38,7 +39,6 @@ import org.springframework.messaging.handler.annotation.Header;
 import org.springframework.messaging.handler.annotation.Payload;
 import org.springframework.stereotype.Component;
 
-import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
@@ -93,16 +93,7 @@ public class EvaluationCompletedConsumer {
     public void onRabbitEvaluationCompleted(Object message) {
         log.info("Received RabbitMQ EVALUATION_COMPLETED event: {}", message);
         try {
-            String payload;
-            if (message instanceof Message amqpMsg) {
-                payload = new String(amqpMsg.getBody(), StandardCharsets.UTF_8);
-            } else if (message instanceof byte[] bytes) {
-                payload = new String(bytes, StandardCharsets.UTF_8);
-            } else if (message instanceof String s) {
-                payload = s;
-            } else {
-                payload = objectMapper.writeValueAsString(message);
-            }
+            String payload = MessagePayloadExtractor.extractPayload(message, objectMapper);
             processEvaluationCompleted(payload, null);
         } catch (Exception e) {
             log.error("Failed to process RabbitMQ EVALUATION_COMPLETED event: {}", e.getMessage(), e);
@@ -121,17 +112,7 @@ public class EvaluationCompletedConsumer {
         }
         log.info("Received Spring in-memory EVALUATION_COMPLETED event: key={}", event.key());
         try {
-            Object rawPayload = event.payload();
-            String payload;
-            if (rawPayload instanceof Message amqpMsg) {
-                payload = new String(amqpMsg.getBody(), StandardCharsets.UTF_8);
-            } else if (rawPayload instanceof byte[] bytes) {
-                payload = new String(bytes, StandardCharsets.UTF_8);
-            } else if (rawPayload instanceof String s) {
-                payload = s;
-            } else {
-                payload = objectMapper.writeValueAsString(rawPayload);
-            }
+            String payload = MessagePayloadExtractor.extractPayload(event.payload(), objectMapper);
             processEvaluationCompleted(payload, event.key());
         } catch (Exception e) {
             log.error("Failed to process Spring in-memory EVALUATION_COMPLETED event: {}", e.getMessage(), e);
@@ -154,16 +135,16 @@ public class EvaluationCompletedConsumer {
                 return;
             }
 
-            UUID examId = parseUUID(event.get("examId"));
-            UUID candidateId = parseUUID(event.get("candidateId"));
-            UUID sessionId = parseUUID(event.get("sessionId"));
+            UUID examId = DataConversionUtils.parseUUID(event.get("examId"));
+            UUID candidateId = DataConversionUtils.parseUUID(event.get("candidateId"));
+            UUID sessionId = DataConversionUtils.parseUUID(event.get("sessionId"));
 
             if (examId == null || candidateId == null) {
                 log.warn("Missing required examId or candidateId in event payload: {}", payload);
                 return;
             }
 
-            double totalRawScore = toDouble(event.get("totalRawScore"));
+            double totalRawScore = DataConversionUtils.toDouble(event.get("totalRawScore"));
             String tenantId = (String) event.getOrDefault("tenantId", "default");
 
             @SuppressWarnings("unchecked")
@@ -172,7 +153,7 @@ public class EvaluationCompletedConsumer {
             @SuppressWarnings("unchecked")
             List<Map<String, Object>> questionLevelScores = (List<Map<String, Object>>) event.getOrDefault("questionLevelScores", List.of());
 
-            Instant evaluatedAt = parseInstant(event.get("evaluatedAt"));
+            Instant evaluatedAt = DataConversionUtils.parseInstant(event.get("evaluatedAt"));
 
             analyticsService.processEvaluationCompleted(
                     examId,
@@ -189,35 +170,6 @@ public class EvaluationCompletedConsumer {
 
         } catch (Exception e) {
             log.error("Failed to ingest EVALUATION_COMPLETED event: payload={}", payload, e);
-        }
-    }
-
-    private UUID parseUUID(Object obj) {
-        if (obj == null) return null;
-        try {
-            return UUID.fromString(obj.toString());
-        } catch (IllegalArgumentException e) {
-            return null;
-        }
-    }
-
-    private double toDouble(Object value) {
-        if (value == null) return 0.0;
-        if (value instanceof Number n) return n.doubleValue();
-        try {
-            return Double.parseDouble(value.toString());
-        } catch (NumberFormatException e) {
-            return 0.0;
-        }
-    }
-
-    private Instant parseInstant(Object obj) {
-        if (obj == null) return Instant.now();
-        if (obj instanceof Instant inst) return inst;
-        try {
-            return Instant.parse(obj.toString());
-        } catch (Exception e) {
-            return Instant.now();
         }
     }
 }
