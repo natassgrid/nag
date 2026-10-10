@@ -23,6 +23,9 @@ import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.S3Configuration;
 import software.amazon.awssdk.services.s3.model.HeadBucketRequest;
+import software.amazon.awssdk.services.s3.model.HeadObjectRequest;
+import software.amazon.awssdk.services.s3.model.NoSuchKeyException;
+import software.amazon.awssdk.services.s3.model.S3Exception;
 import software.amazon.awssdk.services.s3.presigner.S3Presigner;
 
 import java.net.URI;
@@ -159,6 +162,32 @@ public final class S3ClientHelper {
                 .build());
 
         return builder.build();
+    }
+
+    /**
+     * Checks if an object exists in an S3 bucket using {@code headObject}.
+     *
+     * @param s3Client the S3 client to query
+     * @param bucket the target bucket name
+     * @param key the object key
+     * @return true if the object exists, false if it does not exist (404)
+     */
+    public static boolean checkObjectExists(S3Client s3Client, String bucket, String key) {
+        HeadObjectRequest headRequest = HeadObjectRequest.builder()
+                .bucket(bucket)
+                .key(key)
+                .build();
+        try {
+            s3Client.headObject(headRequest);
+            return true;
+        } catch (NoSuchKeyException e) {
+            return false;
+        } catch (S3Exception e) {
+            if (e.statusCode() == 404) {
+                return false;
+            }
+            throw new IllegalStateException("Failed to check S3 object existence: " + key, e);
+        }
     }
 
     /**
