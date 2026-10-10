@@ -59,7 +59,7 @@ public class PassageController {
             @AuthenticationPrincipal Jwt jwt,
             @RequestHeader("X-Tenant-Id") String tenantId) {
 
-        UUID authorId = UUID.fromString(jwt.getSubject());
+        UUID authorId = getPrincipalId(jwt);
         log.info("Creating passage: author={}, tenant={}, subjectId={}", authorId, tenantId, request.getSubjectId());
 
         PassageResponse response = passageService.createPassage(request, authorId, tenantId);
@@ -99,7 +99,7 @@ public class PassageController {
             @AuthenticationPrincipal Jwt jwt,
             @RequestHeader("X-Tenant-Id") String tenantId) {
 
-        UUID authorId = UUID.fromString(jwt.getSubject());
+        UUID authorId = getPrincipalId(jwt);
         log.info("Updating passage id={}, author={}, tenant={}", id, authorId, tenantId);
 
         PassageResponse response = passageService.updatePassage(id, request, authorId, tenantId);
@@ -113,8 +113,7 @@ public class PassageController {
             @AuthenticationPrincipal Jwt jwt,
             @RequestHeader("X-Tenant-Id") String tenantId) {
 
-        UUID authorId = UUID.fromString(jwt.getSubject());
-        passageService.deletePassage(id, authorId, tenantId);
+        passageService.deletePassage(id, getPrincipalId(jwt), tenantId);
         return ResponseEntity.ok(ApiResponse.success(null, "Passage deleted successfully"));
     }
 
@@ -126,7 +125,7 @@ public class PassageController {
             @RequestHeader("X-Tenant-Id") String tenantId) {
 
         return ResponseEntity.ok(ApiResponse.success(
-                passageLifecycleService.submitForReview(id, UUID.fromString(jwt.getSubject()), tenantId),
+                passageLifecycleService.submitForReview(id, getPrincipalId(jwt), tenantId),
                 "Passage submitted for review"));
     }
 
@@ -138,7 +137,7 @@ public class PassageController {
             @RequestHeader("X-Tenant-Id") String tenantId) {
 
         return ResponseEntity.ok(ApiResponse.success(
-                passageLifecycleService.approve(id, UUID.fromString(jwt.getSubject()), tenantId),
+                passageLifecycleService.approve(id, getPrincipalId(jwt), tenantId),
                 "Passage approved successfully"));
     }
 
@@ -150,9 +149,8 @@ public class PassageController {
             @AuthenticationPrincipal Jwt jwt,
             @RequestHeader("X-Tenant-Id") String tenantId) {
 
-        UUID reviewerId = UUID.fromString(jwt.getSubject());
         String comments = (body != null) ? body.get("comments") : null;
-        PassageResponse response = passageLifecycleService.reject(id, reviewerId, comments, tenantId);
+        PassageResponse response = passageLifecycleService.reject(id, getPrincipalId(jwt), comments, tenantId);
         return ResponseEntity.ok(ApiResponse.success(response, "Passage rejected"));
     }
 
@@ -164,8 +162,11 @@ public class PassageController {
             @AuthenticationPrincipal Jwt jwt,
             @RequestHeader("X-Tenant-Id") String tenantId) {
 
-        UUID actorId = UUID.fromString(jwt.getSubject());
-        PassageResponse response = passageLifecycleService.transition(id, request, actorId, tenantId);
+        PassageResponse response = passageLifecycleService.transition(id, request, getPrincipalId(jwt), tenantId);
         return ResponseEntity.ok(ApiResponse.success(response, "Passage state transitioned"));
+    }
+
+    private UUID getPrincipalId(Jwt jwt) {
+        return UUID.fromString(jwt.getSubject());
     }
 }
