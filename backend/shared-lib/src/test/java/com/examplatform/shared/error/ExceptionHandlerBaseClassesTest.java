@@ -39,9 +39,11 @@ class ExceptionHandlerBaseClassesTest {
 
     static class SampleApiResponseHandler extends BaseApiResponseExceptionHandler {}
     static class SampleProblemDetailHandler extends BaseProblemDetailExceptionHandler {}
+    static class SampleErrorEnvelopeHandler extends BaseErrorEnvelopeExceptionHandler {}
 
     private final SampleApiResponseHandler apiResponseHandler = new SampleApiResponseHandler();
     private final SampleProblemDetailHandler problemDetailHandler = new SampleProblemDetailHandler();
+    private final SampleErrorEnvelopeHandler errorEnvelopeHandler = new SampleErrorEnvelopeHandler();
 
     @Test
     @DisplayName("BaseApiResponseExceptionHandler handles various common exceptions correctly")
@@ -108,5 +110,29 @@ class ExceptionHandlerBaseClassesTest {
         ProblemDetail valPd = problemDetailHandler.handleValidationError(valEx);
         assertThat(valPd.getStatus()).isEqualTo(HttpStatus.BAD_REQUEST.value());
         assertThat(valPd.getTitle()).isEqualTo("Bad Request");
+    }
+
+    @Test
+    @DisplayName("BaseErrorEnvelopeExceptionHandler handles various common exceptions correctly")
+    void testErrorEnvelopeHandler() throws NoSuchMethodException {
+        // AccessDenied
+        ResponseEntity<ErrorEnvelope> deniedResp = errorEnvelopeHandler.handleAccessDenied(new AccessDeniedException("Denied"));
+        assertThat(deniedResp.getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
+        assertThat(deniedResp.getBody().error().code()).isEqualTo("ACCESS_DENIED");
+
+        // Generic Exception
+        ResponseEntity<ErrorEnvelope> genericResp = errorEnvelopeHandler.handleGeneric(new RuntimeException("Crash"));
+        assertThat(genericResp.getStatusCode()).isEqualTo(HttpStatus.INTERNAL_SERVER_ERROR);
+        assertThat(genericResp.getBody().error().code()).isEqualTo("INTERNAL_ERROR");
+
+        // Validation
+        BeanPropertyBindingResult bindingResult = new BeanPropertyBindingResult(new Object(), "test");
+        bindingResult.addError(new FieldError("test", "code", "Invalid code"));
+        MethodArgumentNotValidException valEx = new MethodArgumentNotValidException(
+                new MethodParameter(getClass().getDeclaredMethod("testErrorEnvelopeHandler"), -1), bindingResult);
+        ResponseEntity<ErrorEnvelope> valResp = errorEnvelopeHandler.handleValidation(valEx);
+        assertThat(valResp.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+        assertThat(valResp.getBody().error().code()).isEqualTo("VALIDATION_ERROR");
+        assertThat(valResp.getBody().error().message()).contains("Invalid code");
     }
 }

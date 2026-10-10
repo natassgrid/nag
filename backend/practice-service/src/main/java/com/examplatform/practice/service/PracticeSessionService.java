@@ -51,22 +51,7 @@ public class PracticeSessionService {
                 ? req.preferredLanguage().trim().toLowerCase()
                 : "en";
 
-        List<UUID> qIds = parseQuestionIds(practiceSet.getQuestionIds());
-        if (qIds.isEmpty() && practiceSet.getSubjectSlug() != null && !practiceSet.getSubjectSlug().isBlank()) {
-            int limit = practiceSet.getTotalQuestions() > 0 ? practiceSet.getTotalQuestions() : 25;
-            qIds = questionBankClient.findQuestionIdsBySubject(practiceSet.getSubjectSlug(), limit);
-            if (!qIds.isEmpty()) {
-                try {
-                    practiceSet.setQuestionIds(objectMapper.writeValueAsString(qIds));
-                    if (practiceSet.getTotalQuestions() <= 0) {
-                        practiceSet.setTotalQuestions(qIds.size());
-                    }
-                    practiceSetRepository.save(practiceSet);
-                } catch (Exception e) {
-                    log.warn("Failed to persist resolved question IDs on startSession for practice set {}: {}", practiceSet.getId(), e.getMessage());
-                }
-            }
-        }
+        List<UUID> qIds = resolveAndPersistQuestionIds(practiceSet, "startSession");
 
         int totalQuestions = practiceSet.getTotalQuestions() > 0
                 ? practiceSet.getTotalQuestions()
@@ -113,22 +98,7 @@ public class PracticeSessionService {
                         ? session.getPreferredLanguage().trim().toLowerCase()
                         : "en");
 
-        List<UUID> questionIds = parseQuestionIds(set.getQuestionIds());
-        if (questionIds.isEmpty() && set.getSubjectSlug() != null && !set.getSubjectSlug().isBlank()) {
-            int limit = set.getTotalQuestions() > 0 ? set.getTotalQuestions() : 25;
-            questionIds = questionBankClient.findQuestionIdsBySubject(set.getSubjectSlug(), limit);
-            if (!questionIds.isEmpty()) {
-                try {
-                    set.setQuestionIds(objectMapper.writeValueAsString(questionIds));
-                    if (set.getTotalQuestions() <= 0) {
-                        set.setTotalQuestions(questionIds.size());
-                    }
-                    practiceSetRepository.save(set);
-                } catch (Exception e) {
-                    log.warn("Failed to persist resolved question IDs on getSessionQuestions for practice set {}: {}", set.getId(), e.getMessage());
-                }
-            }
-        }
+        List<UUID> questionIds = resolveAndPersistQuestionIds(set, "getSessionQuestions");
 
         if (questionIds.isEmpty()) {
             return Collections.emptyList();
@@ -253,6 +223,27 @@ public class PracticeSessionService {
                         : 0.0,
                 s.getTotalQuestions(), s.getCorrectCount(), s.getIncorrectCount()
         ));
+    }
+
+    private List<UUID> resolveAndPersistQuestionIds(PracticeSet set, String operation) {
+        List<UUID> questionIds = parseQuestionIds(set.getQuestionIds());
+        if (questionIds.isEmpty() && set.getSubjectSlug() != null && !set.getSubjectSlug().isBlank()) {
+            int limit = set.getTotalQuestions() > 0 ? set.getTotalQuestions() : 25;
+            questionIds = questionBankClient.findQuestionIdsBySubject(set.getSubjectSlug(), limit);
+            if (!questionIds.isEmpty()) {
+                try {
+                    set.setQuestionIds(objectMapper.writeValueAsString(questionIds));
+                    if (set.getTotalQuestions() <= 0) {
+                        set.setTotalQuestions(questionIds.size());
+                    }
+                    practiceSetRepository.save(set);
+                } catch (Exception e) {
+                    log.warn("Failed to persist resolved question IDs on {} for practice set {}: {}",
+                            operation, set.getId(), e.getMessage());
+                }
+            }
+        }
+        return questionIds;
     }
 
     private List<UUID> parseQuestionIds(String json) {

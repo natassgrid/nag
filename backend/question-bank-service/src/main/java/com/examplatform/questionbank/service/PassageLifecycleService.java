@@ -93,7 +93,7 @@ public class PassageLifecycleService {
             questionRepository.save(q);
         }
 
-        publishAuditEvent("PASSAGE_STATE_TRANSITIONED", passageId, actorId, tenantId,
+        passageService.publishAuditEvent("PASSAGE_STATE_TRANSITIONED", passageId, actorId, tenantId,
                 Map.of("fromState", currentState, "toState", targetState, "subQuestionCount", subQuestions.size()));
 
         return passageService.toResponse(saved, subQuestions);
@@ -125,7 +125,7 @@ public class PassageLifecycleService {
 
         log.info("Passage submitted for review: id={}, author={}, tenant={}", passageId, authorId, tenantId);
 
-        publishAuditEvent("PASSAGE_SUBMITTED_FOR_REVIEW", saved.getId(), authorId, tenantId,
+        passageService.publishAuditEvent("PASSAGE_SUBMITTED_FOR_REVIEW", saved.getId(), authorId, tenantId,
                 Map.of("fromState", "DRAFT", "toState", "REVIEW", "subQuestionCount", subQuestions.size()));
 
         return passageService.toResponse(saved, subQuestions);
@@ -159,7 +159,7 @@ public class PassageLifecycleService {
 
         log.info("Passage approved: id={}, reviewer={}, tenant={}", passageId, reviewerId, tenantId);
 
-        publishAuditEvent("PASSAGE_APPROVED", saved.getId(), reviewerId, tenantId,
+        passageService.publishAuditEvent("PASSAGE_APPROVED", saved.getId(), reviewerId, tenantId,
                 Map.of("fromState", "REVIEW", "toState", "APPROVED", "subQuestionCount", subQuestions.size()));
 
         return passageService.toResponse(saved, subQuestions);
@@ -195,26 +195,10 @@ public class PassageLifecycleService {
             extra.put("comments", comments);
         }
 
-        publishAuditEvent("PASSAGE_REJECTED", saved.getId(), reviewerId, tenantId, extra);
+        passageService.publishAuditEvent("PASSAGE_REJECTED", saved.getId(), reviewerId, tenantId, extra);
 
         return passageService.toResponse(saved, subQuestions);
     }
 
-    private void publishAuditEvent(String eventType, UUID passageId, UUID actorId,
-                                   String tenantId, Map<String, Object> extra) {
-        try {
-            Map<String, Object> event = new java.util.HashMap<>();
-            event.put("eventType", eventType);
-            event.put("passageId", passageId.toString());
-            event.put("actorId", actorId.toString());
-            event.put("tenantId", tenantId);
-            event.put("occurredAt", Instant.now().toString());
-            if (extra != null) {
-                event.putAll(extra);
-            }
-            eventPublisher.publish(AUDIT_TOPIC, passageId.toString(), event);
-        } catch (Exception e) {
-            log.error("Unexpected error publishing audit event [type={}]: {}", eventType, e.getMessage());
-        }
-    }
+
 }

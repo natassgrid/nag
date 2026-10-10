@@ -45,23 +45,13 @@ public class QuestionBankGrpcServiceImpl extends QuestionBankGrpcServiceGrpc.Que
 
         try {
             List<Question> questions = questionRepository.findByTenantId(request.getTenantId());
-            Map<UUID, Passage> passageMap = fetchPassagesForQuestions(questions);
-
-            PaperQuestionsGrpcResponse.Builder builder = PaperQuestionsGrpcResponse.newBuilder();
-
-            for (Question q : questions) {
-                Passage p = q.getPassageId() != null ? passageMap.get(q.getPassageId()) : null;
-                builder.addQuestions(toGrpcQuestion(q, p));
-            }
-
-            responseObserver.onNext(builder.build());
+            PaperQuestionsGrpcResponse response = PaperQuestionsGrpcResponse.newBuilder()
+                    .addAllQuestions(toGrpcQuestions(questions))
+                    .build();
+            responseObserver.onNext(response);
             responseObserver.onCompleted();
         } catch (Exception e) {
-            log.error("Error processing getQuestionsForPaper gRPC request", e);
-            responseObserver.onError(io.grpc.Status.INTERNAL
-                    .withDescription("Failed to retrieve paper questions: " + e.getMessage())
-                    .withCause(e)
-                    .asRuntimeException());
+            handleGrpcError("retrieve paper questions", e, responseObserver);
         }
     }
 
@@ -83,22 +73,13 @@ public class QuestionBankGrpcServiceImpl extends QuestionBankGrpcServiceGrpc.Que
                     ? questionRepository.findQuestionsByIdsIn(uuids, request.getTenantId())
                     : List.of();
 
-            Map<UUID, Passage> passageMap = fetchPassagesForQuestions(questions);
-
-            BatchFindQuestionsGrpcResponse.Builder builder = BatchFindQuestionsGrpcResponse.newBuilder();
-            for (Question q : questions) {
-                Passage p = q.getPassageId() != null ? passageMap.get(q.getPassageId()) : null;
-                builder.addQuestions(toGrpcQuestion(q, p));
-            }
-
-            responseObserver.onNext(builder.build());
+            BatchFindQuestionsGrpcResponse response = BatchFindQuestionsGrpcResponse.newBuilder()
+                    .addAllQuestions(toGrpcQuestions(questions))
+                    .build();
+            responseObserver.onNext(response);
             responseObserver.onCompleted();
         } catch (Exception e) {
-            log.error("Error processing batchFindQuestions gRPC request", e);
-            responseObserver.onError(io.grpc.Status.INTERNAL
-                    .withDescription("Failed to batch find questions: " + e.getMessage())
-                    .withCause(e)
-                    .asRuntimeException());
+            handleGrpcError("batch find questions", e, responseObserver);
         }
     }
 
@@ -133,23 +114,32 @@ public class QuestionBankGrpcServiceImpl extends QuestionBankGrpcServiceGrpc.Que
                 );
             }
 
-            Map<UUID, Passage> passageMap = fetchPassagesForQuestions(questions);
-
-            BlueprintMatchGrpcResponse.Builder builder = BlueprintMatchGrpcResponse.newBuilder();
-            for (Question q : questions) {
-                Passage p = q.getPassageId() != null ? passageMap.get(q.getPassageId()) : null;
-                builder.addQuestions(toGrpcQuestion(q, p));
-            }
-
-            responseObserver.onNext(builder.build());
+            BlueprintMatchGrpcResponse response = BlueprintMatchGrpcResponse.newBuilder()
+                    .addAllQuestions(toGrpcQuestions(questions))
+                    .build();
+            responseObserver.onNext(response);
             responseObserver.onCompleted();
         } catch (Exception e) {
-            log.error("Error processing matchBlueprint gRPC request", e);
-            responseObserver.onError(io.grpc.Status.INTERNAL
-                    .withDescription("Failed to match blueprint: " + e.getMessage())
-                    .withCause(e)
-                    .asRuntimeException());
+            handleGrpcError("match blueprint", e, responseObserver);
         }
+    }
+
+    private List<QuestionSummaryGrpc> toGrpcQuestions(List<Question> questions) {
+        Map<UUID, Passage> passageMap = fetchPassagesForQuestions(questions);
+        List<QuestionSummaryGrpc> list = new ArrayList<>(questions.size());
+        for (Question q : questions) {
+            Passage p = q.getPassageId() != null ? passageMap.get(q.getPassageId()) : null;
+            list.add(toGrpcQuestion(q, p));
+        }
+        return list;
+    }
+
+    private void handleGrpcError(String action, Exception e, StreamObserver<?> responseObserver) {
+        log.error("Error processing " + action + " gRPC request", e);
+        responseObserver.onError(io.grpc.Status.INTERNAL
+                .withDescription("Failed to " + action + ": " + e.getMessage())
+                .withCause(e)
+                .asRuntimeException());
     }
 
     private Map<UUID, Passage> fetchPassagesForQuestions(List<Question> questions) {

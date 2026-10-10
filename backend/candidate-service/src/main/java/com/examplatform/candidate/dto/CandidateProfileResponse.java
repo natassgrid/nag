@@ -24,13 +24,15 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.springframework.beans.BeanUtils;
 
 import java.util.UUID;
 
 /**
- * Response DTO for candidate profile with masked PII fields.
+ * DTO returned to candidates or admin callers representing a candidate profile.
+ * Plaintext PII fields are included here only after being decrypted by the service layer.
  *
- * Validates: Requirements 1.6
+ * Validates: Requirements 1.6, 25.1
  */
 @Data
 @Builder
@@ -44,8 +46,8 @@ public class CandidateProfileResponse {
     private String gender;
     private String nationality;
     private String category;
-    private String mobile;       // masked: last 4 digits only
-    private String email;        // masked
+    private String mobile;
+    private String email;
     private String address;
     private String country;
     private String state;
@@ -65,27 +67,7 @@ public class CandidateProfileResponse {
             return null;
         }
         CandidateProfileResponse resp = new CandidateProfileResponse();
-        resp.setUserId(profile.getUserId());
-        resp.setFullName(profile.getFullName());
-        resp.setDateOfBirth(profile.getDateOfBirth());
-        resp.setGender(profile.getGender());
-        resp.setNationality(profile.getNationality());
-        resp.setCategory(profile.getCategory());
-        resp.setMobile(profile.getMobile());
-        resp.setEmail(profile.getEmail());
-        resp.setAddress(profile.getAddress());
-        resp.setCountry(profile.getCountry());
-        resp.setState(profile.getState());
-        resp.setDistrict(profile.getDistrict());
-        resp.setCity(profile.getCity());
-        resp.setPinCode(profile.getPinCode());
-        resp.setReservationCategory(profile.getReservationCategory());
-        resp.setDigiLockerVerified(profile.getDigiLockerVerified());
-        resp.setFaceVerificationStatus(profile.getFaceVerificationStatus());
-        resp.setConsentRecorded(profile.isConsentRecorded());
-        resp.setPhotoAssetId(profile.getPhotoAssetId());
-        resp.setSignatureAssetId(profile.getSignatureAssetId());
-        resp.setIdProofAssetId(profile.getIdProofAssetId());
+        BeanUtils.copyProperties(profile, resp);
         return resp;
     }
 }

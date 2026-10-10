@@ -12,6 +12,7 @@ import com.examplatform.practice.exception.PracticeSessionNotFoundException;
 import com.examplatform.practice.repository.PracticeResponseRepository;
 import com.examplatform.practice.repository.PracticeSessionRepository;
 import com.examplatform.practice.repository.PracticeSetRepository;
+import com.examplatform.practice.util.PracticeQuestionUtils;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
@@ -56,15 +57,11 @@ public class PracticeResultService {
         String practiceSetName = practiceSet != null ? practiceSet.getName() : "Practice Assessment";
 
         List<PracticeResponse> responses = practiceResponseRepository.findByPracticeSessionId(sessionId);
-        Map<UUID, PracticeResponse> latestByQuestion = new LinkedHashMap<>();
-        for (PracticeResponse r : responses) {
-            latestByQuestion.merge(r.getQuestionId(), r,
-                    (e, i) -> i.getRevisionSequence() > e.getRevisionSequence() ? i : e);
-        }
+        Map<UUID, PracticeResponse> latestByQuestion = PracticeQuestionUtils.getLatestResponsesByQuestion(responses);
 
         List<UUID> orderedQuestionIds = new ArrayList<>();
         if (practiceSet != null && practiceSet.getQuestionIds() != null && !practiceSet.getQuestionIds().isBlank()) {
-            orderedQuestionIds.addAll(extractQuestionIds(practiceSet.getQuestionIds()));
+            orderedQuestionIds.addAll(PracticeQuestionUtils.extractQuestionIds(practiceSet.getQuestionIds(), objectMapper));
         }
         for (UUID qId : latestByQuestion.keySet()) {
             if (!orderedQuestionIds.contains(qId)) {
@@ -164,31 +161,5 @@ public class PracticeResultService {
         );
     }
 
-    private List<UUID> extractQuestionIds(String raw) {
-        if (raw == null || raw.isBlank()) {
-            return Collections.emptyList();
-        }
-        List<UUID> list = new ArrayList<>();
-        raw = raw.trim();
-        if (raw.startsWith("[") || raw.startsWith("{")) {
-            try {
-                JsonNode root = objectMapper.readTree(raw);
-                if (root.isArray()) {
-                    for (JsonNode n : root) {
-                        try {
-                            list.add(UUID.fromString(n.asText()));
-                        } catch (Exception ignored) {}
-                    }
-                }
-            } catch (Exception ignored) {}
-        } else {
-            for (String part : raw.split(",")) {
-                String clean = part.trim().replace("\"", "").replace("'", "");
-                try {
-                    list.add(UUID.fromString(clean));
-                } catch (Exception ignored) {}
-            }
-        }
-        return list;
-    }
+
 }

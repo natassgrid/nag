@@ -85,36 +85,8 @@ public class AssetUploadResponse {
             return null;
         }
         AssetUploadResponse resp = new AssetUploadResponse();
-        resp.setId(asset.getId());
-        resp.setOriginalFilename(asset.getOriginalFilename());
-        resp.setContentType(asset.getContentType());
-        resp.setExtension(asset.getExtension());
-        resp.setFileSize(asset.getFileSize());
-        resp.setSha256Hash(asset.getSha256Hash());
-        resp.setAssetType(asset.getAssetType());
-        resp.setStatus(asset.getStatus());
+        org.springframework.beans.BeanUtils.copyProperties(asset, resp);
         resp.setPublicUrl(publicUrl);
-        resp.setWidth(asset.getWidth());
-        resp.setHeight(asset.getHeight());
-        resp.setDpi(asset.getDpi());
-        resp.setOrientation(asset.getOrientation());
-        resp.setDurationSeconds(asset.getDurationSeconds());
-        resp.setCodec(asset.getCodec());
-        resp.setBitrate(asset.getBitrate());
-        resp.setSampleRate(asset.getSampleRate());
-        resp.setChannels(asset.getChannels());
-        resp.setFrameRate(asset.getFrameRate());
-        resp.setTitle(asset.getTitle());
-        resp.setDescription(asset.getDescription());
-        resp.setAltText(asset.getAltText());
-        resp.setTags(asset.getTags());
-        resp.setLanguage(asset.getLanguage());
-        resp.setStorageProvider(asset.getStorageProvider());
-        resp.setStorageLocation(asset.getStorageLocation());
-        resp.setCreatedBy(asset.getCreatedBy());
-        resp.setCreatedAt(asset.getCreatedAt());
-        resp.setUpdatedAt(asset.getUpdatedAt());
-        resp.setTenantId(asset.getTenantId());
         return resp;
     }
 }
