@@ -27,8 +27,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.Optional;
 import java.util.UUID;
+import java.util.function.Consumer;
 
 /**
  * Service to manage candidate communication channel preferences.
@@ -77,21 +77,27 @@ public class NotificationPreferenceService {
                     return np;
                 });
 
-        Optional.ofNullable(request.getPreferredChannel())
-                .map(String::toUpperCase)
-                .ifPresent(preference::setPreferredChannel);
-        Optional.ofNullable(request.getPhoneNumber()).ifPresent(preference::setPhoneNumber);
-        Optional.ofNullable(request.getEmail()).ifPresent(preference::setEmail);
-        Optional.ofNullable(request.getFcmToken()).ifPresent(preference::setFcmToken);
-        Optional.ofNullable(request.getPushEnabled()).ifPresent(preference::setPushEnabled);
-        Optional.ofNullable(request.getSmsEnabled()).ifPresent(preference::setSmsEnabled);
-        Optional.ofNullable(request.getWhatsappEnabled()).ifPresent(preference::setWhatsappEnabled);
-        Optional.ofNullable(request.getEmailEnabled()).ifPresent(preference::setEmailEnabled);
-        Optional.ofNullable(request.getInAppEnabled()).ifPresent(preference::setInAppEnabled);
+        if (request.getPreferredChannel() != null) {
+            preference.setPreferredChannel(request.getPreferredChannel().toUpperCase());
+        }
+        setIfPresent(request.getPhoneNumber(), preference::setPhoneNumber);
+        setIfPresent(request.getEmail(), preference::setEmail);
+        setIfPresent(request.getFcmToken(), preference::setFcmToken);
+        setIfPresent(request.getPushEnabled(), preference::setPushEnabled);
+        setIfPresent(request.getSmsEnabled(), preference::setSmsEnabled);
+        setIfPresent(request.getWhatsappEnabled(), preference::setWhatsappEnabled);
+        setIfPresent(request.getEmailEnabled(), preference::setEmailEnabled);
+        setIfPresent(request.getInAppEnabled(), preference::setInAppEnabled);
 
         NotificationPreference saved = preferenceRepository.save(preference);
         log.info("Saved notification preferences for userId={}, preferredChannel={}",
                 userId, saved.getPreferredChannel());
         return saved;
+    }
+
+    private static <T> void setIfPresent(T value, Consumer<T> setter) {
+        if (value != null) {
+            setter.accept(value);
+        }
     }
 }
