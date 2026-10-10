@@ -30,6 +30,19 @@ public final class TikaMetadataUtils {
     private TikaMetadataUtils() {
     }
 
+    public static Metadata parseMetadata(java.io.InputStream content, String contentType) throws Exception {
+        Metadata metadata = new Metadata();
+        if (contentType != null) {
+            metadata.set(org.springframework.http.HttpHeaders.CONTENT_TYPE, contentType);
+        }
+        org.apache.tika.parser.AutoDetectParser parser = new org.apache.tika.parser.AutoDetectParser();
+        org.apache.tika.sax.BodyContentHandler handler = new org.apache.tika.sax.BodyContentHandler(-1);
+        try (org.apache.tika.io.TikaInputStream tis = org.apache.tika.io.TikaInputStream.get(content)) {
+            parser.parse(tis, handler, metadata, new org.apache.tika.parser.ParseContext());
+        }
+        return metadata;
+    }
+
     public static Double parseDuration(Metadata metadata) {
         String duration = metadata.get(XMPDM.DURATION);
         if (duration == null) {

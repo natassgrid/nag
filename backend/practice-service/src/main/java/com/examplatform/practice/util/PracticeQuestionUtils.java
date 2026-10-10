@@ -77,4 +77,16 @@ public final class PracticeQuestionUtils {
         }
         return latest;
     }
+    public static List<UUID> resolveOrderedQuestionIds(String rawQuestionIds, Map<UUID, PracticeResponse> latestResponses, ObjectMapper objectMapper) {
+        List<UUID> orderedQuestionIds = new ArrayList<>();
+        if (rawQuestionIds != null && !rawQuestionIds.isBlank()) {
+            orderedQuestionIds.addAll(extractQuestionIds(rawQuestionIds, objectMapper));
+        }
+        for (UUID qId : latestResponses.keySet()) {
+            if (!orderedQuestionIds.contains(qId)) {
+                orderedQuestionIds.add(qId);
+            }
+        }
+        return orderedQuestionIds;
+    }
 }

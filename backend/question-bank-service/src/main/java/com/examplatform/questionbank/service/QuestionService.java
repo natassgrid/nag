@@ -497,23 +497,19 @@ public class QuestionService {
         };
     }
 
+    private static final List<String> SEARCHABLE_QUESTION_FIELDS = List.of(
+            "subject", "topic", "subtopic", "chapter", "difficulty",
+            "cognitiveLevel", "questionType", "content", "explanation", "state", "sourceReferences"
+    );
+
     private jakarta.persistence.criteria.Predicate matchAnyField(
             jakarta.persistence.criteria.Root<Question> root,
             jakarta.persistence.criteria.CriteriaBuilder cb,
             String pattern) {
-        return cb.or(
-                cb.like(cb.lower(cb.coalesce(root.get("subject"), "")), pattern),
-                cb.like(cb.lower(cb.coalesce(root.get("topic"), "")), pattern),
-                cb.like(cb.lower(cb.coalesce(root.get("subtopic"), "")), pattern),
-                cb.like(cb.lower(cb.coalesce(root.get("chapter"), "")), pattern),
-                cb.like(cb.lower(cb.coalesce(root.get("difficulty"), "")), pattern),
-                cb.like(cb.lower(cb.coalesce(root.get("cognitiveLevel"), "")), pattern),
-                cb.like(cb.lower(cb.coalesce(root.get("questionType"), "")), pattern),
-                cb.like(cb.lower(cb.coalesce(root.get("content"), "")), pattern),
-                cb.like(cb.lower(cb.coalesce(root.get("explanation"), "")), pattern),
-                cb.like(cb.lower(cb.coalesce(root.get("state"), "")), pattern),
-                cb.like(cb.lower(cb.coalesce(root.get("sourceReferences"), "")), pattern)
-        );
+        jakarta.persistence.criteria.Predicate[] predicates = SEARCHABLE_QUESTION_FIELDS.stream()
+                .map(field -> cb.like(cb.lower(cb.coalesce(root.get(field), "")), pattern))
+                .toArray(jakarta.persistence.criteria.Predicate[]::new);
+        return cb.or(predicates);
     }
 
     /**

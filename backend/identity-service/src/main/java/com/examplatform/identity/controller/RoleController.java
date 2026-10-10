@@ -82,10 +82,8 @@ public class RoleController {
             @RequestParam(defaultValue = "20") int size,
             @RequestParam(defaultValue = "") String search,
             @RequestHeader(value = "X-Tenant-Id", defaultValue = "default") String tenantId) {
-        log.debug("Querying role definitions for tenant={}, page={}, size={}, query='{}'",
-                tenantId, page, size, search);
-        return ResponseEntity.ok(ApiResponse.success(
-                roleDefinitionService.listRoles(tenantId, page, size, search)));
+        log.info("Listing roles for tenant: {}, page: {}, size: {}", tenantId, page, size);
+        return okPayload(roleDefinitionService.listRoles(tenantId, page, size, search));
     }
 
     /**
@@ -163,10 +161,12 @@ public class RoleController {
             @RequestParam(defaultValue = "50") int size,
             @RequestParam(defaultValue = "") String search,
             @RequestHeader(value = "X-Tenant-Id", defaultValue = "default") String tenantId) {
-        log.debug("Querying available system permissions: tenant={}, page={}, size={}, query='{}'",
-                tenantId, page, size, search);
-        return ResponseEntity.ok(ApiResponse.success(
-                roleDefinitionService.listPermissions(tenantId, page, size, search)));
+        log.info("Listing system permissions for tenant: {}, search: '{}'", tenantId, search);
+        return okPayload(roleDefinitionService.listPermissions(tenantId, page, size, search));
+    }
+
+    private static <T> ResponseEntity<ApiResponse<T>> okPayload(T body) {
+        return ResponseEntity.ok(ApiResponse.success(body));
     }
 
     // ===================================================================

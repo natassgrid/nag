@@ -269,15 +269,9 @@ public class PassageService {
                 passageId, subQuestions.size(), authorId, tenantId);
     }
 
-    private Question buildSubQuestion(
-            SubQuestionRequest subReq,
-            Passage passage,
-            Subject subject,
-            String topicName,
-            UUID authorId,
-            String tenantId,
-            int orderIndex
-    ) {
+    private record SubQuestionPayload(String answerKey, List<QuestionOption> options, boolean hasImages) {}
+
+    private SubQuestionPayload prepareSubQuestionPayload(SubQuestionRequest subReq) {
         String answerKey = subReq.getAnswerKey();
         List<QuestionOption> options = subReq.getOptions();
         if (options != null && !options.isEmpty()) {
@@ -294,6 +288,19 @@ public class PassageService {
 
         boolean hasImages = subReq.isHasImages() || QuestionService.detectHasImages(
                 subReq.getContent(), subReq.getExplanation(), options);
+        return new SubQuestionPayload(answerKey, options, hasImages);
+    }
+
+    private Question buildSubQuestion(
+            SubQuestionRequest subReq,
+            Passage passage,
+            Subject subject,
+            String topicName,
+            UUID authorId,
+            String tenantId,
+            int orderIndex
+    ) {
+        SubQuestionPayload payload = prepareSubQuestionPayload(subReq);
 
         Question q = Question.builder()
                 .subjectId(subject.getId())
@@ -305,11 +312,11 @@ public class PassageService {
                 .cognitiveLevel(subReq.getCognitiveLevel() != null ? subReq.getCognitiveLevel().name() : "UNDERSTAND")
                 .questionType(subReq.getQuestionType() != null ? subReq.getQuestionType().name() : QuestionType.SINGLE_MCQ.name())
                 .content(subReq.getContent())
-                .answerKey(answerKey)
-                .options(options)
+                .answerKey(payload.answerKey())
+                .options(payload.options())
                 .explanation(subReq.getExplanation())
                 .sourceReferences(subReq.getReferences())
-                .hasImages(hasImages)
+                .hasImages(payload.hasImages())
                 .state(passage.getState())
                 .passageId(passage.getId())
                 .passageOrderIndex(subReq.getPassageOrderIndex() != null ? subReq.getPassageOrderIndex() : orderIndex)
@@ -327,20 +334,7 @@ public class PassageService {
             String topicName,
             int orderIndex
     ) {
-        String answerKey = subReq.getAnswerKey();
-        List<QuestionOption> options = subReq.getOptions();
-        if (options != null && !options.isEmpty()) {
-            String[] ids = {"A", "B", "C", "D", "E", "F"};
-            for (int i = 0; i < options.size(); i++) {
-                options.get(i).setId(ids[i]);
-            }
-            try {
-                answerKey = new com.fasterxml.jackson.databind.ObjectMapper().writeValueAsString(options);
-            } catch (Exception ignored) {}
-        }
-
-        boolean hasImages = subReq.isHasImages() || QuestionService.detectHasImages(
-                subReq.getContent(), subReq.getExplanation(), options);
+        SubQuestionPayload payload = prepareSubQuestionPayload(subReq);
 
         existing.setSubjectId(subject.getId());
         existing.setSubject(subject.getName());
@@ -355,11 +349,11 @@ public class PassageService {
         if (subReq.getCognitiveLevel() != null) existing.setCognitiveLevel(subReq.getCognitiveLevel().name());
         if (subReq.getQuestionType() != null) existing.setQuestionType(subReq.getQuestionType().name());
         existing.setContent(subReq.getContent());
-        existing.setAnswerKey(answerKey);
-        existing.setOptions(options);
+        existing.setAnswerKey(payload.answerKey());
+        existing.setOptions(payload.options());
         existing.setExplanation(subReq.getExplanation());
         existing.setSourceReferences(subReq.getReferences());
-        existing.setHasImages(hasImages);
+        existing.setHasImages(payload.hasImages());
         existing.setPassageOrderIndex(subReq.getPassageOrderIndex() != null ? subReq.getPassageOrderIndex() : orderIndex);
     }
 

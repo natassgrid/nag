@@ -54,27 +54,21 @@ public class EvaluationCompletedConsumer extends AbstractEvaluationCompletedCons
         this.analyticsService = analyticsService;
     }
 
-    @KafkaListener(
-            topics = EVALUATION_COMPLETED_TOPIC,
-            groupId = "analytics-service-evaluation-consumer",
-            containerFactory = "kafkaListenerContainerFactory"
-    )
+    @KafkaListener(topics = EVALUATION_COMPLETED_TOPIC, groupId = "analytics-service-evaluation-consumer", containerFactory = "kafkaListenerContainerFactory")
     public void onEvaluationCompleted(
             @Payload String payload,
             @Header(value = KafkaHeaders.RECEIVED_KEY, required = false) String key) {
-        log.info("Analytics consumer received evaluation completed event: key={}", key);
+        log.debug("Consuming analytics evaluation completed event [key={}]", key);
         processEvaluationCompleted(payload, key);
     }
 
     @Override
-    @RabbitListener(
-            bindings = @QueueBinding(
-                    value = @Queue(value = "analytics.evaluation.events.queue", durable = "true"),
-                    exchange = @Exchange(value = "exam.events", type = ExchangeTypes.TOPIC),
-                    key = EVALUATION_COMPLETED_TOPIC
-            )
-    )
+    @RabbitListener(bindings = @QueueBinding(
+            value = @Queue(value = "analytics.evaluation.events.queue", durable = "true"),
+            exchange = @Exchange(value = "exam.events", type = ExchangeTypes.TOPIC),
+            key = EVALUATION_COMPLETED_TOPIC))
     public void onRabbitEvaluationCompleted(Object message) {
+        log.debug("Analytics consumer processing RabbitMQ event payload");
         super.onRabbitEvaluationCompleted(message);
     }
 

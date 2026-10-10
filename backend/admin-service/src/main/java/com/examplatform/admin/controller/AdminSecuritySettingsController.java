@@ -114,24 +114,10 @@ public class AdminSecuritySettingsController {
     }
 
     private String resolveTenant(String paramTenant) {
-        if (paramTenant != null && !paramTenant.isBlank()) {
-            return paramTenant;
-        }
-        String contextTenant = TenantContext.get();
-        if (contextTenant != null && !contextTenant.isBlank()) {
-            return contextTenant;
-        }
-        return "default";
+        return AdminControllerHelper.resolveTenant(paramTenant);
     }
 
     private UUID extractActorId(Jwt jwt) {
-        if (jwt == null || jwt.getSubject() == null) {
-            return UUID.fromString("00000000-0000-0000-0000-000000000000");
-        }
-        try {
-            return UUID.fromString(jwt.getSubject());
-        } catch (IllegalArgumentException e) {
-            return UUID.nameUUIDFromBytes(jwt.getSubject().getBytes());
-        }
+        return AdminControllerHelper.extractActorId(jwt);
     }
 }

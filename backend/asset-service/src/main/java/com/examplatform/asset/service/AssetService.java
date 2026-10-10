@@ -138,20 +138,11 @@ public class AssetService {
                 .sha256Hash(sha256Hash)
                 .assetType(validationResult.getAssetType())
                 .status(AssetStatus.ACTIVE)
-                .width(metadata.getWidth())
-                .height(metadata.getHeight())
-                .dpi(metadata.getDpi())
-                .orientation(metadata.getOrientation())
-                .durationSeconds(metadata.getDurationSeconds())
-                .codec(metadata.getCodec())
-                .bitrate(metadata.getBitrate())
-                .sampleRate(metadata.getSampleRate())
-                .channels(metadata.getChannels())
-                .frameRate(metadata.getFrameRate())
                 .storageProvider(provider.name())
                 .storageLocation(storageLocation)
                 .createdBy(userId)
                 .build();
+        applyMediaMetadata(asset, metadata);
 
         asset = assetRepository.save(asset);
 
@@ -193,17 +184,8 @@ public class AssetService {
         asset.setFileSize((long) fileBytes.length);
         asset.setSha256Hash(sha256Hash);
         asset.setAssetType(validationResult.getAssetType());
-        asset.setWidth(metadata.getWidth());
-        asset.setHeight(metadata.getHeight());
-        asset.setDpi(metadata.getDpi());
-        asset.setOrientation(metadata.getOrientation());
-        asset.setDurationSeconds(metadata.getDurationSeconds());
-        asset.setCodec(metadata.getCodec());
-        asset.setBitrate(metadata.getBitrate());
-        asset.setSampleRate(metadata.getSampleRate());
-        asset.setChannels(metadata.getChannels());
-        asset.setFrameRate(metadata.getFrameRate());
         asset.setStorageLocation(storageLocation);
+        applyMediaMetadata(asset, metadata);
         asset = assetRepository.save(asset);
 
         publishAuditEvent("ASSET_CONTENT_REPLACED", asset.getId(), userId, tenantId);
@@ -404,5 +386,10 @@ public class AssetService {
 
     private AssetUploadResponse mapToResponse(MediaAsset asset) {
         return AssetUploadResponse.fromEntity(asset, resolvePublicUrl(asset));
+    }
+    private void applyMediaMetadata(MediaAsset asset, MediaMetadata metadata) {
+        if (metadata != null) {
+            org.springframework.beans.BeanUtils.copyProperties(metadata, asset);
+        }
     }
 }

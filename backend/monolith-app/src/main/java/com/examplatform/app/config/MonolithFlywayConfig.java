@@ -41,31 +41,36 @@ public class MonolithFlywayConfig {
 
     private final DataSource dataSource;
 
+    private static final String[][] SERVICE_SCHEMAS = {
+            {"identity_service", "identity"},
+            {"candidate_service", "candidate"},
+            {"examination_service", "examination"},
+            {"paper_generator", "paper_generator"},
+            {"delivery_service", "delivery"},
+            {"response_service", "response"},
+            {"evaluation_service", "evaluation"},
+            {"result_service", "result"},
+            {"audit_service", "audit"},
+            {"notification_service", "notification"},
+            {"admin_service", "admin"},
+            {"analytics_service", "analytics"},
+            {"asset_service", "asset"},
+            {"practice_service", "practice"},
+            {"recommendation_service", "recommendation"}
+    };
+
     @PostConstruct
     public void migrate() {
-        List<SchemaMigrationSpec> specs = List.of(
-                SchemaMigrationSpec.of("identity_service", "classpath:db/migration/identity"),
-                SchemaMigrationSpec.of("candidate_service", "classpath:db/migration/candidate"),
-                SchemaMigrationSpec.of("question_service",
-                        "classpath:db/migration/question",
-                        "classpath:db/migration/question/seeds",
-                        "classpath:db/migration/question/seeds/rrb_ntpc",
-                        "classpath:db/migration/question/seeds/sbi_po",
-                        "classpath:db/migration/question/seeds/statement_and_conclusion"),
-                SchemaMigrationSpec.of("examination_service", "classpath:db/migration/examination"),
-                SchemaMigrationSpec.of("paper_generator", "classpath:db/migration/paper_generator"),
-                SchemaMigrationSpec.of("delivery_service", "classpath:db/migration/delivery"),
-                SchemaMigrationSpec.of("response_service", "classpath:db/migration/response"),
-                SchemaMigrationSpec.of("evaluation_service", "classpath:db/migration/evaluation"),
-                SchemaMigrationSpec.of("result_service", "classpath:db/migration/result"),
-                SchemaMigrationSpec.of("audit_service", "classpath:db/migration/audit"),
-                SchemaMigrationSpec.of("notification_service", "classpath:db/migration/notification"),
-                SchemaMigrationSpec.of("admin_service", "classpath:db/migration/admin"),
-                SchemaMigrationSpec.of("analytics_service", "classpath:db/migration/analytics"),
-                SchemaMigrationSpec.of("asset_service", "classpath:db/migration/asset"),
-                SchemaMigrationSpec.of("practice_service", "classpath:db/migration/practice"),
-                SchemaMigrationSpec.of("recommendation_service", "classpath:db/migration/recommendation")
-        );
+        List<SchemaMigrationSpec> specs = new java.util.ArrayList<>();
+        specs.add(SchemaMigrationSpec.of("question_service",
+                "classpath:db/migration/question",
+                "classpath:db/migration/question/seeds",
+                "classpath:db/migration/question/seeds/rrb_ntpc",
+                "classpath:db/migration/question/seeds/sbi_po",
+                "classpath:db/migration/question/seeds/statement_and_conclusion"));
+        for (String[] mapping : SERVICE_SCHEMAS) {
+            specs.add(SchemaMigrationSpec.of(mapping[0], "classpath:db/migration/" + mapping[1]));
+        }
         MultiSchemaFlywayRunner.runMigrations(dataSource, specs);
     }
 }

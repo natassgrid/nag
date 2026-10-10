@@ -55,4 +55,15 @@ public class CentreResponse {
     private boolean active;
     private Instant createdAt;
     private Instant updatedAt;
+
+    public static CentreResponse from(com.examplatform.examination.domain.ExaminationCentre c, String stateName, String cityName) {
+        if (c == null) {
+            return null;
+        }
+        CentreResponse response = new CentreResponse();
+        org.springframework.beans.BeanUtils.copyProperties(c, response);
+        response.setStateName(stateName);
+        response.setCityName(cityName);
+        return response;
+    }
 }

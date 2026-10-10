@@ -34,32 +34,25 @@ public class PracticeSession extends BaseEntity {
     private Instant submittedAt;
 
     @Column(name = "total_questions", nullable = false)
-    @Builder.Default
-    private int totalQuestions = 0;
+    private int totalQuestions;
 
     @Column(name = "duration_minutes", nullable = false)
-    @Builder.Default
-    private int durationMinutes = 0;
+    private int durationMinutes;
 
     @Column(name = "correct_count", nullable = false)
-    @Builder.Default
-    private int correctCount = 0;
+    private int correctCount;
 
     @Column(name = "incorrect_count", nullable = false)
-    @Builder.Default
-    private int incorrectCount = 0;
+    private int incorrectCount;
 
     @Column(name = "skipped_count", nullable = false)
-    @Builder.Default
-    private int skippedCount = 0;
+    private int skippedCount;
 
     @Column(name = "total_marks", nullable = false)
-    @Builder.Default
-    private int totalMarks = 0;
+    private int totalMarks;
 
     @Column(name = "obtained_marks", nullable = false)
-    @Builder.Default
-    private int obtainedMarks = 0;
+    private int obtainedMarks;
 
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "topic_wise_breakdown", columnDefinition = "jsonb")

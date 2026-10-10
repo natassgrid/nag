@@ -49,14 +49,7 @@ public class VideoMetadataExtractor implements MetadataExtractor {
         MediaMetadata.MediaMetadataBuilder builder = MediaMetadata.builder();
 
         try {
-            Metadata metadata = new Metadata();
-            metadata.set(HttpHeaders.CONTENT_TYPE, contentType);
-
-            AutoDetectParser parser = new AutoDetectParser();
-            BodyContentHandler handler = new BodyContentHandler(-1);
-            try (TikaInputStream tis = TikaInputStream.get(content)) {
-                parser.parse(tis, handler, metadata, new ParseContext());
-            }
+            Metadata metadata = TikaMetadataUtils.parseMetadata(content, contentType);
             // Duration
             builder.durationSeconds(TikaMetadataUtils.parseDuration(metadata));
 

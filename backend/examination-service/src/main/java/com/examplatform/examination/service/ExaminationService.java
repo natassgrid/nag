@@ -240,17 +240,7 @@ public class ExaminationService {
         examination.setReviewFlagEnabled(Boolean.TRUE.equals(request.getReviewFlagEnabled()));
         examination.setPractice(Boolean.TRUE.equals(request.getIsPractice()));
         examination.setSectionsJson(serializeSections(request.getSections()));
-
-        Examination saved = examinationRepository.save(examination);
-        log.info("Updated examination id={} for tenant={}", saved.getId(), tenantId);
-
-        publishAuditEvent("EXAM_UPDATED", saved.getId().toString(), tenantId, Map.of(
-                "examId", saved.getId().toString(),
-                "name", saved.getName()
-        ));
-
-        List<Section> sections = deserializeSections(saved.getSectionsJson());
-        return toResponse(saved, sections);
+        return persistAndBuildResponse(examination, "Updated", "EXAM_UPDATED", tenantId);
     }
 
     /**
@@ -270,16 +260,7 @@ public class ExaminationService {
         }
 
         examination.setStatus("PUBLISHED");
-        Examination saved = examinationRepository.save(examination);
-        log.info("Published examination id={} for tenant={}", saved.getId(), tenantId);
-
-        publishAuditEvent("EXAM_PUBLISHED", saved.getId().toString(), tenantId, Map.of(
-                "examId", saved.getId().toString(),
-                "name", saved.getName()
-        ));
-
-        List<Section> sections = deserializeSections(saved.getSectionsJson());
-        return toResponse(saved, sections);
+        return persistAndBuildResponse(examination, "Published", "EXAM_PUBLISHED", tenantId);
     }
 
     /**
@@ -294,8 +275,20 @@ public class ExaminationService {
         }
 
         examination.setStatus("CLOSED");
+        return persistAndBuildResponse(examination, "Closed", null, tenantId);
+    }
+
+    private ExaminationResponse persistAndBuildResponse(
+            Examination examination, String actionVerb, String auditEventType, String tenantId) {
         Examination saved = examinationRepository.save(examination);
-        log.info("Closed examination id={} for tenant={}", saved.getId(), tenantId);
+        log.info("{} examination id={} for tenant={}", actionVerb, saved.getId(), tenantId);
+
+        if (auditEventType != null) {
+            publishAuditEvent(auditEventType, saved.getId().toString(), tenantId, Map.of(
+                    "examId", saved.getId().toString(),
+                    "name", saved.getName()
+            ));
+        }
 
         List<Section> sections = deserializeSections(saved.getSectionsJson());
         return toResponse(saved, sections);

@@ -522,24 +522,13 @@ public class PaperController {
     }
 
     private PaperSummaryResponse buildPaperSummary(Paper p, String resolvedName, String examName, String shiftName) {
-        return PaperSummaryResponse.builder()
-                .paperId(p.getId())
-                .name(resolvedName)
-                .examId(p.getExamId())
-                .examName(examName)
-                .shiftId(p.getShiftId())
-                .shiftName(shiftName)
-                .status(p.getStatus())
-                .isPractice(p.isPractice())
-                .variant(p.getVariant())
-                .difficultyScore(p.getDifficultyScore())
-                .encryptionKeyId(p.getEncryptionKeyId())
-                .paperRootHash(p.getPaperRootHash())
-                .ledgerTxHash(p.getLedgerTxHash())
-                .ledgerExplorerUrl(p.getLedgerExplorerUrl())
-                .anchoredAt(p.getAnchoredAt())
-                .createdAt(p.getCreatedAt())
-                .build();
+        PaperSummaryResponse resp = new PaperSummaryResponse();
+        org.springframework.beans.BeanUtils.copyProperties(p, resp);
+        resp.setPaperId(p.getId());
+        resp.setName(resolvedName);
+        resp.setExamName(examName);
+        resp.setShiftName(shiftName);
+        return resp;
     }
 
     private String resolvePaperName(Paper p, String examName, String shiftName) {

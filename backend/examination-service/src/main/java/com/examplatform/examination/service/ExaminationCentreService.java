@@ -232,44 +232,13 @@ public class ExaminationCentreService {
         String cityName = geoLocationService.getCityByStateIdAndCityId(c.getStateId(), c.getCityId())
                 .map(g -> g.getName()).orElse(c.getCity());
 
-        return CentreResponse.builder()
-                .id(c.getId())
-                .countryId(c.getCountryId())
-                .stateId(c.getStateId())
-                .cityId(c.getCityId())
-                .countryName(countryName)
-                .stateName(stateName)
-                .cityName(cityName)
-                .region(c.getRegion())
-                .state(c.getState())
-                .district(c.getDistrict())
-                .city(c.getCity())
-                .centreName(c.getCentreName())
-                .building(c.getBuilding())
-                .floor(c.getFloor())
-                .laboratoryIdentifier(c.getLaboratoryIdentifier())
-                .totalCapacity(c.getTotalCapacity())
-                .active(c.isActive())
-                .createdAt(c.getCreatedAt())
-                .updatedAt(c.getUpdatedAt())
-                .build();
+        CentreResponse resp = CentreResponse.from(c, stateName, cityName);
+        resp.setCountryName(countryName);
+        return resp;
     }
 
     private SeatAllocationResponse toAllocationResponse(ShiftSeatAllocation a) {
-        return SeatAllocationResponse.builder()
-                .id(a.getId())
-                .shiftId(a.getShiftId())
-                .centreId(a.getCentreId())
-                .totalSeats(a.getTotalSeats())
-                .availableSeats(a.getAvailableSeats())
-                .reservedSeats(a.getReservedSeats())
-                .pwdSeats(a.getPwdSeats())
-                .emergencyBufferSeats(a.getEmergencyBufferSeats())
-                .femaleReservedSeats(a.getFemaleReservedSeats())
-                .specialCategorySeats(a.getSpecialCategorySeats())
-                .createdAt(a.getCreatedAt())
-                .updatedAt(a.getUpdatedAt())
-                .build();
+        return SeatAllocationResponse.from(a);
     }
 
     private void publishAuditAllocation(ShiftSeatAllocation a, UUID actorId, String tenantId) {

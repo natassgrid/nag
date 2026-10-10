@@ -105,50 +105,11 @@ public class RoleManagementService {
             assignment.setTenantId(tenantId);
             roleAssignmentRepository.save(assignment);
 
-            // Audit event
-            auditEventPublisher.publish(
-                    AuditEventType.ROLE_CHANGE,
-                    actorId,
-                    "identity:roles/" + targetUserId,
-                    null, null,
-                    Map.of("tenantId", tenantId, "action", "ASSIGN",
-                            "targetUserId", targetUserId.toString(),
-                            "role", request.getRole().name())
-            );
-
-            log.info("Role [{}] assigned to user [{}] by admin [{}] in tenant [{}]",
-                    request.getRole(), targetUserId, actorId, tenantId);
-
-            return RoleAssignmentResponse.builder()
-                    .userId(targetUserId)
-                    .role(request.getRole())
-                    .action(RoleAction.ASSIGN)
-                    .message("Role " + request.getRole() + " assigned successfully.")
-                    .build();
+            return buildRoleChangeResponse(targetUserId, request.getRole(), RoleAction.ASSIGN, actorId, tenantId, "assigned to");
 
         } else if (request.getAction() == RoleAction.REVOKE) {
             roleAssignmentRepository.deleteByUserIdAndRoleAndTenantId(targetUserId, request.getRole(), tenantId);
-
-            // Audit event
-            auditEventPublisher.publish(
-                    AuditEventType.ROLE_CHANGE,
-                    actorId,
-                    "identity:roles/" + targetUserId,
-                    null, null,
-                    Map.of("tenantId", tenantId, "action", "REVOKE",
-                            "targetUserId", targetUserId.toString(),
-                            "role", request.getRole().name())
-            );
-
-            log.info("Role [{}] revoked from user [{}] by admin [{}] in tenant [{}]",
-                    request.getRole(), targetUserId, actorId, tenantId);
-
-            return RoleAssignmentResponse.builder()
-                    .userId(targetUserId)
-                    .role(request.getRole())
-                    .action(RoleAction.REVOKE)
-                    .message("Role " + request.getRole() + " revoked successfully.")
-                    .build();
+            return buildRoleChangeResponse(targetUserId, request.getRole(), RoleAction.REVOKE, actorId, tenantId, "revoked from");
         }
 
         throw new IllegalArgumentException("Unsupported role action: " + request.getAction());
@@ -452,5 +413,28 @@ public class RoleManagementService {
                 .toList();
 
         return subjectMatched.isEmpty() ? allReviewers : subjectMatched;
+    }
+    private RoleAssignmentResponse buildRoleChangeResponse(
+            UUID targetUserId, UserRole role, RoleAction action,
+            String actorId, String tenantId, String actionPastText) {
+        auditEventPublisher.publish(
+                AuditEventType.ROLE_CHANGE,
+                actorId,
+                "identity:roles/" + targetUserId,
+                null, null,
+                Map.of("tenantId", tenantId, "action", action.name(),
+                        "targetUserId", targetUserId.toString(),
+                        "role", role.name())
+        );
+
+        log.info("Role [{}] {} user [{}] by admin [{}] in tenant [{}]",
+                role, actionPastText, targetUserId, actorId, tenantId);
+
+        return RoleAssignmentResponse.builder()
+                .userId(targetUserId)
+                .role(role)
+                .action(action)
+                .message("Role " + role + " " + (action == RoleAction.ASSIGN ? "assigned" : "revoked") + " successfully.")
+                .build();
     }
 }

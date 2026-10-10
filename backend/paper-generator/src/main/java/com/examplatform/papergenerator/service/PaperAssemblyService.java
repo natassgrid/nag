@@ -521,29 +521,20 @@ public class PaperAssemblyService {
 
     private void publishInsufficientQuestionsAlert(
             List<GapDetail> gaps, @Nullable UUID examId, @Nullable String shiftId, String tenantId) {
-        try {
-            Map<String, Object> alert = Map.of(
-                    "notificationType", "BLUEPRINT_DEFICIT_ALERT",
-                    "examId", examId != null ? examId.toString() : "",
-                    "shiftId", shiftId != null ? shiftId : "",
-                    "tenantId", tenantId,
-                    "deficitRuleCount", gaps.size(),
-                    "gapDetails", gaps,
-                    "occurredAt", Instant.now().toString()
-            );
-            eventPublisher.publish(NOTIFICATION_TOPIC, examId != null ? examId.toString() : "GLOBAL", alert);
-            log.info("Dispatched BLUEPRINT_DEFICIT_ALERT notification for examId={}, shiftId={}, deficitCount={}",
-                    examId, shiftId, gaps.size());
-        } catch (Exception e) {
-            log.error("Failed to publish blueprint deficit notification: {}", e.getMessage());
-        }
+        publishDeficitPayload(NOTIFICATION_TOPIC, "notificationType", "BLUEPRINT_DEFICIT_ALERT", gaps, examId, shiftId, tenantId);
     }
 
     private void publishInsufficientQuestionsAuditEvent(
             List<GapDetail> gaps, @Nullable UUID examId, @Nullable String shiftId, String tenantId) {
+        publishDeficitPayload(AUDIT_TOPIC, "eventType", "BLUEPRINT_DEFICIT_DETECTED", gaps, examId, shiftId, tenantId);
+    }
+
+    private void publishDeficitPayload(
+            String topic, String typeKey, String typeValue,
+            List<GapDetail> gaps, @Nullable UUID examId, @Nullable String shiftId, String tenantId) {
         try {
-            Map<String, Object> audit = Map.of(
-                    "eventType", "BLUEPRINT_DEFICIT_DETECTED",
+            Map<String, Object> payload = Map.of(
+                    typeKey, typeValue,
                     "examId", examId != null ? examId.toString() : "",
                     "shiftId", shiftId != null ? shiftId : "",
                     "tenantId", tenantId,
@@ -551,9 +542,11 @@ public class PaperAssemblyService {
                     "gapDetails", gaps,
                     "occurredAt", Instant.now().toString()
             );
-            eventPublisher.publish(AUDIT_TOPIC, examId != null ? examId.toString() : "GLOBAL", audit);
+            eventPublisher.publish(topic, examId != null ? examId.toString() : "GLOBAL", payload);
+            log.info("Dispatched {} to {} for examId={}, shiftId={}, deficitCount={}",
+                    typeValue, topic, examId, shiftId, gaps.size());
         } catch (Exception e) {
-            log.error("Failed to publish BLUEPRINT_DEFICIT_DETECTED audit event: {}", e.getMessage());
+            log.error("Failed to publish {} event to {}: {}", typeValue, topic, e.getMessage());
         }
     }
 }

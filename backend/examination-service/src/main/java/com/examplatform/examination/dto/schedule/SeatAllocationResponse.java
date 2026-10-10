@@ -48,4 +48,13 @@ public class SeatAllocationResponse {
     private int specialCategorySeats;
     private Instant createdAt;
     private Instant updatedAt;
+
+    public static SeatAllocationResponse from(com.examplatform.examination.domain.ShiftSeatAllocation allocation) {
+        if (allocation == null) {
+            return null;
+        }
+        SeatAllocationResponse response = new SeatAllocationResponse();
+        org.springframework.beans.BeanUtils.copyProperties(allocation, response);
+        return response;
+    }
 }

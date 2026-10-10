@@ -59,15 +59,8 @@ public class PracticeResultService {
         List<PracticeResponse> responses = practiceResponseRepository.findByPracticeSessionId(sessionId);
         Map<UUID, PracticeResponse> latestByQuestion = PracticeQuestionUtils.getLatestResponsesByQuestion(responses);
 
-        List<UUID> orderedQuestionIds = new ArrayList<>();
-        if (practiceSet != null && practiceSet.getQuestionIds() != null && !practiceSet.getQuestionIds().isBlank()) {
-            orderedQuestionIds.addAll(PracticeQuestionUtils.extractQuestionIds(practiceSet.getQuestionIds(), objectMapper));
-        }
-        for (UUID qId : latestByQuestion.keySet()) {
-            if (!orderedQuestionIds.contains(qId)) {
-                orderedQuestionIds.add(qId);
-            }
-        }
+        String rawQuestionIds = practiceSet != null ? practiceSet.getQuestionIds() : null;
+        List<UUID> orderedQuestionIds = PracticeQuestionUtils.resolveOrderedQuestionIds(rawQuestionIds, latestByQuestion, objectMapper);
 
         Map<UUID, AnswerKeyDto> answerKeyMap = questionBankClient.getAnswerKeys(orderedQuestionIds);
 

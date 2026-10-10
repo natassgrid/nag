@@ -23,6 +23,7 @@ import com.examplatform.candidate.crypto.EncryptedFieldConverter;
 import com.examplatform.shared.entity.BaseEntity;
 import jakarta.persistence.Column;
 import jakarta.persistence.Convert;
+import jakarta.persistence.Converts;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Table;
 import lombok.AllArgsConstructor;
@@ -48,67 +49,69 @@ import java.util.UUID;
 @EqualsAndHashCode(callSuper = true)
 @Entity
 @Table(name = "candidate_profile", schema = "candidate_service")
+@Converts({
+        @Convert(attributeName = "fullName", converter = EncryptedFieldConverter.class),
+        @Convert(attributeName = "dateOfBirth", converter = EncryptedFieldConverter.class),
+        @Convert(attributeName = "gender", converter = EncryptedFieldConverter.class),
+        @Convert(attributeName = "nationality", converter = EncryptedFieldConverter.class),
+        @Convert(attributeName = "category", converter = EncryptedFieldConverter.class),
+        @Convert(attributeName = "mobile", converter = EncryptedFieldConverter.class),
+        @Convert(attributeName = "email", converter = EncryptedFieldConverter.class),
+        @Convert(attributeName = "address", converter = EncryptedFieldConverter.class),
+        @Convert(attributeName = "country", converter = EncryptedFieldConverter.class),
+        @Convert(attributeName = "state", converter = EncryptedFieldConverter.class),
+        @Convert(attributeName = "district", converter = EncryptedFieldConverter.class),
+        @Convert(attributeName = "city", converter = EncryptedFieldConverter.class),
+        @Convert(attributeName = "pinCode", converter = EncryptedFieldConverter.class),
+        @Convert(attributeName = "reservationCategory", converter = EncryptedFieldConverter.class),
+        @Convert(attributeName = "identityDocNumber", converter = EncryptedFieldConverter.class)
+})
 public class CandidateProfile extends BaseEntity {
 
     // ── Encrypted PII fields ─────────────────────────────────────────────────
 
-    @Convert(converter = EncryptedFieldConverter.class)
     @Column(name = "full_name")
     private String fullName;
 
-    @Convert(converter = EncryptedFieldConverter.class)
     @Column(name = "date_of_birth")
     private String dateOfBirth;
 
-    @Convert(converter = EncryptedFieldConverter.class)
     @Column(name = "gender")
     private String gender;
 
-    @Convert(converter = EncryptedFieldConverter.class)
     @Column(name = "nationality")
     private String nationality;
 
-    @Convert(converter = EncryptedFieldConverter.class)
     @Column(name = "category")
     private String category;
 
-    @Convert(converter = EncryptedFieldConverter.class)
     @Column(name = "mobile")
     private String mobile;
 
-    @Convert(converter = EncryptedFieldConverter.class)
     @Column(name = "email")
     private String email;
 
-    @Convert(converter = EncryptedFieldConverter.class)
     @Column(name = "address")
     private String address;
 
-    @Convert(converter = EncryptedFieldConverter.class)
     @Column(name = "country")
     private String country;
 
-    @Convert(converter = EncryptedFieldConverter.class)
     @Column(name = "state")
     private String state;
 
-    @Convert(converter = EncryptedFieldConverter.class)
     @Column(name = "district")
     private String district;
 
-    @Convert(converter = EncryptedFieldConverter.class)
     @Column(name = "city")
     private String city;
 
-    @Convert(converter = EncryptedFieldConverter.class)
     @Column(name = "pin_code")
     private String pinCode;
 
-    @Convert(converter = EncryptedFieldConverter.class)
     @Column(name = "reservation_category")
     private String reservationCategory;
 
-    @Convert(converter = EncryptedFieldConverter.class)
     @Column(name = "identity_doc_number")
     private String identityDocNumber;
 

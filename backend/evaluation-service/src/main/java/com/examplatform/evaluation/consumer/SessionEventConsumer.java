@@ -100,20 +100,7 @@ public class SessionEventConsumer {
     public void onRabbitSessionEvent(Object message) {
         log.info("Received RabbitMQ session event: {}", message);
         try {
-            JsonNode event;
-            if (message instanceof Message amqpMsg) {
-                String s = new String(amqpMsg.getBody(), StandardCharsets.UTF_8);
-                event = objectMapper.readTree(s);
-            } else if (message instanceof byte[] bytes) {
-                String s = new String(bytes, StandardCharsets.UTF_8);
-                event = objectMapper.readTree(s);
-            } else if (message instanceof String s) {
-                event = objectMapper.readTree(s);
-            } else if (message instanceof JsonNode jn) {
-                event = jn;
-            } else {
-                event = objectMapper.valueToTree(message);
-            }
+            JsonNode event = parseMessageToJsonNode(message);
             processJsonEvent(event);
         } catch (Exception e) {
             log.error("Failed to process RabbitMQ session event: {}", e.getMessage(), e);
@@ -130,24 +117,26 @@ public class SessionEventConsumer {
         }
         log.info("Received Spring in-memory session event: key={}", event.key());
         try {
-            Object payload = event.payload();
-            JsonNode jsonNode;
-            if (payload instanceof Message amqpMsg) {
-                String s = new String(amqpMsg.getBody(), StandardCharsets.UTF_8);
-                jsonNode = objectMapper.readTree(s);
-            } else if (payload instanceof byte[] bytes) {
-                String s = new String(bytes, StandardCharsets.UTF_8);
-                jsonNode = objectMapper.readTree(s);
-            } else if (payload instanceof String s) {
-                jsonNode = objectMapper.readTree(s);
-            } else if (payload instanceof JsonNode jn) {
-                jsonNode = jn;
-            } else {
-                jsonNode = objectMapper.valueToTree(payload);
-            }
+            JsonNode jsonNode = parseMessageToJsonNode(event.payload());
             processJsonEvent(jsonNode);
         } catch (Exception e) {
             log.error("Failed to process Spring in-memory session event: {}", e.getMessage(), e);
+        }
+    }
+
+    private JsonNode parseMessageToJsonNode(Object message) throws Exception {
+        if (message instanceof Message amqpMsg) {
+            String s = new String(amqpMsg.getBody(), StandardCharsets.UTF_8);
+            return objectMapper.readTree(s);
+        } else if (message instanceof byte[] bytes) {
+            String s = new String(bytes, StandardCharsets.UTF_8);
+            return objectMapper.readTree(s);
+        } else if (message instanceof String s) {
+            return objectMapper.readTree(s);
+        } else if (message instanceof JsonNode jn) {
+            return jn;
+        } else {
+            return objectMapper.valueToTree(message);
         }
     }
 

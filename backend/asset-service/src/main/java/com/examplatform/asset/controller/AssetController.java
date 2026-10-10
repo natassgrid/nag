@@ -44,6 +44,7 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
@@ -135,32 +136,10 @@ public class AssetController {
     @GetMapping("/search")
     @PreAuthorize("hasAnyRole('QUESTION_AUTHOR', 'REVIEWER', 'APPROVER', 'ADMIN', 'CONTENT_MANAGER')")
     public ResponseEntity<ApiResponse<Page<AssetUploadResponse>>> searchAssets(
-            @RequestParam(required = false) String filename,
-            @RequestParam(required = false) AssetType assetType,
-            @RequestParam(required = false) String contentType,
-            @RequestParam(required = false) String tags,
-            @RequestParam(required = false) UUID createdBy,
-            @RequestParam(required = false) Instant uploadDateFrom,
-            @RequestParam(required = false) Instant uploadDateTo,
-            @RequestParam(required = false) AssetStatus status,
-            @RequestParam(required = false) Boolean referenced,
-            @RequestParam(required = false) String storageProvider,
+            @ModelAttribute AssetSearchRequest searchRequest,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size,
             @RequestHeader(value = "X-Tenant-Id", defaultValue = "default") String tenantId) {
-
-        AssetSearchRequest searchRequest = AssetSearchRequest.builder()
-                .filename(filename)
-                .assetType(assetType)
-                .contentType(contentType)
-                .tags(tags)
-                .createdBy(createdBy != null ? createdBy.toString() : null)
-                .uploadDateFrom(uploadDateFrom)
-                .uploadDateTo(uploadDateTo)
-                .status(status)
-                .referenced(referenced)
-                .storageProvider(storageProvider)
-                .build();
 
         Page<AssetUploadResponse> results = assetService.searchAssets(searchRequest, page, size, tenantId);
         return ResponseEntity.ok(ApiResponse.success(results, "Search completed successfully"));
@@ -296,9 +275,9 @@ public class AssetController {
             @AuthenticationPrincipal Jwt jwt,
             @RequestHeader("X-Tenant-Id") String tenantId) {
 
-        return ResponseEntity.ok(ApiResponse.success(
-                assetService.archiveAsset(id, UUID.fromString(jwt.getSubject()), tenantId),
-                "Asset archived successfully"));
+        UUID actorId = getSubjectUserId(jwt);
+        AssetUploadResponse res = assetService.archiveAsset(id, actorId, tenantId);
+        return ResponseEntity.ok(ApiResponse.success(res, "Asset archived successfully"));
     }
 
     /**
@@ -311,8 +290,12 @@ public class AssetController {
             @AuthenticationPrincipal Jwt jwt,
             @RequestHeader("X-Tenant-Id") String tenantId) {
 
-        return ResponseEntity.ok(ApiResponse.success(
-                assetService.restoreAsset(id, UUID.fromString(jwt.getSubject()), tenantId),
-                "Asset restored successfully"));
+        UUID actorId = getSubjectUserId(jwt);
+        AssetUploadResponse res = assetService.restoreAsset(id, actorId, tenantId);
+        return ResponseEntity.ok(ApiResponse.success(res, "Asset restored successfully"));
+    }
+
+    private UUID getSubjectUserId(Jwt jwt) {
+        return UUID.fromString(jwt.getSubject());
     }
 }
