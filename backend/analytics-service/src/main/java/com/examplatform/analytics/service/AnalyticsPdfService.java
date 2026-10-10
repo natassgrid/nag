@@ -180,13 +180,7 @@ public class AnalyticsPdfService {
 
     private float drawMetricsSummary(PDPageContentStream cs, PDType1Font fontBold, PDType1Font fontRegular,
                                      float x, float y, float width, ExamAnalytics analytics) throws IOException {
-        // Section Title
-        cs.beginText();
-        cs.setNonStrokingColor(PRIMARY_COLOR);
-        cs.setFont(fontBold, 12);
-        cs.newLineAtOffset(x, y);
-        cs.showText("1. Executive Summary & Key Percentiles");
-        cs.endText();
+        drawSectionTitle(cs, fontBold, x, y, "1. Executive Summary & Key Percentiles");
 
         y -= 10;
 
@@ -213,6 +207,15 @@ public class AnalyticsPdfService {
                 "Bottom 10% (P10) Score", String.format("%.2f", bottom10), TEXT_DARK);
 
         return cardY - 20;
+    }
+
+    private void drawSectionTitle(PDPageContentStream cs, PDType1Font fontBold, float x, float y, String title) throws IOException {
+        cs.beginText();
+        cs.setNonStrokingColor(PRIMARY_COLOR);
+        cs.setFont(fontBold, 12);
+        cs.newLineAtOffset(x, y);
+        cs.showText(title);
+        cs.endText();
     }
 
     private void drawKpiCard(PDPageContentStream cs, PDType1Font fontBold, PDType1Font fontRegular,
@@ -251,13 +254,7 @@ public class AnalyticsPdfService {
 
     private float drawScoreDistributionChart(PDPageContentStream cs, PDType1Font fontBold, PDType1Font fontRegular,
                                              float x, float y, float width, ExamAnalytics analytics) throws IOException {
-        // Section Title
-        cs.beginText();
-        cs.setNonStrokingColor(PRIMARY_COLOR);
-        cs.setFont(fontBold, 12);
-        cs.newLineAtOffset(x, y);
-        cs.showText("2. Score Distribution Histogram");
-        cs.endText();
+        drawSectionTitle(cs, fontBold, x, y, "2. Score Distribution Histogram");
 
         y -= 15;
 
@@ -365,13 +362,7 @@ public class AnalyticsPdfService {
 
     private float drawSectionAveragesTable(PDPageContentStream cs, PDType1Font fontBold, PDType1Font fontRegular,
                                            float x, float y, float width, ExamAnalytics analytics) throws IOException {
-        // Section Title
-        cs.beginText();
-        cs.setNonStrokingColor(PRIMARY_COLOR);
-        cs.setFont(fontBold, 12);
-        cs.newLineAtOffset(x, y);
-        cs.showText("3. Section & Subject Performance Breakdown");
-        cs.endText();
+        drawSectionTitle(cs, fontBold, x, y, "3. Section & Subject Performance Breakdown");
 
         y -= 12;
 
