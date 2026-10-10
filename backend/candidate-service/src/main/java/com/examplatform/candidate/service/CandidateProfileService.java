@@ -188,11 +188,7 @@ public class CandidateProfileService {
                     return initDefaultProfile(userId, tenantId);
                 });
 
-        setTrimmedIfPresent(profile::setFullName, request.getFullName());
-        setTrimmedIfPresent(profile::setDateOfBirth, request.getDateOfBirth());
-        setTrimmedIfPresent(profile::setGender, request.getGender());
-        setTrimmedIfPresent(profile::setNationality, request.getNationality());
-        setTrimmedIfPresent(profile::setCategory, request.getCategory());
+        applyTextUpdates(profile, request);
 
         if (request.getMobile() != null && !request.getMobile().isBlank()) {
             // Recompute mobileHash and check uniqueness against OTHER candidates
@@ -207,15 +203,6 @@ public class CandidateProfileService {
         } else if (profile.getMobileHash() == null) {
             profile.setMobileHash("PENDING-" + userId);
         }
-
-        setTrimmedIfPresent(profile::setEmail, request.getEmail());
-        setTrimmedIfPresent(profile::setAddress, request.getAddress());
-        setTrimmedIfPresent(profile::setCountry, request.getCountry());
-        setTrimmedIfPresent(profile::setState, request.getState());
-        setTrimmedIfPresent(profile::setDistrict, request.getDistrict());
-        setTrimmedIfPresent(profile::setCity, request.getCity());
-        setTrimmedIfPresent(profile::setPinCode, request.getPinCode());
-        setTrimmedIfPresent(profile::setReservationCategory, request.getReservationCategory());
 
         if (request.getIdentityDocNumber() != null && !request.getIdentityDocNumber().isBlank()) {
             // Recompute docHash + docHmac
@@ -322,7 +309,23 @@ public class CandidateProfileService {
         );
     }
 
-    // ── Private helpers ──────────────────────────────────────────────────────────
+    // ── Private helpers ────────────────────────────────────────────────────────
+
+    private void applyTextUpdates(CandidateProfile profile, UpdateCandidateProfileRequest request) {
+        setTrimmedIfPresent(profile::setFullName, request.getFullName());
+        setTrimmedIfPresent(profile::setDateOfBirth, request.getDateOfBirth());
+        setTrimmedIfPresent(profile::setGender, request.getGender());
+        setTrimmedIfPresent(profile::setNationality, request.getNationality());
+        setTrimmedIfPresent(profile::setCategory, request.getCategory());
+        setTrimmedIfPresent(profile::setEmail, request.getEmail());
+        setTrimmedIfPresent(profile::setAddress, request.getAddress());
+        setTrimmedIfPresent(profile::setCountry, request.getCountry());
+        setTrimmedIfPresent(profile::setState, request.getState());
+        setTrimmedIfPresent(profile::setDistrict, request.getDistrict());
+        setTrimmedIfPresent(profile::setCity, request.getCity());
+        setTrimmedIfPresent(profile::setPinCode, request.getPinCode());
+        setTrimmedIfPresent(profile::setReservationCategory, request.getReservationCategory());
+    }
 
     private static void setTrimmedIfPresent(Consumer<String> setter, String value) {
         if (value != null) {
