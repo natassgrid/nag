@@ -42,16 +42,10 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.function.Function;
 import java.util.stream.Collectors;
 
 /**
- * Service responsible for computing per-question psychometric analytics for an exam.
- * Calculates difficulty index, discrimination index (using Kelley's 27% method),
- * response distribution, and average time spent with 1-hour in-memory/Redis caching.
- *
- * Validates: Requirements 26.1, 26.5, Issue #111
- */
+ * Service responsible for computing per-question psychometric analytics for an exam.\n * Calculates difficulty index, discrimination index (using Kelley's 27% method),\n * response distribution, and average time spent with 1-hour in-memory/Redis caching.\n *\n * Validates: Requirements 26.1, 26.5, Issue #111\n */
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -65,17 +59,7 @@ public class QuestionAnalyticsService {
     private final Map<String, CacheEntry> cache = new ConcurrentHashMap<>();
 
     /**
-     * Computes analytics for all questions in an exam with real cross-service data.
-     *
-     * Psychometric Formulas:
-     * - Difficulty index (P) = correct responses / total attempted responses
-     * - Discrimination index (D) = (top 27% correct rate) - (bottom 27% correct rate)
-     * - Response distribution = count per option selected
-     *
-     * @param examId   the exam identifier
-     * @param tenantId the tenant identifier
-     * @return list of per-question analytics results
-     */
+     * Computes analytics for all questions in an exam with real cross-service data.\n     *\n     * Psychometric Formulas:\n     * - Difficulty index (P) = correct responses / total attempted responses\n     * - Discrimination index (D) = (top 27% correct rate) - (bottom 27% correct rate)\n     * - Response distribution = count per option selected\n     *\n     * @param examId   the exam identifier\n     * @param tenantId the tenant identifier\n     * @return list of per-question analytics results\n     */
     public List<QuestionAnalyticsResult> computeAnalytics(UUID examId, String tenantId) {
         String effectiveTenant = (tenantId != null && !tenantId.isBlank()) ? tenantId : "default";
         String cacheKey = effectiveTenant + ":" + examId;
@@ -106,15 +90,9 @@ public class QuestionAnalyticsService {
                 .distinct()
                 .toList();
 
-        Map<UUID, QuestionDetailDto> questionMap = Collections.emptyMap();
-        if (questionBankClient != null && !questionIds.isEmpty()) {
-            List<QuestionDetailDto> questionDetails = questionBankClient.findQuestionsByIds(questionIds, effectiveTenant);
-            if (questionDetails != null) {
-                questionMap = questionDetails.stream()
-                        .filter(q -> q.getId() != null)
-                        .collect(Collectors.toMap(QuestionDetailDto::getId, Function.identity(), (a, b) -> a));
-            }
-        }
+        Map<UUID, QuestionDetailDto> questionMap = (questionBankClient != null && !questionIds.isEmpty())
+                ? QuestionBankClient.toQuestionMap(questionBankClient.findQuestionsByIds(questionIds, effectiveTenant))
+                : Collections.emptyMap();
 
         // 4. Group all candidates and sort by exam total score to identify top/bottom 27% groups
         Map<UUID, Double> candidateTotalScoreMap = new HashMap<>();

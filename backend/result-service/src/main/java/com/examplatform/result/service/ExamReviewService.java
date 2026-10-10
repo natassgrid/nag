@@ -41,8 +41,6 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
-import java.util.function.Function;
-import java.util.stream.Collectors;
 
 /**
  * Service responsible for assembling real cross-service exam review data.
@@ -113,15 +111,9 @@ public class ExamReviewService {
                 .distinct()
                 .toList();
 
-        Map<UUID, QuestionDetailDto> questionMap = Collections.emptyMap();
-        if (!questionIds.isEmpty()) {
-            List<QuestionDetailDto> questions = questionBankClient.findQuestionsByIds(questionIds, tenantId);
-            if (questions != null) {
-                questionMap = questions.stream()
-                        .filter(q -> q.getId() != null)
-                        .collect(Collectors.toMap(QuestionDetailDto::getId, Function.identity(), (a, b) -> a));
-            }
-        }
+        Map<UUID, QuestionDetailDto> questionMap = questionIds.isEmpty()
+                ? Collections.emptyMap()
+                : QuestionBankClient.toQuestionMap(questionBankClient.findQuestionsByIds(questionIds, tenantId));
 
         // 3. Retrieve peer accuracy from QuestionAnalyticsService
         Map<UUID, Double> peerAccuracyMap = new HashMap<>();
