@@ -26,16 +26,14 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
-import java.util.NoSuchElementException;
-
 /**
  * Global exception handler for the evaluation-service REST API.
  */
 @RestControllerAdvice(basePackages = "com.examplatform.evaluation")
 public class GlobalExceptionHandler extends BaseErrorEnvelopeExceptionHandler {
 
-    @ExceptionHandler({IllegalArgumentException.class, NoSuchElementException.class})
-    public ResponseEntity<ErrorEnvelope> handleNotFound(RuntimeException ex) {
+    @ExceptionHandler(IllegalArgumentException.class)
+    public ResponseEntity<ErrorEnvelope> handleIllegalArgument(IllegalArgumentException ex) {
         log.warn("Resource not found: {}", ex.getMessage());
         return buildEnvelope("NOT_FOUND", ex.getMessage(), HttpStatus.NOT_FOUND);
     }

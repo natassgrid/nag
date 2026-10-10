@@ -28,8 +28,6 @@ import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
-import java.util.NoSuchElementException;
-
 /**
  * Global exception handler for the delivery-service REST API.
  * Maps domain exceptions to appropriate HTTP status codes and structured ErrorEnvelope responses.
@@ -50,12 +48,6 @@ public class GlobalExceptionHandler extends BaseErrorEnvelopeExceptionHandler {
     public ResponseEntity<ErrorEnvelope> handleNavigationPolicyViolation(NavigationPolicyViolationException ex) {
         log.warn("Navigation policy violation: {}", ex.getMessage());
         return buildEnvelope("NAVIGATION_POLICY_VIOLATION", ex.getMessage(), HttpStatus.UNPROCESSABLE_ENTITY);
-    }
-
-    @ExceptionHandler(NoSuchElementException.class)
-    public ResponseEntity<ErrorEnvelope> handleNotFound(NoSuchElementException ex) {
-        log.warn("Resource not found: {}", ex.getMessage());
-        return buildEnvelope("NOT_FOUND", ex.getMessage(), HttpStatus.NOT_FOUND);
     }
 
     @ExceptionHandler({

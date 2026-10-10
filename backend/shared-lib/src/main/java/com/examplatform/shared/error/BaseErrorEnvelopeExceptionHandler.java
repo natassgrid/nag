@@ -27,6 +27,8 @@ import org.springframework.security.access.AccessDeniedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 
+import java.util.NoSuchElementException;
+
 /**
  * Abstract base exception handler for microservices using ErrorEnvelope responses.
  */
@@ -36,6 +38,12 @@ public abstract class BaseErrorEnvelopeExceptionHandler {
 
     protected ResponseEntity<ErrorEnvelope> buildEnvelope(String code, String message, HttpStatus status) {
         return ResponseEntity.status(status).body(ErrorEnvelope.of(code, message, status.value()));
+    }
+
+    @ExceptionHandler(NoSuchElementException.class)
+    public ResponseEntity<ErrorEnvelope> handleNotFound(NoSuchElementException ex) {
+        log.warn("Resource not found: {}", ex.getMessage());
+        return buildEnvelope("NOT_FOUND", ex.getMessage(), HttpStatus.NOT_FOUND);
     }
 
     @ExceptionHandler(AccessDeniedException.class)

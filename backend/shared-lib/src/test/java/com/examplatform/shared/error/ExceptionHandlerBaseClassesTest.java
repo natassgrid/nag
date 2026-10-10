@@ -34,6 +34,8 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.MissingRequestHeaderException;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 
+import java.util.NoSuchElementException;
+
 import static org.assertj.core.api.Assertions.assertThat;
 
 class ExceptionHandlerBaseClassesTest {
@@ -125,6 +127,12 @@ class ExceptionHandlerBaseClassesTest {
         ResponseEntity<ErrorEnvelope> deniedResp = errorEnvelopeHandler.handleAccessDenied(new AccessDeniedException("Denied"));
         assertThat(deniedResp.getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
         assertThat(deniedResp.getBody().error().code()).isEqualTo("ACCESS_DENIED");
+
+        // NoSuchElement (Not Found)
+        ResponseEntity<ErrorEnvelope> notFoundResp = errorEnvelopeHandler.handleNotFound(new NoSuchElementException("Item missing"));
+        assertThat(notFoundResp.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
+        assertThat(notFoundResp.getBody().error().code()).isEqualTo("NOT_FOUND");
+        assertThat(notFoundResp.getBody().error().message()).isEqualTo("Item missing");
 
         // Generic Exception
         ResponseEntity<ErrorEnvelope> genericResp = errorEnvelopeHandler.handleGeneric(new RuntimeException("Crash"));
