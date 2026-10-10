@@ -66,12 +66,8 @@ public class GlobalExceptionHandler {
      */
     @ExceptionHandler(AuthenticationException.class)
     public ResponseEntity<ProblemDetail> handleAuthenticationException(AuthenticationException ex) {
-        ProblemDetail pd = ProblemDetailBuilder.forStatus(HttpStatus.UNAUTHORIZED)
-                .withTitle("Unauthorized")
-                .withDetail(ex.getMessage())
-                .build();
         log.debug("Authentication failed: {}", ex.getMessage());
-        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(pd);
+        return problemResponse(HttpStatus.UNAUTHORIZED, "Unauthorized", ex.getMessage());
     }
 
     /**
@@ -101,11 +97,7 @@ public class GlobalExceptionHandler {
      */
     @ExceptionHandler(DuplicateIdentityException.class)
     public ResponseEntity<ProblemDetail> handleDuplicateIdentity(DuplicateIdentityException ex) {
-        ProblemDetail pd = ProblemDetailBuilder.forStatus(HttpStatus.CONFLICT)
-                .withTitle("Duplicate Identity")
-                .withDetail(ex.getMessage())
-                .build();
-        return ResponseEntity.status(HttpStatus.CONFLICT).body(pd);
+        return problemResponse(HttpStatus.CONFLICT, "Duplicate Identity", ex.getMessage());
     }
 
     /**
@@ -142,14 +134,8 @@ public class GlobalExceptionHandler {
      */
     @ExceptionHandler(AccessDeniedException.class)
     public ResponseEntity<ProblemDetail> handleAccessDeniedException(AccessDeniedException ex) {
-        ProblemDetail problem = ProblemDetailBuilder
-                .forStatus(HttpStatus.FORBIDDEN)
-                .withTitle("Access Denied")
-                .withDetail("You do not have permission to perform this action.")
-                .build();
-
         log.debug("Access denied: {}", ex.getMessage());
-        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(problem);
+        return problemResponse(HttpStatus.FORBIDDEN, "Access Denied", "You do not have permission to perform this action.");
     }
 
     /**
@@ -161,11 +147,7 @@ public class GlobalExceptionHandler {
      */
     @ExceptionHandler(InvalidOtpException.class)
     public ResponseEntity<ProblemDetail> handleInvalidOtp(InvalidOtpException ex) {
-        ProblemDetail pd = ProblemDetailBuilder.forStatus(HttpStatus.UNPROCESSABLE_ENTITY)
-                .withTitle("Invalid OTP")
-                .withDetail(ex.getMessage())
-                .build();
-        return ResponseEntity.status(HttpStatus.UNPROCESSABLE_ENTITY).body(pd);
+        return problemResponse(HttpStatus.UNPROCESSABLE_ENTITY, "Invalid OTP", ex.getMessage());
     }
 
     /**
@@ -177,11 +159,7 @@ public class GlobalExceptionHandler {
      */
     @ExceptionHandler(InvalidTotpException.class)
     public ResponseEntity<ProblemDetail> handleInvalidTotp(InvalidTotpException ex) {
-        ProblemDetail pd = ProblemDetailBuilder.forStatus(HttpStatus.UNPROCESSABLE_ENTITY)
-                .withTitle("Invalid TOTP")
-                .withDetail(ex.getMessage())
-                .build();
-        return ResponseEntity.status(HttpStatus.UNPROCESSABLE_ENTITY).body(pd);
+        return problemResponse(HttpStatus.UNPROCESSABLE_ENTITY, "Invalid TOTP", ex.getMessage());
     }
 
     /**
@@ -193,11 +171,7 @@ public class GlobalExceptionHandler {
      */
     @ExceptionHandler(AccountNotFoundException.class)
     public ResponseEntity<ProblemDetail> handleAccountNotFound(AccountNotFoundException ex) {
-        ProblemDetail pd = ProblemDetailBuilder.forStatus(HttpStatus.NOT_FOUND)
-                .withTitle("Account Not Found")
-                .withDetail(ex.getMessage())
-                .build();
-        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(pd);
+        return problemResponse(HttpStatus.NOT_FOUND, "Account Not Found", ex.getMessage());
     }
 
     /**
@@ -209,11 +183,7 @@ public class GlobalExceptionHandler {
      */
     @ExceptionHandler(InvitationNotFoundException.class)
     public ResponseEntity<ProblemDetail> handleInvitationNotFound(InvitationNotFoundException ex) {
-        ProblemDetail pd = ProblemDetailBuilder.forStatus(HttpStatus.NOT_FOUND)
-                .withTitle("Invitation Not Found")
-                .withDetail(ex.getMessage())
-                .build();
-        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(pd);
+        return problemResponse(HttpStatus.NOT_FOUND, "Invitation Not Found", ex.getMessage());
     }
 
     /**
@@ -225,11 +195,7 @@ public class GlobalExceptionHandler {
      */
     @ExceptionHandler(InvitationExpiredException.class)
     public ResponseEntity<ProblemDetail> handleInvitationExpired(InvitationExpiredException ex) {
-        ProblemDetail pd = ProblemDetailBuilder.forStatus(HttpStatus.BAD_REQUEST)
-                .withTitle("Invitation Expired")
-                .withDetail(ex.getMessage())
-                .build();
-        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(pd);
+        return problemResponse(HttpStatus.BAD_REQUEST, "Invitation Expired", ex.getMessage());
     }
 
     /**
@@ -287,13 +253,14 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ProblemDetail> handleGenericException(Exception ex) {
         log.error("Unhandled exception: {}", ex.getMessage(), ex);
-
-        ProblemDetail problem = ProblemDetailBuilder
-                .forStatus(HttpStatus.INTERNAL_SERVER_ERROR)
-                .withTitle("Internal Server Error")
-                .withDetail("An unexpected error occurred. Please try again later.")
-                .build();
-
-        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(problem);
+        return problemResponse(HttpStatus.INTERNAL_SERVER_ERROR, "Internal Server Error", "An unexpected error occurred. Please try again later.");
     }
+    private ResponseEntity<ProblemDetail> problemResponse(HttpStatus status, String title, String detail) {
+        ProblemDetail pd = ProblemDetailBuilder.forStatus(status)
+                .withTitle(title)
+                .withDetail(detail)
+                .build();
+        return ResponseEntity.status(status).body(pd);
+    }
+
 }

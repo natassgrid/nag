@@ -138,20 +138,11 @@ public class AssetService {
                 .sha256Hash(sha256Hash)
                 .assetType(validationResult.getAssetType())
                 .status(AssetStatus.ACTIVE)
-                .width(metadata.getWidth())
-                .height(metadata.getHeight())
-                .dpi(metadata.getDpi())
-                .orientation(metadata.getOrientation())
-                .durationSeconds(metadata.getDurationSeconds())
-                .codec(metadata.getCodec())
-                .bitrate(metadata.getBitrate())
-                .sampleRate(metadata.getSampleRate())
-                .channels(metadata.getChannels())
-                .frameRate(metadata.getFrameRate())
                 .storageProvider(provider.name())
                 .storageLocation(storageLocation)
                 .createdBy(userId)
                 .build();
+        applyMediaMetadata(asset, metadata);
 
         asset = assetRepository.save(asset);
 
@@ -193,17 +184,8 @@ public class AssetService {
         asset.setFileSize((long) fileBytes.length);
         asset.setSha256Hash(sha256Hash);
         asset.setAssetType(validationResult.getAssetType());
-        asset.setWidth(metadata.getWidth());
-        asset.setHeight(metadata.getHeight());
-        asset.setDpi(metadata.getDpi());
-        asset.setOrientation(metadata.getOrientation());
-        asset.setDurationSeconds(metadata.getDurationSeconds());
-        asset.setCodec(metadata.getCodec());
-        asset.setBitrate(metadata.getBitrate());
-        asset.setSampleRate(metadata.getSampleRate());
-        asset.setChannels(metadata.getChannels());
-        asset.setFrameRate(metadata.getFrameRate());
         asset.setStorageLocation(storageLocation);
+        applyMediaMetadata(asset, metadata);
         asset = assetRepository.save(asset);
 
         publishAuditEvent("ASSET_CONTENT_REPLACED", asset.getId(), userId, tenantId);
@@ -255,11 +237,11 @@ public class AssetService {
     public AssetUploadResponse updateMetadata(UUID assetId, AssetMetadataUpdateRequest request, UUID userId, String tenantId) {
         MediaAsset asset = findAssetOrThrow(assetId);
 
-        if (request.getTitle() != null) asset.setTitle(request.getTitle());
-        if (request.getDescription() != null) asset.setDescription(request.getDescription());
-        if (request.getAltText() != null) asset.setAltText(request.getAltText());
-        if (request.getTags() != null) asset.setTags(request.getTags());
-        if (request.getLanguage() != null) asset.setLanguage(request.getLanguage());
+        Optional.ofNullable(request.getTitle()).ifPresent(asset::setTitle);
+        Optional.ofNullable(request.getDescription()).ifPresent(asset::setDescription);
+        Optional.ofNullable(request.getAltText()).ifPresent(asset::setAltText);
+        Optional.ofNullable(request.getTags()).ifPresent(asset::setTags);
+        Optional.ofNullable(request.getLanguage()).ifPresent(asset::setLanguage);
 
         asset = assetRepository.save(asset);
 
@@ -403,37 +385,11 @@ public class AssetService {
     }
 
     private AssetUploadResponse mapToResponse(MediaAsset asset) {
-        return AssetUploadResponse.builder()
-                .id(asset.getId())
-                .originalFilename(asset.getOriginalFilename())
-                .contentType(asset.getContentType())
-                .extension(asset.getExtension())
-                .fileSize(asset.getFileSize())
-                .sha256Hash(asset.getSha256Hash())
-                .assetType(asset.getAssetType())
-                .status(asset.getStatus())
-                .publicUrl(resolvePublicUrl(asset))
-                .width(asset.getWidth())
-                .height(asset.getHeight())
-                .dpi(asset.getDpi())
-                .orientation(asset.getOrientation())
-                .durationSeconds(asset.getDurationSeconds())
-                .codec(asset.getCodec())
-                .bitrate(asset.getBitrate())
-                .sampleRate(asset.getSampleRate())
-                .channels(asset.getChannels())
-                .frameRate(asset.getFrameRate())
-                .title(asset.getTitle())
-                .description(asset.getDescription())
-                .altText(asset.getAltText())
-                .tags(asset.getTags())
-                .language(asset.getLanguage())
-                .storageProvider(asset.getStorageProvider())
-                .storageLocation(asset.getStorageLocation())
-                .createdBy(asset.getCreatedBy())
-                .createdAt(asset.getCreatedAt())
-                .updatedAt(asset.getUpdatedAt())
-                .tenantId(asset.getTenantId())
-                .build();
+        return AssetUploadResponse.fromEntity(asset, resolvePublicUrl(asset));
+    }
+    private void applyMediaMetadata(MediaAsset asset, MediaMetadata metadata) {
+        if (metadata != null) {
+            org.springframework.beans.BeanUtils.copyProperties(metadata, asset);
+        }
     }
 }

@@ -366,33 +366,6 @@ public class QuestionLifecycleService {
     }
 
     private QuestionResponse toResponse(Question question) {
-        LocalDateTime createdAt = question.getCreatedAt() != null
-                ? LocalDateTime.ofInstant(question.getCreatedAt(), ZoneOffset.UTC)
-                : null;
-
-        return QuestionResponse.builder()
-                .id(question.getId())
-                .subjectId(question.getSubjectId())
-                .topicId(question.getTopicId())
-                .subtopicId(question.getSubtopicId())
-                .subject(question.getSubject())
-                .topic(question.getTopic())
-                .subtopic(question.getSubtopic())
-                .chapter(question.getChapter())
-                .difficulty(question.getDifficulty())
-                .cognitiveLevel(question.getCognitiveLevel())
-                .questionType(question.getQuestionType())
-                .content(question.getContent())
-                .answerKey(question.getAnswerKey())
-                .explanation(question.getExplanation())
-                .sourceReferences(question.getSourceReferences())
-                .state(question.getState())
-                .authorId(question.getAuthorId())
-                .reviewerId(question.getReviewerId())
-                .reviewComments(question.getReviewComments())
-                .createdAt(createdAt)
-                .options(question.getOptions())
-                .hasImages(question.isHasImages())
-                .build();
+        return QuestionResponse.fromEntity(question);
     }
 }

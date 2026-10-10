@@ -264,15 +264,7 @@ public class SpringAiGenerationService implements QuestionGenerationService {
                 savedId = persistAsDraft(raw, request, tenantId, authorId);
             }
 
-            processedQuestions.add(QuestionGenerationResponse.GeneratedQuestion.builder()
-                    .content(raw.content)
-                    .answerKey(raw.answerKey)
-                    .explanation(raw.explanation)
-                    .options(raw.options)
-                    .difficulty(raw.difficulty != null ? raw.difficulty : request.getDifficulty())
-                    .cognitiveLevel(raw.cognitiveLevel != null ? raw.cognitiveLevel : request.getCognitiveLevel())
-                    .questionType(raw.questionType != null ? raw.questionType : request.getQuestionType())
-                    .validation(validation)
+            processedQuestions.add(baseGeneratedQuestionBuilder(raw, request, validation)
                     .duplicate(duplicateResult)
                     .savedQuestionId(savedId)
                     .build());
@@ -329,15 +321,7 @@ public class SpringAiGenerationService implements QuestionGenerationService {
             CriticReviewResult criticResult = psychometricCriticAgent.reviewQuestion(
                     raw.content, raw.answerKey, raw.explanation, raw.options, request.getQuestionType());
 
-            QuestionGenerationResponse.GeneratedQuestion candidate = QuestionGenerationResponse.GeneratedQuestion.builder()
-                    .content(raw.content)
-                    .answerKey(raw.answerKey)
-                    .explanation(raw.explanation)
-                    .options(raw.options)
-                    .difficulty(raw.difficulty != null ? raw.difficulty : request.getDifficulty())
-                    .cognitiveLevel(raw.cognitiveLevel != null ? raw.cognitiveLevel : request.getCognitiveLevel())
-                    .questionType(raw.questionType != null ? raw.questionType : request.getQuestionType())
-                    .validation(validation)
+            QuestionGenerationResponse.GeneratedQuestion candidate = baseGeneratedQuestionBuilder(raw, request, validation)
                     .criticScore(criticResult.getScore())
                     .criticFeedback(criticResult.getIssues())
                     .build();
@@ -469,22 +453,8 @@ public class SpringAiGenerationService implements QuestionGenerationService {
 
         StringBuilder prompt = new StringBuilder();
         prompt.append("Generate ").append(request.getCount()).append(" question(s) with these parameters:\n");
-        prompt.append("- Subject: ").append(request.getSubject()).append("\n");
-        prompt.append("- Topic: ").append(request.getTopic()).append("\n");
-        if (request.getSubtopic() != null && !request.getSubtopic().isBlank()) {
-            prompt.append("- Subtopic: ").append(request.getSubtopic()).append("\n");
-        }
-        String desc = request.getRawTextInput() != null && !request.getRawTextInput().isBlank()
-                ? request.getRawTextInput() : request.getDescription();
-        if (desc != null && !desc.isBlank()) {
-            prompt.append("- Description/Requirements: ").append(desc).append("\n");
-        }
-        prompt.append("- Difficulty: ").append(request.getDifficulty()).append("\n");
-        prompt.append("- Cognitive Level: ").append(request.getCognitiveLevel()).append("\n");
-        prompt.append("- Question Type: ").append(request.getQuestionType()).append("\n");
-        if (request.getTargetExam() != null && !request.getTargetExam().isBlank()) {
-            prompt.append("- Target Exam: ").append(request.getTargetExam()).append("\n");
-        }
+        QuestionPromptFormatter.appendGenerationParameters(
+                prompt, request, "- ", "Description/Requirements", "Target Exam");
 
         if (sampleQuestions != null && !sampleQuestions.isEmpty()) {
             prompt.append("\nReference Sample Demonstrations (Model question style and depth):\n");
@@ -740,4 +710,17 @@ public class SpringAiGenerationService implements QuestionGenerationService {
             String difficulty,
             String cognitiveLevel,
             String questionType) {}
+
+    private QuestionGenerationResponse.GeneratedQuestion.GeneratedQuestionBuilder baseGeneratedQuestionBuilder(
+            RawGeneratedQuestion raw, QuestionGenerationRequest request, QuestionGenerationResponse.ValidationResult validation) {
+        return QuestionGenerationResponse.GeneratedQuestion.builder()
+                .content(raw.content)
+                .answerKey(raw.answerKey)
+                .explanation(raw.explanation)
+                .options(raw.options)
+                .difficulty(raw.difficulty != null ? raw.difficulty : request.getDifficulty())
+                .cognitiveLevel(raw.cognitiveLevel != null ? raw.cognitiveLevel : request.getCognitiveLevel())
+                .questionType(raw.questionType != null ? raw.questionType : request.getQuestionType())
+                .validation(validation);
+    }
 }

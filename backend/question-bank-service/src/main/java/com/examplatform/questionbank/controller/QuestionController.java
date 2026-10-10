@@ -5,7 +5,7 @@
  * Copyright (C) 2025 NAG Contributors
  *
  * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU标识 Affero General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, version 3 of the License.
  *
  * This program is distributed in the hope that it will be useful,
@@ -94,7 +94,7 @@ public class QuestionController {
             @AuthenticationPrincipal Jwt jwt,
             @RequestHeader("X-Tenant-Id") String tenantId) {
 
-        UUID authorId = UUID.fromString(jwt.getSubject());
+        UUID authorId = getActorId(jwt);
 
         log.info("Creating question: author={}, tenant={}, subjectId={}, topicId={}",
                 authorId, tenantId, request.getSubjectId(), request.getTopicId());
@@ -161,8 +161,7 @@ public class QuestionController {
     @GetMapping("/{id}")
     @PreAuthorize("hasAnyRole('QUESTION_AUTHOR', 'REVIEWER', 'APPROVER', 'TRANSLATOR', 'EXAM_CONTROLLER', 'ADMIN')")
     public ResponseEntity<ApiResponse<QuestionResponse>> getQuestion(@PathVariable UUID id) {
-        QuestionResponse response = questionService.getQuestion(id);
-        return ResponseEntity.ok(ApiResponse.success(response, "Question retrieved successfully"));
+        return ResponseEntity.ok(ApiResponse.success(questionService.getQuestion(id), "Question retrieved successfully"));
     }
 
     /**
@@ -181,7 +180,7 @@ public class QuestionController {
             @AuthenticationPrincipal Jwt jwt,
             @RequestHeader("X-Tenant-Id") String tenantId) {
 
-        UUID authorId = UUID.fromString(jwt.getSubject());
+        UUID authorId = getActorId(jwt);
         log.info("Submitting question for review: id={}, author={}, tenant={}", id, authorId, tenantId);
 
         QuestionResponse response = questionService.submitForReview(id, authorId, tenantId);
@@ -206,7 +205,7 @@ public class QuestionController {
             @AuthenticationPrincipal Jwt jwt,
             @RequestHeader("X-Tenant-Id") String tenantId) {
 
-        UUID actorId = UUID.fromString(jwt.getSubject());
+        UUID actorId = getActorId(jwt);
         log.info("Transitioning question: id={}, targetState={}, actor={}, tenant={}",
                 id, request.getTargetState(), actorId, tenantId);
 
@@ -230,7 +229,7 @@ public class QuestionController {
             @AuthenticationPrincipal Jwt jwt,
             @RequestHeader(value = "X-Tenant-Id", defaultValue = "default") String tenantId) {
 
-        UUID actorId = UUID.fromString(jwt.getSubject());
+        UUID actorId = getActorId(jwt);
         log.info("Bulk transitioning {} questions to {} by actor={}, tenant={}",
                 request.getQuestionIds().size(), request.getTargetState(), actorId, tenantId);
 
@@ -257,7 +256,7 @@ public class QuestionController {
             @AuthenticationPrincipal Jwt jwt,
             @RequestHeader("X-Tenant-Id") String tenantId) {
 
-        UUID reviewerId = UUID.fromString(jwt.getSubject());
+        UUID reviewerId = getActorId(jwt);
         log.info("Approving question: id={}, reviewer={}, tenant={}", id, reviewerId, tenantId);
 
         QuestionResponse response = questionLifecycleService.approve(id, reviewerId, tenantId);
@@ -283,7 +282,7 @@ public class QuestionController {
             @AuthenticationPrincipal Jwt jwt,
             @RequestHeader("X-Tenant-Id") String tenantId) {
 
-        UUID publisherId = UUID.fromString(jwt.getSubject());
+        UUID publisherId = getActorId(jwt);
         log.info("Publishing question: id={}, publisher={}, tenant={}", id, publisherId, tenantId);
 
         QuestionResponse response = questionLifecycleService.publish(id, publisherId, tenantId);
@@ -310,7 +309,7 @@ public class QuestionController {
             @AuthenticationPrincipal Jwt jwt,
             @RequestHeader("X-Tenant-Id") String tenantId) {
 
-        UUID reviewerId = UUID.fromString(jwt.getSubject());
+        UUID reviewerId = getActorId(jwt);
         String comments = payload.get("comments");
         if (comments == null || comments.isBlank()) {
             return ResponseEntity.badRequest()
@@ -344,7 +343,7 @@ public class QuestionController {
             @AuthenticationPrincipal Jwt jwt,
             @RequestHeader("X-Tenant-Id") String tenantId) {
 
-        UUID authorId = UUID.fromString(jwt.getSubject());
+        UUID authorId = getActorId(jwt);
         log.info("Updating question: id={}, author={}, tenant={}", id, authorId, tenantId);
 
         QuestionResponse response = questionUpdateService.updateQuestion(id, request, authorId, tenantId);
@@ -369,7 +368,7 @@ public class QuestionController {
             @AuthenticationPrincipal Jwt jwt,
             @RequestHeader(value = "X-Tenant-Id", required = false) String tenantId) {
 
-        UUID actorId = (jwt != null && jwt.getSubject() != null) ? UUID.fromString(jwt.getSubject()) : null;
+        UUID actorId = (jwt != null && jwt.getSubject() != null) ? getActorId(jwt) : null;
         log.info("Deleting question: id={}, actor={}, tenant={}", id, actorId, tenantId);
 
         questionService.deleteQuestion(id, actorId, tenantId);
@@ -483,5 +482,9 @@ public class QuestionController {
 
         List<QuestionResponse> questions = questionService.findQuestionsByIds(ids, tenantId);
         return ResponseEntity.ok(ApiResponse.success(questions, "Questions retrieved successfully"));
+    }
+
+    private UUID getActorId(Jwt jwt) {
+        return UUID.fromString(jwt.getSubject());
     }
 }

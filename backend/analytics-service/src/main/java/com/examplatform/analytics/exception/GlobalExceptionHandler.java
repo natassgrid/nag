@@ -19,65 +19,14 @@
 
 package com.examplatform.analytics.exception;
 
+import com.examplatform.shared.error.BaseProblemDetailExceptionHandler;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ProblemDetail;
-import org.springframework.security.access.AccessDeniedException;
-import org.springframework.web.bind.MethodArgumentNotValidException;
-import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
-
-import java.net.URI;
-import java.time.Instant;
 
 /**
  * Global exception handler for the Analytics Service.
  */
 @Slf4j
 @RestControllerAdvice(basePackages = "com.examplatform.analytics")
-public class GlobalExceptionHandler {
-
-    @ExceptionHandler(AccessDeniedException.class)
-    public ProblemDetail handleAccessDenied(AccessDeniedException ex) {
-        log.warn("Access denied: {}", ex.getMessage());
-        ProblemDetail problem = ProblemDetail.forStatusAndDetail(
-                HttpStatus.FORBIDDEN, "Access denied");
-        problem.setTitle("Forbidden");
-        problem.setType(URI.create("urn:examplatform:error:forbidden"));
-        problem.setProperty("timestamp", Instant.now());
-        return problem;
-    }
-
-    @ExceptionHandler(IllegalArgumentException.class)
-    public ProblemDetail handleIllegalArgument(IllegalArgumentException ex) {
-        log.warn("Resource not found or bad argument: {}", ex.getMessage());
-        ProblemDetail problem = ProblemDetail.forStatusAndDetail(
-                HttpStatus.NOT_FOUND, ex.getMessage());
-        problem.setTitle("Resource Not Found");
-        problem.setType(URI.create("urn:examplatform:error:not-found"));
-        problem.setProperty("timestamp", Instant.now());
-        return problem;
-    }
-
-    @ExceptionHandler(MethodArgumentNotValidException.class)
-    public ProblemDetail handleValidationError(MethodArgumentNotValidException ex) {
-        log.warn("Validation error: {}", ex.getMessage());
-        ProblemDetail problem = ProblemDetail.forStatusAndDetail(
-                HttpStatus.BAD_REQUEST, "Validation failed");
-        problem.setTitle("Bad Request");
-        problem.setType(URI.create("urn:examplatform:error:validation"));
-        problem.setProperty("timestamp", Instant.now());
-        return problem;
-    }
-
-    @ExceptionHandler(Exception.class)
-    public ProblemDetail handleGenericException(Exception ex) {
-        log.error("Unexpected error", ex);
-        ProblemDetail problem = ProblemDetail.forStatusAndDetail(
-                HttpStatus.INTERNAL_SERVER_ERROR, "An unexpected error occurred");
-        problem.setTitle("Internal Server Error");
-        problem.setType(URI.create("urn:examplatform:error:internal"));
-        problem.setProperty("timestamp", Instant.now());
-        return problem;
-    }
+public class GlobalExceptionHandler extends BaseProblemDetailExceptionHandler {
 }

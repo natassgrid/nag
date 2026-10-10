@@ -19,6 +19,8 @@
 
 package com.examplatform.delivery.service;
 
+import com.examplatform.shared.crypto.VaultCryptoService;
+
 import com.examplatform.delivery.client.ShiftAssignmentClient;
 import com.examplatform.delivery.domain.ExamSession;
 import com.examplatform.delivery.domain.ExamSession.ExamSessionStatus;

@@ -186,27 +186,45 @@ public class QuestionDeliveryParser {
         return new ParsedOptions(options, correctOptionIndex, hasImages);
     }
 
-    public String resolveSectionId(String subject, int sequenceNumber) {
-        if (subject != null) {
-            String lower = subject.toLowerCase();
-            if (lower.contains("reasoning") || lower.contains("intelligence")) return "sec-1";
-            if (lower.contains("awareness") || lower.contains("general studies") || lower.contains("current")) return "sec-2";
-            if (lower.contains("quantitative") || lower.contains("mathemat")) return "sec-3";
-            if (lower.contains("english") || lower.contains("comprehension")) return "sec-4";
+    enum StandardSection {
+        REASONING("sec-1", "General Intelligence & Reasoning", "reasoning", "intelligence"),
+        AWARENESS("sec-2", "General Awareness", "awareness", "general studies", "current"),
+        QUANTITATIVE("sec-3", "Quantitative Aptitude", "quantitative", "mathemat"),
+        ENGLISH("sec-4", "English Comprehension", "english", "comprehension");
+
+        final String id;
+        final String name;
+        final String[] keywords;
+
+        StandardSection(String id, String name, String... keywords) {
+            this.id = id;
+            this.name = name;
+            this.keywords = keywords;
         }
-        return "sec-" + ((sequenceNumber - 1) / 25 + 1);
+
+        static StandardSection findMatch(String subject) {
+            if (subject == null) return null;
+            String lower = subject.toLowerCase();
+            for (StandardSection sec : values()) {
+                for (String kw : sec.keywords) {
+                    if (lower.contains(kw)) return sec;
+                }
+            }
+            return null;
+        }
+    }
+
+    public String resolveSectionId(String subject, int sequenceNumber) {
+        StandardSection sec = StandardSection.findMatch(subject);
+        return sec != null ? sec.id : ("sec-" + ((sequenceNumber - 1) / 25 + 1));
     }
 
     public String resolveSectionName(String subject, int sequenceNumber) {
-        if (subject != null) {
-            String lower = subject.toLowerCase();
-            if (lower.contains("reasoning") || lower.contains("intelligence")) return "General Intelligence & Reasoning";
-            if (lower.contains("awareness") || lower.contains("general studies") || lower.contains("current")) return "General Awareness";
-            if (lower.contains("quantitative") || lower.contains("mathemat")) return "Quantitative Aptitude";
-            if (lower.contains("english") || lower.contains("comprehension")) return "English Comprehension";
-            return subject;
+        StandardSection sec = StandardSection.findMatch(subject);
+        if (sec != null) {
+            return sec.name;
         }
-        return "Section " + ((sequenceNumber - 1) / 25 + 1);
+        return subject != null ? subject : ("Section " + ((sequenceNumber - 1) / 25 + 1));
     }
 
     public List<UUID> extractQuestionUuidsFromJson(String json) {

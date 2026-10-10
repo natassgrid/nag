@@ -76,27 +76,12 @@ public class PassageLifecycleService {
             throw new FourEyesPrincipleViolationException();
         }
 
-        passage.setState(targetState);
-        if ("APPROVED".equals(targetState)) {
-            passage.setReviewerId(actorId);
-        }
+        List<Question> subQuestions = updatePassageAndSubQuestions(passage, targetState, "APPROVED".equals(targetState) ? actorId : null);
 
-        Passage saved = passageRepository.save(passage);
-
-        // Cascade state to sub-questions
-        List<Question> subQuestions = questionRepository.findByPassageIdOrderByPassageOrderIndexAsc(passageId);
-        for (Question q : subQuestions) {
-            q.setState(targetState);
-            if ("APPROVED".equals(targetState)) {
-                q.setReviewerId(actorId);
-            }
-            questionRepository.save(q);
-        }
-
-        publishAuditEvent("PASSAGE_STATE_TRANSITIONED", passageId, actorId, tenantId,
+        passageService.publishAuditEvent("PASSAGE_STATE_TRANSITIONED", passageId, actorId, tenantId,
                 Map.of("fromState", currentState, "toState", targetState, "subQuestionCount", subQuestions.size()));
 
-        return passageService.toResponse(saved, subQuestions);
+        return passageService.toResponse(passage, subQuestions);
     }
 
     /**
@@ -114,21 +99,14 @@ public class PassageLifecycleService {
             throw new IllegalStateException("Passage must be in DRAFT state to submit for review. Current state: " + passage.getState());
         }
 
-        passage.setState("REVIEW");
-        Passage saved = passageRepository.save(passage);
-
-        List<Question> subQuestions = questionRepository.findByPassageIdOrderByPassageOrderIndexAsc(passageId);
-        for (Question q : subQuestions) {
-            q.setState("REVIEW");
-            questionRepository.save(q);
-        }
+        List<Question> subQuestions = updatePassageAndSubQuestions(passage, "REVIEW", null);
 
         log.info("Passage submitted for review: id={}, author={}, tenant={}", passageId, authorId, tenantId);
 
-        publishAuditEvent("PASSAGE_SUBMITTED_FOR_REVIEW", saved.getId(), authorId, tenantId,
+        passageService.publishAuditEvent("PASSAGE_SUBMITTED_FOR_REVIEW", passage.getId(), authorId, tenantId,
                 Map.of("fromState", "DRAFT", "toState", "REVIEW", "subQuestionCount", subQuestions.size()));
 
-        return passageService.toResponse(saved, subQuestions);
+        return passageService.toResponse(passage, subQuestions);
     }
 
     /**
@@ -146,23 +124,14 @@ public class PassageLifecycleService {
             throw new IllegalStateException("Passage must be in REVIEW state to approve. Current state: " + passage.getState());
         }
 
-        passage.setState("APPROVED");
-        passage.setReviewerId(reviewerId);
-        Passage saved = passageRepository.save(passage);
-
-        List<Question> subQuestions = questionRepository.findByPassageIdOrderByPassageOrderIndexAsc(passageId);
-        for (Question q : subQuestions) {
-            q.setState("APPROVED");
-            q.setReviewerId(reviewerId);
-            questionRepository.save(q);
-        }
+        List<Question> subQuestions = updatePassageAndSubQuestions(passage, "APPROVED", reviewerId);
 
         log.info("Passage approved: id={}, reviewer={}, tenant={}", passageId, reviewerId, tenantId);
 
-        publishAuditEvent("PASSAGE_APPROVED", saved.getId(), reviewerId, tenantId,
+        passageService.publishAuditEvent("PASSAGE_APPROVED", passage.getId(), reviewerId, tenantId,
                 Map.of("fromState", "REVIEW", "toState", "APPROVED", "subQuestionCount", subQuestions.size()));
 
-        return passageService.toResponse(saved, subQuestions);
+        return passageService.toResponse(passage, subQuestions);
     }
 
     /**
@@ -176,14 +145,7 @@ public class PassageLifecycleService {
             throw new IllegalStateException("Passage must be in REVIEW state to reject. Current state: " + passage.getState());
         }
 
-        passage.setState("DRAFT");
-        Passage saved = passageRepository.save(passage);
-
-        List<Question> subQuestions = questionRepository.findByPassageIdOrderByPassageOrderIndexAsc(passageId);
-        for (Question q : subQuestions) {
-            q.setState("DRAFT");
-            questionRepository.save(q);
-        }
+        List<Question> subQuestions = updatePassageAndSubQuestions(passage, "DRAFT", null);
 
         log.info("Passage rejected: id={}, reviewer={}, tenant={}, comments={}", passageId, reviewerId, tenantId, comments);
 
@@ -195,26 +157,26 @@ public class PassageLifecycleService {
             extra.put("comments", comments);
         }
 
-        publishAuditEvent("PASSAGE_REJECTED", saved.getId(), reviewerId, tenantId, extra);
+        passageService.publishAuditEvent("PASSAGE_REJECTED", passage.getId(), reviewerId, tenantId, extra);
 
-        return passageService.toResponse(saved, subQuestions);
+        return passageService.toResponse(passage, subQuestions);
     }
 
-    private void publishAuditEvent(String eventType, UUID passageId, UUID actorId,
-                                   String tenantId, Map<String, Object> extra) {
-        try {
-            Map<String, Object> event = new java.util.HashMap<>();
-            event.put("eventType", eventType);
-            event.put("passageId", passageId.toString());
-            event.put("actorId", actorId.toString());
-            event.put("tenantId", tenantId);
-            event.put("occurredAt", Instant.now().toString());
-            if (extra != null) {
-                event.putAll(extra);
-            }
-            eventPublisher.publish(AUDIT_TOPIC, passageId.toString(), event);
-        } catch (Exception e) {
-            log.error("Unexpected error publishing audit event [type={}]: {}", eventType, e.getMessage());
+    private List<Question> updatePassageAndSubQuestions(Passage passage, String targetState, UUID reviewerId) {
+        passage.setState(targetState);
+        if (reviewerId != null) {
+            passage.setReviewerId(reviewerId);
         }
+        passageRepository.save(passage);
+
+        List<Question> subQuestions = questionRepository.findByPassageIdOrderByPassageOrderIndexAsc(passage.getId());
+        for (Question q : subQuestions) {
+            q.setState(targetState);
+            if (reviewerId != null) {
+                q.setReviewerId(reviewerId);
+            }
+            questionRepository.save(q);
+        }
+        return subQuestions;
     }
 }

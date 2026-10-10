@@ -497,23 +497,19 @@ public class QuestionService {
         };
     }
 
+    private static final List<String> SEARCHABLE_QUESTION_FIELDS = List.of(
+            "subject", "topic", "subtopic", "chapter", "difficulty",
+            "cognitiveLevel", "questionType", "content", "explanation", "state", "sourceReferences"
+    );
+
     private jakarta.persistence.criteria.Predicate matchAnyField(
             jakarta.persistence.criteria.Root<Question> root,
             jakarta.persistence.criteria.CriteriaBuilder cb,
             String pattern) {
-        return cb.or(
-                cb.like(cb.lower(cb.coalesce(root.get("subject"), "")), pattern),
-                cb.like(cb.lower(cb.coalesce(root.get("topic"), "")), pattern),
-                cb.like(cb.lower(cb.coalesce(root.get("subtopic"), "")), pattern),
-                cb.like(cb.lower(cb.coalesce(root.get("chapter"), "")), pattern),
-                cb.like(cb.lower(cb.coalesce(root.get("difficulty"), "")), pattern),
-                cb.like(cb.lower(cb.coalesce(root.get("cognitiveLevel"), "")), pattern),
-                cb.like(cb.lower(cb.coalesce(root.get("questionType"), "")), pattern),
-                cb.like(cb.lower(cb.coalesce(root.get("content"), "")), pattern),
-                cb.like(cb.lower(cb.coalesce(root.get("explanation"), "")), pattern),
-                cb.like(cb.lower(cb.coalesce(root.get("state"), "")), pattern),
-                cb.like(cb.lower(cb.coalesce(root.get("sourceReferences"), "")), pattern)
-        );
+        jakarta.persistence.criteria.Predicate[] predicates = SEARCHABLE_QUESTION_FIELDS.stream()
+                .map(field -> cb.like(cb.lower(cb.coalesce(root.get(field), "")), pattern))
+                .toArray(jakarta.persistence.criteria.Predicate[]::new);
+        return cb.or(predicates);
     }
 
     /**
@@ -733,21 +729,7 @@ public class QuestionService {
 
     private void publishAuditEvent(String eventType, UUID questionId, UUID actorId,
                                     String tenantId, Map<String, Object> extra) {
-        try {
-            Map<String, Object> event = new java.util.HashMap<>();
-            event.put("eventType", eventType);
-            event.put("questionId", questionId.toString());
-            event.put("actorId", actorId.toString());
-            event.put("tenantId", tenantId);
-            event.put("occurredAt", Instant.now().toString());
-            if (extra != null) {
-                event.putAll(extra);
-            }
-
-            eventPublisher.publish(AUDIT_TOPIC, questionId.toString(), event);
-        } catch (Exception e) {
-            log.error("Unexpected error publishing audit event [type={}]: {}", eventType, e.getMessage());
-        }
+        AuditEventHelper.publishAuditEvent(eventPublisher, log, AUDIT_TOPIC, eventType, "questionId", questionId, actorId, tenantId, extra);
     }
 
     private static final com.fasterxml.jackson.databind.ObjectMapper MAPPER =
@@ -758,13 +740,6 @@ public class QuestionService {
     }
 
     public QuestionResponse toResponse(Question question, List<Translation> translations, String targetLang) {
-        LocalDateTime createdAt = question.getCreatedAt() != null
-                ? LocalDateTime.ofInstant(question.getCreatedAt(), ZoneOffset.UTC)
-                : null;
-        LocalDateTime updatedAt = question.getUpdatedAt() != null
-                ? LocalDateTime.ofInstant(question.getUpdatedAt(), ZoneOffset.UTC)
-                : null;
-
         java.util.List<com.examplatform.questionbank.dto.QuestionOption> options = question.getOptions();
         if ((options == null || options.isEmpty())) {
             String questionType = question.getQuestionType();
@@ -807,40 +782,13 @@ public class QuestionService {
             activeTransStatus = "MISSING";
         }
 
-        return QuestionResponse.builder()
-                .id(question.getId())
-                .subjectId(question.getSubjectId())
-                .topicId(question.getTopicId())
-                .subtopicId(question.getSubtopicId())
-                .subject(question.getSubject())
-                .topic(question.getTopic())
-                .subtopic(question.getSubtopic())
-                .chapter(question.getChapter())
-                .difficulty(question.getDifficulty())
-                .cognitiveLevel(question.getCognitiveLevel())
-                .questionType(question.getQuestionType())
-                .content(question.getContent())
-                .answerKey(question.getAnswerKey())
-                .explanation(question.getExplanation())
-                .sourceReferences(question.getSourceReferences())
-                .state(question.getState())
-                .authorId(question.getAuthorId())
-                .reviewerId(question.getReviewerId())
-                .reviewComments(question.getReviewComments())
-                .encryptionKeyId(question.getEncryptionKeyId())
-                .passageId(question.getPassageId())
-                .passageOrderIndex(question.getPassageOrderIndex())
-                .version(question.getVersion())
-                .createdAt(createdAt)
-                .updatedAt(updatedAt)
+        return QuestionResponse.builderFrom(question)
                 .options(options)
-                .hasImages(question.isHasImages())
                 .translatedLanguages(translatedLangs)
                 .translationStatusMap(statusMap)
                 .translationStatus(activeTransStatus)
                 .build();
     }
-
     private String resolveTranslationStatus(Translation t) {
         if (t == null) return "MISSING";
         if (t.getStatus() == Translation.TranslationStatus.DRAFT) {

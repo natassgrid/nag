@@ -351,11 +351,10 @@ public class EvaluationClientImpl implements EvaluationClient {
     }
 
     private List<String> parseSelectedOptions(String json) {
-        if (json == null || json.isBlank()) {
-            return Collections.emptyList();
-        }
         try {
-            return objectMapper.readValue(json, new TypeReference<List<String>>() {});
+            return (json != null && !json.isBlank())
+                    ? objectMapper.readerForListOf(String.class).readValue(json)
+                    : Collections.emptyList();
         } catch (Exception e) {
             log.debug("Failed to parse selected option JSON: {}", e.getMessage());
             return Collections.emptyList();

@@ -26,6 +26,7 @@ import com.examplatform.candidate.exception.EducationNotFoundException;
 import com.examplatform.candidate.repository.CandidateEducationRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.BeanUtils;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -59,19 +60,9 @@ public class CandidateEducationService {
      * Adds a new educational qualification record for a candidate.
      */
     public CandidateEducationResponse addEducation(UUID userId, CandidateEducationRequest request, String tenantId) {
-        CandidateEducation education = CandidateEducation.builder()
-                .userId(userId)
-                .qualification(request.getQualification())
-                .courseName(request.getCourseName())
-                .boardOrUniversity(request.getBoardOrUniversity())
-                .institutionName(request.getInstitutionName())
-                .passingYear(request.getPassingYear())
-                .percentageOrCgpa(request.getPercentageOrCgpa())
-                .gradeOrDivision(request.getGradeOrDivision())
-                .specialization(request.getSpecialization())
-                .rollNumber(request.getRollNumber())
-                .certificateAssetId(request.getCertificateAssetId())
-                .build();
+        CandidateEducation education = new CandidateEducation();
+        BeanUtils.copyProperties(request, education);
+        education.setUserId(userId);
         education.setTenantId(tenantId);
 
         CandidateEducation saved = candidateEducationRepository.save(education);
@@ -92,16 +83,7 @@ public class CandidateEducationService {
                 .orElseThrow(() -> new EducationNotFoundException(
                         "Educational record not found for id=" + educationId + " and userId=" + userId));
 
-        education.setQualification(request.getQualification());
-        education.setCourseName(request.getCourseName());
-        education.setBoardOrUniversity(request.getBoardOrUniversity());
-        education.setInstitutionName(request.getInstitutionName());
-        education.setPassingYear(request.getPassingYear());
-        education.setPercentageOrCgpa(request.getPercentageOrCgpa());
-        education.setGradeOrDivision(request.getGradeOrDivision());
-        education.setSpecialization(request.getSpecialization());
-        education.setRollNumber(request.getRollNumber());
-        education.setCertificateAssetId(request.getCertificateAssetId());
+        BeanUtils.copyProperties(request, education, "id", "userId", "tenantId", "createdAt", "updatedAt");
 
         CandidateEducation updated = candidateEducationRepository.save(education);
         log.info("Updated education record id={} for candidate userId={} in tenant={}", educationId, userId, tenantId);
@@ -130,21 +112,6 @@ public class CandidateEducationService {
     }
 
     private CandidateEducationResponse toResponse(CandidateEducation education) {
-        return CandidateEducationResponse.builder()
-                .id(education.getId())
-                .userId(education.getUserId())
-                .qualification(education.getQualification())
-                .courseName(education.getCourseName())
-                .boardOrUniversity(education.getBoardOrUniversity())
-                .institutionName(education.getInstitutionName())
-                .passingYear(education.getPassingYear())
-                .percentageOrCgpa(education.getPercentageOrCgpa())
-                .gradeOrDivision(education.getGradeOrDivision())
-                .specialization(education.getSpecialization())
-                .rollNumber(education.getRollNumber())
-                .certificateAssetId(education.getCertificateAssetId())
-                .createdAt(education.getCreatedAt())
-                .updatedAt(education.getUpdatedAt())
-                .build();
+        return CandidateEducationResponse.from(education);
     }
 }

@@ -21,8 +21,13 @@ package com.examplatform.result.client;
 
 import com.examplatform.result.dto.QuestionDetailDto;
 
+import java.util.Collections;
 import java.util.List;
+import java.util.Map;
+import java.util.Objects;
 import java.util.UUID;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 /**
  * Client for fetching question contents, options, and explanations from question-bank-service.
@@ -37,4 +42,19 @@ public interface QuestionBankClient {
      * @return list of question details
      */
     List<QuestionDetailDto> findQuestionsByIds(List<UUID> questionIds, String tenantId);
+
+    /**
+     * Converts a collection of question details to a map keyed by question ID.
+     *
+     * @param questions the questions list
+     * @return map of question ID to QuestionDetailDto
+     */
+    static Map<UUID, QuestionDetailDto> toQuestionMap(List<QuestionDetailDto> questions) {
+        if (questions == null || questions.isEmpty()) {
+            return Collections.emptyMap();
+        }
+        return questions.stream()
+                .filter(q -> q != null && q.getId() != null)
+                .collect(Collectors.toMap(QuestionDetailDto::getId, Function.identity(), (a, b) -> a));
+    }
 }

@@ -102,9 +102,8 @@ public class ReferenceService {
      */
     @Transactional(readOnly = true)
     public List<AssetReferenceResponse> getReferencesForAsset(UUID assetId) {
-        return referenceRepository.findByAssetId(assetId).stream()
-                .map(this::mapToResponse)
-                .toList();
+        List<AssetReference> refs = referenceRepository.findByAssetId(assetId);
+        return refs.stream().map(this::mapToResponse).toList();
     }
 
     /**
@@ -112,9 +111,8 @@ public class ReferenceService {
      */
     @Transactional(readOnly = true)
     public List<AssetReferenceResponse> getReferencesForEntity(ReferenceType type, UUID referenceId) {
-        return referenceRepository.findByReferenceTypeAndReferenceId(type, referenceId).stream()
-                .map(this::mapToResponse)
-                .toList();
+        List<AssetReference> refs = referenceRepository.findByReferenceTypeAndReferenceId(type, referenceId);
+        return refs.stream().map(this::mapToResponse).toList();
     }
 
     /**

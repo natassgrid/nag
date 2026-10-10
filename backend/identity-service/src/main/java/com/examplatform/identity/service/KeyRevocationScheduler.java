@@ -19,6 +19,8 @@
 
 package com.examplatform.identity.service;
 
+import com.examplatform.shared.crypto.VaultCryptoService;
+
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;

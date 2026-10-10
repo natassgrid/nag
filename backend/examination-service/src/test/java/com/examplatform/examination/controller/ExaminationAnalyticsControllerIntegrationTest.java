@@ -18,12 +18,28 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.examplatform.examination.service.ExaminationService;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import java.util.Map;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.when;
+
 @DisplayName("ExaminationAnalyticsController Integration Tests (MockMvc)")
 class ExaminationAnalyticsControllerIntegrationTest extends AbstractIntegrationTest {
+
+    @MockitoBean
+    private ExaminationService examinationService;
 
     @Test
     @DisplayName("GET /api/v1/examinations/analytics/summary returns status breakdown")
     void getAnalyticsSummarySuccess() throws Exception {
+        when(examinationService.getExaminationStatusBreakdown(anyString())).thenReturn(Map.of(
+                "scheduled", 1L,
+                "liveInProgress", 2L,
+                "completed", 3L,
+                "cancelled", 0L
+        ));
+
         mockMvc.perform(get("/api/v1/examinations/analytics/summary")
                         .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_ADMIN"))
                                 .jwt(j -> j.subject("11111111-1111-1111-1111-111111111111").claim("tenant_id", "default")))

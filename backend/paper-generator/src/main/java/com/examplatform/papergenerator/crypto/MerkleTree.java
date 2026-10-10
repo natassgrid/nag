@@ -49,55 +49,42 @@ public class MerkleTree {
     private final String rootHash;
 
     public MerkleTree(List<String> rawLeafPayloads) {
-        if (rawLeafPayloads == null || rawLeafPayloads.isEmpty()) {
-            this.leafHashes = Collections.emptyList();
-            this.levels = Collections.emptyList();
-            this.rootHash = sha256Hex(LEAF_PREFIX + "EMPTY_TREE");
-            return;
-        }
+        this(hashPayloads(rawLeafPayloads), true);
+    }
 
-        List<String> leaves = new ArrayList<>();
+    private static List<String> hashPayloads(List<String> rawLeafPayloads) {
+        if (rawLeafPayloads == null || rawLeafPayloads.isEmpty()) {
+            return Collections.emptyList();
+        }
+        List<String> leaves = new ArrayList<>(rawLeafPayloads.size());
         for (String payload : rawLeafPayloads) {
             leaves.add(computeLeafHash(payload));
         }
-        this.leafHashes = Collections.unmodifiableList(leaves);
-
-        List<List<String>> treeLevels = new ArrayList<>();
-        treeLevels.add(new ArrayList<>(leaves));
-
-        List<String> currentLevel = leaves;
-        while (currentLevel.size() > 1) {
-            List<String> nextLevel = new ArrayList<>();
-            for (int i = 0; i < currentLevel.size(); i += 2) {
-                String left = currentLevel.get(i);
-                String right = (i + 1 < currentLevel.size()) ? currentLevel.get(i + 1) : left;
-                nextLevel.add(combineNodes(left, right));
-            }
-            treeLevels.add(nextLevel);
-            currentLevel = nextLevel;
-        }
-
-        this.levels = Collections.unmodifiableList(treeLevels);
-        this.rootHash = treeLevels.get(treeLevels.size() - 1).get(0);
+        return leaves;
     }
 
     /**
      * Creates a Merkle Tree from already hashed leaf nodes.
      */
     public static MerkleTree fromLeafHashes(List<String> leafHashes) {
-        if (leafHashes == null || leafHashes.isEmpty()) {
-            return new MerkleTree(Collections.emptyList());
-        }
         return new MerkleTree(leafHashes, true);
     }
 
     private MerkleTree(List<String> leafHashes, boolean alreadyHashed) {
-        this.leafHashes = Collections.unmodifiableList(new ArrayList<>(leafHashes));
+        if (leafHashes == null || leafHashes.isEmpty()) {
+            this.leafHashes = Collections.emptyList();
+            this.levels = Collections.emptyList();
+            this.rootHash = sha256Hex(LEAF_PREFIX + "EMPTY_TREE");
+            return;
+        }
+
+        List<String> leaves = new ArrayList<>(leafHashes);
+        this.leafHashes = Collections.unmodifiableList(leaves);
 
         List<List<String>> treeLevels = new ArrayList<>();
-        treeLevels.add(new ArrayList<>(leafHashes));
+        treeLevels.add(new ArrayList<>(leaves));
 
-        List<String> currentLevel = leafHashes;
+        List<String> currentLevel = leaves;
         while (currentLevel.size() > 1) {
             List<String> nextLevel = new ArrayList<>();
             for (int i = 0; i < currentLevel.size(); i += 2) {

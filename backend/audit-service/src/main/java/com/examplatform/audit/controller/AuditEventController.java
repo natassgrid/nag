@@ -46,8 +46,6 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class AuditEventController {
 
-    private static final String DEFAULT_TENANT_ID = "default";
-
     private final AuditIngestionService auditIngestionService;
 
     /**
@@ -57,7 +55,7 @@ public class AuditEventController {
     @PutMapping("/{id}")
     public ResponseEntity<Void> rejectUpdate(@PathVariable UUID id, Authentication auth) {
         String actorId = extractActorId(auth);
-        String tenantId = extractTenantId(auth);
+        String tenantId = AuditSecurityHelper.extractTenantId(auth);
         log.warn("SECURITY: PUT attempt on audit event [{}] by actor [{}]", id, actorId);
         auditIngestionService.recordTamperAttempt(id, actorId, tenantId);
         return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
@@ -70,7 +68,7 @@ public class AuditEventController {
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> rejectDelete(@PathVariable UUID id, Authentication auth) {
         String actorId = extractActorId(auth);
-        String tenantId = extractTenantId(auth);
+        String tenantId = AuditSecurityHelper.extractTenantId(auth);
         log.warn("SECURITY: DELETE attempt on audit event [{}] by actor [{}]", id, actorId);
         auditIngestionService.recordTamperAttempt(id, actorId, tenantId);
         return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
@@ -78,19 +76,5 @@ public class AuditEventController {
 
     private String extractActorId(Authentication auth) {
         return auth != null ? auth.getName() : "anonymous";
-    }
-
-    private String extractTenantId(Authentication auth) {
-        // In a full implementation, tenant ID would be extracted from JWT claims
-        // For now, use a default or retrieve from the authentication token
-        if (auth != null && auth.getDetails() instanceof java.util.Map) {
-            @SuppressWarnings("unchecked")
-            java.util.Map<String, Object> details = (java.util.Map<String, Object>) auth.getDetails();
-            Object tenant = details.get("tenant_id");
-            if (tenant != null) {
-                return tenant.toString();
-            }
-        }
-        return DEFAULT_TENANT_ID;
     }
 }

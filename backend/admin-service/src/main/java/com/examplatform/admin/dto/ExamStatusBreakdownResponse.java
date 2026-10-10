@@ -28,4 +28,8 @@ public record ExamStatusBreakdownResponse(
         long liveInProgress,
         long evaluation,
         long completed
-) {}
+) {
+    public static ExamStatusBreakdownResponse empty() {
+        return new ExamStatusBreakdownResponse(0L, 0L, 0L, 0L, 0L);
+    }
+}

@@ -17,7 +17,7 @@
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
 
-package com.examplatform.identity.service;
+package com.examplatform.shared.crypto;
 
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -42,8 +42,6 @@ import static org.mockito.Mockito.*;
 
 /**
  * Unit tests for {@link VaultCryptoServiceImpl}.
- *
- * Validates: Requirements 16.3, 16.4, 16.5
  */
 @ExtendWith(MockitoExtension.class)
 @DisplayName("VaultCryptoServiceImpl")
@@ -82,14 +80,14 @@ class VaultCryptoServiceImplTest {
         }
 
         @Test
-        @DisplayName("throws RuntimeException on Vault failure")
-        void throwsRuntimeExceptionOnVaultFailure() {
+        @DisplayName("throws VaultCryptoException on Vault failure")
+        void throwsVaultCryptoExceptionOnVaultFailure() {
             setupTransit();
             when(transitOperations.encrypt(eq("my-key"), any(Plaintext.class)))
                     .thenThrow(new RuntimeException("Vault unreachable"));
 
             assertThatThrownBy(() -> vaultCryptoService.encrypt("my-key", "secret-data"))
-                    .isInstanceOf(RuntimeException.class)
+                    .isInstanceOf(VaultCryptoException.class)
                     .hasMessageContaining("Encryption failed");
         }
     }

@@ -319,37 +319,7 @@ public class QuestionDeliveryRepository {
 
         // 2. If not found or empty, try practice_service.practice_set table
         if (uids.isEmpty()) {
-            try {
-                List<String> practiceQuestionIds = jdbcTemplate.query(
-                        "SELECT question_ids FROM practice_service.practice_set WHERE id = ? AND (tenant_id = ? OR tenant_id = 'default' OR tenant_id IS NULL)",
-                        (rs, rowNum) -> rs.getString("question_ids"),
-                        targetId, tenantId
-                );
-                if (!practiceQuestionIds.isEmpty() && practiceQuestionIds.get(0) != null && !practiceQuestionIds.get(0).isBlank()) {
-                    uids = parser.extractQuestionUuidsFromJsonOrString(practiceQuestionIds.get(0));
-                }
-                // Fallback: if practice set question_ids was empty or "[]", resolve by subject_slug
-                if (uids.isEmpty() && !practiceQuestionIds.isEmpty()) {
-                    List<Map<String, Object>> metaList = jdbcTemplate.query(
-                            "SELECT subject_slug, total_questions FROM practice_service.practice_set WHERE id = ? AND (tenant_id = ? OR tenant_id = 'default' OR tenant_id IS NULL)",
-                            (rs, rowNum) -> Map.of(
-                                    "subject_slug", rs.getString("subject_slug") != null ? rs.getString("subject_slug") : "",
-                                    "total_questions", rs.getInt("total_questions")
-                            ),
-                            targetId, tenantId
-                    );
-                    if (!metaList.isEmpty()) {
-                        String subjectSlug = (String) metaList.get(0).get("subject_slug");
-                        Integer totalQ = (Integer) metaList.get(0).get("total_questions");
-                        int limit = (totalQ != null && totalQ > 0) ? totalQ : 25;
-                        if (subjectSlug != null && !subjectSlug.isBlank()) {
-                            uids = resolveQuestionUuidsBySubject(subjectSlug, limit);
-                        }
-                    }
-                }
-            } catch (Exception e) {
-                log.debug("Practice set lookup error for {}: {}", targetId, e.getMessage());
-            }
+            uids = resolvePracticeSetUuids(targetId, tenantId);
         }
 
         // 3. If not found or empty, check practice_service.practice_session table (targetId may be a practice session ID)
@@ -361,18 +331,7 @@ public class QuestionDeliveryRepository {
                         targetId, tenantId
                 );
                 if (!practiceSetIds.isEmpty() && practiceSetIds.get(0) != null) {
-                    UUID pSetId = practiceSetIds.get(0);
-                    List<String> practiceQuestionIds = jdbcTemplate.query(
-                            "SELECT question_ids FROM practice_service.practice_set WHERE id = ? AND (tenant_id = ? OR tenant_id = 'default' OR tenant_id IS NULL)",
-                            (rs, rowNum) -> rs.getString("question_ids"),
-                            pSetId, tenantId
-                    );
-                    if (!practiceQuestionIds.isEmpty() && practiceQuestionIds.get(0) != null && !practiceQuestionIds.get(0).isBlank()) {
-                        uids = parser.extractQuestionUuidsFromJsonOrString(practiceQuestionIds.get(0));
-                    }
-                    if (uids.isEmpty()) {
-                        uids = resolveQuestionUuids(pSetId, tenantId);
-                    }
+                    uids = resolvePracticeSetUuids(practiceSetIds.get(0), tenantId);
                 }
             } catch (Exception e) {
                 log.debug("Practice session lookup error for {}: {}", targetId, e.getMessage());
@@ -396,6 +355,43 @@ public class QuestionDeliveryRepository {
         }
 
         return uids;
+    }
+
+    private List<UUID> resolvePracticeSetUuids(UUID practiceSetId, String tenantId) {
+        try {
+            List<String> practiceQuestionIds = jdbcTemplate.query(
+                    "SELECT question_ids FROM practice_service.practice_set WHERE id = ? AND (tenant_id = ? OR tenant_id = 'default' OR tenant_id IS NULL)",
+                    (rs, rowNum) -> rs.getString("question_ids"),
+                    practiceSetId, tenantId
+            );
+            List<UUID> uids = Collections.emptyList();
+            if (!practiceQuestionIds.isEmpty() && practiceQuestionIds.get(0) != null && !practiceQuestionIds.get(0).isBlank()) {
+                uids = parser.extractQuestionUuidsFromJsonOrString(practiceQuestionIds.get(0));
+            }
+            // Fallback: if practice set question_ids was empty or "[]", resolve by subject_slug
+            if (uids.isEmpty() && !practiceQuestionIds.isEmpty()) {
+                List<Map<String, Object>> metaList = jdbcTemplate.query(
+                        "SELECT subject_slug, total_questions FROM practice_service.practice_set WHERE id = ? AND (tenant_id = ? OR tenant_id = 'default' OR tenant_id IS NULL)",
+                        (rs, rowNum) -> Map.of(
+                                "subject_slug", rs.getString("subject_slug") != null ? rs.getString("subject_slug") : "",
+                                "total_questions", rs.getInt("total_questions")
+                        ),
+                        practiceSetId, tenantId
+                );
+                if (!metaList.isEmpty()) {
+                    String subjectSlug = (String) metaList.get(0).get("subject_slug");
+                    Integer totalQ = (Integer) metaList.get(0).get("total_questions");
+                    int limit = (totalQ != null && totalQ > 0) ? totalQ : 25;
+                    if (subjectSlug != null && !subjectSlug.isBlank()) {
+                        uids = resolveQuestionUuidsBySubject(subjectSlug, limit);
+                    }
+                }
+            }
+            return uids;
+        } catch (Exception e) {
+            log.debug("Practice set lookup error for {}: {}", practiceSetId, e.getMessage());
+            return Collections.emptyList();
+        }
     }
 
     private List<UUID> resolveQuestionUuidsBySubject(String subjectSlug, int limit) {

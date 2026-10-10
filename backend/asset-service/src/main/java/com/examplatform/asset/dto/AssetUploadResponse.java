@@ -19,6 +19,7 @@
 
 package com.examplatform.asset.dto;
 
+import com.examplatform.asset.domain.entity.MediaAsset;
 import com.examplatform.asset.domain.enums.AssetStatus;
 import com.examplatform.asset.domain.enums.AssetType;
 import lombok.AllArgsConstructor;
@@ -39,9 +40,7 @@ import java.util.UUID;
 public class AssetUploadResponse {
 
     private UUID id;
-    private String originalFilename;
-    private String contentType;
-    private String extension;
+    private String originalFilename, contentType, extension;
     private Long fileSize;
     private String sha256Hash;
     private AssetType assetType;
@@ -51,31 +50,31 @@ public class AssetUploadResponse {
     private String publicUrl;
 
     // Media metadata
-    private Integer width;
-    private Integer height;
-    private Integer dpi;
+    private Integer width, height, dpi;
     private String orientation;
     private Double durationSeconds;
     private String codec;
-    private Integer bitrate;
-    private Integer sampleRate;
-    private Integer channels;
+    private Integer bitrate, sampleRate, channels;
     private Double frameRate;
 
     // User metadata
-    private String title;
-    private String description;
-    private String altText;
-    private String tags;
-    private String language;
+    private String title, description, altText, tags, language;
 
     // Storage
-    private String storageProvider;
-    private String storageLocation;
+    private String storageProvider, storageLocation;
 
     // Audit
     private UUID createdBy;
-    private Instant createdAt;
-    private Instant updatedAt;
+    private Instant createdAt, updatedAt;
     private String tenantId;
+
+    public static AssetUploadResponse fromEntity(MediaAsset asset, String publicUrl) {
+        if (asset == null) {
+            return null;
+        }
+        AssetUploadResponse resp = new AssetUploadResponse();
+        org.springframework.beans.BeanUtils.copyProperties(asset, resp);
+        resp.setPublicUrl(publicUrl);
+        return resp;
+    }
 }

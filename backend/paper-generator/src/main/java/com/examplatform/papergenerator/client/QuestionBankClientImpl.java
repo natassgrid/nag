@@ -55,6 +55,8 @@ import org.springframework.web.context.request.ServletRequestAttributes;
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
 import java.nio.charset.StandardCharsets;
+import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -175,22 +177,9 @@ public class QuestionBankClientImpl implements QuestionBankClient {
             if (cleanDifficulty != null) requestBody.put("difficulty", cleanDifficulty);
             if (cleanCognitiveLevel != null) requestBody.put("cognitiveLevel", cleanCognitiveLevel);
 
-            RestClient.RequestBodySpec spec = restClient.post()
-                    .uri(url)
-                    .header("X-Tenant-Id", effectiveTenant)
-                    .contentType(MediaType.APPLICATION_JSON);
-            attachAuthHeader(spec);
-
-            ApiResponseDto<List<QuestionResponseDto>> apiResponse = spec
-                    .body(requestBody)
-                    .retrieve()
-                    .body(new ParameterizedTypeReference<ApiResponseDto<List<QuestionResponseDto>>>() {});
-
-            if (apiResponse != null && apiResponse.getData() != null) {
-                log.info("Retrieved {} questions from question-bank-service via REST", apiResponse.getData().size());
-                return apiResponse.getData().stream()
-                        .map(this::toSummary)
-                        .toList();
+            List<QuestionSummary> questions = fetchQuestionsViaRest(url, effectiveTenant, requestBody);
+            if (questions != null) {
+                return questions;
             }
         } catch (Exception e) {
             log.warn("REST call to question-bank-service failed ({}), falling back to direct DB query: {}",
@@ -216,25 +205,8 @@ public class QuestionBankClientImpl implements QuestionBankClient {
                 ORDER BY RANDOM()
                 """;
 
-            List<QuestionSummary> questions = jdbcTemplate.query(sql, (rs, rowNum) -> {
-                Timestamp ts = rs.getTimestamp("last_used_at");
-                Instant lastUsedAt = ts != null ? ts.toInstant() : null;
-                UUID passageId = rs.getObject("passage_id", UUID.class);
-                Integer passageOrderIndex = (Integer) rs.getObject("passage_order_index");
-                return QuestionSummary.builder()
-                        .questionId(rs.getObject("id", UUID.class))
-                        .subject(rs.getString("subject"))
-                        .topic(rs.getString("topic"))
-                        .difficulty(rs.getString("difficulty"))
-                        .cognitiveLevel(rs.getString("cognitive_level"))
-                        .usageCount(rs.getInt("usage_count"))
-                        .lastUsedAt(lastUsedAt)
-                        .reusePolicy("1_YEAR")
-                        .content(rs.getString("content"))
-                        .passageId(passageId)
-                        .passageOrderIndex(passageOrderIndex)
-                        .build();
-            }, effectiveTenant, cleanSubject, cleanTopic, cleanDifficulty, cleanDifficulty, cleanCognitiveLevel, cleanCognitiveLevel);
+            List<QuestionSummary> questions = jdbcTemplate.query(sql, QuestionBankClientImpl::mapQuestionSummary,
+                    effectiveTenant, cleanSubject, cleanTopic, cleanDifficulty, cleanDifficulty, cleanCognitiveLevel, cleanCognitiveLevel);
 
             if (!questions.isEmpty()) {
                 log.info("Found {} questions via DB fallback for subject='{}', topic='{}', difficulty='{}', cognitiveLevel='{}'",
@@ -257,25 +229,8 @@ public class QuestionBankClientImpl implements QuestionBankClient {
                     ORDER BY RANDOM()
                     """;
 
-                List<QuestionSummary> fallbackQuestions = jdbcTemplate.query(fallbackSql, (rs, rowNum) -> {
-                    Timestamp ts = rs.getTimestamp("last_used_at");
-                    Instant lastUsedAt = ts != null ? ts.toInstant() : null;
-                    UUID passageId = rs.getObject("passage_id", UUID.class);
-                    Integer passageOrderIndex = (Integer) rs.getObject("passage_order_index");
-                    return QuestionSummary.builder()
-                            .questionId(rs.getObject("id", UUID.class))
-                            .subject(rs.getString("subject"))
-                            .topic(rs.getString("topic"))
-                            .difficulty(rs.getString("difficulty"))
-                            .cognitiveLevel(rs.getString("cognitive_level"))
-                            .usageCount(rs.getInt("usage_count"))
-                            .lastUsedAt(lastUsedAt)
-                            .reusePolicy("1_YEAR")
-                            .content(rs.getString("content"))
-                            .passageId(passageId)
-                            .passageOrderIndex(passageOrderIndex)
-                            .build();
-                }, effectiveTenant, cleanSubject, cleanTopic, cleanDifficulty, cleanDifficulty);
+                List<QuestionSummary> fallbackQuestions = jdbcTemplate.query(fallbackSql, QuestionBankClientImpl::mapQuestionSummary,
+                        effectiveTenant, cleanSubject, cleanTopic, cleanDifficulty, cleanDifficulty);
 
                 return fallbackQuestions;
             }
@@ -339,22 +294,9 @@ public class QuestionBankClientImpl implements QuestionBankClient {
         // 2. Try REST call to question-bank-service
         try {
             String url = questionBankServiceUrl + "/api/v1/questions/batch-find";
-            RestClient.RequestBodySpec spec = restClient.post()
-                    .uri(url)
-                    .header("X-Tenant-Id", effectiveTenant)
-                    .contentType(MediaType.APPLICATION_JSON);
-            attachAuthHeader(spec);
-
-            ApiResponseDto<List<QuestionResponseDto>> apiResponse = spec
-                    .body(questionIds)
-                    .retrieve()
-                    .body(new ParameterizedTypeReference<ApiResponseDto<List<QuestionResponseDto>>>() {});
-
-            if (apiResponse != null && apiResponse.getData() != null) {
-                log.info("Retrieved {} questions by IDs from question-bank-service via REST", apiResponse.getData().size());
-                return apiResponse.getData().stream()
-                        .map(this::toSummary)
-                        .toList();
+            List<QuestionSummary> questions = fetchQuestionsViaRest(url, effectiveTenant, questionIds);
+            if (questions != null) {
+                return questions;
             }
         } catch (Exception e) {
             log.warn("REST call for batch-find failed ({}), falling back to direct DB query: {}",
@@ -381,24 +323,12 @@ public class QuestionBankClientImpl implements QuestionBankClient {
 
             Map<UUID, QuestionSummary> map = new HashMap<>();
             jdbcTemplate.query(sql, rs -> {
-                UUID qId = rs.getObject("id", UUID.class);
-                Timestamp ts = rs.getTimestamp("last_used_at");
-                Instant lastUsedAt = ts != null ? ts.toInstant() : null;
-                UUID passageId = rs.getObject("passage_id", UUID.class);
-                Integer passageOrderIndex = (Integer) rs.getObject("passage_order_index");
-                map.put(qId, QuestionSummary.builder()
-                        .questionId(qId)
-                        .subject(rs.getString("subject"))
-                        .topic(rs.getString("topic"))
-                        .difficulty(rs.getString("difficulty"))
-                        .cognitiveLevel(rs.getString("cognitive_level"))
-                        .usageCount(rs.getInt("usage_count"))
-                        .lastUsedAt(lastUsedAt)
-                        .reusePolicy("1_YEAR")
-                        .content(rs.getString("content"))
-                        .passageId(passageId)
-                        .passageOrderIndex(passageOrderIndex)
-                        .build());
+                try {
+                    QuestionSummary summary = mapQuestionSummary(rs, 0);
+                    map.put(summary.getQuestionId(), summary);
+                } catch (SQLException e) {
+                    throw new RuntimeException(e);
+                }
             }, params.toArray());
 
             List<QuestionSummary> ordered = new ArrayList<>();
@@ -503,6 +433,47 @@ public class QuestionBankClientImpl implements QuestionBankClient {
 
     private static final List<String> CLIENT_ROLES = List.of(
             "SUPER_ADMIN", "EXAM_CONTROLLER", "QUESTION_AUTHOR", "REVIEWER");
+
+    private static QuestionSummary mapQuestionSummary(ResultSet rs, int rowNum) throws SQLException {
+        Timestamp ts = rs.getTimestamp("last_used_at");
+        Instant lastUsedAt = ts != null ? ts.toInstant() : null;
+        UUID passageId = rs.getObject("passage_id", UUID.class);
+        Integer passageOrderIndex = (Integer) rs.getObject("passage_order_index");
+        return QuestionSummary.builder()
+                .questionId(rs.getObject("id", UUID.class))
+                .subject(rs.getString("subject"))
+                .topic(rs.getString("topic"))
+                .difficulty(rs.getString("difficulty"))
+                .cognitiveLevel(rs.getString("cognitive_level"))
+                .usageCount(rs.getInt("usage_count"))
+                .lastUsedAt(lastUsedAt)
+                .reusePolicy("1_YEAR")
+                .content(rs.getString("content"))
+                .passageId(passageId)
+                .passageOrderIndex(passageOrderIndex)
+                .build();
+    }
+
+    private List<QuestionSummary> fetchQuestionsViaRest(String url, String effectiveTenant, Object requestBody) {
+        RestClient.RequestBodySpec spec = restClient.post()
+                .uri(url)
+                .header("X-Tenant-Id", effectiveTenant)
+                .contentType(MediaType.APPLICATION_JSON);
+        attachAuthHeader(spec);
+
+        ApiResponseDto<List<QuestionResponseDto>> apiResponse = spec
+                .body(requestBody)
+                .retrieve()
+                .body(new ParameterizedTypeReference<ApiResponseDto<List<QuestionResponseDto>>>() {});
+
+        if (apiResponse != null && apiResponse.getData() != null) {
+            log.info("Retrieved {} questions from question-bank-service via REST", apiResponse.getData().size());
+            return apiResponse.getData().stream()
+                    .map(this::toSummary)
+                    .toList();
+        }
+        return null;
+    }
 
     private void attachAuthHeader(RestClient.RequestBodySpec spec) {
         ClientAuthTokenResolver.attachAuthHeader(spec, "paper-generator", tokenProvider, jwtSecret, CLIENT_ROLES);

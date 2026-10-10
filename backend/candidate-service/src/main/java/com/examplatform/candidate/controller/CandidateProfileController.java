@@ -93,15 +93,7 @@ public class CandidateProfileController {
     public ResponseEntity<CandidateProfileResponse> getByUserId(
             @PathVariable(required = false) UUID userId,
             @AuthenticationPrincipal Jwt jwt) {
-        UUID effectiveUserId = userId;
-        if (effectiveUserId == null && jwt != null && jwt.getSubject() != null) {
-            try {
-                effectiveUserId = UUID.fromString(jwt.getSubject());
-            } catch (IllegalArgumentException ignored) {}
-        }
-        if (effectiveUserId == null) {
-            throw new AccessDeniedException("User ID is required");
-        }
+        UUID effectiveUserId = resolveEffectiveUserId(userId, jwt);
         enforceOwnershipOrAdmin(effectiveUserId, jwt);
         String tenantId = getTenantId();
         CandidateProfileResponse response = candidateProfileService.getByUserId(effectiveUserId, tenantId);
@@ -117,15 +109,7 @@ public class CandidateProfileController {
             @PathVariable(required = false) UUID userId,
             @RequestBody UpdateCandidateProfileRequest request,
             @AuthenticationPrincipal Jwt jwt) {
-        UUID effectiveUserId = userId;
-        if (effectiveUserId == null && jwt != null && jwt.getSubject() != null) {
-            try {
-                effectiveUserId = UUID.fromString(jwt.getSubject());
-            } catch (IllegalArgumentException ignored) {}
-        }
-        if (effectiveUserId == null) {
-            throw new AccessDeniedException("User ID is required");
-        }
+        UUID effectiveUserId = resolveEffectiveUserId(userId, jwt);
         enforceOwnership(effectiveUserId, jwt);
         String tenantId = getTenantId();
         CandidateProfileResponse response = candidateProfileService.update(effectiveUserId, request, tenantId);
@@ -238,15 +222,7 @@ public class CandidateProfileController {
             @PathVariable(required = false) UUID userId,
             @RequestParam(required = false) String redirectUri,
             @AuthenticationPrincipal Jwt jwt) {
-        UUID effectiveUserId = userId;
-        if (effectiveUserId == null && jwt != null && jwt.getSubject() != null) {
-            try {
-                effectiveUserId = UUID.fromString(jwt.getSubject());
-            } catch (IllegalArgumentException ignored) {}
-        }
-        if (effectiveUserId == null) {
-            throw new AccessDeniedException("User ID is required");
-        }
+        UUID effectiveUserId = resolveEffectiveUserId(userId, jwt);
         enforceOwnership(effectiveUserId, jwt);
         String tenantId = getTenantId();
         Map<String, String> authInfo = digiLockerService.initiateAuth(effectiveUserId, tenantId, redirectUri);
@@ -321,7 +297,20 @@ public class CandidateProfileController {
         return TenantContext.get() != null ? TenantContext.get() : "default";
     }
 
-    // ── Private helpers ──────────────────────────────────────────────────────────
+    // ── Private helpers ──────────────────────────────────────────────────
+
+    private UUID resolveEffectiveUserId(UUID userId, Jwt jwt) {
+        if (userId != null) {
+            return userId;
+        }
+        if (jwt != null && jwt.getSubject() != null) {
+            try {
+                return UUID.fromString(jwt.getSubject());
+            } catch (IllegalArgumentException ignored) {
+            }
+        }
+        throw new AccessDeniedException("User ID is required");
+    }
 
     private void enforceOwnership(UUID userId, Jwt jwt) {
         if (jwt == null) return;

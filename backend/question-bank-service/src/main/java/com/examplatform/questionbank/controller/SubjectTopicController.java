@@ -120,12 +120,10 @@ public class SubjectTopicController {
 
         log.info("Creating topic: name={}, subjectId={}, tenant={}", request.getName(), subjectId, tenantId);
 
+        log.info("Creating topic: name={}, subjectId={}, tenant={}", request.getName(), subjectId, tenantId);
         Topic topic = subjectTopicService.createTopic(
                 subjectId, request.getName(), request.getDescription(), tenantId);
-
-        return ResponseEntity
-                .status(HttpStatus.CREATED)
-                .body(ApiResponse.success(topic, "Topic created successfully"));
+        return createdPayload(topic, "Topic created successfully");
     }
 
     // -----------------------------------------------------------------------
@@ -158,13 +156,9 @@ public class SubjectTopicController {
             @RequestHeader("X-Tenant-Id") String tenantId) {
 
         log.info("Creating subtopic: name={}, topicId={}, tenant={}", request.getName(), topicId, tenantId);
-
         Subtopic subtopic = subjectTopicService.createSubtopic(
                 topicId, request.getName(), request.getDescription(), tenantId);
-
-        return ResponseEntity
-                .status(HttpStatus.CREATED)
-                .body(ApiResponse.success(subtopic, "Subtopic created successfully"));
+        return createdPayload(subtopic, "Subtopic created successfully");
     }
 
     // -----------------------------------------------------------------------
@@ -181,5 +175,8 @@ public class SubjectTopicController {
 
         List<SubjectHierarchyResponse> hierarchy = subjectTopicService.getHierarchy(tenantId);
         return ResponseEntity.ok(ApiResponse.success(hierarchy, "Hierarchy retrieved successfully"));
+    }
+    private <T> ResponseEntity<ApiResponse<T>> createdPayload(T body, String msg) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.success(body, msg));
     }
 }

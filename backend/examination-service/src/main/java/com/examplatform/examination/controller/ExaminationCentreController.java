@@ -59,7 +59,7 @@ public class ExaminationCentreController {
 
     private final ExaminationCentreService centreService;
 
-    // ── Centres ───────────────────────────────────────────────────────────────
+    // ── Centres ──────────────────────────────────────────────────────────
 
     @PostMapping("/api/v1/examinations/centres")
     @PreAuthorize("hasAnyRole('EXAM_CONTROLLER','SUPER_ADMIN')")
@@ -114,7 +114,7 @@ public class ExaminationCentreController {
                         "Centre deactivated"));
     }
 
-    // ── Seat Allocation ───────────────────────────────────────────────────────
+    // ── Seat Allocation ──────────────────────────────────────────────────
 
     @PostMapping("/api/v1/examinations/{examId}/schedules/{scheduleId}/shifts/{shiftId}/allocations")
     @PreAuthorize("hasAnyRole('EXAM_CONTROLLER','SUPER_ADMIN')")
@@ -126,9 +126,9 @@ public class ExaminationCentreController {
             @Valid @RequestBody SeatAllocationRequest request,
             @AuthenticationPrincipal Jwt jwt) {
 
-        UUID actorId = UUID.fromString(jwt.getSubject());
-        SeatAllocationResponse response = centreService.upsertAllocation(shiftId, request, actorId, tenantId);
-        return ResponseEntity.ok(ApiResponse.success(response, "Seat allocation updated successfully"));
+        return ResponseEntity.ok(ApiResponse.success(
+                centreService.upsertAllocation(shiftId, request, UUID.fromString(jwt.getSubject()), tenantId),
+                "Seat allocation updated successfully"));
     }
 
     @GetMapping("/api/v1/examinations/{examId}/schedules/{scheduleId}/shifts/{shiftId}/allocations")
@@ -140,7 +140,8 @@ public class ExaminationCentreController {
             @RequestHeader("X-Tenant-Id") String tenantId,
             @AuthenticationPrincipal Jwt jwt) {
 
-        List<SeatAllocationResponse> allocations = centreService.listAllocations(shiftId, tenantId);
-        return ResponseEntity.ok(ApiResponse.success(allocations, "Allocations retrieved successfully"));
+        return ResponseEntity.ok(ApiResponse.success(
+                centreService.listAllocations(shiftId, tenantId),
+                "Allocations retrieved successfully"));
     }
 }

@@ -21,6 +21,7 @@ package com.examplatform.audit.service;
 
 import com.examplatform.audit.domain.AuditEvent;
 import com.examplatform.audit.repository.AuditEventRepository;
+import com.examplatform.shared.crypto.VaultCryptoService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;

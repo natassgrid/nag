@@ -43,16 +43,11 @@ public class EvaluationMetricsGrpcServiceImpl extends EvaluationMetricsGrpcServi
         try {
             Map<String, Object> metrics = manualEvaluationService.getEvaluationQueueMetrics(tenantId);
 
-            long pending = ((Number) metrics.getOrDefault("pending", 0L)).longValue();
-            long inProgress = ((Number) metrics.getOrDefault("inProgress", 0L)).longValue();
-            long completed = ((Number) metrics.getOrDefault("completed", 0L)).longValue();
-            long flagged = ((Number) metrics.getOrDefault("flagged", 0L)).longValue();
-
             EvaluationMetricsGrpcResponse response = EvaluationMetricsGrpcResponse.newBuilder()
-                    .setPending(pending)
-                    .setInProgress(inProgress)
-                    .setCompleted(completed)
-                    .setFlagged(flagged)
+                    .setPending(metricLong(metrics, "pending"))
+                    .setInProgress(metricLong(metrics, "inProgress"))
+                    .setCompleted(metricLong(metrics, "completed"))
+                    .setFlagged(metricLong(metrics, "flagged"))
                     .build();
 
             responseObserver.onNext(response);
@@ -64,5 +59,9 @@ public class EvaluationMetricsGrpcServiceImpl extends EvaluationMetricsGrpcServi
                     .withCause(e)
                     .asRuntimeException());
         }
+    }
+    private long metricLong(Map<String, Object> metrics, String key) {
+        Object val = metrics != null ? metrics.get(key) : null;
+        return (val instanceof Number n) ? n.longValue() : 0L;
     }
 }

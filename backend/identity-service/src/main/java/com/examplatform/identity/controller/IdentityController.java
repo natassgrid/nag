@@ -299,15 +299,17 @@ public class IdentityController {
     /**
      * Authenticate with username/password and optional MFA OTP / TOTP code.
      */
+    private ResponseEntity<ApiResponse<AuthTokenResponse>> authOk(AuthTokenResponse response, String message) {
+        return ResponseEntity.ok(ApiResponse.success(response, message));
+    }
+
     @PostMapping({"/auth/token", "/auth/login"})
     public ResponseEntity<ApiResponse<AuthTokenResponse>> token(
             @Valid @RequestBody AuthTokenRequest request,
             @RequestHeader(value = "X-Tenant-Id", defaultValue = "default") String tenantId,
             HttpServletRequest servletRequest) {
         log.debug("Token request received for username [{}], tenant [{}]", request.getUsername(), tenantId);
-        String ipAddress = servletRequest.getRemoteAddr();
-        AuthTokenResponse response = authenticationService.authenticate(request, tenantId, ipAddress);
-        return ResponseEntity.ok(ApiResponse.success(response, "Authentication successful."));
+        return authOk(authenticationService.authenticate(request, tenantId, servletRequest.getRemoteAddr()), "Authentication successful.");
     }
 
     /**
@@ -319,9 +321,7 @@ public class IdentityController {
             @RequestHeader(value = "X-Tenant-Id", defaultValue = "default") String tenantId,
             HttpServletRequest servletRequest) {
         log.debug("Token refresh request received, tenant [{}]", tenantId);
-        String ipAddress = servletRequest.getRemoteAddr();
-        AuthTokenResponse response = authenticationService.refreshToken(request, tenantId, ipAddress);
-        return ResponseEntity.ok(ApiResponse.success(response, "Token refreshed successfully."));
+        return authOk(authenticationService.refreshToken(request, tenantId, servletRequest.getRemoteAddr()), "Token refreshed successfully.");
     }
 
     /**
@@ -334,9 +334,7 @@ public class IdentityController {
             HttpServletRequest servletRequest) {
         log.debug("WebAuthn authentication request received for credential [{}], tenant [{}]",
                 request.getCredentialId(), tenantId);
-        String ipAddress = servletRequest.getRemoteAddr();
-        AuthTokenResponse tokens = webAuthnService.authenticate(request, tenantId, ipAddress);
-        return ResponseEntity.ok(ApiResponse.success(tokens, "WebAuthn authentication successful."));
+        return authOk(webAuthnService.authenticate(request, tenantId, servletRequest.getRemoteAddr()), "WebAuthn authentication successful.");
     }
 
     /**

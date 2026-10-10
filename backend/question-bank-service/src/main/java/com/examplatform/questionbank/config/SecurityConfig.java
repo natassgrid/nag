@@ -25,6 +25,7 @@ import org.springframework.core.annotation.Order;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
+import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter;
 import org.springframework.security.web.SecurityFilterChain;
@@ -43,18 +44,15 @@ public class SecurityConfig {
     @Order(5)
     public SecurityFilterChain questionBankSecurityFilterChain(HttpSecurity http,
                                                    JwtAuthenticationConverter jwtAuthenticationConverter) throws Exception {
-        http
-            .securityMatcher("/api/v1/questions/**", "/api/v1/topics/**", "/api/v1/subjects/**", "/api/v1/batch-generate/**", "/api/v1/ai/questions/**", "/api/v1/translations/**")
-            .csrf(csrf -> csrf.disable())
-            .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-            .authorizeHttpRequests(auth -> auth
-                .requestMatchers("/actuator/health", "/actuator/health/**", "/actuator/info", "/actuator/prometheus").permitAll()
-                .requestMatchers("/api/v1/questions/blueprint-match", "/api/v1/questions/batch-find", "/api/v1/questions/match-blueprint", "/api/v1/questions/by-ids").permitAll()
-                .anyRequest().authenticated()
-            )
-            .oauth2ResourceServer(oauth2 -> oauth2
-                .jwt(jwt -> jwt.jwtAuthenticationConverter(jwtAuthenticationConverter))
-            );
+        http.securityMatcher("/api/v1/questions/**", "/api/v1/topics/**", "/api/v1/subjects/**", "/api/v1/batch-generate/**", "/api/v1/ai/questions/**", "/api/v1/translations/**");
+        http.csrf(AbstractHttpConfigurer::disable);
+        http.sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS));
+        http.authorizeHttpRequests(auth -> {
+            auth.requestMatchers("/actuator/health", "/actuator/health/**", "/actuator/info", "/actuator/prometheus").permitAll();
+            auth.requestMatchers("/api/v1/questions/blueprint-match", "/api/v1/questions/batch-find", "/api/v1/questions/match-blueprint", "/api/v1/questions/by-ids").permitAll();
+            auth.anyRequest().authenticated();
+        });
+        http.oauth2ResourceServer(oauth2 -> oauth2.jwt(jwt -> jwt.jwtAuthenticationConverter(jwtAuthenticationConverter)));
         return http.build();
     }
 }

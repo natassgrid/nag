@@ -80,17 +80,7 @@ public class AuditEventConsumer {
     public void onRabbitAuditEvent(Object message) {
         log.debug("Received RabbitMQ audit event: {}", message);
         try {
-            String payload;
-            if (message instanceof Message amqpMsg) {
-                payload = new String(amqpMsg.getBody(), StandardCharsets.UTF_8);
-            } else if (message instanceof byte[] bytes) {
-                payload = new String(bytes, StandardCharsets.UTF_8);
-            } else if (message instanceof String s) {
-                payload = s;
-            } else {
-                payload = objectMapper.writeValueAsString(message);
-            }
-            processAuditEvent(payload);
+            processAuditEvent(com.examplatform.shared.messaging.MessagePayloadExtractor.extractPayload(message, objectMapper));
         } catch (Exception e) {
             log.error("Failed to process RabbitMQ audit event: {}", e.getMessage(), e);
         }
@@ -108,18 +98,7 @@ public class AuditEventConsumer {
         }
         log.debug("Received Spring in-memory audit event: key={}", event.key());
         try {
-            Object payload = event.payload();
-            String message;
-            if (payload instanceof Message amqpMsg) {
-                message = new String(amqpMsg.getBody(), StandardCharsets.UTF_8);
-            } else if (payload instanceof byte[] bytes) {
-                message = new String(bytes, StandardCharsets.UTF_8);
-            } else if (payload instanceof String s) {
-                message = s;
-            } else {
-                message = objectMapper.writeValueAsString(payload);
-            }
-            processAuditEvent(message);
+            processAuditEvent(com.examplatform.shared.messaging.MessagePayloadExtractor.extractPayload(event.payload(), objectMapper));
         } catch (Exception e) {
             log.error("Failed to process in-memory audit event: {}", e.getMessage(), e);
         }

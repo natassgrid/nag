@@ -21,8 +21,9 @@ package com.examplatform.candidate.consumer;
 
 import com.examplatform.candidate.domain.CandidateProfile;
 import com.examplatform.candidate.repository.CandidateProfileRepository;
-import com.examplatform.candidate.service.HashingService;
+import com.examplatform.shared.crypto.HashingService;
 import com.examplatform.shared.messaging.GenericDomainEvent;
+import com.examplatform.shared.messaging.MessagePayloadExtractor;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
@@ -72,17 +73,7 @@ public class CandidateRegistrationConsumer {
     )
     public void onRabbitAuditEvent(Object message) {
         try {
-            String payload;
-            if (message instanceof Message amqpMsg) {
-                payload = new String(amqpMsg.getBody(), StandardCharsets.UTF_8);
-            } else if (message instanceof byte[] bytes) {
-                payload = new String(bytes, StandardCharsets.UTF_8);
-            } else if (message instanceof String s) {
-                payload = s;
-            } else {
-                payload = objectMapper.writeValueAsString(message);
-            }
-            processRegistrationEvent(payload);
+            processRegistrationEvent(MessagePayloadExtractor.extractPayload(message, objectMapper));
         } catch (Exception e) {
             log.error("Failed to process RabbitMQ registration audit event: {}", e.getMessage(), e);
         }
@@ -94,18 +85,7 @@ public class CandidateRegistrationConsumer {
             return;
         }
         try {
-            Object payload = event.payload();
-            String message;
-            if (payload instanceof Message amqpMsg) {
-                message = new String(amqpMsg.getBody(), StandardCharsets.UTF_8);
-            } else if (payload instanceof byte[] bytes) {
-                message = new String(bytes, StandardCharsets.UTF_8);
-            } else if (payload instanceof String s) {
-                message = s;
-            } else {
-                message = objectMapper.writeValueAsString(payload);
-            }
-            processRegistrationEvent(message);
+            processRegistrationEvent(MessagePayloadExtractor.extractPayload(event.payload(), objectMapper));
         } catch (Exception e) {
             log.error("Failed to process Spring registration audit event: {}", e.getMessage(), e);
         }

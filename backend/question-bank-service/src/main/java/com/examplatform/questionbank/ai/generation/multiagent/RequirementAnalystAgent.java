@@ -18,6 +18,7 @@ package com.examplatform.questionbank.ai.generation.multiagent;
 import com.examplatform.questionbank.ai.generation.ClarifyRequirementsRequest;
 import com.examplatform.questionbank.ai.generation.ClarifyRequirementsResponse;
 import com.examplatform.questionbank.ai.generation.QuestionGenerationRequest;
+import com.examplatform.questionbank.ai.generation.QuestionPromptFormatter;
 import com.examplatform.questionbank.ai.parser.NormalizedSampleQuestion;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -46,23 +47,8 @@ public class RequirementAnalystAgent {
 
         StringBuilder blueprint = new StringBuilder();
         blueprint.append("=== GENERATION BLUEPRINT ===\n");
-        blueprint.append("Subject: ").append(request.getSubject()).append("\n");
-        blueprint.append("Topic: ").append(request.getTopic()).append("\n");
-        if (request.getSubtopic() != null) {
-            blueprint.append("Subtopic: ").append(request.getSubtopic()).append("\n");
-        }
-        String rawDesc = request.getRawTextInput() != null && !request.getRawTextInput().isBlank()
-                ? request.getRawTextInput() : request.getDescription();
-        if (rawDesc != null && !rawDesc.isBlank()) {
-            blueprint.append("Author Question Description/Prompt: ").append(rawDesc).append("\n");
-        }
-        blueprint.append("Difficulty: ").append(request.getDifficulty()).append("\n");
-        blueprint.append("Cognitive Level: ").append(request.getCognitiveLevel()).append("\n");
-        blueprint.append("Question Type: ").append(request.getQuestionType()).append("\n");
-
-        if (request.getTargetExam() != null && !request.getTargetExam().isBlank()) {
-            blueprint.append("Target Exam Standard: ").append(request.getTargetExam()).append("\n");
-        }
+        QuestionPromptFormatter.appendGenerationParameters(
+                blueprint, request, "", "Author Question Description/Prompt", "Target Exam Standard");
 
         if (sampleQuestions != null && !sampleQuestions.isEmpty()) {
             blueprint.append("Sample Guidance:\n");

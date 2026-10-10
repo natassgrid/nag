@@ -28,6 +28,7 @@ import jakarta.persistence.MappedSuperclass;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Version;
+import lombok.Getter;
 
 import java.time.Instant;
 import java.util.Objects;
@@ -44,21 +45,8 @@ import java.util.Objects;
  * cache locality, and speeds up joins. Database-generated {@code IDENTITY}
  * values are monotonically increasing, giving sequential B-tree inserts without
  * the application-side generation that UUIDs require.
- *
- * <h3>Fields</h3>
- * <ul>
- *   <li>{@link #id} — {@code BIGINT} identity primary key, assigned by the
- *       database on insert.</li>
- *   <li>{@link #createdAt} — set once by {@link #prePersist()}; never updated.</li>
- *   <li>{@link #updatedAt} — refreshed on every {@link #preUpdate()}.</li>
- *   <li>{@link #tenantId} — examination authority identifier, populated from
- *       {@link TenantContext} on persist.</li>
- *   <li>{@link #version} — optimistic-lock counter managed by the JPA provider.</li>
- * </ul>
- *
- * <p>This superclass intentionally mirrors {@link BaseEntity} for timestamp,
- * tenant, and version handling so services can treat both families uniformly.
  */
+@Getter
 @MappedSuperclass
 public abstract class NumericBaseEntity {
 
@@ -92,27 +80,18 @@ public abstract class NumericBaseEntity {
     private Long version;
 
     @PrePersist
-    protected void prePersist() {
-        Instant now = Instant.now();
-        this.createdAt = now;
-        this.updatedAt = now;
+    protected void onPrePersist() {
+        Instant ts = Instant.now();
+        this.createdAt = ts;
+        this.updatedAt = ts;
         if (this.tenantId == null) {
-            String contextTenant = TenantContext.get();
-            this.tenantId = (contextTenant != null) ? contextTenant : "default";
+            this.tenantId = Objects.requireNonNullElse(TenantContext.get(), "default");
         }
     }
 
     @PreUpdate
-    protected void preUpdate() {
+    protected void onPreUpdate() {
         this.updatedAt = Instant.now();
-    }
-
-    // -----------------------------------------------------------------------
-    // Accessors
-    // -----------------------------------------------------------------------
-
-    public Long getId() {
-        return id;
     }
 
     /**
@@ -123,28 +102,12 @@ public abstract class NumericBaseEntity {
         this.id = id;
     }
 
-    public Instant getCreatedAt() {
-        return createdAt;
-    }
-
-    public Instant getUpdatedAt() {
-        return updatedAt;
-    }
-
-    public String getTenantId() {
-        return tenantId;
-    }
-
     /**
      * Allows explicit tenant assignment before persist — useful in background
      * jobs where {@link TenantContext} is not populated.
      */
     public void setTenantId(String tenantId) {
         this.tenantId = tenantId;
-    }
-
-    public Long getVersion() {
-        return version;
     }
 
     protected void setVersion(Long version) {

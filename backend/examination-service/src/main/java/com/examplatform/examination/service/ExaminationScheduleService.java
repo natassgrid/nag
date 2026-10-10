@@ -59,10 +59,10 @@ import java.util.UUID;
  * <pre>
  *   DRAFT → SCHEDULER_REVIEW → CONTROLLER_APPROVED
  *        → SECURITY_REVIEW  → CHAIRMAN_APPROVED → PUBLISHED
- *   Any non-CANCELLED state → CANCELLED
+ *   Any state → CANCELLED
  * </pre>
  *
- * Validates: Requirements 7b.1–7b.4, 7b.7–7b.10, 7b.13
+ * Validates: Requirements 7b.1, 7b.2, 7b.3, 7b.4, 7b.7, 7b.8, 7b.9, 7b.10
  */
 @Slf4j
 @Service
@@ -114,19 +114,16 @@ public class ExaminationScheduleService {
         validateDateConflicts(tenantId, request.getExamDate(), request.getReserveDate(),
                 /* excludeId */ null);
 
-        ExaminationSchedule schedule = ExaminationSchedule.builder()
-                .examinationId(examId)
-                .scheduleName(request.getScheduleName())
-                .scheduleVersion(1)
-                .notificationNumber(request.getNotificationNumber())
-                .examDate(request.getExamDate())
-                .reserveDate(request.getReserveDate())
-                .timeZone(request.getTimeZone() != null ? request.getTimeZone() : "Asia/Kolkata")
-                .status("DRAFT")
-                .createdBy(actorId)
-                .modifiedBy(actorId)
-                .build();
-        schedule.setTenantId(tenantId);
+        ExaminationSchedule schedule = buildScheduleDraft(
+                examId,
+                request.getScheduleName(),
+                request.getNotificationNumber(),
+                request.getExamDate(),
+                request.getReserveDate(),
+                request.getTimeZone(),
+                1,
+                actorId,
+                tenantId);
 
         ExaminationSchedule saved = scheduleRepository.save(schedule);
         log.info("Schedule created: id={}, exam={}, version=1, tenant={}", saved.getId(), examId, tenantId);
@@ -227,22 +224,19 @@ public class ExaminationScheduleService {
 
         validateDateConflicts(tenantId, request.getExamDate(), request.getReserveDate(), scheduleId);
 
-        ExaminationSchedule amended = ExaminationSchedule.builder()
-                .examinationId(current.getExaminationId())
-                .scheduleName(request.getScheduleName())
-                .scheduleVersion(current.getScheduleVersion() + 1)
-                .notificationNumber(request.getNotificationNumber())
-                .examDate(request.getExamDate())
-                .reserveDate(request.getReserveDate())
-                .timeZone(request.getTimeZone() != null ? request.getTimeZone() : current.getTimeZone())
-                .status("DRAFT")                        // amendment restarts the approval workflow
-                .changeReason(request.getChangeReason())
-                .effectiveFrom(request.getEffectiveFrom())
-                .previousVersionId(current.getId())    // immutable version chain
-                .createdBy(actorId)
-                .modifiedBy(actorId)
-                .build();
-        amended.setTenantId(tenantId);
+        ExaminationSchedule amended = buildScheduleDraft(
+                current.getExaminationId(),
+                request.getScheduleName(),
+                request.getNotificationNumber(),
+                request.getExamDate(),
+                request.getReserveDate(),
+                request.getTimeZone() != null ? request.getTimeZone() : current.getTimeZone(),
+                current.getScheduleVersion() + 1,
+                actorId,
+                tenantId);
+        amended.setChangeReason(request.getChangeReason());
+        amended.setEffectiveFrom(request.getEffectiveFrom());
+        amended.setPreviousVersionId(current.getId());
 
         ExaminationSchedule saved = scheduleRepository.save(amended);
         log.info("Schedule amended: new id={}, version={}, exam={}, tenant={}",
@@ -327,16 +321,7 @@ public class ExaminationScheduleService {
                     "Updated shift window overlaps with another shift in schedule " + scheduleId);
         }
 
-        shift.setShiftNumber(request.getShiftNumber());
-        shift.setShiftName(request.getShiftName());
-        shift.setReportingTime(request.getReportingTime());
-        shift.setGateClosingTime(request.getGateClosingTime());
-        shift.setLoginStartTime(request.getLoginStartTime());
-        shift.setExamStartTime(request.getExamStartTime());
-        shift.setExamEndTime(request.getExamEndTime());
-        shift.setExitTime(request.getExitTime());
-        shift.setDurationMinutes(request.getDurationMinutes());
-        shift.setBufferMinutes(request.getBufferMinutes());
+        shift.updateFromRequest(request);
 
         ExamShift saved = shiftRepository.save(shift);
         log.info("Shift updated: id={}, schedule={}, tenant={}", shiftId, scheduleId, tenantId);
@@ -446,6 +431,25 @@ public class ExaminationScheduleService {
 
     // ── Private helpers ───────────────────────────────────────────────────────
 
+    private ExaminationSchedule buildScheduleDraft(UUID examId, String scheduleName, String notifNumber,
+                                                    LocalDate examDate, LocalDate reserveDate, String timeZone,
+                                                    int version, UUID actorId, String tenantId) {
+        ExaminationSchedule schedule = ExaminationSchedule.builder()
+                .examinationId(examId)
+                .scheduleName(scheduleName)
+                .scheduleVersion(version)
+                .notificationNumber(notifNumber)
+                .examDate(examDate)
+                .reserveDate(reserveDate)
+                .timeZone(timeZone != null ? timeZone : "Asia/Kolkata")
+                .status("DRAFT")
+                .createdBy(actorId)
+                .modifiedBy(actorId)
+                .build();
+        schedule.setTenantId(tenantId);
+        return schedule;
+    }
+
     private ExaminationSchedule findSchedule(UUID scheduleId, String tenantId) {
         ExaminationSchedule schedule = scheduleRepository.findById(scheduleId)
                 .orElseThrow(() -> new ScheduleNotFoundException(scheduleId));
@@ -456,61 +460,32 @@ public class ExaminationScheduleService {
     }
 
     private ScheduleResponse toResponse(ExaminationSchedule s) {
-        return ScheduleResponse.builder()
-                .id(s.getId())
-                .examinationId(s.getExaminationId())
-                .scheduleName(s.getScheduleName())
-                .scheduleVersion(s.getScheduleVersion())
-                .notificationNumber(s.getNotificationNumber())
-                .examDate(s.getExamDate())
-                .reserveDate(s.getReserveDate())
-                .timeZone(s.getTimeZone())
-                .status(s.getStatus())
-                .changeReason(s.getChangeReason())
-                .effectiveFrom(s.getEffectiveFrom())
-                .previousVersionId(s.getPreviousVersionId())
-                .createdBy(s.getCreatedBy())
-                .modifiedBy(s.getModifiedBy())
-                .approvedBy(s.getApprovedBy())
-                .approvedAt(s.getApprovedAt())
-                .createdAt(s.getCreatedAt())
-                .updatedAt(s.getUpdatedAt())
-                .build();
+        return ScheduleResponse.from(s);
     }
 
     private ShiftResponse toShiftResponse(ExamShift s) {
-        return ShiftResponse.builder()
-                .id(s.getId())
-                .scheduleId(s.getScheduleId())
-                .shiftNumber(s.getShiftNumber())
-                .shiftName(s.getShiftName())
-                .reportingTime(s.getReportingTime())
-                .gateClosingTime(s.getGateClosingTime())
-                .loginStartTime(s.getLoginStartTime())
-                .examStartTime(s.getExamStartTime())
-                .examEndTime(s.getExamEndTime())
-                .exitTime(s.getExitTime())
-                .durationMinutes(s.getDurationMinutes())
-                .bufferMinutes(s.getBufferMinutes())
-                .createdAt(s.getCreatedAt())
-                .updatedAt(s.getUpdatedAt())
-                .build();
+        return ShiftResponse.from(s);
+    }
+
+    private Map<String, Object> createBaseScheduleEvent(String eventType, ExaminationSchedule schedule, String tenantId) {
+        Map<String, Object> event = new LinkedHashMap<>();
+        event.put("eventType", eventType);
+        event.put("scheduleId", schedule.getId().toString());
+        event.put("examinationId", schedule.getExaminationId().toString());
+        event.put("scheduleVersion", schedule.getScheduleVersion());
+        event.put("tenantId", tenantId);
+        event.put("occurredAt", Instant.now().toString());
+        return event;
     }
 
     private void publishAudit(String eventType, ExaminationSchedule schedule,
                                UUID actorId, String tenantId,
                                String previousValue, String newValue) {
         try {
-            Map<String, Object> event = new LinkedHashMap<>();
-            event.put("eventType", eventType);
-            event.put("scheduleId", schedule.getId().toString());
-            event.put("examinationId", schedule.getExaminationId().toString());
-            event.put("scheduleVersion", schedule.getScheduleVersion());
+            Map<String, Object> event = createBaseScheduleEvent(eventType, schedule, tenantId);
             event.put("actorId", actorId != null ? actorId.toString() : null);
-            event.put("tenantId", tenantId);
             if (previousValue != null) event.put("previousValue", previousValue);
             if (newValue != null)      event.put("newValue", newValue);
-            event.put("occurredAt", Instant.now().toString());
 
             eventPublisher.publish(AUDIT_TOPIC, schedule.getId().toString(), event);
         } catch (Exception e) {
@@ -537,13 +512,7 @@ public class ExaminationScheduleService {
     private void publishNotification(ExaminationSchedule schedule,
                                       UUID actorId, String tenantId, String eventType) {
         try {
-            Map<String, Object> event = new LinkedHashMap<>();
-            event.put("eventType", eventType);
-            event.put("scheduleId", schedule.getId().toString());
-            event.put("examinationId", schedule.getExaminationId().toString());
-            event.put("scheduleVersion", schedule.getScheduleVersion());
-            event.put("tenantId", tenantId);
-            event.put("occurredAt", Instant.now().toString());
+            Map<String, Object> event = createBaseScheduleEvent(eventType, schedule, tenantId);
             eventPublisher.publish(NOTIF_TOPIC, schedule.getId().toString(), event);
         } catch (Exception e) {
             log.error("Failed to publish notification event [{}]: {}", eventType, e.getMessage());

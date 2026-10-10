@@ -28,4 +28,8 @@ public record QuestionBankBreakdownResponse(
         long submitted,
         long approved,
         long rejected
-) {}
+) {
+    public static QuestionBankBreakdownResponse empty() {
+        return new QuestionBankBreakdownResponse(0L, 0L, 0L, 0L, 0L);
+    }
+}

@@ -19,6 +19,8 @@
 
 package com.examplatform.identity.service;
 
+import com.examplatform.shared.crypto.HashingService;
+
 import com.examplatform.identity.domain.UserAccount;
 import com.examplatform.identity.domain.enums.AccountStatus;
 import com.examplatform.identity.dto.AuthTokenResponse;

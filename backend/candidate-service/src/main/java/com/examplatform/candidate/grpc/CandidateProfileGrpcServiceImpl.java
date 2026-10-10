@@ -34,15 +34,7 @@ public class CandidateProfileGrpcServiceImpl extends CandidateProfileGrpcService
         log.info("gRPC getCandidateExtension: candidate={}, tenant={}", request.getCandidateId(), request.getTenantId());
 
         try {
-            UUID candidateId = !request.getCandidateId().isBlank() ? UUID.fromString(request.getCandidateId()) : null;
-            Optional<CandidateProfile> profileOpt = Optional.empty();
-
-            if (candidateId != null) {
-                profileOpt = candidateProfileRepository.findById(candidateId);
-                if (profileOpt.isEmpty()) {
-                    profileOpt = candidateProfileRepository.findByUserIdAndTenantId(candidateId, request.getTenantId());
-                }
-            }
+            Optional<CandidateProfile> profileOpt = findProfile(request.getCandidateId(), request.getTenantId());
 
             boolean hasExtension = false;
             int extraTimeMinutes = 0;
@@ -86,15 +78,7 @@ public class CandidateProfileGrpcServiceImpl extends CandidateProfileGrpcService
         log.info("gRPC getCandidateProfile: candidate={}, tenant={}", request.getCandidateId(), request.getTenantId());
 
         try {
-            UUID candidateId = !request.getCandidateId().isBlank() ? UUID.fromString(request.getCandidateId()) : null;
-            Optional<CandidateProfile> profileOpt = Optional.empty();
-
-            if (candidateId != null) {
-                profileOpt = candidateProfileRepository.findById(candidateId);
-                if (profileOpt.isEmpty()) {
-                    profileOpt = candidateProfileRepository.findByUserIdAndTenantId(candidateId, request.getTenantId());
-                }
-            }
+            Optional<CandidateProfile> profileOpt = findProfile(request.getCandidateId(), request.getTenantId());
 
             CandidateProfileGrpcResponse.Builder builder = CandidateProfileGrpcResponse.newBuilder()
                     .setCandidateId(request.getCandidateId());
@@ -119,6 +103,18 @@ public class CandidateProfileGrpcServiceImpl extends CandidateProfileGrpcService
                     .withDescription("Failed to retrieve candidate profile: " + e.getMessage())
                     .withCause(e)
                     .asRuntimeException());
+        }
+    }
+    private Optional<CandidateProfile> findProfile(String candidateIdStr, String tenantId) {
+        if (candidateIdStr == null || candidateIdStr.isBlank()) {
+            return Optional.empty();
+        }
+        try {
+            UUID id = UUID.fromString(candidateIdStr);
+            return candidateProfileRepository.findById(id)
+                    .or(() -> candidateProfileRepository.findByUserIdAndTenantId(id, tenantId));
+        } catch (IllegalArgumentException e) {
+            return Optional.empty();
         }
     }
 }

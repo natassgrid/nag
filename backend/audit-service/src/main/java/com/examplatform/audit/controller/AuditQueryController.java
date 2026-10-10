@@ -51,8 +51,6 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class AuditQueryController {
 
-    private static final String DEFAULT_TENANT_ID = "default";
-
     private final AuditQueryService auditQueryService;
 
     /**
@@ -81,7 +79,7 @@ public class AuditQueryController {
 
         // Cap page size at 100
         int effectiveSize = Math.min(size, 100);
-        String tenantId = extractTenantId(auth);
+        String tenantId = AuditSecurityHelper.extractTenantId(auth);
 
         log.info("Audit query by user={}, filters: userId={}, examId={}, actionType={}, from={}, to={}, page={}, size={}",
                 auth.getName(), userId, examId, actionType, from, to, page, effectiveSize);
@@ -92,17 +90,5 @@ public class AuditQueryController {
                 userId, actionType, examId, from, to, tenantId, pageable);
 
         return ResponseEntity.ok(results);
-    }
-
-    private String extractTenantId(Authentication auth) {
-        if (auth != null && auth.getDetails() instanceof java.util.Map) {
-            @SuppressWarnings("unchecked")
-            java.util.Map<String, Object> details = (java.util.Map<String, Object>) auth.getDetails();
-            Object tenant = details.get("tenant_id");
-            if (tenant != null) {
-                return tenant.toString();
-            }
-        }
-        return DEFAULT_TENANT_ID;
     }
 }

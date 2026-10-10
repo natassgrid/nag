@@ -19,22 +19,16 @@
 
 package com.examplatform.result.storage;
 
+import com.examplatform.shared.storage.s3.S3ClientHelper;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
-import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
-import software.amazon.awssdk.auth.credentials.DefaultCredentialsProvider;
-import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
 import software.amazon.awssdk.core.ResponseInputStream;
 import software.amazon.awssdk.core.sync.RequestBody;
-import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.s3.S3Client;
-import software.amazon.awssdk.services.s3.S3Configuration;
 import software.amazon.awssdk.services.s3.model.DeleteObjectRequest;
 import software.amazon.awssdk.services.s3.model.GetObjectRequest;
 import software.amazon.awssdk.services.s3.model.GetObjectResponse;
-import software.amazon.awssdk.services.s3.model.HeadBucketRequest;
-import software.amazon.awssdk.services.s3.model.HeadObjectRequest;
 import software.amazon.awssdk.services.s3.model.NoSuchKeyException;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 import software.amazon.awssdk.services.s3.model.S3Exception;
@@ -43,7 +37,6 @@ import software.amazon.awssdk.services.s3.presigner.model.GetObjectPresignReques
 import software.amazon.awssdk.services.s3.presigner.model.PresignedGetObjectRequest;
 
 import java.io.InputStream;
-import java.net.URI;
 import java.time.Duration;
 import java.util.Optional;
 
@@ -143,23 +136,7 @@ public class S3ScorecardStorageProvider implements ScorecardStorageProvider {
 
     @Override
     public boolean exists(String storageLocation) {
-        String bucket = properties.getEffectiveS3Bucket();
-        HeadObjectRequest headRequest = HeadObjectRequest.builder()
-                .bucket(bucket)
-                .key(storageLocation)
-                .build();
-
-        try {
-            getS3Client().headObject(headRequest);
-            return true;
-        } catch (NoSuchKeyException e) {
-            return false;
-        } catch (S3Exception e) {
-            if (e.statusCode() == 404) {
-                return false;
-            }
-            throw new RuntimeException("Failed to check S3 scorecard existence: " + storageLocation, e);
-        }
+        return S3ClientHelper.checkObjectExists(getS3Client(), properties.getEffectiveS3Bucket(), storageLocation);
     }
 
     @Override
@@ -191,66 +168,19 @@ public class S3ScorecardStorageProvider implements ScorecardStorageProvider {
 
     @Override
     public boolean health() {
-        String bucket = properties.getEffectiveS3Bucket();
-        try {
-            getS3Client().headBucket(HeadBucketRequest.builder().bucket(bucket).build());
-            return true;
-        } catch (Exception e) {
-            log.warn("S3 scorecard health check failed for bucket {}: {}", bucket, e.getMessage());
-            return false;
-        }
+        return S3ClientHelper.checkBucketHealth(getS3Client(), properties.getEffectiveS3Bucket(), "Scorecard");
     }
 
     private synchronized S3Client getS3Client() {
         if (this.s3Client == null) {
-            var s3Props = properties.getS3();
-            var builder = S3Client.builder()
-                    .region(Region.of(s3Props.getRegion()));
-
-            if (s3Props.getEndpoint() != null && !s3Props.getEndpoint().isBlank()) {
-                builder.endpointOverride(URI.create(s3Props.getEndpoint()));
-            }
-
-            if (s3Props.getAccessKey() != null && !s3Props.getAccessKey().isBlank()
-                    && s3Props.getSecretKey() != null && !s3Props.getSecretKey().isBlank()) {
-                builder.credentialsProvider(StaticCredentialsProvider.create(
-                        AwsBasicCredentials.create(s3Props.getAccessKey(), s3Props.getSecretKey())));
-            } else {
-                builder.credentialsProvider(DefaultCredentialsProvider.create());
-            }
-
-            builder.serviceConfiguration(S3Configuration.builder()
-                    .pathStyleAccessEnabled(s3Props.isPathStyleAccess())
-                    .build());
-
-            this.s3Client = builder.build();
+            this.s3Client = S3ClientHelper.createS3Client(properties.getS3());
         }
         return this.s3Client;
     }
 
     private synchronized S3Presigner getS3Presigner() {
         if (this.s3Presigner == null) {
-            var s3Props = properties.getS3();
-            var builder = S3Presigner.builder()
-                    .region(Region.of(s3Props.getRegion()));
-
-            if (s3Props.getEndpoint() != null && !s3Props.getEndpoint().isBlank()) {
-                builder.endpointOverride(URI.create(s3Props.getEndpoint()));
-            }
-
-            if (s3Props.getAccessKey() != null && !s3Props.getAccessKey().isBlank()
-                    && s3Props.getSecretKey() != null && !s3Props.getSecretKey().isBlank()) {
-                builder.credentialsProvider(StaticCredentialsProvider.create(
-                        AwsBasicCredentials.create(s3Props.getAccessKey(), s3Props.getSecretKey())));
-            } else {
-                builder.credentialsProvider(DefaultCredentialsProvider.create());
-            }
-
-            builder.serviceConfiguration(S3Configuration.builder()
-                    .pathStyleAccessEnabled(s3Props.isPathStyleAccess())
-                    .build());
-
-            this.s3Presigner = builder.build();
+            this.s3Presigner = S3ClientHelper.createS3Presigner(properties.getS3());
         }
         return this.s3Presigner;
     }

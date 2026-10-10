@@ -31,53 +31,49 @@ public final class DefaultPlatformConfigs {
 
     private DefaultPlatformConfigs() {}
 
+    private static final String DEFAULT_CONFIGS_RAW = """
+            auth.mfa.enforced=false
+            auth.mfa.admin.policy=OPTIONAL
+            auth.mfa.candidate.policy=OPTIONAL
+            auth.mfa.allowed.methods=TOTP,EMAIL_OTP,RECOVERY_CODES
+            auth.stepup.enforced=false
+            auth.session.timeout.minutes=30
+            auth.max.login.attempts=5
+            auth.password.expiry.days=90
+            auth.password.min.length=12
+            auth.lockout.duration.minutes=15
+            delivery.tamper.detection.enabled=true
+            delivery.kiosk.mode.enforced=true
+            delivery.telemetry.heartbeat.seconds=10
+            delivery.autosave.interval.seconds=15
+            delivery.max.disconnect.grace.seconds=180
+            delivery.retest.authorization.required=true
+            practice.mode.enabled=true
+            practice.solutions.visible=true
+            question.dual.review.required=true
+            question.ai.generation.enabled=true
+            evaluation.auto.grade.instant=true
+            evaluation.anonymize.candidate.sheets=true
+            alert.failed.login.spikes.enabled=true
+            alert.exam.window.start.enabled=true
+            alert.email.recipients=sec-ops@nag.gov.in, admin@nag.gov.in
+            alert.critical.error.webhook=
+            dpi.digilocker.verification.enabled=true
+            dpi.face.verification.threshold=85
+            platform.maintenance.mode=false
+            platform.banner.message=
+            """;
+
     public static final Map<String, String> DEFAULTS;
 
     static {
         Map<String, String> m = new LinkedHashMap<>();
-
-        // Security & Authentication
-        m.put("auth.mfa.enforced", "false");
-        m.put("auth.mfa.admin.policy", "OPTIONAL");
-        m.put("auth.mfa.candidate.policy", "OPTIONAL");
-        m.put("auth.mfa.allowed.methods", "TOTP,EMAIL_OTP,RECOVERY_CODES");
-        m.put("auth.stepup.enforced", "false");
-        m.put("auth.session.timeout.minutes", "30");
-        m.put("auth.max.login.attempts", "5");
-        m.put("auth.password.expiry.days", "90");
-        m.put("auth.password.min.length", "12");
-        m.put("auth.lockout.duration.minutes", "15");
-
-        // Exam Delivery & Proctoring
-        m.put("delivery.tamper.detection.enabled", "true");
-        m.put("delivery.kiosk.mode.enforced", "true");
-        m.put("delivery.telemetry.heartbeat.seconds", "10");
-        m.put("delivery.autosave.interval.seconds", "15");
-        m.put("delivery.max.disconnect.grace.seconds", "180");
-        m.put("delivery.retest.authorization.required", "true");
-
-        // Candidate Practice & Learning Governance
-        m.put("practice.mode.enabled", "true");
-        m.put("practice.solutions.visible", "true");
-
-        // Assessment & Question Bank Governance
-        m.put("question.dual.review.required", "true");
-        m.put("question.ai.generation.enabled", "true");
-        m.put("evaluation.auto.grade.instant", "true");
-        m.put("evaluation.anonymize.candidate.sheets", "true");
-
-        // Alerts & Notification Operations
-        m.put("alert.failed.login.spikes.enabled", "true");
-        m.put("alert.exam.window.start.enabled", "true");
-        m.put("alert.email.recipients", "sec-ops@nag.gov.in, admin@nag.gov.in");
-        m.put("alert.critical.error.webhook", "");
-
-        // Platform Infrastructure & DPI Integration
-        m.put("dpi.digilocker.verification.enabled", "true");
-        m.put("dpi.face.verification.threshold", "85");
-        m.put("platform.maintenance.mode", "false");
-        m.put("platform.banner.message", "");
-
+        DEFAULT_CONFIGS_RAW.strip().lines().forEach(line -> {
+            int idx = line.indexOf('=');
+            if (idx > 0) {
+                m.put(line.substring(0, idx).trim(), line.substring(idx + 1).trim());
+            }
+        });
         DEFAULTS = Collections.unmodifiableMap(m);
     }
 

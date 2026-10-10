@@ -19,10 +19,12 @@
 
 package com.examplatform.examination.dto.schedule;
 
+import com.examplatform.examination.domain.ExamShift;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.springframework.beans.BeanUtils;
 
 import java.time.Instant;
 import java.time.LocalTime;
@@ -51,4 +53,13 @@ public class ShiftResponse {
     private int bufferMinutes;
     private Instant createdAt;
     private Instant updatedAt;
+
+    public static ShiftResponse from(ExamShift s) {
+        if (s == null) {
+            return null;
+        }
+        ShiftResponse response = new ShiftResponse();
+        BeanUtils.copyProperties(s, response);
+        return response;
+    }
 }

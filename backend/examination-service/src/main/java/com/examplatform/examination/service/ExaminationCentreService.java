@@ -65,24 +65,23 @@ public class ExaminationCentreService {
     private final GeoLocationService geoLocationService;
     private final EventPublisher eventPublisher;
 
-    // ── Centres ───────────────────────────────────────────────────────────────
+    // ── Centres ────────────────────────────────────────────────────────────────
 
     public CentreResponse createCentre(CreateCentreRequest request, String tenantId) {
-        ExaminationCentre centre = ExaminationCentre.builder()
-                .countryId(request.getCountryId())
-                .stateId(request.getStateId())
-                .cityId(request.getCityId())
-                .region(request.getRegion())
-                .state(request.getState())
-                .district(request.getDistrict())
-                .city(request.getCity())
-                .centreName(request.getCentreName())
-                .building(request.getBuilding())
-                .floor(request.getFloor())
-                .laboratoryIdentifier(request.getLaboratoryIdentifier())
-                .totalCapacity(request.getTotalCapacity())
-                .active(request.isActive())
-                .build();
+        ExaminationCentre centre = new ExaminationCentre();
+        centre.setCountryId(request.getCountryId());
+        centre.setStateId(request.getStateId());
+        centre.setCityId(request.getCityId());
+        centre.setRegion(request.getRegion());
+        centre.setState(request.getState());
+        centre.setDistrict(request.getDistrict());
+        centre.setCity(request.getCity());
+        centre.setCentreName(request.getCentreName());
+        centre.setBuilding(request.getBuilding());
+        centre.setFloor(request.getFloor());
+        centre.setLaboratoryIdentifier(request.getLaboratoryIdentifier());
+        centre.setTotalCapacity(request.getTotalCapacity());
+        centre.setActive(request.isActive());
         centre.setTenantId(tenantId);
 
         ExaminationCentre saved = centreRepository.save(centre);
@@ -110,16 +109,10 @@ public class ExaminationCentreService {
     public Page<CentreResponse> listCentresPaged(
             String tenantId, String search, String state, String city, String sort, String order, int page, int size) {
         Sort.Direction direction = "asc".equalsIgnoreCase(order) ? Sort.Direction.ASC : Sort.Direction.DESC;
-        String sortProp = resolveCentreSortProperty(sort);
-        Pageable pageable = PageRequest.of(page, size, Sort.by(direction, sortProp));
-
-        Page<ExaminationCentre> centrePage;
-        if (search != null && !search.isBlank()) {
-            centrePage = centreRepository.findByTenantIdAndCentreNameContainingIgnoreCaseAndActiveTrue(
-                    tenantId, search.trim(), pageable);
-        } else {
-            centrePage = centreRepository.findByTenantIdAndActiveTrue(tenantId, pageable);
-        }
+        Pageable pageable = PageRequest.of(page, size, Sort.by(direction, resolveCentreSortProperty(sort)));
+        Page<ExaminationCentre> centrePage = (search != null && !search.isBlank())
+                ? centreRepository.findByTenantIdAndCentreNameContainingIgnoreCaseAndActiveTrue(tenantId, search.trim(), pageable)
+                : centreRepository.findByTenantIdAndActiveTrue(tenantId, pageable);
 
         return centrePage.map(this::toCentreResponse);
     }
@@ -156,7 +149,7 @@ public class ExaminationCentreService {
         return toCentreResponse(centreRepository.save(centre));
     }
 
-    // ── Seat Allocation ───────────────────────────────────────────────────────
+    // ── Seat Allocation ────────────────────────────────────────────────────────
 
     /**
      * Creates or replaces the seat allocation for a (shift, centre) pair.
@@ -211,7 +204,7 @@ public class ExaminationCentreService {
                 .stream().map(this::toAllocationResponse).toList();
     }
 
-    // ── Helpers ───────────────────────────────────────────────────────────────
+    // ── Helpers ────────────────────────────────────────────────────────────────
 
     private ExaminationCentre findCentre(UUID centreId, String tenantId) {
         ExaminationCentre centre = centreRepository.findById(centreId)
@@ -232,44 +225,13 @@ public class ExaminationCentreService {
         String cityName = geoLocationService.getCityByStateIdAndCityId(c.getStateId(), c.getCityId())
                 .map(g -> g.getName()).orElse(c.getCity());
 
-        return CentreResponse.builder()
-                .id(c.getId())
-                .countryId(c.getCountryId())
-                .stateId(c.getStateId())
-                .cityId(c.getCityId())
-                .countryName(countryName)
-                .stateName(stateName)
-                .cityName(cityName)
-                .region(c.getRegion())
-                .state(c.getState())
-                .district(c.getDistrict())
-                .city(c.getCity())
-                .centreName(c.getCentreName())
-                .building(c.getBuilding())
-                .floor(c.getFloor())
-                .laboratoryIdentifier(c.getLaboratoryIdentifier())
-                .totalCapacity(c.getTotalCapacity())
-                .active(c.isActive())
-                .createdAt(c.getCreatedAt())
-                .updatedAt(c.getUpdatedAt())
-                .build();
+        CentreResponse resp = CentreResponse.from(c, stateName, cityName);
+        resp.setCountryName(countryName);
+        return resp;
     }
 
     private SeatAllocationResponse toAllocationResponse(ShiftSeatAllocation a) {
-        return SeatAllocationResponse.builder()
-                .id(a.getId())
-                .shiftId(a.getShiftId())
-                .centreId(a.getCentreId())
-                .totalSeats(a.getTotalSeats())
-                .availableSeats(a.getAvailableSeats())
-                .reservedSeats(a.getReservedSeats())
-                .pwdSeats(a.getPwdSeats())
-                .emergencyBufferSeats(a.getEmergencyBufferSeats())
-                .femaleReservedSeats(a.getFemaleReservedSeats())
-                .specialCategorySeats(a.getSpecialCategorySeats())
-                .createdAt(a.getCreatedAt())
-                .updatedAt(a.getUpdatedAt())
-                .build();
+        return SeatAllocationResponse.from(a);
     }
 
     private void publishAuditAllocation(ShiftSeatAllocation a, UUID actorId, String tenantId) {

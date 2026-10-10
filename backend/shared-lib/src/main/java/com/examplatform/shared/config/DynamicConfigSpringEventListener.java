@@ -21,61 +21,27 @@ package com.examplatform.shared.config;
 
 import com.examplatform.shared.messaging.GenericDomainEvent;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.event.EventListener;
-
-import java.util.Map;
 
 /**
  * Spring in-memory EventListener that subscribes to 'system.config.events'.
  * Used for zero-broker monolith or embedded deployment modes to update L1 Near Cache.
  */
 @Slf4j
-@RequiredArgsConstructor
-public class DynamicConfigSpringEventListener {
+public class DynamicConfigSpringEventListener extends AbstractDynamicConfigListener {
 
-    public static final String CONFIG_EVENTS_TOPIC = "system.config.events";
+    public static final String CONFIG_EVENTS_TOPIC = AbstractDynamicConfigListener.CONFIG_EVENTS_TOPIC;
 
-    private final DynamicConfigService dynamicConfigService;
-    private final ObjectMapper objectMapper;
+    public DynamicConfigSpringEventListener(DynamicConfigService dynamicConfigService, ObjectMapper objectMapper) {
+        super(dynamicConfigService, objectMapper);
+    }
 
     @EventListener
     public void onConfigChangeEvent(GenericDomainEvent genericEvent) {
         if (!CONFIG_EVENTS_TOPIC.equals(genericEvent.topic())) {
             return;
         }
-
-        try {
-            SystemConfigChangeEvent event = parseEvent(genericEvent.payload());
-            if (event != null && event.paramName() != null) {
-                dynamicConfigService.updateLocalCache(event.tenantId(), event.paramName(), event.newValue());
-                log.info("L1 Near Cache updated via in-memory event for param '{}' (tenant: {}) to '{}'",
-                        event.paramName(), event.tenantId(), event.newValue());
-            }
-        } catch (Exception e) {
-            log.warn("Failed to process in-memory system configuration invalidation event: {}", e.getMessage());
-        }
-    }
-
-    private SystemConfigChangeEvent parseEvent(Object message) {
-        if (message instanceof SystemConfigChangeEvent e) {
-            return e;
-        }
-        if (message instanceof Map<?, ?> map) {
-            String paramName = (String) map.get("paramName");
-            String oldValue = (String) map.get("oldValue");
-            String newValue = (String) map.get("newValue");
-            String tenantId = (String) map.get("tenantId");
-            return new SystemConfigChangeEvent(paramName, oldValue, newValue, tenantId, null);
-        }
-        if (message instanceof String jsonStr) {
-            try {
-                return objectMapper.readValue(jsonStr, SystemConfigChangeEvent.class);
-            } catch (Exception e) {
-                log.debug("Could not parse json as SystemConfigChangeEvent: {}", e.getMessage());
-            }
-        }
-        return null;
+        processConfigChangeEvent(genericEvent.payload(), "in-memory event");
     }
 }

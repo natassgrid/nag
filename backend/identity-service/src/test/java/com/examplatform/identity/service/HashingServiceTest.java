@@ -19,6 +19,8 @@
 
 package com.examplatform.identity.service;
 
+import com.examplatform.shared.crypto.HashingService;
+
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;

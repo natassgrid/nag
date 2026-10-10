@@ -106,177 +106,102 @@ public class AdminActivityService {
 
         return List.of(
                 // Question Bank Permissions
-                AdminPermissionDetailResponse.builder()
-                        .code("QUESTION_VIEW")
-                        .name("View Question Bank Repository")
-                        .category("QUESTIONS")
-                        .description("Browse, search, and inspect questions across subjects and taxonomy.")
-                        .granted(isSuper || isController || isAuthor || isReviewer)
-                        .build(),
-                AdminPermissionDetailResponse.builder()
-                        .code("QUESTION_CREATE")
-                        .name("Author & Create Questions")
-                        .category("QUESTIONS")
-                        .description("Draft new MCQs, passages, mathematical formulas, and diagrams.")
-                        .granted(isSuper || isAuthor)
-                        .build(),
-                AdminPermissionDetailResponse.builder()
-                        .code("QUESTION_APPROVE")
-                        .name("Review & Approve Questions")
-                        .category("QUESTIONS")
-                        .description("Approve drafted questions, certify translations, and publish to active bank.")
-                        .granted(isSuper || isReviewer)
-                        .build(),
-                AdminPermissionDetailResponse.builder()
-                        .code("QUESTION_TRANSLATE")
-                        .name("Indic AI Translation Workers")
-                        .category("QUESTIONS")
-                        .description("Execute automated translations across 22+ Scheduled Indian Languages.")
-                        .granted(isSuper || isAuthor || isReviewer)
-                        .build(),
+                buildPermissionDetail("QUESTION_VIEW", "View Question Bank Repository", "QUESTIONS",
+                        "Browse, search, and inspect questions across subjects and taxonomy.", isSuper || isController || isAuthor || isReviewer),
+                buildPermissionDetail("QUESTION_CREATE", "Author & Create Questions", "QUESTIONS",
+                        "Draft new MCQs, passages, mathematical formulas, and diagrams.", isSuper || isAuthor),
+                buildPermissionDetail("QUESTION_APPROVE", "Review & Approve Questions", "QUESTIONS",
+                        "Approve drafted questions, certify translations, and publish to active bank.", isSuper || isReviewer),
+                buildPermissionDetail("QUESTION_TRANSLATE", "Indic AI Translation Workers", "QUESTIONS",
+                        "Execute automated translations across 22+ Scheduled Indian Languages.", isSuper || isAuthor || isReviewer),
 
                 // Examination Permissions
-                AdminPermissionDetailResponse.builder()
-                        .code("EXAM_CREATE")
-                        .name("Define Examination Blueprints")
-                        .category("EXAMINATIONS")
-                        .description("Configure syllabus distributions, time limits, and marking rules.")
-                        .granted(isSuper || isController)
-                        .build(),
-                AdminPermissionDetailResponse.builder()
-                        .code("EXAM_SCHEDULE")
-                        .name("Shift Scheduling & Centre Allocations")
-                        .category("EXAMINATIONS")
-                        .description("Manage session timing shifts, test centre venues, and student capacity.")
-                        .granted(isSuper || isController)
-                        .build(),
-                AdminPermissionDetailResponse.builder()
-                        .code("PAPER_GENERATE")
-                        .name("Algorithmic Paper Generation")
-                        .category("EXAMINATIONS")
-                        .description("Trigger deterministic question paper generation and encryption bundles.")
-                        .granted(isSuper || isController)
-                        .build(),
+                buildPermissionDetail("EXAM_CREATE", "Define Examination Blueprints", "EXAMINATIONS",
+                        "Configure syllabus distributions, time limits, and marking rules.", isSuper || isController),
+                buildPermissionDetail("EXAM_SCHEDULE", "Shift Scheduling & Centre Allocations", "EXAMINATIONS",
+                        "Manage session timing shifts, test centre venues, and student capacity.", isSuper || isController),
+                buildPermissionDetail("PAPER_GENERATE", "Algorithmic Paper Generation", "EXAMINATIONS",
+                        "Trigger deterministic question paper generation and encryption bundles.", isSuper || isController),
 
                 // Delivery & Evaluation Permissions
-                AdminPermissionDetailResponse.builder()
-                        .code("DELIVERY_MONITOR")
-                        .name("Live Examination Delivery Monitoring")
-                        .category("DELIVERY")
-                        .description("Supervise real-time candidate check-in, heartbeat telemetry, and shift locks.")
-                        .granted(isSuper || isController || isSec)
-                        .build(),
-                AdminPermissionDetailResponse.builder()
-                        .code("EVALUATION_GRADE")
-                        .name("Automated Evaluation & Score Normalization")
-                        .category("EVALUATION")
-                        .description("Execute response evaluation pipelines, equipercentile normalization, and merit ranking.")
-                        .granted(isSuper || isController)
-                        .build(),
+                buildPermissionDetail("DELIVERY_MONITOR", "Live Examination Delivery Monitoring", "DELIVERY",
+                        "Supervise real-time candidate check-in, heartbeat telemetry, and shift locks.", isSuper || isController || isSec),
+                buildPermissionDetail("EVALUATION_GRADE", "Automated Evaluation & Score Normalization", "EVALUATION",
+                        "Execute response evaluation pipelines, equipercentile normalization, and merit ranking.", isSuper || isController),
 
                 // Identity, Security & Audit Permissions
-                AdminPermissionDetailResponse.builder()
-                        .code("USER_MANAGE")
-                        .name("Admin User & Officer Provisioning")
-                        .category("IDENTITY")
-                        .description("Invite officers, assign roles, and manage administrative privileges.")
-                        .granted(isSuper || isSec)
-                        .build(),
-                AdminPermissionDetailResponse.builder()
-                        .code("ROLE_MANAGE")
-                        .name("Role & Permission Matrix Configuration")
-                        .category("IDENTITY")
-                        .description("Define custom role templates and calibrate system access rights.")
-                        .granted(isSuper)
-                        .build(),
-                AdminPermissionDetailResponse.builder()
-                        .code("AUDIT_VIEW")
-                        .name("Immutable DPI Audit Trail Inspection")
-                        .category("AUDIT")
-                        .description("Query cryptographic audit trails, DPI telemetry logs, and compliance records.")
-                        .granted(isSuper || isSec)
-                        .build(),
-                AdminPermissionDetailResponse.builder()
-                        .code("SECURITY_KEYS")
-                        .name("Cryptographic Keyring & Secret Vaults")
-                        .category("SECURITY")
-                        .description("Manage AES-256 / Ed25519 signing keys, HSM tokens, and tenant seals.")
-                        .granted(isSuper || isSec)
-                        .build()
+                buildPermissionDetail("USER_MANAGE", "Admin User & Officer Provisioning", "IDENTITY",
+                        "Invite officers, assign roles, and manage administrative privileges.", isSuper || isSec),
+                buildPermissionDetail("ROLE_MANAGE", "Role & Permission Matrix Configuration", "IDENTITY",
+                        "Define custom role templates and calibrate system access rights.", isSuper),
+                buildPermissionDetail("AUDIT_VIEW", "Immutable DPI Audit Trail Inspection", "AUDIT",
+                        "Query cryptographic audit trails, DPI telemetry logs, and compliance records.", isSuper || isSec),
+                buildPermissionDetail("SECURITY_KEYS", "Cryptographic Keyring & Secret Vaults", "SECURITY",
+                        "Manage AES-256 / Ed25519 signing keys, HSM tokens, and tenant seals.", isSuper || isSec)
         );
+    }
+
+    private static AdminPermissionDetailResponse buildPermissionDetail(
+            String code, String name, String category, String description, boolean granted) {
+        return AdminPermissionDetailResponse.builder()
+                .code(code)
+                .name(name)
+                .category(category)
+                .description(description)
+                .granted(granted)
+                .build();
     }
 
     private List<AdminActivityLogResponse> generateHistoricalActivity(UUID userId, String tenantId) {
         Instant now = Instant.now();
         List<AdminActivityLogResponse> list = new ArrayList<>();
 
-        list.add(AdminActivityLogResponse.builder()
-                .id("ACT-" + UUID.randomUUID().toString().substring(0, 8).toUpperCase())
-                .eventType("AUTH_SESSION_ESTABLISHED")
-                .category("AUTH")
-                .description("Signed in via Secure Console Single Sign-On (TOTP 2FA Verified)")
-                .ipAddress("127.0.0.1")
-                .status("SUCCESS")
-                .occurredAt(now.minus(5, ChronoUnit.MINUTES))
-                .metadata(Map.of("tenantId", tenantId, "browser", "Google Chrome 129.0", "mfaMethod", "TOTP"))
-                .build());
+        list.add(createHistoricalLog("AUTH_SESSION_ESTABLISHED", "AUTH",
+                "Signed in via Secure Console Single Sign-On (TOTP 2FA Verified)",
+                now.minus(5, ChronoUnit.MINUTES),
+                Map.of("tenantId", tenantId, "browser", "Google Chrome 129.0", "mfaMethod", "TOTP")));
 
-        list.add(AdminActivityLogResponse.builder()
-                .id("ACT-" + UUID.randomUUID().toString().substring(0, 8).toUpperCase())
-                .eventType("PROFILE_UPDATE")
-                .category("SETTINGS")
-                .description("Updated localization preferences (Timezone & Working Language)")
-                .ipAddress("127.0.0.1")
-                .status("SUCCESS")
-                .occurredAt(now.minus(2, ChronoUnit.HOURS))
-                .metadata(Map.of("tenantId", tenantId, "timezone", "Asia/Kolkata"))
-                .build());
+        list.add(createHistoricalLog("PROFILE_UPDATE", "SETTINGS",
+                "Updated localization preferences (Timezone & Working Language)",
+                now.minus(2, ChronoUnit.HOURS),
+                Map.of("tenantId", tenantId, "timezone", "Asia/Kolkata")));
 
-        list.add(AdminActivityLogResponse.builder()
-                .id("ACT-" + UUID.randomUUID().toString().substring(0, 8).toUpperCase())
-                .eventType("PAT_TOKEN_CREATED")
-                .category("SECURITY")
-                .description("Created Personal API Token 'CI-Pipeline-Ingest' with scope [questions:read, questions:write]")
-                .ipAddress("127.0.0.1")
-                .status("SUCCESS")
-                .occurredAt(now.minus(1, ChronoUnit.DAYS))
-                .metadata(Map.of("tenantId", tenantId, "tokenPrefix", "nag_pat_a8f9..."))
-                .build());
+        list.add(createHistoricalLog("PAT_TOKEN_CREATED", "SECURITY",
+                "Created Personal API Token 'CI-Pipeline-Ingest' with scope [questions:read, questions:write]",
+                now.minus(1, ChronoUnit.DAYS),
+                Map.of("tenantId", tenantId, "tokenPrefix", "nag_pat_a8f9...")));
 
-        list.add(AdminActivityLogResponse.builder()
-                .id("ACT-" + UUID.randomUUID().toString().substring(0, 8).toUpperCase())
-                .eventType("QUESTION_STATUS_TRANSITION")
-                .category("QUESTION")
-                .description("Approved and certified 12 Mathematics questions to bank")
-                .ipAddress("127.0.0.1")
-                .status("SUCCESS")
-                .occurredAt(now.minus(2, ChronoUnit.DAYS))
-                .metadata(Map.of("tenantId", tenantId, "subject", "Mathematics", "transition", "REVIEW -> APPROVED"))
-                .build());
+        list.add(createHistoricalLog("QUESTION_STATUS_TRANSITION", "QUESTION",
+                "Approved and certified 12 Mathematics questions to bank",
+                now.minus(2, ChronoUnit.DAYS),
+                Map.of("tenantId", tenantId, "subject", "Mathematics", "transition", "REVIEW -> APPROVED")));
 
-        list.add(AdminActivityLogResponse.builder()
-                .id("ACT-" + UUID.randomUUID().toString().substring(0, 8).toUpperCase())
-                .eventType("PAPER_GENERATION_TRIGGER")
-                .category("EXAM")
-                .description("Generated encrypted question paper bundle for RRB NTPC Shift 1")
-                .ipAddress("127.0.0.1")
-                .status("SUCCESS")
-                .occurredAt(now.minus(3, ChronoUnit.DAYS))
-                .metadata(Map.of("tenantId", tenantId, "algorithm", "Deterministic Knapsack"))
-                .build());
+        list.add(createHistoricalLog("PAPER_GENERATION_TRIGGER", "EXAM",
+                "Generated encrypted question paper bundle for RRB NTPC Shift 1",
+                now.minus(3, ChronoUnit.DAYS),
+                Map.of("tenantId", tenantId, "algorithm", "Deterministic Knapsack")));
 
-        list.add(AdminActivityLogResponse.builder()
-                .id("ACT-" + UUID.randomUUID().toString().substring(0, 8).toUpperCase())
-                .eventType("SECURITY_KEY_ROTATION")
-                .category("SECURITY")
-                .description("Verified Ed25519 tenant cryptographic seal against HashiCorp Vault")
-                .ipAddress("127.0.0.1")
-                .status("SUCCESS")
-                .occurredAt(now.minus(5, ChronoUnit.DAYS))
-                .metadata(Map.of("tenantId", tenantId, "keyType", "Ed25519"))
-                .build());
+        list.add(createHistoricalLog("SECURITY_KEY_ROTATION", "SECURITY",
+                "Verified Ed25519 tenant cryptographic seal against HashiCorp Vault",
+                now.minus(5, ChronoUnit.DAYS),
+                Map.of("tenantId", tenantId, "keyType", "Ed25519")));
 
         return list;
+    }
+
+    private AdminActivityLogResponse createHistoricalLog(
+            String eventType, String category, String description,
+            Instant occurredAt, Map<String, Object> metadata) {
+        return AdminActivityLogResponse.builder()
+                .id("ACT-" + UUID.randomUUID().toString().substring(0, 8).toUpperCase())
+                .eventType(eventType)
+                .category(category)
+                .description(description)
+                .ipAddress("127.0.0.1")
+                .status("SUCCESS")
+                .occurredAt(occurredAt)
+                .metadata(metadata)
+                .build();
     }
 
     private String escapeCsv(String val) {

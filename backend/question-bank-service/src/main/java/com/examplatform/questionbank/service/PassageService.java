@@ -76,21 +76,9 @@ public class PassageService {
      * Creates a new passage with its sub-questions in DRAFT state.
      */
     public PassageResponse createPassage(PassageRequest request, UUID authorId, String tenantId) {
-        if (request.getSubQuestions() == null || request.getSubQuestions().size() < 2 || request.getSubQuestions().size() > 6) {
-            throw new IllegalArgumentException("Passage must have between 2 and 6 sub-questions");
-        }
-
-        Subject subject = subjectRepository.findById(request.getSubjectId())
-                .filter(s -> tenantId.equals(s.getTenantId()))
-                .orElseThrow(() -> new IllegalArgumentException("Subject not found: " + request.getSubjectId()));
-
-        String topicName = null;
-        if (request.getTopicId() != null) {
-            Topic topic = topicRepository.findById(request.getTopicId())
-                    .filter(t -> tenantId.equals(t.getTenantId()))
-                    .orElseThrow(() -> new IllegalArgumentException("Topic not found: " + request.getTopicId()));
-            topicName = topic.getName();
-        }
+        ResolvedPassageContext ctx = validateAndResolveContext(request, tenantId);
+        Subject subject = ctx.subject();
+        String topicName = ctx.topicName();
 
         String dekKeyName = encryptionEnabled ? "passage-dek-" + UUID.randomUUID() : null;
 
@@ -168,21 +156,9 @@ public class PassageService {
         Passage passage = passageRepository.findByIdAndTenantId(passageId, tenantId)
                 .orElseThrow(() -> new EntityNotFoundException("Passage not found: " + passageId));
 
-        if (request.getSubQuestions() == null || request.getSubQuestions().size() < 2 || request.getSubQuestions().size() > 6) {
-            throw new IllegalArgumentException("Passage must have between 2 and 6 sub-questions");
-        }
-
-        Subject subject = subjectRepository.findById(request.getSubjectId())
-                .filter(s -> tenantId.equals(s.getTenantId()))
-                .orElseThrow(() -> new IllegalArgumentException("Subject not found: " + request.getSubjectId()));
-
-        String topicName = null;
-        if (request.getTopicId() != null) {
-            Topic topic = topicRepository.findById(request.getTopicId())
-                    .filter(t -> tenantId.equals(t.getTenantId()))
-                    .orElseThrow(() -> new IllegalArgumentException("Topic not found: " + request.getTopicId()));
-            topicName = topic.getName();
-        }
+        ResolvedPassageContext ctx = validateAndResolveContext(request, tenantId);
+        Subject subject = ctx.subject();
+        String topicName = ctx.topicName();
 
         boolean contentChanged = !Objects.equals(passage.getContent(), request.getContent());
         passage.setTitle(request.getTitle());
@@ -293,15 +269,9 @@ public class PassageService {
                 passageId, subQuestions.size(), authorId, tenantId);
     }
 
-    private Question buildSubQuestion(
-            SubQuestionRequest subReq,
-            Passage passage,
-            Subject subject,
-            String topicName,
-            UUID authorId,
-            String tenantId,
-            int orderIndex
-    ) {
+    private record SubQuestionPayload(String answerKey, List<QuestionOption> options, boolean hasImages) {}
+
+    private SubQuestionPayload prepareSubQuestionPayload(SubQuestionRequest subReq) {
         String answerKey = subReq.getAnswerKey();
         List<QuestionOption> options = subReq.getOptions();
         if (options != null && !options.isEmpty()) {
@@ -318,6 +288,19 @@ public class PassageService {
 
         boolean hasImages = subReq.isHasImages() || QuestionService.detectHasImages(
                 subReq.getContent(), subReq.getExplanation(), options);
+        return new SubQuestionPayload(answerKey, options, hasImages);
+    }
+
+    private Question buildSubQuestion(
+            SubQuestionRequest subReq,
+            Passage passage,
+            Subject subject,
+            String topicName,
+            UUID authorId,
+            String tenantId,
+            int orderIndex
+    ) {
+        SubQuestionPayload payload = prepareSubQuestionPayload(subReq);
 
         Question q = Question.builder()
                 .subjectId(subject.getId())
@@ -329,11 +312,11 @@ public class PassageService {
                 .cognitiveLevel(subReq.getCognitiveLevel() != null ? subReq.getCognitiveLevel().name() : "UNDERSTAND")
                 .questionType(subReq.getQuestionType() != null ? subReq.getQuestionType().name() : QuestionType.SINGLE_MCQ.name())
                 .content(subReq.getContent())
-                .answerKey(answerKey)
-                .options(options)
+                .answerKey(payload.answerKey())
+                .options(payload.options())
                 .explanation(subReq.getExplanation())
                 .sourceReferences(subReq.getReferences())
-                .hasImages(hasImages)
+                .hasImages(payload.hasImages())
                 .state(passage.getState())
                 .passageId(passage.getId())
                 .passageOrderIndex(subReq.getPassageOrderIndex() != null ? subReq.getPassageOrderIndex() : orderIndex)
@@ -351,20 +334,7 @@ public class PassageService {
             String topicName,
             int orderIndex
     ) {
-        String answerKey = subReq.getAnswerKey();
-        List<QuestionOption> options = subReq.getOptions();
-        if (options != null && !options.isEmpty()) {
-            String[] ids = {"A", "B", "C", "D", "E", "F"};
-            for (int i = 0; i < options.size(); i++) {
-                options.get(i).setId(ids[i]);
-            }
-            try {
-                answerKey = new com.fasterxml.jackson.databind.ObjectMapper().writeValueAsString(options);
-            } catch (Exception ignored) {}
-        }
-
-        boolean hasImages = subReq.isHasImages() || QuestionService.detectHasImages(
-                subReq.getContent(), subReq.getExplanation(), options);
+        SubQuestionPayload payload = prepareSubQuestionPayload(subReq);
 
         existing.setSubjectId(subject.getId());
         existing.setSubject(subject.getName());
@@ -379,11 +349,11 @@ public class PassageService {
         if (subReq.getCognitiveLevel() != null) existing.setCognitiveLevel(subReq.getCognitiveLevel().name());
         if (subReq.getQuestionType() != null) existing.setQuestionType(subReq.getQuestionType().name());
         existing.setContent(subReq.getContent());
-        existing.setAnswerKey(answerKey);
-        existing.setOptions(options);
+        existing.setAnswerKey(payload.answerKey());
+        existing.setOptions(payload.options());
         existing.setExplanation(subReq.getExplanation());
         existing.setSourceReferences(subReq.getReferences());
-        existing.setHasImages(hasImages);
+        existing.setHasImages(payload.hasImages());
         existing.setPassageOrderIndex(subReq.getPassageOrderIndex() != null ? subReq.getPassageOrderIndex() : orderIndex);
     }
 
@@ -421,26 +391,35 @@ public class PassageService {
                 .build();
     }
 
+    record ResolvedPassageContext(Subject subject, String topicName) {}
+
+    private ResolvedPassageContext validateAndResolveContext(PassageRequest request, String tenantId) {
+        if (request.getSubQuestions() == null || request.getSubQuestions().size() < 2 || request.getSubQuestions().size() > 6) {
+            throw new IllegalArgumentException("Passage must have between 2 and 6 sub-questions");
+        }
+
+        Subject subject = subjectRepository.findById(request.getSubjectId())
+                .filter(s -> tenantId.equals(s.getTenantId()))
+                .orElseThrow(() -> new IllegalArgumentException("Subject not found: " + request.getSubjectId()));
+
+        String topicName = null;
+        if (request.getTopicId() != null) {
+            Topic topic = topicRepository.findById(request.getTopicId())
+                    .filter(t -> tenantId.equals(t.getTenantId()))
+                    .orElseThrow(() -> new IllegalArgumentException("Topic not found: " + request.getTopicId()));
+            topicName = topic.getName();
+        }
+
+        return new ResolvedPassageContext(subject, topicName);
+    }
+
     private static boolean detectPassageImages(String text) {
         if (text == null || text.isBlank()) return false;
         return text.contains("<img") || text.contains("<svg") || text.contains("data:image/") || text.matches("(?s).*!\\[.*?\\]\\(.*?\\).*");
     }
 
-    private void publishAuditEvent(String eventType, UUID passageId, UUID actorId,
-                                   String tenantId, Map<String, Object> extra) {
-        try {
-            Map<String, Object> event = new java.util.HashMap<>();
-            event.put("eventType", eventType);
-            event.put("passageId", passageId.toString());
-            event.put("actorId", actorId.toString());
-            event.put("tenantId", tenantId);
-            event.put("occurredAt", Instant.now().toString());
-            if (extra != null) {
-                event.putAll(extra);
-            }
-            eventPublisher.publish(AUDIT_TOPIC, passageId.toString(), event);
-        } catch (Exception e) {
-            log.error("Unexpected error publishing audit event [type={}]: {}", eventType, e.getMessage());
-        }
+    void publishAuditEvent(String eventType, UUID passageId, UUID actorId,
+                           String tenantId, Map<String, Object> extra) {
+        AuditEventHelper.publishAuditEvent(eventPublisher, log, AUDIT_TOPIC, eventType, "passageId", passageId, actorId, tenantId, extra);
     }
 }

@@ -101,7 +101,7 @@ public class ReviewWorkflowService {
         lifecycleEvent.put("tenantId", tenantId);
         lifecycleEvent.put("timestamp", Instant.now().toString());
 
-        eventPublisher.publish(TOPIC_LIFECYCLE, question.getId().toString(), lifecycleEvent);
+        publishLifecycleEvent(question.getId(), lifecycleEvent);
 
         // Notify assigned reviewer(s)
         for (UUID assignedReviewerId : assignment.getAssignedReviewerIds()) {
@@ -113,7 +113,7 @@ public class ReviewWorkflowService {
                     "tenantId", tenantId,
                     "message", "A new question for subject '" + question.getSubject() + "' has been assigned to you for review."
             );
-            eventPublisher.publish(TOPIC_NOTIFICATIONS, assignedReviewerId.toString(), notification);
+            publishNotification(assignedReviewerId, notification);
         }
 
         log.info("Question submitted for review: questionId={}, subject={}, primaryReviewer={}, secondaryReviewer={}, dualReviewRequired={}, tenant={}",
@@ -121,8 +121,7 @@ public class ReviewWorkflowService {
     }
 
     /**
-     * REVIEW -> APPROVED: Reviewer approved the question. Decrement load and notify the author.
-     */
+     * REVIEW -> APPROVED: Reviewer approved the question. Decrement load and notify the author.\n     */
     private void handleApproved(Question question, String fromState, UUID actorId, String tenantId) {
         if (!"REVIEW".equals(fromState)) {
             return;
@@ -130,16 +129,10 @@ public class ReviewWorkflowService {
 
         reviewerAssignmentService.releaseReviewerLoad(actorId, tenantId);
 
-        Map<String, Object> lifecycleEvent = Map.of(
-                "eventType", "REVIEWER_APPROVED",
-                "questionId", question.getId(),
-                "reviewerId", actorId,
-                "authorId", question.getAuthorId(),
-                "tenantId", tenantId,
-                "timestamp", Instant.now().toString()
-        );
-
-        eventPublisher.publish(TOPIC_LIFECYCLE, question.getId().toString(), lifecycleEvent);
+        Map<String, Object> lifecycleEvent = createLifecyclePayload("REVIEWER_APPROVED", question.getId(), tenantId);
+        lifecycleEvent.put("reviewerId", actorId);
+        lifecycleEvent.put("authorId", question.getAuthorId());
+        publishLifecycleEvent(question.getId(), lifecycleEvent);
 
         // Notify author that their question was approved by reviewer
         Map<String, Object> notification = Map.of(
@@ -151,8 +144,7 @@ public class ReviewWorkflowService {
                 "tenantId", tenantId,
                 "message", "Your question for subject '" + question.getSubject() + "' has been approved by the reviewer."
         );
-
-        eventPublisher.publish(TOPIC_NOTIFICATIONS, question.getAuthorId().toString(), notification);
+        publishNotification(question.getAuthorId(), notification);
 
         log.info("Question approved by reviewer: questionId={}, reviewer={}, author={}, tenant={}",
                 question.getId(), actorId, question.getAuthorId(), tenantId);
@@ -169,17 +161,11 @@ public class ReviewWorkflowService {
 
         reviewerAssignmentService.releaseReviewerLoad(actorId, tenantId);
 
-        Map<String, Object> lifecycleEvent = Map.of(
-                "eventType", "RETURNED_TO_DRAFT",
-                "questionId", question.getId(),
-                "reviewerId", actorId,
-                "authorId", question.getAuthorId(),
-                "comments", comments != null ? comments : "",
-                "tenantId", tenantId,
-                "timestamp", Instant.now().toString()
-        );
-
-        eventPublisher.publish(TOPIC_LIFECYCLE, question.getId().toString(), lifecycleEvent);
+        Map<String, Object> lifecycleEvent = createLifecyclePayload("RETURNED_TO_DRAFT", question.getId(), tenantId);
+        lifecycleEvent.put("reviewerId", actorId);
+        lifecycleEvent.put("authorId", question.getAuthorId());
+        lifecycleEvent.put("comments", comments != null ? comments : "");
+        publishLifecycleEvent(question.getId(), lifecycleEvent);
 
         // Notify author that their question was returned for revision
         Map<String, Object> notification = Map.of(
@@ -192,8 +178,7 @@ public class ReviewWorkflowService {
                 "message", "Your question for subject '" + question.getSubject() +
                            "' was returned with comments: " + (comments != null ? comments : "No comments provided")
         );
-
-        eventPublisher.publish(TOPIC_NOTIFICATIONS, question.getAuthorId().toString(), notification);
+        publishNotification(question.getAuthorId(), notification);
 
         log.info("Question returned to draft: questionId={}, reviewer={}, author={}, tenant={}",
                 question.getId(), actorId, question.getAuthorId(), tenantId);
@@ -203,17 +188,11 @@ public class ReviewWorkflowService {
      * APPROVED -> PUBLISHED: Final approval given. Question available in bank.
      */
     private void handlePublished(Question question, UUID actorId, String tenantId) {
-        Map<String, Object> lifecycleEvent = Map.of(
-                "eventType", "QUESTION_PUBLISHED",
-                "questionId", question.getId(),
-                "publisherId", actorId,
-                "authorId", question.getAuthorId(),
-                "subject", question.getSubject(),
-                "tenantId", tenantId,
-                "timestamp", Instant.now().toString()
-        );
-
-        eventPublisher.publish(TOPIC_LIFECYCLE, question.getId().toString(), lifecycleEvent);
+        Map<String, Object> lifecycleEvent = createLifecyclePayload("QUESTION_PUBLISHED", question.getId(), tenantId);
+        lifecycleEvent.put("publisherId", actorId);
+        lifecycleEvent.put("authorId", question.getAuthorId());
+        lifecycleEvent.put("subject", question.getSubject());
+        publishLifecycleEvent(question.getId(), lifecycleEvent);
 
         // Notify author that their question has been published
         Map<String, Object> notification = Map.of(
@@ -224,10 +203,26 @@ public class ReviewWorkflowService {
                 "tenantId", tenantId,
                 "message", "Your question for subject '" + question.getSubject() + "' has been published to the question bank."
         );
-
-        eventPublisher.publish(TOPIC_NOTIFICATIONS, question.getAuthorId().toString(), notification);
+        publishNotification(question.getAuthorId(), notification);
 
         log.info("Question published to bank: questionId={}, publisher={}, tenant={}",
                 question.getId(), actorId, tenantId);
+    }
+
+    private void publishLifecycleEvent(UUID questionId, Map<String, Object> event) {
+        eventPublisher.publish(TOPIC_LIFECYCLE, questionId.toString(), event);
+    }
+
+    private void publishNotification(UUID recipientId, Map<String, Object> notification) {
+        eventPublisher.publish(TOPIC_NOTIFICATIONS, recipientId.toString(), notification);
+    }
+
+    private Map<String, Object> createLifecyclePayload(String eventType, UUID questionId, String tenantId) {
+        Map<String, Object> payload = new HashMap<>();
+        payload.put("eventType", eventType);
+        payload.put("questionId", questionId);
+        payload.put("tenantId", tenantId);
+        payload.put("timestamp", Instant.now().toString());
+        return payload;
     }
 }

@@ -19,18 +19,25 @@
 
 package com.examplatform.candidate.dto;
 
+import com.examplatform.candidate.domain.CandidateProfile;
+import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
+import lombok.NoArgsConstructor;
+import org.springframework.beans.BeanUtils;
 
 import java.util.UUID;
 
 /**
- * Response DTO for candidate profile with masked PII fields.
+ * DTO returned to candidates or admin callers representing a candidate profile.
+ * Plaintext PII fields are included here only after being decrypted by the service layer.
  *
- * Validates: Requirements 1.6
+ * Validates: Requirements 1.6, 25.1
  */
 @Data
 @Builder
+@NoArgsConstructor
+@AllArgsConstructor
 public class CandidateProfileResponse {
 
     private UUID userId;
@@ -39,8 +46,8 @@ public class CandidateProfileResponse {
     private String gender;
     private String nationality;
     private String category;
-    private String mobile;       // masked: last 4 digits only
-    private String email;        // masked
+    private String mobile;
+    private String email;
     private String address;
     private String country;
     private String state;
@@ -54,4 +61,13 @@ public class CandidateProfileResponse {
     private UUID photoAssetId;
     private UUID signatureAssetId;
     private UUID idProofAssetId;
+
+    public static CandidateProfileResponse fromEntity(CandidateProfile profile) {
+        if (profile == null) {
+            return null;
+        }
+        CandidateProfileResponse resp = new CandidateProfileResponse();
+        BeanUtils.copyProperties(profile, resp);
+        return resp;
+    }
 }

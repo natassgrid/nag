@@ -191,48 +191,20 @@ public class AsyncBatchTranslationWorker {
                             continue;
                         }
 
-                        try {
-                            concurrencyLimiter.acquire();
-                            processSingleQuestion(question, targetLang, targetStatus, overwriteExisting, jobCreatedAt, tenantId, jobId);
-                        } catch (InterruptedException ie) {
-                            Thread.currentThread().interrupt();
-                            log.warn("Batch worker interrupted while acquiring semaphore for job {}", jobId);
+                        if (!executeThrottledQuestion(question, targetLang, targetStatus, overwriteExisting, jobCreatedAt, tenantId, jobId, throttleDelayMs, concurrencyLimiter)) {
                             return;
-                        } finally {
-                            concurrencyLimiter.release();
                         }
 
                         questionsSinceLastPause++;
 
-                        if (throttleDelayMs > 0) {
-                            try {
-                                TimeUnit.MILLISECONDS.sleep(throttleDelayMs);
-                            } catch (InterruptedException ie) {
-                                Thread.currentThread().interrupt();
-                                log.warn("Throttle sleep interrupted for job {}", jobId);
-                                return;
-                            }
-                        }
-
-                        // Check if chunk pause interval reached in dev environment
                         boolean hasMore = (toIndex < total);
                         if (hasMore && chunkPauseIntervalQuestions > 0 && chunkPauseDurationSeconds > 0
                                 && questionsSinceLastPause >= chunkPauseIntervalQuestions) {
                             log.info("Batch translation job {}: Reached chunk interval of {} questions. Pausing for {}s...",
                                     jobId, questionsSinceLastPause, chunkPauseDurationSeconds);
                             questionsSinceLastPause = 0;
-
-                            for (int s = 0; s < chunkPauseDurationSeconds; s++) {
-                                if (isJobCancelled(jobId)) {
-                                    log.info("Job {} cancelled during chunk interval pause. Halting execution.", jobId);
-                                    return;
-                                }
-                                try {
-                                    TimeUnit.SECONDS.sleep(1);
-                                } catch (InterruptedException ie) {
-                                    Thread.currentThread().interrupt();
-                                    return;
-                                }
+                            if (!pauseChunkIntervalIfDue(jobId, chunkPauseDurationSeconds)) {
+                                return;
                             }
                         }
                     }
@@ -271,28 +243,11 @@ public class AsyncBatchTranslationWorker {
                             return;
                         }
 
-                        try {
-                            concurrencyLimiter.acquire();
-                            processSingleQuestion(question, targetLang, targetStatus, overwriteExisting, jobCreatedAt, tenantId, jobId);
-                        } catch (InterruptedException ie) {
-                            Thread.currentThread().interrupt();
-                            log.warn("Batch worker interrupted while acquiring semaphore for job {}", jobId);
+                        if (!executeThrottledQuestion(question, targetLang, targetStatus, overwriteExisting, jobCreatedAt, tenantId, jobId, throttleDelayMs, concurrencyLimiter)) {
                             return;
-                        } finally {
-                            concurrencyLimiter.release();
                         }
 
                         questionsSinceLastPause++;
-
-                        if (throttleDelayMs > 0) {
-                            try {
-                                TimeUnit.MILLISECONDS.sleep(throttleDelayMs);
-                            } catch (InterruptedException ie) {
-                                Thread.currentThread().interrupt();
-                                log.warn("Throttle sleep interrupted for job {}", jobId);
-                                return;
-                            }
-                        }
 
                         boolean hasMoreQuestions = (i < questions.size() - 1) || page.hasNext();
                         if (hasMoreQuestions && chunkPauseIntervalQuestions > 0 && chunkPauseDurationSeconds > 0
@@ -300,18 +255,8 @@ public class AsyncBatchTranslationWorker {
                             log.info("Batch translation job {}: Reached chunk interval of {} questions. Pausing for {}s to prevent local dev model overload...",
                                     jobId, questionsSinceLastPause, chunkPauseDurationSeconds);
                             questionsSinceLastPause = 0;
-
-                            for (int s = 0; s < chunkPauseDurationSeconds; s++) {
-                                if (isJobCancelled(jobId)) {
-                                    log.info("Job {} cancelled during chunk interval pause. Halting execution.", jobId);
-                                    return;
-                                }
-                                try {
-                                    TimeUnit.SECONDS.sleep(1);
-                                } catch (InterruptedException ie) {
-                                    Thread.currentThread().interrupt();
-                                    return;
-                                }
+                            if (!pauseChunkIntervalIfDue(jobId, chunkPauseDurationSeconds)) {
+                                return;
                             }
                         }
                     }
@@ -451,5 +396,47 @@ public class AsyncBatchTranslationWorker {
 
     public void setChunkPauseDurationSeconds(int chunkPauseDurationSeconds) {
         this.chunkPauseDurationSeconds = chunkPauseDurationSeconds;
+    }
+    private boolean executeThrottledQuestion(
+            Question question, String targetLang, Translation.TranslationStatus targetStatus,
+            boolean overwriteExisting, Instant jobCreatedAt, String tenantId, UUID jobId,
+            long throttleDelayMs, Semaphore concurrencyLimiter) {
+        try {
+            concurrencyLimiter.acquire();
+            processSingleQuestion(question, targetLang, targetStatus, overwriteExisting, jobCreatedAt, tenantId, jobId);
+        } catch (InterruptedException ie) {
+            Thread.currentThread().interrupt();
+            log.warn("Batch worker interrupted while acquiring semaphore for job {}", jobId);
+            return false;
+        } finally {
+            concurrencyLimiter.release();
+        }
+
+        if (throttleDelayMs > 0) {
+            try {
+                TimeUnit.MILLISECONDS.sleep(throttleDelayMs);
+            } catch (InterruptedException ie) {
+                Thread.currentThread().interrupt();
+                log.warn("Throttle sleep interrupted for job {}", jobId);
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private boolean pauseChunkIntervalIfDue(UUID jobId, int chunkPauseDurationSeconds) {
+        for (int s = 0; s < chunkPauseDurationSeconds; s++) {
+            if (isJobCancelled(jobId)) {
+                log.info("Job {} cancelled during chunk interval pause. Halting execution.", jobId);
+                return false;
+            }
+            try {
+                TimeUnit.SECONDS.sleep(1);
+            } catch (InterruptedException ie) {
+                Thread.currentThread().interrupt();
+                return false;
+            }
+        }
+        return true;
     }
 }

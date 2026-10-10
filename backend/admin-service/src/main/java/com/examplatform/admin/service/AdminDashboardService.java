@@ -45,6 +45,7 @@ import com.examplatform.shared.grpc.QuestionBankMetricsGrpcServiceGrpc;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.grpc.ManagedChannel;
+import io.grpc.stub.AbstractBlockingStub;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
@@ -63,6 +64,7 @@ import java.util.List;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Function;
 
 /**
  * Service for aggregating operational dashboard metrics across microservices.
@@ -195,274 +197,218 @@ public class AdminDashboardService {
     }
 
     private QuestionBankBreakdownResponse fetchQuestionBankStats(String tenantId) {
-        // Attempt 1: gRPC Protobuf
-        try {
-            ManagedChannel channel = GrpcChannelFactory.getChannel(questionBankGrpcHost, questionBankGrpcPort);
-            QuestionBankMetricsGrpcServiceGrpc.QuestionBankMetricsGrpcServiceBlockingStub stub =
-                    QuestionBankMetricsGrpcServiceGrpc.newBlockingStub(channel)
-                            .withDeadlineAfter(questionBankTimeoutMs, TimeUnit.MILLISECONDS);
-
-            QuestionBankMetricsGrpcRequest request = QuestionBankMetricsGrpcRequest.newBuilder()
-                    .setTenantId(tenantId)
-                    .build();
-
-            QuestionBankMetricsGrpcResponse response = stub.getQuestionBankMetrics(request);
-            log.debug("gRPC getQuestionBankMetrics succeeded from {}:{}", questionBankGrpcHost, questionBankGrpcPort);
-            return QuestionBankBreakdownResponse.builder()
-                    .total(response.getTotal())
-                    .draft(response.getDraft())
-                    .submitted(response.getSubmitted())
-                    .approved(response.getApproved())
-                    .rejected(response.getRejected())
-                    .build();
-        } catch (Exception grpcEx) {
-            log.debug("gRPC getQuestionBankMetrics failed: {}, attempting REST backup", grpcEx.getMessage());
-        }
-
-        // Attempt 2: REST Backup
-        try {
-            String restResponse = restClient.get()
-                    .uri(questionBankRestUrl + "/api/v1/questions/analytics/summary?tenantId=" + tenantId)
-                    .retrieve()
-                    .body(String.class);
-
-            if (restResponse != null) {
-                JsonNode node = objectMapper.readTree(restResponse);
-                log.debug("REST backup for QuestionBank succeeded");
-                return QuestionBankBreakdownResponse.builder()
-                        .total(node.path("total").asLong(0L))
-                        .draft(node.path("draft").asLong(0L))
-                        .submitted(node.path("submitted").asLong(0L))
-                        .approved(node.path("approved").asLong(0L))
-                        .rejected(node.path("rejected").asLong(0L))
-                        .build();
-            }
-        } catch (Exception restEx) {
-            log.debug("REST backup for QuestionBank failed: {}", restEx.getMessage());
-        }
-
-        return QuestionBankBreakdownResponse.builder()
-                .total(0L)
-                .draft(0L)
-                .submitted(0L)
-                .approved(0L)
-                .rejected(0L)
-                .build();
+        return fetchWithGrpcFallback(
+                "QuestionBank",
+                () -> {
+                    QuestionBankMetricsGrpcResponse response = executeGrpc(
+                            questionBankGrpcHost, questionBankGrpcPort, questionBankTimeoutMs,
+                            QuestionBankMetricsGrpcServiceGrpc::newBlockingStub,
+                            stub -> stub.getQuestionBankMetrics(
+                                    QuestionBankMetricsGrpcRequest.newBuilder().setTenantId(tenantId).build()));
+                    log.debug("gRPC getQuestionBankMetrics succeeded from {}:{}", questionBankGrpcHost, questionBankGrpcPort);
+                    return new QuestionBankBreakdownResponse(
+                            response.getTotal(), response.getDraft(), response.getSubmitted(),
+                            response.getApproved(), response.getRejected());
+                },
+                buildSummaryUrl(questionBankRestUrl, "/api/v1/questions/analytics/summary", tenantId),
+                this::parseQuestionBankBreakdown,
+                QuestionBankBreakdownResponse.empty()
+        );
     }
 
     private ExamStatusBreakdownResponse fetchExaminationStats(String tenantId) {
-        // Attempt 1: gRPC Protobuf
-        try {
-            ManagedChannel channel = GrpcChannelFactory.getChannel(examinationGrpcHost, examinationGrpcPort);
-            ExaminationMetricsGrpcServiceGrpc.ExaminationMetricsGrpcServiceBlockingStub stub =
-                    ExaminationMetricsGrpcServiceGrpc.newBlockingStub(channel)
-                            .withDeadlineAfter(examinationTimeoutMs, TimeUnit.MILLISECONDS);
-
-            ExamBreakdownGrpcRequest request = ExamBreakdownGrpcRequest.newBuilder()
-                    .setTenantId(tenantId)
-                    .build();
-
-            ExamBreakdownGrpcResponse response = stub.getExaminationStatusBreakdown(request);
-            log.debug("gRPC getExaminationStatusBreakdown succeeded from {}:{}", examinationGrpcHost, examinationGrpcPort);
-            return ExamStatusBreakdownResponse.builder()
-                    .draft(0L)
-                    .scheduled(response.getScheduled())
-                    .liveInProgress(response.getLiveInProgress())
-                    .evaluation(0L)
-                    .completed(response.getCompleted())
-                    .build();
-        } catch (Exception grpcEx) {
-            log.debug("gRPC getExaminationStatusBreakdown failed: {}, attempting REST backup", grpcEx.getMessage());
-        }
-
-        // Attempt 2: REST Backup
-        try {
-            String restResponse = restClient.get()
-                    .uri(examinationRestUrl + "/api/v1/examinations/analytics/summary?tenantId=" + tenantId)
-                    .retrieve()
-                    .body(String.class);
-
-            if (restResponse != null) {
-                JsonNode node = objectMapper.readTree(restResponse);
-                log.debug("REST backup for Examination succeeded");
-                return ExamStatusBreakdownResponse.builder()
-                        .draft(node.path("draft").asLong(0L))
-                        .scheduled(node.path("scheduled").asLong(0L))
-                        .liveInProgress(node.path("liveInProgress").asLong(0L))
-                        .evaluation(node.path("evaluation").asLong(0L))
-                        .completed(node.path("completed").asLong(0L))
-                        .build();
-            }
-        } catch (Exception restEx) {
-            log.debug("REST backup for Examination failed: {}", restEx.getMessage());
-        }
-
-        return ExamStatusBreakdownResponse.builder()
-                .draft(0L)
-                .scheduled(0L)
-                .liveInProgress(0L)
-                .evaluation(0L)
-                .completed(0L)
-                .build();
+        return fetchWithGrpcFallback(
+                "Examination",
+                () -> {
+                    ExamBreakdownGrpcResponse response = executeGrpc(
+                            examinationGrpcHost, examinationGrpcPort, examinationTimeoutMs,
+                            ExaminationMetricsGrpcServiceGrpc::newBlockingStub,
+                            stub -> stub.getExaminationStatusBreakdown(
+                                    ExamBreakdownGrpcRequest.newBuilder().setTenantId(tenantId).build()));
+                    log.debug("gRPC getExaminationStatusBreakdown succeeded from {}:{}", examinationGrpcHost, examinationGrpcPort);
+                    return new ExamStatusBreakdownResponse(
+                            0L, response.getScheduled(), response.getLiveInProgress(),
+                            0L, response.getCompleted());
+                },
+                buildSummaryUrl(examinationRestUrl, "/api/v1/examinations/analytics/summary", tenantId),
+                this::parseExamStatusBreakdown,
+                ExamStatusBreakdownResponse.empty()
+        );
     }
 
     private EvaluationQueueBreakdownResponse fetchEvaluationStats(String tenantId) {
-        // Attempt 1: gRPC Protobuf
-        try {
-            ManagedChannel channel = GrpcChannelFactory.getChannel(evaluationGrpcHost, evaluationGrpcPort);
-            EvaluationMetricsGrpcServiceGrpc.EvaluationMetricsGrpcServiceBlockingStub stub =
-                    EvaluationMetricsGrpcServiceGrpc.newBlockingStub(channel)
-                            .withDeadlineAfter(evaluationTimeoutMs, TimeUnit.MILLISECONDS);
+        return fetchWithGrpcFallback(
+                "Evaluation",
+                () -> {
+                    EvaluationMetricsGrpcResponse response = executeGrpc(
+                            evaluationGrpcHost, evaluationGrpcPort, evaluationTimeoutMs,
+                            EvaluationMetricsGrpcServiceGrpc::newBlockingStub,
+                            stub -> stub.getEvaluationQueueMetrics(
+                                    EvaluationMetricsGrpcRequest.newBuilder().setTenantId(tenantId).build()));
+                    log.debug("gRPC getEvaluationQueueMetrics succeeded from {}:{}", evaluationGrpcHost, evaluationGrpcPort);
+                    return new EvaluationQueueBreakdownResponse(
+                            response.getPending(), response.getInProgress(), 0L,
+                            response.getFlagged(), response.getCompleted());
+                },
+                buildSummaryUrl(evaluationRestUrl, "/api/v1/evaluation/analytics/summary", tenantId),
+                this::parseEvaluationQueueBreakdown,
+                EvaluationQueueBreakdownResponse.empty()
+        );
+    }
 
-            EvaluationMetricsGrpcRequest request = EvaluationMetricsGrpcRequest.newBuilder()
-                    .setTenantId(tenantId)
-                    .build();
+    private QuestionBankBreakdownResponse parseQuestionBankBreakdown(JsonNode node) {
+        return new QuestionBankBreakdownResponse(
+                node.path("total").asLong(0L),
+                node.path("draft").asLong(0L),
+                node.path("submitted").asLong(0L),
+                node.path("approved").asLong(0L),
+                node.path("rejected").asLong(0L));
+    }
 
-            EvaluationMetricsGrpcResponse response = stub.getEvaluationQueueMetrics(request);
-            log.debug("gRPC getEvaluationQueueMetrics succeeded from {}:{}", evaluationGrpcHost, evaluationGrpcPort);
-            return EvaluationQueueBreakdownResponse.builder()
-                    .pending(response.getPending())
-                    .autoEvaluated(response.getInProgress())
-                    .manualEvaluated(0L)
-                    .arbitration(response.getFlagged())
-                    .completed(response.getCompleted())
-                    .build();
-        } catch (Exception grpcEx) {
-            log.debug("gRPC getEvaluationQueueMetrics failed: {}, attempting REST backup", grpcEx.getMessage());
-        }
+    private ExamStatusBreakdownResponse parseExamStatusBreakdown(JsonNode node) {
+        return new ExamStatusBreakdownResponse(
+                node.path("draft").asLong(0L),
+                node.path("scheduled").asLong(0L),
+                node.path("liveInProgress").asLong(0L),
+                node.path("evaluation").asLong(0L),
+                node.path("completed").asLong(0L));
+    }
 
-        // Attempt 2: REST Backup
-        try {
-            String restResponse = restClient.get()
-                    .uri(evaluationRestUrl + "/api/v1/evaluation/analytics/summary?tenantId=" + tenantId)
-                    .retrieve()
-                    .body(String.class);
+    private EvaluationQueueBreakdownResponse parseEvaluationQueueBreakdown(JsonNode node) {
+        return new EvaluationQueueBreakdownResponse(
+                node.path("pending").asLong(0L),
+                node.path("inProgress").asLong(node.path("autoEvaluated").asLong(0L)),
+                node.path("manualEvaluated").asLong(0L),
+                node.path("flagged").asLong(node.path("arbitration").asLong(0L)),
+                node.path("completed").asLong(0L));
+    }
 
-            if (restResponse != null) {
-                JsonNode node = objectMapper.readTree(restResponse);
-                log.debug("REST backup for Evaluation succeeded");
-                return EvaluationQueueBreakdownResponse.builder()
-                        .pending(node.path("pending").asLong(0L))
-                        .autoEvaluated(node.path("inProgress").asLong(node.path("autoEvaluated").asLong(0L)))
-                        .manualEvaluated(node.path("manualEvaluated").asLong(0L))
-                        .arbitration(node.path("flagged").asLong(node.path("arbitration").asLong(0L)))
-                        .completed(node.path("completed").asLong(0L))
-                        .build();
-            }
-        } catch (Exception restEx) {
-            log.debug("REST backup for Evaluation failed: {}", restEx.getMessage());
-        }
-
-        return EvaluationQueueBreakdownResponse.builder()
-                .pending(0L)
-                .autoEvaluated(0L)
-                .manualEvaluated(0L)
-                .arbitration(0L)
-                .completed(0L)
-                .build();
+    private static String buildSummaryUrl(String baseUrl, String path, String tenantId) {
+        return baseUrl + path + "?tenantId=" + tenantId;
     }
 
     private long fetchCandidateStats(String tenantId) {
-        // Attempt 1: gRPC Protobuf
-        try {
-            ManagedChannel channel = GrpcChannelFactory.getChannel(candidateGrpcHost, candidateGrpcPort);
-            CandidateMetricsGrpcServiceGrpc.CandidateMetricsGrpcServiceBlockingStub stub =
-                    CandidateMetricsGrpcServiceGrpc.newBlockingStub(channel)
-                            .withDeadlineAfter(candidateTimeoutMs, TimeUnit.MILLISECONDS);
-
-            CandidateMetricsGrpcRequest request = CandidateMetricsGrpcRequest.newBuilder()
-                    .setTenantId(tenantId)
-                    .build();
-
-            CandidateMetricsGrpcResponse response = stub.getCandidateMetrics(request);
-            log.debug("gRPC getCandidateMetrics succeeded from {}:{}", candidateGrpcHost, candidateGrpcPort);
-            return response.getTotalRegisteredCandidates();
-        } catch (Exception grpcEx) {
-            log.debug("gRPC getCandidateMetrics failed: {}, attempting REST backup", grpcEx.getMessage());
-        }
-
-        // Attempt 2: REST Backup
-        try {
-            String restResponse = restClient.get()
-                    .uri(candidateRestUrl + "/api/v1/candidates/analytics/summary?tenantId=" + tenantId)
-                    .retrieve()
-                    .body(String.class);
-
-            if (restResponse != null) {
-                JsonNode node = objectMapper.readTree(restResponse);
-                log.debug("REST backup for Candidates succeeded");
-                return node.path("totalRegisteredCandidates").asLong(0L);
-            }
-        } catch (Exception restEx) {
-            log.debug("REST backup for Candidates failed: {}", restEx.getMessage());
-        }
-
-        return 0L;
+        return fetchWithGrpcFallback(
+                "Candidates",
+                () -> {
+                    CandidateMetricsGrpcResponse response = executeGrpc(
+                            candidateGrpcHost, candidateGrpcPort, candidateTimeoutMs,
+                            CandidateMetricsGrpcServiceGrpc::newBlockingStub,
+                            stub -> stub.getCandidateMetrics(
+                                    CandidateMetricsGrpcRequest.newBuilder().setTenantId(tenantId).build()));
+                    log.debug("gRPC getCandidateMetrics succeeded from {}:{}", candidateGrpcHost, candidateGrpcPort);
+                    return response.getTotalRegisteredCandidates();
+                },
+                candidateRestUrl + "/api/v1/candidates/analytics/summary?tenantId=" + tenantId,
+                node -> node.path("totalRegisteredCandidates").asLong(0L),
+                0L
+        );
     }
 
     private List<SecurityAuditEventResponse> fetchRecentAuditEvents(String tenantId) {
-        // Attempt 1: gRPC Protobuf
+        return fetchWithGrpcFallback(
+                "Audit events",
+                () -> {
+                    AuditLedgerGrpcResponse response = executeGrpc(
+                            auditGrpcHost, auditGrpcPort, auditTimeoutMs,
+                            AuditLedgerGrpcServiceGrpc::newBlockingStub,
+                            stub -> stub.getRecentLedgerEvents(
+                                    AuditLedgerGrpcRequest.newBuilder().setTenantId(tenantId).setLimit(3).build()));
+                    if (response.getEventsCount() > 0) {
+                        List<SecurityAuditEventResponse> list = new ArrayList<>();
+                        for (var item : response.getEventsList()) {
+                            list.add(createAuditEvent(item.getId(), item.getTimestamp(), item.getPerformedBy(), item.getAction(), item.getEntityType()));
+                        }
+                        log.debug("gRPC getRecentLedgerEvents succeeded from {}:{}", auditGrpcHost, auditGrpcPort);
+                        return list;
+                    }
+                    return null;
+                },
+                auditRestUrl + "/api/v1/audit/events/recent?tenantId=" + tenantId + "&limit=3",
+                node -> {
+                    if (node.isArray() && !node.isEmpty()) {
+                        List<SecurityAuditEventResponse> list = new ArrayList<>();
+                        for (JsonNode item : node) {
+                            list.add(createAuditEvent(
+                                    item.path("id").asText(null),
+                                    item.path("timestamp").asText(null),
+                                    item.path("performedBy").asText(null),
+                                    item.path("action").asText(null),
+                                    item.path("entityType").asText(null)));
+                        }
+                        return list;
+                    }
+                    return List.of();
+                },
+                List.of()
+        );
+    }
+
+    private SecurityAuditEventResponse createAuditEvent(String id, String timestamp, String actor, String action, String resource) {
+        return SecurityAuditEventResponse.builder()
+                .id(id == null || id.isBlank() ? "SEC-" + UUID.randomUUID().toString().substring(0, 6) : id)
+                .timestamp(timestamp == null || timestamp.isBlank() ? DateTimeFormatter.ISO_INSTANT.format(Instant.now()) : timestamp)
+                .actor(actor == null || actor.isBlank() ? "system" : actor)
+                .action(action == null || action.isBlank() ? "UNKNOWN" : action)
+                .resource(resource == null || resource.isBlank() ? "RESOURCE" : resource)
+                .hash("SHA256-IMMUTABLE")
+                .build();
+    }
+
+    @FunctionalInterface
+    private interface GrpcAction<T> {
+        T call() throws Exception;
+    }
+
+    private <T> T fetchWithGrpcFallback(
+            String serviceName,
+            GrpcAction<T> grpcAction,
+            String restUrl,
+            Function<JsonNode, T> restMapper,
+            T defaultFallback) {
+
         try {
-            ManagedChannel channel = GrpcChannelFactory.getChannel(auditGrpcHost, auditGrpcPort);
-            AuditLedgerGrpcServiceGrpc.AuditLedgerGrpcServiceBlockingStub stub =
-                    AuditLedgerGrpcServiceGrpc.newBlockingStub(channel)
-                            .withDeadlineAfter(auditTimeoutMs, TimeUnit.MILLISECONDS);
-
-            AuditLedgerGrpcRequest request = AuditLedgerGrpcRequest.newBuilder()
-                    .setTenantId(tenantId)
-                    .setLimit(3)
-                    .build();
-
-            AuditLedgerGrpcResponse response = stub.getRecentLedgerEvents(request);
-            if (response.getEventsCount() > 0) {
-                List<SecurityAuditEventResponse> list = new ArrayList<>();
-                for (var item : response.getEventsList()) {
-                    list.add(SecurityAuditEventResponse.builder()
-                            .id(item.getId().isBlank() ? "SEC-" + UUID.randomUUID().toString().substring(0, 6) : item.getId())
-                            .timestamp(item.getTimestamp().isBlank() ? DateTimeFormatter.ISO_INSTANT.format(Instant.now()) : item.getTimestamp())
-                            .actor(item.getPerformedBy().isBlank() ? "system" : item.getPerformedBy())
-                            .action(item.getAction().isBlank() ? "UNKNOWN" : item.getAction())
-                            .resource(item.getEntityType().isBlank() ? "RESOURCE" : item.getEntityType())
-                            .hash("SHA256-IMMUTABLE")
-                            .build());
-                }
-                log.debug("gRPC getRecentLedgerEvents succeeded from {}:{}", auditGrpcHost, auditGrpcPort);
-                return list;
+            T result = grpcAction.call();
+            if (result != null) {
+                return result;
             }
         } catch (Exception grpcEx) {
-            log.debug("gRPC getRecentLedgerEvents failed: {}, attempting REST backup", grpcEx.getMessage());
+            log.debug("gRPC {} failed: {}, attempting REST backup", serviceName, grpcEx.getMessage());
         }
 
-        // Attempt 2: REST Backup
+        return fetchRestBackup(restUrl, serviceName, restMapper, defaultFallback);
+    }
+
+    private <S extends AbstractBlockingStub<S>, Res> Res executeGrpc(
+            String host,
+            int port,
+            long timeoutMs,
+            Function<ManagedChannel, S> stubFactory,
+            Function<S, Res> call) {
+        ManagedChannel channel = GrpcChannelFactory.getChannel(host, port);
+        S stub = stubFactory.apply(channel).withDeadlineAfter(timeoutMs, TimeUnit.MILLISECONDS);
+        return call.apply(stub);
+    }
+
+    private <T> T fetchRestBackup(String url, String serviceName, Function<JsonNode, T> mapper, T defaultValue) {
         try {
             String restResponse = restClient.get()
-                    .uri(auditRestUrl + "/api/v1/audit/events/recent?tenantId=" + tenantId + "&limit=3")
+                    .uri(url)
                     .retrieve()
                     .body(String.class);
 
             if (restResponse != null) {
                 JsonNode node = objectMapper.readTree(restResponse);
-                if (node.isArray() && !node.isEmpty()) {
-                    List<SecurityAuditEventResponse> list = new ArrayList<>();
-                    for (JsonNode item : node) {
-                        list.add(SecurityAuditEventResponse.builder()
-                                .id(item.path("id").asText("SEC-" + UUID.randomUUID().toString().substring(0, 6)))
-                                .timestamp(item.path("timestamp").asText(DateTimeFormatter.ISO_INSTANT.format(Instant.now())))
-                                .actor(item.path("performedBy").asText("system"))
-                                .action(item.path("action").asText("UNKNOWN"))
-                                .resource(item.path("entityType").asText("RESOURCE"))
-                                .hash("SHA256-IMMUTABLE")
-                                .build());
-                    }
-                    log.debug("REST backup for Audit events succeeded");
-                    return list;
+                T result = mapper.apply(node);
+                if (result != null) {
+                    log.debug("REST backup for {} succeeded", serviceName);
+                    return result;
                 }
             }
         } catch (Exception restEx) {
-            log.debug("REST backup for Audit events failed: {}", restEx.getMessage());
+            log.debug("REST backup for {} failed: {}", serviceName, restEx.getMessage());
         }
-
-        return List.of();
+        return defaultValue;
     }
 
     private List<SystemServiceHealthResponse> checkSystemServicesHealth() {
@@ -497,81 +443,58 @@ public class AdminDashboardService {
         return healthList;
     }
 
+    private SystemServiceHealthResponse buildHealthResponse(String name, boolean up, long latency, String details) {
+        return SystemServiceHealthResponse.builder()
+                .name(name)
+                .status(up ? "UP" : "DOWN")
+                .latencyMs((int) latency)
+                .uptime(up ? "100%" : "0.00%")
+                .details(details)
+                .build();
+    }
+
     private SystemServiceHealthResponse checkDatabaseHealth() {
-        long start = System.currentTimeMillis();
-        if (dataSource != null) {
-            try (Connection conn = dataSource.getConnection()) {
-                boolean valid = conn.isValid(1);
-                long latency = Math.max(1, System.currentTimeMillis() - start);
-                return SystemServiceHealthResponse.builder()
-                        .name("PostgreSQL Database")
-                        .status(valid ? "UP" : "DOWN")
-                        .latencyMs((int) latency)
-                        .uptime(valid ? "100%" : "0.00%")
-                        .details(valid ? "PostgreSQL primary pool connected" : "Connection invalid")
-                        .build();
-            } catch (Exception e) {
-                long latency = Math.max(1, System.currentTimeMillis() - start);
-                return SystemServiceHealthResponse.builder()
-                        .name("PostgreSQL Database")
-                        .status("DOWN")
-                        .latencyMs((int) latency)
-                        .uptime("0.00%")
-                        .details("Database error: " + e.getMessage())
-                        .build();
-            }
+        if (dataSource == null) {
+            return buildHealthResponse("PostgreSQL Database", false, 0, "Data source not configured");
         }
-        return probeService("PostgreSQL Database", "localhost", 5432, "PostgreSQL socket operational", "PostgreSQL database offline");
+        long start = System.currentTimeMillis();
+        try (Connection conn = dataSource.getConnection()) {
+            boolean valid = conn.isValid(1);
+            long latency = Math.max(1, System.currentTimeMillis() - start);
+            return buildHealthResponse("PostgreSQL Database", valid, latency,
+                    valid ? "PostgreSQL primary pool connected" : "Connection invalid");
+        } catch (Exception e) {
+            long latency = Math.max(1, System.currentTimeMillis() - start);
+            return buildHealthResponse("PostgreSQL Database", false, latency, "Database error: " + e.getMessage());
+        }
     }
 
     private SystemServiceHealthResponse checkRedisHealth() {
-        long start = System.currentTimeMillis();
-        if (redisTemplate != null) {
-            try {
-                String ping = redisTemplate.getConnectionFactory().getConnection().ping();
-                long latency = Math.max(1, System.currentTimeMillis() - start);
-                return SystemServiceHealthResponse.builder()
-                        .name("Redis Cache Cluster")
-                        .status("PONG".equalsIgnoreCase(ping) ? "UP" : "DOWN")
-                        .latencyMs((int) latency)
-                        .uptime("100%")
-                        .details("Redis cache responding to ping")
-                        .build();
-            } catch (Exception e) {
-                long latency = Math.max(1, System.currentTimeMillis() - start);
-                return SystemServiceHealthResponse.builder()
-                        .name("Redis Cache Cluster")
-                        .status("DOWN")
-                        .latencyMs((int) latency)
-                        .uptime("0.00%")
-                        .details("Redis offline: " + e.getMessage())
-                        .build();
-            }
+        if (redisTemplate == null) {
+            return buildHealthResponse("Redis Cache & Sessions", false, 0, "Redis template not configured");
         }
-        return probeService("Redis Cache Cluster", "localhost", 6379, "Redis cache operational", "Redis cache offline");
-    }
-
-    private SystemServiceHealthResponse probeService(String name, String host, int port, String healthyDetails, String downDetails) {
         long start = System.currentTimeMillis();
-        try (Socket socket = new Socket()) {
-            socket.connect(new InetSocketAddress(host, port), 200);
+        try {
+            String pingResult = redisTemplate.getConnectionFactory().getConnection().ping();
             long latency = Math.max(1, System.currentTimeMillis() - start);
-            return SystemServiceHealthResponse.builder()
-                    .name(name)
-                    .status("UP")
-                    .latencyMs((int) latency)
-                    .uptime("99.99%")
-                    .details(healthyDetails)
-                    .build();
+            boolean up = "PONG".equalsIgnoreCase(pingResult);
+            return buildHealthResponse("Redis Cache & Sessions", up, latency,
+                    up ? "Redis cluster responding" : "Unexpected ping response: " + pingResult);
         } catch (Exception e) {
             long latency = Math.max(1, System.currentTimeMillis() - start);
-            return SystemServiceHealthResponse.builder()
-                    .name(name)
-                    .status("DOWN")
-                    .latencyMs((int) latency)
-                    .uptime("0.00%")
-                    .details(downDetails)
-                    .build();
+            return buildHealthResponse("Redis Cache & Sessions", false, latency, "Redis connection failed: " + e.getMessage());
+        }
+    }
+
+    private SystemServiceHealthResponse probeService(String serviceName, String host, int port,
+                                                     String successMsg, String failureMsg) {
+        long start = System.currentTimeMillis();
+        try (Socket socket = new Socket()) {
+            socket.connect(new InetSocketAddress(host, port), 1500);
+            long latency = Math.max(1, System.currentTimeMillis() - start);
+            return buildHealthResponse(serviceName, true, latency, successMsg);
+        } catch (Exception e) {
+            return buildHealthResponse(serviceName, false, 0, failureMsg + ": " + e.getMessage());
         }
     }
 
@@ -579,11 +502,9 @@ public class AdminDashboardService {
         if (redisTemplate != null) {
             try {
                 Set<String> keys = redisTemplate.keys("session:*");
-                if (keys != null) {
-                    return keys.size();
-                }
+                return keys != null ? keys.size() : 0L;
             } catch (Exception e) {
-                log.debug("Could not count Redis active sessions: {}", e.getMessage());
+                log.debug("Could not query Redis for active sessions: {}", e.getMessage());
             }
         }
         return 0L;

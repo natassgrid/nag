@@ -19,6 +19,8 @@
 
 package com.examplatform.identity.service;
 
+import com.examplatform.shared.crypto.HashingService;
+
 import com.examplatform.identity.config.AppSecurityProperties;
 import com.examplatform.identity.domain.ActiveSession;
 import com.examplatform.identity.domain.UserAccount;

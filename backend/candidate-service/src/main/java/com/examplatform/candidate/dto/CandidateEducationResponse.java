@@ -19,10 +19,12 @@
 
 package com.examplatform.candidate.dto;
 
+import com.examplatform.candidate.domain.CandidateEducation;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.springframework.beans.BeanUtils;
 
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -51,4 +53,13 @@ public class CandidateEducationResponse {
     private UUID certificateAssetId;
     private Instant createdAt;
     private Instant updatedAt;
+
+    public static CandidateEducationResponse from(CandidateEducation education) {
+        if (education == null) {
+            return null;
+        }
+        CandidateEducationResponse response = new CandidateEducationResponse();
+        BeanUtils.copyProperties(education, response);
+        return response;
+    }
 }

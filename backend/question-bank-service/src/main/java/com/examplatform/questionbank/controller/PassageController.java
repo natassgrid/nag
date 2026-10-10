@@ -5,7 +5,7 @@
  * Copyright (C) 2025 NAG Contributors
  *
  * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU标志 Affero General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, version 3 of the License.
  */
 
@@ -59,7 +59,7 @@ public class PassageController {
             @AuthenticationPrincipal Jwt jwt,
             @RequestHeader("X-Tenant-Id") String tenantId) {
 
-        UUID authorId = UUID.fromString(jwt.getSubject());
+        UUID authorId = getPrincipalId(jwt);
         log.info("Creating passage: author={}, tenant={}, subjectId={}", authorId, tenantId, request.getSubjectId());
 
         PassageResponse response = passageService.createPassage(request, authorId, tenantId);
@@ -99,7 +99,7 @@ public class PassageController {
             @AuthenticationPrincipal Jwt jwt,
             @RequestHeader("X-Tenant-Id") String tenantId) {
 
-        UUID authorId = UUID.fromString(jwt.getSubject());
+        UUID authorId = getPrincipalId(jwt);
         log.info("Updating passage id={}, author={}, tenant={}", id, authorId, tenantId);
 
         PassageResponse response = passageService.updatePassage(id, request, authorId, tenantId);
@@ -113,8 +113,7 @@ public class PassageController {
             @AuthenticationPrincipal Jwt jwt,
             @RequestHeader("X-Tenant-Id") String tenantId) {
 
-        UUID authorId = UUID.fromString(jwt.getSubject());
-        passageService.deletePassage(id, authorId, tenantId);
+        passageService.deletePassage(id, getPrincipalId(jwt), tenantId);
         return ResponseEntity.ok(ApiResponse.success(null, "Passage deleted successfully"));
     }
 
@@ -125,9 +124,9 @@ public class PassageController {
             @AuthenticationPrincipal Jwt jwt,
             @RequestHeader("X-Tenant-Id") String tenantId) {
 
-        UUID authorId = UUID.fromString(jwt.getSubject());
-        PassageResponse response = passageLifecycleService.submitForReview(id, authorId, tenantId);
-        return ResponseEntity.ok(ApiResponse.success(response, "Passage submitted for review"));
+        return ResponseEntity.ok(ApiResponse.success(
+                passageLifecycleService.submitForReview(id, getPrincipalId(jwt), tenantId),
+                "Passage submitted for review"));
     }
 
     @PutMapping("/{id}/approve")
@@ -137,9 +136,9 @@ public class PassageController {
             @AuthenticationPrincipal Jwt jwt,
             @RequestHeader("X-Tenant-Id") String tenantId) {
 
-        UUID reviewerId = UUID.fromString(jwt.getSubject());
-        PassageResponse response = passageLifecycleService.approve(id, reviewerId, tenantId);
-        return ResponseEntity.ok(ApiResponse.success(response, "Passage approved successfully"));
+        return ResponseEntity.ok(ApiResponse.success(
+                passageLifecycleService.approve(id, getPrincipalId(jwt), tenantId),
+                "Passage approved successfully"));
     }
 
     @PutMapping("/{id}/reject")
@@ -150,9 +149,8 @@ public class PassageController {
             @AuthenticationPrincipal Jwt jwt,
             @RequestHeader("X-Tenant-Id") String tenantId) {
 
-        UUID reviewerId = UUID.fromString(jwt.getSubject());
         String comments = (body != null) ? body.get("comments") : null;
-        PassageResponse response = passageLifecycleService.reject(id, reviewerId, comments, tenantId);
+        PassageResponse response = passageLifecycleService.reject(id, getPrincipalId(jwt), comments, tenantId);
         return ResponseEntity.ok(ApiResponse.success(response, "Passage rejected"));
     }
 
@@ -164,8 +162,11 @@ public class PassageController {
             @AuthenticationPrincipal Jwt jwt,
             @RequestHeader("X-Tenant-Id") String tenantId) {
 
-        UUID actorId = UUID.fromString(jwt.getSubject());
-        PassageResponse response = passageLifecycleService.transition(id, request, actorId, tenantId);
+        PassageResponse response = passageLifecycleService.transition(id, request, getPrincipalId(jwt), tenantId);
         return ResponseEntity.ok(ApiResponse.success(response, "Passage state transitioned"));
+    }
+
+    private UUID getPrincipalId(Jwt jwt) {
+        return UUID.fromString(jwt.getSubject());
     }
 }

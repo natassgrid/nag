@@ -411,8 +411,12 @@ public class PaperAssemblyService {
             shiftName = shiftNames.get(request.getShiftId());
         }
 
+        return formatPaperTitle(Boolean.TRUE.equals(request.getIsPractice()), examName, shiftName, request.getShiftId());
+    }
+
+    public static String formatPaperTitle(boolean isPractice, String examName, String shiftName, String shiftId) {
         StringBuilder sb = new StringBuilder();
-        if (Boolean.TRUE.equals(request.getIsPractice())) {
+        if (isPractice) {
             sb.append("Practice - ");
         }
         if (examName != null && !examName.isBlank()) {
@@ -422,10 +426,9 @@ public class PaperAssemblyService {
         }
         if (shiftName != null && !shiftName.isBlank()) {
             sb.append(" (").append(shiftName).append(")");
-        } else if (request.getShiftId() != null && !request.getShiftId().isBlank()) {
-            sb.append(" [Shift: ").append(request.getShiftId()).append("]");
+        } else if (shiftId != null && !shiftId.isBlank()) {
+            sb.append(" [Shift: ").append(shiftId).append("]");
         }
-
         return sb.toString();
     }
 
@@ -521,29 +524,20 @@ public class PaperAssemblyService {
 
     private void publishInsufficientQuestionsAlert(
             List<GapDetail> gaps, @Nullable UUID examId, @Nullable String shiftId, String tenantId) {
-        try {
-            Map<String, Object> alert = Map.of(
-                    "notificationType", "BLUEPRINT_DEFICIT_ALERT",
-                    "examId", examId != null ? examId.toString() : "",
-                    "shiftId", shiftId != null ? shiftId : "",
-                    "tenantId", tenantId,
-                    "deficitRuleCount", gaps.size(),
-                    "gapDetails", gaps,
-                    "occurredAt", Instant.now().toString()
-            );
-            eventPublisher.publish(NOTIFICATION_TOPIC, examId != null ? examId.toString() : "GLOBAL", alert);
-            log.info("Dispatched BLUEPRINT_DEFICIT_ALERT notification for examId={}, shiftId={}, deficitCount={}",
-                    examId, shiftId, gaps.size());
-        } catch (Exception e) {
-            log.error("Failed to publish blueprint deficit notification: {}", e.getMessage());
-        }
+        publishDeficitPayload(NOTIFICATION_TOPIC, "notificationType", "BLUEPRINT_DEFICIT_ALERT", gaps, examId, shiftId, tenantId);
     }
 
     private void publishInsufficientQuestionsAuditEvent(
             List<GapDetail> gaps, @Nullable UUID examId, @Nullable String shiftId, String tenantId) {
+        publishDeficitPayload(AUDIT_TOPIC, "eventType", "BLUEPRINT_DEFICIT_DETECTED", gaps, examId, shiftId, tenantId);
+    }
+
+    private void publishDeficitPayload(
+            String topic, String typeKey, String typeValue,
+            List<GapDetail> gaps, @Nullable UUID examId, @Nullable String shiftId, String tenantId) {
         try {
-            Map<String, Object> audit = Map.of(
-                    "eventType", "BLUEPRINT_DEFICIT_DETECTED",
+            Map<String, Object> payload = Map.of(
+                    typeKey, typeValue,
                     "examId", examId != null ? examId.toString() : "",
                     "shiftId", shiftId != null ? shiftId : "",
                     "tenantId", tenantId,
@@ -551,9 +545,36 @@ public class PaperAssemblyService {
                     "gapDetails", gaps,
                     "occurredAt", Instant.now().toString()
             );
-            eventPublisher.publish(AUDIT_TOPIC, examId != null ? examId.toString() : "GLOBAL", audit);
+            eventPublisher.publish(topic, examId != null ? examId.toString() : "GLOBAL", payload);
+            log.info("Dispatched {} to {} for examId={}, shiftId={}, deficitCount={}",
+                    typeValue, topic, examId, shiftId, gaps.size());
         } catch (Exception e) {
-            log.error("Failed to publish BLUEPRINT_DEFICIT_DETECTED audit event: {}", e.getMessage());
+            log.error("Failed to publish {} event to {}: {}", typeValue, topic, e.getMessage());
         }
+    }
+
+    public List<UUID> extractQuestionIds(Paper paper) {
+        return extractQuestionIds(paper, this.objectMapper);
+    }
+
+    public static List<UUID> extractQuestionIds(Paper paper, ObjectMapper objectMapper) {
+        if (paper == null || paper.getPaperDefinitionJson() == null || paper.getPaperDefinitionJson().isBlank()) {
+            return List.of();
+        }
+        List<UUID> questionIds = new ArrayList<>();
+        try {
+            com.fasterxml.jackson.databind.JsonNode root = objectMapper.readTree(paper.getPaperDefinitionJson());
+            com.fasterxml.jackson.databind.JsonNode qIdsNode = root.get("questionIds");
+            if (qIdsNode != null && qIdsNode.isArray()) {
+                for (com.fasterxml.jackson.databind.JsonNode qNode : qIdsNode) {
+                    try {
+                        questionIds.add(UUID.fromString(qNode.asText()));
+                    } catch (IllegalArgumentException ignored) {}
+                }
+            }
+        } catch (Exception e) {
+            log.warn("Failed to parse paperDefinitionJson for paper {}: {}", paper.getId(), e.getMessage());
+        }
+        return questionIds;
     }
 }

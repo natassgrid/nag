@@ -14,7 +14,8 @@
  * GNU Affero General Public License for more details.
  *
  * You should have received a copy of the GNU Affero General Public License
- * along with this program. If not, see <https://www.gnu.org/licenses/>.\n */
+ * along with this program. If not, see <https://www.gnu.org/licenses/>.
+ */
 
 package com.examplatform.result.controller;
 
@@ -54,8 +55,6 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class ResultController {
 
-    private static final String DEFAULT_TENANT_ID = "default";
-
     private final ResultComputationService resultComputationService;
     private final ResultPublicationService resultPublicationService;
 
@@ -66,7 +65,7 @@ public class ResultController {
     @GetMapping("/my-results")
     @PreAuthorize("hasAnyRole('CANDIDATE', 'SUPER_ADMIN', 'ADMIN')")
     public ResponseEntity<List<Result>> getMyResults(Authentication auth) {
-        String tenantId = extractTenantId(auth);
+        String tenantId = ResultAccessSecurityHelper.extractTenantId(auth);
         UUID candidateId = extractCandidateId(auth);
         log.info("GET my-results for candidate={}, tenant={}", candidateId, tenantId);
         List<Result> results = resultComputationService.getCandidateResults(candidateId, tenantId);
@@ -81,7 +80,7 @@ public class ResultController {
     @PreAuthorize("hasAnyRole('CANDIDATE', 'SUPER_ADMIN', 'ADMIN')")
     public ResponseEntity<List<Result>> getCandidateResults(@PathVariable UUID candidateId,
                                                            Authentication auth) {
-        String tenantId = extractTenantId(auth);
+        String tenantId = ResultAccessSecurityHelper.extractTenantId(auth);
         log.info("GET results for candidate={}, tenant={}", candidateId, tenantId);
         List<Result> results = resultComputationService.getCandidateResults(candidateId, tenantId);
         return ResponseEntity.ok(results);
@@ -101,7 +100,7 @@ public class ResultController {
     public ResponseEntity<Result> getResult(@PathVariable UUID candidateId,
                                             @RequestParam UUID examId,
                                             Authentication auth) {
-        String tenantId = extractTenantId(auth);
+        String tenantId = ResultAccessSecurityHelper.extractTenantId(auth);
         log.info("GET result for candidate={}, exam={}, tenant={}", candidateId, examId, tenantId);
         Result result = resultComputationService.getResult(candidateId, examId, tenantId);
         return ResponseEntity.ok(result);
@@ -119,7 +118,7 @@ public class ResultController {
     @PreAuthorize("hasRole('EXAM_CONTROLLER')")
     public ResponseEntity<List<Result>> computeResults(@Valid @RequestBody ComputeResultsRequest request,
                                                        Authentication auth) {
-        String tenantId = extractTenantId(auth);
+        String tenantId = ResultAccessSecurityHelper.extractTenantId(auth);
         log.info("POST compute results for exam={}, candidates={}, normalize={}, tenant={}",
                 request.getExamId(), request.getCandidateScores().size(),
                 request.isNormalizeShifts(), tenantId);
@@ -147,7 +146,7 @@ public class ResultController {
     public ResponseEntity<Result> publishResult(@PathVariable UUID candidateId,
                                                 @RequestParam UUID examId,
                                                 Authentication auth) {
-        String tenantId = extractTenantId(auth);
+        String tenantId = ResultAccessSecurityHelper.extractTenantId(auth);
         log.info("POST publish result for candidate={}, exam={}, tenant={}", candidateId, examId, tenantId);
 
         Result result = resultPublicationService.publishResult(candidateId, examId, tenantId);
@@ -162,7 +161,7 @@ public class ResultController {
     @PreAuthorize("hasAnyRole('CANDIDATE', 'ADMIN', 'SUPER_ADMIN', 'EXAM_CONTROLLER')")
     public ResponseEntity<DigiLockerPushResponse> pushToDigiLocker(@PathVariable UUID id,
                                                                   Authentication auth) {
-        String tenantId = extractTenantId(auth);
+        String tenantId = ResultAccessSecurityHelper.extractTenantId(auth);
         log.info("POST push to DigiLocker for ID={}, tenant={}", id, tenantId);
         DigiLockerPushResponse response = resultPublicationService.pushToDigiLocker(id, tenantId);
         return ResponseEntity.ok(response);
@@ -184,17 +183,5 @@ public class ResultController {
             }
         }
         throw new IllegalArgumentException("Unable to determine candidate ID from authentication context");
-    }
-
-    private String extractTenantId(Authentication auth) {
-        if (auth != null && auth.getDetails() instanceof java.util.Map) {
-            @SuppressWarnings("unchecked")
-            java.util.Map<String, Object> details = (java.util.Map<String, Object>) auth.getDetails();
-            Object tenant = details.get("tenant_id");
-            if (tenant != null) {
-                return tenant.toString();
-            }
-        }
-        return DEFAULT_TENANT_ID;
     }
 }

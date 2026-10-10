@@ -60,15 +60,18 @@ public class GlobalExceptionHandler {
     /**
      * Handles entity not found (404).
      */
+    private ProblemDetail buildProblemDetail(HttpStatus status, String detail, String title, String typeSlug) {
+        ProblemDetail problem = ProblemDetail.forStatusAndDetail(status, detail);
+        problem.setTitle(title);
+        problem.setType(URI.create("urn:examplatform:error:" + typeSlug));
+        problem.setProperty("timestamp", Instant.now());
+        return problem;
+    }
+
     @ExceptionHandler(EntityNotFoundException.class)
     public ProblemDetail handleEntityNotFound(EntityNotFoundException ex) {
         log.warn("Entity not found: {}", ex.getMessage());
-        ProblemDetail problem = ProblemDetail.forStatusAndDetail(
-                HttpStatus.NOT_FOUND, ex.getMessage());
-        problem.setTitle("Resource Not Found");
-        problem.setType(URI.create("urn:examplatform:error:not-found"));
-        problem.setProperty("timestamp", Instant.now());
-        return problem;
+        return buildProblemDetail(HttpStatus.NOT_FOUND, ex.getMessage(), "Resource Not Found", "not-found");
     }
 
     /**
@@ -77,12 +80,7 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(AccessDeniedException.class)
     public ProblemDetail handleAccessDenied(AccessDeniedException ex) {
         log.warn("Access denied: {}", ex.getMessage());
-        ProblemDetail problem = ProblemDetail.forStatusAndDetail(
-                HttpStatus.FORBIDDEN, "Access denied");
-        problem.setTitle("Forbidden");
-        problem.setType(URI.create("urn:examplatform:error:forbidden"));
-        problem.setProperty("timestamp", Instant.now());
-        return problem;
+        return buildProblemDetail(HttpStatus.FORBIDDEN, "Access denied", "Forbidden", "forbidden");
     }
 
     /**
@@ -91,11 +89,7 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ProblemDetail handleValidationError(MethodArgumentNotValidException ex) {
         log.warn("Validation error: {}", ex.getMessage());
-        ProblemDetail problem = ProblemDetail.forStatusAndDetail(
-                HttpStatus.BAD_REQUEST, "Validation failed");
-        problem.setTitle("Bad Request");
-        problem.setType(URI.create("urn:examplatform:error:validation"));
-        problem.setProperty("timestamp", Instant.now());
+        ProblemDetail problem = buildProblemDetail(HttpStatus.BAD_REQUEST, "Validation failed", "Bad Request", "validation");
         problem.setProperty("errors", ex.getBindingResult().getFieldErrors().stream()
                 .map(fe -> fe.getField() + ": " + fe.getDefaultMessage())
                 .toList());
@@ -112,12 +106,7 @@ public class GlobalExceptionHandler {
         String message = String.format("Invalid parameter '%s': value '%s' is not valid for type %s",
                 ex.getName(), ex.getValue(),
                 ex.getRequiredType() != null ? ex.getRequiredType().getSimpleName() : "unknown");
-        ProblemDetail problem = ProblemDetail.forStatusAndDetail(
-                HttpStatus.BAD_REQUEST, message);
-        problem.setTitle("Bad Request");
-        problem.setType(URI.create("urn:examplatform:error:type-mismatch"));
-        problem.setProperty("timestamp", Instant.now());
-        return problem;
+        return buildProblemDetail(HttpStatus.BAD_REQUEST, message, "Bad Request", "type-mismatch");
     }
 
     /**
@@ -127,16 +116,13 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(IllegalArgumentException.class)
     public ProblemDetail handleIllegalArgument(IllegalArgumentException ex) {
         log.warn("Illegal argument: {}", ex.getMessage());
-        // Treat duplicate-name errors as 409 Conflict
         boolean isConflict = ex.getMessage() != null && ex.getMessage().contains("already exists");
-        HttpStatus status = isConflict ? HttpStatus.CONFLICT : HttpStatus.BAD_REQUEST;
-        ProblemDetail problem = ProblemDetail.forStatusAndDetail(status, ex.getMessage());
-        problem.setTitle(isConflict ? "Conflict" : "Bad Request");
-        problem.setType(URI.create(isConflict
-                ? "urn:examplatform:error:conflict"
-                : "urn:examplatform:error:bad-request"));
-        problem.setProperty("timestamp", Instant.now());
-        return problem;
+        return buildProblemDetail(
+                isConflict ? HttpStatus.CONFLICT : HttpStatus.BAD_REQUEST,
+                ex.getMessage(),
+                isConflict ? "Conflict" : "Bad Request",
+                isConflict ? "conflict" : "bad-request"
+        );
     }
 
     /**
@@ -145,12 +131,7 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(IllegalStateException.class)
     public ProblemDetail handleIllegalState(IllegalStateException ex) {
         log.warn("Illegal state: {}", ex.getMessage());
-        ProblemDetail problem = ProblemDetail.forStatusAndDetail(
-                HttpStatus.CONFLICT, ex.getMessage());
-        problem.setTitle("Conflict");
-        problem.setType(URI.create("urn:examplatform:error:conflict"));
-        problem.setProperty("timestamp", Instant.now());
-        return problem;
+        return buildProblemDetail(HttpStatus.CONFLICT, ex.getMessage(), "Conflict", "conflict");
     }
 
     /**
@@ -159,11 +140,6 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(Exception.class)
     public ProblemDetail handleGenericException(Exception ex) {
         log.error("Unexpected error", ex);
-        ProblemDetail problem = ProblemDetail.forStatusAndDetail(
-                HttpStatus.INTERNAL_SERVER_ERROR, "An unexpected error occurred");
-        problem.setTitle("Internal Server Error");
-        problem.setType(URI.create("urn:examplatform:error:internal"));
-        problem.setProperty("timestamp", Instant.now());
-        return problem;
+        return buildProblemDetail(HttpStatus.INTERNAL_SERVER_ERROR, "An unexpected error occurred", "Internal Server Error", "internal");
     }
 }

@@ -105,50 +105,11 @@ public class RoleManagementService {
             assignment.setTenantId(tenantId);
             roleAssignmentRepository.save(assignment);
 
-            // Audit event
-            auditEventPublisher.publish(
-                    AuditEventType.ROLE_CHANGE,
-                    actorId,
-                    "identity:roles/" + targetUserId,
-                    null, null,
-                    Map.of("tenantId", tenantId, "action", "ASSIGN",
-                            "targetUserId", targetUserId.toString(),
-                            "role", request.getRole().name())
-            );
-
-            log.info("Role [{}] assigned to user [{}] by admin [{}] in tenant [{}]",
-                    request.getRole(), targetUserId, actorId, tenantId);
-
-            return RoleAssignmentResponse.builder()
-                    .userId(targetUserId)
-                    .role(request.getRole())
-                    .action(RoleAction.ASSIGN)
-                    .message("Role " + request.getRole() + " assigned successfully.")
-                    .build();
+            return buildRoleChangeResponse(targetUserId, request.getRole(), RoleAction.ASSIGN, actorId, tenantId, "assigned to");
 
         } else if (request.getAction() == RoleAction.REVOKE) {
             roleAssignmentRepository.deleteByUserIdAndRoleAndTenantId(targetUserId, request.getRole(), tenantId);
-
-            // Audit event
-            auditEventPublisher.publish(
-                    AuditEventType.ROLE_CHANGE,
-                    actorId,
-                    "identity:roles/" + targetUserId,
-                    null, null,
-                    Map.of("tenantId", tenantId, "action", "REVOKE",
-                            "targetUserId", targetUserId.toString(),
-                            "role", request.getRole().name())
-            );
-
-            log.info("Role [{}] revoked from user [{}] by admin [{}] in tenant [{}]",
-                    request.getRole(), targetUserId, actorId, tenantId);
-
-            return RoleAssignmentResponse.builder()
-                    .userId(targetUserId)
-                    .role(request.getRole())
-                    .action(RoleAction.REVOKE)
-                    .message("Role " + request.getRole() + " revoked successfully.")
-                    .build();
+            return buildRoleChangeResponse(targetUserId, request.getRole(), RoleAction.REVOKE, actorId, tenantId, "revoked from");
         }
 
         throw new IllegalArgumentException("Unsupported role action: " + request.getAction());
@@ -184,46 +145,11 @@ public class RoleManagementService {
                 )));
 
         return accounts.stream()
-                .map(account -> {
-                    String fullName = (account.getFullName() != null && !account.getFullName().isBlank())
-                            ? account.getFullName()
-                            : account.getUsername();
-                    String email = (account.getEmail() != null && !account.getEmail().isBlank())
-                            ? account.getEmail()
-                            : (account.getUsername() != null && account.getUsername().contains("@") ? account.getUsername() : account.getUsername() + "@assessmentgrid.gov.in");
-                    String phone = (account.getPhoneNumber() != null && !account.getPhoneNumber().isBlank())
-                            ? account.getPhoneNumber()
-                            : "+91 98765 43210";
-                    String dept = (account.getDepartment() != null && !account.getDepartment().isBlank())
-                            ? account.getDepartment()
-                            : "National Examination Authority";
-                    String spec = (account.getSpecialization() != null && !account.getSpecialization().isBlank())
-                            ? account.getSpecialization()
-                            : "Assessment System Administration";
-                    return UserAccountResponse.builder()
-                            .id(account.getId())
-                            .username(account.getUsername())
-                            .email(email)
-                            .fullName(fullName)
-                            .phoneNumber(phone)
-                            .department(dept)
-                            .designation(account.getDesignation() != null ? account.getDesignation() : "Senior Examination Administrator")
-                            .avatarUrl(account.getAvatarUrl())
-                            .timezone(account.getTimezone() != null ? account.getTimezone() : "Asia/Kolkata")
-                            .dateFormat(account.getDateFormat() != null ? account.getDateFormat() : "DD/MM/YYYY")
-                            .timeFormat(account.getTimeFormat() != null ? account.getTimeFormat() : "24h")
-                            .preferredLanguage(account.getPreferredLanguage() != null ? account.getPreferredLanguage() : "en")
-                            .themePreference(account.getThemePreference() != null ? account.getThemePreference() : "system")
-                            .accountStatus(account.getAccountStatus() != null ? account.getAccountStatus().name() : "ACTIVE")
-                            .specialization(spec)
-                            .mfaEnabled(account.isMfaEnabled())
-                            .twoFactorMethod(account.isMfaEnabled() ? "TOTP" : null)
-                            .roles(rolesByUser.getOrDefault(account.getId(), List.of("SUPER_ADMIN")))
-                            .tenantId(account.getTenantId() != null ? account.getTenantId() : effectiveTenant)
-                            .createdAt(account.getCreatedAt())
-                            .lastLoginAt(account.getUpdatedAt() != null ? account.getUpdatedAt() : account.getCreatedAt())
-                            .build();
-                })
+                .map(account -> toUserAccountResponse(
+                        account,
+                        rolesByUser.getOrDefault(account.getId(), List.of("SUPER_ADMIN")),
+                        effectiveTenant
+                ))
                 .toList();
     }
 
@@ -242,6 +168,10 @@ public class RoleManagementService {
             roles = List.of("SUPER_ADMIN");
         }
 
+        return toUserAccountResponse(account, roles, effectiveTenant);
+    }
+
+    private UserAccountResponse toUserAccountResponse(UserAccount account, List<String> roles, String effectiveTenant) {
         String fullName = (account.getFullName() != null && !account.getFullName().isBlank())
                 ? account.getFullName()
                 : account.getUsername();
@@ -250,23 +180,26 @@ public class RoleManagementService {
                 : (account.getUsername() != null && account.getUsername().contains("@")
                         ? account.getUsername()
                         : account.getUsername().toLowerCase().replace(" ", ".") + "@assessmentgrid.gov.in");
-        String phoneNumber = (account.getPhoneNumber() != null && !account.getPhoneNumber().isBlank())
+        String phone = (account.getPhoneNumber() != null && !account.getPhoneNumber().isBlank())
                 ? account.getPhoneNumber()
                 : "+91 98765 43210";
-        String department = (account.getDepartment() != null && !account.getDepartment().isBlank())
+        String dept = (account.getDepartment() != null && !account.getDepartment().isBlank())
                 ? account.getDepartment()
                 : "National Examination Authority";
-        String specialization = (account.getSpecialization() != null && !account.getSpecialization().isBlank())
+        String spec = (account.getSpecialization() != null && !account.getSpecialization().isBlank())
                 ? account.getSpecialization()
                 : "Assessment System Administration";
+        List<String> effectiveRoles = (roles != null && !roles.isEmpty())
+                ? roles
+                : List.of("SUPER_ADMIN");
 
         return UserAccountResponse.builder()
                 .id(account.getId())
                 .username(account.getUsername())
                 .email(email)
                 .fullName(fullName)
-                .phoneNumber(phoneNumber)
-                .department(department)
+                .phoneNumber(phone)
+                .department(dept)
                 .designation(account.getDesignation() != null ? account.getDesignation() : "Senior Examination Administrator")
                 .avatarUrl(account.getAvatarUrl())
                 .timezone(account.getTimezone() != null ? account.getTimezone() : "Asia/Kolkata")
@@ -275,10 +208,10 @@ public class RoleManagementService {
                 .preferredLanguage(account.getPreferredLanguage() != null ? account.getPreferredLanguage() : "en")
                 .themePreference(account.getThemePreference() != null ? account.getThemePreference() : "system")
                 .accountStatus(account.getAccountStatus() != null ? account.getAccountStatus().name() : "ACTIVE")
-                .specialization(specialization)
+                .specialization(spec)
                 .mfaEnabled(account.isMfaEnabled())
                 .twoFactorMethod(account.isMfaEnabled() ? "TOTP" : null)
-                .roles(roles)
+                .roles(effectiveRoles)
                 .tenantId(account.getTenantId() != null ? account.getTenantId() : effectiveTenant)
                 .createdAt(account.getCreatedAt())
                 .lastLoginAt(account.getUpdatedAt() != null ? account.getUpdatedAt() : account.getCreatedAt())
@@ -292,39 +225,19 @@ public class RoleManagementService {
         String effectiveTenant = (tenantId != null && !tenantId.isBlank()) ? tenantId : "default";
         UserAccount account = findAccountByIdentifier(userIdentifier, effectiveTenant);
 
-        if (request.getFullName() != null && !request.getFullName().isBlank()) {
-            account.setFullName(request.getFullName().trim());
-        }
-        if (request.getEmail() != null && !request.getEmail().isBlank()) {
-            account.setEmail(request.getEmail().trim());
-        }
-        if (request.getPhoneNumber() != null && !request.getPhoneNumber().isBlank()) {
-            account.setPhoneNumber(request.getPhoneNumber().trim());
-        }
-        if (request.getDepartment() != null && !request.getDepartment().isBlank()) {
-            account.setDepartment(request.getDepartment().trim());
-        }
-        if (request.getDesignation() != null && !request.getDesignation().isBlank()) {
-            account.setDesignation(request.getDesignation().trim());
-        }
+        applyIfPresent(account::setFullName, request.getFullName());
+        applyIfPresent(account::setEmail, request.getEmail());
+        applyIfPresent(account::setPhoneNumber, request.getPhoneNumber());
+        applyIfPresent(account::setDepartment, request.getDepartment());
+        applyIfPresent(account::setDesignation, request.getDesignation());
         if (request.getAvatarUrl() != null) {
             account.setAvatarUrl(request.getAvatarUrl().trim());
         }
-        if (request.getTimezone() != null && !request.getTimezone().isBlank()) {
-            account.setTimezone(request.getTimezone().trim());
-        }
-        if (request.getDateFormat() != null && !request.getDateFormat().isBlank()) {
-            account.setDateFormat(request.getDateFormat().trim());
-        }
-        if (request.getTimeFormat() != null && !request.getTimeFormat().isBlank()) {
-            account.setTimeFormat(request.getTimeFormat().trim());
-        }
-        if (request.getPreferredLanguage() != null && !request.getPreferredLanguage().isBlank()) {
-            account.setPreferredLanguage(request.getPreferredLanguage().trim());
-        }
-        if (request.getThemePreference() != null && !request.getThemePreference().isBlank()) {
-            account.setThemePreference(request.getThemePreference().trim());
-        }
+        applyIfPresent(account::setTimezone, request.getTimezone());
+        applyIfPresent(account::setDateFormat, request.getDateFormat());
+        applyIfPresent(account::setTimeFormat, request.getTimeFormat());
+        applyIfPresent(account::setPreferredLanguage, request.getPreferredLanguage());
+        applyIfPresent(account::setThemePreference, request.getThemePreference());
         if (request.getSpecialization() != null) {
             account.setSpecialization(request.getSpecialization().trim());
         }
@@ -400,6 +313,12 @@ public class RoleManagementService {
         String effectiveTenant = (tenantId != null && !tenantId.isBlank()) ? tenantId : "default";
         UserAccount account = findAccountByIdentifier(userIdentifier, effectiveTenant);
         log.info("Revoking other sessions for user [{}] in tenant [{}]", account.getId(), effectiveTenant);
+    }
+
+    private void applyIfPresent(java.util.function.Consumer<String> setter, String value) {
+        if (value != null && !value.isBlank()) {
+            setter.accept(value.trim());
+        }
     }
 
     private UserAccount findAccountByIdentifier(String identifier, String tenantId) {
@@ -494,5 +413,28 @@ public class RoleManagementService {
                 .toList();
 
         return subjectMatched.isEmpty() ? allReviewers : subjectMatched;
+    }
+    private RoleAssignmentResponse buildRoleChangeResponse(
+            UUID targetUserId, UserRole role, RoleAction action,
+            String actorId, String tenantId, String actionPastText) {
+        auditEventPublisher.publish(
+                AuditEventType.ROLE_CHANGE,
+                actorId,
+                "identity:roles/" + targetUserId,
+                null, null,
+                Map.of("tenantId", tenantId, "action", action.name(),
+                        "targetUserId", targetUserId.toString(),
+                        "role", role.name())
+        );
+
+        log.info("Role [{}] {} user [{}] by admin [{}] in tenant [{}]",
+                role, actionPastText, targetUserId, actorId, tenantId);
+
+        return RoleAssignmentResponse.builder()
+                .userId(targetUserId)
+                .role(role)
+                .action(action)
+                .message("Role " + role + " " + (action == RoleAction.ASSIGN ? "assigned" : "revoked") + " successfully.")
+                .build();
     }
 }

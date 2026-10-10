@@ -44,28 +44,28 @@ public class GeoCountry {
     @Column(name = "id")
     private Long id;
 
-    @Column(name = "name", nullable = false, length = 100)
+    @Column(name = "name", nullable = false)
     private String name;
 
-    @Column(name = "iso2", length = 2)
+    @Column(name = "iso2")
     private String iso2;
 
-    @Column(name = "iso3", length = 3)
+    @Column(name = "iso3")
     private String iso3;
 
-    @Column(name = "phone_code", length = 20)
+    @Column(name = "phone_code")
     private String phoneCode;
 
-    @Column(name = "capital", length = 100)
+    @Column(name = "capital")
     private String capital;
 
-    @Column(name = "currency", length = 50)
+    @Column(name = "currency")
     private String currency;
 
-    @Column(name = "region", length = 100)
+    @Column(name = "region")
     private String region;
 
-    @Column(name = "subregion", length = 100)
+    @Column(name = "subregion")
     private String subregion;
 
     @Column(name = "active", nullable = false)

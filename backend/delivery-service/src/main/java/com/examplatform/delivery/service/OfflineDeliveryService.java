@@ -19,6 +19,7 @@
 
 package com.examplatform.delivery.service;
 
+import com.examplatform.shared.crypto.VaultCryptoService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;

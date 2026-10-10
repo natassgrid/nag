@@ -19,6 +19,8 @@
 
 package com.examplatform.identity.service;
 
+import com.examplatform.shared.crypto.HashingService;
+
 import com.examplatform.identity.config.SmsProperties;
 import com.examplatform.identity.domain.OtpVerification;
 import com.examplatform.identity.exception.RateLimitExceededException;
@@ -67,55 +69,17 @@ public class OtpService {
         // 0. Enforce weekly SMS quota if enabled
         msg91SmsService.enforceWeeklyRateLimit(userId, mobileHash);
 
-        // 1. Enforce 60s cooldown and daily resend limits
-        otpRedisService.checkAndEnforceCooldown(identifier);
-        otpRedisService.checkAndIncrementDailyResend(identifier);
-
-        // 2. Generate 6-digit OTP
-        String otp = String.format("%06d", new SecureRandom().nextInt(1_000_000));
-        String otpHash = hashingService.sha256(otp);
-
-        // 3. Store in Redis
-        otpRedisService.storeEmailOtp(identifier, otpHash);
-        if (userId != null && mobileHash != null && !mobileHash.isBlank()) {
-            otpRedisService.storeEmailOtp(mobileHash, otpHash);
-        }
-
-        // 4. Save to DB
-        OtpVerification verification = OtpVerification.builder()
-                .userId(userId)
-                .mobileHash(mobileHash)
-                .emailHash("")
-                .otpType("MOBILE")
-                .channel("SMS")
-                .targetDestination(mobileNumber)
-                .otpHash(otpHash)
-                .expiresAt(LocalDateTime.now().plusMinutes(OTP_EXPIRY_MINUTES))
-                .verified(false)
-                .build();
-        verification.setTenantId(effectiveTenant);
-        otpVerificationRepository.save(verification);
+        GeneratedOtp generatedOtp = generateAndPersistOtp(
+                userId, identifier, mobileHash, mobileHash, "", "MOBILE", "SMS", mobileNumber, effectiveTenant);
 
         // 5. Dispatch SMS
         if (mobileNumber != null && !mobileNumber.isBlank()) {
-            msg91SmsService.sendSmsOtp(mobileNumber, otp);
+            msg91SmsService.sendSmsOtp(mobileNumber, generatedOtp.rawOtp());
         }
 
         // 6. Publish event
-        var notificationEvent = Map.of(
-                "eventType", "SMS_OTP_SEND",
-                "userId", userId != null ? userId.toString() : "",
-                "mobileHash", mobileHash != null ? mobileHash : "",
-                "tenantId", effectiveTenant,
-                "channel", "SMS",
-                "otpHash", otpHash,
-                "expiresAt", verification.getExpiresAt().toString()
-        );
-        try {
-            eventPublisher.publish(NOTIFICATIONS_TOPIC, userId != null ? userId.toString() : "anonymous", notificationEvent);
-        } catch (Exception ex) {
-            log.error("Failed to publish SMS OTP notification for user {}", userId, ex);
-        }
+        publishOtpEvent("SMS_OTP_SEND", userId, "mobileHash", mobileHash, effectiveTenant, "SMS",
+                generatedOtp.otpHash(), generatedOtp.verification().getExpiresAt());
 
         log.info("SMS OTP dispatched for user [{}] in tenant [{}], remaining weekly SMS: {}",
                 userId, effectiveTenant, msg91SmsService.getRemainingSmsCount(userId, mobileHash));
@@ -131,57 +95,83 @@ public class OtpService {
         String effectiveTenant = (tenantId != null && !tenantId.isBlank()) ? tenantId : "default";
         String identifier = (userId != null) ? (userId + ":EMAIL") : (effectiveTenant + ":EMAIL:" + (emailHash != null ? emailHash : "anonymous"));
 
-        // 1. Enforce 60s resend cooldown and 5/24h daily quota in Redis
+        GeneratedOtp generatedOtp = generateAndPersistOtp(
+                userId, identifier, emailHash, "", emailHash, "EMAIL", "EMAIL", email, effectiveTenant);
+
+        // 5. Send Email with direct verification link via Gmail SMTP / Mock
+        if (email != null && !email.isBlank()) {
+            identityEmailService.sendCandidateEmailOtp(email, generatedOtp.rawOtp(), candidateName, userId);
+        }
+
+        publishOtpEvent("EMAIL_OTP_SEND", userId, "emailHash", emailHash, effectiveTenant, "EMAIL",
+                generatedOtp.otpHash(), generatedOtp.verification().getExpiresAt());
+
+        log.info("Email OTP dispatched for user [{}] / identifier [{}] in tenant [{}]", userId, identifier, effectiveTenant);
+    }
+
+    private record GeneratedOtp(String rawOtp, String otpHash, OtpVerification verification) {}
+
+    private GeneratedOtp generateAndPersistOtp(
+            UUID userId,
+            String identifier,
+            String fallbackKey,
+            String mobileHash,
+            String emailHash,
+            String otpType,
+            String channel,
+            String targetDestination,
+            String effectiveTenant) {
         otpRedisService.checkAndEnforceCooldown(identifier);
         otpRedisService.checkAndIncrementDailyResend(identifier);
 
-        // 2. Generate cryptographically secure 6-digit OTP
         String otp = String.format("%06d", new SecureRandom().nextInt(1_000_000));
         String otpHash = hashingService.sha256(otp);
 
-        // 3. Store hashed OTP in Redis with 10-minute TTL
         otpRedisService.storeEmailOtp(identifier, otpHash);
-        if (userId != null && emailHash != null && !emailHash.isBlank()) {
-            otpRedisService.storeEmailOtp(emailHash, otpHash);
+        if (userId != null && fallbackKey != null && !fallbackKey.isBlank()) {
+            otpRedisService.storeEmailOtp(fallbackKey, otpHash);
         }
 
-        // 4. Save to PostgreSQL for audit trail
         OtpVerification verification = OtpVerification.builder()
                 .userId(userId)
-                .emailHash(emailHash)
-                .mobileHash("") // non-null schema requirement fallback
-                .otpType("EMAIL")
-                .channel("EMAIL")
-                .targetDestination(email)
+                .mobileHash(mobileHash != null ? mobileHash : "")
+                .emailHash(emailHash != null ? emailHash : "")
+                .otpType(otpType)
+                .channel(channel)
+                .targetDestination(targetDestination)
                 .otpHash(otpHash)
                 .expiresAt(LocalDateTime.now().plusMinutes(OTP_EXPIRY_MINUTES))
                 .verified(false)
                 .build();
         verification.setTenantId(effectiveTenant);
-
         otpVerificationRepository.save(verification);
 
-        // 5. Send Email with direct verification link via Gmail SMTP / Mock
-        if (email != null && !email.isBlank()) {
-            identityEmailService.sendCandidateEmailOtp(email, otp, candidateName, userId);
-        }
+        return new GeneratedOtp(otp, otpHash, verification);
+    }
 
+    private void publishOtpEvent(
+            String eventType,
+            UUID userId,
+            String hashKey,
+            String hashValue,
+            String effectiveTenant,
+            String channel,
+            String otpHash,
+            LocalDateTime expiresAt) {
         var notificationEvent = Map.of(
-                "eventType", "EMAIL_OTP_SEND",
+                "eventType", eventType,
                 "userId", userId != null ? userId.toString() : "",
-                "emailHash", emailHash != null ? emailHash : "",
+                hashKey, hashValue != null ? hashValue : "",
                 "tenantId", effectiveTenant,
-                "channel", "EMAIL",
+                "channel", channel,
                 "otpHash", otpHash,
-                "expiresAt", verification.getExpiresAt().toString()
+                "expiresAt", expiresAt != null ? expiresAt.toString() : ""
         );
         try {
             eventPublisher.publish(NOTIFICATIONS_TOPIC, userId != null ? userId.toString() : "anonymous", notificationEvent);
         } catch (Exception ex) {
-            log.error("Failed to publish Email OTP notification for user {}", userId, ex);
+            log.error("Failed to publish {} OTP notification for user {}", channel, userId, ex);
         }
-
-        log.info("Email OTP dispatched for user [{}] / identifier [{}] in tenant [{}]", userId, identifier, effectiveTenant);
     }
 
     /**

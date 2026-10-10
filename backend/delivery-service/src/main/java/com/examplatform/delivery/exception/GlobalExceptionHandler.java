@@ -19,26 +19,21 @@
 
 package com.examplatform.delivery.exception;
 
+import com.examplatform.shared.error.BaseErrorEnvelopeExceptionHandler;
 import com.examplatform.shared.error.ErrorEnvelope;
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.access.AccessDeniedException;
-import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.MissingRequestHeaderException;
 import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
-import java.util.NoSuchElementException;
-
 /**
  * Global exception handler for the delivery-service REST API.
  * Maps domain exceptions to appropriate HTTP status codes and structured ErrorEnvelope responses.
  */
-@Slf4j
 @RestControllerAdvice(basePackages = "com.examplatform.delivery")
-public class GlobalExceptionHandler {
+public class GlobalExceptionHandler extends BaseErrorEnvelopeExceptionHandler {
 
     @ExceptionHandler(ConcurrentSessionException.class)
     public ResponseEntity<ErrorEnvelope> handleConcurrentSession(ConcurrentSessionException ex) {
@@ -52,22 +47,7 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(NavigationPolicyViolationException.class)
     public ResponseEntity<ErrorEnvelope> handleNavigationPolicyViolation(NavigationPolicyViolationException ex) {
         log.warn("Navigation policy violation: {}", ex.getMessage());
-        return ResponseEntity.status(HttpStatus.UNPROCESSABLE_ENTITY)
-                .body(ErrorEnvelope.of("NAVIGATION_POLICY_VIOLATION", ex.getMessage(), HttpStatus.UNPROCESSABLE_ENTITY.value()));
-    }
-
-    @ExceptionHandler(NoSuchElementException.class)
-    public ResponseEntity<ErrorEnvelope> handleNotFound(NoSuchElementException ex) {
-        log.warn("Resource not found: {}", ex.getMessage());
-        return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                .body(ErrorEnvelope.of("NOT_FOUND", ex.getMessage(), HttpStatus.NOT_FOUND.value()));
-    }
-
-    @ExceptionHandler(AccessDeniedException.class)
-    public ResponseEntity<ErrorEnvelope> handleAccessDenied(AccessDeniedException ex) {
-        log.warn("Access denied: {}", ex.getMessage());
-        return ResponseEntity.status(HttpStatus.FORBIDDEN)
-                .body(ErrorEnvelope.of("ACCESS_DENIED", "Access denied", HttpStatus.FORBIDDEN.value()));
+        return buildEnvelope("NAVIGATION_POLICY_VIOLATION", ex.getMessage(), HttpStatus.UNPROCESSABLE_ENTITY);
     }
 
     @ExceptionHandler({
@@ -76,25 +56,6 @@ public class GlobalExceptionHandler {
     })
     public ResponseEntity<ErrorEnvelope> handleMissingRequestValues(Exception ex) {
         log.warn("Missing required request parameter or header: {}", ex.getMessage());
-        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                .body(ErrorEnvelope.of("BAD_REQUEST", ex.getMessage(), HttpStatus.BAD_REQUEST.value()));
-    }
-
-    @ExceptionHandler(MethodArgumentNotValidException.class)
-    public ResponseEntity<ErrorEnvelope> handleValidation(MethodArgumentNotValidException ex) {
-        String message = ex.getBindingResult().getFieldErrors().stream()
-                .map(fe -> fe.getField() + ": " + fe.getDefaultMessage())
-                .reduce((a, b) -> a + "; " + b)
-                .orElse("Validation failed");
-        log.warn("Validation error: {}", message);
-        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                .body(ErrorEnvelope.of("VALIDATION_ERROR", message, HttpStatus.BAD_REQUEST.value()));
-    }
-
-    @ExceptionHandler(Exception.class)
-    public ResponseEntity<ErrorEnvelope> handleGeneric(Exception ex) {
-        log.error("Unhandled exception: {}", ex.getMessage(), ex);
-        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body(ErrorEnvelope.of("INTERNAL_ERROR", "An unexpected error occurred", HttpStatus.INTERNAL_SERVER_ERROR.value()));
+        return buildEnvelope("BAD_REQUEST", ex.getMessage(), HttpStatus.BAD_REQUEST);
     }
 }

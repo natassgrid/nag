@@ -22,6 +22,8 @@ package com.examplatform.candidate.service;
 import com.examplatform.candidate.domain.CandidateProfile;
 import com.examplatform.candidate.exception.ProfileNotFoundException;
 import com.examplatform.candidate.repository.CandidateProfileRepository;
+import com.examplatform.shared.crypto.HashingService;
+import com.examplatform.shared.crypto.VaultCryptoService;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;

@@ -82,10 +82,8 @@ public class RoleController {
             @RequestParam(defaultValue = "20") int size,
             @RequestParam(defaultValue = "") String search,
             @RequestHeader(value = "X-Tenant-Id", defaultValue = "default") String tenantId) {
-        log.debug("List roles request: tenant [{}], page [{}], size [{}], search [{}]",
-                tenantId, page, size, search);
-        Page<RoleDefinitionResponse> roles = roleDefinitionService.listRoles(tenantId, page, size, search);
-        return ResponseEntity.ok(ApiResponse.success(roles));
+        log.info("Listing roles for tenant: {}, page: {}, size: {}", tenantId, page, size);
+        return okPayload(roleDefinitionService.listRoles(tenantId, page, size, search));
     }
 
     /**
@@ -110,12 +108,10 @@ public class RoleController {
             @Valid @RequestBody CreateRoleRequest request,
             @RequestHeader(value = "X-Tenant-Id", defaultValue = "default") String tenantId,
             Authentication authentication) {
-        String actorId = authentication.getName();
         log.debug("Create role request: actor [{}], code [{}], tenant [{}]",
-                actorId, request.getCode(), tenantId);
-        RoleDefinitionResponse response = roleDefinitionService.createRole(request, actorId, tenantId);
+                authentication.getName(), request.getCode(), tenantId);
         return ResponseEntity.status(HttpStatus.CREATED)
-                .body(ApiResponse.success(response, "Role created successfully."));
+                .body(ApiResponse.success(roleDefinitionService.createRole(request, authentication.getName(), tenantId), "Role created successfully."));
     }
 
     /**
@@ -128,10 +124,8 @@ public class RoleController {
             @Valid @RequestBody UpdateRoleRequest request,
             @RequestHeader(value = "X-Tenant-Id", defaultValue = "default") String tenantId,
             Authentication authentication) {
-        String actorId = authentication.getName();
-        log.debug("Update role request: actor [{}], roleId [{}], tenant [{}]", actorId, roleId, tenantId);
-        RoleDefinitionResponse response = roleDefinitionService.updateRole(roleId, request, actorId, tenantId);
-        return ResponseEntity.ok(ApiResponse.success(response, "Role updated successfully."));
+        log.debug("Update role request: actor [{}], roleId [{}], tenant [{}]", authentication.getName(), roleId, tenantId);
+        return ResponseEntity.ok(ApiResponse.success(roleDefinitionService.updateRole(roleId, request, authentication.getName(), tenantId), "Role updated successfully."));
     }
 
     /**
@@ -143,9 +137,8 @@ public class RoleController {
             @PathVariable UUID roleId,
             @RequestHeader(value = "X-Tenant-Id", defaultValue = "default") String tenantId,
             Authentication authentication) {
-        String actorId = authentication.getName();
-        log.debug("Delete role request: actor [{}], roleId [{}], tenant [{}]", actorId, roleId, tenantId);
-        roleDefinitionService.deleteRole(roleId, actorId, tenantId);
+        log.debug("Delete role request: actor [{}], roleId [{}], tenant [{}]", authentication.getName(), roleId, tenantId);
+        roleDefinitionService.deleteRole(roleId, authentication.getName(), tenantId);
         return ResponseEntity.ok(ApiResponse.success(null, "Role deleted successfully."));
     }
 
@@ -163,10 +156,12 @@ public class RoleController {
             @RequestParam(defaultValue = "50") int size,
             @RequestParam(defaultValue = "") String search,
             @RequestHeader(value = "X-Tenant-Id", defaultValue = "default") String tenantId) {
-        log.debug("List permissions request: tenant [{}], page [{}], size [{}], search [{}]",
-                tenantId, page, size, search);
-        Page<PermissionResponse> permissions = roleDefinitionService.listPermissions(tenantId, page, size, search);
-        return ResponseEntity.ok(ApiResponse.success(permissions));
+        log.info("Listing system permissions for tenant: {}, search: '{}'", tenantId, search);
+        return okPayload(roleDefinitionService.listPermissions(tenantId, page, size, search));
+    }
+
+    private static <T> ResponseEntity<ApiResponse<T>> okPayload(T body) {
+        return ResponseEntity.ok(ApiResponse.success(body));
     }
 
     // ===================================================================

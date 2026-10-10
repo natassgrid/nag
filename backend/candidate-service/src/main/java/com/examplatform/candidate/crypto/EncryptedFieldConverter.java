@@ -28,7 +28,7 @@ import lombok.extern.slf4j.Slf4j;
  * PII fields using Vault Transit (AES-256-GCM).
  *
  * <p>Because JPA converters are instantiated by Hibernate (not Spring),
- * this class obtains the {@link com.examplatform.candidate.service.VaultCryptoService}
+ * this class obtains the {@link com.examplatform.shared.crypto.VaultCryptoService}
  * via the static {@link VaultCryptoServiceHolder}.
  *
  * <p>Apply on entity fields with:

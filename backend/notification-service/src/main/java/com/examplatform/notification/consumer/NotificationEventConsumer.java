@@ -79,17 +79,7 @@ public class NotificationEventConsumer {
     public void onRabbitNotificationEvent(Object message) {
         log.info("Received RabbitMQ notification event: {}", message);
         try {
-            String payload;
-            if (message instanceof Message amqpMsg) {
-                payload = new String(amqpMsg.getBody(), StandardCharsets.UTF_8);
-            } else if (message instanceof byte[] bytes) {
-                payload = new String(bytes, StandardCharsets.UTF_8);
-            } else if (message instanceof String s) {
-                payload = s;
-            } else {
-                payload = objectMapper.writeValueAsString(message);
-            }
-            notificationProcessingService.processEvent(payload);
+            notificationProcessingService.processEvent(com.examplatform.shared.messaging.MessagePayloadExtractor.extractPayload(message, objectMapper));
         } catch (Exception e) {
             log.error("Failed to process RabbitMQ notification event: {}", e.getMessage(), e);
         }
@@ -107,18 +97,7 @@ public class NotificationEventConsumer {
         }
         log.info("Received Spring in-memory notification event for key: {}", event.key());
         try {
-            Object payload = event.payload();
-            String message;
-            if (payload instanceof Message amqpMsg) {
-                message = new String(amqpMsg.getBody(), StandardCharsets.UTF_8);
-            } else if (payload instanceof byte[] bytes) {
-                message = new String(bytes, StandardCharsets.UTF_8);
-            } else if (payload instanceof String s) {
-                message = s;
-            } else {
-                message = objectMapper.writeValueAsString(payload);
-            }
-            notificationProcessingService.processEvent(message);
+            notificationProcessingService.processEvent(com.examplatform.shared.messaging.MessagePayloadExtractor.extractPayload(event.payload(), objectMapper));
         } catch (Exception e) {
             log.error("Failed to process in-memory notification event: {}", e.getMessage(), e);
         }

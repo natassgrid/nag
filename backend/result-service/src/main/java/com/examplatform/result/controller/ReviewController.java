@@ -146,20 +146,7 @@ public class ReviewController {
     }
 
     private void validateReviewAccess(UUID candidateId, Authentication auth) {
-        if (auth == null) {
-            return;
-        }
-
-        boolean isElevated = auth.getAuthorities().stream()
-                .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN")
-                        || a.getAuthority().equals("ROLE_SUPER_ADMIN")
-                        || a.getAuthority().equals("ROLE_EXAM_CONTROLLER"));
-
-        if (!isElevated && auth.getPrincipal() instanceof Jwt jwt) {
-            String userId = jwt.getSubject();
-            if (userId != null && !userId.equals(candidateId.toString())) {
-                throw new AccessDeniedException("Candidates can only access their own exam reviews");
-            }
-        }
+        ResultAccessSecurityHelper.validateCandidateAccess(
+                candidateId, auth, "Candidates can only access their own exam reviews");
     }
 }
