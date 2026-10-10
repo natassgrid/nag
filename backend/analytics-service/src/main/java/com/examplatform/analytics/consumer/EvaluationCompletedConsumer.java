@@ -23,7 +23,6 @@ import com.examplatform.analytics.service.AnalyticsService;
 import com.examplatform.shared.messaging.GenericDomainEvent;
 import com.examplatform.shared.messaging.MessagePayloadExtractor;
 import com.examplatform.shared.util.DataConversionUtils;
-import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -45,10 +44,7 @@ import java.util.Map;
 import java.util.UUID;
 
 /**
- * Consumer for the {@code exam.evaluation.completed} event topic.
- * Ingests evaluation completed messages, persists candidate result records,
- * and updates real-time analytics aggregation.
- * Supports Kafka, RabbitMQ, and in-memory Spring events.
+ * Ingests evaluation completed messages and updates analytics aggregations.
  */
 @Slf4j
 @Component
@@ -60,12 +56,6 @@ public class EvaluationCompletedConsumer {
     private final AnalyticsService analyticsService;
     private final ObjectMapper objectMapper;
 
-    /**
-     * Consumes EVALUATION_COMPLETED events via Kafka.
-     *
-     * @param payload the JSON string payload
-     * @param key     the partition key (e.g. sessionId or candidateId)
-     */
     @KafkaListener(
             topics = EVALUATION_COMPLETED_TOPIC,
             groupId = "analytics-service-evaluation-consumer",
@@ -74,15 +64,10 @@ public class EvaluationCompletedConsumer {
     public void onEvaluationCompleted(
             @Payload String payload,
             @Header(value = KafkaHeaders.RECEIVED_KEY, required = false) String key) {
-        log.info("Received Kafka EVALUATION_COMPLETED event: key={}", key);
+        log.info("Ingesting analytics for evaluation completed: key={}", key);
         processEvaluationCompleted(payload, key);
     }
 
-    /**
-     * Consumes EVALUATION_COMPLETED events via RabbitMQ.
-     *
-     * @param message the event payload (Message, byte[], String, or Map)
-     */
     @RabbitListener(
             bindings = @QueueBinding(
                     value = @Queue(value = "analytics.evaluation.events.queue", durable = "true"),
@@ -91,49 +76,26 @@ public class EvaluationCompletedConsumer {
             )
     )
     public void onRabbitEvaluationCompleted(Object message) {
-        log.info("Received RabbitMQ EVALUATION_COMPLETED event: {}", message);
-        try {
-            String payload = MessagePayloadExtractor.extractPayload(message, objectMapper);
-            processEvaluationCompleted(payload, null);
-        } catch (Exception e) {
-            log.error("Failed to process RabbitMQ EVALUATION_COMPLETED event: {}", e.getMessage(), e);
-        }
+        log.debug("Ingesting analytics via RabbitMQ: {}", message);
+        MessagePayloadExtractor.handleRabbitEvent(message, objectMapper, EVALUATION_COMPLETED_TOPIC,
+                payload -> processEvaluationCompleted(payload, null));
     }
 
-    /**
-     * Consumes EVALUATION_COMPLETED events via in-memory Spring events (monolith or test mode).
-     *
-     * @param event the in-memory generic domain event
-     */
     @EventListener
     public void onSpringEvaluationCompleted(GenericDomainEvent event) {
-        if (!EVALUATION_COMPLETED_TOPIC.equals(event.topic())) {
-            return;
-        }
-        log.info("Received Spring in-memory EVALUATION_COMPLETED event: key={}", event.key());
-        try {
-            String payload = MessagePayloadExtractor.extractPayload(event.payload(), objectMapper);
-            processEvaluationCompleted(payload, event.key());
-        } catch (Exception e) {
-            log.error("Failed to process Spring in-memory EVALUATION_COMPLETED event: {}", e.getMessage(), e);
-        }
+        log.debug("Ingesting analytics via Spring event: key={}", event.key());
+        MessagePayloadExtractor.handleSpringEvent(event, objectMapper, EVALUATION_COMPLETED_TOPIC,
+                this::processEvaluationCompleted);
     }
 
-    /**
-     * Parses the payload and delegates to {@link AnalyticsService}.
-     *
-     * @param payload JSON string payload
-     * @param key     message key
-     */
     public void processEvaluationCompleted(String payload, String key) {
         try {
-            Map<String, Object> event = objectMapper.readValue(payload, new TypeReference<>() {});
-            String eventType = (String) event.get("eventType");
-
-            if (!"EVALUATION_COMPLETED".equals(eventType)) {
-                log.debug("Ignoring non-EVALUATION_COMPLETED event: {}", eventType);
+            var eventOpt = MessagePayloadExtractor.parseEventIfMatching(payload, objectMapper, "EVALUATION_COMPLETED");
+            if (eventOpt.isEmpty()) {
+                log.debug("Ignoring non-matching or invalid payload: {}", payload);
                 return;
             }
+            Map<String, Object> event = eventOpt.get();
 
             UUID examId = DataConversionUtils.parseUUID(event.get("examId"));
             UUID candidateId = DataConversionUtils.parseUUID(event.get("candidateId"));

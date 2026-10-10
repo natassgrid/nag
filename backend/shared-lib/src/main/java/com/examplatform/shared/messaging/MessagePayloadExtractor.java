@@ -20,15 +20,22 @@
 package com.examplatform.shared.messaging;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.amqp.core.Message;
 
 import java.nio.charset.StandardCharsets;
+import java.util.Map;
+import java.util.Optional;
+import java.util.function.BiConsumer;
+import java.util.function.Consumer;
 
 /**
- * Utility to extract raw JSON string payloads from various message broker event objects
- * such as Spring AMQP {@link Message}, byte arrays, Strings, or domain objects.
+ * Utility to extract raw JSON string payloads and dispatch domain events from various message broker
+ * sources such as Spring AMQP {@link Message}, byte arrays, Strings, or domain objects.
  */
+@Slf4j
 public final class MessagePayloadExtractor {
 
     private MessagePayloadExtractor() {
@@ -59,5 +66,79 @@ public final class MessagePayloadExtractor {
         } catch (JsonProcessingException e) {
             throw new IllegalArgumentException("Failed to serialize message payload to JSON: " + e.getMessage(), e);
         }
+    }
+
+    /**
+     * Safely processes an AMQP RabbitMQ message by extracting its JSON payload and passing it to a consumer.
+     *
+     * @param message        the AMQP message object
+     * @param objectMapper   Jackson object mapper
+     * @param eventTopic     name of the topic for logging
+     * @param payloadHandler consumer receiving the extracted JSON payload
+     */
+    public static void handleRabbitEvent(
+            Object message,
+            ObjectMapper objectMapper,
+            String eventTopic,
+            Consumer<String> payloadHandler
+    ) {
+        try {
+            String payload = extractPayload(message, objectMapper);
+            payloadHandler.accept(payload);
+        } catch (Exception e) {
+            log.error("Failed to process RabbitMQ {} event: {}", eventTopic, e.getMessage(), e);
+        }
+    }
+
+    /**
+     * Safely processes an in-memory Spring event by verifying the topic and passing payload and key to a consumer.
+     *
+     * @param event          generic domain event
+     * @param objectMapper   Jackson object mapper
+     * @param expectedTopic  expected event topic
+     * @param payloadHandler consumer receiving (payload, key)
+     */
+    public static void handleSpringEvent(
+            GenericDomainEvent event,
+            ObjectMapper objectMapper,
+            String expectedTopic,
+            BiConsumer<String, String> payloadHandler
+    ) {
+        if (event == null || !expectedTopic.equals(event.topic())) {
+            return;
+        }
+        try {
+            String payload = extractPayload(event.payload(), objectMapper);
+            payloadHandler.accept(payload, event.key());
+        } catch (Exception e) {
+            log.error("Failed to process Spring in-memory {} event: {}", expectedTopic, e.getMessage(), e);
+        }
+    }
+
+    /**
+     * Parses a JSON payload and verifies that the {@code eventType} field matches the expected type.
+     *
+     * @param payload           JSON payload string
+     * @param objectMapper      Jackson object mapper
+     * @param expectedEventType expected eventType string (e.g. "EVALUATION_COMPLETED")
+     * @return an Optional containing the parsed Map if valid and matching, otherwise Optional.empty()
+     */
+    public static Optional<Map<String, Object>> parseEventIfMatching(
+            String payload,
+            ObjectMapper objectMapper,
+            String expectedEventType
+    ) {
+        if (payload == null || payload.isBlank()) {
+            return Optional.empty();
+        }
+        try {
+            Map<String, Object> event = objectMapper.readValue(payload, new TypeReference<>() {});
+            String eventType = (String) event.get("eventType");
+            if (expectedEventType.equals(eventType)) {
+                return Optional.of(event);
+            }
+        } catch (Exception ignored) {
+        }
+        return Optional.empty();
     }
 }

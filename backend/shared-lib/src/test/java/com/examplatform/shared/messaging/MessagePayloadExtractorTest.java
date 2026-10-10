@@ -26,6 +26,8 @@ import org.springframework.amqp.core.Message;
 
 import java.nio.charset.StandardCharsets;
 import java.util.Map;
+import java.util.Optional;
+import java.util.concurrent.atomic.AtomicReference;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -71,5 +73,69 @@ class MessagePayloadExtractorTest {
     void returnsNullForNull() {
         String result = MessagePayloadExtractor.extractPayload(null, objectMapper);
         assertThat(result).isNull();
+    }
+
+    @Test
+    @DisplayName("handleRabbitEvent extracts payload and invokes handler")
+    void handleRabbitEventSuccess() {
+        AtomicReference<String> handled = new AtomicReference<>();
+        MessagePayloadExtractor.handleRabbitEvent(
+                "{\"hello\":\"world\"}",
+                objectMapper,
+                "test.topic",
+                handled::set
+        );
+        assertThat(handled.get()).isEqualTo("{\"hello\":\"world\"}");
+    }
+
+    @Test
+    @DisplayName("handleSpringEvent extracts payload for matching topic")
+    void handleSpringEventMatching() {
+        AtomicReference<String> handledPayload = new AtomicReference<>();
+        AtomicReference<String> handledKey = new AtomicReference<>();
+
+        GenericDomainEvent event = new GenericDomainEvent("test.topic", "key123", "{\"score\":100}");
+        MessagePayloadExtractor.handleSpringEvent(
+                event,
+                objectMapper,
+                "test.topic",
+                (payload, key) -> {
+                    handledPayload.set(payload);
+                    handledKey.set(key);
+                }
+        );
+
+        assertThat(handledPayload.get()).isEqualTo("{\"score\":100}");
+        assertThat(handledKey.get()).isEqualTo("key123");
+    }
+
+    @Test
+    @DisplayName("handleSpringEvent ignores non-matching topic")
+    void handleSpringEventNonMatching() {
+        AtomicReference<String> handled = new AtomicReference<>();
+        GenericDomainEvent event = new GenericDomainEvent("other.topic", "key123", "{\"score\":100}");
+        MessagePayloadExtractor.handleSpringEvent(
+                event,
+                objectMapper,
+                "test.topic",
+                (payload, key) -> handled.set(payload)
+        );
+        assertThat(handled.get()).isNull();
+    }
+
+    @Test
+    @DisplayName("parseEventIfMatching returns payload map when eventType matches")
+    void parseEventIfMatchingSuccess() {
+        String json = "{\"eventType\":\"EVAL_DONE\",\"value\":42}";
+        Optional<Map<String, Object>> result = MessagePayloadExtractor.parseEventIfMatching(json, objectMapper, "EVAL_DONE");
+        assertThat(result).isPresent();
+        assertThat(result.get().get("eventType")).isEqualTo("EVAL_DONE");
+        assertThat(result.get().get("value")).isEqualTo(42);
+
+        Optional<Map<String, Object>> mismatch = MessagePayloadExtractor.parseEventIfMatching(json, objectMapper, "OTHER");
+        assertThat(mismatch).isEmpty();
+
+        assertThat(MessagePayloadExtractor.parseEventIfMatching(null, objectMapper, "EVAL_DONE")).isEmpty();
+        assertThat(MessagePayloadExtractor.parseEventIfMatching("invalid-json", objectMapper, "EVAL_DONE")).isEmpty();
     }
 }

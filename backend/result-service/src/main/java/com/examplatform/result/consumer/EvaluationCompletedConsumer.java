@@ -27,7 +27,6 @@ import com.examplatform.result.service.ResultComputationService;
 import com.examplatform.shared.messaging.GenericDomainEvent;
 import com.examplatform.shared.messaging.MessagePayloadExtractor;
 import com.examplatform.shared.util.DataConversionUtils;
-import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -52,12 +51,7 @@ import java.util.Optional;
 import java.util.UUID;
 
 /**
- * Consumer for the exam.evaluation.completed topic.
- * Triggered after evaluation-service completes scoring for a candidate's session.
- * Computes and persists the full diagnostic result record and invalidates question analytics cache.
- * Supports Kafka, RabbitMQ, and in-memory Spring events across deployment modes.
- *
- * Validates: SPEC-RS3 (EVALUATION_COMPLETED Consumer), Issue #111
+ * Computes and persists diagnostic scorecards and invalidates question analytics cache.
  */
 @Slf4j
 @Component
@@ -71,12 +65,6 @@ public class EvaluationCompletedConsumer {
     private final QuestionAnalyticsService questionAnalyticsService;
     private final ObjectMapper objectMapper;
 
-    /**
-     * Consumes EVALUATION_COMPLETED events via Kafka.
-     *
-     * @param payload  the event payload as JSON string
-     * @param key      the Kafka message key (sessionId)
-     */
     @KafkaListener(
             topics = EVALUATION_COMPLETED_TOPIC,
             groupId = "result-service-evaluation-consumer",
@@ -85,15 +73,10 @@ public class EvaluationCompletedConsumer {
     public void onEvaluationCompleted(
             @Payload String payload,
             @Header(value = KafkaHeaders.RECEIVED_KEY, required = false) String key) {
-        log.info("Received Kafka EVALUATION_COMPLETED event: key={}", key);
+        log.info("Computing result scorecard for evaluation completed: key={}", key);
         processEvaluationCompleted(payload, key);
     }
 
-    /**
-     * Consumes EVALUATION_COMPLETED events via RabbitMQ.
-     *
-     * @param message the event payload (String or Object map)
-     */
     @RabbitListener(
             bindings = @QueueBinding(
                     value = @Queue(value = "result.evaluation.events.queue", durable = "true"),
@@ -102,50 +85,26 @@ public class EvaluationCompletedConsumer {
             )
     )
     public void onRabbitEvaluationCompleted(Object message) {
-        log.info("Received RabbitMQ EVALUATION_COMPLETED event: {}", message);
-        try {
-            String payload = MessagePayloadExtractor.extractPayload(message, objectMapper);
-            processEvaluationCompleted(payload, null);
-        } catch (Exception e) {
-            log.error("Failed to process RabbitMQ EVALUATION_COMPLETED event: {}", e.getMessage(), e);
-        }
+        log.debug("Computing result scorecard via RabbitMQ: {}", message);
+        MessagePayloadExtractor.handleRabbitEvent(message, objectMapper, EVALUATION_COMPLETED_TOPIC,
+                payload -> processEvaluationCompleted(payload, null));
     }
 
-    /**
-     * Consumes EVALUATION_COMPLETED events via in-memory Spring events (monolith mode).
-     *
-     * @param event the in-memory generic domain event
-     */
     @EventListener
     public void onSpringEvaluationCompleted(GenericDomainEvent event) {
-        if (!EVALUATION_COMPLETED_TOPIC.equals(event.topic())) {
-            return;
-        }
-        log.info("Received Spring in-memory EVALUATION_COMPLETED event: key={}", event.key());
-        try {
-            String payload = MessagePayloadExtractor.extractPayload(event.payload(), objectMapper);
-            processEvaluationCompleted(payload, event.key());
-        } catch (Exception e) {
-            log.error("Failed to process Spring in-memory EVALUATION_COMPLETED event: {}", e.getMessage(), e);
-        }
+        log.debug("Computing result scorecard via Spring event: key={}", event.key());
+        MessagePayloadExtractor.handleSpringEvent(event, objectMapper, EVALUATION_COMPLETED_TOPIC,
+                this::processEvaluationCompleted);
     }
 
-    /**
-     * Core processing logic for EVALUATION_COMPLETED events.
-     * Idempotent: if a result already exists for the candidate+exam, it is skipped.
-     *
-     * @param payload the JSON string payload
-     * @param key     the event key (optional)
-     */
     public void processEvaluationCompleted(String payload, String key) {
         try {
-            Map<String, Object> event = objectMapper.readValue(payload, new TypeReference<>() {});
-            String eventType = (String) event.get("eventType");
-
-            if (!"EVALUATION_COMPLETED".equals(eventType)) {
-                log.debug("Ignoring non-EVALUATION_COMPLETED event: {}", eventType);
+            var eventOpt = MessagePayloadExtractor.parseEventIfMatching(payload, objectMapper, "EVALUATION_COMPLETED");
+            if (eventOpt.isEmpty()) {
+                log.debug("Ignoring non-matching or invalid payload: {}", payload);
                 return;
             }
+            Map<String, Object> event = eventOpt.get();
 
             UUID candidateId = UUID.fromString((String) event.get("candidateId"));
             UUID examId      = DataConversionUtils.parseUUID(event.get("examId"));
@@ -218,43 +177,17 @@ public class EvaluationCompletedConsumer {
                     .filter(q -> DataConversionUtils.toDouble(q.get("score")) > 0)
                     .count();
 
-            BigDecimal accuracyRate = totalAttempted > 0
-                    ? BigDecimal.valueOf((double) correct / totalAttempted * 100).setScale(2, RoundingMode.HALF_UP)
-                    : BigDecimal.ZERO;
+            BigDecimal accuracyRate = BigDecimal.valueOf(correct * 100.0 / totalAttempted)
+                    .setScale(2, RoundingMode.HALF_UP);
 
-            // Compute time analysis (if timeSpentMs present)
-            long totalTimeMs = questionLevelScores.stream()
-                    .mapToLong(q -> DataConversionUtils.toLong(q.get("timeSpentMs")))
-                    .sum();
-            long avgTimeMs = totalAttempted > 0 ? totalTimeMs / totalAttempted : 0;
-
-            long timeOnCorrect = questionLevelScores.stream()
-                    .filter(q -> DataConversionUtils.toDouble(q.get("score")) > 0)
-                    .mapToLong(q -> DataConversionUtils.toLong(q.get("timeSpentMs")))
-                    .sum();
-            long timeOnIncorrect = totalTimeMs - timeOnCorrect;
-
-            Map<String, Object> timeAnalysis = Map.of(
-                    "avgTimePerQuestionMs", avgTimeMs,
-                    "timeOnCorrectMs", timeOnCorrect,
-                    "timeOnIncorrectMs", timeOnIncorrect,
-                    "totalQuestions", totalAttempted
-            );
-
-            String timeAnalysisJson = objectMapper.writeValueAsString(timeAnalysis);
-
-            // Update the result records
-            for (Result result : results) {
-                result.setAccuracyRate(accuracyRate);
-                result.setTimeAnalysisJson(timeAnalysisJson);
+            for (Result r : results) {
+                r.setAccuracyRate(accuracyRate);
+                r.setTenantId(tenantId);
             }
-
             resultRepository.saveAll(results);
-            log.debug("Enriched {} result(s) with diagnostic data", results.size());
 
         } catch (Exception e) {
-            log.warn("Failed to enrich result with diagnostics: {}", e.getMessage());
-            // Non-fatal — result is still saved without diagnostics
+            log.warn("Failed to enrich results with diagnostic data: {}", e.getMessage());
         }
     }
 }
