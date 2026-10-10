@@ -20,7 +20,6 @@
 package com.examplatform.notification.service;
 
 import com.examplatform.notification.domain.Notification;
-import com.examplatform.notification.domain.Notification.NotificationStatus;
 import com.examplatform.notification.repository.NotificationRepository;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -41,8 +40,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
-
-import static com.examplatform.notification.service.NotificationDeliveryHelper.findCurrent;
 
 /**
  * Handles WhatsApp Business API delivery with 3-attempt retry logic
@@ -79,9 +76,7 @@ public class WhatsAppDeliveryService {
 
         if (phone == null || phone.isBlank()) {
             log.warn("Cannot deliver WhatsApp for notification {}: missing recipient phone", notificationId);
-            Notification current = findCurrent(notificationId, notification);
-            current.setStatus(NotificationStatus.UNDELIVERED);
-            notificationRepository.save(current);
+            NotificationDeliveryHelper.recordFailure(notificationRepository, notificationId, notification, 0);
             return;
         }
 
@@ -117,12 +112,7 @@ public class WhatsAppDeliveryService {
 
                 if (response.getStatusCode().is2xxSuccessful()) {
                     String externalId = extractMessageId(response.getBody());
-                    Notification current = findCurrent(notificationId, notification);
-                    current.setStatus(NotificationStatus.SENT);
-                    current.setSentAt(Instant.now());
-                    current.setRetryCount(attempt);
-                    current.setExternalMessageId(externalId);
-                    notificationRepository.save(current);
+                    NotificationDeliveryHelper.recordSuccess(notificationRepository, notificationId, notification, attempt, externalId);
                     log.info("WhatsApp delivered successfully for notification {} on attempt {}, externalId={}",
                             notificationId, attempt, externalId);
                     return;
@@ -136,22 +126,12 @@ public class WhatsAppDeliveryService {
                         notificationId, attempt, MAX_RETRIES, e.getMessage());
 
                 if (attempt == MAX_RETRIES) {
-                    Notification current = findCurrent(notificationId, notification);
-                    current.setStatus(NotificationStatus.UNDELIVERED);
-                    current.setRetryCount(MAX_RETRIES);
-                    notificationRepository.save(current);
+                    NotificationDeliveryHelper.recordFailure(notificationRepository, notificationId, notification, MAX_RETRIES);
                     log.error("ALERT: WhatsApp permanently UNDELIVERED after {} attempts for notification {}",
                             MAX_RETRIES, notificationId);
                 }
             }
         }
-    }
-
-    private Notification findCurrent(UUID notificationId, Notification fallback) {
-        if (notificationId != null) {
-            return notificationRepository.findById(notificationId).orElse(fallback);
-        }
-        return fallback;
     }
 
     private String extractMessageId(String responseBody) {

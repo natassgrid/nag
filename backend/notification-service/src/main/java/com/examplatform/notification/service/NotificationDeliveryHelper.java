@@ -14,7 +14,8 @@
  * GNU Affero General Public License for more details.
  *
  * You should have received a copy of the GNU Affero General Public License
- * along with this program. If not, see <https://www.gnu.org/licenses/>.\n */
+ * along with this program. If not, see <https://www.gnu.org/licenses/>.
+ */
 
 package com.examplatform.notification.service;
 
@@ -29,7 +30,7 @@ import java.util.UUID;
 
 /**
  * Shared helper methods for notification delivery services (SMS, Push, WhatsApp).
- * Consolidates duplicated entity lookup and delivery status update logic across channels.
+ * Consolidates duplicated entity lookup, status recording, and retry handling across delivery channels.
  */
 @Slf4j
 @UtilityClass
@@ -46,13 +47,6 @@ public class NotificationDeliveryHelper {
     }
 
     /**
-     * Overload for 2-parameter invocation where repository lookup is not performed or fallback is returned.
-     */
-    public static Notification findCurrent(UUID notificationId, Notification fallback) {
-        return fallback;
-    }
-
-    /**
      * Records a successful delivery and persists status update.
      */
     public static Notification recordSuccess(
@@ -62,11 +56,28 @@ public class NotificationDeliveryHelper {
             int attempt,
             String externalId
     ) {
+        return recordSuccess(repository, notificationId, fallback, attempt, externalId, null);
+    }
+
+    /**
+     * Records a successful delivery with custom template identifier and persists status update.
+     */
+    public static Notification recordSuccess(
+            NotificationRepository repository,
+            UUID notificationId,
+            Notification fallback,
+            int attempt,
+            String externalId,
+            String templateId
+    ) {
         Notification current = findCurrent(repository, notificationId, fallback);
         current.setStatus(NotificationStatus.SENT);
         current.setSentAt(Instant.now());
         current.setRetryCount(attempt);
         current.setExternalMessageId(externalId);
+        if (templateId != null) {
+            current.setTemplateId(templateId);
+        }
         return repository.save(current);
     }
 

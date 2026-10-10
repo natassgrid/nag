@@ -41,8 +41,6 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 
-import static com.examplatform.notification.service.NotificationDeliveryHelper.findCurrent;
-
 /**
  * Handles Web Push and FCM push notification delivery with 3-attempt retry logic
  * and fallback to UNDELIVERED on permanent failure.
@@ -78,9 +76,7 @@ public class PushNotificationService {
 
         if (token == null || token.isBlank()) {
             log.warn("Cannot deliver Push notification {}: missing FCM / device token", notificationId);
-            Notification current = findCurrent(notificationId, notification);
-            current.setStatus(NotificationStatus.UNDELIVERED);
-            notificationRepository.save(current);
+            NotificationDeliveryHelper.recordFailure(notificationRepository, notificationId, notification, 0);
             return;
         }
 
@@ -108,12 +104,7 @@ public class PushNotificationService {
 
                 if (response.getStatusCode().is2xxSuccessful()) {
                     String externalId = extractMessageId(response.getBody());
-                    Notification current = findCurrent(notificationId, notification);
-                    current.setStatus(NotificationStatus.SENT);
-                    current.setSentAt(Instant.now());
-                    current.setRetryCount(attempt);
-                    current.setExternalMessageId(externalId);
-                    notificationRepository.save(current);
+                    NotificationDeliveryHelper.recordSuccess(notificationRepository, notificationId, notification, attempt, externalId);
                     log.info("Push notification delivered successfully for notification {} on attempt {}, externalId={}",
                             notificationId, attempt, externalId);
                     return;
@@ -127,22 +118,12 @@ public class PushNotificationService {
                         notificationId, attempt, MAX_RETRIES, e.getMessage());
 
                 if (attempt == MAX_RETRIES) {
-                    Notification current = findCurrent(notificationId, notification);
-                    current.setStatus(NotificationStatus.UNDELIVERED);
-                    current.setRetryCount(MAX_RETRIES);
-                    notificationRepository.save(current);
+                    NotificationDeliveryHelper.recordFailure(notificationRepository, notificationId, notification, MAX_RETRIES);
                     log.error("ALERT: Push notification permanently UNDELIVERED after {} attempts for notification {}",
                             MAX_RETRIES, notificationId);
                 }
             }
         }
-    }
-
-    private Notification findCurrent(UUID notificationId, Notification fallback) {
-        if (notificationId != null) {
-            return notificationRepository.findById(notificationId).orElse(fallback);
-        }
-        return fallback;
     }
 
     private String extractMessageId(String responseBody) {
