@@ -64,7 +64,7 @@ public class ExaminationScheduleController {
 
     private final ExaminationScheduleService scheduleService;
 
-    // ── Schedules ─────────────────────────────────────────────────────────────
+    // ── Schedules ────────────────────────────────────────────────────────
 
     @PostMapping
     @PreAuthorize("hasAnyRole('EXAM_CONTROLLER','SUPER_ADMIN')")
@@ -144,7 +144,7 @@ public class ExaminationScheduleController {
                 .body(ApiResponse.success(response, "Schedule amendment created as version " + response.getScheduleVersion()));
     }
 
-    // ── Shifts ────────────────────────────────────────────────────────────────
+    // ── Shifts ───────────────────────────────────────────────────────────
 
     @PostMapping("/{scheduleId}/shifts")
     @PreAuthorize("hasAnyRole('EXAM_CONTROLLER','SUPER_ADMIN')")
@@ -155,10 +155,9 @@ public class ExaminationScheduleController {
             @Valid @RequestBody CreateShiftRequest request,
             @AuthenticationPrincipal Jwt jwt) {
 
-        UUID actorId = UUID.fromString(jwt.getSubject());
-        ShiftResponse response = scheduleService.addShift(scheduleId, request, actorId, tenantId);
-        return ResponseEntity.status(HttpStatus.CREATED)
-                .body(ApiResponse.success(response, "Shift created successfully"));
+        return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.success(
+                scheduleService.addShift(scheduleId, request, UUID.fromString(jwt.getSubject()), tenantId),
+                "Shift created successfully"));
     }
 
     @PutMapping("/{scheduleId}/shifts/{shiftId}")
@@ -171,9 +170,9 @@ public class ExaminationScheduleController {
             @Valid @RequestBody CreateShiftRequest request,
             @AuthenticationPrincipal Jwt jwt) {
 
-        UUID actorId = UUID.fromString(jwt.getSubject());
-        ShiftResponse response = scheduleService.updateShift(scheduleId, shiftId, request, actorId, tenantId);
-        return ResponseEntity.ok(ApiResponse.success(response, "Shift updated successfully"));
+        return ResponseEntity.ok(ApiResponse.success(
+                scheduleService.updateShift(scheduleId, shiftId, request, UUID.fromString(jwt.getSubject()), tenantId),
+                "Shift updated successfully"));
     }
 
     @GetMapping("/{scheduleId}/shifts")
@@ -188,7 +187,7 @@ public class ExaminationScheduleController {
         return ResponseEntity.ok(ApiResponse.success(shifts, "Shifts retrieved successfully"));
     }
 
-    // ── Helper ────────────────────────────────────────────────────────────────
+    // ── Helper ───────────────────────────────────────────────────────────
 
     @SuppressWarnings("unchecked")
     private Set<String> extractRoles(Jwt jwt) {
