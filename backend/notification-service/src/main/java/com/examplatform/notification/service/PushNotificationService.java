@@ -41,6 +41,8 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 
+import static com.examplatform.notification.service.NotificationDeliveryHelper.findCurrent;
+
 /**
  * Handles Web Push and FCM push notification delivery with 3-attempt retry logic
  * and fallback to UNDELIVERED on permanent failure.

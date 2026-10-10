@@ -41,6 +41,8 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 
+import static com.examplatform.notification.service.NotificationDeliveryHelper.findCurrent;
+
 /**
  * Handles SMS notification delivery with Indian DLT-compliant templates
  * and 3-attempt retry logic.

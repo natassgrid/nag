@@ -1,0 +1,9 @@
+---
+type: specs.openrewrite.org/v1beta/recipe
+name: com.examplatform.RefactorNotificationDelivery
+displayName: Refactor duplicated notification delivery helper calls
+description: Replaces local findCurrent calls with NotificationDeliveryHelper.findCurrent
+recipeList:
+  - org.openrewrite.java.ChangeMethodTargetToStatic:
+      methodPattern: "com.examplatform.notification.service..* findCurrent(java.util.UUID, com.examplatform.notification.domain.Notification)"
+      fullyQualifiedTargetTypeName: "com.examplatform.notification.service.NotificationDeliveryHelper"
