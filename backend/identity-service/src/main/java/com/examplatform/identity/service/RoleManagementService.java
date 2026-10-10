@@ -184,46 +184,11 @@ public class RoleManagementService {
                 )));
 
         return accounts.stream()
-                .map(account -> {
-                    String fullName = (account.getFullName() != null && !account.getFullName().isBlank())
-                            ? account.getFullName()
-                            : account.getUsername();
-                    String email = (account.getEmail() != null && !account.getEmail().isBlank())
-                            ? account.getEmail()
-                            : (account.getUsername() != null && account.getUsername().contains("@") ? account.getUsername() : account.getUsername() + "@assessmentgrid.gov.in");
-                    String phone = (account.getPhoneNumber() != null && !account.getPhoneNumber().isBlank())
-                            ? account.getPhoneNumber()
-                            : "+91 98765 43210";
-                    String dept = (account.getDepartment() != null && !account.getDepartment().isBlank())
-                            ? account.getDepartment()
-                            : "National Examination Authority";
-                    String spec = (account.getSpecialization() != null && !account.getSpecialization().isBlank())
-                            ? account.getSpecialization()
-                            : "Assessment System Administration";
-                    return UserAccountResponse.builder()
-                            .id(account.getId())
-                            .username(account.getUsername())
-                            .email(email)
-                            .fullName(fullName)
-                            .phoneNumber(phone)
-                            .department(dept)
-                            .designation(account.getDesignation() != null ? account.getDesignation() : "Senior Examination Administrator")
-                            .avatarUrl(account.getAvatarUrl())
-                            .timezone(account.getTimezone() != null ? account.getTimezone() : "Asia/Kolkata")
-                            .dateFormat(account.getDateFormat() != null ? account.getDateFormat() : "DD/MM/YYYY")
-                            .timeFormat(account.getTimeFormat() != null ? account.getTimeFormat() : "24h")
-                            .preferredLanguage(account.getPreferredLanguage() != null ? account.getPreferredLanguage() : "en")
-                            .themePreference(account.getThemePreference() != null ? account.getThemePreference() : "system")
-                            .accountStatus(account.getAccountStatus() != null ? account.getAccountStatus().name() : "ACTIVE")
-                            .specialization(spec)
-                            .mfaEnabled(account.isMfaEnabled())
-                            .twoFactorMethod(account.isMfaEnabled() ? "TOTP" : null)
-                            .roles(rolesByUser.getOrDefault(account.getId(), List.of("SUPER_ADMIN")))
-                            .tenantId(account.getTenantId() != null ? account.getTenantId() : effectiveTenant)
-                            .createdAt(account.getCreatedAt())
-                            .lastLoginAt(account.getUpdatedAt() != null ? account.getUpdatedAt() : account.getCreatedAt())
-                            .build();
-                })
+                .map(account -> toUserAccountResponse(
+                        account,
+                        rolesByUser.getOrDefault(account.getId(), List.of("SUPER_ADMIN")),
+                        effectiveTenant
+                ))
                 .toList();
     }
 
@@ -242,6 +207,10 @@ public class RoleManagementService {
             roles = List.of("SUPER_ADMIN");
         }
 
+        return toUserAccountResponse(account, roles, effectiveTenant);
+    }
+
+    private UserAccountResponse toUserAccountResponse(UserAccount account, List<String> roles, String effectiveTenant) {
         String fullName = (account.getFullName() != null && !account.getFullName().isBlank())
                 ? account.getFullName()
                 : account.getUsername();
@@ -250,23 +219,26 @@ public class RoleManagementService {
                 : (account.getUsername() != null && account.getUsername().contains("@")
                         ? account.getUsername()
                         : account.getUsername().toLowerCase().replace(" ", ".") + "@assessmentgrid.gov.in");
-        String phoneNumber = (account.getPhoneNumber() != null && !account.getPhoneNumber().isBlank())
+        String phone = (account.getPhoneNumber() != null && !account.getPhoneNumber().isBlank())
                 ? account.getPhoneNumber()
                 : "+91 98765 43210";
-        String department = (account.getDepartment() != null && !account.getDepartment().isBlank())
+        String dept = (account.getDepartment() != null && !account.getDepartment().isBlank())
                 ? account.getDepartment()
                 : "National Examination Authority";
-        String specialization = (account.getSpecialization() != null && !account.getSpecialization().isBlank())
+        String spec = (account.getSpecialization() != null && !account.getSpecialization().isBlank())
                 ? account.getSpecialization()
                 : "Assessment System Administration";
+        List<String> effectiveRoles = (roles != null && !roles.isEmpty())
+                ? roles
+                : List.of("SUPER_ADMIN");
 
         return UserAccountResponse.builder()
                 .id(account.getId())
                 .username(account.getUsername())
                 .email(email)
                 .fullName(fullName)
-                .phoneNumber(phoneNumber)
-                .department(department)
+                .phoneNumber(phone)
+                .department(dept)
                 .designation(account.getDesignation() != null ? account.getDesignation() : "Senior Examination Administrator")
                 .avatarUrl(account.getAvatarUrl())
                 .timezone(account.getTimezone() != null ? account.getTimezone() : "Asia/Kolkata")
@@ -275,10 +247,10 @@ public class RoleManagementService {
                 .preferredLanguage(account.getPreferredLanguage() != null ? account.getPreferredLanguage() : "en")
                 .themePreference(account.getThemePreference() != null ? account.getThemePreference() : "system")
                 .accountStatus(account.getAccountStatus() != null ? account.getAccountStatus().name() : "ACTIVE")
-                .specialization(specialization)
+                .specialization(spec)
                 .mfaEnabled(account.isMfaEnabled())
                 .twoFactorMethod(account.isMfaEnabled() ? "TOTP" : null)
-                .roles(roles)
+                .roles(effectiveRoles)
                 .tenantId(account.getTenantId() != null ? account.getTenantId() : effectiveTenant)
                 .createdAt(account.getCreatedAt())
                 .lastLoginAt(account.getUpdatedAt() != null ? account.getUpdatedAt() : account.getCreatedAt())
