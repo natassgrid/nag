@@ -6,7 +6,8 @@
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as published
- * by the Free Software Foundation, version 3 of the License.\n *
+ * by the Free Software Foundation, version 3 of the License.
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
@@ -18,12 +19,14 @@
 
 package com.examplatform.questionbank.dto;
 
+import com.examplatform.questionbank.domain.Question;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -99,6 +102,61 @@ public class QuestionResponse {
      * Validates: Requirements FR-2 (Duplicate Detection — flag for human review)
      */
     private List<SimilarQuestionWarning> warnings;
+
+    /**
+     * Creates a builder pre-populated with standard common question properties from a domain entity.
+     */
+    public static QuestionResponseBuilder builderFrom(Question question) {
+        if (question == null) {
+            return QuestionResponse.builder();
+        }
+        LocalDateTime createdAt = question.getCreatedAt() != null
+                ? LocalDateTime.ofInstant(question.getCreatedAt(), ZoneOffset.UTC)
+                : null;
+        LocalDateTime updatedAt = question.getUpdatedAt() != null
+                ? LocalDateTime.ofInstant(question.getUpdatedAt(), ZoneOffset.UTC)
+                : null;
+
+        return QuestionResponse.builder()
+                .id(question.getId())
+                .subjectId(question.getSubjectId())
+                .topicId(question.getTopicId())
+                .subtopicId(question.getSubtopicId())
+                .subject(question.getSubject())
+                .topic(question.getTopic())
+                .subtopic(question.getSubtopic())
+                .chapter(question.getChapter())
+                .difficulty(question.getDifficulty())
+                .cognitiveLevel(question.getCognitiveLevel())
+                .questionType(question.getQuestionType())
+                .content(question.getContent())
+                .answerKey(question.getAnswerKey())
+                .explanation(question.getExplanation())
+                .sourceReferences(question.getSourceReferences())
+                .state(question.getState())
+                .version(question.getVersion())
+                .authorId(question.getAuthorId())
+                .reviewerId(question.getReviewerId())
+                .reviewComments(question.getReviewComments())
+                .encryptionKeyId(question.getEncryptionKeyId())
+                .passageId(question.getPassageId())
+                .passageOrderIndex(question.getPassageOrderIndex())
+                .hasImages(question.isHasImages())
+                .createdAt(createdAt)
+                .updatedAt(updatedAt);
+    }
+
+    /**
+     * Converts a Question domain entity into a QuestionResponse DTO.
+     */
+    public static QuestionResponse fromEntity(Question question) {
+        if (question == null) {
+            return null;
+        }
+        return builderFrom(question)
+                .options(question.getOptions())
+                .build();
+    }
 
     /**
      * Warning metadata about a similar question detected during duplicate checking.

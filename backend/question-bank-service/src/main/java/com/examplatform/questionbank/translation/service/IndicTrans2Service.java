@@ -34,15 +34,16 @@ import org.springframework.web.server.ResponseStatusException;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.UUID;
 
 /**
  * Service to perform machine translation of questions and options using
  * the local IndicTrans2 AI model (supporting 22 Indian scheduled languages).
- * Preserves all LaTeX, KaTeX formulas, symbols, and chemical/physical expressions.
- */
+ * Preserves all LaTeX, KaTeX formulas, symbols, and chemical/physical expressions.\n */
 @Slf4j
 @Service
 public class IndicTrans2Service {
@@ -50,52 +51,40 @@ public class IndicTrans2Service {
     private final RestClient restClient;
     private final QuestionRepository questionRepository;
 
-    private static final Map<String, String> LANG_CODE_MAP = Map.ofEntries(
+    private static final Map<String, String> BASE_LANG_CODES = Map.ofEntries(
             Map.entry("hi", "hin_Deva"),
-            Map.entry("hin_deva", "hin_Deva"),
             Map.entry("bn", "ben_Beng"),
-            Map.entry("ben_beng", "ben_Beng"),
             Map.entry("te", "tel_Telu"),
-            Map.entry("tel_telu", "tel_Telu"),
             Map.entry("mr", "mar_Deva"),
-            Map.entry("mar_deva", "mar_Deva"),
             Map.entry("ta", "tam_Taml"),
-            Map.entry("tam_taml", "tam_Taml"),
             Map.entry("ur", "urd_Arab"),
-            Map.entry("urd_arab", "urd_Arab"),
             Map.entry("gu", "guj_Gujr"),
-            Map.entry("guj_gujr", "guj_Gujr"),
             Map.entry("kn", "kan_Knda"),
-            Map.entry("kan_knda", "kan_Knda"),
             Map.entry("ml", "mal_Mlym"),
-            Map.entry("mal_mlym", "mal_Mlym"),
             Map.entry("or", "ory_Orya"),
-            Map.entry("ory_orya", "ory_Orya"),
             Map.entry("pa", "pan_Guru"),
-            Map.entry("pan_guru", "pan_Guru"),
             Map.entry("as", "asm_Beng"),
-            Map.entry("asm_beng", "asm_Beng"),
             Map.entry("mai", "mai_Deva"),
-            Map.entry("mai_deva", "mai_Deva"),
             Map.entry("sa", "san_Deva"),
-            Map.entry("san_deva", "san_Deva"),
             Map.entry("sd", "snd_Arab"),
-            Map.entry("snd_arab", "snd_Arab"),
             Map.entry("ne", "npi_Deva"),
-            Map.entry("npi_deva", "npi_Deva"),
             Map.entry("kok", "gom_Deva"),
-            Map.entry("gom_deva", "gom_Deva"),
             Map.entry("doi", "doi_Deva"),
-            Map.entry("doi_deva", "doi_Deva"),
             Map.entry("mni", "mni_Beng"),
-            Map.entry("mni_beng", "mni_Beng"),
             Map.entry("sat", "sat_Olck"),
-            Map.entry("sat_olck", "sat_Olck"),
             Map.entry("bo", "brx_Deva"),
-            Map.entry("brx_deva", "brx_Deva"),
-            Map.entry("kas", "kas_Deva"),
-            Map.entry("kas_deva", "kas_Deva")
+            Map.entry("kas", "kas_Deva")
     );
+
+    private static final Map<String, String> LANG_CODE_MAP = buildLanguageCodeMap();
+
+    private static Map<String, String> buildLanguageCodeMap() {
+        Map<String, String> map = new HashMap<>(BASE_LANG_CODES);
+        for (String targetCode : BASE_LANG_CODES.values()) {
+            map.put(targetCode.toLowerCase(Locale.ROOT), targetCode);
+        }
+        return Collections.unmodifiableMap(map);
+    }
 
     public IndicTrans2Service(
             @Value("${indictrans2.url:http://localhost:7860}") String indictrans2Url,

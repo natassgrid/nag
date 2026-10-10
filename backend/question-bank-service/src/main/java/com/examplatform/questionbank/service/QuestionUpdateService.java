@@ -168,40 +168,6 @@ public class QuestionUpdateService {
     }
 
     private QuestionResponse toResponse(Question question) {
-        LocalDateTime createdAt = question.getCreatedAt() != null
-                ? LocalDateTime.ofInstant(question.getCreatedAt(), ZoneOffset.UTC)
-                : null;
-        LocalDateTime updatedAt = question.getUpdatedAt() != null
-                ? LocalDateTime.ofInstant(question.getUpdatedAt(), ZoneOffset.UTC)
-                : null;
-
-        return QuestionResponse.builder()
-                .id(question.getId())
-                .subjectId(question.getSubjectId())
-                .topicId(question.getTopicId())
-                .subtopicId(question.getSubtopicId())
-                .subject(question.getSubject())
-                .topic(question.getTopic())
-                .subtopic(question.getSubtopic())
-                .chapter(question.getChapter())
-                .difficulty(question.getDifficulty())
-                .cognitiveLevel(question.getCognitiveLevel())
-                .questionType(question.getQuestionType())
-                .content(question.getContent())
-                .answerKey(question.getAnswerKey())
-                .explanation(question.getExplanation())
-                .sourceReferences(question.getSourceReferences())
-                .state(question.getState())
-                .authorId(question.getAuthorId())
-                .reviewerId(question.getReviewerId())
-                .encryptionKeyId(question.getEncryptionKeyId())
-                .passageId(question.getPassageId())
-                .passageOrderIndex(question.getPassageOrderIndex())
-                .version(question.getVersion())
-                .createdAt(createdAt)
-                .updatedAt(updatedAt)
-                .options(question.getOptions())
-                .hasImages(question.isHasImages())
-                .build();
+        return QuestionResponse.fromEntity(question);
     }
 }

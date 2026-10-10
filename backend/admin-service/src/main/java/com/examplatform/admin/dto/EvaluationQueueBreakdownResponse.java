@@ -28,4 +28,8 @@ public record EvaluationQueueBreakdownResponse(
         long manualEvaluated,
         long arbitration,
         long completed
-) {}
+) {
+    public static EvaluationQueueBreakdownResponse empty() {
+        return new EvaluationQueueBreakdownResponse(0L, 0L, 0L, 0L, 0L);
+    }
+}

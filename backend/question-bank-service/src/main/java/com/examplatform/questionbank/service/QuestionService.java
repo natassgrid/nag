@@ -758,13 +758,6 @@ public class QuestionService {
     }
 
     public QuestionResponse toResponse(Question question, List<Translation> translations, String targetLang) {
-        LocalDateTime createdAt = question.getCreatedAt() != null
-                ? LocalDateTime.ofInstant(question.getCreatedAt(), ZoneOffset.UTC)
-                : null;
-        LocalDateTime updatedAt = question.getUpdatedAt() != null
-                ? LocalDateTime.ofInstant(question.getUpdatedAt(), ZoneOffset.UTC)
-                : null;
-
         java.util.List<com.examplatform.questionbank.dto.QuestionOption> options = question.getOptions();
         if ((options == null || options.isEmpty())) {
             String questionType = question.getQuestionType();
@@ -807,40 +800,13 @@ public class QuestionService {
             activeTransStatus = "MISSING";
         }
 
-        return QuestionResponse.builder()
-                .id(question.getId())
-                .subjectId(question.getSubjectId())
-                .topicId(question.getTopicId())
-                .subtopicId(question.getSubtopicId())
-                .subject(question.getSubject())
-                .topic(question.getTopic())
-                .subtopic(question.getSubtopic())
-                .chapter(question.getChapter())
-                .difficulty(question.getDifficulty())
-                .cognitiveLevel(question.getCognitiveLevel())
-                .questionType(question.getQuestionType())
-                .content(question.getContent())
-                .answerKey(question.getAnswerKey())
-                .explanation(question.getExplanation())
-                .sourceReferences(question.getSourceReferences())
-                .state(question.getState())
-                .authorId(question.getAuthorId())
-                .reviewerId(question.getReviewerId())
-                .reviewComments(question.getReviewComments())
-                .encryptionKeyId(question.getEncryptionKeyId())
-                .passageId(question.getPassageId())
-                .passageOrderIndex(question.getPassageOrderIndex())
-                .version(question.getVersion())
-                .createdAt(createdAt)
-                .updatedAt(updatedAt)
+        return QuestionResponse.builderFrom(question)
                 .options(options)
-                .hasImages(question.isHasImages())
                 .translatedLanguages(translatedLangs)
                 .translationStatusMap(statusMap)
                 .translationStatus(activeTransStatus)
                 .build();
     }
-
     private String resolveTranslationStatus(Translation t) {
         if (t == null) return "MISSING";
         if (t.getStatus() == Translation.TranslationStatus.DRAFT) {

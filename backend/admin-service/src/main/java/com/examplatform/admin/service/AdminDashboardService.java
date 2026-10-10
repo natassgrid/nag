@@ -206,29 +206,18 @@ public class AdminDashboardService {
                             stub -> stub.getQuestionBankMetrics(
                                     QuestionBankMetricsGrpcRequest.newBuilder().setTenantId(tenantId).build()));
                     log.debug("gRPC getQuestionBankMetrics succeeded from {}:{}", questionBankGrpcHost, questionBankGrpcPort);
-                    return QuestionBankBreakdownResponse.builder()
-                            .total(response.getTotal())
-                            .draft(response.getDraft())
-                            .submitted(response.getSubmitted())
-                            .approved(response.getApproved())
-                            .rejected(response.getRejected())
-                            .build();
+                    return new QuestionBankBreakdownResponse(
+                            response.getTotal(), response.getDraft(), response.getSubmitted(),
+                            response.getApproved(), response.getRejected());
                 },
                 questionBankRestUrl + "/api/v1/questions/analytics/summary?tenantId=" + tenantId,
-                node -> QuestionBankBreakdownResponse.builder()
-                        .total(node.path("total").asLong(0L))
-                        .draft(node.path("draft").asLong(0L))
-                        .submitted(node.path("submitted").asLong(0L))
-                        .approved(node.path("approved").asLong(0L))
-                        .rejected(node.path("rejected").asLong(0L))
-                        .build(),
-                QuestionBankBreakdownResponse.builder()
-                        .total(0L)
-                        .draft(0L)
-                        .submitted(0L)
-                        .approved(0L)
-                        .rejected(0L)
-                        .build()
+                node -> new QuestionBankBreakdownResponse(
+                        node.path("total").asLong(0L),
+                        node.path("draft").asLong(0L),
+                        node.path("submitted").asLong(0L),
+                        node.path("approved").asLong(0L),
+                        node.path("rejected").asLong(0L)),
+                QuestionBankBreakdownResponse.empty()
         );
     }
 
@@ -242,29 +231,18 @@ public class AdminDashboardService {
                             stub -> stub.getExaminationStatusBreakdown(
                                     ExamBreakdownGrpcRequest.newBuilder().setTenantId(tenantId).build()));
                     log.debug("gRPC getExaminationStatusBreakdown succeeded from {}:{}", examinationGrpcHost, examinationGrpcPort);
-                    return ExamStatusBreakdownResponse.builder()
-                            .draft(0L)
-                            .scheduled(response.getScheduled())
-                            .liveInProgress(response.getLiveInProgress())
-                            .evaluation(0L)
-                            .completed(response.getCompleted())
-                            .build();
+                    return new ExamStatusBreakdownResponse(
+                            0L, response.getScheduled(), response.getLiveInProgress(),
+                            0L, response.getCompleted());
                 },
                 examinationRestUrl + "/api/v1/examinations/analytics/summary?tenantId=" + tenantId,
-                node -> ExamStatusBreakdownResponse.builder()
-                        .draft(node.path("draft").asLong(0L))
-                        .scheduled(node.path("scheduled").asLong(0L))
-                        .liveInProgress(node.path("liveInProgress").asLong(0L))
-                        .evaluation(node.path("evaluation").asLong(0L))
-                        .completed(node.path("completed").asLong(0L))
-                        .build(),
-                ExamStatusBreakdownResponse.builder()
-                        .draft(0L)
-                        .scheduled(0L)
-                        .liveInProgress(0L)
-                        .evaluation(0L)
-                        .completed(0L)
-                        .build()
+                node -> new ExamStatusBreakdownResponse(
+                        node.path("draft").asLong(0L),
+                        node.path("scheduled").asLong(0L),
+                        node.path("liveInProgress").asLong(0L),
+                        node.path("evaluation").asLong(0L),
+                        node.path("completed").asLong(0L)),
+                ExamStatusBreakdownResponse.empty()
         );
     }
 
@@ -278,29 +256,18 @@ public class AdminDashboardService {
                             stub -> stub.getEvaluationQueueMetrics(
                                     EvaluationMetricsGrpcRequest.newBuilder().setTenantId(tenantId).build()));
                     log.debug("gRPC getEvaluationQueueMetrics succeeded from {}:{}", evaluationGrpcHost, evaluationGrpcPort);
-                    return EvaluationQueueBreakdownResponse.builder()
-                            .pending(response.getPending())
-                            .autoEvaluated(response.getInProgress())
-                            .manualEvaluated(0L)
-                            .arbitration(response.getFlagged())
-                            .completed(response.getCompleted())
-                            .build();
+                    return new EvaluationQueueBreakdownResponse(
+                            response.getPending(), response.getInProgress(), 0L,
+                            response.getFlagged(), response.getCompleted());
                 },
                 evaluationRestUrl + "/api/v1/evaluation/analytics/summary?tenantId=" + tenantId,
-                node -> EvaluationQueueBreakdownResponse.builder()
-                        .pending(node.path("pending").asLong(0L))
-                        .autoEvaluated(node.path("inProgress").asLong(node.path("autoEvaluated").asLong(0L)))
-                        .manualEvaluated(node.path("manualEvaluated").asLong(0L))
-                        .arbitration(node.path("flagged").asLong(node.path("arbitration").asLong(0L)))
-                        .completed(node.path("completed").asLong(0L))
-                        .build(),
-                EvaluationQueueBreakdownResponse.builder()
-                        .pending(0L)
-                        .autoEvaluated(0L)
-                        .manualEvaluated(0L)
-                        .arbitration(0L)
-                        .completed(0L)
-                        .build()
+                node -> new EvaluationQueueBreakdownResponse(
+                        node.path("pending").asLong(0L),
+                        node.path("inProgress").asLong(node.path("autoEvaluated").asLong(0L)),
+                        node.path("manualEvaluated").asLong(0L),
+                        node.path("flagged").asLong(node.path("arbitration").asLong(0L)),
+                        node.path("completed").asLong(0L)),
+                EvaluationQueueBreakdownResponse.empty()
         );
     }
 
@@ -334,14 +301,7 @@ public class AdminDashboardService {
                     if (response.getEventsCount() > 0) {
                         List<SecurityAuditEventResponse> list = new ArrayList<>();
                         for (var item : response.getEventsList()) {
-                            list.add(SecurityAuditEventResponse.builder()
-                                    .id(item.getId().isBlank() ? "SEC-" + UUID.randomUUID().toString().substring(0, 6) : item.getId())
-                                    .timestamp(item.getTimestamp().isBlank() ? DateTimeFormatter.ISO_INSTANT.format(Instant.now()) : item.getTimestamp())
-                                    .actor(item.getPerformedBy().isBlank() ? "system" : item.getPerformedBy())
-                                    .action(item.getAction().isBlank() ? "UNKNOWN" : item.getAction())
-                                    .resource(item.getEntityType().isBlank() ? "RESOURCE" : item.getEntityType())
-                                    .hash("SHA256-IMMUTABLE")
-                                    .build());
+                            list.add(createAuditEvent(item.getId(), item.getTimestamp(), item.getPerformedBy(), item.getAction(), item.getEntityType()));
                         }
                         log.debug("gRPC getRecentLedgerEvents succeeded from {}:{}", auditGrpcHost, auditGrpcPort);
                         return list;
@@ -353,14 +313,12 @@ public class AdminDashboardService {
                     if (node.isArray() && !node.isEmpty()) {
                         List<SecurityAuditEventResponse> list = new ArrayList<>();
                         for (JsonNode item : node) {
-                            list.add(SecurityAuditEventResponse.builder()
-                                    .id(item.path("id").asText("SEC-" + UUID.randomUUID().toString().substring(0, 6)))
-                                    .timestamp(item.path("timestamp").asText(DateTimeFormatter.ISO_INSTANT.format(Instant.now())))
-                                    .actor(item.path("performedBy").asText("system"))
-                                    .action(item.path("action").asText("UNKNOWN"))
-                                    .resource(item.path("entityType").asText("RESOURCE"))
-                                    .hash("SHA256-IMMUTABLE")
-                                    .build());
+                            list.add(createAuditEvent(
+                                    item.path("id").asText(null),
+                                    item.path("timestamp").asText(null),
+                                    item.path("performedBy").asText(null),
+                                    item.path("action").asText(null),
+                                    item.path("entityType").asText(null)));
                         }
                         return list;
                     }
@@ -368,6 +326,17 @@ public class AdminDashboardService {
                 },
                 List.of()
         );
+    }
+
+    private SecurityAuditEventResponse createAuditEvent(String id, String timestamp, String actor, String action, String resource) {
+        return SecurityAuditEventResponse.builder()
+                .id(id == null || id.isBlank() ? "SEC-" + UUID.randomUUID().toString().substring(0, 6) : id)
+                .timestamp(timestamp == null || timestamp.isBlank() ? DateTimeFormatter.ISO_INSTANT.format(Instant.now()) : timestamp)
+                .actor(actor == null || actor.isBlank() ? "system" : actor)
+                .action(action == null || action.isBlank() ? "UNKNOWN" : action)
+                .resource(resource == null || resource.isBlank() ? "RESOURCE" : resource)
+                .hash("SHA256-IMMUTABLE")
+                .build();
     }
 
     @FunctionalInterface
