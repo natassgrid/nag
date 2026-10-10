@@ -21,7 +21,7 @@ package com.examplatform.identity.controller;
 
 import com.examplatform.identity.service.AuditEventPublisher;
 import com.examplatform.identity.service.KeyRevocationScheduler;
-import com.examplatform.identity.service.VaultCryptoService;
+import com.examplatform.shared.crypto.VaultCryptoService;
 import com.examplatform.shared.audit.AuditEventType;
 import com.examplatform.shared.response.ApiResponse;
 import jakarta.servlet.http.HttpServletRequest;

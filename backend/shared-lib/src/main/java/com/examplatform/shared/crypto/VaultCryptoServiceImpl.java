@@ -17,12 +17,10 @@
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
 
-package com.examplatform.delivery.service;
+package com.examplatform.shared.crypto;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.context.annotation.Primary;
-import org.springframework.stereotype.Service;
 import org.springframework.vault.core.VaultTemplate;
 import org.springframework.vault.core.VaultTransitOperations;
 import org.springframework.vault.support.Ciphertext;
@@ -36,16 +34,9 @@ import java.util.Map;
  * HSM/Vault-backed implementation of {@link VaultCryptoService}.
  * Delegates all cryptographic operations to Vault Transit, ensuring that
  * private key material never leaves the Vault boundary.
- *
- * Primary use case in the delivery service: shift-key decryption to unlock
- * encrypted question papers at the scheduled exam start time.
- *
- * Validates: Requirements 9.1, 19.2
  */
 @Slf4j
-@Service
 @RequiredArgsConstructor
-@Primary
 public class VaultCryptoServiceImpl implements VaultCryptoService {
 
     private final VaultTemplate vaultTemplate;
@@ -61,7 +52,7 @@ public class VaultCryptoServiceImpl implements VaultCryptoService {
             return ciphertext.getCiphertext();
         } catch (Exception e) {
             log.error("Vault encrypt failed for key [{}]: {}", keyName, e.getMessage());
-            throw new RuntimeException("Encryption failed: " + e.getMessage(), e);
+            throw new VaultCryptoException("Encryption failed: " + e.getMessage(), e);
         }
     }
 
@@ -72,7 +63,7 @@ public class VaultCryptoServiceImpl implements VaultCryptoService {
             return plaintext.asString();
         } catch (Exception e) {
             log.error("Vault decrypt failed for key [{}]: {}", keyName, e.getMessage());
-            throw new RuntimeException("Decryption failed: " + e.getMessage(), e);
+            throw new VaultCryptoException("Decryption failed: " + e.getMessage(), e);
         }
     }
 
@@ -83,7 +74,7 @@ public class VaultCryptoServiceImpl implements VaultCryptoService {
             return transit().sign(keyName, input).getSignature();
         } catch (Exception e) {
             log.error("Vault sign failed for key [{}]: {}", keyName, e.getMessage());
-            throw new RuntimeException("Signing failed: " + e.getMessage(), e);
+            throw new VaultCryptoException("Signing failed: " + e.getMessage(), e);
         }
     }
 
@@ -105,21 +96,20 @@ public class VaultCryptoServiceImpl implements VaultCryptoService {
             log.info("Vault Transit key [{}] rotated successfully", keyName);
         } catch (Exception e) {
             log.error("Vault key rotation failed for key [{}]: {}", keyName, e.getMessage());
-            throw new RuntimeException("Key rotation failed: " + e.getMessage(), e);
+            throw new VaultCryptoException("Key rotation failed: " + e.getMessage(), e);
         }
     }
 
     @Override
     public void revokeKey(String keyName) {
         try {
-            // First allow deletion, then delete the key
             vaultTemplate.write("transit/keys/" + keyName + "/config",
                     Map.of("deletion_allowed", true));
             vaultTemplate.delete("transit/keys/" + keyName);
             log.warn("SECURITY: Vault Transit key [{}] revoked (deleted) at {}", keyName, Instant.now());
         } catch (Exception e) {
             log.error("Vault key revocation failed for key [{}]: {}", keyName, e.getMessage());
-            throw new RuntimeException("Key revocation failed: " + e.getMessage(), e);
+            throw new VaultCryptoException("Key revocation failed: " + e.getMessage(), e);
         }
     }
 }

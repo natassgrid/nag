@@ -17,7 +17,7 @@
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
 
-package com.examplatform.questionbank.service;
+package com.examplatform.shared.crypto;
 
 /**
  * Contract for HSM/Vault-backed cryptographic operations.
@@ -45,10 +45,10 @@ public interface VaultCryptoService {
     String decrypt(String keyName, String ciphertext);
 
     /**
-     * Sign the payload using the named Vault Transit key (ECDSA/HMAC).
+     * Sign the payload using the named Vault Transit key (ECDSA P-256).
      *
      * @param keyName name of the signing key
-     * @param payload data to sign
+     * @param payload data to sign (typically a SHA-256 hash)
      * @return Base64-encoded signature
      */
     String sign(String keyName, String payload);

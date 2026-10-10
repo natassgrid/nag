@@ -25,6 +25,7 @@ version = '1.0.0-SNAPSHOT'
 dependencyManagement {
     imports {
         mavenBom "org.springframework.boot:spring-boot-dependencies:${libs.versions.spring.boot.get()}"
+        mavenBom "org.springframework.cloud:spring-cloud-dependencies:${libs.versions.spring.cloud.get()}"
     }
 }
 
@@ -64,6 +65,9 @@ dependencies {
     api libs.spring.boot.starter.security
     api libs.spring.boot.starter.oauth2.resource.server
 
+    // Vault Transit (shared HSM/Vault crypto integration)
+    compileOnly libs.spring.vault.core
+
     // ArchUnit (for architecture rule definitions & enforcement)
     api libs.archunit.junit5
 
@@ -85,6 +89,7 @@ dependencies {
     // Test dependencies
     testImplementation libs.spring.boot.starter.test
     testImplementation libs.spring.boot.starter.data.redis
+    testImplementation libs.spring.vault.core
     testImplementation libs.junit.jupiter
     testImplementation libs.junit.jupiter.params
     testRuntimeOnly libs.junit.platform.launcher

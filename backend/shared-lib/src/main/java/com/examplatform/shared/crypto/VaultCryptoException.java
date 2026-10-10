@@ -17,26 +17,18 @@
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
 
-package com.examplatform.candidate.crypto;
-
-import com.examplatform.shared.crypto.VaultCryptoService;
-import org.springframework.stereotype.Component;
+package com.examplatform.shared.crypto;
 
 /**
- * Static holder for {@link VaultCryptoService} to make it accessible
- * from JPA {@link jakarta.persistence.AttributeConverter} instances,
- * which are not Spring-managed beans by default.
+ * Exception thrown when a Vault cryptographic operation fails.
  */
-@Component
-public class VaultCryptoServiceHolder {
+public class VaultCryptoException extends RuntimeException {
 
-    private static VaultCryptoService instance;
-
-    public VaultCryptoServiceHolder(VaultCryptoService service) {
-        VaultCryptoServiceHolder.instance = service;
+    public VaultCryptoException(String message) {
+        super(message);
     }
 
-    public static VaultCryptoService getInstance() {
-        return instance;
+    public VaultCryptoException(String message, Throwable cause) {
+        super(message, cause);
     }
 }

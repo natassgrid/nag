@@ -19,6 +19,8 @@
 
 package com.examplatform.papergenerator.service;
 
+import com.examplatform.shared.crypto.VaultCryptoService;
+
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Primary;

@@ -28,6 +28,7 @@ import com.examplatform.candidate.exception.ProfileNotFoundException;
 import com.examplatform.candidate.repository.CandidateEducationRepository;
 import com.examplatform.candidate.repository.CandidateProfileRepository;
 import com.examplatform.shared.audit.AuditEventType;
+import com.examplatform.shared.crypto.VaultCryptoService;
 import com.examplatform.shared.event.UserAuditEvent;
 import com.examplatform.shared.messaging.EventPublisher;
 import lombok.extern.slf4j.Slf4j;
@@ -392,7 +393,7 @@ public class CandidateProfileService {
         );
     }
 
-    // ── Private helpers ──────────────────────────────────────────────────────────────────────────
+    // ── Private helpers ────────────────────────────────────────────────────────
 
     private void publishAuditEvent(AuditEventType type, String actorId, String tenantId) {
         try {

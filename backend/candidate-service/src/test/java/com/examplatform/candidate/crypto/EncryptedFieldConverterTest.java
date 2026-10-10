@@ -19,7 +19,7 @@
 
 package com.examplatform.candidate.crypto;
 
-import com.examplatform.candidate.service.VaultCryptoService;
+import com.examplatform.shared.crypto.VaultCryptoService;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;

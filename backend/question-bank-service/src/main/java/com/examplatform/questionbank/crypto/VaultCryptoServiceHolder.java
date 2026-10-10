@@ -19,7 +19,7 @@
 
 package com.examplatform.questionbank.crypto;
 
-import com.examplatform.questionbank.service.VaultCryptoService;
+import com.examplatform.shared.crypto.VaultCryptoService;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
