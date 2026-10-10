@@ -14,10 +14,12 @@
  * GNU Affero General Public License for more details.
  *
  * You should have received a copy of the GNU Affero General Public License
- * along with this program. If not, see <https://www.gnu.org/licenses/>.\n */
+ * along with this program. If not, see <https://www.gnu.org/licenses/>.
+ */
 
 package com.examplatform.asset.storage;
 
+import com.examplatform.shared.storage.s3.S3Config;
 import lombok.Data;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.stereotype.Component;
@@ -63,7 +65,7 @@ public class StorageProperties {
     }
 
     @Data
-    public static class S3Properties {
+    public static class S3Properties implements S3Config {
         /** S3 bucket name. */
         private String bucket = "exam-platform-assets";
         /** AWS region (default: ap-south-1). */
