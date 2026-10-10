@@ -62,7 +62,7 @@ public class EvaluationCompletedConsumer extends AbstractEvaluationCompletedCons
     public void onEvaluationCompleted(
             @Payload String payload,
             @Header(value = KafkaHeaders.RECEIVED_KEY, required = false) String key) {
-        log.info("Ingesting analytics for evaluation completed: key={}", key);
+        log.info("Analytics consumer received evaluation completed event: key={}", key);
         processEvaluationCompleted(payload, key);
     }
 
@@ -80,39 +80,41 @@ public class EvaluationCompletedConsumer extends AbstractEvaluationCompletedCons
 
     @Override
     public void processEvaluationCompleted(String payload, String key) {
-        handleEvaluationCompleted(payload, event -> {
-            UUID examId = DataConversionUtils.parseUUID(event.get("examId"));
-            UUID candidateId = DataConversionUtils.parseUUID(event.get("candidateId"));
-            UUID sessionId = DataConversionUtils.parseUUID(event.get("sessionId"));
+        handleEvaluationCompleted(payload, this::consumeAnalyticsEvent);
+    }
 
-            if (examId == null || candidateId == null) {
-                log.warn("Missing required examId or candidateId in event payload: {}", payload);
-                return;
-            }
+    private void consumeAnalyticsEvent(Map<String, Object> event) {
+        UUID examId = DataConversionUtils.parseUUID(event.get("examId"));
+        UUID candidateId = DataConversionUtils.parseUUID(event.get("candidateId"));
+        UUID sessionId = DataConversionUtils.parseUUID(event.get("sessionId"));
 
-            double totalRawScore = DataConversionUtils.toDouble(event.get("totalRawScore"));
-            String tenantId = (String) event.getOrDefault("tenantId", "default");
+        if (examId == null || candidateId == null) {
+            log.warn("Missing required examId or candidateId in event payload");
+            return;
+        }
 
-            @SuppressWarnings("unchecked")
-            Map<String, Object> sectionScores = (Map<String, Object>) event.getOrDefault("sectionScores", Map.of());
+        double totalRawScore = DataConversionUtils.toDouble(event.get("totalRawScore"));
+        String tenantId = (String) event.getOrDefault("tenantId", "default");
 
-            @SuppressWarnings("unchecked")
-            List<Map<String, Object>> questionLevelScores = (List<Map<String, Object>>) event.getOrDefault("questionLevelScores", List.of());
+        @SuppressWarnings("unchecked")
+        Map<String, Object> sectionScores = (Map<String, Object>) event.getOrDefault("sectionScores", Map.of());
 
-            Instant evaluatedAt = DataConversionUtils.parseInstant(event.get("evaluatedAt"));
+        @SuppressWarnings("unchecked")
+        List<Map<String, Object>> questionLevelScores = (List<Map<String, Object>>) event.getOrDefault("questionLevelScores", List.of());
 
-            analyticsService.processEvaluationCompleted(
-                    examId,
-                    candidateId,
-                    sessionId,
-                    totalRawScore,
-                    sectionScores,
-                    questionLevelScores,
-                    tenantId,
-                    evaluatedAt
-            );
+        Instant evaluatedAt = DataConversionUtils.parseInstant(event.get("evaluatedAt"));
 
-            log.info("Successfully ingested evaluation completed for candidate={}, exam={}", candidateId, examId);
-        });
+        analyticsService.processEvaluationCompleted(
+                examId,
+                candidateId,
+                sessionId,
+                totalRawScore,
+                sectionScores,
+                questionLevelScores,
+                tenantId,
+                evaluatedAt
+        );
+
+        log.info("Successfully ingested evaluation completed for candidate={}, exam={}", candidateId, examId);
     }
 }

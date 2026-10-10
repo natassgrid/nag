@@ -14,8 +14,7 @@
  * GNU Affero General Public License for more details.
  *
  * You should have received a copy of the GNU Affero General Public License
- * along with this program. If not, see <https://www.gnu.org/licenses/>.
- */
+ * along with this program. If not, see <https://www.gnu.org/licenses/>.\n */
 
 package com.examplatform.asset.controller;
 
@@ -297,9 +296,9 @@ public class AssetController {
             @AuthenticationPrincipal Jwt jwt,
             @RequestHeader("X-Tenant-Id") String tenantId) {
 
-        UUID userId = UUID.fromString(jwt.getSubject());
-        AssetUploadResponse response = assetService.archiveAsset(id, userId, tenantId);
-        return ResponseEntity.ok(ApiResponse.success(response, "Asset archived successfully"));
+        return ResponseEntity.ok(ApiResponse.success(
+                assetService.archiveAsset(id, UUID.fromString(jwt.getSubject()), tenantId),
+                "Asset archived successfully"));
     }
 
     /**
@@ -312,8 +311,8 @@ public class AssetController {
             @AuthenticationPrincipal Jwt jwt,
             @RequestHeader("X-Tenant-Id") String tenantId) {
 
-        UUID userId = UUID.fromString(jwt.getSubject());
-        AssetUploadResponse response = assetService.restoreAsset(id, userId, tenantId);
-        return ResponseEntity.ok(ApiResponse.success(response, "Asset restored successfully"));
+        return ResponseEntity.ok(ApiResponse.success(
+                assetService.restoreAsset(id, UUID.fromString(jwt.getSubject()), tenantId),
+                "Asset restored successfully"));
     }
 }

@@ -5,7 +5,7 @@
  * Copyright (C) 2025 NAG Contributors
  *
  * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU标志 Affero General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, version 3 of the License.
  */
 
@@ -125,9 +125,9 @@ public class PassageController {
             @AuthenticationPrincipal Jwt jwt,
             @RequestHeader("X-Tenant-Id") String tenantId) {
 
-        UUID authorId = UUID.fromString(jwt.getSubject());
-        PassageResponse response = passageLifecycleService.submitForReview(id, authorId, tenantId);
-        return ResponseEntity.ok(ApiResponse.success(response, "Passage submitted for review"));
+        return ResponseEntity.ok(ApiResponse.success(
+                passageLifecycleService.submitForReview(id, UUID.fromString(jwt.getSubject()), tenantId),
+                "Passage submitted for review"));
     }
 
     @PutMapping("/{id}/approve")
@@ -137,9 +137,9 @@ public class PassageController {
             @AuthenticationPrincipal Jwt jwt,
             @RequestHeader("X-Tenant-Id") String tenantId) {
 
-        UUID reviewerId = UUID.fromString(jwt.getSubject());
-        PassageResponse response = passageLifecycleService.approve(id, reviewerId, tenantId);
-        return ResponseEntity.ok(ApiResponse.success(response, "Passage approved successfully"));
+        return ResponseEntity.ok(ApiResponse.success(
+                passageLifecycleService.approve(id, UUID.fromString(jwt.getSubject()), tenantId),
+                "Passage approved successfully"));
     }
 
     @PutMapping("/{id}/reject")

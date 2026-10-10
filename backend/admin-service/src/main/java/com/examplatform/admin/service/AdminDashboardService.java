@@ -210,13 +210,8 @@ public class AdminDashboardService {
                             response.getTotal(), response.getDraft(), response.getSubmitted(),
                             response.getApproved(), response.getRejected());
                 },
-                questionBankRestUrl + "/api/v1/questions/analytics/summary?tenantId=" + tenantId,
-                node -> new QuestionBankBreakdownResponse(
-                        node.path("total").asLong(0L),
-                        node.path("draft").asLong(0L),
-                        node.path("submitted").asLong(0L),
-                        node.path("approved").asLong(0L),
-                        node.path("rejected").asLong(0L)),
+                buildSummaryUrl(questionBankRestUrl, "/api/v1/questions/analytics/summary", tenantId),
+                this::parseQuestionBankBreakdown,
                 QuestionBankBreakdownResponse.empty()
         );
     }
@@ -235,13 +230,8 @@ public class AdminDashboardService {
                             0L, response.getScheduled(), response.getLiveInProgress(),
                             0L, response.getCompleted());
                 },
-                examinationRestUrl + "/api/v1/examinations/analytics/summary?tenantId=" + tenantId,
-                node -> new ExamStatusBreakdownResponse(
-                        node.path("draft").asLong(0L),
-                        node.path("scheduled").asLong(0L),
-                        node.path("liveInProgress").asLong(0L),
-                        node.path("evaluation").asLong(0L),
-                        node.path("completed").asLong(0L)),
+                buildSummaryUrl(examinationRestUrl, "/api/v1/examinations/analytics/summary", tenantId),
+                this::parseExamStatusBreakdown,
                 ExamStatusBreakdownResponse.empty()
         );
     }
@@ -260,15 +250,41 @@ public class AdminDashboardService {
                             response.getPending(), response.getInProgress(), 0L,
                             response.getFlagged(), response.getCompleted());
                 },
-                evaluationRestUrl + "/api/v1/evaluation/analytics/summary?tenantId=" + tenantId,
-                node -> new EvaluationQueueBreakdownResponse(
-                        node.path("pending").asLong(0L),
-                        node.path("inProgress").asLong(node.path("autoEvaluated").asLong(0L)),
-                        node.path("manualEvaluated").asLong(0L),
-                        node.path("flagged").asLong(node.path("arbitration").asLong(0L)),
-                        node.path("completed").asLong(0L)),
+                buildSummaryUrl(evaluationRestUrl, "/api/v1/evaluation/analytics/summary", tenantId),
+                this::parseEvaluationQueueBreakdown,
                 EvaluationQueueBreakdownResponse.empty()
         );
+    }
+
+    private QuestionBankBreakdownResponse parseQuestionBankBreakdown(JsonNode node) {
+        return new QuestionBankBreakdownResponse(
+                node.path("total").asLong(0L),
+                node.path("draft").asLong(0L),
+                node.path("submitted").asLong(0L),
+                node.path("approved").asLong(0L),
+                node.path("rejected").asLong(0L));
+    }
+
+    private ExamStatusBreakdownResponse parseExamStatusBreakdown(JsonNode node) {
+        return new ExamStatusBreakdownResponse(
+                node.path("draft").asLong(0L),
+                node.path("scheduled").asLong(0L),
+                node.path("liveInProgress").asLong(0L),
+                node.path("evaluation").asLong(0L),
+                node.path("completed").asLong(0L));
+    }
+
+    private EvaluationQueueBreakdownResponse parseEvaluationQueueBreakdown(JsonNode node) {
+        return new EvaluationQueueBreakdownResponse(
+                node.path("pending").asLong(0L),
+                node.path("inProgress").asLong(node.path("autoEvaluated").asLong(0L)),
+                node.path("manualEvaluated").asLong(0L),
+                node.path("flagged").asLong(node.path("arbitration").asLong(0L)),
+                node.path("completed").asLong(0L));
+    }
+
+    private static String buildSummaryUrl(String baseUrl, String path, String tenantId) {
+        return baseUrl + path + "?tenantId=" + tenantId;
     }
 
     private long fetchCandidateStats(String tenantId) {
@@ -451,56 +467,69 @@ public class AdminDashboardService {
                         .build();
             }
         }
-        return probeService("PostgreSQL Database", "localhost", 5432, "PostgreSQL socket operational", "PostgreSQL database offline");
+        return SystemServiceHealthResponse.builder()
+                .name("PostgreSQL Database")
+                .status("DOWN")
+                .latencyMs(0)
+                .uptime("0.00%")
+                .details("Data source not configured")
+                .build();
     }
 
     private SystemServiceHealthResponse checkRedisHealth() {
         long start = System.currentTimeMillis();
         if (redisTemplate != null) {
             try {
-                String ping = redisTemplate.getConnectionFactory().getConnection().ping();
+                String pingResult = redisTemplate.getConnectionFactory().getConnection().ping();
                 long latency = Math.max(1, System.currentTimeMillis() - start);
+                boolean up = "PONG".equalsIgnoreCase(pingResult);
                 return SystemServiceHealthResponse.builder()
-                        .name("Redis Cache Cluster")
-                        .status("PONG".equalsIgnoreCase(ping) ? "UP" : "DOWN")
+                        .name("Redis Cache & Sessions")
+                        .status(up ? "UP" : "DOWN")
                         .latencyMs((int) latency)
-                        .uptime("100%")
-                        .details("Redis cache responding to ping")
+                        .uptime(up ? "100%" : "0.00%")
+                        .details(up ? "Redis cluster responding" : "Unexpected ping response: " + pingResult)
                         .build();
             } catch (Exception e) {
                 long latency = Math.max(1, System.currentTimeMillis() - start);
                 return SystemServiceHealthResponse.builder()
-                        .name("Redis Cache Cluster")
+                        .name("Redis Cache & Sessions")
                         .status("DOWN")
                         .latencyMs((int) latency)
                         .uptime("0.00%")
-                        .details("Redis offline: " + e.getMessage())
+                        .details("Redis connection failed: " + e.getMessage())
                         .build();
             }
         }
-        return probeService("Redis Cache Cluster", "localhost", 6379, "Redis cache operational", "Redis cache offline");
+        return SystemServiceHealthResponse.builder()
+                .name("Redis Cache & Sessions")
+                .status("DOWN")
+                .latencyMs(0)
+                .uptime("0.00%")
+                .details("Redis template not configured")
+                .build();
     }
 
-    private SystemServiceHealthResponse probeService(String name, String host, int port, String healthyDetails, String downDetails) {
+    private SystemServiceHealthResponse probeService(String serviceName, String host, int port,
+                                                     String successMsg, String failureMsg) {
         long start = System.currentTimeMillis();
         try (Socket socket = new Socket()) {
-            socket.connect(new InetSocketAddress(host, port), 200);
+            socket.connect(new InetSocketAddress(host, port), 1500);
             long latency = Math.max(1, System.currentTimeMillis() - start);
             return SystemServiceHealthResponse.builder()
-                    .name(name)
+                    .name(serviceName)
                     .status("UP")
                     .latencyMs((int) latency)
-                    .uptime("99.99%")
-                    .details(healthyDetails)
+                    .uptime("100%")
+                    .details(successMsg)
                     .build();
         } catch (Exception e) {
-            long latency = Math.max(1, System.currentTimeMillis() - start);
             return SystemServiceHealthResponse.builder()
-                    .name(name)
+                    .name(serviceName)
                     .status("DOWN")
-                    .latencyMs((int) latency)
+                    .latencyMs(0)
                     .uptime("0.00%")
-                    .details(downDetails)
+                    .details(failureMsg + ": " + e.getMessage())
                     .build();
         }
     }
@@ -509,11 +538,9 @@ public class AdminDashboardService {
         if (redisTemplate != null) {
             try {
                 Set<String> keys = redisTemplate.keys("session:*");
-                if (keys != null) {
-                    return keys.size();
-                }
+                return keys != null ? keys.size() : 0L;
             } catch (Exception e) {
-                log.debug("Could not count Redis active sessions: {}", e.getMessage());
+                log.debug("Could not query Redis for active sessions: {}", e.getMessage());
             }
         }
         return 0L;

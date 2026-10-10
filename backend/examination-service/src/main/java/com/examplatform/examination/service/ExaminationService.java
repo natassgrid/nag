@@ -379,26 +379,7 @@ public class ExaminationService {
     }
 
     private ExaminationResponse toResponse(Examination exam, List<Section> sections) {
-        return ExaminationResponse.builder()
-                .id(exam.getId())
-                .name(exam.getName())
-                .code(exam.getCode())
-                .conductingAuthority(exam.getConductingAuthority())
-                .category(exam.getCategory())
-                .examinationType(exam.getExaminationType())
-                .academicYear(exam.getAcademicYear())
-                .examinationMode(exam.getExaminationMode())
-                .durationMinutes(exam.getDurationMinutes())
-                .totalMarks(exam.getTotalMarks())
-                .negativeMarkingEnabled(exam.isNegativeMarkingEnabled())
-                .negativeMarkingValue(exam.getNegativeMarkingValue())
-                .navigationPolicy(exam.getNavigationPolicy())
-                .calculatorPolicy(exam.getCalculatorPolicy())
-                .reviewFlagEnabled(exam.isReviewFlagEnabled())
-                .isPractice(exam.isPractice())
-                .sections(sections != null ? sections : List.of())
-                .status(exam.getStatus())
-                .build();
+        return ExaminationResponse.from(exam, sections);
     }
 
     private void publishAuditEvent(String eventType, String entityId, String tenantId, Map<String, Object> details) {

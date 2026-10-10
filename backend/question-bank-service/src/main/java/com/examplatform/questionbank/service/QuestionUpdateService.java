@@ -11,7 +11,7 @@
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU标志 Affero General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
  * You should have received a copy of the GNU Affero General Public License
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
@@ -29,11 +29,13 @@ import com.examplatform.questionbank.util.EmbeddingUtils;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.BeanUtils;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
+import java.util.ArrayList;
 import java.util.UUID;
 
 /**
@@ -143,28 +145,12 @@ public class QuestionUpdateService {
     }
 
     private Question cloneQuestionState(Question source) {
-        return Question.builder()
-                .subjectId(source.getSubjectId())
-                .topicId(source.getTopicId())
-                .subtopicId(source.getSubtopicId())
-                .subject(source.getSubject())
-                .topic(source.getTopic())
-                .subtopic(source.getSubtopic())
-                .chapter(source.getChapter())
-                .difficulty(source.getDifficulty())
-                .cognitiveLevel(source.getCognitiveLevel())
-                .questionType(source.getQuestionType())
-                .content(source.getContent())
-                .answerKey(source.getAnswerKey())
-                .explanation(source.getExplanation())
-                .sourceReferences(source.getSourceReferences())
-                .options(source.getOptions())
-                .hasImages(source.isHasImages())
-                .passageId(source.getPassageId())
-                .passageOrderIndex(source.getPassageOrderIndex())
-                .state(source.getState())
-                .authorId(source.getAuthorId())
-                .build();
+        Question copy = new Question();
+        BeanUtils.copyProperties(source, copy);
+        if (source.getOptions() != null) {
+            copy.setOptions(new ArrayList<>(source.getOptions()));
+        }
+        return copy;
     }
 
     private QuestionResponse toResponse(Question question) {

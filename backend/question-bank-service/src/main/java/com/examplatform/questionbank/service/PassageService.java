@@ -425,20 +425,7 @@ public class PassageService {
     }
 
     void publishAuditEvent(String eventType, UUID passageId, UUID actorId,
-                                   String tenantId, Map<String, Object> extra) {
-        try {
-            Map<String, Object> event = new java.util.HashMap<>();
-            event.put("eventType", eventType);
-            event.put("passageId", passageId.toString());
-            event.put("actorId", actorId.toString());
-            event.put("tenantId", tenantId);
-            event.put("occurredAt", Instant.now().toString());
-            if (extra != null) {
-                event.putAll(extra);
-            }
-            eventPublisher.publish(AUDIT_TOPIC, passageId.toString(), event);
-        } catch (Exception e) {
-            log.error("Unexpected error publishing audit event [type={}]: {}", eventType, e.getMessage());
-        }
+                           String tenantId, Map<String, Object> extra) {
+        AuditEventHelper.publishAuditEvent(eventPublisher, log, AUDIT_TOPIC, eventType, "passageId", passageId, actorId, tenantId, extra);
     }
 }

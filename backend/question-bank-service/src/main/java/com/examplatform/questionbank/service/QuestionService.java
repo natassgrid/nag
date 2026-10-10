@@ -733,21 +733,7 @@ public class QuestionService {
 
     private void publishAuditEvent(String eventType, UUID questionId, UUID actorId,
                                     String tenantId, Map<String, Object> extra) {
-        try {
-            Map<String, Object> event = new java.util.HashMap<>();
-            event.put("eventType", eventType);
-            event.put("questionId", questionId.toString());
-            event.put("actorId", actorId.toString());
-            event.put("tenantId", tenantId);
-            event.put("occurredAt", Instant.now().toString());
-            if (extra != null) {
-                event.putAll(extra);
-            }
-
-            eventPublisher.publish(AUDIT_TOPIC, questionId.toString(), event);
-        } catch (Exception e) {
-            log.error("Unexpected error publishing audit event [type={}]: {}", eventType, e.getMessage());
-        }
+        AuditEventHelper.publishAuditEvent(eventPublisher, log, AUDIT_TOPIC, eventType, "questionId", questionId, actorId, tenantId, extra);
     }
 
     private static final com.fasterxml.jackson.databind.ObjectMapper MAPPER =

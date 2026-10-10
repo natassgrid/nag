@@ -19,10 +19,12 @@
 
 package com.examplatform.examination.dto.schedule;
 
+import com.examplatform.examination.domain.ExaminationSchedule;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.springframework.beans.BeanUtils;
 
 import java.time.Instant;
 import java.time.LocalDate;
@@ -55,4 +57,13 @@ public class ScheduleResponse {
     private Instant approvedAt;
     private Instant createdAt;
     private Instant updatedAt;
+
+    public static ScheduleResponse from(ExaminationSchedule s) {
+        if (s == null) {
+            return null;
+        }
+        ScheduleResponse response = new ScheduleResponse();
+        BeanUtils.copyProperties(s, response);
+        return response;
+    }
 }

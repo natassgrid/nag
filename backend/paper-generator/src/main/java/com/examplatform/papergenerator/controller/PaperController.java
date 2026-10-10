@@ -135,25 +135,7 @@ public class PaperController {
             String examName = examNames.get(p.getExamId());
             String shiftName = shiftNames.get(p.getShiftId());
             String resolvedName = resolvePaperName(p, examName, shiftName);
-
-            return PaperSummaryResponse.builder()
-                    .paperId(p.getId())
-                    .name(resolvedName)
-                    .examId(p.getExamId())
-                    .examName(examName)
-                    .shiftId(p.getShiftId())
-                    .shiftName(shiftName)
-                    .status(p.getStatus())
-                    .isPractice(p.isPractice())
-                    .variant(p.getVariant())
-                    .difficultyScore(p.getDifficultyScore())
-                    .encryptionKeyId(p.getEncryptionKeyId())
-                    .paperRootHash(p.getPaperRootHash())
-                    .ledgerTxHash(p.getLedgerTxHash())
-                    .ledgerExplorerUrl(p.getLedgerExplorerUrl())
-                    .anchoredAt(p.getAnchoredAt())
-                    .createdAt(p.getCreatedAt())
-                    .build();
+            return buildPaperSummary(p, resolvedName, examName, shiftName);
         });
 
         return ResponseEntity.ok(response);
@@ -533,25 +515,31 @@ public class PaperController {
             if (resolvedName == null || resolvedName.isBlank()) {
                 resolvedName = (examName != null ? examName : "Practice Paper");
             }
-            return PaperSummaryResponse.builder()
-                    .paperId(p.getId())
-                    .name(resolvedName)
-                    .examId(p.getExamId())
-                    .examName(examName)
-                    .shiftId(p.getShiftId())
-                    .status(p.getStatus())
-                    .isPractice(p.isPractice())
-                    .variant(p.getVariant())
-                    .difficultyScore(p.getDifficultyScore())
-                    .paperRootHash(p.getPaperRootHash())
-                    .ledgerTxHash(p.getLedgerTxHash())
-                    .ledgerExplorerUrl(p.getLedgerExplorerUrl())
-                    .anchoredAt(p.getAnchoredAt())
-                    .createdAt(p.getCreatedAt())
-                    .build();
+            return buildPaperSummary(p, resolvedName, examName, null);
         }).collect(Collectors.toList());
 
         return ResponseEntity.ok(response);
+    }
+
+    private PaperSummaryResponse buildPaperSummary(Paper p, String resolvedName, String examName, String shiftName) {
+        return PaperSummaryResponse.builder()
+                .paperId(p.getId())
+                .name(resolvedName)
+                .examId(p.getExamId())
+                .examName(examName)
+                .shiftId(p.getShiftId())
+                .shiftName(shiftName)
+                .status(p.getStatus())
+                .isPractice(p.isPractice())
+                .variant(p.getVariant())
+                .difficultyScore(p.getDifficultyScore())
+                .encryptionKeyId(p.getEncryptionKeyId())
+                .paperRootHash(p.getPaperRootHash())
+                .ledgerTxHash(p.getLedgerTxHash())
+                .ledgerExplorerUrl(p.getLedgerExplorerUrl())
+                .anchoredAt(p.getAnchoredAt())
+                .createdAt(p.getCreatedAt())
+                .build();
     }
 
     private String resolvePaperName(Paper p, String examName, String shiftName) {

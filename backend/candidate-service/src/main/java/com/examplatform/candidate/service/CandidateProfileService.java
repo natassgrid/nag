@@ -45,6 +45,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.function.Consumer;
 
 /**
  * Service handling candidate profile CRUD operations with per-candidate DEK,
@@ -73,18 +74,8 @@ public class CandidateProfileService {
             CandidateEducationRepository candidateEducationRepository,
             HashingService hashingService,
             VaultCryptoService vaultCryptoService,
-            EventPublisher eventPublisher) {
-        this(candidateProfileRepository, candidateEducationRepository, hashingService, vaultCryptoService, eventPublisher, null);
-    }
-
-    @Autowired
-    public CandidateProfileService(
-            CandidateProfileRepository candidateProfileRepository,
-            CandidateEducationRepository candidateEducationRepository,
-            HashingService hashingService,
-            VaultCryptoService vaultCryptoService,
             EventPublisher eventPublisher,
-            ObjectProvider<JdbcTemplate> jdbcTemplateProvider) {
+            @Autowired(required = false) ObjectProvider<JdbcTemplate> jdbcTemplateProvider) {
         this.candidateProfileRepository = candidateProfileRepository;
         this.candidateEducationRepository = candidateEducationRepository;
         this.hashingService = hashingService;
@@ -94,8 +85,9 @@ public class CandidateProfileService {
     }
 
     /**
-     * Creates a new candidate profile with per-candidate DEK reference,
-     * mobile hash for uniqueness, and identity doc hash + HMAC for duplicate detection.
+     * Creates a new candidate profile or updates an existing one (upsert).
+     * Computes SHA-256 hashes and HMACs for uniqueness and duplicate detection.
+     * Generates a DEK reference via Vault.
      */
     public CandidateProfileResponse create(CreateCandidateProfileRequest request, String tenantId) {
         // 1. Generate per-candidate DEK key name
@@ -230,21 +222,12 @@ public class CandidateProfileService {
                     return newProfile;
                 });
 
-        if (request.getFullName() != null) {
-            profile.setFullName(request.getFullName().trim());
-        }
-        if (request.getDateOfBirth() != null) {
-            profile.setDateOfBirth(request.getDateOfBirth().trim());
-        }
-        if (request.getGender() != null) {
-            profile.setGender(request.getGender().trim());
-        }
-        if (request.getNationality() != null) {
-            profile.setNationality(request.getNationality().trim());
-        }
-        if (request.getCategory() != null) {
-            profile.setCategory(request.getCategory().trim());
-        }
+        setTrimmedIfPresent(profile::setFullName, request.getFullName());
+        setTrimmedIfPresent(profile::setDateOfBirth, request.getDateOfBirth());
+        setTrimmedIfPresent(profile::setGender, request.getGender());
+        setTrimmedIfPresent(profile::setNationality, request.getNationality());
+        setTrimmedIfPresent(profile::setCategory, request.getCategory());
+
         if (request.getMobile() != null && !request.getMobile().isBlank()) {
             // Recompute mobileHash and check uniqueness against OTHER candidates
             String mobileHash = hashingService.sha256(request.getMobile().trim());
@@ -259,30 +242,15 @@ public class CandidateProfileService {
             profile.setMobileHash("PENDING-" + userId);
         }
 
-        if (request.getEmail() != null) {
-            profile.setEmail(request.getEmail().trim());
-        }
-        if (request.getAddress() != null) {
-            profile.setAddress(request.getAddress().trim());
-        }
-        if (request.getCountry() != null) {
-            profile.setCountry(request.getCountry().trim());
-        }
-        if (request.getState() != null) {
-            profile.setState(request.getState().trim());
-        }
-        if (request.getDistrict() != null) {
-            profile.setDistrict(request.getDistrict().trim());
-        }
-        if (request.getCity() != null) {
-            profile.setCity(request.getCity().trim());
-        }
-        if (request.getPinCode() != null) {
-            profile.setPinCode(request.getPinCode().trim());
-        }
-        if (request.getReservationCategory() != null) {
-            profile.setReservationCategory(request.getReservationCategory().trim());
-        }
+        setTrimmedIfPresent(profile::setEmail, request.getEmail());
+        setTrimmedIfPresent(profile::setAddress, request.getAddress());
+        setTrimmedIfPresent(profile::setCountry, request.getCountry());
+        setTrimmedIfPresent(profile::setState, request.getState());
+        setTrimmedIfPresent(profile::setDistrict, request.getDistrict());
+        setTrimmedIfPresent(profile::setCity, request.getCity());
+        setTrimmedIfPresent(profile::setPinCode, request.getPinCode());
+        setTrimmedIfPresent(profile::setReservationCategory, request.getReservationCategory());
+
         if (request.getIdentityDocNumber() != null && !request.getIdentityDocNumber().isBlank()) {
             // Recompute docHash + docHmac
             String normalizedDoc = request.getIdentityDocNumber().trim().toUpperCase();
@@ -394,7 +362,13 @@ public class CandidateProfileService {
         );
     }
 
-    // ── Private helpers ────────────────────────────────────────────────────────
+    // ── Private helpers ──────────────────────────────────────────────────────────
+
+    private static void setTrimmedIfPresent(Consumer<String> setter, String value) {
+        if (value != null) {
+            setter.accept(value.trim());
+        }
+    }
 
     private void publishAuditEvent(AuditEventType type, String actorId, String tenantId) {
         try {
