@@ -21,7 +21,6 @@ package com.examplatform.notification.service;
 
 import com.examplatform.notification.domain.Notification;
 import com.examplatform.notification.repository.NotificationRepository;
-import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.Setter;
@@ -30,12 +29,10 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
-import org.springframework.http.ResponseEntity;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
-import java.time.Instant;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -83,74 +80,38 @@ public class WhatsAppDeliveryService {
         // Normalize phone number (strip whitespace, + prefix)
         String cleanPhone = phone.replaceAll("[\\s\\-\\+]", "");
 
-        for (int attempt = 1; attempt <= MAX_RETRIES; attempt++) {
-            try {
-                HttpHeaders headers = new HttpHeaders();
-                headers.setContentType(MediaType.APPLICATION_JSON);
-                headers.setBearerAuth(accessToken);
+        NotificationDeliveryHelper.executeHttpDeliveryWithRetry(
+                notificationRepository,
+                notification,
+                "WhatsApp",
+                MAX_RETRIES,
+                () -> {
+                    HttpHeaders headers = new HttpHeaders();
+                    headers.setContentType(MediaType.APPLICATION_JSON);
+                    headers.setBearerAuth(accessToken);
 
-                Map<String, Object> payload = new HashMap<>();
-                payload.put("messaging_product", "whatsapp");
-                payload.put("to", cleanPhone);
-                payload.put("type", "template");
+                    Map<String, Object> payload = new HashMap<>();
+                    payload.put("messaging_product", "whatsapp");
+                    payload.put("to", cleanPhone);
+                    payload.put("type", "template");
 
-                Map<String, Object> templateMap = new HashMap<>();
-                templateMap.put("name", notification.getTemplateId() != null ? notification.getTemplateId() : "nag_generic_notification");
-                templateMap.put("language", Map.of("code", "en"));
-                templateMap.put("components", List.of(
-                        Map.of(
-                                "type", "body",
-                                "parameters", List.of(
-                                        Map.of("type", "text", "text", notification.getBody())
-                                )
-                        )
-                ));
-                payload.put("template", templateMap);
+                    Map<String, Object> templateMap = new HashMap<>();
+                    templateMap.put("name", notification.getTemplateId() != null ? notification.getTemplateId() : "nag_generic_notification");
+                    templateMap.put("language", Map.of("code", "en"));
+                    templateMap.put("components", List.of(
+                            Map.of(
+                                    "type", "body",
+                                    "parameters", List.of(
+                                            Map.of("type", "text", "text", notification.getBody())
+                                    )
+                            )
+                    ));
+                    payload.put("template", templateMap);
 
-                HttpEntity<Map<String, Object>> requestEntity = new HttpEntity<>(payload, headers);
-                ResponseEntity<String> response = restTemplate.postForEntity(whatsappEndpoint, requestEntity, String.class);
-
-                if (response.getStatusCode().is2xxSuccessful()) {
-                    String externalId = extractMessageId(response.getBody());
-                    NotificationDeliveryHelper.recordSuccess(notificationRepository, notificationId, notification, attempt, externalId);
-                    log.info("WhatsApp delivered successfully for notification {} on attempt {}, externalId={}",
-                            notificationId, attempt, externalId);
-                    return;
-                } else {
-                    throw new RuntimeException("WhatsApp Gateway returned HTTP " + response.getStatusCode());
-                }
-
-            } catch (Exception e) {
-                notification.setRetryCount(attempt);
-                log.warn("WhatsApp delivery failed for notification {} on attempt {}/{}: {}",
-                        notificationId, attempt, MAX_RETRIES, e.getMessage());
-
-                if (attempt == MAX_RETRIES) {
-                    NotificationDeliveryHelper.recordFailure(notificationRepository, notificationId, notification, MAX_RETRIES);
-                    log.error("ALERT: WhatsApp permanently UNDELIVERED after {} attempts for notification {}",
-                            MAX_RETRIES, notificationId);
-                }
-            }
-        }
-    }
-
-    private String extractMessageId(String responseBody) {
-        if (responseBody == null || responseBody.isBlank()) {
-            return "WA-" + Instant.now().toEpochMilli();
-        }
-        try {
-            JsonNode root = objectMapper.readTree(responseBody);
-            if (root.has("messages") && root.get("messages").isArray() && !root.get("messages").isEmpty()) {
-                return root.get("messages").get(0).path("id").asText();
-            }
-            if (root.has("messageId")) {
-                return root.get("messageId").asText();
-            }
-            if (root.has("id")) {
-                return root.get("id").asText();
-            }
-        } catch (Exception ignored) {
-        }
-        return "WA-" + Instant.now().toEpochMilli();
+                    return restTemplate.postForEntity(whatsappEndpoint, new HttpEntity<>(payload, headers), String.class);
+                },
+                body -> NotificationDeliveryHelper.extractMessageId(objectMapper, body, "WA"),
+                null
+        );
     }
 }
