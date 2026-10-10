@@ -77,33 +77,17 @@ public class NotificationPreferenceService {
                     return np;
                 });
 
-        if (request.getPreferredChannel() != null) {
-            preference.setPreferredChannel(request.getPreferredChannel().toUpperCase());
-        }
-        if (request.getPhoneNumber() != null) {
-            preference.setPhoneNumber(request.getPhoneNumber());
-        }
-        if (request.getEmail() != null) {
-            preference.setEmail(request.getEmail());
-        }
-        if (request.getFcmToken() != null) {
-            preference.setFcmToken(request.getFcmToken());
-        }
-        if (request.getPushEnabled() != null) {
-            preference.setPushEnabled(request.getPushEnabled());
-        }
-        if (request.getSmsEnabled() != null) {
-            preference.setSmsEnabled(request.getSmsEnabled());
-        }
-        if (request.getWhatsappEnabled() != null) {
-            preference.setWhatsappEnabled(request.getWhatsappEnabled());
-        }
-        if (request.getEmailEnabled() != null) {
-            preference.setEmailEnabled(request.getEmailEnabled());
-        }
-        if (request.getInAppEnabled() != null) {
-            preference.setInAppEnabled(request.getInAppEnabled());
-        }
+        Optional.ofNullable(request.getPreferredChannel())
+                .map(String::toUpperCase)
+                .ifPresent(preference::setPreferredChannel);
+        Optional.ofNullable(request.getPhoneNumber()).ifPresent(preference::setPhoneNumber);
+        Optional.ofNullable(request.getEmail()).ifPresent(preference::setEmail);
+        Optional.ofNullable(request.getFcmToken()).ifPresent(preference::setFcmToken);
+        Optional.ofNullable(request.getPushEnabled()).ifPresent(preference::setPushEnabled);
+        Optional.ofNullable(request.getSmsEnabled()).ifPresent(preference::setSmsEnabled);
+        Optional.ofNullable(request.getWhatsappEnabled()).ifPresent(preference::setWhatsappEnabled);
+        Optional.ofNullable(request.getEmailEnabled()).ifPresent(preference::setEmailEnabled);
+        Optional.ofNullable(request.getInAppEnabled()).ifPresent(preference::setInAppEnabled);
 
         NotificationPreference saved = preferenceRepository.save(preference);
         log.info("Saved notification preferences for userId={}, preferredChannel={}",
