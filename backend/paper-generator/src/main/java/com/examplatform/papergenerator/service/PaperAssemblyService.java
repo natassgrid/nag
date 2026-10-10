@@ -411,8 +411,12 @@ public class PaperAssemblyService {
             shiftName = shiftNames.get(request.getShiftId());
         }
 
+        return formatPaperTitle(Boolean.TRUE.equals(request.getIsPractice()), examName, shiftName, request.getShiftId());
+    }
+
+    public static String formatPaperTitle(boolean isPractice, String examName, String shiftName, String shiftId) {
         StringBuilder sb = new StringBuilder();
-        if (Boolean.TRUE.equals(request.getIsPractice())) {
+        if (isPractice) {
             sb.append("Practice - ");
         }
         if (examName != null && !examName.isBlank()) {
@@ -422,10 +426,9 @@ public class PaperAssemblyService {
         }
         if (shiftName != null && !shiftName.isBlank()) {
             sb.append(" (").append(shiftName).append(")");
-        } else if (request.getShiftId() != null && !request.getShiftId().isBlank()) {
-            sb.append(" [Shift: ").append(request.getShiftId()).append("]");
+        } else if (shiftId != null && !shiftId.isBlank()) {
+            sb.append(" [Shift: ").append(shiftId).append("]");
         }
-
         return sb.toString();
     }
 

@@ -100,28 +100,8 @@ public class RoleDefinitionService {
                 .build();
         role.setTenantId(tenantId);
 
-        // Assign permissions if provided
-        if (request.getPermissionIds() != null && !request.getPermissionIds().isEmpty()) {
-            List<Permission> permissions = permissionRepository.findByIdInAndTenantId(
-                    request.getPermissionIds(), tenantId);
-            role.setPermissions(new HashSet<>(permissions));
-        }
-
-        RoleDefinition saved = roleDefinitionRepository.save(role);
-        log.info("Role created: [{}] '{}' by actor [{}] in tenant [{}]",
-                saved.getId(), saved.getCode(), actorId, tenantId);
-
-        auditEventPublisher.publish(
-                AuditEventType.ROLE_CHANGE,
-                actorId,
-                "identity:role-definitions/" + saved.getId(),
-                null, null,
-                Map.of("action", "CREATE",
-                        "roleCode", saved.getCode(),
-                        "tenantId", tenantId)
-        );
-
-        return toResponse(saved);
+        applyRolePermissions(role, request.getPermissionIds(), tenantId);
+        return saveAuditAndConvert(role, "CREATE", actorId, tenantId);
     }
 
     /**
@@ -141,28 +121,8 @@ public class RoleDefinitionService {
             role.setActive(request.getActive());
         }
 
-        // Update permissions if provided
-        if (request.getPermissionIds() != null) {
-            List<Permission> permissions = permissionRepository.findByIdInAndTenantId(
-                    request.getPermissionIds(), tenantId);
-            role.setPermissions(new HashSet<>(permissions));
-        }
-
-        RoleDefinition saved = roleDefinitionRepository.save(role);
-        log.info("Role updated: [{}] '{}' by actor [{}] in tenant [{}]",
-                saved.getId(), saved.getCode(), actorId, tenantId);
-
-        auditEventPublisher.publish(
-                AuditEventType.ROLE_CHANGE,
-                actorId,
-                "identity:role-definitions/" + saved.getId(),
-                null, null,
-                Map.of("action", "UPDATE",
-                        "roleCode", saved.getCode(),
-                        "tenantId", tenantId)
-        );
-
-        return toResponse(saved);
+        applyRolePermissions(role, request.getPermissionIds(), tenantId);
+        return saveAuditAndConvert(role, "UPDATE", actorId, tenantId);
     }
 
     /**
@@ -231,5 +191,29 @@ public class RoleDefinitionService {
                 .description(permission.getDescription())
                 .module(permission.getModule())
                 .build();
+    }
+    private void applyRolePermissions(RoleDefinition role, Set<UUID> permissionIds, String tenantId) {
+        if (permissionIds != null && !permissionIds.isEmpty()) {
+            List<Permission> permissions = permissionRepository.findByIdInAndTenantId(permissionIds, tenantId);
+            role.setPermissions(new HashSet<>(permissions));
+        }
+    }
+
+    private RoleDefinitionResponse saveAuditAndConvert(RoleDefinition role, String action, String actorId, String tenantId) {
+        RoleDefinition saved = roleDefinitionRepository.save(role);
+        log.info("Role {}: [{}] '{}' by actor [{}] in tenant [{}]",
+                action.toLowerCase() + "d", saved.getId(), saved.getCode(), actorId, tenantId);
+
+        auditEventPublisher.publish(
+                AuditEventType.ROLE_CHANGE,
+                actorId,
+                "identity:role-definitions/" + saved.getId(),
+                null, null,
+                Map.of("action", action,
+                        "roleCode", saved.getCode(),
+                        "tenantId", tenantId)
+        );
+
+        return toResponse(saved);
     }
 }

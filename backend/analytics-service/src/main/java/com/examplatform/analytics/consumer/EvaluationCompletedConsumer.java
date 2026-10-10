@@ -58,8 +58,10 @@ public class EvaluationCompletedConsumer extends AbstractEvaluationCompletedCons
     public void onEvaluationCompleted(
             @Payload String payload,
             @Header(value = KafkaHeaders.RECEIVED_KEY, required = false) String key) {
-        log.debug("Consuming analytics evaluation completed event [key={}]", key);
-        processEvaluationCompleted(payload, key);
+        if (payload != null && !payload.isBlank()) {
+            log.debug("Consuming analytics evaluation completed event [key={}]", key);
+            processEvaluationCompleted(payload, key);
+        }
     }
 
     @Override
@@ -68,8 +70,10 @@ public class EvaluationCompletedConsumer extends AbstractEvaluationCompletedCons
             exchange = @Exchange(value = "exam.events", type = ExchangeTypes.TOPIC),
             key = EVALUATION_COMPLETED_TOPIC))
     public void onRabbitEvaluationCompleted(Object message) {
-        log.debug("Analytics consumer processing RabbitMQ event payload");
-        super.onRabbitEvaluationCompleted(message);
+        if (message != null) {
+            log.debug("Analytics consumer processing RabbitMQ event payload");
+            super.onRabbitEvaluationCompleted(message);
+        }
     }
 
     @Override

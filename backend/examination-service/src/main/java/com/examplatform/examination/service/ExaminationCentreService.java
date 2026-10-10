@@ -110,16 +110,10 @@ public class ExaminationCentreService {
     public Page<CentreResponse> listCentresPaged(
             String tenantId, String search, String state, String city, String sort, String order, int page, int size) {
         Sort.Direction direction = "asc".equalsIgnoreCase(order) ? Sort.Direction.ASC : Sort.Direction.DESC;
-        String sortProp = resolveCentreSortProperty(sort);
-        Pageable pageable = PageRequest.of(page, size, Sort.by(direction, sortProp));
-
-        Page<ExaminationCentre> centrePage;
-        if (search != null && !search.isBlank()) {
-            centrePage = centreRepository.findByTenantIdAndCentreNameContainingIgnoreCaseAndActiveTrue(
-                    tenantId, search.trim(), pageable);
-        } else {
-            centrePage = centreRepository.findByTenantIdAndActiveTrue(tenantId, pageable);
-        }
+        Pageable pageable = PageRequest.of(page, size, Sort.by(direction, resolveCentreSortProperty(sort)));
+        Page<ExaminationCentre> centrePage = (search != null && !search.isBlank())
+                ? centreRepository.findByTenantIdAndCentreNameContainingIgnoreCaseAndActiveTrue(tenantId, search.trim(), pageable)
+                : centreRepository.findByTenantIdAndActiveTrue(tenantId, pageable);
 
         return centrePage.map(this::toCentreResponse);
     }

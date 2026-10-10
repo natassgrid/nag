@@ -49,17 +49,17 @@ public class WhatsAppDeliveryService {
 
     private final NotificationRepository notificationRepository;
 
-    @Setter
-    private RestTemplate restTemplate = new RestTemplate();
-
-    @Setter
-    private ObjectMapper objectMapper = new ObjectMapper();
-
     @Value("${notification.whatsapp.endpoint:http://localhost:3000/whatsapp/v1/messages}")
     private String whatsappEndpoint;
 
     @Value("${notification.whatsapp.access-token:mock-wa-access-token}")
     private String accessToken;
+
+    @Setter
+    private RestTemplate restTemplate = new RestTemplate();
+
+    @Setter
+    private ObjectMapper objectMapper = new ObjectMapper();
 
     private static final int MAX_RETRIES = 3;
 
@@ -77,9 +77,10 @@ public class WhatsAppDeliveryService {
             return;
         }
 
-        // Normalize phone number (strip whitespace, + prefix)
-        String cleanPhone = phone.replaceAll("[\\s\\-\\+]", "");
+        dispatchWhatsAppMessage(notification, phone.replaceAll("[\\s\\-\\+]", ""));
+    }
 
+    private void dispatchWhatsAppMessage(Notification notification, String cleanPhone) {
         NotificationDeliveryHelper.executeHttpDeliveryWithRetry(
                 notificationRepository,
                 notification,

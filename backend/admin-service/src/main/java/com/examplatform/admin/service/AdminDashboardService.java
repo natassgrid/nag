@@ -443,71 +443,47 @@ public class AdminDashboardService {
         return healthList;
     }
 
-    private SystemServiceHealthResponse checkDatabaseHealth() {
-        long start = System.currentTimeMillis();
-        if (dataSource != null) {
-            try (Connection conn = dataSource.getConnection()) {
-                boolean valid = conn.isValid(1);
-                long latency = Math.max(1, System.currentTimeMillis() - start);
-                return SystemServiceHealthResponse.builder()
-                        .name("PostgreSQL Database")
-                        .status(valid ? "UP" : "DOWN")
-                        .latencyMs((int) latency)
-                        .uptime(valid ? "100%" : "0.00%")
-                        .details(valid ? "PostgreSQL primary pool connected" : "Connection invalid")
-                        .build();
-            } catch (Exception e) {
-                long latency = Math.max(1, System.currentTimeMillis() - start);
-                return SystemServiceHealthResponse.builder()
-                        .name("PostgreSQL Database")
-                        .status("DOWN")
-                        .latencyMs((int) latency)
-                        .uptime("0.00%")
-                        .details("Database error: " + e.getMessage())
-                        .build();
-            }
-        }
+    private SystemServiceHealthResponse buildHealthResponse(String name, boolean up, long latency, String details) {
         return SystemServiceHealthResponse.builder()
-                .name("PostgreSQL Database")
-                .status("DOWN")
-                .latencyMs(0)
-                .uptime("0.00%")
-                .details("Data source not configured")
+                .name(name)
+                .status(up ? "UP" : "DOWN")
+                .latencyMs((int) latency)
+                .uptime(up ? "100%" : "0.00%")
+                .details(details)
                 .build();
     }
 
-    private SystemServiceHealthResponse checkRedisHealth() {
-        long start = System.currentTimeMillis();
-        if (redisTemplate != null) {
-            try {
-                String pingResult = redisTemplate.getConnectionFactory().getConnection().ping();
-                long latency = Math.max(1, System.currentTimeMillis() - start);
-                boolean up = "PONG".equalsIgnoreCase(pingResult);
-                return SystemServiceHealthResponse.builder()
-                        .name("Redis Cache & Sessions")
-                        .status(up ? "UP" : "DOWN")
-                        .latencyMs((int) latency)
-                        .uptime(up ? "100%" : "0.00%")
-                        .details(up ? "Redis cluster responding" : "Unexpected ping response: " + pingResult)
-                        .build();
-            } catch (Exception e) {
-                long latency = Math.max(1, System.currentTimeMillis() - start);
-                return SystemServiceHealthResponse.builder()
-                        .name("Redis Cache & Sessions")
-                        .status("DOWN")
-                        .latencyMs((int) latency)
-                        .uptime("0.00%")
-                        .details("Redis connection failed: " + e.getMessage())
-                        .build();
-            }
+    private SystemServiceHealthResponse checkDatabaseHealth() {
+        if (dataSource == null) {
+            return buildHealthResponse("PostgreSQL Database", false, 0, "Data source not configured");
         }
-        return SystemServiceHealthResponse.builder()
-                .name("Redis Cache & Sessions")
-                .status("DOWN")
-                .latencyMs(0)
-                .uptime("0.00%")
-                .details("Redis template not configured")
-                .build();
+        long start = System.currentTimeMillis();
+        try (Connection conn = dataSource.getConnection()) {
+            boolean valid = conn.isValid(1);
+            long latency = Math.max(1, System.currentTimeMillis() - start);
+            return buildHealthResponse("PostgreSQL Database", valid, latency,
+                    valid ? "PostgreSQL primary pool connected" : "Connection invalid");
+        } catch (Exception e) {
+            long latency = Math.max(1, System.currentTimeMillis() - start);
+            return buildHealthResponse("PostgreSQL Database", false, latency, "Database error: " + e.getMessage());
+        }
+    }
+
+    private SystemServiceHealthResponse checkRedisHealth() {
+        if (redisTemplate == null) {
+            return buildHealthResponse("Redis Cache & Sessions", false, 0, "Redis template not configured");
+        }
+        long start = System.currentTimeMillis();
+        try {
+            String pingResult = redisTemplate.getConnectionFactory().getConnection().ping();
+            long latency = Math.max(1, System.currentTimeMillis() - start);
+            boolean up = "PONG".equalsIgnoreCase(pingResult);
+            return buildHealthResponse("Redis Cache & Sessions", up, latency,
+                    up ? "Redis cluster responding" : "Unexpected ping response: " + pingResult);
+        } catch (Exception e) {
+            long latency = Math.max(1, System.currentTimeMillis() - start);
+            return buildHealthResponse("Redis Cache & Sessions", false, latency, "Redis connection failed: " + e.getMessage());
+        }
     }
 
     private SystemServiceHealthResponse probeService(String serviceName, String host, int port,
@@ -516,21 +492,9 @@ public class AdminDashboardService {
         try (Socket socket = new Socket()) {
             socket.connect(new InetSocketAddress(host, port), 1500);
             long latency = Math.max(1, System.currentTimeMillis() - start);
-            return SystemServiceHealthResponse.builder()
-                    .name(serviceName)
-                    .status("UP")
-                    .latencyMs((int) latency)
-                    .uptime("100%")
-                    .details(successMsg)
-                    .build();
+            return buildHealthResponse(serviceName, true, latency, successMsg);
         } catch (Exception e) {
-            return SystemServiceHealthResponse.builder()
-                    .name(serviceName)
-                    .status("DOWN")
-                    .latencyMs(0)
-                    .uptime("0.00%")
-                    .details(failureMsg + ": " + e.getMessage())
-                    .build();
+            return buildHealthResponse(serviceName, false, 0, failureMsg + ": " + e.getMessage());
         }
     }
 

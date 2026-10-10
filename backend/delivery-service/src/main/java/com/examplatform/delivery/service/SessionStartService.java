@@ -210,13 +210,9 @@ public class SessionStartService {
             examQuestionDeliveryService.applyLanguagePreference(questions, request.getLanguageCode());
         }
 
-        String firstQuestionContent = extractFirstQuestion(decryptedPaper);
-        if (firstQuestionContent == null && questions != null && !questions.isEmpty()) {
-            try {
-                firstQuestionContent = objectMapper.writeValueAsString(questions.get(0));
-            } catch (JsonProcessingException ignored) {}
-        }
-        int totalQuestions = (questions != null && !questions.isEmpty()) ? questions.size() : countQuestions(decryptedPaper);
+        QuestionPreparationResult qPrep = prepareQuestionsMetadata(decryptedPaper, questions);
+        String firstQuestionContent = qPrep.firstQuestionContent();
+        int totalQuestions = qPrep.totalQuestions();
 
         // 6. Apply disability extension time
         int disabilityExtension = disabilityExtensionService.getExtraTimeMinutes(candidateId, effectiveTenant);
@@ -268,11 +264,7 @@ public class SessionStartService {
         }
 
         // 11. Read dynamic delivery parameters
-        boolean kioskEnforced = dynamicConfigService.getBoolean("delivery.kiosk.mode.enforced", effectiveTenant, true);
-        int heartbeatSec = dynamicConfigService.getInt("delivery.telemetry.heartbeat.seconds", effectiveTenant, 10);
-        int autosaveSec = dynamicConfigService.getInt("delivery.autosave.interval.seconds", effectiveTenant, 15);
-        int maxDisconnectGraceSec = dynamicConfigService.getInt("delivery.max.disconnect.grace.seconds", effectiveTenant, 180);
-        boolean tamperEnabled = dynamicConfigService.getBoolean("delivery.tamper.detection.enabled", effectiveTenant, true);
+        DynamicDeliveryParams deliveryParams = resolveDynamicDeliveryParams(effectiveTenant);
 
         String examTitle = resolveExamTitle(request.getExamId());
 
@@ -292,11 +284,11 @@ public class SessionStartService {
                 .firstQuestionContent(firstQuestionContent)
                 .totalQuestions(totalQuestions)
                 .questions(questions)
-                .kioskModeEnforced(kioskEnforced)
-                .heartbeatIntervalSeconds(heartbeatSec)
-                .autosaveIntervalSeconds(autosaveSec)
-                .maxDisconnectGraceSeconds(maxDisconnectGraceSec)
-                .tamperDetectionEnabled(tamperEnabled)
+                .kioskModeEnforced(deliveryParams.kioskEnforced())
+                .heartbeatIntervalSeconds(deliveryParams.heartbeatSec())
+                .autosaveIntervalSeconds(deliveryParams.autosaveSec())
+                .maxDisconnectGraceSeconds(deliveryParams.maxDisconnectGraceSec())
+                .tamperDetectionEnabled(deliveryParams.tamperEnabled())
                 .build();
     }
 
@@ -348,13 +340,9 @@ public class SessionStartService {
             examQuestionDeliveryService.applyLanguagePreference(questions, session.getLanguageCode());
         }
 
-        String firstQuestionContent = extractFirstQuestion(decryptedPaper);
-        if (firstQuestionContent == null && questions != null && !questions.isEmpty()) {
-            try {
-                firstQuestionContent = objectMapper.writeValueAsString(questions.get(0));
-            } catch (JsonProcessingException ignored) {}
-        }
-        int totalQuestions = (questions != null && !questions.isEmpty()) ? questions.size() : countQuestions(decryptedPaper);
+        QuestionPreparationResult qPrep = prepareQuestionsMetadata(decryptedPaper, questions);
+        String firstQuestionContent = qPrep.firstQuestionContent();
+        int totalQuestions = qPrep.totalQuestions();
 
         // 3. Publish SESSION_RESUMED telemetry event
         try {
@@ -371,11 +359,7 @@ public class SessionStartService {
         }
 
         // 4. Read dynamic delivery parameters
-        boolean kioskEnforced = dynamicConfigService.getBoolean("delivery.kiosk.mode.enforced", effectiveTenant, true);
-        int heartbeatSec = dynamicConfigService.getInt("delivery.telemetry.heartbeat.seconds", effectiveTenant, 10);
-        int autosaveSec = dynamicConfigService.getInt("delivery.autosave.interval.seconds", effectiveTenant, 15);
-        int maxDisconnectGraceSec = dynamicConfigService.getInt("delivery.max.disconnect.grace.seconds", effectiveTenant, 180);
-        boolean tamperEnabled = dynamicConfigService.getBoolean("delivery.tamper.detection.enabled", effectiveTenant, true);
+        DynamicDeliveryParams deliveryParams = resolveDynamicDeliveryParams(effectiveTenant);
 
         String examTitle = resolveExamTitle(session.getExamId());
 
@@ -402,11 +386,11 @@ public class SessionStartService {
                 .firstQuestionContent(firstQuestionContent)
                 .totalQuestions(totalQuestions)
                 .questions(questions)
-                .kioskModeEnforced(kioskEnforced)
-                .heartbeatIntervalSeconds(heartbeatSec)
-                .autosaveIntervalSeconds(autosaveSec)
-                .maxDisconnectGraceSeconds(maxDisconnectGraceSec)
-                .tamperDetectionEnabled(tamperEnabled)
+                .kioskModeEnforced(deliveryParams.kioskEnforced())
+                .heartbeatIntervalSeconds(deliveryParams.heartbeatSec())
+                .autosaveIntervalSeconds(deliveryParams.autosaveSec())
+                .maxDisconnectGraceSeconds(deliveryParams.maxDisconnectGraceSec())
+                .tamperDetectionEnabled(deliveryParams.tamperEnabled())
                 .build();
     }
 
@@ -520,5 +504,38 @@ public class SessionStartService {
             }
         }
         return 60;
+    }
+    record DynamicDeliveryParams(
+            boolean kioskEnforced,
+            int heartbeatSec,
+            int autosaveSec,
+            int maxDisconnectGraceSec,
+            boolean tamperEnabled
+    ) {}
+
+    private DynamicDeliveryParams resolveDynamicDeliveryParams(String effectiveTenant) {
+        return new DynamicDeliveryParams(
+                dynamicConfigService.getBoolean("delivery.kiosk.mode.enforced", effectiveTenant, true),
+                dynamicConfigService.getInt("delivery.telemetry.heartbeat.seconds", effectiveTenant, 10),
+                dynamicConfigService.getInt("delivery.autosave.interval.seconds", effectiveTenant, 15),
+                dynamicConfigService.getInt("delivery.max.disconnect.grace.seconds", effectiveTenant, 180),
+                dynamicConfigService.getBoolean("delivery.tamper.detection.enabled", effectiveTenant, true)
+        );
+    }
+
+    record QuestionPreparationResult(
+            String firstQuestionContent,
+            int totalQuestions
+    ) {}
+
+    private QuestionPreparationResult prepareQuestionsMetadata(String decryptedPaper, List<QuestionDeliveryDto> questions) {
+        String firstQuestionContent = extractFirstQuestion(decryptedPaper);
+        if (firstQuestionContent == null && questions != null && !questions.isEmpty()) {
+            try {
+                firstQuestionContent = objectMapper.writeValueAsString(questions.get(0));
+            } catch (JsonProcessingException ignored) {}
+        }
+        int totalQuestions = (questions != null && !questions.isEmpty()) ? questions.size() : countQuestions(decryptedPaper);
+        return new QuestionPreparationResult(firstQuestionContent, totalQuestions);
     }
 }

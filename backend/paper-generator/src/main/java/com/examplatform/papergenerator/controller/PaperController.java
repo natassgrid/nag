@@ -536,21 +536,7 @@ public class PaperController {
         if (resolvedName != null && !resolvedName.isBlank()) {
             return resolvedName;
         }
-        StringBuilder sb = new StringBuilder();
-        if (p.isPractice()) {
-            sb.append("Practice - ");
-        }
-        if (examName != null && !examName.isBlank()) {
-            sb.append(examName);
-        } else {
-            sb.append("Exam Paper");
-        }
-        if (shiftName != null && !shiftName.isBlank()) {
-            sb.append(" (").append(shiftName).append(")");
-        } else if (p.getShiftId() != null && !p.getShiftId().isBlank()) {
-            sb.append(" [Shift: ").append(p.getShiftId()).append("]");
-        }
-        return sb.toString();
+        return PaperAssemblyService.formatPaperTitle(p.isPractice(), examName, shiftName, p.getShiftId());
     }
 
     private String getEffectiveTenantId() {

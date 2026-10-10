@@ -41,44 +41,36 @@ import org.springframework.web.multipart.MaxUploadSizeExceededException;
 @RequestMapping(produces = MediaType.APPLICATION_JSON_VALUE)
 public class AssetExceptionHandler {
 
+    private ResponseEntity<ApiResponse<Void>> errorResponse(HttpStatus status, String message, HttpServletResponse response) {
+        response.setContentType(MediaType.APPLICATION_JSON_VALUE);
+        return ResponseEntity
+                .status(status)
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(ApiResponse.error(message));
+    }
+
     @ExceptionHandler(AccessDeniedException.class)
     public ResponseEntity<ApiResponse<Void>> handleAccessDenied(AccessDeniedException ex, HttpServletResponse response) {
         log.warn("Access denied: {}", ex.getMessage());
-        response.setContentType(MediaType.APPLICATION_JSON_VALUE);
-        return ResponseEntity
-                .status(HttpStatus.FORBIDDEN)
-                .contentType(MediaType.APPLICATION_JSON)
-                .body(ApiResponse.error("Access denied"));
+        return errorResponse(HttpStatus.FORBIDDEN, "Access denied", response);
     }
 
     @ExceptionHandler(AssetValidationException.class)
     public ResponseEntity<ApiResponse<Void>> handleValidationException(AssetValidationException ex, HttpServletResponse response) {
         log.warn("Asset validation failed: {}", ex.getMessage());
-        response.setContentType(MediaType.APPLICATION_JSON_VALUE);
-        return ResponseEntity
-                .status(HttpStatus.BAD_REQUEST)
-                .contentType(MediaType.APPLICATION_JSON)
-                .body(ApiResponse.error(ex.getMessage()));
+        return errorResponse(HttpStatus.BAD_REQUEST, ex.getMessage(), response);
     }
 
     @ExceptionHandler(EntityNotFoundException.class)
     public ResponseEntity<ApiResponse<Void>> handleNotFoundException(EntityNotFoundException ex, HttpServletResponse response) {
         log.warn("Entity not found: {}", ex.getMessage());
-        response.setContentType(MediaType.APPLICATION_JSON_VALUE);
-        return ResponseEntity
-                .status(HttpStatus.NOT_FOUND)
-                .contentType(MediaType.APPLICATION_JSON)
-                .body(ApiResponse.error(ex.getMessage()));
+        return errorResponse(HttpStatus.NOT_FOUND, ex.getMessage(), response);
     }
 
     @ExceptionHandler(MaxUploadSizeExceededException.class)
     public ResponseEntity<ApiResponse<Void>> handleMaxUploadSize(MaxUploadSizeExceededException ex, HttpServletResponse response) {
         log.warn("Upload size exceeded: {}", ex.getMessage());
-        response.setContentType(MediaType.APPLICATION_JSON_VALUE);
-        return ResponseEntity
-                .status(HttpStatus.PAYLOAD_TOO_LARGE)
-                .contentType(MediaType.APPLICATION_JSON)
-                .body(ApiResponse.error("File size exceeds maximum allowed upload size"));
+        return errorResponse(HttpStatus.PAYLOAD_TOO_LARGE, "File size exceeds maximum allowed upload size", response);
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
@@ -88,30 +80,18 @@ public class AssetExceptionHandler {
                 .reduce((a, b) -> a + "; " + b)
                 .orElse("Validation failed");
         log.warn("Request validation failed: {}", message);
-        response.setContentType(MediaType.APPLICATION_JSON_VALUE);
-        return ResponseEntity
-                .status(HttpStatus.BAD_REQUEST)
-                .contentType(MediaType.APPLICATION_JSON)
-                .body(ApiResponse.error(message));
+        return errorResponse(HttpStatus.BAD_REQUEST, message, response);
     }
 
     @ExceptionHandler(IllegalArgumentException.class)
     public ResponseEntity<ApiResponse<Void>> handleIllegalArgument(IllegalArgumentException ex, HttpServletResponse response) {
         log.warn("Illegal argument: {}", ex.getMessage());
-        response.setContentType(MediaType.APPLICATION_JSON_VALUE);
-        return ResponseEntity
-                .status(HttpStatus.BAD_REQUEST)
-                .contentType(MediaType.APPLICATION_JSON)
-                .body(ApiResponse.error(ex.getMessage()));
+        return errorResponse(HttpStatus.BAD_REQUEST, ex.getMessage(), response);
     }
 
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ApiResponse<Void>> handleGenericException(Exception ex, HttpServletResponse response) {
         log.error("Unhandled exception: {}", ex.getMessage(), ex);
-        response.setContentType(MediaType.APPLICATION_JSON_VALUE);
-        return ResponseEntity
-                .status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .contentType(MediaType.APPLICATION_JSON)
-                .body(ApiResponse.error("An unexpected error occurred"));
+        return errorResponse(HttpStatus.INTERNAL_SERVER_ERROR, "An unexpected error occurred", response);
     }
 }

@@ -158,21 +158,22 @@ public class QuestionBankGrpcServiceImpl extends QuestionBankGrpcServiceGrpc.Que
     }
 
     private QuestionSummaryGrpc toGrpcQuestion(Question q, Passage passage) {
-        QuestionSummaryGrpc.Builder b = QuestionSummaryGrpc.newBuilder();
-        if (q.getId() != null) b.setId(q.getId().toString());
-        if (q.getContent() != null) b.setContent(q.getContent());
-        if (q.getQuestionType() != null) b.setQuestionType(q.getQuestionType());
-        if (q.getDifficulty() != null) b.setDifficulty(q.getDifficulty());
-        if (q.getCognitiveLevel() != null) b.setCognitiveLevel(q.getCognitiveLevel());
-        b.setMarks(1.0);
-        b.setNegativeMarks(0.0);
-        if (q.getTopicId() != null) b.setTopicId(q.getTopicId().toString());
-        if (q.getSubjectId() != null) b.setSubjectId(q.getSubjectId().toString());
-        if (q.getAnswerKey() != null) b.setAnswerKey(q.getAnswerKey());
-        if (q.getExplanation() != null) b.setExplanation(q.getExplanation());
-        if (q.getSubject() != null) b.setSubject(q.getSubject());
-        if (q.getTopic() != null) b.setTopic(q.getTopic());
-        b.setUsageCount(q.getUsageCount());
+        QuestionSummaryGrpc.Builder b = QuestionSummaryGrpc.newBuilder()
+                .setMarks(1.0)
+                .setNegativeMarks(0.0)
+                .setUsageCount(q.getUsageCount());
+
+        java.util.Optional.ofNullable(q.getId()).ifPresent(id -> b.setId(id.toString()));
+        java.util.Optional.ofNullable(q.getContent()).ifPresent(b::setContent);
+        java.util.Optional.ofNullable(q.getQuestionType()).ifPresent(b::setQuestionType);
+        java.util.Optional.ofNullable(q.getDifficulty()).ifPresent(b::setDifficulty);
+        java.util.Optional.ofNullable(q.getCognitiveLevel()).ifPresent(b::setCognitiveLevel);
+        java.util.Optional.ofNullable(q.getTopicId()).ifPresent(id -> b.setTopicId(id.toString()));
+        java.util.Optional.ofNullable(q.getSubjectId()).ifPresent(id -> b.setSubjectId(id.toString()));
+        java.util.Optional.ofNullable(q.getAnswerKey()).ifPresent(b::setAnswerKey);
+        java.util.Optional.ofNullable(q.getExplanation()).ifPresent(b::setExplanation);
+        java.util.Optional.ofNullable(q.getSubject()).ifPresent(b::setSubject);
+        java.util.Optional.ofNullable(q.getTopic()).ifPresent(b::setTopic);
 
         if (q.getPassageId() != null) {
             b.setPassageId(q.getPassageId().toString());
