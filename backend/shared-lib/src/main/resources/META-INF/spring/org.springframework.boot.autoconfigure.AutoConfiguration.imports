@@ -8,3 +8,4 @@ com.examplatform.shared.security.SharedSecurityConfig
 com.examplatform.shared.security.UserContextAutoConfiguration
 com.examplatform.shared.audit.JpaAuditingConfig
 com.examplatform.shared.crypto.VaultCryptoAutoConfiguration
+com.examplatform.shared.crypto.HashingAutoConfiguration

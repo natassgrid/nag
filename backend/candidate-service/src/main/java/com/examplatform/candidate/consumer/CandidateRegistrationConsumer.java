@@ -21,7 +21,7 @@ package com.examplatform.candidate.consumer;
 
 import com.examplatform.candidate.domain.CandidateProfile;
 import com.examplatform.candidate.repository.CandidateProfileRepository;
-import com.examplatform.candidate.service.HashingService;
+import com.examplatform.shared.crypto.HashingService;
 import com.examplatform.shared.messaging.GenericDomainEvent;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;

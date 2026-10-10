@@ -27,7 +27,7 @@ import com.examplatform.identity.exception.MfaRequiredException;
 import com.examplatform.identity.repository.UserAccountRepository;
 import com.examplatform.identity.service.AuthenticationService;
 import com.examplatform.identity.service.GeoIpService;
-import com.examplatform.identity.service.HashingService;
+import com.examplatform.shared.crypto.HashingService;
 import com.examplatform.identity.service.KeycloakService;
 import com.examplatform.identity.service.OtpService;
 import com.examplatform.identity.service.RiskAssessmentService;

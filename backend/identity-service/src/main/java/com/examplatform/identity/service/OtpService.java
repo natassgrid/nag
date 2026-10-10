@@ -19,6 +19,8 @@
 
 package com.examplatform.identity.service;
 
+import com.examplatform.shared.crypto.HashingService;
+
 import com.examplatform.identity.config.SmsProperties;
 import com.examplatform.identity.domain.OtpVerification;
 import com.examplatform.identity.exception.RateLimitExceededException;
