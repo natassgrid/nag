@@ -147,9 +147,7 @@ public class AdminProfileController {
             @Valid @RequestBody TotpVerifySetupRequest request,
             @AuthenticationPrincipal Jwt jwt,
             @RequestHeader(value = "X-Tenant-Id", defaultValue = "default") String tenantId) {
-        String userIdStr = extractUserId(jwt);
-        UUID userId = resolveUuid(userIdStr, tenantId);
-        adminInvitationService.verifyAndEnableTotp(userId, request, tenantId);
+        adminInvitationService.verifyAndEnableTotp(resolveUserUuid(jwt, tenantId), request, tenantId);
         return ResponseEntity.ok(ApiResponse.success(null, "2FA TOTP activated successfully."));
     }
 
@@ -161,8 +159,7 @@ public class AdminProfileController {
     public ResponseEntity<ApiResponse<Map<String, Object>>> getMfaStatus(
             @AuthenticationPrincipal Jwt jwt,
             @RequestHeader(value = "X-Tenant-Id", defaultValue = "default") String tenantId) {
-        String userIdStr = extractUserId(jwt);
-        UUID userId = resolveUuid(userIdStr, tenantId);
+        UUID userId = resolveUserUuid(jwt, tenantId);
         boolean mfaActive = adminInvitationService.isTotpEnabled(userId);
         return ResponseEntity.ok(ApiResponse.success(Map.of("mfaEnabled", mfaActive, "userId", userId.toString())));
     }
@@ -175,9 +172,7 @@ public class AdminProfileController {
     public ResponseEntity<ApiResponse<Void>> disableMfa(
             @AuthenticationPrincipal Jwt jwt,
             @RequestHeader(value = "X-Tenant-Id", defaultValue = "default") String tenantId) {
-        String userIdStr = extractUserId(jwt);
-        UUID userId = resolveUuid(userIdStr, tenantId);
-        adminInvitationService.disableTotp(userId, tenantId);
+        adminInvitationService.disableTotp(resolveUserUuid(jwt, tenantId), tenantId);
         return ResponseEntity.ok(ApiResponse.success(null, "2FA TOTP has been disabled."));
     }
 
@@ -229,9 +224,7 @@ public class AdminProfileController {
     public ResponseEntity<ApiResponse<List<PersonalAccessTokenResponse>>> listTokens(
             @AuthenticationPrincipal Jwt jwt,
             @RequestHeader(value = "X-Tenant-Id", defaultValue = "default") String tenantId) {
-        String userIdStr = extractUserId(jwt);
-        UUID userId = resolveUuid(userIdStr, tenantId);
-        List<PersonalAccessTokenResponse> tokens = tokenService.listTokens(userId, tenantId);
+        List<PersonalAccessTokenResponse> tokens = tokenService.listTokens(resolveUserUuid(jwt, tenantId), tenantId);
         return ResponseEntity.ok(ApiResponse.success(tokens, "Personal access tokens retrieved successfully."));
     }
 
@@ -244,9 +237,7 @@ public class AdminProfileController {
             @Valid @RequestBody CreatePersonalAccessTokenRequest request,
             @AuthenticationPrincipal Jwt jwt,
             @RequestHeader(value = "X-Tenant-Id", defaultValue = "default") String tenantId) {
-        String userIdStr = extractUserId(jwt);
-        UUID userId = resolveUuid(userIdStr, tenantId);
-        PersonalAccessTokenResponse token = tokenService.createToken(userId, request, tenantId);
+        PersonalAccessTokenResponse token = tokenService.createToken(resolveUserUuid(jwt, tenantId), request, tenantId);
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(ApiResponse.success(token, "Personal access token created successfully. Store secret securely."));
     }
@@ -260,9 +251,7 @@ public class AdminProfileController {
             @PathVariable UUID tokenId,
             @AuthenticationPrincipal Jwt jwt,
             @RequestHeader(value = "X-Tenant-Id", defaultValue = "default") String tenantId) {
-        String userIdStr = extractUserId(jwt);
-        UUID userId = resolveUuid(userIdStr, tenantId);
-        tokenService.revokeToken(tokenId, userId, tenantId);
+        tokenService.revokeToken(tokenId, resolveUserUuid(jwt, tenantId), tenantId);
         return ResponseEntity.ok(ApiResponse.success(null, "Personal access token revoked successfully."));
     }
 
@@ -277,9 +266,7 @@ public class AdminProfileController {
             @RequestParam(required = false, defaultValue = "20") int size,
             @AuthenticationPrincipal Jwt jwt,
             @RequestHeader(value = "X-Tenant-Id", defaultValue = "default") String tenantId) {
-        String userIdStr = extractUserId(jwt);
-        UUID userId = resolveUuid(userIdStr, tenantId);
-        List<AdminActivityLogResponse> activity = activityService.getActivityLogs(userId, category, page, size, tenantId);
+        List<AdminActivityLogResponse> activity = activityService.getActivityLogs(resolveUserUuid(jwt, tenantId), category, page, size, tenantId);
         return ResponseEntity.ok(ApiResponse.success(activity, "Admin activity logs retrieved successfully."));
     }
 
@@ -292,8 +279,7 @@ public class AdminProfileController {
             @RequestParam(required = false, defaultValue = "csv") String format,
             @AuthenticationPrincipal Jwt jwt,
             @RequestHeader(value = "X-Tenant-Id", defaultValue = "default") String tenantId) {
-        String userIdStr = extractUserId(jwt);
-        UUID userId = resolveUuid(userIdStr, tenantId);
+        UUID userId = resolveUserUuid(jwt, tenantId);
         String exportedContent = activityService.exportActivityLogs(userId, format, tenantId);
 
         String contentType = "csv".equalsIgnoreCase(format) ? "text/csv" : "application/json";
@@ -313,14 +299,16 @@ public class AdminProfileController {
     public ResponseEntity<ApiResponse<List<AdminPermissionDetailResponse>>> getPermissions(
             @AuthenticationPrincipal Jwt jwt,
             @RequestHeader(value = "X-Tenant-Id", defaultValue = "default") String tenantId) {
-        String userIdStr = extractUserId(jwt);
-        UUID userId = resolveUuid(userIdStr, tenantId);
-        List<AdminPermissionDetailResponse> perms = activityService.getEffectivePermissions(userId, tenantId);
+        List<AdminPermissionDetailResponse> perms = activityService.getEffectivePermissions(resolveUserUuid(jwt, tenantId), tenantId);
         return ResponseEntity.ok(ApiResponse.success(perms, "Effective permissions retrieved successfully."));
     }
 
     private String extractUserId(Jwt jwt) {
         return jwt != null ? jwt.getSubject() : "user-unknown";
+    }
+
+    private UUID resolveUserUuid(Jwt jwt, String tenantId) {
+        return resolveUuid(extractUserId(jwt), tenantId);
     }
 
     private UUID resolveUuid(String userIdStr, String tenantId) {
