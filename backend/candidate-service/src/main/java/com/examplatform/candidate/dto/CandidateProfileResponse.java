@@ -19,8 +19,11 @@
 
 package com.examplatform.candidate.dto;
 
+import com.examplatform.candidate.domain.CandidateProfile;
+import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 
 import java.util.UUID;
 
@@ -31,6 +34,8 @@ import java.util.UUID;
  */
 @Data
 @Builder
+@NoArgsConstructor
+@AllArgsConstructor
 public class CandidateProfileResponse {
 
     private UUID userId;
@@ -54,4 +59,33 @@ public class CandidateProfileResponse {
     private UUID photoAssetId;
     private UUID signatureAssetId;
     private UUID idProofAssetId;
+
+    public static CandidateProfileResponse fromEntity(CandidateProfile profile) {
+        if (profile == null) {
+            return null;
+        }
+        CandidateProfileResponse resp = new CandidateProfileResponse();
+        resp.setUserId(profile.getUserId());
+        resp.setFullName(profile.getFullName());
+        resp.setDateOfBirth(profile.getDateOfBirth());
+        resp.setGender(profile.getGender());
+        resp.setNationality(profile.getNationality());
+        resp.setCategory(profile.getCategory());
+        resp.setMobile(profile.getMobile());
+        resp.setEmail(profile.getEmail());
+        resp.setAddress(profile.getAddress());
+        resp.setCountry(profile.getCountry());
+        resp.setState(profile.getState());
+        resp.setDistrict(profile.getDistrict());
+        resp.setCity(profile.getCity());
+        resp.setPinCode(profile.getPinCode());
+        resp.setReservationCategory(profile.getReservationCategory());
+        resp.setDigiLockerVerified(profile.getDigiLockerVerified());
+        resp.setFaceVerificationStatus(profile.getFaceVerificationStatus());
+        resp.setConsentRecorded(profile.isConsentRecorded());
+        resp.setPhotoAssetId(profile.getPhotoAssetId());
+        resp.setSignatureAssetId(profile.getSignatureAssetId());
+        resp.setIdProofAssetId(profile.getIdProofAssetId());
+        return resp;
+    }
 }

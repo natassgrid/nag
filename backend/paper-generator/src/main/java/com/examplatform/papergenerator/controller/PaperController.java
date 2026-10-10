@@ -134,24 +134,7 @@ public class PaperController {
         Page<PaperSummaryResponse> response = papers.map(p -> {
             String examName = examNames.get(p.getExamId());
             String shiftName = shiftNames.get(p.getShiftId());
-            String resolvedName = p.getName();
-            if (resolvedName == null || resolvedName.isBlank()) {
-                StringBuilder sb = new StringBuilder();
-                if (p.isPractice()) {
-                    sb.append("Practice - ");
-                }
-                if (examName != null && !examName.isBlank()) {
-                    sb.append(examName);
-                } else {
-                    sb.append("Exam Paper");
-                }
-                if (shiftName != null && !shiftName.isBlank()) {
-                    sb.append(" (").append(shiftName).append(")");
-                } else if (p.getShiftId() != null && !p.getShiftId().isBlank()) {
-                    sb.append(" [Shift: ").append(p.getShiftId()).append("]");
-                }
-                resolvedName = sb.toString();
-            }
+            String resolvedName = resolvePaperName(p, examName, shiftName);
 
             return PaperSummaryResponse.builder()
                     .paperId(p.getId())
@@ -242,24 +225,7 @@ public class PaperController {
 
         String examName = examNames.get(paper.getExamId());
         String shiftName = shiftNames.get(paper.getShiftId());
-        String resolvedName = paper.getName();
-        if (resolvedName == null || resolvedName.isBlank()) {
-            StringBuilder sb = new StringBuilder();
-            if (paper.isPractice()) {
-                sb.append("Practice - ");
-            }
-            if (examName != null && !examName.isBlank()) {
-                sb.append(examName);
-            } else {
-                sb.append("Exam Paper");
-            }
-            if (shiftName != null && !shiftName.isBlank()) {
-                sb.append(" (").append(shiftName).append(")");
-            } else if (paper.getShiftId() != null && !paper.getShiftId().isBlank()) {
-                sb.append(" [Shift: ").append(paper.getShiftId()).append("]");
-            }
-            resolvedName = sb.toString();
-        }
+        String resolvedName = resolvePaperName(paper, examName, shiftName);
 
         PaperResponse response = PaperResponse.builder()
                 .id(paper.getId())
@@ -586,6 +552,28 @@ public class PaperController {
         }).collect(Collectors.toList());
 
         return ResponseEntity.ok(response);
+    }
+
+    private String resolvePaperName(Paper p, String examName, String shiftName) {
+        String resolvedName = p.getName();
+        if (resolvedName != null && !resolvedName.isBlank()) {
+            return resolvedName;
+        }
+        StringBuilder sb = new StringBuilder();
+        if (p.isPractice()) {
+            sb.append("Practice - ");
+        }
+        if (examName != null && !examName.isBlank()) {
+            sb.append(examName);
+        } else {
+            sb.append("Exam Paper");
+        }
+        if (shiftName != null && !shiftName.isBlank()) {
+            sb.append(" (").append(shiftName).append(")");
+        } else if (p.getShiftId() != null && !p.getShiftId().isBlank()) {
+            sb.append(" [Shift: ").append(p.getShiftId()).append("]");
+        }
+        return sb.toString();
     }
 
     private String getEffectiveTenantId() {

@@ -264,39 +264,19 @@ public class RoleManagementService {
         String effectiveTenant = (tenantId != null && !tenantId.isBlank()) ? tenantId : "default";
         UserAccount account = findAccountByIdentifier(userIdentifier, effectiveTenant);
 
-        if (request.getFullName() != null && !request.getFullName().isBlank()) {
-            account.setFullName(request.getFullName().trim());
-        }
-        if (request.getEmail() != null && !request.getEmail().isBlank()) {
-            account.setEmail(request.getEmail().trim());
-        }
-        if (request.getPhoneNumber() != null && !request.getPhoneNumber().isBlank()) {
-            account.setPhoneNumber(request.getPhoneNumber().trim());
-        }
-        if (request.getDepartment() != null && !request.getDepartment().isBlank()) {
-            account.setDepartment(request.getDepartment().trim());
-        }
-        if (request.getDesignation() != null && !request.getDesignation().isBlank()) {
-            account.setDesignation(request.getDesignation().trim());
-        }
+        applyIfPresent(account::setFullName, request.getFullName());
+        applyIfPresent(account::setEmail, request.getEmail());
+        applyIfPresent(account::setPhoneNumber, request.getPhoneNumber());
+        applyIfPresent(account::setDepartment, request.getDepartment());
+        applyIfPresent(account::setDesignation, request.getDesignation());
         if (request.getAvatarUrl() != null) {
             account.setAvatarUrl(request.getAvatarUrl().trim());
         }
-        if (request.getTimezone() != null && !request.getTimezone().isBlank()) {
-            account.setTimezone(request.getTimezone().trim());
-        }
-        if (request.getDateFormat() != null && !request.getDateFormat().isBlank()) {
-            account.setDateFormat(request.getDateFormat().trim());
-        }
-        if (request.getTimeFormat() != null && !request.getTimeFormat().isBlank()) {
-            account.setTimeFormat(request.getTimeFormat().trim());
-        }
-        if (request.getPreferredLanguage() != null && !request.getPreferredLanguage().isBlank()) {
-            account.setPreferredLanguage(request.getPreferredLanguage().trim());
-        }
-        if (request.getThemePreference() != null && !request.getThemePreference().isBlank()) {
-            account.setThemePreference(request.getThemePreference().trim());
-        }
+        applyIfPresent(account::setTimezone, request.getTimezone());
+        applyIfPresent(account::setDateFormat, request.getDateFormat());
+        applyIfPresent(account::setTimeFormat, request.getTimeFormat());
+        applyIfPresent(account::setPreferredLanguage, request.getPreferredLanguage());
+        applyIfPresent(account::setThemePreference, request.getThemePreference());
         if (request.getSpecialization() != null) {
             account.setSpecialization(request.getSpecialization().trim());
         }
@@ -372,6 +352,12 @@ public class RoleManagementService {
         String effectiveTenant = (tenantId != null && !tenantId.isBlank()) ? tenantId : "default";
         UserAccount account = findAccountByIdentifier(userIdentifier, effectiveTenant);
         log.info("Revoking other sessions for user [{}] in tenant [{}]", account.getId(), effectiveTenant);
+    }
+
+    private void applyIfPresent(java.util.function.Consumer<String> setter, String value) {
+        if (value != null && !value.isBlank()) {
+            setter.accept(value.trim());
+        }
     }
 
     private UserAccount findAccountByIdentifier(String identifier, String tenantId) {

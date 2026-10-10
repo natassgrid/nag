@@ -210,73 +210,52 @@ public class AdminActivityService {
         Instant now = Instant.now();
         List<AdminActivityLogResponse> list = new ArrayList<>();
 
-        list.add(AdminActivityLogResponse.builder()
-                .id("ACT-" + UUID.randomUUID().toString().substring(0, 8).toUpperCase())
-                .eventType("AUTH_SESSION_ESTABLISHED")
-                .category("AUTH")
-                .description("Signed in via Secure Console Single Sign-On (TOTP 2FA Verified)")
-                .ipAddress("127.0.0.1")
-                .status("SUCCESS")
-                .occurredAt(now.minus(5, ChronoUnit.MINUTES))
-                .metadata(Map.of("tenantId", tenantId, "browser", "Google Chrome 129.0", "mfaMethod", "TOTP"))
-                .build());
+        list.add(createHistoricalLog("AUTH_SESSION_ESTABLISHED", "AUTH",
+                "Signed in via Secure Console Single Sign-On (TOTP 2FA Verified)",
+                now.minus(5, ChronoUnit.MINUTES),
+                Map.of("tenantId", tenantId, "browser", "Google Chrome 129.0", "mfaMethod", "TOTP")));
 
-        list.add(AdminActivityLogResponse.builder()
-                .id("ACT-" + UUID.randomUUID().toString().substring(0, 8).toUpperCase())
-                .eventType("PROFILE_UPDATE")
-                .category("SETTINGS")
-                .description("Updated localization preferences (Timezone & Working Language)")
-                .ipAddress("127.0.0.1")
-                .status("SUCCESS")
-                .occurredAt(now.minus(2, ChronoUnit.HOURS))
-                .metadata(Map.of("tenantId", tenantId, "timezone", "Asia/Kolkata"))
-                .build());
+        list.add(createHistoricalLog("PROFILE_UPDATE", "SETTINGS",
+                "Updated localization preferences (Timezone & Working Language)",
+                now.minus(2, ChronoUnit.HOURS),
+                Map.of("tenantId", tenantId, "timezone", "Asia/Kolkata")));
 
-        list.add(AdminActivityLogResponse.builder()
-                .id("ACT-" + UUID.randomUUID().toString().substring(0, 8).toUpperCase())
-                .eventType("PAT_TOKEN_CREATED")
-                .category("SECURITY")
-                .description("Created Personal API Token 'CI-Pipeline-Ingest' with scope [questions:read, questions:write]")
-                .ipAddress("127.0.0.1")
-                .status("SUCCESS")
-                .occurredAt(now.minus(1, ChronoUnit.DAYS))
-                .metadata(Map.of("tenantId", tenantId, "tokenPrefix", "nag_pat_a8f9..."))
-                .build());
+        list.add(createHistoricalLog("PAT_TOKEN_CREATED", "SECURITY",
+                "Created Personal API Token 'CI-Pipeline-Ingest' with scope [questions:read, questions:write]",
+                now.minus(1, ChronoUnit.DAYS),
+                Map.of("tenantId", tenantId, "tokenPrefix", "nag_pat_a8f9...")));
 
-        list.add(AdminActivityLogResponse.builder()
-                .id("ACT-" + UUID.randomUUID().toString().substring(0, 8).toUpperCase())
-                .eventType("QUESTION_STATUS_TRANSITION")
-                .category("QUESTION")
-                .description("Approved and certified 12 Mathematics questions to bank")
-                .ipAddress("127.0.0.1")
-                .status("SUCCESS")
-                .occurredAt(now.minus(2, ChronoUnit.DAYS))
-                .metadata(Map.of("tenantId", tenantId, "subject", "Mathematics", "transition", "REVIEW -> APPROVED"))
-                .build());
+        list.add(createHistoricalLog("QUESTION_STATUS_TRANSITION", "QUESTION",
+                "Approved and certified 12 Mathematics questions to bank",
+                now.minus(2, ChronoUnit.DAYS),
+                Map.of("tenantId", tenantId, "subject", "Mathematics", "transition", "REVIEW -> APPROVED")));
 
-        list.add(AdminActivityLogResponse.builder()
-                .id("ACT-" + UUID.randomUUID().toString().substring(0, 8).toUpperCase())
-                .eventType("PAPER_GENERATION_TRIGGER")
-                .category("EXAM")
-                .description("Generated encrypted question paper bundle for RRB NTPC Shift 1")
-                .ipAddress("127.0.0.1")
-                .status("SUCCESS")
-                .occurredAt(now.minus(3, ChronoUnit.DAYS))
-                .metadata(Map.of("tenantId", tenantId, "algorithm", "Deterministic Knapsack"))
-                .build());
+        list.add(createHistoricalLog("PAPER_GENERATION_TRIGGER", "EXAM",
+                "Generated encrypted question paper bundle for RRB NTPC Shift 1",
+                now.minus(3, ChronoUnit.DAYS),
+                Map.of("tenantId", tenantId, "algorithm", "Deterministic Knapsack")));
 
-        list.add(AdminActivityLogResponse.builder()
-                .id("ACT-" + UUID.randomUUID().toString().substring(0, 8).toUpperCase())
-                .eventType("SECURITY_KEY_ROTATION")
-                .category("SECURITY")
-                .description("Verified Ed25519 tenant cryptographic seal against HashiCorp Vault")
-                .ipAddress("127.0.0.1")
-                .status("SUCCESS")
-                .occurredAt(now.minus(5, ChronoUnit.DAYS))
-                .metadata(Map.of("tenantId", tenantId, "keyType", "Ed25519"))
-                .build());
+        list.add(createHistoricalLog("SECURITY_KEY_ROTATION", "SECURITY",
+                "Verified Ed25519 tenant cryptographic seal against HashiCorp Vault",
+                now.minus(5, ChronoUnit.DAYS),
+                Map.of("tenantId", tenantId, "keyType", "Ed25519")));
 
         return list;
+    }
+
+    private AdminActivityLogResponse createHistoricalLog(
+            String eventType, String category, String description,
+            Instant occurredAt, Map<String, Object> metadata) {
+        return AdminActivityLogResponse.builder()
+                .id("ACT-" + UUID.randomUUID().toString().substring(0, 8).toUpperCase())
+                .eventType(eventType)
+                .category(category)
+                .description(description)
+                .ipAddress("127.0.0.1")
+                .status("SUCCESS")
+                .occurredAt(occurredAt)
+                .metadata(metadata)
+                .build();
     }
 
     private String escapeCsv(String val) {

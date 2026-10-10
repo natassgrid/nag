@@ -407,28 +407,6 @@ public class CandidateProfileService {
     }
 
     private CandidateProfileResponse toResponse(CandidateProfile profile) {
-        return CandidateProfileResponse.builder()
-                .userId(profile.getUserId())
-                .fullName(profile.getFullName())
-                .dateOfBirth(profile.getDateOfBirth())
-                .gender(profile.getGender())
-                .nationality(profile.getNationality())
-                .category(profile.getCategory())
-                .mobile(profile.getMobile())
-                .email(profile.getEmail())
-                .address(profile.getAddress())
-                .country(profile.getCountry())
-                .state(profile.getState())
-                .district(profile.getDistrict())
-                .city(profile.getCity())
-                .pinCode(profile.getPinCode())
-                .reservationCategory(profile.getReservationCategory())
-                .digiLockerVerified(profile.getDigiLockerVerified())
-                .faceVerificationStatus(profile.getFaceVerificationStatus())
-                .consentRecorded(profile.isConsentRecorded())
-                .photoAssetId(profile.getPhotoAssetId())
-                .signatureAssetId(profile.getSignatureAssetId())
-                .idProofAssetId(profile.getIdProofAssetId())
-                .build();
+        return CandidateProfileResponse.fromEntity(profile);
     }
 }

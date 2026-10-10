@@ -403,37 +403,6 @@ public class AssetService {
     }
 
     private AssetUploadResponse mapToResponse(MediaAsset asset) {
-        return AssetUploadResponse.builder()
-                .id(asset.getId())
-                .originalFilename(asset.getOriginalFilename())
-                .contentType(asset.getContentType())
-                .extension(asset.getExtension())
-                .fileSize(asset.getFileSize())
-                .sha256Hash(asset.getSha256Hash())
-                .assetType(asset.getAssetType())
-                .status(asset.getStatus())
-                .publicUrl(resolvePublicUrl(asset))
-                .width(asset.getWidth())
-                .height(asset.getHeight())
-                .dpi(asset.getDpi())
-                .orientation(asset.getOrientation())
-                .durationSeconds(asset.getDurationSeconds())
-                .codec(asset.getCodec())
-                .bitrate(asset.getBitrate())
-                .sampleRate(asset.getSampleRate())
-                .channels(asset.getChannels())
-                .frameRate(asset.getFrameRate())
-                .title(asset.getTitle())
-                .description(asset.getDescription())
-                .altText(asset.getAltText())
-                .tags(asset.getTags())
-                .language(asset.getLanguage())
-                .storageProvider(asset.getStorageProvider())
-                .storageLocation(asset.getStorageLocation())
-                .createdBy(asset.getCreatedBy())
-                .createdAt(asset.getCreatedAt())
-                .updatedAt(asset.getUpdatedAt())
-                .tenantId(asset.getTenantId())
-                .build();
+        return AssetUploadResponse.fromEntity(asset, resolvePublicUrl(asset));
     }
 }

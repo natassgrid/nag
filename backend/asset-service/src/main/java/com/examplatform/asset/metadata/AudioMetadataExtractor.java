@@ -11,7 +11,7 @@
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU Affero General Public License for more details.
+ * GNU标志 Affero General Public License for more details.
  *
  * You should have received a copy of the GNU Affero General Public License
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
@@ -59,7 +59,7 @@ public class AudioMetadataExtractor implements MetadataExtractor {
             }
 
             // Duration (Tika provides in seconds or milliseconds depending on format)
-            builder.durationSeconds(parseDuration(metadata));
+            builder.durationSeconds(TikaMetadataUtils.parseDuration(metadata));
 
             // Codec
             String audioCompressor = metadata.get(XMPDM.AUDIO_COMPRESSOR);
@@ -73,7 +73,7 @@ public class AudioMetadataExtractor implements MetadataExtractor {
             if (sampleRate == null) {
                 sampleRate = metadata.get("xmpDM:audioSampleRate");
             }
-            builder.sampleRate(parseInteger(sampleRate));
+            builder.sampleRate(TikaMetadataUtils.parseInteger(sampleRate));
 
             // Channels
             String channels = metadata.get(XMPDM.AUDIO_CHANNEL_TYPE);
@@ -86,7 +86,7 @@ public class AudioMetadataExtractor implements MetadataExtractor {
             String bitrateStr = metadata.get("xmpDM:audioSampleRate");
             // Try alternate metadata keys for bitrate
             if (metadata.get("bitrate") != null) {
-                builder.bitrate(parseInteger(metadata.get("bitrate")));
+                builder.bitrate(TikaMetadataUtils.parseInteger(metadata.get("bitrate")));
             }
 
         } catch (Exception e) {
@@ -96,35 +96,6 @@ public class AudioMetadataExtractor implements MetadataExtractor {
         return builder.build();
     }
 
-    private Double parseDuration(Metadata metadata) {
-        // Try xmpDM:duration first
-        String duration = metadata.get(XMPDM.DURATION);
-        if (duration == null) {
-            duration = metadata.get("xmpDM:duration");
-        }
-        if (duration != null) {
-            try {
-                double val = Double.parseDouble(duration.replaceAll("[^0-9.]", ""));
-                // Tika sometimes reports duration in ms
-                return val > 100000 ? val / 1000.0 : val;
-            } catch (NumberFormatException e) {
-                // ignore
-            }
-        }
-        return null;
-    }
-
-    private Integer parseInteger(String value) {
-        if (value == null || value.isBlank()) return null;
-        try {
-            String cleaned = value.replaceAll("[^0-9.]", "");
-            if (cleaned.isEmpty()) return null;
-            return (int) Double.parseDouble(cleaned);
-        } catch (NumberFormatException e) {
-            return null;
-        }
-    }
-
     private Integer mapChannels(String value) {
         if (value == null) return null;
         return switch (value.toLowerCase()) {
@@ -132,7 +103,7 @@ public class AudioMetadataExtractor implements MetadataExtractor {
             case "stereo" -> 2;
             case "5.1" -> 6;
             case "7.1" -> 8;
-            default -> parseInteger(value);
+            default -> TikaMetadataUtils.parseInteger(value);
         };
     }
 }

@@ -58,11 +58,11 @@ public class VideoMetadataExtractor implements MetadataExtractor {
                 parser.parse(tis, handler, metadata, new ParseContext());
             }
             // Duration
-            builder.durationSeconds(parseDuration(metadata));
+            builder.durationSeconds(TikaMetadataUtils.parseDuration(metadata));
 
             // Resolution
-            builder.width(parseInteger(metadata.get("tiff:ImageWidth")));
-            builder.height(parseInteger(metadata.get("tiff:ImageLength")));
+            builder.width(TikaMetadataUtils.parseInteger(metadata.get("tiff:ImageWidth")));
+            builder.height(TikaMetadataUtils.parseInteger(metadata.get("tiff:ImageLength")));
 
             // Codec
             String codec = metadata.get(XMPDM.VIDEO_COMPRESSOR);
@@ -76,53 +76,15 @@ public class VideoMetadataExtractor implements MetadataExtractor {
             if (frameRate == null) {
                 frameRate = metadata.get("xmpDM:videoFrameRate");
             }
-            builder.frameRate(parseDouble(frameRate));
+            builder.frameRate(TikaMetadataUtils.parseDouble(frameRate));
 
             // Bitrate
-            builder.bitrate(parseInteger(metadata.get("bitrate")));
+            builder.bitrate(TikaMetadataUtils.parseInteger(metadata.get("bitrate")));
 
         } catch (Exception e) {
             log.warn("Failed to extract video metadata: {}", e.getMessage());
         }
 
         return builder.build();
-    }
-
-    private Double parseDuration(Metadata metadata) {
-        String duration = metadata.get(XMPDM.DURATION);
-        if (duration == null) {
-            duration = metadata.get("xmpDM:duration");
-        }
-        if (duration != null) {
-            try {
-                double val = Double.parseDouble(duration.replaceAll("[^0-9.]", ""));
-                return val > 100000 ? val / 1000.0 : val;
-            } catch (NumberFormatException e) {
-                // ignore
-            }
-        }
-        return null;
-    }
-
-    private Integer parseInteger(String value) {
-        if (value == null || value.isBlank()) return null;
-        try {
-            String cleaned = value.replaceAll("[^0-9.]", "");
-            if (cleaned.isEmpty()) return null;
-            return (int) Double.parseDouble(cleaned);
-        } catch (NumberFormatException e) {
-            return null;
-        }
-    }
-
-    private Double parseDouble(String value) {
-        if (value == null || value.isBlank()) return null;
-        try {
-            String cleaned = value.replaceAll("[^0-9.]", "");
-            if (cleaned.isEmpty()) return null;
-            return Double.parseDouble(cleaned);
-        } catch (NumberFormatException e) {
-            return null;
-        }
     }
 }

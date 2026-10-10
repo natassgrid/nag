@@ -19,6 +19,7 @@
 
 package com.examplatform.asset.dto;
 
+import com.examplatform.asset.domain.entity.MediaAsset;
 import com.examplatform.asset.domain.enums.AssetStatus;
 import com.examplatform.asset.domain.enums.AssetType;
 import lombok.AllArgsConstructor;
@@ -78,4 +79,42 @@ public class AssetUploadResponse {
     private Instant createdAt;
     private Instant updatedAt;
     private String tenantId;
+
+    public static AssetUploadResponse fromEntity(MediaAsset asset, String publicUrl) {
+        if (asset == null) {
+            return null;
+        }
+        AssetUploadResponse resp = new AssetUploadResponse();
+        resp.setId(asset.getId());
+        resp.setOriginalFilename(asset.getOriginalFilename());
+        resp.setContentType(asset.getContentType());
+        resp.setExtension(asset.getExtension());
+        resp.setFileSize(asset.getFileSize());
+        resp.setSha256Hash(asset.getSha256Hash());
+        resp.setAssetType(asset.getAssetType());
+        resp.setStatus(asset.getStatus());
+        resp.setPublicUrl(publicUrl);
+        resp.setWidth(asset.getWidth());
+        resp.setHeight(asset.getHeight());
+        resp.setDpi(asset.getDpi());
+        resp.setOrientation(asset.getOrientation());
+        resp.setDurationSeconds(asset.getDurationSeconds());
+        resp.setCodec(asset.getCodec());
+        resp.setBitrate(asset.getBitrate());
+        resp.setSampleRate(asset.getSampleRate());
+        resp.setChannels(asset.getChannels());
+        resp.setFrameRate(asset.getFrameRate());
+        resp.setTitle(asset.getTitle());
+        resp.setDescription(asset.getDescription());
+        resp.setAltText(asset.getAltText());
+        resp.setTags(asset.getTags());
+        resp.setLanguage(asset.getLanguage());
+        resp.setStorageProvider(asset.getStorageProvider());
+        resp.setStorageLocation(asset.getStorageLocation());
+        resp.setCreatedBy(asset.getCreatedBy());
+        resp.setCreatedAt(asset.getCreatedAt());
+        resp.setUpdatedAt(asset.getUpdatedAt());
+        resp.setTenantId(asset.getTenantId());
+        return resp;
+    }
 }
