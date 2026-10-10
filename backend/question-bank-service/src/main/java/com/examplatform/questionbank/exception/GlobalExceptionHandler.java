@@ -21,7 +21,6 @@ package com.examplatform.questionbank.exception;
 
 import com.examplatform.shared.api.ApiResponse;
 import com.examplatform.shared.error.BaseApiResponseExceptionHandler;
-import jakarta.persistence.EntityNotFoundException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -45,20 +44,7 @@ public class GlobalExceptionHandler extends BaseApiResponseExceptionHandler {
     @ExceptionHandler(IllegalStateException.class)
     public ResponseEntity<ApiResponse<Void>> handleIllegalState(IllegalStateException ex) {
         log.warn("Illegal state: {}", ex.getMessage());
-        return ResponseEntity
-                .status(HttpStatus.CONFLICT)
-                .body(ApiResponse.error(ex.getMessage()));
-    }
-
-    /**
-     * Handles entity not found (404 Not Found).
-     */
-    @ExceptionHandler(EntityNotFoundException.class)
-    public ResponseEntity<ApiResponse<Void>> handleNotFound(EntityNotFoundException ex) {
-        log.warn("Entity not found: {}", ex.getMessage());
-        return ResponseEntity
-                .status(HttpStatus.NOT_FOUND)
-                .body(ApiResponse.error(ex.getMessage()));
+        return errorResponse(HttpStatus.CONFLICT, ex.getMessage());
     }
 
     /**
@@ -71,9 +57,9 @@ public class GlobalExceptionHandler extends BaseApiResponseExceptionHandler {
         } else {
             log.warn("Response status exception: status={}, reason={}", ex.getStatusCode(), ex.getReason());
         }
-        return ResponseEntity
-                .status(ex.getStatusCode())
-                .body(ApiResponse.error(ex.getReason() != null ? ex.getReason() : ex.getMessage()));
+        HttpStatus status = HttpStatus.resolve(ex.getStatusCode().value());
+        return errorResponse(status != null ? status : HttpStatus.INTERNAL_SERVER_ERROR,
+                ex.getReason() != null ? ex.getReason() : ex.getMessage());
     }
 
     /**
@@ -82,9 +68,7 @@ public class GlobalExceptionHandler extends BaseApiResponseExceptionHandler {
     @ExceptionHandler(InvalidTransitionException.class)
     public ResponseEntity<ApiResponse<Void>> handleInvalidTransition(InvalidTransitionException ex) {
         log.warn("Invalid transition: from='{}' to='{}'", ex.getCurrentState(), ex.getTargetState());
-        return ResponseEntity
-                .status(HttpStatus.UNPROCESSABLE_ENTITY)
-                .body(ApiResponse.error(ex.getMessage()));
+        return errorResponse(HttpStatus.UNPROCESSABLE_ENTITY, ex.getMessage());
     }
 
     /**
@@ -93,8 +77,6 @@ public class GlobalExceptionHandler extends BaseApiResponseExceptionHandler {
     @ExceptionHandler(FourEyesPrincipleViolationException.class)
     public ResponseEntity<ApiResponse<Void>> handleFourEyesViolation(FourEyesPrincipleViolationException ex) {
         log.warn("Four-eyes principle violation: {}", ex.getMessage());
-        return ResponseEntity
-                .status(HttpStatus.FORBIDDEN)
-                .body(ApiResponse.error(ex.getMessage()));
+        return errorResponse(HttpStatus.FORBIDDEN, ex.getMessage());
     }
 }

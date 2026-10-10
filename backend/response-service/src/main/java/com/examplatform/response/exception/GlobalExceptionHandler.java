@@ -5,7 +5,7 @@
  * Copyright (C) 2025 NAG Contributors
  *
  * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU标志 Affero General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, version 3 of the License.
  *
  * This program is distributed in the hope that it will be useful,
@@ -21,7 +21,6 @@ package com.examplatform.response.exception;
 
 import com.examplatform.shared.api.ApiResponse;
 import com.examplatform.shared.error.BaseApiResponseExceptionHandler;
-import jakarta.persistence.EntityNotFoundException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -42,26 +41,13 @@ import java.util.concurrent.TimeoutException;
 public class GlobalExceptionHandler extends BaseApiResponseExceptionHandler {
 
     /**
-     * Handles entity not found (404 Not Found).
-     */
-    @ExceptionHandler(EntityNotFoundException.class)
-    public ResponseEntity<ApiResponse<Void>> handleNotFound(EntityNotFoundException ex) {
-        log.warn("Entity not found: {}", ex.getMessage());
-        return ResponseEntity
-                .status(HttpStatus.NOT_FOUND)
-                .body(ApiResponse.error(ex.getMessage()));
-    }
-
-    /**
      * Handles Kafka timeout / send failures (503 Service Unavailable).
      * This covers scenarios where Kafka acks=all cannot be confirmed within the timeout.
      */
     @ExceptionHandler({TimeoutException.class})
     public ResponseEntity<ApiResponse<Void>> handleKafkaTimeout(TimeoutException ex) {
         log.error("Kafka timeout: {}", ex.getMessage());
-        return ResponseEntity
-                .status(HttpStatus.SERVICE_UNAVAILABLE)
-                .body(ApiResponse.error("Service temporarily unavailable — message broker timeout"));
+        return errorResponse(HttpStatus.SERVICE_UNAVAILABLE, "Service temporarily unavailable — message broker timeout");
     }
 
     /**
@@ -70,9 +56,7 @@ public class GlobalExceptionHandler extends BaseApiResponseExceptionHandler {
     @ExceptionHandler(ExecutionException.class)
     public ResponseEntity<ApiResponse<Void>> handleKafkaExecutionFailure(ExecutionException ex) {
         log.error("Kafka send failed: {}", ex.getMessage(), ex);
-        return ResponseEntity
-                .status(HttpStatus.SERVICE_UNAVAILABLE)
-                .body(ApiResponse.error("Service temporarily unavailable — message broker error"));
+        return errorResponse(HttpStatus.SERVICE_UNAVAILABLE, "Service temporarily unavailable — message broker error");
     }
 
     /**
@@ -81,9 +65,7 @@ public class GlobalExceptionHandler extends BaseApiResponseExceptionHandler {
     @ExceptionHandler(ResponseIntegrityException.class)
     public ResponseEntity<ApiResponse<Void>> handleIntegrityViolation(ResponseIntegrityException ex) {
         log.warn("Response integrity violation [{}]: {}", ex.getErrorCode(), ex.getMessage());
-        return ResponseEntity
-                .status(HttpStatus.UNPROCESSABLE_ENTITY)
-                .body(ApiResponse.error(ex.getErrorCode() + ": " + ex.getMessage()));
+        return errorResponse(HttpStatus.UNPROCESSABLE_ENTITY, ex.getErrorCode() + ": " + ex.getMessage());
     }
 
     /**
@@ -92,9 +74,7 @@ public class GlobalExceptionHandler extends BaseApiResponseExceptionHandler {
     @ExceptionHandler(AlreadySubmittedException.class)
     public ResponseEntity<ApiResponse<Void>> handleAlreadySubmitted(AlreadySubmittedException ex) {
         log.warn("Duplicate submission detected: {}", ex.getMessage());
-        return ResponseEntity
-                .status(HttpStatus.CONFLICT)
-                .body(ApiResponse.error("ALREADY_SUBMITTED: " + ex.getMessage()));
+        return errorResponse(HttpStatus.CONFLICT, "ALREADY_SUBMITTED: " + ex.getMessage());
     }
 
     /**
@@ -103,9 +83,7 @@ public class GlobalExceptionHandler extends BaseApiResponseExceptionHandler {
     @ExceptionHandler(SessionExpiredException.class)
     public ResponseEntity<ApiResponse<Void>> handleSessionExpired(SessionExpiredException ex) {
         log.warn("Session expired submission rejected: {}", ex.getMessage());
-        return ResponseEntity
-                .status(HttpStatus.UNPROCESSABLE_ENTITY)
-                .body(ApiResponse.error("SESSION_EXPIRED: " + ex.getMessage()));
+        return errorResponse(HttpStatus.UNPROCESSABLE_ENTITY, "SESSION_EXPIRED: " + ex.getMessage());
     }
 
     /**
@@ -115,13 +93,9 @@ public class GlobalExceptionHandler extends BaseApiResponseExceptionHandler {
     public ResponseEntity<ApiResponse<Void>> handleRuntimeException(RuntimeException ex) {
         if (ex.getMessage() != null && ex.getMessage().contains("Kafka")) {
             log.error("Kafka runtime error: {}", ex.getMessage(), ex);
-            return ResponseEntity
-                    .status(HttpStatus.SERVICE_UNAVAILABLE)
-                    .body(ApiResponse.error("Service temporarily unavailable — message broker error"));
+            return errorResponse(HttpStatus.SERVICE_UNAVAILABLE, "Service temporarily unavailable — message broker error");
         }
         log.error("Unexpected runtime error: {}", ex.getMessage(), ex);
-        return ResponseEntity
-                .status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body(ApiResponse.error("An unexpected error occurred"));
+        return errorResponse(HttpStatus.INTERNAL_SERVER_ERROR, "An unexpected error occurred");
     }
 }

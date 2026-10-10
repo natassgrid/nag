@@ -20,6 +20,7 @@
 package com.examplatform.shared.error;
 
 import com.examplatform.shared.api.ApiResponse;
+import jakarta.persistence.EntityNotFoundException;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.core.MethodParameter;
@@ -57,6 +58,11 @@ class ExceptionHandlerBaseClassesTest {
         ResponseEntity<ApiResponse<Void>> illegalArgResp = apiResponseHandler.handleIllegalArgument(new IllegalArgumentException("Bad input"));
         assertThat(illegalArgResp.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
         assertThat(illegalArgResp.getBody().getMessage()).isEqualTo("Bad input");
+
+        // EntityNotFound
+        ResponseEntity<ApiResponse<Void>> notFoundResp = apiResponseHandler.handleNotFound(new EntityNotFoundException("Entity missing"));
+        assertThat(notFoundResp.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
+        assertThat(notFoundResp.getBody().getMessage()).isEqualTo("Entity missing");
 
         // Generic Exception
         ResponseEntity<ApiResponse<Void>> genericResp = apiResponseHandler.handleGenericException(new RuntimeException("Boom"));
