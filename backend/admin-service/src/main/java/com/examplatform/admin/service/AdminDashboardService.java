@@ -45,6 +45,7 @@ import com.examplatform.shared.grpc.QuestionBankMetricsGrpcServiceGrpc;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.grpc.ManagedChannel;
+import io.grpc.stub.AbstractBlockingStub;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
@@ -196,34 +197,24 @@ public class AdminDashboardService {
     }
 
     private QuestionBankBreakdownResponse fetchQuestionBankStats(String tenantId) {
-        // Attempt 1: gRPC Protobuf
-        try {
-            ManagedChannel channel = GrpcChannelFactory.getChannel(questionBankGrpcHost, questionBankGrpcPort);
-            QuestionBankMetricsGrpcServiceGrpc.QuestionBankMetricsGrpcServiceBlockingStub stub =
-                    QuestionBankMetricsGrpcServiceGrpc.newBlockingStub(channel)
-                            .withDeadlineAfter(questionBankTimeoutMs, TimeUnit.MILLISECONDS);
-
-            QuestionBankMetricsGrpcRequest request = QuestionBankMetricsGrpcRequest.newBuilder()
-                    .setTenantId(tenantId)
-                    .build();
-
-            QuestionBankMetricsGrpcResponse response = stub.getQuestionBankMetrics(request);
-            log.debug("gRPC getQuestionBankMetrics succeeded from {}:{}", questionBankGrpcHost, questionBankGrpcPort);
-            return QuestionBankBreakdownResponse.builder()
-                    .total(response.getTotal())
-                    .draft(response.getDraft())
-                    .submitted(response.getSubmitted())
-                    .approved(response.getApproved())
-                    .rejected(response.getRejected())
-                    .build();
-        } catch (Exception grpcEx) {
-            log.debug("gRPC getQuestionBankMetrics failed: {}, attempting REST backup", grpcEx.getMessage());
-        }
-
-        // Attempt 2: REST Backup
-        return fetchRestBackup(
-                questionBankRestUrl + "/api/v1/questions/analytics/summary?tenantId=" + tenantId,
+        return fetchWithGrpcFallback(
                 "QuestionBank",
+                () -> {
+                    QuestionBankMetricsGrpcResponse response = executeGrpc(
+                            questionBankGrpcHost, questionBankGrpcPort, questionBankTimeoutMs,
+                            QuestionBankMetricsGrpcServiceGrpc::newBlockingStub,
+                            stub -> stub.getQuestionBankMetrics(
+                                    QuestionBankMetricsGrpcRequest.newBuilder().setTenantId(tenantId).build()));
+                    log.debug("gRPC getQuestionBankMetrics succeeded from {}:{}", questionBankGrpcHost, questionBankGrpcPort);
+                    return QuestionBankBreakdownResponse.builder()
+                            .total(response.getTotal())
+                            .draft(response.getDraft())
+                            .submitted(response.getSubmitted())
+                            .approved(response.getApproved())
+                            .rejected(response.getRejected())
+                            .build();
+                },
+                questionBankRestUrl + "/api/v1/questions/analytics/summary?tenantId=" + tenantId,
                 node -> QuestionBankBreakdownResponse.builder()
                         .total(node.path("total").asLong(0L))
                         .draft(node.path("draft").asLong(0L))
@@ -242,34 +233,24 @@ public class AdminDashboardService {
     }
 
     private ExamStatusBreakdownResponse fetchExaminationStats(String tenantId) {
-        // Attempt 1: gRPC Protobuf
-        try {
-            ManagedChannel channel = GrpcChannelFactory.getChannel(examinationGrpcHost, examinationGrpcPort);
-            ExaminationMetricsGrpcServiceGrpc.ExaminationMetricsGrpcServiceBlockingStub stub =
-                    ExaminationMetricsGrpcServiceGrpc.newBlockingStub(channel)
-                            .withDeadlineAfter(examinationTimeoutMs, TimeUnit.MILLISECONDS);
-
-            ExamBreakdownGrpcRequest request = ExamBreakdownGrpcRequest.newBuilder()
-                    .setTenantId(tenantId)
-                    .build();
-
-            ExamBreakdownGrpcResponse response = stub.getExaminationStatusBreakdown(request);
-            log.debug("gRPC getExaminationStatusBreakdown succeeded from {}:{}", examinationGrpcHost, examinationGrpcPort);
-            return ExamStatusBreakdownResponse.builder()
-                    .draft(0L)
-                    .scheduled(response.getScheduled())
-                    .liveInProgress(response.getLiveInProgress())
-                    .evaluation(0L)
-                    .completed(response.getCompleted())
-                    .build();
-        } catch (Exception grpcEx) {
-            log.debug("gRPC getExaminationStatusBreakdown failed: {}, attempting REST backup", grpcEx.getMessage());
-        }
-
-        // Attempt 2: REST Backup
-        return fetchRestBackup(
-                examinationRestUrl + "/api/v1/examinations/analytics/summary?tenantId=" + tenantId,
+        return fetchWithGrpcFallback(
                 "Examination",
+                () -> {
+                    ExamBreakdownGrpcResponse response = executeGrpc(
+                            examinationGrpcHost, examinationGrpcPort, examinationTimeoutMs,
+                            ExaminationMetricsGrpcServiceGrpc::newBlockingStub,
+                            stub -> stub.getExaminationStatusBreakdown(
+                                    ExamBreakdownGrpcRequest.newBuilder().setTenantId(tenantId).build()));
+                    log.debug("gRPC getExaminationStatusBreakdown succeeded from {}:{}", examinationGrpcHost, examinationGrpcPort);
+                    return ExamStatusBreakdownResponse.builder()
+                            .draft(0L)
+                            .scheduled(response.getScheduled())
+                            .liveInProgress(response.getLiveInProgress())
+                            .evaluation(0L)
+                            .completed(response.getCompleted())
+                            .build();
+                },
+                examinationRestUrl + "/api/v1/examinations/analytics/summary?tenantId=" + tenantId,
                 node -> ExamStatusBreakdownResponse.builder()
                         .draft(node.path("draft").asLong(0L))
                         .scheduled(node.path("scheduled").asLong(0L))
@@ -288,34 +269,24 @@ public class AdminDashboardService {
     }
 
     private EvaluationQueueBreakdownResponse fetchEvaluationStats(String tenantId) {
-        // Attempt 1: gRPC Protobuf
-        try {
-            ManagedChannel channel = GrpcChannelFactory.getChannel(evaluationGrpcHost, evaluationGrpcPort);
-            EvaluationMetricsGrpcServiceGrpc.EvaluationMetricsGrpcServiceBlockingStub stub =
-                    EvaluationMetricsGrpcServiceGrpc.newBlockingStub(channel)
-                            .withDeadlineAfter(evaluationTimeoutMs, TimeUnit.MILLISECONDS);
-
-            EvaluationMetricsGrpcRequest request = EvaluationMetricsGrpcRequest.newBuilder()
-                    .setTenantId(tenantId)
-                    .build();
-
-            EvaluationMetricsGrpcResponse response = stub.getEvaluationQueueMetrics(request);
-            log.debug("gRPC getEvaluationQueueMetrics succeeded from {}:{}", evaluationGrpcHost, evaluationGrpcPort);
-            return EvaluationQueueBreakdownResponse.builder()
-                    .pending(response.getPending())
-                    .autoEvaluated(response.getInProgress())
-                    .manualEvaluated(0L)
-                    .arbitration(response.getFlagged())
-                    .completed(response.getCompleted())
-                    .build();
-        } catch (Exception grpcEx) {
-            log.debug("gRPC getEvaluationQueueMetrics failed: {}, attempting REST backup", grpcEx.getMessage());
-        }
-
-        // Attempt 2: REST Backup
-        return fetchRestBackup(
-                evaluationRestUrl + "/api/v1/evaluation/analytics/summary?tenantId=" + tenantId,
+        return fetchWithGrpcFallback(
                 "Evaluation",
+                () -> {
+                    EvaluationMetricsGrpcResponse response = executeGrpc(
+                            evaluationGrpcHost, evaluationGrpcPort, evaluationTimeoutMs,
+                            EvaluationMetricsGrpcServiceGrpc::newBlockingStub,
+                            stub -> stub.getEvaluationQueueMetrics(
+                                    EvaluationMetricsGrpcRequest.newBuilder().setTenantId(tenantId).build()));
+                    log.debug("gRPC getEvaluationQueueMetrics succeeded from {}:{}", evaluationGrpcHost, evaluationGrpcPort);
+                    return EvaluationQueueBreakdownResponse.builder()
+                            .pending(response.getPending())
+                            .autoEvaluated(response.getInProgress())
+                            .manualEvaluated(0L)
+                            .arbitration(response.getFlagged())
+                            .completed(response.getCompleted())
+                            .build();
+                },
+                evaluationRestUrl + "/api/v1/evaluation/analytics/summary?tenantId=" + tenantId,
                 node -> EvaluationQueueBreakdownResponse.builder()
                         .pending(node.path("pending").asLong(0L))
                         .autoEvaluated(node.path("inProgress").asLong(node.path("autoEvaluated").asLong(0L)))
@@ -334,70 +305,50 @@ public class AdminDashboardService {
     }
 
     private long fetchCandidateStats(String tenantId) {
-        // Attempt 1: gRPC Protobuf
-        try {
-            ManagedChannel channel = GrpcChannelFactory.getChannel(candidateGrpcHost, candidateGrpcPort);
-            CandidateMetricsGrpcServiceGrpc.CandidateMetricsGrpcServiceBlockingStub stub =
-                    CandidateMetricsGrpcServiceGrpc.newBlockingStub(channel)
-                            .withDeadlineAfter(candidateTimeoutMs, TimeUnit.MILLISECONDS);
-
-            CandidateMetricsGrpcRequest request = CandidateMetricsGrpcRequest.newBuilder()
-                    .setTenantId(tenantId)
-                    .build();
-
-            CandidateMetricsGrpcResponse response = stub.getCandidateMetrics(request);
-            log.debug("gRPC getCandidateMetrics succeeded from {}:{}", candidateGrpcHost, candidateGrpcPort);
-            return response.getTotalRegisteredCandidates();
-        } catch (Exception grpcEx) {
-            log.debug("gRPC getCandidateMetrics failed: {}, attempting REST backup", grpcEx.getMessage());
-        }
-
-        // Attempt 2: REST Backup
-        return fetchRestBackup(
-                candidateRestUrl + "/api/v1/candidates/analytics/summary?tenantId=" + tenantId,
+        return fetchWithGrpcFallback(
                 "Candidates",
+                () -> {
+                    CandidateMetricsGrpcResponse response = executeGrpc(
+                            candidateGrpcHost, candidateGrpcPort, candidateTimeoutMs,
+                            CandidateMetricsGrpcServiceGrpc::newBlockingStub,
+                            stub -> stub.getCandidateMetrics(
+                                    CandidateMetricsGrpcRequest.newBuilder().setTenantId(tenantId).build()));
+                    log.debug("gRPC getCandidateMetrics succeeded from {}:{}", candidateGrpcHost, candidateGrpcPort);
+                    return response.getTotalRegisteredCandidates();
+                },
+                candidateRestUrl + "/api/v1/candidates/analytics/summary?tenantId=" + tenantId,
                 node -> node.path("totalRegisteredCandidates").asLong(0L),
                 0L
         );
     }
 
     private List<SecurityAuditEventResponse> fetchRecentAuditEvents(String tenantId) {
-        // Attempt 1: gRPC Protobuf
-        try {
-            ManagedChannel channel = GrpcChannelFactory.getChannel(auditGrpcHost, auditGrpcPort);
-            AuditLedgerGrpcServiceGrpc.AuditLedgerGrpcServiceBlockingStub stub =
-                    AuditLedgerGrpcServiceGrpc.newBlockingStub(channel)
-                            .withDeadlineAfter(auditTimeoutMs, TimeUnit.MILLISECONDS);
-
-            AuditLedgerGrpcRequest request = AuditLedgerGrpcRequest.newBuilder()
-                    .setTenantId(tenantId)
-                    .setLimit(3)
-                    .build();
-
-            AuditLedgerGrpcResponse response = stub.getRecentLedgerEvents(request);
-            if (response.getEventsCount() > 0) {
-                List<SecurityAuditEventResponse> list = new ArrayList<>();
-                for (var item : response.getEventsList()) {
-                    list.add(SecurityAuditEventResponse.builder()
-                            .id(item.getId().isBlank() ? "SEC-" + UUID.randomUUID().toString().substring(0, 6) : item.getId())
-                            .timestamp(item.getTimestamp().isBlank() ? DateTimeFormatter.ISO_INSTANT.format(Instant.now()) : item.getTimestamp())
-                            .actor(item.getPerformedBy().isBlank() ? "system" : item.getPerformedBy())
-                            .action(item.getAction().isBlank() ? "UNKNOWN" : item.getAction())
-                            .resource(item.getEntityType().isBlank() ? "RESOURCE" : item.getEntityType())
-                            .hash("SHA256-IMMUTABLE")
-                            .build());
-                }
-                log.debug("gRPC getRecentLedgerEvents succeeded from {}:{}", auditGrpcHost, auditGrpcPort);
-                return list;
-            }
-        } catch (Exception grpcEx) {
-            log.debug("gRPC getRecentLedgerEvents failed: {}, attempting REST backup", grpcEx.getMessage());
-        }
-
-        // Attempt 2: REST Backup
-        return fetchRestBackup(
-                auditRestUrl + "/api/v1/audit/events/recent?tenantId=" + tenantId + "&limit=3",
+        return fetchWithGrpcFallback(
                 "Audit events",
+                () -> {
+                    AuditLedgerGrpcResponse response = executeGrpc(
+                            auditGrpcHost, auditGrpcPort, auditTimeoutMs,
+                            AuditLedgerGrpcServiceGrpc::newBlockingStub,
+                            stub -> stub.getRecentLedgerEvents(
+                                    AuditLedgerGrpcRequest.newBuilder().setTenantId(tenantId).setLimit(3).build()));
+                    if (response.getEventsCount() > 0) {
+                        List<SecurityAuditEventResponse> list = new ArrayList<>();
+                        for (var item : response.getEventsList()) {
+                            list.add(SecurityAuditEventResponse.builder()
+                                    .id(item.getId().isBlank() ? "SEC-" + UUID.randomUUID().toString().substring(0, 6) : item.getId())
+                                    .timestamp(item.getTimestamp().isBlank() ? DateTimeFormatter.ISO_INSTANT.format(Instant.now()) : item.getTimestamp())
+                                    .actor(item.getPerformedBy().isBlank() ? "system" : item.getPerformedBy())
+                                    .action(item.getAction().isBlank() ? "UNKNOWN" : item.getAction())
+                                    .resource(item.getEntityType().isBlank() ? "RESOURCE" : item.getEntityType())
+                                    .hash("SHA256-IMMUTABLE")
+                                    .build());
+                        }
+                        log.debug("gRPC getRecentLedgerEvents succeeded from {}:{}", auditGrpcHost, auditGrpcPort);
+                        return list;
+                    }
+                    return null;
+                },
+                auditRestUrl + "/api/v1/audit/events/recent?tenantId=" + tenantId + "&limit=3",
                 node -> {
                     if (node.isArray() && !node.isEmpty()) {
                         List<SecurityAuditEventResponse> list = new ArrayList<>();
@@ -413,10 +364,45 @@ public class AdminDashboardService {
                         }
                         return list;
                     }
-                    return null;
+                    return List.of();
                 },
                 List.of()
         );
+    }
+
+    @FunctionalInterface
+    private interface GrpcAction<T> {
+        T call() throws Exception;
+    }
+
+    private <T> T fetchWithGrpcFallback(
+            String serviceName,
+            GrpcAction<T> grpcAction,
+            String restUrl,
+            Function<JsonNode, T> restMapper,
+            T defaultFallback) {
+
+        try {
+            T result = grpcAction.call();
+            if (result != null) {
+                return result;
+            }
+        } catch (Exception grpcEx) {
+            log.debug("gRPC {} failed: {}, attempting REST backup", serviceName, grpcEx.getMessage());
+        }
+
+        return fetchRestBackup(restUrl, serviceName, restMapper, defaultFallback);
+    }
+
+    private <S extends AbstractBlockingStub<S>, Res> Res executeGrpc(
+            String host,
+            int port,
+            long timeoutMs,
+            Function<ManagedChannel, S> stubFactory,
+            Function<S, Res> call) {
+        ManagedChannel channel = GrpcChannelFactory.getChannel(host, port);
+        S stub = stubFactory.apply(channel).withDeadlineAfter(timeoutMs, TimeUnit.MILLISECONDS);
+        return call.apply(stub);
     }
 
     private <T> T fetchRestBackup(String url, String serviceName, Function<JsonNode, T> mapper, T defaultValue) {
