@@ -63,6 +63,7 @@ import java.util.List;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Function;
 
 /**
  * Service for aggregating operational dashboard metrics across microservices.
@@ -220,34 +221,24 @@ public class AdminDashboardService {
         }
 
         // Attempt 2: REST Backup
-        try {
-            String restResponse = restClient.get()
-                    .uri(questionBankRestUrl + "/api/v1/questions/analytics/summary?tenantId=" + tenantId)
-                    .retrieve()
-                    .body(String.class);
-
-            if (restResponse != null) {
-                JsonNode node = objectMapper.readTree(restResponse);
-                log.debug("REST backup for QuestionBank succeeded");
-                return QuestionBankBreakdownResponse.builder()
+        return fetchRestBackup(
+                questionBankRestUrl + "/api/v1/questions/analytics/summary?tenantId=" + tenantId,
+                "QuestionBank",
+                node -> QuestionBankBreakdownResponse.builder()
                         .total(node.path("total").asLong(0L))
                         .draft(node.path("draft").asLong(0L))
                         .submitted(node.path("submitted").asLong(0L))
                         .approved(node.path("approved").asLong(0L))
                         .rejected(node.path("rejected").asLong(0L))
-                        .build();
-            }
-        } catch (Exception restEx) {
-            log.debug("REST backup for QuestionBank failed: {}", restEx.getMessage());
-        }
-
-        return QuestionBankBreakdownResponse.builder()
-                .total(0L)
-                .draft(0L)
-                .submitted(0L)
-                .approved(0L)
-                .rejected(0L)
-                .build();
+                        .build(),
+                QuestionBankBreakdownResponse.builder()
+                        .total(0L)
+                        .draft(0L)
+                        .submitted(0L)
+                        .approved(0L)
+                        .rejected(0L)
+                        .build()
+        );
     }
 
     private ExamStatusBreakdownResponse fetchExaminationStats(String tenantId) {
@@ -276,34 +267,24 @@ public class AdminDashboardService {
         }
 
         // Attempt 2: REST Backup
-        try {
-            String restResponse = restClient.get()
-                    .uri(examinationRestUrl + "/api/v1/examinations/analytics/summary?tenantId=" + tenantId)
-                    .retrieve()
-                    .body(String.class);
-
-            if (restResponse != null) {
-                JsonNode node = objectMapper.readTree(restResponse);
-                log.debug("REST backup for Examination succeeded");
-                return ExamStatusBreakdownResponse.builder()
+        return fetchRestBackup(
+                examinationRestUrl + "/api/v1/examinations/analytics/summary?tenantId=" + tenantId,
+                "Examination",
+                node -> ExamStatusBreakdownResponse.builder()
                         .draft(node.path("draft").asLong(0L))
                         .scheduled(node.path("scheduled").asLong(0L))
                         .liveInProgress(node.path("liveInProgress").asLong(0L))
                         .evaluation(node.path("evaluation").asLong(0L))
                         .completed(node.path("completed").asLong(0L))
-                        .build();
-            }
-        } catch (Exception restEx) {
-            log.debug("REST backup for Examination failed: {}", restEx.getMessage());
-        }
-
-        return ExamStatusBreakdownResponse.builder()
-                .draft(0L)
-                .scheduled(0L)
-                .liveInProgress(0L)
-                .evaluation(0L)
-                .completed(0L)
-                .build();
+                        .build(),
+                ExamStatusBreakdownResponse.builder()
+                        .draft(0L)
+                        .scheduled(0L)
+                        .liveInProgress(0L)
+                        .evaluation(0L)
+                        .completed(0L)
+                        .build()
+        );
     }
 
     private EvaluationQueueBreakdownResponse fetchEvaluationStats(String tenantId) {
@@ -332,34 +313,24 @@ public class AdminDashboardService {
         }
 
         // Attempt 2: REST Backup
-        try {
-            String restResponse = restClient.get()
-                    .uri(evaluationRestUrl + "/api/v1/evaluation/analytics/summary?tenantId=" + tenantId)
-                    .retrieve()
-                    .body(String.class);
-
-            if (restResponse != null) {
-                JsonNode node = objectMapper.readTree(restResponse);
-                log.debug("REST backup for Evaluation succeeded");
-                return EvaluationQueueBreakdownResponse.builder()
+        return fetchRestBackup(
+                evaluationRestUrl + "/api/v1/evaluation/analytics/summary?tenantId=" + tenantId,
+                "Evaluation",
+                node -> EvaluationQueueBreakdownResponse.builder()
                         .pending(node.path("pending").asLong(0L))
                         .autoEvaluated(node.path("inProgress").asLong(node.path("autoEvaluated").asLong(0L)))
                         .manualEvaluated(node.path("manualEvaluated").asLong(0L))
                         .arbitration(node.path("flagged").asLong(node.path("arbitration").asLong(0L)))
                         .completed(node.path("completed").asLong(0L))
-                        .build();
-            }
-        } catch (Exception restEx) {
-            log.debug("REST backup for Evaluation failed: {}", restEx.getMessage());
-        }
-
-        return EvaluationQueueBreakdownResponse.builder()
-                .pending(0L)
-                .autoEvaluated(0L)
-                .manualEvaluated(0L)
-                .arbitration(0L)
-                .completed(0L)
-                .build();
+                        .build(),
+                EvaluationQueueBreakdownResponse.builder()
+                        .pending(0L)
+                        .autoEvaluated(0L)
+                        .manualEvaluated(0L)
+                        .arbitration(0L)
+                        .completed(0L)
+                        .build()
+        );
     }
 
     private long fetchCandidateStats(String tenantId) {
@@ -382,22 +353,12 @@ public class AdminDashboardService {
         }
 
         // Attempt 2: REST Backup
-        try {
-            String restResponse = restClient.get()
-                    .uri(candidateRestUrl + "/api/v1/candidates/analytics/summary?tenantId=" + tenantId)
-                    .retrieve()
-                    .body(String.class);
-
-            if (restResponse != null) {
-                JsonNode node = objectMapper.readTree(restResponse);
-                log.debug("REST backup for Candidates succeeded");
-                return node.path("totalRegisteredCandidates").asLong(0L);
-            }
-        } catch (Exception restEx) {
-            log.debug("REST backup for Candidates failed: {}", restEx.getMessage());
-        }
-
-        return 0L;
+        return fetchRestBackup(
+                candidateRestUrl + "/api/v1/candidates/analytics/summary?tenantId=" + tenantId,
+                "Candidates",
+                node -> node.path("totalRegisteredCandidates").asLong(0L),
+                0L
+        );
     }
 
     private List<SecurityAuditEventResponse> fetchRecentAuditEvents(String tenantId) {
@@ -434,35 +395,49 @@ public class AdminDashboardService {
         }
 
         // Attempt 2: REST Backup
+        return fetchRestBackup(
+                auditRestUrl + "/api/v1/audit/events/recent?tenantId=" + tenantId + "&limit=3",
+                "Audit events",
+                node -> {
+                    if (node.isArray() && !node.isEmpty()) {
+                        List<SecurityAuditEventResponse> list = new ArrayList<>();
+                        for (JsonNode item : node) {
+                            list.add(SecurityAuditEventResponse.builder()
+                                    .id(item.path("id").asText("SEC-" + UUID.randomUUID().toString().substring(0, 6)))
+                                    .timestamp(item.path("timestamp").asText(DateTimeFormatter.ISO_INSTANT.format(Instant.now())))
+                                    .actor(item.path("performedBy").asText("system"))
+                                    .action(item.path("action").asText("UNKNOWN"))
+                                    .resource(item.path("entityType").asText("RESOURCE"))
+                                    .hash("SHA256-IMMUTABLE")
+                                    .build());
+                        }
+                        return list;
+                    }
+                    return null;
+                },
+                List.of()
+        );
+    }
+
+    private <T> T fetchRestBackup(String url, String serviceName, Function<JsonNode, T> mapper, T defaultValue) {
         try {
             String restResponse = restClient.get()
-                    .uri(auditRestUrl + "/api/v1/audit/events/recent?tenantId=" + tenantId + "&limit=3")
+                    .uri(url)
                     .retrieve()
                     .body(String.class);
 
             if (restResponse != null) {
                 JsonNode node = objectMapper.readTree(restResponse);
-                if (node.isArray() && !node.isEmpty()) {
-                    List<SecurityAuditEventResponse> list = new ArrayList<>();
-                    for (JsonNode item : node) {
-                        list.add(SecurityAuditEventResponse.builder()
-                                .id(item.path("id").asText("SEC-" + UUID.randomUUID().toString().substring(0, 6)))
-                                .timestamp(item.path("timestamp").asText(DateTimeFormatter.ISO_INSTANT.format(Instant.now())))
-                                .actor(item.path("performedBy").asText("system"))
-                                .action(item.path("action").asText("UNKNOWN"))
-                                .resource(item.path("entityType").asText("RESOURCE"))
-                                .hash("SHA256-IMMUTABLE")
-                                .build());
-                    }
-                    log.debug("REST backup for Audit events succeeded");
-                    return list;
+                T result = mapper.apply(node);
+                if (result != null) {
+                    log.debug("REST backup for {} succeeded", serviceName);
+                    return result;
                 }
             }
         } catch (Exception restEx) {
-            log.debug("REST backup for Audit events failed: {}", restEx.getMessage());
+            log.debug("REST backup for {} failed: {}", serviceName, restEx.getMessage());
         }
-
-        return List.of();
+        return defaultValue;
     }
 
     private List<SystemServiceHealthResponse> checkSystemServicesHealth() {
