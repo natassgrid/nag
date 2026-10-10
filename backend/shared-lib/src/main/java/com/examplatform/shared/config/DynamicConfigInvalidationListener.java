@@ -20,11 +20,8 @@
 package com.examplatform.shared.config;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.kafka.annotation.KafkaListener;
-
-import java.util.Map;
 
 /**
  * Broadcast Kafka Listener that subscribes to 'system.config.events'.
@@ -32,13 +29,13 @@ import java.util.Map;
  * to receive real-time invalidation notifications and update its L1 Near Cache.
  */
 @Slf4j
-@RequiredArgsConstructor
-public class DynamicConfigInvalidationListener {
+public class DynamicConfigInvalidationListener extends AbstractDynamicConfigListener {
 
-    public static final String CONFIG_EVENTS_TOPIC = "system.config.events";
+    public static final String CONFIG_EVENTS_TOPIC = AbstractDynamicConfigListener.CONFIG_EVENTS_TOPIC;
 
-    private final DynamicConfigService dynamicConfigService;
-    private final ObjectMapper objectMapper;
+    public DynamicConfigInvalidationListener(DynamicConfigService dynamicConfigService, ObjectMapper objectMapper) {
+        super(dynamicConfigService, objectMapper);
+    }
 
     @KafkaListener(
             topics = CONFIG_EVENTS_TOPIC,
@@ -46,36 +43,6 @@ public class DynamicConfigInvalidationListener {
             properties = {"auto.offset.reset=latest"}
     )
     public void onConfigChangeEvent(Object message) {
-        try {
-            SystemConfigChangeEvent event = parseEvent(message);
-            if (event != null && event.paramName() != null) {
-                dynamicConfigService.updateLocalCache(event.tenantId(), event.paramName(), event.newValue());
-                log.info("L1 Near Cache updated via Kafka invalidation for param '{}' (tenant: {}) to '{}'",
-                        event.paramName(), event.tenantId(), event.newValue());
-            }
-        } catch (Exception e) {
-            log.warn("Failed to process system configuration invalidation event: {}", e.getMessage());
-        }
-    }
-
-    private SystemConfigChangeEvent parseEvent(Object message) {
-        if (message instanceof SystemConfigChangeEvent e) {
-            return e;
-        }
-        if (message instanceof Map<?, ?> map) {
-            String paramName = (String) map.get("paramName");
-            String oldValue = (String) map.get("oldValue");
-            String newValue = (String) map.get("newValue");
-            String tenantId = (String) map.get("tenantId");
-            return new SystemConfigChangeEvent(paramName, oldValue, newValue, tenantId, null);
-        }
-        if (message instanceof String jsonStr) {
-            try {
-                return objectMapper.readValue(jsonStr, SystemConfigChangeEvent.class);
-            } catch (Exception e) {
-                log.debug("Could not parse json as SystemConfigChangeEvent: {}", e.getMessage());
-            }
-        }
-        return null;
+        processConfigChangeEvent(message, "Kafka invalidation");
     }
 }
