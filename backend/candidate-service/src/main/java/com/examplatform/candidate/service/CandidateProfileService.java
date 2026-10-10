@@ -230,15 +230,9 @@ public class CandidateProfileService {
             profile.setIdentityDocHmac("PENDING-" + userId);
         }
 
-        if (request.getPhotoAssetId() != null) {
-            profile.setPhotoAssetId(request.getPhotoAssetId());
-        }
-        if (request.getSignatureAssetId() != null) {
-            profile.setSignatureAssetId(request.getSignatureAssetId());
-        }
-        if (request.getIdProofAssetId() != null) {
-            profile.setIdProofAssetId(request.getIdProofAssetId());
-        }
+        Optional.ofNullable(request.getPhotoAssetId()).ifPresent(profile::setPhotoAssetId);
+        Optional.ofNullable(request.getSignatureAssetId()).ifPresent(profile::setSignatureAssetId);
+        Optional.ofNullable(request.getIdProofAssetId()).ifPresent(profile::setIdProofAssetId);
 
         CandidateProfile saved = candidateProfileRepository.save(profile);
         log.info("Updated candidate profile for userId={} in tenant={}", userId, tenantId);
