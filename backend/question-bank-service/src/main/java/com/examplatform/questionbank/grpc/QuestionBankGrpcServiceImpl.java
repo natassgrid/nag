@@ -27,6 +27,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
+import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -163,17 +164,18 @@ public class QuestionBankGrpcServiceImpl extends QuestionBankGrpcServiceGrpc.Que
                 .setNegativeMarks(0.0)
                 .setUsageCount(q.getUsageCount());
 
-        java.util.Optional.ofNullable(q.getId()).ifPresent(id -> b.setId(id.toString()));
-        java.util.Optional.ofNullable(q.getContent()).ifPresent(b::setContent);
-        java.util.Optional.ofNullable(q.getQuestionType()).ifPresent(b::setQuestionType);
-        java.util.Optional.ofNullable(q.getDifficulty()).ifPresent(b::setDifficulty);
-        java.util.Optional.ofNullable(q.getCognitiveLevel()).ifPresent(b::setCognitiveLevel);
-        java.util.Optional.ofNullable(q.getTopicId()).ifPresent(id -> b.setTopicId(id.toString()));
-        java.util.Optional.ofNullable(q.getSubjectId()).ifPresent(id -> b.setSubjectId(id.toString()));
-        java.util.Optional.ofNullable(q.getAnswerKey()).ifPresent(b::setAnswerKey);
-        java.util.Optional.ofNullable(q.getExplanation()).ifPresent(b::setExplanation);
-        java.util.Optional.ofNullable(q.getSubject()).ifPresent(b::setSubject);
-        java.util.Optional.ofNullable(q.getTopic()).ifPresent(b::setTopic);
+        if (q.getId() != null) b.setId(q.getId().toString());
+        if (q.getTopicId() != null) b.setTopicId(q.getTopicId().toString());
+        if (q.getSubjectId() != null) b.setSubjectId(q.getSubjectId().toString());
+
+        applyIfPresent(q.getContent(), b::setContent);
+        applyIfPresent(q.getQuestionType(), b::setQuestionType);
+        applyIfPresent(q.getDifficulty(), b::setDifficulty);
+        applyIfPresent(q.getCognitiveLevel(), b::setCognitiveLevel);
+        applyIfPresent(q.getAnswerKey(), b::setAnswerKey);
+        applyIfPresent(q.getExplanation(), b::setExplanation);
+        applyIfPresent(q.getSubject(), b::setSubject);
+        applyIfPresent(q.getTopic(), b::setTopic);
 
         if (q.getPassageId() != null) {
             b.setPassageId(q.getPassageId().toString());
@@ -193,5 +195,11 @@ public class QuestionBankGrpcServiceImpl extends QuestionBankGrpcServiceGrpc.Que
             }
         }
         return b.build();
+    }
+
+    private static void applyIfPresent(String val, Consumer<String> setter) {
+        if (val != null) {
+            setter.accept(val);
+        }
     }
 }

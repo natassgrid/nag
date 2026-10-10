@@ -156,24 +156,8 @@ public class PaperController {
         Paper paper = paperAssemblyService.getPaperById(paperId, tenantId)
                 .orElseThrow(() -> new EntityNotFoundException("Paper not found: " + paperId));
 
-        int totalQuestions = 0;
-        List<UUID> questionIds = new ArrayList<>();
-        if (paper.getPaperDefinitionJson() != null && !paper.getPaperDefinitionJson().isBlank()) {
-            try {
-                JsonNode root = objectMapper.readTree(paper.getPaperDefinitionJson());
-                JsonNode qIdsNode = root.get("questionIds");
-                if (qIdsNode != null && qIdsNode.isArray()) {
-                    for (JsonNode qNode : qIdsNode) {
-                        try {
-                            questionIds.add(UUID.fromString(qNode.asText()));
-                        } catch (IllegalArgumentException ignored) {}
-                    }
-                    totalQuestions = questionIds.size();
-                }
-            } catch (Exception e) {
-                log.warn("Failed to parse paperDefinitionJson for paper {}: {}", paperId, e.getMessage());
-            }
-        }
+        List<UUID> questionIds = PaperAssemblyService.extractQuestionIds(paper, objectMapper);
+        int totalQuestions = questionIds.size();
 
         Map<String, Integer> topicDistribution = new HashMap<>();
         if (paper.getTopicDistributionJson() != null && !paper.getTopicDistributionJson().isBlank()) {

@@ -108,12 +108,10 @@ public class RoleController {
             @Valid @RequestBody CreateRoleRequest request,
             @RequestHeader(value = "X-Tenant-Id", defaultValue = "default") String tenantId,
             Authentication authentication) {
-        String actorId = authentication.getName();
         log.debug("Create role request: actor [{}], code [{}], tenant [{}]",
-                actorId, request.getCode(), tenantId);
-        RoleDefinitionResponse response = roleDefinitionService.createRole(request, actorId, tenantId);
+                authentication.getName(), request.getCode(), tenantId);
         return ResponseEntity.status(HttpStatus.CREATED)
-                .body(ApiResponse.success(response, "Role created successfully."));
+                .body(ApiResponse.success(roleDefinitionService.createRole(request, authentication.getName(), tenantId), "Role created successfully."));
     }
 
     /**
@@ -126,10 +124,8 @@ public class RoleController {
             @Valid @RequestBody UpdateRoleRequest request,
             @RequestHeader(value = "X-Tenant-Id", defaultValue = "default") String tenantId,
             Authentication authentication) {
-        String actorId = authentication.getName();
-        log.debug("Update role request: actor [{}], roleId [{}], tenant [{}]", actorId, roleId, tenantId);
-        RoleDefinitionResponse response = roleDefinitionService.updateRole(roleId, request, actorId, tenantId);
-        return ResponseEntity.ok(ApiResponse.success(response, "Role updated successfully."));
+        log.debug("Update role request: actor [{}], roleId [{}], tenant [{}]", authentication.getName(), roleId, tenantId);
+        return ResponseEntity.ok(ApiResponse.success(roleDefinitionService.updateRole(roleId, request, authentication.getName(), tenantId), "Role updated successfully."));
     }
 
     /**
@@ -141,9 +137,8 @@ public class RoleController {
             @PathVariable UUID roleId,
             @RequestHeader(value = "X-Tenant-Id", defaultValue = "default") String tenantId,
             Authentication authentication) {
-        String actorId = authentication.getName();
-        log.debug("Delete role request: actor [{}], roleId [{}], tenant [{}]", actorId, roleId, tenantId);
-        roleDefinitionService.deleteRole(roleId, actorId, tenantId);
+        log.debug("Delete role request: actor [{}], roleId [{}], tenant [{}]", authentication.getName(), roleId, tenantId);
+        roleDefinitionService.deleteRole(roleId, authentication.getName(), tenantId);
         return ResponseEntity.ok(ApiResponse.success(null, "Role deleted successfully."));
     }
 

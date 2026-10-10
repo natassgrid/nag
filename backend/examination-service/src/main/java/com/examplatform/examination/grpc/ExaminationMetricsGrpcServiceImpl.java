@@ -21,6 +21,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.util.Map;
+import java.util.Optional;
 
 /**
  * gRPC service implementation for Examination status breakdown and operational metrics.
@@ -43,19 +44,13 @@ public class ExaminationMetricsGrpcServiceImpl extends ExaminationMetricsGrpcSer
         try {
             Map<String, Object> breakdown = examinationService.getExaminationStatusBreakdown(tenantId);
 
-            long scheduled = ((Number) breakdown.getOrDefault("scheduled", 0L)).longValue();
-            long liveInProgress = ((Number) breakdown.getOrDefault("liveInProgress", 0L)).longValue();
-            long completed = ((Number) breakdown.getOrDefault("completed", 0L)).longValue();
-            long cancelled = ((Number) breakdown.getOrDefault("cancelled", 0L)).longValue();
+            ExamBreakdownGrpcResponse.Builder builder = ExamBreakdownGrpcResponse.newBuilder();
+            Optional.ofNullable((Number) breakdown.get("scheduled")).ifPresent(n -> builder.setScheduled(n.longValue()));
+            Optional.ofNullable((Number) breakdown.get("liveInProgress")).ifPresent(n -> builder.setLiveInProgress(n.longValue()));
+            Optional.ofNullable((Number) breakdown.get("completed")).ifPresent(n -> builder.setCompleted(n.longValue()));
+            Optional.ofNullable((Number) breakdown.get("cancelled")).ifPresent(n -> builder.setCancelled(n.longValue()));
 
-            ExamBreakdownGrpcResponse response = ExamBreakdownGrpcResponse.newBuilder()
-                    .setScheduled(scheduled)
-                    .setLiveInProgress(liveInProgress)
-                    .setCompleted(completed)
-                    .setCancelled(cancelled)
-                    .build();
-
-            responseObserver.onNext(response);
+            responseObserver.onNext(builder.build());
             responseObserver.onCompleted();
         } catch (Exception e) {
             log.error("Failed to get examination status breakdown via gRPC", e);

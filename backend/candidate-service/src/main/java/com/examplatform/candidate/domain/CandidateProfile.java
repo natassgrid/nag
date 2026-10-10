@@ -19,6 +19,8 @@
 
 package com.examplatform.candidate.domain;
 
+import com.examplatform.candidate.dto.CreateCandidateProfileRequest;
+
 import com.examplatform.candidate.crypto.EncryptedFieldConverter;
 import com.examplatform.shared.entity.BaseEntity;
 import jakarta.persistence.Column;
@@ -152,4 +154,22 @@ public class CandidateProfile extends BaseEntity {
 
     @Column(name = "user_id", nullable = false)
     private UUID userId;
+
+    public void applyDetails(CreateCandidateProfileRequest request) {
+        this.fullName = request.getFullName();
+        this.dateOfBirth = request.getDateOfBirth();
+        this.gender = request.getGender();
+        this.nationality = request.getNationality();
+        this.category = request.getCategory();
+        this.mobile = request.getMobile();
+        this.email = request.getEmail();
+        this.address = request.getAddress();
+        this.country = request.getCountry();
+        this.state = request.getState();
+        this.district = request.getDistrict();
+        this.city = request.getCity();
+        this.pinCode = request.getPinCode();
+        this.reservationCategory = request.getReservationCategory();
+        this.identityDocNumber = request.getIdentityDocNumber();
+    }
 }

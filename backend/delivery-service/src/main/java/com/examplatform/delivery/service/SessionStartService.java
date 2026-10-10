@@ -189,11 +189,7 @@ public class SessionStartService {
             }
         }
 
-        UUID paperId = request.getPaperId() != null
-                ? request.getPaperId()
-                : (assignment != null && assignment.getPaperId() != null
-                        ? assignment.getPaperId()
-                        : UUID.nameUUIDFromBytes(("paper-" + request.getExamId()).getBytes(StandardCharsets.UTF_8)));
+        UUID paperId = resolvePaperId(request.getPaperId(), assignment, request.getExamId());
 
         // 4. Resolve delivery questions
         List<QuestionDeliveryDto> baseQuestions = examQuestionDeliveryService != null
@@ -322,11 +318,7 @@ public class SessionStartService {
             }
         }
 
-        UUID paperId = session.getPaperId() != null
-                ? session.getPaperId()
-                : (assignment != null && assignment.getPaperId() != null
-                    ? assignment.getPaperId()
-                    : UUID.nameUUIDFromBytes(("paper-" + session.getExamId()).getBytes(StandardCharsets.UTF_8)));
+        UUID paperId = resolvePaperId(session.getPaperId(), assignment, session.getExamId());
 
         // 2. Fetch delivery questions (randomized options seeded with the existing session ID)
         List<QuestionDeliveryDto> baseQuestions = examQuestionDeliveryService != null
@@ -537,5 +529,15 @@ public class SessionStartService {
         }
         int totalQuestions = (questions != null && !questions.isEmpty()) ? questions.size() : countQuestions(decryptedPaper);
         return new QuestionPreparationResult(firstQuestionContent, totalQuestions);
+    }
+
+    private UUID resolvePaperId(UUID explicitPaperId, ShiftAssignment assignment, UUID examId) {
+        if (explicitPaperId != null) {
+            return explicitPaperId;
+        }
+        if (assignment != null && assignment.getPaperId() != null) {
+            return assignment.getPaperId();
+        }
+        return UUID.nameUUIDFromBytes(("paper-" + examId).getBytes(StandardCharsets.UTF_8));
     }
 }

@@ -552,4 +552,29 @@ public class PaperAssemblyService {
             log.error("Failed to publish {} event to {}: {}", typeValue, topic, e.getMessage());
         }
     }
+
+    public List<UUID> extractQuestionIds(Paper paper) {
+        return extractQuestionIds(paper, this.objectMapper);
+    }
+
+    public static List<UUID> extractQuestionIds(Paper paper, ObjectMapper objectMapper) {
+        if (paper == null || paper.getPaperDefinitionJson() == null || paper.getPaperDefinitionJson().isBlank()) {
+            return List.of();
+        }
+        List<UUID> questionIds = new ArrayList<>();
+        try {
+            com.fasterxml.jackson.databind.JsonNode root = objectMapper.readTree(paper.getPaperDefinitionJson());
+            com.fasterxml.jackson.databind.JsonNode qIdsNode = root.get("questionIds");
+            if (qIdsNode != null && qIdsNode.isArray()) {
+                for (com.fasterxml.jackson.databind.JsonNode qNode : qIdsNode) {
+                    try {
+                        questionIds.add(UUID.fromString(qNode.asText()));
+                    } catch (IllegalArgumentException ignored) {}
+                }
+            }
+        } catch (Exception e) {
+            log.warn("Failed to parse paperDefinitionJson for paper {}: {}", paper.getId(), e.getMessage());
+        }
+        return questionIds;
+    }
 }

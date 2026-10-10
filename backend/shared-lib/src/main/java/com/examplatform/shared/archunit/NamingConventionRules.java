@@ -59,12 +59,19 @@ public final class NamingConventionRules {
                     .and().areNotEnums()
                     .and().areNotInterfaces()
                     .and().haveSimpleNameNotEndingWith("Builder")
-                    .should().haveSimpleNameEndingWith("Controller")
-                    .orShould().haveSimpleNameEndingWith("Resource")
-                    .orShould().haveSimpleNameEndingWith("Advice")
-                    .orShould().haveSimpleNameEndingWith("ExceptionHandler")
-                    .orShould().haveSimpleNameEndingWith("Helper")
-                    .orShould().haveSimpleNameEndingWith("Aspect")
+                    .should(new com.tngtech.archunit.lang.ArchCondition<com.tngtech.archunit.core.domain.JavaClass>("have valid controller-layer suffix") {
+                        @Override
+                        public void check(com.tngtech.archunit.core.domain.JavaClass item, com.tngtech.archunit.lang.ConditionEvents events) {
+                            String name = item.getSimpleName();
+                            boolean ok = name.endsWith("Controller") || name.endsWith("Resource")
+                                    || name.endsWith("Advice") || name.endsWith("ExceptionHandler")
+                                    || name.endsWith("Helper") || name.endsWith("Aspect");
+                            if (!ok) {
+                                events.add(com.tngtech.archunit.lang.SimpleConditionEvent.violated(item,
+                                        item.getName() + " does not match accepted controller suffixes"));
+                            }
+                        }
+                    })
                     .because("Classes in controller package should clearly reflect their web responsibility in their name")
                     .allowEmptyShould(true);
 

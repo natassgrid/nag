@@ -119,10 +119,7 @@ public class OtpRedisService {
         }
         String key = DAILY_PREFIX + identifier.trim();
         try {
-            Long count = redisTemplate.opsForValue().increment(key);
-            if (count != null && count == 1L) {
-                redisTemplate.expire(key, DAILY_WINDOW);
-            }
+            Long count = incrementWithWindow(key, DAILY_WINDOW);
             if (count != null && count > MAX_DAILY_RESENDS) {
                 throw new RateLimitExceededException(
                     "Maximum limit of " + MAX_DAILY_RESENDS + " verification codes reached for today. Please try again in 24 hours."
@@ -169,10 +166,7 @@ public class OtpRedisService {
         }
         String key = ATTEMPTS_PREFIX + identifier.trim();
         try {
-            Long count = redisTemplate.opsForValue().increment(key);
-            if (count != null && count == 1L) {
-                redisTemplate.expire(key, LOCKOUT_DURATION);
-            }
+            Long count = incrementWithWindow(key, LOCKOUT_DURATION);
             log.debug("Recorded failed verification attempt {} for [{}]", count, identifier);
         } catch (Exception ex) {
             log.warn("Failed to record failed attempt in Redis for [{}]: {}", identifier, ex.getMessage());
@@ -191,5 +185,13 @@ public class OtpRedisService {
         } catch (Exception ex) {
             log.warn("Failed to clear failed attempts from Redis for [{}]: {}", identifier, ex.getMessage());
         }
+    }
+
+    private Long incrementWithWindow(String key, Duration ttl) {
+        Long count = redisTemplate.opsForValue().increment(key);
+        if (count != null && count == 1L) {
+            redisTemplate.expire(key, ttl);
+        }
+        return count;
     }
 }

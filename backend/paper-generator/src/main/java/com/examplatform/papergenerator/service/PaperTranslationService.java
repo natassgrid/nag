@@ -25,7 +25,6 @@ import com.examplatform.papergenerator.dto.BatchTranslationJobResponseDto;
 import com.examplatform.papergenerator.dto.PaperTranslateRequest;
 import com.examplatform.papergenerator.dto.PaperTranslateResponse;
 import com.examplatform.papergenerator.repository.PaperRepository;
-import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
@@ -33,7 +32,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
@@ -107,23 +105,7 @@ public class PaperTranslationService {
     }
 
     public List<UUID> extractQuestionIds(Paper paper) {
-        List<UUID> questionIds = new ArrayList<>();
-        if (paper.getPaperDefinitionJson() != null && !paper.getPaperDefinitionJson().isBlank()) {
-            try {
-                JsonNode root = objectMapper.readTree(paper.getPaperDefinitionJson());
-                JsonNode qIdsNode = root.get("questionIds");
-                if (qIdsNode != null && qIdsNode.isArray()) {
-                    for (JsonNode qNode : qIdsNode) {
-                        try {
-                            questionIds.add(UUID.fromString(qNode.asText()));
-                        } catch (IllegalArgumentException ignored) {}
-                    }
-                }
-            } catch (Exception e) {
-                log.warn("Failed to parse paperDefinitionJson for paper {}: {}", paper.getId(), e.getMessage());
-            }
-        }
-        return questionIds;
+        return PaperAssemblyService.extractQuestionIds(paper, objectMapper);
     }
 
     private PaperTranslateResponse mapToPaperTranslateResponse(UUID paperId, BatchTranslationJobResponseDto dto, int fallbackTotal) {

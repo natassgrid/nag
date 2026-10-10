@@ -321,16 +321,7 @@ public class ExaminationScheduleService {
                     "Updated shift window overlaps with another shift in schedule " + scheduleId);
         }
 
-        shift.setShiftNumber(request.getShiftNumber());
-        shift.setShiftName(request.getShiftName());
-        shift.setReportingTime(request.getReportingTime());
-        shift.setGateClosingTime(request.getGateClosingTime());
-        shift.setLoginStartTime(request.getLoginStartTime());
-        shift.setExamStartTime(request.getExamStartTime());
-        shift.setExamEndTime(request.getExamEndTime());
-        shift.setExitTime(request.getExitTime());
-        shift.setDurationMinutes(request.getDurationMinutes());
-        shift.setBufferMinutes(request.getBufferMinutes());
+        shift.updateFromRequest(request);
 
         ExamShift saved = shiftRepository.save(shift);
         log.info("Shift updated: id={}, schedule={}, tenant={}", shiftId, scheduleId, tenantId);

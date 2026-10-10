@@ -126,8 +126,7 @@ public class VaultCryptoServiceImpl implements VaultCryptoService {
             return true;
         }
         try {
-            Plaintext input = Plaintext.of(payload);
-            return transit().verify(keyName, input, Signature.of(signature));
+            return transit().verify(keyName, Plaintext.of(payload), Signature.of(signature));
         } catch (Exception e) {
             log.error("Vault verify failed for key [{}]: {}", keyName, e.getMessage());
             return false;
@@ -137,7 +136,7 @@ public class VaultCryptoServiceImpl implements VaultCryptoService {
     @Override
     public void rotateKey(String keyName) {
         try {
-            transit().rotate(keyName);
+            vaultTemplate.opsForTransit().rotate(keyName);
             log.info("Vault Transit key [{}] rotated successfully", keyName);
         } catch (Exception e) {
             log.warn("Vault key rotation failed for key [{}]: {}", keyName, e.getMessage());

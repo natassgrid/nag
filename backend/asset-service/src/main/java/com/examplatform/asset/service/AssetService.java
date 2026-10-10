@@ -237,11 +237,11 @@ public class AssetService {
     public AssetUploadResponse updateMetadata(UUID assetId, AssetMetadataUpdateRequest request, UUID userId, String tenantId) {
         MediaAsset asset = findAssetOrThrow(assetId);
 
-        if (request.getTitle() != null) asset.setTitle(request.getTitle());
-        if (request.getDescription() != null) asset.setDescription(request.getDescription());
-        if (request.getAltText() != null) asset.setAltText(request.getAltText());
-        if (request.getTags() != null) asset.setTags(request.getTags());
-        if (request.getLanguage() != null) asset.setLanguage(request.getLanguage());
+        Optional.ofNullable(request.getTitle()).ifPresent(asset::setTitle);
+        Optional.ofNullable(request.getDescription()).ifPresent(asset::setDescription);
+        Optional.ofNullable(request.getAltText()).ifPresent(asset::setAltText);
+        Optional.ofNullable(request.getTags()).ifPresent(asset::setTags);
+        Optional.ofNullable(request.getLanguage()).ifPresent(asset::setLanguage);
 
         asset = assetRepository.save(asset);
 

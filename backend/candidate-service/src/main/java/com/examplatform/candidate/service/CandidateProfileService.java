@@ -121,21 +121,7 @@ public class CandidateProfileService {
                 .consentRecorded(false)
                 .build());
 
-        profile.setFullName(request.getFullName());
-        profile.setDateOfBirth(request.getDateOfBirth());
-        profile.setGender(request.getGender());
-        profile.setNationality(request.getNationality());
-        profile.setCategory(request.getCategory());
-        profile.setMobile(request.getMobile());
-        profile.setEmail(request.getEmail());
-        profile.setAddress(request.getAddress());
-        profile.setCountry(request.getCountry());
-        profile.setState(request.getState());
-        profile.setDistrict(request.getDistrict());
-        profile.setCity(request.getCity());
-        profile.setPinCode(request.getPinCode());
-        profile.setReservationCategory(request.getReservationCategory());
-        profile.setIdentityDocNumber(request.getIdentityDocNumber());
+        profile.applyDetails(request);
         profile.setMobileHash(mobileHash);
         profile.setIdentityDocHash(docHash);
         profile.setIdentityDocHmac(docHmac);
@@ -160,17 +146,7 @@ public class CandidateProfileService {
                 .findByUserIdAndTenantId(userId, tenantId)
                 .orElseGet(() -> {
                     log.info("No profile found for userId={}. Auto-initializing default profile in tenant={}", userId, tenantId);
-                    String dekKeyName = DEK_PREFIX + userId;
-                    CandidateProfile newProfile = CandidateProfile.builder()
-                            .userId(userId)
-                            .encryptionKeyId(dekKeyName)
-                            .mobileHash("PENDING-" + userId)
-                            .identityDocHash("PENDING-" + userId)
-                            .identityDocHmac("PENDING-" + userId)
-                            .consentRecorded(false)
-                            .build();
-                    newProfile.setTenantId(tenantId);
-                    return candidateProfileRepository.save(newProfile);
+                    return candidateProfileRepository.save(initDefaultProfile(userId, tenantId));
                 });
 
         // Backfill email / username from identity_service.user_account if email is missing
@@ -209,17 +185,7 @@ public class CandidateProfileService {
                 .findByUserIdAndTenantId(userId, tenantId)
                 .orElseGet(() -> {
                     log.info("Auto-initializing candidate profile during update for userId={} in tenant={}", userId, tenantId);
-                    String dekKeyName = DEK_PREFIX + userId;
-                    CandidateProfile newProfile = CandidateProfile.builder()
-                            .userId(userId)
-                            .encryptionKeyId(dekKeyName)
-                            .mobileHash("PENDING-" + userId)
-                            .identityDocHash("PENDING-" + userId)
-                            .identityDocHmac("PENDING-" + userId)
-                            .consentRecorded(false)
-                            .build();
-                    newProfile.setTenantId(tenantId);
-                    return newProfile;
+                    return initDefaultProfile(userId, tenantId);
                 });
 
         setTrimmedIfPresent(profile::setFullName, request.getFullName());
@@ -382,5 +348,19 @@ public class CandidateProfileService {
 
     private CandidateProfileResponse toResponse(CandidateProfile profile) {
         return CandidateProfileResponse.fromEntity(profile);
+    }
+
+    private CandidateProfile initDefaultProfile(UUID userId, String tenantId) {
+        String dekKeyName = DEK_PREFIX + userId;
+        CandidateProfile newProfile = CandidateProfile.builder()
+                .userId(userId)
+                .encryptionKeyId(dekKeyName)
+                .mobileHash("PENDING-" + userId)
+                .identityDocHash("PENDING-" + userId)
+                .identityDocHmac("PENDING-" + userId)
+                .consentRecorded(false)
+                .build();
+        newProfile.setTenantId(tenantId);
+        return newProfile;
     }
 }

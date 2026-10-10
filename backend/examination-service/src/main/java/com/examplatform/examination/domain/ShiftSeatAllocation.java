@@ -59,30 +59,30 @@ public class ShiftSeatAllocation extends BaseEntity {
     private UUID centreId;
 
     /** Total seats configured for this shift at this centre. */
-    @Column(name = "total_seats", nullable = false)
+    @Column(name = "total_seats")
     private int totalSeats;
 
     /** Currently available (unallocated) seats. Must remain ≥ 0. */
-    @Column(name = "available_seats", nullable = false)
+    @Column(name = "available_seats")
     private int availableSeats;
 
     /** Seats held in reserve (not yet released to general allocation). */
-    @Column(name = "reserved_seats", nullable = false)
+    @Column(name = "reserved_seats")
     private int reservedSeats;
 
     /** Seats reserved for Persons with Disabilities (PwD). */
-    @Column(name = "pwd_seats", nullable = false)
+    @Column(name = "pwd_seats")
     private int pwdSeats;
 
     /** Emergency buffer seats held back for operational contingencies. */
-    @Column(name = "emergency_buffer_seats", nullable = false)
+    @Column(name = "emergency_buffer_seats")
     private int emergencyBufferSeats;
 
     /** Seats reserved for female candidates (if applicable for the examination). */
-    @Column(name = "female_reserved_seats", nullable = false)
+    @Column(name = "female_reserved_seats")
     private int femaleReservedSeats;
 
     /** Seats reserved for special categories (SC/ST/OBC/EWS etc.). */
-    @Column(name = "special_category_seats", nullable = false)
+    @Column(name = "special_category_seats")
     private int specialCategorySeats;
 }
