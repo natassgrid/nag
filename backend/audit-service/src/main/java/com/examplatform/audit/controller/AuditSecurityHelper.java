@@ -17,43 +17,20 @@
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
 
-package com.examplatform.result.controller;
+package com.examplatform.audit.controller;
 
-import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.Authentication;
-import org.springframework.security.oauth2.jwt.Jwt;
 
 import java.util.Map;
 import java.util.Optional;
-import java.util.Set;
-import java.util.UUID;
 
-public final class ResultAccessSecurityHelper {
+final class AuditSecurityHelper {
 
-    public static final String DEFAULT_TENANT_ID = "default";
+    static final String DEFAULT_TENANT_ID = "default";
 
-    private static final Set<String> ELEVATED_ROLES = Set.of(
-            "ROLE_ADMIN", "ROLE_SUPER_ADMIN", "ROLE_EXAM_CONTROLLER"
-    );
+    private AuditSecurityHelper() {}
 
-    private ResultAccessSecurityHelper() {}
-
-    public static void validateCandidateAccess(UUID candidateId, Authentication auth, String denialMessage) {
-        if (auth == null || candidateId == null) {
-            return;
-        }
-        boolean isElevated = auth.getAuthorities().stream()
-                .anyMatch(a -> ELEVATED_ROLES.contains(a.getAuthority()));
-
-        if (!isElevated && auth.getPrincipal() instanceof Jwt jwt) {
-            String userId = jwt.getSubject();
-            if (userId != null && !userId.equals(candidateId.toString())) {
-                throw new AccessDeniedException(denialMessage);
-            }
-        }
-    }
-
-    public static String extractTenantId(Authentication auth) {
+    static String extractTenantId(Authentication auth) {
         return Optional.ofNullable(auth)
                 .map(Authentication::getDetails)
                 .filter(Map.class::isInstance)

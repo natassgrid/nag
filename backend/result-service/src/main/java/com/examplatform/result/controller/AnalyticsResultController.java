@@ -63,22 +63,10 @@ public class AnalyticsResultController {
             @PathVariable UUID examId,
             Authentication auth) {
 
-        String tenantId = extractTenantId(auth);
+        String tenantId = ResultAccessSecurityHelper.extractTenantId(auth);
         log.info("GET question analytics for exam={}, tenant={}", examId, tenantId);
 
         List<QuestionAnalyticsResult> analytics = questionAnalyticsService.computeAnalytics(examId, tenantId);
         return ResponseEntity.ok(analytics);
-    }
-
-    private String extractTenantId(Authentication auth) {
-        if (auth != null && auth.getDetails() instanceof java.util.Map) {
-            @SuppressWarnings("unchecked")
-            java.util.Map<String, Object> details = (java.util.Map<String, Object>) auth.getDetails();
-            Object tenant = details.get("tenant_id");
-            if (tenant != null) {
-                return tenant.toString();
-            }
-        }
-        return "default";
     }
 }
