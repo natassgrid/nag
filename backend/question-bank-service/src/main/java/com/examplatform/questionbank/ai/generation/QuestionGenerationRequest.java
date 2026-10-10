@@ -135,12 +135,21 @@ public class QuestionGenerationRequest {
     private String generationQuality = "STANDARD";
 
     /**
+     * Returns the effective author description, preferring non-blank {@link #rawTextInput} over {@link #description}.
+     *
+     * @return the resolved description, or null if neither is provided
+     */
+    public String getEffectiveDescription() {
+        return QuestionPromptFormatter.resolveEffectiveDescription(this);
+    }
+
+    /**
      * Builds a composite search query string combining subject, topic, optional subtopic,
      * and raw text input or description for vector search and RAG top-N retrieval.
      * When raw text input / description is absent, falls back to topic (+ subtopic).
      */
     public String buildSearchQuery() {
-        String desc = rawTextInput != null && !rawTextInput.isBlank() ? rawTextInput : description;
+        String desc = getEffectiveDescription();
         if (desc != null && !desc.isBlank()) {
             StringBuilder query = new StringBuilder();
             if (subject != null && !subject.isBlank()) {

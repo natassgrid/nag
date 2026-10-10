@@ -469,22 +469,8 @@ public class SpringAiGenerationService implements QuestionGenerationService {
 
         StringBuilder prompt = new StringBuilder();
         prompt.append("Generate ").append(request.getCount()).append(" question(s) with these parameters:\n");
-        prompt.append("- Subject: ").append(request.getSubject()).append("\n");
-        prompt.append("- Topic: ").append(request.getTopic()).append("\n");
-        if (request.getSubtopic() != null && !request.getSubtopic().isBlank()) {
-            prompt.append("- Subtopic: ").append(request.getSubtopic()).append("\n");
-        }
-        String desc = request.getRawTextInput() != null && !request.getRawTextInput().isBlank()
-                ? request.getRawTextInput() : request.getDescription();
-        if (desc != null && !desc.isBlank()) {
-            prompt.append("- Description/Requirements: ").append(desc).append("\n");
-        }
-        prompt.append("- Difficulty: ").append(request.getDifficulty()).append("\n");
-        prompt.append("- Cognitive Level: ").append(request.getCognitiveLevel()).append("\n");
-        prompt.append("- Question Type: ").append(request.getQuestionType()).append("\n");
-        if (request.getTargetExam() != null && !request.getTargetExam().isBlank()) {
-            prompt.append("- Target Exam: ").append(request.getTargetExam()).append("\n");
-        }
+        QuestionPromptFormatter.appendGenerationParameters(
+                prompt, request, "- ", "Description/Requirements", "Target Exam");
 
         if (sampleQuestions != null && !sampleQuestions.isEmpty()) {
             prompt.append("\nReference Sample Demonstrations (Model question style and depth):\n");
