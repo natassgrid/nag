@@ -65,24 +65,23 @@ public class ExaminationCentreService {
     private final GeoLocationService geoLocationService;
     private final EventPublisher eventPublisher;
 
-    // ── Centres ───────────────────────────────────────────────────────────────
+    // ── Centres ────────────────────────────────────────────────────────────────
 
     public CentreResponse createCentre(CreateCentreRequest request, String tenantId) {
-        ExaminationCentre centre = ExaminationCentre.builder()
-                .countryId(request.getCountryId())
-                .stateId(request.getStateId())
-                .cityId(request.getCityId())
-                .region(request.getRegion())
-                .state(request.getState())
-                .district(request.getDistrict())
-                .city(request.getCity())
-                .centreName(request.getCentreName())
-                .building(request.getBuilding())
-                .floor(request.getFloor())
-                .laboratoryIdentifier(request.getLaboratoryIdentifier())
-                .totalCapacity(request.getTotalCapacity())
-                .active(request.isActive())
-                .build();
+        ExaminationCentre centre = new ExaminationCentre();
+        centre.setCountryId(request.getCountryId());
+        centre.setStateId(request.getStateId());
+        centre.setCityId(request.getCityId());
+        centre.setRegion(request.getRegion());
+        centre.setState(request.getState());
+        centre.setDistrict(request.getDistrict());
+        centre.setCity(request.getCity());
+        centre.setCentreName(request.getCentreName());
+        centre.setBuilding(request.getBuilding());
+        centre.setFloor(request.getFloor());
+        centre.setLaboratoryIdentifier(request.getLaboratoryIdentifier());
+        centre.setTotalCapacity(request.getTotalCapacity());
+        centre.setActive(request.isActive());
         centre.setTenantId(tenantId);
 
         ExaminationCentre saved = centreRepository.save(centre);
@@ -150,7 +149,7 @@ public class ExaminationCentreService {
         return toCentreResponse(centreRepository.save(centre));
     }
 
-    // ── Seat Allocation ───────────────────────────────────────────────────────
+    // ── Seat Allocation ────────────────────────────────────────────────────────
 
     /**
      * Creates or replaces the seat allocation for a (shift, centre) pair.
@@ -205,7 +204,7 @@ public class ExaminationCentreService {
                 .stream().map(this::toAllocationResponse).toList();
     }
 
-    // ── Helpers ───────────────────────────────────────────────────────────────
+    // ── Helpers ────────────────────────────────────────────────────────────────
 
     private ExaminationCentre findCentre(UUID centreId, String tenantId) {
         ExaminationCentre centre = centreRepository.findById(centreId)
