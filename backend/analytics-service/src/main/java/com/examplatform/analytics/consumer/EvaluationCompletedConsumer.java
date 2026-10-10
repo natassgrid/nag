@@ -20,18 +20,15 @@
 package com.examplatform.analytics.consumer;
 
 import com.examplatform.analytics.service.AnalyticsService;
-import com.examplatform.shared.messaging.GenericDomainEvent;
-import com.examplatform.shared.messaging.MessagePayloadExtractor;
+import com.examplatform.shared.messaging.AbstractEvaluationCompletedConsumer;
 import com.examplatform.shared.util.DataConversionUtils;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.amqp.core.ExchangeTypes;
 import org.springframework.amqp.rabbit.annotation.Exchange;
 import org.springframework.amqp.rabbit.annotation.Queue;
 import org.springframework.amqp.rabbit.annotation.QueueBinding;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
-import org.springframework.context.event.EventListener;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.kafka.support.KafkaHeaders;
 import org.springframework.messaging.handler.annotation.Header;
@@ -48,13 +45,14 @@ import java.util.UUID;
  */
 @Slf4j
 @Component
-@RequiredArgsConstructor
-public class EvaluationCompletedConsumer {
-
-    public static final String EVALUATION_COMPLETED_TOPIC = "exam.evaluation.completed";
+public class EvaluationCompletedConsumer extends AbstractEvaluationCompletedConsumer {
 
     private final AnalyticsService analyticsService;
-    private final ObjectMapper objectMapper;
+
+    public EvaluationCompletedConsumer(AnalyticsService analyticsService, ObjectMapper objectMapper) {
+        super(objectMapper);
+        this.analyticsService = analyticsService;
+    }
 
     @KafkaListener(
             topics = EVALUATION_COMPLETED_TOPIC,
@@ -68,6 +66,7 @@ public class EvaluationCompletedConsumer {
         processEvaluationCompleted(payload, key);
     }
 
+    @Override
     @RabbitListener(
             bindings = @QueueBinding(
                     value = @Queue(value = "analytics.evaluation.events.queue", durable = "true"),
@@ -76,27 +75,12 @@ public class EvaluationCompletedConsumer {
             )
     )
     public void onRabbitEvaluationCompleted(Object message) {
-        log.debug("Ingesting analytics via RabbitMQ: {}", message);
-        MessagePayloadExtractor.handleRabbitEvent(message, objectMapper, EVALUATION_COMPLETED_TOPIC,
-                payload -> processEvaluationCompleted(payload, null));
+        super.onRabbitEvaluationCompleted(message);
     }
 
-    @EventListener
-    public void onSpringEvaluationCompleted(GenericDomainEvent event) {
-        log.debug("Ingesting analytics via Spring event: key={}", event.key());
-        MessagePayloadExtractor.handleSpringEvent(event, objectMapper, EVALUATION_COMPLETED_TOPIC,
-                this::processEvaluationCompleted);
-    }
-
+    @Override
     public void processEvaluationCompleted(String payload, String key) {
-        try {
-            var eventOpt = MessagePayloadExtractor.parseEventIfMatching(payload, objectMapper, "EVALUATION_COMPLETED");
-            if (eventOpt.isEmpty()) {
-                log.debug("Ignoring non-matching or invalid payload: {}", payload);
-                return;
-            }
-            Map<String, Object> event = eventOpt.get();
-
+        handleEvaluationCompleted(payload, event -> {
             UUID examId = DataConversionUtils.parseUUID(event.get("examId"));
             UUID candidateId = DataConversionUtils.parseUUID(event.get("candidateId"));
             UUID sessionId = DataConversionUtils.parseUUID(event.get("sessionId"));
@@ -129,9 +113,6 @@ public class EvaluationCompletedConsumer {
             );
 
             log.info("Successfully ingested evaluation completed for candidate={}, exam={}", candidateId, examId);
-
-        } catch (Exception e) {
-            log.error("Failed to ingest EVALUATION_COMPLETED event: payload={}", payload, e);
-        }
+        });
     }
 }

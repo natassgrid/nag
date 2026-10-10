@@ -24,18 +24,15 @@ import com.examplatform.result.dto.CandidateScoreInput;
 import com.examplatform.result.repository.ResultRepository;
 import com.examplatform.result.service.QuestionAnalyticsService;
 import com.examplatform.result.service.ResultComputationService;
-import com.examplatform.shared.messaging.GenericDomainEvent;
-import com.examplatform.shared.messaging.MessagePayloadExtractor;
+import com.examplatform.shared.messaging.AbstractEvaluationCompletedConsumer;
 import com.examplatform.shared.util.DataConversionUtils;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.amqp.core.ExchangeTypes;
 import org.springframework.amqp.rabbit.annotation.Exchange;
 import org.springframework.amqp.rabbit.annotation.Queue;
 import org.springframework.amqp.rabbit.annotation.QueueBinding;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
-import org.springframework.context.event.EventListener;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.kafka.support.KafkaHeaders;
 import org.springframework.messaging.handler.annotation.Header;
@@ -55,15 +52,22 @@ import java.util.UUID;
  */
 @Slf4j
 @Component
-@RequiredArgsConstructor
-public class EvaluationCompletedConsumer {
-
-    public static final String EVALUATION_COMPLETED_TOPIC = "exam.evaluation.completed";
+public class EvaluationCompletedConsumer extends AbstractEvaluationCompletedConsumer {
 
     private final ResultComputationService resultComputationService;
     private final ResultRepository resultRepository;
     private final QuestionAnalyticsService questionAnalyticsService;
-    private final ObjectMapper objectMapper;
+
+    public EvaluationCompletedConsumer(
+            ResultComputationService resultComputationService,
+            ResultRepository resultRepository,
+            QuestionAnalyticsService questionAnalyticsService,
+            ObjectMapper objectMapper) {
+        super(objectMapper);
+        this.resultComputationService = resultComputationService;
+        this.resultRepository = resultRepository;
+        this.questionAnalyticsService = questionAnalyticsService;
+    }
 
     @KafkaListener(
             topics = EVALUATION_COMPLETED_TOPIC,
@@ -77,6 +81,7 @@ public class EvaluationCompletedConsumer {
         processEvaluationCompleted(payload, key);
     }
 
+    @Override
     @RabbitListener(
             bindings = @QueueBinding(
                     value = @Queue(value = "result.evaluation.events.queue", durable = "true"),
@@ -85,27 +90,12 @@ public class EvaluationCompletedConsumer {
             )
     )
     public void onRabbitEvaluationCompleted(Object message) {
-        log.debug("Computing result scorecard via RabbitMQ: {}", message);
-        MessagePayloadExtractor.handleRabbitEvent(message, objectMapper, EVALUATION_COMPLETED_TOPIC,
-                payload -> processEvaluationCompleted(payload, null));
+        super.onRabbitEvaluationCompleted(message);
     }
 
-    @EventListener
-    public void onSpringEvaluationCompleted(GenericDomainEvent event) {
-        log.debug("Computing result scorecard via Spring event: key={}", event.key());
-        MessagePayloadExtractor.handleSpringEvent(event, objectMapper, EVALUATION_COMPLETED_TOPIC,
-                this::processEvaluationCompleted);
-    }
-
+    @Override
     public void processEvaluationCompleted(String payload, String key) {
-        try {
-            var eventOpt = MessagePayloadExtractor.parseEventIfMatching(payload, objectMapper, "EVALUATION_COMPLETED");
-            if (eventOpt.isEmpty()) {
-                log.debug("Ignoring non-matching or invalid payload: {}", payload);
-                return;
-            }
-            Map<String, Object> event = eventOpt.get();
-
+        handleEvaluationCompleted(payload, event -> {
             UUID candidateId = UUID.fromString((String) event.get("candidateId"));
             UUID examId      = DataConversionUtils.parseUUID(event.get("examId"));
             String tenantId  = (String) event.getOrDefault("tenantId", "default");
@@ -150,11 +140,7 @@ public class EvaluationCompletedConsumer {
                 log.info("Result computed for candidate={}, exam={}, score={}",
                         candidateId, examId, totalRawScore);
             }
-
-        } catch (Exception e) {
-            log.error("Failed to process EVALUATION_COMPLETED event key={}: {}", key, e.getMessage(), e);
-            // Do not rethrow — prevents poison-pill message from blocking the consumer
-        }
+        });
     }
 
     /**
