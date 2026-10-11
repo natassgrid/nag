@@ -24,6 +24,7 @@ import com.examplatform.questionbank.translation.domain.BatchTranslationJobStatu
 import com.examplatform.questionbank.translation.dto.BatchTranslationJobResponse;
 import com.examplatform.questionbank.translation.dto.BatchTranslationRequest;
 import com.examplatform.questionbank.translation.repository.BatchTranslationJobRepository;
+import com.examplatform.shared.constants.QuestionStateConstants;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -36,6 +37,7 @@ import org.springframework.web.server.ResponseStatusException;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 @Slf4j
@@ -43,43 +45,85 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class BatchTranslationService {
 
+    public static final String BATCH_TRANSLATION_JOB_NOT_FOUND = "Batch translation job not found: ";
+    private static final UUID DEFAULT_SYSTEM_UUID = UUID.fromString("00000000-0000-0000-0000-000000000001");
+
     private final BatchTranslationJobRepository jobRepository;
     private final AsyncBatchTranslationWorker asyncWorker;
 
     public synchronized BatchTranslationJobResponse startBatchJob(BatchTranslationRequest request, UUID initiatedBy, String tenantId) {
-        String targetLang = (request.getTargetLanguage() != null && !request.getTargetLanguage().isBlank())
-                ? request.getTargetLanguage().toLowerCase()
+        String targetLang = resolveAndValidateTargetLanguage(request.getTargetLanguage());
+
+        Optional<BatchTranslationJob> existingJob = findExistingIdempotentPaperJob(
+                request.getPaperId(), targetLang, request.getOverwriteExisting(), tenantId);
+        if (existingJob.isPresent()) {
+            return toResponse(existingJob.get());
+        }
+
+        BatchTranslationJob job = buildJobEntity(request, targetLang, initiatedBy, tenantId);
+        BatchTranslationJob savedJob = jobRepository.save(job);
+        log.info("Created batch translation job: id={}, targetLang={}, subjectFilter={}, paperId={}, questionCount={}, tenant={}",
+                savedJob.getId(), targetLang, job.getSubjectFilter(), savedJob.getPaperId(),
+                job.getQuestionIds().size(), tenantId);
+
+        // Fire async background worker (job is committed immediately)
+        asyncWorker.processBatchTranslationJob(savedJob.getId(), tenantId);
+
+        return toResponse(savedJob);
+    }
+
+    private String resolveAndValidateTargetLanguage(String targetLanguage) {
+        String targetLang = (targetLanguage != null && !targetLanguage.isBlank())
+                ? targetLanguage.toLowerCase()
                 : "hi";
 
         if (!TranslationWorkflowService.SUPPORTED_LANGUAGES.contains(targetLang)) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Unsupported target language code: " + targetLang);
         }
+        return targetLang;
+    }
 
-        // Idempotency check: if a batch translation for this paper and language is already active or completed without overwrite
-        if (request.getPaperId() != null) {
-            List<BatchTranslationJob> existingPaperJobs =
-                    jobRepository.findByPaperIdAndTenantIdOrderByCreatedAtDesc(request.getPaperId(), tenantId);
-
-            for (BatchTranslationJob existingJob : existingPaperJobs) {
-                if (targetLang.equalsIgnoreCase(existingJob.getTargetLanguage())) {
-                    // Active job (PENDING or IN_PROGRESS): return existing job without spawning a duplicate
-                    if (existingJob.getStatus() == BatchTranslationJobStatus.PENDING
-                            || existingJob.getStatus() == BatchTranslationJobStatus.IN_PROGRESS) {
-                        log.info("Batch translation job for paperId={} and targetLanguage={} is already active (jobId={}, status={}). Returning existing job (idempotent).",
-                                request.getPaperId(), targetLang, existingJob.getId(), existingJob.getStatus());
-                        return toResponse(existingJob);
-                    }
-                    // Completed job without overwrite: return existing completed job
-                    if (existingJob.getStatus() == BatchTranslationJobStatus.COMPLETED
-                            && !Boolean.TRUE.equals(request.getOverwriteExisting())) {
-                        log.info("Batch translation job for paperId={} and targetLanguage={} is already completed (jobId={}). Returning existing job (idempotent).",
-                                request.getPaperId(), targetLang, existingJob.getId());
-                        return toResponse(existingJob);
-                    }
-                }
-            }
+    private Optional<BatchTranslationJob> findExistingIdempotentPaperJob(
+            UUID paperId, String targetLang, Boolean overwriteExisting, String tenantId) {
+        if (paperId == null) {
+            return Optional.empty();
         }
 
+        List<BatchTranslationJob> existingPaperJobs =
+                jobRepository.findByPaperIdAndTenantIdOrderByCreatedAtDesc(paperId, tenantId);
+
+        for (BatchTranslationJob existingJob : existingPaperJobs) {
+            if (isMatchingIdempotentJob(existingJob, paperId, targetLang, overwriteExisting)) {
+                return Optional.of(existingJob);
+            }
+        }
+        return Optional.empty();
+    }
+
+    private boolean isMatchingIdempotentJob(
+            BatchTranslationJob existingJob, UUID paperId, String targetLang, Boolean overwriteExisting) {
+        if (!targetLang.equalsIgnoreCase(existingJob.getTargetLanguage())) {
+            return false;
+        }
+
+        BatchTranslationJobStatus status = existingJob.getStatus();
+        if (status == BatchTranslationJobStatus.PENDING || status == BatchTranslationJobStatus.IN_PROGRESS) {
+            log.info("Batch translation job for paperId={} and targetLanguage={} is already active (jobId={}, status={}). Returning existing job (idempotent).",
+                    paperId, targetLang, existingJob.getId(), status);
+            return true;
+        }
+
+        if (status == BatchTranslationJobStatus.COMPLETED && !Boolean.TRUE.equals(overwriteExisting)) {
+            log.info("Batch translation job for paperId={} and targetLanguage={} is already completed (jobId={}). Returning existing job (idempotent).",
+                    paperId, targetLang, existingJob.getId());
+            return true;
+        }
+
+        return false;
+    }
+
+    private BatchTranslationJob buildJobEntity(
+            BatchTranslationRequest request, String targetLang, UUID initiatedBy, String tenantId) {
         String normalizedSubject = normalizeSubject(request.getSubject());
         List<UUID> questionIds = request.getQuestionIds() != null ? new ArrayList<>(request.getQuestionIds()) : new ArrayList<>();
 
@@ -87,7 +131,8 @@ public class BatchTranslationService {
                 .status(BatchTranslationJobStatus.PENDING)
                 .sourceLanguage(request.getSourceLanguage() != null ? request.getSourceLanguage() : "en")
                 .targetLanguage(targetLang)
-                .targetStatus(request.getTargetStatus() != null ? request.getTargetStatus() : "PUBLISHED")
+                .targetStatus(request.getTargetStatus() != null ? request.getTargetStatus() :
+                    QuestionStateConstants.PUBLISHED)
                 .subjectFilter(normalizedSubject)
                 .paperId(request.getPaperId())
                 .questionIds(questionIds)
@@ -95,18 +140,10 @@ public class BatchTranslationService {
                 .batchSize(request.getBatchSize() != null ? request.getBatchSize() : 50)
                 .throttleDelayMs(request.getThrottleDelayMs() != null ? request.getThrottleDelayMs() : 50)
                 .maxConcurrency(request.getMaxConcurrency() != null ? request.getMaxConcurrency() : 2)
-                .initiatedBy(initiatedBy != null ? initiatedBy : UUID.fromString("00000000-0000-0000-0000-000000000001"))
+                .initiatedBy(initiatedBy != null ? initiatedBy : DEFAULT_SYSTEM_UUID)
                 .build();
         job.setTenantId(tenantId);
-
-        BatchTranslationJob savedJob = jobRepository.save(job);
-        log.info("Created batch translation job: id={}, targetLang={}, subjectFilter={}, paperId={}, questionCount={}, tenant={}",
-                savedJob.getId(), targetLang, normalizedSubject, savedJob.getPaperId(), questionIds.size(), tenantId);
-
-        // Fire async background worker (job is committed immediately)
-        asyncWorker.processBatchTranslationJob(savedJob.getId(), tenantId);
-
-        return toResponse(savedJob);
+        return job;
     }
 
     private String normalizeSubject(String subject) {
@@ -123,7 +160,7 @@ public class BatchTranslationService {
     @Transactional(readOnly = true)
     public BatchTranslationJobResponse getJobStatus(UUID jobId, String tenantId) {
         BatchTranslationJob job = jobRepository.findByIdAndTenantId(jobId, tenantId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Batch translation job not found: " + jobId));
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, BATCH_TRANSLATION_JOB_NOT_FOUND + jobId));
         return toResponse(job);
     }
 
@@ -152,7 +189,7 @@ public class BatchTranslationService {
     @Transactional
     public BatchTranslationJobResponse cancelJob(UUID jobId, String tenantId) {
         BatchTranslationJob job = jobRepository.findByIdAndTenantId(jobId, tenantId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Batch translation job not found: " + jobId));
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, BATCH_TRANSLATION_JOB_NOT_FOUND + jobId));
 
         if (job.getStatus() == BatchTranslationJobStatus.PENDING || job.getStatus() == BatchTranslationJobStatus.IN_PROGRESS) {
             job.setStatus(BatchTranslationJobStatus.CANCELLED);
@@ -166,7 +203,7 @@ public class BatchTranslationService {
 
     public BatchTranslationJobResponse resumeJob(UUID jobId, String tenantId) {
         BatchTranslationJob job = jobRepository.findByIdAndTenantId(jobId, tenantId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Batch translation job not found: " + jobId));
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, BATCH_TRANSLATION_JOB_NOT_FOUND + jobId));
 
         if (job.getStatus() == BatchTranslationJobStatus.COMPLETED) {
             log.info("Batch translation job {} is already COMPLETED. No resume needed.", jobId);

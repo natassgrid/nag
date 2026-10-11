@@ -59,56 +59,10 @@ public class ComplexityEvaluator {
             List<NormalizedSampleQuestion> sampleQuestions) {
 
         List<String> triggers = new ArrayList<>();
-
-        // Explicit user execution mode overrides
-        if (request.getExecutionMode() == ExecutionMode.MULTI_AGENT) {
-            triggers.add("EXPLICIT_EXECUTION_MODE_MULTI_AGENT");
-        }
-
-        // Trigger 4: Explicit flags
-        if (Boolean.TRUE.equals(request.getRequireCriticReview())) {
-            triggers.add("REQUIRE_CRITIC_REVIEW_FLAG");
-        }
-        if ("EXAM_READY".equalsIgnoreCase(request.getGenerationQuality())) {
-            triggers.add("GENERATION_QUALITY_EXAM_READY");
-        }
-
-        // Trigger 1: High cognitive levels
-        if (request.getCognitiveLevel() != null &&
-                HIGH_COGNITIVE_LEVELS.contains(request.getCognitiveLevel().toUpperCase().trim())) {
-            triggers.add("HIGH_COGNITIVE_LEVEL_" + request.getCognitiveLevel().toUpperCase());
-        }
-
-        // Trigger 2: Complex question types
-        if (request.getQuestionType() != null) {
-            String qType = request.getQuestionType().toUpperCase().trim();
-            if (COMPLEX_QUESTION_TYPES.contains(qType)) {
-                triggers.add("COMPLEX_QUESTION_TYPE_" + qType);
-            } else if (QuestionTypeConstants.NUMERICAL.equals(qType) && QuestionTaxonomyConstants.Difficulty.HARD.equalsIgnoreCase(request.getDifficulty())) {
-                triggers.add("MULTI_STEP_NUMERICAL");
-            }
-        }
-
-        // High-stakes target exams (e.g. JEE_ADV, UPSC_CSE, GATE)
-        if (request.getTargetExam() != null) {
-            String exam = request.getTargetExam().toUpperCase().trim();
-            if (exam.contains("JEE_ADV") || exam.contains("UPSC") || exam.contains("GATE")) {
-                triggers.add("HIGH_STAKES_TARGET_EXAM_" + exam);
-            }
-        }
-
-        // Trigger 3: Chemistry, advanced math, or diagrams detected in sample questions
-        if (sampleQuestions != null && !sampleQuestions.isEmpty()) {
-            boolean hasChemOrMath = sampleQuestions.stream().anyMatch(NormalizedSampleQuestion::isHasMathOrChemistry);
-            boolean hasDiagram = sampleQuestions.stream().anyMatch(NormalizedSampleQuestion::isHasDiagram);
-
-            if (hasChemOrMath) {
-                triggers.add("SAMPLE_MATH_OR_CHEMISTRY_FORMULAS");
-            }
-            if (hasDiagram) {
-                triggers.add("SAMPLE_EMBEDDED_DIAGRAM_REASONING");
-            }
-        }
+        collectExplicitModeTriggers(request, triggers);
+        collectTaxonomyTriggers(request, triggers);
+        collectHighStakesExamTriggers(request, triggers);
+        collectSampleQuestionsTriggers(sampleQuestions, triggers);
 
         // Forced FAST mode if user explicitly selected FAST and no critic was forced
         if (request.getExecutionMode() == ExecutionMode.FAST && !Boolean.TRUE.equals(request.getRequireCriticReview())) {
@@ -127,9 +81,9 @@ public class ComplexityEvaluator {
                 : "Single-Model Fast Path selected for routine question generation (" +
                   request.getQuestionType() + " / " + request.getCognitiveLevel() + ")";
 
-        String selectedModel = shouldEscalate
-                ? modelRouter.selectModel(QuestionTaxonomyConstants.Difficulty.HARD)
-                : modelRouter.selectModel(request.getDifficulty());
+        String selectedModel = modelRouter.selectModel(
+                shouldEscalate ? QuestionTaxonomyConstants.Difficulty.HARD : request.getDifficulty()
+        );
 
         log.info("Complexity triage completed: useMultiAgent={}, triggersCount={}, model={}",
                 shouldEscalate, triggers.size(), selectedModel);
@@ -140,5 +94,60 @@ public class ComplexityEvaluator {
                 .triggeredFactors(triggers)
                 .targetModel(selectedModel)
                 .build();
+    }
+
+    private void collectExplicitModeTriggers(QuestionGenerationRequest request, List<String> triggers) {
+        if (request.getExecutionMode() == ExecutionMode.MULTI_AGENT) {
+            triggers.add("EXPLICIT_EXECUTION_MODE_MULTI_AGENT");
+        }
+        if (Boolean.TRUE.equals(request.getRequireCriticReview())) {
+            triggers.add("REQUIRE_CRITIC_REVIEW_FLAG");
+        }
+        if ("EXAM_READY".equalsIgnoreCase(request.getGenerationQuality())) {
+            triggers.add("GENERATION_QUALITY_EXAM_READY");
+        }
+    }
+
+    private void collectTaxonomyTriggers(QuestionGenerationRequest request, List<String> triggers) {
+        if (request.getCognitiveLevel() != null &&
+                HIGH_COGNITIVE_LEVELS.contains(request.getCognitiveLevel().toUpperCase().trim())) {
+            triggers.add("HIGH_COGNITIVE_LEVEL_" + request.getCognitiveLevel().toUpperCase());
+        }
+
+        if (request.getQuestionType() != null) {
+            checkQuestionTypeTrigger(request, triggers);
+        }
+    }
+
+    private void checkQuestionTypeTrigger(QuestionGenerationRequest request, List<String> triggers) {
+        String qType = request.getQuestionType().toUpperCase().trim();
+        if (COMPLEX_QUESTION_TYPES.contains(qType)) {
+            triggers.add("COMPLEX_QUESTION_TYPE_" + qType);
+        } else if (QuestionTypeConstants.NUMERICAL.equals(qType)
+                && QuestionTaxonomyConstants.Difficulty.HARD.equalsIgnoreCase(request.getDifficulty())) {
+            triggers.add("MULTI_STEP_NUMERICAL");
+        }
+    }
+
+    private void collectHighStakesExamTriggers(QuestionGenerationRequest request, List<String> triggers) {
+        if (request.getTargetExam() == null) {
+            return;
+        }
+        String exam = request.getTargetExam().toUpperCase().trim();
+        if (exam.contains("JEE_ADV") || exam.contains("UPSC") || exam.contains("GATE")) {
+            triggers.add("HIGH_STAKES_TARGET_EXAM_" + exam);
+        }
+    }
+
+    private void collectSampleQuestionsTriggers(List<NormalizedSampleQuestion> sampleQuestions, List<String> triggers) {
+        if (sampleQuestions == null || sampleQuestions.isEmpty()) {
+            return;
+        }
+        if (sampleQuestions.stream().anyMatch(NormalizedSampleQuestion::isHasMathOrChemistry)) {
+            triggers.add("SAMPLE_MATH_OR_CHEMISTRY_FORMULAS");
+        }
+        if (sampleQuestions.stream().anyMatch(NormalizedSampleQuestion::isHasDiagram)) {
+            triggers.add("SAMPLE_EMBEDDED_DIAGRAM_REASONING");
+        }
     }
 }

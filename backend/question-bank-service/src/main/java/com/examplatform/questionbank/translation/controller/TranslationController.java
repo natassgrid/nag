@@ -34,6 +34,8 @@ import com.examplatform.questionbank.translation.service.TranslationQueryService
 import com.examplatform.questionbank.translation.service.TranslationReviewService;
 import com.examplatform.questionbank.translation.service.TranslationWorkflowService;
 import com.examplatform.shared.api.ApiResponse;
+import com.examplatform.shared.constants.QuestionStateConstants;
+import com.examplatform.shared.constants.SharedConstants;
 import com.examplatform.shared.tenant.TenantContext;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -227,7 +229,7 @@ public class TranslationController {
         return ResponseEntity.status(HttpStatus.CREATED).body(Map.of(
                 "translationId", translation.getId(),
                 "status", translation.getStatus().name(),
-                "message", "Translation request created successfully"
+            SharedConstants.MESSAGE, "Translation request created successfully"
         ));
     }
 
@@ -251,7 +253,7 @@ public class TranslationController {
         return ResponseEntity.ok(Map.of(
                 "translationId", translation.getId(),
                 "status", translation.getStatus().name(),
-                "message", "Translation resubmitted successfully"
+            SharedConstants.MESSAGE, "Translation resubmitted successfully"
         ));
     }
 
@@ -267,9 +269,10 @@ public class TranslationController {
             @AuthenticationPrincipal Jwt jwt) {
 
         UUID reviewerId = null;
-        if (body != null && body.containsKey("reviewerId") && body.get("reviewerId") != null && !body.get("reviewerId").isBlank()) {
+        if (body != null && body.containsKey(SharedConstants.REVIEWER_ID) && body.get(SharedConstants.REVIEWER_ID) != null && !body.get(
+            SharedConstants.REVIEWER_ID).isBlank()) {
             try {
-                reviewerId = UUID.fromString(body.get("reviewerId"));
+                reviewerId = UUID.fromString(body.get(SharedConstants.REVIEWER_ID));
             } catch (IllegalArgumentException ignored) {
             }
         }
@@ -281,7 +284,7 @@ public class TranslationController {
         return ResponseEntity.ok(Map.of(
                 "translationId", translation.getId(),
                 "status", translation.getStatus().name(),
-                "message", "Translation approved successfully"
+            SharedConstants.MESSAGE, "Translation approved successfully"
         ));
     }
 
@@ -301,8 +304,8 @@ public class TranslationController {
 
         return ResponseEntity.ok(Map.of(
                 "translationId", id,
-                "status", "DRAFT",
-                "message", "Translation rejected; translator notified"
+                "status", QuestionStateConstants.DRAFT,
+            SharedConstants.MESSAGE, "Translation rejected; translator notified"
         ));
     }
 

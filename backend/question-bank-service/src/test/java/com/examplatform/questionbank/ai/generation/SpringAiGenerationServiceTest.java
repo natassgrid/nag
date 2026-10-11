@@ -21,6 +21,7 @@ import com.examplatform.questionbank.domain.Question;
 import com.examplatform.questionbank.repository.QuestionRepository;
 import com.examplatform.questionbank.repository.SimilarityResult;
 import com.examplatform.questionbank.service.SimilarityDetectionService;
+import com.examplatform.shared.constants.QuestionStateConstants;
 import com.examplatform.shared.constants.QuestionTaxonomyConstants;
 import com.examplatform.shared.constants.QuestionTypeConstants;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -727,7 +728,7 @@ class SpringAiGenerationServiceTest {
             Question savedQuestion = Question.builder()
                     .subject("Physics")
                     .topic("Mechanics")
-                    .state("DRAFT")
+                    .state(QuestionStateConstants.DRAFT)
                     .build();
             savedQuestion.setTenantId(TENANT_ID);
             // Use reflection-like approach via the setter on BaseEntity

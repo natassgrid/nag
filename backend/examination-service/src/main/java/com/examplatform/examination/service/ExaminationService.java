@@ -30,6 +30,7 @@ import com.examplatform.examination.dto.ExaminationResponse;
 import com.examplatform.examination.exception.ExaminationNotFoundException;
 import com.examplatform.examination.exception.SectionMarksValidationException;
 import com.examplatform.examination.repository.ExaminationRepository;
+import com.examplatform.shared.constants.QuestionStateConstants;
 import com.examplatform.shared.messaging.EventPublisher;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
@@ -130,15 +131,15 @@ public class ExaminationService {
         Page<Examination> examPage;
         if (hasCategory && hasSearch) {
             examPage = examinationRepository.findByStatusAndTenantIdAndCategoryIgnoreCaseAndNameContainingIgnoreCase(
-                    "PUBLISHED", tenantId, category.trim(), search.trim(), pageable);
+                QuestionStateConstants.PUBLISHED, tenantId, category.trim(), search.trim(), pageable);
         } else if (hasCategory) {
             examPage = examinationRepository.findByStatusAndTenantIdAndCategoryIgnoreCase(
-                    "PUBLISHED", tenantId, category.trim(), pageable);
+                QuestionStateConstants.PUBLISHED, tenantId, category.trim(), pageable);
         } else if (hasSearch) {
             examPage = examinationRepository.findByStatusAndTenantIdAndNameContainingIgnoreCase(
-                    "PUBLISHED", tenantId, search.trim(), pageable);
+                QuestionStateConstants.PUBLISHED, tenantId, search.trim(), pageable);
         } else {
-            examPage = examinationRepository.findByStatusAndTenantId("PUBLISHED", tenantId, pageable);
+            examPage = examinationRepository.findByStatusAndTenantId(QuestionStateConstants.PUBLISHED, tenantId, pageable);
         }
 
         return examPage.map(exam -> {
@@ -182,7 +183,7 @@ public class ExaminationService {
                 .calculatorPolicy(request.getCalculatorPolicy() != null ? request.getCalculatorPolicy().name() : CalculatorPolicy.NONE.name())
                 .reviewFlagEnabled(Boolean.TRUE.equals(request.getReviewFlagEnabled()))
                 .isPractice(Boolean.TRUE.equals(request.getIsPractice()))
-                .status("DRAFT")
+                .status(QuestionStateConstants.DRAFT)
                 .sectionsJson(sectionsJson)
                 .build();
 
@@ -212,7 +213,7 @@ public class ExaminationService {
             throw new AccessDeniedException("Cannot update examination belonging to another tenant");
         }
 
-        if (!"DRAFT".equals(examination.getStatus())) {
+        if (!QuestionStateConstants.DRAFT.equals(examination.getStatus())) {
             throw new IllegalStateException(
                     "Examination cannot be modified once published (current status: " + examination.getStatus() + ")");
         }
@@ -254,12 +255,12 @@ public class ExaminationService {
             throw new AccessDeniedException("Cannot publish examination belonging to another tenant");
         }
 
-        if (!"DRAFT".equals(examination.getStatus())) {
+        if (!QuestionStateConstants.DRAFT.equals(examination.getStatus())) {
             throw new IllegalStateException(
                     "Only DRAFT examinations can be published (current status: " + examination.getStatus() + ")");
         }
 
-        examination.setStatus("PUBLISHED");
+        examination.setStatus(QuestionStateConstants.PUBLISHED);
         return persistAndBuildResponse(examination, "Published", "EXAM_PUBLISHED", tenantId);
     }
 
@@ -299,10 +300,10 @@ public class ExaminationService {
      */
     @Transactional(readOnly = true)
     public Map<String, Object> getExaminationStatusBreakdown(String tenantId) {
-        long scheduled = examinationRepository.countByStatusAndTenantId("PUBLISHED", tenantId);
+        long scheduled = examinationRepository.countByStatusAndTenantId(QuestionStateConstants.PUBLISHED, tenantId);
         long live = examinationRepository.countByStatusAndTenantId("IN_PROGRESS", tenantId);
         long completed = examinationRepository.countByStatusAndTenantId("CLOSED", tenantId)
-                + examinationRepository.countByStatusAndTenantId("ARCHIVED", tenantId);
+                + examinationRepository.countByStatusAndTenantId(QuestionStateConstants.ARCHIVED, tenantId);
         long cancelled = examinationRepository.countByStatusAndTenantId("CANCELLED", tenantId);
 
         return Map.of(

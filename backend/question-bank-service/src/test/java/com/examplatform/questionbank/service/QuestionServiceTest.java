@@ -37,6 +37,7 @@ import com.examplatform.questionbank.translation.domain.Translation;
 import com.examplatform.questionbank.translation.repository.TranslationRepository;
 import com.examplatform.questionbank.repository.QuestionVersionRepository;
 import com.examplatform.questionbank.domain.QuestionVersion;
+import com.examplatform.shared.constants.QuestionStateConstants;
 import com.examplatform.shared.constants.QuestionTaxonomyConstants;
 import com.examplatform.shared.constants.QuestionTypeConstants;
 import jakarta.persistence.EntityNotFoundException;
@@ -201,7 +202,7 @@ class QuestionServiceTest {
 
             // Then
             assertThat(response).isNotNull();
-            assertThat(response.getState()).isEqualTo("DRAFT");
+            assertThat(response.getState()).isEqualTo(QuestionStateConstants.DRAFT);
             assertThat(response.getSubject()).isEqualTo("Mathematics");
             assertThat(response.getTopic()).isEqualTo("Calculus");
             assertThat(response.getQuestionType()).isEqualTo(QuestionTypeConstants.SINGLE_MCQ);
@@ -212,14 +213,14 @@ class QuestionServiceTest {
             ArgumentCaptor<Question> captor = ArgumentCaptor.forClass(Question.class);
             verify(questionRepository).save(captor.capture());
             assertThat(captor.getValue().getTenantId()).isEqualTo(tenantId);
-            assertThat(captor.getValue().getState()).isEqualTo("DRAFT");
+            assertThat(captor.getValue().getState()).isEqualTo(QuestionStateConstants.DRAFT);
         }
         @Test
         @DisplayName("should persist question in APPROVED state when state is explicitly provided")
         void shouldPersistInApprovedStateWhenStateIsExplicitlyProvided() {
             // Given
             CreateQuestionRequest request = validRequest();
-            request.setState("APPROVED");
+            request.setState(QuestionStateConstants.APPROVED);
             UUID authorId = UUID.randomUUID();
             String tenantId = "tenant-approved";
             currentTenantId = tenantId;
@@ -234,11 +235,11 @@ class QuestionServiceTest {
 
             // Then
             assertThat(response).isNotNull();
-            assertThat(response.getState()).isEqualTo("APPROVED");
+            assertThat(response.getState()).isEqualTo(QuestionStateConstants.APPROVED);
 
             ArgumentCaptor<Question> captor = ArgumentCaptor.forClass(Question.class);
             verify(questionRepository, Mockito.atLeastOnce()).save(captor.capture());
-            assertThat(captor.getValue().getState()).isEqualTo("APPROVED");
+            assertThat(captor.getValue().getState()).isEqualTo(QuestionStateConstants.APPROVED);
         }
 
         @Test
@@ -258,7 +259,7 @@ class QuestionServiceTest {
             com.fasterxml.jackson.databind.ObjectMapper mapper = new com.fasterxml.jackson.databind.ObjectMapper();
             CreateQuestionRequest req = mapper.readValue(json, CreateQuestionRequest.class);
             assertThat(req.getQuestionType()).isEqualTo(QuestionType.SINGLE_MCQ);
-            assertThat(req.getState()).isEqualTo("APPROVED");
+            assertThat(req.getState()).isEqualTo(QuestionStateConstants.APPROVED);
         }
         @Test
         @DisplayName("should default to DRAFT state when not specified in CreateQuestionRequest")
@@ -275,7 +276,7 @@ class QuestionServiceTest {
                 """;
             com.fasterxml.jackson.databind.ObjectMapper mapper = new com.fasterxml.jackson.databind.ObjectMapper();
             CreateQuestionRequest req = mapper.readValue(json, CreateQuestionRequest.class);
-            assertThat(req.getState()).isEqualTo("DRAFT");
+            assertThat(req.getState()).isEqualTo(QuestionStateConstants.DRAFT);
         }
 
         @Test
@@ -397,7 +398,7 @@ class QuestionServiceTest {
                     .subject("Physics")
                     .topic("Mechanics")
                     .difficulty(QuestionTaxonomyConstants.Difficulty.MEDIUM)
-                    .state("APPROVED")
+                    .state(QuestionStateConstants.APPROVED)
                     .content("What is Newton's second law?")
                     .build();
             try {
@@ -410,7 +411,7 @@ class QuestionServiceTest {
                     .subject("Physics")
                     .topic("Thermodynamics")
                     .difficulty(QuestionTaxonomyConstants.Difficulty.EASY)
-                    .state("APPROVED")
+                    .state(QuestionStateConstants.APPROVED)
                     .content("Define isothermal process.")
                     .build();
             try {
@@ -439,16 +440,16 @@ class QuestionServiceTest {
 
             Page<QuestionResponse> result = questionService.listQuestions(
                     "Physics", null, null, null, null, null, "Newton law",
-                    "hi", "APPROVED", 0, 20, "tenant-abc");
+                    "hi", QuestionStateConstants.APPROVED, 0, 20, "tenant-abc");
 
             assertThat(result.getContent()).hasSize(2);
 
             QuestionResponse resp1 = result.getContent().get(0);
             assertThat(resp1.getId()).isEqualTo(q1Id);
             assertThat(resp1.getTranslatedLanguages()).containsExactlyInAnyOrder("hi", "ta");
-            assertThat(resp1.getTranslationStatusMap()).containsEntry("hi", "APPROVED");
-            assertThat(resp1.getTranslationStatusMap()).containsEntry("ta", "DRAFT");
-            assertThat(resp1.getTranslationStatus()).isEqualTo("APPROVED");
+            assertThat(resp1.getTranslationStatusMap()).containsEntry("hi", QuestionStateConstants.APPROVED);
+            assertThat(resp1.getTranslationStatusMap()).containsEntry("ta", QuestionStateConstants.DRAFT);
+            assertThat(resp1.getTranslationStatus()).isEqualTo(QuestionStateConstants.APPROVED);
 
             QuestionResponse resp2 = result.getContent().get(1);
             assertThat(resp2.getId()).isEqualTo(q2Id);
@@ -485,7 +486,7 @@ class QuestionServiceTest {
                     .topic("Mechanics")
                     .difficulty(QuestionTaxonomyConstants.Difficulty.MEDIUM)
                     .questionType(QuestionTypeConstants.SINGLE_MCQ)
-                    .state("DRAFT")
+                    .state(QuestionStateConstants.DRAFT)
                     .authorId(authorId)
                     .usageCount(0)
                     .build();
@@ -520,7 +521,7 @@ class QuestionServiceTest {
         @DisplayName("should throw EntityNotFoundException if tenant does not match")
         void deleteQuestionTenantMismatch() {
             UUID qId = UUID.randomUUID();
-            Question question = Question.builder().state("DRAFT").usageCount(0).build();
+            Question question = Question.builder().state(QuestionStateConstants.DRAFT).usageCount(0).build();
             question.setTenantId("other-tenant");
             when(questionRepository.findById(qId)).thenReturn(Optional.of(question));
 
@@ -532,20 +533,20 @@ class QuestionServiceTest {
         @DisplayName("should throw IllegalStateException if question is in PUBLISHED state")
         void deletePublishedQuestionFails() {
             UUID qId = UUID.randomUUID();
-            Question question = Question.builder().state("PUBLISHED").usageCount(0).build();
+            Question question = Question.builder().state(QuestionStateConstants.PUBLISHED).usageCount(0).build();
             question.setTenantId("tenant-abc");
             when(questionRepository.findById(qId)).thenReturn(Optional.of(question));
 
             assertThatThrownBy(() -> questionService.deleteQuestion(qId, UUID.randomUUID(), "tenant-abc"))
                     .isInstanceOf(IllegalStateException.class)
-                    .hasMessageContaining("PUBLISHED");
+                    .hasMessageContaining(QuestionStateConstants.PUBLISHED);
         }
 
         @Test
         @DisplayName("should throw IllegalStateException if question has active exam usage")
         void deleteUsedQuestionFails() {
             UUID qId = UUID.randomUUID();
-            Question question = Question.builder().state("DRAFT").usageCount(3).build();
+            Question question = Question.builder().state(QuestionStateConstants.DRAFT).usageCount(3).build();
             question.setTenantId("tenant-abc");
             when(questionRepository.findById(qId)).thenReturn(Optional.of(question));
 
@@ -572,7 +573,7 @@ class QuestionServiceTest {
                     .cognitiveLevel(QuestionTaxonomyConstants.CognitiveLevel.APPLY)
                     .questionType(QuestionTypeConstants.SINGLE_MCQ)
                     .content("What is the derivative of x^2?")
-                    .state("DRAFT")
+                    .state(QuestionStateConstants.DRAFT)
                     .build();
             try { var idField = savedQuestion.getClass().getSuperclass().getDeclaredField("id"); idField.setAccessible(true); idField.set(savedQuestion, UUID.randomUUID()); } catch (Exception ignored) {}
             when(questionRepository.save(any(Question.class))).thenReturn(savedQuestion);
@@ -589,7 +590,7 @@ class QuestionServiceTest {
             QuestionResponse response = questionService.createQuestionFromGenerated(request, authorId, currentTenantId);
 
             assertThat(response).isNotNull();
-            assertThat(response.getState()).isEqualTo("DRAFT");
+            assertThat(response.getState()).isEqualTo(QuestionStateConstants.DRAFT);
             assertThat(response.getContent()).isEqualTo("What is the derivative of x^2?");
         }
 

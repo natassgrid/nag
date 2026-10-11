@@ -20,6 +20,7 @@
 package com.examplatform.papergenerator.service;
 
 import com.examplatform.papergenerator.domain.Paper;
+import com.examplatform.shared.constants.QuestionStateConstants;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import org.junit.jupiter.api.BeforeEach;
@@ -61,7 +62,7 @@ class PaperSerializerTest {
                 .shiftId(SHIFT_ID)
                 .paperDefinitionJson(definitionJson)
                 .difficultyScore(0.75)
-                .status("DRAFT")
+                .status(QuestionStateConstants.DRAFT)
                 .build();
 
         // When
@@ -72,7 +73,7 @@ class PaperSerializerTest {
         assertThat(parsed.getExamId()).isEqualTo(EXAM_ID);
         assertThat(parsed.getShiftId()).isEqualTo(SHIFT_ID);
         assertThat(parsed.getDifficultyScore()).isEqualTo(0.75);
-        assertThat(parsed.getStatus()).isEqualTo("DRAFT");
+        assertThat(parsed.getStatus()).isEqualTo(QuestionStateConstants.DRAFT);
     }
 
     @Test
@@ -85,7 +86,7 @@ class PaperSerializerTest {
                 .shiftId(SHIFT_ID)
                 .paperDefinitionJson(definitionJson)
                 .difficultyScore(0.5)
-                .status("DRAFT")
+                .status(QuestionStateConstants.DRAFT)
                 .build();
 
         // When
@@ -105,7 +106,7 @@ class PaperSerializerTest {
                 .shiftId(SHIFT_ID)
                 .paperDefinitionJson(definitionJson)
                 .difficultyScore(0.6)
-                .status("DRAFT")
+                .status(QuestionStateConstants.DRAFT)
                 .build();
 
         // When
@@ -240,7 +241,7 @@ class PaperSerializerTest {
         assertThat(paper.getExamId()).isEqualTo(EXAM_ID);
         assertThat(paper.getShiftId()).isEqualTo(SHIFT_ID);
         assertThat(paper.getDifficultyScore()).isEqualTo(0.85);
-        assertThat(paper.getStatus()).isEqualTo("DRAFT");
+        assertThat(paper.getStatus()).isEqualTo(QuestionStateConstants.DRAFT);
         assertThat(paper.getPaperDefinitionJson()).contains(Q1.toString());
         assertThat(paper.getPaperDefinitionJson()).contains(Q2.toString());
         assertThat(paper.getPaperDefinitionJson()).contains(Q3.toString());

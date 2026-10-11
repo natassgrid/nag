@@ -22,6 +22,8 @@ package com.examplatform.questionbank.service;
 import com.examplatform.questionbank.domain.Question;
 import com.examplatform.questionbank.dto.ReviewerAssignment;
 import com.examplatform.shared.config.DynamicConfigService;
+import com.examplatform.shared.constants.QuestionStateConstants;
+import com.examplatform.shared.constants.SharedConstants;
 import com.examplatform.shared.messaging.EventPublisher;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -63,10 +65,10 @@ public class ReviewWorkflowService {
     public void processTransition(Question question, String fromState, String toState,
                                   UUID actorId, String comments, String tenantId) {
         switch (toState) {
-            case "REVIEW" -> handleSubmittedForReview(question, actorId, tenantId);
-            case "APPROVED" -> handleApproved(question, fromState, actorId, tenantId);
-            case "DRAFT" -> handleReturnedToDraft(question, fromState, actorId, comments, tenantId);
-            case "PUBLISHED" -> handlePublished(question, actorId, tenantId);
+            case QuestionStateConstants.REVIEW -> handleSubmittedForReview(question, actorId, tenantId);
+            case QuestionStateConstants.APPROVED -> handleApproved(question, fromState, actorId, tenantId);
+            case QuestionStateConstants.DRAFT -> handleReturnedToDraft(question, fromState, actorId, comments, tenantId);
+            case QuestionStateConstants.PUBLISHED -> handlePublished(question, actorId, tenantId);
             default -> log.debug("No workflow action for transition to state: {}", toState);
         }
     }
@@ -111,7 +113,7 @@ public class ReviewWorkflowService {
                     "questionId", question.getId(),
                     "subject", question.getSubject(),
                     "tenantId", tenantId,
-                    "message", "A new question for subject '" + question.getSubject() + "' has been assigned to you for review."
+                SharedConstants.MESSAGE, "A new question for subject '" + question.getSubject() + "' has been assigned to you for review."
             );
             publishNotification(assignedReviewerId, notification);
         }
@@ -123,14 +125,14 @@ public class ReviewWorkflowService {
     /**
      * REVIEW -> APPROVED: Reviewer approved the question. Decrement load and notify the author.\n     */
     private void handleApproved(Question question, String fromState, UUID actorId, String tenantId) {
-        if (!"REVIEW".equals(fromState)) {
+        if (!QuestionStateConstants.REVIEW.equals(fromState)) {
             return;
         }
 
         reviewerAssignmentService.releaseReviewerLoad(actorId, tenantId);
 
         Map<String, Object> lifecycleEvent = createLifecyclePayload("REVIEWER_APPROVED", question.getId(), tenantId);
-        lifecycleEvent.put("reviewerId", actorId);
+        lifecycleEvent.put(SharedConstants.REVIEWER_ID, actorId);
         lifecycleEvent.put("authorId", question.getAuthorId());
         publishLifecycleEvent(question.getId(), lifecycleEvent);
 
@@ -139,10 +141,10 @@ public class ReviewWorkflowService {
                 "type", "QUESTION_APPROVED_BY_REVIEWER",
                 "recipientId", question.getAuthorId(),
                 "questionId", question.getId(),
-                "reviewerId", actorId,
+            SharedConstants.REVIEWER_ID, actorId,
                 "subject", question.getSubject(),
                 "tenantId", tenantId,
-                "message", "Your question for subject '" + question.getSubject() + "' has been approved by the reviewer."
+            SharedConstants.MESSAGE, SharedConstants.YOUR_QUESTION_FOR_SUBJECT + question.getSubject() + "' has been approved by the reviewer."
         );
         publishNotification(question.getAuthorId(), notification);
 
@@ -155,14 +157,14 @@ public class ReviewWorkflowService {
      */
     private void handleReturnedToDraft(Question question, String fromState, UUID actorId,
                                        String comments, String tenantId) {
-        if (!"REVIEW".equals(fromState)) {
+        if (!QuestionStateConstants.REVIEW.equals(fromState)) {
             return;
         }
 
         reviewerAssignmentService.releaseReviewerLoad(actorId, tenantId);
 
         Map<String, Object> lifecycleEvent = createLifecyclePayload("RETURNED_TO_DRAFT", question.getId(), tenantId);
-        lifecycleEvent.put("reviewerId", actorId);
+        lifecycleEvent.put(SharedConstants.REVIEWER_ID, actorId);
         lifecycleEvent.put("authorId", question.getAuthorId());
         lifecycleEvent.put("comments", comments != null ? comments : "");
         publishLifecycleEvent(question.getId(), lifecycleEvent);
@@ -172,10 +174,10 @@ public class ReviewWorkflowService {
                 "type", "QUESTION_RETURNED_FOR_REVISION",
                 "recipientId", question.getAuthorId(),
                 "questionId", question.getId(),
-                "reviewerId", actorId,
+            SharedConstants.REVIEWER_ID, actorId,
                 "comments", comments != null ? comments : "",
                 "tenantId", tenantId,
-                "message", "Your question for subject '" + question.getSubject() +
+            SharedConstants.MESSAGE, SharedConstants.YOUR_QUESTION_FOR_SUBJECT + question.getSubject() +
                            "' was returned with comments: " + (comments != null ? comments : "No comments provided")
         );
         publishNotification(question.getAuthorId(), notification);
@@ -201,7 +203,7 @@ public class ReviewWorkflowService {
                 "questionId", question.getId(),
                 "subject", question.getSubject(),
                 "tenantId", tenantId,
-                "message", "Your question for subject '" + question.getSubject() + "' has been published to the question bank."
+            SharedConstants.MESSAGE, SharedConstants.YOUR_QUESTION_FOR_SUBJECT + question.getSubject() + "' has been published to the question bank."
         );
         publishNotification(question.getAuthorId(), notification);
 

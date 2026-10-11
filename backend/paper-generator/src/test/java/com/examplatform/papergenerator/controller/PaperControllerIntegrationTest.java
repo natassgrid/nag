@@ -35,6 +35,7 @@ import com.examplatform.papergenerator.service.PaperAssemblyService;
 import com.examplatform.papergenerator.service.PaperSerializer;
 import com.examplatform.papergenerator.service.PaperTranslationService;
 import com.examplatform.papergenerator.support.AbstractIntegrationTest;
+import com.examplatform.shared.constants.QuestionStateConstants;
 import com.examplatform.shared.constants.QuestionTaxonomyConstants;
 import jakarta.persistence.EntityNotFoundException;
 import org.junit.jupiter.api.DisplayName;
@@ -115,7 +116,7 @@ class PaperControllerIntegrationTest extends AbstractIntegrationTest {
                     .name("Mock Paper")
                     .examId(EXAM_ID)
                     .shiftId("SHIFT-1")
-                    .status("DRAFT")
+                    .status(QuestionStateConstants.DRAFT)
                     .isPractice(false)
                     .difficultyScore(2.0)
                     .build();
@@ -130,7 +131,7 @@ class PaperControllerIntegrationTest extends AbstractIntegrationTest {
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.content.length()").value(1))
                     .andExpect(jsonPath("$.content[0].paperId").value(PAPER_ID.toString()))
-                    .andExpect(jsonPath("$.content[0].status").value("DRAFT"));
+                    .andExpect(jsonPath("$.content[0].status").value(QuestionStateConstants.DRAFT));
         }
 
         @Test
@@ -154,7 +155,7 @@ class PaperControllerIntegrationTest extends AbstractIntegrationTest {
                     .name("Single Paper")
                     .examId(EXAM_ID)
                     .shiftId("SHIFT-1")
-                    .status("DRAFT")
+                    .status(QuestionStateConstants.DRAFT)
                     .paperDefinitionJson("{\"questionIds\": [\"00000000-0000-0000-0000-000000000001\"]}")
                     .topicDistributionJson("{\"Algebra\": 1}")
                     .build();
@@ -244,7 +245,7 @@ class PaperControllerIntegrationTest extends AbstractIntegrationTest {
                     .name("New Test Paper")
                     .examId(EXAM_ID)
                     .shiftId("SHIFT-A")
-                    .status("DRAFT")
+                    .status(QuestionStateConstants.DRAFT)
                     .isPractice(false)
                     .build();
             ReflectionTestUtils.setField(paper, "id", PAPER_ID);
@@ -258,7 +259,7 @@ class PaperControllerIntegrationTest extends AbstractIntegrationTest {
                             .content(objectMapper.writeValueAsString(request)))
                     .andExpect(status().isAccepted())
                     .andExpect(jsonPath("$.paperId").value(PAPER_ID.toString()))
-                    .andExpect(jsonPath("$.status").value("DRAFT"));
+                    .andExpect(jsonPath("$.status").value(QuestionStateConstants.DRAFT));
         }
 
         @Test
@@ -344,7 +345,7 @@ class PaperControllerIntegrationTest extends AbstractIntegrationTest {
                     .name("Approved Paper")
                     .examId(EXAM_ID)
                     .shiftId("SHIFT-1")
-                    .status("APPROVED")
+                    .status(QuestionStateConstants.APPROVED)
                     .encryptionKeyId("key-12345")
                     .build();
             ReflectionTestUtils.setField(paper, "id", PAPER_ID);
@@ -356,7 +357,7 @@ class PaperControllerIntegrationTest extends AbstractIntegrationTest {
                                     .jwt(j -> j.subject(USER_ID.toString()).claim("tenant_id", TENANT_ID))))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.paperId").value(PAPER_ID.toString()))
-                    .andExpect(jsonPath("$.status").value("APPROVED"))
+                    .andExpect(jsonPath("$.status").value(QuestionStateConstants.APPROVED))
                     .andExpect(jsonPath("$.encryptionKeyId").value("key-12345"));
         }
 
@@ -379,7 +380,7 @@ class PaperControllerIntegrationTest extends AbstractIntegrationTest {
         void examControllerCanTriggerPaperTranslation() throws Exception {
             PaperTranslateRequest request = PaperTranslateRequest.builder()
                     .targetLanguage("hi")
-                    .targetStatus("PUBLISHED")
+                    .targetStatus(QuestionStateConstants.PUBLISHED)
                     .overwriteExisting(true)
                     .build();
 
@@ -389,7 +390,7 @@ class PaperControllerIntegrationTest extends AbstractIntegrationTest {
                     .status("PENDING")
                     .sourceLanguage("en")
                     .targetLanguage("hi")
-                    .targetStatus("PUBLISHED")
+                    .targetStatus(QuestionStateConstants.PUBLISHED)
                     .overwriteExisting(true)
                     .totalQuestions(10)
                     .progressPercentage(0.0)
@@ -408,7 +409,7 @@ class PaperControllerIntegrationTest extends AbstractIntegrationTest {
                     .andExpect(jsonPath("$.jobId").value(JOB_ID.toString()))
                     .andExpect(jsonPath("$.paperId").value(PAPER_ID.toString()))
                     .andExpect(jsonPath("$.targetLanguage").value("hi"))
-                    .andExpect(jsonPath("$.targetStatus").value("PUBLISHED"))
+                    .andExpect(jsonPath("$.targetStatus").value(QuestionStateConstants.PUBLISHED))
                     .andExpect(jsonPath("$.overwriteExisting").value(true));
         }
 

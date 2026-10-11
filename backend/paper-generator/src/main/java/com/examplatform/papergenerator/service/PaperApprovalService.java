@@ -23,6 +23,7 @@ import static com.examplatform.shared.constants.MessagingConstants.AUDIT_EVENTS_
 
 import com.examplatform.papergenerator.domain.Paper;
 import com.examplatform.papergenerator.repository.PaperRepository;
+import com.examplatform.shared.constants.QuestionStateConstants;
 import com.examplatform.shared.crypto.VaultCryptoService;
 import com.examplatform.shared.messaging.EventPublisher;
 import jakarta.persistence.EntityNotFoundException;
@@ -49,8 +50,8 @@ import java.util.UUID;
 @Transactional
 public class PaperApprovalService {
 
-    private static final String STATUS_DRAFT = "DRAFT";
-    private static final String STATUS_APPROVED = "APPROVED";
+    private static final String STATUS_DRAFT = QuestionStateConstants.DRAFT;
+    private static final String STATUS_APPROVED = QuestionStateConstants.APPROVED;
     private static final String STATUS_ENCRYPTED = "ENCRYPTED";
 
     private final PaperRepository paperRepository;

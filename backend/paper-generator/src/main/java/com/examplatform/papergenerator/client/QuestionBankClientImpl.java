@@ -30,6 +30,7 @@ import com.examplatform.questionbank.grpc.QuestionBankGrpcServiceGrpc;
 import com.examplatform.questionbank.grpc.QuestionSummaryGrpc;
 import com.examplatform.shared.auth.ClientAuthTokenResolver;
 import com.examplatform.shared.auth.ServiceAccountTokenProvider;
+import com.examplatform.shared.constants.QuestionStateConstants;
 import com.examplatform.shared.grpc.GrpcChannelFactory;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import io.grpc.ManagedChannel;
@@ -363,7 +364,8 @@ public class QuestionBankClientImpl implements QuestionBankClient {
         body.put("questionIds", questionIds);
         body.put("sourceLanguage", request != null && request.getSourceLanguage() != null ? request.getSourceLanguage() : "en");
         body.put("targetLanguage", request != null && request.getTargetLanguage() != null ? request.getTargetLanguage() : "hi");
-        body.put("targetStatus", request != null && request.getTargetStatus() != null ? request.getTargetStatus() : "PUBLISHED");
+        body.put("targetStatus", request != null && request.getTargetStatus() != null ? request.getTargetStatus() :
+            QuestionStateConstants.PUBLISHED);
         body.put("overwriteExisting", request == null || request.getOverwriteExisting() == null || request.getOverwriteExisting());
         body.put("batchSize", request != null && request.getBatchSize() != null ? request.getBatchSize() : 50);
         body.put("throttleDelayMs", request != null && request.getThrottleDelayMs() != null ? request.getThrottleDelayMs() : 50);

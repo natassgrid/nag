@@ -22,6 +22,7 @@ package com.examplatform.questionbank.service;
 import com.examplatform.questionbank.domain.Question;
 import com.examplatform.questionbank.domain.QuestionVersion;
 import com.examplatform.questionbank.repository.QuestionVersionRepository;
+import com.examplatform.shared.constants.QuestionStateConstants;
 import com.examplatform.shared.constants.QuestionTaxonomyConstants;
 import com.examplatform.shared.constants.QuestionTypeConstants;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -77,7 +78,7 @@ class QuestionVersioningServiceTest {
                 .questionType(QuestionTypeConstants.SINGLE_MCQ)
                 .content(content)
                 .answerKey("{\"correct\": \"A\"}")
-                .state("DRAFT")
+                .state(QuestionStateConstants.DRAFT)
                 .authorId(AUTHOR_ID)
                 .build();
         // Use reflection to set id since setId is protected
@@ -196,7 +197,7 @@ class QuestionVersioningServiceTest {
             assertThat(snapshot.get("difficulty").asText()).isEqualTo(QuestionTaxonomyConstants.Difficulty.MEDIUM);
             assertThat(snapshot.get("cognitiveLevel").asText()).isEqualTo(
                 QuestionTaxonomyConstants.CognitiveLevel.APPLY);
-            assertThat(snapshot.get("state").asText()).isEqualTo("DRAFT");
+            assertThat(snapshot.get("state").asText()).isEqualTo(QuestionStateConstants.DRAFT);
             assertThat(snapshot.get("id").asText()).isEqualTo(QUESTION_ID.toString());
             assertThat(snapshot.get("authorId").asText()).isEqualTo(AUTHOR_ID.toString());
         }

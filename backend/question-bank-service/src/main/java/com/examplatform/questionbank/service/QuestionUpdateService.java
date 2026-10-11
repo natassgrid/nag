@@ -26,6 +26,7 @@ import com.examplatform.questionbank.dto.QuestionResponse;
 import com.examplatform.questionbank.exception.InvalidTransitionException;
 import com.examplatform.questionbank.repository.QuestionRepository;
 import com.examplatform.questionbank.util.EmbeddingUtils;
+import com.examplatform.shared.constants.QuestionStateConstants;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -73,8 +74,8 @@ public class QuestionUpdateService {
         // PUBLISHED questions are immutable — they cannot be edited.
         // Any other state (DRAFT, REVIEW, APPROVED) can be edited; the act of editing
         // resets the state to DRAFT so the question must re-enter the review workflow.
-        if ("PUBLISHED".equals(existing.getState())) {
-            throw new InvalidTransitionException(existing.getState(), "DRAFT");
+        if (QuestionStateConstants.PUBLISHED.equals(existing.getState())) {
+            throw new InvalidTransitionException(existing.getState(), QuestionStateConstants.DRAFT);
         }
 
         // Clone current state for diff comparison
@@ -112,7 +113,7 @@ public class QuestionUpdateService {
         // The reviewer and review comments are cleared so the question must go through
         // the full review workflow again.
         String previousState = existing.getState();
-        existing.setState("DRAFT");
+        existing.setState(QuestionStateConstants.DRAFT);
         existing.setReviewerId(null);
         existing.setReviewComments(null);
 

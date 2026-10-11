@@ -21,6 +21,7 @@ import com.examplatform.examination.repository.ExamShiftRepository;
 import com.examplatform.examination.repository.ExaminationCentreRepository;
 import com.examplatform.examination.repository.ExaminationRepository;
 import com.examplatform.examination.repository.ExaminationScheduleRepository;
+import com.examplatform.shared.constants.QuestionStateConstants;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -81,7 +82,7 @@ public class ExamApplicationService {
         Examination exam = examinationRepository.findById(examId)
                 .orElseThrow(() -> new EntityNotFoundException("Examination not found: " + examId));
 
-        if (!"PUBLISHED".equalsIgnoreCase(exam.getStatus()) && !"ACTIVE".equalsIgnoreCase(exam.getStatus())) {
+        if (!QuestionStateConstants.PUBLISHED.equalsIgnoreCase(exam.getStatus()) && !"ACTIVE".equalsIgnoreCase(exam.getStatus())) {
             throw new IllegalStateException("Exam is not open for applications. Status: " + exam.getStatus());
         }
 
@@ -94,7 +95,8 @@ public class ExamApplicationService {
 
         // Determine allocated shift & schedule
         Optional<ExaminationSchedule> latestScheduleOpt = scheduleRepository
-                .findFirstByExaminationIdAndStatusAndTenantIdOrderByScheduleVersionDesc(examId, "PUBLISHED", tenantId);
+                .findFirstByExaminationIdAndStatusAndTenantIdOrderByScheduleVersionDesc(examId,
+                    QuestionStateConstants.PUBLISHED, tenantId);
         if (latestScheduleOpt.isEmpty()) {
             List<ExaminationSchedule> schedules = scheduleRepository
                     .findByExaminationIdAndTenantIdOrderByScheduleVersionDesc(examId, tenantId);
@@ -154,7 +156,8 @@ public class ExamApplicationService {
                     ExaminationSchedule schedule = null;
                     if (exam != null) {
                         schedule = scheduleRepository
-                                .findFirstByExaminationIdAndStatusAndTenantIdOrderByScheduleVersionDesc(exam.getId(), "PUBLISHED", tenantId)
+                                .findFirstByExaminationIdAndStatusAndTenantIdOrderByScheduleVersionDesc(exam.getId(),
+                                    QuestionStateConstants.PUBLISHED, tenantId)
                                 .orElse(null);
                     }
                     return toResponse(app, exam, app.getAllocatedCentreId(), schedule, app.getAllocatedShiftId());
@@ -175,7 +178,8 @@ public class ExamApplicationService {
         ExaminationSchedule schedule = null;
         if (exam != null) {
             schedule = scheduleRepository
-                    .findFirstByExaminationIdAndStatusAndTenantIdOrderByScheduleVersionDesc(exam.getId(), "PUBLISHED", tenantId)
+                    .findFirstByExaminationIdAndStatusAndTenantIdOrderByScheduleVersionDesc(exam.getId(),
+                        QuestionStateConstants.PUBLISHED, tenantId)
                     .orElse(null);
         }
         return toResponse(app, exam, app.getAllocatedCentreId(), schedule, app.getAllocatedShiftId());
@@ -294,7 +298,8 @@ public class ExamApplicationService {
         }
         if (schedule == null) {
             schedule = scheduleRepository
-                    .findFirstByExaminationIdAndStatusAndTenantIdOrderByScheduleVersionDesc(exam.getId(), "PUBLISHED", tenantId)
+                    .findFirstByExaminationIdAndStatusAndTenantIdOrderByScheduleVersionDesc(exam.getId(),
+                        QuestionStateConstants.PUBLISHED, tenantId)
                     .orElse(null);
         }
 

@@ -38,6 +38,7 @@ import com.examplatform.examination.exception.ShiftTimingViolationException;
 import com.examplatform.examination.repository.ExaminationRepository;
 import com.examplatform.examination.repository.ExaminationScheduleRepository;
 import com.examplatform.examination.repository.ExamShiftRepository;
+import com.examplatform.shared.constants.QuestionStateConstants;
 import com.examplatform.shared.messaging.EventPublisher;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -76,11 +77,11 @@ public class ExaminationScheduleService {
 
     // Valid forward transitions (Req 7b.7)
     private static final Map<String, String> NEXT_STATUS = Map.of(
-            "DRAFT",               "SCHEDULER_REVIEW",
+        QuestionStateConstants.DRAFT,               "SCHEDULER_REVIEW",
             "SCHEDULER_REVIEW",    "CONTROLLER_APPROVED",
             "CONTROLLER_APPROVED", "SECURITY_REVIEW",
             "SECURITY_REVIEW",     "CHAIRMAN_APPROVED",
-            "CHAIRMAN_APPROVED",   "PUBLISHED"
+            "CHAIRMAN_APPROVED", QuestionStateConstants.PUBLISHED
     );
 
     // Roles permitted to perform each forward transition
@@ -89,7 +90,7 @@ public class ExaminationScheduleService {
             "CONTROLLER_APPROVED", Set.of("EXAM_CONTROLLER"),
             "SECURITY_REVIEW",     Set.of("SECURITY_ADMIN", "SUPER_ADMIN"),
             "CHAIRMAN_APPROVED",   Set.of("SUPER_ADMIN"),
-            "PUBLISHED",           Set.of("SUPER_ADMIN"),
+        QuestionStateConstants.PUBLISHED,           Set.of("SUPER_ADMIN"),
             "CANCELLED",           Set.of("EXAM_CONTROLLER", "SUPER_ADMIN", "SECURITY_ADMIN")
     );
 
@@ -129,7 +130,7 @@ public class ExaminationScheduleService {
         ExaminationSchedule saved = scheduleRepository.save(schedule);
         log.info("Schedule created: id={}, exam={}, version=1, tenant={}", saved.getId(), examId, tenantId);
 
-        publishAudit("SCHEDULE_CREATED", saved, actorId, tenantId, null, "DRAFT");
+        publishAudit("SCHEDULE_CREATED", saved, actorId, tenantId, null, QuestionStateConstants.DRAFT);
         return toResponse(saved);
     }
 
@@ -189,7 +190,7 @@ public class ExaminationScheduleService {
         schedule.setStatus(target);
         schedule.setModifiedBy(actorId);
 
-        if ("PUBLISHED".equals(target) || "CHAIRMAN_APPROVED".equals(target)) {
+        if (QuestionStateConstants.PUBLISHED.equals(target) || "CHAIRMAN_APPROVED".equals(target)) {
             schedule.setApprovedBy(actorId);
             schedule.setApprovedAt(Instant.now());
         }
@@ -200,7 +201,7 @@ public class ExaminationScheduleService {
         publishAudit("SCHEDULE_STATUS_CHANGED", saved, actorId, tenantId, prevStatus, target);
 
         // On publication, notify candidates (Req 7b.12)
-        if ("PUBLISHED".equals(target)) {
+        if (QuestionStateConstants.PUBLISHED.equals(target)) {
             publishNotification(saved, actorId, tenantId, "SCHEDULE_PUBLISHED");
         }
 
@@ -218,7 +219,7 @@ public class ExaminationScheduleService {
                                           String tenantId) {
         ExaminationSchedule current = findSchedule(scheduleId, tenantId);
 
-        if (!"PUBLISHED".equals(current.getStatus())) {
+        if (!QuestionStateConstants.PUBLISHED.equals(current.getStatus())) {
             throw new ScheduleWorkflowException(
                     "Only PUBLISHED schedules can be amended. Current status: " + current.getStatus());
         }
@@ -443,7 +444,7 @@ public class ExaminationScheduleService {
                 .examDate(examDate)
                 .reserveDate(reserveDate)
                 .timeZone(timeZone != null ? timeZone : "Asia/Kolkata")
-                .status("DRAFT")
+                .status(QuestionStateConstants.DRAFT)
                 .createdBy(actorId)
                 .modifiedBy(actorId)
                 .build();

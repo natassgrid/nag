@@ -31,6 +31,7 @@ import com.examplatform.questionbank.dto.TransitionRequest;
 import com.examplatform.questionbank.exception.FourEyesPrincipleViolationException;
 import com.examplatform.questionbank.exception.InvalidTransitionException;
 import com.examplatform.questionbank.repository.QuestionRepository;
+import com.examplatform.shared.constants.QuestionStateConstants;
 import com.examplatform.shared.messaging.EventPublisher;
 import jakarta.persistence.EntityNotFoundException;
 import java.time.Instant;
@@ -70,11 +71,12 @@ import org.springframework.transaction.annotation.Transactional;
 public class QuestionLifecycleService {
 
     private static final Map<String, Set<String>> VALID_TRANSITIONS = Map.of(
-            "DRAFT", Set.of("REVIEW"),
-            "REVIEW", Set.of("APPROVED", "DRAFT"),
-            "APPROVED", Set.of("PUBLISHED"),
-            "PUBLISHED", Set.of("ARCHIVED")
+        QuestionStateConstants.DRAFT, Set.of(QuestionStateConstants.REVIEW),
+        QuestionStateConstants.REVIEW, Set.of(QuestionStateConstants.APPROVED, QuestionStateConstants.DRAFT),
+        QuestionStateConstants.APPROVED, Set.of(QuestionStateConstants.PUBLISHED),
+        QuestionStateConstants.PUBLISHED, Set.of(QuestionStateConstants.ARCHIVED)
     );
+    public static final String QUESTION_NOT_FOUND = "Question not found: ";
 
     private final QuestionRepository questionRepository;
     private final ReviewWorkflowService reviewWorkflowService;
@@ -95,7 +97,7 @@ public class QuestionLifecycleService {
     public QuestionResponse transition(UUID questionId, TransitionRequest request, UUID actorId, String tenantId) {
         // 1. Find question -> 404 if not found
         Question question = questionRepository.findById(questionId)
-                .orElseThrow(() -> new EntityNotFoundException("Question not found: " + questionId));
+                .orElseThrow(() -> new EntityNotFoundException(QUESTION_NOT_FOUND + questionId));
 
         String currentState = question.getState();
         String targetState = request.getTargetState().toUpperCase();
@@ -107,15 +109,13 @@ public class QuestionLifecycleService {
         }
 
         // 3. Four-eyes principle enforcement
-        if ("PUBLISHED".equals(targetState)) {
-            // The actor publishing (approver) must not be the same as the reviewer
-            if (question.getReviewerId() != null && question.getReviewerId().equals(actorId)) {
+        if (QuestionStateConstants.PUBLISHED.equals(targetState) && question.getReviewerId() != null && question.getReviewerId().equals(actorId)) {
                 throw new FourEyesPrincipleViolationException();
             }
-        }
+
 
         // Store reviewer when transitioning REVIEW -> APPROVED
-        if ("REVIEW".equals(currentState) && "APPROVED".equals(targetState)) {
+        if (QuestionStateConstants.REVIEW.equals(currentState) && QuestionStateConstants.APPROVED.equals(targetState)) {
             question.setReviewerId(actorId);
         }
 
@@ -175,15 +175,15 @@ public class QuestionLifecycleService {
         for (UUID questionId : request.getQuestionIds()) {
             try {
                 Question question = questionRepository.findById(questionId)
-                        .orElseThrow(() -> new EntityNotFoundException("Question not found: " + questionId));
+                        .orElseThrow(() -> new EntityNotFoundException(QUESTION_NOT_FOUND + questionId));
                 String prevState = question.getState();
 
                 // If targetState is APPROVED, enforce four-eyes: approver cannot be the author
-                if ("APPROVED".equalsIgnoreCase(request.getTargetState())) {
-                    if (question.getAuthorId() != null && question.getAuthorId().equals(actorId)) {
+                if (QuestionStateConstants.APPROVED.equalsIgnoreCase(request.getTargetState()) &&
+                    question.getAuthorId() != null && question.getAuthorId().equals(actorId)) {
                         throw new FourEyesPrincipleViolationException("Author cannot approve their own question");
                     }
-                }
+
 
                 QuestionResponse resp = transition(questionId, itemReq, actorId, tenantId);
                 successCount++;
@@ -201,7 +201,8 @@ public class QuestionLifecycleService {
                 String prevState = null;
                 try {
                     prevState = questionRepository.findById(questionId).map(Question::getState).orElse(null);
-                } catch (Exception ignored) {
+                } catch (Exception _) {
+                    // Just ignore
                 }
 
                 itemResults.add(BulkTransitionItemResult.builder()
@@ -253,10 +254,10 @@ public class QuestionLifecycleService {
      */
     public QuestionResponse approve(UUID questionId, UUID reviewerId, String tenantId) {
         Question question = questionRepository.findById(questionId)
-                .orElseThrow(() -> new EntityNotFoundException("Question not found: " + questionId));
+                .orElseThrow(() -> new EntityNotFoundException(QUESTION_NOT_FOUND + questionId));
 
-        if (!"REVIEW".equals(question.getState())) {
-            throw new InvalidTransitionException(question.getState(), "APPROVED");
+        if (!QuestionStateConstants.REVIEW.equals(question.getState())) {
+            throw new InvalidTransitionException(question.getState(), QuestionStateConstants.APPROVED);
         }
 
         // Four-eyes principle: reviewer cannot be the author
@@ -265,13 +266,14 @@ public class QuestionLifecycleService {
         }
 
         question.setReviewerId(reviewerId);
-        question.setState("APPROVED");
+        question.setState(QuestionStateConstants.APPROVED);
         Question saved = questionRepository.save(question);
 
         log.info("Question approved: id={}, reviewer={}, tenant={}", questionId, reviewerId, tenantId);
 
-        publishAuditEvent(questionId, reviewerId, tenantId, "REVIEW", "APPROVED");
-        reviewWorkflowService.processTransition(saved, "REVIEW", "APPROVED", reviewerId, null, tenantId);
+        publishAuditEvent(questionId, reviewerId, tenantId, QuestionStateConstants.REVIEW,
+            QuestionStateConstants.APPROVED);
+        reviewWorkflowService.processTransition(saved, QuestionStateConstants.REVIEW, QuestionStateConstants.APPROVED, reviewerId, null, tenantId);
 
         return toResponse(saved);
     }
@@ -290,10 +292,10 @@ public class QuestionLifecycleService {
      */
     public QuestionResponse publish(UUID questionId, UUID publisherId, String tenantId) {
         Question question = questionRepository.findById(questionId)
-                .orElseThrow(() -> new EntityNotFoundException("Question not found: " + questionId));
+                .orElseThrow(() -> new EntityNotFoundException(QUESTION_NOT_FOUND + questionId));
 
-        if (!"APPROVED".equals(question.getState())) {
-            throw new InvalidTransitionException(question.getState(), "PUBLISHED");
+        if (!QuestionStateConstants.APPROVED.equals(question.getState())) {
+            throw new InvalidTransitionException(question.getState(), QuestionStateConstants.PUBLISHED);
         }
 
         // Four-eyes principle: publisher cannot be the reviewer who approved it
@@ -301,13 +303,15 @@ public class QuestionLifecycleService {
             throw new FourEyesPrincipleViolationException();
         }
 
-        question.setState("PUBLISHED");
+        question.setState(QuestionStateConstants.PUBLISHED);
         Question saved = questionRepository.save(question);
 
         log.info("Question published: id={}, publisher={}, tenant={}", questionId, publisherId, tenantId);
 
-        publishAuditEvent(questionId, publisherId, tenantId, "APPROVED", "PUBLISHED");
-        reviewWorkflowService.processTransition(saved, "APPROVED", "PUBLISHED", publisherId, null, tenantId);
+        publishAuditEvent(questionId, publisherId, tenantId, QuestionStateConstants.APPROVED,
+            QuestionStateConstants.PUBLISHED);
+        reviewWorkflowService.processTransition(saved, QuestionStateConstants.APPROVED,
+            QuestionStateConstants.PUBLISHED, publisherId, null, tenantId);
 
         return toResponse(saved);
     }
@@ -326,21 +330,21 @@ public class QuestionLifecycleService {
      */
     public QuestionResponse reject(UUID questionId, UUID reviewerId, String comments, String tenantId) {
         Question question = questionRepository.findById(questionId)
-                .orElseThrow(() -> new EntityNotFoundException("Question not found: " + questionId));
+                .orElseThrow(() -> new EntityNotFoundException(QUESTION_NOT_FOUND + questionId));
 
-        if (!"REVIEW".equals(question.getState())) {
-            throw new InvalidTransitionException(question.getState(), "DRAFT");
+        if (!QuestionStateConstants.REVIEW.equals(question.getState())) {
+            throw new InvalidTransitionException(question.getState(), QuestionStateConstants.DRAFT);
         }
 
         question.setReviewerId(reviewerId);
         question.setReviewComments(comments);
-        question.setState("DRAFT");
+        question.setState(QuestionStateConstants.DRAFT);
         Question saved = questionRepository.save(question);
 
         log.info("Question rejected: id={}, reviewer={}, tenant={}, comments={}", questionId, reviewerId, tenantId, comments);
 
-        publishAuditEvent(questionId, reviewerId, tenantId, "REVIEW", "DRAFT");
-        reviewWorkflowService.processTransition(saved, "REVIEW", "DRAFT", reviewerId, comments, tenantId);
+        publishAuditEvent(questionId, reviewerId, tenantId, QuestionStateConstants.REVIEW, QuestionStateConstants.DRAFT);
+        reviewWorkflowService.processTransition(saved, QuestionStateConstants.REVIEW, QuestionStateConstants.DRAFT, reviewerId, comments, tenantId);
 
         return toResponse(saved);
     }
@@ -353,7 +357,7 @@ public class QuestionLifecycleService {
      */
     public QuestionAnalytics getAnalytics(UUID questionId) {
         Question question = questionRepository.findById(questionId)
-                .orElseThrow(() -> new EntityNotFoundException("Question not found: " + questionId));
+                .orElseThrow(() -> new EntityNotFoundException(QUESTION_NOT_FOUND + questionId));
 
         return QuestionAnalytics.builder()
                 .usageCount(question.getUsageCount())

@@ -20,6 +20,7 @@
 package com.examplatform.questionbank.domain;
 
 import com.examplatform.questionbank.crypto.EncryptedFieldConverter;
+import com.examplatform.shared.constants.QuestionStateConstants;
 import com.examplatform.shared.entity.BaseEntity;
 import jakarta.persistence.Column;
 import jakarta.persistence.Convert;
@@ -76,7 +77,7 @@ public class Passage extends BaseEntity {
 
     @Column(name = "state", nullable = false, length = 20)
     @Builder.Default
-    private String state = "DRAFT";
+    private String state = QuestionStateConstants.DRAFT;
 
     @Column(name = "encryption_key_id")
     private String encryptionKeyId;

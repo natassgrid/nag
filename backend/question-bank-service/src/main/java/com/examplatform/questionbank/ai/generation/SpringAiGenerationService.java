@@ -36,6 +36,7 @@ import com.examplatform.questionbank.repository.SimilarityResult;
 import com.examplatform.questionbank.service.SimilarityDetectionService;
 import com.examplatform.questionbank.service.SubjectTopicService;
 import com.examplatform.questionbank.util.EmbeddingUtils;
+import com.examplatform.shared.constants.QuestionStateConstants;
 import com.examplatform.shared.constants.QuestionTaxonomyConstants;
 import com.examplatform.shared.constants.QuestionTypeConstants;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -729,7 +730,7 @@ public class SpringAiGenerationService implements QuestionGenerationService {
                     .explanation(raw.explanation)
                     .options(raw.options)
                     .sourceReferences("AI-generated via " + modelRouter.selectModel(request.getDifficulty()))
-                    .state("DRAFT")
+                    .state(QuestionStateConstants.DRAFT)
                     .authorId(authorId)
                     .build();
             question.setTenantId(tenantId);

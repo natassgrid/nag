@@ -19,6 +19,7 @@
 
 package com.examplatform.questionbank.translation.domain;
 
+import com.examplatform.shared.constants.QuestionStateConstants;
 import com.examplatform.shared.entity.BaseEntity;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -66,7 +67,7 @@ public class BatchTranslationJob extends BaseEntity {
 
     @Column(name = "target_status", nullable = false, length = 20)
     @Builder.Default
-    private String targetStatus = "PUBLISHED";
+    private String targetStatus = QuestionStateConstants.PUBLISHED;
 
     @Column(name = "subject_filter", length = 100)
     private String subjectFilter;

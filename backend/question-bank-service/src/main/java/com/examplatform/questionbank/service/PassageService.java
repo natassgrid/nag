@@ -29,6 +29,7 @@ import com.examplatform.questionbank.repository.QuestionRepository;
 import com.examplatform.questionbank.repository.SubjectRepository;
 import com.examplatform.questionbank.repository.TopicRepository;
 import com.examplatform.questionbank.util.EmbeddingUtils;
+import com.examplatform.shared.constants.QuestionStateConstants;
 import com.examplatform.shared.constants.QuestionTaxonomyConstants;
 import com.examplatform.shared.messaging.EventPublisher;
 import jakarta.persistence.EntityNotFoundException;
@@ -92,7 +93,8 @@ public class PassageService {
                 .subject(subject.getName())
                 .topic(topicName != null ? topicName : request.getTopic())
                 .hasImages(hasImages)
-                .state((request.getState() != null && !request.getState().isBlank()) ? request.getState() : "DRAFT")
+                .state((request.getState() != null && !request.getState().isBlank()) ? request.getState() :
+                    QuestionStateConstants.DRAFT)
                 .encryptionKeyId(dekKeyName)
                 .authorId(authorId)
                 .build();
@@ -256,7 +258,7 @@ public class PassageService {
         Passage passage = passageRepository.findByIdAndTenantId(passageId, tenantId)
                 .orElseThrow(() -> new EntityNotFoundException("Passage not found: " + passageId));
 
-        if (!"DRAFT".equals(passage.getState())) {
+        if (!QuestionStateConstants.DRAFT.equals(passage.getState())) {
             throw new IllegalStateException("Only DRAFT passages can be deleted. Current state: " + passage.getState());
         }
 
@@ -421,6 +423,6 @@ public class PassageService {
 
     void publishAuditEvent(String eventType, UUID passageId, UUID actorId,
                            String tenantId, Map<String, Object> extra) {
-        AuditEventHelper.publishAuditEvent(eventPublisher, log, AUDIT_EVENTS_TOPIC, eventType, "passageId", passageId, actorId, tenantId, extra);
+        AuditEventHelper.publishAuditEvent(eventPublisher, log, new AuditEventHelper.AuditEventParams(AUDIT_EVENTS_TOPIC, eventType, "passageId", passageId, actorId, tenantId, extra));
     }
 }

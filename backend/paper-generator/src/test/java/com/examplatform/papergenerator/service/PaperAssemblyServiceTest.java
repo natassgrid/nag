@@ -27,6 +27,7 @@ import com.examplatform.papergenerator.dto.PaperGenerationRequest;
 import com.examplatform.papergenerator.dto.QuestionSummary;
 import com.examplatform.papergenerator.exception.InsufficientQuestionsException;
 import com.examplatform.papergenerator.repository.PaperRepository;
+import com.examplatform.shared.constants.QuestionStateConstants;
 import com.examplatform.shared.constants.QuestionTaxonomyConstants;
 import com.examplatform.shared.messaging.EventPublisher;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -150,7 +151,7 @@ class PaperAssemblyServiceTest {
         assertThat(result.getName()).isEqualTo("Sample Math Paper");
         assertThat(result.getExamId()).isEqualTo(EXAM_ID);
         assertThat(result.getShiftId()).isEqualTo(SHIFT_ID);
-        assertThat(result.getStatus()).isEqualTo("DRAFT");
+        assertThat(result.getStatus()).isEqualTo(QuestionStateConstants.DRAFT);
         assertThat(result.getDifficultyScore()).isGreaterThan(0.0);
 
         ArgumentCaptor<Paper> captor = ArgumentCaptor.forClass(Paper.class);

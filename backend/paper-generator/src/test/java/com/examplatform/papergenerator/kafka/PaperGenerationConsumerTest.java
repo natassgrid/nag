@@ -19,6 +19,7 @@ import com.examplatform.papergenerator.exception.InsufficientQuestionsException;
 import com.examplatform.papergenerator.repository.BlueprintTemplateRepository;
 import com.examplatform.papergenerator.repository.PaperRepository;
 import com.examplatform.papergenerator.service.PaperAssemblyService;
+import com.examplatform.shared.constants.QuestionStateConstants;
 import com.examplatform.shared.constants.QuestionTaxonomyConstants;
 import com.examplatform.shared.messaging.EventPublisher;
 import com.examplatform.shared.messaging.GenericDomainEvent;
@@ -103,7 +104,7 @@ class PaperGenerationConsumerTest {
                 .name("General Science Paper")
                 .examId(examId)
                 .shiftId(shiftId)
-                .status("DRAFT")
+                .status(QuestionStateConstants.DRAFT)
                 .variant("SET-A")
                 .paperRootHash("a1b2c3d4e5f6")
                 .manifestDigest("f6e5d4c3b2a1")

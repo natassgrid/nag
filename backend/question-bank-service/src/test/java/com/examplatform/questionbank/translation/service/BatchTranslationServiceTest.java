@@ -24,6 +24,7 @@ import com.examplatform.questionbank.translation.domain.BatchTranslationJobStatu
 import com.examplatform.questionbank.translation.dto.BatchTranslationJobResponse;
 import com.examplatform.questionbank.translation.dto.BatchTranslationRequest;
 import com.examplatform.questionbank.translation.repository.BatchTranslationJobRepository;
+import com.examplatform.shared.constants.QuestionStateConstants;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
@@ -79,7 +80,7 @@ class BatchTranslationServiceTest {
         BatchTranslationRequest request = BatchTranslationRequest.builder()
                 .sourceLanguage("en")
                 .targetLanguage("hi")
-                .targetStatus("PUBLISHED")
+                .targetStatus(QuestionStateConstants.PUBLISHED)
                 .batchSize(25)
                 .throttleDelayMs(30)
                 .maxConcurrency(2)
@@ -97,7 +98,7 @@ class BatchTranslationServiceTest {
         assertThat(response.getId()).isEqualTo(jobId);
         assertThat(response.getStatus()).isEqualTo(BatchTranslationJobStatus.PENDING);
         assertThat(response.getTargetLanguage()).isEqualTo("hi");
-        assertThat(response.getTargetStatus()).isEqualTo("PUBLISHED");
+        assertThat(response.getTargetStatus()).isEqualTo(QuestionStateConstants.PUBLISHED);
 
         verify(jobRepository).save(any(BatchTranslationJob.class));
         verify(asyncWorker).processBatchTranslationJob(jobId, tenantId);
@@ -126,7 +127,7 @@ class BatchTranslationServiceTest {
                 .failedQuestions(2)
                 .sourceLanguage("en")
                 .targetLanguage("hi")
-                .targetStatus("PUBLISHED")
+                .targetStatus(QuestionStateConstants.PUBLISHED)
                 .build();
         ReflectionTestUtils.setField(job, "id", jobId);
         job.setTenantId(tenantId);

@@ -34,6 +34,7 @@ import com.examplatform.papergenerator.dto.QuestionSummary;
 import com.examplatform.papergenerator.dto.RuleFeasibilityDetail;
 import com.examplatform.papergenerator.exception.InsufficientQuestionsException;
 import com.examplatform.papergenerator.repository.PaperRepository;
+import com.examplatform.shared.constants.QuestionStateConstants;
 import com.examplatform.shared.constants.QuestionTaxonomyConstants;
 import com.examplatform.shared.messaging.EventPublisher;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -73,7 +74,7 @@ public class PaperAssemblyService {
     private static final String PAPER_EVENTS_TOPIC = "exam.paper.events";
 
     private static final String NOTIFICATION_TOPIC = "exam.notifications.outbound";
-    private static final String STATUS_DRAFT = "DRAFT";
+    private static final String STATUS_DRAFT = QuestionStateConstants.DRAFT;
 
     private static final String REUSE_POLICY_NEVER = "NEVER";
     private static final String REUSE_POLICY_1_YEAR = "1_YEAR";

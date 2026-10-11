@@ -22,6 +22,7 @@ package com.examplatform.questionbank.service;
 import com.examplatform.questionbank.domain.Question;
 import com.examplatform.questionbank.dto.QuestionResponse;
 import com.examplatform.questionbank.repository.QuestionRepository;
+import com.examplatform.shared.constants.QuestionStateConstants;
 import com.examplatform.shared.constants.QuestionTaxonomyConstants;
 import com.examplatform.shared.constants.QuestionTypeConstants;
 import org.junit.jupiter.api.DisplayName;
@@ -66,7 +67,7 @@ class QuestionSearchServiceTest {
                 .cognitiveLevel(QuestionTaxonomyConstants.CognitiveLevel.APPLY)
                 .questionType("MCQ")
                 .content("Solve 2x + 3 = 7")
-                .state("PUBLISHED")
+                .state(QuestionStateConstants.PUBLISHED)
                 .authorId(UUID.randomUUID())
                 .build();
 
@@ -78,11 +79,11 @@ class QuestionSearchServiceTest {
                 .cognitiveLevel(QuestionTaxonomyConstants.CognitiveLevel.ANALYZE)
                 .questionType("MCQ")
                 .content("Integrate x^2 dx")
-                .state("PUBLISHED")
+                .state(QuestionStateConstants.PUBLISHED)
                 .authorId(UUID.randomUUID())
                 .build();
 
-        when(questionRepository.findBySubjectAndStateAndTenantId("Mathematics", "PUBLISHED", TENANT_ID))
+        when(questionRepository.findBySubjectAndStateAndTenantId("Mathematics", QuestionStateConstants.PUBLISHED, TENANT_ID))
                 .thenReturn(List.of(q1, q2));
 
         Page<QuestionResponse> results = questionSearchService.search(
@@ -102,7 +103,7 @@ class QuestionSearchServiceTest {
                 .cognitiveLevel(QuestionTaxonomyConstants.CognitiveLevel.REMEMBER)
                 .questionType("MCQ")
                 .content("What is Newton's first law?")
-                .state("PUBLISHED")
+                .state(QuestionStateConstants.PUBLISHED)
                 .authorId(UUID.randomUUID())
                 .build();
 
@@ -113,11 +114,11 @@ class QuestionSearchServiceTest {
                 .cognitiveLevel(QuestionTaxonomyConstants.CognitiveLevel.ANALYZE)
                 .questionType("MCQ")
                 .content("Derive the lens equation")
-                .state("PUBLISHED")
+                .state(QuestionStateConstants.PUBLISHED)
                 .authorId(UUID.randomUUID())
                 .build();
 
-        when(questionRepository.findBySubjectAndStateAndTenantId("Physics", "PUBLISHED", TENANT_ID))
+        when(questionRepository.findBySubjectAndStateAndTenantId("Physics", QuestionStateConstants.PUBLISHED, TENANT_ID))
                 .thenReturn(List.of(q1, q2));
 
         Page<QuestionResponse> results = questionSearchService.search(
@@ -140,7 +141,7 @@ class QuestionSearchServiceTest {
                 .questionType(QuestionTypeConstants.SINGLE_MCQ)
                 .content("What is the general formula of alkanes?")
                 .explanation("Alkanes follow CnH2n+2 formula.")
-                .state("PUBLISHED")
+                .state(QuestionStateConstants.PUBLISHED)
                 .authorId(UUID.randomUUID())
                 .build();
 
@@ -154,11 +155,11 @@ class QuestionSearchServiceTest {
                 .questionType(QuestionTypeConstants.DESCRIPTIVE)
                 .content("Why are noble gases inert?")
                 .explanation("Full valence shell creates stability.")
-                .state("PUBLISHED")
+                .state(QuestionStateConstants.PUBLISHED)
                 .authorId(UUID.randomUUID())
                 .build();
 
-        when(questionRepository.findBySubjectAndStateAndTenantId("Chemistry", "PUBLISHED", TENANT_ID))
+        when(questionRepository.findBySubjectAndStateAndTenantId("Chemistry", QuestionStateConstants.PUBLISHED, TENANT_ID))
                 .thenReturn(List.of(q1, q2));
 
         // Multi-token search matching topic ("Organic") and difficulty ("EASY")
@@ -179,7 +180,7 @@ class QuestionSearchServiceTest {
     @Test
     @DisplayName("search returns empty page when no matches")
     void searchReturnsEmptyOnNoMatch() {
-        when(questionRepository.findBySubjectAndStateAndTenantId("Chemistry", "PUBLISHED", TENANT_ID))
+        when(questionRepository.findBySubjectAndStateAndTenantId("Chemistry", QuestionStateConstants.PUBLISHED, TENANT_ID))
                 .thenReturn(List.of());
 
         Page<QuestionResponse> results = questionSearchService.search(

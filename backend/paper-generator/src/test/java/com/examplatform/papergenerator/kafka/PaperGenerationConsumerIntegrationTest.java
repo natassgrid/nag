@@ -19,6 +19,7 @@ import com.examplatform.papergenerator.dto.QuestionSummary;
 import com.examplatform.papergenerator.repository.BlueprintTemplateRepository;
 import com.examplatform.papergenerator.repository.PaperRepository;
 import com.examplatform.papergenerator.support.AbstractIntegrationTest;
+import com.examplatform.shared.constants.QuestionStateConstants;
 import com.examplatform.shared.constants.QuestionTaxonomyConstants;
 import com.examplatform.shared.messaging.EventPublisher;
 import com.examplatform.shared.messaging.GenericDomainEvent;
@@ -107,7 +108,7 @@ class PaperGenerationConsumerIntegrationTest extends AbstractIntegrationTest {
         assertThat(savedPapers).hasSize(1);
         Paper paper = savedPapers.getFirst();
         assertThat(paper.getName()).isEqualTo("E2E Math Paper");
-        assertThat(paper.getStatus()).isEqualTo("DRAFT");
+        assertThat(paper.getStatus()).isEqualTo(QuestionStateConstants.DRAFT);
         assertThat(paper.getPaperRootHash()).isNotNull();
         assertThat(paper.getManifestDigest()).isNotNull();
 

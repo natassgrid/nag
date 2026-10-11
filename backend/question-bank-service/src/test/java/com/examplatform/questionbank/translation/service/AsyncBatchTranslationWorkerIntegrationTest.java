@@ -30,6 +30,7 @@ import com.examplatform.questionbank.translation.dto.AutoTranslateResponse;
 import com.examplatform.questionbank.translation.dto.TranslatedOptionDto;
 import com.examplatform.questionbank.translation.repository.BatchTranslationJobRepository;
 import com.examplatform.questionbank.translation.repository.TranslationRepository;
+import com.examplatform.shared.constants.QuestionStateConstants;
 import com.examplatform.shared.constants.QuestionTaxonomyConstants;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -85,7 +86,7 @@ class AsyncBatchTranslationWorkerIntegrationTest extends AbstractIntegrationTest
                 .content("What is Newton's first law?")
                 .authorId(UUID.randomUUID())
                 .options(List.of(QuestionOption.builder().id("A").text("Inertia").correct(true).build()))
-                .state("APPROVED")
+                .state(QuestionStateConstants.APPROVED)
                 .build();
         q1.setTenantId(TENANT_ID);
 
@@ -100,7 +101,7 @@ class AsyncBatchTranslationWorkerIntegrationTest extends AbstractIntegrationTest
                 .content("What is methane?")
                 .authorId(UUID.randomUUID())
                 .options(List.of(QuestionOption.builder().id("A").text("CH4").correct(true).build()))
-                .state("APPROVED")
+                .state(QuestionStateConstants.APPROVED)
                 .build();
         q2.setTenantId(TENANT_ID);
 
@@ -126,7 +127,7 @@ class AsyncBatchTranslationWorkerIntegrationTest extends AbstractIntegrationTest
                 .status(BatchTranslationJobStatus.PENDING)
                 .sourceLanguage("en")
                 .targetLanguage("hi")
-                .targetStatus("PUBLISHED")
+                .targetStatus(QuestionStateConstants.PUBLISHED)
                 .subjectFilter(null)
                 .batchSize(10)
                 .throttleDelayMs(0)
@@ -180,7 +181,7 @@ class AsyncBatchTranslationWorkerIntegrationTest extends AbstractIntegrationTest
                 .content("Solve 2x + 4 = 10")
                 .authorId(UUID.randomUUID())
                 .options(List.of(QuestionOption.builder().id("A").text("x = 3").correct(true).build()))
-                .state("APPROVED")
+                .state(QuestionStateConstants.APPROVED)
                 .build();
         q1.setTenantId(TENANT_ID);
 
@@ -195,7 +196,7 @@ class AsyncBatchTranslationWorkerIntegrationTest extends AbstractIntegrationTest
                 .content("When did India become independent?")
                 .authorId(UUID.randomUUID())
                 .options(List.of(QuestionOption.builder().id("A").text("1947").correct(true).build()))
-                .state("APPROVED")
+                .state(QuestionStateConstants.APPROVED)
                 .build();
         q2.setTenantId(TENANT_ID);
 
@@ -220,7 +221,7 @@ class AsyncBatchTranslationWorkerIntegrationTest extends AbstractIntegrationTest
                 .status(BatchTranslationJobStatus.PENDING)
                 .sourceLanguage("en")
                 .targetLanguage("hi")
-                .targetStatus("PUBLISHED")
+                .targetStatus(QuestionStateConstants.PUBLISHED)
                 .subjectFilter("Mathematics")
                 .batchSize(10)
                 .throttleDelayMs(0)

@@ -26,6 +26,7 @@ import com.examplatform.papergenerator.dto.PaperGenerationRequest;
 import com.examplatform.papergenerator.repository.BlueprintTemplateRepository;
 import com.examplatform.papergenerator.repository.PaperRepository;
 import com.examplatform.papergenerator.service.PaperAssemblyService;
+import com.examplatform.shared.constants.QuestionStateConstants;
 import com.examplatform.shared.messaging.EventPublisher;
 import com.examplatform.shared.messaging.GenericDomainEvent;
 import com.examplatform.shared.tenant.TenantContext;
@@ -308,7 +309,7 @@ public class PaperGenerationConsumer {
             event.put("shiftId", paper.getShiftId() != null ? paper.getShiftId() : "");
             event.put("name", paper.getName() != null ? paper.getName() : "");
             event.put("variant", paper.getVariant() != null ? paper.getVariant() : "SET-A");
-            event.put("status", paper.getStatus() != null ? paper.getStatus() : "DRAFT");
+            event.put("status", paper.getStatus() != null ? paper.getStatus() : QuestionStateConstants.DRAFT);
             event.put("paperRootHash", paper.getPaperRootHash() != null ? paper.getPaperRootHash() : "");
             event.put("manifestDigest", paper.getManifestDigest() != null ? paper.getManifestDigest() : "");
             event.put("difficultyScore", paper.getDifficultyScore());

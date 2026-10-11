@@ -22,6 +22,7 @@ import com.examplatform.questionbank.dto.TransitionRequest;
 import com.examplatform.questionbank.service.PassageLifecycleService;
 import com.examplatform.questionbank.service.PassageService;
 import com.examplatform.questionbank.support.AbstractIntegrationTest;
+import com.examplatform.shared.constants.QuestionStateConstants;
 import jakarta.persistence.EntityNotFoundException;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -127,7 +128,7 @@ class PassageControllerIntegrationTest extends AbstractIntegrationTest {
         @DisplayName("201 CREATED - Author successfully creates a reading comprehension passage")
         void createPassage_AuthorRole_Returns201() throws Exception {
             PassageRequest request = buildSamplePassageRequest();
-            PassageResponse response = buildSamplePassageResponse("DRAFT");
+            PassageResponse response = buildSamplePassageResponse(QuestionStateConstants.DRAFT);
 
             when(passageService.createPassage(any(PassageRequest.class), eq(AUTHOR_ID), eq(TENANT_ID)))
                     .thenReturn(response);
@@ -143,7 +144,7 @@ class PassageControllerIntegrationTest extends AbstractIntegrationTest {
                     .andExpect(jsonPath("$.message").value("Passage created successfully"))
                     .andExpect(jsonPath("$.data.id").value(PASSAGE_ID.toString()))
                     .andExpect(jsonPath("$.data.title").value("Reading Comprehension: Indian Economy Reforms"))
-                    .andExpect(jsonPath("$.data.state").value("DRAFT"));
+                    .andExpect(jsonPath("$.data.state").value(QuestionStateConstants.DRAFT));
         }
 
         @Test
@@ -187,14 +188,14 @@ class PassageControllerIntegrationTest extends AbstractIntegrationTest {
         @Test
         @DisplayName("200 OK - Author/Reviewer lists passages with pagination")
         void listPassages_ValidRoles_Returns200() throws Exception {
-            PassageResponse item = buildSamplePassageResponse("DRAFT");
+            PassageResponse item = buildSamplePassageResponse(QuestionStateConstants.DRAFT);
             when(passageService.listPassages(any(), any(), any(), anyInt(), anyInt(), eq(TENANT_ID)))
                     .thenReturn(new PageImpl<>(List.of(item)));
 
             mockMvc.perform(get("/api/v1/passages")
                             .header("X-Tenant-Id", TENANT_ID)
                             .param("subjectId", "101")
-                            .param("state", "DRAFT")
+                            .param("state", QuestionStateConstants.DRAFT)
                             .param("page", "0")
                             .param("size", "10")
                             .with(jwt().jwt(j -> j.subject(REVIEWER_ID.toString()))
@@ -243,7 +244,7 @@ class PassageControllerIntegrationTest extends AbstractIntegrationTest {
         @DisplayName("200 OK - Author updates passage")
         void updatePassage_AuthorRole_Returns200() throws Exception {
             PassageRequest request = buildSamplePassageRequest();
-            PassageResponse response = buildSamplePassageResponse("DRAFT");
+            PassageResponse response = buildSamplePassageResponse(QuestionStateConstants.DRAFT);
             when(passageService.updatePassage(eq(PASSAGE_ID), any(PassageRequest.class), eq(AUTHOR_ID), eq(TENANT_ID)))
                     .thenReturn(response);
 
@@ -297,7 +298,7 @@ class PassageControllerIntegrationTest extends AbstractIntegrationTest {
         @Test
         @DisplayName("200 OK - Approver/Reviewer approves passage")
         void approve_ReviewerRole_Returns200() throws Exception {
-            PassageResponse response = buildSamplePassageResponse("APPROVED");
+            PassageResponse response = buildSamplePassageResponse(QuestionStateConstants.APPROVED);
             when(passageLifecycleService.approve(eq(PASSAGE_ID), eq(REVIEWER_ID), eq(TENANT_ID)))
                     .thenReturn(response);
 
@@ -308,7 +309,7 @@ class PassageControllerIntegrationTest extends AbstractIntegrationTest {
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.status").value("success"))
                     .andExpect(jsonPath("$.message").value("Passage approved successfully"))
-                    .andExpect(jsonPath("$.data.state").value("APPROVED"));
+                    .andExpect(jsonPath("$.data.state").value(QuestionStateConstants.APPROVED));
         }
 
         @Test
@@ -334,10 +335,10 @@ class PassageControllerIntegrationTest extends AbstractIntegrationTest {
         @DisplayName("200 OK - Generic lifecycle transition endpoint")
         void transition_ApproverRole_Returns200() throws Exception {
             TransitionRequest request = TransitionRequest.builder()
-                    .targetState("APPROVED")
+                    .targetState(QuestionStateConstants.APPROVED)
                     .comments("All verified")
                     .build();
-            PassageResponse response = buildSamplePassageResponse("APPROVED");
+            PassageResponse response = buildSamplePassageResponse(QuestionStateConstants.APPROVED);
             when(passageLifecycleService.transition(eq(PASSAGE_ID), any(TransitionRequest.class), eq(REVIEWER_ID), eq(TENANT_ID)))
                     .thenReturn(response);
 
@@ -349,7 +350,7 @@ class PassageControllerIntegrationTest extends AbstractIntegrationTest {
                                     .authorities(new SimpleGrantedAuthority("ROLE_APPROVER"))))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.status").value("success"))
-                    .andExpect(jsonPath("$.data.state").value("APPROVED"));
+                    .andExpect(jsonPath("$.data.state").value(QuestionStateConstants.APPROVED));
         }
     }
 }

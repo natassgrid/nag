@@ -20,6 +20,7 @@ import com.examplatform.questionbank.repository.QuestionRepository;
 import com.examplatform.questionbank.repository.SimilarityResult;
 import com.examplatform.questionbank.support.AbstractIntegrationTest;
 import com.examplatform.questionbank.util.EmbeddingUtils;
+import com.examplatform.shared.constants.QuestionStateConstants;
 import com.examplatform.shared.constants.QuestionTaxonomyConstants;
 import com.examplatform.shared.constants.QuestionTypeConstants;
 import org.junit.jupiter.api.BeforeEach;
@@ -133,7 +134,7 @@ class VectorSearchIntegrationTest extends AbstractIntegrationTest {
             float[] vec = createNormalizedVector(0, 0.0); // Unit vector along dim 0
 
             insertQuestion(qId, 1L, 10L, "Physics", "Mechanics",
-                    "What is Newton's second law?", "PUBLISHED", QuestionTaxonomyConstants.Difficulty.MEDIUM,
+                    "What is Newton's second law?", QuestionStateConstants.PUBLISHED, QuestionTaxonomyConstants.Difficulty.MEDIUM,
                 QuestionTaxonomyConstants.CognitiveLevel.REMEMBER, TENANT_A, vec);
 
             String queryVecStr = EmbeddingUtils.embeddingToString(vec);
@@ -155,7 +156,7 @@ class VectorSearchIntegrationTest extends AbstractIntegrationTest {
             float[] vecB = createNormalizedVector(10, 0.0); // Dim 10 (orthogonal)
 
             insertQuestion(qId, 1L, 10L, "Physics", "Mechanics",
-                    "Question on dynamics", "PUBLISHED", QuestionTaxonomyConstants.Difficulty.MEDIUM,
+                    "Question on dynamics", QuestionStateConstants.PUBLISHED, QuestionTaxonomyConstants.Difficulty.MEDIUM,
                 QuestionTaxonomyConstants.CognitiveLevel.REMEMBER, TENANT_A, vecA);
 
             String queryVecStr = EmbeddingUtils.embeddingToString(vecB);
@@ -182,7 +183,7 @@ class VectorSearchIntegrationTest extends AbstractIntegrationTest {
             float[] queryVec = createNormalizedVector(0, 0.284);
 
             insertQuestion(existingId, 2L, 20L, "Chemistry", "Atomic Structure",
-                    "What is Bohr's atomic model?", "PUBLISHED", QuestionTaxonomyConstants.Difficulty.EASY,
+                    "What is Bohr's atomic model?", QuestionStateConstants.PUBLISHED, QuestionTaxonomyConstants.Difficulty.EASY,
                 QuestionTaxonomyConstants.CognitiveLevel.UNDERSTAND, TENANT_A, baseVec);
 
             when(embeddingService.embed(anyString())).thenReturn(queryVec);
@@ -211,7 +212,7 @@ class VectorSearchIntegrationTest extends AbstractIntegrationTest {
             float[] queryVec = createNormalizedVector(0, 0.495);
 
             insertQuestion(existingId, 2L, 20L, "Chemistry", "Atomic Structure",
-                    "Discuss atomic orbitals and quantum numbers", "PUBLISHED",
+                    "Discuss atomic orbitals and quantum numbers", QuestionStateConstants.PUBLISHED,
                 QuestionTaxonomyConstants.Difficulty.MEDIUM, QuestionTaxonomyConstants.CognitiveLevel.UNDERSTAND, TENANT_A, baseVec);
 
             when(embeddingService.embed(anyString())).thenReturn(queryVec);
@@ -237,7 +238,7 @@ class VectorSearchIntegrationTest extends AbstractIntegrationTest {
             float[] queryVec = createNormalizedVector(0, 0.795);
 
             insertQuestion(existingId, 2L, 20L, "Chemistry", "Atomic Structure",
-                    "Chemical bonding principles", "PUBLISHED", QuestionTaxonomyConstants.Difficulty.HARD,
+                    "Chemical bonding principles", QuestionStateConstants.PUBLISHED, QuestionTaxonomyConstants.Difficulty.HARD,
                 QuestionTaxonomyConstants.CognitiveLevel.ANALYZE, TENANT_A, baseVec);
 
             when(embeddingService.embed(anyString())).thenReturn(queryVec);
@@ -263,7 +264,7 @@ class VectorSearchIntegrationTest extends AbstractIntegrationTest {
 
             // Persist question in Tenant B
             insertQuestion(qTenantB, 3L, 30L, "Mathematics", "Calculus",
-                    "Find integral of sin(x)", "PUBLISHED", QuestionTaxonomyConstants.Difficulty.MEDIUM,
+                    "Find integral of sin(x)", QuestionStateConstants.PUBLISHED, QuestionTaxonomyConstants.Difficulty.MEDIUM,
                 QuestionTaxonomyConstants.CognitiveLevel.APPLY, TENANT_B, vec);
 
             String queryVecStr = EmbeddingUtils.embeddingToString(vec);
@@ -297,10 +298,10 @@ class VectorSearchIntegrationTest extends AbstractIntegrationTest {
             float[] vec = createNormalizedVector(1, 0.0);
 
             insertQuestion(qDiff, 3L, 31L, "Mathematics", "Differentiation",
-                    "Derivative of cos(x)", "PUBLISHED", QuestionTaxonomyConstants.Difficulty.EASY,
+                    "Derivative of cos(x)", QuestionStateConstants.PUBLISHED, QuestionTaxonomyConstants.Difficulty.EASY,
                 QuestionTaxonomyConstants.CognitiveLevel.REMEMBER, TENANT_A, vec);
             insertQuestion(qInteg, 3L, 32L, "Mathematics", "Integration",
-                    "Integral of cos(x)", "PUBLISHED", QuestionTaxonomyConstants.Difficulty.EASY,
+                    "Integral of cos(x)", QuestionStateConstants.PUBLISHED, QuestionTaxonomyConstants.Difficulty.EASY,
                 QuestionTaxonomyConstants.CognitiveLevel.REMEMBER, TENANT_A, vec);
 
             String queryVecStr = EmbeddingUtils.embeddingToString(vec);
@@ -322,10 +323,10 @@ class VectorSearchIntegrationTest extends AbstractIntegrationTest {
             float[] vec = createNormalizedVector(2, 0.0);
 
             insertQuestion(qPhysics, 1L, 10L, "Physics", "Vectors",
-                    "Vector cross product", "PUBLISHED", QuestionTaxonomyConstants.Difficulty.MEDIUM,
+                    "Vector cross product", QuestionStateConstants.PUBLISHED, QuestionTaxonomyConstants.Difficulty.MEDIUM,
                 QuestionTaxonomyConstants.CognitiveLevel.APPLY, TENANT_A, vec);
             insertQuestion(qMath, 3L, 33L, "Mathematics", "Linear Algebra",
-                    "Determinant of 3x3 matrix", "PUBLISHED", QuestionTaxonomyConstants.Difficulty.MEDIUM,
+                    "Determinant of 3x3 matrix", QuestionStateConstants.PUBLISHED, QuestionTaxonomyConstants.Difficulty.MEDIUM,
                 QuestionTaxonomyConstants.CognitiveLevel.APPLY, TENANT_A, vec);
 
             String queryVecStr = EmbeddingUtils.embeddingToString(vec);
@@ -346,10 +347,10 @@ class VectorSearchIntegrationTest extends AbstractIntegrationTest {
             float[] vec = createNormalizedVector(3, 0.0);
 
             insertQuestion(qEasy, 4L, 40L, "Economics", "Fiscal Policy",
-                    "What is repo rate?", "APPROVED", QuestionTaxonomyConstants.Difficulty.EASY,
+                    "What is repo rate?", QuestionStateConstants.APPROVED, QuestionTaxonomyConstants.Difficulty.EASY,
                 QuestionTaxonomyConstants.CognitiveLevel.REMEMBER, TENANT_A, vec);
             insertQuestion(qHard, 4L, 40L, "Economics", "Fiscal Policy",
-                    "Derive IS-LM curve equilibrium under fiscal expansion", "APPROVED",
+                    "Derive IS-LM curve equilibrium under fiscal expansion", QuestionStateConstants.APPROVED,
                 QuestionTaxonomyConstants.Difficulty.HARD, QuestionTaxonomyConstants.CognitiveLevel.ANALYZE, TENANT_A, vec);
 
             String queryVecStr = EmbeddingUtils.embeddingToString(vec);
@@ -378,12 +379,12 @@ class VectorSearchIntegrationTest extends AbstractIntegrationTest {
 
             // 1. PUBLISHED question with matching vector
             insertQuestion(pubId, 1L, 10L, "General Science", "Optics",
-                    "Snell's law of refraction", "PUBLISHED", QuestionTaxonomyConstants.Difficulty.MEDIUM,
+                    "Snell's law of refraction", QuestionStateConstants.PUBLISHED, QuestionTaxonomyConstants.Difficulty.MEDIUM,
                 QuestionTaxonomyConstants.CognitiveLevel.APPLY, TENANT_A, vec);
 
             // 2. DRAFT question with matching vector (should NOT be returned)
             insertQuestion(draftId, 1L, 10L, "General Science", "Optics",
-                    "Draft refraction question", "DRAFT", QuestionTaxonomyConstants.Difficulty.MEDIUM,
+                    "Draft refraction question", QuestionStateConstants.DRAFT, QuestionTaxonomyConstants.Difficulty.MEDIUM,
                 QuestionTaxonomyConstants.CognitiveLevel.APPLY, TENANT_A, vec);
 
             String queryVecStr = EmbeddingUtils.embeddingToString(vec);
@@ -404,7 +405,7 @@ class VectorSearchIntegrationTest extends AbstractIntegrationTest {
             float[] vecOrthogonal = createNormalizedVector(14, 0.0);
 
             insertQuestion(pubId, 1L, 10L, "General Science", "Optics",
-                    "Snell's law of refraction", "PUBLISHED", QuestionTaxonomyConstants.Difficulty.MEDIUM,
+                    "Snell's law of refraction", QuestionStateConstants.PUBLISHED, QuestionTaxonomyConstants.Difficulty.MEDIUM,
                 QuestionTaxonomyConstants.CognitiveLevel.APPLY, TENANT_A, vecA);
 
             String queryVecStr = EmbeddingUtils.embeddingToString(vecOrthogonal);

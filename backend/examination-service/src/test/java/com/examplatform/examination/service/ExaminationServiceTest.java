@@ -28,6 +28,7 @@ import com.examplatform.examination.dto.ExaminationResponse;
 import com.examplatform.examination.exception.ExaminationNotFoundException;
 import com.examplatform.examination.exception.SectionMarksValidationException;
 import com.examplatform.examination.repository.ExaminationRepository;
+import com.examplatform.shared.constants.QuestionStateConstants;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -125,7 +126,7 @@ class ExaminationServiceTest {
             // Then
             assertThat(response).isNotNull();
             assertThat(response.getId()).isNotNull();
-            assertThat(response.getStatus()).isEqualTo("DRAFT");
+            assertThat(response.getStatus()).isEqualTo(QuestionStateConstants.DRAFT);
             assertThat(response.getName()).isEqualTo("JEE Main 2025");
             assertThat(response.getDurationMinutes()).isEqualTo(180);
             assertThat(response.getTotalMarks()).isEqualTo(100);
@@ -141,7 +142,7 @@ class ExaminationServiceTest {
             verify(examinationRepository).save(captor.capture());
             Examination saved = captor.getValue();
             assertThat(saved.getTenantId()).isEqualTo(TENANT_ID);
-            assertThat(saved.getStatus()).isEqualTo("DRAFT");
+            assertThat(saved.getStatus()).isEqualTo(QuestionStateConstants.DRAFT);
         }
 
         @Test
@@ -306,7 +307,7 @@ class ExaminationServiceTest {
                     .calculatorPolicy("NONE")
                     .reviewFlagEnabled(false)
                     .sectionsJson("[]")
-                    .status("DRAFT")
+                    .status(QuestionStateConstants.DRAFT)
                     .build();
             // Set base entity fields via reflection
             try {
@@ -422,7 +423,7 @@ class ExaminationServiceTest {
                     .calculatorPolicy("SCIENTIFIC")
                     .reviewFlagEnabled(true)
                     .sectionsJson(sectionsJson)
-                    .status("DRAFT")
+                    .status(QuestionStateConstants.DRAFT)
                     .build();
 
             try {
